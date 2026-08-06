@@ -7,8 +7,18 @@ import {
   normalizeMix, quartileLabel, rankDepartments, recommendationFor,
   recoverableSpendUsd, redactForScoring, summarize, valuePerThousandUsd,
 } from "../src/evolution.js";
+import {
+  firstScreenEdits, loadBundledSeed, seedDocument,
+} from "../scripts/seed-first-screen.mjs";
+import { recoverableAnswer } from "../src/finops-stand.js";
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
+
+/** The answer region's figures are derived at build time (#1184), so the
+ *  region is read as the build serves it rather than as the source authors it. */
+const served = async () =>
+  parseHtml(seedDocument(await read("src/evolution.html"),
+    firstScreenEdits(await loadBundledSeed())));
 
 const team = (overrides = {}) => ({
   id: "team", name: "Backend Platform", headcount: 10, spendUsd: 10_000, queries: 20_000,
@@ -287,7 +297,8 @@ test("the recoverable answer is the first content region a reader meets", async 
 });
 
 test("the answer region asks one question, states one figure, and names one move", async () => {
-  const document = parseHtml(await read("src/evolution.html"));
+  const document = await served();
+  const answer = recoverableAnswer();
   const region = document.getElementById(ANSWER_REGION_ID);
 
   // ONE QUESTION, at the level directly below the page h1.
@@ -302,6 +313,8 @@ test("the answer region asks one question, states one figure, and names one move
   const value = document.getElementById("finops-recoverable-value");
   assert.match(textOf(label), /Recoverable annual AI spend/);
   assert.match(textOf(value), /^\$[\d,]+$/, "the figure is whole dollars, rounded for display");
+  assert.equal(textOf(value), answer.recoverable.text,
+    "the figure is the derivation's, not one authored beside it");
 
   // ONE CONFIDENCE SENTENCE — what the estimate rests on and its one limit.
   const confidence = textOf(document.getElementById("finops-recoverable-confidence"));
@@ -313,22 +326,25 @@ test("the answer region asks one question, states one figure, and names one move
   const links = [...region.querySelectorAll("a")];
   assert.deepEqual(links.map((link) => link.id), ["finops-recoverable-action"],
     "a second link here hands the ranking decision back to the reader");
-  assert.equal(links[0].getAttribute("href"), "/savings-action-center.html");
-  assert.match(textOf(links[0]), /Atlas Platform/,
+  assert.equal(links[0].getAttribute("href"), answer.action.href);
+  assert.ok(textOf(links[0]).includes(answer.destination.label),
     "the action names the move to make, not the destination page");
 });
 
-test("the recoverable figure is the derivation the page already carries", async () => {
-  const [page, demo] = await Promise.all([
-    read("src/evolution.html"), read("src/evolution-demo-data.json"),
-  ]);
-  // 5,200 USD a month is this page's one modelled destination move, named by the
-  // fixture and by the proof point. The answer states its annual form and adds
-  // no new figure and no new data source: 5,200 x 12 = 62,400.
-  assert.match(demo, /\$5,200 monthly savings scenario/);
-  assert.match(page, /Projected savings[\s\S]*\$5,200 \/ month/);
-  assert.match(page, /id="finops-recoverable-value">\$62,400</);
-  assert.match(page, /5,200 x 12 = 62,400/, "the derivation travels with the figure");
+test("no figure in the answer region is authored into the markup", async () => {
+  // #1184: the figure, the move and the arithmetic under the disclosure are one
+  // derivation over the bundled analysis, rendered by the build. The source may
+  // therefore carry none of them — a literal here is a copy that stops moving
+  // when the dataset does. tests/finops-recoverable-answer.test.js owns the
+  // agreement between each rendered figure and what the derivation returns.
+  const page = await read("src/evolution.html");
+  const answer = recoverableAnswer();
+  const region = page.slice(page.indexOf(`id="${ANSWER_REGION_ID}"`));
+  const markup = region.slice(0, region.indexOf("</section>"));
+  assert.deepEqual(markup.match(/\$[\d,]+/g) ?? [], [],
+    "a dollar figure is authored into the answer region again");
+  assert.equal(textOf((await served()).getElementById("finops-recoverable-value")),
+    answer.recoverable.text);
 });
 
 test("the action center points at the answer instead of restating it", async () => {

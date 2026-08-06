@@ -1284,3 +1284,178 @@ export function standHeadlineForImport({ analysis = null, eligibility = null } =
       && composed.action.available),
   });
 }
+
+// ---------------------------------------------------------------------------
+// THE ONE RECOVERABLE ANSWER (#1184) — every dollar figure in the answer region
+// from one derivation, or from nowhere.
+//
+// THE DEFECT THIS CLOSES. #1183 authored the region's money into the markup
+// three times over — the value slot, the basis under the disclosure, and the
+// arithmetic in a comment — and none of the three came from the analysis this
+// page scores. They annualized a monthly saving quoted in a prose field of the
+// bundled brief, while the analysis publishes its own recoverable total two
+// screens further down, so a reader who checked the answer against the page's
+// own evidence found two different answers.
+//
+// So the region has ONE source now: this function. Its three slots are seeded
+// from it by scripts/seed-first-screen.mjs, and
+// tests/finops-recoverable-answer.test.js compares each rendered figure against
+// what this returns rather than against a literal — a dataset edit that does not
+// move all three fails there.
+//
+// THE ARITHMETIC, stated so that two engineers get the same figure.
+//   analyzed_monthly    the analysis envelope's own `spendUsd`.
+//   recoverable_monthly its own `recoverableUsd`, the sum of the per-department
+//                       modelled moves the ranked attribution already published.
+//                       Nothing is re-summed here; a second summation is a
+//                       second answer.
+//   annual              monthly x ANNUALIZATION_MONTHS. The analysis covers ONE
+//                       calendar month, so the annual form is that month held
+//                       flat for a year. Rounding happens once, at format time,
+//                       and never on an operand.
+//   destination         `topDepartment`: the largest single modelled move, with
+//                       its own recoverable amount annualized the same way.
+//   coverage            `gradeExport`'s covered and total — how much of the
+//                       analyzed spend the rubric actually scored. That is the
+//                       input behind the confidence qualifier, carried beside
+//                       the figure rather than asserted about it.
+//
+// Pure and DOM-free: both readers are arguments, there is no clock, no storage
+// and no network, and the return value is frozen data. Currency formatting is
+// `usd` above — the formatter this module's other figures already go through —
+// so the answer region and the headline under it round identically.
+// ---------------------------------------------------------------------------
+
+/** Bump when a field, its meaning, or the arithmetic behind one changes. */
+export const RECOVERABLE_ANSWER_VERSION = "finops-recoverable-answer/1.0.0";
+
+/** The bundled analysis covers one calendar month; the answer is stated annual. */
+export const ANNUALIZATION_MONTHS = 12;
+
+/** What the modelled destination saving IS, worded once for every surface. */
+const DESTINATION_MOVE = "route its short, low-context requests to the standard model";
+
+/** Nothing derivable: the same named slots, no figure, and why. Never a zero. */
+function noRecoverableAnswer(reason) {
+  return Object.freeze({
+    version: RECOVERABLE_ANSWER_VERSION,
+    available: false,
+    source: "example",
+    period: null,
+    months: ANNUALIZATION_MONTHS,
+    spend: Object.freeze({ monthlyUsd: null, annualUsd: null, text: null, monthlyText: null }),
+    recoverable: Object.freeze({
+      monthlyUsd: null, annualUsd: null, text: null, monthlyText: null, share: null, shareText: null,
+    }),
+    destination: Object.freeze({
+      available: false, id: null, label: null, monthlyUsd: null, annualUsd: null, text: null,
+    }),
+    coverage: Object.freeze({
+      measurable: false, scoredUsd: null, scopeUsd: null, ratio: null, tier: null, qualifier: null,
+    }),
+    action: null,
+    basis: reason,
+    withheld: reason,
+  });
+}
+
+/**
+ * The recoverable answer the AI FinOps answer region states, as one object.
+ *
+ * @param loadAnalysis the bundled scored dataset's loader. Injectable for tests
+ *   only; every shipped caller takes the default.
+ * @param grade the gradability reader, for the coverage behind the qualifier.
+ * @returns a frozen `finops-recoverable-answer/1.0.0` record. `available: false`
+ *   with every figure null when the dataset carries no total to divide — the
+ *   surface then says so rather than painting a figure nothing derived.
+ */
+export function recoverableAnswer(loadAnalysis = loadExampleDataset, grade = gradeExport) {
+  let analysis = null;
+  try {
+    analysis = loadAnalysis();
+  } catch {
+    analysis = null;
+  }
+  const monthlySpend = Number(analysis?.spendUsd);
+  const monthlyRecoverable = Number(analysis?.recoverableUsd);
+  const share = recoverableShare(monthlyRecoverable, monthlySpend);
+  if (share === null || !Number.isFinite(monthlySpend) || monthlySpend <= 0) {
+    return noRecoverableAnswer(STAND_LOAD_FAILURE_REASON);
+  }
+  const annualSpend = monthlySpend * ANNUALIZATION_MONTHS;
+  const annualRecoverable = monthlyRecoverable * ANNUALIZATION_MONTHS;
+  const period = periodLabel(analysis);
+
+  // The largest single modelled move, from the analysis's own ranking. A
+  // department carrying no recoverable line is not a destination this names.
+  const top = analysis?.topDepartment ?? null;
+  const monthlyDestination = Number(top?.recoverableUsd);
+  const destinationLabel = top?.name ?? top?.unit?.label ?? null;
+  const hasDestination = Number.isFinite(monthlyDestination) && monthlyDestination > 0
+    && typeof destinationLabel === "string" && destinationLabel.length > 0;
+  const annualDestination = hasDestination ? monthlyDestination * ANNUALIZATION_MONTHS : null;
+
+  const gradability = grade({ analysis, source: "example" });
+  const scored = scoredCoverage(gradability?.coveredUsd, gradability?.totalUsd);
+  const numeric = (value) => (Number.isFinite(Number(value)) ? Number(value) : null);
+
+  return Object.freeze({
+    version: RECOVERABLE_ANSWER_VERSION,
+    available: true,
+    source: "example",
+    period,
+    months: ANNUALIZATION_MONTHS,
+    spend: Object.freeze({
+      monthlyUsd: monthlySpend,
+      annualUsd: annualSpend,
+      text: usd(annualSpend),
+      monthlyText: usd(monthlySpend),
+    }),
+    recoverable: Object.freeze({
+      monthlyUsd: monthlyRecoverable,
+      annualUsd: annualRecoverable,
+      text: usd(annualRecoverable),
+      monthlyText: usd(monthlyRecoverable),
+      share,
+      shareText: `${Math.round(share * 100)}%`,
+    }),
+    destination: Object.freeze({
+      available: hasDestination,
+      id: hasDestination ? (top.id ?? null) : null,
+      label: hasDestination ? destinationLabel : null,
+      monthlyUsd: hasDestination ? monthlyDestination : null,
+      annualUsd: annualDestination,
+      text: hasDestination ? usd(annualDestination) : null,
+    }),
+    coverage: Object.freeze({
+      measurable: scored.measurable,
+      scoredUsd: numeric(gradability?.coveredUsd),
+      scopeUsd: numeric(gradability?.totalUsd),
+      ratio: numeric(gradability?.coverage),
+      tier: gradability?.tier ?? null,
+      qualifier: scored.qualifier,
+    }),
+    // The first move, as the one control the region ends on: which destination,
+    // what the move is, and what it is worth for a year. No second link.
+    action: hasDestination
+      ? Object.freeze({
+        href: "/savings-action-center.html",
+        label: `Start with ${destinationLabel}: ${DESTINATION_MOVE}`
+          + ` — ${usd(annualDestination)} a year`,
+      })
+      : null,
+    // What the disclosure states under the figure: every operand, in order, and
+    // the coverage the confidence rests on. No literal figure anywhere in it.
+    basis: `${usd(monthlyRecoverable)} of ${usd(monthlySpend)} analyzed for ${period} is modelled`
+      + ` as recoverable, ${Math.round(share * 100)}% of it. The answer states that month held`
+      + ` flat for a year — ${usd(annualRecoverable)} recoverable of ${usd(annualSpend)}`
+      + ` analyzed, from ${usd(monthlyRecoverable)} x ${ANNUALIZATION_MONTHS}, rounded once`
+      + " after the arithmetic."
+      + (hasDestination
+        ? ` ${destinationLabel} is the largest single modelled move in it at`
+          + ` ${usd(annualDestination)} a year, which is why the first step names it.`
+        : " No single department carries a modelled move, so none is named first.")
+      + ` ${scored.qualifier}`,
+    withheld: null,
+  });
+}

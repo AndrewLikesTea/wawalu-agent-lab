@@ -52,7 +52,7 @@ import {
 } from "../src/executive-briefing-projection-view.js";
 import { answerAnnouncement } from "../src/finops-answer-announcement.js";
 import { FINOPS_ANSWER_SUMMARY } from "../src/finops-answer-summary.js";
-import { buildStandHeadline } from "../src/finops-stand.js";
+import { buildStandHeadline, recoverableAnswer } from "../src/finops-stand.js";
 import { standClaimSentence } from "../src/finops-stand-view.js";
 
 /** The document this seed belongs to, relative to a build root. */
@@ -125,8 +125,12 @@ const filledText = (slot, id, attributes, tag, seeded) =>
  * Compose every replacement the first screen needs, in document order.
  *
  * @param bundled the parsed `evolution-demo-data.json` the page fetches.
+ * @param recoverable the answer region's derivation (#1184). Injectable for
+ *   tests only — every shipped caller takes the default — so a suite can seed
+ *   the document from a moved dataset and prove that every occurrence moved
+ *   with it rather than trusting that they would.
  */
-export function firstScreenEdits(bundled) {
+export function firstScreenEdits(bundled, recoverable = recoverableAnswer()) {
   const answer = FINOPS_ANSWER_SUMMARY;
   const headline = buildStandHeadline();
   const readiness = recordingRoot();
@@ -141,6 +145,27 @@ export function firstScreenEdits(bundled) {
 
   const available = (value) => (value ? "true" : "false");
   const edits = [
+    // ---- The one answer, first in the document and first here. Seeded ONLY
+    // when the derivation produced a figure and a destination: a recoverable
+    // total with no move to spend it on, or a move with no amount, is a
+    // recommendation the build would be inventing, and the authored pending
+    // wording is the honest thing to leave on screen instead.
+    ...(recoverable.available && recoverable.action
+      ? [
+        authoredText("recoverable figure", "finops-recoverable-value",
+          "Results will appear here", recoverable.recoverable.text),
+        edit("recoverable first move",
+          '<a class="stand-action" id="finops-recoverable-action"'
+          + ' href="/savings-action-center.html">The first move will appear here</a>',
+          '<a class="stand-action" id="finops-recoverable-action"'
+          + ` href="${escapeAttribute(recoverable.action.href)}">`
+          + `${escapeText(recoverable.action.label)}</a>`),
+        authoredText("recoverable basis", "finops-recoverable-basis",
+          "The arithmetic behind this figure is derived from the bundled analysis"
+          + " and will appear here.", recoverable.basis),
+      ]
+      : []),
+
     // ---- The region's own state, which a stylesheet and a printed page read.
     edit("stand region state",
       '<section class="stand" id="finops-stand" tabindex="-1" data-state="pending"'

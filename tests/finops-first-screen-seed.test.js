@@ -121,7 +121,9 @@ test("every seeded slot matches the authored markup exactly once", () => {
   // reaching here is the assertion. The count is stated so a slot cannot be
   // quietly dropped from the seed and leave this suite still green.
   const edits = firstScreenEdits(BUNDLED);
-  assert.equal(edits.length, 34, "the seed covers 34 first-screen slots");
+  // 34 through #1183, plus the three money-bearing slots of the answer region
+  // the build now derives instead of the markup authoring (#1184).
+  assert.equal(edits.length, 37, "the seed covers 37 first-screen slots");
   for (const { slot, find } of edits) {
     assert.equal(SOURCE.split(find).length - 1, 1, `${slot} matches the authored markup once`);
   }
