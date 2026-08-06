@@ -447,10 +447,99 @@ function syntheticBanner({ label, disclosure }) {
   return banner;
 }
 
-function masthead(briefing, origin, synthetic) {
+/** The container a shared sheet is read through. Pinned: the page hooks it. */
+export const SHARED_SHEET_ID = "brief-shared-sheet";
+
+/**
+ * The first screen of a sheet that arrived in somebody else's link.
+ *
+ * A colleague opening a pasted URL has one question before every other question
+ * on this page: can I quote this. So the sheet answers it in the order a reader
+ * actually needs it — the figure, then the grade and the provenance one level
+ * under it — using the answer region's own type roles and nothing new:
+ * `.brief-figure` and `.brief-figure-label` are the metric section's, the grade
+ * is `confidenceVerdict` verbatim, and the origin sentence is the
+ * `.brief-provenance-line` the bounds section already reads in. No second
+ * grammar, no token, and no control: this block is prose, so the reader crosses
+ * it without spending a tab stop.
+ *
+ * THE FIGURE IS TWO DIFFERENT KINDS OF NUMBER and a shared sheet is exactly
+ * where that stops being obvious — the sender knew which half was counted and
+ * which half was modelled, and the recipient has only the sheet. So the parts
+ * are split out and each carries a word ("Measured", "Estimated") and its own
+ * value; `data-silhouette` follows the chip rule in
+ * design-system/claude-design/review-08-foundations.html — outline for a static
+ * classification, a filled wash for a derived signal — and is the third channel,
+ * never the first. A monochrome print says the same thing the screen does.
+ *
+ * EVERY STATE IS DRAWN, not just the one that demos well: no figure at all (the
+ * contract's own absence statement), an unknown grade (`confidenceVerdict`
+ * prints the raw level and rung 0), missing provenance (`count` renders an em
+ * dash rather than "undefined"), and an implausible figure (`usd` formats it and
+ * the estimated row still says it is modelled, so a large number cannot read as
+ * an invoice).
+ */
+function sharedSheet(briefing, origin) {
+  const sheet = el("aside", "brief-shared");
+  sheet.id = SHARED_SHEET_ID;
+  sheet.dataset.source = "shared";
+  sheet.setAttribute("aria-labelledby", "brief-shared-title");
+  const title = el("p", "brief-shared-title");
+  title.id = "brief-shared-title";
+  title.append(el("span", "brief-shared-tag", "Shared link · the sender’s own figures"));
+  sheet.append(title);
+
+  const recoverable = briefing.recoverable;
+  if (recoverable) {
+    sheet.append(el("p", "brief-figure", usd(recoverable.valueMinor)));
+    sheet.append(el("p", "brief-figure-label", recoverable.label));
+  } else {
+    sheet.append(el("p", "brief-figure", "—"));
+    sheet.append(el("p", "brief-figure-label", briefing.absent?.recoverable?.statement
+      ?? "No recoverable figure could be computed from the periods in this link."));
+  }
+
+  sheet.append(confidenceVerdict(briefing.confidence ?? {}));
+
+  const provenance = briefing.provenance ?? {};
+  const parts = el("ul", "brief-shared-components");
+  parts.append(
+    sharedComponent({
+      basis: "measured", silhouette: "outline", word: "Measured",
+      value: `${usd(recoverable?.analyzedSpendMinor)} analyzed spend`,
+      note: `Summed from ${count(provenance.recordsAnalyzed)} of `
+        + `${count(provenance.recordsTotal)} records in the sender’s own export.`,
+    }),
+    sharedComponent({
+      basis: "estimated", silhouette: "filled", word: "Estimated",
+      value: `${usd(recoverable?.valueMinor)} recoverable`,
+      note: "A modelled scenario over that spend, not an invoice line and not a realized saving.",
+    }),
+  );
+  sheet.append(parts);
+
+  if (origin) sheet.append(el("p", "brief-provenance-line", origin));
+  return sheet;
+}
+
+function sharedComponent({ basis, silhouette, word, value, note }) {
+  const item = el("li", "brief-shared-component");
+  item.dataset.basis = basis;
+  item.dataset.silhouette = silhouette;
+  return inline(
+    item,
+    el("span", "brief-component-shape"),
+    el("span", "brief-component-tag", word),
+    el("span", "brief-component-value", value),
+    el("span", "brief-component-note", note),
+  );
+}
+
+function masthead(briefing, origin, synthetic, shared) {
   const header = el("header", "brief-masthead");
   const question = briefing.questions?.[0]?.question ?? "Where should we act first?";
   if (synthetic) header.append(syntheticBanner(synthetic));
+  if (shared) header.append(sharedSheet(briefing, origin));
   header.append(el("p", "eyebrow", "Executive FinOps briefing"));
 
   const title = el("h2", "brief-question");
@@ -660,6 +749,29 @@ function followUpInvitation() {
   return section;
 }
 
+/**
+ * The grade, in the one form this sheet announces it in.
+ *
+ * Extracted rather than restated so the shared sheet's copy of it is the same
+ * element, in the same words, with the same rung sentence — a second phrasing of
+ * a confidence level is a second grade as far as a reader is concerned, and as
+ * far as a screen reader is concerned it is a different announcement entirely.
+ * An unknown level is a state too: the rung falls to 0 and the raw level is
+ * printed, so a grade this build does not know still reads as a grade.
+ */
+function confidenceVerdict(confidence) {
+  const rung = CONFIDENCE_LADDER.indexOf(confidence.level) + 1;
+  const verdict = el("p", "brief-verdict");
+  verdict.dataset.confidence = confidence.level;
+  return inline(
+    verdict,
+    el("span", "brief-verdict-label", "Confidence"),
+    el("strong", "brief-verdict-word", CONFIDENCE_WORD[confidence.level] ?? String(confidence.level)),
+    el("span", "brief-verdict-rung", `level ${rung || 0} of ${CONFIDENCE_LADDER.length}`),
+    el("span", "brief-verdict-shape"),
+  );
+}
+
 function trustSection(briefing) {
   const section = el("section", "brief-section brief-trust");
   section.dataset.role = "trust-verdict";
@@ -669,17 +781,7 @@ function trustSection(briefing) {
   section.append(heading);
 
   const confidence = briefing.confidence ?? {};
-  const rung = CONFIDENCE_LADDER.indexOf(confidence.level) + 1;
-  const verdict = el("p", "brief-verdict");
-  verdict.dataset.confidence = confidence.level;
-  inline(
-    verdict,
-    el("span", "brief-verdict-label", "Confidence"),
-    el("strong", "brief-verdict-word", CONFIDENCE_WORD[confidence.level] ?? String(confidence.level)),
-    el("span", "brief-verdict-rung", `level ${rung || 0} of ${CONFIDENCE_LADDER.length}`),
-    el("span", "brief-verdict-shape"),
-  );
-  section.append(verdict);
+  section.append(confidenceVerdict(confidence));
   if (confidence.meaning) section.append(el("p", "brief-verdict-meaning", confidence.meaning));
   if (confidence.ceiling) {
     section.append(el("p", "brief-verdict-ceiling",
@@ -854,14 +956,17 @@ function methodPanel(briefing) {
  * masthead rather than in a footnote.
  */
 export function renderExecutiveBriefingPreview(
-  briefing, { origin, provenanceNote, synthetic, followUp = false } = {},
+  briefing, { origin, provenanceNote, synthetic, shared = false, followUp = false } = {},
 ) {
   const article = el("article", "brief");
   article.dataset.state = briefing?.reportingPeriod ? "briefing" : "absent";
   if (synthetic) article.dataset.synthetic = "true";
+  // Named in the DOM so the sheet's own source is a state a test can assert on
+  // rather than infer from the sentence in its masthead.
+  if (shared) article.dataset.source = "shared";
   article.setAttribute("aria-labelledby", "brief-question");
 
-  article.append(masthead(briefing, origin, synthetic));
+  article.append(masthead(briefing, origin, synthetic, shared));
 
   if (!briefing?.reportingPeriod) {
     const absent = el("section", "brief-section brief-absent-slots");
