@@ -167,7 +167,11 @@ function paintSharedBriefing({ periods, origin, provenanceNote }) {
     }));
     return null;
   }
-  const article = renderExecutiveBriefingPreview(briefing, { origin, provenanceNote, followUp: true });
+  // `shared: true` is what puts the shared sheet at the top of the masthead:
+  // the figure, the grade and whose months these are, before the question.
+  const article = renderExecutiveBriefingPreview(briefing, {
+    origin, provenanceNote, shared: true, followUp: true,
+  });
   paint(article);
   activate(article);
   return article;

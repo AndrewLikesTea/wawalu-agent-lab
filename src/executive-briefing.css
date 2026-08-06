@@ -208,6 +208,33 @@
 .brief-synthetic-tag { color:#72520a; font:750 11px/1.6 ui-monospace,monospace; letter-spacing:.08em; text-transform:uppercase; }
 .brief-synthetic-statement { max-width:66ch; margin:0; color:#55554f; font-size:13.5px; line-height:1.55; }
 
+/* The first screen of a sheet that arrived in somebody else's link.
+ * It introduces no scale: the figure and its label are the metric section's own
+ * roles, the grade is the trust verdict's element, and the origin sentence is
+ * the provenance line the bounds section already reads in. Only the frame and
+ * the two component rows are new, and they are spacing, not type.
+ * Colour is never the signal. Each component carries its word and its own
+ * value; `data-silhouette` is the third channel, following the chip rule in
+ * design-system/claude-design/review-08-foundations.html — outline for a static
+ * classification (a measurement), a filled wash for a derived one (a model) —
+ * and each carries a distinct shape so a monochrome print keeps the split. */
+.brief-shared { margin:0 0 20px; border:1px solid var(--brief-line); border-left:4px solid var(--brief-ink); border-radius:10px; padding:16px 18px; background:var(--brief-quiet); }
+.brief-shared-title { margin:0 0 10px; }
+.brief-shared-tag { color:var(--brief-ink); font:750 11px/1.6 ui-monospace,monospace; letter-spacing:.08em; text-transform:uppercase; }
+.brief-shared .brief-figure { font-size:clamp(32px,5.4vw,50px); }
+.brief-shared .brief-figure-label { margin-top:6px; font-size:16px; }
+.brief-shared .brief-verdict { margin:14px 0 0; }
+.brief-shared .brief-provenance-line { max-width:66ch; margin:12px 0 0; color:#55554f; font-size:12px; }
+.brief-shared-components { display:grid; gap:8px; margin:14px 0 0; padding:0; list-style:none; }
+.brief-shared-component { display:flex; flex-wrap:wrap; align-items:baseline; gap:2px 10px; border:1px solid var(--brief-line); border-radius:8px; padding:8px 12px; }
+.brief-shared-component[data-silhouette="filled"] { border-color:transparent; background:#ece9df; }
+.brief-component-shape::before { font-size:11px; }
+.brief-shared-component[data-basis="measured"] .brief-component-shape::before { content:"\25AC"; }
+.brief-shared-component[data-basis="estimated"] .brief-component-shape::before { content:"\25C7"; }
+.brief-component-tag { color:var(--brief-ink); font:750 10px/1.6 ui-monospace,monospace; letter-spacing:.07em; text-transform:uppercase; }
+.brief-component-value { color:var(--brief-ink); font:800 15px/1.4 inherit; }
+.brief-component-note { flex:1 0 100%; color:#55554f; font-size:12.5px; line-height:1.5; }
+
 /* Drawn above the sheet, and printed with it: a briefing built from the
  * published sample rather than from the reader's own months has to say so
  * everywhere it could be mistaken for a measurement, paper included. The wash is
@@ -376,6 +403,9 @@
      stripped of colour, because the words already carry them. */
   .brief-synthetic { border:1px solid #171713; border-left:4px solid #171713; border-radius:0; background:none !important; break-inside:avoid; }
   .brief-synthetic-tag,.brief-synthetic-statement { color:#171713 !important; font-size:11px; }
+  .brief-shared { border:1px solid #171713; border-left:4px solid #171713; border-radius:0; background:none !important; break-inside:avoid; }
+  .brief-shared-component { border:1px solid #171713; border-radius:0; background:none !important; }
+  .brief-component-tag,.brief-component-value,.brief-component-note { color:#171713 !important; }
   .brief-figure-basis { border-left:3px solid #171713; break-inside:avoid; }
   .brief-basis-tag,.brief-basis-statement { color:#171713 !important; font-size:11px; }
   .brief-provenance-summary { break-inside:avoid; }

@@ -378,17 +378,21 @@
              Ships HIDDEN, and stays hidden while there is nothing of the
              reader's own to share: a disabled control beside a bundled example
              would be offering to share an invented company. data-reason names
-             which refusal put it there.
-             The status is a paragraph in the open, never inside a disclosure
-             element, and it ships EMPTY — this page allows one voice per change.
-             The box is both the manual fallback and the one place the current
-             link lives, so a refused clipboard still leaves it selectable.
+             which refusal put it there — and the egress sentence is offered and
+             withheld with the button it describes, never separately, because a
+             claim about where figures travel is only worth making beside the
+             control that sends them.
+             The egress line and the status are paragraphs in the open, never
+             inside a disclosure element, and neither is focusable: the reader
+             crosses this block in two tab stops, the button and the box.
+             The status ships EMPTY — one voice per change.
              No new style rule: the coaching control's classes, the design
              system's secondary button, a prompt-coaching-field box. -->
         <div class="prompt-coaching-copy" id="finops-share" data-reason="no_period_in_token" hidden>
           <h3 class="eyebrow">Send a colleague your own figures</h3>
           <p class="prompt-coaching-copy-lead" id="finops-share-lead">A link to the printable executive briefing with the periods this browser has retained carried in it, so whoever opens it reads your months rather than the bundled synthetic example. The figures ride after the # and are never sent to a server. Aggregates only: the same retained-period fields this browser already keeps, no row and no filename.</p>
-          <button class="secondary-button" type="button" id="finops-share-button" aria-describedby="finops-share-lead finops-share-status">Copy shareable link to your own figures</button>
+          <p class="prompt-coaching-copy-lead" id="finops-share-egress">Copying puts your own figures inside the link. It carries them wherever you paste it — into a chat, a ticket, a mail thread — and anyone who opens it reads your months. Nothing here asks who they are, and a link once pasted cannot be recalled.</p>
+          <button class="secondary-button" type="button" id="finops-share-button" aria-describedby="finops-share-lead finops-share-egress finops-share-status">Copy shareable link to your own figures</button>
           <p class="prompt-coaching-copy-status" id="finops-share-status" role="status" aria-live="polite" aria-atomic="true"></p>
           <div class="prompt-coaching-copy-fallback prompt-coaching-field" id="finops-share-fallback">
             <label for="finops-share-text">The exact link this copies</label>
@@ -2418,9 +2422,15 @@
               <p class="eyebrow">From your imported files</p>
               <h3 id="local-results-title" tabindex="-1">FinOps briefing</h3>
             </div>
+            <!-- The same egress sentence the copy control carries, in the same
+                 voice, beside the other way this brief leaves the browser. A
+                 downloaded file is a payload too: it is the reader's own
+                 figures, and it goes wherever they send it. Plain prose, not
+                 focusable, so the export group is still two tab stops. -->
             <div class="local-export-actions" id="local-export-actions" aria-label="Export this FinOps briefing">
-              <button id="export-local-json" type="button">Export briefing (JSON)</button>
+              <button id="export-local-json" type="button" aria-describedby="finops-download-egress">Export briefing (JSON)</button>
               <button id="export-local-summary" type="button">Meeting summary</button>
+              <p class="local-result-add-note" id="finops-download-egress">The downloaded file holds your own figures, not an example. It travels wherever you paste or forward it, and whoever opens it reads your months.</p>
             </div>
           </div>
           <p class="dataset-provenance" id="dataset-provenance-results" data-dataset-provenance data-dataset="user" role="note" aria-label="Data provenance" hidden></p>
