@@ -338,7 +338,9 @@ test("the post page's two routes out sit after the site frame, and name where th
   const content = html.indexOf('id="post-detail"');
   assert.ok(brand < nav, "the wordmark precedes the nav");
   assert.ok(nav < exit, "the nav precedes the exits");
-  assert.ok(exit < content, "the exits precede the post content");
+  // And the post precedes both of them. A permalink is opened to read one post;
+  // the routes onward are what a reader wants after it, not instead of it.
+  assert.ok(content < exit, "the post content precedes the exits");
 
   // Destination in the visible text, not smuggled into an aria-label — and both
   // destinations, because a cold visitor has neither of them behind them.
@@ -428,11 +430,16 @@ test("the page says what Social is in one plain sentence, written once, outside 
   assert.ok(STANDING_SENTENCE.split(/\s+/).length <= 25, "the standing sentence stays at 25 words or fewer");
   assert.equal(STANDING_SENTENCE.split(/[.!?]/).filter((part) => part.trim()).length, 1, "one sentence, not two");
 
-  // It belongs to the hero, which no script rewrites, and it comes before the
-  // panel — so it is already on screen while the post is still being fetched.
-  const hero = html.match(/<section class="hero hero-post"[\s\S]*?<\/section>/)[0];
-  assert.ok(hero.includes(STANDING_SENTENCE), "the sentence must sit in the standing hero, not in #post-detail");
-  assert.ok(html.indexOf(STANDING_SENTENCE) < html.indexOf('id="post-detail"'), "it precedes the state panel");
+  // It belongs to the standing frame, which no script rewrites, and it sits
+  // outside the panel the fetch replaces — so it survives every state the
+  // lookup can land in. Counted inside the region rather than matched against
+  // the hero's closing tag, which the post's own region now sits inside.
+  const region = html.match(/<div id="post-detail"[\s\S]*?<\/div>/)[0];
+  assert.equal(region.includes(STANDING_SENTENCE), false, "the sentence must not sit in #post-detail");
+
+  // And it reads after the post rather than before it. What Social is only
+  // becomes a reader's question once they have read the post they came for.
+  assert.ok(html.indexOf('id="post-detail"') < html.indexOf(STANDING_SENTENCE), "the post precedes the context about Social");
 });
 
 test("the standing sentence outlives every state the panel renders", () => {
