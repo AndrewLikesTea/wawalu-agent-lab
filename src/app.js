@@ -5,6 +5,11 @@ import {
   decisionRecordedSummary,
   validateDecisionEntry,
 } from "./decision-entry.js";
+import {
+  CONFIDENCE_DISCLOSURE_LABEL,
+  CONFIDENCE_OUTCOME_WORDS,
+  scoreDecisionConfidence,
+} from "./decision-confidence.js";
 import { STORED_DECISION_STATUSES, canonicalDecisionStatus } from "./decision-status.js";
 import { dedupeById } from "./demo-data.js";
 import {
@@ -750,6 +755,81 @@ function appendShippedIn(article, record, visibleKeys) {
   return relationship;
 }
 
+// How sure a reader can be that this record is quotable, on the row itself.
+//
+// The verdict is a sibling of the disclosure, not its summary and not inside
+// it. A summary is always rendered, so putting the verdict there would also be
+// readable — but a reader who has the disclosure open is then reading the
+// verdict twice, and a verdict that IS the control invites a click to find out
+// what it says. One sentence of plain text, then a separate control for the
+// evidence behind it.
+//
+// The grade carries no icon and no colour of its own. A backed record is the
+// ordinary case and takes the muted class the "nothing linked here" line
+// already uses; only a record with a gap takes a distinguishing token, and the
+// one it takes is the dashed sand pill this view already uses for a reference
+// with something missing behind it — attention, not alarm. Both states say
+// which they are in words, so neither depends on the styling being seen.
+//
+// No rule of its own is added: the wrapper, the label, the two verdict classes,
+// the disclosure summary, and the list inside it are all classes this row
+// already ships.
+function appendConfidence(article, record) {
+  const grade = scoreDecisionConfidence(record);
+  const line = document.createElement("div");
+  line.className = "record-links decision-confidence";
+  appendTextElement(line, "span", "owner-label", "Confidence");
+  appendTextElement(
+    line,
+    "span",
+    `confidence-verdict ${grade.backed ? "record-link-empty" : "record-link-missing"}`,
+    grade.verdict,
+  );
+
+  const disclosure = document.createElement("details");
+  disclosure.className = "confidence-detail";
+  const summary = document.createElement("summary");
+  summary.className = "supersede-disclosure-summary";
+  summary.setAttribute("aria-expanded", "false");
+  summary.textContent = CONFIDENCE_DISCLOSURE_LABEL;
+  disclosure.addEventListener("toggle", () => {
+    summary.setAttribute("aria-expanded", String(disclosure.open === true || disclosure.getAttribute("open") !== null));
+  });
+
+  const list = document.createElement("ul");
+  list.className = "linked-release-list confidence-checks";
+  list.setAttribute("aria-label", "Confidence checks, in the order the rule applies them");
+  for (const check of grade.checks) {
+    const item = document.createElement("li");
+    appendTextElement(item, "span", "owner-label", check.passed
+      ? CONFIDENCE_OUTCOME_WORDS.pass
+      : CONFIDENCE_OUTCOME_WORDS.gap);
+    item.append(document.createTextNode(" "));
+    appendTextElement(item, "span", "confidence-check-label", check.label);
+    // Record-supplied text, set as a text node like every other field on this
+    // row: an owner recorded as `<img src=x onerror=alert(1)>` is 28 visible
+    // characters here and no element.
+    if (check.evidence) {
+      item.append(document.createTextNode(" — "));
+      appendTextElement(item, "span", "confidence-evidence", check.evidence);
+    }
+    list.append(item);
+  }
+  disclosure.append(summary, list);
+  if (grade.nextAction) appendTextElement(disclosure, "p", "confidence-next", grade.nextAction);
+  // Which rule produced the verdict, named on the page rather than only in the
+  // module, so a disputed grade can be traced without reading the source.
+  const rule = document.createElement("p");
+  rule.className = "confidence-rule";
+  appendTextElement(rule, "span", "owner-label", "Rule");
+  rule.append(document.createTextNode(grade.ruleId));
+  disclosure.append(rule);
+
+  line.append(disclosure);
+  article.append(line);
+  return line;
+}
+
 function renderDecisionRow(record, index, visibleKeys) {
   const { decision, example } = record;
   const item = document.createElement("li");
@@ -798,6 +878,7 @@ function renderDecisionRow(record, index, visibleKeys) {
   detailLink.append(summary);
   article.append(detailLink);
   appendShippedIn(article, record, visibleKeys);
+  appendConfidence(article, record);
   item.append(article);
   return item;
 }
