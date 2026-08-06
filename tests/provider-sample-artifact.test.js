@@ -41,6 +41,11 @@ const SAMPLE_MODULES = [
   "browser-compat-eligibility.js",
   "evolution-page.js",
   "evolution.html",
+  // The worked sample (#1167) and its control. Both are reached by `import()`
+  // alone, so nothing in the static graph notices if a build stops copying
+  // them; without this line the panel would ship a control that never appears.
+  "import-worked-sample.js",
+  "import-worked-sample-view.js",
 ];
 
 async function readArtifact(path) {
@@ -79,6 +84,11 @@ test("every module a provider sample is emitted from ships in the build output",
   }
   assert.ok(PROVIDER_READINESS.length > 0,
     "the built readiness contract must advertise at least one provider");
+  // The deferred half is wired the same way, and only the built text can say so:
+  // a dynamic specifier is in no import graph for anything else to check.
+  const onRamp = await readArtifact("import-on-ramp-view.js");
+  assert.ok(onRamp.includes('import("./import-worked-sample-view.js")'),
+    "the built on-ramp no longer fetches the worked-sample control");
 });
 
 test("each advertised provider emits a non-empty sample whose columns are the contract's", () => {
