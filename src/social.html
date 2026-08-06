@@ -165,7 +165,7 @@
             <div class="field field-wide">
               <label for="post-author">Display name <span class="label-optional">(optional)</span></label>
               <input id="post-author" name="author" type="text" maxlength="60" autocomplete="off"
-                placeholder="Guest" aria-describedby="post-author-hint" />
+                placeholder="Guest" aria-describedby="post-author-hint post-author-identity" />
               <!-- "Display name" is the one term the site uses for the name a
                    post is published under; the feed filter, People's picker and
                    the About Shiplog footer all say it, so the field is named
@@ -175,6 +175,18 @@
                    here, where the visitor is actually typing a name, and
                    nowhere else. -->
               <span class="hint" id="post-author-hint">Defaults to “Guest”.</span>
+              <!-- The two things the label and the “Guest” default cannot say,
+                   said where the name is actually chosen: what the name does —
+                   it is the key People groups image posts by — and what it does
+                   not mean. The second sentence reuses People's own clause, "is
+                   not a signed-in user", word for word, so the site makes that
+                   claim in one phrasing rather than two. Plain help text in the
+                   field group, named by the input's own aria-describedby: no
+                   heading, no link, no disclosure, nothing focusable, because a
+                   caveat a reader has to open is a caveat they meet afterwards.
+                   The publish consequence at the button stays the one place the
+                   page says the post is public and permanent. -->
+              <p class="hint" id="post-author-identity">People groups image posts by display name, so this is the name yours appear under. A display name is not a signed-in user — nobody owns or verifies one, and anyone can publish under any name.</p>
             </div>
 
             <div class="field field-wide">
