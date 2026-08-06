@@ -258,7 +258,7 @@
                  which filters produced that — and that is the region announced
                  now, so leaving aria-live here would read every filter change
                  out twice. -->
-            <span class="count" id="post-count">Loading posts…</span>
+            <span class="count" id="post-count">Loading the Social feed…</span>
           </div>
           <!-- Social offers Paint twice, and only twice: the hero's standing
                invitation and the composer's in-flow control. A third invitation
@@ -306,7 +306,13 @@
           </div>
           <div class="feed-connection" aria-live="polite">
             <span class="live-dot" aria-hidden="true"></span>
-            <span id="feed-status">Connecting to the Social feed…</span>
+            <!-- The same sentence the count above and the panel below say while
+                 the first fetch is open (SOCIAL_FEED_LOADING_LINE in social.js).
+                 It used to say "Connecting to the Social feed…" while the count
+                 said "Loading posts…", so one wait was described as two. Once a
+                 fetch answers, social-page.js replaces this with the live or
+                 degraded line. -->
+            <span id="feed-status">Loading the Social feed…</span>
           </div>
           <!-- Every key here is one the feed's keydown handler actually binds
                (NAV_KEYS in social.js): ←/→ step one card, ↑/↓ step one grid

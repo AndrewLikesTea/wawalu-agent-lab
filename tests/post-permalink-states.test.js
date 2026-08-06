@@ -47,7 +47,7 @@ const TEXT_POST = {
 // The headline each state puts on screen. Whichever one is active, the other
 // three of these must not appear anywhere in the page's text.
 const STATE_HEADLINES = {
-  loading: "Loading this post…",
+  loading: "Loading this post from the Social feed…",
   loaded: "Post by ",
   "not-found": "Post not found",
   error: "Post could not be loaded",
@@ -109,7 +109,7 @@ test("a post id that does not exist is headed as not found, with no wait left be
     assert.match(textOf(page.panel), /This post was not found\./);
 
     // The line the page ships with is gone, not pushed below the explanation.
-    assert.equal(textOf(page.panel).includes("Loading this post…"), false);
+    assert.equal(textOf(page.panel).includes("Loading this post from the Social feed…"), false);
     assert.equal(page.panel.querySelectorAll(".detail-loading").length, 0);
 
     // A way back to the feed lives with the explanation, so the next step is
@@ -177,7 +177,7 @@ test("a link with no id, or a truncated one, lands in the same not-found state a
       assert.match(textOf(page.panel), sentence, `${route}: the sentence says how this link failed`);
 
       // The wait is gone from the document, not pushed below the answer.
-      assert.equal(textOf(page.document.querySelector("main")).includes("Loading this post…"), false, `${route}: the wait is still on the page`);
+      assert.equal(textOf(page.document.querySelector("main")).includes("Loading this post from the Social feed…"), false, `${route}: the wait is still on the page`);
       assert.equal(page.panel.querySelectorAll(".detail-loading").length, 0, `${route}: a loading node survived`);
 
       // One next step: the feed. Counted, because the assertion is about how
@@ -595,7 +595,7 @@ test("every state the page can reach puts exactly one of the four on screen", as
     assert.equal(panel.getAttribute("aria-busy"), "true");
     // The wait carries visible words, not a bare spinner: the dot is aria-hidden
     // decoration and the sentence is the state.
-    assert.equal(textOf(panel.querySelector(".detail-loading-text")), "Loading this post…");
+    assert.equal(textOf(panel.querySelector(".detail-loading-text")), "Loading this post from the Social feed…");
     assert.equal(panel.querySelector(".detail-loading-dot").getAttribute("aria-hidden"), "true");
 
     release();
@@ -628,7 +628,7 @@ test("every state the page can reach puts exactly one of the four on screen", as
 // an icon to be understood. Asserted on text with every class name ignored.
 test("all four states carry a visible text label, not colour alone", async () => {
   const labels = {
-    loading: /Loading this post…/,
+    loading: /Loading this post from the Social feed…/,
     loaded: /Rowan Diaz/,
     "not-found": /Post not found/,
     error: /Post could not be loaded/,

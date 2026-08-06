@@ -134,6 +134,15 @@ export const AUTHOR_TERM = "display name";
 // same number.
 export const DEFAULT_FEED_HEADING = "All posts";
 
+// One sentence for one wait. While the first fetch is open a reader used to meet
+// three descriptions of it on the same screen — "Loading posts…" beside the
+// heading, "Loading Social posts…" in the panel below it, and "Connecting to the
+// Social feed…" in the live region between them — which reads as three things
+// happening rather than one. Every surface that waits on this fetch now says
+// this line: both places on Social, both places on People (profile.js imports
+// it), and the permalink narrows it to the single post it is actually after.
+export const SOCIAL_FEED_LOADING_LINE = "Loading the Social feed…";
+
 export function feedHeading({ shown = 0, range = "", author = "" } = {}) {
   const clauses = [range, author ? `under the ${AUTHOR_TERM} ${author}` : ""].filter(Boolean).join(" ");
   const counted = shown === 0 ? "No posts" : `${shown} ${shown === 1 ? "post" : "posts"}`;
@@ -546,7 +555,7 @@ export function renderPosts(container, posts, options = {}) {
     if (state === "loading") {
       renderSkeleton(container);
       const loading = document.createElement("div");
-      renderState(loading, { state: "loading", title: "Loading Social posts…" });
+      renderState(loading, { state: "loading", title: SOCIAL_FEED_LOADING_LINE });
       container.append(...loading.children);
       return;
     }
@@ -764,7 +773,7 @@ export function mountSocialFeed(root, options = {}) {
     // renders above exist to avoid, and the same wording the releases count
     // uses for the state it cannot count in.
     if (count) {
-      if (posts.length === 0 && state === "loading") count.textContent = "Loading posts…";
+      if (posts.length === 0 && state === "loading") count.textContent = SOCIAL_FEED_LOADING_LINE;
       else if (posts.length === 0 && state === "error") count.textContent = "Unavailable";
       else count.textContent = filtering ? `${postLabel(visible.length)} of ${posts.length}` : postLabel(visible.length);
     }

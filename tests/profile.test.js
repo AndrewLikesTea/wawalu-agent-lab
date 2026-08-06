@@ -564,7 +564,12 @@ test("the profile page's static copy does not drift from the module's", async ()
   // state — a verdict about a name nobody had chosen, and a false one for the
   // seeded feed — so it now says only that the counting has not happened yet.
   const html = await readFile(new URL("../src/profile.html", import.meta.url), "utf8");
-  assert.match(html, new RegExp(`id="profile-summary">${loadingSummaryText("Ari")}<`));
+  assert.match(html, new RegExp(`id="profile-summary">${loadingSummaryText()}<`));
+  // People waits on Social's fetch, so it says what Social says — in the visible
+  // line and in the live region both, not one sentence in each.
+  assert.equal(loadingSummaryText(), "Loading the Social feed…");
+  assert.match(html, new RegExp(`id="profile-status">${loadingSummaryText()}<`));
+  assert.doesNotMatch(html, /Counting Ari’s image posts/);
   assert.doesNotMatch(html, new RegExp(emptySummaryText("Ari")));
   // The results panel's count chip is gone, not hidden: the identity line is the
   // page's only statement of the image-post count.

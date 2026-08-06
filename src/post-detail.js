@@ -243,10 +243,15 @@ function renderFailed(container, onRetry) {
 // The wait, in one place, because src/post.html ships this same line in its
 // markup so the region is never blank before this module runs. Two spellings of
 // one sentence would flash a rewrite at the reader on every visit; one exported
-// string cannot. It no longer names Social — the h1 directly above it already
-// reads "Post from Social", and the standing sentence under that says what
-// Social is, so repeating the surface a third time bought nothing.
-export const POST_LOADING_LINE = "Loading this post…";
+// string cannot. This line is also the status region, so the sentence a reader
+// sees and the sentence assistive tech announces are the same string by
+// construction.
+//
+// It names the feed again. Social and People both say "Loading the Social feed…"
+// while that fetch is open (SOCIAL_FEED_LOADING_LINE in social.js), and a reader
+// who arrives here from a shared link — often without having seen either page —
+// should meet the same wait, narrowed to the one thing this page is after.
+export const POST_LOADING_LINE = "Loading this post from the Social feed…";
 
 // Waiting is not one of the states above, and it does not get their furniture.
 //

@@ -276,9 +276,12 @@ test("the loading state is one labelled line in the post's region, not a banner"
   assert.equal(container.children.length, 1, "the wait is a single line, not a stack of furniture");
   const status = first(container, "detail-loading");
   assert.equal(status.getAttribute("role"), "status");
-  assert.equal(status.textContent.replace(/\s+/g, " ").trim(), "Loading this post…");
-  assert.equal(POST_LOADING_LINE, "Loading this post…");
-  // A real ellipsis, the way "Loading posts…" and "Loading releases…" spell it,
+  assert.equal(status.textContent.replace(/\s+/g, " ").trim(), "Loading this post from the Social feed…");
+  assert.equal(POST_LOADING_LINE, "Loading this post from the Social feed…");
+  // The feed is named, because Social and People say "Loading the Social feed…"
+  // for the same fetch and this page narrows that wait rather than renaming it.
+  assert.match(POST_LOADING_LINE, /the Social feed/);
+  // A real ellipsis, the way "Loading the Social feed…" and "Loading releases…"
   // not three periods pretending to be one.
   assert.ok(POST_LOADING_LINE.endsWith("…") && !POST_LOADING_LINE.includes("..."));
 
@@ -610,7 +613,7 @@ test("loading and unavailable states say what happened in words", () => {
     first(missing, "empty-title").textContent,
     first(failed, "empty-title").textContent,
   ];
-  assert.deepEqual(titles, ["Loading this post…", "Post not found", "Post could not be loaded"]);
+  assert.deepEqual(titles, ["Loading this post from the Social feed…", "Post not found", "Post could not be loaded"]);
 
   // The difference has to survive with colour, icons and badges removed, so it
   // is asserted on the words themselves — no class name is read here.
