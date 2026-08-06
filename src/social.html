@@ -190,9 +190,24 @@
             </div>
 
             <div class="field field-wide">
-              <label for="post-body">Caption</label>
+              <!-- The one field a post cannot exist without, and until now the
+                   only one in this form whose label said nothing about whether
+                   it had to be filled in. Image, Image description and Display
+                   name all carry a parenthetical marker, so a reader scanning
+                   the labels read the unmarked one as the optional one. The
+                   marker is the same span, in the same place, with the same
+                   classes as the Image description marker, so both required
+                   answers are told the same way.
+                   The hint states the refusal this page actually performs: the
+                   textarea is `required` and social.js's submit handler returns
+                   at form.reportValidity() before anything is created, which in
+                   a browser is the native message on this field and no post.
+                   Named by the textarea's own aria-describedby, ahead of the
+                   counter, the way Display name names its own hint. -->
+              <label for="post-body">Caption <span class="label-optional label-required">(required)</span></label>
               <textarea id="post-body" name="body" rows="4" maxlength="280" required
-                aria-describedby="post-counter-label post-counter"></textarea>
+                aria-describedby="post-body-hint post-counter-label post-counter"></textarea>
+              <span class="hint" id="post-body-hint">Publish post stops on an empty caption — your browser asks you to fill this in, and nothing is published.</span>
               <p class="counter-row">
                 <span id="post-counter-label">Characters remaining:</span>
                 <span id="post-counter" aria-live="polite" aria-atomic="true">280</span>
