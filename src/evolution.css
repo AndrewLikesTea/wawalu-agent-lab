@@ -424,15 +424,15 @@
 .local-export-activation[data-state="ready"] { border-left:6px solid var(--import-accent); }
 .local-export-activation[data-state="error"] { border-color:var(--state-error-line); background:var(--state-error-wash); }
 .own-data-preflight { display:grid; gap:14px; margin:24px 0; border:1px solid var(--import-line); border-left:6px solid var(--import-accent); border-radius:12px; padding:20px; background:var(--import-wash); }
-.own-data-preflight[data-outcome="loading"] { border-left-color:var(--ink-muted); border-left-style:dashed; }
-.own-data-preflight[data-outcome="provider-export-only"],.own-data-preflight[data-outcome="insufficient-evidence"] { border-left-color:var(--state-warn-line); background:var(--state-warn-wash); }
-.own-data-preflight[data-outcome="validation-error"] { border-left-color:var(--state-error-line); background:var(--state-error-wash); }
+.own-data-preflight[data-state="pending"] { border-left-color:var(--ink-muted); border-left-style:dashed; }
+.own-data-preflight[data-state="partial"] { border-left-color:var(--state-warn-line); background:var(--state-warn-wash); }
+.own-data-preflight[data-state="blocked"] { border-left-color:var(--state-error-line); background:var(--state-error-wash); }
 .own-data-preflight:focus { outline:3px solid var(--focus-ring); outline-offset:3px; }
 .own-data-preflight h3,.own-data-preflight h4,.own-data-preflight p { margin:0; }
 .own-data-preflight-status { width:fit-content; border-radius:5px; padding:4px 9px; background:var(--import-wash); color:var(--import-ink); font:700 11px/1.4 ui-monospace,monospace; }
-.own-data-preflight[data-outcome="loading"] .own-data-preflight-status { background:transparent; color:var(--ink-muted); }
-.own-data-preflight[data-outcome="provider-export-only"] .own-data-preflight-status,.own-data-preflight[data-outcome="insufficient-evidence"] .own-data-preflight-status { background:transparent; color:var(--state-warn-ink); }
-.own-data-preflight[data-outcome="validation-error"] .own-data-preflight-status { background:transparent; color:var(--state-error-ink); }
+.own-data-preflight[data-state="pending"] .own-data-preflight-status { background:transparent; color:var(--ink-muted); }
+.own-data-preflight[data-state="partial"] .own-data-preflight-status { background:var(--state-warn-wash); color:var(--state-warn-ink); }
+.own-data-preflight[data-state="blocked"] .own-data-preflight-status { background:var(--state-error-wash); color:var(--state-error-ink); }
 .own-data-preflight-finding { display:grid; gap:4px; font-size:16px; line-height:1.5; }
 .own-data-preflight-verdict { font-size:20px; }
 .own-data-preflight-measures { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin:0; }
@@ -446,8 +446,10 @@
 .own-data-preflight-boundary { display:grid; gap:5px; }
 .own-data-preflight-sources li[data-available="false"] { color:var(--ink-muted); }
 .own-data-preflight-action { display:grid; gap:3px; border-left:5px solid var(--import-accent); padding:3px 0 3px 12px; }
-.own-data-preflight[data-outcome="provider-export-only"] .own-data-preflight-action,.own-data-preflight[data-outcome="insufficient-evidence"] .own-data-preflight-action { border-left-color:var(--state-warn-line); }
-.own-data-preflight[data-outcome="validation-error"] .own-data-preflight-action { border-left-color:var(--state-error-line); }
+.own-data-preflight[data-state="partial"] .own-data-preflight-action { border-left-color:var(--state-warn-line); }
+.own-data-preflight[data-state="blocked"] .own-data-preflight-action { border-left-width:9px; border-left-color:var(--state-error-line); }
+.own-data-preflight[data-state="partial"] .own-data-preflight-verdict { font-variant-numeric:tabular-nums; }
+.own-data-preflight[data-state="blocked"] .own-data-preflight-verdict { color:var(--state-error-ink); }
 .own-data-preflight-disclosure { border-top:1px solid var(--import-line); padding-top:10px; }
 .own-data-preflight-disclosure>summary { display:flex; justify-content:space-between; gap:16px; cursor:pointer; color:var(--import-ink); font:700 12px/1.55 ui-monospace,monospace; }
 .own-data-preflight-disclosure>summary:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }

@@ -1670,7 +1670,7 @@
             <button id="return-to-bundled-example" type="button" hidden>Return to bundled example</button>
           </div>
         </div>
-        <section class="own-data-preflight" id="own-data-evidence-preflight" data-outcome="loading" aria-labelledby="own-data-preflight-question" aria-describedby="own-data-preflight-status" aria-busy="true">
+        <section class="own-data-preflight" id="own-data-evidence-preflight" data-outcome="loading" data-state="pending" aria-labelledby="own-data-preflight-question" aria-describedby="own-data-preflight-status" aria-busy="true">
           <p class="eyebrow">Evidence preflight · bundled local example</p>
           <h3 id="own-data-preflight-question">Can this export support a trustworthy department-spend decision?</h3>
           <p class="own-data-preflight-status" id="own-data-preflight-status"><span class="status-shape" aria-hidden="true">○</span> Not yet classified · No evidence has been validated. Processing stays local to this tab; no file is uploaded or retained.</p>
@@ -1682,6 +1682,7 @@
           <p class="own-data-preflight-action"><strong>Prioritized next action</strong><span id="own-data-preflight-action">Waiting for the evidence check.</span></p>
           <div class="own-data-preflight-sources" id="own-data-preflight-downgraded" hidden>
             <h4>Computed from spend alone</h4>
+            <p id="own-data-preflight-tier-source"></p>
             <ul id="own-data-preflight-computed"></ul>
             <h4>Withheld · figure, missing field, and the export that supplies it</h4>
             <ul id="own-data-preflight-withheld"></ul>

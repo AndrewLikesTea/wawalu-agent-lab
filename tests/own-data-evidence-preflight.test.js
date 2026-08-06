@@ -189,6 +189,31 @@ test("a supported result does not carry the evidence-limited query caveat", asyn
     /^Provider export only · .*Incomplete query evidence limits classification confidence\.$/);
 });
 
+// The baseline the other two states are read against (#1170). A full result is
+// a fact: its verdict leads, no figure is promoted over it, and no step is put
+// in front of it — there is nothing to fix. It is also the only state that
+// reaches `fact`, so a regression that made everything read as a fact fails
+// here and in the two cases beside it.
+test("full result: the verdict leads and the region reads as a fact", async () => {
+  const { nodes, document } = await pageDocument();
+  const supported = assessOwnDataEvidence(BUNDLED_OWN_DATA_EVIDENCE);
+  assert.equal(supported.outcome, EVIDENCE_PREFLIGHT_OUTCOME.COMPLETE);
+  assert.equal(renderOwnDataEvidencePreflight(document, supported), true);
+  const region = nodes["own-data-evidence-preflight"];
+  assert.equal(region.dataset.state, "fact");
+  assert.equal(nodes["own-data-preflight-finding"].children[0].textContent,
+    "Decision-ready within this export");
+  assert.equal(nodes["own-data-preflight-finding"].children[1].textContent, supported.finding);
+  assert.equal(nodes["own-data-preflight-action"].textContent, supported.nextAction);
+
+  // Every reserved state is blocked but for loading, which is neither an answer
+  // nor a refusal and must not be dressed as one.
+  renderOwnDataEvidenceState(document, OWN_DATA_VIEW_STATE.LOADING);
+  assert.equal(region.dataset.state, "pending");
+  renderOwnDataEvidenceState(document, OWN_DATA_VIEW_STATE.VALIDATION_ERROR);
+  assert.equal(region.dataset.state, "blocked");
+});
+
 // A second file lands on a region the first one filled. The headline, benchmark
 // and confidence are all retired by the reserved states — but provenance is the
 // figure a reader expands to check, and it is per-evidence, so it has to be

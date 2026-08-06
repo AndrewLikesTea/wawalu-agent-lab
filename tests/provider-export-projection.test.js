@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { BLANK_GROUP_PSEUDONYM } from "../src/attribution-units.js";
 import { MAX_IMPORT_BYTES } from "../src/import-limits.js";
+import { recipeSupplyingColumn } from "../src/import-recipes.js";
 import { EVIDENCE_PREFLIGHT_OUTCOME } from "../src/own-data-evidence-preflight.js";
 import {
   parseProviderExport, projectProviderExport, providerExportPreflight,
@@ -245,4 +246,118 @@ test("the live workspace wires JSON and mapped provider exports into the project
   assert.match(entry, /const projection = projectProviderExport\(providerDocument\)/);
   assert.match(entry, /renderProviderExportProjection\(document, projection\)/);
   assert.equal((entry.match(/await paintProviderProjection\(parsed\.document\)/g) ?? []).length, 3);
+});
+
+// ---------------------------------------------------------------------------
+// Three states, three readings (#1170)
+// ---------------------------------------------------------------------------
+//
+// The region used to style a refusal and a bounded-but-usable answer the same
+// way, and a downgraded spend-only result like a passing one. These cases pin
+// what a lead can tell apart at a glance: `data-state`, the line the region
+// leads with, and — for anything blocked or withheld — the named column and the
+// named export that supplies it. Assertions are on counts and attribute values.
+
+/** A stub built from the ids the shipped page carries, like the case above. */
+async function preflightRegion() {
+  const page = await readFile(new URL("../src/evolution.html", import.meta.url), "utf8");
+  const nodes = Object.fromEntries([...page.matchAll(/id="(own-data-[a-z-]+)"/g)]
+    .map(([, id]) => [id, createElement("p")]));
+  return {
+    nodes,
+    document: {
+      createElement,
+      createTextNode: (text) => { const node = createElement("#text"); node.textContent = text; return node; },
+      getElementById: (id) => nodes[id] ?? null,
+    },
+  };
+}
+
+/** Every row priced and grouped nowhere: the downgraded tier's own input. */
+async function billingOnly() {
+  const document = await provider();
+  for (const record of document.records) record.org_unit_id = BLANK_GROUP_PSEUDONYM;
+  return document;
+}
+
+/** One unattributed row beside an attributed one: below the benchmark. */
+async function belowBenchmark() {
+  const document = await provider();
+  const unattributed = structuredClone(document.records[0]);
+  unattributed.aggregate_id = "psn_aggregate_demo_0002";
+  unattributed.org_unit_id = BLANK_GROUP_PSEUDONYM;
+  document.records.push(unattributed);
+  return document;
+}
+
+test("downgraded: the region reads as partial, leads with the figure, and shows its source", async () => {
+  const { nodes, document } = await preflightRegion();
+  const projection = projectProviderExport(await billingOnly());
+  assert.equal(projection.preflightOutcome, EVIDENCE_PREFLIGHT_OUTCOME.SPEND_ONLY);
+  assert.equal(renderProviderExportProjection(document, projection), true);
+
+  const region = nodes["own-data-evidence-preflight"];
+  assert.equal(region.dataset.state, "partial");
+  assert.equal(region.dataset.outcome, EVIDENCE_PREFLIGHT_OUTCOME.SPEND_ONLY);
+  // A downgraded result is still a result: the number leads, and the word for
+  // the limit sits under it rather than in front of it.
+  assert.equal(nodes["own-data-preflight-finding"].children[0].textContent, "$12.34 total spend");
+  assert.match(nodes["own-data-preflight-finding"].children[1].textContent,
+    /^Spend computed · the rest is withheld · /);
+  // Impact, confidence and provenance are all readable without opening anything.
+  assert.match(nodes["own-data-preflight-confidence"].textContent, /Downgraded tier/);
+  assert.match(nodes["own-data-preflight-tier-source"].textContent,
+    /^Selected provider export · \d+ rows accepted at schema /);
+  assert.equal(nodes["own-data-preflight-downgraded"].hidden, false);
+  // Every withheld line names its own missing column and its own supplying export.
+  const withheld = nodes["own-data-preflight-withheld"].children;
+  assert.equal(withheld.length, 4);
+  for (const line of withheld) {
+    assert.match(line.children[1].textContent, /^missing field: \S/);
+    assert.match(line.children[2].textContent, /^supplied by: \S/);
+    assert.ok(line.dataset.field);
+    assert.ok(line.dataset.recipe);
+  }
+});
+
+test("refusal: the region reads as blocked and leads with the step, not the word", async () => {
+  const { nodes, document } = await preflightRegion();
+  const projection = projectProviderExport(await belowBenchmark());
+  assert.equal(projection.preflightOutcome, EVIDENCE_PREFLIGHT_OUTCOME.INSUFFICIENT);
+  assert.equal(renderProviderExportProjection(document, projection), true);
+
+  const region = nodes["own-data-evidence-preflight"];
+  assert.equal(region.dataset.state, "blocked");
+  // The dominant line is the one step that fixes it, and it names the column.
+  assert.equal(nodes["own-data-preflight-finding"].children[0].textContent,
+    "Add org_unit_id, from the Gateway or proxy log export");
+  assert.match(nodes["own-data-preflight-finding"].children[1].textContent,
+    /^Insufficient evidence · /);
+  // The next action names the export that supplies that column, not "choose again".
+  assert.match(nodes["own-data-preflight-action"].textContent,
+    /The Gateway or proxy log export supplies org_unit_id: /);
+  assert.equal(nodes["own-data-preflight-downgraded"].hidden, true);
+  // A refusal is not a downgraded tier and must not paint one.
+  assert.equal(nodes["own-data-preflight-computed"].children.length, 0);
+});
+
+test("the named field and the named export are read from the recipe registry", async () => {
+  const recipe = recipeSupplyingColumn("org_unit_id");
+  const source = await belowBenchmark();
+  const projection = projectProviderExport(source);
+  const assessment = providerExportPreflight(projection);
+  assert.equal(assessment.lead, `Add org_unit_id, from the ${recipe.label}`);
+  assert.equal(assessment.supply,
+    `The ${recipe.label} supplies org_unit_id: ${recipe.report}`);
+  // The prioritized action itself is unchanged; the specific sentence is added
+  // beside it rather than in place of it.
+  assert.equal(assessment.nextAction, projection.actions[0].text);
+
+  // A rung that is not a field gap names the re-export instead of a column, and
+  // carries no supplying export, because no file a lead can pull changes it.
+  const incomplete = await provider();
+  incomplete.snapshot.completeness = "partial";
+  const stalled = providerExportPreflight(projectProviderExport(incomplete));
+  assert.equal(stalled.lead, "Re-export once the provider reports the period complete");
+  assert.equal(stalled.supply, "");
 });

@@ -102,6 +102,67 @@ test("the coverage benchmark carries its rule and the assumption behind its weig
   assert.match(benchmark.rule, /stated assumption, not a measured constant/);
 });
 
+// WHAT A GREEN TEST DOES NOT PROVE (#1170). This harness's textOf reads through
+// a closed disclosure, so asserting that the state announcement has text says
+// nothing about whether a reader can reach it. These walk `parentNode` from each
+// announcing node up to the document and assert that no ancestor is a details
+// element — the announcement, the figure the state leads with, the step that
+// resolves it, and the downgraded tier's source line all stay in the open.
+const detailsAncestors = (node) => {
+  let count = 0;
+  for (let walk = node?.parentNode; walk; walk = walk.parentNode) {
+    if (walk.tagName === "DETAILS") count += 1;
+  }
+  return count;
+};
+
+test("every part of the state announcement sits outside the disclosure", async () => {
+  const document = await page();
+  const announcing = ["own-data-preflight-status", "own-data-preflight-finding",
+    "own-data-preflight-action", "own-data-preflight-confidence",
+    "own-data-preflight-downgraded", "own-data-preflight-tier-source",
+    "own-data-preflight-computed", "own-data-preflight-withheld"];
+  for (const id of announcing) {
+    const node = document.getElementById(id);
+    assert.equal(node.tagName.length > 0, true, `${id} is missing from the page`);
+    assert.equal(detailsAncestors(node), 0, `${id} is inside a disclosure`);
+  }
+  // Provenance and the boundary rules are the supporting detail, and they are
+  // the only part of this region that is allowed to be folded away.
+  assert.equal(detailsAncestors(document.getElementById("own-data-preflight-provenance")), 1);
+
+  // The three states are told apart by an attribute and a word, never by color
+  // alone: the served document carries the state before any script runs, and
+  // the status line keeps its shape glyph beside it.
+  const region = document.getElementById("own-data-evidence-preflight");
+  assert.equal(region.dataset.state, "pending");
+  assert.equal(region.dataset.outcome, "loading");
+  assert.equal(document.getElementById("own-data-preflight-status").children
+    .filter((child) => child.className === "status-shape").length, 1);
+
+  // The disclosure summary is the region's only tab stop, and it is still the
+  // native one: no control was added above the first-run region to reach a state.
+  const order = tabSequence(document);
+  const stops = order.filter((node) => String(node.id ?? "").startsWith("own-data-preflight"));
+  assert.equal(stops.length, 1);
+  assert.equal(stops[0].id, "own-data-preflight-disclosure-summary");
+  assert.equal(detailsAncestors(stops[0]), 1, "the summary is its disclosure's own control");
+});
+
+test("each state's treatment is keyed on the state, not on color alone", async () => {
+  const css = await readFile(CSS, "utf8");
+  for (const state of ["pending", "partial", "blocked"]) {
+    assert.equal(css.includes(`.own-data-preflight[data-state="${state}"] {`), true,
+      `${state} has no region treatment`);
+  }
+  // A blocked region's step carries a heavier rule than a partial one's, so the
+  // two are distinguishable in greyscale and to a reader who cannot see hue.
+  assert.match(css,
+    /\.own-data-preflight\[data-state="blocked"\] \.own-data-preflight-action \{ border-left-width:9px/);
+  assert.match(css,
+    /\.own-data-preflight\[data-state="partial"\] \.own-data-preflight-verdict \{ font-variant-numeric:tabular-nums/);
+});
+
 test("the primary question stays singular and the activation stacks on narrow screens", async () => {
   const document = await page();
   assert.equal(document.querySelectorAll("#own-data-preflight-question").length, 1);

@@ -31,6 +31,10 @@ const VIEW_COPY = Object.freeze({
   }),
 });
 
+/** Three readings, not five outcomes (#1170); unmapped reads as blocked. */
+const STATE = { complete: "fact", "provider-export-only": "partial",
+  "spend-only": "partial", loading: "pending" };
+
 const QUERY_LIMIT = "Incomplete query evidence limits classification confidence.";
 
 // One row per outcome, so the shape, the word beside it, and the limitation
@@ -111,6 +115,7 @@ export function renderOwnDataEvidenceState(document, state, detail = "") {
   if (!copy || !slots) return false;
   const { region, status, finding, benchmark, provenance, confidence, action } = slots;
   region.dataset.outcome = state;
+  region.dataset.state = STATE[state] ?? "blocked";
   region.setAttribute("aria-busy", String(state === OWN_DATA_VIEW_STATE.LOADING));
   paintStatus(document, status, copy.shape, detail ? `${copy.status} ${detail}` : copy.status);
   finding.replaceChildren(node(document, "strong", "own-data-preflight-verdict", copy.verdict),
@@ -135,6 +140,7 @@ export function renderOwnDataEvidencePreflight(document, assessment) {
     boundary } = slots;
 
   region.dataset.outcome = assessment.outcome;
+  region.dataset.state = STATE[assessment.outcome] ?? "blocked";
   region.setAttribute("aria-busy", "false");
   region.removeAttribute("tabindex");
   const presentation = outcomePresentation(assessment.outcome);
@@ -143,9 +149,12 @@ export function renderOwnDataEvidencePreflight(document, assessment) {
   // a reader opens it. Every state states it, not only the reserved ones.
   paintStatus(document, status, presentation.shape,
     `${presentation.label} · Evidence check complete. Processed locally in this tab; nothing was uploaded or retained.`);
+  // Dominant line: the verdict for a fact, the figure for a partial answer, the
+  // one step for a blocked one. A displaced verdict moves down, never away.
   finding.replaceChildren(
-    node(document, "strong", "own-data-preflight-verdict", assessment.verdict),
-    node(document, "span", undefined, assessment.finding),
+    node(document, "strong", "own-data-preflight-verdict", assessment.lead ?? assessment.verdict),
+    node(document, "span", undefined, assessment.lead
+      ? `${assessment.verdict} · ${assessment.finding}` : assessment.finding),
   );
   benchmark.textContent = `${assessment.benchmark.label} · ${assessment.coverage.coveredRows} of ${assessment.coverage.totalRows} rows covered. ${assessment.benchmark.rule}`;
   provenance.replaceChildren(...assessment.provenance.map((source) => {
@@ -157,7 +166,8 @@ export function renderOwnDataEvidencePreflight(document, assessment) {
   }));
   confidence.textContent = [`${presentation.label} · ${assessment.confidence}`,
     presentation.limit].filter(Boolean).join(" ");
-  action.textContent = assessment.nextAction;
+  // The step, then the file supplying the field it names; absent, never generic.
+  action.textContent = [assessment.nextAction, assessment.supply].filter(Boolean).join(" ");
   boundary.replaceChildren(...assessment.boundary
     .map((rule) => node(document, "li", undefined, rule)));
   retireDowngradedTier(document);

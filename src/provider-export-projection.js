@@ -18,6 +18,7 @@
 
 import { BLANK_GROUP_PSEUDONYM } from "./attribution-units.js";
 import { MAX_IMPORT_BYTES } from "./import-limits.js";
+import { recipeSupplyingColumn } from "./import-recipes.js";
 import { LOCAL_KINDS, parseLocalFinopsFile } from "./local-finops.js";
 import {
   EVIDENCE_PREFLIGHT_OUTCOME, OWN_DATA_PREFLIGHT_BOUNDARY, OWN_DATA_PREFLIGHT_QUESTION,
@@ -193,6 +194,51 @@ const ACTION_LADDER = Object.freeze([
     text: "Add one bounded query sample to corroborate provider-side classifications." }),
 ]);
 
+/**
+ * The one step that resolves each rung above, and the structural column whose
+ * absence is the reason for it (#1170).
+ *
+ * THE COLUMN IS A LOOKUP KEY, NOT A DISPLAY STRING. It is resolved against
+ * `import-recipes.js` (#1166) — the same missing-field → recipe direction
+ * `spend-only-tier.js` (#1168) already publishes for its withheld list — so the
+ * field a reader is sent to add and the export they are sent to pull are both
+ * that module's own strings, and a rename there cannot leave this naming a
+ * column no console emits.
+ *
+ * TWO RUNGS CARRY NO COLUMN ON PURPOSE. `collect_complete_export` and
+ * `collect_final_costs` are not field gaps: the export itself declared the
+ * records it omitted or the charges the provider has not finalized, and no
+ * column a lead can add to the file changes either one. Those two name the
+ * re-export instead, which is the most specific thing the payload carries.
+ */
+const REMEDY = Object.freeze({
+  collect_complete_export: Object.freeze({
+    step: "Re-export once the provider reports the period complete" }),
+  collect_department_attribution: Object.freeze({ column: "org_unit_id" }),
+  collect_classification_evidence: Object.freeze({ column: "model_raw" }),
+  collect_final_costs: Object.freeze({
+    step: "Re-export after the provider finalizes the estimated charges" }),
+  collect_query_corroboration: Object.freeze({ column: "prompt_excerpt or category" }),
+});
+
+/**
+ * The named missing field, and the named export that supplies it, for one rung.
+ *
+ * A rung whose column no recipe supplies degrades to naming the column alone
+ * rather than inventing an errand: the reader is still told exactly what is
+ * missing, and is not sent to a file this product cannot name.
+ */
+function remedyFor(code) {
+  const remedy = REMEDY[code] ?? {};
+  const recipe = remedy.column ? recipeSupplyingColumn(remedy.column) : null;
+  return Object.freeze({
+    step: remedy.step ?? (recipe
+      ? `Add ${remedy.column}, from the ${recipe.label}`
+      : `Add ${remedy.column ?? "the missing columns"} to the export`),
+    supply: recipe ? `The ${recipe.label} supplies ${remedy.column}: ${recipe.report}` : "",
+  });
+}
+
 function limitationsFor(gate, completeness, basis) {
   const notes = [];
   if (!gate.complete) {
@@ -327,6 +373,7 @@ export function providerExportPreflight(projection) {
   const sufficient = !spendOnly
     && projection.preflightOutcome !== EVIDENCE_PREFLIGHT_OUTCOME.INSUFFICIENT;
   const conflicts = provenance.conflictingRevisions;
+  const remedy = remedyFor(projection.actions[0].code);
   return Object.freeze({
     question: OWN_DATA_PREFLIGHT_QUESTION,
     boundary: OWN_DATA_PREFLIGHT_BOUNDARY,
@@ -385,5 +432,22 @@ export function providerExportPreflight(projection) {
       projection.classificationEvidence.limitation, projection.confidence.limitation,
     ].filter(Boolean).join(" "),
     nextAction: projection.actions[0].text,
+    /**
+     * The line the region leads with, which is what tells the three readings
+     * apart before anything is read in full (#1170).
+     *
+     * A partial answer leads with its FIGURE, because a downgraded result is
+     * still a result and the number is the part of it that survives. A blocked
+     * one leads with the ONE STEP that unblocks it, not with the word for the
+     * refusal — the word rides the status chip beside it, which already carries
+     * a shape and a label, so no state is ever carried by color alone. A full
+     * result leads with its verdict and sets no lead at all; that outcome is
+     * unreachable from a billing export, so this side never invents one.
+     */
+    lead: sufficient || spendOnly
+      ? `${money(projection.spend.amountUsd)} total spend`
+      : remedy.step,
+    /** The named field and the named export that supplies it, or "". */
+    supply: remedy.supply,
   });
 }

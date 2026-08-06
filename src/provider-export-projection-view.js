@@ -42,6 +42,15 @@ function paintDowngradedTier(document, assessment) {
   if (!block || !computed || !withheld || !assessment.tier) return;
   block.hidden = false;
   block.dataset.tier = assessment.tier;
+  // PROVENANCE AT A GLANCE, NOT BEHIND A CONTROL (#1170). The figures above are
+  // quotable only with the export they came from beside them, so the first
+  // provenance line is repeated here, in the open, verbatim from the same list
+  // the disclosure carries — a downgraded figure whose source sits inside a
+  // closed `details` is a figure that travels without it.
+  const source = document.getElementById("own-data-preflight-tier-source");
+  if (source) {
+    source.textContent = `${assessment.provenance[0].source} · ${assessment.provenance[0].detail}`;
+  }
   computed.replaceChildren(...assessment.computed.map((entry) => line(document, [
     ["strong", entry.label], ["span", entry.display], ["span", TIER_MARK],
   ], { figure: entry.id, tier: entry.tier })));
