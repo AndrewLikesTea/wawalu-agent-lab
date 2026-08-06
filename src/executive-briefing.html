@@ -76,6 +76,41 @@
         <p class="brief-print-hint">Printing or saving as PDF keeps the whole briefing: both levels open on paper, and the site chrome comes off.</p>
       </section>
 
+      <!-- A BRIEF AS A FILE, IN BOTH DIRECTIONS (#1207). The link this page
+           already reads off its own fragment gets cut short by chat clients and
+           cannot be attached to a ticket, so the same brief travels as a file
+           too — and it is the SAME envelope, built and validated by
+           src/finops-brief-envelope.js, which both the link codec and this
+           reader consume. A field one carries cannot go missing from the other.
+
+           THE READ IS LOCAL AND THE WRITE IS NOWHERE. The chosen file is read
+           with the browser's own file reader; there is no upload, no fetch, and
+           no store is imported on the path at all, so opening a colleague's
+           brief leaves this browser's retained records byte-identical.
+           tests/finops-brief-envelope.test.js asserts that against the
+           workspace export rather than taking this comment's word for it.
+
+           ALL OR NOTHING. The whole envelope is validated before anything is
+           drawn: a file that is not JSON, declares a schema this build does not
+           read, or arrived without its Limits disclosures is refused entire and
+           by name, and no part of the brief is painted. The status paragraph
+           carries the reason as TEXT and `data-outcome` carries its code.
+
+           The status is a paragraph in the open, never folded inside a
+           disclosure element: the test harness reads through a shut one and a
+           real browser does not. The download link ships hidden and is unhidden
+           only once the entry has a brief to put behind it — a download control
+           over no brief hands a reader an empty file. No new style rule: the
+           notes block, the field wrapper and the print button's own class. -->
+      <section class="brief-notes" id="open-shared-brief" aria-labelledby="open-shared-brief-title">
+        <h2 id="open-shared-brief-title">A brief somebody shared with you</h2>
+        <p id="open-shared-brief-lead">Open a brief file a colleague downloaded from this page. It is read in this tab by your browser's own file reader — nothing is uploaded and nothing is fetched — and shown read-only above: it is not added to this browser's retained figures and does not change them. A file this build cannot read whole is refused whole, with the reason in words, and nothing of it is shown.</p>
+        <p class="brief-print-hint"><label for="open-shared-brief-file">Open a shared brief file</label> <input id="open-shared-brief-file" type="file" accept="application/json,.json" aria-describedby="open-shared-brief-lead open-shared-brief-status" /></p>
+        <p class="brief-print-status" id="open-shared-brief-status" role="status" aria-live="polite" aria-atomic="true"></p>
+        <p><a class="brief-print-button" id="open-shared-brief-download" download="shiplog-finops-shared-brief.json" href="#open-shared-brief" hidden>Download the brief above as a file</a></p>
+        <p class="brief-print-hint" id="open-shared-brief-download-note">The file carries the same envelope the shareable link carries: the figure, the destination, the confidence grade, the provenance and the Limits disclosures, with the periods they were derived from. It is written in this tab and saved by your browser; it is not uploaded anywhere.</p>
+      </section>
+
       <!-- The invitation, at the end of the document a leader just read, and
            outside the region the briefing is painted into: nothing here is
            unmounted when the briefing is redrawn, and nothing here can displace
