@@ -51,7 +51,7 @@ import {
   readHistoryScope,
   withinHistoryScope,
 } from "./history-scope.js";
-import { activeHistoryFilters } from "./history-filters.js";
+import { activeHistoryFilters, historyFilterChips } from "./history-filters.js";
 import { onRecordsChanged } from "./shiplog-records.js";
 
 export { EXPORT_SOURCES, SHIPLOG_EXPORT_SCHEMA, SHIPLOG_EXPORT_VERSION };
@@ -133,6 +133,24 @@ export function buildShiplogExport(storage, options = {}) {
     });
 
   const filter = activeHistoryFilters(scope.filters);
+  // The same facts as the sibling keys below, gathered into one block a reader
+  // can hold on its own: which criteria produced this file, how many records
+  // that is in total, and how many of each kind. Derived from the two arrays
+  // written below — the ones that survived every filter and every dropped link —
+  // and never from a second read of the store, so the manifest cannot describe a
+  // slice this file is not. shiplogExportViolations checks it against those
+  // arrays rather than taking it on trust.
+  //
+  // It is a sibling of `decisions`/`releases`, not a change to either: no key
+  // inside a record moves, is renamed, or is added, so a consumer reading
+  // `payload.decisions` gets the bytes it always got.
+  const manifest = {
+    schemaVersion: SHIPLOG_EXPORT_VERSION,
+    generatedAt,
+    criteria: { ...filter },
+    totalCount: decisions.length + releases.length,
+    counts: { decision: decisions.length, release: releases.length },
+  };
   return {
     payload: {
       schema: SHIPLOG_EXPORT_SCHEMA,
@@ -160,6 +178,7 @@ export function buildShiplogExport(storage, options = {}) {
       // file can say which one a visitor is holding a year from now.
       source,
       filter,
+      manifest,
       decisions,
       releases,
       // The decision-to-release join, stated once as its own collection so a
@@ -191,23 +210,40 @@ export function shiplogExportCounts(storage, scopeInput) {
     decisions: withinHistoryScope(loadDecisions(storage), scope.decisionIds, scope).length,
     releases: withinHistoryScope(loadReleases(storage), scope.releaseIds, scope).length,
     filtered: scope.filtered,
+    // Which criteria are active, in the words the history's own chips use, so
+    // the sentence beside the button and the row of chips above the list name a
+    // dimension identically. Empty means no filter was active — the same
+    // convention the file's `filter` block carries.
+    criteria: historyFilterChips(scope.filters).map((chip) => chip.text),
   };
 }
 
 /**
- * The sentence beside the button, in the visitor's own numbers.
+ * The sentence beside the button, in the visitor's own numbers — said before any
+ * download, not after one.
  *
- * Two sentences rather than one with a clause bolted on: the filtered file is a
- * different promise from the stored file, and the phrase that ends the sentence
- * is the one a visitor scanning it will remember.
+ * Three sentences rather than one with clauses bolted on: the filtered file is a
+ * different promise from the stored file, a file with nothing in it is not a
+ * promise at all, and the phrase that ends the sentence is the one a visitor
+ * scanning it will remember.
+ *
+ * `criteria` names the filters that are doing something, in the words the
+ * history's chips already use. It rides in parentheses at the end so the count —
+ * the thing the visitor came to this line for — is still the first fact.
  */
-export function formatShiplogExportCounts({ decisions, releases, filtered = false }) {
+export function formatShiplogExportCounts({ decisions = 0, releases = 0, filtered = false, criteria = [] } = {}) {
   const decisionLabel = decisions === 1 ? "decision" : "decisions";
   const releaseLabel = releases === 1 ? "release" : "releases";
   const counted = `${decisions} ${decisionLabel} and ${releases} ${releaseLabel}`;
-  return filtered
-    ? `Ready to export ${counted} matching your history filters.`
-    : `Ready to export ${counted} stored in this browser.`;
+  const named = criteria.length > 0 ? ` (${criteria.join(", ")})` : "";
+  // A filtered view that matches nothing is a dead end, and "ready to export 0
+  // decisions" describes it as a file. The recovery — clear the filters — is the
+  // one thing to say instead, and the control that does it sits beside this line.
+  if (decisions + releases === 0 && (filtered || criteria.length > 0)) {
+    return `No records match your history filters${named}. Clear the filters to export your history.`;
+  }
+  if (!filtered && criteria.length === 0) return `Ready to export ${counted} stored in this browser.`;
+  return `Ready to export ${counted} matching your history filters${named}.`;
 }
 
 const recordWord = (count) => (count === 1 ? "record" : "records");
@@ -230,16 +266,28 @@ export const EXPORT_BUTTON_LABEL = "Download JSON";
  * Unfiltered returns "" so the caller *removes* the attribute rather than
  * restating the visible label in a second place that can go stale.
  */
-export function shiplogExportLabel({ decisions = 0, releases = 0, filtered = false } = {}) {
-  if (!filtered) return "";
+export function shiplogExportLabel({ decisions = 0, releases = 0, filtered = false, criteria = [] } = {}) {
   const total = decisions + releases;
+  // Nothing to write, so the name says that rather than promising a file of
+  // nought records the control will refuse to produce.
+  if (total === 0 && (filtered || criteria.length > 0)) {
+    return `${EXPORT_BUTTON_LABEL}: no records match your filters`;
+  }
+  if (!filtered) return "";
   return `${EXPORT_BUTTON_LABEL}: export ${total} filtered ${recordWord(total)}`;
 }
 
 export const EXPORT_STATUS = Object.freeze({
   exported: "Shiplog history exported.",
   failed: "Shiplog history could not be exported. Your browser data was not changed.",
+  // The refusal, said in the live region the panel already has. A download of
+  // nothing is a file a visitor would file away as their history; saying so
+  // before it lands is the only point at which that is still recoverable.
+  noMatch: "No records match your history filters, so nothing was downloaded. Clear the filters to export your history.",
 });
+
+/** The visible label on the control that returns a dead-end view to a full one. */
+export const CLEAR_FILTERS_LABEL = "Clear filters and show every record";
 
 /**
  * The sentence a download adds when it had to leave a link out, or "".
@@ -346,7 +394,19 @@ export function initShiplogExport(root, storage, options = {}) {
   const counts = root.querySelector("#export-shiplog-counts");
   const status = root.querySelector("#export-shiplog-status");
   const scopeControl = root.querySelector("#export-shiplog-scope");
+  const clearControl = root.querySelector("#export-shiplog-clear-filters");
   if (!button || !counts) return;
+
+  // The history's own reset control, read at use rather than at mount: this
+  // panel does not own the filters and must not grow a second definition of
+  // "clear all". Absent — a page with an export panel and no history on it —
+  // means there is nothing this control could clear, so it stays hidden.
+  const historyReset = () => root.querySelector("#clear-decision-filters");
+
+  // Nothing to write, and filters are why. Both halves matter: an empty browser
+  // is not a dead end a visitor can clear their way out of.
+  const isDeadEnd = (scoped) => scoped.decisions + scoped.releases === 0
+    && (scoped.filtered || scoped.criteria.length > 0);
 
   // The file follows the browsed history by default, and the control lets a
   // visitor ask for the whole store instead. Default rather than only choice
@@ -371,13 +431,36 @@ export function initShiplogExport(root, storage, options = {}) {
     const label = shiplogExportLabel(scoped);
     if (label) button.setAttribute?.("aria-label", label);
     else button.removeAttribute?.("aria-label");
+    // The recovery is on the page for as long as there is something to recover
+    // from, so a visitor meets it while reading the count rather than only after
+    // pressing a button that then refuses.
+    if (clearControl) clearControl.hidden = !(isDeadEnd(scoped) && historyReset());
   };
   paintCounts();
   onRecordsChanged(root, paintCounts);
   onHistoryScopeChanged(root, paintCounts);
   scopeControl?.addEventListener?.("change", paintCounts);
+  // One reset path for the whole page: this hands the press to the history's own
+  // Clear filters control, which resets every filter and the search text, moves
+  // focus back into the list's controls, and re-renders. The new scope it
+  // publishes repaints the count above through the subscription already wired.
+  clearControl?.addEventListener?.("click", () => {
+    if (status) status.textContent = "";
+    historyReset()?.click?.();
+    paintCounts();
+  });
   button.addEventListener("click", () => {
     try {
+      // Read before writing anything: a view that matches nothing produces no
+      // file at all. A downloaded file of nought records is the one outcome a
+      // visitor cannot tell apart from a backup of their history, and it is the
+      // one they would keep.
+      const scoped = shiplogExportCounts(storage, activeScope());
+      if (isDeadEnd(scoped)) {
+        if (status) status.textContent = EXPORT_STATUS.noMatch;
+        paintCounts();
+        return;
+      }
       const report = buildShiplogExport(storage, {
         generatedAt: options.now?.().toISOString(),
         scope: activeScope(),

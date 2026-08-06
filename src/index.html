@@ -542,6 +542,16 @@
           <p id="export-shiplog-status" class="notice" role="status" aria-live="polite"></p>
         </div>
         <button id="export-shiplog" type="button">Download JSON</button>
+        <!-- The way out of a view that matches nothing, beside the control that
+             refuses to write it. A native button, so it is one ordinary tab stop
+             inside this panel and Enter and Space both work; it ships hidden and
+             is revealed by shiplog-export.js only while the filters are hiding
+             every record, so it is not a tab stop on an ordinary page. Pressing
+             it hands the press to the history's own Clear filters control — one
+             reset path, not a second one that could drift. It reuses
+             .secondary-button, which this page already carries, so it adds no
+             stylesheet rule. -->
+        <button id="export-shiplog-clear-filters" class="secondary-button" type="button" hidden>Clear filters and show every record</button>
         <!-- The same file, checked against the list above without writing it.
              The answer line stays outside the disclosure below on purpose: a
              live region inside a closed details element is announced to nobody.

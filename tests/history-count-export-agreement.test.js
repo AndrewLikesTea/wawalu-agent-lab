@@ -47,7 +47,9 @@ import { readFile } from "node:fs/promises";
 import { initDecisionLog, STORAGE_KEY } from "../src/app.js";
 import { RELEASE_STORAGE_KEY } from "../src/releases.js";
 import { initShiplogExport } from "../src/shiplog-export.js";
-import { DomEvent, loadPage, pressEnter, textOf } from "./support/browser.js";
+import { SHIPLOG_EXPORT_VERSION } from "../src/shiplog-export-schema.js";
+import { shapeViolations } from "./support/export-parity.js";
+import { DomEvent, loadPage, pressEnter, pressSpace, tabSequence, textOf } from "./support/browser.js";
 
 const DECISIONS_PAGE = new URL("../src/index.html", import.meta.url);
 const FIXTURE_FILE = new URL("./fixtures/history-count-export.json", import.meta.url);
@@ -103,6 +105,10 @@ async function openHistory(t) {
 const list = (page) => page.document.querySelector("#decision-list");
 const cards = (page) => list(page).querySelectorAll(".history-card");
 const countText = (page) => textOf(page.document.querySelector("#decision-count"));
+const exportButton = (page) => page.document.querySelector("#export-shiplog");
+// The sentence beside the button: what the file will hold, said before any
+// download rather than after one.
+const exportSummary = (page) => textOf(page.document.querySelector("#export-shiplog-counts"));
 
 /**
  * The count the reader can see, as a number.
@@ -452,20 +458,242 @@ test("a filter that matches nothing says so, and downloads an empty array rather
     "the no-results empty state no longer says that nothing matched",
   );
 
-  const empty = downloadExport(page);
-  assert.equal(empty.decisions.length, 0, "the download under a filter matching nothing carries decisions");
-  assert.equal(empty.releases.length, 0, "the download under a filter matching nothing carries releases");
+  // Since #1247 the panel writes no file at all here. The guarantee this test
+  // was protecting is unchanged and stated the other way round: pressing Download
+  // JSON under a filter matching nothing must never hand back the previous
+  // payload, and the strongest form of that is handing back nothing.
+  const before = page.downloads.length;
+  exportButton(page).click();
   assert.equal(
-    empty.record_count,
-    0,
-    `the empty download's record_count says ${empty.record_count}`,
+    page.downloads.length,
+    before,
+    "a filter matching nothing produced a download, which is either an empty file or the stale one before it",
   );
-  assert.deepEqual(empty.associations, [], "the empty download carries decision-release associations");
-  // Not the previous file handed back a second time.
-  assert.equal(page.downloads.length, 2, "the second download did not produce a second file");
+  const announcement = page.document.querySelector("#export-shiplog-status");
+  assertNotCollapsed(announcement, "the export panel's status line");
+  assert.equal(
+    textOf(announcement),
+    "No records match your history filters, so nothing was downloaded. "
+    + "Clear the filters to export your history.",
+    "the panel did not say why nothing was downloaded",
+  );
+
+  // The way out, and the count it restores. The control is in the panel, is a
+  // native button, and clears through the history's own reset path.
+  const clear = page.document.querySelector("#export-shiplog-clear-filters");
+  assert.ok(clear, "the panel offers no way out of a filter combination matching nothing");
+  assert.equal(clear.getAttribute("hidden"), null, "the way out is hidden at zero results");
+  assertNotCollapsed(clear, "the clear-filters control");
+  clear.click();
+  assert.equal(
+    visibleCount(page),
+    EXPECTED.total,
+    "clearing the filters from the export panel did not restore the whole history",
+  );
+  const restored = downloadExport(page);
+  assert.equal(
+    exportedRecordCount(restored),
+    EXPECTED.total,
+    `the download after clearing carries ${exportedRecordCount(restored)} records, and the fixture holds ${EXPECTED.total}`,
+  );
   assert.notEqual(
     page.downloads[0].text,
-    page.downloads[1].text,
-    "the second download handed back the bytes of the first, so the file is stale rather than empty",
+    page.downloads.at(-1).text,
+    "the download after clearing handed back the bytes of the filtered one",
+  );
+});
+
+// --- the manifest, and the summary beside the button ---------------------------
+//
+// The file states what it is, and the page states it before the download. Both
+// are derived from the one selection the list renders from, so the three numbers
+// the tests above hold together — page, file, fixture — extend to the manifest
+// without introducing a fourth way of counting.
+
+/** Every way a manifest can disagree with the records in its own file. */
+function manifestDisagreements(payload) {
+  const found = [];
+  const manifest = payload.manifest;
+  if (!manifest || typeof manifest !== "object") return ["the file carries no manifest object"];
+  const decisions = payload.decisions.length;
+  const releases = payload.releases.length;
+  if (manifest.totalCount !== decisions + releases) {
+    found.push(`manifest.totalCount says ${manifest.totalCount}, the file carries ${decisions + releases} records`);
+  }
+  if (manifest.counts?.decision !== decisions) {
+    found.push(`manifest.counts.decision says ${manifest.counts?.decision}, the file carries ${decisions}`);
+  }
+  if (manifest.counts?.release !== releases) {
+    found.push(`manifest.counts.release says ${manifest.counts?.release}, the file carries ${releases}`);
+  }
+  if (manifest.counts?.decision + manifest.counts?.release !== manifest.totalCount) {
+    found.push(`manifest.counts sum to ${manifest.counts?.decision + manifest.counts?.release}, `
+      + `and manifest.totalCount says ${manifest.totalCount}`);
+  }
+  if (manifest.schemaVersion !== SHIPLOG_EXPORT_VERSION) {
+    found.push(`manifest.schemaVersion says ${JSON.stringify(manifest.schemaVersion)}`);
+  }
+  if (typeof manifest.generatedAt !== "string" || Number.isNaN(Date.parse(manifest.generatedAt))) {
+    found.push(`manifest.generatedAt is not an ISO instant: ${JSON.stringify(manifest.generatedAt)}`);
+  }
+  return found;
+}
+
+/**
+ * Every record in the file satisfies the criteria the manifest states.
+ *
+ * Read off the records themselves rather than off the selection that produced
+ * them: a manifest naming a filter its own records do not satisfy is the failure
+ * worth catching, and a check that re-ran the page's selector could not see it.
+ */
+function criteriaBreaches(payload) {
+  const criteria = payload.manifest.criteria;
+  const breaches = [];
+  for (const decision of payload.decisions) {
+    if (criteria.status && decision.status !== criteria.status) {
+      breaches.push(`${decision.id} is ${decision.status}, and the criteria name ${criteria.status}`);
+    }
+    if (criteria.owner && decision.owner !== criteria.owner) {
+      breaches.push(`${decision.id} is owned by ${decision.owner}, and the criteria name ${criteria.owner}`);
+    }
+    if (criteria.type === "release") breaches.push(`${decision.id} is a decision in a releases-only file`);
+  }
+  for (const release of payload.releases) {
+    if (criteria.owner && release.owner !== criteria.owner) {
+      breaches.push(`${release.id} is owned by ${release.owner}, and the criteria name ${criteria.owner}`);
+    }
+    if (criteria.status) breaches.push(`${release.id} is a release in a file filtered by decision status`);
+    if (criteria.type === "decision") breaches.push(`${release.id} is a release in a decisions-only file`);
+  }
+  return breaches;
+}
+
+test("a filtered file's manifest counts exactly the records it carries, and every one satisfies its criteria", async (t) => {
+  const page = await openHistory(t);
+  chooseOption(page, "#filter-owner", "Jules");
+
+  const payload = downloadExport(page);
+  assert.deepEqual(manifestDisagreements(payload), [], "the manifest describes a file other than its own");
+  assert.equal(
+    payload.manifest.totalCount,
+    visibleCount(page),
+    "the manifest counts a different number of records from the one the reader was shown",
+  );
+  assert.equal(
+    payload.manifest.totalCount,
+    EXPECTED.ownerJules,
+    `the manifest counts ${payload.manifest.totalCount} records, and the fixture holds `
+    + `${EXPECTED.ownerJules} (expected.ownerJules)`,
+  );
+  assert.deepEqual(payload.manifest.criteria, { owner: "Jules" }, "the manifest names the wrong criteria");
+  assert.deepEqual(criteriaBreaches(payload), [], "the file carries a record its own criteria exclude");
+  // The manifest is a sibling key: the records are the records the file always
+  // carried, field for field.
+  assert.deepEqual(shapeViolations(payload), [], "the manifest changed the shape of the file around it");
+
+  // A second dimension, so the per-type counts are proved on a file holding
+  // decisions only rather than only on a mixed one.
+  chooseOption(page, "#filter-status", "accepted");
+  const accepted = downloadExport(page);
+  assert.deepEqual(manifestDisagreements(accepted), []);
+  assert.equal(accepted.manifest.counts.release, 0, "a status-filtered file counts releases it cannot hold");
+  assert.deepEqual(criteriaBreaches(accepted), []);
+});
+
+test("an unfiltered file's manifest counts the whole dataset and names no criteria", async (t) => {
+  const page = await openHistory(t);
+
+  const payload = downloadExport(page);
+  assert.deepEqual(manifestDisagreements(payload), [], "the manifest describes a file other than its own");
+  assert.equal(payload.manifest.totalCount, EXPECTED.total, "the unfiltered manifest is not the whole dataset");
+  assert.equal(payload.manifest.totalCount, DECISIONS.length + RELEASES.length);
+  assert.equal(payload.manifest.counts.decision, DECISIONS.length);
+  assert.equal(payload.manifest.counts.release, RELEASES.length);
+  // `{}` and nothing else means "no criterion was active": no dimension is
+  // written as null, "", or "all", so a reader needs no sentinel table.
+  assert.deepEqual(payload.manifest.criteria, {}, "an unfiltered file claims a criterion");
+  assert.deepEqual(criteriaBreaches(payload), []);
+});
+
+test("the summary beside the export button follows the filters, before any download", async (t) => {
+  const page = await openHistory(t);
+
+  // No filters: the whole store, in the wording the panel has always used for
+  // "every record".
+  assert.equal(
+    exportSummary(page),
+    `Ready to export ${DECISIONS.length} decisions and ${RELEASES.length} releases stored in this browser.`,
+    "the unfiltered summary does not say the file is every record",
+  );
+  assert.equal(page.downloads.length, 0, "the summary was produced by downloading a file");
+
+  // A filter changes it, and it names the criterion that changed it.
+  chooseOption(page, "#filter-owner", "Jules");
+  assert.equal(
+    exportSummary(page),
+    "Ready to export 2 decisions and 1 release matching your history filters (Owner: Jules).",
+    "the summary did not follow the filter",
+  );
+  assert.equal(page.downloads.length, 0, "the summary was produced by downloading a file");
+
+  // A second criterion is named beside the first, and the count stays the count
+  // the list is showing.
+  chooseOption(page, "#filter-status", "accepted");
+  assert.equal(
+    exportSummary(page),
+    "Ready to export 2 decisions and 0 releases matching your history filters (Status: accepted, Owner: Jules).",
+    "the summary names one criterion where two are active",
+  );
+
+  // And back: clearing every filter restores the "every record" wording rather
+  // than leaving the last filtered sentence on screen.
+  page.document.querySelector("#clear-decision-filters").click();
+  assert.equal(visibleCount(page), EXPECTED.total);
+  assert.equal(
+    exportSummary(page),
+    `Ready to export ${DECISIONS.length} decisions and ${RELEASES.length} releases stored in this browser.`,
+    "the filtered summary outlived the filter",
+  );
+});
+
+test("the export control and the way out of a dead end are both reachable from the keyboard", async (t) => {
+  const page = await openHistory(t);
+  const button = exportButton(page);
+
+  // The harness reflects no property to an attribute, so the property is what is
+  // asserted here.
+  assert.equal(button.tagName, "BUTTON", "the export control is not a native button");
+  assert.equal(button.type, "button", "the export control would submit a form");
+  button.focus();
+  assert.equal(page.document.activeElement, button, "the export control cannot take focus");
+  const before = page.downloads.length;
+  pressEnter(page.document);
+  pressSpace(page.document);
+  assert.equal(page.downloads.length, before + 2, "Enter and Space do not both activate the export control");
+
+  // The dead end, reached through the combination the fixture pins as empty.
+  chooseOption(page, "#filter-owner", "Jules");
+  chooseOption(page, "#filter-status", "pending");
+  assert.equal(visibleCount(page), EXPECTED.ownerJulesStatusPending);
+
+  const clear = page.document.querySelector("#export-shiplog-clear-filters");
+  assert.ok(clear, "the panel offers no way out of a view that matches nothing");
+  assert.equal(clear.tagName, "BUTTON", "the clear-filters control is not a native button");
+  assert.equal(clear.type, "button", "the clear-filters control would submit a form");
+  // A hidden control is not a tab stop and a revealed one is. Both states are
+  // checked: a control that is always in the sequence puts a dead-end recovery
+  // on every ordinary visitor's path through the page.
+  assert.ok(
+    tabSequence(page.document).includes(clear),
+    "the way out of a dead end is not in the tab sequence while the dead end is on screen",
+  );
+  clear.focus();
+  assert.equal(page.document.activeElement, clear, "the clear-filters control cannot take focus");
+  pressEnter(page.document);
+  assert.equal(visibleCount(page), EXPECTED.total, "Enter on the clear-filters control did not restore the history");
+  assert.equal(
+    tabSequence(page.document).filter((node) => node === clear).length,
+    0,
+    "the way out is still a tab stop once there is nothing to recover from",
   );
 });

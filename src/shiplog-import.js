@@ -44,10 +44,13 @@ import { envelopeCountMismatches } from "./shiplog-export-schema.js";
 // Everything createShiplogExport writes. Anything else in the file is reported
 // and ignored rather than silently carried into storage.
 //
-// `filter`, `source`, and `associations` describe the file rather than carrying
-// anything only they know: they are listed so a conforming export is not
-// reported back to the visitor as unknown keys, and they are deliberately not
-// read. The records the file actually carries are the import, and a filter
+// `filter`, `manifest`, `source`, and `associations` describe the file rather
+// than carrying anything only they know: they are listed so a conforming export
+// is not reported back to the visitor as unknown keys, and they are deliberately
+// not read. `manifest` restates the counts and the filter block in one object;
+// the counts it restates are checked against the arrays by
+// shiplogExportViolations, and this importer keeps reading the top-level counts
+// it always read rather than trusting a second copy of them. The records the file actually carries are the import, and a filter
 // block, a surface name, or a join table copied from whoever exported it must
 // never influence what this browser stores. `associations` restates
 // `releases[].decisionIds`, which is what the release records below import; a
@@ -62,7 +65,8 @@ import { envelopeCountMismatches } from "./shiplog-export-schema.js";
 // are never used as a source of records; see the count check in parseImport.
 export const IMPORT_TOP_LEVEL_KEYS = [
   "schema", "version", "generatedAt", "record_count", "decision_count",
-  "release_count", "source", "filter", "decisions", "releases", "associations",
+  "release_count", "source", "filter", "manifest", "decisions", "releases",
+  "associations",
 ];
 
 function describe(value) {

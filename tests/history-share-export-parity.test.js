@@ -36,7 +36,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { initDecisionLog, STORAGE_KEY } from "../src/app.js";
-import { initShiplogExport } from "../src/shiplog-export.js";
+import { buildShiplogExport, initShiplogExport } from "../src/shiplog-export.js";
+import { readHistoryScope } from "../src/history-scope.js";
 import { RELEASE_STORAGE_KEY } from "../src/releases.js";
 import { activeHistoryFilters, parseHistoryFilters } from "../src/history-filters.js";
 import { canonicalExportOrder } from "../src/shiplog-export-schema.js";
@@ -339,16 +340,26 @@ test("a shared link filtering by owner renders that owner's records, and the fil
 
 // --- the three boundaries that previously hid a mismatch ---------------------
 
-test("a shared link matching zero records exports a valid empty file, not an error and not the whole log", async (t) => {
+test("a shared link matching zero records writes no file, and never falls back to the whole log", async (t) => {
   // The zero case is where a mismatch hides best: an export that quietly fell
-  // back to the whole store looks like a working button.
+  // back to the whole store looks like a working button. Since #1247 the panel
+  // writes nothing at all here, so the fallback is checked against the payload
+  // the export path *would* build for this link — same scope the button reads —
+  // and the button is checked for having written nothing.
   const page = await openSharedLink(t, "?q=no%20record%20says%20this&status=accepted&from=2026-02-01&to=2026-04-30");
 
   assert.deepEqual(renderedRows(page), [], "the fixture accidentally matches this link");
 
-  const payload = exportFromPage(page);
-  assert.deepEqual(payload.decisions, [], "a zero-result link exported decisions");
-  assert.deepEqual(payload.releases, [], "a zero-result link exported releases");
+  const before = page.downloads.length;
+  page.document.querySelector("#export-shiplog").click();
+  assert.equal(page.downloads.length, before, "a link matching nothing still wrote a file");
+
+  const { payload } = buildShiplogExport(page.storage, {
+    generatedAt: "2026-07-26T18:30:00.000Z",
+    scope: readHistoryScope(page.document),
+  });
+  assert.deepEqual(payload.decisions, [], "a zero-result link would export decisions");
+  assert.deepEqual(payload.releases, [], "a zero-result link would export releases");
   assert.equal(payload.record_count, 0, "a zero-result file counts records it does not hold");
   assert.deepEqual(shapeViolations(payload), [], "the empty file is not a whole export");
   assertLinkExportParity(page, payload, "a zero-result link:");

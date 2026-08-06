@@ -80,6 +80,11 @@ export const EXPORT_ENVELOPE_FIELDS = Object.freeze({
   // states them: present means active, absent means off, `{}` means the file is
   // the whole browsed history.
   filter: "object?",
+  // The same facts gathered into one self-describing block, for a reader that
+  // holds the file and nothing else (EXPORT_MANIFEST_FIELDS). Optional here for
+  // the same reason the counts are: a file written before it existed is still a
+  // valid version 1 export, and it adds no key inside a record.
+  manifest: "object?",
   decisions: "array",
   releases: "array",
   // Required on files produced now; optional in the version-1 reader so an
@@ -114,6 +119,31 @@ export const EXPORT_FILTER_FIELDS = Object.freeze({
   from: "string",
   to: "string",
   currentOnly: "boolean",
+});
+
+// What the file is, stated once as an object rather than as four sibling keys a
+// reader has to know to gather up.
+//
+// Every field is derived from the records the file actually carries — never from
+// a second pass over the store — so the manifest cannot describe a slice the
+// file is not. `criteria` is the same block `filter` carries and obeys the same
+// convention (present means active, `{}` means nothing was filtered);
+// `schemaVersion` is SHIPLOG_EXPORT_VERSION, so the version a reader switches on
+// is one constant and not two that can drift apart.
+export const EXPORT_MANIFEST_FIELDS = Object.freeze({
+  schemaVersion: "number",
+  generatedAt: "string",
+  criteria: "object",
+  totalCount: "number",
+  counts: "object",
+});
+
+// Per-kind counts, keyed by the record type the history filters by (`decision`,
+// `release`) rather than by the collection name, so the manifest names a kind
+// the same way `filter.type` does.
+export const EXPORT_MANIFEST_COUNT_FIELDS = Object.freeze({
+  decision: "number",
+  release: "number",
 });
 
 export const EXPORT_DECISION_FIELDS = Object.freeze({
@@ -372,25 +402,112 @@ export function associationViolations(payload) {
  * only way a file says "no filter was active".
  */
 export function filterBlockViolations(payload) {
-  const block = payload?.filter;
-  if (block === undefined) return [];
-  if (!isRecordObject(block)) return [`export.filter: expected an object, got ${typeName(block)}`];
+  if (payload?.filter === undefined) return [];
+  return criteriaViolations("export.filter", payload.filter);
+}
+
+/**
+ * The rules above, applied to whichever block states them.
+ *
+ * Two keys carry the same criteria — `filter` and `manifest.criteria` — and one
+ * function checks both, so a dimension can never be legal in one and drift in
+ * the other.
+ */
+function criteriaViolations(path, block) {
+  if (!isRecordObject(block)) return [`${path}: expected an object, got ${typeName(block)}`];
   const violations = [];
   for (const [key, value] of Object.entries(block)) {
     const type = EXPORT_FILTER_FIELDS[key];
     if (!type) {
-      violations.push(`export.filter: undeclared filter ${JSON.stringify(key)}`);
+      violations.push(`${path}: undeclared filter ${JSON.stringify(key)}`);
       continue;
     }
     if (typeName(value) !== type) {
-      violations.push(`export.filter.${key}: expected ${type}, got ${typeName(value)}`);
+      violations.push(`${path}.${key}: expected ${type}, got ${typeName(value)}`);
       continue;
     }
     if (value === DEFAULT_HISTORY_FILTERS[key]) {
       violations.push(
-        `export.filter.${key}: ${JSON.stringify(value)} means this filter was not active; `
+        `${path}.${key}: ${JSON.stringify(value)} means this filter was not active; `
         + "an inactive filter is omitted from the block",
       );
+    }
+  }
+  return violations;
+}
+
+/**
+ * The manifest's own contract: it describes *this* file and no other.
+ *
+ * Every check here compares the manifest against the records beside it. A
+ * manifest a consumer cannot check is a second account of the file that a reader
+ * would have to take on trust, which is the failure this block exists to close:
+ * a filtered download whose manifest still counts the whole store reads as a
+ * complete history to whatever the file is handed to.
+ */
+export function manifestViolations(payload) {
+  const manifest = payload?.manifest;
+  if (manifest === undefined) return [];
+  if (!isRecordObject(manifest)) return [`export.manifest: expected an object, got ${typeName(manifest)}`];
+  const violations = fieldViolations("export.manifest", manifest, EXPORT_MANIFEST_FIELDS);
+
+  if (manifest.schemaVersion !== undefined && manifest.schemaVersion !== SHIPLOG_EXPORT_VERSION) {
+    violations.push(
+      `export.manifest.schemaVersion: expected ${SHIPLOG_EXPORT_VERSION}, `
+      + `got ${JSON.stringify(manifest.schemaVersion)}`,
+    );
+  }
+  if (typeof manifest.generatedAt === "string") {
+    if (Number.isNaN(Date.parse(manifest.generatedAt))) {
+      violations.push(`export.manifest.generatedAt: expected an ISO date, got ${JSON.stringify(manifest.generatedAt)}`);
+    } else if (typeof payload.generatedAt === "string" && manifest.generatedAt !== payload.generatedAt) {
+      violations.push(
+        `export.manifest.generatedAt: states ${JSON.stringify(manifest.generatedAt)}, `
+        + `and the file was generated at ${JSON.stringify(payload.generatedAt)}`,
+      );
+    }
+  }
+  if (manifest.criteria !== undefined) {
+    violations.push(...criteriaViolations("export.manifest.criteria", manifest.criteria));
+    // Both blocks state the criteria that produced the records below them, so
+    // they are the same block or one of them is wrong.
+    if (isRecordObject(manifest.criteria) && isRecordObject(payload.filter)
+      && JSON.stringify(manifest.criteria) !== JSON.stringify(payload.filter)) {
+      violations.push(
+        `export.manifest.criteria: states ${JSON.stringify(manifest.criteria)}, `
+        + `and export.filter states ${JSON.stringify(payload.filter)}`,
+      );
+    }
+  }
+
+  if (manifest.counts !== undefined) {
+    violations.push(...fieldViolations("export.manifest.counts", manifest.counts, EXPORT_MANIFEST_COUNT_FIELDS));
+  }
+  for (const [key, kind] of [["decision", "decisions"], ["release", "releases"]]) {
+    const claimed = manifest.counts?.[key];
+    if (!Number.isInteger(claimed) || !Array.isArray(payload[kind])) continue;
+    if (claimed === payload[kind].length) continue;
+    violations.push(
+      `export.manifest.counts.${key}: claims ${claimed} ${kind}, file contains ${payload[kind].length}`,
+    );
+  }
+  if (Number.isInteger(manifest.totalCount)) {
+    const perKind = [manifest.counts?.decision, manifest.counts?.release];
+    if (perKind.every((count) => Number.isInteger(count))) {
+      const summed = perKind[0] + perKind[1];
+      if (summed !== manifest.totalCount) {
+        violations.push(
+          `export.manifest.totalCount: claims ${manifest.totalCount}, and its own per-type counts sum to ${summed}`,
+        );
+      }
+    }
+    if (Array.isArray(payload.decisions) && Array.isArray(payload.releases)) {
+      const actual = payload.decisions.length + payload.releases.length;
+      if (actual !== manifest.totalCount) {
+        violations.push(
+          `export.manifest.totalCount: claims ${manifest.totalCount}, file contains ${actual} records`,
+        );
+      }
     }
   }
   return violations;
@@ -488,6 +605,7 @@ export function shiplogExportViolations(payload) {
     violations.push(...duplicateIdViolations(kind, payload[kind]));
   }
   violations.push(...filterBlockViolations(payload));
+  violations.push(...manifestViolations(payload));
   violations.push(...recordCountViolations(payload));
   violations.push(...linkIntegrityViolations(payload));
   violations.push(...associationViolations(payload));

@@ -181,6 +181,13 @@ export const SHIPLOG_EXPORT_SHAPE = Object.freeze({
     // Which surface wrote the file.
     source: "string",
     filter: "object",
+    // The same facts as the counts and the filter block above, in one object a
+    // reader can hold on its own: `{ schemaVersion, generatedAt, criteria,
+    // totalCount, counts }`. Pinned as required for the same reason — every file
+    // the exporter writes carries it — and its own fields are held to the
+    // records beside them by manifestViolations in src/shiplog-export-schema.js.
+    // It is a sibling of the two record arrays: no field inside a record changed.
+    manifest: "object",
     decisions: "array",
     releases: "array",
     associations: "array",

@@ -109,6 +109,15 @@ test("populated browser export has an explicit portable contract and only Shiplo
     // Nothing was filtered, so the block is empty — the one reading that means
     // "this file is the whole browsed history".
     filter: {},
+    // The same facts in one self-describing block. A sibling of the two record
+    // arrays: no key inside a record moved, was renamed, or was added.
+    manifest: {
+      schemaVersion: SHIPLOG_EXPORT_VERSION,
+      generatedAt: GENERATED_AT,
+      criteria: {},
+      totalCount: 2,
+      counts: { decision: 1, release: 1 },
+    },
     decisions: [decision],
     // The second id named a decision this browser does not hold, so it is not
     // written into the file: see the link integrity tests below.
@@ -131,6 +140,13 @@ test("empty browser history exports an explicitly empty valid record", () => {
     release_count: 0,
     source: EXPORT_SOURCES.history,
     filter: {},
+    manifest: {
+      schemaVersion: SHIPLOG_EXPORT_VERSION,
+      generatedAt: GENERATED_AT,
+      criteria: {},
+      totalCount: 0,
+      counts: { decision: 0, release: 0 },
+    },
     decisions: [],
     releases: [],
     associations: [],
@@ -518,6 +534,133 @@ test("a filter matching nothing exports an empty file rather than refusing", () 
   assert.deepEqual(shiplogExportViolations(payload), [], "the empty filtered file is still a whole export");
 });
 
+test("the manifest describes the file it is in, and a drifted one is reported", () => {
+  const { payload } = buildShiplogExport(linkedStorage(), {
+    generatedAt: GENERATED_AT,
+    scope: {
+      filtered: true,
+      decisionIds: ["link-d-cache", "link-d-tokens"],
+      releaseIds: ["link-r-1-6-0"],
+      filters: { status: "accepted" },
+    },
+  });
+
+  assert.deepEqual(payload.manifest, {
+    schemaVersion: SHIPLOG_EXPORT_VERSION,
+    generatedAt: GENERATED_AT,
+    criteria: { status: "accepted" },
+    totalCount: 3,
+    counts: { decision: 2, release: 1 },
+  });
+  assert.equal(payload.manifest.totalCount, payload.decisions.length + payload.releases.length);
+  assert.deepEqual(payload.manifest.criteria, payload.filter, "the two blocks name different criteria");
+  assert.deepEqual(shiplogExportViolations(payload), []);
+
+  // The point of stating it as a check: a manifest a consumer cannot verify is a
+  // second account of the file that a reader would have to take on trust.
+  assert.deepEqual(
+    shiplogExportViolations({ ...payload, manifest: { ...payload.manifest, totalCount: 9 } }),
+    [
+      "export.manifest.totalCount: claims 9, and its own per-type counts sum to 3",
+      "export.manifest.totalCount: claims 9, file contains 3 records",
+    ],
+  );
+  assert.deepEqual(
+    shiplogExportViolations({
+      ...payload,
+      manifest: { ...payload.manifest, counts: { decision: 2, release: 0 } },
+    }),
+    [
+      "export.manifest.counts.release: claims 0 releases, file contains 1",
+      "export.manifest.totalCount: claims 3, and its own per-type counts sum to 2",
+    ],
+  );
+  // A criteria block that disagrees with the filter block, and one that names a
+  // dimension the schema does not declare.
+  assert.deepEqual(
+    shiplogExportViolations({ ...payload, manifest: { ...payload.manifest, criteria: {} } }),
+    ['export.manifest.criteria: states {}, and export.filter states {"status":"accepted"}'],
+  );
+  assert.deepEqual(
+    shiplogExportViolations({
+      ...payload,
+      filter: { mood: "hopeful" },
+      manifest: { ...payload.manifest, criteria: { mood: "hopeful" } },
+    }),
+    [
+      'export.filter: undeclared filter "mood"',
+      'export.manifest.criteria: undeclared filter "mood"',
+    ],
+  );
+});
+
+test("the panel refuses to write a file for a view that matches nothing, and offers the way back", () => {
+  const listeners = {};
+  const clearListeners = {};
+  const button = {
+    addEventListener(type, listener) { listeners[type] = listener; },
+    setAttribute() {},
+    removeAttribute() {},
+  };
+  const clearControl = {
+    hidden: true,
+    addEventListener(type, listener) { clearListeners[type] = listener; },
+  };
+  let historyResets = 0;
+  const counts = { textContent: "" };
+  const status = { textContent: "" };
+  const root = {
+    querySelector(selector) {
+      return {
+        "#export-shiplog": button,
+        "#export-shiplog-counts": counts,
+        "#export-shiplog-status": status,
+        "#export-shiplog-clear-filters": clearControl,
+        "#clear-decision-filters": { click() { historyResets += 1; } },
+      }[selector] ?? null;
+    },
+  };
+  const downloads = [];
+
+  initShiplogExport(root, populatedStorage(), {
+    now: () => new Date(GENERATED_AT),
+    download(payload) { downloads.push(payload); },
+  });
+  assert.equal(clearControl.hidden, true, "the way out is offered before there is a dead end to leave");
+
+  publishHistoryScope(root, {
+    filtered: true, decisionIds: [], releaseIds: [], filters: { query: "nothing matches this" },
+  });
+  assert.equal(
+    counts.textContent,
+    "No records match your history filters (Search: nothing matches this). "
+    + "Clear the filters to export your history.",
+    "the panel still offers to export a file of no records",
+  );
+  assert.equal(clearControl.hidden, false, "the way out is not offered at a dead end");
+
+  listeners.click();
+  assert.equal(downloads.length, 0, "a view matching nothing still wrote a file");
+  assert.equal(status.textContent, EXPORT_STATUS.noMatch);
+
+  // The recovery goes through the history's own reset control rather than
+  // through a second definition of "clear all" living in this panel.
+  clearListeners.click();
+  assert.equal(historyResets, 1, "the panel did not clear the filters through the history's own control");
+  assert.equal(status.textContent, "", "the refusal outlived the filters it was about");
+
+  // An empty browser is not a dead end: there is no filter to clear, so the file
+  // a caller asked for is still written.
+  const empty = { textContent: "" };
+  initShiplogExport({
+    querySelector(selector) {
+      return { "#export-shiplog": button, "#export-shiplog-counts": empty }[selector] ?? null;
+    },
+  }, storage(), { now: () => new Date(GENERATED_AT), download(payload) { downloads.push(payload); } });
+  listeners.click();
+  assert.equal(downloads.length, 1, "an empty browser refused to export its empty history");
+});
+
 test("a rubbish filter state degrades to an empty block rather than throwing", () => {
   const payload = createShiplogExport(populatedStorage(), {
     generatedAt: GENERATED_AT,
@@ -579,9 +722,17 @@ test("the button's accessible name states the filtered scope, and nothing when u
     "Download JSON: export 12 filtered records");
   assert.equal(shiplogExportLabel({ decisions: 1, releases: 0, filtered: true }),
     "Download JSON: export 1 filtered record");
-  // Zero is a scope like any other: the control still says what it will write.
+  // Zero is the one scope that is not a file: the control refuses to write it,
+  // so its name says that rather than promising nought records.
   assert.equal(shiplogExportLabel({ decisions: 0, releases: 0, filtered: true }),
-    "Download JSON: export 0 filtered records");
+    "Download JSON: no records match your filters");
+  // Active criteria that hide nothing are still criteria: a view matching none
+  // of them reads the same way whether or not `filtered` was set.
+  assert.equal(shiplogExportLabel({ decisions: 0, releases: 0, criteria: ["Owner: Ari"] }),
+    "Download JSON: no records match your filters");
+  // An empty browser is not a dead end — there is nothing to clear — so the
+  // unfiltered name is unchanged.
+  assert.equal(shiplogExportLabel({ decisions: 0, releases: 0 }), "");
   assert.equal(shiplogExportLabel({ decisions: 9, releases: 3 }), "",
     "an unfiltered export restates the visible label instead of leaving it alone");
   assert.equal(shiplogExportLabel(), "");
