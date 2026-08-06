@@ -259,6 +259,8 @@ test("every Shiplog workflow is still on the front door and still works", async 
   // Every nav destination is still offered, unchanged.
   const nav = document.querySelector(".site-nav").querySelectorAll("a");
   assert.equal(nav.length, 8);
-  assert.ok(nav.some((link) => link.getAttribute("href") === "/evolution.html"));
+  // AI FinOps is one door onto its answer region, not a list of FinOps pages
+  // (#1187): same destination, same count, an anchor added.
+  assert.ok(nav.some((link) => link.getAttribute("href") === "/evolution.html#finops-recoverable-answer"));
   assert.ok(nav.some((link) => link.getAttribute("href") === "/"));
 });

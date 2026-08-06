@@ -10,7 +10,7 @@
     "verify:build": "node scripts/verify-build.mjs dist && node scripts/check-size-budget.mjs dist",
     "test": "node --test",
     "test:e2e": "node --test tests/history-e2e.test.js tests/release-manager-journey-e2e.test.js tests/decision-release-link-e2e.test.js tests/finops-import-e2e.test.js",
-    "test:e2e:production": "SHIPLOG_E2E_BUILD_ROOT=dist node --test tests/release-manager-journey-e2e.test.js tests/provider-sample-artifact.test.js",
+    "test:e2e:production": "SHIPLOG_E2E_BUILD_ROOT=dist node --test tests/release-manager-journey-e2e.test.js tests/provider-sample-artifact.test.js tests/link-integrity.test.js",
     "check": "npm test && npm run build && npm run verify:build && npm run test:e2e:production"
   },
   "devDependencies": {
