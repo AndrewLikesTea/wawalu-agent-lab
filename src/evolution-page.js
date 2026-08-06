@@ -550,6 +550,11 @@ import {
 // same contract above, and compares against the analysis on screen only where
 // the two are actually comparable.
 import { briefingDelta, parseSavedBriefing } from "/finops-briefing-restore.js";
+// Opening a brief somebody ELSE wrote (#1207) is a STATIC import nowhere on this
+// page: the envelope and its view are fetched on the picker's first use. Every
+// figure this page publishes is composed without them, the control sits behind a
+// shut disclosure below the fold, and a reader who is never sent a brief should
+// not pay for the reader of one. See the two `import()` calls in the handler.
 // The published attribution policy: three input states, one classification table,
 // two thresholds. Nothing on this page decides any of that for itself.
 import {
@@ -4176,6 +4181,45 @@ function mountLocalFinopsImport() {
       `It is shown read-only below the current briefing and observes ${outcome.saved.period.label}. `
       + "It was read in this tab, nothing was uploaded, and nothing on this page was replaced.");
     document.getElementById("restored-briefing-title")?.focus?.({ preventScroll: true });
+  });
+  // The shared-brief picker (#1207). Same shape as the reopen handler above and
+  // deliberately so — size checked before the bytes are read, the region cleared
+  // before every attempt so a refusal cannot leave half a brief behind, the
+  // picker reset either way so choosing the same file twice is a second attempt.
+  // What is different is what it does NOT do: it never assigns to `restored`, so
+  // a sender's figures are read beside the reader's analysis rather than into it,
+  // and nothing on this path touches storage.
+  const sharedBriefInput = document.getElementById("finops-open-brief-file");
+  sharedBriefInput?.addEventListener("change", async () => {
+    const file = sharedBriefInput.files?.[0];
+    // Fetched here rather than imported at the top: see the note beside the
+    // static imports. A reader who never opens a shared brief never loads its
+    // envelope or its view.
+    const [{ readSharedBriefText }, { applySharedBrief }] = await Promise.all([
+      import("/finops-shared-brief-envelope.js"),
+      import("/finops-shared-brief-view.js"),
+    ]);
+    applySharedBrief(document, null);
+    if (!file) return;
+    let text = null;
+    try {
+      text = await file.text();
+    } catch {
+      text = null;
+    }
+    const outcome = readSharedBriefText(text, { byteSize: file.size });
+    sharedBriefInput.value = "";
+    applySharedBrief(document, outcome);
+    if (!outcome.ok) {
+      announce("error", "That shared brief was not opened.",
+        `${outcome.summary}. ${outcome.remedy}`);
+      document.getElementById("shared-brief-error")?.focus?.({ preventScroll: true });
+      return;
+    }
+    announce("ready", "Shared brief opened.",
+      `It is shown read-only and observes ${outcome.brief.provenance.analysisPeriod}. `
+      + "It was read in this tab, nothing was uploaded, and nothing of yours was changed or kept.");
+    document.getElementById("shared-brief-title")?.focus?.({ preventScroll: true });
   });
   document.getElementById("restored-briefing-close")?.addEventListener("click", () => {
     restored = null;

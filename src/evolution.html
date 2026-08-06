@@ -2159,6 +2159,20 @@
                  reason again comes back to. -->
             <p class="field-error" id="restored-briefing-error" tabindex="-1" hidden></p>
           </div>
+          <!-- OPENING SOMEBODY ELSE'S BRIEF (#1207). Distinct from the reopen
+               picker above it, and the labels say which is which: that one
+               reopens a briefing THIS browser exported, this one opens a
+               self-contained brief a colleague sent. A recipient never has to
+               restore a sender's figures into their own records to read them,
+               so this path writes nothing anywhere. The envelope and its named
+               refusals are finops-shared-brief-envelope.js — the same envelope
+               the shareable link carries. -->
+          <div class="local-import-field">
+            <label for="finops-open-brief-file">Open a shared brief someone sent you</label>
+            <input id="finops-open-brief-file" type="file" accept=".json,application/json" aria-describedby="finops-open-brief-help" aria-invalid="false" />
+            <p id="finops-open-brief-help">This is not the import and it is not the reopen above: it opens a shared brief file a colleague exported, read-only, in this browser. Nothing is uploaded, nothing of yours is changed, and the brief is not added to your own records.</p>
+            <p class="field-error" id="shared-brief-error" tabindex="-1" hidden></p>
+          </div>
           </details>
           <button id="remap-local-import" type="button" hidden>Change column mapping</button>
           <button id="clear-local-analysis" type="button" hidden>Return to the Bundled synthetic example</button>
@@ -2881,6 +2895,27 @@
             <div class="briefing-derivation" id="restored-briefing-derivation" hidden></div>
           </details>
           <button class="restored-briefing-close" id="restored-briefing-close" type="button">Close this reopened briefing</button>
+        </section>
+
+        <!-- SOMEBODY ELSE'S BRIEF, READ-ONLY (#1207). A recipient opens the
+             file a colleague sent and reads it here: the figure, the action, the
+             confidence grade, where it came from, and the Limits that bound it.
+             It is never merged into this browser's own records, and no slot
+             below is written by anything but textContent in
+             finops-shared-brief-view.js — the file is somebody else's, so a
+             brief carrying markup is READ as markup rather than parsed as it.
+             A refused file paints nothing here at all; the reason is the field
+             error beside the picker. -->
+        <section class="restored-briefing" id="shared-brief" role="region" aria-labelledby="shared-brief-title" data-state="empty" hidden>
+          <p class="eyebrow">Shared with you · read-only · not your records</p>
+          <h3 id="shared-brief-title" tabindex="-1">A brief someone sent you</h3>
+          <p class="restored-briefing-captured" id="shared-brief-produced"></p>
+          <p class="restored-briefing-metric" id="shared-brief-figure"></p>
+          <p class="restored-briefing-action" id="shared-brief-action"></p>
+          <p class="restored-briefing-coverage" id="shared-brief-confidence"></p>
+          <p class="restored-briefing-arithmetic" id="shared-brief-provenance"></p>
+          <p class="eyebrow">Limits</p>
+          <ul class="restored-briefing-names" id="shared-brief-limits"></ul>
         </section>
 
         <!-- What this browser kept from earlier visits, if the visitor opted in.

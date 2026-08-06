@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "producedAt": "2026-07-01T09:12:00.000Z",
+  "figure": {
+    "label": "Analyzed AI spend",
+    "valueMinor": 412800,
+    "currency": "USD"
+  },
+  "destination": {
+    "action": "Route the identified workload to a cheaper model and re-measure next month",
+    "savingMinor": 74600
+  },
+  "confidence": {
+    "grade": "moderate",
+    "coverageRatioPpm": 955900
+  },
+  "provenance": {
+    "designation": "The sender's own analyzed export",
+    "analysisPeriod": "2026-06",
+    "recordCount": 4894
+  },
+  "limits": [
+    {
+      "id": "locality",
+      "text": "This brief was read in your browser only. Nothing was uploaded, and opening it changed nothing this browser had already kept."
+    },
+    {
+      "id": "coverage",
+      "text": "The figure covers 4894 of 5120 records the sender analyzed — measured across most records."
+    },
+    {
+      "id": "attribution",
+      "text": "301400 minor units of that spend could be attributed to a named team; the rest is counted but unattributed, so any per-team reading is a bound, not a total."
+    }
+  ]
+}
