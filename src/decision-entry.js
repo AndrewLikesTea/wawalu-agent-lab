@@ -7,6 +7,13 @@
 // or writes a record — the persistence path stays exactly where it already is,
 // app.js's createDecision() followed by saveDecisions().
 //
+// Both of those callers ask this module, and neither owns a rule of its own:
+// createDecision() refuses a write by calling validateDecision() and throwing
+// the very message the form would have printed beside the field. That is the
+// invariant worth having — a record cannot be persisted in a state the form
+// would have rejected, and a caller that bypasses the form is answered in the
+// same words rather than in a generic one about "a field".
+//
 // Why this module exists. The recorder used to hand every empty required field
 // to form.reportValidity(). That is one native bubble at a time: it carries the
 // browser's copy rather than ours, it vanishes on the next keystroke so it
@@ -41,25 +48,46 @@ export const DECISION_ENTRY_LIMITS = Object.freeze({
 // than on the last one found.
 export const DECISION_ENTRY_FIELDS = Object.freeze(["title", "context", "alternatives", "owner", "status"]);
 
+// The label each field carries in the form, so the summary line can name the
+// field that is blocking the save in the words the visitor is looking at.
+export const DECISION_ENTRY_LABELS = Object.freeze({
+  title: "Title",
+  context: "Context",
+  alternatives: "Alternatives",
+  owner: "Owner",
+  status: "Status",
+});
+
 // One message per field per failure. Each names what to write rather than
 // restating that the field is required: the control already carries `required`,
 // and "Title is required" tells somebody looking at an empty box nothing.
+//
+// `tooLong` is a function of the length that was submitted, not a constant: a
+// paste that is 63 characters over reads as a different problem from one that is
+// 3 over, and "it is currently 1063" is the number a person needs to cut down
+// to the limit. It states counts and never the offending text — echoing a
+// visitor's own paste back into a message would put their string into a second
+// place on the page, and the whole point of this form is that their string is
+// only ever text content.
+const tooLong = (what, limit) => (length) =>
+  `${what} must be ${limit} characters or fewer; it is currently ${length}.`;
+
 export const DECISION_ENTRY_ERRORS = Object.freeze({
   title: Object.freeze({
     missing: "Give the decision a short title. It is what the history lists and what search matches.",
-    tooLong: `Shorten the title to ${DECISION_ENTRY_LIMITS.title} characters or fewer.`,
+    tooLong: tooLong("Title", DECISION_ENTRY_LIMITS.title),
   }),
   context: Object.freeze({
     missing: "Write the problem, the constraints, and the reasoning. This is what a teammate reads six months from now.",
-    tooLong: `Shorten the context to ${DECISION_ENTRY_LIMITS.context} characters or fewer.`,
+    tooLong: tooLong("Context", DECISION_ENTRY_LIMITS.context),
   }),
   alternatives: Object.freeze({
     missing: "Name the other options considered and why they lost. Write “None considered” if there were none.",
-    tooLong: `Shorten the alternatives to ${DECISION_ENTRY_LIMITS.alternatives} characters or fewer.`,
+    tooLong: tooLong("Alternatives", DECISION_ENTRY_LIMITS.alternatives),
   }),
   owner: Object.freeze({
     missing: "Name the person responsible for this decision.",
-    tooLong: `Shorten the owner to ${DECISION_ENTRY_LIMITS.owner} characters or fewer.`,
+    tooLong: tooLong("Owner", DECISION_ENTRY_LIMITS.owner),
   }),
   status: Object.freeze({
     missing: "Choose whether this decision is Pending or Accepted.",
@@ -85,17 +113,18 @@ export function decisionEntryFieldError(field, value, options = {}) {
     return allowed.includes(text) ? null : messages.invalid;
   }
   if (!text) return messages.missing;
-  return text.length > DECISION_ENTRY_LIMITS[field] ? messages.tooLong : null;
+  return text.length > DECISION_ENTRY_LIMITS[field] ? messages.tooLong(text.length) : null;
 }
 
 /**
  * Every failure in the entry, in form order, as `{ field, message }` pairs.
  *
- * An empty array is the only thing a caller may treat as submittable. This is
- * deliberately not a second copy of createDecision()'s rules: that function
- * stays the boundary that decides what can be *stored*, and this one decides
- * what a person is told about what they *typed*. The overlap is intentional —
- * one of them speaks to a visitor and the other refuses a bad record.
+ * An empty array is the only thing a caller may treat as submittable. These are
+ * the rules for *both* boundaries: the form asks this before it reports, and
+ * createDecision() asks this before it builds a record. One list of rules and
+ * one set of message strings, so a record cannot be written in a state the form
+ * would have refused, and a refusal from the write path is worded exactly the
+ * way the field beside the box is worded.
  */
 export function validateDecisionEntry(values = {}, options = {}) {
   return DECISION_ENTRY_FIELDS
@@ -103,17 +132,38 @@ export function validateDecisionEntry(values = {}, options = {}) {
     .filter(({ message }) => message !== null);
 }
 
-// The single line the form-level alert carries. It counts rather than repeating
-// the messages: each one is already on the field it belongs to, and a summary
-// that restates them all reads the whole form twice to a screen reader.
+/**
+ * The same rules, in the shape a write path wants: `{ ok, failures }`.
+ *
+ * A caller that is about to persist a record asks `ok` and, when it is false,
+ * carries `failures[0].message` — which is the identical string the form puts
+ * beside that field.
+ */
+export function validateDecision(record = {}, options = {}) {
+  const failures = validateDecisionEntry(record, options);
+  return { ok: failures.length === 0, failures };
+}
+
+// The single line the form-level live region carries: what is blocking this
+// save, and how much else is waiting behind it. It names the first failing
+// field — the one focus just landed on — and counts the rest rather than
+// restating them, because each of those is already on the field it belongs to
+// and a summary that repeats them reads the whole form twice to a screen reader.
 //
-// A count rather than the failure list, because the caller corrects this line as
-// fields are fixed one at a time and only ever knows how many are left.
-export function decisionEntrySummary(count = 0) {
-  if (!Number.isFinite(count) || count <= 0) return "";
-  return count === 1
-    ? "One field still needs an answer before this decision can be recorded. It is described below."
-    : `${count} fields still need an answer before this decision can be recorded. Each one is described below.`;
+// Takes the failing fields rather than a bare count, because the caller corrects
+// this line as fields are fixed one at a time and the field that blocks the save
+// changes as they go.
+export function decisionEntrySummary(failures = []) {
+  const fields = (Array.isArray(failures) ? failures : [])
+    .map((failure) => (typeof failure === "string" ? failure : failure?.field))
+    .filter((field) => DECISION_ENTRY_FIELDS.includes(field));
+  if (fields.length === 0) return "";
+  const blocking = `${DECISION_ENTRY_LABELS[fields[0]]} is blocking this save.`;
+  const remaining = fields.length - 1;
+  if (remaining === 0) return `${blocking} No other field needs attention.`;
+  return remaining === 1
+    ? `${blocking} 1 more field needs attention.`
+    : `${blocking} ${remaining} more fields need attention.`;
 }
 
 // Said once, after the record has been written and the history recomposed.
