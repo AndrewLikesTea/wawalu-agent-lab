@@ -415,6 +415,9 @@ import { applyAnswerSpine } from "/finops/answer-spine-view.js";
 // The answer spine itself — one question, one metric, one action, one artifact,
 // and the classification of every other top-level region as evidence or gone.
 import { applyFinopsSpine } from "/finops-spine.js";
+// The one recoverable answer, computed once over the bundled scored dataset and
+// painted onto this page and onto /savings-action-center.html from the same call.
+import { renderRecoverableAnswer } from "/finops-recoverable-answer-view.js";
 // The page's one announcer, and the list of regions that had to stop echoing it.
 import {
   announceAnswer, importFailureAnnouncement, silenceEchoedRegions,
@@ -4865,6 +4868,10 @@ async function init() {
   // so the page cannot hold an order the spine no longer declares. Attributes
   // and one label; it tolerates every region being absent.
   applyFinopsSpine(document);
+  // …and the answer region's own figures, from the one derivation both FinOps
+  // pages read. Text only, no element and no focusable added, and it tolerates
+  // the region being absent — nothing below it may depend on this line.
+  renderRecoverableAnswer(document);
   // …and, before a single region is painted, the voice is taken away from every
   // one that only echoes the answer. Nine polite regions used to be repainted on
   // the tick an import lands, so a screen-reader user was read a queue where a

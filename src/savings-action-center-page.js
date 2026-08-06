@@ -36,6 +36,15 @@ import {
 import {
   persistedStatusText, renderDecisionReconciliation,
 } from "/decision-reconciliation-view.js";
+// The recoverable answer, from the same derivation /evolution.html paints its
+// answer region from. This page carries the move out; it does not get to hold a
+// second opinion about what the move is worth.
+import { renderRecoverablePointer } from "/finops-recoverable-answer-view.js";
+
+// Before anything on this page is read from storage: the pointer to the answer,
+// repainted from the derivation. It touches text and the anchor already in the
+// document — no element, no focusable, and no stored or reader data.
+renderRecoverablePointer(document);
 
 const root = document.getElementById("savings-action-center");
 const notices = document.getElementById("sac-notices");

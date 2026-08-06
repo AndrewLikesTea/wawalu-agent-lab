@@ -318,19 +318,6 @@ test("the answer region asks one question, states one figure, and names one move
     "the action names the move to make, not the destination page");
 });
 
-test("the recoverable figure is the derivation the page already carries", async () => {
-  const [page, demo] = await Promise.all([
-    read("src/evolution.html"), read("src/evolution-demo-data.json"),
-  ]);
-  // 5,200 USD a month is this page's one modelled destination move, named by the
-  // fixture and by the proof point. The answer states its annual form and adds
-  // no new figure and no new data source: 5,200 x 12 = 62,400.
-  assert.match(demo, /\$5,200 monthly savings scenario/);
-  assert.match(page, /Projected savings[\s\S]*\$5,200 \/ month/);
-  assert.match(page, /id="finops-recoverable-value">\$62,400</);
-  assert.match(page, /5,200 x 12 = 62,400/, "the derivation travels with the figure");
-});
-
 test("the action center points at the answer instead of restating it", async () => {
   const document = parseHtml(await read("src/savings-action-center.html"));
   const link = document.getElementById("finops-journey-owner-link");

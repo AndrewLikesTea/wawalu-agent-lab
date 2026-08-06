@@ -532,6 +532,188 @@ export function computeHeadlineMetric(data, spine = FINOPS_SPINE) {
   return spine.metric.computeFrom(data);
 }
 
+// ---------------------------------------------------------------------------
+// THE RECOVERABLE ANSWER — every dollar figure on the two FinOps pages, once.
+//
+// WHAT WAS WRONG (#1184). The answer region led /evolution.html with a
+// hand-authored "$62,400" a year, taken from a 5,200 USD monthly scenario that
+// belongs to a DIFFERENT fixture, while the panel below it said $51,254 over
+// $154,500 scored from the dataset this page actually loads, and
+// /savings-action-center.html pointed at the first without being able to check
+// either. Three numbers for one quantity, and nothing failed when they
+// disagreed. This is the one computation; both pages read it.
+//
+// PURE, AND THIS FILE STILL IMPORTS NOTHING: it reads the analysis record it is
+// handed and nothing else — no clock, no storage, no request, no new data file.
+//
+// DISPLAY STRINGS ARE PART OF THE ANSWER. Every money figure comes back as a raw
+// number AND as the exact string a page prints, because a caller that formats
+// its own has re-opened the fork this function closes.
+//
+// WHAT ANNUALISING ASSERTS, said out loud: the bundled dataset scores ONE month,
+// and the annual figures are that month times 12. `period.months` and
+// `annualFactor` come back beside them so the page states the assumption.
+// ---------------------------------------------------------------------------
+
+/** Whole dollars with thousands separators — `$615,048`. The only money format. */
+function usdDisplay(value) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return null;
+  const whole = Math.round(value);
+  const grouped = String(Math.abs(whole)).replace(/\B(?=(\d{3})+$)/g, ",");
+  return `${whole < 0 ? "-" : ""}$${grouped}`;
+}
+
+/** A share as whole percent — `42%`. Never a bare ratio on a page. */
+function percentDisplay(share) {
+  if (typeof share !== "number" || !Number.isFinite(share)) return null;
+  return `${Math.round(share * 100)}%`;
+}
+
+/**
+ * Whole calendar months in the analysis period, or null.
+ *
+ * Accepts the two shapes this product's analyses carry: the `"YYYY-MM-DD to
+ * YYYY-MM-DD"` string `normalizeLocalFinopsHistory` publishes, and the
+ * `{start, end}` object the metric contract reads. A window that is not a whole
+ * number of months from the same day of the month returns null — annualising a
+ * partial month by pretending it is a whole one is the kind of quiet arithmetic
+ * this module exists to prevent.
+ */
+function periodMonths(period) {
+  const text = typeof period === "string"
+    ? period
+    : `${period?.start ?? ""} to ${period?.end ?? ""}`;
+  const bounds = /^(\d{4})-(\d{2})-(\d{2})\D+(\d{4})-(\d{2})-(\d{2})/.exec(text.trim());
+  if (!bounds) return null;
+  const [, y1, m1, d1, y2, m2, d2] = bounds;
+  if (d1 !== d2) return null;
+  const months = (Number(y2) - Number(y1)) * 12 + (Number(m2) - Number(m1));
+  return months > 0 ? months : null;
+}
+
+/** Why an answer could not be stated. Never a zero, never a guess. */
+export const RECOVERABLE_ANSWER_UNAVAILABLE = Object.freeze({
+  noSpend: "no_analyzed_spend_total",
+  noRecoverable: "no_recoverable_total",
+  noPeriod: "no_whole_month_period",
+  noDestination: "no_ranked_destination",
+});
+
+function withheldAnswer(unavailableReason) {
+  return Object.freeze({
+    available: false,
+    unavailableReason,
+    period: null,
+    annualFactor: null,
+    totalSpend: null,
+    recoverable: null,
+    topDestination: null,
+    coverage: null,
+    dollarDisplays: Object.freeze([]),
+  });
+}
+
+/**
+ * THE ANSWER SET. One object, named fields, no positional tuples, and no
+ * quantity computed twice for two callers.
+ *
+ * @param {object|null} data an analysis record: `spendUsd`, `recoverableUsd`,
+ *   `period`, `topDepartment`, `literacy.eligibility`, `quality`, `confidence`.
+ * @returns {{
+ *   available: boolean, unavailableReason: string|null,
+ *   period: {text: string, months: number}|null, annualFactor: number|null,
+ *   totalSpend: object|null, recoverable: object|null,
+ *   topDestination: object|null, coverage: object|null,
+ *   dollarDisplays: ReadonlyArray<string>,
+ * }}
+ */
+export function computeRecoverableAnswer(data) {
+  const share = computeRecoverableShare(data);
+  if (!share.available) return withheldAnswer(share.unavailableReason);
+
+  const months = periodMonths(data?.period);
+  if (months === null) return withheldAnswer(RECOVERABLE_ANSWER_UNAVAILABLE.noPeriod);
+  const annualFactor = 12 / months;
+
+  const top = data?.topDepartment ?? null;
+  const destinationName = typeof top?.name === "string" && top.name.trim()
+    ? top.name.trim()
+    : null;
+  if (!destinationName) return withheldAnswer(RECOVERABLE_ANSWER_UNAVAILABLE.noDestination);
+
+  const totalAnnualUsd = Math.round(share.spendUsd * annualFactor);
+  const recoverableAnnualUsd = Math.round(share.recoverableUsd * annualFactor);
+  const destinationRecoverable = Number(top?.recoverableUsd);
+  const destinationAnnualUsd = Number.isFinite(destinationRecoverable)
+    ? Math.round(destinationRecoverable * annualFactor)
+    : null;
+
+  // Coverage: how much of the analyzed spend the rubric actually scored. It is
+  // the input the confidence sentence rests on, so it is derived here with the
+  // money rather than assembled beside it.
+  const eligibility = data?.literacy?.eligibility ?? null;
+  const scoredUsd = Number(eligibility?.coveredUsd);
+  const scoredShare = Number.isFinite(scoredUsd) && share.spendUsd > 0
+    ? roundHalfUp(scoredUsd / share.spendUsd, 4)
+    : null;
+
+  const totalSpend = Object.freeze({
+    periodUsd: share.spendUsd,
+    periodDisplay: usdDisplay(share.spendUsd),
+    annualUsd: totalAnnualUsd,
+    annualDisplay: usdDisplay(totalAnnualUsd),
+  });
+  const recoverable = Object.freeze({
+    periodUsd: share.recoverableUsd,
+    periodDisplay: usdDisplay(share.recoverableUsd),
+    annualUsd: recoverableAnnualUsd,
+    annualDisplay: usdDisplay(recoverableAnnualUsd),
+    share: share.share,
+    shareDisplay: percentDisplay(share.share),
+  });
+  const topDestination = Object.freeze({
+    name: destinationName,
+    // The move itself, in the rule's words with the destination's name in it.
+    // The page prints this; it does not compose its own sentence about it.
+    move: `Move ${destinationName}'s short, low-context requests to the standard model`,
+    periodUsd: Number.isFinite(destinationRecoverable) ? destinationRecoverable : null,
+    annualUsd: destinationAnnualUsd,
+    annualDisplay: usdDisplay(destinationAnnualUsd),
+  });
+  const coverage = Object.freeze({
+    scoredSpendUsd: Number.isFinite(scoredUsd) ? scoredUsd : null,
+    scoredSpendDisplay: usdDisplay(scoredUsd),
+    analyzedSpendUsd: share.spendUsd,
+    analyzedSpendDisplay: totalSpend.periodDisplay,
+    scoredShare,
+    scoredShareDisplay: percentDisplay(scoredShare),
+    recordsAnalyzed: Number.isFinite(Number(data?.quality?.joinedRecords))
+      ? Number(data.quality.joinedRecords) : null,
+    confidenceLevel: typeof data?.confidence === "string" ? data.confidence : null,
+  });
+
+  return Object.freeze({
+    available: true,
+    unavailableReason: null,
+    period: Object.freeze({
+      text: typeof data?.period === "string" ? data.period : null,
+      months,
+    }),
+    annualFactor,
+    totalSpend,
+    recoverable,
+    topDestination,
+    coverage,
+    // EVERY money string this answer can put on a page, so a test can assert
+    // that no dollar literal in either region came from anywhere else.
+    dollarDisplays: Object.freeze([
+      totalSpend.periodDisplay, totalSpend.annualDisplay,
+      recoverable.periodDisplay, recoverable.annualDisplay,
+      topDestination.annualDisplay, coverage.scoredSpendDisplay,
+    ].filter((entry) => typeof entry === "string")),
+  });
+}
+
 /**
  * Check the spine, and optionally check it against the shipped page.
  *
