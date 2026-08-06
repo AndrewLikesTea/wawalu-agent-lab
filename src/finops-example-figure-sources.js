@@ -54,6 +54,7 @@
 // declared facts about the example's derivation, and the figures themselves stay
 // owned by `finops-first-run.js`.
 
+import { exampleAnswerSet } from "./example-dataset.js";
 import { FIGURE_SOURCE, PROVENANCE_MARKERS } from "./finops-brief-provenance.js";
 
 /** Bump when a state, a marker word, or what one means changes. */
@@ -152,16 +153,37 @@ export const FIGURE_SOURCE_TERMS = Object.freeze({
  *
  * `origin` is the column, the record set, or the rule. `decision` is the one
  * plain sentence saying what the figure moves — not a restatement of it.
+ *
+ * EVERY MONEY FIGURE AND EVERY SHARE IN THIS TABLE IS READ OFF ONE DERIVATION
+ * (#1184). `exampleAnswerSet()` computes them from the bundled dataset; nothing
+ * below re-rounds, re-sums, or re-states one. A marker that told a reader "we
+ * derived this, here is the working" while carrying a hand-typed copy of the
+ * working was the exact drift this table exists to expose.
+ *
+ * A dataset that cannot be derived publishes NO markers rather than stale ones:
+ * the authored page keeps its own words, and this module claims nothing it
+ * cannot recompute.
  */
-export const EXAMPLE_FIGURE_SOURCES = Object.freeze([
+const ANSWER = safeAnswerSet();
+
+/** The derivation, or null. Never a literal standing in for it. */
+function safeAnswerSet() {
+  try {
+    return exampleAnswerSet();
+  } catch {
+    return null;
+  }
+}
+
+export const EXAMPLE_FIGURE_SOURCES = Object.freeze(!ANSWER ? [] : [
   Object.freeze({
     id: "answer",
     host: "finops-first-run-answer-source",
     qualifies: "The answer",
-    value: "33% of analyzed AI spend is recoverable",
+    value: `${ANSWER.recoverableShareDisplay} of analyzed AI spend is recoverable`,
     source: EXAMPLE_SOURCE.derived,
-    origin: "A ratio this page computes: $51,254 of recoverable spend over"
-      + " $154,500 of analyzed spend, both summed from the 15 invented usage"
+    origin: `A ratio this page computes: ${ANSWER.recoverableDisplay} of recoverable spend over`
+      + ` ${ANSWER.analyzedSpendDisplay} of analyzed spend, both summed from the 15 invented usage`
       + " records, then rounded once to a whole percent. No column in the"
       + " example's files carries a recoverable share.",
     decision: "It sizes the prize before anyone commits time to it. A share this"
@@ -171,12 +193,12 @@ export const EXAMPLE_FIGURE_SOURCES = Object.freeze([
     id: "benchmark",
     host: "finops-first-run-benchmark-source",
     qualifies: "Potentially recoverable share",
-    value: "33% of analyzed AI spend",
+    value: `${ANSWER.recoverableShareDisplay} of analyzed AI spend`,
     source: EXAMPLE_SOURCE.derived,
     origin: "The same ratio as the answer above, shown against the figures it"
-      + " divides. The $154,500 denominator is the sum of the cost column across"
-      + " all five invented departments for 2026-06-01 to 2026-07-01; the"
-      + " $51,254 numerator is scored per department by the published"
+      + ` divides. The ${ANSWER.analyzedSpendDisplay} denominator is the sum of the cost column across`
+      + ` all five invented departments for ${ANSWER.period}; the`
+      + ` ${ANSWER.recoverableDisplay} numerator is scored per department by the published`
       + " recoverability rule, not read from any column.",
     decision: "It is the number to hold your own export's share against. If"
       + " yours comes back far lower, the ceiling below is smaller too.",
@@ -185,7 +207,7 @@ export const EXAMPLE_FIGURE_SOURCES = Object.freeze([
     id: "impact",
     host: "finops-first-run-impact-source",
     qualifies: "Potential impact · routing scenario",
-    value: "$51,254 in the reporting period",
+    value: `${ANSWER.recoverableDisplay} in the reporting period`,
     source: EXAMPLE_SOURCE.derived,
     origin: "A modelled routing scenario, not an invoice line. Each department's"
       + " baseline spend is multiplied by its normalized waste share and that"
@@ -227,16 +249,20 @@ export const EXAMPLE_FIGURE_SOURCES = Object.freeze([
     id: "literacy",
     host: "finops-first-run-literacy-source",
     qualifies: "AI literacy · graded prompt sample",
-    value: "B · 85 of 100 · literacy-mix/1.0.0",
+    value: `${ANSWER.confidenceCoverage.grade} · ${ANSWER.confidenceCoverage.score} of 100`
+      + ` · ${ANSWER.confidenceCoverage.rubricVersionId}`,
     source: EXAMPLE_SOURCE.derived,
-    origin: "141 of 144 invented prompts were classified and scored by the"
-      + " published literacy-mix rubric, then weighted by each department's"
-      + " spend. The letter is the rubric's output; the $143,500 of $154,500"
+    origin: `${ANSWER.confidenceCoverage.promptsScored} of ${ANSWER.confidenceCoverage.promptsTotal}`
+      + " invented prompts were classified and scored by the"
+      + ` published ${ANSWER.confidenceCoverage.rubricVersionId} rubric, then weighted by each`
+      + ` department's spend. The letter is the rubric's output; the`
+      + ` ${ANSWER.confidenceCoverage.scoredSpendDisplay} of ${ANSWER.analyzedSpendDisplay}`
       + " coverage figure beside it is the spend those scored departments"
-      + " account for. Ember Studio carries no prompts in the corpus, so it is"
-      + " outside both figures.",
+      + ` account for. ${ANSWER.confidenceCoverage.ungradedDepartments} carries no prompts in the`
+      + " corpus, so it is outside both figures.",
     decision: "It says whether the spend is being wasted on how people ask"
-      + " rather than on which model answers — a B over 93% of the budget means"
+      + ` rather than on which model answers — a ${ANSWER.confidenceCoverage.grade} over`
+      + ` ${ANSWER.confidenceCoverage.scoredShareDisplay} of the budget means`
       + " routing, not training, is the cheaper first move.",
   }),
   Object.freeze({
@@ -246,7 +272,7 @@ export const EXAMPLE_FIGURE_SOURCES = Object.freeze([
     value: "Platform Engineering Lead",
     source: EXAMPLE_SOURCE.missing,
     origin: "The example's export files carry no owner, team-lead, or"
-      + " cost-centre column, so nobody accountable for Atlas Platform's spend"
+      + ` cost-centre column, so nobody accountable for ${ANSWER.topDestination.name}'s spend`
       + " could be read out of them. \"Platform Engineering Lead\" is the role"
       + " this page assigns by rule to a routing pilot — it is not a person,"
       + " a title, or a mapping named anywhere in the data.",

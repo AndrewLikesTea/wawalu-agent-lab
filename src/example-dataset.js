@@ -16,6 +16,8 @@
 // resource, or provider identifier in this file; the opaque ids follow the
 // contract's pseudonym pattern and their readable tails are made-up words.
 
+import { formatPercent, formatUsd } from "./evolution.js";
+import { composeFirstRunLiteracy } from "./finops-first-run-literacy.js";
 import { parseLocalFinopsFile, normalizeLocalFinopsHistory } from "./local-finops.js";
 import { PROVIDER_USAGE_SCHEMA_VERSION, usageDetail } from "./provider-usage-record.js";
 import { classifyQuerySample, parseQuerySample } from "./query-sample-contract.js";
@@ -668,4 +670,144 @@ export function loadExampleDatasetInputs() {
  */
 export function loadExampleDataset() {
   return nameExampleDepartments(normalizeLocalFinopsHistory(loadExampleDatasetInputs()));
+}
+
+// ---------------------------------------------------------------------------
+// THE ANSWER SET — one computed answer, for every surface that states it (#1184)
+//
+// The headline recoverable figure, the supporting-panel figures, and the
+// provenance sentences under both were separate hand-written restatements of the
+// same four facts, tied together by nothing. A dataset edit moved one and left
+// the rest saying the old number, and no test could notice, because every test
+// that checked a figure checked it against a literal of its own.
+//
+// So the four facts are derived HERE, once, and every surface reads this object.
+// Formatting is not repeated either: `formatUsd` and `formatPercent` are the
+// page's own, and rounding happens exactly once, at this boundary. A caller that
+// re-rounds a value from here is the same bug in a new costume.
+//
+// A pure function of the dataset above and nothing else — no clock, no random
+// source, no network, no credential, no new file. Same dataset in, same object
+// out, which is what lets `tests/finops-answer-set-drift.test.js` COMPUTE its
+// expectation rather than restate one.
+// ---------------------------------------------------------------------------
+
+/** Bump when a field is added, removed, or changes meaning. */
+export const EXAMPLE_ANSWER_SET_VERSION = "finops-example-answer-set/1.0.0";
+
+/** The one derivation, computed at most once per module load. */
+let cachedAnswerSet = null;
+
+/** A whole-dollar display, rounded once, here. Null stays null, never "$0". */
+const money = (value) => (Number.isFinite(Number(value)) ? formatUsd(value) : null);
+
+/**
+ * Every dollar figure and share this example publishes.
+ *
+ * The fields are named for what each value MEANS, not for where it is drawn: one
+ * object answers the headline, the supporting panels, the action's pilot cap, and
+ * the provenance sentences under all three.
+ *
+ * @param analysis the example envelope. Defaults to the bundled one, computed
+ *   once and reused; pass an analysis to derive the same answer set from it.
+ * @returns a frozen answer set, or null when there is no spend to divide. Null
+ *   rather than zeroes: an answer set over nothing is not an answer.
+ */
+export function exampleAnswerSet(analysis = null) {
+  if (analysis === null) {
+    if (!cachedAnswerSet) cachedAnswerSet = deriveAnswerSet(loadExampleDataset());
+    return cachedAnswerSet;
+  }
+  return deriveAnswerSet(analysis);
+}
+
+function deriveAnswerSet(analysis) {
+  const analyzedSpendUsd = Number(analysis?.spendUsd);
+  const recoverableUsd = Number(analysis?.recoverableUsd);
+  if (!Number.isFinite(analyzedSpendUsd) || analyzedSpendUsd <= 0) return null;
+  if (!Number.isFinite(recoverableUsd) || recoverableUsd < 0) return null;
+  const departments = Array.isArray(analysis?.rankedDepartments) ? analysis.rankedDepartments : [];
+  const share = recoverableUsd / analyzedSpendUsd;
+  const literacy = composeFirstRunLiteracy(analysis);
+  return Object.freeze({
+    version: EXAMPLE_ANSWER_SET_VERSION,
+
+    /** Total spend the analysis divided, in the reporting period. */
+    analyzedSpendUsd,
+    analyzedSpendDisplay: money(analyzedSpendUsd),
+
+    /** What the routing scenario could recover out of that total. */
+    recoverableUsd,
+    recoverableDisplay: money(recoverableUsd),
+
+    /** The one ratio the page leads with, rounded to a whole percent once. */
+    recoverableShare: share,
+    recoverableShareDisplay: formatPercent(share),
+
+    /** The window both figures cover, as the envelope states it. */
+    period: typeof analysis?.period === "string" ? analysis.period : null,
+
+    /** How many units carried analyzed spend in that window. */
+    departmentCount: departments.length,
+
+    /** Where the recoverable spend is: the top-spend unit, named. */
+    topDestination: topDestinationOf(analysis, departments),
+
+    /**
+     * What the confidence claim rests on: how much of the analyzed spend the
+     * rubric actually scored, over how many teams and prompts. The SCORE itself
+     * is the canonical decision record's; these are what it is bounded by.
+     */
+    confidenceCoverage: literacy?.available === true
+      ? Object.freeze({
+        scoredSpendUsd: Number(literacy.coveredUsd),
+        scoredSpendDisplay: money(literacy.coveredUsd),
+        scoredShare: Number(literacy.coverageRatio),
+        scoredShareDisplay: formatPercent(literacy.coverageRatio),
+        departmentsScored: Number(literacy.departmentsGraded),
+        departmentsTotal: Number(literacy.departmentsTotal),
+        promptsScored: Number(literacy.promptsScored),
+        promptsTotal: Number(literacy.promptsTotal),
+        ungradedDepartments: literacy.ungradedDepartments,
+        grade: literacy.grade,
+        score: literacy.score,
+        rubricVersionId: literacy.rubricVersionId,
+        tier: literacy.coverageTier,
+      })
+      : null,
+
+    /**
+     * Every dollar string this answer set publishes, deduplicated, so a drift
+     * check can ask "is this rendered figure one of ours?" without keeping a
+     * second list of fields to look in — a list the next field is missing from.
+     */
+    moneyDisplays: Object.freeze([...new Set([
+      money(analyzedSpendUsd),
+      money(recoverableUsd),
+      literacy?.available === true ? money(literacy.coveredUsd) : null,
+    ].filter(Boolean))]),
+  });
+}
+
+/** The unit carrying the most analyzed spend, with its own share of the prize. */
+function topDestinationOf(analysis, departments) {
+  let top = analysis?.topDepartment ?? null;
+  if (!top) {
+    for (const department of departments) {
+      const spend = Number(department?.spendUsd);
+      if (!Number.isFinite(spend)) continue;
+      if (!top || spend > Number(top.spendUsd)) top = department;
+    }
+  }
+  if (!top) return null;
+  const spendUsd = Number(top.spendUsd);
+  const recoverableUsd = Number(top.recoverableUsd);
+  return Object.freeze({
+    id: typeof top.id === "string" ? top.id : null,
+    name: typeof top.name === "string" && top.name.trim() ? top.name.trim() : null,
+    spendUsd: Number.isFinite(spendUsd) ? spendUsd : null,
+    spendDisplay: money(spendUsd),
+    recoverableUsd: Number.isFinite(recoverableUsd) ? recoverableUsd : null,
+    recoverableDisplay: money(recoverableUsd),
+  });
 }
