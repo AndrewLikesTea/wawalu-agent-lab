@@ -42,32 +42,39 @@
 // `SHARED_ORIGIN` in `executive-briefing-source.js`. A token is evidence of what
 // somebody chose to send, not proof of who sent it.
 
-import { FINOPS_PERIOD_FIELDS } from "./finops-workspace-contract.js";
-import { scanRetainedContent, validateRetainedPeriod } from "./finops-workspace.js";
-// The repository's one deterministic serializer: same values in, same bytes out,
-// because every object is rebuilt with its keys sorted. Reused rather than
-// reimplemented so a link and a downloaded briefing cannot disagree about what
-// "the same figures" means.
-import { serializeBriefing } from "./finops-briefing-export.js";
+// THE ENVELOPE IS NOT DEFINED HERE (#1207). A link and a downloaded brief file
+// carry the SAME object, built and validated by one module, so a disclosure the
+// link carries cannot go missing from the file. This module is a transport: it
+// base64url-encodes what `buildBriefEnvelope` returns and hands what comes back
+// off the wire to `validateBriefEnvelope`. It chooses no field, applies no
+// threshold, and holds no copy of the contract to drift from.
+import {
+  BRIEF_ENVELOPE_REASON, BRIEF_ENVELOPE_SCHEMA, MAX_BRIEF_PERIODS,
+  SUPPORTED_BRIEF_ENVELOPE_SCHEMAS, buildBriefEnvelope, serializeBriefEnvelope,
+  validateBriefEnvelope,
+} from "./finops-brief-envelope.js";
 
 /**
  * The token's schema version. An INTEGER a reader compares, not prose it parses.
  *
- * A token declaring anything else is refused by name rather than read
+ * It is the ENVELOPE's version, re-exported rather than restated: a link and a
+ * brief file declare the same number because they carry the same object. A
+ * token declaring anything else is refused by name rather than read
  * best-effort: half-understood figures are how a colleague ends up quoting a
  * field this build silently dropped.
  */
-export const SHARED_BRIEFING_SCHEMA = 1;
+export const SHARED_BRIEFING_SCHEMA = BRIEF_ENVELOPE_SCHEMA;
 
 /**
  * Every schema this build reads, weakest-numbered first.
  *
  * A LIST rather than the one integer above, because the sentence a refusal has
- * to say is "this page reads 1" — a range, stated from the same constant the
- * reader actually branches on. A build that learns a second schema adds it here
- * and the refusal sentence, the parity check and the decoder all move together.
+ * to say is "this page reads 2" — a range, stated from the same constant the
+ * reader actually branches on. A build that learns a second schema adds it to
+ * the envelope contract and the refusal sentence, the parity check and the
+ * decoder all move together.
  */
-export const SUPPORTED_SHARED_SCHEMAS = Object.freeze([SHARED_BRIEFING_SCHEMA]);
+export const SUPPORTED_SHARED_SCHEMAS = SUPPORTED_BRIEF_ENVELOPE_SCHEMAS;
 
 /** The fragment parameter the token is carried in: `#brief=<token>`. */
 export const SHARED_BRIEFING_FRAGMENT_KEY = "brief";
@@ -80,25 +87,42 @@ export const SHARED_BRIEFING_FRAGMENT_KEY = "brief";
  * survive. A sender over it is told their workspace is too large to link rather
  * than handed a truncated one, because a truncated briefing is a wrong briefing.
  */
-export const MAX_SHARED_TOKEN_LENGTH = 8192;
+// Raised from 8,192 for #1207. The envelope now carries the disclosures a
+// recipient is owed — the confidence grade and its meaning, the provenance, and
+// the Limits statements — which is roughly 2 KB of prose on top of six periods.
+// The ceiling is not a protocol limit either way, so the question is what a
+// reader's clipboard and address bar survive rather than what a request line
+// allows; 12 KiB is comfortably inside every current browser's URL length and
+// still refuses a paste no chat client would carry intact.
+export const MAX_SHARED_TOKEN_LENGTH = 12288;
 
 /**
  * How many periods a link may carry: the most recent six.
  *
- * The store keeps up to `MAX_RETAINED_PERIODS` (24). A link is a message, not a
- * backup, and six months is the span the executive briefing's own trend reads.
- * The cut is stated in the sender's control copy rather than made silently.
+ * The envelope's own cap, re-exported. The store keeps up to
+ * `MAX_RETAINED_PERIODS` (24). A shared brief is a message, not a backup, and
+ * six months is the span the executive briefing's own trend reads. The cut is
+ * stated in the sender's control copy rather than made silently.
  */
-export const MAX_SHARED_PERIODS = 6;
+export const MAX_SHARED_PERIODS = MAX_BRIEF_PERIODS;
 
-/** Every way a token is refused. A closed set; each renders its own sentence. */
+/**
+ * Every way a token is refused. A closed set; each renders its own sentence.
+ *
+ * The five envelope refusals are the ENVELOPE's codes, not a parallel set: a
+ * file and a link refuse the same brief for the same named reason, and only the
+ * remedy sentence differs. `absent`, `oversize` and `malformed` are this
+ * transport's own — a fragment can be missing, too long, or not base64url, none
+ * of which a file can be.
+ */
 export const SHARE_DECODE_REASON = Object.freeze({
   absent: "no_shared_briefing",
   oversize: "token_over_length",
   malformed: "token_not_decodable",
-  unsupportedVersion: "unsupported_token_version",
-  rejectedRecords: "records_failed_contract",
-  empty: "no_period_in_token",
+  unsupportedVersion: BRIEF_ENVELOPE_REASON.unsupportedVersion,
+  missingDisclosures: BRIEF_ENVELOPE_REASON.missingDisclosures,
+  rejectedRecords: BRIEF_ENVELOPE_REASON.rejectedRecords,
+  empty: BRIEF_ENVELOPE_REASON.empty,
 });
 
 /** What each refusal says: what is true, what it means, what to do about it. */
@@ -122,6 +146,14 @@ export const SHARE_DECODE_COPY = Object.freeze({
     statement: "The fragment on this address is not a briefing token this build can decode — a copied "
       + "link is easily cut short by a chat client or an email wrapper.",
     remedy: "Nothing of yours was read or changed. Ask the sender for the link again, copied whole.",
+  }),
+  [SHARE_DECODE_REASON.missingDisclosures]: Object.freeze({
+    summary: "The shared figures arrived without their Limits disclosures",
+    statement: "The link carries a brief, but at least one of the confidence grade, the provenance "
+      + "and the Limits statements is absent — the three things that say how far the figure can be "
+      + "trusted.",
+    remedy: "No part of the brief is shown, because a figure without the sentences that bound it "
+      + "reads as more certain than it is. Ask the sender to copy a fresh link.",
   }),
   [SHARE_DECODE_REASON.unsupportedVersion]: Object.freeze({
     summary: "The shared figures were written by a different build",
@@ -148,32 +180,17 @@ export const SHARE_DECODE_COPY = Object.freeze({
 
 const BASE64URL = /^[A-Za-z0-9_-]+$/;
 
-/** Project one record onto the contract's allowlist. Copied out, never spread. */
-function projectPeriod(period) {
-  const projected = {};
-  for (const field of FINOPS_PERIOD_FIELDS) {
-    if (period?.[field] !== undefined) projected[field] = period[field];
-  }
-  return projected;
-}
-
 /**
- * Hold a list of records to the same contract in both directions.
+ * Translate an envelope verdict into this transport's vocabulary.
  *
- * Encoding and decoding call this with the same arguments, which is the point:
- * a record this build would refuse to read is a record it refuses to write.
+ * Four of the five codes pass straight through — they are the same refusal on
+ * either transport. `not_a_brief` becomes `malformed`, because on a link the
+ * thing that was not a brief was a fragment somebody's chat client cut in half,
+ * and the remedy for that is "copied whole", not "ask for a different file".
  */
-function contractViolations(periods) {
-  if (!Array.isArray(periods)) return true;
-  if (periods.length > MAX_SHARED_PERIODS) return true;
-  for (const period of periods) {
-    if (!validateRetainedPeriod(period).ok) return true;
-    for (const key of Object.keys(period)) {
-      if (!FINOPS_PERIOD_FIELDS.includes(key)) return true;
-    }
-  }
-  return !scanRetainedContent(periods, "periods").ok;
-}
+const asDecodeReason = (reason) => (reason === BRIEF_ENVELOPE_REASON.notABrief
+  ? SHARE_DECODE_REASON.malformed
+  : reason);
 
 function toBase64Url(text) {
   const bytes = new TextEncoder().encode(text);
@@ -192,7 +209,7 @@ function fromBase64Url(token) {
 }
 
 const refusal = (reason) => Object.freeze({
-  ok: false, reason, token: "", periods: Object.freeze([]),
+  ok: false, reason, token: "", periods: Object.freeze([]), envelope: null,
   ...SHARE_DECODE_COPY[reason],
 });
 
@@ -200,21 +217,23 @@ const refusal = (reason) => Object.freeze({
  * Encode the sender's own retained periods into a fragment token.
  *
  * @param periods retained-period records, newest last, as the workspace keeps them.
- * @returns `{ ok, reason, token, periods, summary?, statement?, remedy? }`, frozen.
- *   `ok` is false with a named reason rather than a thrown error, because the
- *   control that calls this has to say why it is disabled.
+ * @param options `{ producedAt }` — passed straight to the envelope builder. No
+ *   clock is read here: two encodes of the same analysis must produce the same
+ *   token, or the parity check in `finops-share-parity.js` cannot compare them.
+ * @returns `{ ok, reason, token, periods, envelope, summary?, statement?,
+ *   remedy? }`, frozen. `ok` is false with a named reason rather than a thrown
+ *   error, because the control that calls this has to say why it is disabled.
  */
-export function encodeSharedBriefing(periods) {
-  if (!Array.isArray(periods) || periods.length === 0) {
-    return refusal(SHARE_DECODE_REASON.empty);
-  }
-  // The most recent six. `slice` from the end because the store appends.
-  const shared = periods.slice(-MAX_SHARED_PERIODS).map(projectPeriod);
-  if (contractViolations(shared)) return refusal(SHARE_DECODE_REASON.rejectedRecords);
+export function encodeSharedBriefing(periods, options = {}) {
+  const built = buildBriefEnvelope(periods, options);
+  if (!built.ok) return refusal(asDecodeReason(built.reason));
 
   let token;
   try {
-    token = toBase64Url(serializeBriefing({ v: SHARED_BRIEFING_SCHEMA, periods: shared }));
+    // Compact, not indented: a token has to survive an address bar, and the
+    // whitespace a file gets for readability would be a third of the fragment.
+    // Same object either way — that is what the parity test asserts.
+    token = toBase64Url(serializeBriefEnvelope(built.envelope));
   } catch {
     return refusal(SHARE_DECODE_REASON.malformed);
   }
@@ -223,7 +242,8 @@ export function encodeSharedBriefing(periods) {
     ok: true,
     reason: "encoded",
     token,
-    periods: Object.freeze(shared.map((period) => Object.freeze(period))),
+    periods: built.envelope.periods,
+    envelope: built.envelope,
   });
 }
 
@@ -232,35 +252,33 @@ export function encodeSharedBriefing(periods) {
  *
  * READ-ONLY. No storage is touched on any path, including the failing ones.
  *
- * @returns `{ ok, reason, periods, summary?, statement?, remedy? }`, frozen.
+ * @returns `{ ok, reason, periods, envelope, summary?, statement?, remedy? }`,
+ *   frozen. The envelope is the shared contract's own projection: rebuilt field
+ *   by field, so an unknown key a hostile token carried reaches no caller.
  */
 export function decodeSharedBriefing(token) {
   if (typeof token !== "string" || token === "") return refusal(SHARE_DECODE_REASON.absent);
   if (token.length > MAX_SHARED_TOKEN_LENGTH) return refusal(SHARE_DECODE_REASON.oversize);
   if (!BASE64URL.test(token)) return refusal(SHARE_DECODE_REASON.malformed);
 
-  let envelope;
+  let parsed;
   try {
-    envelope = JSON.parse(fromBase64Url(token));
+    parsed = JSON.parse(fromBase64Url(token));
   } catch {
     return refusal(SHARE_DECODE_REASON.malformed);
   }
-  if (!envelope || typeof envelope !== "object" || Array.isArray(envelope)) {
-    return refusal(SHARE_DECODE_REASON.malformed);
-  }
-  // Version before shape: a token from a build that changed what `periods` means
-  // must be refused as the wrong version, not as a malformed one.
-  if (!SUPPORTED_SHARED_SCHEMAS.includes(envelope.v)) {
-    return refusal(SHARE_DECODE_REASON.unsupportedVersion);
-  }
-  if (!Array.isArray(envelope.periods)) return refusal(SHARE_DECODE_REASON.malformed);
-  if (envelope.periods.length === 0) return refusal(SHARE_DECODE_REASON.empty);
-  if (contractViolations(envelope.periods)) return refusal(SHARE_DECODE_REASON.rejectedRecords);
+  // Version, required fields, disclosures and records are all the ENVELOPE's
+  // call, checked whole before anything is returned. This transport adds no rule
+  // of its own here — a link and a file that refuse the same brief for different
+  // reasons would be two contracts wearing one name.
+  const read = validateBriefEnvelope(parsed);
+  if (!read.ok) return refusal(asDecodeReason(read.reason));
 
   return Object.freeze({
     ok: true,
     reason: "decoded",
-    periods: Object.freeze(envelope.periods.map((period) => Object.freeze(projectPeriod(period)))),
+    periods: read.envelope.periods,
+    envelope: read.envelope,
   });
 }
 
@@ -321,8 +339,8 @@ export function readSharedBriefingFragment(hash) {
  *
  * @returns `{ ok, reason, url, token, ... }`, frozen. `url` is "" on any refusal.
  */
-export function sharedBriefingHref(base, periods) {
-  const encoded = encodeSharedBriefing(periods);
+export function sharedBriefingHref(base, periods, options = {}) {
+  const encoded = encodeSharedBriefing(periods, options);
   if (!encoded.ok) return Object.freeze({ ...encoded, url: "" });
   let url;
   try {
