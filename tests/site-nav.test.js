@@ -246,26 +246,28 @@ test("the nav names people, and never promises the visitor a personal profile", 
   assert.doesNotMatch(entry[1], /profile/i, "the list must not call this destination a profile");
 });
 
-test("the profile page identifies the selected name as a demo persona", async () => {
+test("the profile page defines the selected name as a display name", async () => {
   const html = await readFile(pageUrl("profile.html"), "utf8");
   const role = html.match(/<p class="profile-role">([\s\S]*?)<\/p>/);
   assert.ok(role, "the profile page must state its role near its heading");
-  assert.match(role[1], /<span id="profile-role-name">Ari<\/span> is a demo persona/);
-  // "Demo persona" is said here, in a sentence about what the bundled names
-  // are — and nowhere else on the page. A badge used to repeat it above this
-  // sentence, which left the page with two words for what the picker selects.
+  assert.match(role[1], /<span id="profile-role-name">Ari<\/span> is a display name/);
+  // One term, and "persona" is not it. This sentence used to say "demo
+  // persona" while the intro, the label, and the hint said "display name",
+  // which left a reader with two words for the one thing the picker selects.
+  // Matched against the whole file, rationale notes included, and on the WORD
+  // rather than the letters: the footer's "Personal AI history" row and its
+  // href both contain "persona" as a substring and name something else. The
+  // plural is bounded in too, which an unanchored pattern would let through.
+  assert.equal(html.match(/\bpersonas?\b/gi), null, "the page still calls a display name a persona");
   const rendered = html.replace(/<!--[\s\S]*?-->/g, "");
-  assert.equal(rendered.match(/demo persona/gi)?.length, 1, "the page says \"demo persona\" exactly once");
-  // The WORD, not the letters: the footer's "Personal AI history" row and its
-  // href both contain "persona" as a substring and are not a second name for
-  // what the picker selects. The plural is bounded in too, which the unanchored
-  // pattern would have let through.
-  assert.equal(rendered.match(/\bpersonas?\b/gi)?.length, 1, "the page uses the word \"persona\" nowhere else");
-  assert.match(role[1], /not a signed-in user/);
-  // The second sentence names what the picker selects, in the term the intro,
-  // the label, and the hint use. It used to say "that person's image posts",
-  // which gave the page a second word for a display name.
-  assert.match(role[1], /shows this display name's image posts only/);
+  // The claim Social's composer makes about the name, made here too and in the
+  // composer's own words, for the reader who arrives from a shared link and
+  // never sees the composer: it is not an account, and it is not reserved.
+  assert.match(role[1], /not a signed-in user — nobody owns or verifies one, and anyone can publish under any name/);
+  // The second sentence stays on the same subject the first one names. It used
+  // to swap to "this display name" mid-paragraph, and before that to "that
+  // person's image posts", which gave the page a second word for the name.
+  assert.match(role[1], /This view shows only that name's image posts\./);
   assert.doesNotMatch(rendered, /that person's|their image posts/,
     "no rendered copy on People calls a display name's posts someone's");
   // Subordinate, not trapped: the way back to the whole feed is right there.

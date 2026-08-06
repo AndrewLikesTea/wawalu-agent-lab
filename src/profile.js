@@ -297,8 +297,8 @@ export const PROFILE_EMPTY_COPY = {
 // The identity line under the heading when the selected name has nothing to
 // show. It names the person the page is already showing rather than the surface:
 // "No image posts on People yet" read as if People itself were empty, which is
-// never true — some other demo persona always has posts. Built from the same
-// display name the heading renders, so it stays right for every persona.
+// never true — some other display name always has posts. Built from the same
+// display name the heading renders, so it stays right for every one of them.
 //
 // The name is written through textContent everywhere it lands (the header, the
 // live region), so an apostrophe in a name needs no escaping; nothing here is
@@ -574,7 +574,7 @@ export function mountProfile(root, options = {}) {
     // and the invitation above the grid. Both are real anchors in the markup and
     // stay ones whether or not this runs; all that is added here is the display
     // name, so Paint's back link returns to the profile that was actually being
-    // read rather than the default persona.
+    // read rather than the default display name.
     paintRoutes: [
       root.querySelector("#profile-paint-cta"),
       root.querySelector("#profile-paint-route"),
