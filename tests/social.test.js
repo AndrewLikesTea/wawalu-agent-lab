@@ -891,6 +891,62 @@ test("the post count never claims zero posts before the feed has any answer", as
   assert.doesNotMatch(textOf(empty), /Loading|Connecting/);
 });
 
+// "Who wrote these?" is a question a visitor has on arrival, and the answer must
+// not depend on what the feed happens to be doing. The container below this
+// sentence is replaced on every render — loading, populated, and never-posted
+// are three different subtrees — so the sentence is checked in all three, and
+// its position outside that container is checked too, since that placement is
+// the whole reason the three hold.
+test("the feed says who wrote the posts, in every feed state", async (t) => {
+  const page = await loadPage(new URL("../src/social.html", import.meta.url), {});
+  t.after(() => page.restore());
+  const AUTHORSHIP = "Posts come from bundled demo personas and from anything you publish here.";
+  const authorship = () => textOf(page.document.querySelector("#feed-authorship"));
+
+  // On the shipped markup, before any script runs.
+  assert.equal(authorship(), AUTHORSHIP);
+  assert.match(authorship(), /demo persona/, "Social borrows People's term for a bundled name");
+  // One name per concept: the sentence names the two sources of a post and
+  // coins no second word for the display name a card already carries.
+  assert.doesNotMatch(authorship(), /\bauthors?\b|\bcontributors?\b|\baccounts?\b|\bprofiles?\b/i);
+  // Authorship, not provenance and not consequence: the hero already says what
+  // data a post holds, and the Publish button already says what publishing costs.
+  assert.doesNotMatch(authorship(), /customer or production data|Read every post|cannot delete/i);
+
+  // Loading: the list holds placeholder tiles and no byline to read.
+  const feed = mountSocialFeed(page.document, { posts: [], state: "loading" });
+  assert.equal(page.document.querySelectorAll(".post-card-skeleton").length, 3);
+  assert.equal(authorship(), AUTHORSHIP, "a loading feed still says who writes the posts");
+
+  // Answered and empty: the never-posted panel takes the list's place.
+  feed.seed([]);
+  assert.match(textOf(page.document.querySelector(".empty-state")), /No posts on Social yet\./);
+  assert.equal(authorship(), AUTHORSHIP, "the never-posted state still says who writes the posts");
+
+  // Populated.
+  feed.seed(sample);
+  assert.equal(page.document.querySelectorAll(".post-card-skeleton").length, 0);
+  assert.equal(page.document.querySelectorAll(".post-card").length, 3);
+  assert.equal(authorship(), AUTHORSHIP, "a full feed still says who writes the posts");
+
+  // Beside the heading, not inside the swapped container.
+  assert.equal(page.document.querySelector("#post-feed").querySelectorAll("#feed-authorship").length, 0);
+  assert.equal(page.document.querySelectorAll("#feed-authorship").length, 1, "the sentence is said once");
+});
+
+// The term Social borrows belongs to People, and this is the sentence it comes
+// from. Neither page may drift off it without the other noticing.
+test("People still calls a bundled name a demo persona, and Social reuses the term", async () => {
+  const profile = await readFile(new URL("../src/profile.html", import.meta.url), "utf8");
+  assert.ok(
+    profile.includes("is a demo persona in the Social feed, not a signed-in user."),
+    "People's anchor sentence must still render unchanged",
+  );
+  const social = (await readFile(new URL("../src/social.html", import.meta.url), "utf8"))
+    .replace(/<!--[\s\S]*?-->/g, "");
+  assert.match(social, /demo personas?\b/, "Social names the bundled writers in People's term");
+});
+
 test("demo seed contains only valid, demo-only posts", async () => {
   const raw = await readFile(new URL("../src/social-demo-data.json", import.meta.url), "utf8");
   const data = JSON.parse(raw);
