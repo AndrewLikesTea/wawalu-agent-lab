@@ -496,6 +496,8 @@ import {
   applyAnswerBlock, applyStandHeadline, bindStandDisclosures, bindStandResolution,
   mountStandDisclosures,
 } from "/finops-stand-view.js";
+// …and how sure the answer region is about the figure it leads with (#1186).
+import { applyRecoverableConfidence } from "/finops-recoverable-confidence-view.js";
 // …and the one owner of WHICH source that answer came from. The page used to
 // choose between the bundled example and the reader's import at each call site;
 // it now reads a single held answer, so the headline, the action, the position
@@ -4887,6 +4889,11 @@ async function init() {
   // with the same four values; this line is what makes the answer independent
   // of it rather than a consequence of it.
   applyAnswerBlock(document);
+  // …and beside the recoverable figure above it, the grade saying how far it may
+  // be trusted. Painted from the same bundled verdict the build seeds the served
+  // document with, so this repaints what the document already says rather than
+  // changing it — and a document served without the seed still gets the grade.
+  applyRecoverableConfidence(document);
   installDeepLinkDisclosure(document, window);
   // Immediately after it, and for the same reason: a deep link may have already
   // opened a deferred panel, and the read for that panel is taken at install.

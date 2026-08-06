@@ -94,7 +94,20 @@
            No figure was invented and no data source was added. -->
       <section class="finops-recoverable-answer" id="finops-recoverable-answer" data-workspace-frame="true" aria-labelledby="finops-recoverable-question">
         <h2 id="finops-recoverable-question">How much of our AI spend can we recover, and where do we start?</h2>
-        <p class="stand-figure" id="finops-recoverable-figure"><span class="stand-figure-label" id="finops-recoverable-label">Recoverable annual AI spend</span> <span class="stand-figure-value" id="finops-recoverable-value">$62,400</span> <span class="figure-source-state" id="finops-recoverable-marker">Illustrative</span></p>
+        <p class="stand-figure" id="finops-recoverable-figure"><span class="stand-figure-label" id="finops-recoverable-label">Recoverable annual AI spend</span> <span class="stand-figure-value" id="finops-recoverable-value">$62,400</span> <span class="figure-source-state" id="finops-recoverable-marker">Illustrative</span> <span class="figure-source-state" id="finops-recoverable-grade" data-grade="ungraded">Confidence: not graded</span></p>
+        <!-- HOW SURE WE ARE, BESIDE THE MONEY (#1186). One grade from a rubric
+             with published cut points — src/finops-recoverable-confidence.js
+             names each threshold and states the assumption behind it, and
+             tests/finops-recoverable-confidence.test.js runs a labelled fixture
+             through it. It is a static span in the figure's own paragraph, so it
+             is read with the number and needs no tab stop of its own; the
+             explanation is inside the one disclosure below, in Limits.
+
+             It reuses `.figure-source-state`, the chip the Illustrative marker
+             beside it already ships, and adds no rule to either stylesheet.
+             Authored "not graded" and seeded with the real grade by
+             scripts/seed-first-screen.mjs, which reads the same module the page
+             paints from, so the served bytes and the render agree. -->
         <p class="stand-answer" id="finops-recoverable-confidence">A ceiling to verify at list prices, before any committed-use discount.</p>
         <a class="stand-action" id="finops-recoverable-action" href="/savings-action-center.html">Move Atlas Platform's short, low-context requests to the standard model</a>
         <!-- HOW WE KNOW THIS — the one disclosure pattern this page reuses
@@ -123,7 +136,7 @@
           <dl class="figure-source-detail how-we-know-detail">
             <div><dt>Provenance</dt><dd>The bundled synthetic example: invented usage records for an invented company, shipped with this page. Not your spend, not customer data, and not a realized saving. No file of yours is read, uploaded, or stored to produce it.</dd></div>
             <div><dt>Basis</dt><dd>Recoverable annual spend sums, over every workload the example models, the difference between what that workload costs today and the cheapest destination this page already models for it, treating a workload as zero where that difference is not positive. One workload qualifies — Atlas Platform's short, low-context requests moved to the standard model — at $5,200 a month; 5,200 x 12 = 62,400, rounded once after the arithmetic.</dd></div>
-            <div><dt>Limits</dt><dd>Priced at published list prices. Committed-use discounts and measured throughput are both left out of the arithmetic, so this is a ceiling to verify against an invoice rather than a saving anyone has banked. It is stated as of the bundled synthetic example and moves the moment a provider export of your own is analyzed.</dd></div>
+            <div><dt>Limits</dt><dd>Priced at published list prices. Committed-use discounts and measured throughput are both left out of the arithmetic, so this is a ceiling to verify against an invoice rather than a saving anyone has banked. It is stated as of the bundled synthetic example and moves the moment a provider export of your own is analyzed. <span id="finops-recoverable-confidence-detail">The confidence grade beside the figure has not been computed for this document.</span></dd></div>
           </dl>
         </details>
       </section>
