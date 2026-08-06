@@ -366,6 +366,35 @@
             <textarea id="finops-copy-text" rows="7" readonly spellcheck="false"></textarea>
           </div>
         </div>
+        <!-- SEND A COLLEAGUE YOUR OWN FIGURES, NOT THE INVENTED ONES (#1206).
+             The control beside it copies text; this one copies a link whose
+             fragment carries this browser's own retained periods, projected
+             through the retained-period allowlist by
+             src/finops-shared-briefing-link.js. A colleague who opens it reads
+             the sender's months instead of the published synthetic sample, which
+             is what a plain URL resolves to in a browser that has retained
+             nothing. The payload is after the hash and never in the query, so it
+             reaches no server and no referrer header.
+             Ships HIDDEN, and stays hidden while there is nothing of the
+             reader's own to share: a disabled control beside a bundled example
+             would be offering to share an invented company. data-reason names
+             which refusal put it there.
+             The status is a paragraph in the open, never inside a disclosure
+             element, and it ships EMPTY — this page allows one voice per change.
+             The box is both the manual fallback and the one place the current
+             link lives, so a refused clipboard still leaves it selectable.
+             No new style rule: the coaching control's classes, the design
+             system's secondary button, a prompt-coaching-field box. -->
+        <div class="prompt-coaching-copy" id="finops-share" data-reason="no_period_in_token" hidden>
+          <h3 class="eyebrow">Send a colleague your own figures</h3>
+          <p class="prompt-coaching-copy-lead" id="finops-share-lead">A link to the printable executive briefing with the periods this browser has retained carried in it, so whoever opens it reads your months rather than the bundled synthetic example. The figures ride after the # and are never sent to a server. Aggregates only: the same retained-period fields this browser already keeps, no row and no filename.</p>
+          <button class="secondary-button" type="button" id="finops-share-button" aria-describedby="finops-share-lead finops-share-status">Copy shareable link to your own figures</button>
+          <p class="prompt-coaching-copy-status" id="finops-share-status" role="status" aria-live="polite" aria-atomic="true"></p>
+          <div class="prompt-coaching-copy-fallback prompt-coaching-field" id="finops-share-fallback">
+            <label for="finops-share-text">The exact link this copies</label>
+            <textarea id="finops-share-text" rows="3" readonly spellcheck="false"></textarea>
+          </div>
+        </div>
         <!-- THE IMPORTED HEADLINE, and only the imported one. It ships EMPTY and
              HIDDEN: the question, the five slot labels, every value, every
              fallback sentence and both provenance labels are painted by
