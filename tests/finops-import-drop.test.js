@@ -353,18 +353,23 @@ test("the three provider pickers this replaced are gone from the document", asyn
       assert.equal(document.querySelectorAll(`#${id}`).length, 0,
         `${id} is still a second way to import the same export`);
     }
-    // One file control that IMPORTS a provider export. The other four are not
+    // One file control that IMPORTS a provider export. The other five are not
     // rival importers and say so in their own labels: one reopens a briefing,
     // one (#1064) checks a file and stops without importing anything, one
     // (#1092) reads back a track record this page exported — periods a reader
-    // already analyzed here, never a provider's own file — and one (#1105)
-    // counts one number, an engineer headcount, out of a two-column HRIS roster
-    // that is refused outright if it carries anything else.
+    // already analyzed here, never a provider's own file — one (#1105) counts
+    // one number, an engineer headcount, out of a two-column HRIS roster that is
+    // refused outright if it carries anything else, and one (#1207) opens a
+    // brief a COLLEAGUE sent, read-only, without merging it into the reader's
+    // own records. The list grew by that last entry and by nothing else: the
+    // assertion stays exhaustive so a sixth importer cannot arrive unnoticed.
     const fileInputs = document.querySelectorAll("input")
       .filter((node) => node.getAttribute("type") === "file");
     assert.deepEqual(fileInputs.map((node) => node.getAttribute("id")).sort(),
-      ["finops-export-check-file", "finops-intake-roster", "local-finops-files",
-        "local-lead-portability-import", "reopen-briefing-file"]);
+      ["finops-export-check-file", "finops-intake-roster",
+        // #1207 — reads somebody else's brief, imports nothing.
+        "finops-open-brief-file",
+        "local-finops-files", "local-lead-portability-import", "reopen-briefing-file"]);
     const labelFor = (id) => document.querySelectorAll("label")
       .find((node) => node.getAttribute("for") === id);
     assert.match(textOf(labelFor("reopen-briefing-file")), /Reopen a saved briefing/);
@@ -372,4 +377,5 @@ test("the three provider pickers this replaced are gone from the document", asyn
     assert.match(textOf(labelFor("local-lead-portability-import")),
       /Import a track record file — periods only, not a provider export/);
     assert.match(textOf(labelFor("finops-intake-roster")), /count that headcount from an HRIS/);
+    assert.match(textOf(labelFor("finops-open-brief-file")), /Open a shared brief someone sent you/);
 });
