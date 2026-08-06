@@ -371,7 +371,9 @@ test("every top-level section that existed before the answer block is still on t
   // disclosure group. Nothing else about them changed, and nothing a reader
   // could read before is gone.
   const existing = [
-    "finops-hero", "finops-stand", "finops-first-run",
+    // #1183 added one: the recoverable answer, stated before every section that
+    // supports it. It is the only addition to this list, and nothing left it.
+    "finops-hero", "finops-recoverable-answer", "finops-stand", "finops-first-run",
     "finops-destinations", "finops-workspace-nav",
     "finops-workspace-switch",
     // #821: one load-state region per on-demand destination, so a module that

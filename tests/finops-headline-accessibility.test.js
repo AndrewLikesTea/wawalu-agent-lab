@@ -327,8 +327,11 @@ test("the h1 hero is first and the answer is the first content region after it",
   const document = parseHtml(await readFile(PAGE, "utf8"));
   const order = regionIds(document);
 
-  assert.deepEqual(order.slice(0, 2), ["finops-hero", STAND_IDS.region],
-    "orientation and the single answer are not the first two regions");
+  // Orientation, then the recoverable answer #1183 added, then the region that
+  // carries the complete answer behind it. No supporting section precedes them.
+  assert.deepEqual(order.slice(0, 3),
+    ["finops-hero", "finops-recoverable-answer", STAND_IDS.region],
+    "orientation and the single answer are not the first regions");
   assert.equal(SPINE_STEPS[0], "finops-hero",
     "the manifest's reading order disagrees with the document's");
   // Source position rather than an index into `<main>`'s children: since #832

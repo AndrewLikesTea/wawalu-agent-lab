@@ -64,8 +64,12 @@ test("the answer follows only the h1 hero and is not itself a disclosure", () =>
   const document = doc();
   const answer = byId(document, answerRegionId());
 
-  assert.deepEqual(topLevelIds(document).slice(0, 2), ["finops-hero", answerRegionId()],
-    "the answer is not the first content region after the hero");
+  // #1183 put the recoverable answer between them: the hero names the page, the
+  // recoverable answer states the total and the first move, and this region is
+  // the complete answer behind it. Both are above every supporting section.
+  assert.deepEqual(topLevelIds(document).slice(0, 3),
+    ["finops-hero", "finops-recoverable-answer", answerRegionId()],
+    "the answer is not the first content region after the recoverable answer");
   assert.equal(answer.tagName, "SECTION",
     "the answer is behind a disclosure, so the page's one answer has to be asked for");
   assert.equal(answer.closest("details"), null,

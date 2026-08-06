@@ -206,6 +206,18 @@ export const ANSWER_SPINE = Object.freeze([
       "What the page will name once it has read something, and the one input it "
       + "needs. It carries no figure, so it cannot compete with the headline below it.",
   },
+  // The one answer, before any section that supports it (#1183). A step, not the
+  // headline: `headline` stays exclusive to `finops-stand` below it.
+  {
+    id: "finops-recoverable-answer",
+    role: ROLE.step,
+    question: "How much of our AI spend can we recover, and where do we start?",
+    headingId: "finops-recoverable-question",
+    entitledToAssert:
+      "One recoverable annual figure from the destination moves this page "
+      + "already models, the one limitation it rests on, and the move to make "
+      + "first. A modelled ceiling at list price, never a realized saving.",
+  },
   {
     id: HEADLINE_REGION_ID,
     role: ROLE.headline,

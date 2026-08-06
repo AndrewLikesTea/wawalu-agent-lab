@@ -119,6 +119,9 @@ function computeRecoverableShare(data) {
  */
 const REGIONS = Object.freeze({
   "finops-hero": REGION_CLASS.evidence,
+  // #1183. `answer` is reserved for the spine's headline, still `finops-stand`;
+  // this region is a step, so the class that agrees with that role is evidence.
+  "finops-recoverable-answer": REGION_CLASS.evidence,
   "finops-stand": REGION_CLASS.answer,
   // Two of the three "this month" regions are addressed as their DISCLOSURE,
   // not as their section: #742 folded each into the page's `support-disclosure`
@@ -193,7 +196,10 @@ const EVIDENCE_LAYERS = Object.freeze([
   Object.freeze({
     id: "the-decision-record",
     question: "What is the complete answer behind that headline, and how far do you stand behind it?",
+    // The recoverable answer leads this layer (#1183); the regions after it are
+    // the complete record behind the figure it states.
     regionIds: Object.freeze([
+      "finops-recoverable-answer",
       "finops-first-run", "guided-result", "finops-portfolio-brief", "monthly-review-projection",
     ]),
   }),

@@ -76,6 +76,29 @@
         </section>
       </section>
 
+      <!-- THE ONE ANSWER, ABOVE EVERY SECTION THAT SUPPORTS IT (#1183). Four
+           things and no more: the question, the money, how far to trust the
+           money, one move. One hedge and one control, because a second of either
+           hands the ranking decision back to the reader.
+
+           DERIVATION, so two engineers compute the same figure.
+           recoverable_annual_usd = sum over every workload row in this page's
+           spend model of (current_annual_usd minus the cheapest annual cost of a
+           destination this page already models for that row), counting a row as
+           0 when that difference is not positive. The bundled model carries one
+           qualifying move — Atlas Platform's short, low-context requests to the
+           standard model — worth 5,200 USD a month, the figure named by
+           evolution-demo-data.json's recommendedAction and by the proof point's
+           "Projected savings" row below. 5,200 x 12 = 62,400, rounded after the
+           arithmetic. No other row models a destination, so none contributes.
+           No figure was invented and no data source was added. -->
+      <section class="finops-recoverable-answer" id="finops-recoverable-answer" data-workspace-frame="true" aria-labelledby="finops-recoverable-question">
+        <h2 id="finops-recoverable-question">How much of our AI spend can we recover, and where do we start?</h2>
+        <p class="stand-figure" id="finops-recoverable-figure"><span class="stand-figure-label" id="finops-recoverable-label">Recoverable annual AI spend</span> <span class="stand-figure-value" id="finops-recoverable-value">$62,400</span></p>
+        <p class="stand-answer" id="finops-recoverable-confidence">Modelled on the bundled synthetic example's invented data at published list prices, with committed-use discounts and measured throughput both left out of the arithmetic, so it reads as a ceiling to verify rather than an invoiced saving.</p>
+        <a class="stand-action" id="finops-recoverable-action" href="/savings-action-center.html">Move Atlas Platform's short, low-context requests to the standard model</a>
+      </section>
+
       <!-- THE WORKSPACE FRAME. This region, the brief under it, the load status,
            the rail, and the shell's own controls carry `data-workspace-frame`:
            they hold the page heading, the one complete answer, and the way

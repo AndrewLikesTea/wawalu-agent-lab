@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { parseHtml, textOf } from "./support/browser.js";
 import {
   QUERY_CATEGORIES, categorySpendUsd, explainLiteracyScore, formatUsd, letterGrade, literacyScore,
   normalizeMix, quartileLabel, rankDepartments, recommendationFor,
@@ -249,6 +250,93 @@ test("the AI FinOps proof point is supporting, explicit, and linked to its evide
   assert.ok(page.indexOf('<article class="proof-point"') < page.indexOf('<section class="finops-headline"'),
     "the proof point stays above the supporting executive panels it introduces");
   assert.match(styles, /@media\(max-width:640px\)[\s\S]*\.proof-point-facts\s*\{\s*grid-template-columns:1fr/);
+});
+
+// ---------------------------------------------------------------------------
+// #1183 — ONE ANSWER AT THE TOP.
+//
+// A CTO opening this page must be able to stop after one region and still know
+// three things: how much annual spend is recoverable, which move to make first,
+// and how far to trust the figure. What is asserted here is that ordering and
+// that count — the region comes before every section that supports it, and it
+// states each of the three exactly once. Nothing here asserts a node is null:
+// comparing against a harness element walks the whole parsed page.
+// ---------------------------------------------------------------------------
+
+const ANSWER_REGION_ID = "finops-recoverable-answer";
+
+/** Every heading inside a region, without a descendant selector. */
+const headingsWithin = (document, region) => [...document.querySelectorAll("h1,h2,h3,h4,h5,h6")]
+  .filter((heading) => {
+    for (let node = heading; node; node = node.parentNode) if (node === region) return true;
+    return false;
+  });
+
+test("the recoverable answer is the first content region a reader meets", async () => {
+  const document = parseHtml(await read("src/evolution.html"));
+  const regions = [...document.getElementById("main-content").children]
+    .filter((node) => node?.nodeType === 1).map((node) => node.id);
+
+  // The hero carries the page h1 and no figure; the answer is what follows it,
+  // ahead of the headline region and every section that supports the answer.
+  assert.equal(regions[0], "finops-hero", "the page name must come first");
+  assert.equal(regions[1], ANSWER_REGION_ID,
+    "the answer must precede every section that supports it");
+  assert.ok(regions.indexOf(ANSWER_REGION_ID) < regions.indexOf("finops-stand"));
+  assert.ok(regions.indexOf(ANSWER_REGION_ID) < regions.indexOf("finops-first-run"));
+});
+
+test("the answer region asks one question, states one figure, and names one move", async () => {
+  const document = parseHtml(await read("src/evolution.html"));
+  const region = document.getElementById(ANSWER_REGION_ID);
+
+  // ONE QUESTION, at the level directly below the page h1.
+  const headings = headingsWithin(document, region);
+  assert.equal(headings.length, 1, "a second heading here is a second question");
+  assert.equal(headings[0].tagName, "H2");
+  assert.equal(headings[0].id, "finops-recoverable-question");
+  assert.ok(textOf(headings[0]).endsWith("?"));
+
+  // ONE MONEY METRIC, labelled, and a currency figure rather than a share.
+  const label = document.getElementById("finops-recoverable-label");
+  const value = document.getElementById("finops-recoverable-value");
+  assert.match(textOf(label), /Recoverable annual AI spend/);
+  assert.match(textOf(value), /^\$[\d,]+$/, "the figure is whole dollars, rounded for display");
+
+  // ONE CONFIDENCE SENTENCE — what the estimate rests on and its one limit.
+  const confidence = textOf(document.getElementById("finops-recoverable-confidence"));
+  assert.match(confidence, /list price/i);
+  assert.match(confidence, /committed-use/i);
+  assert.match(confidence, /ceiling/i);
+
+  // ONE NEXT ACTION, and it is a link to where the move is carried out.
+  const links = [...region.querySelectorAll("a")];
+  assert.deepEqual(links.map((link) => link.id), ["finops-recoverable-action"],
+    "a second link here hands the ranking decision back to the reader");
+  assert.equal(links[0].getAttribute("href"), "/savings-action-center.html");
+  assert.match(textOf(links[0]), /Atlas Platform/,
+    "the action names the move to make, not the destination page");
+});
+
+test("the recoverable figure is the derivation the page already carries", async () => {
+  const [page, demo] = await Promise.all([
+    read("src/evolution.html"), read("src/evolution-demo-data.json"),
+  ]);
+  // 5,200 USD a month is this page's one modelled destination move, named by the
+  // fixture and by the proof point. The answer states its annual form and adds
+  // no new figure and no new data source: 5,200 x 12 = 62,400.
+  assert.match(demo, /\$5,200 monthly savings scenario/);
+  assert.match(page, /Projected savings[\s\S]*\$5,200 \/ month/);
+  assert.match(page, /id="finops-recoverable-value">\$62,400</);
+  assert.match(page, /5,200 x 12 = 62,400/, "the derivation travels with the figure");
+});
+
+test("the action center points at the answer instead of restating it", async () => {
+  const document = parseHtml(await read("src/savings-action-center.html"));
+  const link = document.getElementById("finops-journey-owner-link");
+  assert.equal(link.getAttribute("href"), `/evolution.html#${ANSWER_REGION_ID}`);
+  assert.match(textOf(document.getElementById("finops-journey-owner")),
+    /stated once/, "the action center defers rather than issuing a second telling");
 });
 
 test("every page in the site carries the AI FinOps tab", async () => {

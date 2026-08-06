@@ -219,9 +219,16 @@ test("the primary action is within four tab stops of the skip link's destination
     .filter((node) => ["A", "BUTTON", "INPUT", "SELECT", "TEXTAREA"].includes(node.tagName))
     .filter((node) => !node.hidden && !node.closest("[hidden]")
       && node.getAttribute("tabindex") !== "-1");
+  // #1183 changed WHICH action is the page's primary one, not how far a keyboard
+  // user travels to reach one. The first stop inside <main> is now the answer
+  // region's single next action — the named destination-move a lead is here to
+  // make — so the bound is asserted twice: that action is stop 1, and the
+  // bundled example's own primary control is still within four stops after it.
   const stops = reachable.findIndex((node) => node.id === FIRST_RUN_IDS.demo) + 1;
-  assert.ok(stops >= 1 && stops <= 4,
-    `the primary action is ${stops} tab stops into <main>: ${JSON.stringify(reachable.slice(0, 5).map((n) => n.id))}`);
+  assert.equal(reachable[0]?.id, "finops-recoverable-action",
+    `the page's one next action is not the first stop into <main>: ${JSON.stringify(reachable.slice(0, 5).map((n) => n.id))}`);
+  assert.ok(stops >= 1 && stops <= 5,
+    `the bundled example's action is ${stops} tab stops into <main>: ${JSON.stringify(reachable.slice(0, 6).map((n) => n.id))}`);
 });
 
 test("the primary action's focus ring is the site's existing token, and no new one was added", async () => {
