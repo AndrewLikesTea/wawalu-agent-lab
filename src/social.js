@@ -141,29 +141,54 @@ export function feedHeading({ shown = 0, range = "", author = "" } = {}) {
   return `${counted} ${clauses}`;
 }
 
-// The sentence above the post list: how many posts are on screen, and which
-// filters produced them. Pure so the wording is tested without a browser; the
-// caller supplies `range` and `author` as the *rendered* option text of the two
-// filter controls, so the sentence and the closed menus cannot drift apart.
+// The sentence above the post list: how many posts are on screen, out of how
+// many the feed holds, and which filters produced that number. Pure so the
+// wording is tested without a browser; the caller supplies `range` and `author`
+// as the *rendered* option text of the two filter controls, so the sentence and
+// the closed menus cannot drift apart.
 //
 // `shown` is the length of the array the cards are rendered from — never a
 // second filter pass — which is what keeps the stated count and the visible
-// cards the same number.
+// cards the same number, and `total` is the unfiltered feed, so a narrowed feed
+// says what it is narrowed *from*. Without that denominator "Showing 2 posts"
+// and "Showing all 2 posts" are the same sentence to a reader who cannot see
+// the menus above it.
 //
 // An unfiltered, genuinely empty feed returns "": that is the never-posted
 // state, which the empty panel already owns and says more usefully than a
-// sentence counting to zero would.
-export function feedSummarySentence({ shown = 0, range = "", author = "" } = {}) {
-  const posts = `${shown} ${shown === 1 ? "post" : "posts"}`;
+// sentence counting to zero would. A filtered feed that matched nothing does
+// state its zero — the number is the news — and the recovery lives in the
+// no-match panel below, which owns a control that can act on it.
+export function feedSummarySentence({ shown = 0, total = shown, range = "", author = "" } = {}) {
   const clauses = [range, author ? `under the ${AUTHOR_TERM} ${author}` : ""].filter(Boolean).join(" ");
 
   if (!clauses) {
     if (shown === 0) return "";
     return shown === 1 ? "Showing 1 post, newest first." : `Showing all ${shown} posts, newest first.`;
   }
-  if (shown === 0) return `No posts ${clauses}. Clear filters to see all posts.`;
-  return `Showing ${posts} ${clauses}.`;
+  return `Showing ${shown} of ${total} ${total === 1 ? "post" : "posts"} ${clauses}.`;
 }
+
+// The two lines of the no-match dead end. A filter combination that matches
+// nothing used to render the never-posted panel — "No posts on Social yet." —
+// which told a reader the feed was empty when in fact it was full and their own
+// two menus were hiding it. These say the opposite, in the menus' own words:
+// what excluded the posts, and how many are waiting behind the filters.
+//
+// The filters are listed after a colon, joined with "·", rather than folded
+// into prose: this is a list of what is currently set, in the menus' own option
+// text, and the colon is what keeps it a sentence when only one of the two is
+// set — "No posts match from the past hour" is not English.
+export function noMatchMessage({ range = "", author = "" } = {}) {
+  const named = [author, range].filter(Boolean).join(" · ");
+  return named ? `No posts match these filters: ${named}.` : "No posts match these filters.";
+}
+
+export function noMatchGuidance(total = 0) {
+  return `Social still holds ${total} ${total === 1 ? "post" : "posts"}. Clear the filters to read them.`;
+}
+
+export const CLEAR_FILTERS_LABEL = "Clear filters";
 
 // ---------------------------------------------------------------------------
 // The publish confirmation's words. Pure, so the sentence a reader hears after
@@ -494,11 +519,12 @@ function renderSkeleton(container, count = 3) {
 // list on the site; a reader who arrived from the nav needs the empty screen to
 // confirm which of the two feeds they are looking at.
 //
-// An `emptyMessage` is passed only when filters are hiding posts, so its absence
-// is what "the feed itself is empty" means. The two are different news and get
-// different actions: nothing published yet points at Paint, because an image is
-// the part of a post a reader has nowhere else to get; a filtered-out feed is
-// already full and only needs the filters or the composer.
+// A `noMatch` is passed only when filters are hiding posts, so its absence is
+// what "the feed itself is empty" means. The two are different news, say
+// different words, and get different actions: nothing published yet points at
+// Paint, because an image is the part of a post a reader has nowhere else to
+// get; a filtered-out feed is already full, so it names what excluded the posts
+// and hands over the one control that brings them back.
 //
 // "create an image in Paint" is the site's one name for that act — the hero, the
 // composer, and both of People's invitations all use it — so this sentence uses
@@ -511,7 +537,7 @@ const NO_POSTS_GUIDANCE = "Publish a post, or create an image in Paint first.";
 // Posts always win over a pending or failed refresh: stale content beats a
 // spinner over content the reader could already see.
 export function renderPosts(container, posts, options = {}) {
-  const { emptyMessage = null, state = "ready" } = options;
+  const { noMatch = null, state = "ready" } = options;
   const ordered = sortPostsNewestFirst(posts);
   container.replaceChildren();
   container.setAttribute("aria-busy", state === "loading" && ordered.length === 0 ? "true" : "false");
@@ -532,18 +558,30 @@ export function renderPosts(container, posts, options = {}) {
         description: "The feed keeps retrying. Check the connection status above.",
       });
       panel.classList.add("empty-state", "empty-state-error");
+    } else if (noMatch) {
+      // The filtered dead end. Its own words, its own label, and — unlike every
+      // other state on this page — its own control, because this is the one
+      // empty screen the reader can undo from where they are standing. A real
+      // <button> (renderState builds one whenever an action carries no href),
+      // after the message in DOM order, so Tab from the message reaches it.
+      const panel = renderState(container, {
+        state: "empty",
+        label: "Social filter result",
+        value: noMatchMessage(noMatch),
+        description: noMatchGuidance(noMatch.total),
+        action: { label: CLEAR_FILTERS_LABEL, onClick: noMatch.onClear },
+      });
+      panel.classList.add("empty-state", "empty-state-filtered");
     } else {
       const panel = renderState(container, {
         state: "empty",
         label: "Social feed status",
         value: "No posts on Social yet.",
-        description: emptyMessage ?? NO_POSTS_GUIDANCE,
-        action: emptyMessage
-          ? { label: "Write a post", href: "#post-body" }
-          // Same label, same tab behaviour, same disclosure as the hero and the
-          // composer above it: one action offered in a third place, not a third
-          // action.
-          : { label: "Create an image in Paint", href: "/paint/", newTab: true },
+        description: NO_POSTS_GUIDANCE,
+        // Same label, same tab behaviour, same disclosure as the hero and the
+        // composer above it: one action offered in a third place, not a third
+        // action.
+        action: { label: "Create an image in Paint", href: "/paint/", newTab: true },
       });
       panel.classList.add("empty-state");
     }
@@ -708,7 +746,17 @@ export function mountSocialFeed(root, options = {}) {
     const hadFocus = Boolean(feed.querySelector(".post-card:focus"));
     const visible = filterPosts(posts, { author: nameFilter?.value, range: timeFilter?.value });
     const filtering = nameFilter?.value !== "all" || timeFilter?.value !== "all";
-    renderPosts(feed, visible, { state, emptyMessage: filtering ? "No Social posts match these filters." : undefined });
+    const named = {
+      range: timeFilter && timeFilter.value !== "all" ? midSentence(selectedText(timeFilter)) : "",
+      author: nameFilter && nameFilter.value !== "all" ? selectedText(nameFilter) : "",
+    };
+    // A dead end only exists if there is something behind the filters: with no
+    // posts at all this is the never-posted feed, whichever way the menus are
+    // set, and that state has its own words and its own action.
+    const noMatch = filtering && visible.length === 0 && posts.length > 0
+      ? { ...named, total: posts.length, onClear: recoverFromNoMatch }
+      : null;
+    renderPosts(feed, visible, { state, noMatch });
     // The count answers "how many posts are there", which this page can only
     // answer once a fetch has come back. Until one has, it names which of
     // "still loading" and "could not load" is true instead of printing a zero
@@ -727,11 +775,7 @@ export function mountSocialFeed(root, options = {}) {
     // the connection status and the count already say which of loading and
     // failed is true.
     const answered = posts.length > 0 || state === "ready";
-    const showing = {
-      shown: visible.length,
-      range: timeFilter && timeFilter.value !== "all" ? midSentence(selectedText(timeFilter)) : "",
-      author: nameFilter && nameFilter.value !== "all" ? selectedText(nameFilter) : "",
-    };
+    const showing = { shown: visible.length, total: posts.length, ...named };
 
     // The heading is not its own live region: the count beside it is already
     // announced on every filter change, and a second polite region here would
@@ -739,11 +783,13 @@ export function mountSocialFeed(root, options = {}) {
     // panel it heads.
     if (heading) heading.textContent = answered ? feedHeading(showing) : DEFAULT_FEED_HEADING;
 
-    if (summary) {
-      const sentence = answered ? feedSummarySentence(showing) : "";
-      summary.textContent = sentence;
-      summary.hidden = sentence === "";
-    }
+    // Only the text is replaced. The element itself is the live region and it
+    // ships with the page, so an update is one announcement — and it is never
+    // hidden, because a region that is `hidden` at the moment its text arrives
+    // announces unreliably, if at all. Before a fetch answers the sentence is
+    // empty rather than a zero: "Showing 0 posts" is a claim, and the page has
+    // not looked yet.
+    if (summary) summary.textContent = answered ? feedSummarySentence(showing) : "";
 
     const cards = [...feed.querySelectorAll(".post-card")];
     const index = activeId ? cards.findIndex((card) => card.dataset.postId === activeId) : -1;
@@ -770,10 +816,27 @@ export function mountSocialFeed(root, options = {}) {
     counter.classList.toggle("near", state.near);
   };
 
+  // The one reset on this page. Both Clear filters controls — the one in the
+  // toolbar and the one inside the no-match panel — run this and then decide
+  // where focus goes, so the two can restore the feed differently only by
+  // accident of where the reader was standing, never by holding two copies of
+  // what "clear" means.
   const clearBothFilters = () => {
     if (nameFilter) nameFilter.value = "all";
     if (timeFilter) timeFilter.value = "all";
     render();
+  };
+
+  // Recovery from the no-match panel. The control that runs this is inside the
+  // panel that this render replaces with the restored list, so focus is moved
+  // explicitly: leaving it on a removed node drops a keyboard reader to
+  // document.body and back to the top of the page. It lands on the first
+  // restored post — the thing the reader asked for — and falls back to the list
+  // heading, which is the panel's own accessible name and always present.
+  const recoverFromNoMatch = () => {
+    clearBothFilters();
+    const first = feed.querySelector(".post-card");
+    (first ?? heading)?.focus();
   };
 
   const focusPostCard = (id) => {
