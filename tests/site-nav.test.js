@@ -137,7 +137,10 @@ test("the one AI FinOps door opens on the recoverable-dollars answer, not on a m
   const html = await readFile(pageUrl("evolution.html"), "utf8");
   const region = html.match(/<section class="finops-recoverable-answer" id="finops-recoverable-answer"[\s\S]*?<\/section>/);
   assert.ok(region, "evolution.html must carry the region the door names");
-  assert.match(region[0], /id="finops-recoverable-value">\$[\d,]+</, "the door must land on the figure");
+  // The figure's slot, not a literal: #1184 moved the amount out of the markup
+  // and into bundledRecoverableAnswer(), seeded into the served document by the
+  // build. tests/finops-recoverable-answer.test.js asserts what lands in it.
+  assert.match(region[0], /id="finops-recoverable-value"/, "the door must land on the figure");
   assert.match(region[0], /How much of our AI spend can we recover/, "and on the question it answers");
 
   // Collapsing the nav must not orphan the pages it used to be able to grow an

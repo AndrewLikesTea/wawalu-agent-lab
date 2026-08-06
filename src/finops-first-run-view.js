@@ -12,7 +12,7 @@
 // every node is built with createElement, because the strings below include a
 // contract's own operation line and a department label taken out of an analysis.
 
-import { FIRST_RUN_ACTIONS, FIRST_RUN_IDS } from "./finops-first-run.js";
+import { bundledRecoverableAnswer, FIRST_RUN_ACTIONS, FIRST_RUN_IDS } from "./finops-first-run.js";
 import { EXAMPLE_BRIEFING_CTA, EXAMPLE_BRIEFING_HREF } from "./finops-example-briefing.js";
 import { DISCLOSURE_SPEC, disclosureStateLabel } from "./finops-decision-interaction.js";
 import { DRILLDOWN_HEADING, DRILLDOWN_QUESTION } from "./finops-imported-departments.js";
@@ -299,6 +299,48 @@ export function bindFirstRunDisclosure(doc) {
   details.addEventListener("toggle", () => paintDisclosureState(doc, count()));
   paintDisclosureState(doc, count());
   return details;
+}
+
+/**
+ * The slots the one answer set is painted into (#1184).
+ *
+ * The SAME ids on both surfaces that state the figure — /evolution.html's
+ * answer region and /savings-action-center.html's pointer to it — so one
+ * function paints both and neither page holds a rendering rule of its own. A
+ * page that authors only some of them gets only those painted; nothing here
+ * builds a node, so a slot that is not in the document is simply not written.
+ */
+export const RECOVERABLE_ANSWER_IDS = Object.freeze({
+  value: "finops-recoverable-value",
+  total: "finops-recoverable-total",
+  confidence: "finops-recoverable-confidence",
+  basis: "finops-recoverable-basis",
+  action: "finops-recoverable-action",
+});
+
+/**
+ * Paint the one answer set into whichever of its slots this document authors.
+ *
+ * Text only, through textContent: no node is built, no attribute a stylesheet
+ * reads is written, and no control is added — the action slot is an anchor the
+ * document already ships with its href, so this writes its label and leaves its
+ * destination alone. Returns the ids it wrote, for the tests and for nobody
+ * else.
+ */
+export function applyRecoverableAnswer(doc, answer = bundledRecoverableAnswer()) {
+  const written = [];
+  const write = (id, text) => {
+    const node = byId(doc, id);
+    if (!node || typeof text !== "string" || text === "") return;
+    node.textContent = text;
+    written.push(id);
+  };
+  write(RECOVERABLE_ANSWER_IDS.value, answer?.recoverableAnnual);
+  write(RECOVERABLE_ANSWER_IDS.total, answer?.totalAnnualSpend);
+  write(RECOVERABLE_ANSWER_IDS.confidence, answer?.confidence);
+  write(RECOVERABLE_ANSWER_IDS.basis, answer?.basis);
+  write(RECOVERABLE_ANSWER_IDS.action, answer?.destination?.label);
+  return written;
 }
 
 /** The ids the estimate spine owns. Nothing else writes them. */

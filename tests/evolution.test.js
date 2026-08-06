@@ -305,7 +305,13 @@ test("the answer region asks one question, states one figure, and names one move
   const label = document.getElementById("finops-recoverable-label");
   const value = document.getElementById("finops-recoverable-value");
   assert.match(textOf(label), /Recoverable annual AI spend/);
-  assert.match(textOf(value), /^\$[\d,]+$/, "the figure is whole dollars, rounded for display");
+  // The slot is here and the label names it; the figure in it is not authored
+  // any more (#1184). tests/finops-recoverable-answer.test.js owns what the
+  // served and painted documents state in it, against the derivation's own
+  // output rather than against a literal.
+  assert.ok(value, "the answer region states no money metric");
+  assert.doesNotMatch(textOf(value), /\$[\d,]+/,
+    "a currency figure was authored back into the document");
 
   // ONE CONFIDENCE SENTENCE — what the estimate rests on and its one limit.
   const confidence = textOf(document.getElementById("finops-recoverable-confidence"));
@@ -318,21 +324,20 @@ test("the answer region asks one question, states one figure, and names one move
   assert.deepEqual(links.map((link) => link.id), ["finops-recoverable-action"],
     "a second link here hands the ranking decision back to the reader");
   assert.equal(links[0].getAttribute("href"), "/savings-action-center.html");
-  assert.match(textOf(links[0]), /Atlas Platform/,
+  assert.match(textOf(links[0]), /standard model/,
     "the action names the move to make, not the destination page");
 });
 
-test("the recoverable figure is the derivation the page already carries", async () => {
-  const [page, demo] = await Promise.all([
-    read("src/evolution.html"), read("src/evolution-demo-data.json"),
-  ]);
-  // 5,200 USD a month is this page's one modelled destination move, named by the
-  // fixture and by the proof point. The answer states its annual form and adds
-  // no new figure and no new data source: 5,200 x 12 = 62,400.
-  assert.match(demo, /\$5,200 monthly savings scenario/);
-  assert.match(page, /Projected savings[\s\S]*\$5,200 \/ month/);
-  assert.match(page, /id="finops-recoverable-value">\$62,400</);
-  assert.match(page, /5,200 x 12 = 62,400/, "the derivation travels with the figure");
+test("the recoverable figure is computed, not authored", async () => {
+  const page = await read("src/evolution.html");
+  // #1184: the figure, the total behind it, the move and the coverage all come
+  // out of bundledRecoverableAnswer() over the bundled scored dataset. What the
+  // document may carry is the derivation in words, not a number to maintain.
+  assert.equal(page.includes("$62,400"), false, "the old headline literal survived");
+  assert.equal(page.includes("5,200 x 12 = 62,400"), false,
+    "the hand-worked arithmetic survived");
+  assert.match(page, /id="finops-recoverable-basis"/,
+    "the arithmetic no longer has a slot to be stated in");
 });
 
 test("the action center points at the answer instead of restating it", async () => {

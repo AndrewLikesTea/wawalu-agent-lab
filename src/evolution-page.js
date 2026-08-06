@@ -370,7 +370,8 @@ import { importedDepartmentDrilldown } from "/finops-imported-departments.js";
 import { NO_ORG_UNIT_LABELS, withOrgUnitDisplayLabel } from "/org-unit-display-label.js";
 import {
   applyExampleBriefingCta,
-  applyFirstRunResult, applyFirstRunSupersession, bindFirstRunActions, bindFirstRunDisclosure,
+  applyFirstRunResult, applyFirstRunSupersession, applyRecoverableAnswer, bindFirstRunActions,
+  bindFirstRunDisclosure,
 } from "/finops-first-run-view.js";
 import { bindDeclaredFactIntake } from "/finops-declared-fact-intake-view.js";
 // The estimate that intake produces, in the period series' own shape (#1106),
@@ -4887,6 +4888,12 @@ async function init() {
   // with the same four values; this line is what makes the answer independent
   // of it rather than a consequence of it.
   applyAnswerBlock(document);
+  // …and the recoverable answer above it, from the one derivation both FinOps
+  // pages state their money from (#1184). Painted here, beside the answer block
+  // and before any panel dataset, for the same reason: it is the first figure
+  // on the page, the build has already seeded the identical strings into the
+  // served document, and this repaint is what proves the two agree.
+  applyRecoverableAnswer(document);
   installDeepLinkDisclosure(document, window);
   // Immediately after it, and for the same reason: a deep link may have already
   // opened a deferred panel, and the read for that panel is taken at install.

@@ -27,6 +27,12 @@ import {
 import {
   BUNDLED_EXAMPLES, BUNDLED_EXAMPLE_NAMES, evaluateBundledExample,
 } from "/finops-journey-fixtures.js";
+// The size of the thing this page carries out, from the one derivation that
+// states it on /evolution.html too (#1184). No figure is authored in this
+// document and none is computed here: the two slots in the pointer sentence are
+// painted from the same function the answer region is painted from, so editing
+// the bundled scored dataset moves this page with it.
+import { applyRecoverableAnswer } from "/finops-first-run-view.js";
 import { browserFinopsWorkspaceStorage } from "/finops-workspace.js";
 import { loadDecisions } from "/app.js";
 import { loadReleases } from "/releases.js";
@@ -281,6 +287,13 @@ saveButton?.addEventListener("click", () => {
 // "Reconciling monthly savings…" region with aria-busy="true" and never resolve,
 // which reads as a page that is still working. This says so instead, in an
 // alert region, and keeps the failure in the console for a deploy to find.
+// Before that first paint, and outside its try: the pointer sentence states
+// what the recommended move is worth, and it is derived from a bundled module
+// rather than from anything this page reads, so it must survive a storage
+// accessor a browser refuses. Its slots stay empty if the dataset cannot be
+// read — an empty slot in a sentence is a sentence, an invented figure is not.
+applyRecoverableAnswer(document);
+
 try {
   renderClaim();
 } catch (error) {

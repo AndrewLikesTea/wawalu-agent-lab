@@ -72,12 +72,18 @@
           <h2 id="finops-journey-question">What do I do next, and what will tell me it worked?</h2>
         </div>
         <p class="sample-marker" id="finops-journey-sample">Read from this browser's own retained records. Nothing was uploaded or fetched to build this.</p>
-        <!-- ONE PLACE STATES WHAT THE ACTION IS AND WHY (#1183). This page is
-             where an action is carried out, checked, and settled. What the
-             recommended move is, what it is worth, and how far to trust that
-             figure are stated once, in the AI FinOps answer region, and this
-             line is the pointer to it rather than a second telling of it. -->
-        <p class="fjc-headline" id="finops-journey-owner">What the recommended move is, what it is worth, and how far to trust that figure are stated once — on <a id="finops-journey-owner-link" href="/evolution.html#finops-recoverable-answer">the AI FinOps answer</a>. This page is where you carry it out and check it.</p>
+        <!-- ONE PLACE STATES WHAT THE ACTION IS AND WHY (#1183), AND ONE
+             DERIVATION STATES WHAT IT IS WORTH (#1184). This page is where an
+             action is carried out, checked, and settled, so it still points at
+             the AI FinOps answer rather than issuing a second telling of it.
+             What it no longer does is leave the reader to go and look up the
+             size of the thing they are about to carry out: the two figures
+             below are painted by applyRecoverableAnswer() from
+             bundledRecoverableAnswer(), the same function that paints the
+             answer region itself, so this is the same number rather than a
+             copy of it. Both slots ship EMPTY — no figure is authored on this
+             page — and stay empty if the bundled dataset cannot be read. -->
+        <p class="fjc-headline" id="finops-journey-owner">What the recommended move is, what it is worth, and how far to trust that figure are stated once — on <a id="finops-journey-owner-link" href="/evolution.html#finops-recoverable-answer">the AI FinOps answer</a>: <span id="finops-recoverable-value"></span> recoverable a year out of <span id="finops-recoverable-total"></span> of total annual AI spend. This page is where you carry it out and check it.</p>
         <!-- The bundled examples. Each one is a labelled set of invented records
              loaded through the same restore a visitor's own records take, so
              what appears below is this view and not a demonstration of it. They

@@ -52,6 +52,7 @@ import {
 } from "../src/executive-briefing-projection-view.js";
 import { answerAnnouncement } from "../src/finops-answer-announcement.js";
 import { FINOPS_ANSWER_SUMMARY } from "../src/finops-answer-summary.js";
+import { bundledRecoverableAnswer } from "../src/finops-first-run.js";
 import { buildStandHeadline } from "../src/finops-stand.js";
 import { standClaimSentence } from "../src/finops-stand-view.js";
 
@@ -121,6 +122,11 @@ const filledText = (slot, id, attributes, tag, seeded) =>
   edit(slot, `id="${id}"${attributes.authored}></${tag}>`,
     `id="${id}"${attributes.seeded}>${escapeText(seeded)}</${tag}>`);
 
+/** The answer region's move, as the document authors it: the anchor, then its label. */
+const RECOVERABLE_MOVE_ANCHOR = '<a class="stand-action" id="finops-recoverable-action"'
+  + ' href="/savings-action-center.html">';
+const AUTHORED_MOVE = "Move the top department's premium-tier requests to the standard model";
+
 /**
  * Compose every replacement the first screen needs, in document order.
  *
@@ -128,6 +134,8 @@ const filledText = (slot, id, attributes, tag, seeded) =>
  */
 export function firstScreenEdits(bundled) {
   const answer = FINOPS_ANSWER_SUMMARY;
+  // The one answer set both FinOps pages state their money from (#1184).
+  const recoverable = bundledRecoverableAnswer();
   const headline = buildStandHeadline();
   const readiness = recordingRoot();
   // The circulation block's first action is derived from the dataset by the same
@@ -184,6 +192,29 @@ export function firstScreenEdits(bundled) {
       '<a class="answer-action" id="finops-answer-action"'
       + ` href="${escapeAttribute(answer.action.href)}">`
       + `${escapeText(answer.action.label)}</a>`),
+
+    // ---- The one answer set (#1184): the recoverable annual figure, the hedge
+    // carrying its coverage, the arithmetic behind it, and the move it implies.
+    // Read off `bundledRecoverableAnswer()`, which is what
+    // `applyRecoverableAnswer` defaults to, so the served document and the paint
+    // state one derivation of one bundled scored dataset.
+    authoredText("recoverable figure", "finops-recoverable-value",
+      "Results will appear here", recoverable.recoverableAnnual),
+    authoredText("recoverable hedge", "finops-recoverable-confidence",
+      "A ceiling to verify at list prices, before any committed-use discount.",
+      recoverable.confidence),
+    authoredText("recoverable basis", "finops-recoverable-basis",
+      "The arithmetic behind the figure above — the period's own recoverable total, the months"
+      + " it is multiplied by, the analyzed spend it is a share of, and the department carrying"
+      + " most of it — is computed from the bundled scored dataset and appears here.",
+      recoverable.basis),
+    // The move is an anchor rather than a plain slot, so it is edited whole: the
+    // href is the document's and stays the document's, and only the label — the
+    // department the derivation ranked first — comes from the answer set.
+    edit("recoverable move",
+      `${RECOVERABLE_MOVE_ANCHOR}${AUTHORED_MOVE}</a>`,
+      `${RECOVERABLE_MOVE_ANCHOR}${escapeText(recoverable.destination?.label ?? AUTHORED_MOVE)}`
+      + "</a>"),
 
     // ---- The circulation decision, painted by its own view above.
     edit("circulation state",

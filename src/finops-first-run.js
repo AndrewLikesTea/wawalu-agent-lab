@@ -65,6 +65,11 @@ import {
 import {
   composeFirstRunLiteracy, LITERACY_SLOT_LABEL, LITERACY_UNAVAILABLE, literacyMethodEntry,
 } from "./finops-first-run-literacy.js";
+// The coverage behind the confidence statement: which share of the analyzed
+// spend sits in departments the rubric actually scored. It is the same grader
+// the answer block's own confidence sentence is built from, so the answer region
+// and the answer block cannot report two different coverages of one dataset.
+import { gradeExport } from "./export-gradability.js";
 
 /** Bump when a slot, a state word, or a label changes meaning. */
 export const FIRST_RUN_VERSION = "finops-first-run-result/1.0.0";
@@ -303,6 +308,186 @@ export function recoverableShare(recoverableUsd, analyzedSpendUsd) {
   if (!Number.isFinite(recoverable) || recoverable < 0) return null;
   if (!Number.isFinite(analyzed) || analyzed <= 0) return null;
   return recoverable / analyzed;
+}
+
+// ---------------------------------------------------------------------------
+// THE ONE ANSWER SET (#1184).
+//
+// THE DEFECT THIS CLOSES. /evolution.html's answer region stated a recoverable
+// annual figure, and /savings-action-center.html pointed at it, but the figure
+// itself was authored in markup and derived from a different bundled artifact
+// than every other money figure on the page. Two datasets under one answer is
+// how a page ends up quoting a recoverable amount that no total on it divides
+// into. Editing the bundled dataset moved most of the page and left the
+// headline where it was.
+//
+// So the whole answer set is computed here, once, out of the bundled scored
+// dataset this module already reads: the analyzed total, the recoverable
+// amount, the destination that carries most of it, and the coverage behind the
+// confidence statement. Both pages render these strings; neither authors one.
+//
+// WHAT IT MAY NOT DO. It reads `loadExampleDataset()` and nothing else — no
+// credential, no request, no reader file, no clock — and it never throws: a
+// dataset this browser could not read is the `available: false` record below,
+// with the reason on it, because a page that cannot state its answer still has
+// to state that it cannot.
+// ---------------------------------------------------------------------------
+
+/** Bump when a field of the answer set, or the rule behind one, changes meaning. */
+export const RECOVERABLE_ANSWER_VERSION = "finops-recoverable-answer/1.0.0";
+
+/**
+ * The months an annual figure is the reporting period multiplied by.
+ *
+ * The bundled dataset's reporting window is one calendar month, and the answer
+ * region asks its question in years, so the annual figures are the period's own
+ * sums times this. Stated as a constant rather than written into a sentence:
+ * the multiplier a reader is asked to check has to be the multiplier the
+ * arithmetic used.
+ */
+export const ANNUAL_MONTHS = 12;
+
+/** The answer set when the bundled dataset published no usable totals. */
+const RECOVERABLE_ANSWER_UNAVAILABLE = Object.freeze({
+  version: RECOVERABLE_ANSWER_VERSION,
+  available: false,
+  reason: "The bundled scored dataset published no analyzed spend total, so no share of it "
+    + "can be modelled as recoverable.",
+  period: null,
+  recoverableAnnual: UNAVAILABLE_VALUE,
+  totalAnnualSpend: UNAVAILABLE_VALUE,
+  destination: null,
+  coverage: null,
+  confidence: "A ceiling to verify at list prices, before any committed-use discount. "
+    + "The bundled scored dataset published no total to take that ceiling over.",
+  basis: "The bundled scored dataset published no analyzed spend total and no recoverable "
+    + "total, so there is no arithmetic to show for this figure.",
+});
+
+/**
+ * The destination carrying most of the recoverable amount, or null.
+ *
+ * Ranked by the department's own modelled recoverable amount rather than by its
+ * spend: the largest bill is not the largest saving, and the region names one
+ * move rather than one department.
+ */
+function topRecoverableDestination(rankedDepartments) {
+  const rows = Array.isArray(rankedDepartments) ? rankedDepartments : [];
+  let best = null;
+  for (const row of rows) {
+    const amount = Number(row?.recoverableUsd);
+    if (!Number.isFinite(amount) || amount <= 0) continue;
+    if (best === null || amount > Number(best.recoverableUsd)) best = row;
+  }
+  if (best === null) return null;
+  const name = String(best.name ?? best.unit?.label ?? "").trim();
+  if (name === "") return null;
+  const monthlyUsd = Number(best.recoverableUsd);
+  const annualUsd = monthlyUsd * ANNUAL_MONTHS;
+  return Object.freeze({
+    name,
+    monthlyUsd,
+    annualUsd,
+    amount: usd(annualUsd),
+    monthlyAmount: usd(monthlyUsd),
+    // The move the dataset's own down-routing record models for this row: a
+    // premium-tier price re-routed to the standard tier. The label names the
+    // department and the move, and never the page it is carried out on.
+    label: `Move ${name}'s premium-tier requests to the standard model`,
+  });
+}
+
+/** The coverage the rubric actually reached, as the grader reports it. */
+function scoredCoverageOf(analysis, grade) {
+  const graded = grade({ analysis, source: "example" });
+  const scoredUsd = Number(graded?.coveredUsd);
+  const inScopeUsd = Number(graded?.totalUsd);
+  if (!Number.isFinite(scoredUsd) || !Number.isFinite(inScopeUsd) || inScopeUsd <= 0) return null;
+  return Object.freeze({
+    scoredUsd,
+    inScopeUsd,
+    scored: usd(scoredUsd),
+    inScope: usd(inScopeUsd),
+    share: scoredUsd / inScopeUsd,
+    percent: percent(scoredUsd / inScopeUsd),
+    tier: graded?.tier ?? null,
+  });
+}
+
+/**
+ * Every dollar figure the answer region states, derived from one dataset.
+ *
+ * Returns a frozen record: the annual totals as both numbers and display
+ * strings, the destination that carries most of the recoverable amount, the
+ * coverage behind the confidence statement, and the two sentences the page
+ * shows — so a caller renders text and re-derives nothing.
+ *
+ * @param load  the bundled dataset reader; injected by the tests only.
+ * @param grade the gradability reader; injected by the tests only.
+ */
+export function bundledRecoverableAnswer(load = loadExampleDataset, grade = gradeExport) {
+  let analysis = null;
+  try {
+    analysis = load();
+  } catch {
+    analysis = null;
+  }
+
+  const monthlySpendUsd = Number(analysis?.spendUsd);
+  const monthlyRecoverableUsd = Number(analysis?.recoverableUsd);
+  const share = recoverableShare(monthlyRecoverableUsd, monthlySpendUsd);
+  if (share === null) return RECOVERABLE_ANSWER_UNAVAILABLE;
+
+  const annualSpendUsd = monthlySpendUsd * ANNUAL_MONTHS;
+  const annualRecoverableUsd = monthlyRecoverableUsd * ANNUAL_MONTHS;
+  const destination = topRecoverableDestination(analysis?.rankedDepartments);
+  const coverage = scoredCoverageOf(analysis, grade);
+  const period = typeof analysis?.period === "string" ? analysis.period : null;
+  const departments = Array.isArray(analysis?.rankedDepartments)
+    ? analysis.rankedDepartments.length : 0;
+
+  const basis = `Recoverable annual AI spend sums, over every department in the bundled scored `
+    + `dataset, the spend a cheaper destination could take: ${usd(monthlyRecoverableUsd)} across `
+    + `${count(departments)} departments in ${period ?? "the reporting period"}, and `
+    + `${usd(monthlyRecoverableUsd)} x ${ANNUAL_MONTHS} = ${usd(annualRecoverableUsd)} a year. `
+    + `Analyzed spend over the same window is ${usd(monthlySpendUsd)}, so total annual AI spend `
+    + `is ${usd(annualSpendUsd)} and ${percent(share)} of it is modelled recoverable. `
+    + `${destination ? `${destination.name} carries ${destination.amount} of that, the largest `
+      + "single share, which is the move stated above." : "No department models a destination, "
+      + "so no single move is named."}`;
+
+  // Kept under the hedge ceiling the answer region is held to: the figure is
+  // read before the qualification, so the qualification stays a clause. The
+  // coverage this abbreviates is stated in full in the disclosure's basis.
+  const confidence = "A ceiling to verify at list prices, before any committed-use discount."
+    + (coverage
+      ? ` Scored: ${coverage.scored} of ${coverage.inScope}.`
+      : " No scored sample behind it.");
+
+  return Object.freeze({
+    version: RECOVERABLE_ANSWER_VERSION,
+    available: true,
+    reason: null,
+    period,
+    /** The reporting period's own sums, before the annual multiplier. */
+    monthly: Object.freeze({
+      spendUsd: monthlySpendUsd,
+      recoverableUsd: monthlyRecoverableUsd,
+      spend: usd(monthlySpendUsd),
+      recoverable: usd(monthlyRecoverableUsd),
+    }),
+    annualSpendUsd,
+    annualRecoverableUsd,
+    /** The two figures the pages render, formatted once, here. */
+    totalAnnualSpend: usd(annualSpendUsd),
+    recoverableAnnual: usd(annualRecoverableUsd),
+    share,
+    sharePercent: percent(share),
+    destination,
+    coverage,
+    confidence,
+    basis,
+  });
 }
 
 /** "2026-06-01T00:00:00Z" → "2026-06-01". Null for anything else. */

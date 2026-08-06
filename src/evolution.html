@@ -81,22 +81,30 @@
            money, one move. One hedge and one control, because a second of either
            hands the ranking decision back to the reader.
 
+           NO FIGURE IS AUTHORED HERE ANY MORE (#1184). Every dollar amount in
+           this region — the recoverable annual figure, the total annual spend
+           and the coverage in the hedge — is computed by
+           bundledRecoverableAnswer() in src/finops-first-run.js out of the one
+           bundled scored dataset, seeded into the served document by
+           scripts/seed-first-screen.mjs and repainted at boot by
+           applyRecoverableAnswer(). The region's markup carries the question,
+           the labels and the pending words, and nothing a reader could quote.
+           Edit the dataset and every occurrence on this page and on
+           /savings-action-center.html moves with it; there is no second copy of
+           any of these numbers left to update by hand.
+
            DERIVATION, so two engineers compute the same figure.
-           recoverable_annual_usd = sum over every workload row in this page's
-           spend model of (current_annual_usd minus the cheapest annual cost of a
-           destination this page already models for that row), counting a row as
-           0 when that difference is not positive. The bundled model carries one
-           qualifying move — Atlas Platform's short, low-context requests to the
-           standard model — worth 5,200 USD a month, the figure named by
-           evolution-demo-data.json's recommendedAction and by the proof point's
-           "Projected savings" row below. 5,200 x 12 = 62,400, rounded after the
-           arithmetic. No other row models a destination, so none contributes.
-           No figure was invented and no data source was added. -->
+           recoverable_annual_usd = the dataset's own modelled recoverable total
+           for the reporting period, times twelve months. The analyzed spend it
+           is a share of is the same period's spend total on the same multiplier.
+           The move named below is the department carrying the largest single
+           part of that recoverable total. The arithmetic travels with the
+           figures, in the Basis part of the disclosure. -->
       <section class="finops-recoverable-answer" id="finops-recoverable-answer" data-workspace-frame="true" aria-labelledby="finops-recoverable-question">
         <h2 id="finops-recoverable-question">How much of our AI spend can we recover, and where do we start?</h2>
-        <p class="stand-figure" id="finops-recoverable-figure"><span class="stand-figure-label" id="finops-recoverable-label">Recoverable annual AI spend</span> <span class="stand-figure-value" id="finops-recoverable-value">$62,400</span> <span class="figure-source-state" id="finops-recoverable-marker">Illustrative</span></p>
+        <p class="stand-figure" id="finops-recoverable-figure"><span class="stand-figure-label" id="finops-recoverable-label">Recoverable annual AI spend</span> <span class="stand-figure-value" id="finops-recoverable-value">Results will appear here</span> <span class="figure-source-state" id="finops-recoverable-marker">Illustrative</span></p>
         <p class="stand-answer" id="finops-recoverable-confidence">A ceiling to verify at list prices, before any committed-use discount.</p>
-        <a class="stand-action" id="finops-recoverable-action" href="/savings-action-center.html">Move Atlas Platform's short, low-context requests to the standard model</a>
+        <a class="stand-action" id="finops-recoverable-action" href="/savings-action-center.html">Move the top department's premium-tier requests to the standard model</a>
         <!-- HOW WE KNOW THIS — the one disclosure pattern this page reuses
              (#1185). The figure and the move are read first; everything that
              qualifies them is one press away, in three labelled parts and in the
@@ -122,7 +130,7 @@
           <summary class="figure-source-summary how-we-know-summary" id="finops-recoverable-how-we-know-summary"><span class="figure-source-state" data-disclosure="collapsed"><span class="figure-source-shape" aria-hidden="true">▸</span> How we know this</span></summary>
           <dl class="figure-source-detail how-we-know-detail">
             <div><dt>Provenance</dt><dd>The bundled synthetic example: invented usage records for an invented company, shipped with this page. Not your spend, not customer data, and not a realized saving. No file of yours is read, uploaded, or stored to produce it.</dd></div>
-            <div><dt>Basis</dt><dd>Recoverable annual spend sums, over every workload the example models, the difference between what that workload costs today and the cheapest destination this page already models for it, treating a workload as zero where that difference is not positive. One workload qualifies — Atlas Platform's short, low-context requests moved to the standard model — at $5,200 a month; 5,200 x 12 = 62,400, rounded once after the arithmetic.</dd></div>
+            <div><dt>Basis</dt><dd id="finops-recoverable-basis">The arithmetic behind the figure above — the period's own recoverable total, the months it is multiplied by, the analyzed spend it is a share of, and the department carrying most of it — is computed from the bundled scored dataset and appears here.</dd></div>
             <div><dt>Limits</dt><dd>Priced at published list prices. Committed-use discounts and measured throughput are both left out of the arithmetic, so this is a ceiling to verify against an invoice rather than a saving anyone has banked. It is stated as of the bundled synthetic example and moves the moment a provider export of your own is analyzed.</dd></div>
           </dl>
         </details>

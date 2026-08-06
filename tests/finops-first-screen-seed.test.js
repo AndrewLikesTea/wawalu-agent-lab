@@ -62,6 +62,8 @@ const PENDING = Object.freeze([
 
 /** Every slot whose text the build seeds, in document order. */
 const SEEDED_TEXT = Object.freeze([
+  "finops-recoverable-value", "finops-recoverable-confidence",
+  "finops-recoverable-basis", "finops-recoverable-action",
   "finops-stand-claim",
   "finops-answer-label", "finops-answer-value", "finops-answer-direction",
   "finops-answer-basis", "finops-answer-confidence", "finops-answer-action",
@@ -121,7 +123,7 @@ test("every seeded slot matches the authored markup exactly once", () => {
   // reaching here is the assertion. The count is stated so a slot cannot be
   // quietly dropped from the seed and leave this suite still green.
   const edits = firstScreenEdits(BUNDLED);
-  assert.equal(edits.length, 34, "the seed covers 34 first-screen slots");
+  assert.equal(edits.length, 38, "the seed covers 38 first-screen slots");
   for (const { slot, find } of edits) {
     assert.equal(SOURCE.split(find).length - 1, 1, `${slot} matches the authored markup once`);
   }
