@@ -74,7 +74,7 @@ import {
 } from "/provider-readiness-contract.js";
 // Which report to pull per pinned adapter, and which half it supplies (#1166).
 import {
-  IMPORT_RECIPES, IMPORT_RECIPES_LEAD, SUPPLIES_MARKER,
+  IMPORT_RECIPES, IMPORT_RECIPES_LEAD, SAMPLE_ROW_COUNT, SUPPLIES_MARKER,
 } from "/import-recipes.js";
 import { bindProviderImport, initProviderImport } from "/provider-native-import-view.js";
 import { FIXTURE_REFERENCE_DATE } from "/browser-compat-fixtures.js";
@@ -992,6 +992,34 @@ function mountProviderReadiness() {
 }
 
 /**
+ * The two file-shape downloads a pinned adapter publishes (#1167), or nothing.
+ *
+ * Inside the row's file-shape disclosure, beside the column list they are
+ * generated from, so the first screen gains no tab stop until a reader opens
+ * the shape they are about to check. The figure ships with the sample because
+ * it is what makes the download checkable — import this file and the page owes
+ * you this number — and it is the recipe contract's own constant, the one the
+ * executable-fixture test asserts the real intake produces.
+ */
+function templateControls(recipe) {
+  if (recipe.sampleTotalMinor === null) return [];
+  const figure = element("p", "import-slot-unlocks");
+  figure.append(element("span", "provider-readiness-key", "Worked sample adds up to"),
+    document.createTextNode(`${formatUsd(recipe.sampleTotalMinor / 100)} of synthetic spend, `
+      + `across ${SAMPLE_ROW_COUNT} rows this importer reads`));
+  const controls = element("p", "import-slot-unlocks");
+  for (const [kind, label] of [["blank", "Download the blank CSV template"],
+    ["sample", "Download the worked CSV sample"]]) {
+    const button = element("button", "provider-readiness-download", `${label} · ${recipe.label}`);
+    button.type = "button";
+    button.dataset.adapter = recipe.adapter;
+    button.dataset.template = kind;
+    controls.append(button);
+  }
+  return [figure, controls];
+}
+
+/**
  * The recipe per pinned adapter (#1166), painted from the contract-derived list.
  *
  * In the open: the provider, the one report to ask for, the question it
@@ -1019,19 +1047,29 @@ function mountImportRecipes() {
     name.append(element("span", "import-slot-state", SUPPLIES_MARKER[recipe.supplies]));
     const detail = element("details");
     detail.id = `${item.id}-detail`;
-    detail.append(element("summary", null, `Row unit and columns · ${recipe.label}`),
+    detail.append(element("summary", null, `File shape: row unit, columns and templates · ${recipe.label}`),
       keyed("import-slot-unlocks", "Unit each row counts toward", recipe.grouping));
     const columns = element("p", "provider-readiness-columns");
     columns.dataset.kind = "required";
     columns.append(element("span", "provider-readiness-key", "Columns read"));
     for (const column of recipe.columns) columns.append(element("code", null, column));
-    detail.append(columns);
+    detail.append(columns, ...templateControls(recipe));
     item.append(name,
       keyed("import-slot-unlocks", "Answers", recipe.question),
       keyed("import-slot-unlocks", "Pull this one report", recipe.report),
       detail);
     return item;
   }));
+  // One delegated handler rather than six, and the generator is reached on
+  // activation: a template's rows are bytes a reader needs once they ask for a
+  // file, not bytes every visitor is served before they read the answer.
+  list.addEventListener("click", async (event) => {
+    const button = event.target?.closest?.("[data-template]");
+    if (!button) return;
+    const { importFileTemplateArtifact } = await import("/import-file-template.js");
+    const file = importFileTemplateArtifact(button.dataset.adapter, button.dataset.template);
+    if (file) downloadLocalExport(file.text, file.mediaType, file.fileName);
+  });
 }
 
 function mountLocalFinopsImport() {

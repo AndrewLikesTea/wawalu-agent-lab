@@ -64,6 +64,28 @@ const QUESTIONS = Object.freeze({
 /** The pinned query source that supplies the sample half of the answer. */
 const SAMPLE_SOURCE_ID = "gateway-proxy-log";
 
+/**
+ * What each adapter's worked CSV sample (#1167) adds up to, in integer USD
+ * cents. The ONE fact about those samples that ships in this page's initial
+ * payload: the rows and the generator live in `import-file-template.js`, loaded
+ * only on activation, but the figure has to be readable BEFORE the download or
+ * a lead cannot tell whether the file they got back is the file described here.
+ * `tests/import-file-template.test.js` feeds each sample through the real
+ * delimited intake and asserts this exact number, so the documented figure and
+ * the asserted figure are one constant with no second copy to drift.
+ *
+ * Whole dollars: the page's money formatter rounds to whole units, so a total
+ * carrying cents would be documented as a figure the importer never reports.
+ */
+const SAMPLE_TOTAL_MINOR = Object.freeze({
+  "openai-usage": 259500,
+  "anthropic-usage": 187600,
+  "bedrock-cost-and-usage": 223500,
+});
+
+/** Rows per worked sample. Enough to exercise the adapter, not a corpus. */
+export const SAMPLE_ROW_COUNT = 4;
+
 const shapeById = (id) => SHAPES.find((shape) => shape.id === id);
 
 /**
@@ -81,7 +103,8 @@ function spendRecipe(adapter) {
   const pkg = packageById(adapter.packageId);
   const shape = shapeById(adapter.shapes[0]);
   const question = QUESTIONS[adapter.id];
-  if (!pkg || !shape || !question) {
+  const sampleTotalMinor = SAMPLE_TOTAL_MINOR[adapter.id];
+  if (!pkg || !shape || !question || sampleTotalMinor === undefined) {
     throw new Error(`import-recipes: no recipe for pinned adapter ${adapter.id}`);
   }
   return Object.freeze({
@@ -89,6 +112,8 @@ function spendRecipe(adapter) {
     label: adapter.label,
     question,
     supplies: RECIPE_SUPPLIES.spend,
+    // Non-null exactly where a blank template and a worked sample exist.
+    sampleTotalMinor,
     // What a billing owner is asked for, from the adapter's own export package.
     report: pkg.export_request.ask_for,
     // The adapter's declared billing grain: what one row of it is.
@@ -108,6 +133,8 @@ function sampleRecipe(id) {
     label: entry.label,
     question,
     supplies: RECIPE_SUPPLIES.sample,
+    // No template ships for the query-sample half in this slice; see the PR.
+    sampleTotalMinor: null,
     // The registry's own one-line description of the file to go and get.
     report: entry.summary,
     // Composed from the registry's declared attribution field and time bucket,
