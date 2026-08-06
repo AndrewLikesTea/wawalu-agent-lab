@@ -52,6 +52,9 @@ import {
 } from "../src/executive-briefing-projection-view.js";
 import { answerAnnouncement } from "../src/finops-answer-announcement.js";
 import { FINOPS_ANSWER_SUMMARY } from "../src/finops-answer-summary.js";
+import {
+  BUNDLED_RECOVERABLE_CONFIDENCE, confidenceChip, confidenceExplanation,
+} from "../src/finops-recoverable-confidence.js";
 import { buildStandHeadline } from "../src/finops-stand.js";
 import { standClaimSentence } from "../src/finops-stand-view.js";
 
@@ -184,6 +187,21 @@ export function firstScreenEdits(bundled) {
       '<a class="answer-action" id="finops-answer-action"'
       + ` href="${escapeAttribute(answer.action.href)}">`
       + `${escapeText(answer.action.label)}</a>`),
+
+    // ---- How sure the page is about the recoverable figure (#1186). The grade
+    // is a headline fact and is seeded beside the figure, outside every
+    // disclosure; the sentences explaining what holds it there are generated
+    // from the same verdict's reason records and seeded into the Limits part of
+    // the disclosure the region already ships.
+    edit("recoverable confidence grade",
+      '<span class="figure-source-state" id="finops-recoverable-grade"'
+      + ' data-grade="ungraded">Confidence: not graded</span>',
+      '<span class="figure-source-state" id="finops-recoverable-grade"'
+      + ` data-grade="${escapeAttribute(BUNDLED_RECOVERABLE_CONFIDENCE.grade)}">`
+      + `${escapeText(confidenceChip(BUNDLED_RECOVERABLE_CONFIDENCE))}</span>`),
+    authoredText("recoverable confidence explanation", "finops-recoverable-confidence-detail",
+      "The confidence grade beside the figure has not been computed for this document.",
+      confidenceExplanation(BUNDLED_RECOVERABLE_CONFIDENCE)),
 
     // ---- The circulation decision, painted by its own view above.
     edit("circulation state",
