@@ -506,6 +506,10 @@ import { bindAnswerCopy } from "/finops-answer-copy.js";
 // (#1206), so a shared URL resolves to the sender's months rather than to the
 // published synthetic sample. Reads storage; writes none of it.
 import { applyShareLink, bindShareLink } from "/finops-share-link-control.js";
+// …and the other end of that link (#1208): the recipient's read-only state,
+// painted into the answer region from the shared payload. Reads the fragment,
+// writes no storage, and paints nothing when there is no brief on the address.
+import { applySharedBrief } from "/finops-shared-brief-view.js";
 // …and the one owner of WHICH source that answer came from. The page used to
 // choose between the bundled example and the reader's import at each call site;
 // it now reads a single held answer, so the headline, the action, the position
@@ -4955,6 +4959,13 @@ async function init() {
   // has rather than a change, and a polite region rewritten on load speaks a
   // figure nobody asked for. Every paint after this one is a real change.
   applyStandHeadline(document, answerState.getHeadline(), { announce: false });
+  // AFTER the answer's own boot paint, and last of the paints that can touch
+  // the answer region: a reader who arrived on a shared-brief link (#1208) is
+  // reading the SENDER's figures, and a repaint of the bundled example over
+  // them would be the exact deception the link exists to prevent. With no
+  // brief on the address — the ordinary visit — this paints nothing at all and
+  // the page is the one it was served as.
+  applySharedBrief(document, window.location?.hash ?? "");
   // The way out of the region, repainted from the module that owns the link so
   // the authored href and the hand-off contract cannot drift apart. It needs no
   // binding: it is an anchor, and it worked before this line ran.
