@@ -145,8 +145,9 @@ test("the feed's keyboard hint names each bound movement once", async (t) => {
 
   const hint = textOf(page.document.querySelector(".feed-hint"));
   assert.equal(hint, "Use ← and → to move between posts, ↑ and ↓ to move between rows, and Home and End to jump to the first and last post. Each card holds the whole post, so there is nothing to open.");
-  // Releases says "move between releases … Home and End to jump"; Social says
-  // the same thing about posts, so one reader learns one pattern.
+  // Releases says "move between releases … Home and End to jump to the first
+  // and last release"; Social says the same thing about posts, so one reader
+  // learns one pattern.
   assert.match(hint, /Use ← and → to move between posts, ↑ and ↓ to [^,]+, and Home and End to jump/);
   assert.doesNotMatch(hint, /move to the post/, "one verb for moving, not 'move' beside 'move to'");
   // Nothing on a card is interactive, so the hint must not offer Enter.
