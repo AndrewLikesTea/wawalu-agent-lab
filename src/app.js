@@ -24,6 +24,7 @@ import {
   readCurrentOnly,
 } from "./history-filters.js";
 import { copyHistoryLink, renderHistoryFilterChips, renderHistorySummary } from "./history-filter-view.js";
+import { renderHistoryTrend } from "./history-trend-view.js";
 import { publishHistoryScope } from "./history-scope.js";
 import { initLeadCapture } from "./lead-capture.js";
 import { retentionDeclined, retentionRefusal } from "./local-retention.js";
@@ -1067,6 +1068,7 @@ export async function initDecisionLog(root = document, storage = localStorage, o
   const fromFilter = root.querySelector("#filter-from");
   const toFilter = root.querySelector("#filter-to");
   const filterSummary = root.querySelector("#history-filter-summary");
+  const trend = root.querySelector("#history-trend");
   const filterChips = root.querySelector("#history-filter-chips");
   const copyLink = root.querySelector("#copy-history-link");
   // A live region of its own, so "Link copied" and "Showing 3 of 41 records"
@@ -1351,6 +1353,23 @@ export async function initDecisionLog(root = document, storage = localStorage, o
     landing?.focus?.({ preventScroll: true });
   };
 
+  // A bar is a date filter, applied through the state every other control on
+  // this page writes to and committed on the same path — not a second filtering
+  // rule that could drift from the one the list obeys. Both ends are inclusive
+  // calendar days, which is exactly what the week bucket carries.
+  //
+  // Focus then moves to the From control. The chart is re-rendered from the
+  // narrowed set, so the bar the keyboard was standing on is gone by the time
+  // the filter lands; the date field is a stable neighbour that now holds what
+  // just happened, which is where the chips' own removal path lands too.
+  const selectWeek = (bucket) => {
+    view.from = bucket.start;
+    view.to = bucket.end;
+    syncFilterControls();
+    commit();
+    (fromFilter ?? search)?.focus?.({ preventScroll: true });
+  };
+
   const render = () => {
     const visible = renderHistory(list, count, records, view);
     if (supersedeSummary) supersedeSummary.textContent = supersedeFilterSummary(records, view);
@@ -1359,6 +1378,10 @@ export async function initDecisionLog(root = document, storage = localStorage, o
     // the same sentence on screen.
     renderHistorySummary(filterSummary, { visible, total: records.length, filters: view });
     chipButtons = renderHistoryFilterChips(filterChips, view, { onRemove: removeFilter });
+    // The shape of the same view, from the same selection rule: the chart is
+    // drawn here rather than from a listener of its own, so a filter can never
+    // move the list without moving the trend above it.
+    renderHistoryTrend(trend, { records: selectHistory(records, view), onSelectWeek: selectWeek });
     renderHistoryReleaseFollowUp(
       releaseFollowUp,
       releases.find(({ id }) => id === view.releaseId),
