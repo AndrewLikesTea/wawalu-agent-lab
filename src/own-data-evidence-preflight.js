@@ -6,6 +6,8 @@ export const REQUIRED_SPEND_COVERAGE_BENCHMARK = 0.9;
 export const EVIDENCE_PREFLIGHT_OUTCOME = Object.freeze({
   COMPLETE: "complete",
   PROVIDER_EXPORT_ONLY: "provider-export-only",
+  // A result, not a refusal: figures in `spend-only-tier.js` (#1168).
+  SPEND_ONLY: "spend-only",
   INSUFFICIENT: "insufficient-evidence",
 });
 

@@ -134,3 +134,9 @@ export const IMPORT_RECIPES = Object.freeze([
 export function recipeForAdapter(id) {
   return IMPORT_RECIPES.find((recipe) => recipe.adapter === id) ?? null;
 }
+
+/** Which pinned recipe supplies a named column, in declared order, or null. The
+ * missing-field → recipe direction, asked by `spend-only-tier.js` (#1168). */
+export function recipeSupplyingColumn(column) {
+  return IMPORT_RECIPES.find((recipe) => recipe.columns.includes(column)) ?? null;
+}

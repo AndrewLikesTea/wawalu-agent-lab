@@ -24,6 +24,7 @@ import {
   REQUIRED_SPEND_COVERAGE_BENCHMARK,
 } from "./own-data-evidence-preflight.js";
 import { readUsageDetail } from "./provider-usage-record.js";
+import { spendOnlyFigures } from "./spend-only-tier.js";
 
 export const PROVIDER_EXPORT_PROJECTION_VERSION = "provider-export-projection/1.0.0";
 
@@ -244,13 +245,24 @@ export function projectProviderExport(document) {
   });
   const rung = ACTION_LADDER.find((entry) => !entry.met(gate));
   const bounded = gate.complete && gate.attribution && gate.classification && gate.finalCosts;
+  // A BILLING-ONLY EXPORT IS NOT A REFUSAL (#1168). Rows priced and grouped
+  // nowhere — not one grouping value in the file — used to fall out of the
+  // benchmark comparison below as `insufficient-evidence`, which reads as "this
+  // file bought you nothing". Spend alone still answers what the period cost and
+  // how that divides by model, so the downgraded tier is computed here and the
+  // figures it cannot reach are withheld BY NAME rather than left blank.
+  // Deliberately the zero case only: a partly attributed export has a coverage
+  // percentage to be judged against the benchmark, and that judgment is unchanged.
+  const spendOnly = records.length > 0 && attributedRows.length === 0
+    ? spendOnlyFigures(records) : null;
   // The merged preflight owns the vocabulary this region is styled from, so the
   // projection answers in it. `complete` is deliberately unreachable here: it
   // requires query-sample corroboration, which a billing export cannot supply.
-  const preflightOutcome = !completeness.complete || records.length === 0
-    || departmentCoverage.rowRatio < REQUIRED_SPEND_COVERAGE_BENCHMARK
-    ? EVIDENCE_PREFLIGHT_OUTCOME.INSUFFICIENT
-    : EVIDENCE_PREFLIGHT_OUTCOME.PROVIDER_EXPORT_ONLY;
+  const preflightOutcome = spendOnly ? EVIDENCE_PREFLIGHT_OUTCOME.SPEND_ONLY
+    : !completeness.complete || records.length === 0
+      || departmentCoverage.rowRatio < REQUIRED_SPEND_COVERAGE_BENCHMARK
+      ? EVIDENCE_PREFLIGHT_OUTCOME.INSUFFICIENT
+      : EVIDENCE_PREFLIGHT_OUTCOME.PROVIDER_EXPORT_ONLY;
 
   return Object.freeze({
     ok: true,
@@ -274,6 +286,8 @@ export function projectProviderExport(document) {
       limitation: "Confidence is limited to this export; no completeness beyond it is inferred.",
     }),
     preflightOutcome,
+    /** The downgraded tier's two lists, or null when this is not that tier. */
+    spendOnly,
     provenance: Object.freeze({
       source: "selected_provider_export", recordCount: records.length,
       schemaVersion: document.schema_version, exportId: document.export_id,
@@ -306,7 +320,12 @@ const money = (value) => new Intl.NumberFormat("en-US", {
  */
 export function providerExportPreflight(projection) {
   const { departmentCoverage: coverage, completeness, provenance } = projection;
-  const sufficient = projection.preflightOutcome !== EVIDENCE_PREFLIGHT_OUTCOME.INSUFFICIENT;
+  const spendOnly = projection.spendOnly ?? null;
+  // A downgraded result is not a sufficient one. It carries figures, which is
+  // the whole point of it, and it still cannot answer the department-spend
+  // question this region asks — so it never claims the bounded verdict.
+  const sufficient = !spendOnly
+    && projection.preflightOutcome !== EVIDENCE_PREFLIGHT_OUTCOME.INSUFFICIENT;
   const conflicts = provenance.conflictingRevisions;
   return Object.freeze({
     question: OWN_DATA_PREFLIGHT_QUESTION,
@@ -338,15 +357,33 @@ export function providerExportPreflight(projection) {
       Object.freeze({ source: "Query sample", available: false,
         detail: "A billing export carries no query content; query-level classification is not claimed and no lookup is attempted." }),
     ]),
-    verdict: sufficient
-      ? "Provider export supports a bounded decision"
-      : "Insufficient evidence",
-    finding: `${money(projection.spend.amountUsd)} total spend across `
-      + `${coverage.totalRows} accepted rows; ${percent(coverage.rowRatio)} of rows and `
-      + `${coverage.spendRatio === null ? "no" : percent(coverage.spendRatio)} of dollars carry `
-      + `department attribution. ${projection.costBasis.estimatedRows} rows are estimated, not final.`,
-    confidence: [projection.confidence.basis, ...projection.confidence.limitations,
-      projection.classificationEvidence.limitation, projection.confidence.limitation].join(" "),
+    // The downgraded tier's two lists, carried on the assessment the region
+    // already renders so the DOM layer never has to re-derive which figures are
+    // missing. Null on every other outcome, which is how the renderer knows.
+    tier: spendOnly?.tier ?? null,
+    computed: spendOnly?.computed ?? null,
+    withheld: spendOnly?.withheld ?? null,
+    verdict: spendOnly
+      ? "Spend computed · the rest is withheld"
+      : sufficient
+        ? "Provider export supports a bounded decision"
+        : "Insufficient evidence",
+    finding: spendOnly
+      ? `${money(projection.spend.amountUsd)} total spend across ${coverage.totalRows} accepted `
+        + `rows, split across ${spendOnly.computed.length - 1} model bucket`
+        + `${spendOnly.computed.length === 2 ? "" : "s"}. No row carries a provider grouping `
+        + `value, so ${spendOnly.withheld.length} figures are withheld by name below rather `
+        + "than estimated."
+      : `${money(projection.spend.amountUsd)} total spend across `
+        + `${coverage.totalRows} accepted rows; ${percent(coverage.rowRatio)} of rows and `
+        + `${coverage.spendRatio === null ? "no" : percent(coverage.spendRatio)} of dollars carry `
+        + `department attribution. ${projection.costBasis.estimatedRows} rows are estimated, not final.`,
+    confidence: [
+      spendOnly ? "Downgraded tier: every figure listed as computed is derived from spend alone "
+        + "and may not be quoted as a full-import figure." : null,
+      projection.confidence.basis, ...projection.confidence.limitations,
+      projection.classificationEvidence.limitation, projection.confidence.limitation,
+    ].filter(Boolean).join(" "),
     nextAction: projection.actions[0].text,
   });
 }
