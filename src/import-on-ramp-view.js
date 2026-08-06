@@ -29,6 +29,9 @@ export const ON_RAMP_ANSWER_ID = "import-on-ramp-answer";
 export const ON_RAMP_DETAIL_ID = "import-on-ramp-detail";
 export const ON_RAMP_ACTION_ID = "import-on-ramp-action";
 
+/** The page's blob writer, kept from the mount for the deferred control. */
+let downloadFile = null;
+
 function element(doc, tag, className, text) {
   const node = doc.createElement(tag);
   if (className) node.className = className;
@@ -83,6 +86,10 @@ function answerFor(doc, choice) {
       `Download a one-row ${sample.format.toUpperCase()} sample · ${sample.displayName}`,
       { sample: sample.id }));
   }
+  // The worked sample and its figure (#1167), fetched on demand: rows a reader
+  // meets only after choosing a provider are not worth a byte of first paint.
+  import("./import-worked-sample-view.js")
+    .then((view) => view.appendWorkedSample(doc, card, choice.adapter, downloadFile));
   // The one next action, and the only filled control in this region.
   const action = element(doc, "div", "provider-readiness-item");
   action.append(keyed(doc, "Do this next", choice.nextAction.detail));
@@ -147,6 +154,7 @@ export function mountImportOnRamp(doc, { download, onNextAction }) {
   const select = doc.getElementById(ON_RAMP_SELECT_ID);
   const answer = doc.getElementById(ON_RAMP_ANSWER_ID);
   if (!select || !answer) return false;
+  downloadFile = download;
   const unchosen = doc.createElement("option");
   unchosen.value = "";
   unchosen.textContent = IMPORT_ON_RAMP_UNCHOSEN;
