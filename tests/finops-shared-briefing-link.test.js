@@ -21,6 +21,7 @@ import {
   decodeSharedBriefing, encodeSharedBriefing, readSharedBriefingFragment, sharedBriefingHref,
   sharedBriefingToken,
 } from "../src/finops-shared-briefing-link.js";
+import { buildBriefEnvelope } from "../src/finops-brief-envelope.js";
 import { FINOPS_PERIOD_FIELDS } from "../src/finops-workspace-contract.js";
 
 const BASE = "https://labs.wawalu.org/executive-briefing.html";
@@ -44,6 +45,19 @@ function period(index = 0, overrides = {}) {
     topDepartmentId: "dept-atlas-platform",
     ...overrides,
   };
+}
+
+/**
+ * A real envelope, mutated, re-encoded. Every refusal below tests ONE broken
+ * thing: hand-authoring the payload would break several at once and the decoder
+ * would name whichever it checks first.
+ */
+function tamper(mutate) {
+  const built = buildBriefEnvelope([period()], { producedAt: null });
+  assert.equal(built.ok, true);
+  const envelope = JSON.parse(JSON.stringify(built.envelope));
+  mutate(envelope);
+  return Buffer.from(JSON.stringify(envelope)).toString("base64url");
 }
 
 /** Encode a fresh token for `count` periods, asserting the encode succeeded. */
@@ -145,10 +159,12 @@ test("refusal: a token from another schema is `unsupportedVersion`, never guesse
 });
 
 test("refusal: a period that fails the retained-record contract is `rejectedRecords`", () => {
-  const bad = Buffer.from(JSON.stringify({
-    v: SHARED_BRIEFING_SCHEMA,
-    periods: [period(0, { confidence: "excellent", coverageRatioPpm: -4 })],
-  })).toString("base64url");
+  // Built through the shared envelope contract and then corrupted, rather than
+  // hand-authored: a token that never carried the disclosures would be refused
+  // for the wrong reason, and this test is about the RECORDS failing.
+  const bad = tamper((envelope) => {
+    envelope.periods = [period(0, { confidence: "excellent", coverageRatioPpm: -4 })];
+  });
   assert.equal(decodeSharedBriefing(bad).reason, SHARE_DECODE_REASON.rejectedRecords);
   // And the same contract on the way out: a record this build would refuse to
   // read is one it refuses to write.
@@ -157,8 +173,7 @@ test("refusal: a period that fails the retained-record contract is `rejectedReco
 });
 
 test("refusal: a token declaring this schema with no period is `empty`", () => {
-  const none = Buffer.from(JSON.stringify({ v: SHARED_BRIEFING_SCHEMA, periods: [] }))
-    .toString("base64url");
+  const none = tamper((envelope) => { envelope.periods = []; });
   assert.equal(decodeSharedBriefing(none).reason, SHARE_DECODE_REASON.empty);
   assert.equal(encodeSharedBriefing([]).reason, SHARE_DECODE_REASON.empty);
   assert.equal(sharedBriefingHref(BASE, []).url, "");

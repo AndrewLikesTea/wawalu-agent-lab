@@ -146,6 +146,24 @@ export const SHARED_ORIGIN =
   "Periods carried in the link you opened — the sender's own retained months, not this browser's and "
   + "not the synthetic sample. Nothing was uploaded and nothing here proves who sent them.";
 
+/**
+ * How the masthead names a brief that arrived as a FILE the reader opened.
+ *
+ * Same three facts the link's origin states — somebody else's months, not this
+ * browser's, nothing here vouching for who sent them — with the one difference
+ * that matters to the reader: it came off their own disk, by their own choice,
+ * and it did not become one of their records by being read.
+ */
+export const FILE_ORIGIN =
+  "Periods carried in the brief file you opened — the sender's own retained months, not this "
+  + "browser's and not the synthetic sample. Nothing was uploaded, nothing was added to your own "
+  + "retained figures, and nothing here proves who sent them.";
+
+export const FILE_PROVENANCE_NOTE =
+  "Rebuilt in this tab from the file you chose, read by this browser's own file reader. No clock, no "
+  + "random value, no network request, and no store took part — your own retained figures were not "
+  + "read and were not changed.";
+
 export const SHARED_PROVENANCE_NOTE =
   "Rebuilt in this tab from the periods in the address bar's fragment, which is never sent to a "
   + "server. No clock, no random value, no network request, and no store took part — your own "
