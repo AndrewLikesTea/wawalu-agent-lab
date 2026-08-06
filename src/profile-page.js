@@ -41,7 +41,7 @@ async function fetchSeedPosts() {
 }
 
 // The tab carries the stable destination name, the same word the heading and
-// the nav use, so it agrees with the global navigation for every persona.
+// the nav use, so it agrees with the global navigation for every display name.
 function updateTitle() {
   document.title = recordTitle("People");
 }

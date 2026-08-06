@@ -501,7 +501,7 @@ test("the header shows who this is and what the counts mean", () => {
   assert.equal(elements.avatar.textContent, "MO");
   assert.equal(elements.avatar.getAttribute("aria-hidden"), "true", "the avatar is decoration beside the name");
   assert.equal(elements.name.textContent, "Mina Okafor");
-  assert.equal(elements.roleName.textContent, "Mina Okafor", "the demo-persona framing follows the selected name");
+  assert.equal(elements.roleName.textContent, "Mina Okafor", "the display-name sentence follows the selected name");
   assert.match(elements.summary.textContent, /^2 image posts · 3 posts in total · last posted /);
 });
 
