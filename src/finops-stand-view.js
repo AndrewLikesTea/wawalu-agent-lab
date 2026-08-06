@@ -33,6 +33,10 @@ import { announceAnswer, answerAnnouncement } from "./finops-answer-announcement
 // Read from the artifact the check writes, never composed here and never dated
 // here — see the module for what the sentence may and may not claim.
 import { ANSWER_REPRODUCTION } from "./finops-answer-reproduction.js";
+// The same headline as plain text a lead can paste. Painted from THIS paint's
+// headline rather than from the DOM it just wrote, so the copied qualifier and
+// the rendered one are two readings of one object.
+import { applyAnswerCopy } from "./finops-answer-copy.js";
 
 /** The state chip, in the same two channels the rest of this page uses. */
 export const STAND_DISCLOSURE_STATE = Object.freeze({
@@ -756,6 +760,11 @@ export function applyStandHeadline(doc, headline, { announce = true } = {}) {
     // beside the two elements above. Rebuilding the trio keeps it a text node.
     marker.replaceChildren(...[shape, word].filter(Boolean), doc.createTextNode(` ${copy.detail}`));
   }
+
+  // …and the same answer as text, after the marker, because the summary states
+  // the marker's own sentence and must be built from the source this paint
+  // resolved rather than from the one the last paint left behind.
+  applyAnswerCopy(doc, headline);
 
   // Spoken once, from the page's one announcer, and it carries the three things
   // a reader who cannot see this region needs in order to decide whether to
