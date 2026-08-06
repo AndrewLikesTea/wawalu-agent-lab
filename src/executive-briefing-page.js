@@ -53,8 +53,14 @@ import {
 } from "/executive-finops-briefing.js";
 import { browserFinopsWorkspaceStorage } from "/finops-workspace.js";
 import {
-  BRIEFING_SOURCE, SAMPLE_ORIGIN, chooseBriefingSource,
+  BRIEFING_SOURCE, FILE_ORIGIN, FILE_PROVENANCE_NOTE, SAMPLE_ORIGIN, chooseBriefingSource,
 } from "/executive-briefing-source.js";
+// A brief as a file, both ways (#1207). Same envelope the link carries, defined
+// once in `finops-brief-envelope.js` and consumed by both transports.
+import {
+  BRIEF_FILE_MEDIA_TYPE, buildBriefEnvelope, serializeBriefEnvelope,
+} from "/finops-brief-envelope.js";
+import { bindOpenSharedBrief } from "/finops-open-shared-brief.js";
 import {
   SAMPLE_DISCLOSURE, SAMPLE_LABEL, SAMPLE_PROVENANCE_NOTE, sampleRetainedPeriods,
 } from "/executive-briefing-sample.js";
@@ -78,6 +84,7 @@ import { renderPayloadBriefing, renderPayloadState } from "/executive-payload-br
 
 const root = document.getElementById("executive-briefing");
 const actions = document.getElementById("briefing-actions");
+const download = document.getElementById("open-shared-brief-download");
 
 const PAYLOAD_URL = "/evolution-demo-data.json";
 const PAYLOAD_PRINT_NOTE =
@@ -134,6 +141,37 @@ function sharedFailureNode(sharedFailure) {
 }
 
 /**
+ * Put the brief now on screen behind the download link, as a file.
+ *
+ * The href is a `data:` URL and the scheme is the literal above, never anything
+ * a file or a fragment supplied: the bytes come from `serializeBriefEnvelope`
+ * over an envelope this build just constructed from periods that already passed
+ * the retained-record contract. Nothing here is fetched and nothing is sent —
+ * the browser saves what this tab already holds.
+ *
+ * The clock lives here rather than in the envelope module, which reads none: a
+ * `producedAt` stamped inside the builder would make two encodes of the same
+ * analysis differ and break the link's own parity check.
+ *
+ * The link is hidden whenever there is no brief to put behind it. A download
+ * control over an absent brief hands a reader an empty file with a confident
+ * name on it.
+ */
+function offerBriefDownload(periods) {
+  if (!download) return null;
+  const built = buildBriefEnvelope(periods, { producedAt: new Date().toISOString() });
+  if (!built.ok) {
+    download.hidden = true;
+    download.removeAttribute("href");
+    return null;
+  }
+  const text = serializeBriefEnvelope(built.envelope, { pretty: true });
+  download.href = `data:${BRIEF_FILE_MEDIA_TYPE};charset=utf-8,${encodeURIComponent(text)}`;
+  download.hidden = false;
+  return built.envelope;
+}
+
+/**
  * Draw the periods a colleague put in the link this reader opened.
  *
  * Read-only and network-free: the periods came off the address bar, the store
@@ -170,6 +208,7 @@ function paintSharedBriefing({ periods, origin, provenanceNote }) {
   const article = renderExecutiveBriefingPreview(briefing, { origin, provenanceNote, followUp: true });
   paint(article);
   activate(article);
+  offerBriefDownload(periods);
   return article;
 }
 
@@ -205,6 +244,7 @@ function paintWorkspaceBriefing({ periods, origin, provenanceNote, sharedFailure
   const article = renderExecutiveBriefingPreview(briefing, { origin, provenanceNote, followUp: true });
   paint(sharedFailureNode(sharedFailure), article);
   activate(article);
+  offerBriefDownload(periods);
   return article;
 }
 
@@ -398,10 +438,35 @@ export async function loadExecutiveBriefingPreview() {
   }
 }
 
+/**
+ * Draw a brief that arrived as a FILE the reader chose.
+ *
+ * The SAME read-only recipient view a shared link is drawn in — the same
+ * renderer, the same disclosures, the same print behaviour — because it is the
+ * same envelope. What differs is the masthead's origin line, which says the
+ * periods came off the reader's disk rather than off the address bar.
+ *
+ * Only ever reached with an envelope that already passed the whole contract:
+ * `bindOpenSharedBrief` does not call back on a refusal. Nothing on this path
+ * writes, so the reader's own retained records are untouched by opening it.
+ */
+export function paintOpenedBriefFile(envelope) {
+  return paintSharedBriefing({
+    periods: envelope.periods,
+    origin: FILE_ORIGIN,
+    provenanceNote: FILE_PROVENANCE_NOTE,
+  });
+}
+
 // The follow-up affordance is wired before the briefing is built and never
 // touched again: it sits outside the painted region, so it is usable while the
 // document is still loading, and it survives every repaint above it. The AI
 // FinOps result runs the same module under its own id family.
 initFinopsContact(document, undefined, { prefix: "briefing-contact" });
+
+// The file control is wired for the same reason and at the same point: it sits
+// outside the painted region, so it survives every repaint above it and is
+// usable before the first briefing has been built.
+bindOpenSharedBrief(document, { onBrief: paintOpenedBriefFile });
 
 if (root) await loadExecutiveBriefingPreview();
