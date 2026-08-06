@@ -1032,6 +1032,15 @@ function mountImportRecipes() {
       detail);
     return item;
   }));
+  // The blank template and the worked sample (#1167). Deferred on purpose: they
+  // are bytes a reader asks for, so the generator and its painter stay out of
+  // the first-screen module graph and this change costs the initial payload
+  // nothing. The rows above are already readable without them, which is also
+  // why a failed fetch is swallowed rather than thrown: a lead who cannot reach
+  // the generator still gets the recipe that tells them which report to pull.
+  import("/import-sample-downloads-view.js")
+    .then((module) => module.mountImportSampleDownloads(list, downloadLocalExport))
+    .catch(() => {});
 }
 
 function mountLocalFinopsImport() {
