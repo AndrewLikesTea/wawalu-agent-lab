@@ -230,6 +230,40 @@ test("available detail names the release relationship and its next action when n
   assert.equal(first(container, "empty-action").textContent, "Record the release that ships this decision");
 });
 
+test("the detail view shows a hostile record as the characters that were recorded", () => {
+  // The same payload the recorder round-trips through storage and the export.
+  // Here it is read back: the reader sees the characters, and the page built no
+  // element out of any of them.
+  const hostile = '<script>alert("x")</script> & \'quoted\' <b>';
+  const container = createElement("div");
+  renderDecisionDetail(container, {
+    id: "decision-3",
+    title: hostile,
+    status: "accepted",
+    owner: hostile,
+    context: hostile,
+    alternatives: hostile,
+    createdAt: "2026-07-01T00:00:00.000Z",
+  });
+
+  assert.equal(tags(container, "H1")[0].textContent, hostile, "the heading is not the recorded characters");
+  assert.equal(first(container, "decision-context").children[1].textContent, hostile);
+  assert.equal(
+    byClass(container, "detail-meta-value").some((value) => value.textContent === hostile),
+    true,
+    "the owner is not the recorded characters",
+  );
+  assert.equal(
+    byClass(container, "alternative-summary").some((summary) => summary.textContent === hostile),
+    true,
+    "the recorded alternative is not the recorded characters",
+  );
+  // Text nodes, never parsed markup: nothing in the payload became an element.
+  assert.equal(tags(container, "SCRIPT").length, 0, "the record produced a script element");
+  assert.equal(tags(container, "B").length, 0, "the record produced an element");
+  assert.equal(container.textContent.includes("<script>"), true, "the angle brackets did not survive the render");
+});
+
 test("detail page uses semantic landmarks and safe DOM rendering", async () => {
   const read = (path) => readFile(new URL(`../src/${path}`, import.meta.url), "utf8");
   const [html, component, page, css] = await Promise.all([

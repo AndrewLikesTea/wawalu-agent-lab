@@ -319,23 +319,25 @@
                and takes it away again on the next keystroke; the inline errors
                below report every field at once, in ours, and stay until the
                field they describe is edited.
-               Each field names its own error paragraph in aria-describedby up
-               front. That is safe here — and different from the lead capture
-               form below — because these paragraphs are empty until a submit
-               actually fails, so nothing is read out on first focus. -->
+               A field's error paragraph is added to its aria-describedby by
+               app.js when the failure happens and removed again when the field
+               is answered, so an empty paragraph is never part of a control's
+               accessible description. None of them announces itself: the one
+               live region under the button says what is blocking the save, and
+               each message is read with the control it belongs to. -->
           <form id="decision-form" novalidate>
             <div class="field field-wide">
               <label for="title">Title</label>
-              <input id="title" name="title" type="text" maxlength="120" required autocomplete="off" aria-describedby="title-hint title-error" />
+              <input id="title" name="title" type="text" maxlength="120" required autocomplete="off" aria-describedby="title-hint" />
               <span class="hint" id="title-hint">A short name for the decision.</span>
-              <p class="field-error" id="title-error" role="alert" hidden></p>
+              <p class="field-error" id="title-error" hidden></p>
             </div>
 
             <div class="field field-wide">
               <label for="context">Context</label>
-              <textarea id="context" name="context" rows="5" maxlength="1000" required aria-describedby="context-hint context-error"></textarea>
+              <textarea id="context" name="context" rows="5" maxlength="1000" required aria-describedby="context-hint"></textarea>
               <span class="hint" id="context-hint">The problem, constraints, and reasoning.</span>
-              <p class="field-error" id="context-error" role="alert" hidden></p>
+              <p class="field-error" id="context-error" hidden></p>
             </div>
 
             <!-- Required, where it used to be optional. PRODUCT.md's first
@@ -345,16 +347,16 @@
                  weighed, so the requirement is answerable rather than a wall. -->
             <div class="field field-wide">
               <label for="alternatives">Alternatives</label>
-              <textarea id="alternatives" name="alternatives" rows="4" maxlength="1000" required aria-describedby="alternatives-hint alternatives-error"></textarea>
+              <textarea id="alternatives" name="alternatives" rows="4" maxlength="1000" required aria-describedby="alternatives-hint"></textarea>
               <span class="hint" id="alternatives-hint">Other options considered and why they were not chosen. Write “None considered” if there were none.</span>
-              <p class="field-error" id="alternatives-error" role="alert" hidden></p>
+              <p class="field-error" id="alternatives-error" hidden></p>
             </div>
 
             <div class="field">
               <label for="owner">Owner</label>
-              <input id="owner" name="owner" type="text" maxlength="80" required autocomplete="name" aria-describedby="owner-hint owner-error" />
+              <input id="owner" name="owner" type="text" maxlength="80" required autocomplete="name" aria-describedby="owner-hint" />
               <span class="hint" id="owner-hint">The person responsible for the decision.</span>
-              <p class="field-error" id="owner-error" role="alert" hidden></p>
+              <p class="field-error" id="owner-error" hidden></p>
             </div>
 
             <div class="field">
@@ -362,12 +364,12 @@
               <!-- Two of the four statuses. The form cannot set Proposed or
                    Superseded, and the hint says so rather than letting a
                    visitor discover it from a filter that offers both. -->
-              <select id="status" name="status" required aria-describedby="status-hint status-error">
+              <select id="status" name="status" required aria-describedby="status-hint">
                 <option value="pending">Pending</option>
                 <option value="accepted">Accepted</option>
               </select>
               <span class="hint" id="status-hint">Set Pending or Accepted. Records can also read Proposed or Superseded; this form does not set those.</span>
-              <p class="field-error" id="status-error" role="alert" hidden></p>
+              <p class="field-error" id="status-error" hidden></p>
             </div>
 
             <div class="field field-wide">
@@ -379,15 +381,27 @@
               <p class="field-error" id="supersedes-error" role="alert" hidden></p>
             </div>
 
-            <!-- The form-level count, next to the button that was pressed. It
-                 never repeats the field messages: each one is already on its
-                 field, and a summary that restates them reads the whole form
-                 twice to a screen reader. -->
-            <p class="field-error form-error-summary" id="decision-form-error" role="alert" hidden></p>
-
             <button type="submit">Record decision</button>
             <button class="recorder-exit" id="exit-decision-recorder" type="button">Back to decision history</button>
           </form>
+
+          <!-- What is blocking this save: one line, immediately under the button
+               that was pressed, naming the field focus just moved to and how
+               many more are waiting behind it. It never repeats the field
+               messages — each one is already on the field it belongs to, and a
+               summary that restates them reads the whole form twice to a screen
+               reader.
+               The live region is this wrapper, and it ships empty in the markup
+               on every load. A region inserted on failure — or one that is
+               itself toggled hidden — is not in the accessibility tree at the
+               moment its text arrives, so a real screen reader announces
+               nothing. This one is always there, which is what makes the
+               sentence appearing inside it something a reader hears. It is the
+               only thing that announces on a failed submit: the per-field
+               messages are read with their own controls instead. -->
+          <div id="decision-form-live" role="status" aria-live="polite">
+            <p class="field-error form-error-summary" id="decision-form-error" hidden></p>
+          </div>
 
           <!-- What happened after a successful save, said once. Separate from
                #storage-notice in the list panel, which reports a save failing,
