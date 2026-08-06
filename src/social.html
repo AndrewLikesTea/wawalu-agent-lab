@@ -247,9 +247,18 @@
                    panel's accessible name. It ships as the unfiltered wording
                    because a count is a claim the page cannot make until a fetch
                    has come back. -->
-              <h2 id="feed-title">All posts</h2>
+              <!-- Focusable by script only: recovering from the no-match state
+                   destroys the control that was pressed, so focus is moved to
+                   the restored list, and this heading is where it lands when
+                   there is no card to land on. tabindex="-1" adds no tab stop. -->
+              <h2 id="feed-title" tabindex="-1">All posts</h2>
             </div>
-            <span class="count" id="post-count" aria-live="polite">Loading posts…</span>
+            <!-- Not a live region any more. The summary below the filters says
+                 the same news in a fuller sentence — how many of how many, and
+                 which filters produced that — and that is the region announced
+                 now, so leaving aria-live here would read every filter change
+                 out twice. -->
+            <span class="count" id="post-count">Loading posts…</span>
           </div>
           <!-- Social offers Paint twice, and only twice: the hero's standing
                invitation and the composer's in-flow control. A third invitation
@@ -309,18 +318,24 @@
                hint: arrows "move", Home and End "jump". -->
           <p class="hint feed-hint">Use ← and → to move between posts, ↑ and ↓ to move between rows, and Home and End to jump to the first and last post. Each card holds the whole post, so there is nothing to open.</p>
           <p class="visually-hidden" id="feed-announcer" aria-live="polite" aria-atomic="true"></p>
-          <!-- One sentence for "what am I looking at": how many posts are below
-               this line, and which filters produced them. social.js writes it
-               from the same array it renders the cards from, so the number here
-               is the number of cards, in every state including none.
-               Ships empty and hidden because a count is a claim the page cannot
-               make until a fetch has come back — the same rule the count beside
-               the heading follows.
-               Deliberately not a live region: the count beside the heading is
-               already announced on every filter change, and a second polite
-               region would read the same news twice. Nothing folds this away
-               either; a reader who needs it needs it before the cards. -->
-          <p class="feed-summary" id="feed-summary" hidden></p>
+          <!-- One sentence for "what am I looking at": how many of how many
+               posts are below this line, and which filters produced them.
+               social.js writes it from the same array it renders the cards
+               from, so the number here is the number of cards, in every state
+               including none, and it names the filters in the option text read
+               back off the two menus rather than from a second copy of that
+               vocabulary.
+               Ships empty because a count is a claim the page cannot make until
+               a fetch has come back — nothing here says "0 posts" while the
+               first fetch is open.
+               This element is the page's one announcement of a filter change:
+               it is here on first paint and stays, and social.js replaces only
+               its text, which is what makes an update announce once. It carries
+               no role="status" and holds no second live region, and nothing
+               folds it away — a live region behind a closed disclosure is
+               silent, and a reader who needs this sentence needs it before the
+               cards. -->
+          <p class="feed-summary" id="feed-summary" aria-live="polite"></p>
           <div id="post-feed"></div>
         </div>
       </section>

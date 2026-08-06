@@ -187,11 +187,19 @@ test("empty, loading, and error states are three distinct renders", () => {
   assert.equal(paintAction.rel, "noopener");
 
   const empty = createElement("div");
-  renderPosts(empty, [], { emptyMessage: "No Social posts match these filters." });
+  renderPosts(empty, [], { noMatch: { author: "Ari", range: "from the past hour", total: 4, onClear() {} } });
   assert.equal(empty.getAttribute("aria-busy"), "false");
-  // Both halves name the surface: an empty screen is the worst place to leave a
-  // reader guessing whether they are on Social or on People.
-  assert.match(first(empty, "empty-state").textContent, /No posts on Social yet\..*No Social posts match these filters\./);
+  // The filtered dead end names the surface too, but nothing else about it is
+  // shared: it says what excluded the posts, how many are waiting behind the
+  // filters, and offers the control that brings them back.
+  const filtered = first(empty, "empty-state");
+  assert.match(filtered.textContent, /No posts match these filters: Ari · from the past hour\./);
+  assert.match(filtered.textContent, /Social still holds 4 posts\./);
+  assert.doesNotMatch(filtered.textContent, /No posts on Social yet/);
+  const clear = first(filtered, "state-action");
+  assert.equal(clear.tagName, "BUTTON");
+  assert.equal(clear.type, "button");
+  assert.equal(clear.textContent, "Clear filters");
 
   const loading = createElement("div");
   renderPosts(loading, [], { state: "loading" });
