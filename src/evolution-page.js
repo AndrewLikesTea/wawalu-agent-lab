@@ -502,6 +502,10 @@ import { applyRecoverableConfidence } from "/finops-recoverable-confidence-view.
 // binding is imported here: the text itself is painted by the headline's own
 // paint, so it can never be as of a different dataset than the region is.
 import { bindAnswerCopy } from "/finops-answer-copy.js";
+// …and the link that carries this browser's own retained periods to a colleague
+// (#1206), so a shared URL resolves to the sender's months rather than to the
+// published synthetic sample. Reads storage; writes none of it.
+import { applyShareLink, bindShareLink } from "/finops-share-link-control.js";
 // …and the one owner of WHICH source that answer came from. The page used to
 // choose between the bundled example and the reader's import at each call site;
 // it now reads a single held answer, so the headline, the action, the position
@@ -2155,6 +2159,11 @@ function mountLocalFinopsImport() {
       // Read straight back, so the restored region reflects the write that just
       // happened rather than the state this tab loaded with.
       syncWorkspaceRestore();
+      // Same reason: the shareable link is built from what is retained, so it
+      // has to be rebuilt from the store rather than from the tab's boot state.
+      // Its status line is left empty by this repaint, so it adds no voice to
+      // the one announcement an import is allowed to make.
+      applyShareLink(document, browserFinopsWorkspaceStorage());
     }
     // The derivation is taken from the same payload the export button writes, so
     // the arithmetic a director checks on screen is byte-for-byte the arithmetic
@@ -4933,6 +4942,12 @@ async function init() {
   // Bound before the paint that fills it, so the control is operable on the
   // first summary the region composes rather than on the second.
   bindAnswerCopy(document);
+  // The shareable link is bound and painted from what this browser already
+  // holds. It stays hidden until there is a retained period to share, so the
+  // common first visit — bundled example, nothing retained — meets no control
+  // offering to send an invented company's spend to a colleague.
+  bindShareLink(document);
+  applyShareLink(document, browserFinopsWorkspaceStorage());
   // Nothing has been imported at boot, so the held answer is the bundled
   // synthetic example with its marker intact — composed on this first read.
   // Painted WITHOUT announcing: the build seeds this same answer into the

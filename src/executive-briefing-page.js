@@ -35,10 +35,18 @@
 // the markup's panel, which promises the opposite. See `paintPayloadBriefing`
 // for why a bundled second copy of the block was the worse trade.
 //
-// This entry writes nothing on any path: no credential, no shareable link, and
-// never a write back to the store it read. That is the same boundary the
-// briefing's own safety statement makes, which is why this entry can honestly
-// render it.
+// This entry writes nothing on any path: no credential, no request carrying a
+// figure, and never a write back to the store it read. That is the same boundary
+// the briefing's own safety statement makes, which is why this entry can
+// honestly render it.
+//
+// It does now READ one thing more: `#brief=<token>`, the shared briefing a
+// colleague copied out of the AI FinOps answer region. Reading it is still a
+// read — the fragment reaches no server, the store is not consulted on that path
+// at all, and nothing about the reader's own retained periods changes. A token
+// this build cannot decode is drawn as a named refusal above whatever the page
+// falls back to, never swallowed into a synthetic sample the reader would take
+// for their colleague's numbers.
 
 import {
   buildExecutiveBriefing, validateExecutiveBriefing,
@@ -108,7 +116,64 @@ function activate(article) {
  * the sample path: a briefing that fails the contract it declares cannot be
  * quoted, and the reader is told their figures are untouched.
  */
-function paintWorkspaceBriefing({ periods, origin, provenanceNote }) {
+/**
+ * The panel a link this build could not read is drawn as.
+ *
+ * It is drawn ABOVE whatever the page falls back to, never instead of it, and it
+ * names the refusal. A shared link that quietly resolved to the synthetic sample
+ * would put an invented company's figures under a reader's belief that they are
+ * their colleague's — the one outcome the whole fragment path exists to prevent.
+ */
+function sharedFailureNode(sharedFailure) {
+  if (!sharedFailure) return null;
+  return renderBriefingError({
+    summary: sharedFailure.summary,
+    detail: sharedFailure.statement,
+    remedy: sharedFailure.remedy,
+  });
+}
+
+/**
+ * Draw the periods a colleague put in the link this reader opened.
+ *
+ * Read-only and network-free: the periods came off the address bar, the store
+ * was never consulted on this path, and nothing is written back to it. The
+ * masthead says whose figures these are and that nothing here proves who sent
+ * them, because a token is evidence of what somebody chose to paste and not of
+ * who pasted it.
+ */
+function paintSharedBriefing({ periods, origin, provenanceNote }) {
+  let briefing;
+  let verdict;
+  try {
+    briefing = buildExecutiveBriefing(periods);
+    verdict = validateExecutiveBriefing(briefing);
+  } catch {
+    briefing = null;
+    verdict = null;
+  }
+  if (!verdict?.valid) {
+    const first = verdict?.violations?.[0];
+    paint(renderBriefingError({
+      summary: "The shared briefing failed its contract",
+      detail: first
+        ? `The briefing built from the ${periods.length} period(s) in this link broke `
+          + `${verdict.violations.length} rule(s); the first is ${first.code} at `
+          + `“${first.path || "the briefing itself"}”.`
+        : `The ${periods.length} period(s) in this link could not be built into a briefing in this tab.`,
+      remedy: "No shared figure is shown, because a briefing that fails the contract it declares "
+        + "cannot be quoted. Nothing of yours was read, nothing was stored, and your own retained "
+        + "figures were not changed. Ask the sender to copy a fresh link.",
+    }));
+    return null;
+  }
+  const article = renderExecutiveBriefingPreview(briefing, { origin, provenanceNote, followUp: true });
+  paint(article);
+  activate(article);
+  return article;
+}
+
+function paintWorkspaceBriefing({ periods, origin, provenanceNote, sharedFailure = null }) {
   let briefing;
   let verdict;
   try {
@@ -134,11 +199,11 @@ function paintWorkspaceBriefing({ periods, origin, provenanceNote }) {
     });
     return paintSampleBriefing({
       origin: SAMPLE_ORIGIN,
-      leadingNodes: [failure],
+      leadingNodes: [sharedFailureNode(sharedFailure), failure].filter(Boolean),
     });
   }
   const article = renderExecutiveBriefingPreview(briefing, { origin, provenanceNote, followUp: true });
-  paint(article);
+  paint(sharedFailureNode(sharedFailure), article);
   activate(article);
   return article;
 }
@@ -151,7 +216,9 @@ function paintWorkspaceBriefing({ periods, origin, provenanceNote }) {
  * action, verdict, bounds, and both levels — on the first screen rather than a
  * "building…" panel that may never resolve.
  */
-function paintSampleBriefing({ absence, origin, leadingNodes = [] }) {
+function paintSampleBriefing({ absence, origin, leadingNodes = [], sharedFailure = null }) {
+  const shared = sharedFailureNode(sharedFailure);
+  const leading = shared ? [shared, ...leadingNodes] : leadingNodes;
   let briefing;
   let verdict;
   try {
@@ -182,7 +249,7 @@ function paintSampleBriefing({ absence, origin, leadingNodes = [] }) {
     synthetic: { label: SAMPLE_LABEL, disclosure: SAMPLE_DISCLOSURE },
     followUp: true,
   });
-  paint(...leadingNodes, renderSourceNotice(absence), preview);
+  paint(...leading, renderSourceNotice(absence), preview);
   activate(preview);
   return preview;
 }
@@ -303,7 +370,13 @@ export async function loadExecutiveBriefingPreview() {
     if (readExampleContext(globalThis.window?.location ?? null).pinned) {
       return paintExampleBriefing();
     }
-    const chosen = chooseBriefingSource(browserFinopsWorkspaceStorage());
+    // The fragment is read here and passed in, rather than reached for inside
+    // the chooser, so the one place that decides what this page briefs on takes
+    // both of its inputs as arguments.
+    const chosen = chooseBriefingSource(browserFinopsWorkspaceStorage(), {
+      hash: globalThis.window?.location?.hash ?? "",
+    });
+    if (chosen.source === BRIEFING_SOURCE.shared) return paintSharedBriefing(chosen);
     if (chosen.source === BRIEFING_SOURCE.workspace) return paintWorkspaceBriefing(chosen);
     return paintSampleBriefing(chosen);
   } catch (error) {
