@@ -705,6 +705,14 @@ export function applyStandHeadline(doc, headline, { announce = true } = {}) {
   if (recoverable) recoverable.dataset.available = headline.recoverable?.available ? "true" : "false";
   setText(doc, STAND_IDS.recoverableBasis, headline.recoverable?.basis ?? "");
 
+  // The graded floor, beside it and painted from the same headline. `available`
+  // is false when nothing has been scored, which is a STATE and not an empty
+  // slot: the value carries the stated sentence and the basis the reason, so
+  // this region never paints a bare dash or a $0 for it.
+  const floor = setText(doc, STAND_IDS.floorValue, headline.recoverableFloor?.value ?? "");
+  if (floor) floor.dataset.available = headline.recoverableFloor?.available ? "true" : "false";
+  setText(doc, STAND_IDS.floorBasis, headline.recoverableFloor?.basis ?? "");
+
   // The named team is text in both channels — the name in its own element and
   // the evidence sentence beside it. Nothing about which department it is is
   // carried by colour or by position in a grid.

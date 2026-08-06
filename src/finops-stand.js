@@ -101,6 +101,9 @@ export const STAND_IDS = Object.freeze({
   positionBasis: "finops-stand-position-basis",
   recoverableValue: "finops-stand-recoverable-value",
   recoverableBasis: "finops-stand-recoverable-basis",
+  /** The graded floor beside it: the same figure over only the scored spend. */
+  floorValue: "finops-stand-floor-value",
+  floorBasis: "finops-stand-floor-basis",
   team: "finops-stand-team",
   teamName: "finops-stand-team-name",
   teamDetail: "finops-stand-team-detail",
@@ -169,6 +172,7 @@ export const STAND_SAMPLE_MARKER = Object.freeze({
  */
 export const STAND_DISCLOSURE = Object.freeze({
   gradability: "gradability",
+  floor: "floor",
   cohort: "cohort",
   anonymization: "anonymization",
   versions: "versions",
@@ -184,6 +188,8 @@ export const STAND_DISCLOSURE_ORDER = Object.freeze([
   // First, because it is the gate: whether this export can be graded at all
   // decides what the figures above are worth reading.
   STAND_DISCLOSURE.gradability,
+  // Directly under the gate, because it is the gate's arithmetic consequence.
+  STAND_DISCLOSURE.floor,
   STAND_DISCLOSURE.cohort, STAND_DISCLOSURE.anonymization, STAND_DISCLOSURE.versions,
   STAND_DISCLOSURE.reproducibility, STAND_DISCLOSURE.inputs, STAND_DISCLOSURE.departments,
   STAND_DISCLOSURE.verification, STAND_DISCLOSURE.otherActions,
@@ -206,7 +212,11 @@ export const STAND_DISCLOSURE_ORDER = Object.freeze([
  * here. Author that one in the document and pay for it, or take something out.
  */
 export const STAND_MOUNTED_DISCLOSURES = Object.freeze([
-  STAND_DISCLOSURE.gradability, STAND_DISCLOSURE.inputs,
+  // The floor's rows are per-department arithmetic off the analysis envelope, so
+  // authored markup for it could only ever hold placeholders — the same test the
+  // two beside it pass, and the document has no budget for a block that says
+  // nothing without script.
+  STAND_DISCLOSURE.gradability, STAND_DISCLOSURE.floor, STAND_DISCLOSURE.inputs,
 ]);
 
 /**
@@ -220,6 +230,7 @@ export const STAND_MOUNTED_DISCLOSURES = Object.freeze([
  */
 export const STAND_DISCLOSURE_SUMMARY = Object.freeze({
   [STAND_DISCLOSURE.gradability]: "Can this export be graded?",
+  [STAND_DISCLOSURE.floor]: "How the graded floor was computed",
   [STAND_DISCLOSURE.cohort]: "How the organizations you are compared with were chosen",
   [STAND_DISCLOSURE.anonymization]: "What this comparison reads, and what it never reads",
   [STAND_DISCLOSURE.versions]: "Which scoring rules and which peer data produced these figures",
@@ -335,6 +346,9 @@ export const STAND_PENDING = Object.freeze({
   answer: "The Bundled synthetic example uses invented data. Results will appear when preparation is complete.",
   position: "Not available yet",
   recoverable: "Not available yet",
+  // Not "Not available yet" and never "$0": the floor's empty state is a fact
+  // about the rubric, not a figure that is merely late.
+  floor: "Nothing has been scored yet",
   team: "Not available yet",
   action: "Not available yet",
 });
@@ -490,6 +504,118 @@ function recoverableSlot(analysis, gradability) {
     value: `${amount} · ${Math.round(share * 100)}% of analyzed spend`,
     basis: `${amount} of ${analyzed} analyzed. A modelled ceiling on what re-routing this work `
       + `could save — not money already saved. ${scored.qualifier}`,
+  });
+}
+
+/** Bump when the filter, the sum, or the shape of a contribution changes. */
+export const RECOVERABLE_FLOOR_VERSION = "finops-recoverable-floor/1.0.0";
+
+/**
+ * Why no floor could be taken. A cause per state, never a zero: an empty rubric
+ * and a rubric that scored $0 of recoverable spend are different facts, and a
+ * caller handed `floorUsd: 0` for the first cannot tell them apart.
+ */
+export const FLOOR_UNSCORED_REASON = Object.freeze({
+  noDepartments: "This analysis ranked no departments, so there is nothing for the rubric to "
+    + "have scored and no floor is taken.",
+  noneScored: "The rubric has not scored any department in this analysis yet, so no graded floor "
+    + "is taken. Nothing scored is not a recoverable floor of $0.",
+});
+
+/**
+ * The recoverable spend that survives the coverage caveat.
+ *
+ * The modelled figure above is taken over ALL analyzed spend while the trust
+ * panel says in the same breath how little of it the rubric scored, and a
+ * finance reviewer reads the pair as one number extrapolated from the other. So
+ * this takes the smaller one that survives the caveat: recoverable spend summed
+ * only from scored departments, over only the spend those departments carry.
+ *
+ * NOTHING IS RECOMPUTED. Per-department recoverable is the envelope's own
+ * `rankedDepartments[].recoverableUsd`, and whether the rubric scored a
+ * department is its own `literacy.departments[].gradeable`, joined on id. No
+ * second recoverability rule and no second scoring rule, which is the only way
+ * this figure and the modelled one can be held to one arithmetic. Order is the
+ * envelope's ranked order, so the disclosure below is stable between readers.
+ */
+export function gradedRecoverableFloor(analysis = null) {
+  const ranked = Array.isArray(analysis?.rankedDepartments) ? analysis.rankedDepartments : [];
+  const literacy = Array.isArray(analysis?.literacy?.departments)
+    ? analysis.literacy.departments : [];
+  const scores = new Map();
+  for (const row of literacy) {
+    if (row?.gradeable === true && Number.isFinite(Number(row?.score))) {
+      scores.set(row.departmentId, Number(row.score));
+    }
+  }
+  const contributions = [];
+  let floorUsd = 0;
+  let scoredSpendUsd = 0;
+  for (const department of ranked) {
+    if (!scores.has(department?.id)) continue;
+    const recoverableUsd = Number(department?.recoverableUsd);
+    const spendUsd = Number(department?.spendUsd);
+    if (!Number.isFinite(recoverableUsd) || !Number.isFinite(spendUsd)) continue;
+    floorUsd += recoverableUsd;
+    scoredSpendUsd += spendUsd;
+    contributions.push(Object.freeze({
+      id: department.id,
+      name: filled(department.name) ? department.name : department.id,
+      score: scores.get(department.id),
+      spendUsd,
+      recoverableUsd,
+    }));
+  }
+  if (!contributions.length) {
+    return Object.freeze({
+      version: RECOVERABLE_FLOOR_VERSION,
+      scored: false,
+      floorUsd: null,
+      scoredSpendUsd: null,
+      contributions: Object.freeze([]),
+      reason: ranked.length
+        ? FLOOR_UNSCORED_REASON.noneScored : FLOOR_UNSCORED_REASON.noDepartments,
+    });
+  }
+  return Object.freeze({
+    version: RECOVERABLE_FLOOR_VERSION,
+    scored: true,
+    // Rounded ONCE, after the sum, exactly as the modelled figure is.
+    floorUsd: Math.round(floorUsd),
+    scoredSpendUsd: Math.round(scoredSpendUsd),
+    contributions: Object.freeze(contributions),
+    reason: null,
+  });
+}
+
+/** The floor's label. It says "floor" in both halves so no reader reads a total. */
+export const FLOOR_LABEL = "Graded floor · scored departments only";
+
+/**
+ * The floor beside the modelled figure, each naming the base it is taken over.
+ * They must never read as competing answers to one question, so the value line
+ * carries its own base and the basis says the other figure covers a larger one.
+ */
+function recoverableFloorSlot(analysis) {
+  const floor = gradedRecoverableFloor(analysis);
+  if (!floor.scored) {
+    return Object.freeze({
+      available: false, label: FLOOR_LABEL, value: STAND_PENDING.floor, basis: floor.reason, floor,
+    });
+  }
+  const amount = usd(floor.floorUsd);
+  const base = usd(floor.scoredSpendUsd);
+  const count = floor.contributions.length;
+  return Object.freeze({
+    available: true,
+    label: FLOOR_LABEL,
+    value: `${amount} · over ${base} the rubric scored`,
+    basis: `The defensible floor, not a total: ${amount} summed from the ${COUNT.format(count)} `
+      + `department${count === 1 ? "" : "s"} the rubric actually scored, over the ${base} of spend `
+      + "they carry. The modelled figure beside it is taken over the full analyzed spend, so the "
+      + "two are not competing answers — this is the part of it that survives the coverage gap. "
+      + "Every scored department is under “How the graded floor was computed”.",
+    floor,
   });
 }
 
@@ -1001,6 +1127,25 @@ function departmentEntries(analysis) {
       ? ` · ${usd(department.previousSpendUsd)} in the prior period.` : ".")));
 }
 
+/**
+ * The floor's arithmetic, one row per scored department and one for the sum.
+ * Written from the derivation's own contributions rather than re-walked here.
+ */
+function floorEntries(floor) {
+  if (!floor?.scored) {
+    return [entry("Graded floor", floor?.reason ?? FLOOR_UNSCORED_REASON.noneScored)];
+  }
+  const rows = floor.contributions.map((row) => entry(
+    `${row.name} · rubric score ${row.score}`,
+    `${usd(row.recoverableUsd)} modelled recoverable, over ${usd(row.spendUsd)} of scored spend.`));
+  rows.push(entry("Sum",
+    `${floor.contributions.map((row) => usd(row.recoverableUsd)).join(" + ")} = `
+    + `${usd(floor.floorUsd)}, over ${usd(floor.scoredSpendUsd)} of scored spend. A department the `
+    + "rubric did not score contributes nothing, which is what makes this a floor rather than an "
+    + "estimate of the whole."));
+  return rows;
+}
+
 function verificationEntries(decision, briefing) {
   const confidence = decision?.confidence ?? null;
   const coverage = briefing?.coverage ?? null;
@@ -1066,6 +1211,10 @@ export function composeStandHeadline({
   // read by the view rather than re-derived per slot.
   const gradability = gradeExport({ analysis, source });
   const recoverable = recoverableSlot(analysis, gradability);
+  // The same figure over only the spend the rubric scored, computed from the
+  // same analysis: an import earns its floor on exactly the path the modelled
+  // figure is earned on, and there is no second wiring to keep.
+  const recoverableFloor = recoverableFloorSlot(analysis);
   const team = teamSlot(finding);
   const action = actionSlot(destinations);
   const period = periodLabel(analysis);
@@ -1117,6 +1266,12 @@ export function composeStandHeadline({
       basis: withheld?.missing ?? STAND_PENDING.answer,
     }),
     recoverable,
+    /**
+     * The graded floor beside it: the amount, the scored spend it is taken over,
+     * and the per-department contributions in ranked order. Never a zero when
+     * nothing is scored — `scored: false` carries a stated reason instead.
+     */
+    recoverableFloor,
     team,
     action,
     withheld,
@@ -1135,6 +1290,7 @@ export function composeStandHeadline({
     reproducibility,
     disclosures: Object.freeze([
       disclosure(STAND_DISCLOSURE.gradability, gradabilityEntries(gradability)),
+      disclosure(STAND_DISCLOSURE.floor, floorEntries(recoverableFloor.floor)),
       disclosure(STAND_DISCLOSURE.cohort, cohortEntries(position)),
       disclosure(STAND_DISCLOSURE.anonymization, anonymizationEntries(eligibility?.note ?? null)),
       disclosure(STAND_DISCLOSURE.versions, versionEntries(analysis, briefing, position)),
