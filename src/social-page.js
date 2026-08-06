@@ -9,6 +9,9 @@
 import { mountSocialFeed, normalizeSocialApiPosts } from "/social.js";
 import {
   MAX_PUBLISH_IMAGE_BYTES,
+  OVER_LIMIT_ERROR,
+  PUBLISH_IMAGE_TYPES,
+  UNSUPPORTED_TYPE_ERROR,
   dataUrlPayload,
   takePaintHandoff,
   validatePublishImage,
@@ -68,7 +71,14 @@ async function imageDimensions(file) {
 
 async function fileToPublishImage(file) {
   if (!file) throw new Error("Choose an image to continue.");
-  if (file.size > MAX_PUBLISH_IMAGE_BYTES) throw new Error("This image is over 512 KB. Resize or simplify it, then try again.");
+  // Type and size are settled before a byte is read, so a refusal names the rule
+  // the file broke. Layered after the read, the same file would fail the preview
+  // instead and be reported as a preview we could not create — true, and useless
+  // for deciding what to do next. Type leads: a file in the wrong format cannot
+  // be fixed by making it smaller, so telling the reader to shrink it first
+  // would cost them a second round trip.
+  if (!PUBLISH_IMAGE_TYPES.has(file.type)) throw new Error(UNSUPPORTED_TYPE_ERROR);
+  if (file.size > MAX_PUBLISH_IMAGE_BYTES) throw new Error(OVER_LIMIT_ERROR);
   const dataUrl = await readAsDataUrl(file);
   const payload = dataUrlPayload(dataUrl);
   if (!payload) throw new Error("Use a PNG, JPEG, GIF, or WebP image.");
