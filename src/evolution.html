@@ -333,6 +333,31 @@
                deep-link-disclosure.js unfolds and focuses, in that order. -->
           <a class="stand-trajectory" id="finops-stand-trajectory" href="#trend-title">Is the trend a one-off? See the period-over-period comparison</a>
         </div>
+        <!-- TAKE THE ANSWER WITH YOU, QUALIFIER INCLUDED (#1195). The same five
+             slots this region renders — question, figure with its basis, first
+             action, named department, and the label saying which dataset all
+             four are as of — as plain text, built once by
+             src/finops-answer-copy.js from the SAME headline that painted them.
+             The label is a line of every summary it can build, so analyzing an
+             export changes the copied qualifier because it changed the headline.
+             Permanent markup, like every live region here: a node replaced is a
+             node assistive technology stops watching. The status is a paragraph
+             in the open, never inside a disclosure element, and the box is both
+             the manual fallback and the one place the current text lives. Ships
+             hidden — before a script runs there is no headline to summarise.
+             No new style rule: the coaching control's classes, the design
+             system's secondary button, a prompt-coaching-field box. Aggregates
+             only, and a clipboard write is local. -->
+        <div class="prompt-coaching-copy" id="finops-copy" data-reason="not_composed" hidden>
+          <h3 class="eyebrow">Take this answer with you</h3>
+          <p class="prompt-coaching-copy-lead" id="finops-copy-lead">The five lines above as plain text — the figure, what to do first, the department driving it, and the label saying which dataset they are as of. Aggregates only: no row, no filename, and nothing leaves this tab.</p>
+          <button class="secondary-button" type="button" id="finops-copy-button" aria-describedby="finops-copy-lead finops-copy-status">Copy this answer summary</button>
+          <p class="prompt-coaching-copy-status" id="finops-copy-status" role="status" aria-live="polite" aria-atomic="true"></p>
+          <div class="prompt-coaching-copy-fallback prompt-coaching-field" id="finops-copy-fallback">
+            <label for="finops-copy-text">The exact text this copies</label>
+            <textarea id="finops-copy-text" rows="7" readonly spellcheck="false"></textarea>
+          </div>
+        </div>
         <!-- THE IMPORTED HEADLINE, and only the imported one. It ships EMPTY and
              HIDDEN: the question, the five slot labels, every value, every
              fallback sentence and both provenance labels are painted by

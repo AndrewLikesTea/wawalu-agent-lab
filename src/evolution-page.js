@@ -498,6 +498,10 @@ import {
 } from "/finops-stand-view.js";
 // …and how sure the answer region is about the figure it leads with (#1186).
 import { applyRecoverableConfidence } from "/finops-recoverable-confidence-view.js";
+// …and the control that hands that answer over as plain text (#1195). Only the
+// binding is imported here: the text itself is painted by the headline's own
+// paint, so it can never be as of a different dataset than the region is.
+import { bindAnswerCopy } from "/finops-answer-copy.js";
 // …and the one owner of WHICH source that answer came from. The page used to
 // choose between the bundled example and the reader's import at each call site;
 // it now reads a single held answer, so the headline, the action, the position
@@ -4926,6 +4930,9 @@ async function init() {
   // are operable in the withheld state too.
   bindStandDisclosures(document);
   bindStandResolution(document);
+  // Bound before the paint that fills it, so the control is operable on the
+  // first summary the region composes rather than on the second.
+  bindAnswerCopy(document);
   // Nothing has been imported at boot, so the held answer is the bundled
   // synthetic example with its marker intact — composed on this first read.
   // Painted WITHOUT announcing: the build seeds this same answer into the
