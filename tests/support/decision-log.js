@@ -6,7 +6,7 @@
 // the empty state can be driven the way a user drives it. The controls are
 // modelled as the native form elements they are: a change event carries the
 // new value, which is exactly what a keyboard user produces.
-import { byClass, createElement, installDocument } from "./dom.js";
+import { byClass, createElement, installDocument, walk } from "./dom.js";
 
 function control(properties = {}) {
   const node = {
@@ -104,6 +104,7 @@ export function createHistoryHarness(data, { search = "", clipboard } = {}) {
     "#filter-to": control({ value: "" }),
     "#filter-current-only": control(),
     "#history-filter-summary": createElement("p"),
+    "#history-trend": createElement("div"),
     "#history-filter-chips": createElement("ul"),
     "#copy-history-link": control(),
     "#history-copy-status": createElement("p"),
@@ -140,6 +141,17 @@ export function createHistoryHarness(data, { search = "", clipboard } = {}) {
     get entries() { return session.entries; },
     back: () => session.back(),
     summary: elements["#history-filter-summary"],
+    trend: elements["#history-trend"],
+    // The bar groups currently drawn, in week order. A keyboard user reaches
+    // them through one Tab stop and moves with the arrows, so a test presses a
+    // key on the group rather than clicking it.
+    trendBars: () => walk(elements["#history-trend"], (node) => node.dataset.week !== undefined),
+    pressBar(week, key = "Enter") {
+      const bar = walk(elements["#history-trend"], (node) => node.dataset.week === week)[0];
+      if (!bar) throw new Error(`No bar for the week of ${week} is on screen.`);
+      bar.dispatch("keydown", { key, preventDefault() {} });
+      return bar;
+    },
     chips: elements["#history-filter-chips"],
     copyStatus: elements["#history-copy-status"],
     chipButtons: () => byClass(elements["#history-filter-chips"], "filter-chip"),
