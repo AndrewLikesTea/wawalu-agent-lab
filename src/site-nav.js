@@ -44,6 +44,14 @@ export const SITE_NAV = [
     href: "/evolution.html",
     label: "AI FinOps",
     className: "nav-evolution",
+    // One door, and it opens on the answer rather than on the way to it. The
+    // page's top is a hero and a five-destination rail, so a reader who clicked
+    // "AI FinOps" arrived at a choice; `fragment` lands them on the region that
+    // states the recoverable figure, the first destination, and how far to trust
+    // it. It is a rendering detail of this one link, never a second identity for
+    // the destination: `href` stays the path, so navCurrentFor(), the footer
+    // band, and the home page's destination list keep comparing one string.
+    fragment: "finops-recoverable-answer",
     section: ["/savings-action-center.html", "/savings-commitment.html", "/executive-briefing.html"],
   },
   // The prompt coach is a destination, not a panel of AI FinOps: it shares no
@@ -57,6 +65,12 @@ export const SITE_NAV = [
 ];
 
 export const SITE_NAV_LABELS = SITE_NAV.map((link) => link.label);
+
+// What a nav item's `href` attribute reads, which is the destination plus the
+// in-page region it opens on when it declares one. Everything that reasons about
+// *which* destination a link is — the current-item mark, the resolver, the
+// footer, the home page's list — uses `href` instead.
+export const navHref = (link) => (link.fragment ? `${link.href}#${link.fragment}` : link.href);
 
 // The surface a subordinate destination is a view of, or null for a peer.
 export function navParentOf(href) {
@@ -90,11 +104,12 @@ export function navCurrentFor(url) {
 // every page here ships static markup. Detail pages resolve to the surface they
 // belong to: a release detail is still "Releases".
 export function siteNavMarkup(current = null, indent = "        ") {
-  const anchor = ({ href, label, className }, depth) => {
+  const anchor = (link, depth) => {
+    const { href, label, className } = link;
     const attributes = [
       className ? `class="${className}"` : null,
       href === current ? 'aria-current="page"' : null,
-      `href="${href}"`,
+      `href="${navHref(link)}"`,
     ].filter(Boolean).join(" ");
     return `${indent}${"  ".repeat(depth)}<a ${attributes}>${label}</a>`;
   };

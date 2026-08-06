@@ -8,7 +8,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
-import { SITE_NAV, SITE_NAV_LABELS, navCurrentFor, navParentOf, siteNavMarkup } from "../src/site-nav.js";
+import { SITE_NAV, SITE_NAV_LABELS, navCurrentFor, navHref, navParentOf, siteNavMarkup } from "../src/site-nav.js";
 import { parseHtml, tabSequence, textOf } from "./support/browser.js";
 
 // `current` is the surface the page belongs to, not always its own URL: a
@@ -62,7 +62,7 @@ test("every page renders the same nav labels, in the same order, each exactly on
     );
     assert.deepEqual(
       links.map((link) => link.href),
-      SITE_NAV.map((link) => link.href),
+      SITE_NAV.map(navHref),
       `${file} points a nav link somewhere else`,
     );
     // The bug this replaces: "Social Profile" next to "Profile" read as the same
@@ -110,6 +110,41 @@ test("each nav destination exists and each page title names its surface the way 
     if (["social.html", "profile.html", "releases.html", "evolution.html", "agents.html"].includes(file)) {
       assert.ok(title.startsWith(`${label} ·`), `${file} is titled "${title}" but the nav calls it "${label}"`);
     }
+  }
+});
+
+/* ------------------------- one door, on the answer ------------------------- */
+// The AI FinOps surface is five pages and a five-destination rail. It gets one
+// nav entry, and that entry opens on the region that answers the question a
+// reader arrives with — not on the hero above it, and not on the rail, which is
+// a list of places to choose between. The other four pages stay reachable, from
+// this page's own content, at their own unchanged URLs.
+
+test("the one AI FinOps door opens on the recoverable-dollars answer, not on a menu", async () => {
+  // Every published FinOps URL, so re-promoting any of them to a top-level entry
+  // fails here rather than growing the row back one item at a time.
+  const FINOPS = ["/evolution.html", "/savings-action-center.html", "/savings-commitment.html",
+    "/executive-briefing.html"];
+  const doors = SITE_NAV.filter((link) => FINOPS.includes(link.href)
+    || (link.section ?? []).some((path) => FINOPS.includes(path)));
+  assert.equal(doors.length, 1, `the nav offers ${doors.length} AI FinOps doors`);
+  const [door] = doors;
+  assert.equal(door.label, "AI FinOps");
+  assert.equal(navHref(door), "/evolution.html#finops-recoverable-answer");
+
+  // The region exists, and it is the one holding the figure — a rename that left
+  // the id pointing at an empty band would pass a fragment check and fail here.
+  const html = await readFile(pageUrl("evolution.html"), "utf8");
+  const region = html.match(/<section class="finops-recoverable-answer" id="finops-recoverable-answer"[\s\S]*?<\/section>/);
+  assert.ok(region, "evolution.html must carry the region the door names");
+  assert.match(region[0], /id="finops-recoverable-value">\$[\d,]+</, "the door must land on the figure");
+  assert.match(region[0], /How much of our AI spend can we recover/, "and on the question it answers");
+
+  // Collapsing the nav must not orphan the pages it used to be able to grow an
+  // entry for. Each one is linked from the body of the page the door opens.
+  const body = html.replace(/<nav class="site-nav"[\s\S]*?<\/nav>/, "");
+  for (const path of door.section) {
+    assert.ok(body.includes(`href="${path}"`), `${path} is reachable only from the nav`);
   }
 });
 
@@ -285,7 +320,8 @@ test("every page marks exactly one nav item as the current page, and marks the r
     const nav = parseHtml(await readFile(pageUrl(file), "utf8")).querySelector(".site-nav");
     const marked = nav.querySelectorAll("a").filter((link) => link.getAttribute("aria-current") === "page");
     assert.equal(marked.length, 1, `${file} marks ${marked.length} nav items as the current page`);
-    assert.equal(marked[0].href, current, `${file} marks the wrong nav item as current`);
+    const destination = SITE_NAV.find((link) => link.href === current);
+    assert.equal(marked[0].href, navHref(destination), `${file} marks the wrong nav item as current`);
     // A detail page belongs to a surface, so the marked item is that surface's
     // name — "Release · Shiplog" is still under Releases.
     assert.equal(textOf(marked[0]), SITE_NAV.find((link) => link.href === current).label);
