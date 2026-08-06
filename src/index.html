@@ -542,6 +542,18 @@
           <p id="export-shiplog-status" class="notice" role="status" aria-live="polite"></p>
         </div>
         <button id="export-shiplog" type="button">Download JSON</button>
+        <!-- The same file, checked against the list above without writing it.
+             The answer line stays outside the disclosure below on purpose: a
+             live region inside a closed details element is announced to nobody.
+             No new layout rule, so the panel keeps the single-column stack it
+             already collapses to on a narrow screen. -->
+        <p class="hint" id="verify-shiplog-help">Compare that file against the stored records listed above, in this browser. Example rows are not part of the file, so they are not compared. Nothing is downloaded and nothing is sent.</p>
+        <button id="verify-shiplog" type="button">Check the export against this history</button>
+        <p id="verify-shiplog-result" class="notice" role="status" aria-live="polite">Not checked yet.</p>
+        <details class="import-detail" id="verify-shiplog-detail" hidden>
+          <summary>Which records differ</summary>
+          <ul id="verify-shiplog-differences"></ul>
+        </details>
       </section>
 
       <!-- Restore side of the same portable contract. The file is read in this

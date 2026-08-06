@@ -360,7 +360,10 @@ test("the import status output is announced and is not folded away", async () =>
   assert.match(html, /<p id="import-shiplog-status" class="notice" role="status" aria-live="polite">/);
   assert.match(html, /<p class="hint" id="import-shiplog-headline" tabindex="-1" role="status">/);
   const summaryStart = html.indexOf('id="import-shiplog-summary"');
-  const detailStart = html.indexOf("import-detail");
+  // Searched from the import summary, not from the top of the document. The
+  // disclosure class is shared with the export panel above, so an unanchored
+  // search measures that panel's notes and says nothing about this headline.
+  const detailStart = html.indexOf("import-detail", summaryStart);
   assert.ok(html.indexOf('id="import-shiplog-status"') < summaryStart, "the status region sits inside the summary");
   assert.ok(html.indexOf('id="import-shiplog-headline"') < detailStart, "the headline sits inside the collapsible notes");
 
