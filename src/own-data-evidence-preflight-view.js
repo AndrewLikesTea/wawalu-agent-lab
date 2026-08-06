@@ -41,6 +41,7 @@ const QUERY_LIMIT = "Incomplete query evidence limits classification confidence.
 const outcomePresentation = (outcome) => ({
   complete: { shape: "●", label: "Supported", limit: "" },
   "provider-export-only": { shape: "◐", label: "Provider export only", limit: QUERY_LIMIT },
+  "spend-only": { shape: "◐", label: "Spend only", limit: QUERY_LIMIT },
   "insufficient-evidence": { shape: "◔", label: "Evidence limited", limit: QUERY_LIMIT },
 }[outcome] ?? { shape: "○", label: "Not classified", limit: QUERY_LIMIT });
 
@@ -69,6 +70,18 @@ function paintReservedProvenance(document, provenance, text) {
   const item = node(document, "li", undefined, text);
   item.dataset.available = "false";
   provenance.replaceChildren(item);
+}
+
+/** Empty and hide the downgraded tier's lists (`spend-only-tier.js`) and return
+ * the block. Every paint calls it; only the spend-only paint refills it, so a
+ * second export never lands under the first one's computed figures. */
+export function retireDowngradedTier(document) {
+  const block = document.getElementById("own-data-preflight-downgraded");
+  if (block) block.hidden = true;
+  for (const list of ["computed", "withheld"]) {
+    document.getElementById(`own-data-preflight-${list}`)?.replaceChildren();
+  }
+  return block ?? null;
 }
 
 function setDisclosureState(document) {
@@ -106,6 +119,7 @@ export function renderOwnDataEvidenceState(document, state, detail = "") {
   confidence.textContent = copy.confidence;
   action.textContent = copy.action;
   paintReservedProvenance(document, provenance, copy.provenance);
+  retireDowngradedTier(document);
   if (state === OWN_DATA_VIEW_STATE.VALIDATION_ERROR) {
     region.setAttribute("tabindex", "-1");
     region.focus();
@@ -146,6 +160,7 @@ export function renderOwnDataEvidencePreflight(document, assessment) {
   action.textContent = assessment.nextAction;
   boundary.replaceChildren(...assessment.boundary
     .map((rule) => node(document, "li", undefined, rule)));
+  retireDowngradedTier(document);
   bindOwnDataEvidencePreflight(document);
   return true;
 }
