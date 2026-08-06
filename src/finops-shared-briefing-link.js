@@ -59,6 +59,16 @@ import { serializeBriefing } from "./finops-briefing-export.js";
  */
 export const SHARED_BRIEFING_SCHEMA = 1;
 
+/**
+ * Every schema this build reads, weakest-numbered first.
+ *
+ * A LIST rather than the one integer above, because the sentence a refusal has
+ * to say is "this page reads 1" — a range, stated from the same constant the
+ * reader actually branches on. A build that learns a second schema adds it here
+ * and the refusal sentence, the parity check and the decoder all move together.
+ */
+export const SUPPORTED_SHARED_SCHEMAS = Object.freeze([SHARED_BRIEFING_SCHEMA]);
+
 /** The fragment parameter the token is carried in: `#brief=<token>`. */
 export const SHARED_BRIEFING_FRAGMENT_KEY = "brief";
 
@@ -240,7 +250,7 @@ export function decodeSharedBriefing(token) {
   }
   // Version before shape: a token from a build that changed what `periods` means
   // must be refused as the wrong version, not as a malformed one.
-  if (envelope.v !== SHARED_BRIEFING_SCHEMA) {
+  if (!SUPPORTED_SHARED_SCHEMAS.includes(envelope.v)) {
     return refusal(SHARE_DECODE_REASON.unsupportedVersion);
   }
   if (!Array.isArray(envelope.periods)) return refusal(SHARE_DECODE_REASON.malformed);
@@ -252,6 +262,29 @@ export function decodeSharedBriefing(token) {
     reason: "decoded",
     periods: Object.freeze(envelope.periods.map((period) => Object.freeze(projectPeriod(period)))),
   });
+}
+
+/**
+ * The schema version a token DECLARES, which is not the same as one this build
+ * reads. Nothing else in the envelope is trusted or returned.
+ *
+ * The parity check needs this to say "unsupported schema version 3" rather than
+ * "could not read the link": a refusal that cannot name the version it refused
+ * sends a lead looking for a broken clipboard instead of a stale build.
+ *
+ * @returns the declared value verbatim when the envelope parses — any type, so
+ *   a caller can report `"2.0"` as the string it was — and null otherwise.
+ */
+export function declaredSchemaVersion(token) {
+  if (typeof token !== "string" || token === "" || !BASE64URL.test(token)) return null;
+  if (token.length > MAX_SHARED_TOKEN_LENGTH) return null;
+  try {
+    const envelope = JSON.parse(fromBase64Url(token));
+    if (!envelope || typeof envelope !== "object" || Array.isArray(envelope)) return null;
+    return envelope.v ?? null;
+  } catch {
+    return null;
+  }
 }
 
 /**
