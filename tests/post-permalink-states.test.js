@@ -533,6 +533,7 @@ const consequencesIn = (html) => [...html.matchAll(/<p class="[^"]*publish-conse
 test("the publication consequence is said once, at the button that publishes", async () => {
   const social = await readFile(new URL("../src/social.html", import.meta.url), "utf8");
   const post = await readFile(new URL("../src/post.html", import.meta.url), "utf8");
+  const people = await readFile(new URL("../src/profile.html", import.meta.url), "utf8");
 
   // One on Social — the composer's, beside Publish post — and none on the
   // permalink, which has no composer and cannot publish. Counted, so a second
@@ -541,9 +542,15 @@ test("the publication consequence is said once, at the button that publishes", a
     "Social must carry the consequence exactly once, beside Publish post");
   assert.deepEqual(consequencesIn(post), [],
     "the permalink publishes nothing and must not carry the consequence");
-  // Not moved into the page under another class name either: the sentence is
-  // gone from that page's text altogether.
+  // People is the third page that shows published posts, and it publishes
+  // nothing either: it picks a display name and lists that name's image posts.
+  // Pinned at zero so the sentence cannot spread back across the reading pages.
+  assert.deepEqual(consequencesIn(people), [],
+    "People publishes nothing and must not carry the consequence");
+  // Not moved into either page under another class name either: the sentence is
+  // gone from their text altogether.
   assert.equal(post.includes(CONSEQUENCE), false, "the permalink must not repeat the sentence unclassed");
+  assert.equal(people.includes(CONSEQUENCE), false, "People must not repeat the sentence unclassed");
 
   // It stands ahead of the control it is about, and the button names it, so it
   // is read on focus rather than only seen.
