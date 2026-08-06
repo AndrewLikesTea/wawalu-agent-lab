@@ -180,8 +180,37 @@
           <li><a href="/social.html">Social</a> Social is a shared demo feed of short posts about the work the team ships, each with an optional image.</li>
           <li><a href="/profile.html">People</a> Pick a display name and see the image posts published under it, newest first. The picker is on the page.</li>
           <li><a href="/paint/">Paint</a> Draw or crop an image in this tab, export a PNG, then hand it to a Social post yourself.</li>
-          <li><a href="/agents.html">Agent observatory</a> Watch a synthetic engineering team plan, build, review, and deliver work.</li>
+          <li><a href="/agents.html">Agent observatory</a> Watch a synthetic engineering team work, beside merged pull requests counted from public GitHub activity.</li>
         </ul>
+      </section>
+
+      <!-- THE ONE NUMBER ON THIS PAGE THAT IS NOT INVENTED.
+           Every other figure the front door shows belongs to the bundled
+           synthetic example: the worked decision's recoverable share and the
+           two amounts under it, and the representative records in the log's
+           proof point. This block is the exception, and it says so in the
+           vocabulary those blocks already use for themselves.
+           NO FIGURE IS AUTHORED HERE. The document ships the unavailable
+           sentence and an empty list, because a digit in this markup would be a
+           number nobody counted. src/public-merges-view.js paints the count from
+           whatever public GitHub returns to this reader's browser, through the
+           same module the Agent observatory counts with, so the two pages given
+           one response show one number.
+           WHEN GITHUB DOES NOT ANSWER the sentence below is what stays: the way
+           it failed, in plain terms, and nothing that resembles a figure. There
+           is no snapshot and no last-known value on this page to fall back to,
+           which is also why the shipped state is the unavailable one — a slow
+           response must not flash a placeholder digit a reader could quote.
+           The verification links are painted from the URLs the count is
+           actually requested from, so they cannot drift from it. -->
+      <section class="hero-proof" id="public-merges" data-state="unavailable" aria-labelledby="public-merges-title">
+        <p class="eyebrow">Counted, not invented</p>
+        <h2 id="public-merges-title">Merged pull requests</h2>
+        <div id="public-merges-readout" role="status" aria-live="polite">
+          <p>Public GitHub has not answered yet, so there is no count to show.</p>
+        </div>
+        <ul id="public-merges-sources"></ul>
+        <p class="hero-proof-boundary"><strong>The one counted figure on this page</strong> <span>Every other number here belongs to a bundled synthetic example, computed from invented data for an invented company. This one is counted from public GitHub activity when the page loads, and nothing is shown when GitHub does not answer.</span></p>
       </section>
 
       <!-- The one destination on this site a visitor can finish something on
@@ -646,6 +675,7 @@
     <script type="module" src="/app.js"></script>
     <script type="module" src="/shiplog-export-page.js"></script>
     <script type="module" src="/shiplog-import-page.js"></script>
+    <script type="module" src="/public-merges-view.js"></script>
     <script type="module" src="/site-footer-page.js"></script>
   </body>
 </html>
