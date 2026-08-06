@@ -104,8 +104,8 @@ test("the description requirement is stated only once there is an image to descr
   assert.equal(marker.getAttribute("class"), "label-optional label-required");
   assert.equal(
     harness.document.querySelectorAll(".label-optional").length,
-    3,
-    "Name, Image, and Image description each carry exactly one marker",
+    4,
+    "Image, Image description, Display name, and Caption each carry exactly one marker — none is left unmarked",
   );
 
   harness.feed.description.setAttached(true);

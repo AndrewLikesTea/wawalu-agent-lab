@@ -308,8 +308,12 @@ test("social page is wired, labeled, and linked from the other pages", async () 
   assert.match(page, /src="\/social-page\.js"/);
   // Compose inputs carry explicit labels + describedby wiring.
   assert.match(page, /<label for="post-author">/);
-  assert.match(page, /<label for="post-body">/);
-  assert.match(page, /aria-describedby="post-counter-label post-counter"/);
+  // The caption is the one field a post cannot exist without, so its label says
+  // so in the same parenthetical the other three fields use, and its hint — the
+  // refusal an empty caption actually meets — is named by the textarea itself.
+  assert.match(page, /<label for="post-body">Caption <span class="label-optional label-required">\(required\)<\/span><\/label>/);
+  assert.match(page, /aria-describedby="post-body-hint post-counter-label post-counter"/);
+  assert.match(page, /id="post-body-hint">Publish post stops on an empty caption/);
   assert.match(page, /id="post-counter"[^>]*aria-live="polite"/);
   assert.match(page, /id="post-count" aria-live="polite">Loading posts…<\/span>/);
   assert.doesNotMatch(page, /id="post-count"[^>]*>0 posts<\/span>/);

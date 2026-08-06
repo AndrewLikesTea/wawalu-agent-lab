@@ -41,7 +41,9 @@ export function createPost(values, options = {}) {
   const author = String(values.author ?? "").trim() || DEFAULT_AUTHOR;
 
   if (!body) {
-    throw new TypeError("A post requires a message.");
+    // Surfaced in the composer's notice, so it names the field the way the
+    // field's own label does: "Caption", not a second word for it.
+    throw new TypeError("A post requires a caption.");
   }
   if (body.length > MAX_POST_LENGTH) {
     throw new TypeError(`A post must be ${MAX_POST_LENGTH} characters or fewer.`);
