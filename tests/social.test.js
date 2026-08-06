@@ -386,6 +386,67 @@ test("the control that opens the composer agrees with the composer about images"
     "the word survives outside the People page's own URL and nav class");
 });
 
+// The display name field said what it defaulted to and nothing about what the
+// name means. Two facts belong where the name is chosen: it is the key People
+// groups image posts by, and it is not an account — nobody owns or verifies one.
+// People already says the second half ("is not a signed-in user"), so the
+// composer borrows that clause word for word instead of inventing a third
+// phrasing. Help text only: no heading, no link, no disclosure, nothing
+// focusable, and the publish consequence at the button is left alone.
+test("the display name field says what the name does and does not mean", async (t) => {
+  const page = await loadPage(new URL("../src/social.html", import.meta.url), {});
+  t.after(() => page.restore());
+
+  const identity = page.document.querySelectorAll("#post-author-identity");
+  assert.equal(identity.length, 1, "the display name field carries exactly one identity hint");
+  assert.equal(identity[0].tagName, "P");
+  assert.ok(identity[0].classList.contains("hint"),
+    "the new text uses the field hint pattern the rest of the composer uses");
+
+  // Attached to the field itself, not floated somewhere in the page: same field
+  // group as the input, and named by the input's own aria-describedby.
+  const input = page.document.querySelector("#post-author");
+  assert.ok(identity[0].parentNode === input.parentNode,
+    "the hint left the display name field's own group");
+  assert.deepEqual((input.getAttribute("aria-describedby") ?? "").split(" "),
+    ["post-author-hint", "post-author-identity"],
+    "the input names its hints in reading order: the default, then what the name means");
+
+  const text = textOf(identity[0]);
+  assert.match(text, /People groups image posts by display name/,
+    "the field stops saying that the name is how People groups a post");
+  assert.match(text, /not a signed-in user/,
+    "the field stops saying that a display name is not an account");
+  assert.match(text, /anyone can publish under any name/,
+    "the field stops saying that names are not reserved to anyone");
+
+  // The “Guest” default survives the addition, in its own sentence.
+  assert.equal(textOf(page.document.querySelector("#post-author-hint")), "Defaults to “Guest”.");
+
+  // Help text, not a control: the composer gains no tab stop and no widget.
+  assert.equal(identity[0].querySelectorAll("a,button,input,select,textarea,summary").length, 0,
+    "the help text grew something focusable");
+  assert.equal(identity[0].getAttribute("tabindex"), null);
+  // Nothing collapses or hides it: the harness models no layout and reads
+  // straight through a closed details element, so walk the ancestors instead.
+  const folded = [];
+  for (let node = identity[0]; node; node = node.parentNode) {
+    if (node.tagName === "DETAILS" || node.getAttribute?.("hidden") !== null) folded.push(node.tagName);
+  }
+  assert.deepEqual(folded, [], "the help text sits inside something hidden or collapsed");
+
+  // One phrasing across the two pages: People's sentence is what this matched.
+  const people = await loadPage(new URL("../src/profile.html", import.meta.url), {});
+  t.after(() => people.restore());
+  assert.match(textOf(people.document.querySelector(".profile-role")), /not a signed-in user/,
+    "People and Social drifted into two ways of saying a display name is not an account");
+
+  // The consequence at the Publish button is the one place that claim is made.
+  assert.match(textOf(page.document.querySelector("#post-consequence")),
+    /^Anyone who visits Shiplog can read your post, its image, and the display name you publish it with\./);
+  assert.equal(page.document.querySelectorAll(".publish-consequence").length, 1);
+});
+
 // Every toolbar control says what it sorts or narrows, in the site's own words:
 // "Display name" is the term the composer and People already use for the name a
 // post carries, and the feed's order is stated rather than left as a bare value.
