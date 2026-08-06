@@ -382,6 +382,16 @@ class ShiplogDocument extends Element {
   createElement(tagName) { return new Element(tagName, this); }
   createTextNode(text) { return new TextNode(text, this); }
 
+  // The history trend chart's svg nodes. This harness models no namespace
+  // behaviour and no painting, so a namespaced element is the same Element with
+  // its namespace recorded: what a test can assert either way is the structure,
+  // the attributes, and where the tab sequence goes.
+  createElementNS(namespace, tagName) {
+    const element = new Element(tagName, this);
+    element.namespaceURI = namespace;
+    return element;
+  }
+
   createDocumentFragment() {
     const fragment = new Element("#document-fragment", this);
     fragment.nodeType = 11;

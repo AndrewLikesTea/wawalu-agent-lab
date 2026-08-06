@@ -69,10 +69,26 @@ export function createElement(tagName) {
   return node;
 }
 
+// The same stub for a namespaced element (the history trend chart's svg nodes).
+// One difference matters: an SVG element has no writable `className`, so a view
+// sets its class through setAttribute, and that has to reach the stub's class
+// list or byClass would stop finding the node it just drew.
+export function createElementNS(namespace, tagName) {
+  const node = createElement(tagName);
+  node.namespaceURI = namespace;
+  const setAttribute = node.setAttribute;
+  node.setAttribute = (name, value) => {
+    if (name === "class") node.className = String(value);
+    else setAttribute(name, value);
+  };
+  return node;
+}
+
 // Render modules read the global `document`, so a test file installs it once.
 export function installDocument() {
   globalThis.document = {
     createElement,
+    createElementNS,
     createTextNode(text) {
       const node = createElement("#text");
       node.textContent = text;
