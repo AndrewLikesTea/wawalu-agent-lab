@@ -47,27 +47,37 @@
              posts they are about to read, and who else has any, before they read
              a name, a count, or a grid. It used to sit below all of them, so the
              page's first sentence was a verdict about a name nobody had chosen.
-             Each option carries that name's image-post count as text, so the
-             menu answers "who has pictures" without trial and error. -->
+             Each entry carries that name's image-post count as text, so the
+             picker answers "who has pictures" without trial and error.
+             It was a select; it is a row of real buttons now, because the count
+             and the "showing this one" mark both have to be in the control's own
+             text, and an option list can hold text but cannot hold a pressed
+             state a reader can see. Buttons give Tab, Space, and Enter from
+             native semantics rather than from a keydown handler. profile.js
+             fills this container; before it runs there is nothing to count, and
+             the identity line below already says so in words. -->
         <div class="profile-toolbar">
-          <div class="filter">
-            <label for="profile-author">Show posts by display name</label>
-            <select id="profile-author" aria-describedby="profile-author-hint"></select>
-          </div>
-          <!-- The label says what choosing an entry does, in Social's own
+          <!-- The group label says what choosing an entry does, in Social's own
                words — its feed labels a filter "Show posts" — and it names
                the thing being chosen with the word the rest of the site uses
                for it. "Show posts by" alone said what the control did and
-               left the menu's contents unnamed, so the page's description
+               left the entries unnamed, so the page's description
                called them one thing and the composer called them another.
                Before that this block was headed "Profile" and explained
                itself in a circle — "a profile is a display name" — which
                named a surface this site does not have. The “Guest” default
                belongs to the composer, where a name is typed, so it is not
-               repeated here. -->
-          <p class="hint profile-toolbar-hint" id="profile-author-hint">
-            The display name is the name shown on each post. Pick one to see only the image posts published under it.
-          </p>
+               repeated here.
+               The hint sits inside the group and ahead of the buttons: it is
+               the instruction for the controls under it, so a reader meets it
+               before the first one rather than after the last. -->
+          <fieldset class="filter-group" aria-describedby="profile-author-hint">
+            <legend id="profile-author-label">Show posts by display name</legend>
+            <p class="hint profile-toolbar-hint" id="profile-author-hint">
+              The display name is the name shown on each post. Pick one to see only the image posts published under it.
+            </p>
+            <div class="filter-options" id="profile-author"></div>
+          </fieldset>
         </div>
 
         <!-- The avatar is decorative: the name beside it is the first line of

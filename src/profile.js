@@ -164,8 +164,10 @@ export function distinctAuthors(posts) {
 }
 
 // How many image posts each display name has, in the picker's own order. Two
-// things read it — the option labels and the landing default — and they must
-// agree, so both count with the same rule the grid renders by.
+// things read it — the chip labels and the landing default — and they must
+// agree, so both count with the same rule the grid renders by. Derived at
+// render time from the posts in hand; nothing persists a count that could drift
+// away from the rows underneath it.
 export function imagePostCounts(posts) {
   return distinctAuthors(posts).map((name) => ({ name, images: selectProfilePosts(posts, name).length }));
 }
@@ -183,12 +185,40 @@ export function defaultProfileAuthor(posts) {
   return best?.name ?? null;
 }
 
-// What one entry in the picker reads. The count is part of the option's text —
-// its accessible name is its text — so the menu says which names have something
-// to show before a reader has to try them one by one. Same count phrasing and
-// the same separator the rest of this page uses.
-export function authorOptionLabel(name, images) {
-  return `${name} · ${countLabel(images, "image post")}`;
+// The picker's three states in one place. `images: null` is the third one, and
+// the reason it exists: a name whose posts have not been loaded yet is not a
+// name with no posts, and a chip that prints "0 image posts" before the store
+// has answered is a wrong count rather than a pending one.
+export const COUNTING_LABEL = "Counting…";
+// The mark on the chip that is currently showing. A word and a glyph, not a
+// colour: it is the one difference between selected and unselected that
+// survives greyscale, inversion, and forced colours. "Showing" is the verb the
+// live region already uses for the same fact ("Showing 2 image posts by Zed"),
+// so the picker and the announcement say it the same way.
+export const SELECTED_MARK = "✓ Showing";
+
+// What one entry in the picker reads. The count is part of the button's text —
+// a button's accessible name is its text — so the picker says which names have
+// something to show before a reader has to try them one by one, and a screen
+// reader hears the count with the name rather than beside it. Same count
+// phrasing and the same separator the rest of this page uses.
+export function authorChipLabel(name, images, { selected = false } = {}) {
+  const count = images === null || images === undefined ? COUNTING_LABEL : countLabel(images, "image post");
+  return `${selected ? `${SELECTED_MARK} ` : ""}${name} · ${count}`;
+}
+
+// The rows the picker draws: every display name the loaded posts carry, plus
+// the selected one when the store does not carry it yet, so the control never
+// silently drops the name you are looking at. A name with no image posts stays
+// in the list too — its count is what tells the reader it is empty, which is the
+// whole reason the counts are here.
+//
+// Counts come from the same posts the grid renders from, through the same
+// selector, so the number on a chip and the tiles below it cannot disagree.
+export function pickerEntries(posts, author) {
+  const counts = imagePostCounts(posts);
+  const name = String(author ?? "").trim();
+  return name && !counts.some((entry) => entry.name === name) ? [{ name, images: 0 }, ...counts] : counts;
 }
 
 // The caption a tile shows. An image post may carry a dedicated caption; a post
@@ -476,6 +506,34 @@ export function renderProfileGrid(container, posts, options = {}) {
   container.append(list);
 }
 
+// The display-name picker: one real <button> per name, in reading order. Tab
+// reaches each of them and Space and Enter select, all from native button
+// semantics rather than from a keydown handler this module would have to keep
+// honest with the platform.
+//
+// Every chip wears the same treatment, selected or not. A display name is a
+// static classification, and this site reserves a filled, changed chip for a
+// live signal (design-system/claude-design/review-08-foundations.html); which
+// one is showing is said in the button's own text instead. So the difference a
+// reader sees is a glyph and a word, never a colour — and `aria-pressed` is
+// written on every chip, "false" included, because a toggle that omits it on
+// the unpressed ones reads as a plain button that happens to be pressed.
+//
+// `counted` is the store's own answer, not a guess: while it is false every
+// chip says "Counting…" rather than claiming a number the posts have not
+// supported yet.
+export function renderAuthorPicker(container, entries, { author, counted = true, onSelect = null } = {}) {
+  container.replaceChildren(...entries.map((entry) => {
+    const selected = entry.name === author;
+    const chip = el("button", "filter-chip", authorChipLabel(entry.name, counted ? entry.images : null, { selected }));
+    chip.type = "button";
+    chip.dataset.author = entry.name;
+    chip.setAttribute("aria-pressed", selected ? "true" : "false");
+    if (onSelect) chip.addEventListener("click", () => onSelect(entry.name));
+    return chip;
+  }));
+}
+
 // The identity block between the picker and the grid: avatar, name, and the
 // counts that explain what the grid is showing. It is the page's only statement
 // of the image-post count, empty case included.
@@ -537,23 +595,29 @@ export function mountProfile(root, options = {}) {
     if (options.onRender) options.onRender({ author, posts: mine, summary });
   };
 
-  const renderPicker = () => {
+  const renderPicker = ({ refocus = false } = {}) => {
     if (!elements.picker) return;
-    const counts = imagePostCounts(posts);
-    // The current author stays selectable even with nothing in the feed yet, so
-    // the control never silently drops the profile you are looking at. A name
-    // with no image posts stays in the menu too — its count is what tells the
-    // reader it is empty, which is the whole reason the counts are here.
-    const entries = counts.some((entry) => entry.name === author) ? counts : [{ name: author, images: 0 }, ...counts];
-    elements.picker.replaceChildren(...entries.map((entry) => new Option(authorOptionLabel(entry.name, entry.images), entry.name)));
-    elements.picker.value = author;
+    renderAuthorPicker(elements.picker, pickerEntries(posts, author), {
+      author,
+      // "loading" is the store not having answered yet, which is a different
+      // fact from its answer being zero. Seeded posts are already on screen in
+      // that state, so the chips must not turn a partial feed into a count.
+      counted: state !== "loading",
+      onSelect: choose,
+    });
+    // Selecting rebuilds the chips, so the button that was just pressed is
+    // gone. Focus its replacement, or a keyboard reader is dropped back to the
+    // top of the document after every choice.
+    if (refocus) elements.picker.querySelector('[aria-pressed="true"]')?.focus();
   };
 
-  elements.picker?.addEventListener("change", () => {
-    author = elements.picker.value;
-    options.onAuthorChange?.(author);
+  function choose(next) {
+    if (next === author) return;
+    author = next;
+    options.onAuthorChange?.(next);
+    renderPicker({ refocus: true });
     render();
-  });
+  }
 
   renderPicker();
   render();
@@ -565,7 +629,9 @@ export function mountProfile(root, options = {}) {
     seed(next) { posts = next ?? []; state = "ready"; renderPicker(); render(); },
     // Loading and error are display states only: they never discard posts
     // already on screen, so a failed refresh degrades to "stale but readable".
-    setState(next) { state = next; render(); },
+    // The picker re-renders too, because leaving "loading" is exactly what
+    // turns "Counting…" into a number.
+    setState(next) { state = next; renderPicker(); render(); },
     setStatus(text) { if (elements.status) elements.status.textContent = text; },
     getPosts() { return [...posts]; },
   };
