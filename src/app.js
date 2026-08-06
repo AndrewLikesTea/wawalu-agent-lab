@@ -5,6 +5,11 @@ import {
   decisionRecordedSummary,
   validateDecisionEntry,
 } from "./decision-entry.js";
+import {
+  DECISION_BACKING_CHECKS,
+  DECISION_BACKING_LABELS,
+  scoreDecisionBacking,
+} from "./decision-backing.js";
 import { STORED_DECISION_STATUSES, canonicalDecisionStatus } from "./decision-status.js";
 import { dedupeById } from "./demo-data.js";
 import {
@@ -750,6 +755,70 @@ function appendShippedIn(article, record, visibleKeys) {
   return relationship;
 }
 
+// Whether a decision's record would survive being questioned, said on the row.
+//
+// The rule set is decision-backing.js and nothing about it is decided here: this
+// function turns one verdict object into one line and one disclosure. Keeping
+// the judgement out of the renderer is what lets the same verdict be asserted
+// against fixtures without a DOM, which is the only way the line stays
+// reproducible when someone disputes it.
+//
+// WHAT IS ALWAYS ON SCREEN, and why. The verdict sentence is a sibling of the
+// disclosure, never inside it. Collapsed content is not read out, so a verdict
+// that only existed under the summary would be a claim a screen reader user
+// could not hear without first finding and opening a control. The supporting
+// detail — which checks passed, which failed, which rule decided — is the part
+// behind the disclosure, and it is closed on arrival.
+//
+// WHY IT LOOKS LIKE NOTHING IN PARTICULAR. A backed decision is the normal case
+// and gets no badge, no colour and no icon: the wording carries it, so the only
+// rows that pull the eye are the ones naming a next action. It also needs no
+// rule of its own — the wrapper is the `.record-links` row the shipped-in line
+// already uses, and the disclosure reuses that line's summary styling, so the
+// whole thing lays out against widths this row already had.
+//
+// The disclosure is native, matching appendShippedIn above: Enter, Space and the
+// tab order are the browser's, and aria-expanded is kept in step on toggle. It
+// sits outside the card's own anchor, so it is a real tab stop rather than a
+// control nested in a link, and arrow-key navigation (`.history-card` only) is
+// unchanged.
+//
+// Every string that reaches the DOM here is an authored constant or an integer
+// from the verdict, and all of it arrives through textContent. No owner name,
+// context sentence or alternative label is rendered by this function at all.
+function appendBacking(article, record) {
+  const verdict = scoreDecisionBacking(record);
+  const wrapper = document.createElement("div");
+  wrapper.className = "record-links decision-backing";
+  appendTextElement(wrapper, "span", "decision-backing-verdict", verdict.verdict);
+
+  const disclosure = document.createElement("details");
+  disclosure.className = "decision-backing-detail";
+  const summary = appendTextElement(disclosure, "summary", "supersede-disclosure-summary", "How this was checked");
+  summary.setAttribute("aria-expanded", "false");
+  disclosure.addEventListener("toggle", () => {
+    summary.setAttribute("aria-expanded", String(disclosure.open === true || disclosure.getAttribute("open") !== null));
+  });
+
+  const checks = document.createElement("ul");
+  checks.className = "linked-release-list decision-backing-checks";
+  // The order is the rule order, stated rather than left to be inferred from
+  // the wording of four list items.
+  checks.setAttribute("aria-label", "Backing checks, in the order the rules apply them");
+  for (const check of DECISION_BACKING_CHECKS) {
+    const outcome = verdict.passed.includes(check) ? "recorded" : "missing";
+    appendTextElement(checks, "li", "decision-backing-check", `${DECISION_BACKING_LABELS[check]}: ${outcome}`);
+  }
+  disclosure.append(checks);
+  // The rule id, so a lead disputing the line can name the rule they disagree
+  // with instead of describing the sentence it produced.
+  appendTextElement(disclosure, "p", "decision-backing-rule", `Deciding rule: ${verdict.ruleId}`);
+
+  wrapper.append(disclosure);
+  article.append(wrapper);
+  return wrapper;
+}
+
 function renderDecisionRow(record, index, visibleKeys) {
   const { decision, example } = record;
   const item = document.createElement("li");
@@ -798,6 +867,7 @@ function renderDecisionRow(record, index, visibleKeys) {
   detailLink.append(summary);
   article.append(detailLink);
   appendShippedIn(article, record, visibleKeys);
+  appendBacking(article, record);
   item.append(article);
   return item;
 }
