@@ -291,7 +291,12 @@ test("the shipped page carries its roles and its reading order after init", asyn
   assert.equal(roleOf(HEADLINE_REGION_ID), ROLE.headline);
   // The hero owns the page h1; the answer is the first content region after it.
   assert.equal(stepOf("finops-hero"), "1", "the page name does not come first");
-  assert.equal(stepOf(HEADLINE_REGION_ID), "2", "the answer does not immediately follow the hero");
+  // #1183 put the recoverable answer between them: the hero names the page, the
+  // answer states the recoverable total and the first move, and the headline
+  // region below it sizes that answer against the peer position.
+  assert.equal(stepOf("finops-recoverable-answer"), "2",
+    "the answer does not immediately follow the hero");
+  assert.equal(stepOf(HEADLINE_REGION_ID), "3", "the headline does not follow the answer");
   assert.equal(roleOf("finops-privacy"), ROLE.detail);
   assert.equal(stepOf("finops-privacy"), null, "a supporting region takes no place in the reading order");
   // A retired region is not stamped, because it is not there to stamp: the mark

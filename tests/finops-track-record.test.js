@@ -519,7 +519,12 @@ test("a browser with a period on file is given the header first, exactly as auth
     // back in the slot the markup gave it, below the answer region.
     assert.equal(document.getElementById(TRACK_RECORD_IDS.region).parentNode.id, "finops-hero");
     const blocks = childIds(document.getElementById("main-content"));
-    assert.equal(blocks[1], STAND_IDS.region, "the answer region no longer follows the hero");
+    // #1183 inserted the recoverable answer between the hero and the headline.
+    // Both still sit above every supporting section, and neither moved because
+    // this browser has a period on file.
+    assert.equal(blocks[1], "finops-recoverable-answer",
+      "the recoverable answer no longer follows the hero");
+    assert.equal(blocks[2], STAND_IDS.region, "the answer region no longer follows the hero");
   } finally {
     page.restore();
   }
