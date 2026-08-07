@@ -422,9 +422,9 @@ test("the control that opens the composer agrees with the composer about images"
 });
 
 // The page never said who wrote the posts, so the bundled names read as other
-// people's accounts. It says it once now, at the feed, in the two words Social
-// already owns: "demo persona" for the bundled names, "display name" for what a
-// post is published under. The intro used to carry it, four screens above the
+// people's accounts. It says it once now, at the feed, in the two words the
+// site already owns: "invented" for the bundled names, "display name" for what
+// a post is published under. The intro used to carry it, four screens above the
 // first card; a disclosure about the names on the cards belongs where the cards
 // are, so this pins the sentence to the feed panel and pins the intro to not
 // saying it a second time.
@@ -436,10 +436,15 @@ test("the feed says who wrote the posts, where the posts are", async (t) => {
   assert.equal(page.document.querySelectorAll("#feed-source-note").length, 1,
     "the feed states who wrote the posts exactly once");
   assert.equal(textOf(note),
-    "Every display name below is a bundled demo persona or a name a visitor published under.",
+    "Every display name below is invented for this demo or a name a visitor published under.",
     "the feed stopped disclosing who wrote the posts");
-  assert.match(textOf(note), /demo persona/,
-    "the bundled names keep the noun the rest of Social uses for them");
+  assert.match(textOf(note), /invented for this demo/,
+    "the bundled names keep the site's one phrase for what it made up");
+  // And they keep it exclusively: every earlier word for the same thing is a
+  // second name for one concept, which is what this sentence exists to end.
+  for (const rival of [/persona/i, /synthetic/i, /representative example/i])
+    assert.doesNotMatch(textOf(note), rival,
+      "the bundled names must not be described a second way");
 
   // In the feed panel itself, not in the hero and not in the composer. The
   // harness refuses descendant selectors, so the ancestry is walked.
@@ -465,7 +470,7 @@ test("the feed says who wrote the posts, where the posts are", async (t) => {
   // Said once on the page. The intro says what the feed is and where to go
   // next, and its last words stay the ones the permalink quotes.
   const intro = textOf(page.document.querySelector(".hero-social").querySelectorAll("p")[1]);
-  assert.doesNotMatch(intro, /demo persona/,
+  assert.doesNotMatch(intro, /invented for this demo/,
     "the intro says who wrote the posts a second time, four screens from a card");
   assert.match(intro, /Posts use no customer or production data\.$/,
     "the demo-data sentence must stay the intro's last words");
@@ -479,7 +484,7 @@ test("who wrote the posts survives loading, populated, empty, and no-match", asy
   const page = await loadPage(new URL("../src/social.html", import.meta.url), {});
   t.after(() => page.restore());
 
-  const sentence = "Every display name below is a bundled demo persona or a name a visitor published under.";
+  const sentence = "Every display name below is invented for this demo or a name a visitor published under.";
   const stillThere = (state) => {
     assert.equal(page.document.querySelectorAll("#feed-source-note").length, 1,
       `the sentence disappears in the ${state} state`);
@@ -509,6 +514,31 @@ test("who wrote the posts survives loading, populated, empty, and no-match", asy
   nameFilter.value = "Ari";
   nameFilter.dispatchEvent({ type: "change", bubbles: true });
   stillThere("filtered");
+});
+
+// One fact, one wording, on all three pages that show a published post. Social
+// and the permalink already agreed; People — the page a reader can land on
+// straight from the nav, and the only one that is nothing but pictures — said
+// nothing about it at all. Compared as rendered text rather than as markup,
+// because that is what a reader receives, and byte-for-byte rather than by a
+// pattern: a sentence that agrees in substance and differs in a comma reads as
+// two claims, and this test is the thing that stops the third page drifting.
+test("Social, People, and a post permalink say the demo-data fact in the same bytes", async (t) => {
+  const SENTENCE = "Posts use no customer or production data.";
+  const found = [];
+  for (const file of ["social.html", "profile.html", "post.html"]) {
+    const page = await loadPage(new URL(`../src/${file}`, import.meta.url), {});
+    t.after(() => page.restore());
+    const rendered = textOf(page.document.querySelector("#main-content"));
+    const sentence = rendered.match(/[A-Z][^.]*customer or production data[^.]*\./)?.[0];
+    assert.ok(sentence, `${file} does not tell a reader the posts carry nothing real`);
+    assert.equal(sentence, SENTENCE, `${file} states the demo-data fact in its own words`);
+    // Once per page: a fact repeated on one screen is a fact a reader skips.
+    assert.equal(rendered.split(SENTENCE).length - 1, 1,
+      `${file} repeats the demo-data sentence`);
+    found.push(sentence);
+  }
+  assert.equal(new Set(found).size, 1, "the three pages no longer share one wording");
 });
 
 // The display name field said what it defaulted to and nothing about what the
