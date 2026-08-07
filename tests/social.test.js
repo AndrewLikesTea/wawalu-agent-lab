@@ -321,6 +321,12 @@ test("social page is wired, labeled, and linked from the other pages", async () 
   assert.match(page, /id="post-counter"[^>]*aria-live="polite"/);
   assert.match(page, /id="post-count">Loading posts…<\/span>/);
   assert.doesNotMatch(page, /id="post-count"[^>]*>0 posts<\/span>/);
+  // The visible count and the status region wait on the same fetch, so they say
+  // it in the same words. The status region used to open on "Connecting to the
+  // Social feed…" — a second description of the one wait, and the only one a
+  // screen reader user hears.
+  assert.match(page, /id="feed-status">Loading posts…<\/span>/);
+  assert.doesNotMatch(page, /id="feed-status">Connecting/);
   // One announced region for a filter change, and it is the summary: the count
   // beside the heading says a thinner version of the same news, so announcing
   // both read every change out twice.

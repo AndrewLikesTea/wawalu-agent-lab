@@ -332,9 +332,17 @@
                  beside it all use for the name a post is published under. -->
             <p class="hint filter-note" id="post-filter-clear-hint">Clear filters shows every post again, from any time and every display name.</p>
           </div>
+          <!-- One wait, one sentence. This region used to open on "Connecting to
+               the Social feed…" while the count beside the heading said "Loading
+               posts…" at the same moment — two descriptions of the single fetch
+               both surfaces are waiting on, and for a screen reader user this
+               region is the whole experience. It now ships the count's exact
+               words. Once a fetch answers, social-page.js replaces the text with
+               the live or degraded status, as it always did; nothing about which
+               state renders when has changed. -->
           <div class="feed-connection" aria-live="polite">
             <span class="live-dot" aria-hidden="true"></span>
-            <span id="feed-status">Connecting to the Social feed…</span>
+            <span id="feed-status">Loading posts…</span>
           </div>
           <!-- Every key here is one the feed's keydown handler actually binds
                (NAV_KEYS in social.js): ←/→ step one card, ↑/↓ step one grid

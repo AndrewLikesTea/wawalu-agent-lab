@@ -312,11 +312,16 @@ export function emptySummaryText(author) {
 // ships this line as static markup, so it is what a visitor reads for the frame
 // before hydration — and it used to ship "Ari hasn't posted an image yet", a
 // sentence that was false for the seeded feed and was the first thing a reader
-// following Social's "Open People" pointer saw. A page that has not counted yet
-// says so; it does not guess a count.
-export function loadingSummaryText(author) {
-  const name = String(author ?? "").trim() || DEFAULT_AUTHOR;
-  return `Counting ${name}’s image posts…`;
+// following Social's "Open People" pointer saw.
+//
+// It is Social's wording, character for character, and it names no display name.
+// People is a filtered view of Social and waits on exactly the fetch Social
+// waits on, so this line and the connection status below it used to describe one
+// wait twice — "Counting Ari's image posts…" over "Connecting to the Social
+// feed…" — which reads as two things happening. One wait, one sentence, and the
+// name arrives with the count it belongs to.
+export function loadingSummaryText() {
+  return "Loading posts…";
 }
 
 // The profile description under the name, and the one place on the page that

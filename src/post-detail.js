@@ -246,6 +246,11 @@ function renderFailed(container, onRetry) {
 // string cannot. It no longer names Social — the h1 directly above it already
 // reads "Post from Social", and the standing sentence under that says what
 // Social is, so repeating the surface a third time bought nothing.
+//
+// It is Social's and People's "Loading posts…" narrowed to what this page is
+// actually fetching: one post, not the feed. Same verb, same noun, one less of
+// it — so a reader who waited on Social and then followed a shared link reads
+// one wait described one way, not a second vocabulary for the same delay.
 export const POST_LOADING_LINE = "Loading this post…";
 
 // Waiting is not one of the states above, and it does not get their furniture.
