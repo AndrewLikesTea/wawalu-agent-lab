@@ -113,60 +113,47 @@ export function filterPosts(posts, { author = "all", range = "all", now = Date.n
 // introducing a second word for the same thing.
 export const AUTHOR_TERM = "display name";
 
-// The heading above the post list. It read "All posts" in every state, so a
-// reader who narrowed the feed to one display name, or to the past hour, still
-// met a heading claiming every post was below it — and the heading is the
-// accessible name of the whole feed panel, so that claim was also what a screen
-// reader announced on entering the region.
+// The one thing the feed says about itself: how many posts the current filters
+// are showing, out of how many the feed holds, and which filters produced that
+// number. It is the heading above the post list AND — because the heading is
+// the live region now — the words announced on every filter change, so there is
+// exactly one string and exactly one place it is rendered.
 //
-// It names what the current filters are showing and how many posts matched, in
-// the same words the controls use: the time clause is the time menu's own option
-// text, and the name clause uses AUTHOR_TERM, so the heading, the note under
-// Clear filters, and the sentence above the cards cannot drift apart.
+// The heading read "All posts" in every state, so a reader who narrowed the feed
+// to one display name, or to the past hour, still met a heading claiming every
+// post was below it — and the heading is the accessible name of the whole feed
+// panel, so that claim was also what a screen reader announced on entering the
+// region. A second sentence under the filters used to carry the real news in
+// different words; two visible copies of one count is one copy too many, and the
+// copy that had to be right is the one that names the panel.
 //
-// A noun phrase, not a sentence — it is a heading, and the summary below it is
-// where the full sentence lives. "All" survives only where it is true and reads:
+// Pure, so the wording is tested without a browser. The caller supplies `range`
+// and `author` as the *rendered* option text of the two filter controls, and the
+// name clause uses AUTHOR_TERM, so the heading, the two closed menus, the note
+// under Clear filters, and the no-match panel cannot drift apart.
+//
+// A filtered feed says what it was narrowed *from*: without that denominator,
+// "2 posts" and "All 2 posts" are the same phrase to a reader who cannot see the
+// menus above it. An unfiltered feed has nothing to be narrowed from, so it
+// states the total alone, and "All" survives only where it is true and reads —
 // with one post there is nothing to be "all" of, and with none the heading says
-// so in the same words the empty panel does.
+// so in the same two words the empty panel opens with.
 //
 // `shown` is the length of the array the cards are rendered from, never a second
 // filter pass, which is what keeps the stated count and the visible cards the
-// same number.
+// same number. Clearing the filters routes back through here with no clauses, so
+// the restored wording is byte-identical to the first-load wording by
+// construction rather than by two literals happening to match.
 export const DEFAULT_FEED_HEADING = "All posts";
 
-export function feedHeading({ shown = 0, range = "", author = "" } = {}) {
+export function feedHeading({ shown = 0, total = shown, range = "", author = "" } = {}) {
   const clauses = [range, author ? `under the ${AUTHOR_TERM} ${author}` : ""].filter(Boolean).join(" ");
-  const counted = shown === 0 ? "No posts" : `${shown} ${shown === 1 ? "post" : "posts"}`;
-  if (!clauses) return shown > 1 ? `All ${shown} posts` : counted;
-  return `${counted} ${clauses}`;
-}
-
-// The sentence above the post list: how many posts are on screen, out of how
-// many the feed holds, and which filters produced that number. Pure so the
-// wording is tested without a browser; the caller supplies `range` and `author`
-// as the *rendered* option text of the two filter controls, so the sentence and
-// the closed menus cannot drift apart.
-//
-// `shown` is the length of the array the cards are rendered from — never a
-// second filter pass — which is what keeps the stated count and the visible
-// cards the same number, and `total` is the unfiltered feed, so a narrowed feed
-// says what it is narrowed *from*. Without that denominator "Showing 2 posts"
-// and "Showing all 2 posts" are the same sentence to a reader who cannot see
-// the menus above it.
-//
-// An unfiltered, genuinely empty feed returns "": that is the never-posted
-// state, which the empty panel already owns and says more usefully than a
-// sentence counting to zero would. A filtered feed that matched nothing does
-// state its zero — the number is the news — and the recovery lives in the
-// no-match panel below, which owns a control that can act on it.
-export function feedSummarySentence({ shown = 0, total = shown, range = "", author = "" } = {}) {
-  const clauses = [range, author ? `under the ${AUTHOR_TERM} ${author}` : ""].filter(Boolean).join(" ");
-
   if (!clauses) {
-    if (shown === 0) return "";
-    return shown === 1 ? "Showing 1 post, newest first." : `Showing all ${shown} posts, newest first.`;
+    if (shown === 0) return "No posts";
+    return shown === 1 ? "1 post" : `All ${shown} posts`;
   }
-  return `Showing ${shown} of ${total} ${total === 1 ? "post" : "posts"} ${clauses}.`;
+  // The plural follows the total, which is the noun being counted out of.
+  return `${shown} of ${total} ${total === 1 ? "post" : "posts"} ${clauses}`;
 }
 
 // The two lines of the no-match dead end. A filter combination that matches
@@ -729,7 +716,6 @@ export function mountSocialFeed(root, options = {}) {
   const submitLabel = submit?.querySelector(".submit-label");
   const count = root.querySelector("#post-count");
   const heading = root.querySelector("#feed-title");
-  const summary = root.querySelector("#feed-summary");
   const nameFilter = root.querySelector("#post-name-filter");
   const timeFilter = root.querySelector("#post-time-filter");
   const clearFilters = root.querySelector("#post-filter-clear");
@@ -742,11 +728,9 @@ export function mountSocialFeed(root, options = {}) {
   // the top of the feed.
   let activeId = null;
 
-  const postLabel = (n) => `${n} ${n === 1 ? "post" : "posts"}`;
-
   // The words a filter is currently showing, read back off the control itself
   // rather than kept as a second copy in this file. "From the past hour" is
-  // sentence-initial in the menu and mid-sentence in the summary, so only its
+  // sentence-initial in the menu and mid-sentence in the heading, so only its
   // first letter changes.
   const selectedText = (select) => {
     const option = [...(select?.options ?? [])].find((item) => item.value === select.value);
@@ -769,40 +753,37 @@ export function mountSocialFeed(root, options = {}) {
       ? { ...named, total: posts.length, onClear: recoverFromNoMatch }
       : null;
     renderPosts(feed, visible, { state, noMatch });
-    // The count answers "how many posts are there", which this page can only
-    // answer once a fetch has come back. Until one has, it names which of
-    // "still loading" and "could not load" is true instead of printing a zero
-    // that reads as an empty feed — the same contradiction the three separate
-    // renders above exist to avoid. The waiting case says it in the feed's one
-    // wording, so the count, the panel over the empty grid, and the connection
-    // line are not three descriptions of one wait.
+    // The same `visible` array the cards were just rendered from, so the count
+    // the heading states is the count of cards below it by construction. Until a
+    // fetch has answered there is nothing to count, and the connection line
+    // already says which of loading and failed is true.
+    const answered = posts.length > 0 || state === "ready";
+
+    // Until a fetch has come back this slot names which of "still loading" and
+    // "could not load" is true, rather than printing a zero that reads as an
+    // empty feed. Once one has, it says nothing at all: the heading beside it
+    // now carries the count and the denominator, and a thinner second copy of
+    // the same number on the same line is the duplication this heading exists to
+    // end. The waiting case says it in the feed's one wording, so this slot, the
+    // panel over the empty grid, and the connection line are not three
+    // descriptions of one wait.
     if (count) {
       if (posts.length === 0 && state === "loading") count.textContent = FEED_LOADING_LINE;
       else if (posts.length === 0 && state === "error") count.textContent = "Unavailable";
-      else count.textContent = filtering ? `${postLabel(visible.length)} of ${posts.length}` : postLabel(visible.length);
+      else count.textContent = "";
     }
 
-    // The same `visible` array the cards were just rendered from, so the count
-    // the heading and the sentence state is the count of cards below them by
-    // construction. Until a fetch has answered there is nothing to count, and
-    // the connection status and the count already say which of loading and
-    // failed is true.
-    const answered = posts.length > 0 || state === "ready";
-    const showing = { shown: visible.length, total: posts.length, ...named };
-
-    // The heading is not its own live region: the count beside it is already
-    // announced on every filter change, and a second polite region here would
-    // read the same news twice. Nothing folds it away either — it names the
-    // panel it heads.
-    if (heading) heading.textContent = answered ? feedHeading(showing) : DEFAULT_FEED_HEADING;
-
-    // Only the text is replaced. The element itself is the live region and it
-    // ships with the page, so an update is one announcement — and it is never
-    // hidden, because a region that is `hidden` at the moment its text arrives
-    // announces unreliably, if at all. Before a fetch answers the sentence is
-    // empty rather than a zero: "Showing 0 posts" is a claim, and the page has
-    // not looked yet.
-    if (summary) summary.textContent = answered ? feedSummarySentence(showing) : "";
+    // One string, one element, one announcement. The heading is the live region:
+    // only its text is replaced, and the element itself ships with the page, so
+    // a filter change announces once. It is never hidden and never folded away —
+    // a live region behind a closed disclosure is silent, and this heading is
+    // also the panel's accessible name. Before a fetch answers it makes no count
+    // at all: "No posts" is a claim, and the page has not looked yet.
+    if (heading) {
+      heading.textContent = answered
+        ? feedHeading({ shown: visible.length, total: posts.length, ...named })
+        : DEFAULT_FEED_HEADING;
+    }
 
     const cards = [...feed.querySelectorAll(".post-card")];
     const index = activeId ? cards.findIndex((card) => card.dataset.postId === activeId) : -1;
