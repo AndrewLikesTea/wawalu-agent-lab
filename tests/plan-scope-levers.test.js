@@ -30,9 +30,15 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { loadExampleDataset } from "../src/example-dataset.js";
+import {
+  PLAN_STATE_KEY, PLAN_STATE_VERSION, PLAN_UNREADABLE_NOTICE, planFingerprints,
+} from "../src/plan-persistence.js";
 import { feasibleShareRefusal } from "../src/plan-scope-levers.js";
 import { planMoveKey, planScope } from "../src/plan-scope.js";
-import { applyPlanScope, planLeverId, planScopeStatus } from "../src/plan-scope-view.js";
+import {
+  PLAN_SCOPE_CLEAR_ID, PLAN_SCOPE_KEEP_ID, PLAN_SCOPE_NOTICE_ID, PLAN_SCOPE_RECOMPUTE_ID,
+  applyPlanScope, planLeverId, planScopeStatus,
+} from "../src/plan-scope-view.js";
 import { routingSlate } from "../src/routing-slate.js";
 import { DomEvent, loadPage, textOf } from "./support/browser.js";
 
@@ -41,11 +47,11 @@ const PAGE = new URL("../src/evolution.html", import.meta.url);
 const bundledSlate = () => routingSlate(loadExampleDataset());
 
 /** The section, painted, with the handles a test drives it through. */
-async function openPlan() {
+async function openPlan({ storage = null, fingerprints = null } = {}) {
   const page = await loadPage(PAGE, { scripts: false });
   const { document } = page;
   const slate = bundledSlate();
-  const model = applyPlanScope(document, slate);
+  const model = applyPlanScope(document, slate, { storage, fingerprints });
   return {
     document,
     slate,
@@ -55,8 +61,47 @@ async function openPlan() {
     action: () => textOf(document.getElementById("plan-scope-action")),
     status: () => textOf(document.getElementById("plan-scope-status")),
     committedCount: () => document.getElementById("plan-scope").dataset.committedCount,
+    state: () => document.getElementById("plan-scope").dataset.state,
+    // Never compared against a node: a missing notice is a false here, and
+    // asserting equality against an element walks the whole page and hangs.
+    hasNotice: () => Boolean(document.getElementById(PLAN_SCOPE_NOTICE_ID)),
+    notice: () => textOf(document.getElementById(PLAN_SCOPE_NOTICE_ID)),
+    press: (id) => document.getElementById(id).click(),
     restore: page.restore,
   };
+}
+
+/** A store that outlives one document, which is the whole point of a reload. */
+function store(seed = {}) {
+  const values = new Map(Object.entries(seed));
+  return {
+    getItem: (key) => (values.has(key) ? values.get(key) : null),
+    setItem: (key, value) => { values.set(key, String(value)); },
+    removeItem: (key) => { values.delete(key); },
+    raw: () => values.get(PLAN_STATE_KEY) ?? null,
+    filed: () => JSON.parse(values.get(PLAN_STATE_KEY)),
+  };
+}
+
+/** The two digests as the page would hand them over, and a moved one. */
+const FINGERPRINTS = Object.freeze({ analysis: "a-one", rateCard: "r-one" });
+
+/** A plan filed earlier, against the fingerprints named. */
+function filedPlan({ analysis = "a-one", rateCard = "r-one", plannedMonthlyUsd = 4321 } = {}) {
+  return store({
+    [PLAN_STATE_KEY]: JSON.stringify({
+      schemaVersion: PLAN_STATE_VERSION,
+      analysisFingerprint: analysis,
+      rateCardFingerprint: rateCard,
+      plannedMonthlyUsd,
+      moves: [{
+        move: planMoveKey(bundledSlate().rules[0]),
+        sharePct: 60,
+        excluded: ["nightly-batch"],
+        refuses: false,
+      }],
+    }),
+  });
 }
 
 /** Type into a field the way a lead does: replace the text, then let the page hear it. */
@@ -306,4 +351,228 @@ test("every painted total is the module's answer for the same commitments", asyn
   } finally {
     plan.restore();
   }
+});
+
+// ---------------------------------------------------------------------------
+// 5. The plan comes back after a reload, and says plainly when it was filed
+//    against figures that have since moved (#1290).
+// ---------------------------------------------------------------------------
+
+test("a plan entered here comes back after a reload with the same moves, scopes and total",
+  async () => {
+    const kept = store();
+    const first = await openPlan({ storage: kept, fingerprints: FINGERPRINTS });
+    let figure;
+    let status;
+    try {
+      first.control(0, "commit").click();
+      enter(first.control(0, "share"), "50");
+      enter(first.control(0, "excluded"), "nightly-batch, eval-harness");
+      first.control(1, "commit").click();
+      enter(first.control(1, "share"), "25");
+      figure = first.figure();
+      status = first.status();
+      assert.equal(first.committedCount(), "2");
+    } finally {
+      first.restore();
+    }
+
+    // A second document over the same store. This is the reload.
+    const second = await openPlan({ storage: kept, fingerprints: FINGERPRINTS });
+    try {
+      assert.equal(second.figure(), figure);
+      assert.equal(second.status(), status);
+      assert.equal(second.committedCount(), "2");
+      assert.equal(second.state(), "committed");
+      // Every declared scope back in the field the lead typed it into.
+      assert.equal(second.control(0, "commit").checked, true);
+      assert.equal(second.control(0, "share").value, "50");
+      assert.equal(second.control(0, "excluded").value, "nightly-batch, eval-harness");
+      assert.equal(second.control(1, "share").value, "25");
+      assert.equal(second.control(2, "commit").checked, false);
+      // Indistinguishable from a freshly entered plan: nothing added on top.
+      assert.equal(second.hasNotice(), false);
+    } finally {
+      second.restore();
+    }
+  });
+
+test("matching fingerprints restore the plan with no notice at all", async () => {
+  const plan = await openPlan({ storage: filedPlan(), fingerprints: FINGERPRINTS });
+  try {
+    assert.equal(plan.hasNotice(), false);
+    assert.equal(plan.committedCount(), "1");
+    assert.equal(plan.control(0, "share").value, "60");
+  } finally {
+    plan.restore();
+  }
+});
+
+test("a plan filed against an earlier analysis names the analysis, and recomputing refiles it",
+  async () => {
+    const kept = filedPlan({ analysis: "a-zero" });
+    const plan = await openPlan({ storage: kept, fingerprints: FINGERPRINTS });
+    try {
+      assert.equal(plan.hasNotice(), true);
+      const said = plan.notice();
+      assert.ok(said.includes("the analysis under it has been re-run"), said);
+      assert.ok(!said.includes("rate card"), said);
+      // The filed total is named, and nothing is refiled behind the lead.
+      assert.ok(said.includes("$4,321 planned"), said);
+      assert.equal(kept.filed().plannedMonthlyUsd, 4321);
+      assert.equal(kept.filed().analysisFingerprint, "a-zero");
+
+      plan.press(PLAN_SCOPE_RECOMPUTE_ID);
+      assert.equal(plan.hasNotice(), false);
+      assert.equal(kept.filed().analysisFingerprint, "a-one");
+      assert.notEqual(kept.filed().plannedMonthlyUsd, 4321);
+      assert.ok(plan.figure()
+        .includes(`$${kept.filed().plannedMonthlyUsd.toLocaleString("en-US")} planned`),
+      plan.figure());
+    } finally {
+      plan.restore();
+    }
+  });
+
+test("a plan filed against an earlier rate card names the rate card", async () => {
+  const plan = await openPlan({
+    storage: filedPlan({ rateCard: "r-zero" }), fingerprints: FINGERPRINTS,
+  });
+  try {
+    const said = plan.notice();
+    assert.ok(said.includes("the rate card it was priced at has changed"), said);
+    assert.ok(!said.includes("re-run"), said);
+    // Still the filed plan, not an emptied one.
+    assert.equal(plan.committedCount(), "1");
+  } finally {
+    plan.restore();
+  }
+});
+
+test("both fingerprints moved names both, in one notice with one prioritized action", async () => {
+  const plan = await openPlan({
+    storage: filedPlan({ analysis: "a-zero", rateCard: "r-zero" }), fingerprints: FINGERPRINTS,
+  });
+  try {
+    const said = plan.notice();
+    assert.ok(said.includes("the analysis under it has been re-run"), said);
+    assert.ok(said.includes("the rate card it was priced at has changed"), said);
+    const box = plan.document.getElementById(PLAN_SCOPE_NOTICE_ID);
+    assert.equal(box.querySelectorAll("button").length, 2);
+    // Recompute first, keep second: one prioritized action, one way to decline.
+    assert.equal(box.querySelectorAll("button")[0].id, PLAN_SCOPE_RECOMPUTE_ID);
+    assert.equal(box.querySelectorAll("button")[1].id, PLAN_SCOPE_KEEP_ID);
+    // And the notice leads the plan, above the figure.
+    assert.equal(box.parentNode.id, "plan-scope-body");
+    assert.equal(box.parentNode.children[0].id, PLAN_SCOPE_NOTICE_ID);
+  } finally {
+    plan.restore();
+  }
+});
+
+test("keeping the plan as filed dismisses the notice and leaves the stored total alone",
+  async () => {
+    const kept = filedPlan({ analysis: "a-zero" });
+    const plan = await openPlan({ storage: kept, fingerprints: FINGERPRINTS });
+    try {
+      plan.press(PLAN_SCOPE_KEEP_ID);
+      assert.equal(plan.hasNotice(), false);
+      assert.equal(kept.filed().plannedMonthlyUsd, 4321);
+      assert.equal(kept.filed().analysisFingerprint, "a-zero");
+      assert.equal(kept.filed().moves.length, 1);
+      assert.equal(plan.committedCount(), "1");
+    } finally {
+      plan.restore();
+    }
+  });
+
+for (const [label, payload] of [
+  ["a truncated payload", "{\"schemaVersion\":\"plan-scope-state/1.0.0\",\"moves\":[{"],
+  ["a payload from another schema version", JSON.stringify({
+    schemaVersion: "plan-scope-state/0.9.0",
+    analysisFingerprint: "a-one",
+    rateCardFingerprint: "r-one",
+    plannedMonthlyUsd: 10,
+    moves: [{ move: "x", sharePct: 5, excluded: null, refuses: false }],
+  })],
+]) {
+  test(`${label} lands in the empty plan with a plain message and no thrown error`, async () => {
+    const plan = await openPlan({
+      storage: store({ [PLAN_STATE_KEY]: payload }), fingerprints: FINGERPRINTS,
+    });
+    try {
+      assert.equal(plan.state(), "empty");
+      assert.equal(plan.committedCount(), "0");
+      assert.ok(plan.figure().includes("$0 planned"), plan.figure());
+      assert.equal(plan.notice(), PLAN_UNREADABLE_NOTICE);
+      // A message, not an action: there is nothing to recompute or keep.
+      assert.equal(plan.document.getElementById(PLAN_SCOPE_NOTICE_ID)
+        .querySelectorAll("button").length, 0);
+      assert.equal(plan.control(0, "commit").checked, false);
+    } finally {
+      plan.restore();
+    }
+  });
+}
+
+test("clearing the plan removes the stored state and returns the empty plan", async () => {
+  const kept = filedPlan();
+  const plan = await openPlan({ storage: kept, fingerprints: FINGERPRINTS });
+  try {
+    assert.equal(plan.committedCount(), "1");
+    plan.press(PLAN_SCOPE_CLEAR_ID);
+    assert.equal(kept.raw(), null);
+    assert.equal(plan.state(), "empty");
+    assert.equal(plan.committedCount(), "0");
+    assert.ok(plan.figure().includes("$0 planned"), plan.figure());
+    // The fields are empty too, not just the model behind them.
+    assert.equal(plan.control(0, "commit").checked, false);
+    assert.equal(plan.control(0, "share").value, "");
+    assert.equal(plan.control(0, "excluded").value, "");
+    assert.ok(plan.status().includes("Cleared"), plan.status());
+  } finally {
+    plan.restore();
+  }
+});
+
+test("emptying the plan by hand forgets it, so a reload cannot resurrect it", async () => {
+  const kept = filedPlan();
+  const plan = await openPlan({ storage: kept, fingerprints: FINGERPRINTS });
+  try {
+    plan.control(0, "commit").click();
+    assert.equal(plan.committedCount(), "0");
+    assert.equal(kept.raw(), null);
+  } finally {
+    plan.restore();
+  }
+});
+
+test("the two fingerprints move with the analysis and with the declared rate card", () => {
+  const analysis = { schemaVersion: "v1", period: "2026-06", spendUsd: 100, recoverableUsd: 40 };
+  const base = planFingerprints({ analysis });
+  assert.equal(base.analysis, planFingerprints({ analysis }).analysis);
+  assert.notEqual(base.analysis,
+    planFingerprints({ analysis: { ...analysis, recoverableUsd: 41 } }).analysis);
+  const declared = planFingerprints({
+    analysis: {
+      ...analysis,
+      rateCard: {
+        contractVersion: "finops-rate-card/1.0.0",
+        cardId: "acme-2026",
+        source: "contracted",
+        models: [{
+          model: "premium-text",
+          label: "the premium text tier",
+          contractedInputRate: 12,
+          contractedOutputRate: 12,
+          currency: "USD",
+          effectiveDate: "2026-01-01",
+          committedUseDiscountPct: 10,
+          permitted: true,
+        }],
+      },
+    },
+  });
+  assert.notEqual(base.rateCard, declared.rateCard);
+  assert.equal(base.analysis, declared.analysis, "a declared card does not move the analysis side");
 });

@@ -101,9 +101,12 @@ import {
 import {
   ROUTING_POLICY_FILE_NAME, ROUTING_POLICY_MEDIA_TYPE, routingPolicyText,
 } from "/routing-policy-document.js";
-// The plan beside that slate: which of those moves anyone has committed to, and
-// at what scope. Read-only, and today's honest answer is $0.
+// The plan beside that slate: which of those moves the lead has committed to,
+// and at what scope. Empty until they say otherwise.
 import { applyPlanScope } from "/plan-scope-view.js";
+// …and what this browser filed of it last time, plus the two fingerprints that
+// say whether it still stands on the figures it was filed against (#1290).
+import { planFingerprints } from "/plan-persistence.js";
 // The two evidence signals that plan lives or dies on and that the plan model
 // cannot see: a declared rate card, and an observed rather than invented period.
 import { planEvidence } from "/plan-evidence-grade.js";
@@ -2005,6 +2008,13 @@ function mountLocalFinopsImport() {
     // example's invented month.
     applyPlanScope(document, paintedRoutingSlate, {
       evidence: planEvidence({ analysis: next, imported: !example }),
+      // The plan a lead filed here before comes back through this same call —
+      // seeded into the section's own scopes and painted by the one render path
+      // above, never by a second one — and the fingerprints are what let the
+      // section say plainly that it was filed against an older analysis or an
+      // older rate card. Both are derived from THIS envelope.
+      storage: browserFinopsWorkspaceStorage(),
+      fingerprints: planFingerprints({ analysis: next }),
     });
     // The marker and hedge beside the recoverable figure now come from the card
     // that actually priced this envelope (#1263), not from a bundled constant
