@@ -35,6 +35,12 @@ const PAGE = new URL("../src/evolution.html", import.meta.url);
 
 const bundledSlate = () => routingSlate(loadExampleDataset());
 
+/** Ancestor test without a descendant selector — the harness rejects those. */
+const within = (node, ancestor) => {
+  for (let walk = node; walk; walk = walk.parentNode) if (walk === ancestor) return true;
+  return false;
+};
+
 // ---------------------------------------------------------------------------
 // 1. The empty plan, which is the whole of what ships.
 // ---------------------------------------------------------------------------
@@ -202,14 +208,26 @@ test("every move's levers, units and defaults are rendered, one row each", async
   // Scoped through the body element rather than a descendant selector: this
   // harness parses one compound selector and throws on "a b".
   const body = document.getElementById("plan-scope-body");
+  // ONE TOP-LEVEL DISCLOSURE, and the per-move workings nested inside it (#1287).
+  // The tab-stop contract this pins is unchanged: while the lever disclosure is
+  // shut a real browser hides its whole subtree, so the section still reaches
+  // exactly one summary. The nested workings are counted separately below rather
+  // than allowed to inflate that number silently.
   const details = body.querySelectorAll("details");
-  assert.equal(details.length, 1, "one disclosure, holding every move's levers");
-  assert.equal(details[0].dataset.moveCount, String(model.moves.length));
-  assert.ok(!details[0].hasAttribute("open"), "the per-move detail is collapsed by default");
+  const outer = details.filter((node) => !node.dataset.moveInPlan);
+  assert.equal(outer.length, 1, "one disclosure, holding every move's levers");
+  assert.equal(details.length - outer.length, model.moves.length,
+    "one how-we-know working per move, and no other disclosure");
+  for (const working of details.filter((node) => node.dataset.moveInPlan)) {
+    assert.ok(within(working, outer[0]), "a working escaped the lever disclosure");
+  }
+  assert.equal(outer[0].dataset.moveCount, String(model.moves.length));
+  assert.ok(!outer[0].hasAttribute("open"), "the per-move detail is collapsed by default");
   const summaries = body.querySelectorAll("summary");
-  assert.equal(summaries.length, 1, "the section adds exactly one tab stop");
-  assert.equal(summaries[0].getAttribute("aria-expanded"), "false");
-  assert.ok(textOf(summaries[0]).startsWith(PLAN_SCOPE_DETAIL_SUMMARY));
+  const top = summaries.filter((node) => !within(node, outer[0]) || node.parentNode === outer[0]);
+  assert.equal(top.length, 1, "the section adds exactly one tab stop while collapsed");
+  assert.equal(top[0].getAttribute("aria-expanded"), "false");
+  assert.ok(textOf(top[0]).startsWith(PLAN_SCOPE_DETAIL_SUMMARY));
 
   const rows = body.querySelectorAll("li");
   const levers = rows.filter((node) => node.dataset.lever);

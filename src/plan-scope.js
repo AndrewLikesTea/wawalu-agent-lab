@@ -44,6 +44,11 @@
 // slate's rule that a rendered column adds up to the rendered total and that the
 // page never claims a dollar the arithmetic did not find.
 //
+// THAT ARITHMETIC NOW LIVES IN `plan-contributions.js` (#1287), which publishes
+// it as a ledger — one row per move, every factor named, the rounding rule
+// returned as data. This module no longer carries a second copy: the figure
+// below IS the ledger's total, and `contributions` on the model is the working.
+//
 // With no committed move the sum is over an empty set and the figure is exactly
 // 0. That is not a placeholder, an error state, or a missing value: it is the
 // correct answer to the question, and it is the answer this page ships with.
@@ -54,6 +59,7 @@
 // PURE. No DOM, no clock, no storage, no randomness.
 
 import { CONFIDENCE_TIERS } from "./finops-rate-card-contract.js";
+import { planContributions, statedCount } from "./plan-contributions.js";
 
 /** Bump when a lever, a default, or what the planned figure means changes. */
 export const PLAN_SCOPE_VERSION = "plan-scope/1.0.0";
@@ -139,11 +145,6 @@ export const PLAN_ALL_COMMITTED_ACTION =
 export const planMoveKey = (rule) =>
   `${rule?.source ?? ""} → ${rule?.targetTier ?? ""} tier · ${rule?.unit ?? ""}`;
 
-/** A count a lead actually stated: a finite, non-negative number and nothing else. */
-function statedCount(value) {
-  return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : null;
-}
-
 /**
  * One lever, as it stands on one commitment: what the lead stated, or silence
  * and the default that silence carries.
@@ -162,38 +163,43 @@ function leverState(lever, commitment) {
   });
 }
 
+/** How this move reads, said the way the rest of the page says it. */
+const moveLabel = (rule) => (rule.source === rule.unit
+  ? `${rule.source} → ${rule.targetTier} tier`
+  : `${rule.source} → ${rule.targetTier} tier in ${rule.unit}`);
+
 /**
- * A share of a base, floored at zero and capped at one. A commitment that
- * excludes more workloads than it claims are eligible contradicts itself; it
- * yields nothing planned rather than a negative saving.
+ * The ledger's input: one entry per slate rule, carrying #1286's own commitment
+ * fields verbatim. Nothing is renamed and no default is applied here — the
+ * conservative readings documented at the top of this file are the ledger's,
+ * and it is the only place they are implemented.
  */
-function remainingShare(base, removed) {
-  const eligible = statedCount(base);
-  if (eligible === null || eligible <= 0) return 1;
-  const gone = statedCount(removed) ?? 0;
-  return Math.min(1, Math.max(0, (eligible - gone) / eligible));
-}
-
-/** One committed move's planned dollars, by the definition at the top of this file. */
-function plannedFor(rule, commitment) {
-  const share = (statedCount(commitment?.reroutedSharePct) ?? 0) / 100;
-  const workloads = remainingShare(commitment?.eligibleWorkloads, commitment?.excludedWorkloads);
-  const teams = remainingShare(commitment?.eligibleTeams, commitment?.refusingTeams);
-  const modelled = Number(rule?.expectedMonthlyUsd);
-  if (!Number.isFinite(modelled)) return 0;
-  return Math.trunc(modelled * Math.min(1, Math.max(0, share)) * workloads * teams);
-}
-
-/** The moves, in the slate's own rank order, each with its levers and its answer. */
-function movesFrom(slate, commitments) {
-  const byKey = new Map();
-  for (const commitment of commitments ?? []) {
-    if (commitment?.move) byKey.set(String(commitment.move), commitment);
-  }
+function ledgerInput(slate, byKey) {
   return (slate?.rules ?? []).map((rule) => {
     const key = planMoveKey(rule);
     const commitment = byKey.get(key) ?? null;
+    return {
+      key,
+      rank: rule.rank,
+      name: moveLabel(rule),
+      modelledMonthlyUsd: rule.expectedMonthlyUsd,
+      inPlan: commitment !== null,
+      reroutedSharePct: commitment?.reroutedSharePct ?? null,
+      eligibleWorkloads: commitment?.eligibleWorkloads ?? null,
+      excludedWorkloads: commitment?.excludedWorkloads ?? null,
+      eligibleTeams: commitment?.eligibleTeams ?? null,
+      refusingTeams: commitment?.refusingTeams ?? null,
+    };
+  });
+}
+
+/** The moves, in the slate's own rank order, each with its levers and its answer. */
+function movesFrom(slate, byKey, ledger) {
+  return (slate?.rules ?? []).map((rule, index) => {
+    const key = planMoveKey(rule);
+    const commitment = byKey.get(key) ?? null;
     const levers = PLAN_LEVERS.map((lever) => leverState(lever, commitment));
+    const contribution = ledger.contributions[index];
     return Object.freeze({
       key,
       rank: rule.rank,
@@ -206,7 +212,9 @@ function movesFrom(slate, commitments) {
       // turns on this and on nothing else.
       fullyScoped: commitment !== null && levers.every((lever) => lever.stated),
       levers: Object.freeze(levers),
-      plannedMonthlyUsd: commitment === null ? 0 : plannedFor(rule, commitment),
+      // The ledger's row for this move, not a second computation of it.
+      plannedMonthlyUsd: contribution.contributionMonthlyUsd,
+      contribution,
       owner: commitment?.owner ? String(commitment.owner) : null,
     });
   });
@@ -254,7 +262,14 @@ function nextActionFor(moves) {
  *   grade or its absence, and exactly one next action.
  */
 export function planScope(slate = null, { commitments = [] } = {}) {
-  const moves = movesFrom(slate, commitments);
+  const byKey = new Map();
+  for (const commitment of commitments ?? []) {
+    if (commitment?.move) byKey.set(String(commitment.move), commitment);
+  }
+  // The ledger first, because the figure is its total. The slate's own pricing
+  // record rides along so every row names the card it was priced against.
+  const ledger = planContributions(ledgerInput(slate, byKey), { pricing: slate?.pricing ?? null });
+  const moves = movesFrom(slate, byKey, ledger);
   const committedCount = moves.filter((move) => move.committed).length;
   return Object.freeze({
     version: PLAN_SCOPE_VERSION,
@@ -264,7 +279,10 @@ export function planScope(slate = null, { commitments = [] } = {}) {
     moves: Object.freeze(moves),
     committedCount,
     // The sum over the committed moves, and over nothing else. Empty set, $0.
-    plannedMonthlyUsd: moves.reduce((sum, move) => sum + move.plannedMonthlyUsd, 0),
+    plannedMonthlyUsd: ledger.totalMonthlyUsd,
+    // The working behind that figure: the rows, the rate basis, the rounding
+    // rule and the sum written out (#1287).
+    ledger,
     grade: gradeFor(moves),
     gradeRequirement: PLAN_GRADE_REQUIREMENT,
     gradeAbsentReason: committedCount === 0 ? PLAN_GRADE_ABSENT : "",

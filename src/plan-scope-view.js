@@ -50,6 +50,20 @@ export const PLAN_SCOPE_FIGURE_ID = "plan-scope-figure";
 export const PLAN_SCOPE_GRADE_ID = "plan-scope-grade";
 export const PLAN_SCOPE_ACTION_ID = "plan-scope-action";
 export const PLAN_SCOPE_DISTINCTION_ID = "plan-scope-distinction";
+export const PLAN_SCOPE_BASIS_ID = "plan-scope-total-basis";
+
+/**
+ * The words on every per-move working, taken from the pattern the headline
+ * figure already ships in evolution.html rather than coined here. The classes
+ * below are that pattern's too: `.figure-source` and `.figure-source-detail`
+ * are styled in evolution.css and `.how-we-know` is a marker the stylesheet
+ * deliberately has no rule for, so this adds no byte to either sheet.
+ */
+export const PLAN_HOW_WE_KNOW_LABEL = "How we know this";
+export const PLAN_HOW_WE_KNOW_SHAPE = "▸";
+
+/** One per-move working's id, so a label, a test and a stylesheet cannot drift. */
+export const planWorkingId = (index) => `plan-lever-${index}-working`;
 
 /** The words on the closed disclosure. It promises the levers, and holds them. */
 export const PLAN_SCOPE_DETAIL_SUMMARY =
@@ -225,9 +239,71 @@ function moveControls(doc, move, index, scope, recompute) {
 }
 
 /**
- * One move, with its levers, its controls, and the reason its modelled dollars
- * are not planned dollars. The rationale is the whole point of the row: a reader
- * who sees a modelled figure beside a zero has to be told which fact is missing.
+ * One move's working: the four steps that take a declared rate card to this
+ * move's contribution, behind the same disclosure the headline figure uses.
+ *
+ * MECHANICS MIRRORED, NOT ASSERTED ONCE. `aria-expanded` and both
+ * `data-disclosure` attributes are written from the `toggle` event, so what a
+ * screen reader is told is the state the element is actually in. The test
+ * harness reads text straight through a shut disclosure while a real browser
+ * hides it, which is exactly why those attributes — and not the text — are what
+ * proves this line is reachable.
+ *
+ * A move that is NOT in the plan has no contribution to derive, so its working
+ * is hidden rather than filled with a derivation of zero. The node stays, so
+ * committing the move reveals it without rebuilding the row a lead is typing in.
+ */
+function moveWorking(doc, index, stepCount) {
+  const detail = element(doc, "details", "figure-source how-we-know");
+  detail.id = planWorkingId(index);
+  detail.dataset.disclosure = "collapsed";
+  const summary = element(doc, "summary", "figure-source-summary how-we-know-summary");
+  summary.setAttribute("aria-expanded", "false");
+  summary.setAttribute("aria-controls", `${detail.id}-detail`);
+  const state = element(doc, "span", "figure-source-state");
+  state.dataset.disclosure = "collapsed";
+  const shape = element(doc, "span", "figure-source-shape", PLAN_HOW_WE_KNOW_SHAPE);
+  shape.setAttribute("aria-hidden", "true");
+  state.append(shape, doc.createTextNode(` ${PLAN_HOW_WE_KNOW_LABEL}`));
+  summary.append(state);
+
+  const list = element(doc, "dl", "figure-source-detail how-we-know-detail");
+  list.id = `${detail.id}-detail`;
+  const steps = Array.from({ length: stepCount }, () => {
+    const row = element(doc, "div");
+    const term = element(doc, "dt");
+    const definition = element(doc, "dd");
+    row.append(term, definition);
+    list.append(row);
+    return { term, definition };
+  });
+  detail.append(summary, list);
+  detail.addEventListener("toggle", () => {
+    const open = detail.hasAttribute("open");
+    detail.dataset.disclosure = open ? "expanded" : "collapsed";
+    state.dataset.disclosure = detail.dataset.disclosure;
+    summary.setAttribute("aria-expanded", String(open));
+  });
+  return {
+    node: detail,
+    update(next) {
+      detail.hidden = !next.contribution.inPlan;
+      detail.dataset.moveInPlan = String(next.contribution.inPlan);
+      next.contribution.derivation.forEach((step, position) => {
+        const slot = steps[position];
+        if (!slot) return;
+        slot.term.textContent = step.step;
+        slot.definition.textContent = `${step.expression} = ${step.value}`;
+      });
+    },
+  };
+}
+
+/**
+ * One move, with its levers, its controls, the working behind its contribution,
+ * and the reason its modelled dollars are not planned dollars. The rationale is
+ * the whole point of the row: a reader who sees a modelled figure beside a zero
+ * has to be told which fact is missing.
  */
 function moveEntry(doc, move, index, scopes, recompute) {
   const item = element(doc, "li");
@@ -240,22 +316,26 @@ function moveEntry(doc, move, index, scopes, recompute) {
     levers.append(line);
     return line;
   });
-  item.append(heading, rationale, levers,
+  const working = moveWorking(doc, index, move.contribution.derivation.length);
+  item.append(heading, rationale, levers, working.node,
     moveControls(doc, move, index, scopeFor(scopes, move.key), recompute));
   return {
     node: item,
     update(next) {
+      working.update(next);
+      item.dataset.contribution = String(next.contribution.contributionMonthlyUsd);
       item.dataset.committed = String(next.committed);
       heading.textContent =
         `${next.rank}. ${next.source} → ${next.targetTier} tier · `
         + `${formatUsd(next.modelledMonthlyUsd)} a month modelled, `
         + `${formatUsd(next.plannedMonthlyUsd)} planned.`;
+      // A zero says which fact made it zero, in the ledger's own words. A reader
+      // who cannot tell "nobody committed" from "the team refused" cannot act.
       rationale.textContent = next.committed
-        ? `Committed${next.owner ? ` by ${next.owner}` : ""}. Planned dollars are this move's `
-          + "modelled monthly figure taken at the committed share, after the excluded workloads "
-          + "and refusing teams below."
-        : "This move is not in the plan, so its share is 0% and none of its modelled dollars "
-          + "are planned. Anything already entered for it is kept.";
+        ? `Committed${next.owner ? ` by ${next.owner}` : ""}. ${next.contribution.zeroReason
+          || "Planned dollars are this move's modelled monthly figure taken at the committed "
+            + "share, after the excluded workloads and refusing teams below."}`
+        : `${next.contribution.zeroReason} Anything already entered for it is kept.`;
       next.levers.forEach((lever, position) => paintLever(leverItems[position], lever));
     },
   };
@@ -304,6 +384,31 @@ function plannedFigure(doc, model) {
     update(next) {
       figure.dataset.committedCount = String(next.committedCount);
       value.textContent = `${formatUsd(next.plannedMonthlyUsd)} planned`;
+    },
+  };
+}
+
+/**
+ * What the total is made of, beside the total: the card it was priced against,
+ * the one rounding rule, and the sum written out so a reader adds the rendered
+ * column and reaches the rendered figure (#1287).
+ *
+ * It sits OUTSIDE the disclosure, with the figure it qualifies. The arithmetic
+ * behind a number is not a footnote to it, and a reader who has to open
+ * something to find out that their contracted rates were used has already been
+ * given a figure they cannot trust.
+ */
+function totalBasis(doc) {
+  const line = element(doc, "p", "answer-figure-basis");
+  line.id = PLAN_SCOPE_BASIS_ID;
+  return {
+    node: line,
+    update(next) {
+      const { ledger } = next;
+      line.dataset.rateSource = ledger.rateBasis.rateSource;
+      line.dataset.rounding = ledger.rounding.mode;
+      line.textContent = `${ledger.rateBasis.statement} ${ledger.rounding.rule} `
+        + `Check the total: ${ledger.reconciliation}.`;
     },
   };
 }
@@ -364,6 +469,7 @@ export function applyPlanScope(doc, slate, { commitments = [] } = {}) {
   // Every part that changes when a lever moves, and nothing else. `recompute`
   // rewrites their words in place; the controls above are never rebuilt.
   const figure = plannedFigure(doc, model);
+  const basis = totalBasis(doc);
   const grade = gradeLine(doc);
 
   /**
@@ -381,6 +487,7 @@ export function applyPlanScope(doc, slate, { commitments = [] } = {}) {
     section.dataset.moveCount = String(model.moves.length);
     section.dataset.committedCount = String(model.committedCount);
     figure.update(model);
+    basis.update(model);
     grade.update(model);
     action.textContent = `Do this first: ${model.nextAction}`;
     for (const [index, row] of rows.entries()) row.update(model.moves[index]);
@@ -398,6 +505,7 @@ export function applyPlanScope(doc, slate, { commitments = [] } = {}) {
 
   body.replaceChildren(
     figure.node,
+    basis.node,
     distinction,
     action,
     grade.node,
