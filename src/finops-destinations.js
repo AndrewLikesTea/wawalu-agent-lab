@@ -124,9 +124,43 @@ export const FINOPS_FRONT_DOOR = Object.freeze({
 });
 
 /**
+ * The reporting windows a destination may be read at. Two, because the page has
+ * two: the month its analyzed figure is stated over, and the quarter the
+ * recoverable figure at the front door is stated over. A destination declares
+ * which of them it carries; one that declares neither cannot be addressed at a
+ * window at all, and saying so is the point.
+ */
+export const FINOPS_SCOPES = Object.freeze(["month", "quarter"]);
+
+/**
+ * The department identifiers the bundled analysis actually holds. Written here
+ * because this module is the registry, and pinned against
+ * src/evolution-demo-data.json in tests/finops-destinations.test.js so the two
+ * cannot drift — a route that addresses a department the seed does not contain
+ * is a link to an empty drill-down.
+ */
+export const FINOPS_DEPARTMENT_IDS = Object.freeze([
+  "data-ml", "backend", "frontend", "sre", "mobile", "quality", "security",
+]);
+
+/** A destination that carries no addressable qualifier of either kind. */
+const NO_QUALIFIERS = Object.freeze({
+  scopes: Object.freeze([]),
+  departments: Object.freeze([]),
+});
+
+/**
  * The ordered destinations. `slug` is a contract: later routing, sharing and
  * provenance work reads these strings, so a rename must be a visible diff in
  * tests/finops-destinations.test.js rather than a silent break.
+ *
+ * `route` is the other half of that contract, added for #1326: it declares what
+ * an ADDRESS for this destination is allowed to say beyond its name. Every
+ * value src/destination-route.js will accept on `?scope=` or `?department=` is
+ * enumerated here and nowhere else, so a qualifier that means nothing at a
+ * destination is dropped from the URL rather than carried around as junk. An
+ * empty list is a deliberate statement — "this destination is not read per
+ * department" — and not an omission.
  */
 export const FINOPS_DESTINATIONS = Object.freeze([
   Object.freeze({
@@ -148,6 +182,12 @@ export const FINOPS_DESTINATIONS = Object.freeze([
     recoverableUsd: 0,
     effortDays: 2,
     prioritized: false,
+    // The one destination that is read per department: it IS the breakdown, and
+    // the page ranks the same seven identifiers the seed carries.
+    route: Object.freeze({
+      scopes: FINOPS_SCOPES,
+      departments: FINOPS_DEPARTMENT_IDS,
+    }),
   }),
   Object.freeze({
     slug: "optimisation-levers",
@@ -165,6 +205,12 @@ export const FINOPS_DESTINATIONS = Object.freeze([
     recoverableUsd: 15_600,
     effortDays: 3,
     prioritized: true,
+    // Levers are ranked org-wide and priced at either window; the slate is not
+    // a per-department view, so `?department=` means nothing here.
+    route: Object.freeze({
+      scopes: FINOPS_SCOPES,
+      departments: Object.freeze([]),
+    }),
   }),
   Object.freeze({
     slug: "commitment-coverage",
@@ -185,6 +231,11 @@ export const FINOPS_DESTINATIONS = Object.freeze([
     recoverableUsd: 0,
     effortDays: 20,
     prioritized: false,
+    // Coverage is a quarter question — a month of steady-state load says
+    // nothing about whether a commitment is worth signing — and it is not read
+    // per department. Both facts are declared, so `?scope=month` here is
+    // dropped and reported rather than honoured.
+    route: NO_QUALIFIERS,
   }),
 ]);
 
