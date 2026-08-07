@@ -3470,10 +3470,11 @@ section[data-workspace-current="true"] { box-shadow:-6px 0 0 0 var(--import-wash
 /* ---------------------------------------------------------------------------
    The workspace shell.
 
-   One destination on screen at a time. Hiding is driven by the shell's own
-   attribute rather than by `hidden`, because several of these regions manage
-   their own `hidden` for their own empty states — two owners of one property is
-   how a panel ends up visible in a destination it does not belong to. */
+   One destination on screen at a time. #1328: a closed destination carries
+   `hidden` too — the only mechanism that takes it out of the accessibility tree
+   and the tab order, which no rule here can do. `data-workspace-hidden` records
+   whose hiding it is, so an empty panel is never revealed with its destination;
+   this rule is the second channel. See src/finops-workspace-shell.js. */
 
 [data-workspace-region][data-workspace-active="false"] { display:none; }
 
@@ -3501,9 +3502,9 @@ section[data-workspace-current="true"] { box-shadow:-6px 0 0 0 var(--import-wash
 @media print {
   /* Paper has no controls, so a printed page is the whole page: every
      destination is restored, and the switch that selected one is not on the
-     sheet. A region hidden by its own empty state stays hidden — `:not([hidden])`
-     is what keeps this from printing panels that have nothing in them. */
-  [data-workspace-region][data-workspace-active="false"]:not([hidden]) { display:block; }
+     sheet. Only what the shell held back: a panel hidden by its own empty state
+     says so on the same attribute, and prints nothing worth a page. */
+  [data-workspace-region][data-workspace-hidden="shell"] { display:block; }
   #finops-workspace-switch { display:none; }
   .workspace-context { break-inside:avoid; }
   /* The recommendation and its grounds travel onto paper together. The

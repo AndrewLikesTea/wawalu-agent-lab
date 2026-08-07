@@ -171,7 +171,13 @@
            they hold the page heading, the one complete answer, and the way
            between destinations, so they stay on screen in all four. Everything
            else on this page carries `data-workspace-region` and belongs to
-           exactly one destination — see src/finops-workspace-shell.js. -->
+           exactly one destination — see src/finops-workspace-shell.js.
+
+           #1328: a region whose destination is not open carries the `hidden`
+           attribute, so it is out of the accessibility tree and out of the tab
+           order rather than merely out of sight. Whose hiding it is — this
+           switch's, or the panel's own empty state — is stated on
+           `data-workspace-hidden`, and the shell only ever reveals its own. -->
       <!-- The four `id`s added for the answer spine — #finops-hero, #local-import,
            #finops-proof-point, and #finops-privacy — are additive. Every region
            at this level is declared in src/finops/answer-spine-view.js with the

@@ -260,6 +260,29 @@ export function currentDestination(doc) {
 }
 
 /**
+ * The rail's own statement of where the reader is, in words.
+ *
+ * `aria-current="true"` AND NOT `"page"`. This rail moves between parts of ONE
+ * document — every door is a fragment on /evolution.html — so "page" would tell
+ * a screen-reader user they had arrived somewhere they have not left. `"true"`
+ * is the unqualified form for a within-page structure, it is what
+ * `setCurrentDestination` has always written, and it is what the front door's
+ * doors next door already carry, so the page speaks one dialect.
+ *
+ * Read off the marked door rather than kept in a variable, so the invariant
+ * #1328 exists to hold — the rail's label, the destination on the address, and
+ * the visible screen heading agree — is checked against what the markup actually
+ * says at that moment and not against what a handler believes it wrote.
+ */
+export function currentDestinationLabel(doc) {
+  const marked = doorLinks(doc).find((link) => link.getAttribute("aria-current") === "true");
+  if (!marked) return null;
+  return String(marked.dataset?.destinationName ?? "").trim()
+    || AUTHORED_DESTINATIONS.find((door) => door.key === marked.dataset?.destinationKey)?.name
+    || null;
+}
+
+/**
  * Mark one door as the current destination.
  *
  * Three channels, deliberately: `aria-current` for the accessibility tree, the
@@ -333,7 +356,7 @@ export function paintNavDisclosureState(doc) {
  * that is empty until a script runs, on a page whose whole argument is that the
  * answer must not wait on one.
  */
-export function applyWorkspaceNav(doc, loaded = null, { hash = "" } = {}) {
+export function applyWorkspaceNav(doc, loaded = null, { hash = "", location = null } = {}) {
   const nav = byId(doc, WORKSPACE_NAV_IDS.nav);
   const list = byId(doc, WORKSPACE_NAV_IDS.list);
   if (!nav || !list) return null;
@@ -368,11 +391,15 @@ export function applyWorkspaceNav(doc, loaded = null, { hash = "" } = {}) {
   paintNavDetail(doc, destinations);
   paintNavDisclosureState(doc);
 
-  // A fragment already in the address bar wins over the default: a reader who
-  // arrived on a shared link to the department panel is standing there, and the
-  // rail saying "answer" would be the first thing it got wrong.
-  const arrived = destinations.find((entry) => String(hash) === entry.fragment
-    || (entry.targetId && `#${entry.targetId}` === String(hash)));
+  // THE MARK IS DERIVED FROM THE ADDRESS, never from a scroll offset or a
+  // remembered variable: a reader who arrived on a shared link to the department
+  // panel is standing there, and the rail saying "answer" would be the first
+  // thing this page got wrong. `location` is the whole address so the derivation
+  // reads the same object the shell routes from; `hash` remains for the callers
+  // that only hold one.
+  const address = String(location?.hash ?? hash ?? "");
+  const arrived = destinations.find((entry) => address === entry.fragment
+    || (entry.targetId && `#${entry.targetId}` === address));
   setCurrentDestination(doc, arrived?.key ?? DEFAULT_DESTINATION);
   return destinations;
 }

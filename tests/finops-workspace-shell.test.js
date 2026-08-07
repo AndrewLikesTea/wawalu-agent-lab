@@ -31,7 +31,7 @@ import { WORKSPACE_DESTINATION } from "../src/finops-workspace-nav.js";
 import {
   CONTEXT_TERMS, DESTINATION_FRAGMENT, SHELL_STATE_LABEL, WORKSPACE_SHELL_IDS,
   applyWorkspaceDestination, currentWorkspaceDestination, destinationForFragment,
-  initWorkspaceShell, paintWorkspaceContext, regionsFor, workspaceRegions,
+  destinationStatusId, initWorkspaceShell, paintWorkspaceContext, regionsFor, workspaceRegions,
 } from "../src/finops-workspace-shell.js";
 
 const PAGE = new URL("../src/evolution.html", import.meta.url);
@@ -384,9 +384,13 @@ test("the heading names the destination in the loading, empty and errored states
     assert.doesNotMatch(spoken, /undefined|null|^\s*$/);
     assert.ok(textOf(byId(document, WORKSPACE_SHELL_IDS.live)).includes(contract.question),
       `${key} announced no question while its module was in flight`);
+    // And the region that reports the wait is on screen, not a blank pane —
+    // asserted while its own destination is the open one. #1328 takes a closed
+    // destination's panels out of the reading flow with `hidden`, so a status
+    // region for a destination nobody is standing in is correctly not on screen.
+    assert.equal(byId(document, destinationStatusId(key))?.hidden ?? false, false,
+      `${key} reports its wait in a pane that is not rendered`);
   }
-  // And the region that reports the wait is on screen, not a blank pane.
-  assert.equal(byId(document, "destination-load-act-and-verify").hidden, false);
 });
 
 test("a forwarded link onto a non-default screen arrives with focus and a sentence", async () => {

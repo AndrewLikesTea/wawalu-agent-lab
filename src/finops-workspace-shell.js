@@ -68,6 +68,13 @@ import {
 // second source of truth for the same sentence.
 import { SCREEN_CONTRACT } from "./finops-screen-contract.js";
 import { DESTINATION_LOAD_STATE, createDestinationLoader } from "./finops-destination-loader.js";
+// #1326's serializer, consumed rather than re-implemented. This module builds no
+// query string of its own and hands no hand-assembled URL to a History: the
+// address a destination change writes is `canonicalQuery`'s, so the front door's
+// own `?destination=`/`?scope=`/`?department=` route — and every foreign
+// parameter on the address — survives a move between workspace destinations
+// instead of being dropped by whichever control happened to write the URL last.
+import { canonicalQuery, parseDestinationRoute } from "./destination-route.js";
 // The page's one status vocabulary. Reused, never extended: a destination that
 // is still fetching its module is a panel in a state this module already draws.
 import { PANEL_STATUS, applyPanelStatus } from "./panel-status-view.js";
@@ -119,6 +126,23 @@ const SCREEN_BY_DESTINATION = Object.freeze(Object.fromEntries(
 export { DESTINATION_FRAGMENT };
 
 /**
+ * The address one workspace destination resolves to, written through #1326.
+ *
+ * The fragment names the destination; everything before it is `canonicalQuery`'s
+ * answer for the front-door route the address already carried. Two consequences,
+ * both of which are the reason this is not a template literal with a `?` in it:
+ * a reader who arrived on `?destination=spend-attribution&department=backend`
+ * still holds that route after stepping into Evidence, and a parameter belonging
+ * to somebody else — a shared brief, a campaign tag — is carried through in its
+ * original bytes rather than truncated by a control that only knew about hashes.
+ */
+export function workspaceRouteAddress(location, key) {
+  const fragment = DESTINATION_FRAGMENT[key] ?? String(location?.hash ?? "");
+  const route = parseDestinationRoute(location);
+  return `${location?.pathname ?? ""}${canonicalQuery(location?.search ?? "", route)}${fragment}`;
+}
+
+/**
  * The visible word on the door for the destination now on screen.
  *
  * The navigation's word, not a second one. The shell used to say "Showing" on its
@@ -133,6 +157,13 @@ export const CONTEXT_TERMS = Object.freeze([
 ]);
 
 const DESTINATION_KEYS = Object.freeze(Object.values(WORKSPACE_DESTINATION));
+
+/** Whose `hidden` a region is carrying. Read back off the markup, never remembered. */
+export const HIDDEN_BY = Object.freeze({
+  shell: "shell",
+  panel: "panel",
+  none: "none",
+});
 
 const byId = (doc, id) => doc?.getElementById?.(id) ?? null;
 const isDestination = (key) => DESTINATION_KEYS.includes(key);
@@ -376,13 +407,36 @@ const doorName = (door) => String(door?.dataset?.shellName ?? "").trim()
 /**
  * Show one destination and hide the other three.
  *
- * Hiding is a data attribute the stylesheet turns into `display:none`, not the
- * `hidden` property: several of these regions manage their own `hidden` — a panel
- * that has nothing to show yet is hidden by the module that owns it — and a shell
- * that wrote the same property would either be overwritten by the next import or
- * would overwrite a panel's own empty state. One attribute per concern keeps both
- * true at once, and the print rules read the shell's attribute so a printed page
- * is still the whole page.
+ * #1328: HIDING IS THE `hidden` ATTRIBUTE NOW, not a stylesheet rule alone. The
+ * data attribute said "not on screen" to a sighted reader and to nobody else: a
+ * screen-reader user still walked every panel of all five destinations, and Tab
+ * still stopped on every control inside them, on a page whose entire argument is
+ * that one destination is open at a time. `hidden` is the one mechanism that
+ * takes a subtree out of the accessibility tree AND out of sequential
+ * navigation, and it does it with no rule in any stylesheet.
+ *
+ * TWO OWNERS OF ONE PROPERTY, RECONCILED RATHER THAN AVOIDED. The reason this
+ * was a data attribute is real: several of these regions manage their own
+ * `hidden` for their own empty states — a graded sample nobody imported, a
+ * portfolio with no periods on file — and a shell that wrote the same property
+ * would show a reader an empty panel and call it a destination. So the shell
+ * records WHOSE hiding it is on `data-workspace-hidden`:
+ *
+ *   shell   this switch hid it, because its destination is not open. Revealed
+ *           again the moment that destination is.
+ *   panel   the module that owns it hid it, because it has nothing to show. The
+ *           shell never reveals one of these; being in the open destination does
+ *           not make an empty panel worth reading.
+ *   none    on screen, in the open destination.
+ *
+ * The reading is taken at the moment of the swap rather than remembered, so a
+ * panel that painted content while its destination was closed comes back
+ * correctly, and one that emptied itself stays empty.
+ *
+ * `data-workspace-active` is unchanged and still written: it is what the
+ * stylesheet draws and what a test names, and it is the one channel that stays
+ * true in the window where a module has just unhidden itself in a destination
+ * nobody is standing in.
  */
 export function applyWorkspaceDestination(doc, key, {
   announce = false, focus = null, loader = destinationLoader,
@@ -412,7 +466,18 @@ export function applyWorkspaceDestination(doc, key, {
   for (const region of regions) {
     const active = region.dataset.workspaceRegion === key;
     region.dataset.workspaceActive = active ? "true" : "false";
-    if (active) shown += 1;
+    const heldBack = region.getAttribute("data-workspace-hidden") === HIDDEN_BY.shell;
+    if (active) {
+      shown += 1;
+      // Only what this switch hid. A panel holding its own empty state keeps it.
+      if (heldBack) region.hidden = false;
+      region.setAttribute("data-workspace-hidden",
+        region.hidden ? HIDDEN_BY.panel : HIDDEN_BY.none);
+    } else {
+      region.setAttribute("data-workspace-hidden",
+        region.hidden && !heldBack ? HIDDEN_BY.panel : HIDDEN_BY.shell);
+      region.hidden = true;
+    }
   }
 
   const group = byId(doc, WORKSPACE_SHELL_IDS.switch);
@@ -440,9 +505,27 @@ export function applyWorkspaceDestination(doc, key, {
   return key;
 }
 
+/**
+ * Say the change once, in the one region the shipped document already carries.
+ *
+ * THE SINGLE-ANNOUNCEMENT INVARIANT IS STRUCTURAL, not a convention every caller
+ * has to remember. There is exactly one live region on this page's switch —
+ * `#finops-workspace-switch-live`, authored in the markup — and this is the only
+ * function that writes it. The rail's doors announce nothing
+ * (`setCurrentDestination` marks and returns), the disclosures announce nothing,
+ * and the deep-link opener announces nothing. So a destination change cannot
+ * produce two sentences by adding a second speaker; it could only produce two by
+ * running the change path twice, which is what `data-announce-count` makes
+ * observable and what routing the change through one `select` prevents.
+ */
 function announceDestination(doc, key, shown) {
   const live = byId(doc, WORKSPACE_SHELL_IDS.live);
   if (!live) return null;
+  // One write per change, counted on the region itself. A test asserts the
+  // count rather than the identity of a node, and a support conversation can ask
+  // a live page the same question.
+  live.setAttribute("data-announce-count",
+    String(Number(live.getAttribute("data-announce-count") ?? 0) + 1));
   const door = switchDoors(doc).find((entry) => entry.dataset.shellDestination === key);
   const name = doorName(door) || key;
   // The question is last rather than first because the sentence before it is the
@@ -562,7 +645,10 @@ function pair(doc, term, detail) {
  * not land on a region that is still hidden — so the order is not a preference,
  * it is the difference between a door that works and one that silently does not.
  */
-export function initWorkspaceShell(doc, { win = null, loaded = null, loader = destinationLoader } = {}) {
+export function initWorkspaceShell(doc, {
+  win = null, loaded = null, loader = destinationLoader,
+  history = win?.history ?? null, location = win?.location ?? null,
+} = {}) {
   if (workspaceRegions(doc).length === 0) return null;
   // Seed rather than re-fetch: the entry already loaded this record for the
   // rail, so the first open of act-and-verify must not read the fixture twice.
@@ -583,7 +669,13 @@ export function initWorkspaceShell(doc, { win = null, loaded = null, loader = de
     if (!key) return null;
     const leaving = currentWorkspaceDestination(doc);
     if (leaving && leaving !== key) offsets.set(leaving, scrollOf());
-    const opened = applyWorkspaceDestination(doc, key, { announce, focus, loader });
+    // A change nobody made is not a change to announce. A `popstate` or a
+    // `hashchange` that resolves to the destination already open — a link into
+    // the screen the reader is standing in, a step back within one destination —
+    // repaints and says nothing, which is the other half of "exactly once".
+    const opened = applyWorkspaceDestination(doc, key, {
+      announce: announce && leaving !== key, focus, loader,
+    });
     // Only on a history move. A door press is a reader asking for the top of a
     // screen they chose; a step back is a reader asking for the place they left.
     if (opened && restore && leaving !== key) win?.scrollTo?.(0, offsets.get(key) ?? 0);
@@ -600,14 +692,51 @@ export function initWorkspaceShell(doc, { win = null, loaded = null, loader = de
     openDestination(doc, key, { loader });
   };
 
+  /**
+   * Write the route for a destination the reader chose, through #1326.
+   *
+   * One entry, and only when the address would actually change — pushing an
+   * identical URL is what makes the back button appear to unwind scroll instead
+   * of moving between destinations. `history` is injected, so this is driven by
+   * a test double and never reaches for a global.
+   *
+   * `location.hash` is updated alongside the push because that is what a browser
+   * does, and because the derivation below reads the address rather than a
+   * variable: leaving the two out of step would make the next `popstate` resolve
+   * against a URL the reader is no longer on.
+   */
+  const pushRoute = (key) => {
+    if (!history?.pushState || !location) return false;
+    const next = workspaceRouteAddress(location, key);
+    const now = `${location.pathname ?? ""}${location.search ?? ""}${location.hash ?? ""}`;
+    if (next === now) return false;
+    history.pushState({ workspaceDestination: key }, "", next);
+    if (typeof location.hash === "string") location.hash = DESTINATION_FRAGMENT[key] ?? "";
+    return true;
+  };
+
   const onClick = (event) => {
+    if (event.defaultPrevented) return;
     const link = event.target?.closest?.("a");
     const href = link?.getAttribute?.("href");
     if (!href || !href.startsWith("#")) return;
-    // Announced only for the shell's own controls. A rail door and a deep link
-    // both already say what they did, and two live regions describing one press
-    // is how a screen-reader user learns to ignore both.
-    select(href, { announce: ownsFragment(href) });
+    const key = destinationForFragment(doc, href);
+    const changing = Boolean(key) && key !== currentWorkspaceDestination(doc);
+    if (ownsFragment(href)) {
+      // A DOOR ON THE RAIL. The route is written here rather than left to the
+      // anchor, so the browser fires no `hashchange` behind this handler — which
+      // is what stopped one press producing two runs of the change path, and two
+      // writes into one live region. Focus goes to the screen's heading.
+      if (pushRoute(key)) event.preventDefault?.();
+      select(href, { announce: changing, focus: changing });
+      return;
+    }
+    // A DEEP LINK. The destination is opened first — a target inside a hidden
+    // container cannot take focus — and then the default is allowed to run, so
+    // deep-link-disclosure.js still unfolds the panel and lands the reader on
+    // the target itself. Announced only when it moved them to another
+    // destination, and never focused here: the fragment names where to go.
+    select(href, { announce: changing, focus: false });
   };
 
   const onHashChange = () => select(win?.location?.hash ?? "", { announce: true, restore: true });
