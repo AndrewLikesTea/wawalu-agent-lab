@@ -440,7 +440,14 @@ function attributionFor({ aggregates, modelUsageRows, ranked, unitFor: unitOf, r
  *
  * @param {LocalFinopsInput} input
  */
-export function normalizeLocalFinops({ provider, hris = null }) {
+/**
+ * @param {{provider: object, hris?: object|null, rateCard?: object|null}} input
+ *   `rateCard` is the FinOps lead's declared card (#1263). It is threaded to the
+ *   two routing rules and to nothing else, and an absent card resolves to the
+ *   published-list reference card — which is what the shipped page passes and
+ *   why every figure it renders is the one it rendered before.
+ */
+export function normalizeLocalFinops({ provider, hris = null, rateCard = null }) {
   // The two-file precondition is gone. A provider export alone is a complete
   // run: it carries spend and it carries the grouping value the provider bills
   // by. Only the file that carries the money is required.
@@ -532,7 +539,7 @@ export function normalizeLocalFinops({ provider, hris = null }) {
   const ranked = [...grouped.values()]
     .map(({ contractRecords, ...item }) => {
       const downRouting = evaluateDownRoutingCandidate({
-        unitId: item.id, records: contractRecords,
+        unitId: item.id, records: contractRecords, rateCard,
       });
       return {
         ...item,
@@ -565,6 +572,7 @@ export function normalizeLocalFinops({ provider, hris = null }) {
   const modelRouting = analyzeModelRouting({
     modelUsage: modelUsageRows,
     unitIds: ranked.map((item) => item.id),
+    rateCard,
   });
   // Coverage, three times, each from the rows of the figure it describes. There
   // is deliberately no global figure pasted onto three headlines: the mix, the

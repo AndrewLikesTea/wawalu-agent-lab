@@ -163,13 +163,18 @@ function ruleFromModelCandidate(unit, candidate) {
  */
 function ruleFromUnitCandidate(department) {
   const routing = department.downRouting;
-  const tier = classifyModelTier(routing.observedMinorPerMillionTokens ?? 0);
+  // The rule publishes the pair it decided (#1263). Looking it up again here
+  // from the observed price was a second opinion about a tier the rule had
+  // already settled — and, once a declared rate card can move the floor, a
+  // second opinion that could name a different tier than the figure was priced
+  // at. The lookup stays only as a fallback for an envelope written before that.
+  const tier = routing.tier ? null : classifyModelTier(routing.observedMinorPerMillionTokens ?? 0);
   const step = routing.workedExample?.find((line) => line.step === "recoverable") ?? null;
   return {
     source: String(department.name ?? routing.unitLabel ?? ""),
     unit: String(department.name ?? routing.unitLabel ?? ""),
-    sourceTier: String(tier?.tier ?? ""),
-    targetTier: String(tier?.cheaperTier ?? ""),
+    sourceTier: String(routing.tier ?? tier?.tier ?? ""),
+    targetTier: String(routing.proposedTier ?? tier?.cheaperTier ?? ""),
     expectedMonthlyUsd: expectedMonthly(routing.recoverableUsd),
     evidence: step
       ? `${step.step}: ${step.expression} = ${step.value}`
@@ -272,6 +277,44 @@ function nextActionFor(rule) {
  *   every rule is a proposal.
  * @returns a frozen slate: the ranked rules, the headline total, and one action.
  */
+/**
+ * What priced this slate, and what the card kept out of it (#1263).
+ *
+ * Both lists are published even when they are empty, so a surface never has to
+ * distinguish "no exclusions" from "this envelope predates exclusions". The
+ * models excluded per unit are folded in beside the destinations the card
+ * forbids: a reader deciding what to raise needs the shortened list explained,
+ * and the two causes read the same way to them.
+ */
+function pricingFor(analysis) {
+  const routing = analysis?.modelRouting ?? null;
+  const fromCard = routing?.pricing?.excludedDestinations ?? [];
+  const seen = new Set();
+  const models = [];
+  for (const unit of routing?.ranked ?? []) {
+    for (const excluded of unit.excludedModels ?? []) {
+      if (!excluded?.reason || seen.has(excluded.code)) continue;
+      seen.add(excluded.code);
+      models.push(Object.freeze({
+        subject: String(excluded.model), code: String(excluded.code), reason: excluded.reason,
+      }));
+    }
+  }
+  return Object.freeze({
+    rateSource: routing?.pricing?.rateSource ?? "reference",
+    cardId: routing?.pricing?.cardId ?? null,
+    discountApplied: Boolean(routing?.pricing?.discountApplied),
+    exclusions: Object.freeze([
+      ...fromCard.map((entry) => Object.freeze({
+        subject: String(entry.label ?? entry.destination),
+        code: String(entry.code),
+        reason: entry.reason,
+      })),
+      ...models,
+    ]),
+  });
+}
+
 export function routingSlate(analysis = null, { commitment = null } = {}) {
   const empty = (reason, state) => Object.freeze({
     version: ROUTING_SLATE_VERSION,
@@ -287,6 +330,7 @@ export function routingSlate(analysis = null, { commitment = null } = {}) {
     totalExpectedMonthlyUsd: 0,
     nextAction: null,
     nextActionRank: null,
+    pricing: pricingFor(analysis),
     tieBreak: ROUTING_SLATE_TIE_BREAK,
   });
   if (!analysis) return empty(ROUTING_SLATE_REASONS.no_analysis, ROUTING_SLATE_STATES.UNAVAILABLE);
@@ -331,6 +375,7 @@ export function routingSlate(analysis = null, { commitment = null } = {}) {
     totalExpectedMonthlyUsd: rules.reduce((sum, rule) => sum + rule.expectedMonthlyUsd, 0),
     nextAction: nextActionFor(next),
     nextActionRank: next?.rank ?? null,
+    pricing: pricingFor(analysis),
     tieBreak: ROUTING_SLATE_TIE_BREAK,
   });
 }
