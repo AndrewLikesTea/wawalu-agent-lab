@@ -93,7 +93,7 @@
            arithmetic. No other row models a destination, so none contributes.
            No figure was invented and no data source was added. -->
       <section class="finops-recoverable-answer" id="finops-recoverable-answer" data-workspace-frame="true" aria-labelledby="finops-recoverable-question">
-        <h2 id="finops-recoverable-question">How much of our AI spend can we recover, and where do we start?</h2>
+        <h2 id="finops-recoverable-question">How much of our AI spend can we recover?</h2>
         <p class="stand-figure" id="finops-recoverable-figure"><span class="stand-figure-label" id="finops-recoverable-label">Recoverable annual AI spend</span> <span class="stand-figure-value" id="finops-recoverable-value">$62,400</span> <span class="figure-source-state" id="finops-recoverable-marker">Illustrative</span> <span class="figure-source-state" id="finops-recoverable-grade" data-grade="ungraded">Confidence: not graded</span> <span class="figure-source-state" id="finops-recoverable-provenance" data-band="0">Pricing provenance: not scored</span></p>
         <!-- HOW SURE WE ARE, BESIDE THE MONEY (#1186). One grade from a rubric
              with published cut points — src/finops-recoverable-confidence.js
@@ -164,6 +164,7 @@
           </dl>
         </details>
       </section>
+
 
       <!-- THE WORKSPACE FRAME. This region, the brief under it, the load status,
            the rail, and the shell's own controls carry `data-workspace-frame`:
@@ -1375,6 +1376,40 @@
         </div>
         <p class="visually-hidden" id="finops-intake-live" role="status" aria-live="polite" aria-atomic="true"></p>
         <p class="visually-hidden" id="finops-first-run-live" role="status" aria-live="polite" aria-atomic="true"></p>
+      </section>
+
+      <!-- WHERE TO GO NEXT, at the front door rather than below the fold
+           (#1325). The region above states the decision and is held to one
+           question, one figure and one link; what it never said is where a
+           reader acts on it, and this page's ranked destinations were authored
+           roughly thirteen hundred lines further down.
+
+           EVERY STRING BELOW IS RENDERED FROM src/finops-destinations.js. That
+           module carries the metric definitions — recoverable spend for the
+           quarter, the three confidence levels, provenance, one material metric
+           per destination, and the rule that promotes exactly one action — and
+           `frontDoorMarkup()` emits this markup. The document ships the
+           rendered bytes so the doors work with no script at all, and
+           tests/finops-destinations.test.js compares the two byte for byte, so
+           the copy here cannot drift from the registry.
+
+           NO HEADING, on purpose. Each destination's question is a subordinate
+           line inside its own link, read after the destination's name. A
+           heading here would be a second question at headline weight directly
+           under the page's one question, and three of them would be three
+           competing answers.
+
+           It adds no rule to any stylesheet: the eyebrow, the answer line, the
+           list and the destination anchors reuse classes this page already
+           ships. -->
+      <section class="finops-front-door" id="finops-front-door" data-subordinate="true" data-workspace-frame="true" aria-labelledby="finops-front-door-label">
+        <p class="eyebrow" id="finops-front-door-label">Where to go next · 3 destinations</p>
+        <p class="stand-answer" id="finops-front-door-figure">Recoverable spend this quarter $16k · Confidence: medium · bundled synthetic example, as of 2026-07-01. All figures are synthetic demo data.</p>
+        <ol class="workspace-nav-list" id="finops-front-door-list">
+          <li class="workspace-nav-item"><a class="stand-action" href="#finops-stand" data-front-door-slug="spend-attribution" data-front-door-prioritized="false"><strong>Spend attribution</strong> <span>Where is the money going? · Analyzed AI spend in the reporting month: $154,500 · bundled synthetic example, as of 2026-07-01</span></a></li>
+          <li class="workspace-nav-item"><a class="stand-action" href="/savings-action-center.html" data-front-door-slug="optimisation-levers" data-front-door-prioritized="true"><strong>Optimisation levers</strong> <span>What can we change? · Monthly saving from the highest-ranked lever: $5,200 / month · bundled synthetic example, as of 2026-07-01</span><em>Recommended first</em></a></li>
+          <li class="workspace-nav-item"><a class="stand-action" href="/savings-commitment.html" data-front-door-slug="commitment-coverage" data-front-door-prioritized="false"><strong>Commitment coverage</strong> <span>Are we paying list price for steady-state load? · Share of the quarter's analyzed spend priced at published list rates: 100% · published rate card, as of 2026-07-01</span></a></li>
+        </ol>
       </section>
 
       <!-- WHERE THE READER GOES NEXT — the third evidence layer.

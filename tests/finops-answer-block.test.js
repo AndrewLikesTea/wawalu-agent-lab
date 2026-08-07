@@ -374,6 +374,10 @@ test("every top-level section that existed before the answer block is still on t
     // #1183 added one: the recoverable answer, stated before every section that
     // supports it. It is the only addition to this list, and nothing left it.
     "finops-hero", "finops-recoverable-answer", "finops-stand", "finops-first-run",
+    // #1325 added one: the registry front door, three named destinations with
+    // the question each answers and one material metric apiece. Nothing left
+    // this list to make room for it.
+    "finops-front-door",
     "finops-destinations", "finops-workspace-nav",
     "finops-workspace-switch",
     // #821: one load-state region per on-demand destination, so a module that
