@@ -34,8 +34,22 @@
 // A MOVED LEVER REWRITES TEXT, NOT MARKUP. Recomputing replaces the words in
 // nodes that already exist rather than rebuilding the body, so a lead's focus
 // stays in the field they are typing in and the disclosure they opened stays
-// open. Nothing is stored beyond the document: the scope is retained for the
-// session, and a reload starts empty.
+// open.
+//
+// A RELOAD NO LONGER STARTS EMPTY (#1290), but only when a caller hands over a
+// `storage`. Without one this file behaves exactly as it did: session-only
+// scope, no notice, no write, no read. With one, `plan-scope-store.js` — which
+// owns the key, the schema and the two fingerprints — is asked for the filed
+// plan on the way in and told about it on the way out.
+//
+// FILED NUMBERS STAND UNTIL SOMEONE MOVES SOMETHING. A restored plan shows the
+// dollars that were filed, not what those moves would be worth today, and the
+// staleness notice says which of the two a reader is looking at. Moving any
+// lever, or pressing the notice's recompute action, drops the filed figures and
+// puts the whole plan back on `plan-scope.js` for today's slate — a total half
+// filed and half recomputed is a number nobody could account for. Pressing
+// "keep as filed" only dismisses the notice; it writes nothing, so the next
+// reload tells the reader the same true thing again.
 //
 // No new styles — every class used already ships in evolution.css and styles.css.
 // `createElement` and `textContent` only; no markup string, no innerHTML.
@@ -50,6 +64,11 @@ import {
   readFeasibleShare,
 } from "./plan-scope-levers.js";
 import {
+  PLAN_CLEAR_LABEL, PLAN_KEEP_FILED_LABEL, PLAN_READ, PLAN_RECOMPUTE_LABEL,
+  PLAN_UNREADABLE_MESSAGE, clearPlanRecord, filedPlan, planStaleness, projectPlanRecord,
+  readPlanRecord, restoredScopes, writePlanRecord,
+} from "./plan-scope-store.js";
+import {
   PLAN_GRADE_ABSENT, PLAN_GRADE_REQUIREMENT, PLAN_SCOPE_QUESTION, PLAN_VS_DIAGNOSIS, moveName,
   planMoveKey, planScope,
 } from "./plan-scope.js";
@@ -63,6 +82,12 @@ export const PLAN_SCOPE_ACTION_ID = "plan-scope-action";
 export const PLAN_SCOPE_DISTINCTION_ID = "plan-scope-distinction";
 export const PLAN_EVIDENCE_GRADE_ID = "plan-evidence-grade";
 export const PLAN_EVIDENCE_DETAIL_ID = "plan-evidence-grade-detail";
+export const PLAN_SCOPE_NOTICE_ID = "plan-scope-staleness";
+export const PLAN_SCOPE_NOTICE_TEXT_ID = "plan-scope-staleness-text";
+export const PLAN_SCOPE_RECOMPUTE_ID = "plan-scope-recompute";
+export const PLAN_SCOPE_KEEP_ID = "plan-scope-keep-filed";
+export const PLAN_SCOPE_CLEAR_ID = "plan-scope-clear";
+export const PLAN_SCOPE_UNREADABLE_ID = "plan-scope-unreadable";
 
 /** How many blockers are named in the open. Two or three: enough to act on. */
 export const NAMED_BLOCKER_LIMIT = 3;
@@ -240,7 +265,22 @@ function moveControls(doc, move, index, scope, recompute) {
   });
 
   group.append(commit.wrapper, share.wrapper, refusal, excluded.wrapper, refuses.wrapper);
-  return group;
+  return {
+    node: group,
+    // Repaint the four controls from whatever the scope object now holds. Used
+    // when the plan is cleared, and by nothing else: an ordinary recompute
+    // deliberately leaves a field the lead is typing in alone.
+    reset() {
+      commit.input.checked = Boolean(scope.inPlan);
+      share.input.value = scope.sharePct === null ? "" : String(scope.sharePct);
+      excluded.input.value = scope.excludedText;
+      refuses.input.checked = Boolean(scope.refuses);
+      refusal.hidden = true;
+      refusal.textContent = "";
+      share.input.removeAttribute("aria-invalid");
+      share.input.removeAttribute("aria-describedby");
+    },
+  };
 }
 
 /**
@@ -259,10 +299,11 @@ function moveEntry(doc, move, index, scopes, recompute) {
     levers.append(line);
     return line;
   });
-  item.append(heading, rationale, levers,
-    moveControls(doc, move, index, scopeFor(scopes, move.key), recompute));
+  const controls = moveControls(doc, move, index, scopeFor(scopes, move.key), recompute);
+  item.append(heading, rationale, levers, controls.node);
   return {
     node: item,
+    reset: controls.reset,
     update(next) {
       item.dataset.committed = String(next.committed);
       heading.textContent =
@@ -431,6 +472,68 @@ function evidenceDisclosure(doc) {
   };
 }
 
+/** A control, with its accessible name in its own text and no icon standing in. */
+function button(doc, id, label) {
+  const node = doc.createElement("button");
+  node.id = id;
+  node.className = "secondary-button";
+  node.setAttribute("type", "button");
+  node.textContent = label;
+  return node;
+}
+
+/**
+ * The staleness notice, at the top of the plan and outside every disclosure,
+ * because a reader who never opens a disclosure still has to be told that the
+ * numbers under it were filed against something that has since moved.
+ *
+ * ONE PRIORITIZED ACTION, then the way to decline it. Recompute comes first in
+ * DOM order and therefore first in the tab order; keeping the plan as filed is
+ * the second control and changes no figure.
+ */
+function stalenessNoticeNode(doc, onRecompute, onKeep) {
+  const node = element(doc, "div");
+  node.id = PLAN_SCOPE_NOTICE_ID;
+  node.hidden = true;
+  // `answer-figure-basis`, NOT `answer-figure-direction`: this section prints
+  // exactly one direction — the next ask — and a second node in that class would
+  // give a reader two competing "do this first" lines. What the notice says is a
+  // statement about the basis of the figure, which is the class it is in.
+  const text = element(doc, "p", "answer-figure-basis");
+  text.id = PLAN_SCOPE_NOTICE_TEXT_ID;
+  const recompute = button(doc, PLAN_SCOPE_RECOMPUTE_ID, PLAN_RECOMPUTE_LABEL);
+  recompute.addEventListener("click", onRecompute);
+  const keep = button(doc, PLAN_SCOPE_KEEP_ID, PLAN_KEEP_FILED_LABEL);
+  keep.addEventListener("click", onKeep);
+  node.append(text, recompute, keep);
+  return {
+    node,
+    update(staleness) {
+      node.hidden = !staleness;
+      node.dataset.changed = staleness ? staleness.changed.join(",") : "";
+      text.textContent = staleness ? staleness.notice : "";
+    },
+  };
+}
+
+/**
+ * The way out of the store. Hidden while there is nothing filed, so the page
+ * never offers to clear a plan that does not exist — and a hidden control is
+ * not a tab stop, which is what keeps this section's focus order the one it
+ * had while the plan is empty.
+ */
+function clearControl(doc, onClear) {
+  const wrapper = element(doc, "p");
+  wrapper.hidden = true;
+  const control = button(doc, PLAN_SCOPE_CLEAR_ID, PLAN_CLEAR_LABEL);
+  control.addEventListener("click", onClear);
+  wrapper.append(control);
+  return {
+    node: wrapper,
+    update(anythingFiled) { wrapper.hidden = !anythingFiled; },
+  };
+}
+
 /**
  * Paint the section from the slate already on screen, and keep painting it as a
  * lead moves the levers.
@@ -446,14 +549,31 @@ function evidenceDisclosure(doc) {
  *   one — the shared brief carries the committed plan (#1291), so the surface
  *   that shares it has to learn about a moved lever rather than about a plan
  *   that was empty when the page booted. It is told, and decides nothing here.
+ *   `storage` is the browser store the filed plan is read from and written to
+ *   (#1290); omitted, nothing is read or written and this section is
+ *   session-only, which is what every caller that does not pass one still gets.
+ *   `fingerprints` is `{analysis, rateCard}` from `plan-scope-store.js`, taken
+ *   over what this page has already rendered — they are compared, never fetched.
  * @returns the model that was painted, so a caller can assert on it.
  */
-export function applyPlanScope(doc, slate, { commitments = [], evidence = {}, onModel } = {}) {
+export function applyPlanScope(doc, slate,
+  { commitments = [], evidence = {}, onModel, storage = null, fingerprints = null } = {}) {
   const scopes = sessionScopes(doc);
   const keys = (slate?.rules ?? []).map((rule) => ({ key: planMoveKey(rule) }));
   const compose = () => planScope(slate, {
     commitments: [...commitments, ...planCommitments(scopes, keys)],
   });
+
+  // The load path, and the only place this file reads the store. A record that
+  // will not parse or will not validate is UNRECOVERABLE: it is removed rather
+  // than retried, and the page falls through to the ordinary empty plan with a
+  // sentence saying so. Nothing below can throw past this point.
+  const read = storage ? readPlanRecord(storage) : { status: PLAN_READ.missing, record: null };
+  if (read.status === PLAN_READ.unreadable) clearPlanRecord(storage);
+  let filed = read.status === PLAN_READ.restored ? read.record : null;
+  if (filed) for (const [key, scope] of restoredScopes(filed)) scopes.set(key, scope);
+  const staleness = filed && fingerprints ? planStaleness(filed, fingerprints) : null;
+  let noticeDismissed = false;
 
   let model = compose();
   const section = doc?.getElementById?.(PLAN_SCOPE_SECTION_ID);
@@ -478,6 +598,35 @@ export function applyPlanScope(doc, slate, { commitments = [], evidence = {}, on
   const evidenceGrade = evidenceGradeLine(doc);
   const evidenceDetail = evidenceDisclosure(doc);
 
+  // Said once, at the top, when a stored plan could not be read. It is a plain
+  // paragraph rather than a second live region: this section announces through
+  // `#plan-scope-status` and nowhere else.
+  const unreadable = element(doc, "p", "field-error",
+    read.status === PLAN_READ.unreadable ? PLAN_UNREADABLE_MESSAGE : "");
+  unreadable.id = PLAN_SCOPE_UNREADABLE_ID;
+  unreadable.hidden = read.status !== PLAN_READ.unreadable;
+
+  /**
+   * Stop showing the filed dollars and put the whole plan back on today's
+   * analysis. Both the notice's recompute action and any moved lever land here,
+   * because the alternative — one row repriced, the rest filed — is a total that
+   * adds up to nothing a reader could check.
+   */
+  const goLive = () => { filed = null; noticeDismissed = true; };
+
+  /** Write what is on screen, or clear the key when there is nothing filed. */
+  const persist = (next) => {
+    if (!storage || filed) return;
+    const record = projectPlanRecord({
+      model: next,
+      scopes,
+      analysis: fingerprints?.analysis,
+      rateCard: fingerprints?.rateCard,
+    });
+    if (record) writePlanRecord(storage, record);
+    else clearPlanRecord(storage);
+  };
+
   /**
    * One visible step: the total, the committed count, the next action and the
    * per-move rows all move together, and the page's own status region says so.
@@ -489,7 +638,12 @@ export function applyPlanScope(doc, slate, { commitments = [], evidence = {}, on
    */
   const recompute = ({ refused = "" } = {}) => {
     model = compose();
+    // The filed dollars, if a plan was restored and nobody has moved anything
+    // since. `filedPlan` overlays money and nothing else, so the levers below
+    // still read off the scopes that were filed.
+    if (filed) model = filedPlan(model, filed);
     section.dataset.state = model.committedCount ? "committed" : "empty";
+    section.dataset.filed = String(Boolean(filed));
     section.dataset.moveCount = String(model.moves.length);
     section.dataset.committedCount = String(model.committedCount);
     figure.update(model);
@@ -499,6 +653,10 @@ export function applyPlanScope(doc, slate, { commitments = [], evidence = {}, on
     evidenceDetail.update(verdict);
     action.textContent = `Do this first: ${model.nextAction}`;
     for (const [index, row] of rows.entries()) row.update(model.moves[index]);
+    notice.update(staleness?.stale && filed && !noticeDismissed ? staleness : null);
+    clear.update(Boolean(storage) && model.committedCount > 0);
+    // A refusal changed nothing the store holds, so it writes nothing.
+    if (!refused) persist(model);
     if (status) {
       status.dataset.state = section.dataset.state;
       status.textContent = refused
@@ -512,10 +670,43 @@ export function applyPlanScope(doc, slate, { commitments = [], evidence = {}, on
     return model;
   };
 
-  const disclosure = moveDisclosure(doc, model, scopes, recompute);
+  // A moved lever supersedes the filed figures; a REFUSED entry does not, because
+  // nothing the plan is computed from changed and the last accepted answer still
+  // stands. That is the whole difference between the two branches here.
+  const leverMoved = (options = {}) => {
+    if (!options.refused) goLive();
+    return recompute(options);
+  };
+
+  const notice = stalenessNoticeNode(doc,
+    () => { goLive(); recompute(); },
+    // Keep as filed: the notice goes, the numbers stay, and NOTHING is written.
+    // Re-filing under today's fingerprints would make the next reload claim the
+    // plan matches an analysis it was never checked against.
+    () => { noticeDismissed = true; recompute(); });
+  // Clearing is the whole way out: the key goes, every retained scope goes with
+  // it, and the controls are put back to the state a first visit paints. A store
+  // emptied while the fields still hold the old answers would refile the plan on
+  // the next keystroke.
+  const clear = clearControl(doc, () => {
+    clearPlanRecord(storage);
+    goLive();
+    // In place, not replaced: every control below closes over its own scope
+    // object, and swapping the map entry would leave four fields still holding
+    // the answers this control just promised to clear.
+    for (const scope of scopes.values()) Object.assign(scope, emptyMoveScope());
+    for (const row of rows) row.reset();
+    recompute();
+  });
+
+  const disclosure = moveDisclosure(doc, model, scopes, leverMoved);
   const { rows } = disclosure;
 
   body.replaceChildren(
+    // First in the body, and outside every disclosure: a reader is told what the
+    // numbers below were filed against before they read one of them.
+    unreadable,
+    notice.node,
     figure.node,
     // Beside the total, before anything else is read: the number and how much of
     // it rests on a stated fact travel together or not at all.
@@ -523,6 +714,7 @@ export function applyPlanScope(doc, slate, { commitments = [], evidence = {}, on
     distinction,
     action,
     grade.node,
+    clear.node,
     evidenceDetail.node,
     disclosure.node,
   );

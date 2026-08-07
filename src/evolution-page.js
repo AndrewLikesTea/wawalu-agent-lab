@@ -104,6 +104,10 @@ import {
 // The plan beside that slate: which of those moves anyone has committed to, and
 // at what scope. Read-only, and today's honest answer is $0.
 import { applyPlanScope } from "/plan-scope-view.js";
+// …and the browser-local memory that brings it back after a reload (#1290),
+// plus the two fingerprints the staleness notice is decided by. Both are taken
+// over figures this page has already rendered; neither fetches anything.
+import { analysisFingerprint, rateCardFingerprint } from "/plan-scope-store.js";
 // The two evidence signals that plan lives or dies on and that the plan model
 // cannot see: a declared rate card, and an observed rather than invented period.
 import { planEvidence } from "/plan-evidence-grade.js";
@@ -2012,6 +2016,17 @@ function mountLocalFinopsImport() {
     // example's invented month.
     paintedPlanScope = applyPlanScope(document, paintedRoutingSlate, {
       evidence: planEvidence({ analysis: next, imported: !example }),
+      // The load path for the filed plan (#1290). The same total accessor every
+      // other store on this page uses, so a browser with site data disabled
+      // resolves to null here and the section is session-only rather than broken.
+      storage: browserFinopsWorkspaceStorage(),
+      // Compared, never fetched: one digest over the slate that was just
+      // painted, one over the card that priced it. A restored plan whose digests
+      // differ is shown as filed, with a notice naming which input moved.
+      fingerprints: {
+        analysis: analysisFingerprint(paintedRoutingSlate),
+        rateCard: rateCardFingerprint(next?.rateCard ?? null),
+      },
       // A moved lever changes what a shared link would carry (#1291), so the
       // share control is repainted from the plan that is now on screen rather
       // than from the empty one this page booted with. The link is rebuilt, its
