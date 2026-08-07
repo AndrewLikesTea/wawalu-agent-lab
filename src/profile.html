@@ -143,15 +143,27 @@
 
       <section class="workspace profile-workspace" aria-labelledby="grid-title">
         <div class="list-panel">
-          <!-- No count chip beside this heading. The identity line above states
-               the image-post count once, in a sentence that also covers the
-               empty case; a bare "0 image posts" here repeated it in a second
-               voice and left a reader unable to tell an empty name from a
-               feature that had failed to load. -->
+          <!-- This heading is the accessible name of the results section around
+               it, so it has to say whose posts are below it and how many. It
+               said "Image posts" in every state, which named the contents of
+               Social's feed just as well as this filtered view of it, and left
+               a reader who had just picked a display name with nothing on the
+               results to match against the name they picked.
+               No count chip beside it: the number belongs in the heading text,
+               where the region's own name carries it, rather than in a bare
+               figure a first-time visitor cannot tell from a broken feature.
+               profile.js writes it from the same list it draws the tiles from —
+               it must stay word-for-word with profileResultsHeading(), and a
+               test pins both. "Ari" is the pre-hydration render of the display
+               name the seed feed lands on; nothing has been counted in that
+               frame, so the heading names the posts without numbering them, the
+               way the picker says "Counting…" rather than "0".
+               The eyebrow is the page's one statement of the ordering; the
+               heading counts and does not repeat it. -->
           <div class="section-heading list-heading">
             <div>
               <p class="eyebrow">Newest first</p>
-              <h2 id="grid-title">Image posts</h2>
+              <h2 id="grid-title">Ari · image posts</h2>
             </div>
           </div>
           <!-- People is where a visitor browses images, so the route into the

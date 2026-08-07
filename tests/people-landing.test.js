@@ -89,6 +89,13 @@ const chipTexts = (page) => chips(page).map((chip) => textOf(chip));
 const selectedChip = (page) => chips(page).find((chip) => chip.getAttribute("aria-pressed") === "true") ?? null;
 const chipFor = (page, name) => chips(page).find((chip) => chip.dataset.author === name);
 
+// The results panel's heading, which is also that section's accessible name.
+const resultsHeading = (document) => textOf(document.querySelector("#grid-title"));
+
+// The tiles the grid actually drew. Counted, never assumed: the whole point of
+// the heading's number is that it agrees with this.
+const tileCount = (document) => document.querySelectorAll(".profile-tile").length;
+
 // The regions that speak to the reader on the page. The two polite live regions
 // inside the panel are left out on purpose: an announcement has no page around
 // it to borrow context from, so it may restate what the page already shows.
@@ -217,6 +224,37 @@ test("the counts on the picker are the rows the grid draws, name by name", async
   }
 });
 
+test("the results heading names the display name and counts the tiles under it", async () => {
+  // Walk every display name the picker offers, including the one with nothing to
+  // show, and read the heading's own number back against the tiles the grid drew
+  // in the same render. Nothing here is a literal that happens to match the
+  // fixture: the expected count is counted off the page.
+  const page = await people();
+  try {
+    const { document } = page;
+    for (const name of ["Ari", "Bea", "Zed"]) {
+      chipFor(page, name).click();
+      const heading = resultsHeading(document);
+      const stated = heading.match(/^(.+) · (\d+) (image posts?)$/);
+      assert.ok(stated, `the heading states no name and no count: ${heading}`);
+      assert.equal(stated[1], name, `the heading names someone other than the display name showing: ${heading}`);
+      const drawn = tileCount(document);
+      assert.equal(Number(stated[2]), drawn, `the heading claimed ${stated[2]} and the grid drew ${drawn}`);
+      // Social's own pluralisation: the singular only for exactly one.
+      assert.equal(stated[3], drawn === 1 ? "image post" : "image posts", heading);
+    }
+    // Zed's two, spelled out, so the phrasing itself is pinned and not only the
+    // arithmetic — and the ordering stays the eyebrow's to state, once.
+    chipFor(page, "Zed").click();
+    assert.equal(resultsHeading(document), "Zed · 2 image posts");
+    assert.equal(tileCount(document), 2);
+    const ordering = textOf(document.querySelector(".section-heading")).match(/newest first/gi) ?? [];
+    assert.equal(ordering.length, 1, "the results panel states the ordering more than once");
+  } finally {
+    page.restore();
+  }
+});
+
 test("a name whose posts are all gone says zero and offers the way to fill it", async () => {
   // Bea's one image post is removed from the live feed and shadowed out of the
   // seed by an id-matching text post, so this is a real, answered zero rather
@@ -237,18 +275,24 @@ test("a name whose posts are all gone says zero and offers the way to fill it", 
   }
 });
 
-test("an empty display name is stated once, not once per region", async () => {
+test("an empty display name is named in prose once and counted once", async () => {
   // A name the feed has never carried: total posts and image posts are both
-  // zero, which is the render that used to print "hasn't posted an image yet"
-  // in the header and "0 image posts" beside the results heading.
+  // zero. Each region says its own thing about that once — the identity line in
+  // prose, the results heading as the count of the panel it names — and no
+  // region repeats another's wording.
   const page = await people({ search: "?author=Nova" });
   try {
     const { document } = page;
     assert.equal(selectedChip(page)?.dataset.author, "Nova");
     const spoken = spokenRegions(document);
     const statements = spoken.flatMap((text) => text.match(/hasn’t posted an image yet|\d+ image posts?/g) ?? []);
-    assert.equal(statements.length, 1, `the page states the count more than once: ${statements.join(" / ")}`);
-    assert.equal(statements[0], "hasn’t posted an image yet");
+    assert.deepEqual(statements, ["hasn’t posted an image yet", "0 image posts"],
+      `the page states the same thing twice: ${statements.join(" / ")}`);
+    // An answered zero, in the same words a populated name gets, and it is the
+    // heading that carries it: a reader entering the results region is told
+    // whose posts are missing rather than that some feature is empty.
+    assert.equal(resultsHeading(document), "Nova · 0 image posts");
+    assert.equal(tileCount(document), 0);
     // Deleted, not hidden: no count chip survives anywhere in the panel.
     assert.equal(document.querySelectorAll("#profile-count").length, 0);
     assert.equal(document.querySelectorAll(".count").length, 0);
@@ -311,7 +355,7 @@ test("selecting with the pointer moves the heading, the list, the URL, and the s
   }
 });
 
-test("a picker whose posts have not landed says it is counting, never zero", async () => {
+test("a page whose posts have not landed says it is counting, and the heading states no number", async () => {
   // The frame the page really has: the seed has named the display names, the
   // live feed has not answered, and no count is settled. The old defect this
   // guards is the honest-looking one — printing "0 image posts" for a name the
@@ -335,6 +379,14 @@ test("a picker whose posts have not landed says it is counting, never zero", asy
     assert.equal(texts.filter((text) => /image posts?/.test(text)).length, 0);
     // The names and the pressed state are already right — only the counts wait.
     assert.deepEqual(picker.children.map((chip) => chip.getAttribute("aria-pressed")), ["false", "false", "true"]);
+    // The results heading waits with them. It names the display name that is
+    // showing, and the posts under it, and stops: the seed's tiles are on screen
+    // but the feed has not answered, so a number here — a zero above all — would
+    // be a count the page cannot yet stand behind, and would contradict the
+    // "Counting…" on the chip for the very same name.
+    const heading = resultsHeading(document);
+    assert.equal(heading, "Zed · image posts");
+    assert.doesNotMatch(heading, /\d/, `the heading numbered an uncounted feed: ${heading}`);
   } finally {
     globalThis.setInterval = savedInterval;
     page.restore();
