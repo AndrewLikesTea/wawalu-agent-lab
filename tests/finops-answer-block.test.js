@@ -385,6 +385,8 @@ test("every top-level section that existed before the answer block is still on t
     "finops-contact", "finops-proof-point", "finops-headline", "classifier-agreement",
     "disclosure-grade-comparisons", "graded-sample", "org-coaching", "spend-per-delivery",
     "department-evidence", "department-fix-pack", "monthly-department-decision",
+    // #1286: what a lead has committed out of that slate, stated before it.
+    "plan-scope",
     // #1137: the ranked routing changes behind the monthly decision above it.
     "routing-slate",
     // #1139: what last period's rules were worth once the next period landed.

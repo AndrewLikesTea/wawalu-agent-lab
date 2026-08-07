@@ -165,6 +165,9 @@ const REGIONS = Object.freeze({
   "department-evidence": REGION_CLASS.evidence,
   "department-fix-pack": REGION_CLASS.evidence,
   "monthly-department-decision": REGION_CLASS.evidence,
+  // #1286: what a lead has committed out of the slate below it, and at what
+  // scope. It is read before the ranking it is a plan over.
+  "plan-scope": REGION_CLASS.evidence,
   "routing-slate": REGION_CLASS.evidence,
   "routing-rule-score": REGION_CLASS.evidence,
   "disclosure-spend-and-recovery": REGION_CLASS.evidence,
@@ -208,7 +211,7 @@ const EVIDENCE_LAYERS = Object.freeze([
     question: "What do I do first, and what will tell me it worked?",
     regionIds: Object.freeze([
       "disclosure-next-step", "disclosure-journey", "finops-destinations",
-      "monthly-department-decision", "routing-slate", "routing-rule-score",
+      "monthly-department-decision", "plan-scope", "routing-slate", "routing-rule-score",
     ]),
   }),
   Object.freeze({
