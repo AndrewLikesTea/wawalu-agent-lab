@@ -154,8 +154,8 @@ function boundaryBlock(doc) {
   block.append(
     element(doc, "h3", "eyebrow", "What stays out"),
     element(doc, "p", "prompt-coaching-preview-lead",
-      "Coaching runs in this browser from bundled static client-side code. No request "
-      + "is sent for coaching and no persistence is implemented."),
+      "Grading happens in this browser tab. Nothing you paste is sent, saved, or read "
+      + "from an account, and each claim below names the way to check it."),
     list,
   );
   return block;

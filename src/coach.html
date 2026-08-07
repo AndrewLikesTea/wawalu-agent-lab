@@ -41,7 +41,7 @@
              to carry now sits beside the button it is a decision about, so a
              visitor reads it where they act on it rather than three screens
              above. -->
-        <p class="coach-hero-lead">Paste a prompt and see how it grades before you send it anywhere: a score, what that score is measured against, and the single change worth making first. The bundled synthetic example is already graded below, so you can read a real result before you paste anything.</p>
+        <p class="coach-hero-lead">Paste a prompt and see how it grades before you send it anywhere: a score, what that score is measured against, and the single change worth making first. An example is already graded below, so you can read a real result before you paste anything.</p>
         <!-- The companion surface, linked from the page that owns it rather than
              added to the site nav: it is a view of the same rubric across a
              history instead of a peer destination, and it answers the question
@@ -55,12 +55,11 @@
            before they have any file to import. It shares no state with the
            analysis: no seed, no workspace, no selection, no storage.
 
-           The analysis runs in the browser from bundled static client-side
-           code — the grading modules, the reading surface, the page entry and
-           the rubric JSON shipped beside them. No request is sent for coaching
-           and no persistence is implemented. The preview at the foot of this
-           section renders that boundary from the same contract module the
-           workflow runs on, so the claim can be checked rather than believed. -->
+           Grading happens in this browser tab, on the modules and the rubric
+           JSON that shipped with the page. No request is sent for coaching and
+           nothing is saved. The preview at the foot of this section renders
+           that boundary from the same contract module the workflow runs on, so
+           the claim can be checked rather than believed. -->
       <section class="prompt-coaching finops-panel" id="prompt-coaching" data-state="idle" data-expanded="false" aria-labelledby="prompt-coaching-question">
         <div class="section-heading">
           <p class="eyebrow">Grade a prompt</p>
@@ -93,7 +92,7 @@
              never be misread as a reading of the visitor's work. -->
         <section class="prompt-coach-sample" id="prompt-coach-sample" data-sample-state="static" aria-labelledby="prompt-coach-sample-title">
           <h3 class="eyebrow" id="prompt-coach-sample-title">Bundled synthetic example, already graded</h3>
-          <p class="prompt-coach-sample-static">The bundled synthetic example grades bundled synthetic text written for this page. It is not your text, not a customer&rsquo;s, and not anyone&rsquo;s real prompt. Grade your own prompt below and the bundled synthetic example steps aside for your result.</p>
+          <p class="prompt-coach-sample-static">This example is bundled synthetic text written for this page: not your text, not a customer&rsquo;s, and not anyone&rsquo;s real prompt. Grade your own prompt below and it steps aside for your result.</p>
           <div class="prompt-coach-sample-body" id="prompt-coach-sample-body">
             <p class="prompt-coach-sample-lead">Loading the graded bundled synthetic example. You can paste your own prompt below while it loads.</p>
           </div>
@@ -173,9 +172,9 @@
              for the grading as well. -->
         <details class="prompt-coaching-preview" id="prompt-coaching-preview">
           <summary id="prompt-coaching-preview-summary">What this reads, what it returns, and what stays out</summary>
-          <p class="prompt-coaching-preview-static">Coaching is computed in this browser from bundled static client-side code. No request is sent for coaching, no persistence is implemented, and no credential, customer record, or live integration is read.</p>
+          <p class="prompt-coaching-preview-static">Your prompt is graded in this browser tab, as the form above says. Nothing you paste is sent anywhere, saved anywhere, or read from an account &mdash; you have no account here, and this page asks for none.</p>
           <div class="prompt-coaching-preview-body" id="prompt-coaching-preview-body">
-            <p class="prompt-coaching-preview-lead">The bundled synthetic example, the field list, and the states this workflow can return are drawn here from the same rules that grade your prompt, when the page&rsquo;s scripts load.</p>
+            <p class="prompt-coaching-preview-lead">What the grading reads, what it hands back, and what it never touches &mdash; shown here in full rather than promised.</p>
           </div>
         </details>
 
@@ -185,9 +184,9 @@
              by default, and it never reads the field. -->
         <details class="coaching-specimen" id="coaching-specimen">
           <summary id="coaching-specimen-summary">What a result looks like in every state</summary>
-          <p class="coaching-specimen-static">Every state reads in the same order: the answer first, what it is measured against second, exactly one move third, and the evidence behind a disclosure. Some states are drawn more than once, and one case is the wait before an answer arrives. Every case below is built from the bundled synthetic example — nothing you type is read, rendered, or measured here.</p>
+          <p class="coaching-specimen-static">This is every result the coach can return, including the wait before a result arrives. Each one reads in the same order: the answer first, what it is measured against second, exactly one move third, and the evidence behind a disclosure. Every one here is graded from the example already graded above &mdash; nothing you type is read or measured here.</p>
           <div class="coaching-specimen-body" id="coaching-specimen-body">
-            <p class="coaching-specimen-lead">The states are drawn from the bundled example when this page loads.</p>
+            <p class="coaching-specimen-lead">Loading the examples.</p>
           </div>
         </details>
       </section>

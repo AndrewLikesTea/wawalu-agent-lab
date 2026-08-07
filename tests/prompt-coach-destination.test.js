@@ -263,9 +263,12 @@ test("the destination reads as one page about one thing", async () => {
   // visitor to skip all four.
   assert.equal(document.querySelectorAll(".prompt-coaching-privacy").length, 1);
   // The example is named the same way the rest of the site names one —
-  // "bundled synthetic example" — and says what it is made of in the same breath.
+  // "bundled synthetic example" — in the heading, and the copy under it says
+  // what the example is made of without saying that name a second time.
+  assert.match(textOf(byId(document, "prompt-coach-sample-title")), /Bundled synthetic example/);
   const sample = textOf(document.querySelector(".prompt-coach-sample-static"));
-  assert.match(sample, /bundled synthetic example/);
+  assert.doesNotMatch(sample, /bundled synthetic example/i,
+    "the heading already names it; the sentence under it refers back instead");
   assert.match(sample, /bundled synthetic text/);
 
   // One purpose statement, at the top: what a visitor does here and what comes
@@ -331,4 +334,27 @@ test("one name per concept: the example, the grade button, and the clear button"
   // it, rather than by a name for the region it clears.
   assert.equal(textOf(byId(document, "prompt-coaching-clear")), "Clear and start over");
   assert.doesNotMatch(text, /clear the panel/i);
+});
+
+test("the page says each thing once: the example's name, and the privacy promise", async () => {
+  const { document } = await openCoach();
+  const text = textOf(document.querySelector("main"));
+
+  // Named where a reader needs the name — over the example, on the button that
+  // grades it, and on the line saying whose grade it is — and referred to as
+  // "the example" everywhere else. A name in every paragraph stops being read.
+  assert.ok((text.match(/bundled synthetic example/gi) ?? []).length <= 3,
+    "the example is named more often than a reader needs it named");
+
+  // The promise is made once, in full, beside the field it is a promise about.
+  // Later sections may point back at it; none of them restates the list.
+  assert.equal(text.split("no sign-in, no upload, no storage, and no request to a model").length - 1, 1,
+    "a promise repeated down the page teaches a reader to skip every copy of it");
+
+  // The two disclosures describe what the reader is looking at. How the page is
+  // built is not a thing they can check and not a thing they came to read.
+  for (const id of ["prompt-coaching-preview", "coaching-specimen"]) {
+    assert.doesNotMatch(textOf(byId(document, id)), /persistence is implemented|client-side code/i,
+      `${id} narrates the implementation instead of the reader's result`);
+  }
 });

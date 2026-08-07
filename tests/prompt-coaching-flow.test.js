@@ -370,9 +370,10 @@ test("the boundary is stated in the markup, before any script runs", async () =>
     const preview = byId(document, "prompt-coaching-preview");
     assert.ok(preview, "the preview must ship in the page markup");
     const claim = textOf(preview.querySelector(".prompt-coaching-preview-static"));
-    assert.match(claim, /bundled static client-side code/);
-    assert.match(claim, /No request is sent for coaching/);
-    assert.match(claim, /no persistence is implemented/);
+    // Stated as the reader's risk rather than as our implementation: where the
+    // grading happens, and what does not happen to what they pasted.
+    assert.match(claim, /graded in this browser tab/);
+    assert.match(claim, /Nothing you paste is sent anywhere, saved anywhere, or read from an account/);
     // A privacy claim a reader can only see once JavaScript succeeds is a claim
     // they cannot rely on, so this one does not wait for the entry module. And
     // it says how the analysis runs rather than how many files a build emits:
