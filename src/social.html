@@ -109,6 +109,37 @@
           <form id="post-form" aria-describedby="post-form-hint">
             <p class="hint" id="post-form-hint">Write the caption. Add an image if you want one — a post with an image also appears on People, under the display name you publish it with.</p>
 
+            <div class="field field-wide">
+              <!-- First, because the hint above says "Write the caption. Add an
+                   image if you want one." and the form used to open with the
+                   image field, so the sentence and the fields disagreed about
+                   which one a post cannot exist without. Source order, not a CSS
+                   reordering: the tab sequence has to agree too, so a keyboard
+                   reader meets the caption before the file picker.
+                   Until now this was also the only field in this form whose
+                   label said nothing about whether it had to be filled in.
+                   Image, Image description and Display name all carry a
+                   parenthetical marker, so a reader scanning the labels read the
+                   unmarked one as the optional one. The marker is the same span,
+                   in the same place, with the same classes as the Image
+                   description marker, so both required answers are told the same
+                   way.
+                   The hint states the refusal this page actually performs: the
+                   textarea is `required` and social.js's submit handler returns
+                   at form.reportValidity() before anything is created, which in
+                   a browser is the native message on this field and no post.
+                   Named by the textarea's own aria-describedby, ahead of the
+                   counter, the way Display name names its own hint. -->
+              <label for="post-body">Caption <span class="label-optional label-required">(required)</span></label>
+              <textarea id="post-body" name="body" rows="4" maxlength="280" required
+                aria-describedby="post-body-hint post-counter-label post-counter"></textarea>
+              <span class="hint" id="post-body-hint">Publish post stops on an empty caption — your browser asks you to fill this in, and nothing is published.</span>
+              <p class="counter-row">
+                <span id="post-counter-label">Characters remaining:</span>
+                <span id="post-counter" aria-live="polite" aria-atomic="true">280</span>
+              </p>
+            </div>
+
             <fieldset class="media-picker">
               <legend>Image <span class="label-optional">(optional)</span></legend>
               <div class="media-source-actions">
@@ -198,31 +229,6 @@
                    The publish consequence at the button stays the one place the
                    page says the post is public and permanent. -->
               <p class="hint" id="post-author-identity">People groups image posts by display name, so this is the name yours appear under. A display name is not a signed-in user — nobody owns or verifies one, and anyone can publish under any name.</p>
-            </div>
-
-            <div class="field field-wide">
-              <!-- The one field a post cannot exist without, and until now the
-                   only one in this form whose label said nothing about whether
-                   it had to be filled in. Image, Image description and Display
-                   name all carry a parenthetical marker, so a reader scanning
-                   the labels read the unmarked one as the optional one. The
-                   marker is the same span, in the same place, with the same
-                   classes as the Image description marker, so both required
-                   answers are told the same way.
-                   The hint states the refusal this page actually performs: the
-                   textarea is `required` and social.js's submit handler returns
-                   at form.reportValidity() before anything is created, which in
-                   a browser is the native message on this field and no post.
-                   Named by the textarea's own aria-describedby, ahead of the
-                   counter, the way Display name names its own hint. -->
-              <label for="post-body">Caption <span class="label-optional label-required">(required)</span></label>
-              <textarea id="post-body" name="body" rows="4" maxlength="280" required
-                aria-describedby="post-body-hint post-counter-label post-counter"></textarea>
-              <span class="hint" id="post-body-hint">Publish post stops on an empty caption — your browser asks you to fill this in, and nothing is published.</span>
-              <p class="counter-row">
-                <span id="post-counter-label">Characters remaining:</span>
-                <span id="post-counter" aria-live="polite" aria-atomic="true">280</span>
-              </p>
             </div>
 
             <!-- The one place this sentence is said, at the moment it costs

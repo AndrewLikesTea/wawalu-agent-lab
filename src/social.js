@@ -221,6 +221,19 @@ export const REVEAL_CONTROL_LABEL = "Clear filters and show this post";
 export const NO_IMAGE_NOTE = "This post carries no image, so it appears on Social only.";
 export const PUBLISH_FAILED_NOTE = "Your caption, image, and image description are still in the composer, exactly as you left them.";
 
+// The label said "(required with an image)" and nothing said what the
+// requirement does, so the one refusal that is entirely this page's own — the
+// browser has no opinion about this field — happened without being announced.
+// Written in the caption hint's sentence, clause for clause: what stops, what is
+// asked of you, and that nothing is published. The two now read alike, so a
+// reader who has met one already knows the shape of the other.
+//
+// Only the empty case reaches the notice. An over-long description has been
+// announcing itself the whole time it was being typed — the field's own counter
+// is a live region counting down past zero — so repeating it here would be the
+// second telling of news the reader already has.
+export const IMAGE_DESCRIPTION_REFUSAL_NOTE = "Publish post stops on an empty image description — this form asks you to describe the image, and nothing is published.";
+
 export function normalizeApiPosts(payload) {
   if (!Array.isArray(payload?.posts)) return [];
   return payload.posts.flatMap((post) => {
@@ -723,6 +736,7 @@ export function mountSocialFeed(root, options = {}) {
   const form = root.querySelector("#post-form");
   const bodyInput = root.querySelector("#post-body");
   const authorInput = root.querySelector("#post-author");
+  const descriptionInput = root.querySelector("#post-image-alt");
   const counter = root.querySelector("#post-counter");
   const notice = root.querySelector("#social-notice");
   const submit = root.querySelector("#post-submit") ?? form?.querySelector("button[type=submit]");
@@ -984,7 +998,19 @@ export function mountSocialFeed(root, options = {}) {
       // here means no post is created and nothing else is touched: the caption,
       // the byline, and the encoded image all stay exactly where the poster left
       // them, the image in the same composer store the success path reads from.
-      if (description.validate(Boolean(media))) return;
+      //
+      // The refusal is said twice on purpose, in the two places a reader could
+      // be: on the field, which is where validate() marks and focuses, and in
+      // the composer's own status region, which is where every other outcome of
+      // pressing Publish post is already announced. Same region, same failure
+      // rendering as a save that did not land — no second live region, no colour
+      // carrying the news, no new rule in styles.css. validate() runs first, so
+      // focus is already on the field to fix and writing the notice does not
+      // move it.
+      if (description.validate(Boolean(media))) {
+        if (!String(descriptionInput?.value ?? "").trim()) showFailure(IMAGE_DESCRIPTION_REFUSAL_NOTE);
+        return;
+      }
 
       try {
         setSubmitting(true);

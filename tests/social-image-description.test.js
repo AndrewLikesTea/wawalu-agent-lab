@@ -16,6 +16,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   IMAGE_DESCRIPTION_ERROR_ID,
+  IMAGE_DESCRIPTION_REFUSAL_NOTE,
   MAX_IMAGE_ALT_LENGTH,
   imageDescriptionProblem,
   mountImageDescription,
@@ -29,7 +30,7 @@ import {
   createMemorySocialStores,
   handleSocialMediaRequest,
 } from "../src/social-posts-api.js";
-import { DomEvent, loadPage, textOf } from "./support/browser.js";
+import { DomEvent, loadPage, tabSequence, textOf } from "./support/browser.js";
 import { byClass, createElement, installDocument, tags } from "./support/dom.js";
 
 const PNG_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
@@ -87,6 +88,38 @@ const type = (input, value) => {
   input.value = value;
   input.dispatchEvent(new DomEvent("input", { bubbles: true }));
 };
+
+// Ancestry by walk: the harness throws on a descendant selector, so "is this
+// node inside the composer?" is answered by climbing to it.
+const insideForm = (node) => {
+  for (let cursor = node; cursor; cursor = cursor.parentNode) if (cursor.id === "post-form") return true;
+  return false;
+};
+
+test("the caption is the composer's first field, in source order and in the tab sequence", async (t) => {
+  const html = await import("node:fs/promises")
+    .then(({ readFile }) => readFile(new URL("../src/social.html", import.meta.url), "utf8"));
+  // The hint above the fields has always read "Write the caption. Add an image
+  // if you want one." The fields now say it in the same order: the one a post
+  // cannot exist without, then the optional one, then what the image needs.
+  assert.ok(html.indexOf('id="post-body"') < html.indexOf('id="post-image"'),
+    "the form authors the optional image field ahead of the caption it requires");
+  assert.ok(html.indexOf('id="post-image"') < html.indexOf('id="remove-image"'));
+  assert.ok(html.indexOf('id="remove-image"') < html.indexOf('id="post-image-alt"'));
+  assert.ok(html.indexOf('id="post-image-alt"') < html.indexOf('id="post-author"'));
+
+  const harness = await composer(t);
+  // Source order, not a visual reordering: nothing here carries a tabindex, so
+  // what the markup says is what a keyboard walks.
+  assert.equal(harness.document.querySelector("#post-body").getAttribute("tabindex"), null);
+  assert.equal(harness.document.querySelector("#post-image").getAttribute("tabindex"), null);
+
+  const stops = tabSequence(harness.document).filter(insideForm).map((node) => node.id);
+  assert.equal(stops[0], "post-body", "the composer's first tab stop is not the caption");
+  assert.equal(stops[1], "post-image", "something focusable sits between the caption and Upload image");
+  assert.ok(stops.indexOf("post-image-alt") > stops.indexOf("post-image"));
+  assert.ok(stops.indexOf("post-author") > stops.indexOf("post-image-alt"));
+});
 
 test("the description requirement is stated only once there is an image to describe", async (t) => {
   const harness = await composer(t, { attached: false });
@@ -154,6 +187,64 @@ test("publishing an image with a blank description creates nothing and keeps eve
   assert.equal(harness.media?.data, PNG_BASE64, "the bytes never left the store the success path reads");
 });
 
+test("the missing-description refusal is announced where every other publish outcome is", async (t) => {
+  const harness = await composer(t);
+  harness.fill({ body: "Ring landed on every control.", author: "Mina", description: "   " });
+
+  publish(harness.document);
+
+  assert.equal(harness.published.length, 0, "the refusal announced a post that was published anyway");
+
+  const notice = harness.document.querySelector("#social-notice");
+  // The composer's own status region, reused: a confirmation, a failed save, and
+  // now this refusal all arrive in the same place, so nothing new was added for
+  // a reader to be listening to.
+  assert.equal(notice.getAttribute("role"), "status");
+  assert.equal(notice.getAttribute("aria-live"), "polite");
+  assert.equal(harness.document.querySelectorAll("#social-notice").length, 1);
+  assert.equal(notice.hidden, false);
+  assert.equal(notice.classList.contains("is-success"), false);
+  // Nothing folds the announcement away: text found inside a closed disclosure
+  // is still text this harness can read, and a live region behind one is silent.
+  for (let cursor = notice; cursor; cursor = cursor.parentNode) {
+    assert.notEqual(cursor.tagName, "DETAILS", "the announcement sits inside a disclosure");
+  }
+
+  const said = textOf(notice);
+  assert.ok(said.includes(IMAGE_DESCRIPTION_REFUSAL_NOTE), `the refusal was not said: ${said}`);
+  assert.match(said, /image description/, "the message does not name the field to fill in");
+  // The message is the whole signal — the word "Not published" is in the chip's
+  // own label, not in a colour behind it.
+  assert.match(said, /Not published/);
+
+  // It reads like the caption's refusal because it is built on the same clauses:
+  // what stops, what is asked of you, and that nothing is published.
+  const captionRefusal = textOf(harness.document.querySelector("#post-body-hint"));
+  for (const sentence of [captionRefusal, IMAGE_DESCRIPTION_REFUSAL_NOTE]) {
+    assert.match(sentence, /^Publish post stops on an /);
+    assert.match(sentence, /—/);
+    assert.match(sentence, /, and nothing is published\.$/);
+  }
+
+  // Announced, and then the reader is put where the fix is.
+  assert.equal(harness.document.activeElement?.id, "post-image-alt");
+});
+
+// Two refusals, one at a time. The caption is `required`, so the browser answers
+// first and the submit handler returns before the description is consulted.
+test("an empty caption and a described-nothing image are not both reported", async (t) => {
+  const harness = await composer(t);
+  harness.fill({ body: "   ", author: "Mina", description: "" });
+
+  publish(harness.document);
+
+  assert.equal(harness.published.length, 0);
+  assert.equal(harness.document.querySelector("#social-notice").hidden, true,
+    "the description refusal spoke over the caption's native one");
+  assert.equal(harness.document.querySelector(`#${IMAGE_DESCRIPTION_ERROR_ID}`).hidden, true);
+  assert.equal(harness.document.querySelector("#post-image-alt").getAttribute("aria-invalid"), null);
+});
+
 test("an over-length description is refused through the same path as a missing one", async (t) => {
   const harness = await composer(t);
   const tooLong = "d".repeat(MAX_IMAGE_ALT_LENGTH + 12);
@@ -190,6 +281,11 @@ test("a described image publishes, and the refusal state does not survive the fi
   assert.equal(input.getAttribute("aria-invalid"), null, "a valid field is not left marked invalid");
   assert.equal(input.getAttribute("autofocus"), null);
   assert.equal(harness.document.querySelector(`#${IMAGE_DESCRIPTION_ERROR_ID}`).hidden, true);
+  // The refusal was replaced by the outcome that actually happened, not left
+  // standing beside it.
+  const notice = harness.document.querySelector("#social-notice");
+  assert.equal(notice.classList.contains("is-success"), true);
+  assert.ok(!textOf(notice).includes(IMAGE_DESCRIPTION_REFUSAL_NOTE), "a published post still says it was refused");
 });
 
 // The other half of what the label now says out loud. The refusal above is the
@@ -208,6 +304,10 @@ test("a caption-only post publishes with an empty description", async (t) => {
   const input = harness.document.querySelector("#post-image-alt");
   assert.equal(input.getAttribute("aria-invalid"), null, "an empty description was marked invalid with no image");
   assert.equal(harness.document.querySelector(`#${IMAGE_DESCRIPTION_ERROR_ID}`).hidden, true);
+  const notice = harness.document.querySelector("#social-notice");
+  assert.equal(notice.classList.contains("is-success"), true, "a published caption was not confirmed");
+  assert.ok(!textOf(notice).includes(IMAGE_DESCRIPTION_REFUSAL_NOTE),
+    "a post with nothing to describe was told to describe something");
 });
 
 test("the description counter is the caption's counter, pointed at this field's budget", async (t) => {
