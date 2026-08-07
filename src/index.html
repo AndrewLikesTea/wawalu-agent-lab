@@ -196,14 +196,20 @@
            whatever public GitHub returns to this reader's browser, through the
            same module the Agent observatory counts with, so the two pages given
            one response show one number.
-           WHEN GITHUB DOES NOT ANSWER the two sentences below are what stay:
-           the way it failed, in plain terms, and then what the missing figure
-           would have counted and where a reader may count it themselves — an
-           absence alone is not something to leave the page with. Neither
-           sentence holds anything that resembles a figure. There
-           is no snapshot and no last-known value on this page to fall back to,
-           which is also why the shipped state is the unavailable one — a slow
-           response must not flash a placeholder digit a reader could quote.
+           WHEN GITHUB DOES NOT ANSWER and this browser has counted before, the
+           block shows that earlier count again, with the sentence saying public
+           GitHub did not answer and a time element carrying the moment it was
+           taken. A retained number is never shown undated and never shown
+           without those words, and nothing about it is behind a disclosure or a
+           title attribute.
+           WHEN GITHUB DOES NOT ANSWER AND NOTHING WAS EVER COUNTED the two
+           sentences below are what stay: the way it failed, in plain terms, and
+           then what the missing figure would have counted and where a reader may
+           count it themselves — an absence alone is not something to leave the
+           page with. Neither sentence holds anything that resembles a figure.
+           That is also the state this document ships in, because a figure
+           written here would be one nothing had counted and a slow response must
+           not flash a placeholder digit a reader could quote.
            The verification links are painted from the URLs the count is
            actually requested from, so they cannot drift from it. -->
       <section class="hero-proof" id="public-merges" data-state="unavailable" aria-labelledby="public-merges-title">
@@ -214,7 +220,7 @@
           <p>This block counts merged pull requests in AndrewLikesTea/paint-lab and AndrewLikesTea/wawalu-agent-lab, and links the public GitHub event feeds it counts them from.</p>
         </div>
         <ul id="public-merges-sources"></ul>
-        <p class="hero-proof-boundary"><strong>The one counted figure on this page</strong> <span>Every other number here belongs to a bundled synthetic example, computed from invented data for an invented company. This one is counted from public GitHub activity when the page loads, and nothing is shown when GitHub does not answer.</span></p>
+        <p class="hero-proof-boundary"><strong>The one counted figure on this page</strong> <span>Every other number here belongs to a bundled synthetic example, computed from invented data for an invented company. This one is counted from public GitHub activity when the page loads. When GitHub does not answer, the last count this browser took is shown with the time it was taken, and nothing at all is shown if there has never been one.</span></p>
       </section>
 
       <!-- The one destination on this site a visitor can finish something on

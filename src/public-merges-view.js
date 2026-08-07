@@ -7,14 +7,23 @@
 // GitHub response the two pages therefore show one number, and neither can be
 // corrected without the other.
 //
-// WHAT THIS BLOCK MAY NOT DO. It may not remember. There is no snapshot, no
-// cached last value, and no recorded fallback on this page: when GitHub does not
-// answer, the block says which way it failed and shows nothing that looks like a
-// figure — no zero, no dash, no greyed digit waiting to be replaced. That is
-// also the state the document ships in, so a slow response cannot flash a
-// placeholder a reader could quote. The observatory can show a dated recorded
-// count in the same situation; that number is a durable record with its date
-// rendered beside it, and this page carries no such record to render.
+// WHAT THIS BLOCK MAY NOT DO. It may not invent. The request is unauthenticated
+// and routinely rate-limited, so the block used to be blank exactly when a
+// reader arrived — the one figure the page offers as checkable, missing. It now
+// remembers, through ./merged-count-retention.js: a count public GitHub actually
+// returned is kept with the moment it was taken, and shown again, dated and
+// named as an earlier count, when the next request does not answer. That is the
+// only number this block can show without a live response. There is no seed, no
+// default, and no constant: a browser that has never had an answer from GitHub
+// still gets the honest empty sentence, and the document still ships in that
+// state so a slow response cannot flash a placeholder digit.
+//
+// NO FIGURE IS EVER UNDATED HERE. A live count carries the response time; a
+// retained one carries the sentence saying it is not live and the date it was
+// taken. Both are plain text in the status region — nothing about a stale number
+// is behind a disclosure, a tooltip, or a title attribute — and the feed links
+// below survive every state, because the state with no live number is the one
+// where a reader most needs to go and count it themselves.
 import {
   COUNTED_SUBJECT_SENTENCE,
   EVENTS_URLS,
@@ -25,6 +34,14 @@ import {
   mergedCountUnit,
   unavailableSentence,
 } from "./public-merges.js";
+import {
+  RETAINED_LEAD,
+  browserCountStorage,
+  formatRetainedClock,
+  formatRetainedDate,
+  readRetainedCount,
+  writeRetainedCount,
+} from "./merged-count-retention.js";
 
 function appendText(parent, tag, text) {
   const node = document.createElement(tag);
@@ -33,28 +50,63 @@ function appendText(parent, tag, text) {
   return node;
 }
 
+/** The digit and the words for it, the two of them always rendered together. */
+function appendCount(value, count) {
+  appendText(value, "strong", String(count));
+  appendText(value, "span", ` ${mergedCountUnit(count)}`);
+}
+
+/**
+ * When the figure above was taken, as text a reader reads and a machine parses.
+ *
+ * The time element carries the whole instant in its datetime, and the words
+ * beside it are the same ISO date and UTC clock the observatory prints, so one
+ * count read on two pages is never two different-looking stamps.
+ */
+function appendStamp(source, date) {
+  const stamp = appendText(source, "time", formatRetainedDate(date));
+  stamp.dateTime = date.toISOString();
+  appendText(source, "span", ` at ${formatRetainedClock(date)}.`);
+  return stamp;
+}
+
+/** A record is only a figure when it carries a whole count AND its moment. */
+const datedCount = (record) => (record
+  && Number.isInteger(record.count) && record.count >= 0
+  && record.takenAt instanceof Date && !Number.isNaN(record.takenAt.getTime())
+  ? record : null);
+
 /**
  * Paint the figure, or the sentence that stands in for it.
  *
- * A result is only a number when it says so and carries a whole non-negative
- * count. Anything else — a failure, a refusal, a shape this function does not
- * recognise — lands on the reason, because the one thing this block must never
- * do is render a digit nothing returned.
+ * A result is only a live number when it says so, carries a whole non-negative
+ * count, AND carries the time the response arrived: an undated figure is one a
+ * reader cannot check, so it is not one this block shows. A failure falls to
+ * `result.retained` — the last count this browser saw GitHub return — and to the
+ * reason only when there is no such count. Anything else, including a shape this
+ * function does not recognise, lands on the reason, because the one thing this
+ * block must never do is render a digit nothing returned.
  */
 export function renderPublicMerges(root = document, result = {}) {
   const section = root.querySelector("#public-merges");
   const readout = root.querySelector("#public-merges-readout");
   if (!section || !readout) return null;
-  const counted = result?.ok === true && Number.isInteger(result.count) && result.count >= 0;
-  section.dataset.state = counted ? "live" : "unavailable";
+  const live = result?.ok === true ? datedCount({ count: result.count, takenAt: result.asOf }) : null;
+  const retained = live ? null : datedCount(result?.retained);
+  section.dataset.state = live ? "live" : retained ? "retained" : "unavailable";
 
   const value = document.createElement("p");
-  if (counted) {
-    appendText(value, "strong", String(result.count));
-    appendText(value, "span", ` ${mergedCountUnit(result.count)}`);
+  if (live || retained) {
+    const shown = live ?? retained;
+    appendCount(value, shown.count);
     const source = document.createElement("p");
-    source.textContent = `Counted from public GitHub activity in ${SOURCE_REPOSITORIES.join(" and ")}, `
-      + "each time this page is opened.";
+    // Two sentences a reader can tell apart without a colour: a live count says
+    // where it was counted from, and a retained one says that GitHub did not
+    // answer and that this number is the earlier one. Each ends in its own date.
+    appendText(source, "span", live
+      ? `Counted from public GitHub activity in ${SOURCE_REPOSITORIES.join(" and ")}, as of `
+      : RETAINED_LEAD);
+    appendStamp(source, shown.takenAt);
     readout.replaceChildren(value, source);
   } else {
     // Two sentences, because one of them is not enough to leave with. The first
@@ -90,11 +142,23 @@ export function renderPublicMergeSources(root = document) {
   return list;
 }
 
-/** The links first, then the count once GitHub has answered either way. */
-export async function loadPublicMerges(root = document, fetcher = fetch) {
+/**
+ * The links first, then whatever this browser already knows, then the count once
+ * GitHub has answered either way.
+ *
+ * The retained figure is painted before the request resolves on purpose: a
+ * rate-limited reader gets a dated number to read while the live request is
+ * still in flight, rather than a sentence that is about to be replaced by the
+ * same sentence. A live response then overwrites it and is written back, so the
+ * next visit starts from this response rather than an older one.
+ */
+export async function loadPublicMerges(root = document, fetcher = fetch, storage = browserCountStorage()) {
   renderPublicMergeSources(root);
+  const retained = readRetainedCount(storage);
+  if (retained) renderPublicMerges(root, { ok: false, reason: UNAVAILABLE_REASONS.pending, retained });
   const result = await loadMergedCount(fetcher);
-  renderPublicMerges(root, result);
+  if (result.ok) writeRetainedCount(storage, result);
+  renderPublicMerges(root, { ...result, retained });
   return result;
 }
 

@@ -52,13 +52,17 @@
                number written here would be a number nothing had counted.
 
                The request is unauthenticated and is routinely rate-limited, so
-               it is not the only source of a figure. agents.js reads the last
-               recorded count from /merged-pull-request-count.json first — a
-               same-origin file no rate limit can touch — and paints it, dated,
-               while GitHub is still deciding. A live response replaces it. The
-               undated number is always the live one. -->
+               it is not the only source of a figure. agents.js reads two dated
+               counts before GitHub answers: the one this browser retained the
+               last time GitHub did answer, and the last recorded count in
+               /merged-pull-request-count.json — a same-origin file no rate limit
+               can touch. Whichever was taken later is painted, dated, while
+               GitHub is still deciding. A live response replaces it and is
+               retained in turn. The undated number is always the live one. -->
           <!-- Only scripts/record-merged-count.mjs writes that file, and only
-               from a response GitHub actually returned. -->
+               from a response GitHub actually returned. The retained count is
+               written only in the browser, by merged-count-retention.js, and
+               only from a response that browser received. -->
 
           <section class="merged-figure" id="merged-figure" data-state="loading" aria-labelledby="merged-figure-title">
             <h2 class="merged-figure-title" id="merged-figure-title">Merged pull requests</h2>

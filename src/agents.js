@@ -19,6 +19,18 @@ import {
   mergedCountUnit,
   readPublicEvents,
 } from "./public-merges.js";
+// What a browser remembers of that number between visits, shared with the home
+// page so one response cannot be remembered two ways.
+import {
+  RETAINED_LEAD,
+  browserCountStorage,
+  formatRetainedClock,
+  formatRetainedDate,
+  mostRecentRecord,
+  parseCountRecord,
+  readRetainedCount,
+  writeRetainedCount,
+} from "./merged-count-retention.js";
 
 export { EVENTS_URLS, SOURCE_REPOSITORIES, responseTimestamp } from "./public-merges.js";
 const REFRESH_MS = 90_000;
@@ -498,14 +510,18 @@ export const CONNECTION_LABELS = Object.freeze({
 //
 //   live         GitHub answered. This response's count, and no recorded date.
 //   recorded     GitHub did not answer. The last count that was taken from it,
-//                with the date it was taken shown as text beside the number.
+//                with the date and time it was taken shown as text beside the
+//                number, and the words saying it is not a live one.
 //   unavailable  GitHub did not answer and no count has ever been recorded. One
 //                sentence, no digit.
 //
-// The recorded count is a durable record, not a remembered render: it is read
-// from RECORDED_COUNT_URL, and only scripts/record-merged-count.mjs writes it,
-// only from a response GitHub actually returned. A stale number is therefore
-// always dated, and an undated number can only ever be a live one.
+// A recorded count comes from one of two places, and is a response either way,
+// never a remembered render: the published record at RECORDED_COUNT_URL, which
+// only scripts/record-merged-count.mjs writes and only from a response GitHub
+// returned, and this browser's own retained count, which merged-count-retention
+// .js writes and only from a response this browser received. Whichever was taken
+// later is the one shown. A stale number is therefore always dated, and an
+// undated number can only ever be a live one.
 //
 // It says "merged pull requests" because the response can actually tell a merge
 // apart: a PullRequestEvent closed with `pull_request.merged === true` is a
@@ -533,11 +549,12 @@ export const liveGithubEvents = (records = []) => liveEvents(records, SYNTHETIC_
 export const countMergedPullRequests = (records = []) => countMerged(records, SYNTHETIC_RECORDS);
 
 const formatClockTime = (date) => new Intl.DateTimeFormat(undefined, { timeStyle: "short" }).format(date);
-// The recorded count's date, as the calendar date it was taken on. ISO-8601,
-// not a locale format: it is the same string the record itself holds, so what a
-// reader sees and what the file says cannot drift, and it stays unambiguous for
-// a reader who is not in the writer's locale.
-export const formatRecordedDate = (date) => date.toISOString().slice(0, 10);
+// The recorded count's date, as the calendar date it was taken on, and the clock
+// it was taken at. ISO-8601 and UTC rather than a locale format: they are the
+// same strings the record itself holds, so what a reader sees and what the
+// record says cannot drift, and they stay unambiguous for a reader who is not in
+// the writer's locale. Both surfaces print them from the shared module.
+export const formatRecordedDate = formatRetainedDate;
 
 /**
  * A recorded count, or `null` when nothing has ever been recorded.
@@ -547,16 +564,10 @@ export const formatRecordedDate = (date) => date.toISOString().slice(0, 10);
  * two must not collapse into each other. A record is only usable when it
  * carries both halves — a whole non-negative count, and the timestamp that
  * count was taken at — because a number this page cannot date is a number it
- * may not show.
+ * may not show. The published file and this browser's retained count are held to
+ * that one rule, in ./merged-count-retention.js, rather than to two.
  */
-export function parseRecordedCount(payload) {
-  const count = payload?.count;
-  const takenAt = payload?.takenAt;
-  if (!Number.isInteger(count) || count < 0 || typeof takenAt !== "string") return null;
-  const taken = new Date(takenAt);
-  if (Number.isNaN(taken.getTime())) return null;
-  return { count, takenAt: taken };
-}
+export const parseRecordedCount = parseCountRecord;
 
 /**
  * Read the published record. Never throws and never rejects: this is the path
@@ -641,10 +652,13 @@ export function renderMergedFigure(root = document, state = "loading",
     time.dateTime = asOf.toISOString();
   } else if (name === "recorded") {
     appendCount(value, count);
-    appendText(source, "span", "", "Public GitHub activity did not answer just now, so this is the last count "
-      + `taken from ${SOURCE_REPOSITORIES.join(" and ")}, as of `);
+    appendText(source, "span", "", RETAINED_LEAD);
     const date = appendText(source, "time", "merged-figure-recorded-date", formatRecordedDate(takenAt));
     date.dateTime = takenAt.toISOString();
+    // The clock as well as the calendar day: a count retained ten minutes ago
+    // and one recorded three weeks ago are both dated, and a reader can tell
+    // which is which without opening anything.
+    appendText(source, "span", "", ` at ${formatRetainedClock(takenAt)}.`);
   } else {
     value.textContent = MERGED_FIGURE_COPY[name].value;
     source.textContent = MERGED_FIGURE_COPY[name].source;
@@ -682,7 +696,7 @@ function paintRecordedFigure(root, record) {
   return renderMergedFigure(root, "recorded", record);
 }
 
-export async function loadActivity(root = document, fetcher = fetch) {
+export async function loadActivity(root = document, fetcher = fetch, storage = browserCountStorage()) {
   const list = root.querySelector("#activity-list");
   const signal = root.querySelector(".signal-card");
   const label = root.querySelector("#connection-label");
@@ -709,10 +723,15 @@ export async function loadActivity(root = document, fetcher = fetch) {
   // rows, or the status card, however slowly it answers. `recorded` is therefore
   // read as "the record, if it is here yet", and the paint below catches up the
   // case where it was not.
-  let recorded = null;
+  // This browser's own retained count needs no request at all, so it is read
+  // first and painted first: a reader who has been here before meets a dated
+  // number immediately rather than a spinner. The published file may still beat
+  // it — whichever was taken later is the one a reader is shown.
+  let recorded = readRetainedCount(storage);
+  paintRecordedFigure(root, recorded);
   readRecordedCount(fetcher).then((record) => {
-    recorded = record;
-    paintRecordedFigure(root, record);
+    recorded = mostRecentRecord(recorded, record);
+    paintRecordedFigure(root, recorded);
   });
   try {
     // The same request, ordering, and arrival time the home page's count is
@@ -722,9 +741,12 @@ export async function loadActivity(root = document, fetcher = fetch) {
     // headline, not a figure a reader could mistake for a real one.
     const { events, countable, asOf } = await readPublicEvents(fetcher, SYNTHETIC_RECORDS);
     if (countable.length) {
-      renderMergedFigure(root, "live", {
-        count: countMergedPullRequests(countable), total: countable.length, asOf,
-      });
+      const count = countMergedPullRequests(countable);
+      renderMergedFigure(root, "live", { count, total: countable.length, asOf });
+      // Remembered only once GitHub has actually answered, and only with the
+      // moment its response arrived: this is the write the retained figure above
+      // is read back from on the next visit, so it may hold nothing else.
+      writeRetainedCount(storage, { count, asOf });
     } else {
       // A response that carried nothing countable is not a live count, so the
       // slot falls back rather than showing a zero this response did not say.
