@@ -240,9 +240,15 @@ test("the modules that repaint those chips draw on the same two families", () =>
 
 // --- the workspace rail -----------------------------------------------------
 
+// The rail's own doors, not every door on the page. #1327 gave the front door's
+// two unpromoted destinations the same outline silhouette — a door looks like a
+// door — so the scan below is scoped to the rail it is about.
+const railDoors = (document) => walk(document.getElementById("finops-workspace-nav"))
+  .filter((node) => node.classList?.contains?.("workspace-dest"));
+
 test("the five destinations stay apart with every glyph suppressed", () => {
   const document = parseHtml(html);
-  const doors = walk(document).filter((node) => node.classList?.contains?.("workspace-dest"));
+  const doors = railDoors(document);
   assert.equal(doors.length, 5, "the rail authors five doors");
 
   // No door draws a mark at all. This is the third job ◇ used to do.
@@ -270,7 +276,7 @@ test("the five destinations stay apart with every glyph suppressed", () => {
 
 test("the current destination is the word Current plus a cue that is neither colour nor glyph", () => {
   const document = parseHtml(html);
-  const doors = walk(document).filter((node) => node.classList?.contains?.("workspace-dest"));
+  const doors = railDoors(document);
   const current = doors.filter((door) => door.getAttribute("aria-current") === "true");
   assert.equal(current.length, 1, "exactly one door is marked current before any script runs");
 
@@ -348,7 +354,7 @@ test("the rail draws no glyph once its own module has repainted it", async () =>
   try {
     const { document } = page;
     applyWorkspaceNav(document, null);
-    const doors = walk(document).filter((node) => node.classList?.contains?.("workspace-dest"));
+    const doors = railDoors(document);
     assert.equal(doors.length, 5);
     for (const door of doors) {
       assert.ok(!HAS_GLYPH.test(textOf(door)),

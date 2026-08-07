@@ -1752,19 +1752,20 @@
    sideways. A rail a reader has to scroll horizontally to see is a rail that
    hides half the workspace on the device most likely to need it. */
 .workspace-nav-list { display:flex; flex-wrap:wrap; gap:9px; margin:0; padding:0; list-style:none; }
+/* THE FRONT DOOR (#1327). The region carried no rule of its own, so its finding,
+   evidence, doors and working stacked flush as one block: one gap is the fix.
+   Its rows take the panel ink because the muted ink is 4.48:1 on the page ground
+   and 8.55:1 is AA with room; depth is carried by size and by the disclosure. A
+   door's question is subordinate to its name, scoped to the outline doors — in
+   the one filled recommendation that label is white on the accent. */
+.finops-front-door { display:grid; justify-items:start; gap:14px; }
+.finops-front-door dd { color:var(--import-ink); }
+.workspace-dest .front-door-question { color:var(--ink-muted); font-weight:400; }
 .workspace-nav-item { display:flex; min-width:0; }
 .workspace-dest { display:inline-flex; align-items:baseline; flex-wrap:wrap; gap:4px 8px; min-width:0; min-height:44px; border:1px solid var(--import-line); border-radius:9px; padding:10px 14px; background:#fff; color:var(--import-ink); font-size:13.5px; font-weight:700; line-height:1.4; text-decoration:none; overflow-wrap:anywhere; }
 .workspace-dest:hover { border-color:var(--import-accent); }
 .workspace-dest:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
-/* THE CURRENT DESTINATION, in four channels at once: a solid left rule, a
-   heavier weight, a filled chip, and the word "Current" inside the link's own
-   accessible name. The fill is the wash the panel above already uses for a live
-   state — filled wash for a dynamic signal, outline for a static classification —
-   and it is deliberately *not* the filled accent of the ranked door above this
-   rail: "where you are" and "where you should go first" are different claims and
-   must not share one silhouette. Colour is the last of the four channels, so
-   greyscale, print, and a screen reader each still carry the state. */
-/* Four channels beside the word "Current" and `aria-current`, none of them a hue
+/* THE CURRENT DESTINATION. Four channels beside the word "Current" and `aria-current`, none of them a hue
    alone: a thicker left rule, extra weight, and a line under the name. The weight
    stays 750 and the rule stays scoped to `.workspace-dest` — this is the door's
    own emphasis, not a restyle of every element drawing --import-accent. */
@@ -1778,8 +1779,6 @@
 /* The recommendation, echoing the clause that ranked the door above. Outline
    rather than filled: it classifies the door, it is not a live state of it. */
 .workspace-dest-recommended { flex:none; border:1px solid var(--import-accent); border-radius:99px; padding:2px 8px; color:var(--import-ink); font:700 10px/1.5 ui-monospace,monospace; letter-spacing:.05em; text-transform:uppercase; }
-/* Leaves the page: a neutral outline, because it is a fact about the door rather
-   than a state of the reader. */
 /* No `.workspace-dest-kind`: the "Opens another page" chip went with the off-page
    door, now that act-and-verify is a destination on this page (#819). */
 .workspace-nav-detail>summary { list-style:none; cursor:pointer; color:var(--import-ink); font-size:13px; font-weight:700; }
