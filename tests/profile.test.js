@@ -14,7 +14,7 @@ const {
   PROFILE_EMPTY_COPY, authorChipLabel, authorInitials, captionFor, countLabel, defaultProfileAuthor,
   distinctAuthors, emptySummaryText, hasExplicitAuthor, imagePostCounts, loadingSummaryText,
   mergePostsById, normalizeProfileApiPosts, normalizeSeedPosts, pickerEntries, postDetailHref,
-  profileAnnouncement, profileHref, profilePaintHref, profileSummary, profileSummaryText,
+  profileAnnouncement, profileHref, profilePaintHref, profileResultsHeading, profileSummary, profileSummaryText,
   renderAuthorPicker, renderProfileGrid, renderProfileHeader, resolveProfileAuthor, selectProfilePosts,
 } = await import("../src/profile.js");
 
@@ -552,10 +552,12 @@ test("the empty profile says it once across the whole page", () => {
   assert.equal(new Set(onPage).size, onPage.length, "no two page regions print the same sentence");
   assert.equal(onPage.filter((text) => text.includes(emptySummaryText("Mina"))).length, 1);
   assert.equal(onPage.filter((text) => text.includes("Paint")).length, 1);
-  // The results panel states no count of its own. The identity line above it is
-  // the count's one home, so a name with nothing to show reads one sentence
-  // rather than that sentence and a bare "0 image posts" beside the heading.
+  // Neither the identity line nor the grid prints a bare count: an empty name
+  // reads one sentence here and one sentence there. The zero itself belongs to
+  // the results heading, which states it against a display name
+  // (profileResultsHeading) rather than as a figure standing on its own.
   assert.equal(onPage.filter((text) => text.includes(countLabel(0, "image post"))).length, 0);
+  assert.equal(profileResultsHeading("Mina", 0), "Mina · 0 image posts");
   assert.equal(profileAnnouncement("Mina", 0), "Mina hasn’t posted an image yet. Images made in Paint and published on Social appear here.");
   assert.equal(profileAnnouncement("Mina", 2), "Showing 2 image posts by Mina.");
 });
@@ -573,8 +575,16 @@ test("the profile page's static copy does not drift from the module's", async ()
   // counting one name's posts in one place and "connecting" in the other.
   assert.equal(loadingSummaryText(), FEED_LOADING_LINE);
   assert.match(html, new RegExp(`id="profile-status">${FEED_LOADING_LINE}<`));
-  // The results panel's count chip is gone, not hidden: the identity line is the
-  // page's only statement of the image-post count.
+  // The results heading ships the same words the module writes there, so the
+  // frame before hydration reads as the state it is in: the display name the
+  // seed lands on, and the posts under it, with nothing counted yet.
+  assert.match(html, new RegExp(`id="grid-title">${profileResultsHeading("Ari")}<`));
+  assert.doesNotMatch(html, /id="grid-title">[^<]*\d/, "the static heading counts posts nobody has counted");
+  assert.equal(profileResultsHeading("Ari", 1), "Ari · 1 image post", "Social's own pluralisation");
+  assert.equal(profileResultsHeading("Ari", 3), "Ari · 3 image posts");
+  assert.equal(profileResultsHeading("Ari", 0), "Ari · 0 image posts");
+  // The results panel's count chip is gone, not hidden: the number is the
+  // heading's own text now, where the region it names carries it.
   assert.doesNotMatch(html, /id="profile-count"/);
   assert.doesNotMatch(html, /Start by sharing an image/);
 });

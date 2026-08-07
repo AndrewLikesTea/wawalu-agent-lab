@@ -341,6 +341,29 @@ export function profileSummaryText(summary, author) {
   return parts.join(" · ");
 }
 
+// The results panel's heading, and — because profile.html points that section's
+// `aria-labelledby` at it — the panel's accessible name. It read "Image posts"
+// in every state, so the region a reader lands in from Social's "Open People"
+// pointer named neither the display name they picked nor how many pictures were
+// under it, and a screen reader entering the region heard the same three
+// syllables Social's own feed could have claimed.
+//
+// The count phrase is Social's, not a lookalike: its feed heading counts with
+// `${shown} ${shown === 1 ? "post" : "posts"}` (feedHeading, src/social.js),
+// which is what countLabel spells with this page's noun — so "1 image post" and
+// "3 image posts" read the same way here, on the picker's chips, and in the live
+// region. The separator is the middot the chips and the identity line already
+// join their clauses with.
+//
+// A null count is the page not having counted yet, which is a different fact
+// from a count of zero: the heading names the display name and the posts under
+// it and stops, exactly as the picker says "Counting…" rather than "0".
+export function profileResultsHeading(author, count = null) {
+  const name = String(author ?? "").trim() || DEFAULT_AUTHOR;
+  const counted = count === null || count === undefined ? "image posts" : countLabel(count, "image post");
+  return `${name} · ${counted}`;
+}
+
 // What the live region announces after a refresh settles. It mirrors what the
 // grid now shows rather than composing a fourth variant of the same news.
 export function profileAnnouncement(author, visibleCount) {
@@ -541,8 +564,11 @@ export function renderAuthorPicker(container, entries, { author, counted = true,
 }
 
 // The identity block between the picker and the grid: avatar, name, and the
-// counts that explain what the grid is showing. It is the page's only statement
-// of the image-post count, empty case included.
+// counts that explain what the grid is showing, empty case included. The results
+// heading below it states the selected name and the number of tiles it heads
+// (profileResultsHeading); this line is where the image posts are put next to the
+// posts in total and the last posting date, which is the context a bare count
+// beside the heading cannot carry.
 export function renderProfileHeader(elements, author, summary) {
   if (elements.avatar) {
     elements.avatar.textContent = authorInitials(author);
@@ -567,6 +593,7 @@ export function mountProfile(root, options = {}) {
     name: root.querySelector("#profile-name"),
     roleName: root.querySelector("#profile-role-name"),
     summary: root.querySelector("#profile-summary"),
+    heading: root.querySelector("#grid-title"),
     status: root.querySelector("#profile-status"),
     announcer: root.querySelector("#profile-announcer"),
     picker: root.querySelector("#profile-author"),
@@ -589,6 +616,21 @@ export function mountProfile(root, options = {}) {
     const mine = selectProfilePosts(posts, author);
     const summary = profileSummary(posts, author);
     renderProfileHeader(elements, author, summary);
+    // The heading is written from `mine`, the same array the tiles are rendered
+    // from three lines below, in this one update — so the name it states and the
+    // number it states are the name and the number on screen, and neither can
+    // move without the other.
+    //
+    // A number only where the page has a settled answer behind it: a finished
+    // load, or, after a failed refresh, the tiles still on screen from the last
+    // one. While the first load is in flight there is nothing to count — the
+    // picker says "Counting…" in that frame, and a heading claiming a number
+    // beside it would contradict it — and a failed load with an empty grid
+    // states no zero it cannot support.
+    if (elements.heading) {
+      const counted = state === "ready" || (state === "error" && mine.length > 0);
+      elements.heading.textContent = profileResultsHeading(author, counted ? mine.length : null);
+    }
     for (const route of elements.paintRoutes) route.href = profilePaintHref(author);
     renderProfileGrid(grid, mine, {
       state,
