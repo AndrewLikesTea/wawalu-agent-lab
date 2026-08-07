@@ -504,6 +504,7 @@ import {
 } from "/finops-stand-view.js";
 // …and how sure the answer region is about the figure it leads with (#1186).
 import { applyRecoverableConfidence } from "/finops-recoverable-confidence-view.js";
+import { applyFinopsFrontDoor } from "/finops-destinations.js";
 // …and what a lead would have to state before that figure is checkable against
 // their own contract, rather than against a published list price (#1262).
 import { applyRateCardLadder } from "/finops-rate-card-view.js";
@@ -4973,6 +4974,12 @@ async function init() {
   // document with, so this repaints what the document already says rather than
   // changing it — and a document served without the seed still gets the grade.
   applyRecoverableConfidence(document);
+  // …and under the answer, the front door: three named destinations, each with
+  // the question it answers and its one material metric, repainted from
+  // /finops-destinations.js. The document already ships the same markup, so an
+  // ordinary open sees no change — this is what makes the region render FROM
+  // the registry rather than merely agree with it.
+  applyFinopsFrontDoor(document);
   // …and beside that grade, the rate card the figure is priced at: the tier
   // marker, the hedge under the figure, and the one thing to state next, all
   // derived from the same ladder so no wording is kept by hand. Before the

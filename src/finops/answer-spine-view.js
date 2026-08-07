@@ -211,7 +211,7 @@ export const ANSWER_SPINE = Object.freeze([
   {
     id: "finops-recoverable-answer",
     role: ROLE.step,
-    question: "How much of our AI spend can we recover, and where do we start?",
+    question: "How much of our AI spend can we recover?",
     headingId: "finops-recoverable-question",
     entitledToAssert:
       "One recoverable annual figure from the destination moves this page "
@@ -264,6 +264,19 @@ export const ANSWER_SPINE = Object.freeze([
       "The canonical complete decision summary of src/finops-decision-contract.js: "
       + "one benchmark, one prioritized action, one estimated impact, one bounded "
       + "confidence score with its basis. Estimated, never invoiced.",
+  },
+  {
+    // The registry front door (#1325). It carries no heading on purpose — a
+    // heading here would be a second question at headline weight — so it names
+    // itself through its eyebrow label, which is what `headingId` points at.
+    id: "finops-front-door",
+    role: ROLE.step,
+    question: "Which of these doors do I take first?",
+    headingId: "finops-front-door-label",
+    entitledToAssert:
+      "Three named destinations from src/finops-destinations.js, each with the "
+      + "question it answers and one material metric carrying its own provenance, "
+      + "and exactly one marked recommended. Synthetic demo figures throughout.",
   },
   {
     // Not folded into a disclosure with the two layers above it: the rank-1

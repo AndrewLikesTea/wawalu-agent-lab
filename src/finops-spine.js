@@ -138,6 +138,7 @@ const REGIONS = Object.freeze({
   "disclosure-next-step": REGION_CLASS.evidence,
   "disclosure-journey": REGION_CLASS.evidence,
   "finops-first-run": REGION_CLASS.evidence,
+  "finops-front-door": REGION_CLASS.evidence,
   "finops-destinations": REGION_CLASS.evidence,
   "finops-workspace-nav": REGION_CLASS.evidence,
   "finops-workspace-switch": REGION_CLASS.evidence,
@@ -210,7 +211,7 @@ const EVIDENCE_LAYERS = Object.freeze([
     id: "what-to-do-this-month",
     question: "What do I do first, and what will tell me it worked?",
     regionIds: Object.freeze([
-      "disclosure-next-step", "disclosure-journey", "finops-destinations",
+      "disclosure-next-step", "disclosure-journey", "finops-front-door", "finops-destinations",
       "monthly-department-decision", "plan-scope", "routing-slate", "routing-rule-score",
     ]),
   }),
