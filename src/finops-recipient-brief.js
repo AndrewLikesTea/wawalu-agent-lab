@@ -30,6 +30,7 @@
 // Every string a brief supplied reaches the DOM through `textContent`: no
 // `innerHTML`, and no `href` built from a value in the file.
 
+import { briefPricingBasis } from "./finops-brief-envelope.js";
 import {
   SHARE_DECODE_REASON, readSharedBriefingFragment,
 } from "./finops-shared-briefing-link.js";
@@ -56,8 +57,11 @@ export const SHARED_MARKER = "Shared brief";
 export const NOT_INCLUDED = "Not included in this brief. The sender's brief carried nothing for this "
   + "part, so it is absent rather than zero.";
 
-/** The three parts of the region's one disclosure, in the order it states them. */
-export const RECIPIENT_BRIEF_PARTS = Object.freeze(["Provenance", "Basis", "Limits"]);
+/** The parts of the region's one disclosure, in the order it states them. */
+export const RECIPIENT_BRIEF_PARTS = Object.freeze(["Provenance", "Basis", "Priced at", "Limits"]);
+
+/** The part that names whose prices the figure above was computed at (#1265). */
+export const PRICED_AT_PART = "Priced at";
 
 /** What the reader is told, in plain words, about whose figures these are. */
 export const SHARED_BRIEF_ORIGIN =
@@ -133,7 +137,7 @@ export function sharedOriginSentence(envelope) {
  * because the envelope states no basis prose: what a recipient can check is
  * which months the figure was taken over, and how many of them.
  */
-export function recipientBriefSections(envelope) {
+export function recipientBriefSections(envelope, { localRateCard = null } = {}) {
   const provenance = envelope?.provenance ?? null;
   const periodIds = provenance?.periodIds ?? [];
   const provenanceParts = [];
@@ -159,11 +163,64 @@ export function recipientBriefSections(envelope) {
       : `${envelope?.figure?.label ?? "The figure above"} was computed in the sender's browser over `
         + `${periods.length} retained period(s), ${periodLabel}. The arithmetic is theirs and is not `
         + "re-run here; what travelled is the result and the records it was taken over.",
+    [PRICED_AT_PART]: pricedAtStatement(envelope, { localRateCard }),
     Limits: limits.length === 0 ? NOT_INCLUDED : limits.join(" "),
   });
 }
 
-/** The `dl` the region's disclosure states its three parts in. */
+// ---------------------------------------------------------------------------
+// "Priced at" — the sender's card, never silently the reader's (#1265).
+// ---------------------------------------------------------------------------
+//
+// A recipient can already see the figure, the grade and the months. What they
+// could not see is the one thing that decides whether the number means anything
+// to them: which rate card it was priced at. `briefPricingBasis` answers that
+// and this section states the answer, in the words the page already uses for a
+// rate basis — "Priced at your declared rate card" beside a routing slate,
+// "a ceiling at list prices" under an illustrative figure.
+//
+// A READER'S OWN CARD IS A COMPARISON AND SAYS SO. It never re-prices a figure
+// somebody else derived, and the sentence that mentions it says so first.
+
+/** What a figure priced at the published reference card is, in one sentence. */
+export const PRICED_AT_REFERENCE =
+  "Priced at the published-list reference card, which states no effective date: a ceiling at list "
+  + "prices, before any committed-use discount, and not anybody's contract.";
+
+/** The lead-in for a figure the sender's own contract priced. */
+export const PRICED_AT_DECLARED = "Priced at the sender's declared rate card";
+
+/** What a reader's own declared card is, and is not, in this state. */
+export const LOCAL_CARD_COMPARISON =
+  "Your own declared rate card was not used for anything above — these are the sender's prices. For "
+  + "comparison only, your card is graded";
+
+/**
+ * The "Priced at" sentence for one opened brief.
+ *
+ * @param envelope a validated envelope, whose `rateBasis` the reader supplied
+ *   for every schema it reads — the reference card for a brief written before
+ *   the field existed, with the wording that brief always carried.
+ * @param options.localRateCard the reader's own declared card, or null. It can
+ *   only ever add the comparison sentence; it can never change the one above it.
+ */
+export function pricedAtStatement(envelope, { localRateCard = null } = {}) {
+  const { basis, comparison } = briefPricingBasis(envelope, { localRateCard });
+  if (!basis) return NOT_INCLUDED;
+  const discount = basis.models.some((model) => (model.committedUseDiscountPct ?? 0) > 0);
+  const stated = basis.declared
+    ? `${PRICED_AT_DECLARED}, in effect from ${basis.effectiveDate ?? STAMP_ABSENT}`
+      + `${discount ? ", committed-use discount applied" : ""}.`
+    : PRICED_AT_REFERENCE;
+  const tier = ` Rate confidence: ${basis.marker} · ${basis.label}.`;
+  const local = comparison
+    ? ` ${LOCAL_CARD_COMPARISON} ${comparison.marker} · ${comparison.label}, in effect from `
+      + `${comparison.effectiveDate ?? STAMP_ABSENT}.`
+    : "";
+  return `${stated}${tier}${local}`;
+}
+
+/** The `dl` the region's disclosure states its parts in. */
 const detailList = (disclosure) => childElements(disclosure)
   .find((child) => child.tagName?.toUpperCase() === "DL") ?? null;
 
@@ -176,11 +233,11 @@ const detailList = (disclosure) => childElements(disclosure)
  * default — only the bodies change, and the confidence meaning keeps the
  * authored id the region already declares for it inside Limits.
  */
-export function renderRecipientDisclosure(doc, envelope) {
+export function renderRecipientDisclosure(doc, envelope, { localRateCard = null } = {}) {
   const disclosure = byId(doc, RECIPIENT_BRIEF_IDS.disclosure);
   const list = detailList(disclosure);
   if (!list) return null;
-  const sections = recipientBriefSections(envelope);
+  const sections = recipientBriefSections(envelope, { localRateCard });
   const rows = RECIPIENT_BRIEF_PARTS.map((part) => {
     const row = doc.createElement("div");
     const term = doc.createElement("dt");
@@ -221,9 +278,13 @@ function mountOrigin(doc, region, envelope) {
  * @param envelope a VALIDATED envelope — the object `validateBriefEnvelope`
  *   returns, however it travelled. This function does not check it, because the
  *   contract already refused every brief that would need checking here.
+ * @param options.localRateCard the reader's OWN declared rate card, or null. It
+ *   reaches one sentence in the disclosure, labelled as a comparison, and no
+ *   figure: repricing a colleague's brief at this reader's contract is the
+ *   defect #1265 exists to prevent.
  * @returns the region, or null when this document does not carry one.
  */
-export function renderRecipientBrief(doc, envelope) {
+export function renderRecipientBrief(doc, envelope, { localRateCard = null } = {}) {
   const region = byId(doc, RECIPIENT_BRIEF_IDS.region);
   if (!region || !envelope) return null;
   region.dataset.sharedBrief = "true";
@@ -246,7 +307,7 @@ export function renderRecipientBrief(doc, envelope) {
   if (action) action.hidden = true;
 
   mountOrigin(doc, region, envelope);
-  renderRecipientDisclosure(doc, envelope);
+  renderRecipientDisclosure(doc, envelope, { localRateCard });
   return region;
 }
 
@@ -283,9 +344,9 @@ export function announceRefusedBrief(doc, result) {
  * @returns the shared reader's own frozen result, so a caller can branch on the
  *   named reason without a second vocabulary of absences.
  */
-export function applyRecipientBrief(doc = globalThis.document, { hash = "" } = {}) {
+export function applyRecipientBrief(doc = globalThis.document, { hash = "", localRateCard = null } = {}) {
   const read = readSharedBriefingFragment(hash);
-  if (read.ok) renderRecipientBrief(doc, read.envelope);
+  if (read.ok) renderRecipientBrief(doc, read.envelope, { localRateCard });
   else if (read.reason !== SHARE_DECODE_REASON.absent) announceRefusedBrief(doc, read);
   return read;
 }

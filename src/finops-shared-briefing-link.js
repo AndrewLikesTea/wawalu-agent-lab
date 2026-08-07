@@ -157,8 +157,9 @@ export const SHARE_DECODE_COPY = Object.freeze({
   }),
   [SHARE_DECODE_REASON.unsupportedVersion]: Object.freeze({
     summary: "The shared figures were written by a different build",
-    statement: `The token declares a schema this build does not know; it reads version `
-      + `${SHARED_BRIEFING_SCHEMA} and reinterpreting another would mean guessing at fields it cannot see.`,
+    statement: `The token declares a schema this build does not know; it reads versions `
+      + `${SUPPORTED_SHARED_SCHEMAS.join(" and ")} and reinterpreting another would mean guessing at `
+      + "fields it cannot see.",
     remedy: "Nothing was changed. Reloading after this site next updates is what makes the link "
       + "readable, or the sender can copy a fresh one.",
   }),
