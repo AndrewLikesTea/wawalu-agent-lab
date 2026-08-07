@@ -8,6 +8,8 @@ import { byClass, createElement, first, ids, installDocument, tags } from "./sup
 
 installDocument();
 
+const { FEED_LOADING_LINE } = await import("../src/social.js");
+
 const {
   PROFILE_EMPTY_COPY, authorChipLabel, authorInitials, captionFor, countLabel, defaultProfileAuthor,
   distinctAuthors, emptySummaryText, hasExplicitAuthor, imagePostCounts, loadingSummaryText,
@@ -564,8 +566,13 @@ test("the profile page's static copy does not drift from the module's", async ()
   // state — a verdict about a name nobody had chosen, and a false one for the
   // seeded feed — so it now says only that the counting has not happened yet.
   const html = await readFile(new URL("../src/profile.html", import.meta.url), "utf8");
-  assert.match(html, new RegExp(`id="profile-summary">${loadingSummaryText("Ari")}<`));
+  assert.match(html, new RegExp(`id="profile-summary">${loadingSummaryText()}<`));
   assert.doesNotMatch(html, new RegExp(emptySummaryText("Ari")));
+  // One wait, one sentence. The identity line and the connection line below it
+  // are waiting on the same Social fetch, so they say the same thing rather than
+  // counting one name's posts in one place and "connecting" in the other.
+  assert.equal(loadingSummaryText(), FEED_LOADING_LINE);
+  assert.match(html, new RegExp(`id="profile-status">${FEED_LOADING_LINE}<`));
   // The results panel's count chip is gone, not hidden: the identity line is the
   // page's only statement of the image-post count.
   assert.doesNotMatch(html, /id="profile-count"/);

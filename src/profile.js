@@ -22,7 +22,7 @@
 //      rings landed everywhere" is a usable name; the alt text is still exposed
 //      on the image inside the link when the tile is read rather than listed.
 
-import { normalizeImage } from "./social.js";
+import { FEED_LOADING_LINE, normalizeImage } from "./social.js";
 import { postDetailHref, profileHref } from "./social-links.js";
 import { imageDescription, renderDescriptionNote, renderImageUnavailable } from "./image-description.js";
 import { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH } from "./social-identity.js";
@@ -314,9 +314,15 @@ export function emptySummaryText(author) {
 // sentence that was false for the seeded feed and was the first thing a reader
 // following Social's "Open People" pointer saw. A page that has not counted yet
 // says so; it does not guess a count.
-export function loadingSummaryText(author) {
-  const name = String(author ?? "").trim() || DEFAULT_AUTHOR;
-  return `Counting ${name}’s image posts…`;
+//
+// It says it in the feed's own words rather than its own. The wait is the Social
+// fetch, the same one Social waits on, and the connection line a few elements
+// below this one was already naming that fetch — so a reader used to get one
+// wait described two ways on one screen. It takes no display name now because
+// the sentence is not about a name: nothing on this page has been counted yet,
+// including which name is being counted.
+export function loadingSummaryText() {
+  return FEED_LOADING_LINE;
 }
 
 // The profile description under the name, and the one place on the page that

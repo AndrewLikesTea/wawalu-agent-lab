@@ -319,7 +319,10 @@ test("social page is wired, labeled, and linked from the other pages", async () 
   assert.match(page, /aria-describedby="post-body-hint post-counter-label post-counter"/);
   assert.match(page, /id="post-body-hint">Publish post stops on an empty caption/);
   assert.match(page, /id="post-counter"[^>]*aria-live="polite"/);
-  assert.match(page, /id="post-count">Loading posts…<\/span>/);
+  assert.match(page, /id="post-count">Loading the Social feed…<\/span>/);
+  // The count and the connection line describe one wait, so they ship the same
+  // sentence rather than "Loading posts…" beside "Connecting to the Social feed…".
+  assert.match(page, /id="feed-status">Loading the Social feed…<\/span>/);
   assert.doesNotMatch(page, /id="post-count"[^>]*>0 posts<\/span>/);
   // One announced region for a filter change, and it is the summary: the count
   // beside the heading says a thinner version of the same news, so announcing
@@ -979,8 +982,16 @@ test("the post count never claims zero posts before the feed has any answer", as
   const count = page.document.querySelector("#post-count");
   const feed = mountSocialFeed(page.document, { posts: [], state: "loading" });
 
-  assert.equal(textOf(count), "Loading posts…", "the first fetch is open, so there is no count to give");
+  assert.equal(textOf(count), "Loading the Social feed…", "the first fetch is open, so there is no count to give");
   assert.equal(page.document.querySelectorAll(".empty-state").length, 0, "loading copy never shares the page with empty-state guidance");
+  // One wait, one sentence. The count, the panel over the empty grid, and the
+  // connection line are all waiting on the same fetch, so a reader gets one
+  // description of it and a screen reader hears one, not three.
+  assert.deepEqual([...new Set([
+    textOf(count),
+    textOf(page.document.querySelector(".state-title")),
+    textOf(page.document.querySelector("#feed-status")),
+  ])], ["Loading the Social feed…"]);
 
   feed.setState("error");
   assert.equal(textOf(count), "Unavailable", "a failed fetch is not a count of zero");
