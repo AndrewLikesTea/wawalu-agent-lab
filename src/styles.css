@@ -829,7 +829,8 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
    rather than push the heading wider than a narrow viewport. */
 .supersede-summary { white-space:normal; }
 .supersede-summary:empty { display:none; }
-.filter-toggle { align-self:end; min-height:41px; margin:0; padding:0 14px; background:transparent; color:#1f70c1; border:1px solid #9cb9d4; }
+.filter-toggle, .filter-share-action { margin:0; background:transparent; color:#1f70c1; border:1px solid #9cb9d4; }
+.filter-toggle { align-self:end; min-height:41px; padding:0 14px; }
 .filter-toggle[aria-pressed="true"] { background:#1f70c1; color:#fff; border-color:#1f70c1; }
 /* The recorded-on window: two labelled date inputs on one row, each keeping its
    own label above it so neither end is identified by position alone. */
@@ -852,7 +853,8 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .filter-chip-text { overflow-wrap:anywhere; }
 .filter-chip-dismiss { font-size:15px; line-height:1; color:#3f6f9f; }
 .filter-share { display:flex; flex-wrap:wrap; align-items:center; gap:6px 12px; }
-.filter-share-action { min-height:38px; margin:0; padding:0 13px; background:transparent; color:#1f70c1; border:1px solid #9cb9d4; font-size:13px; }
+.filter-share-action { min-height:38px; padding:0 13px; font-size:13px; }
+.trend-chart { width:100%; height:8rem; }
 .filter-share-action:hover { background:#eef4fb; color:#174f84; }
 .filter-copy-status { margin:0; color:#4a4a45; font-size:13px; }
 .filter-copy-status:empty { display:none; }

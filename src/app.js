@@ -18,6 +18,7 @@ import {
   RECORD_TYPES,
   absoluteHistoryUrl,
   currentOnlySearch,
+  historyFilterChips,
   historyFilterPath,
   historyFilterSearch,
   normalizeHistoryRange,
@@ -25,6 +26,7 @@ import {
   readCurrentOnly,
 } from "./history-filters.js";
 import { copyHistoryLink, renderHistoryFilterChips, renderHistorySummary } from "./history-filter-view.js";
+import { renderHistoryTrend } from "./history-trend-view.js";
 import { publishHistoryScope } from "./history-scope.js";
 import { initLeadCapture } from "./lead-capture.js";
 import { retentionDeclined, retentionRefusal } from "./local-retention.js";
@@ -540,6 +542,18 @@ export function renderDecisionState(container, state, options = {}) {
   }[state];
   appendTextElement(panel, "h3", "", copy[0]);
   appendTextElement(panel, "p", "", copy[1]);
+  // Which filters produced the empty list, in their own values. The sentence
+  // above names the *dimensions* ("record type, status, owner, and search"),
+  // which leaves a reader who has narrowed four controls to reconstruct what
+  // they set from memory before they can undo it. Same words as the chips, so
+  // the two ways of reading the view agree; omitted when the caller passes no
+  // filter state, which is every caller that renders this panel without a view.
+  if (state === "empty" && options.filtered) {
+    const chips = historyFilterChips(options.filters ?? {});
+    if (chips.length > 0) {
+      appendTextElement(panel, "p", "hint empty-state-filters", `Filters in effect: ${chips.map((chip) => chip.text).join(" · ")}`);
+    }
+  }
   if (state === "empty") {
     const action = options.filtered
       ? appendTextElement(panel, "button", "empty-action history-reset-action", "Reset filters")
@@ -941,7 +955,7 @@ export function renderHistory(container, count, records, view = {}) {
   }
 
   if (visible.length === 0) {
-    renderDecisionState(container, "empty", { filtered: true });
+    renderDecisionState(container, "empty", { filtered: true, filters: view });
     return 0;
   }
 
@@ -1072,6 +1086,7 @@ export async function initDecisionLog(root = document, storage = localStorage, o
   const fromFilter = root.querySelector("#filter-from");
   const toFilter = root.querySelector("#filter-to");
   const filterSummary = root.querySelector("#history-filter-summary");
+  const trend = root.querySelector("#history-trend");
   const filterChips = root.querySelector("#history-filter-chips");
   const copyLink = root.querySelector("#copy-history-link");
   // A live region of its own, so "Link copied" and "Showing 3 of 41 records"
@@ -1376,6 +1391,23 @@ export async function initDecisionLog(root = document, storage = localStorage, o
     landing?.focus?.({ preventScroll: true });
   };
 
+  // A bar is a date filter, applied through the state every other control on
+  // this page writes to and committed on the same path — not a second filtering
+  // rule that could drift from the one the list obeys. Both ends are inclusive
+  // calendar days, which is exactly what the week bucket carries.
+  //
+  // Focus then moves to the From control. The chart is re-rendered from the
+  // narrowed set, so the bar the keyboard was standing on is gone by the time
+  // the filter lands; the date field is a stable neighbour that now holds what
+  // just happened, which is where the chips' own removal path lands too.
+  const selectWeek = (bucket) => {
+    view.from = bucket.start;
+    view.to = bucket.end;
+    syncFilterControls();
+    commit();
+    (fromFilter ?? search)?.focus?.({ preventScroll: true });
+  };
+
   const render = () => {
     const visible = renderHistory(list, count, records, view);
     if (supersedeSummary) supersedeSummary.textContent = supersedeFilterSummary(records, view);
@@ -1384,6 +1416,10 @@ export async function initDecisionLog(root = document, storage = localStorage, o
     // the same sentence on screen.
     renderHistorySummary(filterSummary, { visible, total: records.length, filters: view });
     chipButtons = renderHistoryFilterChips(filterChips, view, { onRemove: removeFilter });
+    // The shape of the same view, from the same selection rule: the chart is
+    // drawn here rather than from a listener of its own, so a filter can never
+    // move the list without moving the trend above it.
+    renderHistoryTrend(trend, { records: selectHistory(records, view), onSelectWeek: selectWeek });
     renderHistoryReleaseFollowUp(
       releaseFollowUp,
       releases.find(({ id }) => id === view.releaseId),
