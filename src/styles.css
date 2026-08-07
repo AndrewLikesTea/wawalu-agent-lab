@@ -612,8 +612,8 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 /* Full-basis so the note about Clear filters wraps onto its own line under the
    row instead of squeezing the two menus. */
 .social-toolbar .filter-note { flex:1 0 100%; margin:0; }
-/* The sentence that says what the feed below is currently showing. Reads as
-   body text, not as the monospace count chip beside the heading. */
+/* The feed's heading: one sentence for what the filters are showing. Card-title
+   type role, not the 26px stat role a panel title carries. */
 .feed-summary { margin:0 0 12px; color:#3a3a36; font:600 14px/1.5 system-ui,sans-serif; }
 .feed-connection { display:flex; align-items:center; gap:8px; margin:0 0 9px; color:#62625d; font:650 11px/1.4 ui-monospace,monospace; }
 .live-dot { width:8px; height:8px; border-radius:50%; background:#3a8a4b; box-shadow:0 0 0 4px #e4f2e6; }
