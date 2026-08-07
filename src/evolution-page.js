@@ -498,6 +498,9 @@ import {
 } from "/finops-stand-view.js";
 // …and how sure the answer region is about the figure it leads with (#1186).
 import { applyRecoverableConfidence } from "/finops-recoverable-confidence-view.js";
+// …and what a lead would have to state before that figure is checkable against
+// their own contract, rather than against a published list price (#1262).
+import { applyRateCardLadder } from "/finops-rate-card-view.js";
 // …and the control that hands that answer over as plain text (#1195). Only the
 // binding is imported here: the text itself is painted by the headline's own
 // paint, so it can never be as of a different dataset than the region is.
@@ -4914,6 +4917,12 @@ async function init() {
   // document with, so this repaints what the document already says rather than
   // changing it — and a document served without the seed still gets the grade.
   applyRecoverableConfidence(document);
+  // …and beside that grade, the rate card the figure is priced at: the tier
+  // marker, the hedge under the figure, and the one thing to state next, all
+  // derived from the same ladder so no wording is kept by hand. Before the
+  // recipient brief below, which legitimately replaces all three when the reader
+  // is looking at a colleague's figure rather than this page's own.
+  applyRateCardLadder(document);
   installDeepLinkDisclosure(document, window);
   // Immediately after it, and for the same reason: a deep link may have already
   // opened a deferred panel, and the read for that panel is taken at install.
