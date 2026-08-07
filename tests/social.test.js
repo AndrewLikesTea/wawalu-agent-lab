@@ -418,23 +418,94 @@ test("the control that opens the composer agrees with the composer about images"
     "the word survives outside the People page's own URL and nav class");
 });
 
-// The intro said what the feed holds and never said who wrote it, so the seeded
-// posts read as other people's accounts. People already has the clearest way to
-// say it — "a demo persona in the Social feed, not a signed-in user" — so the
-// intro borrows that noun rather than inventing a third word for the bundled
-// names. One sentence, inside the paragraph that is already there, and ahead of
-// the demo-data sentence the permalink quotes as this intro's last words.
-test("the feed intro says who wrote the posts, in People's word for it", async (t) => {
+// The page never said who wrote the posts, so the bundled names read as other
+// people's accounts. It says it once now, at the feed, in the two words Social
+// already owns: "demo persona" for the bundled names, "display name" for what a
+// post is published under. The intro used to carry it, four screens above the
+// first card; a disclosure about the names on the cards belongs where the cards
+// are, so this pins the sentence to the feed panel and pins the intro to not
+// saying it a second time.
+test("the feed says who wrote the posts, where the posts are", async (t) => {
   const page = await loadPage(new URL("../src/social.html", import.meta.url), {});
   t.after(() => page.restore());
 
+  const note = page.document.querySelector("#feed-source-note");
+  assert.equal(page.document.querySelectorAll("#feed-source-note").length, 1,
+    "the feed states who wrote the posts exactly once");
+  assert.equal(textOf(note),
+    "Every display name below is a bundled demo persona or a name a visitor published under.",
+    "the feed stopped disclosing who wrote the posts");
+  assert.match(textOf(note), /demo persona/,
+    "the bundled names keep the noun the rest of Social uses for them");
+
+  // In the feed panel itself, not in the hero and not in the composer. The
+  // harness refuses descendant selectors, so the ancestry is walked.
+  const panelOf = (node) => {
+    for (let at = node.parentNode; at; at = at.parentNode)
+      if (at.classList?.contains("list-panel")) return at;
+    return undefined;
+  };
+  assert.ok(panelOf(note), "the sentence left the feed panel");
+  assert.equal(panelOf(note).getAttribute("aria-labelledby"), "feed-title",
+    "the panel it sits in is the one the feed heading names");
+
+  // Prose, and only prose: a heading would claim a section, a live region would
+  // announce a sentence that never changes, and a tab stop would put a fixed
+  // fact in the keyboard path to the cards.
+  assert.equal(note.getAttribute("aria-live"), null);
+  assert.equal(note.getAttribute("role"), null);
+  assert.equal(note.getAttribute("tabindex"), null);
+  assert.equal(note.hasAttribute("hidden"), false);
+  assert.ok(note.classList.contains("hint"),
+    "the sentence uses the explanatory-prose class the panel already ships");
+
+  // Said once on the page. The intro says what the feed is and where to go
+  // next, and its last words stay the ones the permalink quotes.
   const intro = textOf(page.document.querySelector(".hero-social").querySelectorAll("p")[1]);
-  assert.match(intro, /Every post comes from a bundled demo persona or from a visitor who published one\./,
-    "the intro stopped disclosing who the feed's posts come from");
+  assert.doesNotMatch(intro, /demo persona/,
+    "the intro says who wrote the posts a second time, four screens from a card");
   assert.match(intro, /Posts use no customer or production data\.$/,
     "the demo-data sentence must stay the intro's last words");
-  assert.equal(intro.split("demo persona").length - 1, 1,
-    "the intro names demo personas more than once");
+});
+
+// The sentence is a claim about the feed's authors, not about a fetch, so it
+// has to survive every state social.js swaps the list between. A disclosure
+// that only renders once posts arrive is missing from the two states — an open
+// fetch and an empty feed — where a reader has the most time to read it.
+test("who wrote the posts survives loading, populated, empty, and no-match", async (t) => {
+  const page = await loadPage(new URL("../src/social.html", import.meta.url), {});
+  t.after(() => page.restore());
+
+  const sentence = "Every display name below is a bundled demo persona or a name a visitor published under.";
+  const stillThere = (state) => {
+    assert.equal(page.document.querySelectorAll("#feed-source-note").length, 1,
+      `the sentence disappears in the ${state} state`);
+    assert.equal(textOf(page.document.querySelector("#feed-source-note")), sentence,
+      `the sentence is rewritten in the ${state} state`);
+  };
+
+  const posts = [
+    { id: "ari", author: "Ari", body: "just shipped", createdAt: new Date(Date.now() - 60000).toISOString() },
+  ];
+  const feed = mountSocialFeed(page.document, { posts: [], state: "loading" });
+  stillThere("loading");
+  feed.setState("error");
+  stillThere("error");
+  feed.seed([]);
+  stillThere("empty");
+  feed.seed(posts);
+  stillThere("populated");
+
+  // Filter the one post out: the no-match branch replaces the list, and the
+  // sentence is not in the part that gets replaced.
+  const nameFilter = page.document.querySelector("#post-name-filter");
+  const offered = nameFilter.options.map((option) => option.getAttribute("value"));
+  assert.ok(offered.includes("Ari"), `Ari must be offered; the menu holds ${offered.join(", ")}`);
+  const timeFilter = page.document.querySelector("#post-time-filter");
+  timeFilter.value = "hour";
+  nameFilter.value = "Ari";
+  nameFilter.dispatchEvent({ type: "change", bubbles: true });
+  stillThere("filtered");
 });
 
 // The display name field said what it defaulted to and nothing about what the

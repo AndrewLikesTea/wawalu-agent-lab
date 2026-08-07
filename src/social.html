@@ -36,15 +36,15 @@
              can do with it, and then names the one neighbouring surface a
              visitor confuses it with — People — and when to open that instead.
              People carries the mirror sentence.
-             It also says who wrote the feed, because the page never did: the
-             bundled names are demo personas, the same noun People uses for
-             them, and every other post is a visitor's. A reader who is not told
-             that reads the seeded posts as other people's accounts. The
-             sentence sits ahead of the demo-data sentence, which stays these
-             words' last, because the permalink quotes it as this intro's
-             ending. -->
+             Who wrote the posts is no longer said here. It was: this paragraph
+             carried the disclosure, four screens above the first card and above
+             a composer, so a reader met it before they had seen a display name
+             it could explain. It now sits once, at #feed-source-note, directly
+             under the feed's own heading, where the names it describes are on
+             screen. The demo-data sentence stays these words' last, because the
+             permalink quotes it as this intro's ending. -->
         <h1 id="page-title">Social</h1>
-        <p>Social is the team's shared demo feed: read every post as it lands, and publish your own with an optional image. Every post comes from a bundled demo persona or from a visitor who published one. Open People when you want the image posts published under one display name instead. Posts use no customer or production data.</p>
+        <p>Social is the team's shared demo feed: read every post as it lands, and publish your own with an optional image. Open People when you want the image posts published under one display name instead. Posts use no customer or production data.</p>
         <!-- What publishing costs is not said here any more. It used to be: the
              same sentence stood in this intro, again beside Publish post, and
              again in the permalink's hero — one fact in three places, two of
@@ -271,6 +271,23 @@
                  out twice. -->
             <span class="count" id="post-count">Loading posts…</span>
           </div>
+          <!-- Who wrote what a reader is about to scroll through, said once and
+               said here, because here is where the names are. A reader meets
+               "Ari" on a card and reads an account unless the page tells them
+               otherwise; "demo persona" is the noun Social already uses for the
+               bundled names, and "display name" is the one term the composer's
+               field, this panel's filter, and People's picker all use for the
+               name a post carries. Neither word is new.
+               It is the feed panel's own markup, outside every branch social.js
+               swaps — loading, ready, empty, and no-match all render it — so the
+               claim about who wrote the posts does not depend on a fetch having
+               answered. It is plain prose: no heading, nothing focusable, no
+               live region, and no rule of its own in the stylesheet.
+               It sits under the heading row rather than inside it, because the
+               heading and the count beside it are one line that reads as a pair,
+               and a second paragraph between them would drop the count away
+               from the words it counts. -->
+          <p class="hint" id="feed-source-note">Every display name below is a bundled demo persona or a name a visitor published under.</p>
           <!-- Social offers Paint twice, and only twice: the hero's standing
                invitation and the composer's in-flow control. A third invitation
                beside the feed, reading "Open Paint", used to sit here; it named
