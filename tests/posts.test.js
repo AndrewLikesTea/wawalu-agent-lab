@@ -125,7 +125,15 @@ test("root healthz probes the D1 binding and fails closed when it is absent", as
   assert.equal(healthy.status, 200);
   // No AGENT_TOKENS secret in this env, so the auth binding reports unconfigured
   // without failing the probe. See tests/bindings.test.js.
-  assert.deepEqual(await healthy.json(), { status: "ok", storage: "available", auth: "unconfigured" });
+  // The probe also reports whether the running build is the build the release
+  // log says shipped; tests/release-build-match.test.js owns that verdict, whose
+  // value depends on the checked-out commit. Assert the liveness contract on the
+  // fields it is actually made of, so that verdict cannot make this test flap.
+  const body = await healthy.json();
+  assert.equal(body.status, "ok");
+  assert.equal(body.storage, "available");
+  assert.equal(body.auth, "unconfigured");
+  assert.ok(["matched", "mismatched", "unknown"].includes(body.verdict), "exactly one top-level verdict");
 
   const rejected = await onRequest({ request: new Request("https://test.invalid/healthz", { method: "POST" }), env: { DB: db } });
   assert.equal(rejected.status, 405);

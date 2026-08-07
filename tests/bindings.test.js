@@ -92,15 +92,20 @@ test("healthz reports degraded auth without failing the probe", async () => {
   const { onRequest } = await import("../functions/healthz.js");
   const request = () => new Request("https://test.invalid/healthz", { headers: { "cf-ray": "health-edge" } });
 
+  // Only the binding fields are pinned here: the probe also carries the
+  // build-versus-release-log verdict, whose value depends on the commit that is
+  // checked out. tests/release-build-match.test.js drives that from a fixture.
+  const authOf = async (response) => (await response.json()).auth;
+
   const healthy = await onRequest({ request: request(), env: { DB: db, AGENT_TOKENS: JSON.stringify({ t: writer }) } });
   assert.equal(healthy.status, 200);
-  assert.deepEqual(await healthy.json(), { status: "ok", storage: "available", auth: "ok" });
+  assert.equal(await authOf(healthy), "ok");
 
   // A botched rotation is observable, but must not turn the rollout/rollback
   // smoke test red: storage is the only hard dependency.
   const degraded = await onRequest({ request: request(), env: { DB: db, AGENT_TOKENS: "not json" } });
   assert.equal(degraded.status, 200);
-  assert.deepEqual(await degraded.json(), { status: "ok", storage: "available", auth: "invalid" });
+  assert.equal(await authOf(degraded), "invalid");
 
   const unconfigured = await onRequest({ request: request(), env: { DB: db } });
   assert.equal((await unconfigured.json()).auth, "unconfigured");
