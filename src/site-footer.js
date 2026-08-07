@@ -36,9 +36,6 @@ import {
   SubmissionError,
 } from "./lead-capture.js";
 
-const ERROR_ID = "site-footer-error";
-const RECOVERY_ID = "site-footer-recovery";
-
 /**
  * What a visitor can do here, then who runs it and where — on every page.
  *
@@ -108,34 +105,41 @@ export const DEMOS = Object.freeze([
 ]);
 
 /**
+ * Who reads the email, and how soon a person replies. Rendered before the
+ * request and repeated after it, so a visitor never has to guess.
+ *
+ * Both halves are already this repository's: the team FOLLOW_UP_PRIVACY names,
+ * and the window src/finops-contact.js has promised since it shipped. That
+ * window applies here because this form and that one post the same
+ * `purpose: "follow_up"` body to the same /api/leads queue — one inbox, one
+ * team, so a second and vaguer promise for it was never the honest one.
+ */
+export const COMMITMENT = "A person from the Wawalu team that operates Shiplog replies by email "
+  + "within two business days.";
+
+/**
  * The context the button no longer carries.
  *
  * Every form on this site that asks a person to get back to you is opened and
  * submitted by a control reading exactly "Request a follow-up" — one label, no
  * page-specific qualification — so the sentence beside it is what says a
  * follow-up about what, from whom. It sits outside the panel because a visitor
- * reads it before deciding whether to open anything.
+ * reads it before deciding whether to open anything, which is also what makes it
+ * the right place for COMMITMENT: readable before an address is typed.
  */
-export const INVITATION = "Questions about Shiplog? Ask the Wawalu team that operates it, and a "
-  + "person replies by email.";
+export const INVITATION = `Questions about this? ${COMMITMENT}`;
 
 // What the field sends is not this footer's sentence to write. It is the same
 // claim the AI FinOps form and the briefing's form make, so all three render one
 // string — FOLLOW_UP_PRIVACY in src/lead-capture.js, beside the transport that
 // makes it true.
 
-// What a visitor is told once the address is stored.
-//
-// Deliberately not an SLA. The AI FinOps form answers within two business days
-// because someone watches that queue; this footer sits on eight pages of a
-// demonstration product and nobody has promised to watch it that closely. So it
-// says what is actually true — the address is recorded, a person is the one who
-// reads it, and no machine is about to reply — rather than a response time this
-// demo would break.
-const CAPTURED = "Follow-up requested — we sent your email address, and nothing else. It is recorded "
-  + "for the Wawalu team, and a person replies by email; nothing here answers automatically.";
+// What a visitor is told once the address is stored. Both outcomes end on
+// COMMITMENT, word for word the sentence read before submitting: the surface
+// used to answer "and then what?" on failure and nowhere else.
+const CAPTURED = `Follow-up requested — we sent your email address, and nothing else. ${COMMITMENT}`;
 const ALREADY_CAPTURED = "Follow-up requested — that address is already on our list, so nothing new "
-  + "was recorded. The Wawalu team can reach you there.";
+  + `was recorded. ${COMMITMENT}`;
 
 const SUBMITTING = "Requesting a follow-up — sending your email address…";
 
@@ -179,7 +183,7 @@ export const FOLLOW_UP_REDIRECT = Object.freeze({
 export function siteFooterMarkup(indent = "    ", { redirect = null } = {}) {
   const contact = redirect ? [
     `    <a class="site-footer-redirect-link" href="${redirect.href}">${redirect.label}</a>`,
-  ] : contactDisclosureLines();
+  ] : followUpDisclosureLines(FOOTER_PREFIX).map((line) => `    ${line}`);
   const lines = [
     '<footer class="site-footer" id="site-footer" aria-labelledby="site-footer-title">',
     '  <div class="site-footer-inner">',
@@ -209,33 +213,68 @@ function demoListLines() {
   ];
 }
 
-function contactDisclosureLines() {
+/**
+ * The follow-up disclosure, at an arbitrary place on a page.
+ *
+ * `prefix` names the id family this copy ships — `<prefix>-open`, `-panel`,
+ * `-form`, `-email`, `-error`, `-note`, `-status`, `-recovery`, `-dismiss` — the
+ * mechanism src/finops-contact.js already uses, so a second copy on one page
+ * cannot take the footer's ids or bind a label to the wrong field.
+ * `panelLabel` gives that copy an accessible name of its own.
+ *
+ * Every word is this function's: heading line, field label, both button labels,
+ * the privacy sentence, the recovery paragraph. One edit changes both copies.
+ */
+export function followUpMarkup(indent = "    ", { prefix = FOOTER_PREFIX, panelLabel = null } = {}) {
+  return followUpDisclosureLines(prefix, panelLabel).map((line) => `${indent}${line}`).join("\n");
+}
+
+/**
+ * The second place it renders: the home page's opening section, on the
+ * recoverable-spend figure.
+ *
+ * Only this copy is named, because only it shares a document with another —
+ * the label is the site's one verb for the errand plus where the reader is
+ * standing, never a second name for it. The classes stay the `site-footer-`
+ * family: they name the surface, not the band it first appeared in, and a
+ * renamed family would be a second copy of every rule in two stylesheets that
+ * have no room for one.
+ */
+export const HOME_FOLLOW_UP = Object.freeze({
+  prefix: "home-follow-up",
+  panelLabel: "Request a follow-up about this result",
+});
+
+const FOOTER_PREFIX = "site-footer";
+
+function followUpDisclosureLines(prefix, panelLabel = null) {
+  const named = panelLabel ? ` role="group" aria-label="${panelLabel}"` : "";
   return [
-    `    <p class="site-footer-invitation">${INVITATION}</p>`,
-    '    <button class="site-footer-trigger" id="site-footer-open" type="button" aria-expanded="false" aria-controls="site-footer-panel">',
-    "      Request a follow-up",
-    "    </button>",
-    '    <div class="site-footer-panel" id="site-footer-panel" hidden>',
-    '      <form id="site-footer-form" class="site-footer-form" novalidate>',
-    '        <div class="site-footer-field">',
-    '          <label for="site-footer-email">Work email</label>',
-    "          <!-- Only the note is named here. The inline error and the recovery",
-    "               paragraph are added to this description by site-footer.js when",
-    "               they exist, because a hidden element referenced by",
-    "               aria-describedby is still part of the accessible description",
-    "               and would otherwise be read on first focus. -->",
-    '          <input id="site-footer-email" name="email" type="email" maxlength="254" inputmode="email" autocomplete="email" placeholder="you@company.com" required aria-describedby="site-footer-note" />',
-    "        </div>",
-    `        <p class="site-footer-error" id="site-footer-error" hidden></p>`,
-    `        <p class="site-footer-note" id="site-footer-note">${FOLLOW_UP_PRIVACY}</p>`,
-    '        <div class="site-footer-actions">',
-    '          <button type="submit">Request a follow-up</button>',
-    '          <button id="site-footer-dismiss" type="button">Close</button>',
-    "        </div>",
-    "      </form>",
-    '      <p class="site-footer-status" id="site-footer-status" role="status" aria-live="polite"></p>',
-    '      <p class="site-footer-recovery" id="site-footer-recovery" hidden>We could not send your follow-up request. Try again in a few minutes. Your email address is still in the field above, and nothing else on this page changed.</p>',
+    `<p class="site-footer-invitation">${INVITATION}</p>`,
+    `<button class="site-footer-trigger" id="${prefix}-open" type="button" aria-expanded="false" aria-controls="${prefix}-panel">`,
+    "  Request a follow-up",
+    "</button>",
+    `<div class="site-footer-panel" id="${prefix}-panel"${named} hidden>`,
+    `  <form id="${prefix}-form" class="site-footer-form" novalidate>`,
+    '    <div class="site-footer-field">',
+    `      <label for="${prefix}-email">Work email</label>`,
+    "      <!-- Only the note is named here. The inline error and the recovery",
+    "           paragraph are added to this description by site-footer.js when",
+    "           they exist, because a hidden element referenced by",
+    "           aria-describedby is still part of the accessible description",
+    "           and would otherwise be read on first focus. -->",
+    `      <input id="${prefix}-email" name="email" type="email" maxlength="254" inputmode="email" autocomplete="email" placeholder="you@company.com" required aria-describedby="${prefix}-note" />`,
     "    </div>",
+    `    <p class="site-footer-error" id="${prefix}-error" hidden></p>`,
+    `    <p class="site-footer-note" id="${prefix}-note">${FOLLOW_UP_PRIVACY}</p>`,
+    '    <div class="site-footer-actions">',
+    '      <button type="submit">Request a follow-up</button>',
+    `      <button id="${prefix}-dismiss" type="button">Close</button>`,
+    "    </div>",
+    "  </form>",
+    `  <p class="site-footer-status" id="${prefix}-status" role="status" aria-live="polite"></p>`,
+    `  <p class="site-footer-recovery" id="${prefix}-recovery" hidden>We could not send your follow-up request. Try again in a few minutes. Your email address is still in the field above, and nothing else on this page changed.</p>`,
+    "</div>",
   ];
 }
 
@@ -248,18 +287,27 @@ function contactDisclosureLines() {
  * `request` is deferred to call time for the same reason the AI FinOps form
  * defers it: a test that takes over `globalThis.fetch` after the page mounts
  * must still be the one that receives the submission.
+ *
+ * `prefix` names which copy to wire. A page that ships two calls this twice; a
+ * page that ships one gets `null` for the other and binds nothing.
  */
-export function initSiteFooter(root = document, request = (...args) => globalThis.fetch(...args)) {
-  const form = root.querySelector("#site-footer-form");
-  const trigger = root.querySelector("#site-footer-open");
-  const panel = root.querySelector("#site-footer-panel");
+export function initSiteFooter(
+  root = document,
+  request = (...args) => globalThis.fetch(...args),
+  { prefix = FOOTER_PREFIX } = {},
+) {
+  const ERROR_ID = `${prefix}-error`;
+  const RECOVERY_ID = `${prefix}-recovery`;
+  const form = root.querySelector(`#${prefix}-form`);
+  const trigger = root.querySelector(`#${prefix}-open`);
+  const panel = root.querySelector(`#${prefix}-panel`);
   if (!form || !trigger || !panel) return null;
 
   const email = form.elements.email;
   const submit = form.querySelector('button[type="submit"]');
-  const dismiss = root.querySelector("#site-footer-dismiss");
+  const dismiss = root.querySelector(`#${prefix}-dismiss`);
   const fieldError = root.querySelector(`#${ERROR_ID}`);
-  const status = root.querySelector("#site-footer-status");
+  const status = root.querySelector(`#${prefix}-status`);
   const recovery = root.querySelector(`#${RECOVERY_ID}`);
 
   function setFieldError(message) {

@@ -20,7 +20,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
-import { DEMOS, FOLLOW_UP_REDIRECT, IDENTITY, INVITATION, siteFooterMarkup } from "../src/site-footer.js";
+import { COMMITMENT, DEMOS, FOLLOW_UP_REDIRECT, IDENTITY, INVITATION, siteFooterMarkup } from "../src/site-footer.js";
 import { FOLLOW_UP_PRIVACY } from "../src/lead-capture.js";
 import { SITE_NAV } from "../src/site-nav.js";
 import { loadPage, pressEnter, pressKey, pressTab, tabSequence, textOf, typeText } from "./support/browser.js";
@@ -534,9 +534,14 @@ test("a submission goes through the shared capture path, and the confirmation sa
     assert.equal(byId(document, "site-footer-form").dataset.state, "success");
     const confirmation = shownText(document, "site-footer-status");
     assert.match(confirmation, /^Follow-up requested — we sent your email address, and nothing else\./);
-    assert.match(confirmation, /recorded for the Wawalu team/, "the confirmation must say what happens next");
-    // Nothing promised that this demo does not do.
-    assert.doesNotMatch(confirmation, /business days?|within \d|hours?\b/i);
+    // What happens next, in the same words the visitor read before submitting.
+    // This used to end on "recorded for the Wawalu team" and refuse to say when,
+    // while the AI FinOps and briefing forms — the same `purpose: "follow_up"`
+    // body, the same /api/leads queue, the same team — already promised two
+    // business days. One inbox, one commitment, both halves of it checkable.
+    assert.ok(confirmation.endsWith(COMMITMENT), "the confirmation must repeat the commitment verbatim");
+    assert.match(confirmation, /Wawalu team that operates Shiplog/, "it must say who replies");
+    assert.match(confirmation, /within two business days/, "it must say how soon");
     // The live region announces it rather than leaving it to the eye alone.
     assert.equal(byId(document, "site-footer-status").getAttribute("aria-live"), "polite");
     assert.equal(byId(document, "site-footer-status").getAttribute("role"), "status");

@@ -70,6 +70,46 @@
         <h1 id="page-title">One site for your AI spend,<br />your decisions, and your releases.</h1>
         <p>Shiplog is for engineering teams that answer for both an AI bill and a release history: it names what your AI spend is buying, and it keeps the reasoning behind what shipped.</p>
         <p class="hero-proof-point">A worked decision is already computed on the AI FinOps page: 33% of analyzed AI spend is recoverable — $51,254 of $154,500 — and Atlas Platform is driving the increase. It is a bundled synthetic example, computed from invented data for an invented company, so reading it takes no export of yours, no sign-in, and no account. Read the worked decision in AI FinOps for the action to take first and the role accountable for it.</p>
+        <!-- THE ASK, AT THE POINT OF CONVICTION.
+             A visitor persuaded by the recoverable share above used to have
+             to scroll past the whole page to raise their hand. This is the
+             same follow-up surface the About block at the foot of every
+             page carries, rendered a second time from site-footer.js: one
+             invitation sentence, one field label, one button label, one
+             success and one failure message, all of them that module’s. It
+             is collapsed at first paint, so it costs the first screen one
+             tab stop and no vertical space, and it sits above the two hero
+             actions because it belongs to the figure, not to the section.
+             The ids come from HOME_FOLLOW_UP rather than the footer’s, so
+             the two copies on this page never share an id, and the panel
+             carries a name of its own so a screen reader can tell them
+             apart. Regenerate this block from src/site-footer.js; do not
+             hand-edit it. -->
+        <p class="site-footer-invitation">Questions about this? A person from the Wawalu team that operates Shiplog replies by email within two business days.</p>
+        <button class="site-footer-trigger" id="home-follow-up-open" type="button" aria-expanded="false" aria-controls="home-follow-up-panel">
+          Request a follow-up
+        </button>
+        <div class="site-footer-panel" id="home-follow-up-panel" role="group" aria-label="Request a follow-up about this result" hidden>
+          <form id="home-follow-up-form" class="site-footer-form" novalidate>
+            <div class="site-footer-field">
+              <label for="home-follow-up-email">Work email</label>
+              <!-- Only the note is named here. The inline error and the recovery
+                   paragraph are added to this description by site-footer.js when
+                   they exist, because a hidden element referenced by
+                   aria-describedby is still part of the accessible description
+                   and would otherwise be read on first focus. -->
+              <input id="home-follow-up-email" name="email" type="email" maxlength="254" inputmode="email" autocomplete="email" placeholder="you@company.com" required aria-describedby="home-follow-up-note" />
+            </div>
+            <p class="site-footer-error" id="home-follow-up-error" hidden></p>
+            <p class="site-footer-note" id="home-follow-up-note">The work email address you type here goes to the Wawalu team that operates Shiplog; nothing else on this page is sent.</p>
+            <div class="site-footer-actions">
+              <button type="submit">Request a follow-up</button>
+              <button id="home-follow-up-dismiss" type="button">Close</button>
+            </div>
+          </form>
+          <p class="site-footer-status" id="home-follow-up-status" role="status" aria-live="polite"></p>
+          <p class="site-footer-recovery" id="home-follow-up-recovery" hidden>We could not send your follow-up request. Try again in a few minutes. Your email address is still in the field above, and nothing else on this page changed.</p>
+        </div>
         <div class="hero-actions" data-conversion-slot="hero">
           <a class="button-link" href="/evolution.html">Read the worked decision in AI FinOps <span aria-hidden="true">→</span></a>
           <a class="text-link" href="#landing-decision">Or read the example briefing below</a>
@@ -685,7 +725,7 @@
           <li><a href="/paint/">Paint</a> — crop or draw, then export a PNG</li>
           <li><a href="/agents.html">Agent observatory</a> — watch a synthetic team build and review work</li>
         </ul>
-        <p class="site-footer-invitation">Questions about Shiplog? Ask the Wawalu team that operates it, and a person replies by email.</p>
+        <p class="site-footer-invitation">Questions about this? A person from the Wawalu team that operates Shiplog replies by email within two business days.</p>
         <button class="site-footer-trigger" id="site-footer-open" type="button" aria-expanded="false" aria-controls="site-footer-panel">
           Request a follow-up
         </button>

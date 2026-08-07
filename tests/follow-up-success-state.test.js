@@ -114,7 +114,7 @@ test("Social, People, Releases, and Prompt coach all show the shared success con
       assert.equal(byId(page.document, "site-footer-form").dataset.state, "success", `${file}: success state`);
       assert.ok(byId(page.document, "site-footer-confirmation"), `${file}: visible confirmation`);
       assert.equal(page.document.activeElement?.id, "site-footer-confirmation", `${file}: focus reaches confirmation`);
-      assert.match(shownText(page.document, "site-footer-status"), /person replies by email/,
+      assert.match(shownText(page.document, "site-footer-status"), /replies by email within two business days/,
         `${file}: confirmation states the next step`);
     } finally {
       page.restore();
@@ -145,9 +145,14 @@ for (const { name, open, prefix } of SURFACES) {
       assert.match(textOf(receipt), /A person from the Wawalu team replies to that address by email/);
       assert.match(textOf(receipt), /Nothing else on this page/);
       assert.match(textOf(receipt), /read, attached, or transmitted/);
-      // Nothing about when. This demo has not promised anyone a response time,
-      // and the receipt is not the place to invent one.
-      assert.doesNotMatch(textOf(receipt), /business days?|within \d|hours?\b|shortly|specialist/i);
+      // When, in the one window this repository has committed to. The receipt
+      // used to refuse to say — while the sentence in the live region beside it
+      // promised two business days on every surface that reaches this queue, so
+      // a visitor read the commitment and its omission at the same moment. It
+      // may still invent nothing beyond that: no tighter window, no hours, no
+      // hedge, and no support org.
+      assert.match(textOf(receipt), /within two business days/);
+      assert.doesNotMatch(textOf(receipt), /within \d|hours?\b|shortly|specialist|same day/i);
       // And nothing about what else is on the page: the request carried one
       // field, so the only thing the receipt can name is the address. No figure,
       // no file, no filter, no prompt, and no page identity.

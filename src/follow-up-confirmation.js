@@ -16,8 +16,8 @@
 //   3. It says only what the visitor supplied. `postLeadEmail` builds the body
 //      from the address and a fixed routing label, so the receipt names the address and
 //      repeats the form's own privacy vocabulary — no figure, file, filter, or
-//      page identity — and promises no response time, because nobody here has
-//      committed to one.
+//      page identity. The one thing it does promise is the window every surface
+//      that reaches this queue already promises: two business days.
 //
 // Announcement follows the panel rather than inventing a second pattern: the
 // surface's status paragraph is a `role="status"` region and still carries the
@@ -32,7 +32,8 @@
  * so the address arrives as a text node of its own.
  */
 export const CONFIRMATION_LEAD = "We sent one thing: ";
-export const CONFIRMATION_DETAIL = "A person from the Wawalu team replies to that address by email. "
+export const CONFIRMATION_DETAIL = "A person from the Wawalu team replies to that address by email "
+  + "within two business days. "
   + "Nothing else on this page — nothing you have read, filtered, imported, or exported — was read, "
   + "attached, or transmitted.";
 export const REOPEN_LABEL = "Request another follow-up";

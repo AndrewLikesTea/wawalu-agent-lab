@@ -5,6 +5,11 @@
 // document, so a page where this script fails to load still names who operates
 // Shiplog and still reads correctly — only the disclosure stops working, and the
 // panel it would have opened is hidden until it does.
-import { initSiteFooter } from "./site-footer.js";
+//
+// It wires every copy of the follow-up surface a page ships: the footer's, and
+// the home page's second one under the recoverable-spend figure. Where a copy
+// is absent, initSiteFooter binds nothing.
+import { HOME_FOLLOW_UP, initSiteFooter } from "./site-footer.js";
 
 initSiteFooter();
+initSiteFooter(document, undefined, { prefix: HOME_FOLLOW_UP.prefix });
