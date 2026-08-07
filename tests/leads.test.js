@@ -39,6 +39,38 @@ test("the home page's field-note form says what submitting does, in the surface 
   // "Product notes" was a second name for the thing the heading, the button, and
   // the confirmation all call a field note. One concept, one name.
   assert.doesNotMatch(section, /product notes/i);
+
+  // The promise a visitor reads before typing an address: who writes the notes,
+  // what one is, and how often. The sender is named in the footer's words — the
+  // site has one name for the team that operates Shiplog, not two.
+  assert.match(section, /Field notes come from the Wawalu team that operates Shiplog\./);
+  assert.match(section, /short write-up of what the team changed or learned/);
+  assert.match(section, /There is no schedule\. The first note goes out when it is written\./);
+  // Nobody has committed to a cadence, so no word here may imply one.
+  assert.doesNotMatch(section, /weekly|monthly|occasionally|from time to time|every week|every month/i);
+  // Nor to an audience, an archive, or a back catalogue: none of those exist.
+  assert.doesNotMatch(section, /subscribers|readers|back issues|archive|past notes/i);
+
+  // This form subscribes; it does not reach anyone. A visitor who wants a reply
+  // is pointed at the footer surface by its own label and its own promise.
+  assert.match(section, /It is not a way to reach anyone/);
+  assert.match(section, /“Request a follow-up” in the footer of this page, where a person replies by email\./);
+});
+
+test("the field-note confirmation repeats the promise the page made before submitting", async () => {
+  const html = await readFile(new URL("../src/index.html", import.meta.url), "utf8");
+  const harness = leadFormHarness();
+  initLeadCapture(harness.root, async () => jsonResponse({ captured: true, created: true, purpose: "field_notes" }, 201));
+  await harness.listeners.submit({ preventDefault() {} });
+  const confirmation = harness.status.textContent;
+
+  // A subscriber has to be able to check later that they got what they were
+  // told, so the key terms are the page's terms word for word.
+  for (const promise of ["field notes", "the Wawalu team that operates Shiplog", "There is no schedule."]) {
+    assert.ok(html.includes(promise), `the page states: ${promise}`);
+    assert.ok(confirmation.toLowerCase().includes(promise.toLowerCase()), `the confirmation repeats: ${promise}`);
+  }
+  assert.doesNotMatch(confirmation, /weekly|monthly|occasionally|on its way/i);
 });
 
 test("normalizes valid email addresses and rejects unsafe or malformed input", () => {
@@ -110,7 +142,7 @@ test("homepage ships the labelled lead form and its deployment adapter", async (
     readFile(new URL("../functions/api/leads.js", import.meta.url), "utf8"),
     readFile(new URL("../migrations/0006_leads.sql", import.meta.url), "utf8"),
   ]);
-  assert.match(html, /<h2 id="lead-capture-title">See how teams make better decisions<\/h2>/);
+  assert.match(html, /<h2 id="lead-capture-title">What we changed, and what we learned<\/h2>/);
   assert.match(html, /<label for="lead-email">Work email<\/label>/);
   assert.match(html, /aria-live="polite"/);
   assert.match(html, /Submitting subscribes you to field notes\..*No spam\. Unsubscribe anytime/);
@@ -190,7 +222,8 @@ test("client submits once, announces success, and restores the control", async (
   assert.equal(harness.form.dataset.state, "success");
   assert.equal(
     harness.status.textContent,
-    "You’re subscribed. The next field note about durable engineering decisions goes to that address.",
+    "You’re subscribed. Field notes come from the Wawalu team that operates Shiplog: what the team changed or "
+      + "learned. There is no schedule. The first note goes out when it is written.",
   );
   assert.equal(harness.email.value, "");
   assert.equal(harness.button.disabled, false);
