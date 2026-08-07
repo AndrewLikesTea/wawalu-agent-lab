@@ -595,6 +595,13 @@
           <p id="export-shiplog-status" class="notice" role="status" aria-live="polite"></p>
         </div>
         <button id="export-shiplog" type="button">Download JSON</button>
+        <!-- Recovery from a filter that matches nothing. Hidden until that
+             happens, so it is not a tab stop on the ordinary path, and it runs
+             the history's own reset rather than a second idea of "clear". The
+             sentence that reveals it is the counts paragraph above, which is
+             outside every disclosure on this panel: a live region inside a
+             closed details element is announced to nobody. -->
+        <button class="clear-filters" id="export-shiplog-clear" type="button" hidden>Clear filters</button>
         <!-- The same file, checked against the list above without writing it.
              The answer line stays outside the disclosure below on purpose: a
              live region inside a closed details element is announced to nobody.
