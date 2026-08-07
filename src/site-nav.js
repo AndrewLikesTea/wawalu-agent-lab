@@ -34,12 +34,17 @@
 // (/decision.html?id=d-3) belongs to its surface too. The root destination
 // carries no prefix of its own on purpose — "/" is a prefix of every path on
 // the site, so matching it that way would mark Decisions current everywhere.
+//
+// The order below is DEMOS in src/site-footer.js, destination for destination.
+// It used to lead with Decisions while the footer band led with AI FinOps and
+// the home page's hero named AI FinOps as where to start, so the two lists of
+// the same eight doors disagreed about priority on every page — and the reader
+// who read both had no way to tell which one meant it. There is one priority
+// here now, stated once at the top of the page and again at the bottom: the
+// surfaces that run on a visitor's own material first, the demonstrations after
+// them. tests/site-footer.test.js compares the two tables, and the ordering is
+// the footer's because that is the list the home page's "start here" points at.
 export const SITE_NAV = [
-  { href: "/", label: "Decisions", section: ["/index.html", "/decision.html", "/workspace.html"] },
-  { href: "/social.html", label: "Social", className: "nav-social", group: "social", section: ["/post.html"] },
-  { href: "/profile.html", label: "People", className: "nav-profile", group: "social", subordinate: true },
-  { href: "/releases.html", label: "Releases", section: ["/release.html"] },
-  { href: "/paint/", label: "Paint" },
   {
     href: "/evolution.html",
     label: "AI FinOps",
@@ -61,6 +66,11 @@ export const SITE_NAV = [
   // is a peer rather than a subordinate because neither one is a view of the
   // other.
   { href: "/coach.html", label: "Prompt coach", className: "nav-coach", section: ["/personal-history.html"] },
+  { href: "/", label: "Decisions", section: ["/index.html", "/decision.html", "/workspace.html"] },
+  { href: "/releases.html", label: "Releases", section: ["/release.html"] },
+  { href: "/social.html", label: "Social", className: "nav-social", group: "social", section: ["/post.html"] },
+  { href: "/profile.html", label: "People", className: "nav-profile", group: "social", subordinate: true },
+  { href: "/paint/", label: "Paint" },
   { href: "/agents.html", label: "Agent observatory", section: ["/agent-trace.html"] },
 ];
 
