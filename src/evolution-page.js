@@ -104,6 +104,9 @@ import {
 // The plan beside that slate: which of those moves anyone has committed to, and
 // at what scope. Read-only, and today's honest answer is $0.
 import { applyPlanScope } from "/plan-scope-view.js";
+// The two evidence signals that plan lives or dies on and that the plan model
+// cannot see: a declared rate card, and an observed rather than invented period.
+import { planEvidence } from "/plan-evidence-grade.js";
 import { applyRoutingRuleScore } from "/routing-rule-score-view.js";
 // The five-slot headline an imported export earns, painted from the checked-in
 // contract in finops-imported-headline-fixture.json. Imported state only.
@@ -1995,7 +1998,14 @@ function mountLocalFinopsImport() {
     // It is painted FROM the slate object above rather than from the envelope, so
     // the moves it enumerates are the rules that were just rendered — there is no
     // second list of routing moves in this page and there must not be.
-    applyPlanScope(document, paintedRoutingSlate);
+    // …graded on the evidence the lead has actually stated (#1289), never on how
+    // much traffic they claimed. The two analysis-level signals are read here,
+    // where the page already knows both: whether the prices came from a declared
+    // card, and whether the period under the plan was imported or is the bundled
+    // example's invented month.
+    applyPlanScope(document, paintedRoutingSlate, {
+      evidence: planEvidence({ analysis: next, imported: !example }),
+    });
     // The marker and hedge beside the recoverable figure now come from the card
     // that actually priced this envelope (#1263), not from a bundled constant
     // painted once at boot. With no declared card the analysis resolves to the
