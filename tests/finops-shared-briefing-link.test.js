@@ -22,6 +22,10 @@ import {
   sharedBriefingToken,
 } from "../src/finops-shared-briefing-link.js";
 import { buildBriefEnvelope } from "../src/finops-brief-envelope.js";
+import {
+  BRIEF_VIEW_FIELD, BRIEF_VIEW_FIELDS, BRIEF_VIEW_REASON, BRIEF_VIEW_SCHEMA, resolveBriefView,
+} from "../src/finops-brief-view.js";
+import { FINOPS_DESTINATIONS } from "../src/finops-destinations.js";
 import { FINOPS_PERIOD_FIELDS } from "../src/finops-workspace-contract.js";
 
 const BASE = "https://labs.wawalu.org/executive-briefing.html";
@@ -197,6 +201,127 @@ test("the token is read out of a fragment that carries other keys", () => {
   assert.equal(sharedBriefingToken(`#brief=${token}&panel=trend`), token);
   assert.equal(sharedBriefingToken("#local-import"), "");
   assert.equal(sharedBriefingToken(""), "");
+});
+
+/* ------------- the destination the sender was reading (#1330) -------------- */
+
+/** The destination that carries both windows, so a scope has something to be. */
+const SCOPED = FINOPS_DESTINATIONS.find((entry) => entry.route.scopes.length > 0);
+/** And the one that carries none, so a dropped qualifier has something to drop. */
+const UNSCOPED = FINOPS_DESTINATIONS.find((entry) => entry.route.scopes.length === 0);
+
+/** Decode a token built for one destination, asserting the encode succeeded. */
+function decodedFor(view) {
+  const encoded = encodeSharedBriefing([period()], { producedAt: null, view });
+  assert.equal(encoded.ok, true, "a brief with a destination on it must encode");
+  return decodeSharedBriefing(encoded.token);
+}
+
+test("a destination brief round-trips the slug, the stated question and the scope", () => {
+  const decoded = decodedFor({ slug: SCOPED.slug, scope: SCOPED.route.scopes[0] });
+  assert.equal(decoded.ok, true);
+
+  const view = decoded.envelope.view;
+  assert.equal(view.v, BRIEF_VIEW_SCHEMA);
+  assert.equal(view.slug, SCOPED.slug);
+  assert.equal(view.question, SCOPED.question, "the destination's own stated question travels");
+  assert.equal(view.scope, SCOPED.route.scopes[0]);
+
+  // And it resolves back to a place, through the #1326 parser rather than by
+  // string comparison here: the recipient lands on the destination, at the
+  // window the sender was reading it at.
+  const resolved = resolveBriefView(view);
+  assert.equal(resolved.ok, true);
+  assert.equal(resolved.slug, SCOPED.slug);
+  assert.equal(resolved.scope, SCOPED.route.scopes[0]);
+  assert.equal(resolved.address, `?destination=${SCOPED.slug}&scope=${SCOPED.route.scopes[0]}`);
+  assert.match(resolved.statement, new RegExp(SCOPED.question.slice(0, 20)));
+});
+
+test("a window a destination does not carry is dropped when the brief is written", () => {
+  const view = decodedFor({ slug: UNSCOPED.slug, scope: "month" }).envelope.view;
+  assert.equal(view.slug, UNSCOPED.slug);
+  assert.equal(view.scope, null,
+    "the registry says this destination carries no window, so none is written");
+});
+
+test("a brief naming a retired destination opens the front door and says which one", () => {
+  const stale = tamper((envelope) => {
+    envelope[BRIEF_VIEW_FIELD] = {
+      v: BRIEF_VIEW_SCHEMA, slug: "retired-door", question: "What used to be here?", scope: null,
+    };
+  });
+  const decoded = decodeSharedBriefing(stale);
+  // The BRIEF still opens: a pointer nobody can follow is not a reason to
+  // withhold a colleague's figures.
+  assert.equal(decoded.ok, true);
+  assert.equal(decoded.envelope.periods.length, 1);
+
+  const resolved = resolveBriefView(decoded.envelope.view);
+  assert.equal(resolved.ok, false);
+  assert.equal(resolved.reason, BRIEF_VIEW_REASON.stale);
+  assert.equal(resolved.address, "", "an unresolvable pointer addresses the front door");
+  assert.match(resolved.statement, /retired-door/, "the sender's destination is named");
+  assert.match(resolved.statement, /no longer available/);
+});
+
+test("a block version this build does not know is refused as a block, not as a brief", () => {
+  const foreign = tamper((envelope) => {
+    envelope[BRIEF_VIEW_FIELD] = {
+      v: BRIEF_VIEW_SCHEMA + 1, slug: SCOPED.slug, question: SCOPED.question, scope: null,
+    };
+  });
+  const decoded = decodeSharedBriefing(foreign);
+  assert.equal(decoded.ok, true, "an unreadable pointer never refuses the brief around it");
+  assert.equal(decoded.envelope.view, null);
+  assert.equal(decoded.viewNotice.reason, BRIEF_VIEW_REASON.malformed);
+  // And with no view, resolution is the front door rather than an exception.
+  assert.equal(resolveBriefView(decoded.envelope.view).ok, false);
+});
+
+test("a brief written before this block still decodes and opens the front door", () => {
+  // The legacy schema, with no destination block and no rate basis: exactly what
+  // a build older than #1265 and #1330 wrote.
+  const legacy = tamper((envelope) => {
+    envelope.v = 2;
+    delete envelope.rateBasis;
+    delete envelope[BRIEF_VIEW_FIELD];
+  });
+  const decoded = decodeSharedBriefing(legacy);
+  assert.equal(decoded.ok, true, "an older brief opens; it is not refused for what it lacks");
+  assert.equal(decoded.envelope.periods.length, 1);
+  assert.equal(decoded.envelope.view, null, "the destination fields are absent, not invented");
+  assert.equal(decoded.viewNotice.reason, BRIEF_VIEW_REASON.absent);
+
+  const resolved = resolveBriefView(decoded.envelope.view);
+  assert.equal(resolved.ok, false);
+  assert.equal(resolved.statement, "", "no destination means nothing to say about one");
+});
+
+test("a destination brief carries the four stated fields and nothing else", () => {
+  const encoded = encodeSharedBriefing([period()], {
+    producedAt: null, view: { slug: SCOPED.slug, question: "leak me", scope: "quarter" },
+  });
+  // The payload as it travels, read back off the wire rather than off the
+  // object this process built.
+  const payload = JSON.parse(Buffer.from(encoded.token, "base64url").toString("utf8"));
+  assert.deepEqual(Object.keys(payload[BRIEF_VIEW_FIELD]).sort(), [...BRIEF_VIEW_FIELDS].sort());
+  for (const [key, value] of Object.entries(payload[BRIEF_VIEW_FIELD])) {
+    assert.equal(["v", "slug", "question", "scope"].includes(key), true, `${key} is not on the block`);
+    assert.equal(typeof value === "string" || typeof value === "number" || value === null, true,
+      `${key} carries a structure the contract does not state`);
+  }
+  // No credential, no prompt text, no customer data — asserted over the WHOLE
+  // encoded envelope's key set, not just this block's.
+  const forbidden = /token|secret|credential|prompt|customer|cookie|email|apiKey/i;
+  const walk = (node, path = "") => {
+    if (!node || typeof node !== "object") return;
+    for (const [key, value] of Object.entries(node)) {
+      assert.equal(forbidden.test(key), false, `${path}${key} must not travel in a brief`);
+      walk(value, `${path}${key}.`);
+    }
+  };
+  walk(payload);
 });
 
 test("decoding touches no storage: no read, no write, no last-viewed stamp", () => {

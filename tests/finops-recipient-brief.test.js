@@ -30,9 +30,11 @@ import { validateBriefEnvelope } from "../src/finops-brief-envelope.js";
 import { encodeSharedBriefing } from "../src/finops-shared-briefing-link.js";
 import { openSharedBriefFile } from "../src/finops-open-shared-brief.js";
 import {
-  NOT_INCLUDED, RECIPIENT_BRIEF_IDS, SHARED_MARKER, applyRecipientBrief,
+  NOT_INCLUDED, RECIPIENT_BRIEF_IDS, SHARED_MARKER, applyBriefDestination, applyRecipientBrief,
   recipientBriefSections, renderRecipientBrief, sharedPeriodLabel,
 } from "../src/finops-recipient-brief.js";
+import { BRIEF_VIEW_FIELD, BRIEF_VIEW_REASON, BRIEF_VIEW_SCHEMA } from "../src/finops-brief-view.js";
+import { FINOPS_DESTINATIONS } from "../src/finops-destinations.js";
 
 const PAGE = new URL("../src/evolution.html", import.meta.url);
 const html = await readFile(PAGE, "utf8");
@@ -289,4 +291,91 @@ test("the recipient state offers no control over the shared figures", () => {
   // The reader's own next-step anchor is out of the tree, not relabelled with
   // somebody else's move.
   assert.equal(byId(document, RECIPIENT_BRIEF_IDS.action).hidden, true);
+});
+
+// ---------------------------------------------------------------------------
+// 6. Where the brief points (#1330): the destination, or the front door, said.
+// ---------------------------------------------------------------------------
+
+/** A link carrying the fixture's periods and one destination pointer. */
+const linkWith = (view) => {
+  const encoded = encodeSharedBriefing(FIXTURE.periods, { producedAt: FIXTURE.producedAt, view });
+  assert.ok(encoded.ok, "a brief with a destination on it must encode");
+  return `#brief=${encoded.token}`;
+};
+
+/** The same, with the block replaced after the fact: a brief from another build. */
+function linkPointingAt(block) {
+  const envelope = JSON.parse(JSON.stringify(validateBriefEnvelope(FIXTURE).envelope));
+  envelope[BRIEF_VIEW_FIELD] = block;
+  return `#brief=${Buffer.from(JSON.stringify(envelope)).toString("base64url")}`;
+}
+
+const door = (document, slug) => document.querySelector(`[data-front-door-slug="${slug}"]`);
+const activeDoors = (document) =>
+  document.querySelectorAll('[data-front-door-active="true"]').length;
+
+const line = (document) => byId(document, RECIPIENT_BRIEF_IDS.destinationLine);
+
+test("a brief written at a destination lands there and states the question it answers", () => {
+  const destination = FINOPS_DESTINATIONS.find((entry) => entry.route.scopes.includes("quarter"));
+  const document = doc();
+  const hash = linkWith({ slug: destination.slug, scope: "quarter" });
+  applyRecipientBrief(document, { hash });
+  const painted = applyBriefDestination(document, { hash });
+
+  assert.equal(painted.slug, destination.slug);
+  const text = textOf(line(document));
+  assert.match(text, new RegExp(destination.name), "the destination is named");
+  assert.match(text, new RegExp(destination.question.slice(0, 20)), "so is what it asks");
+  assert.match(text, /quarter window/, "and the window the sender read it at");
+
+  // Landed: that door is the current one, and it is the only one.
+  assert.equal(door(document, destination.slug).getAttribute("data-front-door-active"), "true");
+  assert.equal(door(document, destination.slug).getAttribute("aria-current"), "true");
+  assert.equal(activeDoors(document), 1);
+  assert.equal(byId(document, "finops-front-door").getAttribute("data-route-scope"), "quarter");
+});
+
+test("a brief naming a destination that no longer exists says which one, at the front door", () => {
+  const document = doc();
+  const hash = linkPointingAt({
+    v: BRIEF_VIEW_SCHEMA, slug: "commitment-forecast", question: "Where did it go?", scope: null,
+  });
+  applyRecipientBrief(document, { hash });
+  const painted = applyBriefDestination(document, { hash });
+
+  assert.equal(painted.reason, BRIEF_VIEW_REASON.stale);
+  const text = textOf(line(document));
+  assert.match(text, /commitment-forecast/, "the sender's destination is named in visible text");
+  assert.match(text, /no longer available/);
+  assert.equal(line(document).hidden, false, "and it is not hidden");
+  // The front door, untouched: no door claims to be the one the reader is on.
+  assert.equal(activeDoors(document), 0);
+  // The brief itself still opened.
+  assert.equal(textOf(byId(document, RECIPIENT_BRIEF_IDS.value)), "$31,415");
+});
+
+test("a brief written before destinations existed opens the front door and says nothing", () => {
+  const document = doc();
+  const hash = `#brief=${LINKED.token}`;
+  applyRecipientBrief(document, { hash });
+  const painted = applyBriefDestination(document, { hash });
+
+  assert.equal(painted.reason, BRIEF_VIEW_REASON.absent);
+  assert.equal(textOf(line(document)), "");
+  assert.equal(line(document).hidden, true);
+  assert.equal(activeDoors(document), 0);
+  assert.equal(textOf(byId(document, RECIPIENT_BRIEF_IDS.value)), "$31,415");
+});
+
+test("the destination line is text: it adds no control and no tab stop", () => {
+  const document = doc();
+  const region = byId(document, RECIPIENT_BRIEF_IDS.region);
+  const before = focusables(region).length;
+  const hash = linkWith({ slug: FINOPS_DESTINATIONS[0].slug, scope: null });
+  applyBriefDestination(document, { hash });
+
+  assert.equal(focusables(region).length, before, "the pointer is a paragraph, not a link");
+  assert.equal(line(document).tagName, "P");
 });
