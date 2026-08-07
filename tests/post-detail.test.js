@@ -89,8 +89,8 @@ test("the post reads in one order: who, when, the image, then its caption", () =
   const figure = tags(article, "FIGURE")[0];
   assert.deepEqual(
     figure.children.map((child) => child.tagName),
-    ["DIV", "FIGCAPTION"],
-    "the caption is the image's figcaption, and follows it",
+    ["DIV", "FIGCAPTION", "P"],
+    "the caption is the image's figcaption and follows it, and the image description closes the figure",
   );
   assert.ok(tags(figure, "IMG").length === 1, "the image sits inside the figure");
 
@@ -206,7 +206,11 @@ test("a dead image keeps its description rather than dropping it", () => {
   assert.equal(fallback.hidden, false);
   assert.equal(fallback.getAttribute("role"), "status");
   assert.ok(ids(fallback).includes(fallback.getAttribute("aria-labelledby")));
-  assert.match(fallback.textContent, /Image unavailable.*Description: A card wrapped in a blue focus ring/);
+  // The description stands in the image's place unprefixed, so it is the same
+  // string the alt attribute holds, and a sentence in words says what happened —
+  // the tinted frame and the outline chip are not the only signal.
+  assert.match(fallback.textContent, /Image unavailable.*A card wrapped in a blue focus ring/);
+  assert.match(fallback.textContent, /We couldn’t show the image on this post/);
   // The page's standing back link is the only way back; the note does not add
   // a second control to the same profile.
   assert.equal(byClass(fallback, "empty-action-secondary").length, 0);

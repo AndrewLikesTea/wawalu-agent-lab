@@ -175,14 +175,65 @@ export function postImageAlt(image, caption) {
   return String(caption ?? "").trim();
 }
 
-function renderMedia(image, caption) {
+// The visible half of the description, and the only label it gets.
+//
+// The description a poster is required to write used to be readable by exactly
+// one kind of reader: one using a screen reader, because it lived in an alt
+// attribute and nowhere else. A sighted reader of the same post never saw it,
+// and neither did anyone whose image loaded but who wanted to know what the
+// poster said the image shows. On a permalink — the page opened cold from a
+// pasted link — that is the difference between reading the post and guessing at
+// it, so the description is drawn as text under the image, under a label saying
+// what it is.
+export const POST_IMAGE_DESCRIPTION_LABEL = "Image description";
+
+// Read-time sibling of the composer's own preview failure in src/social-page.js
+// ("We couldn't create a preview of the uploaded image. Remove the image, upload
+// the file again, and check the preview before publishing."). Same voice, same
+// first four words, same typographic apostrophe — and a different second half,
+// because the two states can offer different things. The composer's reader holds
+// the file and can upload it again; this one is reading somebody else's
+// published post and can do nothing about it, so the sentence hands over the
+// description instead of an instruction.
+export const POST_IMAGE_FAILED_LINE = "We couldn’t show the image on this post, so the description the poster wrote stands in its place.";
+
+// The same sentence for a post written before descriptions were required, where
+// there is no description to stand in. It keeps the second half honest rather
+// than promising text that is not there, and it still ends in the clause the
+// older wording ended in, which is what a reader is actually owed here.
+export const POST_IMAGE_FAILED_UNDESCRIBED_LINE = "We couldn’t show the image on this post, and the post carries no description of it.";
+
+// One paragraph, two spans, and no new stylesheet rule: `.description-note` is
+// the caption role this site already uses for exactly this text on the feed and
+// on a People tile (subtitles & captions — ink-3, 11px, the monospace face), so
+// the third surface that says it says it in the same type. Reused rather than
+// re-declared: src/styles.css has no size headroom to spend on a fourth spelling
+// of a rule that exists.
+//
+// The description is in a span of its own so it is one exact string — the same
+// string that went into alt, byte for byte, which is what the parity test reads.
+// Putting the label in the same text node would make the two impossible to
+// compare and easy to let drift.
+function renderImageDescription(description) {
+  const note = el("p", "description-note detail-image-description");
+  note.append(
+    el("span", "detail-image-description-label", `${POST_IMAGE_DESCRIPTION_LABEL}: `),
+    el("span", "detail-image-description-text", description),
+  );
+  return note;
+}
+
+// `description` is resolved by the caller — one value, used twice, so the alt
+// attribute and the visible caption cannot drift apart. Passing the caption in
+// and resolving it here would have meant resolving it twice.
+function renderMedia(image, description) {
   const frame = el("div", "detail-media");
   frame.dataset.state = "loading";
 
   const img = document.createElement("img");
   img.className = "detail-image";
   img.src = image.src;
-  img.alt = postImageAlt(image, caption);
+  img.alt = description;
   img.decoding = "async";
   if (image.width && image.height) {
     img.width = image.width;
@@ -198,10 +249,17 @@ function renderMedia(image, caption) {
   // and a People tile now draw (src/image-description.js), so it is the same
   // outline chip here — one shape for one fact, and one fewer heading claiming
   // to be a section of a page that has exactly one.
+  //
+  // What stands in the image's place is the description itself, unprefixed and
+  // byte-identical to the alt above — the same string, not a copy of it with
+  // "Description: " glued on, which was one more thing that could drift from the
+  // labelled caption under the frame. Under it, one sentence naming what went
+  // wrong in words, because a tinted box with an outline chip in it is a signal
+  // a reader has to already know how to read.
   const chipId = "post-image-unavailable-title";
-  const fallback = renderImageUnavailable("detail-media-fallback", img.alt
-    ? `Description: ${img.alt}`
-    : "The post image could not be displayed, and the post carries no description of it.", { chipId });
+  const failed = description ? POST_IMAGE_FAILED_LINE : POST_IMAGE_FAILED_UNDESCRIBED_LINE;
+  const fallback = renderImageUnavailable("detail-media-fallback", description || failed, { chipId });
+  if (description) fallback.append(el("p", "detail-media-failed-line", failed));
   fallback.setAttribute("role", "status");
   fallback.setAttribute("aria-labelledby", chipId);
   fallback.hidden = true;
@@ -351,7 +409,24 @@ export function renderPostDetail(container, post, options = {}) {
     // figure/figcaption, so the caption is the image's caption to a screen
     // reader and not merely the paragraph that happens to sit under it.
     const figure = el("figure", "detail-figure");
-    figure.append(renderMedia(image, caption));
+    // Resolved once, here, and handed to both the image and the caption under
+    // it. That is the whole of the alt-parity guarantee: there is one value, so
+    // there is nothing for a second value to drift from. An empty result means
+    // the post has neither a stored description nor a caption to fall back on —
+    // a decorative image, which gets alt="" and no caption promising text that
+    // does not exist.
+    const description = postImageAlt(image, caption);
+    // Whether there is a description to *label*, which is a narrower question
+    // than what to put in alt. postImageAlt falls back to the visible caption
+    // when a legacy post stored none, and that fallback is right for alt — the
+    // caption is the truest sentence the page has about the image — but it is
+    // not a description the poster wrote about the image, and printing it under
+    // "Image description" would both claim that it is and say the same sentence
+    // twice under one figure. So the labelled caption appears when, and only
+    // when, the poster actually wrote one; where it appears it is `description`
+    // itself, so it is still the identical string the alt attribute holds.
+    const stored = typeof image.alt === "string" && image.alt.trim() !== "";
+    figure.append(renderMedia(image, description));
     // An empty figcaption would announce a caption that is not there. A post
     // with neither caption nor body cannot come out of the normalizers, but the
     // renderer is handed plain objects and must not invent text either way.
@@ -360,6 +435,13 @@ export function renderPostDetail(container, post, options = {}) {
       figcaption.id = "detail-caption";
       figure.append(figcaption);
     }
+    // The description closes the figure — image, what the poster said about the
+    // post, then what they said about the image. It sits inside the figure
+    // rather than after it because it is about the image and nothing else, and
+    // it is deliberately not the figcaption: a figcaption joins the figure's
+    // accessible name, and the description is already the image's alt, so
+    // announcing it there would read the same sentence to a screen reader twice.
+    if (stored) figure.append(renderImageDescription(description));
     article.append(figure);
     // A dedicated caption does not replace the post body, so show the body too
     // when they differ — otherwise the detail view would hide text the feed shows.
