@@ -48,6 +48,26 @@
   fail a deploy or block a rollback. Alert on `auth: "degraded"` and the
   `binding_health` log rather than on the probe's status code. Provisioning the
   bindings stays operations-owned. See `docs/auth-storage-bindings.md`.
+- `/healthz` also answers "is the build serving traffic the one the release log
+  says shipped?" as one top-level `verdict` field — `matched`, `mismatched`, or
+  `unknown` — with `build_sha`, `built_at`, `release_sha`, and `release_id` as
+  the evidence behind it, plus `action` when it is `mismatched` and `reason`
+  when it is `unknown`. The running build's sha comes from `src/build-stamp.js`,
+  which `npm run build` regenerates from `git rev-parse HEAD` on every build; a
+  checkout with no git metadata stamps `commitSha: null`, which reports
+  `unknown` rather than failing the build or inventing a sha. The comparison
+  itself lives in `src/release-build-match.js` and is read from exactly two
+  places — the probe and the release log page (`/releases.html`), so the page
+  and the endpoint state the same verdict and the same next action. Both inputs
+  are compiled in, so this costs no binding, no storage read, and no network
+  call, and no input shape can turn it into a non-200: alert on `verdict` and
+  the `release_build_match` log line, never on the status code.
+- The one thing this cannot do for you: a release record only takes part in the
+  comparison once it carries the commit it shipped, in its `commitSha` field.
+  The shipped example records do not (they are synthetic and shipped nothing),
+  so `/healthz` reports `unknown` and names the release that is missing a sha
+  until a real release record supplies one. Recording that sha is the manual
+  step; everything downstream of it is automatic.
 - `npm run record:merged-count` refreshes the observatory's fallback figure. It
   reads the public GitHub event feeds `/agents.html` links to and writes the
   count and its ISO-8601 timestamp to `src/merged-pull-request-count.json`, which

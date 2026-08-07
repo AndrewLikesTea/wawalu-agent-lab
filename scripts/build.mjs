@@ -2,6 +2,7 @@ import { cp, mkdir, mkdtemp, rename, rm } from "node:fs/promises";
 import { basename, resolve } from "node:path";
 import { createManifest, verifyArtifact } from "./verify-build.mjs";
 import { seedFirstScreen } from "./seed-first-screen.mjs";
+import { writeBuildStamp } from "./write-build-stamp.mjs";
 
 const root = resolve(import.meta.dirname, "..");
 const output = resolve(root, "dist");
@@ -11,6 +12,12 @@ const staging = resolve(stagingRoot, basename(output));
 let previousExists = false;
 
 try {
+  // Which commit this build was made from, written before src/ is copied so the
+  // artifact and the deployed Pages Function read the same stamp. A checkout
+  // with no git metadata stamps `commitSha: null` and the build continues:
+  // `/healthz` then reports `unknown` rather than a fabricated sha.
+  const stamp = await writeBuildStamp();
+  console.log(`stamped build ${stamp.commitSha ?? "unknown (no git metadata)"} at ${stamp.builtAt}`);
   await mkdir(staging, { recursive: true });
   await cp(resolve(root, "src"), staging, { recursive: true });
   // Ship the reviewed schemas, compatibility metadata, and synthetic fixtures.

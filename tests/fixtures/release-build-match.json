@@ -1,0 +1,47 @@
+{
+  "$comment": "Inputs for the build-versus-release-log verdict, committed so the four cases are provable without a git checkout, a build, or the network. Every sha here is invented: they are hex strings of the right shape, not commits of this or any repository. The release records carry only the fields the comparison reads plus the id and createdAt the log already stores.",
+  "$shaNote": "matchedLog's newest record carries the 12-character abbreviation of stampedBuild.commitSha on purpose: the comparison rule is 'compare over the shorter of the two lengths', and this fixture is what proves an abbreviated sha does not read as a mismatch.",
+  "stampedBuild": {
+    "schemaVersion": 1,
+    "commitSha": "4b1d9ca7f0e3268159acd47b0f2e6a58cd913720",
+    "builtAt": "2026-08-04T11:22:33.000Z"
+  },
+  "unstampedBuild": {
+    "schemaVersion": 1,
+    "commitSha": null,
+    "builtAt": null
+  },
+  "matchedLog": [
+    {
+      "id": "fix-r-2-1-0",
+      "version": "v2.1.0",
+      "commitSha": "4b1d9ca7f0e3",
+      "createdAt": "2026-08-04T10:00:00.000Z",
+      "decisionIds": []
+    },
+    {
+      "id": "fix-r-2-0-0",
+      "version": "v2.0.0",
+      "commitSha": "0a0b0c0d0e0f1122334455667788990011223344",
+      "createdAt": "2026-07-02T10:00:00.000Z",
+      "decisionIds": []
+    }
+  ],
+  "mismatchedLog": [
+    {
+      "id": "fix-r-2-2-0",
+      "version": "v2.2.0",
+      "commitSha": "77c0ffee1234567890abcdef1234567890abcdef",
+      "createdAt": "2026-08-05T09:30:00.000Z",
+      "decisionIds": []
+    },
+    {
+      "id": "fix-r-2-1-0",
+      "version": "v2.1.0",
+      "commitSha": "4b1d9ca7f0e3",
+      "createdAt": "2026-08-04T10:00:00.000Z",
+      "decisionIds": []
+    }
+  ],
+  "emptyLog": []
+}

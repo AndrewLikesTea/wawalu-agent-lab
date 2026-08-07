@@ -486,11 +486,18 @@ test("GET /healthz returns a successful health response without credentials or e
   assert.equal(response.status, 200);
   assert.equal(response.headers.get("cache-control"), "no-store");
   assert.equal(response.headers.get("x-request-id"), "shiplog-e2e");
-  assert.deepEqual(await response.json(), {
-    status: "ok",
-    storage: "available",
-    auth: "unconfigured",
-  });
+  const body = await response.json();
+  assert.deepEqual(
+    { status: body.status, storage: body.storage, auth: body.auth },
+    { status: "ok", storage: "available", auth: "unconfigured" },
+  );
+  // The same response also answers "is this the build the release log says
+  // shipped" — one top-level word, computed from the build stamp and the
+  // shipped records, with no binding, storage read, or network call behind it.
+  // Its value depends on the checked-out commit, so only its shape is pinned
+  // here; tests/release-build-match.test.js drives the four cases.
+  assert.ok(["matched", "mismatched", "unknown"].includes(body.verdict));
+  assert.equal("build_sha" in body && "release_id" in body, true);
   assert.deepEqual(statements, ["SELECT 1 AS healthy"], "the health probe performed work beyond its read-only query");
 });
 

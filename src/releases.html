@@ -120,6 +120,17 @@
                this live region. -->
           <span class="count" id="release-count" aria-live="polite"></span>
         </div>
+        <!-- Whether the build serving this page is the one the newest release
+             record says shipped. Written by releases-page.js from
+             src/release-build-match.js — the same function and the same
+             sentence /healthz answers with, so an on-call operator reading the
+             page and one reading the probe get the same verdict and the same
+             next action. It sits here in the open, above the filters and
+             outside every disclosure, because a reader must not have to expand
+             anything to find out that production is serving an unexpected
+             build. Empty until the module runs; a page with no JavaScript
+             claims nothing about what shipped. -->
+        <p class="hint" id="release-build-match"></p>
         <div class="release-filters" role="search" aria-label="Filter releases">
           <div class="filter release-search-filter">
             <label for="release-search">Search releases</label>
