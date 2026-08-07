@@ -83,6 +83,12 @@
 // It ranks three destinations and will never rank more than four. A fourth is
 // the ceiling and a fifth is a menu.
 
+// The one computation behind every headline on this page, and the provenance
+// triple each one carries (#1329). Imported one way only: that module knows
+// nothing about this registry, which is what keeps the two out of a cycle and
+// lets the fixture join them without either side vouching for itself.
+import { applyDestinationProvenance, destinationProvenanceText } from "./finops-headline-provenance.js";
+
 // The one interrogative sentence at the top of the page, and the id of the
 // heading that carries it. #1325 asked for "How much of our AI spend can we
 // recover this quarter?" and the window is deliberately NOT in the question:
@@ -453,10 +459,20 @@ export function frontDoorMarkup(indent = "      ", front = FINOPS_FRONT_DOOR, de
     ].join(" ");
     const recommended = destination.prioritized
       ? '<span class="workspace-dest-state">Recommended first</span>' : "";
+    // THE PROVENANCE LINE (#1329). Run, then scope, then when — static text
+    // inside the door itself, so it is part of the destination header region
+    // and a screen-reader user moving between destinations hears it with the
+    // name and the question rather than having to hunt for it. It is not a
+    // control: this page's first screen has no spare tab stop. The sentence is
+    // the shared computation's own return value; nothing here formats a number.
+    // It reuses `.front-door-question`, the muted subordinate weight already
+    // shipped for the line above it, so no stylesheet rule is added.
+    const provenance = `<span class="front-door-question" data-destination-provenance="${destination.slug}">`
+      + `${escape(destinationProvenanceText(destination.slug))}</span>`;
     return `${pad(3)}<li class="workspace-nav-item"><a ${attributes}>`
       + `<strong class="workspace-dest-name">${escape(destination.name)}</strong> `
       + `<span class="front-door-question">${escape(destination.question)}</span>`
-      + `${recommended}</a></li>`;
+      + `${provenance}${recommended}</a></li>`;
   });
   return [
     `${indent}<section class="finops-front-door" id="finops-front-door" data-subordinate="true" data-workspace-frame="true" data-state="${finding.state}" aria-labelledby="finops-front-door-label">`,
@@ -527,6 +543,10 @@ export function applyFinopsFrontDoor(
     const question = item.querySelector?.(".front-door-question");
     if (question) question.textContent = destination.question;
   }
+  // The provenance line last, from the shared computation rather than from the
+  // registry: the registry holds the number a destination states, and the
+  // sentence under it must say which run that number came from.
+  applyDestinationProvenance(document);
   return true;
 }
 
