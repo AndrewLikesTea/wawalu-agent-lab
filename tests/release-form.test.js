@@ -278,13 +278,13 @@ test("the recorder markup groups the picker and never builds HTML from stored te
   ]);
   assert.match(page, /id="release-form"/);
   assert.match(page, /id="release-decisions"/);
-  assert.match(page, /<legend>Link decisions to this release<\/legend>/);
+  assert.match(page, /<legend>Link decisions to this release <span class="label-optional label-required">\(required\)<\/span><\/legend>/);
   // The three required fields issue #533 adds. The date is a native date
   // control, so the platform supplies the picker and the format hint; the
   // summary is required in the markup as well as in createRelease().
   assert.match(page, /id="release-released-on" name="releasedOn" type="date" required/);
-  assert.match(page, /<label for="release-released-on">Release date<\/label>/);
-  assert.match(page, /<label for="release-description">Summary<\/label>/);
+  assert.match(page, /<label for="release-released-on">Release date <span class="label-optional label-required">\(required\)<\/span><\/label>/);
+  assert.match(page, /<label for="release-description">Summary <span class="label-optional label-required">\(required\)<\/span><\/label>/);
   assert.match(page, /id="release-description" name="description"[^>]*\srequired/);
   // `required` on a checkbox group would demand every option; the group is
   // described instead, and createRelease() owns the at-least-one rule.
