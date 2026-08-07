@@ -85,6 +85,10 @@ import { renderPayloadBriefing, renderPayloadState } from "/executive-payload-br
 const root = document.getElementById("executive-briefing");
 const actions = document.getElementById("briefing-actions");
 const download = document.getElementById("open-shared-brief-download");
+// The egress caution the control names through `aria-describedby` (#1209). It
+// travels with the control rather than standing on its own: see
+// `offerBriefDownload`.
+const downloadEgress = document.getElementById("open-shared-brief-egress");
 
 const PAYLOAD_URL = "/evolution-demo-data.json";
 const PAYLOAD_PRINT_NOTE =
@@ -155,19 +159,24 @@ function sharedFailureNode(sharedFailure) {
  *
  * The link is hidden whenever there is no brief to put behind it. A download
  * control over an absent brief hands a reader an empty file with a confident
- * name on it.
+ * name on it. The egress caution beside it (#1209) is hidden and unhidden in
+ * the same statement, so a reader offered the control is always offered the
+ * sentence saying what taking it up sends, and a reader offered neither meets
+ * no warning about a door that is not there.
  */
 function offerBriefDownload(periods) {
   if (!download) return null;
   const built = buildBriefEnvelope(periods, { producedAt: new Date().toISOString() });
   if (!built.ok) {
     download.hidden = true;
+    if (downloadEgress) downloadEgress.hidden = true;
     download.removeAttribute("href");
     return null;
   }
   const text = serializeBriefEnvelope(built.envelope, { pretty: true });
   download.href = `data:${BRIEF_FILE_MEDIA_TYPE};charset=utf-8,${encodeURIComponent(text)}`;
   download.hidden = false;
+  if (downloadEgress) downloadEgress.hidden = false;
   return built.envelope;
 }
 

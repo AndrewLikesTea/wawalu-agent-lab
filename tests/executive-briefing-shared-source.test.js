@@ -243,9 +243,11 @@ test("the control ships wired into the page, named, and announcing in the open",
     assert.notEqual(String(node.tagName ?? "").toLowerCase(), "details",
       "the announcement is folded inside a disclosure and would be silent");
   }
-  // The button names the status and the lead as its description.
+  // The button names the lead, the egress caution (#1209) and the status as its
+  // description, in reading order: what the link is, what sending it costs, then
+  // what happened. tests/finops-sharing-legibility.test.js owns the caution.
   assert.equal(button.getAttribute("aria-describedby"),
-    `${SHARE_LINK_IDS.lead} ${SHARE_LINK_IDS.status}`);
+    `${SHARE_LINK_IDS.lead} ${SHARE_LINK_IDS.egress} ${SHARE_LINK_IDS.status}`);
 });
 
 test("a retained period unhides the control and puts the link in the box", () => {

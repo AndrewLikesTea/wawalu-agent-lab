@@ -107,7 +107,30 @@
         <p id="open-shared-brief-lead">Open a brief file a colleague downloaded from this page. It is read in this tab by your browser's own file reader — nothing is uploaded and nothing is fetched — and shown read-only above: it is not added to this browser's retained figures and does not change them. A file this build cannot read whole is refused whole, with the reason in words, and nothing of it is shown.</p>
         <p class="brief-print-hint"><label for="open-shared-brief-file">Open a shared brief file</label> <input id="open-shared-brief-file" type="file" accept="application/json,.json" aria-describedby="open-shared-brief-lead open-shared-brief-status" /></p>
         <p class="brief-print-status" id="open-shared-brief-status" role="status" aria-live="polite" aria-atomic="true"></p>
-        <p><a class="brief-print-button" id="open-shared-brief-download" download="shiplog-finops-shared-brief.json" href="#open-shared-brief" hidden>Download the brief above as a file</a></p>
+        <!-- THE SAME SENTENCE THE COPY CONTROL CARRIES (#1209). A brief leaves
+             this browser by two doors — the shareable link on the AI FinOps
+             page, and this file — and until now only one of them said so. The
+             wording here is character for character the wording at
+             finops share egress on evolution.html, because a reader who has
+             met the warning once should not have to decide whether a second,
+             differently worded one means something else.
+             It reads BEFORE the control, not after it: a caution a reader
+             meets once the file is already in their downloads folder is a
+             record, not a warning. Plain visible prose, never a tooltip and
+             never folded inside a disclosure element, and nothing in it is
+             focusable, so the tab order of this block is unchanged.
+             The control names it through aria describedby, ahead of the
+             envelope note, so the warning is announced with the control.
+             Claude Design (design system claude design review 08 foundations)
+             caption role: this is the page's own brief print hint class, so no
+             type step and no rule in styles.css is added.
+             It ships hidden and is unhidden by the same statement that unhides
+             the control, in offerBriefDownload: a caution over a control that
+             is not being offered is noise, and noise is what a reader learns to
+             read past. The invariant, asserted rather than described, is that
+             these two are never in different states. -->
+        <p class="brief-print-hint" id="open-shared-brief-egress" hidden>This carries your own figures — the ones on this screen, not the bundled example — and once it leaves this tab it travels wherever it is pasted or forwarded, to anyone who is passed it. Send it only to people you would read these numbers out to.</p>
+        <p><a class="brief-print-button" id="open-shared-brief-download" download="shiplog-finops-shared-brief.json" href="#open-shared-brief" aria-describedby="open-shared-brief-egress open-shared-brief-download-note" hidden>Download the brief above as a file</a></p>
         <p class="brief-print-hint" id="open-shared-brief-download-note">The file carries the same envelope the shareable link carries: the figure, the destination, the confidence grade, the provenance and the Limits disclosures, with the periods they were derived from. It is written in this tab and saved by your browser; it is not uploaded anywhere.</p>
       </section>
 

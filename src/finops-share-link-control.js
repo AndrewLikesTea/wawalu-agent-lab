@@ -51,6 +51,10 @@ import { checkSharedBriefingParity } from "./finops-share-parity.js";
 export const SHARE_LINK_IDS = Object.freeze({
   block: "finops-share",
   lead: "finops-share-lead",
+  // The standing egress caution (#1209): authored visible in the page and never
+  // written from here. It is a fact about what sending costs, not a status, so
+  // no paint may empty it, and it hides only with the block that owns it.
+  egress: "finops-share-egress",
   button: "finops-share-button",
   parity: "finops-share-parity",
   status: "finops-share-status",

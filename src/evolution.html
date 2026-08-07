@@ -388,6 +388,16 @@
         <div class="prompt-coaching-copy" id="finops-share" data-reason="no_period_in_token" hidden>
           <h3 class="eyebrow">Send a colleague your own figures</h3>
           <p class="prompt-coaching-copy-lead" id="finops-share-lead">A link to the printable executive briefing with the periods this browser has retained carried in it, so whoever opens it reads your months rather than the bundled synthetic example. The figures ride after the # and are never sent to a server. Aggregates only: the same retained-period fields this browser already keeps, no row and no filename.</p>
+          <!-- SHARING IS A DELIBERATE ACT, SO SAY WHAT LEAVES (#1209). The lead
+               says what the link is; this says what pressing it costs. Visible
+               prose, never a tooltip and never folded inside a disclosure
+               element, nothing in it focusable, and named by the button through
+               aria describedby. The same sentence character for character sits
+               at the brief download on executive briefing;
+               tests/finops-sharing-legibility.test.js reads both files and
+               holds them to it. Claude Design caption role, so the lead's own
+               class: no type step, no styles.css rule. -->
+          <p class="prompt-coaching-copy-lead" id="finops-share-egress">This carries your own figures — the ones on this screen, not the bundled example — and once it leaves this tab it travels wherever it is pasted or forwarded, to anyone who is passed it. Send it only to people you would read these numbers out to.</p>
           <!-- DOES THIS LINK REPRODUCE THE BRIEF? (#1210). Painted by
                src/finops-share-parity.js through the control beside it, which
                encodes this browser's periods, reads them back through the
@@ -404,7 +414,7 @@
                the first-screen tab order is unchanged. NO FIGURE and no grade
                is in these bytes. -->
           <p class="prompt-coaching-copy-status" id="finops-share-parity" role="status" aria-live="polite" aria-atomic="true"></p>
-          <button class="secondary-button" type="button" id="finops-share-button" aria-describedby="finops-share-lead finops-share-status">Copy shareable link to your own figures</button>
+          <button class="secondary-button" type="button" id="finops-share-button" aria-describedby="finops-share-lead finops-share-egress finops-share-status">Copy shareable link to your own figures</button>
           <p class="prompt-coaching-copy-status" id="finops-share-status" role="status" aria-live="polite" aria-atomic="true"></p>
           <div class="prompt-coaching-copy-fallback prompt-coaching-field" id="finops-share-fallback">
             <label for="finops-share-text">The exact link this copies</label>
