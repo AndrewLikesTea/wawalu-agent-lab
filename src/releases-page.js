@@ -18,6 +18,8 @@ import {
   saveReleases,
 } from "./releases.js";
 import { loadReleaseData } from "./releases-data.js";
+import { BUILD_STAMP } from "./build-stamp.js";
+import { releaseBuildMatchLine, releaseBuildStatus } from "./release-build-match.js";
 import { initDeploymentStatus } from "./deployment-status-view.js";
 import { RELEASE_FORM_ERRORS, createRelease, mountDecisionPicker, recordedSummaryText } from "./release-form.js";
 
@@ -123,6 +125,9 @@ export function initReleasesPage(root = document, storage = localStorage, option
   const search = root.querySelector("#release-search");
   const statusFilter = root.querySelector("#release-status");
   const followUpSlot = root.querySelector("#release-followup");
+  // The one line in the deployment status band that says whether the build
+  // serving this page is the build the newest release record says shipped.
+  const buildMatchSlot = root.querySelector("#deployment-build-match");
   // A radio group, so the active filter is whichever option is checked. Read
   // from the controls on every update rather than mirrored into page state:
   // the browser already owns "which one is selected", and a second copy of that
@@ -196,6 +201,18 @@ export function initReleasesPage(root = document, storage = localStorage, option
     if (target) historyRef?.replaceState?.(null, "", target);
   };
 
+  // The build-versus-log verdict, from the same function `/healthz` answers
+  // with (src/release-build-match.js) over the same generated stamp
+  // (src/build-stamp.js) that shipped inside this artifact. The probe reads the
+  // shipped records; this reads the log as this browser holds it, which is the
+  // log the reader is looking at. Deliberately not filtered: hiding the newest
+  // release behind a search box must not change what the page says is running.
+  const buildStamp = options.buildStamp ?? BUILD_STAMP;
+  const renderBuildMatch = () => {
+    if (!buildMatchSlot) return;
+    buildMatchSlot.textContent = releaseBuildMatchLine(releaseBuildStatus(buildStamp, releases));
+  };
+
   const view = mountReleaseList(container, { releases, decisions, exampleIds: exampleReleaseIds });
   const update = () => {
     const filters = {
@@ -210,6 +227,9 @@ export function initReleasesPage(root = document, storage = localStorage, option
     // point at a release the active filter has hidden.
     if (count) count.textContent = releaseCountText(shown.length, releases.length);
     if (followUpSlot) renderReleaseFollowUp(followUpSlot, releaseFollowUp(shown));
+    // Re-read after a record joins the log: recording a release changes which
+    // record is newest, and therefore what the verdict is about.
+    renderBuildMatch();
   };
   search?.addEventListener("input", update);
   statusFilter?.addEventListener("change", update);

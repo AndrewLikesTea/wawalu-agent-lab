@@ -51,6 +51,16 @@
           <h2 class="release-followup-title" id="deployment-status-title">Deployment status</h2>
           <p class="release-followup-lead" id="deployment-verdict" role="status">Comparing the running deployment with the newest release record…</p>
           <p class="detail-summary" id="deployment-metric"></p>
+          <!-- The commit-sha half of the same question, written by
+               releases-page.js from src/release-build-match.js: the same
+               function, over the same generated build stamp, that /healthz
+               answers with. An operator reading this line and one reading the
+               probe get the same verdict and the same next action because there
+               is only one comparison. Reuses the metric's class rather than
+               adding a rule: styles.css is at its measured size budget. Empty
+               until the module runs — a page with no JavaScript claims nothing
+               about what shipped. -->
+          <p class="detail-summary" id="deployment-build-match"></p>
           <div id="deployment-next-action"></div>
           <details class="supersede-disclosure" id="deployment-evidence" data-disclosure="collapsed">
             <summary class="supersede-disclosure-summary" id="deployment-evidence-summary" aria-expanded="false" aria-controls="deployment-evidence-body">Evidence: the health response and the record it was compared with</summary>

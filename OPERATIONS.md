@@ -48,6 +48,36 @@
   fail a deploy or block a rollback. Alert on `auth: "degraded"` and the
   `binding_health` log rather than on the probe's status code. Provisioning the
   bindings stays operations-owned. See `docs/auth-storage-bindings.md`.
+- `/healthz` also answers "is the build serving traffic the one the release log
+  says shipped?" as one top-level `verdict` field — `matched`, `mismatched`, or
+  `unknown` — with `build_sha`, `built_at`, `release_sha`, and `release_id` as
+  the evidence behind it, plus `action` when it is `mismatched` (exactly one
+  next step, naming the release id to open) and a machine-readable `reason` when
+  it is `unknown`: `no_build_stamp`, `empty_release_log`, or
+  `release_has_no_commit_sha`. Alert on `verdict` and `reason` and on the
+  `release_build_match` log line, never on the status code — the probe answers
+  200 for every one of those cases, because a rollout and a rollback both smoke
+  test it.
+- The running build's sha comes from `src/build-stamp.js`, which
+  `npm run build` regenerates from `git rev-parse HEAD` before it stages `src/`,
+  so the stamp travels inside the artifact and no dashboard value or environment
+  variable can differ between preview and production. A checkout with no git
+  metadata stamps `commitSha: null`, which reports `unknown` with reason
+  `no_build_stamp` rather than failing the build or inventing a sha. The file is
+  committed with `commitSha: null` for the same reason: a checkout must not
+  claim a build it did not make.
+- The comparison itself lives in `src/release-build-match.js` and is read from
+  exactly two places — the probe and the deployment status band on
+  `/releases.html` — so the page and the endpoint state the same verdict and the
+  same next action by construction. Both of the probe's inputs are compiled in,
+  so the answer costs no binding, no storage read, and no network call.
+- THE ONE MANUAL STEP. A release record only takes part in the comparison once
+  it carries the commit it shipped, in its `commitSha` field. The shipped
+  example records do not (they are synthetic and shipped nothing), so `/healthz`
+  reports `unknown` with reason `release_has_no_commit_sha` and names the record
+  that is missing one until a real release supplies it. Recording that sha is
+  the step no build-time check can do for you; everything downstream of it is
+  automatic.
 - `npm run record:merged-count` refreshes the observatory's fallback figure. It
   reads the public GitHub event feeds `/agents.html` links to and writes the
   count and its ISO-8601 timestamp to `src/merged-pull-request-count.json`, which
