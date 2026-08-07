@@ -1405,17 +1405,69 @@
            under the page's one question, and three of them would be three
            competing answers.
 
-           It adds no rule to any stylesheet: the eyebrow, the answer line, the
-           list and the destination anchors reuse classes this page already
-           ships. -->
-      <section class="finops-front-door" id="finops-front-door" data-subordinate="true" data-workspace-frame="true" aria-labelledby="finops-front-door-label">
+           IT READS AS AN ANSWER, NOT A PARAGRAPH (#1327). Four parts, in this
+           order, and the DOM order is the reading order and the tab order:
+           the FINDING at the page's largest figure weight, then the EVIDENCE as
+           three labelled rows (Impact, Confidence, Provenance — the confidence
+           is the word and the rubric line that earns it, never a hue), then the
+           ACTION, then the WORKING behind a native disclosure. The one
+           prioritized door is the region's only filled control and the other two
+           are outlines, which is the Claude Design foundations rule — filled
+           wash is a dynamic signal, outline is a static classification — applied
+           to three doors that used to be three identical buttons.
+
+           THE DOORS ARE A NAMED `nav` LANDMARK. A screen-reader user reaches
+           the three destinations by landmark rather than by walking the
+           document, and the landmark costs NO tab stop: the doors were already
+           the links, so the region's only new focusable is the disclosure's own
+           summary, and it sits well below the first screen whose tab order is
+           pinned elsewhere.
+
+           NOTHING LIVE GOES INSIDE THE DISCLOSURE. destination-route-view.js
+           inserts its role="status" paragraph as this region's FIRST child; a
+           live region folded into a shut disclosure is silent for a real reader
+           while a harness that reads through it still passes.
+
+           It adds two rules to evolution.css and none to styles.css: the
+           region's vertical rhythm, and the muted weight of the question line
+           inside an outline door. Everything else — the eyebrow, the figure, the
+           labelled rows, the doors, the disclosure silhouette — reuses classes
+           this page already ships. -->
+      <!-- STATES. `data-state` is one of ready, loading, empty or error, and
+           `frontDoorFinding()` in the registry draws all four: the served bytes
+           are `ready`, and the other three keep the label, keep a non-blank
+           value, and add a sentence saying why it is what it is. Where a real
+           figure was measured before, they show THAT figure with the date it was
+           taken rather than a dash — the honest non-empty pattern #1331 landed
+           for the counted-PR block — and mark it not-fresh through
+           `data-available="false"`, which is the shipped dashed-rule and
+           warning-ink treatment, beside words that say the same thing. An
+           implausible number cannot break the layout because
+           `formatRecoverableUsd()` never emits more than twelve characters. -->
+      <section class="finops-front-door" id="finops-front-door" data-subordinate="true" data-workspace-frame="true" data-state="ready" aria-labelledby="finops-front-door-label">
         <p class="eyebrow" id="finops-front-door-label">Where to go next · 3 destinations</p>
-        <p class="stand-answer" id="finops-front-door-figure">Recoverable spend this quarter $16k · Confidence: medium · bundled synthetic example, as of 2026-07-01. All figures are synthetic demo data.</p>
-        <ol class="workspace-nav-list" id="finops-front-door-list">
-          <li class="workspace-nav-item"><a class="stand-action" href="#finops-stand" data-front-door-slug="spend-attribution" data-front-door-prioritized="false"><strong>Spend attribution</strong> <span>Where is the money going? · Analyzed AI spend in the reporting month: $154,500 · bundled synthetic example, as of 2026-07-01</span></a></li>
-          <li class="workspace-nav-item"><a class="stand-action" href="/savings-action-center.html" data-front-door-slug="optimisation-levers" data-front-door-prioritized="true"><strong>Optimisation levers</strong> <span>What can we change? · Monthly saving from the highest-ranked lever: $5,200 / month · bundled synthetic example, as of 2026-07-01</span><em>Recommended first</em></a></li>
-          <li class="workspace-nav-item"><a class="stand-action" href="/savings-commitment.html" data-front-door-slug="commitment-coverage" data-front-door-prioritized="false"><strong>Commitment coverage</strong> <span>Are we paying list price for steady-state load? · Share of the quarter's analyzed spend priced at published list rates: 100% · published rate card, as of 2026-07-01</span></a></li>
-        </ol>
+        <p class="stand-figure" id="finops-front-door-figure"><span class="stand-figure-label" id="finops-front-door-figure-label">Recoverable spend this quarter</span> <span class="stand-figure-value" id="finops-front-door-value" data-available="true">$16k</span> <span class="stand-figure-basis" id="finops-front-door-note" hidden></span></p>
+        <dl class="figure-source-detail" id="finops-front-door-evidence">
+          <div><dt>Impact</dt><dd>Monthly saving from the highest-ranked lever: $5,200 / month. That lever is what the figure above is recoverable through.</dd></div>
+          <div><dt>Confidence</dt><dd>medium — at least one contributing line item is attributed by allocation rule rather than read off an invoice line.</dd></div>
+          <div><dt>Provenance</dt><dd>bundled synthetic example, as of 2026-07-01. All figures are synthetic demo data.</dd></div>
+        </dl>
+        <nav class="finops-front-door-nav" id="finops-front-door-nav" aria-label="Destinations">
+          <ol class="workspace-nav-list" id="finops-front-door-list">
+            <li class="workspace-nav-item"><a class="workspace-dest" href="#finops-stand" data-front-door-slug="spend-attribution" data-front-door-prioritized="false"><strong class="workspace-dest-name">Spend attribution</strong> <span class="front-door-question">Where is the money going?</span></a></li>
+            <li class="workspace-nav-item"><a class="stand-action" href="/savings-action-center.html" data-front-door-slug="optimisation-levers" data-front-door-prioritized="true"><strong class="workspace-dest-name">Optimisation levers</strong> <span class="front-door-question">What can we change?</span><span class="workspace-dest-state">Recommended first</span></a></li>
+            <li class="workspace-nav-item"><a class="workspace-dest" href="/savings-commitment.html" data-front-door-slug="commitment-coverage" data-front-door-prioritized="false"><strong class="workspace-dest-name">Commitment coverage</strong> <span class="front-door-question">Are we paying list price for steady-state load?</span></a></li>
+          </ol>
+        </nav>
+        <details class="figure-source" id="finops-front-door-working" data-source="derived" data-disclosure="collapsed">
+          <summary class="figure-source-summary" id="finops-front-door-working-summary" aria-expanded="false" aria-controls="finops-front-door-working-detail"><span class="figure-source-state" data-disclosure="collapsed"><span class="figure-source-shape" aria-hidden="true">▸</span> Show the working behind $16k and each destination's own figure</span></summary>
+          <dl class="figure-source-detail" id="finops-front-door-working-detail">
+            <div><dt>How $16k was computed</dt><dd>Recoverable spend this quarter sums the quarter-to-date cost of every workload flagged as addressable by at least one shipped lever. One qualifies, at $5,200 a month: 5,200 x 3 = 15,600, rounded once after the arithmetic and shown as $16k. It is a subset of spend, never a projection, and never spend already recovered.</dd></div>
+            <div><dt>Spend attribution</dt><dd>Analyzed AI spend in the reporting month: $154,500 · bundled synthetic example, as of 2026-07-01</dd></div>
+            <div><dt>Optimisation levers</dt><dd>Monthly saving from the highest-ranked lever: $5,200 / month · bundled synthetic example, as of 2026-07-01</dd></div>
+            <div><dt>Commitment coverage</dt><dd>Share of the quarter's analyzed spend priced at published list rates: 100% · published rate card, as of 2026-07-01</dd></div>
+          </dl>
+        </details>
       </section>
 
       <!-- WHERE THE READER GOES NEXT — the third evidence layer.

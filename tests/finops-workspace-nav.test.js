@@ -100,11 +100,15 @@ test("the rail is a named navigation landmark, distinct from the site nav", () =
   assert.equal(title.tagName, "H2");
   assert.ok(textOf(title).length > 0, "the rail's name is empty");
 
+  // Three landmarks, each named differently: the site nav, this rail, and the
+  // front door's "Destinations" list (#1327), which is the three ranked doors
+  // already on the page exposed as a landmark so a screen-reader user reaches
+  // them without walking the document. A fourth needs a reason stated here.
   const navs = document.querySelectorAll("nav");
-  assert.equal(navs.length, 2, `the page exposes ${navs.length} navigation landmarks`);
+  assert.equal(navs.length, 3, `the page exposes ${navs.length} navigation landmarks`);
   const names = navs.map((node) => node.getAttribute("aria-label")
     ?? textOf(byId(document, node.getAttribute("aria-labelledby")) ?? { textContent: "" }));
-  assert.equal(new Set(names).size, 2, `two navigation landmarks share one name: ${names.join(" / ")}`);
+  assert.equal(new Set(names).size, 3, `two navigation landmarks share one name: ${names.join(" / ")}`);
 
   // It carries no figure and answers no decision question, so it is not marked
   // as a summary of one. The page still presents exactly one complete summary.

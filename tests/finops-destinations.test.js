@@ -13,7 +13,7 @@ import { readFile } from "node:fs/promises";
 import {
   CONFIDENCE_LEVELS, DESTINATION_CEILING, FINOPS_DESTINATIONS, FINOPS_FRONT_DOOR,
   FRONT_DOOR_QUESTION, FRONT_DOOR_QUESTION_ID,
-  applyFinopsFrontDoor, destinationStateText, frontDoorFigureText,
+  applyFinopsFrontDoor, destinationStateText, frontDoorEvidence,
   frontDoorMarkup, prioritizedDestination, prioritizedSlug,
 } from "../src/finops-destinations.js";
 import { parseHtml, textOf } from "./support/browser.js";
@@ -104,8 +104,8 @@ test("the front door states one question, one number, its confidence and its pro
 
   // The synthetic-data boundary, stated once.
   assert.equal(FINOPS_FRONT_DOOR.boundary, "All figures are synthetic demo data.");
-  const line = frontDoorFigureText();
-  assert.equal((line.match(/synthetic demo data/g) ?? []).length, 1);
+  const stated = frontDoorEvidence().map((entry) => entry.detail).join(" ");
+  assert.equal((stated.match(/synthetic demo data/g) ?? []).length, 1);
 });
 
 test("the page ships the registry's markup and nothing hand-written beside it", async () => {
