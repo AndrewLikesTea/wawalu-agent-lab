@@ -133,7 +133,10 @@ test("activating the skip link goes to the landmark, past every site-frame tab s
     // reader who has skipped, and counting them here would misreport the saving.
     const sequence = tabSequence(document);
     const landmark = document.querySelector(`#${skip.href.slice(1)}`);
-    const inside = new Set(landmark.querySelectorAll("a,button,input,select,textarea"));
+    // A disclosure's summary is one of the content region's own tab stops, so it
+    // is listed here: without it, a page whose first stop after the frame is a
+    // disclosure would count that stop as one the skip link saved.
+    const inside = new Set(landmark.querySelectorAll("a,button,input,select,textarea,summary"));
     const first = sequence.findIndex((stop) => inside.has(stop));
     assert.ok(first > 0, `${file}: the content region has no tab stop of its own`);
     const skipped = sequence.slice(0, first).filter((stop) => stop !== skip);

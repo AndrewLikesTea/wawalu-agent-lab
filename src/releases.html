@@ -33,6 +33,32 @@
         <p>Every release in reverse chronological order, with the decisions it carried — the shipping history of this Shiplog demo. Expand a release to review each linked decision and its status.</p>
       </section>
 
+      <!-- Deployment status: does what is running match the newest record in
+           this log? Read only — it probes /healthz, compares, and links; it
+           never deploys, rolls back, or writes a record.
+
+           The classes are the release follow-up callout's, reused rather than
+           extended: styles.css is at its measured size budget, and this band is
+           the same thing that pattern already means — one state, one sentence,
+           one way out. deployment-status-view.js fills every slot below through
+           textContent and swaps the callout to the red variant off a match.
+
+           The evidence is a details element so the disclosure is the browser's:
+           Enter and Space both operate it, and the summary's aria-expanded is
+           mirrored from the element's own open state. -->
+      <section class="release-followup-slot" id="deployment-status" aria-labelledby="deployment-status-title">
+        <div class="release-followup" id="deployment-status-callout">
+          <h2 class="release-followup-title" id="deployment-status-title">Deployment status</h2>
+          <p class="release-followup-lead" id="deployment-verdict" role="status">Comparing the running deployment with the newest release record…</p>
+          <p class="detail-summary" id="deployment-metric"></p>
+          <div id="deployment-next-action"></div>
+          <details class="supersede-disclosure" id="deployment-evidence" data-disclosure="collapsed">
+            <summary class="supersede-disclosure-summary" id="deployment-evidence-summary" aria-expanded="false" aria-controls="deployment-evidence-body">Evidence: the health response and the record it was compared with</summary>
+            <dl class="supersede-disclosure-body" id="deployment-evidence-body"></dl>
+          </details>
+        </div>
+      </section>
+
       <section class="workspace release-workspace" id="record-release" aria-label="Release log">
         <div class="form-panel" aria-labelledby="release-form-title">
           <div class="section-heading">
