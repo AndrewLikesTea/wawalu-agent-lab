@@ -99,9 +99,11 @@ test("a committed move counts its share of the modelled figure, after exclusions
       refusingTeams: 1,
     }],
   });
-  // modelled x 0.5 x (3/4) x (1/2), truncated toward zero.
-  const expected = Math.trunc(rule.expectedMonthlyUsd * 0.5 * 0.75 * 0.5);
-  assert.equal(model.plannedMonthlyUsd, expected);
+  // modelled x 0.5 x (3/4) x (1/2), exact per move (#1287) and rounded once at
+  // the plan level rather than truncated row by row.
+  const exact = rule.expectedMonthlyUsd * 0.5 * 0.75 * 0.5;
+  assert.equal(model.moves[0].plannedMonthlyUsd, exact);
+  assert.equal(model.plannedMonthlyUsd, Math.round(exact));
   assert.equal(model.committedCount, 1);
 });
 
