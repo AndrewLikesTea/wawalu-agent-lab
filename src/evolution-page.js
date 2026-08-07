@@ -501,6 +501,11 @@ import { applyRecoverableConfidence } from "/finops-recoverable-confidence-view.
 // …and what a lead would have to state before that figure is checkable against
 // their own contract, rather than against a published list price (#1262).
 import { applyRateCardLadder } from "/finops-rate-card-view.js";
+// And beside the money, whose prices it is: a sub-score banded off the rate
+// declaration's metadata alone, never off the rates, so a lead cannot raise it by
+// declaring favourable prices (#1266).
+import { analysisDateOf, scorePricingProvenance } from "/finops-pricing-provenance.js";
+import { applyPricingProvenance } from "/finops-pricing-provenance-view.js";
 // …and the control that hands that answer over as plain text (#1195). Only the
 // binding is imported here: the text itself is painted by the headline's own
 // paint, so it can never be as of a different dataset than the region is.
@@ -1990,6 +1995,15 @@ function mountLocalFinopsImport() {
     if (next?.modelRouting?.rateCardConfidence) {
       applyRateCardLadder(document, next.modelRouting.rateCardConfidence);
     }
+    // …and the provenance of those prices, scored from the card this envelope
+    // declared rather than from the figures it produced. The date it is judged
+    // against is the envelope's OWN period, so the sub-score does not change on a
+    // page left open overnight. With no declared card the rubric scores the
+    // published-list reference card, which is what the analysis was priced at.
+    applyPricingProvenance(document, scorePricingProvenance({
+      card: next?.rateCard ?? null,
+      asOf: analysisDateOf(next?.period ?? null),
+    }));
     // And what those rules were worth once the next period landed. The commitment
     // supplies both periods, so the score is taken over the window the reader
     // committed to; the observed side is this envelope's own per-unit trend. A
@@ -4931,6 +4945,11 @@ async function init() {
   // recipient brief below, which legitimately replaces all three when the reader
   // is looking at a colleague's figure rather than this page's own.
   applyRateCardLadder(document);
+  // …and beside that marker, whose prices the figure is: the provenance sub-score,
+  // its one sentence, and the four bands behind the disclosure. Painted from the
+  // same bundled verdict the build seeds the served document with, so this repaints
+  // what the document already says rather than changing it.
+  applyPricingProvenance(document);
   installDeepLinkDisclosure(document, window);
   // Immediately after it, and for the same reason: a deep link may have already
   // opened a deferred panel, and the read for that panel is taken at install.
