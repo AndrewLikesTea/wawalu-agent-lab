@@ -278,8 +278,11 @@ test("the loading state is one labelled line in the post's region, not a banner"
   assert.equal(status.getAttribute("role"), "status");
   assert.equal(status.textContent.replace(/\s+/g, " ").trim(), "Loading this post…");
   assert.equal(POST_LOADING_LINE, "Loading this post…");
-  // A real ellipsis, the way "Loading posts…" and "Loading releases…" spell it,
-  // not three periods pretending to be one.
+  // The permalink waits for one post, not the whole feed, so it is the one
+  // surface that may narrow the sentence — but it narrows it in Social's own
+  // construction ("Loading the Social feed…"), not a fourth wording. A real
+  // ellipsis, the way "Loading releases…" spells it, not three periods
+  // pretending to be one.
   assert.ok(POST_LOADING_LINE.endsWith("…") && !POST_LOADING_LINE.includes("..."));
 
   // Concise: no heading of its own, no state banner, and no placeholder block

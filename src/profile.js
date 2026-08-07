@@ -314,9 +314,16 @@ export function emptySummaryText(author) {
 // sentence that was false for the seeded feed and was the first thing a reader
 // following Social's "Open People" pointer saw. A page that has not counted yet
 // says so; it does not guess a count.
-export function loadingSummaryText(author) {
-  const name = String(author ?? "").trim() || DEFAULT_AUTHOR;
-  return `Counting ${name}’s image posts…`;
+//
+// People is a filtered view of the Social feed, and what it is waiting for is
+// that feed's data — the same wait Social names beside its own heading. So it
+// names it in the same words, and the connection status below the grid repeats
+// this sentence rather than a second wording of the same wait: both are on
+// screen together, and a screen reader is read only the status one. It takes
+// no display name because the wait is not about one name; the count that is
+// arrives with profileSummaryText().
+export function loadingSummaryText() {
+  return "Loading the Social feed…";
 }
 
 // The profile description under the name, and the one place on the page that

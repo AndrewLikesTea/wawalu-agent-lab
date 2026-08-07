@@ -761,10 +761,11 @@ export function mountSocialFeed(root, options = {}) {
     // answer once a fetch has come back. Until one has, it names which of
     // "still loading" and "could not load" is true instead of printing a zero
     // that reads as an empty feed — the same contradiction the three separate
-    // renders above exist to avoid, and the same wording the releases count
-    // uses for the state it cannot count in.
+    // renders above exist to avoid. The wait is worded exactly as the feed's
+    // connection status words it, because both are on screen together and a
+    // screen reader is read only the status one.
     if (count) {
-      if (posts.length === 0 && state === "loading") count.textContent = "Loading posts…";
+      if (posts.length === 0 && state === "loading") count.textContent = "Loading the Social feed…";
       else if (posts.length === 0 && state === "error") count.textContent = "Unavailable";
       else count.textContent = filtering ? `${postLabel(visible.length)} of ${posts.length}` : postLabel(visible.length);
     }
