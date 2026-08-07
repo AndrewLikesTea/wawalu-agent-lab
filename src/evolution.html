@@ -1444,6 +1444,34 @@
            warning-ink treatment, beside words that say the same thing. An
            implausible number cannot break the layout because
            `formatRecoverableUsd()` never emits more than twelve characters. -->
+      <!-- EVERY DESTINATION HEADER SAYS WHERE ITS NUMBER CAME FROM (#1329).
+           One sentence inside each door, after the question, in this order and
+           no other: which RUN produced the figure, which SCOPE was applied, and
+           WHEN the run was computed. It is inside the door because the door is
+           the destination header region — a screen-reader user moving between
+           destinations hears the name, the question and the provenance as one
+           thing rather than having to hunt for a caption somewhere else.
+
+           IT IS STATIC TEXT AND NOT A CONTROL. The first screen of this
+           document has no spare tab stop; a disclosure or a button here would
+           red a test in another file. It reuses `.front-door-question`, the
+           muted subordinate weight already shipped for the line above it, so it
+           adds no rule to any stylesheet.
+
+           THE SENTENCE IS COMPUTED, NOT AUTHORED. src/finops-headline-provenance.js
+           returns the provenance triple beside each destination's headline
+           metric, and both this markup and tests/finops-headline-provenance.test.js
+           read that same returned value. `computed` is when the ANALYSIS ran;
+           the date range beside it is the period the DATA covers, which is a
+           different fact.
+
+           TWO RUNS ARE NAMED HERE, ON PURPOSE. Spend attribution and Commitment
+           coverage are recomputed from the whole-corpus analysis in
+           src/example-dataset.js and name its provider export. Optimisation
+           levers' $5,200 a month comes from the org seed in
+           src/evolution-demo-data.json, which is a different invented company,
+           so it names the seed's run and the seed's date. That is a real
+           separate code path and the line says so rather than hiding it. -->
       <section class="finops-front-door" id="finops-front-door" data-subordinate="true" data-workspace-frame="true" data-state="ready" aria-labelledby="finops-front-door-label">
         <p class="eyebrow" id="finops-front-door-label">Where to go next · 3 destinations</p>
         <p class="stand-figure" id="finops-front-door-figure"><span class="stand-figure-label" id="finops-front-door-figure-label">Recoverable spend this quarter</span> <span class="stand-figure-value" id="finops-front-door-value" data-available="true">$16k</span> <span class="stand-figure-basis" id="finops-front-door-note" hidden></span></p>
@@ -1454,9 +1482,9 @@
         </dl>
         <nav class="finops-front-door-nav" id="finops-front-door-nav" aria-label="Destinations">
           <ol class="workspace-nav-list" id="finops-front-door-list">
-            <li class="workspace-nav-item"><a class="workspace-dest" href="#finops-stand" data-front-door-slug="spend-attribution" data-front-door-prioritized="false"><strong class="workspace-dest-name">Spend attribution</strong> <span class="front-door-question">Where is the money going?</span></a></li>
-            <li class="workspace-nav-item"><a class="stand-action" href="/savings-action-center.html" data-front-door-slug="optimisation-levers" data-front-door-prioritized="true"><strong class="workspace-dest-name">Optimisation levers</strong> <span class="front-door-question">What can we change?</span><span class="workspace-dest-state">Recommended first</span></a></li>
-            <li class="workspace-nav-item"><a class="workspace-dest" href="/savings-commitment.html" data-front-door-slug="commitment-coverage" data-front-door-prioritized="false"><strong class="workspace-dest-name">Commitment coverage</strong> <span class="front-door-question">Are we paying list price for steady-state load?</span></a></li>
+            <li class="workspace-nav-item"><a class="workspace-dest" href="#finops-stand" data-front-door-slug="spend-attribution" data-front-door-prioritized="false"><strong class="workspace-dest-name">Spend attribution</strong> <span class="front-door-question">Where is the money going?</span><span class="front-door-question" data-destination-provenance="spend-attribution">from run 1e5a0000-0000-4000-8000-000000000006, all departments, 2026-06-01 to 2026-07-01, computed 2026-07-01</span></a></li>
+            <li class="workspace-nav-item"><a class="stand-action" href="/savings-action-center.html" data-front-door-slug="optimisation-levers" data-front-door-prioritized="true"><strong class="workspace-dest-name">Optimisation levers</strong> <span class="front-door-question">What can we change?</span><span class="front-door-question" data-destination-provenance="optimisation-levers">from run evolution-demo-data@2026-07-25.1, all departments, 25 Jun – 25 Jul 2026, computed 2026-07-25</span><span class="workspace-dest-state">Recommended first</span></a></li>
+            <li class="workspace-nav-item"><a class="workspace-dest" href="/savings-commitment.html" data-front-door-slug="commitment-coverage" data-front-door-prioritized="false"><strong class="workspace-dest-name">Commitment coverage</strong> <span class="front-door-question">Are we paying list price for steady-state load?</span><span class="front-door-question" data-destination-provenance="commitment-coverage">from run 1e5a0000-0000-4000-8000-000000000006, all departments, 2026-06-01 to 2026-07-01, computed 2026-07-01</span></a></li>
           </ol>
         </nav>
         <details class="figure-source" id="finops-front-door-working" data-source="derived" data-disclosure="collapsed">
