@@ -18,6 +18,7 @@ import {
   saveReleases,
 } from "./releases.js";
 import { loadReleaseData } from "./releases-data.js";
+import { initDeploymentStatus } from "./deployment-status-view.js";
 import { RELEASE_FORM_ERRORS, createRelease, mountDecisionPicker, recordedSummaryText } from "./release-form.js";
 
 const SAVE_FAILED = "This release could not be saved in this browser. Your entries are still here; free some browser storage and try again.";
@@ -248,6 +249,20 @@ export function initReleasesPage(root = document, storage = localStorage, option
       update();
     },
   });
+
+  // The deployment status band, booted once from the same composed log the list
+  // renders. It reads `/healthz` and nothing else, so it cannot delay or fail
+  // the list: the promise is guarded end to end, and a boot that somehow still
+  // threw leaves the authored "Comparing…" line rather than a blank panel.
+  //
+  // Not re-run when a release is recorded. The band answers a question about the
+  // running deployment, and recording a record does not change what is running —
+  // the next load compares against the new newest record.
+  initDeploymentStatus(root, {
+    releases,
+    readHealth: options.readHealth,
+    now: options.now,
+  }).catch(() => {});
 
   update();
   const focusId = new URLSearchParams(locationRef?.search ?? "").get("focus");
