@@ -63,6 +63,32 @@ export function countMergedPullRequests(records = [], excluded = NOTHING_EXCLUDE
 export const mergedCountUnit = (count) => `merged pull ${count === 1 ? "request" : "requests"}`;
 
 /**
+ * The invitation beside one feed, in words that stand on their own.
+ *
+ * A screen-reader user tabbing a page's link list hears this with no sentence
+ * before it, so it has to say both what there is to count and where — never
+ * "check the count", whose subject is a paragraph the listener did not get.
+ * Both surfaces spell their links this way: the home page builds them from
+ * here, and a case in tests/homepage-public-merges.test.js pins the
+ * observatory's typed anchors to the same words.
+ */
+export const feedLinkText = (repository) =>
+  `Count the merged pull requests yourself in the ${repository} public GitHub event feed`;
+
+/**
+ * What the block counts, for the state where no count arrived.
+ *
+ * The unavailable sentence says only that there is no number, which leaves a
+ * reader holding an absence. This says what the missing figure would have been
+ * a count of, in which repositories, and that the feeds to count it in are
+ * linked right here — so the block still hands over something checkable when
+ * GitHub hands over nothing. IT CONTAINS NO DIGIT, for the reason the
+ * unavailable reasons contain none.
+ */
+export const COUNTED_SUBJECT_SENTENCE = `This block counts merged pull requests in `
+  + `${SOURCE_REPOSITORIES.join(" and ")}, and links the public GitHub event feeds it counts them from.`;
+
+/**
  * When the response the figure was computed from arrived.
  *
  * GitHub stamps every response with its own `Date` header; when it is there,

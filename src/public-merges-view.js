@@ -16,9 +16,11 @@
 // count in the same situation; that number is a durable record with its date
 // rendered beside it, and this page carries no such record to render.
 import {
+  COUNTED_SUBJECT_SENTENCE,
   EVENTS_URLS,
   SOURCE_REPOSITORIES,
   UNAVAILABLE_REASONS,
+  feedLinkText,
   loadMergedCount,
   mergedCountUnit,
   unavailableSentence,
@@ -55,8 +57,14 @@ export function renderPublicMerges(root = document, result = {}) {
       + "each time this page is opened.";
     readout.replaceChildren(value, source);
   } else {
+    // Two sentences, because one of them is not enough to leave with. The first
+    // is the honest absence; the second says what was being counted and where a
+    // reader may go and count it, which is what the feed links below are for.
+    // The live region announces both, so a reader who arrives after the failure
+    // hears the same thing a reader who was waiting hears.
     value.textContent = unavailableSentence(result?.reason ?? UNAVAILABLE_REASONS.unreachable);
     readout.replaceChildren(value);
+    appendText(readout, "p", COUNTED_SUBJECT_SENTENCE);
   }
   return section;
 }
@@ -65,7 +73,8 @@ export function renderPublicMerges(root = document, result = {}) {
  * Verification, by hand: the exact responses the count is computed from, so a
  * reader can open one and count the merges themselves. They are built from the
  * requested URLs rather than typed beside them, which is what makes them the
- * same links the observatory carries.
+ * same links the observatory carries — and they are painted in every state,
+ * because the state with no number is the one where a reader needs them most.
  */
 export function renderPublicMergeSources(root = document) {
   const list = root.querySelector("#public-merges-sources");
@@ -74,7 +83,7 @@ export function renderPublicMergeSources(root = document) {
     const item = document.createElement("li");
     const link = document.createElement("a");
     link.setAttribute("href", url);
-    link.textContent = `Check the count in the ${SOURCE_REPOSITORIES[index]} public GitHub event feed`;
+    link.textContent = feedLinkText(SOURCE_REPOSITORIES[index]);
     item.append(link);
     return item;
   }));

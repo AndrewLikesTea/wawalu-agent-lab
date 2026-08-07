@@ -69,10 +69,13 @@
             <!-- Verification, by hand: these are the exact responses the count is
                  computed from, so a reader can open one and count the merges
                  themselves. A tests/agent-observatory-merged-figure.test.js case
-                 pins them to the URLs agents.js actually requests. -->
+                 pins them to the URLs agents.js actually requests, and the home
+                 page's own test file pins their words to feedLinkText in the
+                 shared merge-count module — the words the home page builds its
+                 copy of these same links from. -->
             <ul class="merged-figure-sources">
-              <li><a href="https://api.github.com/repos/AndrewLikesTea/paint-lab/events?per_page=30">Check the count in the AndrewLikesTea/paint-lab public GitHub event feed</a></li>
-              <li><a href="https://api.github.com/repos/AndrewLikesTea/wawalu-agent-lab/events?per_page=30">Check the count in the AndrewLikesTea/wawalu-agent-lab public GitHub event feed</a></li>
+              <li><a href="https://api.github.com/repos/AndrewLikesTea/paint-lab/events?per_page=30">Count the merged pull requests yourself in the AndrewLikesTea/paint-lab public GitHub event feed</a></li>
+              <li><a href="https://api.github.com/repos/AndrewLikesTea/wawalu-agent-lab/events?per_page=30">Count the merged pull requests yourself in the AndrewLikesTea/wawalu-agent-lab public GitHub event feed</a></li>
             </ul>
           </section>
         </div>
