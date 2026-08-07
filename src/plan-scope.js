@@ -14,10 +14,13 @@
 // filtering or pricing changed, and the two lists would then disagree about what
 // the organization is even choosing between.
 //
-// IT COLLECTS NOTHING. There is no commitment control on this surface, nothing
-// is stored, and `commitments` is a parameter a caller may supply — today none
-// does, so every figure below is the empty-set answer. This is a READ-ONLY
-// statement of the facts a plan would have to carry, plus today's answer.
+// IT COLLECTS, BUT IT STORES NOTHING. The levers on the surface (#1288) hand
+// `commitments` in from what a lead entered this session; the reading of a typed
+// share, and of an entry as a commitment, is settled at the bottom of this file
+// so no view does arithmetic. Nothing is written to disk, to storage or to a
+// server: close the tab and the plan is gone, which is the honest state for a
+// figure nobody has agreed to yet. With no entry the answer is still the
+// empty-set one, and it is still exactly $0.
 //
 // ---------------------------------------------------------------------------
 // PLANNED SAVINGS, defined so two engineers compute the same figure
@@ -56,7 +59,7 @@
 import { CONFIDENCE_TIERS } from "./finops-rate-card-contract.js";
 
 /** Bump when a lever, a default, or what the planned figure means changes. */
-export const PLAN_SCOPE_VERSION = "plan-scope/1.0.0";
+export const PLAN_SCOPE_VERSION = "plan-scope/1.1.0";
 
 /** The one question this surface settles. Nothing else belongs in it. */
 export const PLAN_SCOPE_QUESTION =
@@ -138,6 +141,137 @@ export const PLAN_ALL_COMMITTED_ACTION =
 /** A commitment names one move. This is the name, and both sides derive it here. */
 export const planMoveKey = (rule) =>
   `${rule?.source ?? ""} → ${rule?.targetTier ?? ""} tier · ${rule?.unit ?? ""}`;
+
+// ---------------------------------------------------------------------------
+// THE LEVERS AS CONTROLS (#1288)
+// ---------------------------------------------------------------------------
+//
+// #1286 shipped the arithmetic above with no way to reach it: `commitments` was
+// a parameter nothing supplied. The controls now on the surface supply it, and
+// everything they need to REFUSE a value or to turn what a lead typed into a
+// commitment is decided here, beside the arithmetic it feeds. A view that parsed
+// a share, clamped a range or counted a workload itself would be a second
+// opinion about the same figure, and the two would drift.
+
+/** The share lever's accepted range, in percent. Read by the label and the check. */
+export const PLAN_SHARE_MIN = 0;
+export const PLAN_SHARE_MAX = 100;
+
+/** The field a refusal has to name, taken from the lever rather than retyped. */
+export const PLAN_SHARE_FIELD_NAME = PLAN_LEVERS[0].name;
+
+/** The range a refusal has to state, in the words the label uses. */
+export const PLAN_SHARE_RANGE_TEXT = `a number from ${PLAN_SHARE_MIN} to ${PLAN_SHARE_MAX}`;
+
+/** What the share field says about itself, range included, before anything is typed. */
+export const PLAN_SHARE_HINT =
+  `${PLAN_SHARE_FIELD_NAME} — ${PLAN_SHARE_RANGE_TEXT} percent of this move's eligible request `
+  + "volume. Left empty it stays unstated, and an unstated scope counts as 0%.";
+
+/**
+ * Why a refused value changes nothing. The message names the field and states
+ * the range, because "invalid input" beside a form is a message a reader cannot
+ * act on, and it says the previous scope stands so nobody re-types what they
+ * already entered.
+ */
+export const planShareRefusal = (raw) =>
+  `${PLAN_SHARE_FIELD_NAME} must be ${PLAN_SHARE_RANGE_TEXT} percent. `
+  + `"${String(raw ?? "").trim()}" was not accepted, so this move keeps the scope already `
+  + "entered.";
+
+/**
+ * Read a typed share. Empty is not an error — it is silence, and silence has a
+ * documented default above. Anything else must be a finite number inside the
+ * range; a number outside it, or a value that is not a number at all, is
+ * REFUSED rather than clamped. Clamping would put a figure on the page that
+ * nobody typed, which is exactly the kind of invented scope this section exists
+ * to prevent.
+ *
+ * @returns {{ok: boolean, value: number|null, message: string}}
+ */
+export function readSharePct(raw) {
+  const text = String(raw ?? "").trim();
+  if (text === "") return Object.freeze({ ok: true, value: null, message: "" });
+  const value = Number(text);
+  if (!Number.isFinite(value) || value < PLAN_SHARE_MIN || value > PLAN_SHARE_MAX) {
+    return Object.freeze({ ok: false, value: null, message: planShareRefusal(text) });
+  }
+  return Object.freeze({ ok: true, value, message: "" });
+}
+
+/**
+ * The team base one move is asked over. The slate names ONE owning unit per move
+ * — it is the move's `unit`, and the ask in `nextActionFor` goes to that unit's
+ * lead. So a refusal from that team is the whole of the move's team base, and
+ * the move contributes nothing: `teamFactor` is (1 - 1) / 1. This is the only
+ * base this page can honestly state, and it is stated here rather than assumed
+ * in a view.
+ */
+export const PLAN_MOVE_TEAM_BASE = 1;
+
+/**
+ * What a lead has entered against one move, before it is arithmetic. `committed`
+ * is the in-or-out toggle; the rest is the scope, retained whether or not the
+ * move is currently in the plan.
+ */
+export function emptyPlanEntry() {
+  return {
+    committed: false,
+    reroutedSharePct: null,
+    excludedWorkloads: "",
+    teamRefuses: false,
+  };
+}
+
+/** The workloads a lead named, comma separated, blanks dropped. */
+export function namedWorkloads(text) {
+  return String(text ?? "").split(",").map((name) => name.trim()).filter(Boolean);
+}
+
+/**
+ * One entry as a commitment the arithmetic above understands, or null when the
+ * move is not in the plan. An uncommitted entry is NOT a zero commitment: it is
+ * absent, so it neither counts toward the committed moves nor carries a scope
+ * the page could be read as having been told.
+ *
+ * Three readings are settled here, each of which a view would otherwise invent:
+ *
+ *   share       null when the field is empty — unstated, and therefore 0% by the
+ *               default at the top of this file. Never silently 100%.
+ *   workloads   the COUNT of the names typed. Committing the move with the field
+ *               empty states zero exclusions — a definite answer, not silence,
+ *               because the field was on screen when the move went in. No
+ *               `eligibleWorkloads` is sent: this page collects no eligible
+ *               base, so the factor stays 1 and the exclusions are recorded
+ *               WITHOUT moving the dollars. Inventing a denominator here would
+ *               move money nobody counted.
+ *   teams       one refusal against `PLAN_MOVE_TEAM_BASE`, so a marked refusal
+ *               takes the move's planned dollars to zero while it stands.
+ */
+export function planEntryCommitment(moveKey, entry) {
+  if (!entry?.committed) return null;
+  return Object.freeze({
+    move: String(moveKey),
+    reroutedSharePct: entry.reroutedSharePct,
+    excludedWorkloads: namedWorkloads(entry.excludedWorkloads).length,
+    refusingTeams: entry.teamRefuses ? 1 : 0,
+    eligibleTeams: PLAN_MOVE_TEAM_BASE,
+  });
+}
+
+/**
+ * Every committed entry, as the commitments `planScope` takes.
+ *
+ * @param {Iterable<[string, object]>} entries move key → entry, in any order.
+ */
+export function planEntryCommitments(entries) {
+  const commitments = [];
+  for (const [key, entry] of entries ?? []) {
+    const commitment = planEntryCommitment(key, entry);
+    if (commitment) commitments.push(commitment);
+  }
+  return commitments;
+}
 
 /** A count a lead actually stated: a finite, non-negative number and nothing else. */
 function statedCount(value) {

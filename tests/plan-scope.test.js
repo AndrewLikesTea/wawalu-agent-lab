@@ -21,13 +21,17 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { loadExampleDataset } from "../src/example-dataset.js";
+import { formatUsd } from "../src/evolution.js";
 import { CONFIDENCE_TIERS } from "../src/finops-rate-card-contract.js";
 import {
-  PLAN_GRADE_CEILING, PLAN_LEVERS, PLAN_SCOPE_QUESTION, PLAN_VS_DIAGNOSIS, planMoveKey, planScope,
+  PLAN_GRADE_CEILING, PLAN_LEVERS, PLAN_SCOPE_QUESTION, PLAN_SHARE_FIELD_NAME, PLAN_SHARE_MAX,
+  PLAN_SHARE_MIN, PLAN_VS_DIAGNOSIS, planEntryCommitment, planMoveKey, planScope,
 } from "../src/plan-scope.js";
-import { PLAN_SCOPE_DETAIL_SUMMARY, applyPlanScope } from "../src/plan-scope-view.js";
+import {
+  PLAN_SCOPE_DETAIL_SUMMARY, applyPlanScope, planControlId,
+} from "../src/plan-scope-view.js";
 import { routingSlate } from "../src/routing-slate.js";
-import { loadPage, textOf } from "./support/browser.js";
+import { DomEvent, loadPage, tabSequence, textOf } from "./support/browser.js";
 
 const PAGE = new URL("../src/evolution.html", import.meta.url);
 
@@ -227,10 +231,245 @@ test("every move's levers, units and defaults are rendered, one row each", async
   assert.equal(moveRows.length, model.moves.length);
 });
 
-test("the section adds no control a reader could fill in", async () => {
-  const { document } = await loadPage(PAGE, { scripts: false });
-  applyPlanScope(document, bundledSlate());
-  const section = document.getElementById("plan-scope");
-  assert.equal(section.querySelectorAll("input,button,select,textarea").length, 0,
-    "a control here would promise a commitment this page cannot keep");
+// ---------------------------------------------------------------------------
+// 4. The levers (#1288). #1286 shipped this section with no control at all,
+//    which is why the assertion that used to stand here — "the section adds no
+//    control a reader could fill in" — is superseded by the label test below
+//    rather than deleted: the rule it protected (nothing here may be
+//    unreachable or unlabelled) is the rule these tests now carry.
+//
+//    What they exist to catch: a figure, a count and an action that update out
+//    of step; a refusal that costs a lead something they typed; a scope that
+//    evaporates when a move leaves the plan; and a control a keyboard or a
+//    screen reader cannot use.
+// ---------------------------------------------------------------------------
+
+/** Paint the section with a fresh session state, and hand back both. */
+async function paintPlan() {
+  const page = await loadPage(PAGE);
+  const slate = bundledSlate();
+  const entries = new Map();
+  const model = applyPlanScope(page.document, slate, { entries });
+  return { document: page.document, slate, entries, model };
+}
+
+const controlById = (document, id) => document.getElementById(id);
+
+/** What the page currently says, as the three figures that must move together. */
+const shownPlan = (document) => ({
+  total: textOf(document.getElementById("plan-scope-figure")),
+  committed: textOf(document.getElementById("plan-scope-committed")),
+  action: textOf(document.getElementById("plan-scope-action")),
+  status: textOf(document.getElementById("plan-scope-status")),
+});
+
+/** Type into a control the way the harness's keyboard does, event and all. */
+function enter(document, id, value) {
+  const control = controlById(document, id);
+  control.value = value;
+  control.dispatchEvent(new DomEvent("input", { bubbles: true }));
+  return control;
+}
+
+test("changing a lever moves the total, the committed count and the next action together",
+  async () => {
+    const { document, slate, model } = await paintPlan();
+    const before = shownPlan(document);
+    assert.ok(before.total.includes("$0 planned"), before.total);
+    assert.ok(before.committed.startsWith("0 of "), before.committed);
+
+    controlById(document, planControlId(0, "commit")).click();
+    enter(document, planControlId(0, "share"), "50");
+
+    // The expected figures come from the shipped computation, not from this
+    // test's own arithmetic: a view that drifted from the module would show a
+    // number this assertion never has to know.
+    const expected = planScope(slate, {
+      commitments: [planEntryCommitment(model.moves[0].key,
+        { committed: true, reroutedSharePct: 50, excludedWorkloads: "", teamRefuses: false })],
+    });
+    assert.ok(expected.plannedMonthlyUsd > 0, "the first bundled move must plan real dollars");
+
+    const after = shownPlan(document);
+    assert.ok(after.total.includes(`${formatUsd(expected.plannedMonthlyUsd)} planned`), after.total);
+    assert.ok(after.committed.startsWith("1 of "), after.committed);
+    assert.equal(after.action, `Do this first: ${expected.nextAction}`);
+    assert.notEqual(after.action, before.action, "the ask must move on to the next open move");
+    // The announcement is the page's existing status line, and it carries the
+    // same figures in the same pass.
+    assert.ok(after.status.includes(formatUsd(expected.plannedMonthlyUsd)), after.status);
+    assert.equal(document.getElementById("plan-scope").dataset.committedCount, "1");
+    assert.equal(document.getElementById("plan-scope-grade").dataset.grade,
+      expected.grade.tier);
+  });
+
+test("marking the team as refusing takes that move's planned dollars to zero", async () => {
+  const { document } = await paintPlan();
+  controlById(document, planControlId(0, "commit")).click();
+  enter(document, planControlId(0, "share"), "100");
+  const withShare = shownPlan(document);
+  assert.ok(!withShare.total.includes("$0 planned"), withShare.total);
+
+  controlById(document, planControlId(0, "refusing")).click();
+  const refused = shownPlan(document);
+  assert.ok(refused.total.includes("$0 planned"), refused.total);
+  assert.ok(refused.committed.startsWith("1 of "),
+    "a refused move is still committed — the plan states it and plans $0 of it");
+});
+
+test("an out-of-range share is refused, naming the field and the range, and costs nothing else",
+  async () => {
+    const { document, entries, model } = await paintPlan();
+    // A second move committed, and a first move fully entered, so a refusal has
+    // something to lose.
+    controlById(document, planControlId(0, "commit")).click();
+    controlById(document, planControlId(1, "commit")).click();
+    enter(document, planControlId(0, "share"), "40");
+    enter(document, planControlId(0, "exclusions"), "nightly batch, staging replay");
+    controlById(document, planControlId(0, "refusing")).click();
+    const before = shownPlan(document);
+
+    enter(document, planControlId(0, "share"), "150");
+
+    const error = document.getElementById(planControlId(0, "share-error"));
+    assert.equal(error.hidden, false, "the refusal has to be visible, not just modelled");
+    const message = textOf(error);
+    assert.ok(message.includes(PLAN_SHARE_FIELD_NAME), message);
+    assert.ok(message.includes(String(PLAN_SHARE_MIN)) && message.includes(String(PLAN_SHARE_MAX)),
+      message);
+    assert.equal(controlById(document, planControlId(0, "share")).getAttribute("aria-invalid"),
+      "true");
+
+    // Everything else the lead entered survives, in the state model and on screen.
+    const entry = entries.get(model.moves[0].key);
+    assert.equal(entry.reroutedSharePct, 40, "the refused value never reached the model");
+    assert.equal(entry.excludedWorkloads, "nightly batch, staging replay");
+    assert.equal(entry.teamRefuses, true);
+    assert.equal(controlById(document, planControlId(0, "exclusions")).value,
+      "nightly batch, staging replay");
+    assert.equal(controlById(document, planControlId(1, "commit")).checked, true);
+    assert.deepEqual(shownPlan(document), before, "a refusal re-renders nothing");
+    // The lead's own keystrokes stay in the field they typed them into.
+    assert.equal(controlById(document, planControlId(0, "share")).value, "150");
+  });
+
+test("a non-numeric share is refused in the same words, and the plan is unchanged", async () => {
+  const { document, entries, model } = await paintPlan();
+  controlById(document, planControlId(0, "commit")).click();
+  enter(document, planControlId(0, "share"), "25");
+  const before = shownPlan(document);
+
+  enter(document, planControlId(0, "share"), "one third");
+  const message = textOf(document.getElementById(planControlId(0, "share-error")));
+  assert.ok(message.includes(PLAN_SHARE_FIELD_NAME), message);
+  assert.ok(message.includes(String(PLAN_SHARE_MAX)), message);
+  assert.equal(entries.get(model.moves[0].key).reroutedSharePct, 25);
+  assert.deepEqual(shownPlan(document), before);
+
+  // And a value the check accepts clears the refusal rather than leaving it up.
+  enter(document, planControlId(0, "share"), "30");
+  assert.equal(document.getElementById(planControlId(0, "share-error")).hidden, true);
+  assert.equal(controlById(document, planControlId(0, "share")).getAttribute("aria-invalid"),
+    "false");
+  assert.notDeepEqual(shownPlan(document), before);
+});
+
+test("an empty share is silence, not a refusal, and counts as the stated default", async () => {
+  const { document } = await paintPlan();
+  controlById(document, planControlId(0, "commit")).click();
+  enter(document, planControlId(0, "share"), "60");
+  enter(document, planControlId(0, "share"), "");
+  assert.equal(document.getElementById(planControlId(0, "share-error")).hidden, true);
+  assert.ok(shownPlan(document).total.includes("$0 planned"),
+    "an unstated scope counts as zero, never as all traffic");
+});
+
+test("taking a move out of the plan and putting it back restores the scope entered", async () => {
+  const { document, slate, entries, model } = await paintPlan();
+  const key = model.moves[0].key;
+  controlById(document, planControlId(0, "commit")).click();
+  enter(document, planControlId(0, "share"), "45");
+  enter(document, planControlId(0, "exclusions"), "billing, nightly batch");
+  const committed = shownPlan(document);
+
+  controlById(document, planControlId(0, "commit")).click();
+  assert.ok(shownPlan(document).total.includes("$0 planned"), "removed means removed");
+  assert.equal(entries.get(key).reroutedSharePct, 45, "the scope is retained in the state model");
+
+  // Repaint the whole section, which rebuilds every node: the retained scope is
+  // in the page's state, not in the DOM of a node that no longer exists.
+  applyPlanScope(document, slate, { entries });
+  assert.equal(controlById(document, planControlId(0, "share")).value, "45");
+  assert.equal(controlById(document, planControlId(0, "exclusions")).value,
+    "billing, nightly batch");
+  assert.equal(controlById(document, planControlId(0, "commit")).checked, false);
+
+  controlById(document, planControlId(0, "commit")).click();
+  assert.deepEqual(shownPlan(document), committed, "re-adding forces no re-entry");
+});
+
+test("every control the section paints is labelled, reachable and keyboard-operable",
+  async () => {
+    const { document } = await paintPlan();
+    const section = document.getElementById("plan-scope");
+    const controls = section.querySelectorAll("input,select,textarea,button");
+    assert.equal(controls.length, 4 * bundledSlate().rules.length,
+      "four levers per modelled move, and nothing else to fill in");
+    const labels = section.querySelectorAll("label");
+    for (const control of controls) {
+      assert.ok(control.id, "a control with no id cannot carry a <label for>");
+      const labelled = labels.filter((label) => label.getAttribute("for") === control.id);
+      assert.equal(labelled.length, 1, `${control.id} needs exactly one <label for>`);
+      assert.ok(textOf(labelled[0]).length > 0, `${control.id}'s label says nothing`);
+      // Native controls only: each is in the tab sequence and takes the focus
+      // ring styles.css gives every input, with no tabindex of its own.
+      assert.equal(control.tagName, "INPUT");
+      assert.equal(control.getAttribute("tabindex"), null);
+      assert.equal(control.disabled, false);
+    }
+    // The levers are in the tab sequence the page actually has, and every one of
+    // them is inside this section — below the first-run region, never above it.
+    const sequence = tabSequence(document).filter((node) => node.tagName === "INPUT");
+    for (const control of controls) {
+      assert.ok(sequence.includes(control), `${control.id} is not reachable by Tab`);
+      assert.equal(control.closest("section").id, "plan-scope");
+    }
+  });
+
+test("the share field states its range where a label or description carries it", async () => {
+  const { document } = await paintPlan();
+  const share = controlById(document, planControlId(0, "share"));
+  const label = document.getElementById("plan-scope").querySelectorAll("label")
+    .find((node) => node.getAttribute("for") === share.id);
+  const described = share.getAttribute("aria-describedby").split(" ")
+    .map((id) => textOf(document.getElementById(id))).join(" ");
+  const said = `${textOf(label)} ${described}`;
+  assert.ok(said.includes(String(PLAN_SHARE_MIN)) && said.includes(String(PLAN_SHARE_MAX)), said);
+  // Not placeholder text alone, which no label mechanism exposes.
+  assert.equal(share.getAttribute("placeholder"), null);
+});
+
+test("no announcing or updating text is painted inside a collapsed disclosure", async () => {
+  const { document } = await paintPlan();
+  controlById(document, planControlId(0, "commit")).click();
+  const closed = document.getElementById("plan-scope-body").querySelectorAll("details")
+    .filter((node) => !node.hasAttribute("open"));
+  assert.equal(closed.length, 1, "one disclosure, and it opens closed");
+  // Walking parentNode rather than using a descendant selector, which this
+  // harness rejects at parse time.
+  const insideClosed = (node) => {
+    for (let walk = node?.parentNode; walk; walk = walk.parentNode) {
+      if (closed.includes(walk)) return true;
+    }
+    return false;
+  };
+  for (const id of ["plan-scope-status", "plan-scope-figure", "plan-scope-committed",
+    "plan-scope-action", "plan-scope-grade", "plan-scope-controls"]) {
+    assert.equal(insideClosed(document.getElementById(id)), false,
+      `${id} is hidden from the accessibility tree inside a closed disclosure`);
+  }
+  const status = document.getElementById("plan-scope-status");
+  assert.equal(status.getAttribute("role"), "status");
+  assert.equal(document.querySelectorAll("[id=\"plan-scope-status\"]").length, 1,
+    "one live region for this section, reusing the one the page already ships");
 });
