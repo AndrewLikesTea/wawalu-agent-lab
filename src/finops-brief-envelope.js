@@ -45,6 +45,14 @@
 //      untrusted-input boundary, and it is here rather than in a renderer so
 //      every renderer inherits it.
 //
+//   4b. **AN OPTIONAL BLOCK IS STILL PART OF THE CONTRACT.** `plan` (#1291) is
+//      the sender's committed plan. It is optional, so it is NOT in
+//      `BRIEF_ENVELOPE_FIELDS` and its absence refuses nothing; its schema, its
+//      units, its allowed grades, its size ceiling and its three failure states
+//      are written down in `finops-brief-plan.js`, which is where a reader of
+//      this contract should go next. A block that fails validation is refused
+//      whole and reported through `planNotice` — never by refusing the brief.
+//
 //   5. **NO CLOCK.** `producedAt` is an argument, never `new Date()`. Reading it
 //      here would make two encodes of the same brief differ, and the parity
 //      check in `finops-share-parity.js` compares an encode against a decode.
@@ -58,6 +66,12 @@
 // the workspace export is byte-identical across an open.
 
 import { buildExecutiveBriefing } from "./executive-finops-briefing.js";
+// The sender's committed plan (#1291): an OPTIONAL block on this envelope, whose
+// schema, size ceiling and three failure states are stated in one place. It is
+// not a second payload format and it does not move the version below — see that
+// module's header for why an old reader opening a new brief is correct rather
+// than broken.
+import { BRIEF_PLAN_FIELD, buildBriefPlanBlock, readBriefPlanBlock } from "./finops-brief-plan.js";
 import {
   DEFAULT_REFERENCE_CARD, confidenceFor as rateCardConfidenceFor, resolveRateCard,
 } from "./finops-rate-card-contract.js";
@@ -367,6 +381,9 @@ const refusal = (reason) => Object.freeze({
   reason,
   envelope: null,
   periods: Object.freeze([]),
+  // The plan block's own verdict, on every result shape: a caller reads one
+  // field to find out what to say about the plan, refused brief or not.
+  planNotice: null,
   ...BRIEF_ENVELOPE_COPY[reason],
 });
 
@@ -379,15 +396,22 @@ const refusal = (reason) => Object.freeze({
  * threshold of its own and therefore cannot disagree with the page.
  *
  * @param periods retained-period records, newest last, as the workspace keeps them.
- * @param options `{ producedAt, rateCard }` — an ISO-8601 UTC instant, or null
+ * @param options `{ producedAt, rateCard, plan }` — an ISO-8601 UTC instant, or null
  *   when the producer has no clock (NEVER read from a clock in here; see rule
  *   5), and the SENDER'S declared rate card, or null for the published
  *   reference card. The card the sender's figures were priced at travels with
  *   them; a recipient's own card can then be told apart from it (#1265).
- * @returns `{ ok, reason, envelope, periods, summary?, statement?, remedy? }`,
- *   frozen. `ok` is false with a named reason rather than a thrown error.
+ *   `plan` is `planScope()`'s model, or null. A model with a committed move
+ *   writes the optional plan block; a model with none writes NO key at all,
+ *   because absence is how this contract says "nothing was committed" (#1291).
+ * @returns `{ ok, reason, envelope, periods, planNotice, summary?, statement?,
+ *   remedy? }`, frozen. `ok` is false with a named reason rather than a thrown
+ *   error. `planNotice` names the plan block's own state and never makes `ok`
+ *   false: a plan that could not be written must not stop a brief being shared.
  */
-export function buildBriefEnvelope(periods, { producedAt = null, rateCard = null } = {}) {
+export function buildBriefEnvelope(
+  periods, { producedAt = null, rateCard = null, plan = null } = {},
+) {
   if (!Array.isArray(periods) || periods.length === 0) {
     return refusal(BRIEF_ENVELOPE_REASON.empty);
   }
@@ -436,11 +460,23 @@ export function buildBriefEnvelope(periods, { producedAt = null, rateCard = null
     // what it was priced at instead of leaving a recipient to guess.
     rateBasis: briefRateBasis(rateCard),
   };
+  // The sender's committed plan, built field by field by the plan contract from
+  // the plan model's own known fields. Nothing is spread and nothing is
+  // JSON-copied, so a plan state polluted with an extra key cannot carry it into
+  // a payload. A refused block writes NO key: a brief with no plan and a brief
+  // whose plan would not fit both say the same thing on the wire, and the
+  // difference is reported to this caller instead.
+  const planBlock = buildBriefPlanBlock(plan);
+  if (planBlock.ok) envelope[BRIEF_PLAN_FIELD] = planBlock.block;
   // Built and then read back through the reader's own validator rather than
   // trusted because this module wrote it: a producer that can emit an envelope
   // its own reader refuses is the defect, and it should fail here, on the
   // sender's side, rather than in a recipient's browser.
-  return validateBriefEnvelope(envelope);
+  const built = validateBriefEnvelope(envelope);
+  // A write-side plan refusal is reported over the read-side one, because it is
+  // the more specific fact: "your plan was too large to carry" rather than "this
+  // brief has no plan on it".
+  return planBlock.ok ? built : Object.freeze({ ...built, planNotice: planBlock.notice });
 }
 
 /**
@@ -516,6 +552,13 @@ export function validateBriefEnvelope(value) {
   const periods = value.periods.map(projectBriefPeriod);
   if (briefPeriodsViolateContract(periods)) return refusal(BRIEF_ENVELOPE_REASON.rejectedRecords);
 
+  // THE PLAN BLOCK IS OPTIONAL AND ITS FAILURES ARE ITS OWN (#1291). Absent is a
+  // normal state — every brief written before this block existed is in it — and a
+  // malformed or oversized block is refused WHOLE without refusing the brief
+  // around it. Nothing below can set `ok` false: a recipient must still be able
+  // to open the analysis they were sent.
+  const planRead = readBriefPlanBlock(value[BRIEF_PLAN_FIELD]);
+
   // Rebuilt key by key. Nothing from `value` is spread, so an unknown field on a
   // hostile file is dropped here and can reach no renderer.
   const envelope = Object.freeze({
@@ -549,12 +592,17 @@ export function validateBriefEnvelope(value) {
     // Always present, on every schema this build reads: a consumer asking whose
     // prices these are gets an answer rather than an absence to interpret.
     rateBasis,
+    // The projected plan block, or null on all three of its states. A view reads
+    // this for the figures and `planNotice` below for the sentence; neither can
+    // be half-set, so a rendered plan total always has a validated plan under it.
+    plan: planRead.plan,
   });
   return Object.freeze({
     ok: true,
     reason: "read",
     envelope,
     periods: envelope.periods,
+    planNotice: planRead.notice,
   });
 }
 

@@ -139,6 +139,18 @@ export const PLAN_ALL_COMMITTED_ACTION =
 export const planMoveKey = (rule) =>
   `${rule?.source ?? ""} → ${rule?.targetTier ?? ""} tier · ${rule?.unit ?? ""}`;
 
+/**
+ * What a lead is scoping, said the way the page says it everywhere else.
+ *
+ * Beside `planMoveKey` rather than in the view, because a move that travels —
+ * into a shared brief's plan block (#1291), say — needs its display name derived
+ * from the same fields as its identifier, and a name composed in a DOM module is
+ * a name no payload can reach without importing a renderer.
+ */
+export const moveName = (move) => (move?.source === move?.unit
+  ? `${move?.source} → ${move?.targetTier} tier`
+  : `${move?.source} → ${move?.targetTier} tier in ${move?.unit}`);
+
 /** A count a lead actually stated: a finite, non-negative number and nothing else. */
 function statedCount(value) {
   return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : null;

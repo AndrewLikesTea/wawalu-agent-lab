@@ -31,6 +31,7 @@
 // `innerHTML`, and no `href` built from a value in the file.
 
 import { briefPricingBasis } from "./finops-brief-envelope.js";
+import { BRIEF_PLAN_COPY, BRIEF_PLAN_REASON } from "./finops-brief-plan.js";
 import {
   SHARE_DECODE_REASON, readSharedBriefingFragment,
 } from "./finops-shared-briefing-link.js";
@@ -257,6 +258,200 @@ export function renderRecipientDisclosure(doc, envelope, { localRateCard = null 
   return disclosure;
 }
 
+// ---------------------------------------------------------------------------
+// THE SENDER'S COMMITTED PLAN (#1291).
+// ---------------------------------------------------------------------------
+//
+// The figure above is the sender's DIAGNOSIS. This block is what they decided to
+// do about it: which moves they committed, at what scope, what that adds up to,
+// and how the two numbers relate. Every value is read off `envelope.plan`, which
+// `finops-brief-plan.js` has already validated whole — this view computes no
+// dollar, grades nothing, and refuses nothing itself.
+//
+// WHAT STAYS OUTSIDE THE DISCLOSURE, and why it is a rule here rather than a
+// test: the planned total, the plan grade and the uncommitted-scope figure. A
+// real browser drops a shut disclosure's subtree from the accessibility tree,
+// while this repository's harness reads straight through one — so a figure
+// folded away passes its test and is silent for the reader it was written for.
+// Only the per-move breakdown goes inside, and its summary states the count so
+// it means something while collapsed.
+//
+// THREE STATES, ALL OF THEM NORMAL PAGE. No plan says so in words; a refused
+// plan says which refusal it was and renders NO plan figure at all; a carried
+// plan renders. None of the three touches the analysis above, and none of them
+// writes to this reader's own plan state — nothing here imports one.
+
+/** The ids the plan block writes. All mounted by this module, none authored. */
+export const RECIPIENT_PLAN_IDS = Object.freeze({
+  region: "finops-shared-plan",
+  total: "finops-shared-plan-total",
+  grade: "finops-shared-plan-grade",
+  difference: "finops-shared-plan-difference",
+  scope: "finops-shared-plan-scope",
+  notice: "finops-shared-plan-notice",
+  moves: "finops-shared-plan-moves",
+});
+
+/** What the uncommitted remainder is CALLED. A labelled figure, never a bare delta. */
+export const UNCOMMITTED_SCOPE_LABEL = "Scope the sender chose not to commit";
+
+/** What it is called when a plan commits more than the analysis found. */
+export const OVERCOMMITTED_SCOPE_LABEL = "Committed above this brief's recoverable figure";
+
+/** Said when there is no recoverable figure to state the remainder against. */
+export const UNCOMMITTED_NOT_COMPARABLE =
+  "This brief carries no recoverable figure, so there is nothing to state the uncommitted scope "
+  + "against.";
+
+/** The words on the closed per-move disclosure. The count makes it meaningful. */
+export const sharedPlanMovesSummary = (count) =>
+  `Each committed move, with the scope the sender stated (${count})`;
+
+/** Money from whole US dollars, through the same formatter the figure above uses. */
+const usdText = (amount, currency) => sharedFigureText({ valueMinor: amount * 100, currency });
+
+/**
+ * The uncommitted remainder, in words and as a labelled figure.
+ *
+ * THE UNITS ARE STATED BECAUSE THEY DIFFER. The brief's figure is minor units for
+ * one reporting period; the plan's total is whole dollars a month. The comparison
+ * is made in minor units, once, here — and the sentence names both periods rather
+ * than implying the two numbers were computed the same way.
+ */
+export function uncommittedScopeText(envelope) {
+  const plan = envelope?.plan;
+  const recoverableMinor = envelope?.figure?.valueMinor;
+  const plannedText = `${usdText(plan.plannedMonthlyUsd, plan.currency)} a month`;
+  if (!Number.isFinite(recoverableMinor)) {
+    return `${UNCOMMITTED_SCOPE_LABEL}: not stated. ${UNCOMMITTED_NOT_COMPARABLE}`;
+  }
+  const differenceMinor = recoverableMinor - (plan.plannedMonthlyUsd * 100);
+  const gap = sharedFigureText({
+    valueMinor: Math.abs(differenceMinor), currency: envelope?.figure?.currency,
+  });
+  const recoverable = sharedFigureText(envelope?.figure);
+  return differenceMinor >= 0
+    ? `${UNCOMMITTED_SCOPE_LABEL}: ${gap}. This brief calls ${recoverable} recoverable for its `
+      + `reporting period and the sender committed ${plannedText} of it. The difference is scope `
+      + "they chose not to commit — not a saving they missed, and not a figure anybody has ruled out."
+    : `${OVERCOMMITTED_SCOPE_LABEL}: ${gap}. The sender committed ${plannedText} against the `
+      + `${recoverable} this brief calls recoverable for its reporting period, so the plan claims `
+      + "more than the analysis under it found.";
+}
+
+/** One committed move, as one line: what it is, what it is worth, how it is scoped. */
+function planMoveText(move) {
+  const scope = move.scope.map((lever) => (lever.stated
+    ? `${lever.name}: ${lever.value}`
+    : `${lever.name}: not stated by the sender`)).join(" · ");
+  return `${move.name} — ${usdText(move.plannedMonthlyUsd, "USD")} a month planned. ${scope}.`;
+}
+
+/** The exclusions and refusals the plan carries, as one always-visible sentence. */
+export function sharedPlanScopeText(plan) {
+  const excluded = plan.excluded.length === 0
+    ? "No committed move excludes a workload."
+    : `Excluded workloads: ${plan.excluded.map((row) => `${row.workloads} on ${row.name}`)
+      .join("; ")}. The counts travel; the sender's own names for those workloads deliberately do `
+      + "not.";
+  const refused = plan.refused.length === 0
+    ? "No team has refused a committed move."
+    : `Teams that refused: ${plan.refused.map((row) => `${row.team} (${row.name})`).join("; ")}.`;
+  return `${excluded} ${refused}`;
+}
+
+/** A paragraph in this block, by id, created once and rewritten after that. */
+function planLine(doc, region, id, text) {
+  let node = byId(doc, id);
+  if (!node) {
+    node = doc.createElement("p");
+    node.setAttribute("id", id);
+    node.className = "answer-figure-basis";
+    region.append(node);
+  }
+  node.textContent = text;
+  return node;
+}
+
+/** The per-move breakdown: collapsed, counted on its summary, and read-only. */
+function planMoveDisclosure(doc, region, plan) {
+  const detail = doc.createElement("details");
+  detail.setAttribute("id", RECIPIENT_PLAN_IDS.moves);
+  detail.className = "completeness-detail";
+  detail.dataset.moveCount = String(plan.moves.length);
+  const summary = doc.createElement("summary");
+  summary.setAttribute("aria-expanded", "false");
+  summary.textContent = sharedPlanMovesSummary(plan.moves.length);
+  detail.addEventListener?.("toggle", () => {
+    summary.setAttribute("aria-expanded", String(detail.hasAttribute("open")));
+  });
+  const list = doc.createElement("ol");
+  list.className = "action-list";
+  for (const move of plan.moves) {
+    const item = doc.createElement("li");
+    item.dataset.move = move.id;
+    item.textContent = planMoveText(move);
+    list.append(item);
+  }
+  detail.append(summary, list);
+  region.append(detail);
+  return detail;
+}
+
+/**
+ * Paint the sender's plan, or the stated absence of one, inside the answer
+ * region and above its disclosure.
+ *
+ * @param envelope a VALIDATED envelope. `envelope.plan` is the projected block
+ *   or null; this function never validates and never renders a partial plan.
+ * @param options.planNotice the plan block's own verdict from the same reader —
+ *   the absence, the malformed refusal, or the over-ceiling refusal. Absent
+ *   `planNotice` with no plan is read as the ordinary "no committed plan".
+ * @returns the block's region, or null when this document has no answer region.
+ */
+export function renderSharedPlan(doc, envelope, { planNotice = null } = {}) {
+  const answer = byId(doc, RECIPIENT_BRIEF_IDS.region);
+  if (!answer) return null;
+  let region = byId(doc, RECIPIENT_PLAN_IDS.region);
+  if (!region) {
+    region = doc.createElement("div");
+    region.setAttribute("id", RECIPIENT_PLAN_IDS.region);
+    const disclosure = byId(doc, RECIPIENT_BRIEF_IDS.disclosure);
+    if (disclosure && disclosure.parentNode === answer) answer.insertBefore(region, disclosure);
+    else answer.append(region);
+  }
+  const plan = envelope?.plan ?? null;
+  const notice = planNotice
+    ?? { reason: BRIEF_PLAN_REASON.absent, ...BRIEF_PLAN_COPY[BRIEF_PLAN_REASON.absent] };
+
+  // NO PLAN, OR A REFUSED ONE: one paragraph, no figure, and never a zero. A
+  // refusal that rendered a $0 total would be read as a plan that commits
+  // nothing, which is a different and much stronger claim than "unreadable".
+  if (!plan) {
+    region.replaceChildren();
+    region.dataset.plan = notice.reason;
+    planLine(doc, region, RECIPIENT_PLAN_IDS.notice,
+      `${notice.summary}. ${notice.statement} ${notice.remedy}`);
+    return region;
+  }
+
+  region.replaceChildren();
+  region.dataset.plan = "committed";
+  region.dataset.committedCount = String(plan.committedCount);
+  planLine(doc, region, RECIPIENT_PLAN_IDS.total,
+    `Planned savings the sender committed: ${usdText(plan.plannedMonthlyUsd, plan.currency)} a `
+    + `month, across ${plan.committedCount} committed move(s). It is a commitment somebody made, `
+    + "not a second diagnosis of the figure above.");
+  const grade = planLine(doc, region, RECIPIENT_PLAN_IDS.grade,
+    `Plan confidence: ${plan.grade.marker} · ${plan.grade.label}. That is the grade the sender's `
+    + "own planning surface gave this figure, carried with it rather than recomputed here.");
+  grade.dataset.grade = plan.grade.tier;
+  planLine(doc, region, RECIPIENT_PLAN_IDS.difference, uncommittedScopeText(envelope));
+  planLine(doc, region, RECIPIENT_PLAN_IDS.scope, sharedPlanScopeText(plan));
+  planMoveDisclosure(doc, region, plan);
+  return region;
+}
+
 /** The origin sentence's paragraph, mounted once, above the disclosure. */
 function mountOrigin(doc, region, envelope) {
   let origin = byId(doc, RECIPIENT_BRIEF_IDS.origin);
@@ -284,7 +479,9 @@ function mountOrigin(doc, region, envelope) {
  *   defect #1265 exists to prevent.
  * @returns the region, or null when this document does not carry one.
  */
-export function renderRecipientBrief(doc, envelope, { localRateCard = null } = {}) {
+export function renderRecipientBrief(
+  doc, envelope, { localRateCard = null, planNotice = null } = {},
+) {
   const region = byId(doc, RECIPIENT_BRIEF_IDS.region);
   if (!region || !envelope) return null;
   region.dataset.sharedBrief = "true";
@@ -307,6 +504,11 @@ export function renderRecipientBrief(doc, envelope, { localRateCard = null } = {
   if (action) action.hidden = true;
 
   mountOrigin(doc, region, envelope);
+  // What the sender decided to DO about the figure above, between the origin
+  // sentence and the evidence — or the plain statement that they committed to
+  // nothing, which is a brief written before this block existed and every brief
+  // shared by a lead who has moved no lever (#1291).
+  renderSharedPlan(doc, envelope, { planNotice });
   renderRecipientDisclosure(doc, envelope, { localRateCard });
   return region;
 }
@@ -346,7 +548,9 @@ export function announceRefusedBrief(doc, result) {
  */
 export function applyRecipientBrief(doc = globalThis.document, { hash = "", localRateCard = null } = {}) {
   const read = readSharedBriefingFragment(hash);
-  if (read.ok) renderRecipientBrief(doc, read.envelope, { localRateCard });
+  if (read.ok) {
+    renderRecipientBrief(doc, read.envelope, { localRateCard, planNotice: read.planNotice });
+  }
   else if (read.reason !== SHARE_DECODE_REASON.absent) announceRefusedBrief(doc, read);
   return read;
 }

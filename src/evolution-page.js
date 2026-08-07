@@ -729,6 +729,13 @@ let selectedDeliveryHistoryText = null;
  * the control is authored disabled for precisely that window.
  */
 let paintedRoutingSlate = null;
+/**
+ * The plan currently on screen, kept for the same reason (#1291): the shareable
+ * link carries the sender's committed plan, and the plan a colleague opens has to
+ * be the one the lead was looking at when they pressed the button. Null until the
+ * first paint, which is the "nothing committed" state and writes no plan block.
+ */
+let paintedPlanScope = null;
 
 function spendWindowFromPeriod(period) {
   const match = /^(\d{4}-\d{2}-\d{2}) to (\d{4}-\d{2}-\d{2})$/.exec(String(period ?? ""));
@@ -2003,8 +2010,16 @@ function mountLocalFinopsImport() {
     // where the page already knows both: whether the prices came from a declared
     // card, and whether the period under the plan was imported or is the bundled
     // example's invented month.
-    applyPlanScope(document, paintedRoutingSlate, {
+    paintedPlanScope = applyPlanScope(document, paintedRoutingSlate, {
       evidence: planEvidence({ analysis: next, imported: !example }),
+      // A moved lever changes what a shared link would carry (#1291), so the
+      // share control is repainted from the plan that is now on screen rather
+      // than from the empty one this page booted with. The link is rebuilt, its
+      // "Copied." outcome retires with it, and nothing is stored.
+      onModel: (model) => {
+        paintedPlanScope = model;
+        applyShareLink(document, browserFinopsWorkspaceStorage(), { plan: model });
+      },
     });
     // The marker and hedge beside the recoverable figure now come from the card
     // that actually priced this envelope (#1263), not from a bundled constant
@@ -2214,7 +2229,7 @@ function mountLocalFinopsImport() {
       // has to be rebuilt from the store rather than from the tab's boot state.
       // Its status line is left empty by this repaint, so it adds no voice to
       // the one announcement an import is allowed to make.
-      applyShareLink(document, browserFinopsWorkspaceStorage());
+      applyShareLink(document, browserFinopsWorkspaceStorage(), { plan: paintedPlanScope });
     }
     // The derivation is taken from the same payload the export button writes, so
     // the arithmetic a director checks on screen is byte-for-byte the arithmetic

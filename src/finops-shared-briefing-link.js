@@ -210,7 +210,7 @@ function fromBase64Url(token) {
 }
 
 const refusal = (reason) => Object.freeze({
-  ok: false, reason, token: "", periods: Object.freeze([]), envelope: null,
+  ok: false, reason, token: "", periods: Object.freeze([]), envelope: null, planNotice: null,
   ...SHARE_DECODE_COPY[reason],
 });
 
@@ -245,6 +245,9 @@ export function encodeSharedBriefing(periods, options = {}) {
     token,
     periods: built.envelope.periods,
     envelope: built.envelope,
+    // What became of the sender's committed plan (#1291): carried, absent, or
+    // refused by its own contract. Passed straight through, never re-derived.
+    planNotice: built.planNotice,
   });
 }
 
@@ -280,6 +283,8 @@ export function decodeSharedBriefing(token) {
     reason: "decoded",
     periods: read.envelope.periods,
     envelope: read.envelope,
+    // The plan block's own verdict, which never makes a brief unreadable.
+    planNotice: read.planNotice,
   });
 }
 
