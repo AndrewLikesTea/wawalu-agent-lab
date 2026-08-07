@@ -246,6 +246,12 @@ function renderFailed(container, onRetry) {
 // string cannot. It no longer names Social — the h1 directly above it already
 // reads "Post from Social", and the standing sentence under that says what
 // Social is, so repeating the surface a third time bought nothing.
+//
+// It is the single-post form of FEED_LOADING_LINE in src/social.js ("Loading the
+// Social feed…"), which is what Social and People say while the whole feed is in
+// flight: same verb, same shape, same ellipsis, and the object swapped for the
+// one thing this page is actually waiting on. Keep the two in step — a new verb
+// here would put a third voice on the wait these three surfaces share.
 export const POST_LOADING_LINE = "Loading this post…";
 
 // Waiting is not one of the states above, and it does not get their furniture.

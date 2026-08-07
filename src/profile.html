@@ -90,12 +90,15 @@
             <p class="profile-summary" id="profile-name">Ari</p>
             <!-- The pre-hydration line of a page that has not counted anything
                  yet. It must stay word-for-word with loadingSummaryText() in
-                 src/profile.js; a test pins it. It used to ship the empty state
-                 — "Ari hasn't posted an image yet" — which was false for the
-                 seeded feed and was the first thing a visitor read. Once the
-                 module runs, this line is the page's only statement of the
-                 image-post count, empty case included. -->
-            <p class="profile-summary" id="profile-summary">Counting Ari’s image posts…</p>
+                 src/profile.js, which returns Social's one waiting sentence; a
+                 test pins both. It used to ship the empty state — "Ari hasn't
+                 posted an image yet" — which was false for the seeded feed and
+                 was the first thing a visitor read, and then a count of one
+                 name's posts, which described the same wait the connection line
+                 below already described. Once the module runs, this line is the
+                 page's only statement of the image-post count, empty case
+                 included. -->
+            <p class="profile-summary" id="profile-summary">Loading the Social feed…</p>
           </div>
         </div>
         <!-- People is a filtered view of Social, and the nav says so by nesting
@@ -172,7 +175,7 @@
 
           <div class="feed-connection" aria-live="polite">
             <span class="live-dot" aria-hidden="true"></span>
-            <span id="profile-status">Connecting to the Social feed…</span>
+            <span id="profile-status">Loading the Social feed…</span>
           </div>
           <p class="visually-hidden" id="profile-announcer" aria-live="polite" aria-atomic="true"></p>
 

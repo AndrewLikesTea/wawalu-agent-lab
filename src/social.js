@@ -531,6 +531,18 @@ function renderSkeleton(container, count = 3) {
 // it too rather than the "open Paint" it used to say.
 const NO_POSTS_GUIDANCE = "Publish a post, or create an image in Paint first.";
 
+// One wait, one sentence. Social and People are both waiting on the same fetch,
+// and each of them used to describe it twice at once — a visible line ("Loading
+// posts…", "Counting Ari's image posts…") beside a live region that said
+// something else ("Connecting to the Social feed…"). A reader saw two claims and
+// a screen reader heard two; neither was more true than the other. Both surfaces
+// now say this, word for word: the static markup a page ships, the panel over
+// the empty grid, the count, and the connection line. People imports it from
+// here because it already reads this module. src/social.html and
+// src/profile.html carry it in markup for the frame before hydration, so a
+// change here is a change in three files, not one.
+export const FEED_LOADING_LINE = "Loading the Social feed…";
+
 // `state` separates "we have nothing yet because we are still fetching" from
 // "we have nothing because there is nothing" and from "we have nothing because
 // the fetch failed" — three situations that must not share one empty state.
@@ -546,7 +558,7 @@ export function renderPosts(container, posts, options = {}) {
     if (state === "loading") {
       renderSkeleton(container);
       const loading = document.createElement("div");
-      renderState(loading, { state: "loading", title: "Loading Social posts…" });
+      renderState(loading, { state: "loading", title: FEED_LOADING_LINE });
       container.append(...loading.children);
       return;
     }
@@ -761,10 +773,11 @@ export function mountSocialFeed(root, options = {}) {
     // answer once a fetch has come back. Until one has, it names which of
     // "still loading" and "could not load" is true instead of printing a zero
     // that reads as an empty feed — the same contradiction the three separate
-    // renders above exist to avoid, and the same wording the releases count
-    // uses for the state it cannot count in.
+    // renders above exist to avoid. The waiting case says it in the feed's one
+    // wording, so the count, the panel over the empty grid, and the connection
+    // line are not three descriptions of one wait.
     if (count) {
-      if (posts.length === 0 && state === "loading") count.textContent = "Loading posts…";
+      if (posts.length === 0 && state === "loading") count.textContent = FEED_LOADING_LINE;
       else if (posts.length === 0 && state === "error") count.textContent = "Unavailable";
       else count.textContent = filtering ? `${postLabel(visible.length)} of ${posts.length}` : postLabel(visible.length);
     }
