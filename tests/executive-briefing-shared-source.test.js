@@ -28,8 +28,12 @@ import {
   BRIEFING_SOURCE, BRIEFING_SOURCE_PRECEDENCE, SHARED_ORIGIN, chooseBriefingSource,
 } from "../src/executive-briefing-source.js";
 import {
-  SHARE_DECODE_REASON, encodeSharedBriefing, sharedBriefingHref,
+  SHARE_DECODE_REASON, decodeSharedBriefing, encodeSharedBriefing, sharedBriefingHref,
+  sharedBriefingToken,
 } from "../src/finops-shared-briefing-link.js";
+import { parseDestinationRoute } from "../src/destination-route.js";
+import { applyDestinationRoute } from "../src/destination-route-view.js";
+import { FINOPS_DESTINATIONS } from "../src/finops-destinations.js";
 import { FINOPS_CONSENT } from "../src/finops-workspace.js";
 import {
   SHARE_LINK_IDS, SHARE_LINK_LABEL, SHARE_LINK_PATH, applyShareLink, bindShareLink,
@@ -278,6 +282,36 @@ test("a retained period unhides the control and puts the link in the box", () =>
   assert.equal(document.getElementById(SHARE_LINK_IDS.fallback).hidden, false);
   // Painting the control wrote nothing.
   assert.deepEqual(held.calls.filter(([name]) => name !== "getItem"), []);
+});
+
+test("the link carries the destination the sender is actually reading (#1330)", () => {
+  const document = parseHtml(html);
+  const held = recordingStorage({
+    "shiplog.finops.workspace.v1": JSON.stringify({
+      schemaVersion: "finops-workspace/1.1.0",
+      consent: { state: FINOPS_CONSENT.granted, decidedAt: "2026-07-01T00:00:00.000Z" },
+      periods: [period(2)],
+      commitments: [],
+      meta: { lastWriteAt: "2026-07-01T00:00:00.000Z" },
+    }),
+  });
+  const viewOf = (link) => decodeSharedBriefing(
+    sharedBriefingToken(new URL(link.url).hash)).envelope.view;
+
+  // At the front door, with no door marked, a brief points nowhere in
+  // particular — and says so by carrying no block at all.
+  assert.equal(viewOf(applyShareLink(document, held, { origin: ORIGIN })), null);
+
+  // Now route the page the way the address bar does, through #1326's own view.
+  // The control reads that live state; nothing here tells it a slug.
+  const destination = FINOPS_DESTINATIONS.find((entry) => entry.route.scopes.includes("quarter"));
+  applyDestinationRoute(document,
+    parseDestinationRoute(`?destination=${destination.slug}&scope=quarter`), { move: false });
+
+  const view = viewOf(applyShareLink(document, held, { origin: ORIGIN }));
+  assert.equal(view.slug, destination.slug);
+  assert.equal(view.question, destination.question);
+  assert.equal(view.scope, "quarter");
 });
 
 test("a refused clipboard says so and leaves the link selectable", async () => {

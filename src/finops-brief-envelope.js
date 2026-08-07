@@ -45,6 +45,14 @@
 //      untrusted-input boundary, and it is here rather than in a renderer so
 //      every renderer inherits it.
 //
+//   4a. **WHICH `destination` IS WHICH.** Two fields on this envelope use that
+//      word for different things, and conflating them is the one mistake a
+//      reader of this contract can make. `destination` (required, below) is the
+//      ORG UNIT the primary finding points at — "start with Atlas Platform".
+//      `view.slug` (#1330, optional) is the WORKSPACE destination the sender was
+//      reading — a `finops-destinations.js` slug, the same string `?destination=`
+//      carries in a URL. One names a team, the other names a place on the page.
+//
 //   4b. **AN OPTIONAL BLOCK IS STILL PART OF THE CONTRACT.** `plan` (#1291) is
 //      the sender's committed plan. It is optional, so it is NOT in
 //      `BRIEF_ENVELOPE_FIELDS` and its absence refuses nothing; its schema, its
@@ -72,6 +80,12 @@ import { buildExecutiveBriefing } from "./executive-finops-briefing.js";
 // module's header for why an old reader opening a new brief is correct rather
 // than broken.
 import { BRIEF_PLAN_FIELD, buildBriefPlanBlock, readBriefPlanBlock } from "./finops-brief-plan.js";
+// The destination the sender was reading (#1330): a SECOND optional block, on
+// the same terms as the plan block above. Its schema, its version semantics and
+// its dependency on the #1326 route parser are stated in that module's header;
+// the envelope's own version does not move for it, and a brief that carries no
+// destination is the state every brief written before it is already in.
+import { BRIEF_VIEW_FIELD, buildBriefViewBlock, readBriefViewBlock } from "./finops-brief-view.js";
 import {
   DEFAULT_REFERENCE_CARD, confidenceFor as rateCardConfidenceFor, resolveRateCard,
 } from "./finops-rate-card-contract.js";
@@ -384,6 +398,8 @@ const refusal = (reason) => Object.freeze({
   // The plan block's own verdict, on every result shape: a caller reads one
   // field to find out what to say about the plan, refused brief or not.
   planNotice: null,
+  // The destination block's verdict, on the same terms (#1330).
+  viewNotice: null,
   ...BRIEF_ENVELOPE_COPY[reason],
 });
 
@@ -410,7 +426,7 @@ const refusal = (reason) => Object.freeze({
  *   false: a plan that could not be written must not stop a brief being shared.
  */
 export function buildBriefEnvelope(
-  periods, { producedAt = null, rateCard = null, plan = null } = {},
+  periods, { producedAt = null, rateCard = null, plan = null, view = null } = {},
 ) {
   if (!Array.isArray(periods) || periods.length === 0) {
     return refusal(BRIEF_ENVELOPE_REASON.empty);
@@ -468,6 +484,12 @@ export function buildBriefEnvelope(
   // difference is reported to this caller instead.
   const planBlock = buildBriefPlanBlock(plan);
   if (planBlock.ok) envelope[BRIEF_PLAN_FIELD] = planBlock.block;
+  // The destination the sender was reading, on the same terms (#1330): four
+  // fields built by name from live page state, or NO key when there is nothing
+  // to point at. A pointer that would not resolve is refused here, on the
+  // sender's side, rather than shipped for a recipient to fail to open.
+  const viewBlock = buildBriefViewBlock(view);
+  if (viewBlock.ok) envelope[BRIEF_VIEW_FIELD] = viewBlock.block;
   // Built and then read back through the reader's own validator rather than
   // trusted because this module wrote it: a producer that can emit an envelope
   // its own reader refuses is the defect, and it should fail here, on the
@@ -476,7 +498,15 @@ export function buildBriefEnvelope(
   // A write-side plan refusal is reported over the read-side one, because it is
   // the more specific fact: "your plan was too large to carry" rather than "this
   // brief has no plan on it".
-  return planBlock.ok ? built : Object.freeze({ ...built, planNotice: planBlock.notice });
+  // A write-side block refusal is reported over the read-side one, because it is
+  // the more specific fact: "your plan was too large to carry" rather than "this
+  // brief has no plan on it". The two blocks are independent; neither can make
+  // `ok` false and neither hides the other.
+  return Object.freeze({
+    ...built,
+    ...(planBlock.ok ? {} : { planNotice: planBlock.notice }),
+    ...(viewBlock.ok ? {} : { viewNotice: viewBlock.notice }),
+  });
 }
 
 /**
@@ -558,6 +588,11 @@ export function validateBriefEnvelope(value) {
   // around it. Nothing below can set `ok` false: a recipient must still be able
   // to open the analysis they were sent.
   const planRead = readBriefPlanBlock(value[BRIEF_PLAN_FIELD]);
+  // Same rule for the destination block (#1330): absent is normal, a block this
+  // build cannot read is refused as a BLOCK and reported through `viewNotice`,
+  // and neither outcome can set `ok` false. A recipient always keeps the
+  // analysis and always has the front door.
+  const viewRead = readBriefViewBlock(value[BRIEF_VIEW_FIELD]);
 
   // Rebuilt key by key. Nothing from `value` is spread, so an unknown field on a
   // hostile file is dropped here and can reach no renderer.
@@ -596,6 +631,10 @@ export function validateBriefEnvelope(value) {
     // this for the figures and `planNotice` below for the sentence; neither can
     // be half-set, so a rendered plan total always has a validated plan under it.
     plan: planRead.plan,
+    // The projected destination block, or null on both of its refusals. A
+    // surface reads this to resolve where the brief points and `viewNotice` for
+    // the sentence to say when it cannot.
+    view: viewRead.view,
   });
   return Object.freeze({
     ok: true,
@@ -603,6 +642,7 @@ export function validateBriefEnvelope(value) {
     envelope,
     periods: envelope.periods,
     planNotice: planRead.notice,
+    viewNotice: viewRead.notice,
   });
 }
 

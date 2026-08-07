@@ -531,7 +531,7 @@ import { applyShareLink, bindShareLink } from "/finops-share-link-control.js";
 // and Limits behind the disclosure the region already ships. It writes nothing,
 // offers no control over the shared figures, and leaves the page exactly as it
 // is when the address carries no brief.
-import { applyRecipientBrief } from "/finops-recipient-brief.js";
+import { applyBriefDestination, applyRecipientBrief } from "/finops-recipient-brief.js";
 // …and the one owner of WHICH source that answer came from. The page used to
 // choose between the bundled example and the reader's import at each call site;
 // it now reads a single held answer, so the headline, the action, the position
@@ -5057,6 +5057,23 @@ async function init() {
   // it runs before nothing: an address with no brief on it repaints not one
   // slot, which is every ordinary visit to this page.
   applyRecipientBrief(document, { hash: globalThis.location?.hash ?? "" });
+  // …and where that brief points (#1330): the destination the sender was
+  // reading, resolved through the same route parser the address bar uses, or
+  // the front door with the sender's destination NAMED when it no longer
+  // exists. After the brief itself, because it reads the envelope that paint
+  // just validated.
+  applyBriefDestination(document, { hash: globalThis.location?.hash ?? "" });
+  // The link this reader copies points at the destination THEY are on, so it is
+  // repainted when the route changes rather than only at boot. Added after
+  // `installDestinationRouting`, so the routing view has already marked the new
+  // door by the time this runs, and it carries whatever plan is currently
+  // painted so a repaint cannot silently drop the sender's committed moves.
+  const repaintShareLink = () =>
+    applyShareLink(document, browserFinopsWorkspaceStorage(), { plan: paintedPlanScope });
+  document.addEventListener("click", (event) => {
+    if (event?.target?.closest?.("[data-front-door-slug]")) repaintShareLink();
+  });
+  window.addEventListener("popstate", repaintShareLink);
   // Nothing has been imported at boot, so the held answer is the bundled
   // synthetic example with its marker intact — composed on this first read.
   // Painted WITHOUT announcing: the build seeds this same answer into the

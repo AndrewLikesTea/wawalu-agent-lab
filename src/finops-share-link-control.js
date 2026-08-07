@@ -41,6 +41,7 @@
 
 import { COPY_METHOD, copySummaryText } from "./coaching-summary.js";
 import { readWorkspacePeriods } from "./executive-briefing-source.js";
+import { FINOPS_DESTINATIONS } from "./finops-destinations.js";
 import { sharedBriefingHref } from "./finops-shared-briefing-link.js";
 // Whether the link about to be copied reproduces this brief on the other side
 // (#1210). Checked at paint, beside the control, because a lead who has already
@@ -69,6 +70,35 @@ export const SHARE_LINK_PATH = "/executive-briefing.html";
 
 const byId = (doc, id) => (doc?.getElementById ? doc.getElementById(id) : null);
 
+/** The front-door region and the marked door, both written by #1326's view. */
+export const FRONT_DOOR_REGION_ID = "finops-front-door";
+export const ACTIVE_DOOR_SELECTOR = '[data-front-door-active="true"]';
+
+/**
+ * The destination this reader is currently on, read off the LIVE page (#1330).
+ *
+ * There is no hardcoded slug here and no state of this control's own: the door
+ * `destination-route-view.js` marked with `data-front-door-active` is the
+ * answer, and the window it applied to the region is the scope. A reader at the
+ * front door is `null`, which is how the envelope says "this brief points
+ * nowhere in particular" — an absent block rather than an empty one.
+ *
+ * The QUESTION comes from the registry rather than from the rendered door: the
+ * text in the document is escaped markup written from that same registry, and
+ * reading it back would put a round trip through the DOM between the sender's
+ * page and the sender's brief for no gain.
+ */
+export function viewedDestination(doc, registry = FINOPS_DESTINATIONS) {
+  const slug = doc?.querySelector?.(ACTIVE_DOOR_SELECTOR)?.dataset?.frontDoorSlug ?? null;
+  if (!slug) return null;
+  const destination = registry.find((entry) => entry?.slug === slug) ?? null;
+  return {
+    slug,
+    question: destination?.question ?? null,
+    scope: byId(doc, FRONT_DOOR_REGION_ID)?.getAttribute?.("data-route-scope") ?? null,
+  };
+}
+
 /**
  * Build the link for the periods this browser has retained.
  *
@@ -81,7 +111,7 @@ const byId = (doc, id) => (doc?.getElementById ? doc.getElementById(id) : null);
  *   own storage" and "you have not analyzed anything" produce the same offer,
  *   which is none, and the page states the difference elsewhere.
  */
-export function shareableBriefingLink(storage, origin, { plan = null } = {}) {
+export function shareableBriefingLink(storage, origin, { plan = null, view = null } = {}) {
   const read = readWorkspacePeriods(storage);
   const base = (() => {
     try {
@@ -94,8 +124,11 @@ export function shareableBriefingLink(storage, origin, { plan = null } = {}) {
   // The plan travels with the figures or not at all (#1291). It is passed
   // through to the one envelope builder, which writes the optional block when
   // the lead has committed a move and writes NO key when they have not — this
-  // control chooses no field of it and validates none.
-  return sharedBriefingHref(base, read.code === null ? read.periods : [], { plan });
+  // control chooses no field of it and validates none. The destination pointer
+  // (#1330) travels the same way: passed through to the one envelope builder,
+  // which writes the block when the reader is on a destination and NO key when
+  // they are at the front door.
+  return sharedBriefingHref(base, read.code === null ? read.periods : [], { plan, view });
 }
 
 /**
@@ -117,11 +150,17 @@ function sharedPeriods(storage) {
  *   hidden because there is nothing of the reader's own to share.
  */
 export function applyShareLink(
-  doc, storage, { origin = globalThis.location?.origin, plan = null } = {},
+  doc, storage, { origin = globalThis.location?.origin, plan = null, view } = {},
 ) {
   const block = byId(doc, SHARE_LINK_IDS.block);
   if (!block) return null;
-  const link = shareableBriefingLink(storage, origin, { plan });
+  // Read at PAINT time, from the document, every time. The page repaints this
+  // control whenever the plan or the route changes, so the link in the box is
+  // for the destination on screen rather than the one that was on screen when
+  // the page booted.
+  const link = shareableBriefingLink(storage, origin, {
+    plan, view: view === undefined ? viewedDestination(doc) : view,
+  });
   const box = byId(doc, SHARE_LINK_IDS.text);
   const status = byId(doc, SHARE_LINK_IDS.status);
 

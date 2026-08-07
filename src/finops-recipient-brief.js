@@ -32,6 +32,13 @@
 
 import { briefPricingBasis } from "./finops-brief-envelope.js";
 import { BRIEF_PLAN_COPY, BRIEF_PLAN_REASON } from "./finops-brief-plan.js";
+// Where the brief points (#1330), and how a slug becomes a place on this page.
+// The resolution is #1326's parser, reached through the view contract; this
+// module holds no slug list and decides nothing about what a destination is.
+import { BRIEF_VIEW_COPY, BRIEF_VIEW_REASON, resolveBriefView } from "./finops-brief-view.js";
+import { FINOPS_DESTINATIONS } from "./finops-destinations.js";
+import { applyDestinationRoute } from "./destination-route-view.js";
+import { parseDestinationRoute } from "./destination-route.js";
 import {
   SHARE_DECODE_REASON, readSharedBriefingFragment,
 } from "./finops-shared-briefing-link.js";
@@ -49,6 +56,7 @@ export const RECIPIENT_BRIEF_IDS = Object.freeze({
   confidenceDetail: "finops-recoverable-confidence-detail",
   origin: "finops-shared-brief-origin",
   notice: "finops-shared-brief-notice",
+  destinationLine: "finops-shared-brief-destination",
 });
 
 /** What the marker chip beside the figure says instead of "Illustrative". */
@@ -534,6 +542,106 @@ export function announceRefusedBrief(doc, result) {
   notice.textContent = `${result.summary}. ${result.statement} ${result.remedy}`;
   notice.dataset.outcome = result.reason;
   return notice;
+}
+
+// ---------------------------------------------------------------------------
+// WHERE THE BRIEF POINTS (#1330).
+// ---------------------------------------------------------------------------
+//
+// The sender was reading one of this page's destinations when they copied the
+// link. `envelope.view` carries which one, the question it answers, and the
+// window it was read at; `resolveBriefView` turns that into a place through the
+// #1326 route parser, which is the same code the address bar resolves with. One
+// parser, so a slug a brief can carry is exactly a slug a URL can open.
+//
+// THREE OUTCOMES, ALL OF THEM A WHOLE PAGE.
+//
+//   RESOLVED — the named door is marked current and the brief's window is
+//   applied to the front-door region, through `applyDestinationRoute`. The
+//   sentence says which destination this brief was written at and what that
+//   destination asks.
+//   STALE OR UNREADABLE — the front door is left exactly as it is and the
+//   sentence NAMES the destination the sender meant and says it is no longer
+//   available. Never silent, never thrown: a pointer that cannot be opened is
+//   still information about what somebody was looking at.
+//   ABSENT — a brief written before #1330, or shared from the front door. No
+//   sentence and no change at all.
+//
+// IT MOVES NOBODY. `move: false`, deliberately: the reader has just been handed
+// somebody's figures in the region above, and scrolling them away from a number
+// they are reading is not "landing" — the door is marked, the window is applied,
+// and the reader chooses. It also adds NO control: this is a paragraph, and the
+// read-only state of this region takes tab stops away rather than adding them.
+
+/** The sentence read when a brief carries no destination this build can open. */
+export const briefDestinationRefusal = (reason) =>
+  `${BRIEF_VIEW_COPY[reason]?.statement ?? ""} ${BRIEF_VIEW_COPY[reason]?.remedy ?? ""}`.trim();
+
+/**
+ * Paint where a brief points, and mark that destination when it still exists.
+ *
+ * @param envelope a VALIDATED envelope, whose `view` is the projected block or
+ *   null. Nothing here validates: a block the contract refused arrives as null
+ *   with its reason on `viewNotice`.
+ * @param options.viewNotice the block's own verdict, used for the sentence when
+ *   there is no view to resolve. An absent notice with no view is the ordinary
+ *   "shared from the front door", which says nothing.
+ * @returns frozen `{ reason, slug, statement }`, or null when this document
+ *   carries no answer region.
+ */
+export function renderBriefDestination(
+  doc, envelope, { viewNotice = null, registry = FINOPS_DESTINATIONS } = {},
+) {
+  const region = byId(doc, RECIPIENT_BRIEF_IDS.region);
+  if (!region) return null;
+  const resolved = resolveBriefView(envelope?.view ?? null, registry);
+  // A block that was refused on the way in has no view to resolve, so its own
+  // named notice is the sentence — "could not be read", not "no longer exists".
+  const refused = !envelope?.view && viewNotice
+    && viewNotice.reason !== BRIEF_VIEW_REASON.absent;
+  const statement = refused ? briefDestinationRefusal(viewNotice.reason) : resolved.statement;
+  const reason = refused ? viewNotice.reason : resolved.reason;
+
+  let line = byId(doc, RECIPIENT_BRIEF_IDS.destinationLine);
+  if (!line) {
+    line = doc.createElement("p");
+    line.setAttribute("id", RECIPIENT_BRIEF_IDS.destinationLine);
+    line.className = "local-lead-basis";
+    const disclosure = byId(doc, RECIPIENT_BRIEF_IDS.disclosure);
+    if (disclosure && disclosure.parentNode === region) region.insertBefore(line, disclosure);
+    else region.append(line);
+  }
+  // textContent, never markup: the slug and the question came off somebody
+  // else's brief and are attacker-controllable.
+  line.textContent = statement;
+  line.hidden = statement === "";
+  line.dataset.briefDestination = resolved.slug ?? "";
+  line.dataset.briefDestinationStatus = reason;
+
+  // Landing: the door is marked and the brief's window applied, through the
+  // routing view rather than by writing attributes here. A stale pointer marks
+  // nothing at all, which leaves the front door as the boot painted it.
+  if (resolved.ok) {
+    applyDestinationRoute(doc, parseDestinationRoute(resolved.address, registry),
+      { move: false, registry });
+  }
+  return Object.freeze({ reason, slug: resolved.slug, statement });
+}
+
+/**
+ * Read whatever the address carries and paint where it points.
+ *
+ * Separate from `applyRecipientBrief` because the two answer different
+ * questions — "whose figures are these" and "where were they reading them" —
+ * and a page that has no front door still wants the first. Total: an address
+ * with no brief on it paints nothing.
+ */
+export function applyBriefDestination(
+  doc = globalThis.document, { hash = "", registry = FINOPS_DESTINATIONS } = {},
+) {
+  const read = readSharedBriefingFragment(hash);
+  if (!read.ok) return null;
+  return renderBriefDestination(doc, read.envelope, { viewNotice: read.viewNotice, registry });
 }
 
 /**
