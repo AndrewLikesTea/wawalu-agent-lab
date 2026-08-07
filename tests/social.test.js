@@ -372,10 +372,23 @@ test("the control that opens the composer agrees with the composer about images"
   const entry = page.document.querySelector(".hero-actions").querySelectorAll("a")
     .filter((anchor) => anchor.getAttribute("href") === "#post-form");
   assert.equal(entry.length, 1, "the hero offers exactly one route into the composer");
-  assert.equal(textOf(entry[0]), "Write a post",
+  assert.equal(textOf(entry[0]), "Open the post form",
     "the control that opens the composer makes a claim about images again");
 
+  // And it does not echo the heading it lands on. The hero link, the eyebrow,
+  // and the h2 named the same form with two strings between them — "Write a
+  // post" twice and "New post" once — so a first-time visitor met the composer
+  // three times before typing. Releases is the pattern: "New record" over
+  // "Record a release", with the entry control saying what it opens.
+  const eyebrow = textOf(page.document.querySelector(".form-panel").querySelector(".eyebrow"));
+  const heading = textOf(page.document.querySelector("#post-form-title"));
+  assert.deepEqual([textOf(entry[0]), eyebrow, heading].map((name) => name.toLowerCase()).sort(),
+    ["new post", "open the post form", "write a post"],
+    "two of the composer's three names are the same string again");
   const rendered = textOf(page.document.querySelector("body"));
+  assert.equal(rendered.split("Write a post").length - 1, 1,
+    "the page names the composer \"Write a post\" more than once again");
+
   assert.doesNotMatch(rendered, /without an image/i,
     "a rendered string on Social says a post cannot carry an image");
   // Attributes too: a stale aria-label or title would go unread by the check
@@ -407,6 +420,25 @@ test("the control that opens the composer agrees with the composer about images"
   const beyondTheUrl = markup.replace(/class="nav-profile"|href="\/profile\.html"/g, "");
   assert.doesNotMatch(beyondTheUrl.replace(/<!--[\s\S]*?-->/g, ""), /profile/i,
     "the word survives outside the People page's own URL and nav class");
+});
+
+// The intro said what the feed holds and never said who wrote it, so the seeded
+// posts read as other people's accounts. People already has the clearest way to
+// say it — "a demo persona in the Social feed, not a signed-in user" — so the
+// intro borrows that noun rather than inventing a third word for the bundled
+// names. One sentence, inside the paragraph that is already there, and ahead of
+// the demo-data sentence the permalink quotes as this intro's last words.
+test("the feed intro says who wrote the posts, in People's word for it", async (t) => {
+  const page = await loadPage(new URL("../src/social.html", import.meta.url), {});
+  t.after(() => page.restore());
+
+  const intro = textOf(page.document.querySelector(".hero-social").querySelectorAll("p")[1]);
+  assert.match(intro, /Every post comes from a bundled demo persona or from a visitor who published one\./,
+    "the intro stopped disclosing who the feed's posts come from");
+  assert.match(intro, /Posts use no customer or production data\.$/,
+    "the demo-data sentence must stay the intro's last words");
+  assert.equal(intro.split("demo persona").length - 1, 1,
+    "the intro names demo personas more than once");
 });
 
 // The display name field said what it defaulted to and nothing about what the
