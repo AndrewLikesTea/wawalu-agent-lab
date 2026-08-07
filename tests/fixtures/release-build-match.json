@@ -1,0 +1,52 @@
+{
+  "$comment": "The four cases /healthz has to answer, pinned to values instead of to whatever commit happens to be checked out. Every sha here is synthetic hexadecimal; none of them is a commit in this repository, and nothing in this file is customer or operational data.",
+  "revision": "release-build-match/1",
+  "stamp": {
+    "schemaVersion": 1,
+    "commitSha": "9f2c1ab4d7e60355a1c8b0d9e7f4a2b6c8d3e5f7",
+    "builtAt": "2026-08-06T09:15:00.000Z"
+  },
+  "unstampedBuild": {
+    "schemaVersion": 1,
+    "commitSha": null,
+    "builtAt": null
+  },
+  "matchingRelease": {
+    "$comment": "The abbreviated sha a person copies out of `git log`, against the full 40 the build stamped. Same commit, two lengths — this is the prefix rule the module exists for.",
+    "id": "r-2-1-0",
+    "version": "v2.1.0",
+    "title": "Queue drain",
+    "description": "Drain the queue on shutdown.",
+    "status": "completed",
+    "notes": "",
+    "owner": "Ellis",
+    "commitSha": "9f2c1ab",
+    "createdAt": "2026-08-04T12:00:00.000Z",
+    "decisionIds": []
+  },
+  "mismatchingRelease": {
+    "id": "r-2-2-0",
+    "version": "v2.2.0",
+    "title": "Read cache",
+    "description": "Cache the read path.",
+    "status": "completed",
+    "notes": "",
+    "owner": "Priya",
+    "commitSha": "0123456789abcdef0123456789abcdef01234567",
+    "createdAt": "2026-08-05T12:00:00.000Z",
+    "decisionIds": []
+  },
+  "olderRelease": {
+    "$comment": "Older than both of the above, so a log holding it plus one of them proves the newest record is the one compared.",
+    "id": "r-1-9-0",
+    "version": "v1.9.0",
+    "title": "Structured logs",
+    "description": "Log every request with a request id.",
+    "status": "completed",
+    "notes": "",
+    "owner": "Kai",
+    "commitSha": "fedcba9876543210fedcba9876543210fedcba98",
+    "createdAt": "2026-06-01T12:00:00.000Z",
+    "decisionIds": []
+  }
+}
