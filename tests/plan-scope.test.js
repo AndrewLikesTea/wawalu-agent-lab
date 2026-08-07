@@ -203,13 +203,19 @@ test("every move's levers, units and defaults are rendered, one row each", async
   // harness parses one compound selector and throws on "a b".
   const body = document.getElementById("plan-scope-body");
   const details = body.querySelectorAll("details");
-  assert.equal(details.length, 1, "one disclosure, holding every move's levers");
-  assert.equal(details[0].dataset.moveCount, String(model.moves.length));
-  assert.ok(!details[0].hasAttribute("open"), "the per-move detail is collapsed by default");
+  // Two, and only two: the levers, and the evidence grade's own rule list
+  // (#1289). Each one is identified by what it holds rather than by position.
+  assert.equal(details.length, 2, "the levers and the evidence rules, one disclosure each");
+  const moveDetail = details.find((node) => node.dataset.moveCount !== undefined);
+  const rules = details.find((node) => node.id === "plan-evidence-grade-detail");
+  assert.ok(moveDetail && rules, "both disclosures must be identifiable");
+  assert.equal(moveDetail.dataset.moveCount, String(model.moves.length));
+  assert.ok(!moveDetail.hasAttribute("open"), "the per-move detail is collapsed by default");
+  assert.ok(!rules.hasAttribute("open"), "the rule detail is collapsed by default");
   const summaries = body.querySelectorAll("summary");
-  assert.equal(summaries.length, 1, "the section adds exactly one tab stop");
-  assert.equal(summaries[0].getAttribute("aria-expanded"), "false");
-  assert.ok(textOf(summaries[0]).startsWith(PLAN_SCOPE_DETAIL_SUMMARY));
+  assert.equal(summaries.length, 2, "the section adds exactly two tab stops, both below the fold");
+  for (const summary of summaries) assert.equal(summary.getAttribute("aria-expanded"), "false");
+  assert.ok(summaries.some((node) => textOf(node).startsWith(PLAN_SCOPE_DETAIL_SUMMARY)));
 
   const rows = body.querySelectorAll("li");
   const levers = rows.filter((node) => node.dataset.lever);

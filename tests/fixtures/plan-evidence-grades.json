@@ -1,0 +1,217 @@
+{
+  "$comment": "Labelled plans for the evidence grade beside the planned figure (#1289). Each entry is a slate, the commitments a lead made against it, the two analysis-level evidence signals, and the grade plus the FULL ordered blocker list that src/plan-evidence-grade.js must return for it. Read by tests/plan-evidence-grade.test.js. Blockers are pinned in the order the module declares — heaviest weight first, ties on rule id ascending — so a change to that order fails here rather than being absorbed.",
+  "$moveKey": "A commitment names its move exactly as src/plan-scope.js builds the key: `source → targetTier tier · unit`.",
+  "plans": [
+    {
+      "id": "no-evidence",
+      "note": "One move committed and nothing stated about it. The floor of the scale: a plan that exists only as a claim.",
+      "slate": {
+        "rules": [
+          {
+            "rank": 1,
+            "source": "premium",
+            "unit": "Support",
+            "targetTier": "standard",
+            "expectedMonthlyUsd": 4000
+          }
+        ]
+      },
+      "commitments": [
+        {"move": "premium → standard tier · Support", "reroutedSharePct": 10, "eligibleTeams": 1}
+      ],
+      "evidence": {"rateCardDeclared": false, "baselineObserved": false},
+      "expected": {
+        "graded": true,
+        "letter": "D",
+        "score": 0,
+        "committedCount": 1,
+        "clearedRuleIds": [],
+        "blockers": [
+          {"ruleId": "rate-card-declared", "weight": 35, "movesOutstanding": 0},
+          {"ruleId": "baseline-observed", "weight": 25, "movesOutstanding": 0},
+          {"ruleId": "exclusions-named", "weight": 20, "movesOutstanding": 1},
+          {"ruleId": "refusals-recorded", "weight": 20, "movesOutstanding": 1}
+        ]
+      }
+    },
+    {
+      "id": "partial-evidence",
+      "note": "Two committed moves, both naming their exclusions, over an observed baseline — but nobody has been asked to refuse and the prices are still list prices.",
+      "slate": {
+        "rules": [
+          {
+            "rank": 1,
+            "source": "premium",
+            "unit": "Support",
+            "targetTier": "standard",
+            "expectedMonthlyUsd": 4000
+          },
+          {
+            "rank": 2,
+            "source": "premium",
+            "unit": "Sales",
+            "targetTier": "standard",
+            "expectedMonthlyUsd": 2500
+          }
+        ]
+      },
+      "commitments": [
+        {
+          "move": "premium → standard tier · Support",
+          "reroutedSharePct": 20,
+          "excludedWorkloads": 1,
+          "eligibleWorkloads": 4,
+          "eligibleTeams": 1
+        },
+        {
+          "move": "premium → standard tier · Sales",
+          "reroutedSharePct": 15,
+          "excludedWorkloads": 0,
+          "eligibleTeams": 1
+        }
+      ],
+      "evidence": {"rateCardDeclared": false, "baselineObserved": true},
+      "expected": {
+        "graded": true,
+        "letter": "C",
+        "score": 45,
+        "committedCount": 2,
+        "clearedRuleIds": ["baseline-observed", "exclusions-named"],
+        "blockers": [
+          {"ruleId": "rate-card-declared", "weight": 35, "movesOutstanding": 0},
+          {"ruleId": "refusals-recorded", "weight": 20, "movesOutstanding": 2}
+        ]
+      }
+    },
+    {
+      "id": "fully-evidenced-low-scope",
+      "note": "Two committed moves at a deliberately SMALL claimed share, with all four signals stated. The most evidenced plan in this file and the least ambitious one — which is the comparison the grade exists to make.",
+      "slate": {
+        "rules": [
+          {
+            "rank": 1,
+            "source": "premium",
+            "unit": "Support",
+            "targetTier": "standard",
+            "expectedMonthlyUsd": 4000
+          },
+          {
+            "rank": 2,
+            "source": "premium",
+            "unit": "Sales",
+            "targetTier": "standard",
+            "expectedMonthlyUsd": 2500
+          }
+        ]
+      },
+      "commitments": [
+        {
+          "move": "premium → standard tier · Support",
+          "reroutedSharePct": 5,
+          "excludedWorkloads": 2,
+          "eligibleWorkloads": 6,
+          "refusingTeams": 0,
+          "eligibleTeams": 1
+        },
+        {
+          "move": "premium → standard tier · Sales",
+          "reroutedSharePct": 5,
+          "excludedWorkloads": 0,
+          "refusingTeams": 0,
+          "eligibleTeams": 1
+        }
+      ],
+      "evidence": {"rateCardDeclared": true, "baselineObserved": true},
+      "expected": {
+        "graded": true,
+        "letter": "A",
+        "score": 100,
+        "committedCount": 2,
+        "clearedRuleIds": [
+          "baseline-observed",
+          "exclusions-named",
+          "rate-card-declared",
+          "refusals-recorded"
+        ],
+        "blockers": []
+      }
+    },
+    {
+      "id": "high-scope-evidence-poor",
+      "note": "Three moves committed at 100% of their traffic and nothing stated about any of them. The largest planned total in this file and the emptiest evidence, so it must NOT outgrade fully-evidenced-low-scope above.",
+      "slate": {
+        "rules": [
+          {
+            "rank": 1,
+            "source": "premium",
+            "unit": "Support",
+            "targetTier": "standard",
+            "expectedMonthlyUsd": 4000
+          },
+          {
+            "rank": 2,
+            "source": "premium",
+            "unit": "Sales",
+            "targetTier": "standard",
+            "expectedMonthlyUsd": 2500
+          },
+          {
+            "rank": 3,
+            "source": "premium",
+            "unit": "Engineering",
+            "targetTier": "standard",
+            "expectedMonthlyUsd": 9000
+          }
+        ]
+      },
+      "commitments": [
+        {"move": "premium → standard tier · Support", "reroutedSharePct": 100, "eligibleTeams": 1},
+        {"move": "premium → standard tier · Sales", "reroutedSharePct": 100, "eligibleTeams": 1},
+        {
+          "move": "premium → standard tier · Engineering",
+          "reroutedSharePct": 100,
+          "eligibleTeams": 1
+        }
+      ],
+      "evidence": {"rateCardDeclared": false, "baselineObserved": false},
+      "expected": {
+        "graded": true,
+        "letter": "D",
+        "score": 0,
+        "committedCount": 3,
+        "clearedRuleIds": [],
+        "blockers": [
+          {"ruleId": "rate-card-declared", "weight": 35, "movesOutstanding": 0},
+          {"ruleId": "baseline-observed", "weight": 25, "movesOutstanding": 0},
+          {"ruleId": "exclusions-named", "weight": 20, "movesOutstanding": 3},
+          {"ruleId": "refusals-recorded", "weight": 20, "movesOutstanding": 3}
+        ]
+      }
+    },
+    {
+      "id": "nothing-committed",
+      "note": "The state the page ships in. There is no grade at all — an absence, stated in words, not a zero and not a passing letter.",
+      "slate": {
+        "rules": [
+          {
+            "rank": 1,
+            "source": "premium",
+            "unit": "Support",
+            "targetTier": "standard",
+            "expectedMonthlyUsd": 4000
+          }
+        ]
+      },
+      "commitments": [],
+      "evidence": {"rateCardDeclared": true, "baselineObserved": true},
+      "expected": {
+        "graded": false,
+        "letter": null,
+        "score": 0,
+        "committedCount": 0,
+        "clearedRuleIds": [],
+        "blockers": []
+      }
+    }
+  ]
+}

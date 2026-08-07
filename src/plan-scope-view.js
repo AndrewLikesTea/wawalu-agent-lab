@@ -5,10 +5,17 @@
 // `plan-scope-levers.js`. No dollar, grade or threshold is computed here.
 //
 // READING ORDER IS THE PRODUCT, and it is one question, one number, one action:
-// the planned figure at the numeral role, then the sentence separating it from
-// the recoverable headline above, then the single next ask, then the grade line
-// — and only then, behind a collapsed disclosure, each move with the levers that
-// scope it.
+// the planned figure at the numeral role, then how much of that figure rests on
+// a stated fact (#1289), then the sentence separating it from the recoverable
+// headline above, then the single next ask, then the grade line — and only then,
+// behind collapsed disclosures, the rules behind the evidence grade and each
+// move with the levers that scope it.
+//
+// TWO NUMBERS, TWO NAMES. The evidence grade is NOT the plan-confidence line and
+// is not the analysis's own confidence claim further up the page: it is labelled
+// "Evidence grade", carries a letter rather than a tier, and every letter it
+// shows is accounted for rule by rule in its own disclosure. Nothing here coins a
+// third word for confidence, and the plan-confidence line below it is untouched.
 //
 // WHAT STAYS OUTSIDE THE DISCLOSURE: the status line (authored in evolution.html,
 // a sibling of this body), the planned figure, the diagnosis-versus-plan
@@ -35,6 +42,10 @@
 
 import { formatUsd } from "./evolution.js";
 import {
+  EVIDENCE_RULES_ORDERED, GRADE_ABSENT_REASON, MAX_SCORE, NO_BLOCKERS_SUMMARY,
+  PLAN_EVIDENCE_GRADE_LABEL, gradePlanEvidence,
+} from "./plan-evidence-grade.js";
+import {
   FEASIBLE_SHARE_MAX, FEASIBLE_SHARE_MIN, emptyMoveScope, feasibleShareRefusal, planCommitments,
   readFeasibleShare,
 } from "./plan-scope-levers.js";
@@ -50,10 +61,20 @@ export const PLAN_SCOPE_FIGURE_ID = "plan-scope-figure";
 export const PLAN_SCOPE_GRADE_ID = "plan-scope-grade";
 export const PLAN_SCOPE_ACTION_ID = "plan-scope-action";
 export const PLAN_SCOPE_DISTINCTION_ID = "plan-scope-distinction";
+export const PLAN_EVIDENCE_GRADE_ID = "plan-evidence-grade";
+export const PLAN_EVIDENCE_DETAIL_ID = "plan-evidence-grade-detail";
+
+/** How many blockers are named in the open. Two or three: enough to act on. */
+export const NAMED_BLOCKER_LIMIT = 3;
 
 /** The words on the closed disclosure. It promises the levers, and holds them. */
 export const PLAN_SCOPE_DETAIL_SUMMARY =
   "Scope each modelled move: the share, the excluded workloads and the refusals";
+
+/** The words on the grade's own disclosure. It promises the rules, and holds them. */
+export const PLAN_EVIDENCE_DETAIL_SUMMARY =
+  "How this evidence grade was computed: every rule, what would clear it, and the assumption "
+  + "behind its weight";
 
 /** Every control id derives from here, so a label and its field cannot drift. */
 export const planLeverId = (index, part) => `plan-lever-${index}-${part}`;
@@ -333,17 +354,99 @@ function gradeLine(doc) {
 }
 
 /**
+ * The evidence grade beside the planned total (#1289), and the two or three
+ * heaviest blockers NAMED in the open — a reader who never opens the disclosure
+ * below still learns which facts are missing, because a closed disclosure is
+ * dropped from the accessibility tree in a real browser.
+ *
+ * The label is "Evidence grade", never "confidence": this page already carries a
+ * confidence claim about the ANALYSIS and a plan-confidence line one paragraph
+ * down, and three numbers sharing one word is how a reader ends up believing a
+ * scoping claim has been measured.
+ */
+function evidenceGradeLine(doc) {
+  const line = element(doc, "p", "answer-figure-basis");
+  line.id = PLAN_EVIDENCE_GRADE_ID;
+  return {
+    node: line,
+    update(verdict) {
+      line.dataset.grade = verdict.graded ? verdict.letter : "absent";
+      line.dataset.score = String(verdict.score);
+      line.dataset.blockers = String(verdict.blockers.length);
+      if (!verdict.graded) {
+        line.textContent = `${PLAN_EVIDENCE_GRADE_LABEL}: none yet. ${GRADE_ABSENT_REASON}`;
+        return;
+      }
+      const named = verdict.blockers.slice(0, NAMED_BLOCKER_LIMIT)
+        .map((blocker) => blocker.name).join("; ");
+      const scored = `${verdict.score} of ${verdict.maxScore} points from facts the lead stated`;
+      line.textContent = named
+        ? `${PLAN_EVIDENCE_GRADE_LABEL} ${verdict.letter} — ${verdict.label} (${scored}). `
+          + `Blocking a stronger grade: ${named}. Every rule behind this grade is listed below.`
+        : `${PLAN_EVIDENCE_GRADE_LABEL} ${verdict.letter} — ${verdict.label} (${scored}). `
+          + NO_BLOCKERS_SUMMARY;
+    },
+  };
+}
+
+/**
+ * Why the grade is the grade: every rule, whether it fired, the one sentence
+ * that would clear it, and the assumption its weight rests on. Both the fired
+ * and the cleared rules are listed, because a score a reader can only partly
+ * account for is a number they have to take on trust.
+ */
+function evidenceDisclosure(doc) {
+  const detail = element(doc, "details", "completeness-detail");
+  detail.id = PLAN_EVIDENCE_DETAIL_ID;
+  const summary = element(doc, "summary");
+  summary.setAttribute("aria-expanded", "false");
+  summary.append(doc.createTextNode(PLAN_EVIDENCE_DETAIL_SUMMARY));
+  detail.addEventListener("toggle", () => {
+    summary.setAttribute("aria-expanded", String(detail.hasAttribute("open")));
+  });
+  const basis = element(doc, "p", "answer-figure-basis");
+  const list = element(doc, "ul", "action-list");
+  const rows = EVIDENCE_RULES_ORDERED.map((rule) => {
+    const item = element(doc, "li");
+    item.dataset.rule = rule.id;
+    list.append(item);
+    return { rule, item };
+  });
+  detail.append(summary, basis, list);
+  return {
+    node: detail,
+    update(verdict) {
+      const blocked = new Set(verdict.blockers.map((blocker) => blocker.ruleId));
+      basis.textContent = verdict.graded
+        ? `The grade is the sum of the weights of the rules that cleared: ${verdict.score} of `
+          + `${MAX_SCORE}. Claimed scope is not one of the inputs. ${verdict.blockerOrder}`
+        : `${GRADE_ABSENT_REASON} These are the rules a committed move would be graded on, `
+          + `each out of ${MAX_SCORE}.`;
+      for (const { rule, item } of rows) {
+        const fired = !verdict.graded || blocked.has(rule.id);
+        item.dataset.cleared = String(!fired);
+        item.textContent = `${rule.name} (rule ${rule.id}, worth ${rule.weight} of ${MAX_SCORE}) `
+          + `— ${fired ? "not stated yet" : "stated"}. To clear it: ${rule.statement} `
+          + `Assumption behind this weight: ${rule.assumption}`;
+      }
+    },
+  };
+}
+
+/**
  * Paint the section from the slate already on screen, and keep painting it as a
  * lead moves the levers.
  *
  * @param {Document} doc
  * @param {object|null} slate The slate `routing-slate-view.js` just painted.
- * @param {{commitments?: Array<object>}} [options] Commitments from a caller.
- *   The lead's own levers are read on top of these, so a move they have scoped
- *   here wins over a seeded commitment for the same move.
+ * @param {{commitments?: Array<object>, evidence?: object}} [options] Commitments
+ *   from a caller. The lead's own levers are read on top of these, so a move they
+ *   have scoped here wins over a seeded commitment for the same move. `evidence`
+ *   is `planEvidence()`'s two analysis-level signals; absent, both read as
+ *   unstated, which is the conservative reading and the one the page ships with.
  * @returns the model that was painted, so a caller can assert on it.
  */
-export function applyPlanScope(doc, slate, { commitments = [] } = {}) {
+export function applyPlanScope(doc, slate, { commitments = [], evidence = {} } = {}) {
   const scopes = sessionScopes(doc);
   const keys = (slate?.rules ?? []).map((rule) => ({ key: planMoveKey(rule) }));
   const compose = () => planScope(slate, {
@@ -365,6 +468,10 @@ export function applyPlanScope(doc, slate, { commitments = [] } = {}) {
   // rewrites their words in place; the controls above are never rebuilt.
   const figure = plannedFigure(doc, model);
   const grade = gradeLine(doc);
+  // Graded from the SAME model the total above is read off, never from a second
+  // copy of the plan, and never from the dollars themselves.
+  const evidenceGrade = evidenceGradeLine(doc);
+  const evidenceDetail = evidenceDisclosure(doc);
 
   /**
    * One visible step: the total, the committed count, the next action and the
@@ -382,6 +489,9 @@ export function applyPlanScope(doc, slate, { commitments = [] } = {}) {
     section.dataset.committedCount = String(model.committedCount);
     figure.update(model);
     grade.update(model);
+    const verdict = gradePlanEvidence(model, evidence);
+    evidenceGrade.update(verdict);
+    evidenceDetail.update(verdict);
     action.textContent = `Do this first: ${model.nextAction}`;
     for (const [index, row] of rows.entries()) row.update(model.moves[index]);
     if (status) {
@@ -398,9 +508,13 @@ export function applyPlanScope(doc, slate, { commitments = [] } = {}) {
 
   body.replaceChildren(
     figure.node,
+    // Beside the total, before anything else is read: the number and how much of
+    // it rests on a stated fact travel together or not at all.
+    evidenceGrade.node,
     distinction,
     action,
     grade.node,
+    evidenceDetail.node,
     disclosure.node,
   );
   return recompute();
