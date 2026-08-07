@@ -18,7 +18,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { loadPage, parseHtml, pressEnter, pressTab, tabSequence, textOf } from "./support/browser.js";
+import { DomEvent, loadPage, parseHtml, pressEnter, pressTab, tabSequence, textOf } from "./support/browser.js";
 import { postDetailHref } from "../src/social-links.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
 
@@ -124,6 +124,55 @@ test("a post id that does not exist is headed as not found, with no wait left be
     assert.equal(page.panel.querySelectorAll("button").length, 0);
 
     assertOneState(page, "not-found", "an id that does not exist");
+  } finally {
+    page.restore();
+  }
+});
+
+// The wait and the answer share one slot, and the slot is the guarantee.
+//
+// Held open across the transition rather than sampled at the end: the claim is
+// not "the not-found state looks right afterwards", it is that the sentence a
+// reader was given while the lookup ran is *gone from the document* the moment
+// there is an answer, because the same region was emptied and refilled. Two
+// nodes toggled by a class or by `hidden` would pass an end-state check and
+// still leave "Loading this post…" in the accessibility tree — and would leave
+// the next render path someone adds free to show both.
+test("the wait and the not-found answer are one slot, so they can never both stand", async () => {
+  const page = await loadPage(new URL("../src/post.html", import.meta.url), { location: { search: "?id=p-never-existed" } });
+  try {
+    let release;
+    globalThis.fetch = () => new Promise((resolve) => { release = () => resolve(seedResponse([IMAGE_POST])); });
+    await importPageModule("/post-page.js");
+    const panel = page.document.querySelector("#post-detail");
+    await waitFor(() => panel.querySelectorAll(".detail-loading").length === 1, "the loading state rendered");
+
+    // While it runs: the wait, and nothing else claiming to be a state.
+    assert.equal(panel.querySelectorAll("[data-post-state-panel]").length, 1);
+    assert.equal(textOf(panel).includes("Post not found"), false, "the answer must not be pre-rendered behind the wait");
+
+    release();
+    await waitFor(() => page.document.documentElement.dataset.shiplogPostDetail === "ready", "the lookup settled");
+
+    // Afterwards: the answer in words, and not one node of the wait left — not
+    // hidden, not emptied, not carried along beside it. Counted, never compared
+    // against null, which walks the whole parsed page.
+    assert.equal(panel.querySelectorAll(".detail-loading").length, 0);
+    assert.equal(panel.querySelectorAll(".detail-loading-text").length, 0);
+    assert.equal(panel.querySelectorAll("[data-post-state-panel]").length, 1);
+    assert.equal(textOf(page.document.querySelector("main")).includes("Loading this post…"), false);
+    assert.match(textOf(panel), /This post was not found\./);
+
+    // One slot: the same region node held both, so there is no second element
+    // for a later state to be parked in.
+    assert.equal(page.document.querySelectorAll("#post-detail").length, 1);
+    assert.equal(panel.dataset.postState, "not-found");
+
+    // And the stated outcome reads before the standing route onward, which is
+    // still there in its shipped position and wording.
+    const flow = page.document.querySelector("#main-content").querySelectorAll("#post-detail,#post-back");
+    assert.deepEqual(flow.map((node) => node.id), ["post-detail", "post-back"]);
+    assert.equal(textOf(page.document.querySelector("#post-back")), SOCIAL_LINK);
   } finally {
     page.restore();
   }
@@ -423,6 +472,108 @@ test("a post with an image is announced by the description the poster stored", a
     // The caption belongs to the image rather than merely sitting under it.
     assert.equal(textOf(page.panel.querySelector("figcaption")), "The middle card, ringed.");
     assertOneState(page, "loaded", "a post with an image");
+  } finally {
+    page.restore();
+  }
+});
+
+/* ------------------- the description, and its parity ---------------------- */
+
+// The composer refuses to publish an image without a description, and until now
+// the only reader who ever got that description was one using a screen reader:
+// it lived in an alt attribute and nowhere else. On a permalink — the one page
+// opened cold, from a link pasted into a chat window — that is the difference
+// between reading the post and guessing at it. It is now on screen, under a
+// label saying what it is, in the caption type this site already uses for
+// exactly this text on the feed and on a People tile.
+const DESCRIPTION_LABEL = "Image description:";
+
+test("a loaded post shows the poster's image description under a visible label", async () => {
+  const page = await openPostPage("?id=p-image", seedOnly([IMAGE_POST]));
+  try {
+    const label = page.panel.querySelector(".detail-image-description-label");
+    const text = page.panel.querySelector(".detail-image-description-text");
+    assert.equal(textOf(label), DESCRIPTION_LABEL, "the description is labelled in words, not by position");
+    assert.equal(textOf(text), IMAGE_POST.image.alt, "and the label is followed by what the poster wrote");
+
+    // Beneath the image, inside the image's own figure: it is about the image
+    // and it belongs to it, not to the post as a whole.
+    const figure = page.panel.querySelector("figure");
+    const parts = figure.querySelectorAll(".detail-image,figcaption,.detail-image-description-text");
+    assert.deepEqual(parts.map((node) => node.className),
+      ["detail-image", "detail-caption", "detail-image-description-text"],
+      "image, then the post's caption, then the description of the image");
+
+    // No new type role and no new hue: the paragraph carries the class the feed
+    // and a People tile already draw this text with. styles.css has no headroom
+    // for a fourth spelling of one rule, and a fourth spelling is how three
+    // surfaces start disagreeing about what a caption looks like.
+    const note = page.panel.querySelector(".detail-image-description");
+    assert.equal(note.tagName, "P");
+    assert.ok(note.classList.contains("description-note"), "the existing caption role, reused");
+    const css = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
+    assert.doesNotMatch(css, /\.detail-image-description[\s,{]/, "the reused class must not grow a rule of its own");
+
+    // It is text, not a control: the first screen's tab budget is tight and
+    // nothing here may spend any of it.
+    const stops = tabSequence(page.document);
+    assert.equal(stops.filter((stop) => stop.closest("figure")).length, 0, "the figure adds no tab stop");
+    assertOneState(page, "loaded", "a described post");
+  } finally {
+    page.restore();
+  }
+});
+
+// One value, used twice. The alt attribute and the sentence on screen are not
+// two copies of the description kept in step by hand — they are the same string,
+// read from one place in src/post-detail.js, which is why they cannot drift.
+test("the image's alt and its visible description are one string, byte for byte", async () => {
+  const page = await openPostPage("?id=p-image", seedOnly([IMAGE_POST]));
+  try {
+    const img = page.panel.querySelector(".detail-image");
+    const visible = page.panel.querySelector(".detail-image-description-text");
+    // Read off the node's own text, so the label beside it cannot pad the
+    // comparison, and compared with === rather than a regex.
+    assert.equal(img.alt, visible.textContent);
+    assert.equal(img.alt, IMAGE_POST.image.alt);
+    assert.equal(visible.textContent, IMAGE_POST.image.alt);
+  } finally {
+    page.restore();
+  }
+});
+
+// The state a shared link is most likely to land in months later: the post is
+// still there and the image behind it is not. What a reader gets then is the
+// description in the image's place and a sentence saying the image could not be
+// shown — never a blank box, and never a tinted frame as the only signal.
+test("an image that cannot be shown is replaced by its description and a sentence saying so", async () => {
+  const page = await openPostPage("?id=p-image", seedOnly([IMAGE_POST]));
+  try {
+    const before = tabSequence(page.document).length;
+    page.panel.querySelector(".detail-image").dispatchEvent(new DomEvent("error"));
+
+    const fallback = page.panel.querySelector(".detail-media-fallback");
+    assert.equal(fallback.hidden, false, "the placeholder is in the document and not hidden");
+    assert.equal(page.panel.querySelectorAll(".detail-image").length, 0, "the broken image element is gone, not left as a blank box");
+    assert.equal(page.panel.querySelector(".detail-media").dataset.state, "error");
+
+    // The description stands where the image was, unprefixed, so it is still the
+    // exact string the alt held.
+    const spoken = textOf(fallback);
+    assert.ok(spoken.includes(IMAGE_POST.image.alt), "the description takes the image's place");
+    assert.match(spoken, /We couldn’t show the image on this post/);
+    assert.ok(spoken.includes("Image unavailable"), "and the state is labelled in words, not by tint alone");
+
+    // The post is still a post: the display name, the timestamp and the caption
+    // all survive the image, and so does the labelled description under it.
+    assert.equal(textOf(page.panel.querySelector(".detail-author-link")), IMAGE_POST.author);
+    assert.equal(textOf(page.panel.querySelector("figcaption")), IMAGE_POST.caption);
+    assert.equal(textOf(page.panel.querySelector(".detail-image-description-text")), IMAGE_POST.image.alt);
+    assert.equal(page.panel.querySelectorAll("time").length, 1);
+
+    // A failure that offers nothing to press: same tab stops broken as whole.
+    assert.equal(tabSequence(page.document).length, before, "the failed image adds no control");
+    assertOneState(page, "loaded", "a post whose image failed");
   } finally {
     page.restore();
   }
