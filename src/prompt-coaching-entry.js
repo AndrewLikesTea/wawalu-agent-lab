@@ -162,7 +162,7 @@ export const COACHING_ENTRY_EXAMPLE = Object.freeze({
   modelTier: EXAMPLE_SAMPLE.modelTier,
   /** Applying the example sets the field AND the tier: a partial submission would grade something the example does not describe. */
   appliesModelTier: true,
-  attribution: "The bundled synthetic example supplied by this page: bundled synthetic text — not your prompt, not a customer's, and not anyone's real prompt.",
+  attribution: "The example supplied by this page: bundled synthetic text — not your prompt, not a customer's, and not anyone's real prompt.",
   distinct: Object.freeze({
     classifiedAs: COACHING_INPUT_SOURCE.bundledSample,
     visitorTextClassifiedAs: COACHING_INPUT_SOURCE.readerText,
@@ -225,7 +225,7 @@ export const COACHING_ENTRY_NEXT_ACTION = Object.freeze({
   [COACHING_ENTRY_STATE.empty]: Object.freeze({
     id: "try_example",
     label: "Grade the bundled synthetic example",
-    instruction: "Nothing to paste? Grade the bundled synthetic example instead — one press, no typing, and the result is a demonstration rather than a reading of your work.",
+    instruction: "Nothing to paste? Grade the example instead — one press, no typing, and the result is a demonstration rather than a reading of your work.",
     control: COACHING_ENTRY_EXAMPLE.transition.loadControl,
     alternative: "Or paste your own prompt into the field below.",
   }),

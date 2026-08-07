@@ -28,6 +28,10 @@ const read = (file) => readFile(new URL(`../src/${file}`, import.meta.url), "utf
 
 const byId = (document, id) => document.getElementById(id);
 
+/** How many times a phrase is read on the page, regardless of its casing. */
+const occurrences = (text, phrase) =>
+  text.toLowerCase().split(phrase.toLowerCase()).length - 1;
+
 // A prompt nobody would write by accident, so "the summary does not carry it"
 // cannot pass by coincidence.
 const OWN_PROMPT = [
@@ -263,10 +267,13 @@ test("the destination reads as one page about one thing", async () => {
   // visitor to skip all four.
   assert.equal(document.querySelectorAll(".prompt-coaching-privacy").length, 1);
   // The example is named the same way the rest of the site names one —
-  // "bundled synthetic example" — and says what it is made of in the same breath.
+  // "bundled synthetic example" — in the heading, and the sentence under it
+  // says what it is made of without spending the name a second time.
+  assert.match(textOf(byId(document, "prompt-coach-sample-title")), /Bundled synthetic example/);
   const sample = textOf(document.querySelector(".prompt-coach-sample-static"));
-  assert.match(sample, /bundled synthetic example/);
   assert.match(sample, /bundled synthetic text/);
+  assert.doesNotMatch(sample, /bundled synthetic example/i,
+    "the heading has just named the example; the sentence under it refers back to it");
 
   // One purpose statement, at the top: what a visitor does here and what comes
   // back. It does not spend its second sentence on the promise the form makes.
@@ -327,8 +334,45 @@ test("one name per concept: the example, the grade button, and the clear button"
     "the bundled demonstration is a bundled synthetic example on every surface that names it");
   assert.match(textOf(byId(document, "prompt-coaching-example")), /Grade the bundled synthetic example/);
 
+  // One name, said where it earns its length: the heading over the example,
+  // the button that loads it, and the line that says whose text a grade is of.
+  // Everywhere else it is "the example". A name repeated eight times down a
+  // page reads as boilerplate and stops being read at all.
+  assert.equal(occurrences(text, "bundled synthetic example"), 3,
+    "the full name of the example belongs on its heading, its button, and its attribution");
+
   // The clear control is referred to by its own label wherever copy points at
   // it, rather than by a name for the region it clears.
   assert.equal(textOf(byId(document, "prompt-coaching-clear")), "Clear and start over");
   assert.doesNotMatch(text, /clear the panel/i);
+});
+
+test("the privacy promise is made once, and the page explains itself in the reader's terms", async () => {
+  const { document } = await openCoach();
+  const text = textOf(document.querySelector("main"));
+
+  // Said once, beside the button it is a decision about. A promise restated in
+  // four places is a promise a reader learns to skim past in all four.
+  const PROMISE = "Nothing you paste leaves this tab. It is graded here in your browser, "
+    + "with no sign-in, no upload, no storage, and no request to a model.";
+  assert.equal(occurrences(text, PROMISE), 1,
+    "the privacy statement must be made exactly once, where the visitor acts on it");
+  assert.equal(occurrences(text, "no sign-in, no upload, no storage"), 1,
+    "later sections may refer to the promise, but must not restate its four-item list");
+
+  // The two explanatory sections say what the visitor is looking at. How the
+  // page was built — the code it ships, what it persists, the lists it draws —
+  // is not something a reader can check or was ever taught to read.
+  for (const phrase of ["no persistence is implemented", "bundled static client-side code",
+    "the field list", "Some states are drawn", "drawn from the bundled example"]) {
+    assert.equal(occurrences(text, phrase), 0, `the page narrates its implementation: "${phrase}"`);
+  }
+
+  // What each section opens with instead: the reader's risk, and the promise
+  // that every result they might get is shown, waiting state included.
+  const preview = textOf(document.querySelector(".prompt-coaching-preview-static"));
+  assert.match(preview, /Grading runs in this browser tab/);
+  assert.match(preview, /no sign-in, no upload, no stored copy, no account data/);
+  const specimen = textOf(document.querySelector(".coaching-specimen-static"));
+  assert.match(specimen, /^Every result the coach can return is below, including what you see while it works\./);
 });
