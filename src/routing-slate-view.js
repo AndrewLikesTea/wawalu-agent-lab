@@ -356,9 +356,34 @@ export function applyRoutingSlate(doc, analysis, { commitment = null } = {}) {
     ruleDisclosure(doc, slate.lead),
     list,
     total,
+    ...pricingLines(doc, slate),
     element(doc, "p", "answer-figure-basis", slate.tieBreak),
   );
   return slate;
+}
+
+/**
+ * What priced this list, and what the rate card kept out of it (#1263).
+ *
+ * A shorter list with no explanation reads as less work to do, which is the one
+ * thing a forbidden destination does not mean. Every exclusion is named with the
+ * rule's own wording, as text, in the class this section already paints with —
+ * no new node type, no new control, no new style.
+ */
+function pricingLines(doc, slate) {
+  const pricing = slate.pricing ?? null;
+  if (!pricing) return [];
+  const lines = [];
+  if (pricing.rateSource === "declared") {
+    lines.push(element(doc, "p", "answer-figure-basis",
+      "Priced at your declared rate card"
+      + `${pricing.discountApplied ? ", committed-use discount applied" : ""}.`));
+  }
+  for (const exclusion of pricing.exclusions ?? []) {
+    lines.push(element(doc, "p", "answer-figure-basis",
+      `Not proposed — ${exclusion.subject}: ${exclusion.reason}`));
+  }
+  return lines;
 }
 
 export { NO_SCORE_YET, ROUTING_SLATE_QUESTION, ROUTING_SLATE_REASONS, ROUTING_SLATE_STATES };

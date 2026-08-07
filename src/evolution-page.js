@@ -1982,6 +1982,14 @@ function mountLocalFinopsImport() {
     // about the same rules, and the file a reader diffs has to be the list they
     // were looking at when they pressed the control.
     paintedRoutingSlate = applyRoutingSlate(document, next, { commitment: retainedAction });
+    // The marker and hedge beside the recoverable figure now come from the card
+    // that actually priced this envelope (#1263), not from a bundled constant
+    // painted once at boot. With no declared card the analysis resolves to the
+    // published-list reference card, the verdict is the bundled one, and the
+    // three slots are rewritten with exactly the strings they already carried.
+    if (next?.modelRouting?.rateCardConfidence) {
+      applyRateCardLadder(document, next.modelRouting.rateCardConfidence);
+    }
     // And what those rules were worth once the next period landed. The commitment
     // supplies both periods, so the score is taken over the window the reader
     // committed to; the observed side is this envelope's own per-unit trend. A

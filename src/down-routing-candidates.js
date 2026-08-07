@@ -29,7 +29,25 @@
 // every other character class. Free text cannot reach a reader or a judge from
 // here.
 
+// PRICES ARE NOT DECLARED HERE ANY MORE (#1263). The two destination prices
+// this file used to type as constants now come from the rate card — the
+// reader's own when they have declared one, the published-list reference card
+// otherwise — through the single resolver in finops-rate-card-contract.js. The
+// tier floors below are derived from that card rather than retyped, so a
+// declared contract moves the floor, the projected cost and the recoverable
+// delta together, and there is no second copy of a rate anywhere in the rule.
+
+import {
+  PREMIUM_LIST_RATE, STANDARD_LIST_RATE, confidenceFor as confidenceForCard,
+  excludedDestinations, priceDestination, resolveRateCard, toMinorPerMillion,
+} from "./finops-rate-card-contract.js";
+
 export const DOWN_ROUTING_RULE_VERSION = "down-routing-candidate/1.0.0";
+
+/** The rate-card destination identifiers this rule prices at. */
+export const DOWN_ROUTING_DESTINATIONS = Object.freeze({
+  premium: "premium-text", standard: "standard-text",
+});
 
 /**
  * Every threshold the rule uses, with the assumption behind it stated in
@@ -41,12 +59,13 @@ export const DOWN_ROUTING_RULE_VERSION = "down-routing-candidate/1.0.0";
  */
 export const DOWN_ROUTING_CONSTANTS = Object.freeze({
   // At or above this observed blended price, the unit is treated as buying a
-  // premium text tier. 2000 minor per million tokens is $20.00 per million.
-  PREMIUM_TIER_MIN_MINOR_PER_MILLION_TOKENS: 2000,
+  // premium text tier. Read off the reference card, not typed: $20.00 per
+  // million tokens, which is 2000 minor per million.
+  PREMIUM_TIER_MIN_MINOR_PER_MILLION_TOKENS: toMinorPerMillion(PREMIUM_LIST_RATE),
 
-  // What the cheaper tier is assumed to charge for the same tokens. 1500 minor
-  // per million tokens is $15.00 per million.
-  STANDARD_TIER_REFERENCE_MINOR_PER_MILLION_TOKENS: 1500,
+  // What the cheaper tier is assumed to charge for the same tokens, off the same
+  // card. $15.00 per million tokens, which is 1500 minor per million.
+  STANDARD_TIER_REFERENCE_MINOR_PER_MILLION_TOKENS: toMinorPerMillion(STANDARD_LIST_RATE),
 
   // Above this many tokens per call, the call is treated as carrying a long
   // retrieved context and is NOT a down-routing candidate.
@@ -168,19 +187,38 @@ function confidenceFor(flags) {
 }
 
 /**
+ * One million tokens priced at a destination, which is that destination's rate
+ * in the minor units per million this rule compares against. Going through the
+ * resolver rather than reading a rate off the card keeps the discount and the
+ * permission check on one path.
+ */
+function ratePerMillion(resolved, destination) {
+  return priceDestination(resolved, destination, { tokens: 1_000_000 });
+}
+
+/**
  * Evaluate one org unit's records against the candidate rule.
  *
- * @param {{unitId?: string, records?: Array<object>}} unit
+ * @param {{unitId?: string, records?: Array<object>, rateCard?: object|null}} unit
+ *   `rateCard` is the FinOps lead's declared card. Absent — the shipped case —
+ *   it resolves to the published-list reference card and every figure below is
+ *   the one this page published before #1263.
  * @returns a frozen result carrying the decision, the numbers, the confidence
- *   tier with its reasons, and the ordered arithmetic behind the figure.
+ *   tier with its reasons, the pricing provenance, and the ordered arithmetic
+ *   behind the figure.
  */
-export function evaluateDownRoutingCandidate({ unitId = null, records = [] } = {}) {
+export function evaluateDownRoutingCandidate({
+  unitId = null, records = [], rateCard = null,
+} = {}) {
   const {
-    PREMIUM_TIER_MIN_MINOR_PER_MILLION_TOKENS: premiumFloor,
-    STANDARD_TIER_REFERENCE_MINOR_PER_MILLION_TOKENS: referencePrice,
     SHORT_CALL_MAX_TOKENS_PER_CALL: shortCallCeiling,
     MIN_CANDIDATE_REQUESTS: minRequests,
   } = DOWN_ROUTING_CONSTANTS;
+  const resolved = resolveRateCard(rateCard);
+  const premiumRate = ratePerMillion(resolved, DOWN_ROUTING_DESTINATIONS.premium);
+  const standardRate = ratePerMillion(resolved, DOWN_ROUTING_DESTINATIONS.standard);
+  const premiumFloor = premiumRate.amountMinor
+    ?? DOWN_ROUTING_CONSTANTS.PREMIUM_TIER_MIN_MINOR_PER_MILLION_TOKENS;
 
   const routable = (Array.isArray(records) ? records : []).map(readRecord)
     .filter((record) => ROUTABLE_SERVICE_CATEGORIES.includes(record.serviceCategory));
@@ -224,11 +262,15 @@ export function evaluateDownRoutingCandidate({ unitId = null, records = [] } = {
     ? Math.round((candidateSpendMinor * 1_000_000) / candidateTokens) : null;
   const premium = candidateTokens > 0
     && candidateSpendMinor * 1_000_000 >= candidateTokens * premiumFloor;
-  const projectedMinor = Math.round((candidateTokens * referencePrice) / 1_000_000);
+  // The one place the cheaper destination is turned into money for this unit.
+  const projected = priceDestination(resolved, DOWN_ROUTING_DESTINATIONS.standard,
+    { tokens: candidateTokens });
+  const projectedMinor = projected.amountMinor ?? 0;
 
   let decisionCode = null;
   if (routable.length === 0) decisionCode = "no_text_generation_spend";
   else if (candidateTokens === 0) decisionCode = "no_token_billed_spend";
+  else if (!standardRate.permitted) decisionCode = "destination_not_permitted";
   else if (!premium) decisionCode = "below_premium_price_floor";
   else if (requestsKnown && tokensPerCall > shortCallCeiling) decisionCode = "long_context_calls";
   else if (requestsKnown && requests < minRequests) decisionCode = "below_minimum_request_volume";
@@ -251,15 +293,48 @@ export function evaluateDownRoutingCandidate({ unitId = null, records = [] } = {
     requests: requestsKnown ? requests : null,
     tokensPerCall,
     observedMinorPerMillionTokens: observedMinorPerMillion,
-    referenceMinorPerMillionTokens: referencePrice,
+    referenceMinorPerMillionTokens: standardRate.amountMinor,
     projectedStandardTierSpendUsd: usd(projectedMinor),
+    // Published rather than re-derived downstream: the slate used to look this
+    // pair up again from the observed price, which is a second opinion about a
+    // tier the rule had already decided.
+    tier: premium ? "premium" : "standard",
+    proposedTier: premium ? "standard" : null,
     confidence,
+    // The provenance of the rate this figure was priced at, so a renderer can
+    // pick a confidence tier without re-deriving it from a bare number.
+    pricing: pricingProvenance(resolved, [premiumRate, standardRate]),
   };
   result.workedExample = Object.freeze(workedExampleLines(result));
   return Object.freeze(result);
 }
 
+/**
+ * Fold the priced lines into one provenance record.
+ *
+ * `rateSource` is `declared` only when EVERY line was priced off the reader's
+ * own card; one line falling back to the reference card makes the whole figure a
+ * reference figure, because a total is only as contracted as its weakest line.
+ */
+function pricingProvenance(resolved, priced) {
+  const usable = priced.filter((entry) => entry?.priced);
+  const allDeclared = usable.length > 0
+    && usable.every((entry) => entry.rateSource === "declared");
+  return Object.freeze({
+    cardId: resolved.cardId,
+    declaredCard: resolved.declared,
+    rateSource: allDeclared ? "declared" : "reference",
+    discountApplied: usable.some((entry) => entry.discountApplied),
+    pricedLines: usable.length,
+    referenceLines: usable.filter((entry) => entry.rateSource === "reference").length,
+    excludedDestinations: excludedDestinations(resolved.card),
+  });
+}
+
 const DECISION_REASONS = Object.freeze({
+  destination_not_permitted:
+    "The rate card marks the cheaper destination as not permitted, so there is nowhere to move "
+    + "this unit's traffic and no saving is claimed.",
   no_text_generation_spend:
     "No text-generation record joined this unit, so there is nothing to re-route.",
   no_token_billed_spend:
@@ -413,6 +488,7 @@ export const MODEL_ROUTING_RULE_VERSION = "model-routing-candidate/1.0.0";
 export const DOWN_ROUTING_TIER_PRICES = Object.freeze([
   Object.freeze({
     tier: "premium",
+    destination: DOWN_ROUTING_DESTINATIONS.premium,
     minObservedMinorPerMillionTokens:
       DOWN_ROUTING_CONSTANTS.PREMIUM_TIER_MIN_MINOR_PER_MILLION_TOKENS,
     // A premium model is charged at what the customer paid, not at a table
@@ -422,12 +498,17 @@ export const DOWN_ROUTING_TIER_PRICES = Object.freeze([
   }),
   Object.freeze({
     tier: "standard",
+    destination: DOWN_ROUTING_DESTINATIONS.standard,
     minObservedMinorPerMillionTokens: 0,
     priceMinorPerMillionTokens:
       DOWN_ROUTING_CONSTANTS.STANDARD_TIER_REFERENCE_MINOR_PER_MILLION_TOKENS,
     cheaperTier: null,
   }),
 ]);
+
+/** The rate-card destination one tier's traffic is priced at. */
+const destinationForTier = (tier) =>
+  DOWN_ROUTING_TIER_PRICES.find((entry) => entry.tier === tier)?.destination ?? null;
 
 /**
  * Why a unit could not be scored. Machine-readable, closed, and never free
@@ -438,6 +519,37 @@ export const MODEL_ROUTING_REASON_CODES = Object.freeze([
   "missing_token_counts",
   "insufficient_volume",
 ]);
+
+/**
+ * THE EXCLUSION-REASON CONVENTION (#1263). Every excluded model already carried
+ * a machine-readable `code`; nothing carried the wording a surface could print,
+ * so the action center could only shorten its list without saying why. Each code
+ * now has exactly one sentence here, and an excluded entry carries both. A new
+ * exclusion code without a line in this table is a code a reader never sees, so
+ * the table is the definition of the set rather than a lookup beside it.
+ */
+export const MODEL_EXCLUSION_REASONS = Object.freeze({
+  missing_token_counts:
+    "This model's rows carry no token count, so no price per token exists and no move is priced.",
+  already_cheapest_tier:
+    "This model is already on the cheapest destination in the price table, so there is nowhere "
+    + "cheaper to move it.",
+  destination_not_permitted:
+    "Your rate card marks the cheaper destination as not permitted, so this model's traffic is "
+    + "not proposed for it and nothing it would have saved is counted.",
+  unknown_destination:
+    "Neither your rate card nor the reference card names the cheaper destination, so the move "
+    + "cannot be priced.",
+  no_usage: "No usage was recorded for this model in the period, so there is nothing to price.",
+  long_context_calls:
+    "Tokens per call exceed the short-call ceiling, so these calls are treated as carrying long "
+    + "retrieved context and are not proposed for a cheaper destination.",
+  insufficient_volume:
+    "Request volume is below the minimum at which a routing change is proposed.",
+  no_positive_delta:
+    "At your rates the cheaper destination costs the same or more for these tokens, so moving "
+    + "the traffic saves nothing.",
+});
 
 /** The two states a unit can be published in. Never both, never neither. */
 export const MODEL_ROUTING_STATUSES = Object.freeze(["scored", "insufficient_data"]);
@@ -510,15 +622,28 @@ const MODEL_CONFIDENCE_PENALTIES = Object.freeze([
   }),
 ]);
 
-/** Look a tier up in the one price table. Ordered dearest first. */
-export function classifyModelTier(observedMinorPerMillionTokens) {
-  return DOWN_ROUTING_TIER_PRICES.find((entry) =>
-    observedMinorPerMillionTokens >= entry.minObservedMinorPerMillionTokens) ?? null;
+/**
+ * The floor a tier is recognised at: one million tokens priced at that tier's
+ * destination on the resolved card. A lead whose contract puts the premium tier
+ * at a different price has a different floor, and the floor moving with the rate
+ * is the point — the alternative is classifying today's invoice against last
+ * year's list price. The cheapest tier has no floor by construction.
+ */
+function tierFloor(resolved, entry) {
+  if (entry.minObservedMinorPerMillionTokens === 0) return 0;
+  const priced = priceDestination(resolved, entry.destination, { tokens: 1_000_000 });
+  return priced.amountMinor ?? entry.minObservedMinorPerMillionTokens;
 }
 
-function tierPrice(tier) {
-  return DOWN_ROUTING_TIER_PRICES.find((entry) => entry.tier === tier)
-    ?.priceMinorPerMillionTokens ?? null;
+/**
+ * Look a tier up in the one price table, at the rates on the resolved card.
+ * Ordered dearest first. Omit the card and the reference card is used, which is
+ * what every caller did before #1263 and what the shipped page still does.
+ */
+export function classifyModelTier(observedMinorPerMillionTokens, rateCard = null) {
+  const resolved = resolveRateCard(rateCard);
+  return DOWN_ROUTING_TIER_PRICES.find((entry) =>
+    observedMinorPerMillionTokens >= tierFloor(resolved, entry)) ?? null;
 }
 
 /**
@@ -539,27 +664,33 @@ function tierPrice(tier) {
  *
  * @returns {{candidate: boolean, code: string, tier: object|null}}
  */
-export function classifyModelRoutingCandidate({ tokens, requests, spendMinor }) {
+export function classifyModelRoutingCandidate({
+  tokens, requests, spendMinor, inputTokens = 0, outputTokens = 0, rateCard = null,
+}) {
   const {
     SHORT_CALL_MAX_TOKENS_PER_CALL: shortCallCeiling,
     MIN_CANDIDATE_REQUESTS: minRequests,
   } = DOWN_ROUTING_CONSTANTS;
-  if (!(tokens > 0)) return { candidate: false, code: "missing_token_counts", tier: null };
+  const resolved = resolveRateCard(rateCard);
+  const unpriced = (code, tier = null, priced = null) => ({ candidate: false, code, tier, priced });
+  if (!(tokens > 0)) return unpriced("missing_token_counts");
   const observed = Math.round((spendMinor * 1_000_000) / tokens);
-  const tier = classifyModelTier(observed);
-  if (!tier?.cheaperTier) return { candidate: false, code: "already_cheapest_tier", tier };
+  const tier = classifyModelTier(observed, resolved);
+  if (!tier?.cheaperTier) return unpriced("already_cheapest_tier", tier);
+  // Permission first: a forbidden destination is not a cheaper destination, and
+  // the reason a reader is owed is "your card forbids it", not "no saving".
+  const priced = priceDestination(resolved, destinationForTier(tier.cheaperTier),
+    { tokens, inputTokens, outputTokens });
+  if (!priced.priced) return unpriced(priced.reasonCode, tier, priced);
   const tokensPerCall = requests > 0 ? Math.round(tokens / requests) : null;
   if (tokensPerCall !== null && tokensPerCall > shortCallCeiling) {
-    return { candidate: false, code: "long_context_calls", tier };
+    return unpriced("long_context_calls", tier, priced);
   }
   if (requests !== null && requests < minRequests) {
-    return { candidate: false, code: "insufficient_volume", tier };
+    return unpriced("insufficient_volume", tier, priced);
   }
-  const projected = Math.round((tokens * tierPrice(tier.cheaperTier)) / 1_000_000);
-  if (spendMinor - projected <= 0) {
-    return { candidate: false, code: "no_positive_delta", tier };
-  }
-  return { candidate: true, code: "down_routing_candidate", tier };
+  if (spendMinor - priced.amountMinor <= 0) return unpriced("no_positive_delta", tier, priced);
+  return { candidate: true, code: "down_routing_candidate", tier, priced };
 }
 
 /**
@@ -575,8 +706,12 @@ export function classifyModelRoutingCandidate({ tokens, requests, spendMinor }) 
  * @param {{unitId?: string, modelUsage?: ReadonlyArray<ModelUsageRow>}} unit
  * @returns {UnitModelRouting}
  */
-export function evaluateUnitModelRouting({ unitId = null, modelUsage = [] } = {}) {
+export function evaluateUnitModelRouting({
+  unitId = null, modelUsage = [], rateCard = null,
+} = {}) {
   const rows = Array.isArray(modelUsage) ? modelUsage : [];
+  const resolved = resolveRateCard(rateCard);
+  const priced = [];
   const candidates = [];
   const excluded = [];
   const flags = {
@@ -603,7 +738,12 @@ export function evaluateUnitModelRouting({ unitId = null, modelUsage = [] } = {}
     modelledMinor += spendMinor;
     if (tokens > 0) tokenBearingRows += 1;
     if (requests !== null) requestCounts += 1;
-    const verdict = classifyModelRoutingCandidate({ tokens, requests, spendMinor });
+    const inputTokens = Number(row.inputTokens ?? 0);
+    const outputTokens = Number(row.outputTokens ?? 0);
+    const verdict = classifyModelRoutingCandidate({
+      tokens, requests, spendMinor, inputTokens, outputTokens, rateCard: resolved,
+    });
+    if (verdict.priced) priced.push(verdict.priced);
     const observed = tokens > 0 ? Math.round((spendMinor * 1_000_000) / tokens) : null;
     const tokensPerCall = requests > 0 ? Math.round(tokens / requests) : null;
     const inputs = Object.freeze({
@@ -621,6 +761,9 @@ export function evaluateUnitModelRouting({ unitId = null, modelUsage = [] } = {}
       excluded.push(Object.freeze({
         model: row.model,
         code: verdict.code,
+        // The wording the surface prints. An exclusion a reader cannot read is
+        // indistinguishable from a row that quietly went missing.
+        reason: MODEL_EXCLUSION_REASONS[verdict.code] ?? null,
         currentSpendUsd: usd(spendMinor),
         calls: requests,
         inputs,
@@ -629,9 +772,7 @@ export function evaluateUnitModelRouting({ unitId = null, modelUsage = [] } = {}
     }
     if (!KNOWN_PROVIDERS.includes(row.provider)) flags.unrecognized_provider = true;
     if (row.estimated) flags.estimated_costs = true;
-    const projectedMinor = Math.round(
-      (tokens * tierPrice(verdict.tier.cheaperTier)) / 1_000_000,
-    );
+    const projectedMinor = verdict.priced.amountMinor;
     const deltaMinor = spendMinor - projectedMinor;
     recoverableMinor += deltaMinor;
     candidates.push(Object.freeze({
@@ -642,6 +783,14 @@ export function evaluateUnitModelRouting({ unitId = null, modelUsage = [] } = {}
       currentSpendUsd: usd(spendMinor),
       projectedSpendUsd: usd(projectedMinor),
       recoverableUsd: usd(deltaMinor),
+      // Per-line provenance, so a renderer can grade one row rather than the
+      // whole envelope: which card priced it, and whether a discount was applied.
+      pricing: Object.freeze({
+        rateSource: verdict.priced.rateSource,
+        discountApplied: verdict.priced.discountApplied,
+        discountPct: verdict.priced.discountPct,
+        basis: verdict.priced.basis,
+      }),
       inputs,
     }));
   }
@@ -678,6 +827,7 @@ export function evaluateUnitModelRouting({ unitId = null, modelUsage = [] } = {}
     recoverableUsd: usd(recoverableMinor),
     modelledSpendUsd: usd(modelledMinor),
     confidence: Object.freeze({ level, reasons: Object.freeze(reasons) }),
+    pricing: pricingProvenance(resolved, priced),
   });
 }
 
@@ -700,7 +850,8 @@ export function evaluateUnitModelRouting({ unitId = null, modelUsage = [] } = {}
  * @param {{modelUsage?: ReadonlyArray<ModelUsageRow>, unitIds?: Iterable<string>}} input
  * @returns {ModelRoutingAnalysis}
  */
-export function analyzeModelRouting({ modelUsage = [], unitIds = [] } = {}) {
+export function analyzeModelRouting({ modelUsage = [], unitIds = [], rateCard = null } = {}) {
+  const resolved = resolveRateCard(rateCard);
   const byUnit = new Map();
   for (const id of unitIds) byUnit.set(id, []);
   for (const row of Array.isArray(modelUsage) ? modelUsage : []) {
@@ -708,7 +859,7 @@ export function analyzeModelRouting({ modelUsage = [], unitIds = [] } = {}) {
     if (bucket) bucket.push(row);
   }
   const results = [...byUnit.entries()].map(([id, rows]) =>
-    evaluateUnitModelRouting({ unitId: id, modelUsage: rows }));
+    evaluateUnitModelRouting({ unitId: id, modelUsage: rows, rateCard: resolved }));
   const ranked = results.filter((result) => result.status === "scored")
     .sort((left, right) => right.recoverableUsd - left.recoverableUsd
       || right.modelledSpendUsd - left.modelledSpendUsd
@@ -716,6 +867,10 @@ export function analyzeModelRouting({ modelUsage = [], unitIds = [] } = {}) {
   const insufficientData = results.filter((result) => result.status === "insufficient_data")
     .sort((left, right) => right.modelledSpendUsd - left.modelledSpendUsd
       || String(left.unitId).localeCompare(String(right.unitId)));
+  // One provenance for the whole analysis, folded from the units that actually
+  // priced something. The page's headline tier is read off this, so a figure
+  // whose lines fell back to the reference card cannot be labelled contracted.
+  const rateCardConfidence = confidenceForCard(resolved.card);
   return Object.freeze({
     ruleVersion: MODEL_ROUTING_RULE_VERSION,
     ranked: Object.freeze(ranked),
@@ -723,5 +878,17 @@ export function analyzeModelRouting({ modelUsage = [], unitIds = [] } = {}) {
     recoverableUsd: usd(Math.round(
       ranked.reduce((sum, result) => sum + result.recoverableUsd, 0) * 100,
     )),
+    pricing: Object.freeze({
+      cardId: resolved.cardId,
+      declaredCard: resolved.declared,
+      rateSource: ranked.length > 0
+        && ranked.every((result) => result.pricing.rateSource === "declared")
+        ? "declared" : "reference",
+      discountApplied: ranked.some((result) => result.pricing.discountApplied),
+      excludedDestinations: excludedDestinations(resolved.card),
+    }),
+    // The #1262 ladder verdict for the card that priced these figures. The page
+    // paints its marker and hedge from this rather than from a bundled constant.
+    rateCardConfidence,
   });
 }

@@ -617,6 +617,14 @@ const ALLOWED_MODULES = Object.freeze([
   // in-memory string that returns records, counts and issue codes. It opens no
   // request, reads no storage, and reads no clock.
   "query-sample-contract.js",
+  // Reviewed on with #1263, which made the rate card the single home for a
+  // destination price: `down-routing-candidates.js` now prices every figure
+  // through this module's resolver instead of typing its own constants. It is a
+  // pure function table over a frozen card — no storage, no clock, no request,
+  // and `confidenceFor` takes the date it compares against rather than reading
+  // one. It is the module the two reference rates now live in, so the path
+  // reaching it is the path reaching its own prices.
+  "finops-rate-card-contract.js",
 ]);
 
 /**

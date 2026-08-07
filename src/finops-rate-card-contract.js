@@ -68,8 +68,6 @@
 // nothing here reads or writes one. It defines what a card must carry, proves
 // the ladder, and lets the answer region say what is missing.
 
-import { DOWN_ROUTING_CONSTANTS } from "./down-routing-candidates.js";
-
 /** Bump when a field, a range, or what a tier means changes. Copy may be reworded. */
 export const RATE_CARD_CONTRACT_VERSION = "finops-rate-card/1.0.0";
 
@@ -289,11 +287,12 @@ export function validateRateCard(card) {
 // The reference card: the prices this page ALREADY charges its figure at.
 // ---------------------------------------------------------------------------
 //
-// The two rates are not typed here. They are read off DOWN_ROUTING_CONSTANTS —
-// the published-list tier prices the recoverable figure is computed from — and
-// converted from the repo's minor units per million tokens. Retyping them would
-// create a second copy that could move without the figure moving, which is the
-// one failure this contract exists to make impossible.
+// THE TWO REFERENCE RATES LIVE HERE AND NOWHERE ELSE (#1263). They used to be
+// typed in down-routing-candidates.js and mirrored onto this card; the mirror is
+// gone and the dependency runs the other way, so DOWN_ROUTING_CONSTANTS now
+// *derives* its two price constants from this card. There is exactly one home
+// for a reference rate, and a rule that prices without a declared card is a rule
+// pricing at this card — not at an inlined default that could drift from it.
 //
 // SUBSTITUTION, stated rather than hidden: the list this repository ships is a
 // BLENDED price per million tokens with no input/output split (see
@@ -302,13 +301,23 @@ export function validateRateCard(card) {
 // precisely why the ladder cannot leave Illustrative: a reference price is not a
 // contract, however many decimal places it has.
 
+/**
+ * The published-list prices, in the repo's minor units per million tokens, and
+ * the one place either number is written down. 2000 minor is $20.00; 1500 minor
+ * is $15.00. Both are unsourced list prices — see DOWN_ROUTING_ASSUMPTIONS.
+ */
+export const REFERENCE_RATES_MINOR_PER_MILLION_TOKENS = Object.freeze({
+  "premium-text": 2000,
+  "standard-text": 1500,
+});
+
 /** The published-list rate this page prices a premium-tier destination at. */
 export const PREMIUM_LIST_RATE = fromMinorPerMillion(
-  DOWN_ROUTING_CONSTANTS.PREMIUM_TIER_MIN_MINOR_PER_MILLION_TOKENS);
+  REFERENCE_RATES_MINOR_PER_MILLION_TOKENS["premium-text"]);
 
 /** The published-list rate this page prices the cheaper destination at. */
 export const STANDARD_LIST_RATE = fromMinorPerMillion(
-  DOWN_ROUTING_CONSTANTS.STANDARD_TIER_REFERENCE_MINOR_PER_MILLION_TOKENS);
+  REFERENCE_RATES_MINOR_PER_MILLION_TOKENS["standard-text"]);
 
 /** The card every surface starts from: reference prices, nothing declared. */
 export const DEFAULT_REFERENCE_CARD = Object.freeze({
@@ -338,6 +347,209 @@ export const DEFAULT_REFERENCE_CARD = Object.freeze({
     }),
   ]),
 });
+
+// ---------------------------------------------------------------------------
+// THE RESOLVER (#1263): the one place a destination is turned into money.
+// ---------------------------------------------------------------------------
+//
+// Before this, every consumer of a rate reached for a constant: the blended unit
+// rule multiplied by STANDARD_TIER_REFERENCE, the per-model rule looked the same
+// number up in its own tier table, and the page's headline and its ranked action
+// list could therefore be priced at two different numbers without anything
+// failing. They now call `priceDestination()` and nothing else, so a headline
+// that disagrees with the sum of its actions is not a bug that can be written.
+//
+// IT NEVER RETURNS A BARE NUMBER. Downstream has to say how far the figure can
+// be trusted — which card supplied the rate, whether a committed-use discount
+// was applied, whether the split was real or blended — and a renderer that has
+// to re-derive provenance from a number will derive it wrong. So the return is a
+// record, always, including on the paths that price nothing.
+//
+// ABSENT CARD ⇒ REFERENCE CARD, and the reference path is exact integer
+// arithmetic over the same minor-unit rates the site shipped before #1263:
+// round(tokens × minorPerMillion ÷ 1,000,000). That equality is the regression
+// contract, pinned in tests/finops-rate-card-pricing.test.js.
+//
+// THE SPLIT, AND THE SUBSTITUTION WHEN THERE IS NONE. A card states an input
+// rate and an output rate. A caller that knows its input/output split is priced
+// on it (`basis: "split"`); a caller that knows only a total token count is
+// priced at the arithmetic mean of the two rates (`basis: "blended"`), which is
+// the same substitution DOWN_ROUTING_ASSUMPTIONS already declares for tier. On
+// the reference card the two rates are equal, so the two bases agree exactly and
+// no shipped figure moves.
+
+/** Why a destination priced nothing. Closed set; a UI branches on these. */
+export const PRICING_REASON_CODES = Object.freeze([
+  "destination_not_permitted",
+  "unknown_destination",
+  "no_usage",
+]);
+
+/** The wording each reason code is shown as. One sentence, reader-facing. */
+export const PRICING_REASON_TEXT = Object.freeze({
+  destination_not_permitted:
+    "Your rate card marks this destination as not permitted, so no traffic is proposed for it "
+    + "and nothing it would have saved is counted.",
+  unknown_destination:
+    "Neither your rate card nor the published-list reference card names this destination, so "
+    + "there is no rate to price it at.",
+  no_usage: "No usage was passed for this destination, so there is nothing to price.",
+});
+
+/** A record this module already resolved, rather than a card to resolve. */
+const isResolvedCard = (value) => isRecord(value) && isRecord(value.card)
+  && typeof value.declared === "boolean";
+
+const referenceModel = (destination) =>
+  DEFAULT_REFERENCE_CARD.models.find((entry) => entry.model === destination) ?? null;
+
+/**
+ * The card a figure is priced at. An absent, malformed or unreadable card is a
+ * card this page did not get, which is the reference card — never a throw and
+ * never an unpriced figure.
+ *
+ * @returns `{ card, cardId, declared }` where `declared` is false for the
+ *   reference card, so a caller never has to compare ids to know which it holds.
+ */
+export function resolveRateCard(card = null) {
+  // IDEMPOTENT ON PURPOSE. A resolved record travels down the rule — one card
+  // per analysis, resolved once — and re-resolving it must not silently demote
+  // the reader's declared card to the reference card on the second hop.
+  if (isResolvedCard(card)) return card;
+  const usable = validateRateCard(card).valid ? card : DEFAULT_REFERENCE_CARD;
+  return Object.freeze({
+    card: usable,
+    cardId: usable.cardId ?? null,
+    declared: usable !== DEFAULT_REFERENCE_CARD,
+  });
+}
+
+/** The declared rates for one destination, or the reference card's, or none. */
+function ratesFor(resolved, destination) {
+  const declared = resolved.card.models.find((entry) => entry?.model === destination) ?? null;
+  const fallback = referenceModel(destination);
+  const hasRates = (model) => !absent(model?.contractedInputRate)
+    && !absent(model?.contractedOutputRate);
+  if (declared && hasRates(declared) && sourceOf(declared, resolved.card) === "contracted") {
+    return { model: declared, rateSource: "declared" };
+  }
+  if (declared && hasRates(declared) && !resolved.declared) {
+    return { model: declared, rateSource: "reference" };
+  }
+  // A named-but-unpriced destination on a declared card still has to be priced,
+  // or the headline silently loses a line. It falls back to the reference rate
+  // and SAYS SO, which is a weaker claim rather than a missing one.
+  if (hasRates(fallback)) {
+    return { model: declared ?? fallback, rates: fallback, rateSource: "reference" };
+  }
+  return null;
+}
+
+const minorPerMillion = (rate) => Math.round(rate * MINOR_PER_UNIT);
+const discounted = (minor, pct) => Math.round((minor * (100 - pct)) / 100);
+
+/**
+ * Price one destination's usage at the card the caller resolved.
+ *
+ * @param {object|null} card A declared rate card, or null/absent for the
+ *   reference card. Accepts an already-resolved card record too.
+ * @param {string} destination The destination model identifier, e.g. "standard-text".
+ * @param {{tokens?: number, inputTokens?: number, outputTokens?: number}} usage
+ *   The quantity being priced. `tokens` alone is priced on the blended rate.
+ * @returns {Readonly<object>} `{ destination, priced, amountMinor, amountUsd,
+ *   rateSource, cardId, permitted, discountApplied, discountPct, basis,
+ *   inputRateMinorPerMillion, outputRateMinorPerMillion,
+ *   listAmountMinor, reasonCode, reason }`. `amountMinor` is null exactly when
+ *   `priced` is false, and `reasonCode` is non-null exactly then too.
+ */
+export function priceDestination(card, destination, usage = {}) {
+  const resolved = resolveRateCard(card);
+  const declaredModel = resolved.card.models.find((entry) => entry?.model === destination) ?? null;
+  const found = ratesFor(resolved, destination);
+  const inputTokens = Math.max(0, Number(usage.inputTokens ?? 0) || 0);
+  const outputTokens = Math.max(0, Number(usage.outputTokens ?? 0) || 0);
+  const split = inputTokens + outputTokens;
+  const tokens = split > 0 ? split : Math.max(0, Number(usage.tokens ?? 0) || 0);
+
+  const unpriced = (reasonCode, extra = {}) => Object.freeze({
+    destination,
+    priced: false,
+    amountMinor: null,
+    amountUsd: null,
+    listAmountMinor: null,
+    rateSource: null,
+    cardId: resolved.cardId,
+    permitted: declaredModel?.permitted !== false,
+    discountApplied: false,
+    discountPct: null,
+    basis: null,
+    inputRateMinorPerMillion: null,
+    outputRateMinorPerMillion: null,
+    reasonCode,
+    reason: PRICING_REASON_TEXT[reasonCode],
+    ...extra,
+  });
+
+  // Permission is checked before rates on purpose: a destination the card
+  // forbids is not a cheap destination, it is not a destination at all, and
+  // pricing it would put a saving on screen that the reader may not take.
+  if (declaredModel?.permitted === false) {
+    return unpriced("destination_not_permitted", { permitted: false });
+  }
+  if (!found) return unpriced("unknown_destination");
+  if (tokens <= 0) return unpriced("no_usage");
+
+  const rates = found.rates ?? found.model;
+  const listInput = minorPerMillion(rates.contractedInputRate);
+  const listOutput = minorPerMillion(rates.contractedOutputRate);
+  // The discount is applied HERE and only here. A call site that applies its own
+  // is a call site that can disagree with the headline about what a contract says.
+  const pct = found.rateSource === "declared" && !absent(found.model.committedUseDiscountPct)
+    && found.model.committedUseDiscountPct > 0
+    ? found.model.committedUseDiscountPct : 0;
+  const inputRate = pct > 0 ? discounted(listInput, pct) : listInput;
+  const outputRate = pct > 0 ? discounted(listOutput, pct) : listOutput;
+  const basis = split > 0 ? "split" : "blended";
+  const at = (inRate, outRate) => (basis === "split"
+    ? Math.round((inputTokens * inRate + outputTokens * outRate) / 1_000_000)
+    : Math.round((tokens * Math.round((inRate + outRate) / 2)) / 1_000_000));
+
+  return Object.freeze({
+    destination,
+    priced: true,
+    amountMinor: at(inputRate, outputRate),
+    amountUsd: at(inputRate, outputRate) / MINOR_PER_UNIT,
+    listAmountMinor: at(listInput, listOutput),
+    rateSource: found.rateSource,
+    cardId: resolved.cardId,
+    permitted: true,
+    discountApplied: pct > 0,
+    discountPct: found.rateSource === "declared" ? (found.model.committedUseDiscountPct ?? null) : null,
+    basis,
+    inputRateMinorPerMillion: inputRate,
+    outputRateMinorPerMillion: outputRate,
+    reasonCode: null,
+    reason: null,
+  });
+}
+
+/**
+ * The destinations a card forbids, each with its code and its wording. Reported
+ * rather than silently dropped: a list that got shorter without saying why reads
+ * as "there is less to do", which is the opposite of what a forbidden
+ * destination means.
+ */
+export function excludedDestinations(card = null) {
+  const resolved = resolveRateCard(card);
+  return Object.freeze(resolved.card.models
+    .filter((model) => model?.permitted === false)
+    .map((model) => Object.freeze({
+      destination: model.model,
+      label: model.label ?? model.model,
+      code: "destination_not_permitted",
+      reason: PRICING_REASON_TEXT.destination_not_permitted,
+    })));
+}
 
 // ---------------------------------------------------------------------------
 // The ladder.
