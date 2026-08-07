@@ -506,6 +506,13 @@ import { bindAnswerCopy } from "/finops-answer-copy.js";
 // (#1206), so a shared URL resolves to the sender's months rather than to the
 // published synthetic sample. Reads storage; writes none of it.
 import { applyShareLink, bindShareLink } from "/finops-share-link-control.js";
+// …and the OTHER end of that link (#1208). A colleague's brief, whichever way it
+// travelled, painted read-only into this page's own answer region: the figure,
+// the destination and the grade above the fold, the sender's provenance, basis
+// and Limits behind the disclosure the region already ships. It writes nothing,
+// offers no control over the shared figures, and leaves the page exactly as it
+// is when the address carries no brief.
+import { applyRecipientBrief } from "/finops-recipient-brief.js";
 // …and the one owner of WHICH source that answer came from. The page used to
 // choose between the bundled example and the reader's import at each call site;
 // it now reads a single held answer, so the headline, the action, the position
@@ -4948,6 +4955,12 @@ async function init() {
   // offering to send an invented company's spend to a colleague.
   bindShareLink(document);
   applyShareLink(document, browserFinopsWorkspaceStorage());
+  // …and immediately after it, a brief somebody sent THIS reader. It runs after
+  // the answer region's own paints above — the answer block, the grade — so the
+  // state it replaces is a settled region rather than a half-painted one, and
+  // it runs before nothing: an address with no brief on it repaints not one
+  // slot, which is every ordinary visit to this page.
+  applyRecipientBrief(document, { hash: globalThis.location?.hash ?? "" });
   // Nothing has been imported at boot, so the held answer is the bundled
   // synthetic example with its marker intact — composed on this first read.
   // Painted WITHOUT announcing: the build seeds this same answer into the
