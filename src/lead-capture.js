@@ -19,16 +19,13 @@ const TIMEOUT_MS = 10000;
  *
  * The home page carries two work-email forms that do different things — one
  * subscribes you to field notes, the other asks a person to get back to you —
- * and they used to fail in identical words. "Enter a valid work email address."
- * told a visitor nothing about which of the two they had just failed to do, and
- * "Your email wasn’t saved because sign-up is temporarily offline." described a
- * newsletter to someone who had asked for a conversation.
- *
- * So every string a visitor can read about a submission now arrives as one of
- * these sets, passed in by the form that owns the surface. Each set answers the
- * same questions in the same order, which is what makes a third surface a copy
- * of this shape rather than an invention: what to type, what a rejection means,
- * and what is and is not known when nothing answered.
+ * and they used to fail in identical words, so "Enter a valid work email
+ * address." told a visitor nothing about which of the two they had just failed
+ * to do. So every string a visitor can read about a submission now arrives as
+ * one of these sets, passed in by the form that owns the surface. Each set
+ * answers the same questions in the same order, which is what makes a third
+ * surface a copy of this shape rather than an invention: what to type, what a
+ * rejection means, and what is and is not known when nothing answered.
  */
 const UNREADABLE_CODES = ["invalid_request", "invalid_purpose", "invalid_json", "unsupported_media_type", "method_not_allowed"];
 
@@ -103,12 +100,15 @@ export const CONTACT_COPY = Object.freeze({
 export const FOLLOW_UP_PRIVACY = "The work email address you type here goes to the Wawalu team that "
   + "operates Shiplog; nothing else on this page is sent.";
 
-// The field-note form's own pending and success states. They stay here rather
-// than in FIELD_NOTE_COPY because the contact forms make different promises
-// about what happens next, and each of them owns that sentence.
+// This form's own pending and success states: the contact forms promise
+// something else, so each set owns that sentence. Both repeat src/index.html's
+// promise — who writes field notes, and that there is no schedule — so a
+// subscriber can check what arrived. "Already on its way" claimed a cadence.
 const SUBMITTING = "Subscribing you to field notes…";
-const CAPTURED = "You’re subscribed. The next field note about durable engineering decisions goes to that address.";
-const ALREADY_CAPTURED = "That address is already subscribed, so the next field note is already on its way to it.";
+const CAPTURED = "You’re subscribed. Field notes come from the Wawalu team that operates Shiplog: what the team"
+  + " changed or learned. There is no schedule. The first note goes out when it is written.";
+const ALREADY_CAPTURED = "That address is already subscribed to field notes from the Wawalu team that operates"
+  + " Shiplog. There is no schedule.";
 
 // Outcomes where a bare retry is not a useful next step: sign-up is down, or we
 // don't know what happened. Both surface the recovery block in the markup.
