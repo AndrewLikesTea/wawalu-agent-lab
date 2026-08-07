@@ -452,20 +452,34 @@ test("a filter that matches nothing says so, and downloads an empty array rather
     "the no-results empty state no longer says that nothing matched",
   );
 
-  const empty = downloadExport(page);
-  assert.equal(empty.decisions.length, 0, "the download under a filter matching nothing carries decisions");
-  assert.equal(empty.releases.length, 0, "the download under a filter matching nothing carries releases");
+  // Zero is where the count and the file agree by *not producing one*. The old
+  // hazard this line guarded — the previous payload handed back a second time —
+  // cannot happen if no second payload is written at all, and the panel says
+  // which filters emptied the view rather than answering with two empty arrays a
+  // reader could file as their history. The empty payload is still the builder's
+  // contract; see tests/shiplog-export.test.js.
+  const counts = page.document.querySelector("#export-shiplog-counts");
+  assert.ok(counts, "the export panel has no sentence naming what the file will hold");
+  assertNotCollapsed(counts, "the export panel's readiness sentence");
   assert.equal(
-    empty.record_count,
-    0,
-    `the empty download's record_count says ${empty.record_count}`,
+    textOf(counts),
+    "No records match your history filters, so there is nothing to export. "
+    + "Clear the filters, or choose every stored record above.",
+    "the export panel still offered a file for a filter matching nothing",
   );
-  assert.deepEqual(empty.associations, [], "the empty download carries decision-release associations");
-  // Not the previous file handed back a second time.
-  assert.equal(page.downloads.length, 2, "the second download did not produce a second file");
-  assert.notEqual(
-    page.downloads[0].text,
-    page.downloads[1].text,
-    "the second download handed back the bytes of the first, so the file is stale rather than empty",
+
+  page.document.querySelector("#export-shiplog").click();
+  assert.equal(page.downloads.length, 1, "a filter matching nothing wrote a second file");
+  assert.equal(
+    textOf(page.document.querySelector("#export-shiplog-status")),
+    "No file was written. No records match your history filters — clear them, or choose every stored record, and try again.",
+    "the refused press was silent",
   );
+
+  // The way back is offered, not merely implied by a dead button.
+  const clear = page.document.querySelector("#export-shiplog-clear");
+  assert.ok(clear, "the blocked export panel offers no way back");
+  assertNotCollapsed(clear, "the export panel's clear-filters control");
+  assert.equal(clear.hidden, false, "the clear-filters control stayed hidden with nothing to export");
+  assert.equal(textOf(clear), "Clear filters");
 });

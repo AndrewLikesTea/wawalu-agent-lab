@@ -13,6 +13,11 @@
 //     JSON should not receive the five they filtered away. With no filters
 //     active — or with the panel's scope control set to the whole history — the
 //     file is the whole store exactly as before.
+//     The panel adds one judgement the builder does not make: a press that would
+//     write *nothing* — filters active, no record matching them — is refused and
+//     answered with the way back, rather than with an empty file a visitor could
+//     file as their history. `buildShiplogExport` still writes that file when a
+//     caller asks for that scope; only the button declines to.
 //   * Only declared fields. Every record is rebuilt from the schema's field
 //     list, so a key left on a record by another module or a hand-edited store
 //     stays in the browser.
@@ -195,13 +200,53 @@ export function shiplogExportCounts(storage, scopeInput) {
 }
 
 /**
+ * Would this download write a file with nothing in it?
+ *
+ * THE DEFECT THIS CLOSES. A filter that matches nothing still produced a file:
+ * two empty arrays, a valid envelope, and a status line that said "Shiplog
+ * history exported." A visitor who had narrowed the history too far received a
+ * download they could reasonably file as their history, and nothing on the page
+ * told them their filters — not their records — were what made it empty.
+ *
+ * *Filtered* is the whole condition. An empty file from an empty store is not
+ * this state: there is nothing to recover to, no filter to clear, and a visitor
+ * with no records is not being misled about what they have. So the only blocked
+ * export is one a visitor can undo, which is what makes refusing it honest
+ * rather than a dead end.
+ *
+ * The builder is deliberately left alone — `buildShiplogExport` still writes the
+ * empty filtered payload on request, because a caller that asks for a scope is
+ * entitled to the file that scope describes. This is the *panel's* judgement
+ * about a button press, stated where the visitor can act on it.
+ */
+export function shiplogExportBlocked({ decisions = 0, releases = 0, filtered = false } = {}) {
+  return filtered === true && decisions + releases === 0;
+}
+
+/** The visible label on the recovery control the blocked state offers. */
+export const EXPORT_CLEAR_LABEL = "Clear filters";
+
+/**
+ * The sentence beside the button when the filters match nothing.
+ *
+ * It names the cause (the filters), not the symptom (zero records), and states
+ * both ways out — the control beside it, and the scope select above it — because
+ * a visitor who meant to back up their whole history wants the second one.
+ */
+export const EXPORT_EMPTY_SENTENCE =
+  "No records match your history filters, so there is nothing to export. Clear the filters, or choose every stored record above.";
+
+/**
  * The sentence beside the button, in the visitor's own numbers.
  *
  * Two sentences rather than one with a clause bolted on: the filtered file is a
  * different promise from the stored file, and the phrase that ends the sentence
- * is the one a visitor scanning it will remember.
+ * is the one a visitor scanning it will remember. A third when the file would be
+ * empty, because "Ready to export 0 decisions and 0 releases" is a readiness
+ * this panel is not going to honour.
  */
 export function formatShiplogExportCounts({ decisions, releases, filtered = false }) {
+  if (shiplogExportBlocked({ decisions, releases, filtered })) return EXPORT_EMPTY_SENTENCE;
   const decisionLabel = decisions === 1 ? "decision" : "decisions";
   const releaseLabel = releases === 1 ? "release" : "releases";
   const counted = `${decisions} ${decisionLabel} and ${releases} ${releaseLabel}`;
@@ -232,6 +277,13 @@ export const EXPORT_BUTTON_LABEL = "Download JSON";
  */
 export function shiplogExportLabel({ decisions = 0, releases = 0, filtered = false } = {}) {
   if (!filtered) return "";
+  // Zero used to be spoken as a scope like any other — "export 0 filtered
+  // records" — which was true of a button that wrote the empty file. It is not
+  // true of one that refuses, and a name that promises a download the press will
+  // not perform is the one place a screen reader user could not find that out.
+  if (shiplogExportBlocked({ decisions, releases, filtered })) {
+    return `${EXPORT_BUTTON_LABEL}: no records match your history filters`;
+  }
   const total = decisions + releases;
   return `${EXPORT_BUTTON_LABEL}: export ${total} filtered ${recordWord(total)}`;
 }
@@ -239,6 +291,10 @@ export function shiplogExportLabel({ decisions = 0, releases = 0, filtered = fal
 export const EXPORT_STATUS = Object.freeze({
   exported: "Shiplog history exported.",
   failed: "Shiplog history could not be exported. Your browser data was not changed.",
+  // Said in the status region on a press the panel refused, so the press is
+  // never silent. "No file was written" first: that is the fact a visitor is
+  // checking their downloads folder for.
+  blocked: "No file was written. No records match your history filters — clear them, or choose every stored record, and try again.",
 });
 
 /**
@@ -346,6 +402,10 @@ export function initShiplogExport(root, storage, options = {}) {
   const counts = root.querySelector("#export-shiplog-counts");
   const status = root.querySelector("#export-shiplog-status");
   const scopeControl = root.querySelector("#export-shiplog-scope");
+  // The recovery control for the blocked state. Hidden — so it is not a tab stop
+  // — until the filters actually match nothing, which is the only moment it has
+  // anything to do.
+  const clearControl = root.querySelector("#export-shiplog-clear");
   if (!button || !counts) return;
 
   // The file follows the browsed history by default, and the control lets a
@@ -356,6 +416,12 @@ export function initShiplogExport(root, storage, options = {}) {
     ? undefined
     : readHistoryScope(root));
 
+  // One derivation of "this press would write nothing", read by the click
+  // handler rather than recomputed there: the sentence, the accessible name, the
+  // recovery control, and what the button does are then four readings of one
+  // fact, repainted together on the same events.
+  let blocked = false;
+
   // Repainted on every write and on every filter change, not only at load. The
   // button always exported what the store held; until these subscriptions the
   // sentence beside it kept advertising the count from the moment the page
@@ -363,6 +429,8 @@ export function initShiplogExport(root, storage, options = {}) {
   // would not contain it.
   const paintCounts = () => {
     const scoped = shiplogExportCounts(storage, activeScope());
+    blocked = shiplogExportBlocked(scoped);
+    if (clearControl) clearControl.hidden = !blocked;
     counts.textContent = formatShiplogExportCounts(scoped);
     // The button's own name follows the same numbers, repainted on the same
     // events. A visitor reading the button by itself — with a screen reader, or
@@ -376,7 +444,23 @@ export function initShiplogExport(root, storage, options = {}) {
   onRecordsChanged(root, paintCounts);
   onHistoryScopeChanged(root, paintCounts);
   scopeControl?.addEventListener?.("change", paintCounts);
+  // The one reset on this page. The history's own Clear filters control owns
+  // what "clear" means — it restores the query string, the sort, and the focus —
+  // so this asks it rather than holding a second copy that could clear a
+  // different set of filters than the chips above say are in effect. With no
+  // history on the page there is nothing to clear and nothing is revealed.
+  clearControl?.addEventListener?.("click", () => {
+    root.querySelector("#clear-decision-filters")?.click?.();
+  });
   button.addEventListener("click", () => {
+    // Refused, not disabled. A disabled button says nothing about why, and a
+    // visitor who pressed it would be told nothing at all; this says what did
+    // not happen and hands focus to the control that undoes it.
+    if (blocked) {
+      if (status) status.textContent = EXPORT_STATUS.blocked;
+      clearControl?.focus?.();
+      return;
+    }
     try {
       const report = buildShiplogExport(storage, {
         generatedAt: options.now?.().toISOString(),

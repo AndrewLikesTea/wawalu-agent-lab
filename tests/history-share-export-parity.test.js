@@ -40,7 +40,7 @@ import { initShiplogExport } from "../src/shiplog-export.js";
 import { RELEASE_STORAGE_KEY } from "../src/releases.js";
 import { activeHistoryFilters, parseHistoryFilters } from "../src/history-filters.js";
 import { canonicalExportOrder } from "../src/shiplog-export-schema.js";
-import { loadPage } from "./support/browser.js";
+import { loadPage, textOf } from "./support/browser.js";
 import { shapeViolations } from "./support/export-parity.js";
 
 const DECISIONS_PAGE = new URL("../src/index.html", import.meta.url);
@@ -339,24 +339,32 @@ test("a shared link filtering by owner renders that owner's records, and the fil
 
 // --- the three boundaries that previously hid a mismatch ---------------------
 
-test("a shared link matching zero records exports a valid empty file, not an error and not the whole log", async (t) => {
+test("a shared link matching zero records writes no file, and does not fall back to the whole log", async (t) => {
   // The zero case is where a mismatch hides best: an export that quietly fell
-  // back to the whole store looks like a working button.
+  // back to the whole store looks like a working button. So does one that hands
+  // back an empty file under a link the reader did not write — which is why the
+  // press is refused here and answered in words instead.
   const page = await openSharedLink(t, "?q=no%20record%20says%20this&status=accepted&from=2026-02-01&to=2026-04-30");
 
   assert.deepEqual(renderedRows(page), [], "the fixture accidentally matches this link");
 
-  const payload = exportFromPage(page);
-  assert.deepEqual(payload.decisions, [], "a zero-result link exported decisions");
-  assert.deepEqual(payload.releases, [], "a zero-result link exported releases");
-  assert.equal(payload.record_count, 0, "a zero-result file counts records it does not hold");
-  assert.deepEqual(shapeViolations(payload), [], "the empty file is not a whole export");
-  assertLinkExportParity(page, payload, "a zero-result link:");
+  const before = page.downloads.length;
+  page.document.querySelector("#export-shiplog").click();
+  assert.equal(page.downloads.length, before, "a zero-result link still wrote a file");
   assert.equal(
     page.document.querySelector("#export-shiplog").disabled,
     false,
     "the export control was disabled at zero results",
   );
+  assert.equal(
+    textOf(page.document.querySelector("#export-shiplog-counts")),
+    "No records match your history filters, so there is nothing to export. "
+    + "Clear the filters, or choose every stored record above.",
+    "the panel did not say why the shared link has nothing to export",
+  );
+  const clear = page.document.querySelector("#export-shiplog-clear");
+  assert.ok(clear, "a reader who opened a zero-result link is offered no way back");
+  assert.equal(clear.hidden, false, "the clear-filters control stayed hidden with nothing to export");
 });
 
 test("a shared link matching every record exports the whole log, and says it counted them all", async (t) => {
