@@ -81,7 +81,7 @@ const byId = (doc, id) => (doc?.getElementById ? doc.getElementById(id) : null);
  *   own storage" and "you have not analyzed anything" produce the same offer,
  *   which is none, and the page states the difference elsewhere.
  */
-export function shareableBriefingLink(storage, origin) {
+export function shareableBriefingLink(storage, origin, { plan = null } = {}) {
   const read = readWorkspacePeriods(storage);
   const base = (() => {
     try {
@@ -91,7 +91,11 @@ export function shareableBriefingLink(storage, origin) {
     }
   })();
   if (base === "") return sharedBriefingHref("", []);
-  return sharedBriefingHref(base, read.code === null ? read.periods : []);
+  // The plan travels with the figures or not at all (#1291). It is passed
+  // through to the one envelope builder, which writes the optional block when
+  // the lead has committed a move and writes NO key when they have not — this
+  // control chooses no field of it and validates none.
+  return sharedBriefingHref(base, read.code === null ? read.periods : [], { plan });
 }
 
 /**
@@ -112,10 +116,12 @@ function sharedPeriods(storage) {
  * @returns the link result that was painted; `ok` is false when the block is
  *   hidden because there is nothing of the reader's own to share.
  */
-export function applyShareLink(doc, storage, { origin = globalThis.location?.origin } = {}) {
+export function applyShareLink(
+  doc, storage, { origin = globalThis.location?.origin, plan = null } = {},
+) {
   const block = byId(doc, SHARE_LINK_IDS.block);
   if (!block) return null;
-  const link = shareableBriefingLink(storage, origin);
+  const link = shareableBriefingLink(storage, origin, { plan });
   const box = byId(doc, SHARE_LINK_IDS.text);
   const status = byId(doc, SHARE_LINK_IDS.status);
 

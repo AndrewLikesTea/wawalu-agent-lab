@@ -50,8 +50,8 @@ import {
   readFeasibleShare,
 } from "./plan-scope-levers.js";
 import {
-  PLAN_GRADE_ABSENT, PLAN_GRADE_REQUIREMENT, PLAN_SCOPE_QUESTION, PLAN_VS_DIAGNOSIS, planMoveKey,
-  planScope,
+  PLAN_GRADE_ABSENT, PLAN_GRADE_REQUIREMENT, PLAN_SCOPE_QUESTION, PLAN_VS_DIAGNOSIS, moveName,
+  planMoveKey, planScope,
 } from "./plan-scope.js";
 
 export const PLAN_SCOPE_SECTION_ID = "plan-scope";
@@ -79,10 +79,8 @@ export const PLAN_EVIDENCE_DETAIL_SUMMARY =
 /** Every control id derives from here, so a label and its field cannot drift. */
 export const planLeverId = (index, part) => `plan-lever-${index}-${part}`;
 
-/** What the lead is scoping, said the way the page says it everywhere else. */
-export const moveName = (move) => (move.source === move.unit
-  ? `${move.source} → ${move.targetTier} tier`
-  : `${move.source} → ${move.targetTier} tier in ${move.unit}`);
+// What the lead is scoping is named by `plan-scope.js` now (#1291): the shared
+// brief's plan block carries the same display name, and it cannot import a view.
 
 /**
  * The scope a lead has stated, per document, keyed by the slate's own move key.
@@ -444,9 +442,13 @@ function evidenceDisclosure(doc) {
  *   have scoped here wins over a seeded commitment for the same move. `evidence`
  *   is `planEvidence()`'s two analysis-level signals; absent, both read as
  *   unstated, which is the conservative reading and the one the page ships with.
+ *   `onModel` is called with the model after every paint, including this first
+ *   one — the shared brief carries the committed plan (#1291), so the surface
+ *   that shares it has to learn about a moved lever rather than about a plan
+ *   that was empty when the page booted. It is told, and decides nothing here.
  * @returns the model that was painted, so a caller can assert on it.
  */
-export function applyPlanScope(doc, slate, { commitments = [], evidence = {} } = {}) {
+export function applyPlanScope(doc, slate, { commitments = [], evidence = {}, onModel } = {}) {
   const scopes = sessionScopes(doc);
   const keys = (slate?.rules ?? []).map((rule) => ({ key: planMoveKey(rule) }));
   const compose = () => planScope(slate, {
@@ -456,7 +458,10 @@ export function applyPlanScope(doc, slate, { commitments = [], evidence = {} } =
   let model = compose();
   const section = doc?.getElementById?.(PLAN_SCOPE_SECTION_ID);
   const body = doc?.getElementById?.(PLAN_SCOPE_BODY_ID);
-  if (!section || !body) return model;
+  if (!section || !body) {
+    onModel?.(model);
+    return model;
+  }
   const status = doc.getElementById?.(PLAN_SCOPE_STATUS_ID);
 
   const distinction = element(doc, "p", "answer-figure-basis", model.distinction);
@@ -500,6 +505,10 @@ export function applyPlanScope(doc, slate, { commitments = [], evidence = {} } =
         ? `${refused} Nothing else changed: ${planScopeStatus(model)}`
         : planScopeStatus(model);
     }
+    // Last, and outside this section: whoever is holding the plan is told what
+    // it now says. After the paint, so a listener that repaints something else
+    // reads the same model the reader is looking at.
+    onModel?.(model);
     return model;
   };
 
@@ -520,4 +529,4 @@ export function applyPlanScope(doc, slate, { commitments = [], evidence = {} } =
   return recompute();
 }
 
-export { PLAN_GRADE_REQUIREMENT, PLAN_SCOPE_QUESTION, PLAN_VS_DIAGNOSIS };
+export { PLAN_GRADE_REQUIREMENT, PLAN_SCOPE_QUESTION, PLAN_VS_DIAGNOSIS, moveName };
