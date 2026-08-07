@@ -14,7 +14,14 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { loadActivity } from "../src/agents.js";
-import { EVENTS_URLS, UNAVAILABLE_REASONS, unavailableSentence } from "../src/public-merges.js";
+import {
+  COUNTED_SUBJECT_SENTENCE,
+  EVENTS_URLS,
+  SOURCE_REPOSITORIES,
+  UNAVAILABLE_REASONS,
+  feedLinkText,
+  unavailableSentence,
+} from "../src/public-merges.js";
 import { loadPublicMerges, renderPublicMergeSources } from "../src/public-merges-view.js";
 import { loadPage, parseHtml, textOf } from "./support/browser.js";
 import { createElement, first, installDocument } from "./support/dom.js";
@@ -105,6 +112,17 @@ test("one GitHub response produces one number, on the home page and in the obser
   // The unit is the observatory's own, so one count is never two labels.
   assert.match(textOf(readout), /^3 merged pull requests/);
   assert.match(textOf(readout), /Counted from public GitHub activity in AndrewLikesTea\/paint-lab and AndrewLikesTea\/wawalu-agent-lab/);
+
+  // A number is worth what a reader can check it against, so the figure never
+  // arrives alone: the feeds it was counted from are beside it, each named by
+  // the repository it belongs to.
+  const links = anchorsIn(page.document.querySelector("#public-merges-sources"));
+  assert.deepEqual(links.map((link) => link.getAttribute("href")), EVENTS_URLS);
+  assert.deepEqual(links.map((link) => textOf(link)), SOURCE_REPOSITORIES.map(feedLinkText));
+  for (const [index, link] of links.entries()) {
+    assert.match(textOf(link), new RegExp(SOURCE_REPOSITORIES[index].replace("/", "\\/")),
+      "the link does not say whose merges it goes to");
+  }
 });
 
 test("the count's verification links are the observatory's, and the feeds it was counted from", async (t) => {
@@ -117,9 +135,23 @@ test("the count's verification links are the observatory's, and the feeds it was
   assert.deepEqual(painted, EVENTS_URLS, "the home page links somewhere the count did not come from");
 
   const observatory = parseHtml(await readFile(OBSERVATORY_URL, "utf8"));
-  const linked = anchorsIn(observatory.querySelector(".merged-figure-sources"))
-    .map((link) => link.getAttribute("href"));
-  assert.deepEqual(linked, painted, "the two pages send a reader to different feeds to check one number");
+  const observed = anchorsIn(observatory.querySelector(".merged-figure-sources"));
+  assert.deepEqual(observed.map((link) => link.getAttribute("href")), painted,
+    "the two pages send a reader to different feeds to check one number");
+  // The observatory's anchors are typed into its markup and the home page's are
+  // built from public-merges.js. Both sides are pinned to that one source here,
+  // so editing either page's wording alone reds this rather than shipping two
+  // descriptions of one feed.
+  const words = SOURCE_REPOSITORIES.map(feedLinkText);
+  assert.deepEqual(anchorsIn(page.document.querySelector("#public-merges-sources")).map(textOf), words);
+  assert.deepEqual(observed.map(textOf), words,
+    "the two pages describe the same feed in different words");
+  // Read out of context — a link list, a screen reader, no sentence before it —
+  // each one still says what there is to count and where.
+  for (const text of words) {
+    assert.match(text, /merged pull requests/);
+    assert.doesNotMatch(text, /\b(click here|see more|read more|this|here)\b/i);
+  }
 });
 
 // Every way GitHub can fail to answer, and the one thing they must all do:
@@ -145,7 +177,20 @@ for (const [what, fetcher, reason] of FAILURES) {
     assert.equal(result.reason, reason);
     const section = page.document.querySelector("#public-merges");
     assert.equal(section.dataset.state, "unavailable");
-    assert.equal(textOf(page.document.querySelector("#public-merges-readout")), unavailableSentence(reason));
+    // Two sentences, both announced by the live region: the absence, and then
+    // what was being counted. A reader must not be left with the absence alone.
+    const said = page.document.querySelector("#public-merges-readout").querySelectorAll("p").map(textOf);
+    assert.deepEqual(said, [unavailableSentence(reason), COUNTED_SUBJECT_SENTENCE]);
+    assert.match(said[1], /merged pull requests/, `${what} did not say what was being counted`);
+    for (const repository of SOURCE_REPOSITORIES) assert.ok(said[1].includes(repository));
+
+    // And the way to check it yourself is still on the page, unchanged: same
+    // feeds, same words, whether or not a number ever arrived.
+    const links = anchorsIn(page.document.querySelector("#public-merges-sources"));
+    assert.deepEqual(links.map((link) => link.getAttribute("href")), EVENTS_URLS,
+      `${what} took the verification links away with the count`);
+    assert.deepEqual(links.map(textOf), SOURCE_REPOSITORIES.map(feedLinkText));
+
     // No zero, no dash standing in for a digit, no remembered figure: the whole
     // block, links and boundary included, holds no numeral.
     assert.doesNotMatch(textOf(section), /\d/, `${what} left something a reader could read as a count`);
@@ -182,9 +227,9 @@ test("the document a visitor is served authors no figure and no link of its own"
 
   assert.equal(section.getAttribute("data-state"), "unavailable",
     "the shipped state must be the one with no number in it");
-  assert.equal(textOf(document.querySelector("#public-merges-readout")),
-    unavailableSentence(UNAVAILABLE_REASONS.pending),
-    "the shipped sentence and the painted one must be the same sentence");
+  assert.deepEqual(document.querySelector("#public-merges-readout").querySelectorAll("p").map(textOf),
+    [unavailableSentence(UNAVAILABLE_REASONS.pending), COUNTED_SUBJECT_SENTENCE],
+    "the shipped sentences and the painted ones must be the same sentences");
   assert.doesNotMatch(textOf(section), /\d/, "a figure is authored into the markup");
   assert.equal(anchorsIn(document.querySelector("#public-merges-sources")).length, 0,
     "the feed links must be built from the URLs the count is requested from, not typed");
