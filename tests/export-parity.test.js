@@ -650,30 +650,52 @@ test("an unfiltered file carries an empty filter block and the whole history", a
   assertParity({ decisions: DECISIONS, releases: RELEASES }, payload, "the unfiltered export changed:");
 });
 
-test("a filter matching nothing still downloads a valid, explicitly empty file", async (t) => {
+test("a filter matching nothing writes no file, says why, and offers the way back", async (t) => {
   const page = await openHistory(t);
   setControl(page, "#decision-search", "no record says this");
   assert.equal(visibleCount(page), 0, "the fixture accidentally matches this search");
 
-  // Nothing short-circuits: a zero-result export is a file the visitor asked
-  // for, and a button that silently does nothing reads as broken.
-  const payload = exportFromPage(page);
-  assert.equal(payload.record_count, 0);
-  assert.deepEqual(payload.decisions, []);
-  assert.deepEqual(payload.releases, []);
-  assert.deepEqual(payload.filter, { query: "no record says this" });
-  assert.deepEqual(shapeViolations(payload), [], "the empty filtered file is not a whole export");
+  // Nothing short-circuits *silently*: the press is answered, just not with a
+  // file. An empty download under a search the visitor may have forgotten they
+  // typed is the one file they could mistake for their history. The empty
+  // payload is still the builder's contract — see tests/shiplog-export.js's
+  // "a filter matching nothing exports an empty file rather than refusing" —
+  // and this is the panel declining to hand one to a person.
+  const before = page.downloads.length;
+  exportButton(page).click();
+  assert.equal(page.downloads.length, before, "a filter matching nothing still wrote a file");
   assert.equal(exportButton(page).disabled, false, "the export control was disabled at zero results");
   assert.equal(
     exportButton(page).getAttribute("aria-label"),
-    "Download JSON: export 0 filtered records",
-    "the control does not say it will write an empty file",
+    "Download JSON: no records match your history filters",
+    "the control still promises a file it will not write",
+  );
+  assert.equal(
+    textOf(page.document.querySelector("#export-shiplog-counts")),
+    "No records match your history filters, so there is nothing to export. "
+    + "Clear the filters, or choose every stored record above.",
+    "the panel did not say why there is nothing to export",
   );
   assert.equal(
     textOf(page.document.querySelector("#export-shiplog-status")),
-    "Exported 0 filtered records.",
-    "the empty export was not announced",
+    "No file was written. No records match your history filters — clear them, or choose every stored record, and try again.",
+    "the refused press was silent",
   );
+
+  // Recovery, not a dead end: a real enabled control that restores the history.
+  const clear = page.document.querySelector("#export-shiplog-clear");
+  assert.ok(clear, "the blocked export panel offers no way back");
+  assert.equal(clear.hidden, false, "the clear-filters control stayed hidden with nothing to export");
+  assert.equal(clear.disabled, false, "the recovery control is disabled, so there is no way back at all");
+  clear.click();
+  assert.equal(visibleCount(page), TOTAL_RECORDS, "clearing the filters did not restore the history");
+  assert.equal(clear.hidden, true, "the recovery control outlived the state it recovers from");
+
+  // And the button writes files again, on the whole restored history.
+  const payload = exportFromPage(page);
+  assert.equal(payload.record_count, TOTAL_RECORDS);
+  assert.deepEqual(payload.filter, {}, "the restored file still names the filter that blocked it");
+  assert.deepEqual(shapeViolations(payload), [], "the restored file is not a whole export");
 });
 
 test("the export control names its filtered scope and is operable from the keyboard", async (t) => {

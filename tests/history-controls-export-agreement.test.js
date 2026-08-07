@@ -50,7 +50,7 @@ import assert from "node:assert/strict";
 import { initDecisionLog, STORAGE_KEY } from "../src/app.js";
 import { RELEASE_STORAGE_KEY } from "../src/releases.js";
 import { initShiplogExport } from "../src/shiplog-export.js";
-import { DomEvent, loadPage, textOf, typeText } from "./support/browser.js";
+import { DomEvent, loadPage, pressKey, tabSequence, textOf, typeText } from "./support/browser.js";
 
 const DECISIONS_PAGE = new URL("../src/index.html", import.meta.url);
 
@@ -586,7 +586,7 @@ test("a combination every record matches counts and exports the whole history", 
 
 // --- the empty result ----------------------------------------------------------
 
-test("a combination matching nothing counts zero, exports an empty file, and names the filters in effect", async (t) => {
+test("a combination matching nothing counts zero, refuses the download, and names the filters in effect", async (t) => {
   const page = await openHistory(t);
 
   // A non-empty download first, in the same page state, so a second download
@@ -640,35 +640,86 @@ test("a combination matching nothing counts zero, exports an empty file, and nam
     );
   }
 
-  // The file is still a whole file: valid JSON, empty collections, and the same
-  // envelope the populated download carried.
-  const empty = downloadExport(page);
-  assert.deepEqual(empty.decisions, [], "the download under a filter matching nothing carries decisions");
-  assert.deepEqual(empty.releases, [], "the download under a filter matching nothing carries releases");
-  assert.deepEqual(empty.associations, [], "the empty download carries decision-release associations");
-  assert.equal(empty.record_count, 0, `the empty download's record_count says ${empty.record_count}`);
-  assert.equal(empty.decision_count, 0, `the empty download's decision_count says ${empty.decision_count}`);
-  assert.equal(empty.release_count, 0, `the empty download's release_count says ${empty.release_count}`);
-  assert.deepEqual(
-    Object.keys(empty).toSorted(),
-    Object.keys(populated).toSorted(),
-    "the empty download has a different envelope from a populated one, so a consumer has to special-case it",
+  // The export panel says the same thing the list does, before the press. This
+  // is the sentence a reader is given instead of a file: it names the filters as
+  // the cause, and it is outside every disclosure on the panel, because a live
+  // region inside a closed one is announced to nobody.
+  const counts = page.document.querySelector("#export-shiplog-counts");
+  assert.ok(counts, "the export panel has no sentence naming what the file will hold");
+  assertNotCollapsed(counts, "the export panel's readiness sentence");
+  assert.equal(counts.getAttribute("aria-live"), "polite", "the export readiness sentence no longer announces changes");
+  assert.equal(
+    textOf(counts),
+    "No records match your history filters, so there is nothing to export. "
+    + "Clear the filters, or choose every stored record above.",
+    "the export panel still offered a file for a filter combination matching nothing",
   );
-  assert.equal(empty.schema, populated.schema, "the empty download states a different schema");
-  assert.equal(empty.version, populated.version, "the empty download states a different schema version");
-  assert.equal(empty.source, populated.source, "the empty download names a different source surface");
-  // The block names the filters that emptied it, so the file explains itself.
-  assert.deepEqual(
-    empty.filter,
-    { query: "flags", type: "decision", status: "accepted", owner: "Jules" },
-    "the empty file does not name the filter combination that produced it",
+  // And on the button itself, for a reader who hears only the control.
+  assert.equal(
+    page.document.querySelector("#export-shiplog").getAttribute("aria-label"),
+    "Download JSON: no records match your history filters",
   );
 
-  // Not the previous file handed back a second time.
-  assert.equal(page.downloads.length, 2, "the second download did not produce a second file");
+  // No second file. The press is refused rather than answered with two empty
+  // arrays a reader could file as their history — the empty payload is still the
+  // builder's contract (tests/shiplog-export.test.js), just not this button's
+  // answer to a visitor.
+  const before = page.downloads.length;
+  page.document.querySelector("#export-shiplog").click();
+  assert.equal(page.downloads.length, before, "a filter combination matching nothing still wrote a file");
+  const status = page.document.querySelector("#export-shiplog-status");
+  assertNotCollapsed(status, "the export panel's status region");
+  assert.equal(
+    textOf(status),
+    "No file was written. No records match your history filters — clear them, or choose every stored record, and try again.",
+    "the refused press was silent, so a reader is left checking their downloads folder",
+  );
+
+  // Recovery, driven by keyboard. The control is revealed only in this state, it
+  // is a real button, it is in the tab sequence, and Enter on it restores the
+  // history — which is the whole difference between this and a disabled button.
+  const clear = page.document.querySelector("#export-shiplog-clear");
+  assert.ok(clear, "the blocked export panel offers no way back");
+  assertNotCollapsed(clear, "the export panel's clear-filters control");
+  assert.equal(clear.tagName, "BUTTON", "the recovery affordance is not a button");
+  assert.equal(clear.type, "button", "the recovery button would submit a form instead of clearing filters");
+  assert.equal(clear.hidden, false, "the clear-filters control stayed hidden with nothing to export");
+  assert.equal(clear.disabled, false, "the recovery control is disabled, so there is no way back at all");
+  assert.equal(textOf(clear), "Clear filters");
+  assert.ok(
+    tabSequence(page.document).includes(clear),
+    "the clear-filters control is not reachable by keyboard",
+  );
+
+  clear.focus();
+  pressKey(page.document, "Enter");
+  await settle();
+
+  assert.equal(renderedIds(page).length, TOTAL_RECORDS, "clearing the filters did not restore the history");
+  assert.equal(clear.hidden, true, "the recovery control stayed on screen after the history came back");
+  assert.equal(
+    textOf(counts),
+    `Ready to export ${DECISIONS.length} decisions and ${RELEASES.length} releases stored in this browser.`,
+    "the export panel did not go back to offering the restored history",
+  );
+
+  // And the download works again, on the records now on screen.
+  const restored = downloadExport(page);
+  assert.equal(
+    restored.record_count,
+    TOTAL_RECORDS,
+    `the download after clearing carries ${restored.record_count} records and the page shows ${TOTAL_RECORDS}`,
+  );
+  // Not the first file handed back a second time.
+  assert.equal(page.downloads.length, 2, "the download after clearing did not produce a second file");
   assert.notEqual(
     page.downloads[0].text,
     page.downloads[1].text,
-    "the second download handed back the bytes of the first, so the file is stale rather than empty",
+    "the second download handed back the bytes of the first, so the file is stale",
+  );
+  assert.notDeepEqual(
+    restored.filter,
+    populated.filter,
+    "the restored download still names the filter the first one carried",
   );
 });

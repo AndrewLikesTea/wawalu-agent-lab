@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import {
+  EXPORT_EMPTY_SENTENCE,
   EXPORT_SOURCES,
   EXPORT_STATUS,
   SHIPLOG_EXPORT_SCHEMA,
@@ -13,6 +14,7 @@ import {
   exportedRecordSentence,
   formatShiplogExportCounts,
   initShiplogExport,
+  shiplogExportBlocked,
   shiplogExportFilename,
   shiplogExportLabel,
   unresolvedLinkSentence,
@@ -477,6 +479,142 @@ test("count copy uses explicit zero and plural labels", () => {
 });
 
 // --------------------------------------------------------------------------
+// The blocked export: filters that match nothing
+// --------------------------------------------------------------------------
+//
+// THE DEFECT THESE CLOSE. A filter matching no record still handed back a file —
+// a valid envelope around two empty arrays — under the sentence "Shiplog history
+// exported." A visitor who had narrowed the history too far could file that
+// download as their history and never learn that their filters, not their
+// records, were what emptied it.
+//
+// The builder is not what changed. `createShiplogExport` still writes the empty
+// filtered payload when asked for it (see "a filter matching nothing exports an
+// empty file rather than refusing" above) — a caller that names a scope is
+// entitled to the file that scope describes. What changed is the panel's answer
+// to a *button press*, which is where a visitor is standing when they are misled.
+
+test("an empty store is not a blocked export: only filters that hid everything are", () => {
+  assert.equal(shiplogExportBlocked({ decisions: 0, releases: 0, filtered: true }), true);
+  // Nothing recorded yet. There is no filter to clear and nothing being hidden,
+  // so the panel keeps its ordinary readiness sentence rather than blaming
+  // filters a visitor never set.
+  assert.equal(shiplogExportBlocked({ decisions: 0, releases: 0, filtered: false }), false);
+  assert.equal(shiplogExportBlocked({ decisions: 0, releases: 1, filtered: true }), false);
+  assert.equal(shiplogExportBlocked({ decisions: 1, releases: 0, filtered: true }), false);
+  assert.equal(shiplogExportBlocked(), false);
+
+  assert.equal(
+    formatShiplogExportCounts({ decisions: 0, releases: 0, filtered: true }),
+    EXPORT_EMPTY_SENTENCE,
+  );
+  assert.match(EXPORT_EMPTY_SENTENCE, /^No records match your history filters/);
+  assert.equal(
+    formatShiplogExportCounts({ decisions: 0, releases: 0, filtered: false }),
+    "Ready to export 0 decisions and 0 releases stored in this browser.",
+    "an empty store was described as a filter problem",
+  );
+});
+
+/**
+ * The export panel mounted against a scope that hides every record.
+ *
+ * The recovery control and the history's own reset are stubs here rather than
+ * real elements: this file tests the panel's contract, and
+ * tests/history-controls-export-agreement.test.js drives the same state through
+ * the real markup. `hidden` is read as a property — the harness reflects nothing
+ * back to an attribute, and a real browser answers the property too.
+ */
+function blockedPanel({ filters = { owner: "Nobody" } } = {}) {
+  const listeners = {};
+  const clearListeners = {};
+  const focused = [];
+  const resetClicks = [];
+  const attributes = {};
+  const counts = { textContent: "" };
+  const status = { textContent: "" };
+  const clear = {
+    hidden: false,
+    addEventListener(type, listener) { clearListeners[type] = listener; },
+    focus() { focused.push("clear"); },
+  };
+  const elements = {
+    "#export-shiplog": {
+      addEventListener(type, listener) { listeners[type] = listener; },
+      setAttribute(name, value) { attributes[name] = value; },
+      removeAttribute(name) { delete attributes[name]; },
+    },
+    "#export-shiplog-counts": counts,
+    "#export-shiplog-status": status,
+    "#export-shiplog-clear": clear,
+    "#clear-decision-filters": { click() { resetClicks.push("reset"); } },
+  };
+  const root = { querySelector(selector) { return elements[selector] ?? null; } };
+  const downloads = [];
+
+  initShiplogExport(root, populatedStorage(), {
+    now: () => new Date(GENERATED_AT),
+    download(payload) { downloads.push(payload); },
+  });
+  // Published after the mount, exactly as the history publishes it: the panel
+  // repaints on the scope event rather than only at load.
+  publishHistoryScope(root, { filtered: true, decisionIds: [], releaseIds: [], filters });
+  return { attributes, clear, clearListeners, counts, downloads, focused, listeners, resetClicks, root, status };
+}
+
+test("a filter matching nothing names itself, writes no file, and offers the way back", () => {
+  const panel = blockedPanel();
+
+  // 1. It says so before the press, in the live region beside the button.
+  assert.equal(panel.counts.textContent, EXPORT_EMPTY_SENTENCE);
+  // 2. And on the button itself, for a reader who hears only the control.
+  assert.equal(panel.attributes["aria-label"], "Download JSON: no records match your history filters");
+  // 3. The recovery control is revealed. Hidden the rest of the time, so it is
+  //    not a tab stop on the ordinary path.
+  assert.equal(panel.clear.hidden, false, "the clear-filters control stayed hidden with nothing to export");
+
+  // 4. The press produces no file at all — not an empty one — and says what did
+  //    not happen. The button is refused rather than disabled: a disabled
+  //    control answers a press with nothing.
+  panel.listeners.click();
+  assert.equal(panel.downloads.length, 0, "a filter matching nothing still wrote a file");
+  assert.equal(panel.status.textContent, EXPORT_STATUS.blocked);
+  assert.match(panel.status.textContent, /^No file was written\./);
+  // 5. Focus lands on the control that undoes it, so a keyboard reader is left
+  //    standing on the recovery and not on a button that just refused them.
+  assert.deepEqual(panel.focused, ["clear"]);
+});
+
+test("the panel's clear-filters control runs the history's own reset, not a second one", () => {
+  const panel = blockedPanel();
+
+  panel.clearListeners.click();
+  assert.deepEqual(
+    panel.resetClicks,
+    ["reset"],
+    "the export panel cleared filters some other way than through the history's own control",
+  );
+});
+
+test("a scope that matches records again re-arms the button and hides the recovery", () => {
+  const panel = blockedPanel();
+  assert.equal(panel.clear.hidden, false);
+
+  // The visitor widens the filters. The panel repaints from the same scope event
+  // it was blocked by, so the refusal is a state and not a latch.
+  publishHistoryScope(panel.root, {
+    filtered: true, decisionIds: ["d-queue"], releaseIds: [], filters: { owner: "Rowan" },
+  });
+
+  assert.equal(panel.clear.hidden, true, "the recovery control stayed on screen with records to export");
+  assert.equal(panel.counts.textContent, "Ready to export 1 decision and 0 releases matching your history filters.");
+  assert.equal(panel.attributes["aria-label"], "Download JSON: export 1 filtered record");
+  panel.listeners.click();
+  assert.equal(panel.downloads.length, 1, "the button was still refusing after the filters matched again");
+  assert.deepEqual(panel.downloads[0].decisions.map(({ id }) => id), ["d-queue"]);
+});
+
+// --------------------------------------------------------------------------
 // The envelope: what the file says about itself
 // --------------------------------------------------------------------------
 
@@ -579,9 +717,13 @@ test("the button's accessible name states the filtered scope, and nothing when u
     "Download JSON: export 12 filtered records");
   assert.equal(shiplogExportLabel({ decisions: 1, releases: 0, filtered: true }),
     "Download JSON: export 1 filtered record");
-  // Zero is a scope like any other: the control still says what it will write.
+  // Zero is not a scope like any other any more. The panel refuses that press
+  // (see the blocked-export tests below), so a name promising "export 0 filtered
+  // records" would describe a download that is not going to happen — and the
+  // accessible name is the only place a screen reader user reading the button
+  // alone could learn otherwise.
   assert.equal(shiplogExportLabel({ decisions: 0, releases: 0, filtered: true }),
-    "Download JSON: export 0 filtered records");
+    "Download JSON: no records match your history filters");
   assert.equal(shiplogExportLabel({ decisions: 9, releases: 3 }), "",
     "an unfiltered export restates the visible label instead of leaving it alone");
   assert.equal(shiplogExportLabel(), "");
