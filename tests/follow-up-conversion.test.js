@@ -113,6 +113,23 @@ async function openFinopsTab() {
   return page;
 }
 
+/**
+ * Open one workspace destination by its own door.
+ *
+ * #1328: /evolution.html is a workspace and shows ONE destination at a time. A
+ * closed destination's regions carry `hidden`, so they are out of the
+ * accessibility tree and out of the tab order — which a `display:none` rule
+ * already did in a browser and this harness could not see. A test that walks the
+ * keyboard to a control has to stand in the destination that control belongs to
+ * first, exactly as a reader does. The invitation beside the result is in the
+ * answer, which the page opens in; the contact hand-off it opens is in Act and
+ * verify, which is why only some of the tests below press a door.
+ */
+function openDestination(document, key) {
+  document.getElementById("finops-workspace-nav-list")
+    .querySelector(`[data-destination-key="${key}"]`).click();
+}
+
 async function openBriefingTab() {
   const page = await loadPage(BRIEFING_PAGE, { routes: { [BRIEFING_FIXTURE_PATH]: BRIEFING_FIXTURE } });
   await importPageModule("/executive-briefing-page.js");
@@ -202,6 +219,7 @@ test("the AI FinOps confirmation begins with “Follow-up requested”, both tim
 test("a successful request leaves a usable next action, and a failed one leaves none", async () => {
   const page = await openFinopsTab();
   const { document } = page;
+  openDestination(document, "act-and-verify");
   let failNext = false;
   interceptLeads(() => (failNext
     ? jsonReply({ error: { code: "storage_unavailable", message: "unavailable" } }, 503)

@@ -280,6 +280,21 @@ async function openFinopsTab() {
   return page;
 }
 
+/**
+ * Open one workspace destination by its own door.
+ *
+ * #1328: /evolution.html is a workspace and shows ONE destination at a time. A
+ * closed destination's regions carry `hidden`, so they are out of the
+ * accessibility tree and out of the tab order — which a `display:none` rule
+ * already did in a browser and this harness could not see. A test that measures
+ * the keyboard path through a panel has to stand in the destination that panel
+ * belongs to first, exactly as a reader does.
+ */
+function openDestination(document, key) {
+  document.getElementById("finops-workspace-nav-list")
+    .querySelector(`[data-destination-key="${key}"]`).click();
+}
+
 test("every declared panel on the shipped page carries a state a reader can see", async () => {
   const { document } = await openFinopsTab();
   for (const panel of EXECUTIVE_PANELS) {
@@ -309,6 +324,9 @@ test("painting an answerable page adds no tab stop and moves none of its control
 
 test("an unanswerable panel's controls leave together, and the survivors keep their order", async () => {
   const { document } = await openFinopsTab();
+  // The savings portfolio and its filters belong to Act and verify, so both
+  // readings are taken standing in that destination.
+  openDestination(document, "act-and-verify");
   const before = tabSequence(document);
   applyPanelContract(document, panelStates({}));
   const after = tabSequence(document);
@@ -317,7 +335,12 @@ test("an unanswerable panel's controls leave together, and the survivors keep th
   // list that is not on screen is a dead end. What must not happen is a
   // reordering: everything still reachable is reachable in the same order, so a
   // reader's muscle memory for this page survives an import.
-  assert.deepEqual(after, before.filter((node) => after.includes(node)));
+  // Compared over the SURVIVORS in both directions. #1328 hides a closed
+  // destination's regions, and a contract repaint may legitimately bring one of
+  // its panels back; an arrival is not a reordering, and the property this test
+  // exists for is that nothing still reachable moved past anything else.
+  assert.deepEqual(after.filter((node) => before.includes(node)),
+    before.filter((node) => after.includes(node)));
   assert.ok(after.length < before.length, "an unanswerable portfolio still offered its filters");
 });
 

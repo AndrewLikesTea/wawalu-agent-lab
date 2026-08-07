@@ -79,6 +79,17 @@ async function openFinopsTab() {
     "the static contract gateway to settle");
   await waitFor(() => byId(document, "finops-evaluation-result").getAttribute("aria-busy") === "false",
     "the evaluation panel to settle");
+  // #1328: this page is a workspace and shows ONE destination at a time. The
+  // contact hand-off belongs to Act and verify, and a closed destination's
+  // regions carry `hidden` — out of the accessibility tree and out of the tab
+  // order, which is what a `display:none` rule had already done in a browser and
+  // this harness could not see. So the destination is opened here, by pressing
+  // the door a reader with a question presses, before anything below asks
+  // whether the form is reachable.
+  byId(document, "finops-workspace-nav-list")
+    .querySelector('[data-destination-key="act-and-verify"]').click();
+  assert.equal(byId(document, "finops-contact").hidden, false,
+    "the contact hand-off is not in the destination its door opens");
   return page;
 }
 

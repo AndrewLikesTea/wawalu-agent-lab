@@ -5094,12 +5094,18 @@ async function init() {
   // their hrefs from the contract, marks the promoted one, and binds the part a
   // plain anchor cannot do — unfolding the panel the target sits inside, moving
   // the keyboard there, and saying so once.
-  applyWorkspaceNav(document, destinations, { hash: window.location?.hash ?? "" });
+  applyWorkspaceNav(document, destinations, { location: window.location });
   // The shell goes up before the rail is bound, so the destination a door points
   // into is on screen by the time the rail moves focus into it: the shell's own
   // click listener is registered in the capture phase, and a region that is still
   // hidden cannot take focus.
-  initWorkspaceShell(document, { win: window, loaded: destinations });
+  // The History and the Location are injected rather than read off `window`
+  // inside the shell, for the same reason #1326 injects them: the address is the
+  // destination's state, and a module that reached for a global could not be
+  // driven by a test double at all.
+  initWorkspaceShell(document, {
+    win: window, loaded: destinations, history: window.history, location: window.location,
+  });
   bindWorkspaceNav(document);
   const monthlyPreviewEntry = document.getElementById("monthly-review-preview-entry");
   monthlyPreviewEntry?.addEventListener("click", async () => {
