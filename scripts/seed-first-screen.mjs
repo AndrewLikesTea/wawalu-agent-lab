@@ -55,6 +55,10 @@ import { FINOPS_ANSWER_SUMMARY } from "../src/finops-answer-summary.js";
 import {
   BUNDLED_RECOVERABLE_CONFIDENCE, confidenceChip, confidenceExplanation,
 } from "../src/finops-recoverable-confidence.js";
+import {
+  BUNDLED_PRICING_PROVENANCE, pricingProvenanceChip, pricingProvenanceDetail,
+  pricingProvenanceSummary,
+} from "../src/finops-pricing-provenance.js";
 import { buildStandHeadline } from "../src/finops-stand.js";
 import { standClaimSentence } from "../src/finops-stand-view.js";
 
@@ -202,6 +206,24 @@ export function firstScreenEdits(bundled) {
     authoredText("recoverable confidence explanation", "finops-recoverable-confidence-detail",
       "The confidence grade beside the figure has not been computed for this document.",
       confidenceExplanation(BUNDLED_RECOVERABLE_CONFIDENCE)),
+
+    // ---- And whose prices the figure is (#1266). Same split as the grade above
+    // it: the sub-score and its one sentence are seeded beside the figure, outside
+    // every disclosure, and the four per-criterion bands are seeded into the same
+    // Limits part. All three come from the declaration's metadata, so nothing here
+    // moves when a declared rate does.
+    edit("recoverable pricing provenance",
+      '<span class="figure-source-state" id="finops-recoverable-provenance"'
+      + ' data-band="0">Pricing provenance: not scored</span>',
+      '<span class="figure-source-state" id="finops-recoverable-provenance"'
+      + ` data-band="${escapeAttribute(String(BUNDLED_PRICING_PROVENANCE.rating))}">`
+      + `${escapeText(pricingProvenanceChip(BUNDLED_PRICING_PROVENANCE))}</span>`),
+    authoredText("recoverable pricing provenance reason", "finops-recoverable-provenance-reason",
+      "Whose prices this figure uses has not been scored for this document.",
+      pricingProvenanceSummary(BUNDLED_PRICING_PROVENANCE)),
+    authoredText("recoverable pricing provenance bands", "finops-recoverable-provenance-detail",
+      "The pricing-provenance sub-score beside the figure has not been computed for this document.",
+      pricingProvenanceDetail(BUNDLED_PRICING_PROVENANCE)),
 
     // ---- The circulation decision, painted by its own view above.
     edit("circulation state",
