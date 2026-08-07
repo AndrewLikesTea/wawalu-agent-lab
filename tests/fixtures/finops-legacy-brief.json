@@ -93,35 +93,5 @@
     ],
     "retainedPeriodCount": 3
   },
-  "rateBasis": {
-    "declared": false,
-    "effectiveDate": null,
-    "label": "Low",
-    "marker": "Illustrative",
-    "models": [
-      {
-        "committedUseDiscountPct": null,
-        "contractedInputRate": 20,
-        "contractedOutputRate": 20,
-        "currency": "USD",
-        "effectiveDate": null,
-        "label": "the premium text tier",
-        "model": "premium-text",
-        "permitted": null
-      },
-      {
-        "committedUseDiscountPct": null,
-        "contractedInputRate": 15,
-        "contractedOutputRate": 15,
-        "currency": "USD",
-        "effectiveDate": null,
-        "label": "the standard text tier",
-        "model": "standard-text",
-        "permitted": null
-      }
-    ],
-    "source": "published-list",
-    "tier": "illustrative"
-  },
-  "v": 3
+  "v": 2
 }

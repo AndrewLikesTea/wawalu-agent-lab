@@ -224,11 +224,13 @@ function tokenDeclaring(version) {
 }
 
 test("an unsupported schema version fails loudly and renders no decoded field", () => {
-  const parity = checkSharedBriefingParity(FIXTURES[0].periods, { token: tokenDeclaring(3) });
+  // 4, not 3: schema 3 is the rate-basis envelope this build reads (#1265), so
+  // the unreadable version has to be one past the range the page states.
+  const parity = checkSharedBriefingParity(FIXTURES[0].periods, { token: tokenDeclaring(4) });
 
   assert.equal(parity.ok, false);
   assert.equal(parity.reason, PARITY_REASON.unsupportedVersion);
-  assert.equal(parity.statement.includes("Unsupported schema version 3"), true);
+  assert.equal(parity.statement.includes("Unsupported schema version 4"), true);
   assert.equal(parity.statement.includes(`this page reads ${SUPPORTED_SCHEMA_RANGE}`), true);
   // Not one decoded field survives onto a surface. This is the defect the
   // requirement names: stale fields rendered beside current ones look current.
