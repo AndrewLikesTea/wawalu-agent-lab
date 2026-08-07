@@ -418,23 +418,87 @@ test("the control that opens the composer agrees with the composer about images"
     "the word survives outside the People page's own URL and nav class");
 });
 
-// The intro said what the feed holds and never said who wrote it, so the seeded
-// posts read as other people's accounts. People already has the clearest way to
-// say it — "a demo persona in the Social feed, not a signed-in user" — so the
-// intro borrows that noun rather than inventing a third word for the bundled
-// names. One sentence, inside the paragraph that is already there, and ahead of
-// the demo-data sentence the permalink quotes as this intro's last words.
-test("the feed intro says who wrote the posts, in People's word for it", async (t) => {
+// Nobody said who wrote the posts, so the seeded ones read as other people's
+// accounts. The Agent observatory already names them — "meet each demo persona"
+// — and Ari, Kai, Mina and Priya are those personas, so Social borrows that noun
+// rather than inventing a third word for the bundled names. The sentence stood in the
+// hero for a release, a whole composer above the first byline; it says the same
+// thing beside the feed heading now, where the names are actually read. Once,
+// on the whole page: an answer a reader meets twice is an answer they stop
+// reading.
+test("the feed says who wrote the posts, in People's word for it", async (t) => {
   const page = await loadPage(new URL("../src/social.html", import.meta.url), {});
   t.after(() => page.restore());
+  const AUTHORSHIP = "Every post comes from a bundled demo persona or from a visitor who published one.";
 
+  const said = page.document.querySelectorAll("#feed-authorship");
+  assert.equal(said.length, 1, "the feed carries exactly one authorship sentence");
+  assert.equal(said[0].tagName, "P");
+  assert.ok(said[0].classList.contains("hint"),
+    "the sentence uses the explanatory-prose pattern the rest of the page uses");
+  assert.equal(textOf(said[0]), AUTHORSHIP);
+
+  // One name per concept: it names the two sources of a post and coins no
+  // second word for the name a card already carries.
+  assert.doesNotMatch(AUTHORSHIP, /\bauthors?\b|\bcontributors?\b|\bprofiles?\b|\baccounts?\b/i);
+  // Authorship, not consequence: what publishing costs is said at the button.
+  assert.doesNotMatch(AUTHORSHIP, /Anyone who visits|cannot delete/i);
+
+  // Beside the heading, ahead of the filters, and outside the container the
+  // renders swap — which is what makes it survive all three feed states below.
+  const panel = page.document.querySelector(".list-panel");
+  assert.ok(said[0].parentNode === panel, "the sentence left the feed panel");
+  assert.equal(page.document.querySelector("#post-feed").querySelectorAll("#feed-authorship").length, 0,
+    "the sentence sits inside the list the renders replace");
+
+  // The hero keeps its own job and stops doing this one, so the page answers
+  // "who wrote these?" in one place.
   const intro = textOf(page.document.querySelector(".hero-social").querySelectorAll("p")[1]);
-  assert.match(intro, /Every post comes from a bundled demo persona or from a visitor who published one\./,
-    "the intro stopped disclosing who the feed's posts come from");
+  assert.doesNotMatch(intro, /demo persona/,
+    "the intro says who wrote the posts as well, so the page says it twice");
   assert.match(intro, /Posts use no customer or production data\.$/,
     "the demo-data sentence must stay the intro's last words");
-  assert.equal(intro.split("demo persona").length - 1, 1,
-    "the intro names demo personas more than once");
+
+  const source = (await readFile(new URL("../src/social.html", import.meta.url), "utf8"))
+    .replace(/<!--[\s\S]*?-->/g, "");
+  assert.equal(source.split("demo persona").length - 1, 1,
+    "Social names demo personas in more than one place");
+});
+
+// The answer must not depend on what the feed happens to be doing. The
+// container below the sentence is replaced on every render — loading,
+// populated, and never-posted are three different subtrees — so the sentence is
+// read back in all three.
+test("the authorship sentence renders in every feed state", async (t) => {
+  const page = await loadPage(new URL("../src/social.html", import.meta.url), {});
+  t.after(() => page.restore());
+  const AUTHORSHIP = "Every post comes from a bundled demo persona or from a visitor who published one.";
+  const authorship = () => textOf(page.document.querySelector("#feed-authorship"));
+
+  // Loading: the list holds placeholder tiles and no byline to read.
+  const feed = mountSocialFeed(page.document, { posts: [], state: "loading" });
+  assert.equal(page.document.querySelectorAll(".post-card-skeleton").length, 3);
+  assert.equal(authorship(), AUTHORSHIP, "a loading feed stopped saying who writes the posts");
+
+  // Answered and empty: the never-posted panel takes the list's place.
+  feed.seed([]);
+  assert.match(textOf(page.document.querySelector(".empty-state")), /No posts on Social yet\./);
+  assert.equal(authorship(), AUTHORSHIP, "the never-posted state stopped saying who writes the posts");
+
+  // Populated.
+  feed.seed(sample);
+  assert.equal(page.document.querySelectorAll(".post-card-skeleton").length, 0);
+  assert.equal(page.document.querySelectorAll(".post-card").length, sample.length);
+  assert.equal(authorship(), AUTHORSHIP, "a full feed stopped saying who writes the posts");
+});
+
+// The term Social borrows belongs to the Agent observatory, which is where a
+// reader can go and meet the names the feed ships with. Neither page may drift
+// off the noun without the other noticing.
+test("the Agent observatory still calls a bundled name a demo persona", async () => {
+  const agents = await readFile(new URL("../src/agents.html", import.meta.url), "utf8");
+  assert.match(agents.replace(/<!--[\s\S]*?-->/g, ""), /meet each demo persona/,
+    "Social borrows a noun the observatory no longer uses");
 });
 
 // The display name field said what it defaulted to and nothing about what the
