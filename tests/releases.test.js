@@ -267,6 +267,16 @@ test("releases page is wired and linked from the decisions page", async () => {
   assert.match(home, /id="sample-release-list"/);
   assert.match(home, /Representative release/);
   assert.match(home, /not customer or internal operational data/);
+  // One description of what these records are, in the same words on both
+  // surfaces. The release list is the same composed log the home page's record
+  // list shows — stored records plus the seeded examples — so the intro states
+  // provenance with the home page's sentence instead of calling the log this
+  // demo's shipping history, which reads as real history beside it.
+  const provenance = "Includes representative example records to demonstrate "
+    + "Shiplog. They are not customer or internal operational data.";
+  assert.ok(home.includes(provenance), "the home page's provenance sentence moved");
+  assert.ok(page.includes(provenance), "the releases intro dropped the provenance sentence");
+  assert.doesNotMatch(page, /shipping history of this Shiplog demo/);
   assert.match(page, /<title>Releases · Shiplog<\/title>/);
   assert.match(page, /id="release-list"/);
   assert.match(page, /id="release-search"/);
