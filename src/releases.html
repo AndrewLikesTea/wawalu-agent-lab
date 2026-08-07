@@ -80,19 +80,19 @@
 
           <form id="release-form">
             <div class="field">
-              <label for="release-version">Version</label>
+              <label for="release-version">Version <span class="label-optional label-required">(required)</span></label>
               <input id="release-version" name="version" type="text" maxlength="40" required autocomplete="off" aria-describedby="release-version-hint" />
               <span class="hint" id="release-version-hint">The version or tag that shipped, such as v1.4.0.</span>
             </div>
 
             <div class="field">
-              <label for="release-released-on">Release date</label>
+              <label for="release-released-on">Release date <span class="label-optional label-required">(required)</span></label>
               <input id="release-released-on" name="releasedOn" type="date" required autocomplete="off" aria-describedby="release-released-on-hint" />
               <span class="hint" id="release-released-on-hint">The calendar day this release shipped, as YYYY-MM-DD.</span>
             </div>
 
             <div class="field">
-              <label for="release-owner">Owner</label>
+              <label for="release-owner">Owner <span class="label-optional label-required">(required)</span></label>
               <input id="release-owner" name="owner" type="text" maxlength="80" required autocomplete="name" aria-describedby="release-owner-hint" />
               <span class="hint" id="release-owner-hint">The person accountable for this release.</span>
             </div>
@@ -104,7 +104,7 @@
             </div>
 
             <div class="field">
-              <label for="release-form-status">Status</label>
+              <label for="release-form-status">Status <span class="label-optional label-required">(required)</span></label>
               <select id="release-form-status" name="status" required aria-describedby="release-form-status-hint">
                 <option value="completed">Completed</option>
                 <option value="planned">Planned</option>
@@ -114,9 +114,9 @@
             </div>
 
             <div class="field field-wide">
-              <label for="release-description">Summary</label>
+              <label for="release-description">Summary <span class="label-optional label-required">(required)</span></label>
               <textarea id="release-description" name="description" rows="4" maxlength="1000" required aria-describedby="release-description-hint"></textarea>
-              <span class="hint" id="release-description-hint">What shipped, in a sentence or two; a summary is required.</span>
+              <span class="hint" id="release-description-hint">What shipped, in a sentence or two.</span>
             </div>
 
             <!-- The multi-select is a native checkbox group: every option is a
@@ -130,8 +130,8 @@
                  through the form's alert, which is also what marks this group
                  invalid and returns focus to it. -->
             <fieldset class="field field-wide decision-picker-field" id="release-decisions-field" aria-describedby="release-decisions-hint release-decisions-summary">
-              <legend>Link decisions to this release</legend>
-              <p class="hint" id="release-decisions-hint">Tick every decision this release carried; at least one is required. The first decision you select is the release’s primary linked decision. Tab moves through the list; Space links or unlinks the decision in focus.</p>
+              <legend>Link decisions to this release <span class="label-optional label-required">(required)</span></legend>
+              <p class="hint" id="release-decisions-hint">Tick every decision this release carried. The first decision you select is the release’s primary linked decision. Tab moves through the list; Space links or unlinks the decision in focus.</p>
               <p class="decision-picker-summary" id="release-decisions-summary" role="status" aria-live="polite">No decisions linked yet.</p>
               <div class="decision-picker" id="release-decisions"></div>
             </fieldset>
