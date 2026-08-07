@@ -104,6 +104,9 @@ import {
 // The plan beside that slate: which of those moves anyone has committed to, and
 // at what scope. Read-only, and today's honest answer is $0.
 import { applyPlanScope } from "/plan-scope-view.js";
+// What that plan is filed against, so a plan restored after a reload can say
+// whether the analysis or the rate card under it has moved since (#1290).
+import { planFingerprints } from "/plan-persistence.js";
 // The two evidence signals that plan lives or dies on and that the plan model
 // cannot see: a declared rate card, and an observed rather than invented period.
 import { planEvidence } from "/plan-evidence-grade.js";
@@ -2012,6 +2015,14 @@ function mountLocalFinopsImport() {
     // example's invented month.
     paintedPlanScope = applyPlanScope(document, paintedRoutingSlate, {
       evidence: planEvidence({ analysis: next, imported: !example }),
+      // A plan a lead filed survives the reload (#1290). The store is this
+      // browser's own and holds one key: the committed moves, their scopes, the
+      // total and two fingerprints — never a credential, a customer record or a
+      // line of narrative. The fingerprints are taken from the slate that was
+      // just painted and the card that priced it, so a restored plan is told,
+      // above the moves, when either has moved under it.
+      storage: browserFinopsWorkspaceStorage(),
+      fingerprints: planFingerprints(paintedRoutingSlate, next?.rateCard ?? null),
       // A moved lever changes what a shared link would carry (#1291), so the
       // share control is repainted from the plan that is now on screen rather
       // than from the empty one this page booted with. The link is rebuilt, its
