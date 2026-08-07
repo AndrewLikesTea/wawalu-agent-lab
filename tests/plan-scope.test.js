@@ -12,7 +12,9 @@
 //   * a move on the slate that this section does not enumerate, or a lever
 //     whose unit or default-when-silent is only in a code comment.
 //   * more than one next action, or none.
-//   * a control. There is nothing to fill in on this surface, by design.
+//   * a lever control without a programmatic label, or one painted OUTSIDE the
+//     collapsed disclosure, where it would take a tab stop on the first screen.
+//     What those controls DO when moved is tests/plan-scope-levers.test.js.
 //
 // It drives the real markup from src/evolution.html and the real slate from the
 // bundled example, which is the state a lead lands in.
@@ -227,10 +229,39 @@ test("every move's levers, units and defaults are rendered, one row each", async
   assert.equal(moveRows.length, model.moves.length);
 });
 
-test("the section adds no control a reader could fill in", async () => {
-  const { document } = await loadPage(PAGE, { scripts: false });
-  applyPlanScope(document, bundledSlate());
-  const section = document.getElementById("plan-scope");
-  assert.equal(section.querySelectorAll("input,button,select,textarea").length, 0,
-    "a control here would promise a commitment this page cannot keep");
-});
+test("every lever control is labelled, and all of them sit inside the disclosure",
+  async () => {
+    const { document } = await loadPage(PAGE, { scripts: false });
+    const model = applyPlanScope(document, bundledSlate());
+    const section = document.getElementById("plan-scope");
+    const controls = section.querySelectorAll("input,select,textarea");
+    // Four levers a move: in or out, the feasible share, the excluded workloads,
+    // and the refusal.
+    assert.equal(controls.length, model.moves.length * 4);
+
+    const labelFor = new Map(section.querySelectorAll("label")
+      .map((label) => [label.getAttribute("for"), label]));
+    for (const control of controls) {
+      assert.ok(control.id, "every control needs an id its label can name");
+      const label = labelFor.get(control.id);
+      assert.ok(label, `${control.id} has no label tied to it by for/id`);
+      assert.ok(textOf(label).length > 0, `${control.id}'s label says nothing`);
+      // Walked upward rather than matched with a descendant selector, which this
+      // harness rejects: no control may sit outside the collapsed disclosure.
+      let node = control;
+      while (node && node.tagName !== "DETAILS") node = node.parentNode;
+      assert.ok(node, `${control.id} is painted outside the disclosure, on the tab order`);
+    }
+    // The share field is a TEXT field on purpose: a number field reports an
+    // empty value for anything it cannot parse, which would swallow a lead's
+    // entry instead of refusing it. Its range is in its label, and its keypad
+    // is declared through inputmode.
+    const shares = controls.filter((control) => control.id.endsWith("-share"));
+    assert.equal(shares.length, model.moves.length);
+    for (const share of shares) {
+      assert.equal(share.type, "text");
+      assert.equal(share.getAttribute("inputmode"), "numeric");
+      assert.ok(textOf(labelFor.get(share.id)).includes("0 to 100"),
+        textOf(labelFor.get(share.id)));
+    }
+  });
