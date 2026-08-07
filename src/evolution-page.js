@@ -46,6 +46,10 @@ import { applyDisclosureRoles, applyGuidedResult } from "/finops-guided-result-v
 // into them. Without this a copied `#recommendation-evidence` lands a reader at
 // the top of the page with the evidence still collapsed.
 import { installDeepLinkDisclosure } from "/deep-link-disclosure.js";
+// A destination is an address (#1326). Without this the page opens at the top of
+// the document however it was linked to, so "look at commitment coverage" is a
+// sentence in a chat message rather than something a colleague can send.
+import { installDestinationRouting } from "/destination-route-view.js";
 import { forwardRetiredAnchor } from "/retired-anchor-compatibility.js";
 // Disclosure-only method prose, fetched from a static fragment on first expand
 // rather than shipped in this page's initial payload. It carries no figure and
@@ -846,6 +850,11 @@ function fillTextList(id, values, emptyText) {
 // contract already has a sentence for.
 let bundledSeed = null;
 let bundledEvaluationRecords = 0;
+// The address-bar routing handle, assigned during boot. Held so the bundled
+// analysis can re-apply a `?department=` once the controls that answer it have
+// actually been painted — on a cold load the route is read before the seed
+// arrives, and a selection with nothing to select is a selection that is lost.
+let destinationRouting = null;
 // The import closure owns the imported half of the facts, so it publishes the
 // repaint the same way the bundled analysis does. Assigned in
 // `mountLocalFinopsImport`; a no-op until then.
@@ -4992,6 +5001,12 @@ async function init() {
   // what the document already says rather than changing it.
   applyPricingProvenance(document);
   installDeepLinkDisclosure(document, window);
+  // Directly after the disclosure opener, because an in-page destination lands
+  // on a fragment and needs that machinery to have run. A route that names
+  // nothing leaves the page exactly as it was.
+  destinationRouting = installDestinationRouting(document, {
+    history: window.history, location: window.location, target: window,
+  });
   // Immediately after it, and for the same reason: a deep link may have already
   // opened a deferred panel, and the read for that panel is taken at install.
   // Nothing below this line waits on it — the returned promises are the tests'
@@ -5273,6 +5288,9 @@ async function init() {
     };
     repaintBundledAnalysis();
     renderDecisionSurface(data, departments);
+    // The department controls exist now, so an address that named one is
+    // honoured. Re-reads the URL and scrolls nothing.
+    destinationRouting?.refresh();
     renderRedaction(data.redactionSamples);
 
     // Ready is the lifecycle; "are these numbers mine?" is the question. The
