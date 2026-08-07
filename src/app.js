@@ -18,6 +18,7 @@ import {
   RECORD_TYPES,
   absoluteHistoryUrl,
   currentOnlySearch,
+  historyFilterChips,
   historyFilterPath,
   historyFilterSearch,
   normalizeHistoryRange,
@@ -541,6 +542,18 @@ export function renderDecisionState(container, state, options = {}) {
   }[state];
   appendTextElement(panel, "h3", "", copy[0]);
   appendTextElement(panel, "p", "", copy[1]);
+  // Which filters produced the empty list, in their own values. The sentence
+  // above names the *dimensions* ("record type, status, owner, and search"),
+  // which leaves a reader who has narrowed four controls to reconstruct what
+  // they set from memory before they can undo it. Same words as the chips, so
+  // the two ways of reading the view agree; omitted when the caller passes no
+  // filter state, which is every caller that renders this panel without a view.
+  if (state === "empty" && options.filtered) {
+    const chips = historyFilterChips(options.filters ?? {});
+    if (chips.length > 0) {
+      appendTextElement(panel, "p", "hint empty-state-filters", `Filters in effect: ${chips.map((chip) => chip.text).join(" · ")}`);
+    }
+  }
   if (state === "empty") {
     const action = options.filtered
       ? appendTextElement(panel, "button", "empty-action history-reset-action", "Reset filters")
@@ -942,7 +955,7 @@ export function renderHistory(container, count, records, view = {}) {
   }
 
   if (visible.length === 0) {
-    renderDecisionState(container, "empty", { filtered: true });
+    renderDecisionState(container, "empty", { filtered: true, filters: view });
     return 0;
   }
 
