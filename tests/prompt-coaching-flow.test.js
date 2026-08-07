@@ -370,12 +370,15 @@ test("the boundary is stated in the markup, before any script runs", async () =>
     const preview = byId(document, "prompt-coaching-preview");
     assert.ok(preview, "the preview must ship in the page markup");
     const claim = textOf(preview.querySelector(".prompt-coaching-preview-static"));
-    assert.match(claim, /bundled static client-side code/);
-    assert.match(claim, /No request is sent for coaching/);
-    assert.match(claim, /no persistence is implemented/);
+    assert.match(claim, /Grading runs in this browser tab/);
+    assert.match(claim, /Nothing you type is sent anywhere, stored, or read from any account/);
+    // What it reads and what it hands back, in the reader's terms rather than
+    // as a report on how the page is built.
+    assert.match(claim, /reads the prompt you paste and the model name if you give one/);
+    assert.match(claim, /returns your graded coaching summary/);
     // A privacy claim a reader can only see once JavaScript succeeds is a claim
     // they cannot rely on, so this one does not wait for the entry module. And
-    // it says how the analysis runs rather than how many files a build emits:
+    // it says what a visitor gets rather than how many files a build emits:
     // a file count is not checkable from the page and answers nothing.
     assert.equal(/\b(one|two|three|four|\d+)\s+(static\s+)?(files?|scripts?|modules?)\b/i
       .test(textOf(preview)), false, "a file count is not a verifiable claim");

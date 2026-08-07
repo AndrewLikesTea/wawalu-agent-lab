@@ -162,7 +162,7 @@ export const COACHING_ENTRY_EXAMPLE = Object.freeze({
   modelTier: EXAMPLE_SAMPLE.modelTier,
   /** Applying the example sets the field AND the tier: a partial submission would grade something the example does not describe. */
   appliesModelTier: true,
-  attribution: "The bundled synthetic example supplied by this page: bundled synthetic text — not your prompt, not a customer's, and not anyone's real prompt.",
+  attribution: "The example is bundled synthetic text written for this page — not your prompt, not a customer's, and not anyone's real prompt.",
   distinct: Object.freeze({
     classifiedAs: COACHING_INPUT_SOURCE.bundledSample,
     visitorTextClassifiedAs: COACHING_INPUT_SOURCE.readerText,
@@ -225,16 +225,16 @@ export const COACHING_ENTRY_NEXT_ACTION = Object.freeze({
   [COACHING_ENTRY_STATE.empty]: Object.freeze({
     id: "try_example",
     label: "Grade the bundled synthetic example",
-    instruction: "Nothing to paste? Grade the bundled synthetic example instead — one press, no typing, and the result is a demonstration rather than a reading of your work.",
+    instruction: "Nothing to paste? Grade the example instead — one press, no typing, and the result is a demonstration rather than a reading of your work.",
     control: COACHING_ENTRY_EXAMPLE.transition.loadControl,
     alternative: "Or paste your own prompt into the field below.",
   }),
   [COACHING_ENTRY_STATE.exampleLoaded]: Object.freeze({
     id: "grade_example",
     label: "Grade this prompt",
-    instruction: "The bundled synthetic example is in the field. Press Grade this prompt to see what a result contains.",
+    instruction: "The example is in the field. Press Grade this prompt to see what a result contains.",
     control: "prompt-coaching-grade",
-    alternative: "Or edit the field to replace it with your own prompt — the next grade is then yours, not the bundled synthetic example's.",
+    alternative: "Or edit the field to replace it with your own prompt — the next grade is then yours, not the example's.",
   }),
   [COACHING_ENTRY_STATE.visitorText]: Object.freeze({
     id: "grade_own",

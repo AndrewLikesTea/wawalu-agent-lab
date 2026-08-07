@@ -263,10 +263,13 @@ test("the destination reads as one page about one thing", async () => {
   // visitor to skip all four.
   assert.equal(document.querySelectorAll(".prompt-coaching-privacy").length, 1);
   // The example is named the same way the rest of the site names one —
-  // "bundled synthetic example" — and says what it is made of in the same breath.
+  // "bundled synthetic example" — in the heading that owns it, and the copy
+  // beneath says what it is made of without naming it a second time.
+  assert.match(textOf(byId(document, "prompt-coach-sample-title")), /Bundled synthetic example/);
   const sample = textOf(document.querySelector(".prompt-coach-sample-static"));
-  assert.match(sample, /bundled synthetic example/);
   assert.match(sample, /bundled synthetic text/);
+  assert.doesNotMatch(sample, /bundled synthetic example/,
+    "the name belongs to the heading; repeating it under it is noise");
 
   // One purpose statement, at the top: what a visitor does here and what comes
   // back. It does not spend its second sentence on the promise the form makes.
@@ -326,6 +329,13 @@ test("one name per concept: the example, the grade button, and the clear button"
   assert.doesNotMatch(text, /supplied example|our example/i,
     "the bundled demonstration is a bundled synthetic example on every surface that names it");
   assert.match(textOf(byId(document, "prompt-coaching-example")), /Grade the bundled synthetic example/);
+
+  // And it is spelled out only where it does work: the heading over the sample,
+  // the control that loads it, and the line saying whose text a grade is of.
+  // Everywhere else it is "the example" — a page that repeats the full name in
+  // every sentence teaches a reader to skip the sentence.
+  assert.ok((text.match(/bundled synthetic example/gi) ?? []).length <= 3,
+    "the full name is for the heading, the control, and the attribution");
 
   // The clear control is referred to by its own label wherever copy points at
   // it, rather than by a name for the region it clears.

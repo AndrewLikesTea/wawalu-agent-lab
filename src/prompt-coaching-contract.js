@@ -258,13 +258,13 @@ export const COACHING_LOCAL_ONLY_BOUNDARY = Object.freeze([
   Object.freeze({
     id: "network",
     label: "Network submission",
-    claim: "No request is sent for coaching. The analysis runs in the browser from bundled static client-side code and the form has no action to submit to.",
+    claim: "No request is sent for coaching. The grading runs in this browser tab, from the rubric shipped with the page, and the form has no action to submit to.",
     verify: "No module reachable from the coaching page entry references fetch, XMLHttpRequest, sendBeacon, WebSocket, or EventSource; the workflow's flow tests fail on any request.",
   }),
   Object.freeze({
     id: "prompt-storage",
     label: "Prompt storage",
-    claim: "No persistence is implemented. The text you type is read from the field, measured, and left in the field — it is not saved, exported, or put in a URL.",
+    claim: "Nothing you type is stored. The text you type is read from the field, measured, and left in the field — it is not saved, exported, or put in a URL.",
     verify: "No module reachable from the coaching page entry references localStorage, sessionStorage, or IndexedDB, and a built session carries counts in place of the text.",
   }),
   Object.freeze({
