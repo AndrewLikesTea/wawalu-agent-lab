@@ -3217,6 +3217,27 @@
         <div id="monthly-department-decision-body"></div>
       </section>
 
+      <!-- The plan beside the diagnosis. It sits ABOVE the ranked slate on
+           purpose: a reader who has just been told what is recoverable is owed
+           the answer to "and what are we actually planning?" before they read
+           the ranking again. Today that answer is $0, because nothing on this
+           page collects or retains a commitment.
+           Authored empty and painted by plan-scope-view.js from the slate below
+           it, so the moves it enumerates are the slate's own rules and the two
+           can never disagree. The status line is authored HERE, as a sibling of
+           the painted body and outside every disclosure, because a closed
+           disclosure element is hidden from the accessibility tree in a real
+           browser and a status announcement inside one is dropped.
+           NO CONTROL LIVES IN THIS SECTION — no input, no commit affordance and
+           nothing stored. The one focusable it adds is the painted disclosure's
+           own summary, far below the first-run region. -->
+      <section class="finops-panel" id="plan-scope" data-state="empty" data-move-count="0" data-committed-count="0" data-workspace-region="act-and-verify" role="region" aria-labelledby="plan-scope-title">
+        <p class="eyebrow">Your plan</p>
+        <h2 class="answer-question" id="plan-scope-title">Which of these moves are you committing to, and at what scope?</h2>
+        <p class="answer-figure-basis" id="plan-scope-status" role="status" data-state="empty">$0 planned: no move has been committed at a stated scope.</p>
+        <div id="plan-scope-body"></div>
+      </section>
+
       <!-- The ranked routing changes behind that decision. Authored empty and
            painted by routing-slate-view.js: rank 1, one action, then one
            disclosure per rule. Every per-rule figure is the rule's own

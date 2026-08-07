@@ -101,6 +101,9 @@ import {
 import {
   ROUTING_POLICY_FILE_NAME, ROUTING_POLICY_MEDIA_TYPE, routingPolicyText,
 } from "/routing-policy-document.js";
+// The plan beside that slate: which of those moves anyone has committed to, and
+// at what scope. Read-only, and today's honest answer is $0.
+import { applyPlanScope } from "/plan-scope-view.js";
 import { applyRoutingRuleScore } from "/routing-rule-score-view.js";
 // The five-slot headline an imported export earns, painted from the checked-in
 // contract in finops-imported-headline-fixture.json. Imported state only.
@@ -1987,6 +1990,12 @@ function mountLocalFinopsImport() {
     // about the same rules, and the file a reader diffs has to be the list they
     // were looking at when they pressed the control.
     paintedRoutingSlate = applyRoutingSlate(document, next, { commitment: retainedAction });
+    // And what a lead has actually committed out of that slate, which today is
+    // nothing: $0 planned, stated beside the diagnosis rather than instead of it.
+    // It is painted FROM the slate object above rather than from the envelope, so
+    // the moves it enumerates are the rules that were just rendered — there is no
+    // second list of routing moves in this page and there must not be.
+    applyPlanScope(document, paintedRoutingSlate);
     // The marker and hedge beside the recoverable figure now come from the card
     // that actually priced this envelope (#1263), not from a bundled constant
     // painted once at boot. With no declared card the analysis resolves to the
