@@ -25,7 +25,7 @@
 //
 // Planned savings is the sum, over moves a lead has explicitly committed, of
 //
-//   trunc( modelledMonthlyUsd x share/100 x workloadFactor x teamFactor )
+//   modelledMonthlyUsd x share/100 x workloadFactor x teamFactor
 //
 // where, for one committed move:
 //
@@ -40,9 +40,12 @@
 //   teamFactor          the same, over `eligibleTeams` and `refusingTeams`.
 //                       `refusingTeams` defaults to 0 — nobody has been asked.
 //
-// Each move's contribution is truncated toward zero BEFORE the sum, matching the
-// slate's rule that a rendered column adds up to the rendered total and that the
-// page never claims a dollar the arithmetic did not find.
+// THE ARITHMETIC ITSELF LIVES IN `plan-total.js` (#1287), which multiplies the
+// four steps out and publishes them as data. It is not restated here: two
+// modules with two rounding rules would put two dollar figures in one section
+// and let this page disagree with itself. Each move's contribution is EXACT —
+// nothing is rounded per move and re-added — and the section's figure is that
+// unrounded sum, rounded exactly once for display.
 //
 // With no committed move the sum is over an empty set and the figure is exactly
 // 0. That is not a placeholder, an error state, or a missing value: it is the
@@ -54,9 +57,10 @@
 // PURE. No DOM, no clock, no storage, no randomness.
 
 import { CONFIDENCE_TIERS } from "./finops-rate-card-contract.js";
+import { planTotal } from "./plan-total.js";
 
 /** Bump when a lever, a default, or what the planned figure means changes. */
-export const PLAN_SCOPE_VERSION = "plan-scope/1.0.0";
+export const PLAN_SCOPE_VERSION = "plan-scope/1.1.0";
 
 /** The one question this surface settles. Nothing else belongs in it. */
 export const PLAN_SCOPE_QUESTION =
@@ -174,14 +178,24 @@ function remainingShare(base, removed) {
   return Math.min(1, Math.max(0, (eligible - gone) / eligible));
 }
 
-/** One committed move's planned dollars, by the definition at the top of this file. */
-function plannedFor(rule, commitment) {
-  const share = (statedCount(commitment?.reroutedSharePct) ?? 0) / 100;
-  const workloads = remainingShare(commitment?.eligibleWorkloads, commitment?.excludedWorkloads);
-  const teams = remainingShare(commitment?.eligibleTeams, commitment?.refusingTeams);
-  const modelled = Number(rule?.expectedMonthlyUsd);
-  if (!Number.isFinite(modelled)) return 0;
-  return Math.trunc(modelled * Math.min(1, Math.max(0, share)) * workloads * teams);
+/**
+ * The fraction of one move a commitment actually reaches, in 0..1: the three
+ * levers above, multiplied. This is the ONE place they are combined — #1287's
+ * per-move derivation reports this exact number as its `appliedScope` step, so
+ * the scope a reader is shown is the scope the dollars were computed from, not
+ * a second reading of the same commitment.
+ *
+ * An excluded workload or a refusing team lands here, as a smaller factor. It is
+ * therefore already in the money before anything renders, which is the point:
+ * both are arithmetic, not a note beside the figure. All three at their silent
+ * default give exactly 0.
+ */
+function appliedScopeFor(commitment) {
+  if (!commitment) return 0;
+  const share = Math.min(1, Math.max(0, (statedCount(commitment.reroutedSharePct) ?? 0) / 100));
+  return share
+    * remainingShare(commitment.eligibleWorkloads, commitment.excludedWorkloads)
+    * remainingShare(commitment.eligibleTeams, commitment.refusingTeams);
 }
 
 /** The moves, in the slate's own rank order, each with its levers and its answer. */
@@ -194,7 +208,7 @@ function movesFrom(slate, commitments) {
     const key = planMoveKey(rule);
     const commitment = byKey.get(key) ?? null;
     const levers = PLAN_LEVERS.map((lever) => leverState(lever, commitment));
-    return Object.freeze({
+    return {
       key,
       rank: rule.rank,
       source: rule.source,
@@ -206,9 +220,9 @@ function movesFrom(slate, commitments) {
       // turns on this and on nothing else.
       fullyScoped: commitment !== null && levers.every((lever) => lever.stated),
       levers: Object.freeze(levers),
-      plannedMonthlyUsd: commitment === null ? 0 : plannedFor(rule, commitment),
+      appliedScope: commitment === null ? 0 : appliedScopeFor(commitment),
       owner: commitment?.owner ? String(commitment.owner) : null,
-    });
+    };
   });
 }
 
@@ -254,7 +268,26 @@ function nextActionFor(moves) {
  *   grade or its absence, and exactly one next action.
  */
 export function planScope(slate = null, { commitments = [] } = {}) {
-  const moves = movesFrom(slate, commitments);
+  const enumerated = movesFrom(slate, commitments);
+  // The money, computed once, by #1287's module: the in-plan moves only, each
+  // one's four steps as data, and the total rounded exactly once from the
+  // unrounded sum. Zipped back positionally, so a slate that ever repeated a
+  // move key still gets one contribution per row rather than a collapsed one.
+  const total = planTotal({
+    moves: enumerated.map((move) => ({
+      leverId: move.key,
+      inPlan: move.committed,
+      appliedScope: move.appliedScope,
+      modelledMove: move.modelledMonthlyUsd,
+    })),
+    pricing: slate?.pricing ?? null,
+  });
+  let cursor = 0;
+  const moves = enumerated.map((move) => Object.freeze({
+    ...move,
+    // Exact, never pre-rounded: the section's figure is the sum of these.
+    plannedMonthlyUsd: move.committed ? total.moves[cursor++].contribution : 0,
+  }));
   const committedCount = moves.filter((move) => move.committed).length;
   return Object.freeze({
     version: PLAN_SCOPE_VERSION,
@@ -264,7 +297,9 @@ export function planScope(slate = null, { commitments = [] } = {}) {
     moves: Object.freeze(moves),
     committedCount,
     // The sum over the committed moves, and over nothing else. Empty set, $0.
-    plannedMonthlyUsd: moves.reduce((sum, move) => sum + move.plannedMonthlyUsd, 0),
+    plannedMonthlyUsd: total.totalRecoverableUsd,
+    /** The same figure's derivation, per in-plan move, for the surface to render. */
+    total,
     grade: gradeFor(moves),
     gradeRequirement: PLAN_GRADE_REQUIREMENT,
     gradeAbsentReason: committedCount === 0 ? PLAN_GRADE_ABSENT : "",
