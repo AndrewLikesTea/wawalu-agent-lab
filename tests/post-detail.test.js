@@ -413,7 +413,7 @@ test("both destinations ship as constants, and only the People link's target nar
 // page card and the Social page intro — one sentence, one vocabulary, wherever
 // a visitor first meets Social.
 const STANDING_SENTENCE =
-  "Social is a shared demo feed of short posts about the work the team ships, each with an optional image.";
+  "Social is a shared demo feed of short posts about what the team ships, images optional.";
 
 // Every state the panel can be in, named the way a reader would name it.
 const PANEL_STATES = [

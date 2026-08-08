@@ -23,7 +23,7 @@ import { readFile, readdir } from "node:fs/promises";
 import { DEMOS, FOLLOW_UP_REDIRECT, IDENTITY, INVITATION, siteFooterMarkup } from "../src/site-footer.js";
 import { FOLLOW_UP_PRIVACY } from "../src/lead-capture.js";
 import { SITE_NAV } from "../src/site-nav.js";
-import { loadPage, pressEnter, pressKey, pressTab, tabSequence, textOf, typeText } from "./support/browser.js";
+import { loadPage, parseHtml, pressEnter, pressKey, pressTab, tabSequence, textOf, typeText } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
 
 // Every page of the site. Kept in the same order and to the same rule as
@@ -232,28 +232,45 @@ test("the footer is a site map: every destination the navigation offers, each on
     assert.match(textOf(items[0]), /start here/i, "the list must say where to start");
     assert.match(textOf(items[0]), /^AI FinOps/, "the site leads with AI FinOps, so the list does too");
 
-    // A site map, not an essay. Each row is a fragment of at most eight words
-    // after the destination's name — the marker on the first row is the order
-    // signal, not purpose copy, so it is counted separately.
+    // A site map, not an essay. The rule used to be a flat eight-word cap, which
+    // said "shorter" by picking a number; it is stated against the thing it
+    // actually protects now — the footer points, the home page explains, so a
+    // row may never be longer than the home page's sentence for that surface.
+    // Two rows carry more words than they used to because the facts they had
+    // dropped belong in both maps: where Paint's PNG goes, and what order
+    // People's posts come in. The marker on the first row is the order signal,
+    // not purpose copy, so it is counted separately.
+    const guideRows = [...document.querySelector(".site-guide").querySelectorAll("li")];
+    const guideSentence = (demo) => {
+      const row = guideRows.find((entry) => entry.querySelector(`a[href="${demo.href}"]`));
+      assert.ok(row, `the home page's directory is missing ${demo.label}`);
+      return textOf(row).slice(demo.label.length).trim();
+    };
     for (const demo of DEMOS) {
-      const words = demo.purpose.split(/\s+/);
-      assert.ok(words.length <= 8, `"${demo.label}" runs to ${words.length} words of purpose`);
-      assert.doesNotMatch(demo.purpose, /[.!?]$/, `"${demo.label}" is written as a sentence`);
+      const words = demo.purpose.split(/\s+/).length;
+      const explained = guideSentence(demo).split(/\s+/).length;
+      assert.ok(words <= explained,
+        `"${demo.label}" runs to ${words} words against the home page's ${explained}`);
+      assert.ok(words <= 16, `"${demo.label}" runs to ${words} words of purpose`);
       assert.doesNotMatch(demo.purpose, /powerful|seamless|unlock|leverage|central hub/i, `"${demo.label}" uses filler`);
     }
 
-    // The defect this replaces: every row used to be word for word the sentence
-    // the home page's "Where everything is" list gives that surface, so the home
-    // page printed the same eight sentences twice and every other page carried
-    // an essay. One name per concept is still the rule above; one wording per
-    // concept was the mistake. No row may say what a guide row says.
-    const guideRows = [...document.querySelector(".site-guide").querySelectorAll("li")];
+    // Every row a fragment, and one whole sentence. Rows used to be word for
+    // word the home page's sentence for that surface, so the home page printed
+    // the same eight sentences twice and every other page carried an essay.
+    // Social is the deliberate exception: it is the one destination four
+    // separate surfaces have to define, and a reader who lands on a pasted post
+    // link may never see any of the others. Every other row stays a fragment
+    // that says less than the home page does.
     for (const demo of DEMOS) {
-      const guide = guideRows.find((row) => row.querySelector(`a[href="${demo.href}"]`));
-      assert.ok(guide, `the home page's directory is missing ${demo.label}`);
-      const sentence = textOf(guide).slice(demo.label.length).trim();
-      assert.ok(!textOf(items.find((row) => textOf(row).startsWith(demo.label))).includes(sentence),
-        `${demo.label} repeats the home page's sentence in the footer`);
+      const repeats = textOf(items.find((row) => textOf(row).startsWith(demo.label))).includes(guideSentence(demo));
+      if (demo.label === "Social") {
+        assert.ok(repeats, "the footer must carry Social's canonical sentence, not a second wording of it");
+        assert.match(demo.purpose, /\.$/, "the canonical sentence is a sentence");
+        continue;
+      }
+      assert.ok(!repeats, `${demo.label} repeats the home page's sentence in the footer`);
+      assert.doesNotMatch(demo.purpose, /[.!?]$/, `"${demo.label}" is written as a sentence`);
     }
 
     // And it is the same list on every page, including the one whose footer
@@ -279,6 +296,72 @@ test("the footer is a site map: every destination the navigation offers, each on
       "the home page's directory must name the action AI FinOps gives a visitor");
   } finally {
     page.restore();
+  }
+});
+
+// The site had two maps of itself — this band and the home page's "Where
+// everything is" directory — and they disagreed about what a destination was
+// for, not merely about how to say it. Paint's band row dropped the reason Paint
+// exists; People's dropped the display name and the order; Social was described
+// three different ways on four surfaces. These two tests assert the invariant
+// rather than the eight strings: the strings are copy and may be rewritten, but
+// a reader must never meet two answers to the same question.
+test("the About Shiplog band reads the same on every page of the site", async () => {
+  // Rendered text, not markup: that is what a reader receives, and the band is
+  // hand-embedded in sixteen static documents, which is exactly how a wording
+  // lands on one page and not the fifteen others. The contact half is not
+  // compared — one page swaps it for a pointer at its own form, by design.
+  const rendered = [];
+  for (const file of PAGES) {
+    const document = parseHtml(await read(file));
+    rendered.push([file, [
+      textOf(document.querySelector(".site-footer-identity")),
+      textOf(document.querySelector(".site-footer-demos")),
+    ].join(" ")]);
+  }
+  const [[first, expected]] = rendered;
+  for (const [file, text] of rendered) {
+    assert.equal(text, expected, `${file} describes the site differently from ${first}`);
+  }
+  // And it is the band, not an empty one that trivially matches everywhere.
+  for (const demo of DEMOS) assert.ok(expected.includes(demo.purpose), `the band lost "${demo.label}"`);
+});
+
+test("Social is defined in one sentence, and all four surfaces that define it use those bytes", async () => {
+  // Four surfaces have to say what Social is, and a visitor may arrive at any
+  // one of them first: the home page's directory card, a post permalink pasted
+  // to them, the band at the foot of every page, and Social's own intro. A
+  // second wording for one feed is a second feed as far as a reader can tell.
+  const SENTENCE = DEMOS.find((demo) => demo.label === "Social").purpose;
+
+  const guide = parseHtml(await read("index.html")).querySelector(".site-guide");
+  const card = [...guide.querySelectorAll("li")].find((row) => row.querySelector('a[href="/social.html"]'));
+  assert.ok(Boolean(card), "the home page's directory must name Social");
+  assert.equal(textOf(card).slice("Social".length).trim(), SENTENCE,
+    "the home page's card states what Social is in its own words");
+
+  // The permalink's standing copy, outside #post-detail so it survives every
+  // state the lookup lands in.
+  const permalink = parseHtml(await read("post.html")).querySelector("#main-content");
+  assert.ok(textOf(permalink).includes(SENTENCE), "the post permalink states what Social is in its own words");
+
+  // The band, on the page a reader is most likely to meet it cold.
+  const band = parseHtml(await read("social.html")).querySelector(".site-footer-demos");
+  assert.ok(textOf(band).includes(SENTENCE), "the band states what Social is in its own words");
+
+  // And Social's own intro opens with it: whatever else the intro says about
+  // reading, publishing, or People comes after the definition, not before it.
+  const intro = textOf(parseHtml(await read("social.html")).querySelector(".hero-social").querySelectorAll("p")[1]);
+  assert.ok(intro.startsWith(SENTENCE), `Social's intro opens with "${intro.slice(0, SENTENCE.length)}"`);
+
+  // The wordings this replaces, retired everywhere rather than left in a corner.
+  for (const file of PAGES) {
+    const html = await read(file);
+    for (const retired of [
+      "read short demo posts, images optional", "the team's shared demo feed",
+      "crop or draw, then export a PNG", "hand it to a Social post yourself",
+      "about the work the team ships",
+    ]) assert.ok(!html.includes(retired), `${file} still says "${retired}"`);
   }
 });
 

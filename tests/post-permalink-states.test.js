@@ -623,7 +623,7 @@ const DEMO_SENTENCE = "Posts use no customer or production data.";
 // What Social is, for a reader who arrived on a pasted link and has never seen
 // the feed. It is context about the surface, not about this post, so it reads
 // after the post rather than in front of it.
-const CONTEXT_SENTENCE = "Social is a shared demo feed of short posts about the work the team ships, each with an optional image.";
+const CONTEXT_SENTENCE = "Social is a shared demo feed of short posts about what the team ships, images optional.";
 
 test("the words of a route out never change, and the demo sentence survives every state", async () => {
   const cases = [
