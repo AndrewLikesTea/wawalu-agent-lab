@@ -484,10 +484,10 @@ test("the front door states what this is and what it never reaches, before any s
     // The systems this never reaches are not listed twice on the first screen:
     // the entry module paints them, each with how to check it, in the privacy
     // boundary disclosure. What has to survive a dead script is the promise a
-    // visitor needs before pasting, and it is beside the button they press.
-    const privacy = textOf(byId(document, "prompt-coaching-privacy"));
-    assert.match(privacy, /Nothing you paste leaves this tab/);
-    assert.match(privacy, /no upload, no storage, and no request to a model/);
+    // visitor needs before pasting, and it is immediately before the form.
+    const privacy = textOf(document.querySelector(".prompt-coaching-entry-static"));
+    assert.match(privacy, /Grading happens in your browser/);
+    assert.match(privacy, /Pasted text is not sent to a model or stored/);
   } finally {
     page.restore();
   }
