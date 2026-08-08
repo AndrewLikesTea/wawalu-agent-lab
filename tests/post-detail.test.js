@@ -8,8 +8,6 @@ import { byClass, createElement, first, ids, installDocument, tags } from "./sup
 
 installDocument();
 
-const { FEED_LOADING_LINE } = await import("../src/social.js");
-
 const {
   POST_EXITS,
   POST_LOADING_LINE,
@@ -290,14 +288,13 @@ test("the loading state has a heading and explanatory status text", () => {
   assert.equal(status.getAttribute("role"), "status");
   assert.equal(first(status, "detail-loading-title").textContent, POST_LOADING_TITLE);
   assert.equal(first(status, "detail-loading-text").textContent, POST_LOADING_LINE);
-  assert.equal(POST_LOADING_LINE, "Loading this post…");
+  assert.equal(POST_LOADING_LINE, "Loading this post from Social’s shared demo feed…");
   // A real ellipsis, the way "Loading the Social feed…" and "Loading releases…"
   // spell it, not three periods pretending to be one.
   assert.ok(POST_LOADING_LINE.endsWith("…") && !POST_LOADING_LINE.includes("..."));
-  // The single-post form of what Social and People say while the whole feed is
-  // in flight: same verb, same shape, a narrower object. One family, not a
-  // fourth variant.
-  assert.equal(POST_LOADING_LINE, FEED_LOADING_LINE.replace("the Social feed", "this post"));
+  // The wait identifies both the Social surface and its established shared
+  // demo feed description for someone who opened the permalink cold.
+  assert.match(POST_LOADING_LINE, /^Loading this post from Social’s shared demo feed…$/);
 
   // Concise: one semantic heading, no oversized state banner, and no
   // placeholder block pretending to be an image the post may not even have.
@@ -643,7 +640,7 @@ test("loading and unavailable states say what happened in words", () => {
     first(missing, "empty-title").textContent,
     first(failed, "empty-title").textContent,
   ];
-  assert.deepEqual(titles, ["Loading post", "Post unavailable", "Post could not be loaded"]);
+  assert.deepEqual(titles, ["Loading shared Social post", "Post unavailable", "Post could not be loaded"]);
 
   // The difference has to survive with colour, icons and badges removed, so it
   // is asserted on the words themselves — no class name is read here.
