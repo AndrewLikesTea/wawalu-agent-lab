@@ -254,7 +254,8 @@ fileInput?.addEventListener("change", async (event) => {
 });
 
 try {
-  current = { preview: await loadSavingsCommitment(), origin: BUNDLED_ORIGIN };
+  const opportunityId = new URLSearchParams(globalThis.location?.search ?? "").get("opportunity");
+  current = { preview: await loadSavingsCommitment(fetch, opportunityId), origin: BUNDLED_ORIGIN };
   say("Showing the bundled example analysis. Open an exported briefing to decide on your own.");
 } catch (error) {
   console.error("savings_commitment_unavailable", {

@@ -159,7 +159,7 @@ test("the panel renders every bundled fixture with a distinguishable name", () =
   const labelledBy = articles.map((article) => article.getAttribute("aria-labelledby"));
   assert.equal(new Set(labelledBy).size, fixtures.length, "duplicate heading ids break labelling");
 
-  const names = tags(panel, "H3").map((heading) => heading.textContent);
+  const names = articles.map((article) => tags(article, "H3")[0].textContent);
   assert.equal(new Set(names).size, fixtures.length,
     "identical headings make the results indistinguishable when navigating by heading");
   for (const fixture of fixtures)
@@ -168,6 +168,8 @@ test("the panel renders every bundled fixture with a distinguishable name", () =
   // The rejected fixture is the one that proves the gate works; it has to be on
   // the page, not only in the test suite.
   assert.match(panel.textContent, /Privacy gate applied/);
+  const primary = byClass(panel, "evaluation-primary-recommendation")[0];
+  assert.match(primary.textContent, /Down-route routine support triage.*\$31,300.*85%/);
 });
 
 test("a truncated or malformed fixture payload fails closed with no invented score", () => {

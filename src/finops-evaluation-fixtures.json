@@ -1,6 +1,14 @@
 {
   "schemaVersion": "finops-fixtures/1.0.0",
   "source": "hand-authored synthetic fixtures; no stored prompts or provider calls",
+  "opportunities": [
+    {"opportunityId":"ops-down-route","department":"Customer Operations","kind":"downRoute","observedCostUsd":48200,"comparableCostUsd":16900,"statedConfidence":0.93,"amountCapUsd":40000,"evidenceRefs":["agg-ops-current","agg-ops-comparable"],"provenance":"Synthetic aggregate routing records, June 2026.","action":"Down-route routine support triage."},
+    {"opportunityId":"data-retry-control","department":"Data Platform","kind":"failedCall","observedCostUsd":18000,"statedConfidence":0.8,"amountCapUsd":7000,"evidenceRefs":["agg-data-failures","agg-data-retries"],"provenance":"Synthetic aggregate failed-call and retry records, June 2026.","action":"Add bounded retry controls for failed batch calls."},
+    {"opportunityId":"eng-duplicate-repeat","department":"Engineering","kind":"duplicateRepeat","observedCostUsd":6250,"statedConfidence":0.7,"evidenceRefs":["agg-eng-hash-count","agg-eng-cost"],"provenance":"Synthetic aggregate repeated-call hashes; prompt text excluded.","action":"Cache exact repeated transformations."},
+    {"opportunityId":"alpha-tie","department":"Platform","kind":"failedCall","observedCostUsd":10000,"statedConfidence":0.55,"evidenceRefs":["agg-alpha-a","agg-alpha-b"],"provenance":"Synthetic aggregate records.","action":"Reduce avoidable platform retries."},
+    {"opportunityId":"beta-tie","department":"Quality","kind":"failedCall","observedCostUsd":10000,"statedConfidence":0.55,"evidenceRefs":["agg-beta-a","agg-beta-b"],"provenance":"Synthetic aggregate records.","action":"Reduce avoidable quality retries."},
+    {"opportunityId":"thin-evidence","department":"Research","kind":"downRoute","observedCostUsd":9000,"comparableCostUsd":1000,"statedConfidence":0.9,"evidenceRefs":["only-one-record"],"provenance":"Synthetic incomplete aggregate.","action":"Withhold this recommendation."}
+  ],
   "fixtures": [
     {
       "id": "decision-ready",
@@ -64,4 +72,3 @@
     }
   ]
 }
-

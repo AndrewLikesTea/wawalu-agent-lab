@@ -102,6 +102,7 @@ export function createSavingsActionStore(fixture = {}) {
     );
     records.set(source.actionId, {
       actionId: source.actionId,
+      commitmentCandidateId: source.commitmentCandidateId,
       departmentId: source.departmentId,
       departmentName: source.departmentName,
       diagnosis: source.rationale,

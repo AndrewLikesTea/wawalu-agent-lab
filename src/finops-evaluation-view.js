@@ -1,5 +1,5 @@
 /** DOM rendering for already-sanitized, deterministic score records. */
-import { scoreFinopsFixture } from "./finops-evaluation.js";
+import { evaluateFinopsOpportunities, scoreFinopsFixture } from "./finops-evaluation.js";
 
 function element(tag, className, text) {
   const node = document.createElement(tag);
@@ -73,6 +73,15 @@ export function renderFinopsEvaluationPanel(payload) {
   if (!fixtures.length) {
     panel.append(renderFinopsEvaluationUnavailable(PAYLOAD_UNAVAILABLE));
     return panel;
+  }
+  if (Array.isArray(payload.opportunities)) {
+    const evaluation = evaluateFinopsOpportunities(payload);
+    if (evaluation.winner) {
+      const primary = element("article", "evaluation-primary-recommendation");
+      primary.append(element("h3", undefined, "Primary portfolio recommendation"),
+        element("p", undefined, `${evaluation.winner.action} · $${evaluation.winner.amountUsd.toLocaleString("en-US")} projected · ${Math.round(evaluation.winner.confidence * 100)}% confidence.`));
+      panel.append(primary);
+    }
   }
   for (const fixture of fixtures) {
     try {

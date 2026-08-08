@@ -373,6 +373,14 @@ test("the browser boundary reads one same-origin fixture and persists nothing", 
     [["/savings-commitment-fixture.json", { cache: "no-store", credentials: "omit" }]]);
   assert.equal(preview.commitment.commitmentId, "syn-commit-support-triage");
 
+  const followed = await loadSavingsCommitment(async () => ({
+    ok: true, json: async () => analysis(),
+  }), "syn-commit-support-triage");
+  assert.equal(followed.commitment.commitmentId, "syn-commit-support-triage");
+  await assert.rejects(loadSavingsCommitment(async () => ({
+    ok: true, json: async () => analysis(),
+  }), "substitute-candidate"), /not present/);
+
   await assert.rejects(
     loadSavingsCommitment(async () => ({ ok: false })),
     /could not be loaded/,

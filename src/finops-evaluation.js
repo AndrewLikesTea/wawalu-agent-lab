@@ -137,3 +137,58 @@ export function scoreFinopsFixture(fixture) {
   });
 }
 
+export const OPPORTUNITY_POLICY = Object.freeze({
+  version: "finops-opportunity/1.0.0",
+  weights: Object.freeze({
+    downRoute: Object.freeze({ value: 1, assumption: "A demonstrated cheaper route makes the full like-for-like cost difference recoverable." }),
+    failedCall: Object.freeze({ value: 0.5, assumption: "Half of failed-call spend is recoverable; some failures are not prevented by retry controls." }),
+    duplicateRepeat: Object.freeze({ value: 0.8, assumption: "Repeated identical calls are 80% recoverable because one original execution remains necessary." }),
+  }),
+  caps: Object.freeze({
+    comparableRoute: Object.freeze({ value: 0.85, assumption: "A same-department comparison caps confidence at 85%; it is evidence, not a controlled trial." }),
+    aggregateOnly: Object.freeze({ value: 0.55, assumption: "Aggregate counts without a comparable route cap confidence at 55%." }),
+  }),
+  minimumEvidence: 2,
+  minimumEvidenceAssumption: "Two independent aggregate records are the minimum for an executive-ranked opportunity.",
+});
+
+/** Pure ranking over synthetic aggregate facts; no prompt content is accepted. */
+export function evaluateFinopsOpportunities(payload) {
+  const rows = Array.isArray(payload?.opportunities) ? payload.opportunities : [];
+  const seen = new Set();
+  const opportunities = rows.map((row) => {
+    const opportunityId = String(row?.opportunityId ?? "");
+    if (!FIXTURE_ID_PATTERN.test(opportunityId)) throw new TypeError("Opportunity id must be a lower-case slug.");
+    if (seen.has(opportunityId))
+      return Object.freeze({ opportunityId, eligible: false, reason: "duplicate-repeat", amountUsd: 0 });
+    seen.add(opportunityId);
+    const evidenceRefs = [...new Set(Array.isArray(row.evidenceRefs) ? row.evidenceRefs : [])];
+    const policy = OPPORTUNITY_POLICY.weights[row.kind];
+    if (!policy || !Number.isFinite(row.observedCostUsd) || row.observedCostUsd < 0)
+      throw new TypeError(`${opportunityId}: kind and observedCostUsd must be valid.`);
+    if (evidenceRefs.length < OPPORTUNITY_POLICY.minimumEvidence)
+      return Object.freeze({ opportunityId, eligible: false, reason: "insufficient-evidence", amountUsd: 0, evidenceRefs: Object.freeze(evidenceRefs) });
+    const raw = row.kind === "downRoute"
+      ? Math.max(0, row.observedCostUsd - Number(row.comparableCostUsd))
+      : row.observedCostUsd * policy.value;
+    const amountUsd = Math.round(Math.min(raw, Number.isFinite(row.amountCapUsd) ? row.amountCapUsd : raw));
+    const cap = row.comparableCostUsd === undefined
+      ? OPPORTUNITY_POLICY.caps.aggregateOnly : OPPORTUNITY_POLICY.caps.comparableRoute;
+    return Object.freeze({
+      opportunityId, department: sanitizeFinopsRecommendation(row.department), kind: row.kind,
+      eligible: amountUsd > 0, reason: amountUsd > 0 ? null : "no-positive-saving", amountUsd,
+      amountAssumption: policy.assumption, confidence: Math.min(Number(row.statedConfidence), cap.value),
+      confidenceCap: cap.value, confidenceAssumption: cap.assumption,
+      evidenceRefs: Object.freeze(evidenceRefs), provenance: sanitizeFinopsRecommendation(row.provenance),
+      action: sanitizeFinopsRecommendation(row.action),
+    });
+  });
+  const ranked = opportunities.filter((row) => row.eligible).sort((a, b) =>
+    b.amountUsd - a.amountUsd || b.confidence - a.confidence
+      || a.opportunityId.localeCompare(b.opportunityId));
+  return Object.freeze({
+    policyVersion: OPPORTUNITY_POLICY.version, opportunities: Object.freeze(opportunities),
+    ranked: Object.freeze(ranked), winner: ranked[0] ?? null,
+    portfolioTotalUsd: ranked.reduce((sum, row) => sum + row.amountUsd, 0),
+  });
+}

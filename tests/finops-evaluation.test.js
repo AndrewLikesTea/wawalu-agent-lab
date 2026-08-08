@@ -2,15 +2,17 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import {
-  FINOPS_RUBRIC, sanitizeFinopsRecommendation, scoreFinopsFixture,
+  evaluateFinopsOpportunities, FINOPS_RUBRIC, OPPORTUNITY_POLICY,
+  sanitizeFinopsRecommendation, scoreFinopsFixture,
 } from "../src/finops-evaluation.js";
 import { renderFinopsEvaluation } from "../src/finops-evaluation-view.js";
 import { byClass, installDocument, tags } from "./support/dom.js";
 
 installDocument();
-const fixtures = JSON.parse(await readFile(
+const payload = JSON.parse(await readFile(
   new URL("../src/finops-evaluation-fixtures.json", import.meta.url), "utf8",
-)).fixtures;
+));
+const fixtures = payload.fixtures;
 
 test("rubric is versioned and every weight states its assumption", () => {
   assert.match(FINOPS_RUBRIC.version, /^finops-recommendation\/\d+\.\d+\.\d+$/);
@@ -89,4 +91,29 @@ test("invalid or unexplained ratings never become executive scores", () => {
   const unexplained = structuredClone(fixtures[0]);
   unexplained.evidence.uncertainty = "";
   assert.throws(() => scoreFinopsFixture(unexplained), /uncertainty/);
+});
+
+test("bundled opportunities reproduce amounts, caps, provenance, totals, and ranking", () => {
+  const result = evaluateFinopsOpportunities(payload);
+  assert.equal(result.policyVersion, OPPORTUNITY_POLICY.version);
+  assert.deepEqual(result.ranked.map((row) => [row.opportunityId, row.amountUsd]), [
+    ["ops-down-route", 31300], ["data-retry-control", 7000],
+    ["alpha-tie", 5000], ["beta-tie", 5000], ["eng-duplicate-repeat", 5000],
+  ]);
+  assert.equal(result.portfolioTotalUsd, 53300);
+  assert.equal(result.winner.opportunityId, "ops-down-route");
+  for (const row of result.ranked) {
+    assert.ok(row.amountAssumption);
+    assert.ok(row.confidenceAssumption);
+    assert.ok(row.provenance);
+    assert.ok(row.evidenceRefs.length >= OPPORTUNITY_POLICY.minimumEvidence);
+    assert.ok(row.confidence <= row.confidenceCap);
+  }
+  assert.equal(result.ranked.find((row) => row.opportunityId === "data-retry-control").confidence, 0.55);
+  assert.ok(result.ranked.some((row) => row.kind === "duplicateRepeat"));
+  assert.equal(result.opportunities.find((row) => row.opportunityId === "thin-evidence").reason,
+    "insufficient-evidence");
+
+  const reordered = { ...payload, opportunities: [...payload.opportunities].reverse() };
+  assert.deepEqual(evaluateFinopsOpportunities(reordered).ranked, result.ranked);
 });

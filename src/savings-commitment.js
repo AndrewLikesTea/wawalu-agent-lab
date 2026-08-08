@@ -729,7 +729,7 @@ export const SAVINGS_COMMITMENT_FIXTURE_URL = "/savings-commitment-fixture.json"
  * Read the bundled synthetic analysis and build its preview. This is the only
  * I/O in the module, it is same-origin, and nothing it returns is persisted.
  */
-export async function loadSavingsCommitment(fetcher = fetch) {
+export async function loadSavingsCommitment(fetcher = fetch, opportunityId = null) {
   const response = await fetcher(SAVINGS_COMMITMENT_FIXTURE_URL, {
     cache: "no-store",
     credentials: "omit",
@@ -737,5 +737,11 @@ export async function loadSavingsCommitment(fetcher = fetch) {
   if (!response?.ok) {
     throw new Error("The bundled savings-commitment analysis could not be loaded.");
   }
-  return buildSavingsCommitment(await response.json());
+  const analysis = await response.json();
+  if (opportunityId !== null && !analysis.candidates?.some((row) => row.candidateId === opportunityId))
+    throw new Error("The requested opportunity is not present in the bundled savings-commitment analysis.");
+  const preview = buildSavingsCommitment(analysis);
+  if (opportunityId !== null && preview.commitment?.commitmentId !== opportunityId)
+    throw new Error("The requested opportunity is not the validated primary commitment.");
+  return preview;
 }

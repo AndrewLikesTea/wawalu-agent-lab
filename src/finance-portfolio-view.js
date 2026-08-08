@@ -74,9 +74,9 @@ function usdOrUnavailable(value, fallback = "Unavailable") {
   return Number.isFinite(value) ? formatUsd(value) : fallback;
 }
 
-function commitmentLink(label = "Continue to commitment") {
+function commitmentLink(opportunityId, label = "Continue to commitment") {
   const link = element("a", "primary-button", label);
-  link.href = "/savings-commitment.html";
+  link.href = `/savings-commitment.html?opportunity=${encodeURIComponent(opportunityId)}`;
   return link;
 }
 
@@ -100,7 +100,7 @@ export function renderRecommendedAction(portfolio, action) {
     `${safeText(action.departmentName, "Department unavailable")} · ${safeText(action.accountableRole, "Owner unassigned")}`);
 
   const actionRow = element("div", "portfolio-recommendation-action");
-  actionRow.append(commitmentLink(), element("p", undefined,
+  actionRow.append(commitmentLink(action.commitmentCandidateId ?? action.actionId), element("p", undefined,
     `Next step: ${nextStepText(action)} Then record it in the existing commitment workflow.`));
   // The lead recommendation carries the same evidence disclosure as a card. A
   // recommendation a leader cannot trace back to its evidence is an assertion,

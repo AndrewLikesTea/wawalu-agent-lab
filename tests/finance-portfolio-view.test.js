@@ -19,6 +19,7 @@ const {
   renderRemainingOpportunities, safeText,
 } = await import("../src/finance-portfolio-view.js");
 const { createFinancePortfolio } = await import("../src/finance-portfolio.js");
+const { loadSavingsCommitment } = await import("../src/savings-commitment.js");
 
 const fixture = JSON.parse(await readFile(
   new URL("../src/evolution-demo-data.json", import.meta.url), "utf8",
@@ -96,7 +97,7 @@ test("the painted panel renders hostile export text as inert text end to end", (
   // written in the module. No fixture value reaches a URL or a listener.
   const links = tags(nodes.list, "A");
   assert.equal(links.length, 1);
-  assert.equal(links[0].href, "/savings-commitment.html");
+  assert.equal(links[0].href, "/savings-commitment.html?opportunity=syn-commit-support-triage");
   for (const node of walk(nodes.list, () => true))
     assert.deepEqual(Object.keys(node.listeners ?? {}), [], node.tagName);
 });
@@ -347,8 +348,22 @@ test("the primary state leads with exactly one ranked action and commitment hand
   assert.match(recommendation.textContent, /Recoverable spend benchmark.*Confidence.*Owning department/);
   const links = tags(recommendation, "A");
   assert.equal(links.length, 1);
-  assert.equal(links[0].href, "/savings-commitment.html");
+  assert.equal(links[0].href, "/savings-commitment.html?opportunity=syn-commit-support-triage");
   assert.equal(links[0].textContent, "Continue to commitment");
+});
+
+test("the exact rendered primary link loads and validates its destination fixture candidate", async () => {
+  const nodes = panel();
+  mountFinancePortfolio(createFinancePortfolio(fixture), nodes);
+  const href = tags(nodes.list.children[0], "A")[0].href;
+  const opportunityId = new URL(href, "https://example.invalid").searchParams.get("opportunity");
+  const destination = JSON.parse(await readFile(
+    new URL("../src/savings-commitment-fixture.json", import.meta.url), "utf8"));
+  assert.ok(destination.candidates.some((row) => row.candidateId === opportunityId));
+  const preview = await loadSavingsCommitment(async () => ({
+    ok: true, json: async () => destination,
+  }), opportunityId);
+  assert.equal(preview.commitment.commitmentId, opportunityId);
 });
 
 test("multiple opportunities consolidate related findings behind native disclosure", () => {
