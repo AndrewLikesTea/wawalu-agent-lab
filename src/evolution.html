@@ -862,36 +862,54 @@
         <p class="visually-hidden" id="finops-stand-live" role="status" aria-live="polite" aria-atomic="true"></p>
       </section>
 
-      <!-- READINESS, READ AFTER THE ANSWER IT QUALIFIES (#1391). It sits below
-           #finops-stand on purpose: "can I trust a recommendation now" is a
-           question about the answer above it, so placing it higher would put a
-           qualifier where the page's one answer belongs. It ranks nothing — the
-           action it quotes is the record finops-bundled-next-step.js already
-           derived and the regions above already paint. Its disclosures are the
-           plain `figure-source` idiom, NOT the three-part `how-we-know` control:
-           that pattern is exactly three regions with exactly the parts
-           Provenance/Basis/Limits, and a fourth half-copy would fork a control
-           the page teaches once. -->
-      <section class="finops-recoverable-answer" id="finops-analysis-readiness" data-level="illustrative_only" data-subordinate="true" data-workspace-frame="true" aria-labelledby="analysis-readiness-question">
+      <!-- READINESS, READ AFTER THE ANSWER IT QUALIFIES (#1391), IN ONE ORDER
+           (#1394). It sits below #finops-stand on purpose: "can I trust a
+           recommendation now" is a question about the answer above it. Inside
+           it, the DOM order IS the reading order and the focus order — scenario,
+           the one primary finding, the confidence and provenance cues, the
+           recommended action, then the working — and it is declared once, as
+           DECISION_ORDER in src/finops-first-analysis-decision.js, which
+           tests/finops-first-analysis-decision.test.js asserts these children
+           against. No CSS `order`, no absolute positioning and no reversed flex
+           appears here, so a 320px viewport reflows the same sequence instead of
+           lifting the action above the finding it depends on.
+
+           IT RANKS NOTHING AND SHIPS NO CONTROL. The action it names is the
+           finops-bundled-next-step record the regions above already paint, and
+           the operable control is this page's one #finops-recoverable-action; a
+           second copy would fork the ranking #1020 closed and would take a tab
+           stop the first screen does not have. The only focusable nodes here are
+           the two native disclosure summaries below.
+
+           EVERY SLOT SHIPS IN ITS LOADING STATE — what a reader sees before the
+           module runs — and the cue chips are BUILT by the view, so no chip
+           markup is authored per state. Colour is never the only carrier: each
+           chip ships a shape, a word and a value off the `.import-chip`
+           vocabulary evolution.css already declares (filled wash = dynamic
+           signal, outline = static classification, per the Claude Design
+           foundations card). NO RULE IS ADDED TO ANY STYLESHEET. -->
+      <section class="finops-recoverable-answer" id="finops-analysis-readiness" data-level="pending" data-state="loading" data-subordinate="true" data-workspace-frame="true" aria-labelledby="analysis-readiness-question">
         <p class="eyebrow">Analysis readiness</p>
         <h2 id="analysis-readiness-question">Can I get a trustworthy savings recommendation now?</h2>
-        <p class="stand-answer" id="analysis-readiness-verdict">Yes for an illustrative scenario recommendation; no for an organization-specific savings commitment.</p>
-        <p class="stand-figure" id="analysis-readiness-benchmark">Readiness is calculated from four required evidence categories.</p>
-        <p class="stand-answer" id="analysis-readiness-evidence">Current evidence is limited to bundled synthetic scenarios.</p>
-        <p class="stand-answer" id="analysis-readiness-limit">No conclusion about your organization is supported.</p>
-        <p class="stand-answer" id="analysis-readiness-action">The prioritized illustrative action is read from the bundled scenario's own next-step record.</p>
+        <p class="stand-figure-basis" id="analysis-readiness-scenario">Reading one bundled provider-export-shaped scenario.</p>
+        <p class="answer-figure" id="analysis-readiness-finding"><span class="stand-figure-label" id="analysis-readiness-finding-label">Primary finding</span> <span class="stand-figure-value" id="analysis-readiness-finding-value" data-available="false">Not analysed yet</span> <span class="stand-figure-basis" id="analysis-readiness-verdict">Working out whether the bundled evidence supports a recommendation.</span></p>
+        <p class="brief-provenance-line" id="analysis-readiness-cues"><span class="import-chip" id="analysis-readiness-level" data-kind="signal" data-tone="neutral"><span class="import-chip-shape" aria-hidden="true">◌</span> Readiness <span class="import-chip-value">not scored yet</span></span></p>
+        <p class="stand-figure" id="analysis-readiness-act"><span class="stand-figure-label" id="analysis-readiness-act-label">Recommended next action</span> <span class="stand-answer" id="analysis-readiness-action">No action is quoted until the bundled scenario has been read.</span> <span class="stand-figure-basis" id="analysis-readiness-act-basis">Its evidence is one press down, under “Why we think so”.</span></p>
+        <p class="visually-hidden" id="analysis-readiness-live" role="status" aria-live="polite" aria-atomic="true"></p>
+        <p class="stand-figure-basis" id="analysis-readiness-limit">No conclusion about your organization is supported.</p>
         <details class="figure-source" id="analysis-readiness-how-we-know">
-          <summary class="figure-source-summary"><span class="figure-source-state"><span class="figure-source-shape" aria-hidden="true">▸</span> Inspect the figure, confidence, and provenance</span></summary>
+          <summary class="figure-source-summary"><span class="figure-source-state"><span class="figure-source-shape" aria-hidden="true">▸</span> Why we think so — the figure, its confidence and its provenance</span></summary>
           <dl class="figure-source-detail">
             <div><dt>Modelled recoverable line</dt><dd id="analysis-readiness-value">Read from the bundled scenario's own next-step record.</dd></div>
             <div><dt>Action confidence</dt><dd id="analysis-readiness-action-confidence">Read from the quoted fixture action.</dd></div>
             <div><dt>Why this one</dt><dd id="analysis-readiness-reason">Read from the page's one derived next-step record.</dd></div>
             <div><dt>Provenance</dt><dd id="analysis-readiness-provenance">Bundled synthetic fixture.</dd></div>
             <div><dt>Evidence confidence</dt><dd id="analysis-readiness-confidence">Computed from the evidence categories the bundled scenario carries.</dd></div>
+            <div><dt>Evidence held</dt><dd id="analysis-readiness-evidence">Current evidence is limited to bundled synthetic scenarios.</dd></div>
           </dl>
         </details>
         <details class="figure-source" id="analysis-readiness-upgrade-detail">
-          <summary class="figure-source-summary"><span class="figure-source-state"><span class="figure-source-shape" aria-hidden="true">▸</span> What later evidence would enable</span></summary>
+          <summary class="figure-source-summary"><span class="figure-source-state"><span class="figure-source-shape" aria-hidden="true">▸</span> Assumptions, and what later evidence would enable</span></summary>
           <ul class="figure-source-detail" id="analysis-readiness-upgrades"></ul>
         </details>
       </section>

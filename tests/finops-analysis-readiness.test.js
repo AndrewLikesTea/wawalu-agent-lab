@@ -69,8 +69,12 @@ test("the active analysis surface answers readiness and makes the one action ins
   renderAnalysisReadiness(document, result);
   const region = document.getElementById("finops-analysis-readiness");
   assert.equal(region.dataset.level, "illustrative_only");
+  assert.equal(region.dataset.state, "ready");
   assert.equal(region.querySelectorAll("#analysis-readiness-action").length, 1);
-  assert.match(textOf(document.getElementById("analysis-readiness-benchmark")), /50\/100 · 2 of 4/);
+  // The benchmark is a labelled cue chip now rather than a sentence of its own
+  // (#1394): the score, the count and the word for the level travel together.
+  assert.match(textOf(document.getElementById("analysis-readiness-level")),
+    /Readiness illustrative only · 50\/100 · 2 of 4 categories/);
   assert.match(textOf(document.getElementById("analysis-readiness-action")),
     new RegExp(result.recommendation.department));
   assert.match(textOf(document.getElementById("analysis-readiness-value")),
@@ -78,9 +82,11 @@ test("the active analysis surface answers readiness and makes the one action ins
   assert.match(textOf(document.getElementById("analysis-readiness-action-confidence")), /74\/100/);
   assert.match(textOf(document.getElementById("analysis-readiness-provenance")),
     new RegExp(result.recommendation.id));
+  // Two stated assumptions, then the two categories that fell short.
   const upgrades = document.getElementById("analysis-readiness-upgrades").querySelectorAll("li");
-  assert.equal(upgrades.length, 2);
-  for (const row of upgrades) {
+  assert.equal(upgrades.length, 4);
+  assert.match(textOf(upgrades[0]), /^Assumption:/);
+  for (const row of upgrades.slice(2)) {
     assert.match(textOf(row), /reduces/);
     assert.match(textOf(row), /enables/);
   }

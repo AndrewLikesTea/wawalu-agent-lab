@@ -252,7 +252,7 @@ import {
   NEXT_STEP_DATA_STATE, bundledFirstAction, nextStepDataState, withDerivedFirstAction,
 } from "/finops-bundled-next-step.js";
 import { renderBundledNextStep } from "/finops-bundled-next-step-view.js";
-import { analysisReadiness } from "/finops-bundled-scenarios.js";
+import { BUNDLED_SCENARIO_IDS, analysisReadiness } from "/finops-bundled-scenarios.js";
 import { renderAnalysisReadiness } from "/finops-analysis-readiness-view.js";
 // Whether the letter may be shown at all is decided before it is drawn: the
 // score card is a roll-up of only the departments the rubric actually scored.
@@ -5349,7 +5349,10 @@ async function init() {
 // Painted before init() so the evidence gate is answered on first paint rather
 // than after the bundled analysis loads. It reads only the bundled package.
 renderOwnDataEvidencePreflight(document, assessOwnDataEvidence(BUNDLED_OWN_DATA_EVIDENCE));
-const bundledAnalysis = analysisReadiness({ scenarioId: "aws-bedrock-cur-v1" });
-renderAnalysisReadiness(document, bundledAnalysis.ok ? bundledAnalysis.readiness : null);
+// The whole envelope, refusal included: a registry that refuses the request is
+// the region's error state, and passing only the readiness would paint the
+// loading state forever over a failure the reader is never told about (#1394).
+const bundledAnalysis = analysisReadiness({ scenarioId: BUNDLED_SCENARIO_IDS[0] });
+renderAnalysisReadiness(document, bundledAnalysis, { scenarioIds: BUNDLED_SCENARIO_IDS });
 
 init();
