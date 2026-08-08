@@ -27,6 +27,12 @@ export const GUIDED_IDS = Object.freeze({
   departmentBody: "finops-guided-department-body",
 });
 
+export const GUIDED_VIEW_STATE = Object.freeze({
+  loading: "loading", ready: "ready", empty: "empty", error: "error", extreme: "extreme",
+});
+
+const MAX_GUIDED_USD = 1_000_000_000_000;
+
 let selected = DEFAULT_GUIDED_SCENARIO;
 
 /** The one selected scenario id. Exported for the page, not for a re-render. */
@@ -57,10 +63,72 @@ const rows = (doc, entries) => {
 };
 
 const disclosure = (doc, summaryText, nodes) => {
-  const details = el(doc, "details", "figure-source");
+  const details = el(doc, "details", "figure-source guided-support");
   details.append(el(doc, "summary", "figure-source-summary", summaryText), ...nodes);
   return details;
 };
+
+const labelled = (doc, className, label, value, shape = null, shapeRole = "status-shape") => {
+  const node = el(doc, "p", className);
+  if (shape) node.append(el(doc, "span", `${shapeRole} guided-shape`, shape));
+  node.append(el(doc, "span", "guided-label", label), el(doc, "span", "guided-value", value));
+  if (shape) node.firstChild.setAttribute("aria-hidden", "true");
+  return node;
+};
+
+const stateMessage = (doc, state, { onRetry } = {}) => {
+  const copy = {
+    loading: ["Analysis pending", "Waiting for the page result", "The finding and action will appear here."],
+    empty: ["No analysis", "No bundled scenarios are available.", "Choose a scenario when one becomes available."],
+    error: ["Analysis error", "This scenario could not be analyzed.", "Try the analysis again. Nothing was uploaded."],
+    extreme: ["Value withheld", "This result is outside the supported display range.",
+      "Choose another scenario and verify the source figures before acting."],
+  }[state];
+  const message = el(doc, "div", "guided-state-message");
+  message.append(
+    labelled(doc, "guided-state-label", copy[0], copy[1], state === "error" ? "!" : "○"),
+    el(doc, "p", "guided-state-remedy", copy[2]),
+  );
+  if (state === GUIDED_VIEW_STATE.error && onRetry) {
+    const retry = el(doc, "button", "guided-retry", "Try analysis again");
+    retry.setAttribute("type", "button");
+    retry.addEventListener("click", onRetry);
+    message.append(retry);
+  }
+  return message;
+};
+
+const implausible = (model) => {
+  const amounts = [model?.department?.spend, model?.department?.recoverable]
+    .map((value) => Number(String(value ?? "").replace(/[$,]/g, "")));
+  return amounts.some((value) => !Number.isFinite(value) || value < 0 || value > MAX_GUIDED_USD);
+};
+
+/** Paint every non-successful state into the same region and reading position
+ * as the result it replaces. This is also the error boundary used at mount. */
+export function renderGuidedState(doc, state, options = {}) {
+  const host = doc.getElementById(GUIDED_IDS.chooser);
+  if (!host || !Object.values(GUIDED_VIEW_STATE).includes(state) || state === GUIDED_VIEW_STATE.ready) {
+    return null;
+  }
+  host.dataset.state = state;
+  host.setAttribute("aria-busy", state === GUIDED_VIEW_STATE.loading ? "true" : "false");
+  // Paint into the result region when the chooser has been built, and over the
+  // whole host only before it exists. A state whose remedy reads "choose another
+  // scenario" must not be the state that deletes the control naming it — and a
+  // select replaced here is a select whose change listener leaves with it.
+  (doc.getElementById(GUIDED_IDS.summary) ?? host).replaceChildren(stateMessage(doc, state, options));
+  for (const [bodyId, titleId, label] of [
+    [GUIDED_IDS.evidenceBody, GUIDED_IDS.evidenceTitle, "Evidence"],
+    [GUIDED_IDS.departmentBody, GUIDED_IDS.departmentTitle, "Department detail"],
+  ]) {
+    const body = doc.getElementById(bodyId);
+    if (body) body.replaceChildren(stateMessage(doc, state));
+    const title = doc.getElementById(titleId);
+    if (title) title.textContent = `${label} · ${state === GUIDED_VIEW_STATE.loading ? "loading" : "unavailable"}`;
+  }
+  return host;
+}
 
 const destinationLink = (doc, scenarioId, destination, text) => {
   const link = el(doc, "a", "front-door-question", text);
@@ -79,6 +147,9 @@ const destinationLink = (doc, scenarioId, destination, text) => {
 export function renderGuidedChooser(doc, model) {
   const host = doc.getElementById(GUIDED_IDS.chooser);
   if (!host || !model) return null;
+  if (implausible(model)) return renderGuidedState(doc, GUIDED_VIEW_STATE.extreme);
+  host.dataset.state = GUIDED_VIEW_STATE.ready;
+  host.setAttribute("aria-busy", "false");
   // The control is built once and then kept: a select replaced on every repaint
   // is a control whose listener, and whose keyboard focus, quietly go with the
   // node it used to be.
@@ -95,7 +166,7 @@ export function renderGuidedChooser(doc, model) {
       option.setAttribute("value", scenario.id);
       control.append(option);
     }
-    const summary = doc.createElement("div");
+    const summary = el(doc, "article", "guided-analysis");
     summary.setAttribute("id", GUIDED_IDS.summary);
     host.replaceChildren(label, control, summary);
   }
@@ -106,25 +177,38 @@ export function renderGuidedChooser(doc, model) {
     else option.removeAttribute("selected");
   }
   doc.getElementById(GUIDED_IDS.summary).replaceChildren(
-    el(doc, "p", "stand-answer", model.answer),
-    el(doc, "p", "stand-figure", model.benchmark),
-    line(doc, "stand-answer", "Impact", model.impact),
-    line(doc, "stand-answer", "Why this matters", model.whyItMatters),
-    line(doc, "stand-answer", "Confidence", model.confidence),
-    line(doc, "stand-answer", "Provenance", model.provenance),
-    el(doc, "p", "stand-answer", `Do this first: ${model.action.text}`
-      + ` ${model.action.team} is the team that should take it.`),
-    disclosure(doc, "How this was calculated", [
+    el(doc, "h3", "guided-finding-label", "Primary finding"),
+    el(doc, "p", "guided-finding", model.answer),
+    labelled(doc, "guided-benchmark", "Material benchmark", model.benchmark),
+    el(doc, "div", "guided-trust"),
+    el(doc, "section", "guided-action"),
+    disclosure(doc, "Supporting assumptions and calculation", [
       rows(doc, [
+        { term: "Impact", detail: model.impact },
+        { term: "Why this matters", detail: model.whyItMatters },
         { term: "Why this action is ranked first", detail: model.action.reason },
         { term: "What this figure is not", detail: model.limitation },
         ...model.assumptions.map((text, index) => ({ term: `Assumption ${index + 1}`, detail: text })),
       ]),
     ]),
+  );
+  const trust = doc.getElementById(GUIDED_IDS.summary).querySelector(".guided-trust");
+  trust.setAttribute("aria-label", "Confidence and provenance");
+  trust.append(
+    labelled(doc, "guided-signal", "Confidence", model.confidence, "●", "status-shape"),
+    labelled(doc, "guided-signal", "Provenance", model.provenance, "◇", "provenance-shape"),
+  );
+  const action = doc.getElementById(GUIDED_IDS.summary).querySelector(".guided-action");
+  action.append(
+    el(doc, "h3", "guided-action-label", "Prioritized next action"),
+    el(doc, "p", "guided-action-text", model.action.text),
+    el(doc, "p", "guided-action-owner", `${model.action.team} is the team that should take it first.`),
+  );
+  doc.getElementById(GUIDED_IDS.summary).append(
     destinationLink(doc, model.scenarioId, GUIDED_DESTINATION.evidence,
       `See the evidence behind ${model.label}`),
     destinationLink(doc, model.scenarioId, GUIDED_DESTINATION.department,
-      `See ${model.action.team}'s department detail`),
+      `Open ${model.action.team}'s department detail`),
   );
   return host;
 }
@@ -182,7 +266,10 @@ export function renderGuidedDepartment(doc, model) {
  */
 export function applyGuidedScenario(doc, scenarioId, { announce = false, focus = null } = {}) {
   const model = guidedAnalysis(scenarioId);
-  if (!model) return null;
+  if (!model) {
+    renderGuidedState(doc, GUIDED_VIEW_STATE.empty);
+    return null;
+  }
   selected = model.scenarioId;
   const choice = doc.getElementById(GUIDED_IDS.choice);
   if (choice) choice.dataset.guidedScenario = model.scenarioId;
@@ -213,7 +300,14 @@ export function installGuidedFirstAnalysis(doc, { location = null, history = nul
   const landing = !named ? null
     : fragment === GUIDED_DESTINATION.evidence ? "evidence"
       : fragment === GUIDED_DESTINATION.department ? "department" : null;
-  const model = applyGuidedScenario(doc, chosen, { focus: landing });
+  const retry = () => installGuidedFirstAnalysis(doc, { location, history });
+  renderGuidedState(doc, GUIDED_VIEW_STATE.loading);
+  let model = null;
+  try {
+    model = applyGuidedScenario(doc, chosen, { focus: landing });
+  } catch {
+    renderGuidedState(doc, GUIDED_VIEW_STATE.error, { onRetry: retry });
+  }
   const select = doc.getElementById(GUIDED_IDS.select);
   select?.addEventListener("change", (event) => {
     const next = event?.target?.value ?? select.value;

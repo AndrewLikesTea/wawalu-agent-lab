@@ -16,9 +16,10 @@ import {
   guidedAnalysis, guidedScenarioAddress, guidedScenarioFromAddress,
 } from "../src/finops-guided-first-analysis.js";
 import {
-  GUIDED_IDS, applyGuidedScenario, installGuidedFirstAnalysis, selectedGuidedScenario,
+  GUIDED_IDS, GUIDED_VIEW_STATE, applyGuidedScenario, installGuidedFirstAnalysis,
+  renderGuidedChooser, renderGuidedState, selectedGuidedScenario,
 } from "../src/finops-guided-first-analysis-view.js";
-import { parseHtml, textOf } from "./support/browser.js";
+import { parseHtml, pressEnter, tabSequence, textOf } from "./support/browser.js";
 
 const html = await readFile(new URL("../src/evolution.html", import.meta.url), "utf8");
 
@@ -178,12 +179,113 @@ test("the primary surface answers one question and states one prioritized action
   applyGuidedScenario(document, AZURE);
   assert.match(text(document, "finops-guided-question"), /\?$/);
   const summary = text(document, GUIDED_IDS.summary);
-  assert.match(summary, /Do this first: .*Developer Experience is the team that should take it\./);
+  assert.match(summary, /Prioritized next action.*Developer Experience is the team that should take it first\./);
   assert.match(summary, /Evidence confidence/);
   assert.match(summary, /computed locally in this browser/);
   assert.match(summary, /% of that department's modelled spend/);
-  // One action, said once: a second "do this first" is a second ranking.
-  assert.equal(summary.match(/Do this first:/g).length, 1);
+  assert.equal(byId(document, GUIDED_IDS.summary).querySelectorAll(".guided-action").length, 1,
+    "a second action region is a second ranking");
+});
+
+test("the semantic and visual reading order is finding, trust, action, then support", () => {
+  const document = parseHtml(html);
+  applyGuidedScenario(document, GOOGLE);
+  const summary = byId(document, GUIDED_IDS.summary);
+  const positions = [".guided-finding", ".guided-trust", ".guided-action", ".guided-support"]
+    .map((selector) => summary.children.indexOf(summary.querySelector(selector)));
+  assert.deepEqual(positions, [...positions].sort((a, b) => a - b));
+  assert.ok(positions.every((position) => position >= 0));
+  const support = summary.querySelector(".guided-support");
+  assert.equal(support.tagName, "DETAILS");
+  assert.equal(support.querySelector("summary")?.tagName, "SUMMARY");
+});
+
+test("the native support disclosure is keyboard reachable and exposes open and closed states", () => {
+  const document = parseHtml(html);
+  applyGuidedScenario(document, GOOGLE);
+  const details = byId(document, GUIDED_IDS.summary).querySelector("details");
+  const summary = details.querySelector("summary");
+  assert.ok(tabSequence(document).includes(summary));
+  assert.equal(details.hasAttribute("open"), false);
+  summary.focus();
+  pressEnter(document);
+  assert.equal(details.hasAttribute("open"), true);
+  pressEnter(document);
+  assert.equal(details.hasAttribute("open"), false);
+});
+
+test("loading, empty, error, and implausible extremes replace numbers with a named remedy", () => {
+  const cases = [
+    [GUIDED_VIEW_STATE.loading, /Waiting for the page result.*finding and action/],
+    [GUIDED_VIEW_STATE.empty, /No bundled scenarios.*Choose a scenario/],
+    [GUIDED_VIEW_STATE.error, /could not be analyzed.*Try the analysis again/],
+  ];
+  for (const [state, expected] of cases) {
+    const document = parseHtml(html);
+    renderGuidedState(document, state);
+    const host = byId(document, GUIDED_IDS.chooser);
+    assert.equal(host.dataset.state, state);
+    assert.match(textOf(host), expected);
+    assert.equal(host.getAttribute("aria-busy"), state === GUIDED_VIEW_STATE.loading ? "true" : "false");
+    assert.match(text(document, GUIDED_IDS.evidenceTitle), state === GUIDED_VIEW_STATE.loading
+      ? /loading/ : /unavailable/);
+    assert.match(text(document, GUIDED_IDS.departmentBody), expected);
+  }
+
+  const retryDocument = parseHtml(html);
+  let retries = 0;
+  renderGuidedState(retryDocument, GUIDED_VIEW_STATE.error, { onRetry: () => { retries += 1; } });
+  const retry = byId(retryDocument, GUIDED_IDS.chooser).querySelector("button");
+  assert.ok(tabSequence(retryDocument).includes(retry));
+  retry.click();
+  assert.equal(retries, 1);
+
+  const document = parseHtml(html);
+  const ordinary = guidedAnalysis(GOOGLE);
+  renderGuidedChooser(document, {
+    ...ordinary, department: { ...ordinary.department, recoverable: "$1,000,000,000,001" },
+  });
+  const host = byId(document, GUIDED_IDS.chooser);
+  assert.equal(host.dataset.state, GUIDED_VIEW_STATE.extreme);
+  assert.match(textOf(host), /outside the supported display range.*Choose another scenario/);
+  assert.doesNotMatch(textOf(host), /1,000,000,000,001/);
+});
+
+// Whitespace is dropped, not collapsed: authored markup carries the newlines
+// between its elements and a built node carries none, and that difference is
+// the one difference between these two that nobody has to be told about.
+const flat = (node) => textOf(node).replace(/\s+/g, "");
+
+test("the pending state served in the document is the module's own, not a second copy of it", () => {
+  // #944's rule for this page's first screen: what a reader gets before the
+  // entry runs is composed by the module that paints the region, so it cannot
+  // drift from it. This block is authored by hand — it is the ONE state no
+  // module can have painted yet — so the drift has to be caught here instead.
+  const authored = byId(parseHtml(html), GUIDED_IDS.chooser);
+  const painted = parseHtml(html);
+  renderGuidedState(painted, GUIDED_VIEW_STATE.loading);
+  assert.equal(authored.dataset.state, GUIDED_VIEW_STATE.loading);
+  assert.equal(authored.getAttribute("aria-busy"), "true");
+  assert.equal(flat(authored), flat(byId(painted, GUIDED_IDS.chooser)),
+    "the served pending copy must be the wording renderGuidedState paints");
+});
+
+test("a withheld extreme keeps the control its own remedy tells the reader to use", () => {
+  const document = parseHtml(html);
+  const { location, history } = addressDouble();
+  installGuidedFirstAnalysis(document, { location, history });
+  const ordinary = guidedAnalysis(GOOGLE);
+  renderGuidedChooser(document, {
+    ...ordinary, department: { ...ordinary.department, recoverable: "$1,000,000,000,001" },
+  });
+  const select = byId(document, GUIDED_IDS.select);
+  assert.ok(select && tabSequence(document).includes(select),
+    "the state that says 'choose another scenario' must not delete the chooser");
+  // And the control still works: the listener install attached went with the
+  // node, so proving the node survived is only half of proving the way out did.
+  choose(document, AZURE);
+  assert.equal(byId(document, GUIDED_IDS.chooser).dataset.state, GUIDED_VIEW_STATE.ready);
+  assert.match(text(document, GUIDED_IDS.summary), /Prioritized next action/);
 });
 
 test("the control is labelled, and the assumptions are behind the disclosure, not the status", () => {
