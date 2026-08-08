@@ -337,9 +337,9 @@ test("the main landmark rings for keyboard focus only, never for a mouse click",
 
 /* --------------------------- the post page's order ------------------------ */
 
-const FRAME_STOPS = SITE_NAV.length + 4;
+const FRAME_STOPS = SITE_NAV.length + 3;
 
-test("the post page's tab order is skip link, then the nav, then its two routes out", async () => {
+test("the post page's loading tab order reaches Social without a placeholder People link", async () => {
   const document = await load("post.html");
   const sequence = tabSequence(document);
 
@@ -350,7 +350,6 @@ test("the post page's tab order is skip link, then the nav, then its two routes 
       "Shiplog",
       ...SITE_NAV.map((link) => link.label),
       "Open Social to read the whole feed",
-      "Open People to see this display name's other image posts",
     ],
     "the post page's tab order changed",
   );
@@ -403,7 +402,7 @@ test("the post page's exit reads after the site header, in the document, not in 
   assert.doesNotMatch(html.match(/<p class="detail-page-exits">[\s\S]*?<\/p>/)[0], /style=/);
 });
 
-test("the post page ships its two routes out, each naming its destination in its own text", async () => {
+test("the post page withholds People until it can name the loaded display name", async () => {
   const document = await load("post.html");
   const exits = document.querySelector("#main-content").querySelectorAll(".detail-back");
   assert.equal(exits.length, 2, "the permalink's two destinations, and no third");
@@ -411,9 +410,10 @@ test("the post page ships its two routes out, each naming its destination in its
     exits.map((link) => [link.href, textOf(link)]),
     [
       ["/social.html", "Open Social to read the whole feed"],
-      ["/profile.html", "Open People to see this display name's other image posts"],
+      ["/profile.html", ""],
     ],
   );
+  assert.equal(exits[1].hidden, true);
 
   // The visible text carries the destination, so no aria-label may hold a word
   // the eye cannot read.
