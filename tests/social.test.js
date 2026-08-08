@@ -363,7 +363,7 @@ test("social page is wired, labeled, and linked from the other pages", async () 
 // site has no page called Profile, so "profile" survives on Social only as the
 // People page's URL and the class that styles its nav item, never as a word a
 // reader sees.
-test("the control that opens the composer agrees with the composer about images", async (t) => {
+test("the control that opens the composer names it, and agrees with it about images", async (t) => {
   const markup = await readFile(new URL("../src/social.html", import.meta.url), "utf8");
   const page = await loadPage(new URL("../src/social.html", import.meta.url), {});
   t.after(() => page.restore());
@@ -371,22 +371,23 @@ test("the control that opens the composer agrees with the composer about images"
   const entry = page.document.querySelector(".hero-actions").querySelectorAll("a")
     .filter((anchor) => anchor.getAttribute("href") === "#post-form");
   assert.equal(entry.length, 1, "the hero offers exactly one route into the composer");
-  assert.equal(textOf(entry[0]), "Open the post form",
-    "the control that opens the composer makes a claim about images again");
-
-  // And it does not echo the heading it lands on. The hero link, the eyebrow,
-  // and the h2 named the same form with two strings between them — "Write a
-  // post" twice and "New post" once — so a first-time visitor met the composer
-  // three times before typing. Releases is the pattern: "New record" over
-  // "Record a release", with the entry control saying what it opens.
-  const eyebrow = textOf(page.document.querySelector(".form-panel").querySelector(".eyebrow"));
-  const heading = textOf(page.document.querySelector("#post-form-title"));
-  assert.deepEqual([textOf(entry[0]), eyebrow, heading].map((name) => name.toLowerCase()).sort(),
-    ["new post", "open the post form", "write a post"],
-    "two of the composer's three names are the same string again");
+  // One name for one thing. The trigger, an eyebrow, and the heading named this
+  // form three ways — "Open the post form", "New post", "Write a post" — so a
+  // visitor met the composer three times before a field, and the trigger read
+  // like a different destination from the heading it opens. Held as one string
+  // so the two assertions cannot drift apart the way the page did.
+  const composerName = "Write a post";
+  assert.equal(textOf(entry[0]), composerName,
+    "the control that opens the composer stopped using the composer's own name");
+  assert.equal(textOf(page.document.querySelector("#post-form-title")), composerName,
+    "the heading and the control that opens it name the composer differently again");
+  // Counted, not compared against null: a surviving element sends assert.equal
+  // through the whole parsed page instead of failing.
+  assert.equal(page.document.querySelector(".form-panel").querySelectorAll(".eyebrow").length, 0,
+    "the composer carries a third name above its first field again");
   const rendered = textOf(page.document.querySelector("body"));
-  assert.equal(rendered.split("Write a post").length - 1, 1,
-    "the page names the composer \"Write a post\" more than once again");
+  assert.equal(rendered.split(composerName).length - 1, 2,
+    "the composer name must appear once on the trigger and once on the heading");
 
   assert.doesNotMatch(rendered, /without an image/i,
     "a rendered string on Social says a post cannot carry an image");
