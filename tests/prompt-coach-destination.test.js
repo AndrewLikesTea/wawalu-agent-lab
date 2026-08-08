@@ -242,6 +242,17 @@ test("the destination reads as one page about one thing", async () => {
     byId(document, "prompt-coaching").getAttribute("aria-labelledby"),
     "prompt-coaching-question",
   );
+  // What may be pasted, what it is measured against, and what comes back —
+  // said without borrowing AI FinOps's corpus rubric to say it. The AI FinOps
+  // page carried the mirror of that claim about this page, so both surfaces
+  // are held to it: neither may assert a shared prompt rubric.
+  const purpose = textOf(question.closest(".section-heading"));
+  assert.match(purpose, /Paste one prompt or a short conversation/);
+  assert.match(purpose, /a score, its band, and the one change worth making first/);
+  assert.doesNotMatch(purpose, /same rubric/i,
+    "Prompt coach must not imply that AI FinOps uses its prompt-grading rubric");
+  assert.doesNotMatch(await read("evolution.html"), /same rubric/i,
+    "AI FinOps must not claim the prompt coach grades against its corpus rubric");
 
   // The sample names itself, and the result it holds is labelled by that name
   // rather than writing a second heading over the same figures.
