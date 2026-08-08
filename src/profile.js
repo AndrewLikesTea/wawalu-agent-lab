@@ -443,6 +443,7 @@ function renderTile(post, index) {
   // Beside the caption, not inside it: the tile is named by its caption alone,
   // and flagging a missing description must not rename the link.
   if (post.image && description.missing) figure.append(renderDescriptionNote());
+  const destination = el("span", "profile-tile-link-label", "View full post on Social");
   link.append(figure);
 
   const meta = el("p", "profile-tile-meta");
@@ -450,11 +451,9 @@ function renderTile(post, index) {
   time.dateTime = post.createdAt;
   meta.append(time);
   meta.append(el("span", "profile-tile-stat", `${countLabel(post.likes, "like")} · ${countLabel(post.comments, "comment")}`));
-  link.append(meta);
+  link.append(meta, destination);
 
-  // Name the link by its caption alone; the date and counts are decoration for
-  // a link list, and the image alt is still read inside the link.
-  link.setAttribute("aria-labelledby", caption.id);
+  link.setAttribute("aria-label", `${captionFor(post)} — view full post on Social`);
   item.append(link);
   return item;
 }
@@ -554,7 +553,7 @@ export function renderProfileGrid(container, posts, options = {}) {
 export function renderAuthorPicker(container, entries, { author, counted = true, onSelect = null } = {}) {
   container.replaceChildren(...entries.map((entry) => {
     const selected = entry.name === author;
-    const chip = el("button", "filter-chip", authorChipLabel(entry.name, counted ? entry.images : null, { selected }));
+    const chip = el("button", "profile-filter-option", authorChipLabel(entry.name, counted ? entry.images : null, { selected }));
     chip.type = "button";
     chip.dataset.author = entry.name;
     chip.setAttribute("aria-pressed", selected ? "true" : "false");
@@ -574,7 +573,7 @@ export function renderProfileHeader(elements, author, summary) {
     elements.avatar.textContent = authorInitials(author);
     elements.avatar.setAttribute("aria-hidden", "true");
   }
-  if (elements.name) elements.name.textContent = author;
+  if (elements.name) elements.name.textContent = `Active display-name filter: ${author}`;
   if (elements.roleName) elements.roleName.textContent = author;
   if (elements.summary) elements.summary.textContent = profileSummaryText(summary, author);
 }

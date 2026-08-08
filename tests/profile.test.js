@@ -205,7 +205,7 @@ test("each picker entry is a button that names itself, its count, and its state"
   assert.equal(container.children.filter((chip) => chip.textContent.includes("✓ Showing")).length, 1);
   // One silhouette for every entry: a display name is a static classification,
   // so nothing here is signalled by a changed chip treatment.
-  assert.deepEqual(container.children.map((chip) => chip.className), ["filter-chip", "filter-chip"]);
+  assert.deepEqual(container.children.map((chip) => chip.className), ["profile-filter-option", "profile-filter-option"]);
 
   container.children[0].dispatch("click");
   assert.deepEqual(chosen, ["Kai"]);
@@ -268,7 +268,7 @@ test("initials and counts read as English", () => {
 
 /* ------------------------------ render layer ------------------------------ */
 
-test("a tile is a link to the post, named by its caption", () => {
+test("a tile visibly links to the full Social post", () => {
   const container = createElement("div");
   renderProfileGrid(container, [imagePost], { author: "Mina" });
 
@@ -284,13 +284,11 @@ test("a tile is a link to the post, named by its caption", () => {
   assert.equal(tile.href, "/post.html?id=p-image&author=Mina&from=profile");
   assert.equal(tile.dataset.postId, "p-image");
 
-  // The accessible name is the caption alone — usable in a link list, where the
-  // alt text plus counts would not be.
   const caption = first(tile, "profile-tile-caption");
   assert.equal(caption.tagName, "FIGCAPTION");
   assert.equal(caption.textContent, "Focus rings landed everywhere.");
-  assert.equal(tile.getAttribute("aria-labelledby"), caption.id);
-  assert.ok(ids(tile).includes(caption.id), "the label target resolves inside the tile");
+  assert.equal(tile.getAttribute("aria-label"), "Focus rings landed everywhere. — view full post on Social");
+  assert.equal(first(tile, "profile-tile-link-label").textContent, "View full post on Social");
 
   const img = tags(tile, "IMG")[0];
   assert.equal(img.src, "/media/focus-ring.svg");
@@ -502,7 +500,7 @@ test("the header shows who this is and what the counts mean", () => {
   renderProfileHeader(elements, "Mina Okafor", { total: 3, withImages: 2, likes: 6, latest: "2026-07-15T09:00:00.000Z" });
   assert.equal(elements.avatar.textContent, "MO");
   assert.equal(elements.avatar.getAttribute("aria-hidden"), "true", "the avatar is decoration beside the name");
-  assert.equal(elements.name.textContent, "Mina Okafor");
+  assert.equal(elements.name.textContent, "Active display-name filter: Mina Okafor");
   assert.equal(elements.roleName.textContent, "Mina Okafor", "the display-name sentence follows the selected name");
   assert.match(elements.summary.textContent, /^2 image posts · 3 posts in total · last posted /);
 });

@@ -278,7 +278,7 @@ test("the profile page defines the selected name as a display name", async () =>
   // a filter on it, not its name, so the name renders in the identity line under
   // the description — still present, still the pre-hydration default.
   assert.match(html, /<h1 id="page-title">People<\/h1>/);
-  assert.match(html, /<p class="profile-summary" id="profile-name">Ari<\/p>/);
+  assert.match(html, /<p class="profile-active-filter" id="profile-name">Active display-name filter: Ari<\/p>/);
 });
 
 // The two surfaces a visitor mixes up. Each page's first sentence has to say
