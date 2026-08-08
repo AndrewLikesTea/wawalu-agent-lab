@@ -123,6 +123,9 @@ const REGIONS = Object.freeze({
   // this region is a step, so the class that agrees with that role is evidence.
   "finops-recoverable-answer": REGION_CLASS.evidence,
   "finops-stand": REGION_CLASS.answer,
+  // #1345. The four-figure glance, directly under the answer. It indexes the
+  // evidence below it and states no answer of its own, so it is evidence.
+  "finops-glance": REGION_CLASS.evidence,
   // Two of the three "this month" regions are addressed as their DISCLOSURE,
   // not as their section: #742 folded each into the page's `support-disclosure`
   // idiom so an evidence region no longer opens at the answer's weight. The
@@ -204,6 +207,9 @@ const EVIDENCE_LAYERS = Object.freeze([
     // the complete record behind the figure it states.
     regionIds: Object.freeze([
       "finops-recoverable-answer",
+      // #1345: which of the four supporting figures the record below is worth
+      // reading for, before the record itself.
+      "finops-glance",
       "finops-first-run", "guided-result", "finops-portfolio-brief", "monthly-review-projection",
     ]),
   }),

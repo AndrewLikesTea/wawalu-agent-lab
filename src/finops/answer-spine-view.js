@@ -256,6 +256,21 @@ export const ANSWER_SPINE = Object.freeze([
       + "would close it. No claim about anyone else's progress.",
   },
   {
+    // The five-second glance (#1345), directly under the answer. A DETAIL, not
+    // a step: every question it asks is a pointer to a region further down, so
+    // it adds no new question to the top-level reading order — it says which of
+    // the existing ones to read first.
+    id: "finops-glance",
+    role: ROLE.detail,
+    question: "Which figure is the reason to keep reading?",
+    headingId: "finops-glance-title",
+    entitledToAssert:
+      "Four aggregates over the dataset the page already holds — the largest query class's "
+      + "share of spend, the top department's share, the month-over-month movement, and the "
+      + "workspace's quartile — with one of them named as the lead by declared order, never by "
+      + `magnitude. ${SYNTHETIC_COHORT_BASIS}`,
+  },
+  {
     id: "finops-first-run",
     role: ROLE.step,
     question: "Are we wasting money?",

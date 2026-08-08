@@ -832,6 +832,40 @@
         <p class="visually-hidden" id="finops-stand-live" role="status" aria-live="polite" aria-atomic="true"></p>
       </section>
 
+      <!-- THE FIVE-SECOND GLANCE (#1345).
+
+           The answer above says where we stand. It does not say which of the
+           page's supporting figures is worth the reader's next two minutes, and
+           until this block that was a judgement each reader made by scrolling.
+
+           Four figures, declared once in src/finops-glance-spec.js with their
+           question, unit, model function and threshold. The block leads with the
+           FIRST figure in that declared order whose value crosses its threshold
+           and states the other three as one-liners underneath. Declared order,
+           never magnitude: a percent of spend, a signed month-over-month percent
+           and a quartile are not on one scale, so "biggest" would be both
+           meaningless and unreproducible.
+
+           It sits directly under the answer rather than above it because the
+           first three regions of this page are a tested invariant — orientation,
+           the recoverable answer, then the answer itself — and an index of
+           supporting figures does not outrank the answer it indexes.
+
+           Static text with no control and no disclosure, so it spends no tab
+           stop. Every figure is composed from the dataset the page already
+           holds; this block adds no field, no fixture and no request. -->
+      <section class="finops-panel" id="finops-glance" data-workspace-frame="true" data-subordinate="true" aria-labelledby="finops-glance-title">
+        <div class="section-heading">
+          <p class="eyebrow">Five-second glance</p>
+          <h2 id="finops-glance-title">Which figure is the reason to keep reading?</h2>
+          <!-- Authored as the pre-paint truth, not as a placeholder figure: the
+               block states what it is before it states anything measured. -->
+          <p id="finops-glance-lead">Reading the four figures from the example dataset.</p>
+        </div>
+        <p id="finops-glance-action">No action is ranked until a figure is measured.</p>
+        <ul id="finops-glance-figures"></ul>
+      </section>
+
       <!-- THE FIRST-RUN SYNTHETIC RESULT, and why a landing page carries one.
 
            A first-time visitor arrives with no provider export in hand. Before

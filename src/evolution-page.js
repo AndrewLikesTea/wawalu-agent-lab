@@ -248,6 +248,7 @@ import { renderNextStep } from "/finops-next-step-view.js";
 // layers paint in the first synchronous pass: a step that arrives with the
 // fixture is a step a reader has already met a dead end instead of.
 import BUNDLED_EXAMPLE_DATASET from "/evolution-demo-data.json" with { type: "json" };
+import { applyFinopsGlance } from "/finops-glance-spec.js";
 import {
   NEXT_STEP_DATA_STATE, bundledFirstAction, nextStepDataState, withDerivedFirstAction,
 } from "/finops-bundled-next-step.js";
@@ -4956,6 +4957,14 @@ async function init() {
   // so the page cannot hold an order the spine no longer declares. Attributes
   // and one label; it tolerates every region being absent.
   applyFinopsSpine(document);
+  // The five-second glance (#1345), painted from the statically imported
+  // example dataset rather than from the fetch below, so the block a reader
+  // meets under the answer is populated even when the bundled request fails.
+  // It repaints from the fetched dataset when that lands.
+  applyFinopsGlance(document, {
+    departments: BUNDLED_EXAMPLE_DATASET.departments,
+    organization: BUNDLED_EXAMPLE_DATASET.organization,
+  });
   // …and, before a single region is painted, the voice is taken away from every
   // one that only echoes the answer. Nine polite regions used to be repainted on
   // the tick an import lands, so a screen-reader user was read a queue where a
@@ -5314,6 +5323,7 @@ async function init() {
       renderMix(totals);
     };
     repaintBundledAnalysis();
+    applyFinopsGlance(document, { departments, organization: data.organization });
     renderDecisionSurface(data, departments);
     // The department controls exist now, so an address that named one is
     // honoured. Re-reads the URL and scrolls nothing.
