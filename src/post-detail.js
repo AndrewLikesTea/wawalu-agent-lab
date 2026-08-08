@@ -316,6 +316,7 @@ function renderFailed(container, onRetry) {
 // one thing this page is actually waiting on. Keep the two in step — a new verb
 // here would put a third voice on the wait these three surfaces share.
 export const POST_LOADING_LINE = "Loading this post…";
+export const POST_LOADING_TITLE = "Loading post";
 
 // Waiting is not one of the states above, and it does not get their furniture.
 //
@@ -328,12 +329,17 @@ export const POST_LOADING_LINE = "Loading this post…";
 // something is coming, here, and it is this post. The dot is decorative and
 // stops moving under prefers-reduced-motion; the sentence carries the state.
 function renderLoading(container) {
-  const status = el("p", "detail-loading detail-state-panel");
+  const status = el("div", "detail-loading detail-state-panel");
   status.setAttribute("role", "status");
+  status.setAttribute("aria-labelledby", "post-state-loading-title");
   status.setAttribute("data-post-state-panel", "loading");
+  const heading = el("h2", "detail-loading-title", POST_LOADING_TITLE);
+  heading.id = "post-state-loading-title";
+  const line = el("p", "detail-loading-line");
   const dot = el("span", "detail-loading-dot");
   dot.setAttribute("aria-hidden", "true");
-  status.append(dot, el("span", "detail-loading-text", POST_LOADING_LINE));
+  line.append(dot, el("span", "detail-loading-text", POST_LOADING_LINE));
+  status.append(heading, line);
   container.append(status);
 }
 
@@ -382,28 +388,10 @@ export function renderPostDetail(container, post, options = {}) {
   // stays: back link, post content, then retry when there is one.
   article.setAttribute("tabindex", "-1");
 
-  // Reading order, top to bottom: who posted, when, the image, the caption.
-  //
-  // The name is a link to that person's People view, and its text is the name
-  // itself — not "profile", not "view profile", which would give a screen
-  // reader a link list of identical labels and tell nobody whose profile it is.
-  // It is the page's one forward step: without it a shared link is a dead end
-  // whose only exit is back to the feed. The href is /profile.html?author=…,
-  // the same shape profile-page.js writes into the address bar, rather than a
-  // second URL vocabulary for the same view.
-  const author = String(post.author ?? "").trim();
-  if (author) {
-    const byline = el("p", "detail-byline");
-    const link = el("a", "detail-author-link", author);
-    link.href = profileHref(author);
-    byline.append(link);
-    article.append(byline);
-  }
-
-  const time = el("time", "post-date detail-date", formatDateTime(post.createdAt));
-  time.dateTime = post.createdAt;
-  article.append(time);
-
+  // Reading order follows the content a shared image post was opened to read:
+  // image description, image, caption, display name, then posting time. This is
+  // DOM order rather than a visual CSS reorder, so keyboard and screen-reader
+  // users receive the same hierarchy as sighted readers.
   const caption = captionFor(post);
   // The page normally receives posts through profile.js's normalizers, but
   // this renderer is also an exported boundary. Recheck the URL at the final
@@ -431,6 +419,10 @@ export function renderPostDetail(container, post, options = {}) {
     // when, the poster actually wrote one; where it appears it is `description`
     // itself, so it is still the identical string the alt attribute holds.
     const stored = typeof image.alt === "string" && image.alt.trim() !== "";
+    // The visible description leads the image. Keep it outside the figure so
+    // the figcaption can immediately follow the image it captions while the
+    // overall article retains description → image → caption source order.
+    if (stored) article.append(renderImageDescription(description));
     figure.append(renderMedia(image, description));
     // An empty figcaption would announce a caption that is not there. A post
     // with neither caption nor body cannot come out of the normalizers, but the
@@ -440,22 +432,32 @@ export function renderPostDetail(container, post, options = {}) {
       figcaption.id = "detail-caption";
       figure.append(figcaption);
     }
-    // The description closes the figure — image, what the poster said about the
-    // post, then what they said about the image. It sits inside the figure
-    // rather than after it because it is about the image and nothing else, and
-    // it is deliberately not the figcaption: a figcaption joins the figure's
-    // accessible name, and the description is already the image's alt, so
-    // announcing it there would read the same sentence to a screen reader twice.
-    if (stored) figure.append(renderImageDescription(description));
     article.append(figure);
-    // A dedicated caption does not replace the post body, so show the body too
-    // when they differ — otherwise the detail view would hide text the feed shows.
-    if (post.caption && post.body && post.body !== post.caption) article.append(el("p", "detail-body", post.body));
   } else if (caption) {
     const body = el("p", "detail-body", caption);
     body.id = "detail-caption";
     article.append(body);
   }
+
+  // The name is a link to that person's People view, and its text is the name
+  // itself — not a generic "profile" label. It follows the post content so the
+  // permalink leads with the material the reader opened.
+  const author = String(post.author ?? "").trim();
+  if (author) {
+    const byline = el("p", "detail-byline");
+    const link = el("a", "detail-author-link", author);
+    link.href = profileHref(author);
+    byline.append(link);
+    article.append(byline);
+  }
+
+  const time = el("time", "post-date detail-date", formatDateTime(post.createdAt));
+  time.dateTime = post.createdAt;
+  article.append(time);
+
+  // A dedicated caption does not replace the post body, so show the body too
+  // when they differ — otherwise the detail view would hide text the feed shows.
+  if (image && post.caption && post.body && post.body !== post.caption) article.append(el("p", "detail-body", post.body));
 
   const stats = el("p", "detail-stats");
   stats.append(el("span", "detail-stat", countLabel(post.likes ?? 0, "like")));

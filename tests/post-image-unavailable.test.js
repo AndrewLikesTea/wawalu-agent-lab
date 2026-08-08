@@ -177,8 +177,8 @@ test("permalink: a post whose image dies still shows the label and the descripti
   const time = tags(container, "TIME")[0];
   assert.equal(caption.textContent, "Focus rings landed everywhere.");
   assert.equal(time.dateTime, post.createdAt);
-  assert.ok(order(container, time) < order(container, fallback));
   assert.ok(order(container, fallback) < order(container, caption), "the placeholder took the image's place");
+  assert.ok(order(container, caption) < order(container, time), "media and caption lead the posting time");
 
   assert.equal(tabStops(container), loadedStops);
 });

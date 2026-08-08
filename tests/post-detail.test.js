@@ -13,6 +13,7 @@ const { FEED_LOADING_LINE } = await import("../src/social.js");
 const {
   POST_EXITS,
   POST_LOADING_LINE,
+  POST_LOADING_TITLE,
   POST_STATES,
   findPostById,
   resolvePostState,
@@ -70,7 +71,7 @@ test("the detail view shows the image whole, with its caption and counts", () =>
   assert.ok(ids(article).includes(label), `${label} must resolve inside the article`);
 });
 
-test("the post reads in one order: who, when, the image, then its caption", () => {
+test("the post reads in one order: description, image, caption, name, then time", () => {
   const container = createElement("div");
   renderPostDetail(container, post);
   const article = first(container, "detail-post");
@@ -84,21 +85,25 @@ test("the post reads in one order: who, when, the image, then its caption", () =
   assert.equal(time.textContent.length > 0, true, "the timestamp needs human-readable text");
   assert.equal(time.dateTime, "2026-07-14T09:00:00.000Z", "and a machine-readable datetime");
 
-  const sequence = article.children.map((child) => child.tagName);
-  assert.deepEqual(sequence.slice(0, 3), ["P", "TIME", "FIGURE"], "the byline, then the timestamp, then the image");
+  const sequence = article.children.map((child) => child.className);
+  assert.deepEqual(
+    sequence.slice(0, 4),
+    ["description-note detail-image-description", "detail-figure", "detail-byline", "post-date detail-date"],
+    "the description and media lead, followed by the display name and timestamp",
+  );
 
   const figure = tags(article, "FIGURE")[0];
   assert.deepEqual(
     figure.children.map((child) => child.tagName),
-    ["DIV", "FIGCAPTION", "P"],
-    "the caption is the image's figcaption and follows it, and the image description closes the figure",
+    ["DIV", "FIGCAPTION"],
+    "the caption is the image's figcaption and immediately follows it",
   );
   assert.ok(tags(figure, "IMG").length === 1, "the image sits inside the figure");
 
   // The byline is the name itself, linked — never "profile" or "view profile",
   // which would leave a screen reader's link list unable to say whose.
   const byline = first(article, "detail-byline");
-  assert.equal(article.children[0], byline, "the byline opens the article");
+  assert.equal(article.children[2], byline, "the byline follows the image caption");
   const link = first(byline, "detail-author-link");
   assert.equal(link.tagName, "A");
   assert.equal(link.textContent, "Mina Okafor");
@@ -274,7 +279,7 @@ test("an id-less visit is headed by the same not-found words, and offers the fee
   assert.equal(tags(container, "BUTTON").length, 0);
 });
 
-test("the loading state is one labelled line in the post's region, not a banner", () => {
+test("the loading state has a heading and explanatory status text", () => {
   const container = createElement("div");
   renderPostDetail(container, null, { state: "loading", id: "p-image", author: "Mina" });
 
@@ -283,7 +288,8 @@ test("the loading state is one labelled line in the post's region, not a banner"
   assert.equal(container.children.length, 1, "the wait is a single line, not a stack of furniture");
   const status = first(container, "detail-loading");
   assert.equal(status.getAttribute("role"), "status");
-  assert.equal(status.textContent.replace(/\s+/g, " ").trim(), "Loading this post…");
+  assert.equal(first(status, "detail-loading-title").textContent, POST_LOADING_TITLE);
+  assert.equal(first(status, "detail-loading-text").textContent, POST_LOADING_LINE);
   assert.equal(POST_LOADING_LINE, "Loading this post…");
   // A real ellipsis, the way "Loading the Social feed…" and "Loading releases…"
   // spell it, not three periods pretending to be one.
@@ -293,9 +299,9 @@ test("the loading state is one labelled line in the post's region, not a banner"
   // fourth variant.
   assert.equal(POST_LOADING_LINE, FEED_LOADING_LINE.replace("the Social feed", "this post"));
 
-  // Concise: no heading of its own, no state banner, and no placeholder block
-  // pretending to be an image the post may not even have.
-  assert.equal(tags(container, "H2").length, 0, "the wait must not open a heading");
+  // Concise: one semantic heading, no oversized state banner, and no
+  // placeholder block pretending to be an image the post may not even have.
+  assert.equal(tags(container, "H2").length, 1, "the wait needs one state heading");
   assert.equal(byClass(container, "empty-state").length, 0);
   assert.equal(byClass(container, "detail-skeleton").length, 0);
   assert.equal(byClass(container, "skeleton-media").length, 0);
@@ -507,9 +513,9 @@ test("the shipped markup opens in the loading state, saying so in words", async 
 
   // One spelling of one sentence. Two would flash a rewrite when the script ran.
   assert.equal(html.split(POST_LOADING_LINE).length - 1, 1);
-  // The wait is a line, not a second page: no heading, no chip, no placeholder
-  // block standing in for an image this post may not have.
-  assert.doesNotMatch(region, /<h[1-6]|detail-state-chip|skeleton-media|empty-state/);
+  assert.ok(region.includes(`<h2 class="detail-loading-title" id="post-state-loading-title">${POST_LOADING_TITLE}</h2>`));
+  assert.match(region, /aria-labelledby="post-state-loading-title"/);
+  assert.doesNotMatch(region, /detail-state-chip|skeleton-media|empty-state/);
   // And it carries nothing to tab to, so the standing exit stays the first stop
   // a keyboard reader reaches after the site frame.
   assert.doesNotMatch(region, /<a |<button|tabindex/);
@@ -631,14 +637,12 @@ test("loading and unavailable states say what happened in words", () => {
   const missing = render(null, { state: "ready", id: "p-gone" });
   const failed = render(null, { state: "error", id: "p-gone", onRetry: () => {} });
 
-  // The wait has no heading of its own — it is a status line — so it is read
-  // by its sentence, and the two resolved states by their headings.
   const titles = [
-    first(loading, "detail-loading").textContent.trim(),
+    first(loading, "detail-loading-title").textContent,
     first(missing, "empty-title").textContent,
     first(failed, "empty-title").textContent,
   ];
-  assert.deepEqual(titles, ["Loading this post…", "Post not found", "Post could not be loaded"]);
+  assert.deepEqual(titles, ["Loading post", "Post not found", "Post could not be loaded"]);
 
   // The difference has to survive with colour, icons and badges removed, so it
   // is asserted on the words themselves — no class name is read here.
