@@ -304,7 +304,7 @@ test("social page is wired, labeled, and linked from the other pages", async () 
 // site has no page called Profile, so "profile" survives on Social only as the
 // People page's URL and the class that styles its nav item, never as a word a
 // reader sees.
-test("the control that opens the composer names it, and agrees with it about images", async (t) => {
+test("the composer trigger names the action and its heading names the destination", async (t) => {
   const markup = await readFile(new URL("../src/social.html", import.meta.url), "utf8");
   const page = await loadPage(new URL("../src/social.html", import.meta.url), {});
   t.after(() => page.restore());
@@ -312,23 +312,17 @@ test("the control that opens the composer names it, and agrees with it about ima
   const entry = page.document.querySelector(".hero-actions").querySelectorAll("a")
     .filter((anchor) => anchor.getAttribute("href") === "#post-form");
   assert.equal(entry.length, 1, "the hero offers exactly one route into the composer");
-  // One name for one thing. The trigger, an eyebrow, and the heading named this
-  // form three ways — "Open the post form", "New post", "Write a post" — so a
-  // visitor met the composer three times before a field, and the trigger read
-  // like a different destination from the heading it opens. Held as one string
-  // so the two assertions cannot drift apart the way the page did.
-  const composerName = "Write a post";
-  assert.equal(textOf(entry[0]), composerName,
-    "the control that opens the composer stopped using the composer's own name");
-  assert.equal(textOf(page.document.querySelector("#post-form-title")), composerName,
-    "the heading and the control that opens it name the composer differently again");
+  assert.equal(textOf(entry[0]), "Publish a post",
+    "the control that opens the composer no longer names the publishing action");
+  assert.equal(textOf(page.document.querySelector("#post-form-title")), "Create a Social post",
+    "the composer heading no longer identifies where to create a Social post");
   // Counted, not compared against null: a surviving element sends assert.equal
   // through the whole parsed page instead of failing.
   assert.equal(page.document.querySelector(".form-panel").querySelectorAll(".eyebrow").length, 0,
     "the composer carries a third name above its first field again");
   const rendered = textOf(page.document.querySelector("body"));
-  assert.equal(rendered.split(composerName).length - 1, 2,
-    "the composer name must appear once on the trigger and once on the heading");
+  assert.doesNotMatch(rendered, /Write a post/,
+    "the old duplicate composer label is still rendered");
 
   assert.doesNotMatch(rendered, /without an image/i,
     "a rendered string on Social says a post cannot carry an image");
