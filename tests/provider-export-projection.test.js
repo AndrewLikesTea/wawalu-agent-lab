@@ -5,7 +5,8 @@ import { BLANK_GROUP_PSEUDONYM } from "../src/attribution-units.js";
 import { MAX_IMPORT_BYTES } from "../src/import-limits.js";
 import { EVIDENCE_PREFLIGHT_OUTCOME } from "../src/own-data-evidence-preflight.js";
 import {
-  parseProviderExport, projectProviderExport, providerExportPreflight,
+  MODEL_OVERSPEND_SOURCE_COLUMNS, parseProviderExport, projectModelOverspendFinding,
+  projectProviderExport, providerExportPreflight,
   PROVIDER_EXPORT_ERROR, PROVIDER_EXPORT_PROJECTION_VERSION,
 } from "../src/provider-export-projection.js";
 import { renderProviderExportProjection } from "../src/provider-export-projection-view.js";
@@ -20,6 +21,55 @@ async function fixture(name) {
 }
 
 const provider = () => fixture("valid");
+
+function observedRow(template, overrides) {
+  return { ...structuredClone(template), revision: 0, input_tokens: null, output_tokens: null,
+    model_tier: "unrecognized", ...overrides };
+}
+
+test("model overspend is produced only from observed v1.1 provider values", async () => {
+  const document = await provider();
+  document.schema_version = "1.1";
+  const template = document.records[0];
+  document.records = [
+    observedRow(template, { aggregate_id: "a", usage_date: "2026-06-01",
+      model_raw: "model-large", request_count: 4000, cost: { ...template.cost, amount_minor: 80000 } }),
+    observedRow(template, { aggregate_id: "b", usage_date: "2026-06-01",
+      model_raw: "model-small", request_count: 6000, cost: { ...template.cost, amount_minor: 30000 } }),
+  ];
+
+  const projected = projectModelOverspendFinding(document);
+  // One observed day is normalized to June's 30 days by the existing policy.
+  assert.equal(projected.finding.metric.amountMinor, 1800000);
+  assert.equal(projected.finding.metric.observedSpendMinor, 2400000);
+  assert.equal(projected.finding.metric.projectedSpendMinor, 600000);
+  assert.equal(projected.finding.status, "degraded_single_period");
+  assert.equal(projected.confidence, projected.finding.confidence.level);
+  assert.deepEqual(projected.provenance.columns, MODEL_OVERSPEND_SOURCE_COLUMNS);
+  assert.equal(projected.provenance.processing, "in_browser_memory_only");
+  assert.deepEqual(projected.withholding, []);
+
+  const reversed = { ...document, records: [...document.records].reverse() };
+  assert.deepEqual(projectModelOverspendFinding(reversed), projected);
+});
+
+test("model overspend names missing source evidence instead of inventing it", async () => {
+  const legacy = await provider();
+  const projected = projectModelOverspendFinding(legacy);
+  assert.equal(projected.finding.metric.available, false);
+  assert.equal(projected.finding.status, "degraded_no_request_counts");
+  assert.deepEqual(projected.withholding.map((entry) => entry.code),
+    ["model_identifier_missing", "request_count_missing"]);
+  assert.equal(projected.provenance.acceptedRows, 1);
+
+  legacy.records[0].usage_date = "not-a-date";
+  const malformed = projectModelOverspendFinding(legacy);
+  assert.equal(malformed.finding, null);
+  assert.equal(malformed.confidence, "unavailable");
+  assert.deepEqual(malformed.withholding.map((entry) => entry.code),
+    ["malformed_source_rows"]);
+  assert.equal(malformed.provenance.rejectedRows, 1);
+});
 
 test("a valid provider export has deterministic spend, coverage, confidence, and one action", async () => {
   const document = await provider();
@@ -243,6 +293,8 @@ test("the live workspace wires JSON and mapped provider exports into the project
   const entry = await readFile(new URL("../src/evolution-page.js", import.meta.url), "utf8");
   assert.match(entry, /import\("\/provider-export-projection\.js"\)/);
   assert.match(entry, /const projection = projectProviderExport\(providerDocument\)/);
+  assert.match(entry, /importedOverspend = projectModelOverspendFinding\(providerDocument\)/);
+  assert.match(entry, /renderModelOverspendFinding\(document, importedOverspend\.finding/);
   assert.match(entry, /renderProviderExportProjection\(document, projection\)/);
   assert.equal((entry.match(/await paintProviderProjection\(parsed\.document\)/g) ?? []).length, 3);
 });
