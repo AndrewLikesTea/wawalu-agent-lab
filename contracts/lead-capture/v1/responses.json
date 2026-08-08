@@ -6,8 +6,9 @@
   "request": {
     "content_type": "application/json",
     "body": {
-      "email": "string, trimmed and lowercased server-side, max 254 chars",
-      "purpose": "field_notes or follow_up; no additional fields are accepted"
+      "field_notes": "exactly email plus purpose=field_notes",
+      "follow_up": "exactly email plus interest; interest is an optional value represented by a string, trimmed server-side, max 280 chars",
+      "email": "string, trimmed and lowercased server-side, max 254 chars; no additional fields are accepted"
     }
   },
   "response_headers": {
@@ -44,7 +45,7 @@
       "origin": "application",
       "captured": false,
       "retryable": true,
-      "meaning": "Body was not an object containing exactly email and purpose."
+      "meaning": "Body was not an object containing exactly one of the documented two-field request shapes."
     },
     {
       "id": "invalid_purpose",

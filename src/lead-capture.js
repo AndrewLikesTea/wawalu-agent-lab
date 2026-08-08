@@ -99,6 +99,7 @@ export const CONTACT_COPY = Object.freeze({
  */
 export const FOLLOW_UP_PRIVACY = "The work email address you type here goes to the Wawalu team that "
   + "operates Shiplog; nothing else on this page is sent.";
+export const FOOTER_FOLLOW_UP_PRIVACY = "Your work email and optional Shiplog interest go to the Wawalu team; nothing else on this page is sent.";
 
 // This form's own pending and success states: the contact forms promise
 // something else, so each set owns that sentence. Both repeat src/index.html's
@@ -145,11 +146,12 @@ export function resolveFailure(response, body, copy) {
  * existing one. Non-2xx responses still throw a SubmissionError carrying copy
  * this module owns plus the reason code that drives recovery.
  */
-export async function postLeadEmail(request, email, purpose, copy) {
+export async function postLeadEmail(request, email, purpose, copy, interest) {
+  const payload = interest === undefined ? { email, purpose } : { email, interest };
   const response = await request(ENDPOINT, {
     method: "POST",
     headers: { "content-type": "application/json", accept: "application/json" },
-    body: JSON.stringify({ email, purpose }),
+    body: JSON.stringify(payload),
     // Without this a hung request strands the visitor on "Submitting…"
     // with the control disabled and no way to recover.
     signal: globalThis.AbortSignal?.timeout?.(TIMEOUT_MS),

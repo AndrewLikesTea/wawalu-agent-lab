@@ -129,11 +129,28 @@ test("returns actionable client errors and opaque storage errors", async () => {
 test("D1 store persists normalized leads and deduplicates atomically", async (t) => {
   const db = await createTestD1();
   t.after(() => db.close());
+  db.raw.exec(await readFile(new URL("../migrations/0008_follow_up_interest.sql", import.meta.url), "utf8"));
   const store = createD1LeadStore(db);
   assert.equal(await store.capture("mina@example.com", "field_notes", "2026-07-25T12:00:00.000Z"), true);
-  assert.equal(await store.capture("mina@example.com", "follow_up", "2026-07-25T12:01:00.000Z"), true);
+  assert.equal(await store.capture("mina@example.com", "follow_up", "2026-07-25T12:01:00.000Z", "Release trails"), true);
   assert.equal(await store.capture("mina@example.com", "follow_up", "2026-07-25T12:02:00.000Z"), false);
   assert.equal(db.raw.prepare("SELECT count(*) AS count FROM lead_submissions").get().count, 2);
+  assert.equal(db.raw.prepare("SELECT interest FROM lead_submissions WHERE purpose = 'follow_up'").get().interest, "Release trails");
+});
+
+test("follow-up API accepts only the two disclosed fields and stores bounded interest", async () => {
+  let captured;
+  const response = await handleLeadRequest(request({
+    email: "mina@example.com", interest: "  Decision history  ",
+  }), { store: { capture: async (...values) => { captured = values; return true; } } });
+  assert.equal(response.status, 201);
+  assert.equal(captured[1], "follow_up");
+  assert.equal(captured[3], "Decision history");
+
+  const extra = await handleLeadRequest(request({
+    email: "mina@example.com", interest: "Decisions", pageActivity: "visited Social",
+  }), { store: createMemoryLeadStore() });
+  assert.equal(extra.status, 400);
 });
 
 test("homepage ships the labelled lead form and its deployment adapter", async () => {

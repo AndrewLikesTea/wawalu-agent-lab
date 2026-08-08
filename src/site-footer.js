@@ -32,7 +32,7 @@
 
 import { createFollowUpConfirmation } from "./follow-up-confirmation.js";
 import {
-  CONTACT_COPY, describeWith, emailFieldError, FOLLOW_UP_PRIVACY, looksLikeEmail, postLeadEmail,
+  CONTACT_COPY, describeWith, emailFieldError, FOOTER_FOLLOW_UP_PRIVACY, FOLLOW_UP_PRIVACY, looksLikeEmail, postLeadEmail,
   SubmissionError,
 } from "./lead-capture.js";
 
@@ -132,8 +132,7 @@ export const INVITATION = "Questions about Shiplog? Ask the Wawalu team that ope
 // says what is actually true — the address is recorded, a person is the one who
 // reads it, and no machine is about to reply — rather than a response time this
 // demo would break.
-const CAPTURED = "Follow-up requested — we sent your email address, and nothing else. It is recorded "
-  + "for the Wawalu team, and a person replies by email; nothing here answers automatically.";
+const CAPTURED = "Follow-up requested. The confirmation states exactly which fields were sent, and the Wawalu team will reply by email.";
 const ALREADY_CAPTURED = "Follow-up requested — that address is already on our list, so nothing new "
   + "was recorded. The Wawalu team can reach you there.";
 
@@ -256,6 +255,24 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
   if (!form || !trigger || !panel) return null;
 
   const email = form.elements.email;
+  // Enhance the one shared footer form instead of copying a new variant into
+  // every static page. With scripts unavailable, the existing email-only form
+  // and its matching disclosure remain truthful.
+  const interestField = root.createElement("div");
+  interestField.className = "site-footer-field";
+  const interestLabel = root.createElement("label");
+  interestLabel.setAttribute("for", "site-footer-interest");
+  interestLabel.textContent = "What interests you about Shiplog? (optional)";
+  const interest = root.createElement("input");
+  interest.id = "site-footer-interest";
+  interest.setAttribute("name", "interest");
+  interest.setAttribute("type", "text");
+  interest.setAttribute("maxlength", "280");
+  interest.setAttribute("autocomplete", "off");
+  interestField.append(interestLabel, interest);
+  form.insertBefore(interestField, root.querySelector(`#${ERROR_ID}`));
+  root.querySelector("#site-footer-note").textContent = FOOTER_FOLLOW_UP_PRIVACY;
+  root.querySelector(`#${RECOVERY_ID}`).textContent = "We could not send your follow-up request. Try again in a few minutes. Your email and optional Shiplog interest are still in the fields above.";
   const submit = form.querySelector('button[type="submit"]');
   const dismiss = root.querySelector("#site-footer-dismiss");
   const fieldError = root.querySelector(`#${ERROR_ID}`);
@@ -283,6 +300,7 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
     status,
     submit,
     email,
+    interest,
     // Coming back to the form clears the outcome of the last request: it reports
     // something that happened, and the visitor has just said they are not done.
     onReopen: () => { status.textContent = ""; delete form.dataset.state; },
@@ -354,7 +372,7 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
 
     try {
       const address = email.value.trim();
-      const body = await postLeadEmail(request, email.value, "follow_up", CONTACT_COPY);
+      const body = await postLeadEmail(request, email.value, "follow_up", CONTACT_COPY, interest.value.trim());
       form.dataset.state = "success";
       status.textContent = body.created ? CAPTURED : ALREADY_CAPTURED;
       // The form is replaced from here, so the control that would send again is

@@ -100,13 +100,15 @@ const SURFACES = [
   { name: "the executive briefing", open: openBriefingPage, prefix: "briefing-contact" },
 ];
 
-test("Social, People, Releases, and Prompt coach all show the shared success confirmation", async () => {
-  const pages = ["social.html", "profile.html", "releases.html", "coach.html"];
+test("all six named surfaces show the shared interest field and success confirmation", async () => {
+  const pages = ["index.html", "coach.html", "releases.html", "social.html", "profile.html", "agents.html"];
   for (const file of pages) {
     const page = await openNamedFooterPage(file);
     const calls = interceptLeads(() => jsonReply({ subscribed: true }, 201));
     try {
       byId(page.document, "site-footer-open").click();
+      assert.match(textOf(page.document.querySelector('label[for="site-footer-interest"]')), /Shiplog.*optional/,
+        `${file}: optional interest prompt`);
       submitEmail(page.document, "site-footer", LONG_EMAIL);
       await settled(page.document, "site-footer");
 
@@ -114,7 +116,7 @@ test("Social, People, Releases, and Prompt coach all show the shared success con
       assert.equal(byId(page.document, "site-footer-form").dataset.state, "success", `${file}: success state`);
       assert.ok(byId(page.document, "site-footer-confirmation"), `${file}: visible confirmation`);
       assert.equal(page.document.activeElement?.id, "site-footer-confirmation", `${file}: focus reaches confirmation`);
-      assert.match(shownText(page.document, "site-footer-status"), /person replies by email/,
+      assert.match(shownText(page.document, "site-footer-status"), /Wawalu team will reply by email/,
         `${file}: confirmation states the next step`);
     } finally {
       page.restore();
@@ -142,9 +144,13 @@ for (const { name, open, prefix } of SURFACES) {
       assert.match(textOf(receipt), new RegExp(LONG_EMAIL.replace(/[.]/g, "\\.")));
       assert.equal(textOf(receipt.querySelector(`.${receipt.className}-address`)), LONG_EMAIL);
       // Who answers, and what travelled — the form's own privacy vocabulary.
-      assert.match(textOf(receipt), /A person from the Wawalu team replies to that address by email/);
-      assert.match(textOf(receipt), /Nothing else on this page/);
-      assert.match(textOf(receipt), /read, attached, or transmitted/);
+      assert.match(textOf(receipt), /(?:A person from the Wawalu team replies|The Wawalu team will reply) to that address by email/);
+      if (prefix === "site-footer") {
+        assert.match(textOf(receipt), /Fields sent — work email: .*; optional Shiplog interest: not provided\. No other fields were sent\./);
+      } else {
+        assert.match(textOf(receipt), /Nothing else on this page/);
+        assert.match(textOf(receipt), /read, attached, or transmitted/);
+      }
       // Nothing about when. This demo has not promised anyone a response time,
       // and the receipt is not the place to invent one.
       assert.doesNotMatch(textOf(receipt), /business days?|within \d|hours?\b|shortly|specialist/i);
@@ -261,7 +267,7 @@ for (const { name, open, prefix } of SURFACES) {
       // it reads nothing like a receipt.
       const recovery = byId(document, `${prefix}-recovery`);
       assert.equal(recovery.hidden, false);
-      assert.match(textOf(recovery), /Your email address is still in the field/);
+      assert.match(textOf(recovery), /Your email(?: address)?(?: and optional Shiplog interest)? (?:is|are) still in the fields?/);
       assert.doesNotMatch(textOf(recovery), new RegExp(CONFIRMATION_DETAIL.slice(0, 40)));
       assert.doesNotMatch(shownText(document, `${prefix}-status`), /We sent one thing/);
     } finally {

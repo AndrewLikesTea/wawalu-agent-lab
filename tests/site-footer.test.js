@@ -21,7 +21,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
 import { DEMOS, FOLLOW_UP_REDIRECT, IDENTITY, INVITATION, siteFooterMarkup } from "../src/site-footer.js";
-import { FOLLOW_UP_PRIVACY } from "../src/lead-capture.js";
+import { FOOTER_FOLLOW_UP_PRIVACY, FOLLOW_UP_PRIVACY } from "../src/lead-capture.js";
 import { SITE_NAV } from "../src/site-nav.js";
 import { loadPage, parseHtml, pressEnter, pressKey, pressTab, tabSequence, textOf, typeText } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
@@ -45,7 +45,7 @@ const TYPED_EMAIL = "director@example.com";
 // do, then what is still safe. Pinned whole rather than by fragment — the order
 // of the three sentences is the point, and a substring match would not see it.
 const RECOVERY_COPY = "We could not send your follow-up request. Try again in a few minutes. "
-  + "Your email address is still in the field above, and nothing else on this page changed.";
+  + "Your email and optional Shiplog interest are still in the fields above.";
 
 const byId = (document, id) => document.getElementById(id);
 const shownText = (document, id) => textOf(byId(document, id));
@@ -602,6 +602,7 @@ test("a submission goes through the shared capture path, and the confirmation sa
   const calls = interceptLeads((call) => jsonReply({ captured: true, created: call === 1, purpose: "follow_up" }, call === 1 ? 201 : 200));
   try {
     byId(document, "site-footer-open").click();
+    byId(document, "site-footer-interest").value = "Release decision trails";
     submitEmail(document, TYPED_EMAIL);
     await settled(document);
 
@@ -611,18 +612,20 @@ test("a submission goes through the shared capture path, and the confirmation sa
     const [{ url, options }] = calls;
     assert.equal(url, "/api/leads");
     assert.equal(options.method, "POST");
-    assert.deepEqual(JSON.parse(options.body), { email: TYPED_EMAIL, purpose: "follow_up" });
-    assert.deepEqual(Object.keys(JSON.parse(options.body)), ["email", "purpose"]);
+    assert.deepEqual(JSON.parse(options.body), { email: TYPED_EMAIL, interest: "Release decision trails" });
 
     assert.equal(byId(document, "site-footer-form").dataset.state, "success");
     const confirmation = shownText(document, "site-footer-status");
-    assert.match(confirmation, /^Follow-up requested — we sent your email address, and nothing else\./);
-    assert.match(confirmation, /recorded for the Wawalu team/, "the confirmation must say what happens next");
+    assert.match(confirmation, /^Follow-up requested\./);
+    assert.match(confirmation, /Wawalu team will reply by email/, "the confirmation must say what happens next");
     // Nothing promised that this demo does not do.
     assert.doesNotMatch(confirmation, /business days?|within \d|hours?\b/i);
     // The live region announces it rather than leaving it to the eye alone.
     assert.equal(byId(document, "site-footer-status").getAttribute("aria-live"), "polite");
     assert.equal(byId(document, "site-footer-status").getAttribute("role"), "status");
+    const receipt = shownText(document, "site-footer-confirmation");
+    assert.match(receipt, /work email: director@example\.com; optional Shiplog interest: Release decision trails/);
+    assert.match(receipt, /No other fields were sent/);
 
     // A repeat submission is still a success, and still claims nothing more —
     // but it has to be asked for: the landed request took the form away.
@@ -646,7 +649,7 @@ test("the privacy sentence beside the field is what the request body actually do
   const { document } = page;
   const calls = interceptLeads(() => jsonReply({ captured: true, created: true, purpose: "follow_up" }));
   try {
-    assert.equal(shownText(document, "site-footer-note"), FOLLOW_UP_PRIVACY);
+    assert.equal(shownText(document, "site-footer-note"), FOOTER_FOLLOW_UP_PRIVACY);
 
     byId(document, "site-footer-open").click();
     submitEmail(document, TYPED_EMAIL);
@@ -709,6 +712,8 @@ test("a failed submission keeps the typed address, says it can be retried, and t
   try {
     byId(document, "site-footer-open").click();
     const field = byId(document, "site-footer-email");
+    const interest = byId(document, "site-footer-interest");
+    interest.value = "How releases connect to decisions";
     const submit = byId(document, "site-footer-panel").querySelector('button[type="submit"]');
     assert.equal(byId(document, "site-footer-recovery").hidden, true, "recovery copy must not exist before an attempt");
     assert.doesNotMatch(describedBy(document), /site-footer-recovery/);
@@ -718,6 +723,7 @@ test("a failed submission keeps the typed address, says it can be retried, and t
 
     assert.equal(byId(document, "site-footer-form").dataset.state, "error");
     assert.equal(field.value, TYPED_EMAIL, "a failed submission must not clear the address the visitor typed");
+    assert.equal(interest.value, "How releases connect to decisions", "a failure must preserve the optional interest");
     assert.equal(byId(document, "site-footer-recovery").hidden, false);
     assert.match(describedBy(document), /site-footer-recovery/);
     assert.equal(textOf(byId(document, "site-footer-recovery")), RECOVERY_COPY);
@@ -736,8 +742,8 @@ test("a failed submission keeps the typed address, says it can be retried, and t
     await waitFor(() => byId(document, "site-footer-form").dataset.state === "success",
       "the retry to succeed");
     assert.equal(calls.length, 2, "the retry must make its own request");
-    assert.deepEqual(JSON.parse(calls[1].options.body), { email: TYPED_EMAIL, purpose: "follow_up" });
-    assert.match(shownText(document, "site-footer-status"), /^Follow-up requested — we sent your email address, and nothing else\./);
+    assert.deepEqual(JSON.parse(calls[1].options.body), { email: TYPED_EMAIL, interest: "How releases connect to decisions" });
+    assert.match(shownText(document, "site-footer-status"), /^Follow-up requested\./);
   } finally {
     page.restore();
   }
