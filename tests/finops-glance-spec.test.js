@@ -295,4 +295,79 @@ test("the glance is a repaint, not an append", () => {
   applyFinopsGlance(document, glance);
   assert.equal(document.getElementById(GLANCE_IDS.supporting).children.length, 3,
     "a second paint stacked a second copy of the supporting lines");
+  assert.equal(chartsIn(document.getElementById(GLANCE_IDS.lead)).length, 1,
+    "a second paint stacked a second picture on the lead line");
+});
+
+// ---------------------------------------------------------------------------
+// 5. The pictures beside the figures (#1346).
+// ---------------------------------------------------------------------------
+//
+// The claim is not that the charts look right — this harness models no layout.
+// It is that they cost the reader nothing: every number and every sentence the
+// block published before still reads identically, the shapes are hidden from
+// assistive tech, they take no tab stop on a first screen that has none spare,
+// and a figure the page refused to measure is given no picture of a refused
+// number.
+
+/** Every element under `node`, itself included. Walked, because `*` will not parse. */
+function elementsUnder(node, found = []) {
+  found.push(node);
+  for (const child of node.children ?? []) {
+    if (child.nodeType === 1) elementsUnder(child, found);
+  }
+  return found;
+}
+
+const chartsIn = (node) => elementsUnder(node).filter((element) => element.tagName === "SVG");
+const chartKeys = (node) => chartsIn(node).map((chart) => chart.getAttribute("data-chart"));
+
+test("the shipped page draws the spend-mix and department-rank figures", () => {
+  const rendered = renderedGlance(ranking());
+  const keys = chartKeys(rendered.block);
+  assert.ok(keys.includes("spendMix"), "the spend mix figure got no picture");
+  assert.ok(keys.includes("departmentRank"), "the department ranking got no picture");
+  // Each picture sits inside the line it illustrates, not in a block of its own
+  // below the prose: the lead's shape is a child of the lead paragraph.
+  assert.equal(chartKeys(rendered.document.getElementById(GLANCE_IDS.lead)).join(), "spendMix");
+  assert.equal(chartsIn(rendered.document.getElementById(GLANCE_IDS.next)).length, 0,
+    "a picture landed on the next-action line, which states no figure");
+});
+
+test("the pictures change no number and no sentence on the glance", () => {
+  const glance = composeFinopsGlance({ analysis, reproducibility: ranking() });
+  const rendered = renderedGlance(ranking());
+  // Byte for byte the composer's own strings, with the shapes appended after.
+  assert.equal(rendered.lead, glance.lead);
+  assert.deepEqual(rendered.supporting, [...glance.supporting]);
+  // And every drawn shape is wordless, so deleting all of them would lose a
+  // screen-reader user nothing that is not still in the prose beside them.
+  for (const chart of chartsIn(rendered.block)) assert.equal(textOf(chart), "");
+});
+
+test("every picture on the glance is hidden and outside the tab order", () => {
+  const rendered = renderedGlance(ranking());
+  const charts = chartsIn(rendered.block);
+  assert.ok(charts.length >= 2, "the glance drew almost nothing");
+  for (const chart of charts) {
+    assert.equal(chart.getAttribute("aria-hidden"), "true");
+    for (const element of elementsUnder(chart)) {
+      assert.equal(element.hasAttribute("tabindex"), false,
+        `a ${element.tagName} in the glance took a tab stop`);
+      assert.equal(element.getAttribute("role"), null,
+        `a ${element.tagName} in the glance joined the interaction model`);
+    }
+  }
+});
+
+test("a figure the page could not measure is given no picture", () => {
+  for (const [name, overrides] of RANKING_REFUSALS) {
+    const rendered = renderedGlance(ranking(overrides));
+    assert.equal(chartKeys(rendered.block).includes("peerPosition"), false,
+      `${name} drew a position the ranking model refused to claim`);
+  }
+  // With nothing measured at all the block is words only, exactly as before.
+  const document = parseHtml(html);
+  applyFinopsGlance(document, composeFinopsGlance({ analysis: {}, reproducibility: null }));
+  assert.equal(chartsIn(document.getElementById(GLANCE_IDS.block)).length, 0);
 });

@@ -41,6 +41,10 @@ import { applyAnswerCopy } from "./finops-answer-copy.js";
 // composed headline's own `glance`, so it can never be as of a different dataset
 // from the claim above it.
 import { GLANCE_IDS } from "./finops-glance-spec.js";
+// The small picture beside each glance figure. Decorative by construction — see
+// the contract at the top of that file — so nothing below reads its return value
+// for meaning, only for whether there was a shape to append.
+import { renderGlanceFigureChart } from "./glance-figure-charts.js";
 
 /** The state chip, in the same two channels the rest of this page uses. */
 export const STAND_DISCLOSURE_STATE = Object.freeze({
@@ -635,19 +639,36 @@ export function applyFinopsGlance(doc, glance) {
   if (!block || !glance) return null;
   block.dataset.lead = glance.leadKey ?? "none";
   block.dataset.crossed = glance.crossed ? "true" : "false";
+  // THE PICTURES GO INSIDE THE LINE THEY ILLUSTRATE, after the text and never
+  // instead of it. Each is appended to the paragraph the composer's own string
+  // was just written into, so nothing is pushed down the first screen and the
+  // sentence a reader hears is byte-for-byte the one they heard before. The
+  // figures arrive in the composer's order and `supporting` is that same list
+  // minus the lead, so index i of one is figure i of the other.
+  const figures = glance.figures ?? [];
+  const supportingFigures = figures.filter((figure) => figure.key !== glance.leadKey);
+  const illustrate = (node, figure) => {
+    const chart = renderGlanceFigureChart(doc, figure);
+    if (chart) node.append(chart);
+    return node;
+  };
+
   const lead = setText(doc, GLANCE_IDS.lead, glance.lead ?? "");
   // "Nothing crossed" is a STATE, not a missing value: the block says so in
   // words and the slot is marked unavailable, which is how the rest of this
   // region already distinguishes a stated absence from an empty one.
-  if (lead) lead.dataset.available = glance.crossed ? "true" : "false";
+  if (lead) {
+    lead.dataset.available = glance.crossed ? "true" : "false";
+    illustrate(lead, figures.find((figure) => figure.key === glance.leadKey));
+  }
   setText(doc, GLANCE_IDS.next, glance.nextAction ?? "");
   const supporting = byId(doc, GLANCE_IDS.supporting);
   if (supporting) {
-    supporting.replaceChildren(...(glance.supporting ?? []).map((line) => {
+    supporting.replaceChildren(...(glance.supporting ?? []).map((line, index) => {
       const node = doc.createElement("p");
       node.className = "stand-figure-basis";
       node.textContent = line;
-      return node;
+      return illustrate(node, supportingFigures[index]);
     }));
   }
   return block;
