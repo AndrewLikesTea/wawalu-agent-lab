@@ -345,7 +345,16 @@
              measure — including a peer position the ranking model refused to
              claim — states that it is not measured and why, and is not eligible
              to lead. Painted by `applyFinopsGlance` in finops-stand-view.js.
-             Reuses .stand-figure and its three text classes; no new layout. -->
+             Reuses .stand-figure and its three text classes; no new layout.
+             #1346 gives each measured figure a small inline SVG picture at the
+             end of its own line, drawn by src/glance-figure-charts.js from the
+             same published series the number came from. The pictures are
+             decorative: every root is aria-hidden, holds no text and takes no
+             tab stop, and every number and sentence stays exactly where it was,
+             so deleting all four would lose a reader nothing. Their size and
+             colour are in the SVG rather than in a rule — this page allows no
+             inline style attribute, and a chart that needed the stylesheet to
+             sit beside its number would sit wrong anywhere else. -->
         <div class="stand-figure stand-glance pre-analysis-withheld" id="finops-glance" data-lead="none" data-crossed="false" hidden>
           <h3 class="stand-figure-label">Which of these four is the reason to keep reading?</h3>
           <p class="stand-figure-value" id="finops-glance-lead" data-available="false"></p>

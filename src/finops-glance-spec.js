@@ -77,8 +77,22 @@ const percent = (value) => `${PERCENT.format(value)}%`;
 const signedPercent = (value) => `${value > 0 ? "+" : value < 0 ? "−" : ""}`
   + `${PERCENT.format(Math.abs(value))}%`;
 
-const unmeasured = (reason) => ({ measured: false, value: null, display: GLANCE_UNMEASURED, reason });
-const measured = (value, display) => ({ measured: true, value, display, reason: null });
+const unmeasured = (reason) => ({
+  measured: false, value: null, display: GLANCE_UNMEASURED, reason, series: [],
+});
+
+/**
+ * `series` is the picture of this reading, in the figure's own units.
+ *
+ * It is read off the SAME published result the value was, never recomputed from
+ * a literal nearby: a picture whose shape disagreed with the number beside it
+ * would be worse than no picture. It is plain numbers so that the renderer in
+ * glance-figure-charts.js knows nothing about FinOps, and an unmeasured figure
+ * carries none — see `unmeasured` above.
+ */
+const measured = (value, display, series = []) => ({
+  measured: true, value, display, reason: null, series,
+});
 
 /**
  * The query-class mix, from the departments the prompt-literacy pass actually
@@ -112,7 +126,11 @@ function measureSpendMix(analysis) {
       + "so no class can be named.");
   }
   const value = oneDecimal(largest.share * 100);
-  return measured(value, `${largest.category.label} · ${percent(value)} of graded spend`);
+  // The four class shares off the same `totals.mix` the value came from, in
+  // declared category order, so the drawn slice and the printed share are one
+  // reading of one object.
+  return measured(value, `${largest.category.label} · ${percent(value)} of graded spend`,
+    QUERY_CATEGORIES.map((category) => totals.mix[category.key] ?? 0));
 }
 
 /**
@@ -133,7 +151,10 @@ function measureDepartmentRank(analysis) {
   }
   const value = oneDecimal((Number(leader.spendUsd) / total) * 100);
   const name = leader.unit?.label ?? leader.unit?.key ?? "the rank-1 department";
-  return measured(value, `1. ${name} · ${percent(value)} of period spend`);
+  // `units` in the order that function published — spend descending — so row 0
+  // of the drawn ranking is the same leader this line names.
+  return measured(value, `1. ${name} · ${percent(value)} of period spend`,
+    mix.units.map((unit) => Number(unit.spendUsd) || 0));
 }
 
 /**
@@ -152,7 +173,11 @@ function measureMovement(analysis) {
   }
   const value = oneDecimal((Number(movement.delta) / Number(movement.priorTotal)) * 100);
   const against = monthLabel(movement.priorPeriod) ?? movement.priorPeriod;
-  return measured(value, `${signedPercent(value)} against ${against}`);
+  // The two published totals this percent is the difference between, in time
+  // order. A fall draws as a fall because the second one is lower, not because
+  // anything downstream reads the sign.
+  return measured(value, `${signedPercent(value)} against ${against}`,
+    [Number(movement.priorTotal), Number(movement.latestTotal)]);
 }
 
 /**
@@ -194,9 +219,11 @@ function measurePeerPosition(_analysis, reproducibility) {
   }
   const value = BAND_QUARTILE[band];
   const meaning = COST_BAND_MEANING[band];
+  // The quartiles this band occupies, one-based. The middle band occupies two
+  // and names neither, so it marks both rather than picking one.
   return measured(value, value === null
     ? `Quartiles 2–3 of 4 · ${meaning}`
-    : `Quartile ${value} of 4 · ${meaning}`);
+    : `Quartile ${value} of 4 · ${meaning}`, value === null ? [2, 3] : [value]);
 }
 
 /**
@@ -296,6 +323,8 @@ export function measureGlanceFigures({ analysis = null, reproducibility = null }
       display: reading.display,
       reason: reading.reason,
       crossed,
+      /** The plain numbers this figure can be drawn from. Empty when unmeasured. */
+      series: Object.freeze(reading.series ?? []),
       /** The one line this figure renders as, lead or supporting. */
       line: reading.measured
         ? `${figure.name} · ${figure.question} ${reading.display}.`
