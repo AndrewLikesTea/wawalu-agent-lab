@@ -25,7 +25,8 @@
 // THE DEGENERATE SERIES ARE THE FEATURE, NOT A GUARD.
 //   • No points: nothing is drawn and null is returned, so the caller keeps its
 //     text and the DOM gains no empty SVG shell.
-//   • One point: a valid single-datum shape, not an axis and not a trend.
+//   • One point, or an all-equal movement series: no trend is claimed. The
+//     production view keeps the prose and states the chart fallback instead.
 //   • Many points: bounded. A ranked list draws at most RANK_ROWS rows.
 //   • All zero, or flat: no denominator is ever zero, because a non-positive
 //     denominator maps every datum to zero length. The chart then draws its
@@ -54,6 +55,9 @@ export const RANK_ROWS = 4;
 
 /** The peer figure's scale: four quartiles, always drawn, one or two marked. */
 export const PEER_SLOTS = 4;
+
+/** Visible beside prose when a series cannot honestly communicate a trend. */
+export const GLANCE_CHART_FALLBACK = "Chart not shown: a trend needs two distinct period values.";
 
 /** Only real numbers reach a coordinate. A series of NaN is a series of none. */
 const finite = (series) => (Array.isArray(series) ? series : [])
@@ -150,7 +154,7 @@ export function renderRankChart(doc, series) {
  */
 export function renderMovementChart(doc, series) {
   const values = finite(series);
-  if (values.length === 0) return null;
+  if (values.length < 2 || new Set(values).size < 2) return null;
   const node = root(doc, "movement");
   const low = Math.min(...values);
   const span = Math.max(...values) - low;
@@ -158,17 +162,15 @@ export function renderMovementChart(doc, series) {
   const x = (index) => (values.length > 1
     ? GAP + (index * WIDTH) / (values.length - 1)
     : GAP + WIDTH / 2);
-  if (values.length > 1) {
-    node.append(el(doc, "polyline", {
-      points: values.map((value, index) => `${x(index)},${y(value)}`).join(" "),
-      fill: "none",
-      stroke: "currentColor",
-      "stroke-width": "1.25",
-      "stroke-opacity": LIT,
-      "stroke-linecap": "round",
-      "stroke-linejoin": "round",
-    }));
-  }
+  node.append(el(doc, "polyline", {
+    points: values.map((value, index) => `${x(index)},${y(value)}`).join(" "),
+    fill: "none",
+    stroke: "currentColor",
+    "stroke-width": "1.25",
+    "stroke-opacity": LIT,
+    "stroke-linecap": "round",
+    "stroke-linejoin": "round",
+  }));
   node.append(el(doc, "circle", {
     cx: x(values.length - 1), cy: y(values.at(-1)), r: 1.75,
     fill: "currentColor", "fill-opacity": LIT,
