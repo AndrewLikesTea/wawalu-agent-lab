@@ -89,7 +89,7 @@ const SOCIAL = { label: "Open Social to read the whole feed", href: "/social.htm
 const PEOPLE = { label: "Open People to see Mina Okafor’s other image posts", href: "/profile.html" };
 const MINA = "/profile.html?author=Mina%20Okafor";
 
-test("a post that loads is headed by its author and reads name, time, image, caption", async () => {
+test("a post that loads is headed by its author and reads description, image, caption, name, time", async () => {
   const page = await openPostPage("?id=p-image", seedOnly([SEED_POST]));
   try {
     const { document } = page;
@@ -104,6 +104,11 @@ test("a post that loads is headed by its author and reads name, time, image, cap
     const figure = article.querySelector("figure");
     assert.equal(figure.querySelectorAll("img").length, 1);
     assert.equal(textOf(figure.querySelector("figcaption")), "The middle card, ringed.");
+    assert.deepEqual(
+      article.children.slice(0, 4).map((node) => node.className),
+      ["description-note detail-image-description", "detail-figure", "detail-byline", "post-date detail-date"],
+      "the routed page preserves the valid-post reading order",
+    );
     assert.equal(page.panel.getAttribute("aria-busy"), "false");
     assert.ok(textOf(page.panel).includes(IDENTITY),
       "a stranger arriving on this link is not told what a display name is");
@@ -283,15 +288,16 @@ test("the loading state is one announced line in the post's region, and takes no
     assert.equal(panel.getAttribute("aria-busy"), "true");
     assert.equal(state.getAttribute("role"), "status", "the state is announced without stealing focus");
     assert.equal(page.document.activeElement, null, "nothing may take focus on load");
-    assert.equal(textOf(state), "Loading this post…");
+    assert.equal(textOf(state.querySelector(".detail-loading-text")), "Loading this post…");
     assert.doesNotMatch(textOf(panel), /A display name is not a signed-in user/);
     // Nothing is named yet, so the h1 names the page — the same words a reader
     // sees in the shipped markup before any script runs.
     assert.equal(textOf(page.document.querySelector("#page-title")), "Post from Social");
-    // A wait, not a second page: no state banner, no heading of its own, and no
-    // placeholder block standing in for an image this post may not have.
+    // The compact state still has a semantic heading and explanatory status
+    // text, without guessing at an image-shaped placeholder.
     assert.equal(panel.querySelectorAll(".detail-state-message").length, 0);
-    assert.equal(panel.querySelectorAll("h2").length, 0);
+    assert.equal(textOf(panel.querySelector("h2")), "Loading post");
+    assert.equal(state.getAttribute("aria-labelledby"), panel.querySelector("h2").id);
     assert.equal(panel.querySelectorAll(".skeleton-media").length, 0);
     // The frame around it still says what the page is, so the region is never
     // an unexplained blank.
@@ -324,7 +330,7 @@ test("the page opens already saying it is loading, and the post replaces that li
     assert.equal(panel.dataset.postState, "loading");
     assert.equal(panel.getAttribute("aria-busy"), "true");
     assert.equal(panel.querySelectorAll(".detail-loading").length, 1);
-    assert.equal(textOf(panel.querySelector(".detail-loading")), "Loading this post…");
+    assert.equal(textOf(panel.querySelector(".detail-loading-text")), "Loading this post…");
     assert.equal(panel.querySelector(".detail-loading").getAttribute("role"), "status");
     // The states that explain an absent post are not in the markup at all, so
     // the wait and an unavailable panel cannot be read together at any point.
@@ -342,7 +348,7 @@ test("the page opens already saying it is loading, and the post replaces that li
 
     assert.equal(panel.dataset.postState, "loading", "the script agrees with the markup it replaced");
     assert.equal(panel.querySelectorAll(".detail-loading").length, 1, "one wait line, not the shipped one plus a second");
-    assert.equal(textOf(panel.querySelector(".detail-loading")), "Loading this post…");
+    assert.equal(textOf(panel.querySelector(".detail-loading-text")), "Loading this post…");
     assert.equal(panel.querySelectorAll(".detail-state-message").length, 0);
 
     release();

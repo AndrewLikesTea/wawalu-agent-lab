@@ -496,13 +496,12 @@ test("a loaded post shows the poster's image description under a visible label",
     assert.equal(textOf(label), DESCRIPTION_LABEL, "the description is labelled in words, not by position");
     assert.equal(textOf(text), IMAGE_POST.image.alt, "and the label is followed by what the poster wrote");
 
-    // Beneath the image, inside the image's own figure: it is about the image
-    // and it belongs to it, not to the post as a whole.
-    const figure = page.panel.querySelector("figure");
-    const parts = figure.querySelectorAll(".detail-image,figcaption,.detail-image-description-text");
+    // The description leads the image in source order, followed by the image's
+    // caption. It remains adjacent to the figure and inside the post region.
+    const parts = page.panel.querySelectorAll(".detail-image-description-text,.detail-image,figcaption");
     assert.deepEqual(parts.map((node) => node.className),
-      ["detail-image", "detail-caption", "detail-image-description-text"],
-      "image, then the post's caption, then the description of the image");
+      ["detail-image-description-text", "detail-image", "detail-caption"],
+      "description, then image, then the post's caption");
 
     // No new type role and no new hue: the paragraph carries the class the feed
     // and a People tile already draw this text with. styles.css has no headroom
@@ -927,7 +926,7 @@ test("a loaded post's caption, name, time and image all read before the feed con
     // post is made of, then the context sentence, then the two routes out.
     const flow = main.querySelectorAll(".detail-author-link,.detail-date,.detail-image,figcaption,#post-back,#post-people");
     const names = flow.map((node) => node.id || node.className);
-    assert.deepEqual(names, ["detail-author-link", "post-date detail-date", "detail-image", "detail-caption", "post-back", "post-people"],
+    assert.deepEqual(names, ["detail-image", "detail-caption", "detail-author-link", "post-date detail-date", "post-back", "post-people"],
       "the post's parts must all precede the routes off the page");
 
     // The image is announced by the description the poster stored, in the post
