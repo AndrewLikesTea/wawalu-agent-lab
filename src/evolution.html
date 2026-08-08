@@ -862,6 +862,40 @@
         <p class="visually-hidden" id="finops-stand-live" role="status" aria-live="polite" aria-atomic="true"></p>
       </section>
 
+      <!-- READINESS, READ AFTER THE ANSWER IT QUALIFIES (#1391). It sits below
+           #finops-stand on purpose: "can I trust a recommendation now" is a
+           question about the answer above it, so placing it higher would put a
+           qualifier where the page's one answer belongs. It ranks nothing — the
+           action it quotes is the record finops-bundled-next-step.js already
+           derived and the regions above already paint. Its disclosures are the
+           plain `figure-source` idiom, NOT the three-part `how-we-know` control:
+           that pattern is exactly three regions with exactly the parts
+           Provenance/Basis/Limits, and a fourth half-copy would fork a control
+           the page teaches once. -->
+      <section class="finops-recoverable-answer" id="finops-analysis-readiness" data-level="illustrative_only" data-subordinate="true" data-workspace-frame="true" aria-labelledby="analysis-readiness-question">
+        <p class="eyebrow">Analysis readiness</p>
+        <h2 id="analysis-readiness-question">Can I get a trustworthy savings recommendation now?</h2>
+        <p class="stand-answer" id="analysis-readiness-verdict">Yes for an illustrative scenario recommendation; no for an organization-specific savings commitment.</p>
+        <p class="stand-figure" id="analysis-readiness-benchmark">Readiness is calculated from four required evidence categories.</p>
+        <p class="stand-answer" id="analysis-readiness-evidence">Current evidence is limited to bundled synthetic scenarios.</p>
+        <p class="stand-answer" id="analysis-readiness-limit">No conclusion about your organization is supported.</p>
+        <p class="stand-answer" id="analysis-readiness-action">The prioritized illustrative action is read from the bundled scenario's own next-step record.</p>
+        <details class="figure-source" id="analysis-readiness-how-we-know">
+          <summary class="figure-source-summary"><span class="figure-source-state"><span class="figure-source-shape" aria-hidden="true">▸</span> Inspect the figure, confidence, and provenance</span></summary>
+          <dl class="figure-source-detail">
+            <div><dt>Modelled recoverable line</dt><dd id="analysis-readiness-value">Read from the bundled scenario's own next-step record.</dd></div>
+            <div><dt>Action confidence</dt><dd id="analysis-readiness-action-confidence">Read from the quoted fixture action.</dd></div>
+            <div><dt>Why this one</dt><dd id="analysis-readiness-reason">Read from the page's one derived next-step record.</dd></div>
+            <div><dt>Provenance</dt><dd id="analysis-readiness-provenance">Bundled synthetic fixture.</dd></div>
+            <div><dt>Evidence confidence</dt><dd id="analysis-readiness-confidence">Computed from the evidence categories the bundled scenario carries.</dd></div>
+          </dl>
+        </details>
+        <details class="figure-source" id="analysis-readiness-upgrade-detail">
+          <summary class="figure-source-summary"><span class="figure-source-state"><span class="figure-source-shape" aria-hidden="true">▸</span> What later evidence would enable</span></summary>
+          <ul class="figure-source-detail" id="analysis-readiness-upgrades"></ul>
+        </details>
+      </section>
+
       <!-- THE FIRST-RUN SYNTHETIC RESULT, and why a landing page carries one.
 
            A first-time visitor arrives with no provider export in hand. Before

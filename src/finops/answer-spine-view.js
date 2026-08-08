@@ -256,6 +256,19 @@ export const ANSWER_SPINE = Object.freeze([
       + "would close it. No claim about anyone else's progress.",
   },
   {
+    // #1391. A step, not a headline: it names no figure the answer above it does
+    // not already carry, it says how far that figure can be trusted and why.
+    id: "finops-analysis-readiness",
+    role: ROLE.step,
+    question: "Can I get a trustworthy savings recommendation now?",
+    headingId: "analysis-readiness-question",
+    entitledToAssert:
+      "Which required evidence categories the bundled scenario actually carries, "
+      + "the one action already derived from it, and what a later category would "
+      + "upgrade. It ranks nothing itself and asks for no credential, export or "
+      + "prompt.",
+  },
+  {
     id: "finops-first-run",
     role: ROLE.step,
     question: "Are we wasting money?",
