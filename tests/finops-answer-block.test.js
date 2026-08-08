@@ -373,7 +373,11 @@ test("every top-level section that existed before the answer block is still on t
   const existing = [
     // #1183 added one: the recoverable answer, stated before every section that
     // supports it. It is the only addition to this list, and nothing left it.
-    "finops-hero", "finops-recoverable-answer", "finops-stand", "finops-first-run",
+    "finops-hero", "finops-recoverable-answer", "finops-stand",
+    // #1391 added one: how far the held evidence carries, read after the answer
+    // it qualifies. Nothing left this list to make room for it.
+    "finops-analysis-readiness",
+    "finops-first-run",
     // #1325 added one: the registry front door, three named destinations with
     // the question each answers and one material metric apiece. Nothing left
     // this list to make room for it.
