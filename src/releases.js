@@ -922,11 +922,12 @@ export function handleReleaseListKeydown(event, container) {
   return true;
 }
 
-export function focusRelease(container, id) {
+export function focusRelease(container, id, options = {}) {
   if (typeof id !== "string" || id === "") return false;
   const toggle = [...container.querySelectorAll(".release-toggle")]
     .find((candidate) => candidate.dataset.releaseId === id);
   if (!toggle) return false;
+  if (options.expand && toggle.getAttribute("aria-expanded") !== "true") toggle.click();
   toggle.focus({ preventScroll: true });
   toggle.scrollIntoView({ block: "center" });
   return true;

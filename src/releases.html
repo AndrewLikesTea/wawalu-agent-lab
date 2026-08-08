@@ -6,6 +6,7 @@
     <meta name="description" content="Shiplog releases and the decisions behind them" />
     <title>Releases · Shiplog</title>
     <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/releases-proof.css" />
   </head>
   <body>
     <a class="skip-link" href="#main-content">Skip to main content</a>
@@ -31,6 +32,27 @@
         <p class="eyebrow">Releases</p>
         <h1 id="page-title">See what shipped,<br />and why.</h1>
         <p>Every release in reverse chronological order, with the decisions it carried. Includes representative example records to demonstrate Shiplog. They are not customer or internal operational data. Expand a release to review each linked decision and its status.</p>
+      </section>
+
+      <section class="shiplog-proof" id="shiplog-proof" aria-labelledby="shiplog-proof-title" tabindex="-1">
+        <div class="shiplog-proof-heading">
+          <div>
+            <p class="eyebrow">Representative Shiplog proof</p>
+            <h2 id="shiplog-proof-title">A decision carried through to release</h2>
+          </div>
+          <span class="badge badge-example">Synthetic example · not customer data</span>
+        </div>
+        <dl class="shiplog-proof-facts">
+          <div><dt>Decision</dt><dd><a href="/decision.html?id=demo-queue">Adopt a durable job queue</a></dd></div>
+          <div><dt>Decision owner</dt><dd>Kai</dd></div>
+          <div><dt>Decision status</dt><dd><span class="badge badge-accepted">accepted</span></dd></div>
+          <div><dt>Completed release</dt><dd><a href="/release.html?id=demo-r-1-3-0">v1.3.0 · Throughput and latency</a></dd></div>
+        </dl>
+        <div class="shiplog-proof-share">
+          <a class="shiplog-proof-link" href="/releases.html?focus=demo-r-1-3-0#shiplog-proof">Share this proof</a>
+          <button class="share-button" id="shiplog-proof-copy" type="button" aria-label="Copy link to this synthetic Shiplog proof" aria-describedby="shiplog-proof-copy-status">Copy link</button>
+          <span class="share-status" id="shiplog-proof-copy-status" role="status" aria-live="polite" aria-atomic="true"></span>
+        </div>
       </section>
 
       <!-- Deployment status: does what is running match the newest record in
