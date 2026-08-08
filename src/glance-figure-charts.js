@@ -22,47 +22,55 @@
 // currentColor at a few opacities, so a mark follows the text it sits beside —
 // dark mode and forced colours included — and no meaning is carried by hue.
 //
+// EVERY SHAPE IS THE NUMBER BESIDE IT, AND THAT IS CHECKED. The scales live in
+// glance-chart-scales.js, one per figure, each of them invertible: the same
+// module reads a drawn shape back as a number from its attributes alone.
+// `renderGlanceFigureChart` runs that reading against the figure's published
+// value and returns NOTHING when the two disagree, so a picture that has drifted
+// from its sentence is never the thing a lead sees. The prose is untouched
+// either way — it is the whole answer, and the picture is an illustration of it
+// that has to earn its place on every paint.
+//
 // THE DEGENERATE SERIES ARE THE FEATURE, NOT A GUARD.
 //   • No points: nothing is drawn and null is returned, so the caller keeps its
 //     text and the DOM gains no empty SVG shell.
-//   • One point: a valid single-datum shape, not an axis and not a trend.
+//   • One point: a valid single-datum shape, not an axis and not a trend. On the
+//     page a one-point movement therefore draws nothing at all: a single period
+//     states no change, and the sentence already says so in words.
 //   • Many points: bounded. A ranked list draws at most RANK_ROWS rows.
 //   • All zero, or flat: no denominator is ever zero, because a non-positive
 //     denominator maps every datum to zero length. The chart then draws its
-//     track and no fill — "nothing here", rather than NaN in a width.
+//     track and no fill — "nothing here", rather than NaN in a width. A flat
+//     movement is the exception, and deliberately: two equal totals sit at the
+//     same height on the zero-anchored axis, which reads back as 0.0% and is
+//     exactly what the sentence says.
 //   • Negative: magnitude and direction are separated before any attribute is
 //     written. Month-over-month can fall, and a rect refuses a negative height.
 
+import {
+  BOX, DIM, GAP, HEIGHT, LINE_INSET, LIT, PEER_SLOTS, RANK_ROWS, SLICE_GUTTER,
+  SLOT_GUTTER, TRACK, WIDTH, compareGlanceDrawing, round,
+} from "./glance-chart-scales.js";
+
+export { PEER_SLOTS, RANK_ROWS };
+
 const SVG_NS = "http://www.w3.org/2000/svg";
-
-// Viewbox units, and the shipped pixel size: one unit is one CSS pixel at 1x,
-// and the browser resamples from the viewBox at every other ratio. GAP is clear
-// space inside the box, which is how the mark stands off its number without a
-// margin rule.
-const GAP = 6;
-const WIDTH = 48;
-const HEIGHT = 12;
-const BOX = GAP + WIDTH;
-
-/** The datum the prose names, everything else, and the unfilled track. */
-const LIT = "0.95";
-const DIM = "0.28";
-const TRACK = "0.12";
-
-/** At most this many bars in a ranked list. The prose names rank 1. */
-export const RANK_ROWS = 4;
-
-/** The peer figure's scale: four quartiles, always drawn, one or two marked. */
-export const PEER_SLOTS = 4;
 
 /** Only real numbers reach a coordinate. A series of NaN is a series of none. */
 const finite = (series) => (Array.isArray(series) ? series : [])
   .map((value) => Number(value))
   .filter((value) => Number.isFinite(value));
 
+/** A share of the track, in [0, 1]. Out of range is a caller contract error;
+ * it draws clamped, and the correspondence check then reports the mismatch
+ * rather than letting a bar past the end of its own track. */
+const share = (value) => Math.min(1, Math.max(0, value));
+
 const el = (doc, name, attributes) => {
   const node = doc.createElementNS(SVG_NS, name);
-  for (const [key, value] of Object.entries(attributes)) node.setAttribute(key, String(value));
+  for (const [key, value] of Object.entries(attributes)) {
+    node.setAttribute(key, typeof value === "number" ? String(round(value)) : String(value));
+  }
   return node;
 };
 
@@ -103,9 +111,10 @@ export function renderSpendMixChart(doc, series) {
     for (const [index, value] of values.entries()) {
       const span = (value / total) * WIDTH;
       // The gutter is taken off the drawn width and not off the step, so the
-      // slices stay proportional and two dim neighbours stay told apart.
+      // slices stay proportional and two dim neighbours stay told apart. It goes
+      // back on in `readSpendMixShare`, which is why it is a named constant.
       node.append(bar(doc, {
-        x, y: 3, width: span - 0.6, height: 6, opacity: index === largest ? LIT : DIM,
+        x, y: 3, width: span - SLICE_GUTTER, height: 6, opacity: index === largest ? LIT : DIM,
       }));
       x += span;
     }
@@ -114,7 +123,14 @@ export function renderSpendMixChart(doc, series) {
 }
 
 /**
- * Department rank: the top rows as bars against the largest.
+ * Department rank: the top rows, each as its share of the period.
+ *
+ * SHARES, NOT DOLLARS, AND NOT NORMALISED BY THE LARGEST ROW. The track is the
+ * period's whole spend, so a row's width is the percentage the line beside it
+ * prints and the undrawn tail is the spend no department was attributed.
+ * Scaling by the largest row instead would draw rank 1 at full width whether it
+ * held 30% of the budget or 3%, which is a picture of the ranking and not of the
+ * number in the sentence.
  *
  * The caller's series is already in the order the figure ranks by, so row 0 is
  * rank 1 and nothing is sorted here. Rows past RANK_ROWS are not drawn: the
@@ -122,45 +138,52 @@ export function renderSpendMixChart(doc, series) {
  * carries the name and the share.
  */
 export function renderRankChart(doc, series) {
-  const values = finite(series).map((value) => Math.max(0, value));
+  const values = finite(series);
   if (values.length === 0) return null;
   const node = root(doc, "departmentRank");
-  const rows = values.slice(0, RANK_ROWS);
-  const largest = Math.max(...rows);
   const pitch = HEIGHT / RANK_ROWS;
-  for (const [index, value] of rows.entries()) {
+  for (const [index, value] of values.slice(0, RANK_ROWS).entries()) {
     const y = index * pitch + 0.5;
     const height = pitch - 1;
     node.append(bar(doc, { x: GAP, y, width: WIDTH, height, opacity: TRACK }));
     node.append(bar(doc, {
-      x: GAP, y, height,
-      width: largest > 0 ? (value / largest) * WIDTH : 0,
-      opacity: index === 0 ? LIT : DIM,
+      x: GAP, y, height, width: share(value) * WIDTH, opacity: index === 0 ? LIT : DIM,
     }));
   }
   return node;
 }
 
 /**
- * Movement: a sparkline over the periods, with the latest one marked.
+ * Movement: a line over the periods, on an axis anchored at zero.
+ *
+ * ANCHORED, NOT MIN-MAX NORMALISED. The top of the axis is the largest total and
+ * the bottom is zero, so the slope is proportional to the change and the two
+ * heights recover the ratio between the totals — which is the percentage the
+ * sentence prints. Normalising by the pair's own min and max put every movement,
+ * however small, on a slope from floor to ceiling: it drew the direction
+ * truthfully and the size not at all.
  *
  * The sign is carried by where the last point sits, not by a length, so a fall
- * draws exactly as safely as a rise. A flat or all-zero series has no span to
- * normalise against and draws a level line through the middle.
+ * draws exactly as safely as a rise. Totals are sums of spend and non-negative;
+ * a negative one is clamped to the baseline rather than drawn outside the box.
+ * An all-zero series has no top to divide by and draws a level line through the
+ * middle — no denominator is ever zero.
  */
 export function renderMovementChart(doc, series) {
   const values = finite(series);
   if (values.length === 0) return null;
   const node = root(doc, "movement");
-  const low = Math.min(...values);
-  const span = Math.max(...values) - low;
-  const y = (value) => (span > 0 ? HEIGHT - 1.5 - ((value - low) / span) * (HEIGHT - 3) : HEIGHT / 2);
+  const top = Math.max(...values, 0);
+  const axis = HEIGHT - 2 * LINE_INSET;
+  const y = (value) => (top > 0
+    ? HEIGHT - LINE_INSET - (Math.max(0, value) / top) * axis
+    : HEIGHT / 2);
   const x = (index) => (values.length > 1
     ? GAP + (index * WIDTH) / (values.length - 1)
     : GAP + WIDTH / 2);
   if (values.length > 1) {
     node.append(el(doc, "polyline", {
-      points: values.map((value, index) => `${x(index)},${y(value)}`).join(" "),
+      points: values.map((value, index) => `${round(x(index))},${round(y(value))}`).join(" "),
       fill: "none",
       stroke: "currentColor",
       "stroke-width": "1.25",
@@ -191,8 +214,8 @@ export function renderPositionChart(doc, occupied, of = PEER_SLOTS) {
   const pitch = WIDTH / slots;
   for (let slot = 1; slot <= slots; slot += 1) {
     node.append(bar(doc, {
-      x: GAP + (slot - 1) * pitch + 0.6, y: 3,
-      width: pitch - 1.2, height: 6,
+      x: GAP + (slot - 1) * pitch + SLOT_GUTTER, y: 3,
+      width: pitch - 2 * SLOT_GUTTER, height: 6,
       opacity: marks.has(slot) ? LIT : TRACK,
     }));
   }
@@ -213,9 +236,23 @@ const RENDERERS = Object.freeze({
  * An UNMEASURED figure gets nothing. That block already says in words that it
  * could not measure the figure and why, and a shape beside that sentence would
  * be a picture of a number the page refused to publish.
+ *
+ * AND A DRAWN SHAPE THAT DOES NOT READ BACK AS THE FIGURE'S PUBLISHED VALUE GETS
+ * NOTHING EITHER. The shape is measured with the figure's own scale — see
+ * glance-chart-scales.js — and shown only when the recovered number matches the
+ * one the sentence prints, inside a tolerance that is the two stated roundings
+ * and nothing more. Three states end up in the same place, which is the point:
+ * a series too degenerate to draw a percentage from, a figure carrying no
+ * published value, and a genuine drift between the model and the geometry all
+ * leave the prose standing alone rather than putting a second, different claim
+ * beside it. The comparison returns its arithmetic, so a reviewer disputing a
+ * missing picture gets both numbers and the tolerance.
  */
 export function renderGlanceFigureChart(doc, figure) {
   if (!doc?.createElementNS || !figure?.measured) return null;
   const render = RENDERERS[figure.key];
-  return render ? render(doc, figure.series ?? []) : null;
+  if (!render) return null;
+  const chart = render(doc, figure.series ?? []);
+  if (!chart) return null;
+  return compareGlanceDrawing(chart, figure).agrees ? chart : null;
 }

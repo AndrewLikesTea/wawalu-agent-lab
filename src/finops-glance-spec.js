@@ -152,9 +152,15 @@ function measureDepartmentRank(analysis) {
   const value = oneDecimal((Number(leader.spendUsd) / total) * 100);
   const name = leader.unit?.label ?? leader.unit?.key ?? "the rank-1 department";
   // `units` in the order that function published — spend descending — so row 0
-  // of the drawn ranking is the same leader this line names.
+  // of the drawn ranking is the same leader this line names, and each entry is
+  // that unit's SHARE of the same denominator the percent above was taken over.
+  // Shares rather than dollars because the picture is drawn against a track that
+  // stands for the whole period: publishing dollars would leave the renderer to
+  // invent a denominator, and the width beside the sentence would then be a
+  // share of something the sentence never mentions. Spend the model attributed
+  // to no department is simply undrawn track, which is what it is.
   return measured(value, `1. ${name} · ${percent(value)} of period spend`,
-    mix.units.map((unit) => Number(unit.spendUsd) || 0));
+    mix.units.map((unit) => (Number(unit.spendUsd) || 0) / total));
 }
 
 /**

@@ -12,6 +12,12 @@
 //      points, all zeros and a fall all reach a coordinate, and none of them may
 //      write NaN, a negative width or a negative height into the document.
 //
+// The third claim — that each shape is a drawing of the number the sentence
+// beside it prints — is not here, because it needs the scale inverted rather
+// than the attributes inspected. It lives in glance-chart-correspondence.test.js
+// and is why the figures below carry the value their prose would state: the
+// dispatcher draws nothing for a figure whose geometry disagrees with it.
+//
 // Every assertion about absence is written against a count or a boolean, never
 // `assert.equal(node, null)`: this harness's elements are deep enough that the
 // diff assert builds for a failing identity check does not finish.
@@ -203,13 +209,25 @@ test("the peer scale is always whole, with only the occupied quartiles filled", 
 // ---------------------------------------------------------------------------
 
 test("a measured figure gets the picture its key names", () => {
-  const figure = (key, series) => ({ key, measured: true, series });
-  for (const [key, expected] of [["spendMix", 5], ["departmentRank", 8], ["peerPosition", 4]]) {
-    const chart = renderGlanceFigureChart(doc(), figure(key, [4, 3, 2, 1]));
+  // Each figure carries the value its sentence would print, because the
+  // dispatcher now draws nothing unless the shape reads back as that value.
+  const cases = [
+    // A four-class mix summing to 1; the largest class holds 40% of it.
+    ["spendMix", { series: [0.4, 0.3, 0.2, 0.1], value: 40 }, 5],
+    // Four departments as shares of period spend; rank 1 holds 40%.
+    ["departmentRank", { series: [0.4, 0.3, 0.2, 0.1], value: 40 }, 8],
+    // The worst quartile, marked alone on a whole scale.
+    ["peerPosition", { series: [4], value: 4 }, 4],
+  ];
+  for (const [key, reading, expected] of cases) {
+    const chart = renderGlanceFigureChart(doc(), { key, measured: true, ...reading });
     assert.equal(chart.getAttribute("data-chart"), key);
     assert.equal(shapes(chart, "rect").length, expected, `${key} drew the wrong shape`);
   }
-  assert.equal(shapes(renderGlanceFigureChart(doc(), figure("movement", [2, 1])), "circle").length, 1);
+  // 1000 → 1500 is a rise of 50.0%, and one marked latest point.
+  const movement = renderGlanceFigureChart(doc(),
+    { key: "movement", measured: true, series: [1000, 1500], value: 50 });
+  assert.equal(shapes(movement, "circle").length, 1);
 });
 
 test("an unmeasured figure, an unknown key and a missing figure draw nothing", () => {

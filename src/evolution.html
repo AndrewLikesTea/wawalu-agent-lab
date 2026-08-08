@@ -354,7 +354,17 @@
              so deleting all four would lose a reader nothing. Their size and
              colour are in the SVG rather than in a rule — this page allows no
              inline style attribute, and a chart that needed the stylesheet to
-             sit beside its number would sit wrong anywhere else. -->
+             sit beside its number would sit wrong anywhere else.
+             #1348 makes every shape here provably the number in the sentence it
+             sits in. Each figure is drawn on one declared, INVERTIBLE scale in
+             src/glance-chart-scales.js, and before a picture is appended the
+             renderer reads it back off its own attributes and compares it with
+             the value the sentence printed. A shape that disagrees is not shown:
+             the line then reads exactly as it did before any picture existed,
+             which is also what a degenerate series gets. The tolerance is the
+             two stated roundings — one decimal in the prose, four places in a
+             coordinate — and nothing else, and the comparison returns its
+             arithmetic so a disputed figure can be checked by hand. -->
         <div class="stand-figure stand-glance pre-analysis-withheld" id="finops-glance" data-lead="none" data-crossed="false" hidden>
           <h3 class="stand-figure-label">Which of these four is the reason to keep reading?</h3>
           <p class="stand-figure-value" id="finops-glance-lead" data-available="false"></p>
