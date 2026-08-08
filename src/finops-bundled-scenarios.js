@@ -14,9 +14,9 @@ const PERIOD = Object.freeze({
   startDate: "2026-07-01", endDate: "2026-07-31",
 });
 
-const scenario = ({ id, providerId, format, department, spendUsd, queries, recoverable,
+const scenario = ({ id, label, providerId, format, department, spendUsd, queries, recoverable,
   action, evidenceId }) => Object.freeze({
-  id, providerExportShape: Object.freeze({ providerId, format, contractVersion: "1.0.0" }),
+  id, label, providerExportShape: Object.freeze({ providerId, format, contractVersion: "1.0.0" }),
   sanitized: true,
   dataset: Object.freeze({
     provenance: Object.freeze({
@@ -41,15 +41,18 @@ const scenario = ({ id, providerId, format, department, spendUsd, queries, recov
 });
 
 const SCENARIOS = Object.freeze([
-  scenario({ id: "aws-bedrock-cur-v1", providerId: "bedrock", format: "csv",
+  scenario({ id: "aws-bedrock-cur-v1", label: "AWS Bedrock — CSV cost-and-usage export",
+    providerId: "bedrock", format: "csv",
     department: "Platform Engineering", spendUsd: 18000, queries: 240000,
     recoverable: 3600, action: "Pilot standard-model routing for routine requests.",
     evidenceId: "bedrock-sanitized-1" }),
-  scenario({ id: "google-vertex-detailed-v1", providerId: "vertex-ai", format: "jsonl",
+  scenario({ id: "google-vertex-detailed-v1", label: "Google Vertex AI — JSONL detailed billing export",
+    providerId: "vertex-ai", format: "jsonl",
     department: "Data Platform", spendUsd: 22500, queries: 375000,
     recoverable: 4500, action: "Route low-complexity batch requests to the lower-cost model.",
     evidenceId: "vertex-sanitized-1" }),
-  scenario({ id: "azure-openai-cost-v1", providerId: "azure-openai", format: "json-envelope",
+  scenario({ id: "azure-openai-cost-v1", label: "Azure OpenAI — JSON cost-management envelope",
+    providerId: "azure-openai", format: "json-envelope",
     department: "Developer Experience", spendUsd: 15000, queries: 332000,
     recoverable: 3000, action: "Default one-step transformations to the mini deployment.",
     evidenceId: "azure-sanitized-1" }),
@@ -57,6 +60,16 @@ const SCENARIOS = Object.freeze([
 
 const BY_ID = new Map(SCENARIOS.map((item) => [item.id, item]));
 export const BUNDLED_SCENARIO_IDS = Object.freeze(SCENARIOS.map((item) => item.id));
+
+/**
+ * What a chooser may put in front of a reader: the stable id and the export
+ * shape it stands for, in registry order. Naming the shape is the whole point of
+ * the choice, so it is published here rather than re-authored beside a control.
+ */
+export const BUNDLED_SCENARIO_CATALOGUE = Object.freeze(SCENARIOS.map((item) => Object.freeze({
+  id: item.id, label: item.label,
+  providerId: item.providerExportShape.providerId, format: item.providerExportShape.format,
+})));
 
 const failure = (code, message, scenarioId = null) => Object.freeze({
   ok: false, contract: BUNDLED_SCENARIO_CONTRACT,
@@ -80,7 +93,14 @@ export function analyzeBundledScenario(request) {
   const threshold = 1000;
   return Object.freeze({
     ok: true, contract: BUNDLED_SCENARIO_CONTRACT, scenarioId: selected.id,
+    label: selected.label,
     providerExportShape: selected.providerExportShape, readiness,
+    // The sanitized rows the finding was computed from, published so a view can
+    // SHOW the scenario rather than restate a summary of it. Read-only output,
+    // never an input: nothing here is accepted back through `request`.
+    sample: Object.freeze({
+      departments: selected.dataset.departments, evidence: selected.dataset.evidence,
+    }),
     finding: Object.freeze({
       id: `${selected.id}-finding-1`, rank: 1,
       statement: `${next.department} has ${next.figure.text} in modelled recoverable spend.`,
