@@ -329,58 +329,6 @@ export function counterState(text, max = MAX_POST_LENGTH) {
   };
 }
 
-// Roving-focus math for reading the feed. Posts are non-interactive <article>s,
-// so — like the release headers — Enter is NOT a navigation key; only arrows and
-// Home/End move focus, clamping at the ends (no wrap).
-//
-// The feed is a grid, so left/right step one card and up/down step one *row*.
-// `columns` is measured from the rendered layout (see visibleColumnCount), which
-// is what keeps the keyboard model honest as the grid reflows from one column on
-// a phone to several on a desktop. It defaults to 1 so a single-column feed
-// behaves exactly like the previous list.
-const NAV_KEYS = new Set(["ArrowDown", "ArrowUp", "ArrowLeft", "ArrowRight", "Home", "End"]);
-
-export function nextFocusIndex(current, key, length, columns = 1) {
-  if (length === 0) return -1;
-  const row = Math.max(1, Math.floor(columns) || 1);
-  switch (key) {
-    case "ArrowRight":
-      return current < 0 ? 0 : Math.min(current + 1, length - 1);
-    case "ArrowLeft":
-      return current <= 0 ? 0 : current - 1;
-    // Down into a short last row still lands on its final card; up from the
-    // first row has nowhere to go, so focus holds its column instead of
-    // sliding sideways to index 0.
-    case "ArrowDown":
-      return current < 0 ? 0 : Math.min(current + row, length - 1);
-    case "ArrowUp": {
-      if (current <= 0) return 0;
-      const target = current - row;
-      return target < 0 ? current : target;
-    }
-    case "Home":
-      return 0;
-    case "End":
-      return length - 1;
-    default:
-      return current;
-  }
-}
-
-// How many cards share the first row, derived from their laid-out vertical
-// offsets. Pure so the wrapping rule is unit-tested without a browser; the DOM
-// layer supplies real offsets.
-export function columnCount(offsets) {
-  if (!Array.isArray(offsets) || offsets.length === 0) return 0;
-  const first = offsets[0];
-  let columns = 0;
-  for (const offset of offsets) {
-    if (offset !== first) break;
-    columns += 1;
-  }
-  return columns;
-}
-
 // ---------------------------------------------------------------------------
 // Rendering layer. Everything below touches the DOM and runs in the browser;
 // the pure core above is what the unit tests cover. Text is always written via
@@ -456,12 +404,11 @@ function renderMedia(image, description) {
   return frame;
 }
 
-function renderPostCard(post, { focusable, index }) {
+function renderPostCard(post, { index }) {
   const item = el("li");
   const article = el("article", "post-card");
   // Roving tabindex: exactly one card is the tab stop; arrow keys move focus
   // between cards (see the keydown handler in mountSocialFeed).
-  article.tabIndex = focusable ? 0 : -1;
   article.dataset.postId = post.id;
 
   const header = el("header", "post-head");
@@ -469,7 +416,13 @@ function renderPostCard(post, { focusable, index }) {
   avatar.setAttribute("aria-hidden", "true");
 
   const byline = el("div", "post-byline");
-  const author = el("span", "post-author", post.author);
+  const image = normalizeImage(post.image);
+  const author = el(image ? "a" : "span", "post-author", post.author);
+  if (image) {
+    author.href = profileHref(post.author);
+    author.dataset.postId = post.id;
+    author.setAttribute("aria-label", `${post.author} — view this display name on People`);
+  }
   // Ids are minted from the render index, never from post.id — a post id is
   // arbitrary text and must not be spliced into an id/IDREF list.
   author.id = `post-${index}-author`;
@@ -482,7 +435,6 @@ function renderPostCard(post, { focusable, index }) {
   article.append(header);
   if (post.title) article.append(el("h3", "post-title", post.title));
 
-  const image = normalizeImage(post.image);
   const textId = `post-${index}-text`;
   if (image) {
     article.classList.add("post-card-media");
@@ -505,9 +457,6 @@ function renderPostCard(post, { focusable, index }) {
     body.id = textId;
     article.append(body);
   }
-  // Focusing a card announces "<author>: <caption>" rather than a bare "article".
-  article.setAttribute("aria-labelledby", `post-${index}-author ${textId}`);
-
   item.append(article);
   return item;
 }
@@ -618,20 +567,9 @@ export function renderPosts(container, posts, options = {}) {
   const list = el("ol", "post-grid");
   list.setAttribute("role", "list");
   ordered.forEach((post, index) => {
-    list.append(renderPostCard(post, { focusable: index === 0, index }));
+    list.append(renderPostCard(post, { index }));
   });
   container.append(list);
-}
-
-function focusCard(cards, index) {
-  cards.forEach((card, i) => { card.tabIndex = i === index ? 0 : -1; });
-  cards[index]?.focus();
-}
-
-// Cards on the same visual row share an offsetTop; that count is the grid's
-// current column count, which is what up/down arrows step by.
-function visibleColumnCount(cards) {
-  return columnCount(cards.map((card) => card.offsetTop));
 }
 
 // The composer's image-description field: its requirement marker, its remaining
@@ -751,11 +689,6 @@ export function mountSocialFeed(root, options = {}) {
 
   let posts = options.posts ?? [];
   let state = options.state ?? "ready";
-  // The card that owns the tab stop, remembered across re-renders so a
-  // background refresh cannot silently send a returning keyboard user back to
-  // the top of the feed.
-  let activeId = null;
-
   const postLabel = (n) => `${n} ${n === 1 ? "post" : "posts"}`;
 
   // The words a filter is currently showing, read back off the control itself
@@ -769,7 +702,6 @@ export function mountSocialFeed(root, options = {}) {
   const midSentence = (text) => (text ? text[0].toLowerCase() + text.slice(1) : "");
 
   const render = () => {
-    const hadFocus = Boolean(feed.querySelector(".post-card:focus"));
     const visible = filterPosts(posts, { author: nameFilter?.value, range: timeFilter?.value });
     const filtering = nameFilter?.value !== "all" || timeFilter?.value !== "all";
     const named = {
@@ -818,13 +750,6 @@ export function mountSocialFeed(root, options = {}) {
     // not looked yet.
     if (summary) summary.textContent = answered ? feedSummarySentence(showing) : "";
 
-    const cards = [...feed.querySelectorAll(".post-card")];
-    const index = activeId ? cards.findIndex((card) => card.dataset.postId === activeId) : -1;
-    if (index < 0) return;
-    // Move focus only if the feed already had it; otherwise just restore the
-    // tab stop, so a refresh never yanks focus out of the compose form.
-    if (hadFocus) focusCard(cards, index);
-    else cards.forEach((card, i) => { card.tabIndex = i === index ? 0 : -1; });
   };
 
   const renderNames = () => {
@@ -862,13 +787,13 @@ export function mountSocialFeed(root, options = {}) {
   // heading, which is the panel's own accessible name and always present.
   const recoverFromNoMatch = () => {
     clearBothFilters();
-    const first = feed.querySelector(".post-card");
+    const first = feed.querySelector(".post-card")?.querySelector("a");
     (first ?? heading)?.focus();
   };
 
   const focusPostCard = (id) => {
     const card = [...feed.querySelectorAll(".post-card")].find((item) => item.dataset.postId === id);
-    card?.focus();
+    (card?.querySelector("a") ?? heading)?.focus();
     card?.scrollIntoView?.({ block: "center", behavior: "smooth" });
     return Boolean(card);
   };
@@ -949,20 +874,6 @@ export function mountSocialFeed(root, options = {}) {
     submit.setAttribute("aria-busy", String(submitting));
     if (submitLabel) submitLabel.textContent = submitting ? "Publishing…" : "Publish post";
   };
-
-  // Arrow/Home/End move focus between cards; delegated so it survives re-renders.
-  feed.addEventListener("keydown", (event) => {
-    const card = event.target.closest?.(".post-card");
-    if (!card || !NAV_KEYS.has(event.key)) return;
-    const cards = [...feed.querySelectorAll(".post-card")];
-    event.preventDefault();
-    focusCard(cards, nextFocusIndex(cards.indexOf(card), event.key, cards.length, visibleColumnCount(cards)));
-  });
-
-  feed.addEventListener("focusin", (event) => {
-    const card = event.target.closest?.(".post-card");
-    if (card) activeId = card.dataset.postId;
-  });
 
   if (bodyInput) {
     bodyInput.addEventListener("input", updateCounter);

@@ -201,7 +201,7 @@ test("a post the filters hide is confirmed as hidden, and the control that revea
     1,
     "the post the confirmation promised is now on screen",
   );
-  assert.equal(document.activeElement?.dataset?.postId, SAVED_ID, "focus lands on the revealed post");
+  assert.equal(document.activeElement?.id, "feed-title", "a text-only card is skipped and focus lands on the feed heading");
   assert.doesNotMatch(textOf(notice(document)), new RegExp(FILTERED_OUT_NOTE), "and the notice no longer claims it is hidden");
   assert.equal(
     tabSequence(document).filter((node) => textOf(node) === REVEAL_CONTROL_LABEL).length,

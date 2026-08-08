@@ -628,18 +628,16 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
    every card in a row ends at the same height. */
 .post-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(min(100%,272px),1fr)); gap:16px; margin:0; padding:0; list-style:none; }
 .post-card { display:flex; flex-direction:column; height:100%; padding:18px; border:1px solid #d9d7d0; border-radius:12px; background:#fff; }
-.post-card:focus-visible { outline:3px solid #8abbe9; outline-offset:2px; border-color:#1f70c1; }
 .post-head { display:flex; align-items:center; gap:12px; margin-bottom:12px; }
 .post-avatar { flex:none; display:grid; place-items:center; width:38px; height:38px; border-radius:99px; background:#e7eefb; color:#1f5fa8; font:750 13px/1 ui-monospace,monospace; }
 .post-byline { display:flex; flex-direction:column; gap:2px; min-width:0; }
-.post-author { font-size:15px; font-weight:700; letter-spacing:-.01em; overflow-wrap:anywhere; }
+.post-author { width:fit-content; color:#292925; font-size:15px; font-weight:700; letter-spacing:-.01em; overflow-wrap:anywhere; text-underline-offset:3px; }
+.post-author:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
 .post-date { color:#74746e; font:600 11px/1.4 ui-monospace,monospace; }
 .post-body { margin:0; color:#333330; line-height:1.55; white-space:pre-wrap; overflow-wrap:anywhere; }
 .post-title { margin:0 0 8px; font-size:16px; line-height:1.35; letter-spacing:-.015em; overflow-wrap:anywhere; }
-/* Image posts. The image is the loudest element in the card (full width, fixed
-   4:3 tile); the caption below it is deliberately quieter — smaller, softer
-   colour — but still ~10:1 on white, well past the 4.5:1 AA minimum. The error
-   note is ~7:1 on its own tint. */
+/* Image posts use the caption as the primary text. The image remains generous,
+   while the name, timestamp, and description fallback retain separate weight. */
 .post-figure { display:flex; flex-direction:column; margin:2px 0 0; }
 .post-media { position:relative; overflow:hidden; aspect-ratio:4/3; display:grid; place-items:center; border-radius:10px; background:#eeece5; }
 .post-image { display:block; width:100%; height:100%; object-fit:cover; }
@@ -651,7 +649,7 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
    above it must stay a chip. Shared by both tile surfaces (feed and People). */
 .post-media-fallback { margin:0; padding:0 14px; color:#7c3f3a; font:650 12px/1.5 ui-monospace,monospace; text-align:center; }
 .media-fallback-text { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:4; overflow:hidden; margin:0; }
-.post-caption { margin:12px 0 0; color:#42423d; font-size:14px; line-height:1.55; white-space:pre-wrap; overflow-wrap:anywhere; }
+.post-caption { margin:14px 0 0; color:#242420; font:700 16px/1.5 system-ui,sans-serif; letter-spacing:-.01em; white-space:pre-wrap; overflow-wrap:anywhere; }
 @keyframes shiplog-shimmer { from { background-position:120% 0; } to { background-position:-120% 0; } }
 /* First-load placeholders: same geometry as a real card, so the grid does not
    resize when posts replace them. */
@@ -676,6 +674,7 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .profile-identity .profile-avatar { flex:none; display:grid; place-items:center; width:76px; height:76px; border-radius:99px; background:#e7eefb; color:#1f5fa8; font:750 26px/1 ui-monospace,monospace; }
 .profile-identity-text { min-width:0; }
 .profile-summary { margin:10px 0 0; color:#5b5b56; font:650 13px/1.5 ui-monospace,monospace; }
+.profile-active-filter { margin:0; color:#333330; font:700 14px/1.5 system-ui,sans-serif; }
 .profile-lede { max-width:640px; margin:22px 0 0; color:#555550; font-size:17px; line-height:1.6; }
 /* The role line, not a status: one sentence saying what the bundled names are,
    then the way back to the whole feed. It used to open with an uppercase chip
@@ -712,6 +711,7 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .profile-tile-caption { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; margin:0; padding:14px 14px 0; color:#333330; font-size:14px; line-height:1.5; overflow-wrap:anywhere; }
 .profile-tile-meta { display:flex; align-items:center; justify-content:space-between; gap:10px; margin:0; padding:10px 14px 14px; color:#74746e; font:650 11px/1.4 ui-monospace,monospace; }
 .profile-tile-stat { text-align:right; }
+.profile-tile-link { margin:auto 14px 14px; color:#1f5fa8; font:700 13px/1.4 system-ui,sans-serif; text-decoration:underline; text-underline-offset:3px; }
 .profile-tile-skeleton { gap:12px; padding-bottom:14px; }
 .profile-tile-skeleton .skeleton-line { margin:0 14px; }
 .skeleton-media-square { aspect-ratio:1/1; border-radius:0; }

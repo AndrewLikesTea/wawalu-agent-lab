@@ -268,7 +268,7 @@ test("initials and counts read as English", () => {
 
 /* ------------------------------ render layer ------------------------------ */
 
-test("a tile is a link to the post, named by its caption", () => {
+test("a tile visibly links to the full Social post and names its destination", () => {
   const container = createElement("div");
   renderProfileGrid(container, [imagePost], { author: "Mina" });
 
@@ -284,13 +284,11 @@ test("a tile is a link to the post, named by its caption", () => {
   assert.equal(tile.href, "/post.html?id=p-image&author=Mina&from=profile");
   assert.equal(tile.dataset.postId, "p-image");
 
-  // The accessible name is the caption alone — usable in a link list, where the
-  // alt text plus counts would not be.
   const caption = first(tile, "profile-tile-caption");
   assert.equal(caption.tagName, "FIGCAPTION");
   assert.equal(caption.textContent, "Focus rings landed everywhere.");
-  assert.equal(tile.getAttribute("aria-labelledby"), caption.id);
-  assert.ok(ids(tile).includes(caption.id), "the label target resolves inside the tile");
+  assert.equal(tile.getAttribute("aria-label"), "View “Focus rings landed everywhere.” as a full post on Social");
+  assert.equal(first(tile, "profile-tile-link").textContent, "View full post on Social");
 
   const img = tags(tile, "IMG")[0];
   assert.equal(img.src, "/media/focus-ring.svg");

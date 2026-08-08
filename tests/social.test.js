@@ -5,12 +5,10 @@ import {
   createPost,
   sortPostsNewestFirst,
   counterState,
-  nextFocusIndex,
   filterPosts,
   normalizeApiPosts,
   normalizeSocialApiPosts,
   normalizeImage,
-  columnCount,
   feedSummarySentence,
   noMatchMessage,
   noMatchGuidance,
@@ -104,80 +102,6 @@ test("counterState reports remaining budget and warning thresholds", () => {
   assert.equal(over.near, false);
 });
 
-test("nextFocusIndex moves within bounds and clamps; Enter is not a nav key", () => {
-  assert.equal(nextFocusIndex(0, "ArrowDown", 3), 1);
-  assert.equal(nextFocusIndex(2, "ArrowDown", 3), 2); // clamps at last
-  assert.equal(nextFocusIndex(1, "ArrowUp", 3), 0);
-  assert.equal(nextFocusIndex(0, "ArrowUp", 3), 0); // clamps at first
-  assert.equal(nextFocusIndex(-1, "ArrowDown", 3), 0); // nothing focused yet
-  assert.equal(nextFocusIndex(1, "Home", 3), 0);
-  assert.equal(nextFocusIndex(1, "End", 3), 2);
-  assert.equal(nextFocusIndex(1, "Enter", 3), 1); // cards are not interactive; Enter is a no-op
-  assert.equal(nextFocusIndex(0, "ArrowDown", 0), -1); // empty list
-});
-
-test("arrow keys walk the grid by card and by row", () => {
-  // 5 cards over 2 columns: [0 1 / 2 3 / 4]
-  assert.equal(nextFocusIndex(0, "ArrowRight", 5, 2), 1);
-  assert.equal(nextFocusIndex(1, "ArrowLeft", 5, 2), 0);
-  assert.equal(nextFocusIndex(0, "ArrowDown", 5, 2), 2); // down a whole row
-  assert.equal(nextFocusIndex(3, "ArrowUp", 5, 2), 1);
-  assert.equal(nextFocusIndex(3, "ArrowDown", 5, 2), 4); // clamps to the last card
-  assert.equal(nextFocusIndex(1, "ArrowUp", 5, 2), 1); // already on the top row
-  assert.equal(nextFocusIndex(4, "ArrowRight", 5, 2), 4); // clamps at the end
-  assert.equal(nextFocusIndex(-1, "ArrowRight", 5, 2), 0);
-  assert.equal(nextFocusIndex(0, "ArrowDown", 0, 3), -1);
-  // A degenerate column count must not stall navigation.
-  assert.equal(nextFocusIndex(0, "ArrowDown", 3, 0), 1);
-});
-
-test("columnCount reads the grid width off the laid-out rows", () => {
-  assert.equal(columnCount([0, 0, 0, 320, 320, 640]), 3);
-  assert.equal(columnCount([0, 210, 420]), 1); // single column, one card per row
-  assert.equal(columnCount([0, 0]), 2);
-  assert.equal(columnCount([]), 0);
-  assert.equal(columnCount(null), 0);
-});
-
-// The keyboard hint is a promise about the keys, so it is checked against the
-// keys: every group it names moves focus, each movement is named once, and the
-// two arrow pairs are named for the different distances they actually travel.
-test("the feed's keyboard hint names each bound movement once", async (t) => {
-  const page = await loadPage(new URL("../src/social.html", import.meta.url), {});
-  t.after(() => page.restore());
-
-  const hint = textOf(page.document.querySelector(".feed-hint"));
-  assert.equal(hint, "Use ← and → to move between posts, ↑ and ↓ to move between rows, and Home and End to jump to the first and last post. Each card holds the whole post, so there is nothing to open.");
-  // Releases says "move between releases … Home and End to jump to the first
-  // and last release"; Social says the same thing about posts, so one reader
-  // learns one pattern.
-  assert.match(hint, /Use ← and → to move between posts, ↑ and ↓ to [^,]+, and Home and End to jump/);
-  assert.doesNotMatch(hint, /move to the post/, "one verb for moving, not 'move' beside 'move to'");
-  // Nothing on a card is interactive, so the hint must not offer Enter.
-  assert.doesNotMatch(hint, /Enter|Space/);
-
-  const posts = [0, 1, 2, 3, 4].map((i) => ({
-    id: `p${i}`, author: `A${i}`, body: `body ${i}`, createdAt: `2026-07-0${i + 1}T00:00:00.000Z`,
-  }));
-  mountSocialFeed(page.document, { posts, state: "ready" });
-  const cards = page.document.querySelectorAll(".post-card");
-  // The harness lays nothing out, so the grid the hint describes — two columns,
-  // [0 1 / 2 3 / 4] — is supplied as the offsets social.js measures.
-  cards.forEach((card, i) => { card.offsetTop = [0, 0, 320, 320, 640][i]; });
-  const press = (from, key) => {
-    cards[from].focus();
-    pressKey(page.document, key);
-    return cards.indexOf(page.document.activeElement);
-  };
-
-  assert.equal(press(0, "ArrowRight"), 1, "→ steps one post");
-  assert.equal(press(1, "ArrowLeft"), 0, "← steps back one post");
-  assert.equal(press(0, "ArrowDown"), 2, "↓ moves a whole row, which is not what → does");
-  assert.equal(press(3, "ArrowUp"), 1, "↑ moves back a row");
-  assert.equal(press(3, "Home"), 0, "Home jumps to the first post");
-  assert.equal(press(1, "End"), 4, "End jumps to the last post");
-  assert.equal(press(1, "Enter"), 1, "Enter does nothing, so the hint does not name it");
-});
 
 test("normalizeImage accepts same-origin assets and rejects everything else", () => {
   assert.deepEqual(normalizeImage({ src: "/media/focus-ring.svg", alt: "  A blue ring  ", width: 1200, height: 900 }), {
@@ -957,8 +881,7 @@ test("a filter combination matching nothing reads as a dead end with its own rec
   const landed = page.document.activeElement;
   assert.notEqual(landed, null, "focus is moved explicitly, not dropped");
   assert.equal(inDocument(landed), true, "focus lands on a node still in the document");
-  assert.equal(landed.classList.contains("post-card"), true, "focus lands on the first restored post");
-  assert.equal(landed.dataset.postId, "ari-recent");
+  assert.equal(landed.id, "feed-title", "text-only cards are skipped and focus lands on the results heading");
   // Only the dead end's own control was ever added to the tab sequence.
   assert.equal(feed.querySelectorAll("button").length, 0);
 });

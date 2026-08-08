@@ -452,9 +452,12 @@ function renderTile(post, index) {
   meta.append(el("span", "profile-tile-stat", `${countLabel(post.likes, "like")} · ${countLabel(post.comments, "comment")}`));
   link.append(meta);
 
-  // Name the link by its caption alone; the date and counts are decoration for
-  // a link list, and the image alt is still read inside the link.
-  link.setAttribute("aria-labelledby", caption.id);
+  const destination = el("span", "profile-tile-link", "View full post on Social");
+  link.append(destination);
+
+  // Name both the post and its destination; the visible destination text makes
+  // the card's navigation apparent without relying on hover or card shape.
+  link.setAttribute("aria-label", `View “${captionFor(post)}” as a full post on Social`);
   item.append(link);
   return item;
 }
@@ -574,6 +577,7 @@ export function renderProfileHeader(elements, author, summary) {
     elements.avatar.textContent = authorInitials(author);
     elements.avatar.setAttribute("aria-hidden", "true");
   }
+  if (elements.activeFilter) elements.activeFilter.textContent = "Active filter";
   if (elements.name) elements.name.textContent = author;
   if (elements.roleName) elements.roleName.textContent = author;
   if (elements.summary) elements.summary.textContent = profileSummaryText(summary, author);
@@ -591,6 +595,7 @@ export function mountProfile(root, options = {}) {
   const elements = {
     avatar: root.querySelector("#profile-avatar"),
     name: root.querySelector("#profile-name"),
+    activeFilter: root.querySelector("#profile-active-filter"),
     roleName: root.querySelector("#profile-role-name"),
     summary: root.querySelector("#profile-summary"),
     heading: root.querySelector("#grid-title"),
