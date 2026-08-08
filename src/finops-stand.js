@@ -68,6 +68,11 @@ import {
   RECORD_FIELDS, REPRODUCIBILITY_REFUSED, RUBRIC_VERSION, SHIPPED_COHORT_SNAPSHOT,
   evaluateRankingReproducibility, renderableLaggardName,
 } from "./ranking-reproducibility.js";
+// The five-second triage block above the disclosures: four declared figures, one
+// of which is allowed to lead. It reads this composer's own `analysis` and the
+// reproducibility result beside it, so the glance cannot be as of a different
+// dataset from the headline it sits under.
+import { composeFinopsGlance } from "./finops-glance-spec.js";
 // The declarations only, never the classifier. `query-signal-families.js` holds
 // integers and authored English and imports nothing, so naming the weights on
 // this page costs the initial payload one small module rather than the rubric,
@@ -1288,6 +1293,15 @@ export function composeStandHeadline({
     figuresSuppressed: gradability.figuresSuppressed,
     /** The reproducibility result behind the position, or null on a path that has none. */
     reproducibility,
+    /**
+     * The four-figure glance: which one is the reason to keep reading.
+     *
+     * Composed from the same `analysis` and the same reproducibility result the
+     * position above was read through, so the peer figure inherits that model's
+     * refusal rather than re-deciding it. See src/finops-glance-spec.js for the
+     * four questions, their units, their sources, and the selection rule.
+     */
+    glance: composeFinopsGlance({ analysis, reproducibility }),
     disclosures: Object.freeze([
       disclosure(STAND_DISCLOSURE.gradability, gradabilityEntries(gradability)),
       disclosure(STAND_DISCLOSURE.floor, floorEntries(recoverableFloor.floor)),
