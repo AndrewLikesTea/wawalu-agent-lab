@@ -113,9 +113,9 @@ test("Social feed: a post whose image dies still shows the label and the descrip
   assert.equal(caption.textContent, "Focus rings landed everywhere.");
   assert.equal(author.textContent, "Mina Okafor");
   assert.equal(time.dateTime, post.createdAt);
+  assert.ok(order(container, caption) < order(container, fallback), "caption remains the primary content");
+  assert.ok(order(container, fallback) < order(container, author));
   assert.ok(order(container, author) < order(container, time));
-  assert.ok(order(container, time) < order(container, fallback));
-  assert.ok(order(container, fallback) < order(container, caption), "the placeholder took the image's place");
 
   // Same number of tab stops broken as unbroken: the placeholder adds no control.
   assert.equal(tabStops(container), loadedStops);

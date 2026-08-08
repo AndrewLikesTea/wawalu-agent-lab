@@ -80,7 +80,7 @@ test("an image post renders as a figure with the caption as its figcaption", () 
 
   const card = first(container, "post-card");
   assert.ok(card.classes.includes("post-card-media"));
-  assert.equal(card.tabIndex, 0, "the first card is the tab stop");
+  assert.equal(card.tabIndex, undefined, "the article is not an invented tab stop");
   assert.equal(card.dataset.postId, "p-image");
 
   const figure = tags(card, "FIGURE")[0];
@@ -97,11 +97,13 @@ test("an image post renders as a figure with the caption as its figcaption", () 
   assert.equal(img.width, 1200);
   assert.equal(img.height, 900);
 
-  // Focusing the card announces "<author>: <caption>", not a bare "article".
-  const label = card.getAttribute("aria-labelledby").split(" ");
-  const ids = walk(card, () => true).map((node) => node.id).filter(Boolean);
-  assert.equal(label.length, 2);
-  for (const id of label) assert.ok(ids.includes(id), `${id} must resolve inside the card`);
+  const author = first(card, "post-author");
+  assert.equal(author.tagName, "A");
+  assert.equal(author.href, "/profile.html?author=Mina");
+  assert.equal(author.getAttribute("aria-label"), "Mina — view this display name on People");
+  assert.equal(first(card, "post-image-description").textContent,
+    "Image description: A card wrapped in a blue focus ring");
+  assert.equal(img.getAttribute("aria-describedby"), first(card, "post-image-description").id);
 });
 
 test("a post without an image keeps the plain body paragraph", () => {
@@ -152,7 +154,7 @@ test("a loaded image settles the tile into its ready state", () => {
   assert.equal(first(media, "post-media-fallback").hidden, true);
 });
 
-test("the grid keeps list semantics and one roving tab stop", () => {
+test("the grid keeps list semantics and leaves focus on native links", () => {
   const container = createElement("div");
   renderPosts(container, [imagePost, textPost]);
 
@@ -162,7 +164,8 @@ test("the grid keeps list semantics and one roving tab stop", () => {
 
   const cards = byClass(container, "post-card");
   assert.equal(cards.length, 2);
-  assert.deepEqual(cards.map((card) => card.tabIndex), [0, -1]);
+  assert.deepEqual(cards.map((card) => card.tabIndex), [undefined, undefined]);
+  assert.equal(first(cards[0], "post-author").tagName, "A");
   // Newest first, regardless of input order.
   assert.deepEqual(cards.map((card) => card.dataset.postId), ["p-image", "p-text"]);
 });

@@ -142,7 +142,7 @@ test("a first-time visitor lands on a display name that has image posts", async 
     // Zed has the most image posts; Ari sorts first and has none. Landing on Ari
     // is the reported defect — a verdict about an empty name nobody chose.
     assert.equal(selectedChip(page)?.dataset.author, "Zed");
-    assert.equal(textOf(document.querySelector("#profile-name")), "Zed",
+    assert.equal(textOf(document.querySelector("#profile-name")), "Active display-name filter: Zed",
       "the header names someone other than the picker's own value");
     assert.match(textOf(document.querySelector("#profile-summary")), /^2 image posts/);
     assert.equal(document.querySelectorAll(".profile-tile").length, 2);
@@ -164,7 +164,7 @@ test("an explicit name wins even when it has no image posts", async () => {
     try {
       const { document } = page;
       assert.equal(selectedChip(page)?.dataset.author, "Ari", `${how} did not survive the landing default`);
-      assert.equal(textOf(document.querySelector("#profile-name")), "Ari");
+      assert.equal(textOf(document.querySelector("#profile-name")), "Active display-name filter: Ari");
       assert.equal(document.querySelectorAll(".profile-tile").length, 0);
       assert.equal(document.querySelectorAll(".empty-state").length, 1);
     } finally {
@@ -217,7 +217,7 @@ test("the counts on the picker are the rows the grid draws, name by name", async
       chipFor(page, name).click();
       assert.equal(document.querySelectorAll(".profile-tile").length, count,
         `the picker promised ${count} image posts for ${name} and the grid drew something else`);
-      assert.equal(textOf(document.querySelector("#profile-name")), name);
+      assert.equal(textOf(document.querySelector("#profile-name")), `Active display-name filter: ${name}`);
     }
   } finally {
     page.restore();
@@ -320,7 +320,7 @@ test("choosing another name updates the page in place and keeps the URL and stor
       // Focus stays on the display name that was just chosen, even though the
       // chips were rebuilt around it.
       assert.equal(document.activeElement?.dataset.author, "Bea");
-      assert.equal(textOf(document.querySelector("#profile-name")), "Bea");
+      assert.equal(textOf(document.querySelector("#profile-name")), "Active display-name filter: Bea");
       assert.match(textOf(document.querySelector("#profile-summary")), /^1 image post /);
       assert.equal(document.querySelectorAll(".profile-tile").length, 1);
       assert.equal(page.navigations.length, 0);
@@ -340,7 +340,7 @@ test("selecting with the pointer moves the heading, the list, the URL, and the s
     chipFor(page, "Bea").click();
 
     assert.equal(selectedChip(page)?.dataset.author, "Bea");
-    assert.equal(textOf(document.querySelector("#profile-name")), "Bea");
+    assert.equal(textOf(document.querySelector("#profile-name")), "Active display-name filter: Bea");
     assert.match(textOf(document.querySelector("#profile-summary")), /^1 image post /);
     assert.equal(document.querySelectorAll(".profile-tile").length, 1);
     // In place: no navigation, and the selection is carried in the URL and in
