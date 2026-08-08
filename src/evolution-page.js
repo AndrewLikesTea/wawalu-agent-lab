@@ -600,11 +600,8 @@ import {
 } from "/attribution-confidence-view.js";
 import { trustVerdict } from "/finops-trust-verdict.js";
 // The per-model overspend finding and its progressively disclosed evidence.
-// The panel is fed the bundled synthetic finding while the example dataset is
-// on screen: `model-overspend-finding/1.0.0` has no producer in this repository
-// yet (the import path carries neither a model identifier nor a request count —
-// see docs/model-overspend-finding-contract.md), so an imported file cannot
-// honestly fill it and the panel stays hidden for one.
+// The example keeps its labelled fixture. Eligible imports are produced from
+// their validated v1.1 provider rows in browser memory only.
 import {
   clearModelOverspendFinding, renderModelOverspendFinding,
 } from "/model-overspend-finding-view.js";
@@ -1114,7 +1111,7 @@ function mountLocalFinopsImport() {
   const paintProviderProjection = async (providerDocument) => {
     renderOwnDataEvidenceState(document, OWN_DATA_VIEW_STATE.LOADING);
     const [
-      { projectProviderExport }, { renderProviderExportProjection },
+      { projectProviderExport, projectModelOverspendFinding }, { renderProviderExportProjection },
       { determineImportedExportEligibility }, { renderImportedExportEligibility },
     ] = await Promise.all([
       import("/provider-export-projection.js"),
@@ -1123,6 +1120,7 @@ function mountLocalFinopsImport() {
       import("/imported-export-eligibility-view.js"),
     ]);
     const projection = projectProviderExport(providerDocument);
+    importedOverspend = projectModelOverspendFinding(providerDocument);
     if (!renderProviderExportProjection(document, projection)) {
       renderOwnDataEvidenceState(document, OWN_DATA_VIEW_STATE.VALIDATION_ERROR);
       renderLocalExportActivation(document, LOCAL_EXPORT_ACTIVATION_STATE.ERROR);
@@ -2419,15 +2417,13 @@ function mountLocalFinopsImport() {
   // is on hand, null means the per-model question has no rows behind it and the
   // panel says which two fields would supply them.
   let overspendFinding = null;
+  let importedOverspend = null;
   const paintModelOverspend = async (example) => {
     if (!example) {
-      // A leader's own import carries neither `usage.model_raw` nor
-      // `usage.request_count` on this path, so the panel has nothing to draw.
-      // It is not hidden: the contract leaves it on the page and names the two
-      // fields that would fill it. Their org-unit labels are untouched — those
-      // are cleared only by the reset control.
-      overspendFinding = null;
-      return null;
+      return importedOverspend?.finding
+        ? renderModelOverspendFinding(document, importedOverspend.finding,
+          { storage: labelStorage() })
+        : null;
     }
     try {
       if (!overspendFinding) {
@@ -2453,6 +2449,7 @@ function mountLocalFinopsImport() {
     offloader.cancel();
     applyImportProgress(document, null);
     loaded.providers.length = 0;
+    importedOverspend = null;
     delete loaded.hris;
     clearIntakeConfidence(document);
     // Abandoning is total: the queued files, the retained delimited text, and

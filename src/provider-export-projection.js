@@ -24,9 +24,20 @@ import {
   REQUIRED_SPEND_COVERAGE_BENCHMARK,
 } from "./own-data-evidence-preflight.js";
 import { readUsageDetail } from "./provider-usage-record.js";
+import { buildModelOverspendFinding } from "./model-overspend-finding.js";
 import { spendOnlyFigures } from "./spend-only-tier.js";
 
 export const PROVIDER_EXPORT_PROJECTION_VERSION = "provider-export-projection/1.0.0";
+export const MODEL_OVERSPEND_PROJECTION_VERSION = "model-overspend-projection/1.0.0";
+
+/** The validated provider fields consumed by the model-overspend producer. */
+export const MODEL_OVERSPEND_SOURCE_COLUMNS = Object.freeze({
+  period: "usage_date",
+  segment: "org_unit_id",
+  model: "model_raw",
+  requests: "request_count",
+  spend: "cost.amount_minor",
+});
 
 export const PROVIDER_EXPORT_ERROR = Object.freeze({
   MALFORMED: "malformed_file",
@@ -119,6 +130,90 @@ function normalizedRecords(records) {
     } else conflictingRevisions += 1;
   }
   return { records: kept, supersededRows, conflictingRevisions };
+}
+
+const calendarMonth = (date) => /^\d{4}-(0[1-9]|1[0-2])-([0-2]\d|3[01])$/.test(date)
+  ? date.slice(0, 7) : null;
+
+function daysInMonth(period) {
+  const [year, month] = period.split("-").map(Number);
+  return new Date(Date.UTC(year, month, 0)).getUTCDate();
+}
+
+/**
+ * Produce the existing model-overspend contract solely from accepted provider
+ * rows. Missing v1.1 evidence is a withheld result, not an exception or zero.
+ */
+export function projectModelOverspendFinding(document) {
+  const base = { version: MODEL_OVERSPEND_PROJECTION_VERSION };
+  if (!document || document.kind !== LOCAL_KINDS.provider || !Array.isArray(document.records)) {
+    return Object.freeze({ ...base, finding: null, confidence: "unavailable",
+      provenance: null, withholding: Object.freeze([{ code: "unsupported_export",
+        fields: Object.freeze(Object.values(MODEL_OVERSPEND_SOURCE_COLUMNS)) }]) });
+  }
+  const malformed = document.records.filter((row) => !readable(row)
+    || calendarMonth(row.usage_date) === null || typeof row.org_unit_id !== "string");
+  if (malformed.length) {
+    return Object.freeze({ ...base, finding: null, confidence: "unavailable",
+      provenance: Object.freeze({ source: "selected_provider_export",
+        sourceRows: document.records.length, acceptedRows: 0, rejectedRows: malformed.length,
+        processing: "in_browser_memory_only" }),
+      withholding: Object.freeze([{ code: "malformed_source_rows",
+        count: malformed.length, fields: Object.freeze(Object.values(MODEL_OVERSPEND_SOURCE_COLUMNS)) }]) });
+  }
+  const { records, supersededRows, conflictingRevisions } = normalizedRecords(document.records);
+  if (conflictingRevisions) {
+    return Object.freeze({ ...base, finding: null, confidence: "unavailable",
+      provenance: Object.freeze({ source: "selected_provider_export",
+        sourceRows: document.records.length, acceptedRows: records.length,
+        rejectedRows: conflictingRevisions, supersededRows, processing: "in_browser_memory_only" }),
+      withholding: Object.freeze([{ code: "conflicting_revisions", count: conflictingRevisions }]) });
+  }
+  const groups = new Map();
+  for (const record of records) {
+    const detail = readUsageDetail(record);
+    const period = calendarMonth(record.usage_date);
+    const model = detail.model_raw ?? "";
+    const key = `${period}\u0000${record.org_unit_id}\u0000${model}`;
+    const group = groups.get(key) ?? { period, segmentId: record.org_unit_id,
+      segmentLabel: record.org_unit_id || "segment (unnamed)", model, requests: 0,
+      spendMinor: 0, observed: new Set(), daysInPeriod: daysInMonth(period), rowCount: 0,
+      requestsMissing: false };
+    group.spendMinor += record.cost.amount_minor;
+    if (detail.request_count === null) group.requestsMissing = true;
+    else group.requests += detail.request_count;
+    group.observed.add(record.usage_date);
+    group.rowCount += 1;
+    groups.set(key, group);
+  }
+  if (!groups.size || [...groups.values()].some((group) =>
+    !Number.isSafeInteger(group.spendMinor) || !Number.isSafeInteger(group.requests))) {
+    return Object.freeze({ ...base, finding: null, confidence: "unavailable",
+      provenance: Object.freeze({ source: "selected_provider_export", sourceRows: records.length,
+        acceptedRows: 0, rejectedRows: records.length, supersededRows,
+        processing: "in_browser_memory_only" }),
+      withholding: Object.freeze([{ code: groups.size ? "unsafe_aggregate" : "no_source_rows" }]) });
+  }
+  const rows = [...groups.values()].map((group) => ({
+    period: group.period, segmentId: group.segmentId, segmentLabel: group.segmentLabel,
+    model: group.model, requests: group.requestsMissing ? null : group.requests,
+    spendMinor: group.spendMinor, observedDays: group.observed.size,
+    daysInPeriod: group.daysInPeriod, rowCount: group.rowCount,
+  }));
+  const finding = buildModelOverspendFinding({ columns: MODEL_OVERSPEND_SOURCE_COLUMNS, rows });
+  const missingModels = records.filter((row) => readUsageDetail(row).model_raw === null).length;
+  const missingRequests = records.filter((row) => readUsageDetail(row).request_count === null).length;
+  const withholding = [
+    missingModels ? Object.freeze({ code: "model_identifier_missing", count: missingModels,
+      field: MODEL_OVERSPEND_SOURCE_COLUMNS.model }) : null,
+    missingRequests ? Object.freeze({ code: "request_count_missing", count: missingRequests,
+      field: MODEL_OVERSPEND_SOURCE_COLUMNS.requests }) : null,
+  ].filter(Boolean);
+  return Object.freeze({ ...base, finding, confidence: finding.confidence.level,
+    provenance: Object.freeze({ source: "selected_provider_export", sourceRows: document.records.length,
+      acceptedRows: records.length, rejectedRows: 0, supersededRows,
+      columns: MODEL_OVERSPEND_SOURCE_COLUMNS, processing: "in_browser_memory_only" }),
+    withholding: Object.freeze(withholding) });
 }
 
 const cents = (records) => records.reduce((sum, row) => sum + row.cost.amount_minor, 0);
