@@ -508,6 +508,7 @@ import {
 } from "/finops-stand-view.js";
 // …and how sure the answer region is about the figure it leads with (#1186).
 import { applyRecoverableConfidence } from "/finops-recoverable-confidence-view.js";
+import { applyRecoverableSpendCoverage } from "/recoverable-spend-coverage-view.js";
 import { applyFinopsFrontDoor, bindFrontDoorWorking } from "/finops-destinations.js";
 // …and what a lead would have to state before that figure is checkable against
 // their own contract, rather than against a published list price (#1262).
@@ -4983,6 +4984,10 @@ async function init() {
   // document with, so this repaints what the document already says rather than
   // changing it — and a document served without the seed still gets the grade.
   applyRecoverableConfidence(document);
+  // The current static/import contracts carry aggregates, not the request and
+  // commitment fields this taxonomy requires. Paint that boundary explicitly:
+  // an unsupported class must never disappear into the recoverable total as $0.
+  applyRecoverableSpendCoverage(document);
   // …and under the answer, the front door: three named destinations, each with
   // the question it answers and its one material metric, repainted from
   // /finops-destinations.js. The document already ships the same markup, so an
