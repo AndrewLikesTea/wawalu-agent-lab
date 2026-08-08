@@ -119,6 +119,16 @@ const FIXTURES = [
     },
   },
   {
+    name: "tokens present, observed cost absent",
+    note: "Token volume with a zero invoice amount cannot establish a paid model tier. Zero is "
+      + "withheld as insufficient_observed_cost rather than ranked as a clean zero.",
+    rows: [usage({ spendMinor: 0, tokens: 10_000_000, requests: 5000 })],
+    expect: {
+      status: "insufficient_data", reasonCode: "insufficient_observed_cost", recoverableUsd: 0,
+      candidates: [], excluded: ["insufficient_observed_cost"], confidence: "High",
+    },
+  },
+  {
     name: "no model dimension at all",
     note: "What a v1 JSON envelope produces: spend joined to the unit, no model field anywhere. "
       + "This is the case a flat share used to paper over. The unit is not scored zero and does "

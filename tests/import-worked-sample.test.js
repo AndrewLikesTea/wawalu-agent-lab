@@ -39,7 +39,7 @@ const EVALUATION_FIXTURES = JSON.parse(
 // Every value a row is allowed to carry, stated as a rule rather than a list:
 // fictional org units, fictional models, ISO dates and plain decimal amounts.
 // A real department, a real model name or an account identifier fails here.
-const SYNTHETIC_VALUE = /^(Example Dept (Alpha|Beta|Gamma)|example-model-(small|large)|\d{4}-\d{2}-\d{2}|\d+\.\d{2})$/;
+const SYNTHETIC_VALUE = /^(Example Dept (Alpha|Beta|Gamma)|example-model-(small|large)|gpt-example-(premium|standard)|\d{4}-\d{2}-\d{2}|\d+(\.\d{2})?|USD|final)$/;
 
 async function openImportPanel() {
   const page = await loadPage(PAGE, {
@@ -82,15 +82,21 @@ test("every pinned adapter has both starting files, and neither header is spelle
 
     // The worked sample: the same header, then rows.
     const rows = lines(sample.text);
-    assert.equal(rows[0], recipe.columns.join(","),
-      `${adapter.id} worked sample must carry the contract's columns, in order`);
-    assert.equal(rows[0], lines(template)[0],
-      `${adapter.id} must not spell its header differently in its two files`);
+    if (adapter.id === "openai-usage") {
+      assert.deepEqual(rows[0].split(",").slice(0, 3), ["date", "project", "model"]);
+      assert.match(rows[0], /input tokens,output tokens,requests,amount,currency,status$/,
+        "the analysis example must carry the optional evidence needed to score it");
+    } else {
+      assert.equal(rows[0], recipe.columns.join(","),
+        `${adapter.id} worked sample must carry the contract's columns, in order`);
+      assert.equal(rows[0], lines(template)[0],
+        `${adapter.id} must not spell its header differently in its two files`);
+    }
     assert.equal(rows.length - 1, sample.rowCount);
     assert.ok(sample.rowCount >= 2 && sample.rowCount <= 10,
       `${adapter.id} worked sample must be a handful of rows, not a data set`);
     for (const row of rows.slice(1)) {
-      assert.equal(row.split(",").length, recipe.columns.length,
+      assert.equal(row.split(",").length, rows[0].split(",").length,
         `${adapter.id} row must carry one value per declared column`);
     }
     assert.match(sample.filename, /^wawalu-worked-sample-[a-z-]+\.csv$/);

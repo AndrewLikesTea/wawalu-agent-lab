@@ -33,6 +33,7 @@
 import { SHAPES } from "./finops-tabular-import.js";
 import { PROVIDER_ADAPTERS } from "./multi-provider-intake.js";
 import { recipeForAdapter } from "./import-recipes.js";
+import { ELIGIBLE_MODEL_ROUTING_FIXTURE } from "./model-routing-provider-fixtures.js";
 
 /** This module's own identity. Independent of every contract it reads. */
 export const WORKED_SAMPLE_VERSION = "import-worked-sample/1.0.0";
@@ -122,7 +123,7 @@ function sampleFor(adapter) {
     }
     return cell(value);
   }).join(","));
-  return Object.freeze({
+  const base = Object.freeze({
     adapter: adapter.id,
     label: adapter.label,
     columns: Object.freeze(columns),
@@ -135,6 +136,18 @@ function sampleFor(adapter) {
     // the figure above and the row count of the file that is actually emitted,
     // so the two cannot be edited apart.
     figure: `${money(WORKED_SAMPLE_TOTAL_USD)} of spend, from ${rows.length} rows`,
+  });
+  // The OpenAI worked analysis is also the eligible labelled routing fixture.
+  // It is handed to the reader by this existing surface and, when uploaded,
+  // travels through the same parseLocalImportFile path as their own export.
+  if (adapter.id !== "openai-usage") return base;
+  const fixture = ELIGIBLE_MODEL_ROUTING_FIXTURE;
+  return Object.freeze({
+    ...base, columns: Object.freeze(fixture.text.trimEnd().split("\n")[0].split(",")),
+    rowCount: fixture.text.trimEnd().split("\n").length - 1,
+    filename: fixture.filename, mediaType: fixture.mediaType, text: fixture.text,
+    totalUsd: WORKED_SAMPLE_TOTAL_USD,
+    figure: `${money(WORKED_SAMPLE_TOTAL_USD)} of spend, from 2 rows; $255.00 is recoverable by the labelled rule`,
   });
 }
 

@@ -118,6 +118,8 @@ const TOKEN_UNIT = "tokens";
 const REQUEST_UNIT = "requests";
 
 const CONFIDENCE_LEVELS = Object.freeze(["High", "Medium", "Low"]);
+/** Code-unit comparison: deterministic across host locale settings. */
+const compare = (left, right) => (left < right ? -1 : left > right ? 1 : 0);
 
 /**
  * Every reason that can lower a unit's confidence tier, each worth one step
@@ -517,6 +519,7 @@ const destinationForTier = (tier) =>
 export const MODEL_ROUTING_REASON_CODES = Object.freeze([
   "unknown_model_tier",
   "missing_token_counts",
+  "insufficient_observed_cost",
   "insufficient_volume",
 ]);
 
@@ -531,6 +534,8 @@ export const MODEL_ROUTING_REASON_CODES = Object.freeze([
 export const MODEL_EXCLUSION_REASONS = Object.freeze({
   missing_token_counts:
     "This model's rows carry no token count, so no price per token exists and no move is priced.",
+  insufficient_observed_cost:
+    "This model has no positive observed cost, so its paid rate and a recoverable amount are withheld.",
   already_cheapest_tier:
     "This model is already on the cheapest destination in the price table, so there is nowhere "
     + "cheaper to move it.",
@@ -674,6 +679,10 @@ export function classifyModelRoutingCandidate({
   const resolved = resolveRateCard(rateCard);
   const unpriced = (code, tier = null, priced = null) => ({ candidate: false, code, tier, priced });
   if (!(tokens > 0)) return unpriced("missing_token_counts");
+  // Zero is not evidence of a free model: it commonly means the export omitted
+  // cost. One minor unit is the smallest observable amount in this USD model,
+  // so no statistical or commercial threshold is invented here.
+  if (!(spendMinor > 0)) return unpriced("insufficient_observed_cost");
   const observed = Math.round((spendMinor * 1_000_000) / tokens);
   const tier = classifyModelTier(observed, resolved);
   if (!tier?.cheaperTier) return unpriced("already_cheapest_tier", tier);
@@ -725,6 +734,7 @@ export function evaluateUnitModelRouting({
   let requestCounts = 0;
   let tokenBearingRows = 0;
   let volumeBlocked = 0;
+  let costBlocked = 0;
 
   for (const row of rows) {
     if (!row?.model) {
@@ -758,6 +768,7 @@ export function evaluateUnitModelRouting({
     });
     if (!verdict.candidate) {
       if (verdict.code === "insufficient_volume") volumeBlocked += 1;
+      if (verdict.code === "insufficient_observed_cost") costBlocked += 1;
       excluded.push(Object.freeze({
         model: row.model,
         code: verdict.code,
@@ -792,14 +803,19 @@ export function evaluateUnitModelRouting({
         basis: verdict.priced.basis,
       }),
       inputs,
+      sourceFields: Object.freeze({
+        model: "modelUsage.model", spendMinor: "modelUsage.spendMinor",
+        inputTokens: "modelUsage.inputTokens", outputTokens: "modelUsage.outputTokens",
+        requests: "modelUsage.requests",
+      }),
     }));
   }
 
   flags.missing_request_counts = candidates.length > 0 && requestCounts === 0;
   candidates.sort((left, right) => right.recoverableUsd - left.recoverableUsd
-    || left.model.localeCompare(right.model));
+    || compare(left.model, right.model));
   excluded.sort((left, right) => right.currentSpendUsd - left.currentSpendUsd
-    || left.model.localeCompare(right.model));
+    || compare(left.model, right.model));
 
   // Insufficient data is a status, not a zero. The precedence is widest cause
   // first: no model identity at all, then no tokens to price, then not enough
@@ -808,6 +824,7 @@ export function evaluateUnitModelRouting({
   if (!candidates.length) {
     if (!rows.length || rows.every((row) => !row?.model)) reasonCode = "unknown_model_tier";
     else if (tokenBearingRows === 0) reasonCode = "missing_token_counts";
+    else if (costBlocked > 0) reasonCode = "insufficient_observed_cost";
     else if (volumeBlocked > 0) reasonCode = "insufficient_volume";
   }
 
@@ -828,6 +845,9 @@ export function evaluateUnitModelRouting({
     modelledSpendUsd: usd(modelledMinor),
     confidence: Object.freeze({ level, reasons: Object.freeze(reasons) }),
     pricing: pricingProvenance(resolved, priced),
+    // Usage and billing fields say nothing about response quality. Kept as an
+    // explicit null so an executive renderer cannot mistake omission for a claim.
+    qualityClaim: null,
   });
 }
 
@@ -863,10 +883,10 @@ export function analyzeModelRouting({ modelUsage = [], unitIds = [], rateCard = 
   const ranked = results.filter((result) => result.status === "scored")
     .sort((left, right) => right.recoverableUsd - left.recoverableUsd
       || right.modelledSpendUsd - left.modelledSpendUsd
-      || String(left.unitId).localeCompare(String(right.unitId)));
+      || compare(String(left.unitId), String(right.unitId)));
   const insufficientData = results.filter((result) => result.status === "insufficient_data")
     .sort((left, right) => right.modelledSpendUsd - left.modelledSpendUsd
-      || String(left.unitId).localeCompare(String(right.unitId)));
+      || compare(String(left.unitId), String(right.unitId)));
   // One provenance for the whole analysis, folded from the units that actually
   // priced something. The page's headline tier is read off this, so a figure
   // whose lines fell back to the reference card cannot be labelled contracted.
@@ -890,5 +910,6 @@ export function analyzeModelRouting({ modelUsage = [], unitIds = [], rateCard = 
     // The #1262 ladder verdict for the card that priced these figures. The page
     // paints its marker and hedge from this rather than from a bundled constant.
     rateCardConfidence,
+    qualityClaim: null,
   });
 }
