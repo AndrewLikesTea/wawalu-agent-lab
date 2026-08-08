@@ -98,7 +98,7 @@ export function evidenceConfidence(held) {
   });
 }
 
-export function analysisReadiness(dataset) {
+export function analysisReadinessForDataset(dataset) {
   const held = evidenceHeld(dataset);
   const score = readinessScore(held);
   const confidence = evidenceConfidence(held);
