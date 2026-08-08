@@ -167,20 +167,20 @@ test("arriving from a profile narrows the People link, and changes no words", as
 test("an unknown id is named as a missing post, with the feed still the way out", async () => {
   const page = await openPostPage("?id=p-gone", seedOnly([SEED_POST]));
   try {
-    assert.match(textOf(page.panel), /Post not found/);
-    assert.match(textOf(page.panel), /This post was not found\./);
-    assert.match(textOf(page.panel), /Social is a shared demo feed, not a signed-in account\./);
+    assert.match(textOf(page.panel), /Post unavailable/);
+    assert.match(textOf(page.panel), /This post can’t be shown\./);
+    assert.doesNotMatch(textOf(page.panel), /removed|private|signed-in|your post/i);
     assert.doesNotMatch(textOf(page.panel), /A display name is not a signed-in user/);
     // No post, no author: the h1 names the page rather than standing as "Post".
     assert.equal(textOf(page.document.querySelector("#page-title")), "Post from Social");
     assert.doesNotMatch(textOf(page.panel), /Try again/);
     assert.equal(page.panel.querySelector(".detail-state-message").getAttribute("role"), "status");
-    assert.equal(page.document.title, "Post not found · Shiplog");
+    assert.equal(page.document.title, "Post unavailable · Shiplog");
     // No post, so no display name the People link's words could be about: the
     // feed is the one route this state offers.
     assertExits(page, null, "not found");
     const feed = page.panel.querySelector(".detail-state-feed");
-    assert.equal(textOf(feed), "Return to the Social feed");
+    assert.equal(textOf(feed), "Go to the Social feed");
     assert.equal(feed.getAttribute("href"), "/social.html");
     assert.ok(tabSequence(page.document).includes(page.document.querySelector("#post-back")));
   } finally {
@@ -200,7 +200,7 @@ test("a missing post reached from a profile still offers the feed it belonged to
     // page for what to do about it.
     const feed = page.panel.querySelector(".detail-state-feed");
     assert.equal(feed.getAttribute("href"), "/social.html");
-    assert.equal(textOf(feed), "Return to the Social feed");
+    assert.equal(textOf(feed), "Go to the Social feed");
     // The site's two directories are both excluded: the header nav and the
     // footer's site map name every destination on every page, and neither is a
     // route this page offers. What is counted is what the page itself says —
@@ -211,7 +211,7 @@ test("a missing post reached from a profile still offers the feed it belonged to
         && !link.closest(".site-nav") && !link.closest("#site-footer"));
     // The panel's own action reads first, because the panel is where the post
     // would have been and now stands above the page's standing routes out.
-    assert.deepEqual(toFeed.map(textOf), ["Return to the Social feed", "Open Social to read the whole feed"]);
+    assert.deepEqual(toFeed.map(textOf), ["Go to the Social feed", "Open Social to read the whole feed"]);
 
     // Tab order agrees: the state's own next step, then the standing exit.
     const sequence = tabSequence(page.document);
@@ -229,8 +229,8 @@ test("a failed lookup names the feed it could not reach, and retry can recover",
   });
   try {
     assert.match(textOf(page.panel), /Post could not be loaded/);
-    assert.match(textOf(page.panel), /The Social feed could not be reached/);
-    assert.match(textOf(page.panel), /Social is a shared demo feed, not a signed-in account\./);
+    assert.match(textOf(page.panel), /We couldn’t reach the Social feed to load this post\./);
+    assert.doesNotMatch(textOf(page.panel), /private|signed-in|your post/i);
     assertExits(page, null, "failed");
 
     const retry = page.panel.querySelector("button");
@@ -262,12 +262,12 @@ test("a visit with no id is told what the page needs, and still has one way out"
     // The same words as any other link that failed to reach a post: a reader
     // who was handed a truncated URL is not in a different situation from one
     // handed a stale id, and should not have to work out that they are.
-    assert.match(textOf(page.panel), /Post not found/);
-    assert.match(textOf(page.panel), /This link did not name a post to open/);
+    assert.match(textOf(page.panel), /Post unavailable/);
+    assert.match(textOf(page.panel), /This link does not point to a post we can show/);
     assert.equal(page.requests.length, 0);
     assertExits(page, null, "no id");
     // The one next step, in the panel that explains why it is needed.
-    assert.equal(textOf(page.panel.querySelector(".detail-state-feed")), "Return to the Social feed");
+    assert.equal(textOf(page.panel.querySelector(".detail-state-feed")), "Go to the Social feed");
   } finally {
     page.restore();
   }
@@ -378,7 +378,7 @@ test("a missing post leaves the loading state behind entirely", async () => {
     assert.equal(panel.querySelectorAll(".detail-state-message").length, 1);
     assert.equal(panel.getAttribute("aria-busy"), "false");
     // The body still carries a way forward, alongside the standing exit above.
-    assert.equal(textOf(panel.querySelector(".detail-state-feed")), "Return to the Social feed");
+    assert.equal(textOf(panel.querySelector(".detail-state-feed")), "Go to the Social feed");
   } finally {
     page.restore();
   }
@@ -402,7 +402,7 @@ test("the failed state reads the post's region and its retry, then the back link
     // The panel offers both a return to the feed and a retry.
     assert.equal(page.panel.querySelectorAll("button").length, 1);
     assert.equal(page.panel.querySelectorAll("a").length, 1);
-    assert.equal(textOf(page.panel.querySelector("a")), "Return to the Social feed");
+    assert.equal(textOf(page.panel.querySelector("a")), "Go to the Social feed");
   } finally {
     page.restore();
   }

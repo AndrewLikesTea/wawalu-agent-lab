@@ -49,7 +49,7 @@ const TEXT_POST = {
 const STATE_HEADLINES = {
   loading: "Loading this post…",
   loaded: "Post by ",
-  "not-found": "Post not found",
+  "not-found": "Post unavailable",
   error: "Post could not be loaded",
 };
 
@@ -105,8 +105,9 @@ test("a post id that does not exist is headed as not found, with no wait left be
   const page = await openPostPage("?id=p-never-existed", seedOnly([IMAGE_POST, TEXT_POST]));
   try {
     const heading = page.panel.querySelector(".empty-title");
-    assert.equal(textOf(heading), "Post not found");
-    assert.match(textOf(page.panel), /This post was not found\./);
+    assert.equal(textOf(heading), "Post unavailable");
+    assert.match(textOf(page.panel), /This post can’t be shown\./);
+    assert.doesNotMatch(textOf(page.panel), /removed|private|signed-in|your post/i);
 
     // The line the page ships with is gone, not pushed below the explanation.
     assert.equal(textOf(page.panel).includes("Loading this post…"), false);
@@ -117,7 +118,7 @@ test("a post id that does not exist is headed as not found, with no wait left be
     const feed = page.panel.querySelector(".detail-state-feed");
     assert.equal(feed.tagName, "A");
     assert.equal(feed.getAttribute("href"), "/social.html");
-    assert.equal(textOf(feed), "Return to the Social feed");
+    assert.equal(textOf(feed), "Go to the Social feed");
 
     // Nothing to retry: the feed answered, and asking it again cannot change
     // the answer. Only the error state owns a retry.
@@ -149,7 +150,7 @@ test("the wait and the not-found answer are one slot, so they can never both sta
 
     // While it runs: the wait, and nothing else claiming to be a state.
     assert.equal(panel.querySelectorAll("[data-post-state-panel]").length, 1);
-    assert.equal(textOf(panel).includes("Post not found"), false, "the answer must not be pre-rendered behind the wait");
+    assert.equal(textOf(panel).includes("Post unavailable"), false, "the answer must not be pre-rendered behind the wait");
 
     release();
     await waitFor(() => page.document.documentElement.dataset.shiplogPostDetail === "ready", "the lookup settled");
@@ -161,7 +162,7 @@ test("the wait and the not-found answer are one slot, so they can never both sta
     assert.equal(panel.querySelectorAll(".detail-loading-text").length, 0);
     assert.equal(panel.querySelectorAll("[data-post-state-panel]").length, 1);
     assert.equal(textOf(page.document.querySelector("main")).includes("Loading this post…"), false);
-    assert.match(textOf(panel), /This post was not found\./);
+    assert.match(textOf(panel), /This post can’t be shown\./);
 
     // One slot: the same region node held both, so there is no second element
     // for a later state to be parked in.
@@ -194,7 +195,7 @@ test("an answered feed with no matching id is not-found, not an error", async ()
   const refused = await openPostPage("?id=p-gone", () => ({ ok: false, status: 503, json: async () => ({}) }));
   try {
     assertOneState(refused, "error", "the feed returned 503");
-    assert.match(textOf(refused.panel), /The Social feed could not be reached/);
+    assert.match(textOf(refused.panel), /We couldn’t reach the Social feed to load this post\./);
     // The status code is the page's business, not the reader's.
     assert.equal(textOf(refused.panel).includes("503"), false);
   } finally {
@@ -210,9 +211,9 @@ test("an answered feed with no matching id is not-found, not an error", async ()
 // about how this particular link failed.
 const NOT_FOUND_ROUTES = [
   ["no id at all", "", () => { throw new Error("a link with no id must not ask the network"); },
-    /This link did not name a post to open/],
-  ["a truncated id", "?id=8f14e45f-ceea-467a", seedOnly([IMAGE_POST, TEXT_POST]), /This post was not found\./],
-  ["an id that is only spaces", "?id=%20%20", seedOnly([IMAGE_POST]), /This post was not found\./],
+    /This link does not point to a post we can show/],
+  ["a truncated id", "?id=8f14e45f-ceea-467a", seedOnly([IMAGE_POST, TEXT_POST]), /This post can’t be shown\./],
+  ["an id that is only spaces", "?id=%20%20", seedOnly([IMAGE_POST]), /This post can’t be shown\./],
 ];
 
 test("a link with no id, or a truncated one, lands in the same not-found state as a stale id", async () => {
@@ -221,7 +222,7 @@ test("a link with no id, or a truncated one, lands in the same not-found state a
     try {
       // The same named state, the same heading, the same chip word.
       assertOneState(page, "not-found", route);
-      assert.equal(textOf(page.panel.querySelector(".empty-title")), "Post not found", `${route}: the heading names what happened`);
+      assert.equal(textOf(page.panel.querySelector(".empty-title")), "Post unavailable", `${route}: the heading names what happened`);
       assert.equal(textOf(page.panel.querySelector(".detail-state-chip")), "Not found", `${route}: the chip carries its own word`);
       assert.match(textOf(page.panel), sentence, `${route}: the sentence says how this link failed`);
 
@@ -232,7 +233,7 @@ test("a link with no id, or a truncated one, lands in the same not-found state a
       // One next step: the feed. Counted, because the assertion is about how
       // many routes forward this state offers, not which node is where.
       assert.equal(page.panel.querySelectorAll(".empty-action").length, 1, `${route}: one next step, not a stack`);
-      assert.equal(textOf(page.panel.querySelector(".detail-state-feed")), "Return to the Social feed");
+      assert.equal(textOf(page.panel.querySelector(".detail-state-feed")), "Go to the Social feed");
       assert.equal(page.panel.querySelectorAll("button").length, 0, `${route}: nothing here can be retried`);
     } finally {
       page.restore();
@@ -310,7 +311,7 @@ test("an unreachable feed is named as such, with a keyboard-reachable retry afte
     // It names what failed. "Unavailable" would be a verdict about the post; a
     // reader needs to know the feed is the thing that did not answer, because
     // that is what tells them trying again is worth anything.
-    assert.match(textOf(page.panel), /The Social feed could not be reached/);
+    assert.match(textOf(page.panel), /We couldn’t reach the Social feed to load this post\./);
     assert.equal(textOf(page.panel.querySelector(".empty-title")), "Post could not be loaded");
     // A word, not just a wash: the state reads with the stylesheet gone.
     assert.equal(textOf(page.panel.querySelector(".detail-state-chip")), "Unreachable");
@@ -780,7 +781,7 @@ test("all four states carry a visible text label, not colour alone", async () =>
   const labels = {
     loading: /Loading this post…/,
     loaded: /Rowan Diaz/,
-    "not-found": /Post not found/,
+    "not-found": /Post unavailable/,
     error: /Post could not be loaded/,
   };
 
