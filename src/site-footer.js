@@ -32,12 +32,9 @@
 
 import { createFollowUpConfirmation } from "./follow-up-confirmation.js";
 import {
-  CONTACT_COPY, describeWith, emailFieldError, FOLLOW_UP_PRIVACY, looksLikeEmail, postLeadEmail,
-  SubmissionError,
+  CONTACT_COPY, describeWith, emailFieldError, FOLLOW_UP_PRIVACY, FOLLOW_UP_RESPONSE, looksLikeEmail,
+  postLeadEmail, SubmissionError,
 } from "./lead-capture.js";
-
-const ERROR_ID = "site-footer-error";
-const RECOVERY_ID = "site-footer-recovery";
 
 /**
  * What a visitor can do here, then who runs it and where — on every page.
@@ -116,26 +113,28 @@ export const DEMOS = Object.freeze([
  * follow-up about what, from whom. It sits outside the panel because a visitor
  * reads it before deciding whether to open anything.
  */
-export const INVITATION = "Questions about Shiplog? Ask the Wawalu team that operates it, and a "
-  + "person replies by email.";
+export const INVITATION = `Questions about Shiplog? ${FOLLOW_UP_RESPONSE}`;
+
+/**
+ * The same ask, at the moment the home page earns it: a visitor convinced by the
+ * recoverable-spend figure should not have to reach the footer eight sections
+ * below. Only the lead-in differs, naming what this reader would be asking
+ * about; the sentence after it is the footer's, byte for byte.
+ */
+export const HERO_INVITATION = `Want to go through these numbers with a person? ${FOLLOW_UP_RESPONSE}`;
 
 // What the field sends is not this footer's sentence to write. It is the same
 // claim the AI FinOps form and the briefing's form make, so all three render one
 // string — FOLLOW_UP_PRIVACY in src/lead-capture.js, beside the transport that
 // makes it true.
 
-// What a visitor is told once the address is stored.
-//
-// Deliberately not an SLA. The AI FinOps form answers within two business days
-// because someone watches that queue; this footer sits on eight pages of a
-// demonstration product and nobody has promised to watch it that closely. So it
-// says what is actually true — the address is recorded, a person is the one who
-// reads it, and no machine is about to reply — rather than a response time this
-// demo would break.
-const CAPTURED = "Follow-up requested — we sent your email address, and nothing else. It is recorded "
-  + "for the Wawalu team, and a person replies by email; nothing here answers automatically.";
+// What a visitor is told once the address is stored: the sentence they read
+// above the button, word for word. This footer used to name no window at all
+// while the AI FinOps form named two business days, so one queue described
+// itself two ways. FOLLOW_UP_RESPONSE is now the only description of it.
+const CAPTURED = `Follow-up requested — we sent your email address, and nothing else. ${FOLLOW_UP_RESPONSE}`;
 const ALREADY_CAPTURED = "Follow-up requested — that address is already on our list, so nothing new "
-  + "was recorded. The Wawalu team can reach you there.";
+  + `was recorded. ${FOLLOW_UP_RESPONSE}`;
 
 const SUBMITTING = "Requesting a follow-up — sending your email address…";
 
@@ -209,6 +208,40 @@ function demoListLines() {
   ];
 }
 
+/**
+ * One follow-up form, twice on the home page and once everywhere else.
+ *
+ * `prefix` is the instance id. Every id the component owns derives from it — the
+ * form, field, note, error, status, recovery, and (in follow-up-confirmation.js,
+ * which reads `form.id`) the receipt and its reopen button — so two mounts on
+ * one page collide on nothing. The classes deliberately do not vary: they are
+ * the family this component is styled as, and the id is what separates
+ * instances. `pad` is the indentation of the <form> itself.
+ */
+function followUpFormLines(prefix, pad) {
+  return [
+    `<form id="${prefix}-form" class="site-footer-form" novalidate>`,
+    '  <div class="site-footer-field">',
+    `    <label for="${prefix}-email">Work email</label>`,
+    "    <!-- Only the note is named here. The inline error and the recovery",
+    "         paragraph are added to this description by site-footer.js when",
+    "         they exist, because a hidden element referenced by",
+    "         aria-describedby is still part of the accessible description",
+    "         and would otherwise be read on first focus. -->",
+    `    <input id="${prefix}-email" name="email" type="email" maxlength="254" inputmode="email" autocomplete="email" placeholder="you@company.com" required aria-describedby="${prefix}-note" />`,
+    "  </div>",
+    `  <p class="site-footer-error" id="${prefix}-error" hidden></p>`,
+    `  <p class="site-footer-note" id="${prefix}-note">${FOLLOW_UP_PRIVACY}</p>`,
+    '  <div class="site-footer-actions">',
+    '    <button type="submit">Request a follow-up</button>',
+    ...(prefix === "site-footer" ? [`    <button id="${prefix}-dismiss" type="button">Close</button>`] : []),
+    "  </div>",
+    "</form>",
+    `<p class="site-footer-status" id="${prefix}-status" role="status" aria-live="polite"></p>`,
+    `<p class="site-footer-recovery" id="${prefix}-recovery" hidden>We could not send your follow-up request. Try again in a few minutes. Your email address is still in the field above, and nothing else on this page changed.</p>`,
+  ].map((line) => `${pad}${line}`);
+}
+
 function contactDisclosureLines() {
   return [
     `    <p class="site-footer-invitation">${INVITATION}</p>`,
@@ -216,27 +249,24 @@ function contactDisclosureLines() {
     "      Request a follow-up",
     "    </button>",
     '    <div class="site-footer-panel" id="site-footer-panel" hidden>',
-    '      <form id="site-footer-form" class="site-footer-form" novalidate>',
-    '        <div class="site-footer-field">',
-    '          <label for="site-footer-email">Work email</label>',
-    "          <!-- Only the note is named here. The inline error and the recovery",
-    "               paragraph are added to this description by site-footer.js when",
-    "               they exist, because a hidden element referenced by",
-    "               aria-describedby is still part of the accessible description",
-    "               and would otherwise be read on first focus. -->",
-    '          <input id="site-footer-email" name="email" type="email" maxlength="254" inputmode="email" autocomplete="email" placeholder="you@company.com" required aria-describedby="site-footer-note" />',
-    "        </div>",
-    `        <p class="site-footer-error" id="site-footer-error" hidden></p>`,
-    `        <p class="site-footer-note" id="site-footer-note">${FOLLOW_UP_PRIVACY}</p>`,
-    '        <div class="site-footer-actions">',
-    '          <button type="submit">Request a follow-up</button>',
-    '          <button id="site-footer-dismiss" type="button">Close</button>',
-    "        </div>",
-    "      </form>",
-    '      <p class="site-footer-status" id="site-footer-status" role="status" aria-live="polite"></p>',
-    '      <p class="site-footer-recovery" id="site-footer-recovery" hidden>We could not send your follow-up request. Try again in a few minutes. Your email address is still in the field above, and nothing else on this page changed.</p>',
+    ...followUpFormLines("site-footer", "      "),
     "    </div>",
   ];
+}
+
+/**
+ * The home page's hero mount, as it appears in src/index.html. No disclosure:
+ * the point of the ask being here is that it can be sent here, without opening
+ * anything, so the only controls are the field and the button that sends it.
+ * tests/homepage-follow-up-ask.test.js pins the page to exactly these bytes.
+ */
+export function heroFollowUpMarkup(indent = "        ") {
+  return [
+    '<div class="site-footer-panel" id="hero-follow-up">',
+    `  <p class="site-footer-invitation">${HERO_INVITATION}</p>`,
+    ...followUpFormLines("hero-follow-up", "  "),
+    "</div>",
+  ].map((line) => `${indent}${line}`).join("\n");
 }
 
 /**
@@ -250,16 +280,30 @@ function contactDisclosureLines() {
  * must still be the one that receives the submission.
  */
 export function initSiteFooter(root = document, request = (...args) => globalThis.fetch(...args)) {
-  const form = root.querySelector("#site-footer-form");
-  const trigger = root.querySelector("#site-footer-open");
-  const panel = root.querySelector("#site-footer-panel");
-  if (!form || !trigger || !panel) return null;
+  return initFollowUpForm(root, "site-footer", request);
+}
+
+/**
+ * Wire one mount. `prefix` picks the instance — "site-footer" for the band every
+ * page carries, "hero-follow-up" for the home page's second one — and every node
+ * below resolves from it, so two mounts share only the copy and the transport.
+ * The disclosure is optional: a mount with no trigger is already open, skips
+ * that wiring, and keeps the submission.
+ */
+export function initFollowUpForm(root, prefix, request = (...args) => globalThis.fetch(...args)) {
+  const form = root.querySelector(`#${prefix}-form`);
+  if (!form) return null;
+
+  const ERROR_ID = `${prefix}-error`;
+  const RECOVERY_ID = `${prefix}-recovery`;
+  const trigger = root.querySelector(`#${prefix}-open`);
+  const panel = root.querySelector(`#${prefix}-panel`);
 
   const email = form.elements.email;
   const submit = form.querySelector('button[type="submit"]');
-  const dismiss = root.querySelector("#site-footer-dismiss");
+  const dismiss = root.querySelector(`#${prefix}-dismiss`);
   const fieldError = root.querySelector(`#${ERROR_ID}`);
-  const status = root.querySelector("#site-footer-status");
+  const status = root.querySelector(`#${prefix}-status`);
   const recovery = root.querySelector(`#${RECOVERY_ID}`);
 
   function setFieldError(message) {
@@ -308,13 +352,17 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
     trigger.focus();
   }
 
-  trigger.addEventListener("click", () => (panel.hidden ? open() : close()));
-  dismiss?.addEventListener("click", close);
-  panel.addEventListener("keydown", (event) => {
-    if (event.key !== "Escape") return;
-    event.preventDefault();
-    close();
-  });
+  // A mount with no trigger is already open — there is nothing to disclose, and
+  // nothing to close a reader back into.
+  if (trigger && panel) {
+    trigger.addEventListener("click", () => (panel.hidden ? open() : close()));
+    dismiss?.addEventListener("click", close);
+    panel.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      close();
+    });
+  }
 
   // Editing the field retracts the diagnostic about it. The submission outcome
   // in the live region stays: it reports something that happened, not something

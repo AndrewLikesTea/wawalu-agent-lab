@@ -100,6 +100,19 @@ export const CONTACT_COPY = Object.freeze({
 export const FOLLOW_UP_PRIVACY = "The work email address you type here goes to the Wawalu team that "
   + "operates Shiplog; nothing else on this page is sent.";
 
+/**
+ * The pair of FOLLOW_UP_PRIVACY: who reads the request, and how long a reply
+ * takes. A visitor reads it before typing and checks it again on the receipt, so
+ * both places render these bytes — two wordings of one promise read as two.
+ *
+ * The window is not invented here. It is the one the AI FinOps form has named
+ * since it shipped, and every follow-up form posts the same `follow_up` label to
+ * the same queue. A person and a named team, not a tier, an individual, or an
+ * hour count: that is all anyone here has agreed to.
+ */
+export const FOLLOW_UP_RESPONSE = "A person from the Wawalu team that operates Shiplog replies by "
+  + "email within two business days.";
+
 // This form's own pending and success states: the contact forms promise
 // something else, so each set owns that sentence. Both repeat src/index.html's
 // promise — who writes field notes, and that there is no schedule — so a

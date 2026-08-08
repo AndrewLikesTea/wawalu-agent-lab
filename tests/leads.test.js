@@ -54,7 +54,10 @@ test("the home page's field-note form says what submitting does, in the surface 
   // This form subscribes; it does not reach anyone. A visitor who wants a reply
   // is pointed at the footer surface by its own label and its own promise.
   assert.match(section, /It is not a way to reach anyone/);
-  assert.match(section, /“Request a follow-up” in the footer of this page, where a person replies by email\./);
+  // "in the footer of this page" stopped being true when the hero gained a
+  // mount of the same form: the page now carries two of them, and the note has
+  // to name the label rather than a location it can no longer pin down.
+  assert.match(section, /“Request a follow-up” on this page, where a person replies by email\./);
 });
 
 test("the field-note confirmation repeats the promise the page made before submitting", async () => {

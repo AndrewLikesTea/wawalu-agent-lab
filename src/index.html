@@ -75,6 +75,35 @@
           <a class="text-link" href="#landing-decision">Or read the example briefing below</a>
         </div>
         <p class="hero-boundary"><strong>Your files do not leave this tab.</strong> <span>Exports are read and analyzed in this browser. No upload, no credentials, no account, and nothing of yours is stored.</span></p>
+        <!-- THE ASK, WHERE THE FIGURE IS.
+             A visitor convinced by the recoverable share should not have to
+             scroll eight sections to the footer to reach a person, so the
+             follow-up form is mounted here as well as there. It is the same
+             component, rendered by heroFollowUpMarkup() in src/site-footer.js
+             and wired by the same initFollowUpForm() — one label, one privacy
+             sentence, one reply window, two instance ids. Open rather than
+             behind a disclosure: the point is that it can be submitted here. -->
+        <div class="site-footer-panel" id="hero-follow-up">
+          <p class="site-footer-invitation">Want to go through these numbers with a person? A person from the Wawalu team that operates Shiplog replies by email within two business days.</p>
+          <form id="hero-follow-up-form" class="site-footer-form" novalidate>
+            <div class="site-footer-field">
+              <label for="hero-follow-up-email">Work email</label>
+              <!-- Only the note is named here. The inline error and the recovery
+                   paragraph are added to this description by site-footer.js when
+                   they exist, because a hidden element referenced by
+                   aria-describedby is still part of the accessible description
+                   and would otherwise be read on first focus. -->
+              <input id="hero-follow-up-email" name="email" type="email" maxlength="254" inputmode="email" autocomplete="email" placeholder="you@company.com" required aria-describedby="hero-follow-up-note" />
+            </div>
+            <p class="site-footer-error" id="hero-follow-up-error" hidden></p>
+            <p class="site-footer-note" id="hero-follow-up-note">The work email address you type here goes to the Wawalu team that operates Shiplog; nothing else on this page is sent.</p>
+            <div class="site-footer-actions">
+              <button type="submit">Request a follow-up</button>
+            </div>
+          </form>
+          <p class="site-footer-status" id="hero-follow-up-status" role="status" aria-live="polite"></p>
+          <p class="site-footer-recovery" id="hero-follow-up-recovery" hidden>We could not send your follow-up request. Try again in a few minutes. Your email address is still in the field above, and nothing else on this page changed.</p>
+        </div>
       </section>
 
       <!-- ONE SUMMARY, AND ONLY ONE.
@@ -310,7 +339,7 @@
               <button type="submit">Subscribe to field notes <span aria-hidden="true">→</span></button>
             </div>
           </div>
-          <p class="lead-capture-note" id="lead-capture-note">Submitting subscribes you to field notes. It is not a way to reach anyone: to ask a question, use “Request a follow-up” in the footer of this page, where a person replies by email. We use your email for nothing else. No spam. Unsubscribe anytime.</p>
+          <p class="lead-capture-note" id="lead-capture-note">Submitting subscribes you to field notes. It is not a way to reach anyone: to ask a question, use “Request a follow-up” on this page, where a person replies by email. We use your email for nothing else. No spam. Unsubscribe anytime.</p>
           <p class="lead-capture-status" id="lead-capture-status" role="status" aria-live="polite"></p>
           <p class="lead-capture-recovery" id="lead-capture-recovery" hidden>Your email is still in the field above. Sign-up usually recovers within a few minutes — resubmit then to subscribe, or <a href="#decision-to-release">follow the decision-to-release story</a> in the meantime.</p>
         </form>
@@ -690,7 +719,7 @@
           <li><a href="/paint/">Paint</a> — crop or draw an image, export a PNG, publish it on Social</li>
           <li><a href="/agents.html">Agent observatory</a> — watch a synthetic engineering team build and review work</li>
         </ul>
-        <p class="site-footer-invitation">Questions about Shiplog? Ask the Wawalu team that operates it, and a person replies by email.</p>
+        <p class="site-footer-invitation">Questions about Shiplog? A person from the Wawalu team that operates Shiplog replies by email within two business days.</p>
         <button class="site-footer-trigger" id="site-footer-open" type="button" aria-expanded="false" aria-controls="site-footer-panel">
           Request a follow-up
         </button>

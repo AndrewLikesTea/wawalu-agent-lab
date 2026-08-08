@@ -26,6 +26,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { CONFIRMATION_DETAIL, REOPEN_LABEL } from "../src/follow-up-confirmation.js";
+import { FOLLOW_UP_RESPONSE } from "../src/lead-capture.js";
 import { loadPage, pressEnter, tabSequence, textOf, typeText } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
 
@@ -114,7 +115,7 @@ test("Social, People, Releases, and Prompt coach all show the shared success con
       assert.equal(byId(page.document, "site-footer-form").dataset.state, "success", `${file}: success state`);
       assert.ok(byId(page.document, "site-footer-confirmation"), `${file}: visible confirmation`);
       assert.equal(page.document.activeElement?.id, "site-footer-confirmation", `${file}: focus reaches confirmation`);
-      assert.match(shownText(page.document, "site-footer-status"), /person replies by email/,
+      assert.ok(shownText(page.document, "site-footer-status").includes(FOLLOW_UP_RESPONSE),
         `${file}: confirmation states the next step`);
     } finally {
       page.restore();
@@ -141,13 +142,14 @@ for (const { name, open, prefix } of SURFACES) {
       // The address the visitor typed, in the receipt, as text.
       assert.match(textOf(receipt), new RegExp(LONG_EMAIL.replace(/[.]/g, "\\.")));
       assert.equal(textOf(receipt.querySelector(`.${receipt.className}-address`)), LONG_EMAIL);
-      // Who answers, and what travelled — the form's own privacy vocabulary.
-      assert.match(textOf(receipt), /A person from the Wawalu team replies to that address by email/);
+      // Who answers, by when, and what travelled. The reply window is the
+      // surface's own sentence repeated byte for byte rather than a second
+      // wording of it — see FOLLOW_UP_RESPONSE in src/lead-capture.js.
+      assert.ok(textOf(receipt).includes(FOLLOW_UP_RESPONSE));
       assert.match(textOf(receipt), /Nothing else on this page/);
       assert.match(textOf(receipt), /read, attached, or transmitted/);
-      // Nothing about when. This demo has not promised anyone a response time,
-      // and the receipt is not the place to invent one.
-      assert.doesNotMatch(textOf(receipt), /business days?|within \d|hours?\b|shortly|specialist/i);
+      // Nothing beyond the one window the operating team has agreed to keep.
+      assert.doesNotMatch(textOf(receipt), /hours?\b|shortly|specialist|as soon as possible/i);
       // And nothing about what else is on the page: the request carried one
       // field, so the only thing the receipt can name is the address. No figure,
       // no file, no filter, no prompt, and no page identity.

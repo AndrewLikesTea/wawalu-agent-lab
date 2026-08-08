@@ -21,7 +21,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
 import { DEMOS, FOLLOW_UP_REDIRECT, IDENTITY, INVITATION, siteFooterMarkup } from "../src/site-footer.js";
-import { FOLLOW_UP_PRIVACY } from "../src/lead-capture.js";
+import { FOLLOW_UP_PRIVACY, FOLLOW_UP_RESPONSE } from "../src/lead-capture.js";
 import { SITE_NAV } from "../src/site-nav.js";
 import { loadPage, parseHtml, pressEnter, pressKey, pressTab, tabSequence, textOf, typeText } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
@@ -457,7 +457,11 @@ test("the footer form says what submitting asks for, on the page that carries bo
     // The button carries no page-specific qualification, so the line outside the
     // panel is what says a follow-up about what — and it is readable before the
     // visitor opens anything.
-    assert.equal(textOf(document.querySelector(".site-footer-invitation")), INVITATION);
+    //
+    // Scoped to the footer, not to the page: the home page mounts this component
+    // a second time in the hero, and that mount carries its own lead-in above
+    // the same reply-window sentence. An unscoped query would read the hero's.
+    assert.equal(textOf(byId(document, "site-footer").querySelector(".site-footer-invitation")), INVITATION);
     assert.match(INVITATION, /Shiplog/);
 
     // And nothing in this form reads as the field-note sign-up a few sections up.
@@ -617,9 +621,14 @@ test("a submission goes through the shared capture path, and the confirmation sa
     assert.equal(byId(document, "site-footer-form").dataset.state, "success");
     const confirmation = shownText(document, "site-footer-status");
     assert.match(confirmation, /^Follow-up requested — we sent your email address, and nothing else\./);
-    assert.match(confirmation, /recorded for the Wawalu team/, "the confirmation must say what happens next");
-    // Nothing promised that this demo does not do.
-    assert.doesNotMatch(confirmation, /business days?|within \d|hours?\b/i);
+    // What happens next, in the words the invitation above the button used
+    // before this visitor typed anything. A receipt that restates the promise
+    // differently reads as a second promise, so it is asserted against the
+    // shared constant rather than against a fragment of it.
+    assert.ok(confirmation.includes(FOLLOW_UP_RESPONSE), "the confirmation must repeat the reply window");
+    assert.ok(INVITATION.includes(FOLLOW_UP_RESPONSE), "the invitation must have made that promise first");
+    // Still nothing this demo has not agreed to: one window, named in one place.
+    assert.doesNotMatch(confirmation, /hours?\b|shortly|immediately|as soon as possible/i);
     // The live region announces it rather than leaving it to the eye alone.
     assert.equal(byId(document, "site-footer-status").getAttribute("aria-live"), "polite");
     assert.equal(byId(document, "site-footer-status").getAttribute("role"), "status");

@@ -16,8 +16,9 @@
 //   3. It says only what the visitor supplied. `postLeadEmail` builds the body
 //      from the address and a fixed routing label, so the receipt names the address and
 //      repeats the form's own privacy vocabulary — no figure, file, filter, or
-//      page identity — and promises no response time, because nobody here has
-//      committed to one.
+//      page identity. The one thing it adds is FOLLOW_UP_RESPONSE, the sentence
+//      the surface already showed above its button, word for word: a receipt
+//      that restates a promise in other words reads as a second promise.
 //
 // Announcement follows the panel rather than inventing a second pattern: the
 // surface's status paragraph is a `role="status"` region and still carries the
@@ -26,13 +27,15 @@
 // region inserted already-populated is not reliably announced — and focus
 // landing on the receipt is what puts a reader inside it.
 
+import { FOLLOW_UP_RESPONSE } from "./lead-capture.js";
+
 /**
  * The receipt, in the register the forms already use: what was sent, who reads
  * it, and what did not travel. `LEAD` is deliberately split around the address
  * so the address arrives as a text node of its own.
  */
 export const CONFIRMATION_LEAD = "We sent one thing: ";
-export const CONFIRMATION_DETAIL = "A person from the Wawalu team replies to that address by email. "
+export const CONFIRMATION_DETAIL = `${FOLLOW_UP_RESPONSE} `
   + "Nothing else on this page — nothing you have read, filtered, imported, or exported — was read, "
   + "attached, or transmitted.";
 export const REOPEN_LABEL = "Request another follow-up";
