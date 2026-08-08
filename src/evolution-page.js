@@ -1113,9 +1113,14 @@ function mountLocalFinopsImport() {
   // report success cannot paint "ready" over the error state set below.
   const paintProviderProjection = async (providerDocument) => {
     renderOwnDataEvidenceState(document, OWN_DATA_VIEW_STATE.LOADING);
-    const [{ projectProviderExport }, { renderProviderExportProjection }] = await Promise.all([
+    const [
+      { projectProviderExport }, { renderProviderExportProjection },
+      { determineImportedExportEligibility }, { renderImportedExportEligibility },
+    ] = await Promise.all([
       import("/provider-export-projection.js"),
       import("/provider-export-projection-view.js"),
+      import("/imported-export-eligibility.js"),
+      import("/imported-export-eligibility-view.js"),
     ]);
     const projection = projectProviderExport(providerDocument);
     if (!renderProviderExportProjection(document, projection)) {
@@ -1123,6 +1128,8 @@ function mountLocalFinopsImport() {
       renderLocalExportActivation(document, LOCAL_EXPORT_ACTIVATION_STATE.ERROR);
       return false;
     }
+    renderImportedExportEligibility(document,
+      determineImportedExportEligibility(providerDocument));
     renderLocalExportActivation(document, LOCAL_EXPORT_ACTIVATION_STATE.READY);
     return true;
   };
