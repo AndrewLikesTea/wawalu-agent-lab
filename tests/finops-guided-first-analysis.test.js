@@ -178,7 +178,11 @@ test("the primary surface answers one question and states one prioritized action
   applyGuidedScenario(document, AZURE);
   assert.match(text(document, "finops-guided-question"), /\?$/);
   const summary = text(document, GUIDED_IDS.summary);
-  assert.match(summary, /Do this first: .*Developer Experience is the team that should take it\./);
+  // The action is its own card now (#1394), so the eyebrow, the action and the
+  // owner are three nodes rather than one sentence — asserted where they live.
+  const action = text(document, GUIDED_IDS.action);
+  assert.match(action, /Do this first:/);
+  assert.match(action, /Developer Experience is the team that should take it\./);
   assert.match(summary, /Evidence confidence/);
   assert.match(summary, /computed locally in this browser/);
   assert.match(summary, /% of that department's modelled spend/);

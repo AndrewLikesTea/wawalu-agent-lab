@@ -1,28 +1,12 @@
 // The guided first analysis: the model behind "pick a bundled provider export,
 // get one answer, one benchmark and one action for a named team".
 //
-// THE DEFECT THIS CLOSES. A chooser that only marked its choice on a node —
-// writing the id onto a fragment target and stopping — moved nobody anywhere:
-// Google and Azure opened the same generic evidence and the same generic
-// department list. So the unit of work here is not the choice, it is what the
-// choice CHANGES. Everything a destination renders comes out of `guidedAnalysis`
-// for one scenario id, and two scenarios cannot produce the same text: the
-// figure, the provenance line, the evidence rows, the department and the team
-// that acts are all read from that scenario's own bundled records.
-//
-// It reads only Rowan's closed boundary (`analysisReadiness`), holds no DOM and
-// keeps no state — src/finops-guided-first-analysis-view.js owns the one
-// selected id and every node. A pure model is what lets a test say "Azure says
-// something different from Google" without standing up a page.
 import {
   BUNDLED_SCENARIO_CATALOGUE, BUNDLED_SCENARIO_IDS, analysisReadiness,
 } from "./finops-bundled-scenarios.js";
 
 export const GUIDED_FLOW_CONTRACT = "finops-guided-first-analysis/1.0.0";
 
-/** The query parameter the choice travels in. The hash is spent twice over on
- * this page — shared briefs and the workspace destinations — so a fourth
- * claimant there would drop somebody's brief. */
 export const GUIDED_SCENARIO_PARAM = "scenario";
 
 /** The destination fragments the flow sends a reader to, by name. */
@@ -32,7 +16,6 @@ export const GUIDED_DESTINATION = Object.freeze({
 
 export const DEFAULT_GUIDED_SCENARIO = BUNDLED_SCENARIO_IDS[0];
 
-/** ONE answerable question. Not one per section — one for the flow. */
 export const GUIDED_QUESTION = "Which bundled provider export has the most recoverable AI spend,"
   + " and who should act on it first?";
 
@@ -42,6 +25,44 @@ export const GUIDED_SYNTHETIC_NOTICE = "These are local synthetic demonstrations
   + " in this browser from invented provider-export-shaped records.";
 
 export const GUIDED_SCENARIOS = BUNDLED_SCENARIO_CATALOGUE;
+
+/** The four states this flow is drawn in. `ready` is the only one with a model;
+ * the other three are authored, each with a shape, a word, a title and a next
+ * move, so the state survives greyscale and a screen reader. */
+export const GUIDED_STATE = Object.freeze({
+  loading: "loading", empty: "empty", ready: "ready", error: "error",
+});
+
+export const GUIDED_STATE_COPY = Object.freeze({
+  [GUIDED_STATE.loading]: Object.freeze({
+    shape: "◐", eyebrow: "Working", title: "Reading the bundled provider export",
+    detail: "The finding, its confidence and the one recommended action appear here when the"
+      + " local computation finishes. Nothing is uploaded.",
+  }),
+  [GUIDED_STATE.empty]: Object.freeze({
+    shape: "◌", eyebrow: "Nothing chosen", title: "Choose a bundled provider export to analyze",
+    detail: "Pick one of the shapes above. Each is a local synthetic demonstration, and"
+      + " everything below is computed from that scenario alone.",
+  }),
+  [GUIDED_STATE.error]: Object.freeze({
+    shape: "✕", eyebrow: "Not available", title: "This analysis could not be produced",
+    detail: "The scenario named in the address is not a bundled provider export, so no finding"
+      + " was computed. Choose one above to continue; nothing needs to be re-entered.",
+  }),
+});
+
+export const GUIDED_CONFIDENCE_BANDS = Object.freeze([
+  Object.freeze({ band: "high", floor: 75, label: "high confidence", shape: "●", state: "full" }),
+  Object.freeze({ band: "moderate", floor: 50, label: "moderate confidence", shape: "◑", state: "degraded" }),
+  Object.freeze({ band: "low", floor: 0, label: "low confidence", shape: "◌", state: "suppressed" }),
+]);
+
+/** The band a 0–100 score falls in. A missing or nonsense score reads low. */
+export function guidedConfidenceBand(value) {
+  const score = Number.isFinite(value) ? value : -1;
+  return GUIDED_CONFIDENCE_BANDS.find((entry) => score >= entry.floor)
+    ?? GUIDED_CONFIDENCE_BANDS[GUIDED_CONFIDENCE_BANDS.length - 1];
+}
 
 const known = (id) => BUNDLED_SCENARIO_IDS.includes(id);
 const usd = (value) => `$${Number(value).toLocaleString("en-US")}`;
@@ -89,9 +110,22 @@ export function guidedAnalysis(scenarioId) {
   const recoverable = finding.recoverableSpend.amount;
   const share = Math.round((recoverable / department.spendUsd) * 100);
   const figure = step.figure;
+  const departments = sample.departments.length;
   return Object.freeze({
     contract: GUIDED_FLOW_CONTRACT, scenarioId: result.scenarioId, label: result.label,
     question: GUIDED_QUESTION,
+    // The export shape, so region 1 states what was chosen and not only its name.
+    shape: `${shape.providerId} · ${shape.format} · contract ${shape.contractVersion}`,
+    // A band, so the chip can carry a word and a shape rather than only a number.
+    confidenceBand: guidedConfidenceBand(readiness.confidence.value),
+    // A scenario carrying one department says so; it is not a truncated list.
+    departmentCount: departments,
+    departmentScope: departments === 1
+      ? `${department.name} is the only department in this export, so it is both the finding and the owner.`
+      : `${department.name} is the highest-recoverable of ${departments} departments in this export.`,
+    // Below the floor is a different fact from "small": the action card takes
+    // the page's low variant and says so, rather than going quiet.
+    material: finding.benchmark.comparison === "meets_or_exceeds",
     // The one material benchmark, said as a sentence a leader can repeat.
     benchmark: `${figure.text} of ${figure.metricName.replace(/_/g, " ")} over ${figure.period}`,
     answer: finding.statement,

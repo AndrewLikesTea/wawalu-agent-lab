@@ -245,6 +245,10 @@ export async function verifyArtifact(root) {
     // missing panel, it is a rejected entry module and a first viewport whose
     // headline never leaves "Not yet compared".
     "finops-stand.js", "finops-stand-view.js",
+    // The guided first-analysis chooser is installed by the AI FinOps entry and
+    // its view imports the decision model directly. Ship both or fail the build:
+    // dropping either rejects the entry module before the chooser can render.
+    "finops-guided-first-analysis.js", "finops-guided-first-analysis-view.js",
     // The recurring monthly review: its destination, the entry, the view, the
     // stylesheet the readiness tone is carried in, and the contract that decides
     // whether the review may be acted on. The entry imports the contract and the

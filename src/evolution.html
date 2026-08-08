@@ -1747,19 +1747,25 @@
            status region is authored here and outside every disclosure — one
            inserted when it is written into is one no screen reader was watching,
            and one folded into a collapsed disclosure is never announced. The two
-           titles take focus, not a tab stop. -->
-      <section class="finops-panel" id="finops-guided-choice" data-workspace-region="answer" data-guided-scenario="aws-bedrock-cur-v1" aria-labelledby="finops-guided-question">
+           titles take focus, not a tab stop.
+
+           ONE OUTLINE (#1394). The question below is the region's only h2 and
+           every title under it — the four steps painted into the chooser, and
+           the two panel titles — is an h3, so a reader navigating by headings
+           alone gets question, then 1–4, then the two destinations, with no
+           level skipped and no second top heading competing with the question. -->
+      <section class="finops-panel" id="finops-guided-choice" data-workspace-region="answer" data-guided-scenario="aws-bedrock-cur-v1" data-guided-state="ready" aria-labelledby="finops-guided-question">
         <h2 id="finops-guided-question">Which bundled provider export has the most recoverable AI spend, and who should act on it first?</h2>
         <p class="sample-marker" id="finops-guided-notice">Local synthetic demonstrations. No real data is entered, uploaded or transmitted — every figure is computed locally in this browser from invented records.</p>
         <div id="finops-guided-chooser"></div>
         <p class="visually-hidden" id="finops-guided-live" role="status" aria-live="polite" aria-atomic="true"></p>
       </section>
       <section class="finops-panel" id="finops-guided-evidence" data-workspace-region="evidence" data-guided-scenario="aws-bedrock-cur-v1" aria-labelledby="finops-guided-evidence-title">
-        <h2 class="eyebrow" id="finops-guided-evidence-title" tabindex="-1">Evidence · chosen scenario</h2>
+        <h3 class="workspace-screen-title" id="finops-guided-evidence-title" tabindex="-1">Evidence · chosen scenario</h3>
         <div id="finops-guided-evidence-body"></div>
       </section>
       <section class="finops-panel" id="finops-guided-department" data-workspace-region="department" data-guided-scenario="aws-bedrock-cur-v1" aria-labelledby="finops-guided-department-title">
-        <h2 class="eyebrow" id="finops-guided-department-title" tabindex="-1">Department detail · chosen scenario</h2>
+        <h3 class="workspace-screen-title" id="finops-guided-department-title" tabindex="-1">Department detail · chosen scenario</h3>
         <div id="finops-guided-department-body"></div>
       </section>
 
