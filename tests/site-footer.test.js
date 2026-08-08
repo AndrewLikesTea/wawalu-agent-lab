@@ -21,7 +21,6 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
 import { DEMOS, FOLLOW_UP_REDIRECT, IDENTITY, INVITATION, siteFooterMarkup } from "../src/site-footer.js";
-import { FOLLOW_UP_PRIVACY } from "../src/lead-capture.js";
 import { SITE_NAV } from "../src/site-nav.js";
 import { loadPage, parseHtml, pressEnter, pressKey, pressTab, tabSequence, textOf, typeText } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
@@ -44,8 +43,8 @@ const TYPED_EMAIL = "director@example.com";
 // The recovery paragraph, in the order a person needs it: what happened, what to
 // do, then what is still safe. Pinned whole rather than by fragment — the order
 // of the three sentences is the point, and a substring match would not see it.
-const RECOVERY_COPY = "We could not send your follow-up request. Try again in a few minutes. "
-  + "Your email address is still in the field above, and nothing else on this page changed.";
+const RECOVERY_COPY = "We could not send your follow-up request. Check your connection and try again in a few minutes. "
+  + "Your email and optional interest are still in the form.";
 
 const byId = (document, id) => document.getElementById(id);
 const shownText = (document, id) => textOf(byId(document, id));
@@ -444,11 +443,11 @@ test("the footer form says what submitting asks for, on the page that carries bo
     // One sentence between the field and the button — the site's, not this
     // footer's. Pinned whole: a substring match would pass on any prose.
     const note = textOf(byId(document, "site-footer-note"));
-    assert.equal(note, FOLLOW_UP_PRIVACY);
+    assert.match(note, /only the work email address.*optional interest/);
     // It names what is sent, who receives it, and that nothing else goes.
-    assert.match(note, /work email address you type here/);
-    assert.match(note, /Wawalu team that operates Shiplog/);
-    assert.match(note, /nothing else on this page is sent/);
+    assert.match(note, /work email/);
+    assert.match(note, /Wawalu team/);
+    assert.match(note, /sends no page activity, prompts, exports, or Social content/);
 
     // The control the visitor presses says the same thing the note does.
     const submit = byId(document, "site-footer-panel").querySelector('button[type="submit"]');
@@ -490,7 +489,7 @@ function interceptLeads(reply) {
   const passthrough = globalThis.fetch;
   const calls = [];
   globalThis.fetch = async (url, options) => {
-    if (url !== "/api/leads") return passthrough(url, options);
+    if (url !== "/api/follow-ups") return passthrough(url, options);
     calls.push({ url, options });
     return reply(calls.length);
   };
@@ -602,6 +601,9 @@ test("a submission goes through the shared capture path, and the confirmation sa
   const calls = interceptLeads((call) => jsonReply({ captured: true, created: call === 1, purpose: "follow_up" }, call === 1 ? 201 : 200));
   try {
     byId(document, "site-footer-open").click();
+    const interest = byId(document, "site-footer-interest");
+    interest.focus();
+    typeText(document, "Release guidance");
     submitEmail(document, TYPED_EMAIL);
     await settled(document);
 
@@ -609,15 +611,20 @@ test("a submission goes through the shared capture path, and the confirmation sa
     // the whole of `postLeadEmail`, and the whole of the claim beside the field.
     assert.equal(calls.length, 1, "one submission must produce exactly one request");
     const [{ url, options }] = calls;
-    assert.equal(url, "/api/leads");
+    assert.equal(url, "/api/follow-ups");
     assert.equal(options.method, "POST");
-    assert.deepEqual(JSON.parse(options.body), { email: TYPED_EMAIL, purpose: "follow_up" });
-    assert.deepEqual(Object.keys(JSON.parse(options.body)), ["email", "purpose"]);
+    assert.deepEqual(JSON.parse(options.body), { email: TYPED_EMAIL, interest: "Release guidance" });
+    assert.deepEqual(Object.keys(JSON.parse(options.body)), ["email", "interest"]);
 
     assert.equal(byId(document, "site-footer-form").dataset.state, "success");
     const confirmation = shownText(document, "site-footer-status");
-    assert.match(confirmation, /^Follow-up requested — we sent your email address, and nothing else\./);
-    assert.match(confirmation, /recorded for the Wawalu team/, "the confirmation must say what happens next");
+    assert.equal(confirmation, "Follow-up requested. The Wawalu team will reply by email.");
+    assert.match(confirmation, /Wawalu team will reply by email/, "the confirmation must say what happens next");
+    const receipt = shownText(document, "site-footer-confirmation");
+    assert.match(receipt, /Email sent: director@example\.com/);
+    assert.match(receipt, /Fields sent: email and optional interest/);
+    assert.match(receipt, /Interest sent: Release guidance/);
+    assert.doesNotMatch(receipt, /page activity|prompts|exports|Social content/);
     // Nothing promised that this demo does not do.
     assert.doesNotMatch(confirmation, /business days?|within \d|hours?\b/i);
     // The live region announces it rather than leaving it to the eye alone.
@@ -631,10 +638,8 @@ test("a submission goes through the shared capture path, and the confirmation sa
     // It opens on the same three words as the first confirmation: the live
     // region announces this sentence alone, out of the context of the button
     // that was pressed, so it has to name which request succeeded.
-    await waitFor(
-      () => shownText(document, "site-footer-status")
-        .startsWith("Follow-up requested — that address is already on our list"),
-      "the already-recorded confirmation");
+    await waitFor(() => byId(document, "site-footer-form").dataset.state === "success",
+      "the second confirmation");
     assert.equal(calls.length, 2);
   } finally {
     page.restore();
@@ -646,7 +651,7 @@ test("the privacy sentence beside the field is what the request body actually do
   const { document } = page;
   const calls = interceptLeads(() => jsonReply({ captured: true, created: true, purpose: "follow_up" }));
   try {
-    assert.equal(shownText(document, "site-footer-note"), FOLLOW_UP_PRIVACY);
+    assert.match(shownText(document, "site-footer-note"), /optional interest/);
 
     byId(document, "site-footer-open").click();
     submitEmail(document, TYPED_EMAIL);
@@ -736,8 +741,8 @@ test("a failed submission keeps the typed address, says it can be retried, and t
     await waitFor(() => byId(document, "site-footer-form").dataset.state === "success",
       "the retry to succeed");
     assert.equal(calls.length, 2, "the retry must make its own request");
-    assert.deepEqual(JSON.parse(calls[1].options.body), { email: TYPED_EMAIL, purpose: "follow_up" });
-    assert.match(shownText(document, "site-footer-status"), /^Follow-up requested — we sent your email address, and nothing else\./);
+    assert.deepEqual(JSON.parse(calls[1].options.body), { email: TYPED_EMAIL });
+    assert.equal(shownText(document, "site-footer-status"), "Follow-up requested. The Wawalu team will reply by email.");
   } finally {
     page.restore();
   }
@@ -781,7 +786,7 @@ test("the pending state is announced, not merely spun", async () => {
     const submit = byId(document, "site-footer-panel").querySelector('button[type="submit"]');
     assert.equal(submit.disabled, true, "the submit control must be unusable while a request is in flight");
     assert.equal(submit.getAttribute("aria-disabled"), "true");
-    assert.equal(shownText(document, "site-footer-status"), "Requesting a follow-up — sending your email address…",
+    assert.equal(shownText(document, "site-footer-status"), "Requesting a follow-up — sending the disclosed fields…",
       "the pending state must be in the live region, not only in the button");
 
     release();

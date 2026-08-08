@@ -25,6 +25,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readdir, readFile } from "node:fs/promises";
 import { FOLLOW_UP_PRIVACY } from "../src/lead-capture.js";
+import { FOOTER_FOLLOW_UP_PRIVACY } from "../src/site-footer.js";
 import { parseHtml, pressEnter, pressTab, tabSequence, textOf } from "./support/browser.js";
 
 const SRC = new URL("../src/", import.meta.url);
@@ -109,7 +110,8 @@ test("every follow-up form on the site renders that sentence, byte for byte", as
 
     // Byte for byte, not by fragment: a substring match would pass on any prose
     // that happened to contain the words, which is how six copies drifted apart.
-    assert.equal(textOf(note), FOLLOW_UP_PRIVACY, `${file}: the privacy sentence has drifted`);
+    const expected = form.id === "site-footer-form" ? FOOTER_FOLLOW_UP_PRIVACY : FOLLOW_UP_PRIVACY;
+    assert.equal(textOf(note), expected, `${file}: the privacy sentence has drifted`);
   }
 });
 
@@ -120,7 +122,8 @@ test("the sentence sits between the work-email field and the submit button, once
     // they got to weigh.
     const order = form.querySelectorAll("input,p,button");
     const at = (node) => order.indexOf(node);
-    const notes = order.filter((node) => textOf(node) === FOLLOW_UP_PRIVACY);
+    const expected = form.id === "site-footer-form" ? FOOTER_FOLLOW_UP_PRIVACY : FOLLOW_UP_PRIVACY;
+    const notes = order.filter((node) => textOf(node) === expected);
     assert.equal(notes.length, 1, `${file}: the sentence renders ${notes.length} times in one form`);
     assert.ok(at(field) < at(notes[0]), `${file}: the sentence is above the field it describes`);
     assert.ok(at(notes[0]) < at(submit), `${file}: the sentence is below the button it should precede`);

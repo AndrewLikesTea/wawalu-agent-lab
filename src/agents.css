@@ -173,7 +173,8 @@ button:focus-visible,.brand:focus-visible { outline:3px solid #155f9e; outline-o
 .site-footer-form { display:grid; gap:12px; }
 .site-footer-field { display:grid; gap:7px; }
 .site-footer-field label { color:#2c2c28; font-size:14px; font-weight:700; }
-.site-footer-field input { min-height:46px; min-width:0; border:1px solid #a9bccd; border-radius:9px; padding:0 12px; background:#fff; font:inherit; }
+.site-footer-field input { min-height:46px; min-width:0; border:1px solid #a9bccd; border-radius:9px; padding:10px 12px; background:#fff; font:inherit; }
+.site-footer-field textarea { min-height:90px; min-width:0; border:1px solid #a9bccd; border-radius:9px; padding:10px 12px; background:#fff; font:inherit; resize:vertical; }
 .site-footer-error { margin:0; border:1px solid #8a2b2b; border-left:5px solid #8a2b2b; border-radius:9px; padding:11px 13px; background:#fbeded; color:#6d2020; font:700 12px/1.5 inherit; }
 .site-footer-error[hidden] { display:none; }
 .site-footer-note { margin:0; color:#4f4f4a; font-size:12px; line-height:1.55; }
@@ -189,6 +190,6 @@ button:focus-visible,.brand:focus-visible { outline:3px solid #155f9e; outline-o
 /* `a` is in here because the band now carries a link on these two pages too; a
    focus ring that exists in styles.css and not in this file is an invisible
    keyboard focus on the observatory. */
-.site-footer button:focus-visible,.site-footer input:focus-visible,.site-footer a:focus-visible { outline:3px solid #155f9e; outline-offset:3px; }
+.site-footer button:focus-visible,.site-footer input:focus-visible,.site-footer textarea:focus-visible,.site-footer a:focus-visible { outline:3px solid #155f9e; outline-offset:3px; }
 @media(max-width:520px) { .site-footer-inner{width:calc(100% - 24px);padding:24px 0 32px}.site-footer-trigger{width:100%}.site-footer-panel{padding:15px}.site-footer-actions button{flex:1 1 auto} }
 @media(prefers-reduced-motion:reduce) { .site-footer-panel{animation:none} }

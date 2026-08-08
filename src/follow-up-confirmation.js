@@ -31,10 +31,8 @@
  * it, and what did not travel. `LEAD` is deliberately split around the address
  * so the address arrives as a text node of its own.
  */
-export const CONFIRMATION_LEAD = "We sent one thing: ";
-export const CONFIRMATION_DETAIL = "A person from the Wawalu team replies to that address by email. "
-  + "Nothing else on this page — nothing you have read, filtered, imported, or exported — was read, "
-  + "attached, or transmitted.";
+export const CONFIRMATION_LEAD = "Email sent: ";
+export const CONFIRMATION_DETAIL = "The Wawalu team will reply to that address by email.";
 export const REOPEN_LABEL = "Request another follow-up";
 
 /**
@@ -58,7 +56,7 @@ function classBase(status) {
  * exists only after a request lands, so there is no hidden node for a screen
  * reader to find first.
  */
-export function createFollowUpConfirmation({ form, status, submit, email, onReopen = () => {} }) {
+export function createFollowUpConfirmation({ form, status, submit, email, interest = null, onReopen = () => {} }) {
   const document = form.ownerDocument;
   const base = classBase(status);
   const prefix = form.id.replace(/-form$/, "");
@@ -88,6 +86,9 @@ export function createFollowUpConfirmation({ form, status, submit, email, onReop
   detail.className = `${base}-confirmation-detail`;
   detail.textContent = CONFIRMATION_DETAIL;
 
+  const fields = document.createElement("p");
+  fields.className = `${base}-confirmation-fields`;
+
   const again = document.createElement("button");
   again.className = `${base}-confirmation-again`;
   again.id = `${prefix}-again`;
@@ -101,13 +102,17 @@ export function createFollowUpConfirmation({ form, status, submit, email, onReop
     email.focus();
   });
 
-  region.append(lead, detail, again);
+  region.append(lead, detail, fields, again);
 
   let sent = false;
 
   /** Put the panel into its terminal state, naming the address that was sent. */
-  function show(value) {
+  function show(value, interestValue = "") {
     address.textContent = value;
+    const submittedInterest = String(interestValue).trim();
+    fields.textContent = submittedInterest
+      ? `Fields sent: email and optional interest. Interest sent: ${submittedInterest}`
+      : "Fields sent: email. Optional interest was left blank and was not sent.";
     if (!region.parentNode) form.parentNode.insertBefore(region, form);
     // Hiding the form takes the field and both of its buttons out of the tab
     // order; disabling submit means even a stray click on it does nothing.

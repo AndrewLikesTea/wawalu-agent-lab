@@ -46,7 +46,7 @@ function interceptLeads(reply) {
   const passthrough = globalThis.fetch;
   const calls = [];
   globalThis.fetch = async (url, options) => {
-    if (url !== "/api/leads") return passthrough(url, options);
+    if (!["/api/leads", "/api/follow-ups"].includes(url)) return passthrough(url, options);
     calls.push({ url, options });
     return reply(calls.length);
   };
@@ -114,7 +114,7 @@ test("Social, People, Releases, and Prompt coach all show the shared success con
       assert.equal(byId(page.document, "site-footer-form").dataset.state, "success", `${file}: success state`);
       assert.ok(byId(page.document, "site-footer-confirmation"), `${file}: visible confirmation`);
       assert.equal(page.document.activeElement?.id, "site-footer-confirmation", `${file}: focus reaches confirmation`);
-      assert.match(shownText(page.document, "site-footer-status"), /person replies by email/,
+      assert.match(shownText(page.document, "site-footer-status"), /Wawalu team will reply by email/,
         `${file}: confirmation states the next step`);
     } finally {
       page.restore();
@@ -142,9 +142,9 @@ for (const { name, open, prefix } of SURFACES) {
       assert.match(textOf(receipt), new RegExp(LONG_EMAIL.replace(/[.]/g, "\\.")));
       assert.equal(textOf(receipt.querySelector(`.${receipt.className}-address`)), LONG_EMAIL);
       // Who answers, and what travelled — the form's own privacy vocabulary.
-      assert.match(textOf(receipt), /A person from the Wawalu team replies to that address by email/);
-      assert.match(textOf(receipt), /Nothing else on this page/);
-      assert.match(textOf(receipt), /read, attached, or transmitted/);
+      assert.match(textOf(receipt), /Wawalu team will reply to that address by email/);
+      assert.match(textOf(receipt), /Fields sent: email/);
+      assert.match(textOf(receipt), /Optional interest was left blank and was not sent/);
       // Nothing about when. This demo has not promised anyone a response time,
       // and the receipt is not the place to invent one.
       assert.doesNotMatch(textOf(receipt), /business days?|within \d|hours?\b|shortly|specialist/i);
@@ -261,7 +261,7 @@ for (const { name, open, prefix } of SURFACES) {
       // it reads nothing like a receipt.
       const recovery = byId(document, `${prefix}-recovery`);
       assert.equal(recovery.hidden, false);
-      assert.match(textOf(recovery), /Your email address is still in the field/);
+      assert.match(textOf(recovery), /email.*still in (the field|the form)/i);
       assert.doesNotMatch(textOf(recovery), new RegExp(CONFIRMATION_DETAIL.slice(0, 40)));
       assert.doesNotMatch(shownText(document, `${prefix}-status`), /We sent one thing/);
     } finally {

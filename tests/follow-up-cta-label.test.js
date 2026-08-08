@@ -22,7 +22,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { loadPage, textOf } from "./support/browser.js";
 import { CONTACT_COPY, FOLLOW_UP_PRIVACY } from "../src/lead-capture.js";
-import { INVITATION } from "../src/site-footer.js";
+import { FOOTER_FOLLOW_UP_PRIVACY, INVITATION } from "../src/site-footer.js";
 
 /** The one label. Written out here so a rename has to be a decision, not a diff. */
 const CTA = "Request a follow-up";
@@ -155,7 +155,8 @@ test("each surface says beside its button that submitting sends only the work em
     const page = await loadPage(pageUrl(file));
     try {
       const copy = context.map((id) => textOf(byId(page.document, id))).join(" ");
-      assert.ok(copy.includes(FOLLOW_UP_PRIVACY), `${what}: nothing beside the button says what is sent`);
+      const privacy = file === "agents.html" ? FOOTER_FOLLOW_UP_PRIVACY : FOLLOW_UP_PRIVACY;
+      assert.ok(copy.includes(privacy), `${what}: nothing beside the button says what is sent`);
       assert.match(copy, /follow-up/i, `${what}: nothing beside the button names what is being asked for`);
     } finally {
       page.restore();

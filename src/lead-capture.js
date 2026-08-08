@@ -12,6 +12,7 @@
 // What they do choose is which set of words a visitor reads, because they are
 // not asking for the same thing this form is.
 const ENDPOINT = "/api/leads";
+const FOLLOW_UP_ENDPOINT = "/api/follow-ups";
 const TIMEOUT_MS = 10000;
 
 /**
@@ -163,6 +164,25 @@ export async function postLeadEmail(request, email, purpose, copy) {
     ? body.created
     : (typeof body?.subscribed === "boolean" ? body.subscribed : true);
   return { captured: true, created, purpose };
+}
+
+/** Send only the two fields disclosed by the shared Shiplog follow-up form. */
+export async function postFollowUp(request, email, interest, copy = CONTACT_COPY) {
+  const body = { email: String(email).trim() };
+  const normalizedInterest = String(interest ?? "").trim();
+  if (normalizedInterest) body.interest = normalizedInterest;
+  const response = await request(FOLLOW_UP_ENDPOINT, {
+    method: "POST",
+    headers: { "content-type": "application/json", accept: "application/json" },
+    body: JSON.stringify(body),
+    signal: globalThis.AbortSignal?.timeout?.(TIMEOUT_MS),
+  });
+  const result = await response.json().catch(() => null);
+  if (!response.ok) {
+    const failure = resolveFailure(response, result, copy);
+    throw new SubmissionError(failure.message, failure.reason);
+  }
+  return { captured: true };
 }
 
 // The browser's own shape check, for forms that cannot lean on the control's

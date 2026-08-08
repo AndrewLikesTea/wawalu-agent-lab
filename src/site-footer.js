@@ -32,7 +32,7 @@
 
 import { createFollowUpConfirmation } from "./follow-up-confirmation.js";
 import {
-  CONTACT_COPY, describeWith, emailFieldError, FOLLOW_UP_PRIVACY, looksLikeEmail, postLeadEmail,
+  CONTACT_COPY, describeWith, emailFieldError, looksLikeEmail, postFollowUp,
   SubmissionError,
 } from "./lead-capture.js";
 
@@ -118,6 +118,8 @@ export const DEMOS = Object.freeze([
  */
 export const INVITATION = "Questions about Shiplog? Ask the Wawalu team that operates it, and a "
   + "person replies by email.";
+export const FOOTER_FOLLOW_UP_PRIVACY = "This form sends only the work email address you type and, if provided, "
+  + "your optional interest to the Wawalu team; it sends no page activity, prompts, exports, or Social content.";
 
 // What the field sends is not this footer's sentence to write. It is the same
 // claim the AI FinOps form and the briefing's form make, so all three render one
@@ -132,12 +134,8 @@ export const INVITATION = "Questions about Shiplog? Ask the Wawalu team that ope
 // says what is actually true — the address is recorded, a person is the one who
 // reads it, and no machine is about to reply — rather than a response time this
 // demo would break.
-const CAPTURED = "Follow-up requested — we sent your email address, and nothing else. It is recorded "
-  + "for the Wawalu team, and a person replies by email; nothing here answers automatically.";
-const ALREADY_CAPTURED = "Follow-up requested — that address is already on our list, so nothing new "
-  + "was recorded. The Wawalu team can reach you there.";
-
-const SUBMITTING = "Requesting a follow-up — sending your email address…";
+const CAPTURED = "Follow-up requested. The Wawalu team will reply by email.";
+const SUBMITTING = "Requesting a follow-up — sending the disclosed fields…";
 
 /**
  * The pages that answer a follow-up request better than this footer can, and
@@ -226,15 +224,19 @@ function contactDisclosureLines() {
     "               and would otherwise be read on first focus. -->",
     '          <input id="site-footer-email" name="email" type="email" maxlength="254" inputmode="email" autocomplete="email" placeholder="you@company.com" required aria-describedby="site-footer-note" />',
     "        </div>",
+    '        <div class="site-footer-field">',
+    '          <label for="site-footer-interest">What do you want from Shiplog? <span>(optional)</span></label>',
+    '          <textarea id="site-footer-interest" name="interest" maxlength="500" rows="3" aria-describedby="site-footer-note"></textarea>',
+    "        </div>",
     `        <p class="site-footer-error" id="site-footer-error" hidden></p>`,
-    `        <p class="site-footer-note" id="site-footer-note">${FOLLOW_UP_PRIVACY}</p>`,
+    `        <p class="site-footer-note" id="site-footer-note">${FOOTER_FOLLOW_UP_PRIVACY}</p>`,
     '        <div class="site-footer-actions">',
     '          <button type="submit">Request a follow-up</button>',
     '          <button id="site-footer-dismiss" type="button">Close</button>',
     "        </div>",
     "      </form>",
     '      <p class="site-footer-status" id="site-footer-status" role="status" aria-live="polite"></p>',
-    '      <p class="site-footer-recovery" id="site-footer-recovery" hidden>We could not send your follow-up request. Try again in a few minutes. Your email address is still in the field above, and nothing else on this page changed.</p>',
+    '      <p class="site-footer-recovery" id="site-footer-recovery" hidden>We could not send your follow-up request. Check your connection and try again in a few minutes. Your email and optional interest are still in the form.</p>',
     "    </div>",
   ];
 }
@@ -256,6 +258,7 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
   if (!form || !trigger || !panel) return null;
 
   const email = form.elements.email;
+  const interest = form.elements.interest;
   const submit = form.querySelector('button[type="submit"]');
   const dismiss = root.querySelector("#site-footer-dismiss");
   const fieldError = root.querySelector(`#${ERROR_ID}`);
@@ -283,6 +286,7 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
     status,
     submit,
     email,
+    interest,
     // Coming back to the form clears the outcome of the last request: it reports
     // something that happened, and the visitor has just said they are not done.
     onReopen: () => { status.textContent = ""; delete form.dataset.state; },
@@ -354,12 +358,12 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
 
     try {
       const address = email.value.trim();
-      const body = await postLeadEmail(request, email.value, "follow_up", CONTACT_COPY);
+      await postFollowUp(request, email.value, interest.value, CONTACT_COPY);
       form.dataset.state = "success";
-      status.textContent = body.created ? CAPTURED : ALREADY_CAPTURED;
+      status.textContent = CAPTURED;
       // The form is replaced from here, so the control that would send again is
       // gone before the `finally` below could bring it back.
-      confirmation.show(address);
+      confirmation.show(address, interest.value);
     } catch (error) {
       // Copy this repository owns, never a string an intermediary supplied, and
       // never a claim that the address was lost when that is not known.
