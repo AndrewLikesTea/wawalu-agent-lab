@@ -110,16 +110,16 @@ const POST_STATE_COPY = {
     className: "detail-state-not-found",
     tone: "missing",
     label: "Not found",
-    title: "Post not found",
-    description: "This link did not name a post to open, so there is nothing to show. Social is a shared demo feed, not a signed-in account.",
+    title: "Post unavailable",
+    description: "This link does not point to a post we can show.",
   },
   "not-found": {
     state: "not-found",
     className: "detail-state-not-found",
     tone: "missing",
     label: "Not found",
-    title: "Post not found",
-    description: "This post was not found. It may have been removed, or the link may point at a post that never existed. Social is a shared demo feed, not a signed-in account.",
+    title: "Post unavailable",
+    description: "This post can’t be shown.",
   },
   // The error state names the thing that broke — the feed — rather than
   // describing the post as "unavailable", which reads as a verdict about the
@@ -130,7 +130,7 @@ const POST_STATE_COPY = {
     tone: "error",
     label: "Unreachable",
     title: "Post could not be loaded",
-    description: "The Social feed could not be reached, so this post could not be loaded. Social is a shared demo feed, not a signed-in account.",
+    description: "We couldn’t reach the Social feed to load this post.",
   },
 };
 
@@ -158,7 +158,7 @@ function labelledState(key, actions = []) {
 // action with the state makes the next step explicit even when the standing
 // exit above leads to the same place.
 function feedAction() {
-  const link = el("a", "empty-action empty-action-secondary detail-state-feed", "Return to the Social feed");
+  const link = el("a", "empty-action empty-action-secondary detail-state-feed", "Go to the Social feed");
   link.href = POST_EXITS.social.href;
   return link;
 }
