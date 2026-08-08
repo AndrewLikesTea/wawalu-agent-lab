@@ -249,19 +249,17 @@ test("the destination reads as one page about one thing", async () => {
 
   // The boundary a visitor needs before pasting is readable with no script at
   // all: it is in the shipped markup, not painted by a module. And it is read
-  // where the decision is made — inside the form, above the button — rather
-  // than in a hero the reader scrolled past.
-  const privacy = document.querySelector(".prompt-coaching-privacy");
-  assert.match(textOf(privacy), /Nothing you paste leaves this tab/);
-  assert.equal(privacy.closest("form")?.id, "prompt-coaching-form",
-    "the privacy statement must sit in the form a visitor is deciding whether to submit");
+  // immediately before the form rather than in a hero the reader scrolled past.
+  const privacy = document.querySelector(".prompt-coaching-entry-static");
+  assert.match(textOf(privacy), /Grading happens in your browser/);
+  assert.match(textOf(privacy), /Pasted text is not sent to a model or stored/);
   const markup = await read("coach.html");
-  assert.ok(markup.indexOf('class="prompt-coaching-privacy"') < markup.indexOf('id="prompt-coaching-grade"'),
-    "the privacy statement must be read before the grading button, not after it");
+  assert.ok(markup.indexOf('class="prompt-coaching-entry-static"') < markup.indexOf('id="prompt-coaching-input"'),
+    "the privacy statement must be read before the prompt field");
 
   // Said once. A page that repeats the same promise four times teaches a
   // visitor to skip all four.
-  assert.equal(document.querySelectorAll(".prompt-coaching-privacy").length, 1);
+  assert.equal(document.querySelectorAll(".prompt-coaching-privacy").length, 0);
   // The example is named the same way the rest of the site names one —
   // "bundled synthetic example" — and says what it is made of in the same breath.
   const sample = textOf(document.querySelector(".prompt-coach-sample-static"));
@@ -294,8 +292,9 @@ test("the first screen names the result and the next action, before any script r
   const start = textOf(document.querySelector(".prompt-coaching-entry-static"));
   assert.match(start, /score out of 100/, "the first screen must say what a visitor receives");
   assert.match(start, /single change worth making first/);
-  assert.doesNotMatch(start, /upload|storage|leaves this tab|browser/i,
-    "the start instruction must not repeat the privacy promise beside the action");
+  assert.match(start, /Grading happens in your browser/);
+  assert.match(start, /Pasted text is not sent to a model or stored/);
+  assert.match(start, /Paste a prompt or short conversation below, then select “Grade this prompt.”/);
 
   // And the next action, named with the words on the controls a visitor presses,
   // so the instruction and the button cannot be read as two different things.

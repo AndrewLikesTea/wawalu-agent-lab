@@ -80,18 +80,11 @@ test("before a second grade the cue offers re-grading and nothing claims a chang
     assert.equal(cue.hidden, false);
     const words = textOf(cue);
     assert.match(words, /revise and re-grade in this session/i);
-    // The cue may promise a second local grade and a comparison. It may not
-    // imply a provider reading the text or a record that outlives the tab.
-    assert.match(words, /bundled rubric in this tab/i);
-    assert.match(words, /no prompt is sent to a model/i);
-    assert.match(words, /measurements from the previous grade stay in memory here/i,
-      "the cue must say the whole retained result stays, not understate it as counts");
-    assert.match(words, /never the text you pasted/i,
-      "and it must say what is not retained, in the reader's words");
-    // Named by the control a reader presses, not by a word for the region it
-    // sits in: "the panel" is not a thing on screen, "Clear and start over" is.
-    assert.match(words, /until you press Clear and start over, or close the tab/i);
-    assert.doesNotMatch(words, /saved|stored|history|account|upload/i);
+    // Privacy and storage are stated once before the field, so this cue stays
+    // focused on the revision workflow instead of repeating that disclosure.
+    assert.match(words, /Grade once, edit, and grade again/i);
+    assert.match(words, /previous and revised scores, what moved, and one next step/i);
+    assert.doesNotMatch(words, /model|memory|text you pasted|saved|stored|history|account|upload/i);
 
     assert.equal(changeRegion(document).hidden, true);
     assert.equal(changeRegion(document).getAttribute("aria-labelledby"), null);
