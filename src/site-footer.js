@@ -69,12 +69,13 @@ export const IDENTITY = "On this site you can analyze your own AI spend, check a
  * module is in every page's initial payload and src/site-nav.js is 6 KB of it,
  * so tests/site-footer.test.js compares the two tables instead.
  *
- * `purpose` is a fragment of at most eight words, not a sentence. It used to be
- * word for word the home page's "Where everything is" sentence for that
- * surface: an essay on every page, and the same eight sentences twice on the
- * home page. One name per concept is still the rule; one wording per concept
- * was the mistake. The AI FinOps row keeps "in this browser tab" — that clause
- * is a promise about where a visitor's export is read, not a description.
+ * `purpose` is a fragment, shorter than the home page's sentence for the same
+ * surface — the footer points, the home page explains — and built from that
+ * sentence's verb and noun, keeping the facts the act turns on: where Paint's
+ * PNG goes, what order People's posts come in. AI FinOps keeps "in this browser
+ * tab", a promise about where an export is read. Social is the exception and
+ * carries the whole sentence, the same bytes the home page's card, the post
+ * permalink, and the start of Social's own intro carry.
  */
 export const DEMOS = Object.freeze([
   Object.freeze({
@@ -90,21 +91,20 @@ export const DEMOS = Object.freeze([
     purpose: "grade a prompt, then revise and grade again",
     // `also` is a page named beneath this destination rather than beside it:
     // src/site-nav.js files /personal-history.html under Prompt coach's section
-    // instead of giving it a door. It is named here because a reader who left
-    // the home page had nowhere else to find it, and it says where the export is
-    // read for the reason the AI FinOps row does — that clause is a promise.
+    // instead of giving it a door, and a reader who left the home page had
+    // nowhere else to find it. Its browser-tab clause is a promise, as above.
     also: Object.freeze({
       label: "Personal AI history",
       href: "/personal-history.html",
       purpose: "reads your export in this browser tab",
     }),
   }),
-  Object.freeze({ label: "Decisions", href: "/", purpose: "log a decision, then search the history" }),
-  Object.freeze({ label: "Releases", href: "/releases.html", purpose: "each release and the decisions behind it" }),
-  Object.freeze({ label: "Social", href: "/social.html", purpose: "read short demo posts, images optional" }),
-  Object.freeze({ label: "People", href: "/profile.html", purpose: "pick a display name, see its image posts" }),
-  Object.freeze({ label: "Paint", href: "/paint/", purpose: "crop or draw, then export a PNG" }),
-  Object.freeze({ label: "Agent observatory", href: "/agents.html", purpose: "watch a synthetic team build and review work" }),
+  Object.freeze({ label: "Decisions", href: "/", purpose: "record a decision, then search the history" }),
+  Object.freeze({ label: "Releases", href: "/releases.html", purpose: "every release and the decisions it carried" }),
+  Object.freeze({ label: "Social", href: "/social.html", purpose: "Social is a shared demo feed of short posts about what the team ships, images optional." }),
+  Object.freeze({ label: "People", href: "/profile.html", purpose: "pick a display name, see its image posts, newest first" }),
+  Object.freeze({ label: "Paint", href: "/paint/", purpose: "crop or draw an image, export a PNG, publish it on Social" }),
+  Object.freeze({ label: "Agent observatory", href: "/agents.html", purpose: "watch a synthetic engineering team build and review work" }),
 ]);
 
 /**
