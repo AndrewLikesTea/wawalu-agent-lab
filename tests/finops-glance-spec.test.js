@@ -36,6 +36,7 @@ import {
 } from "../src/example-dataset.js";
 import { ORG_SIZE_BAND } from "../src/peer-cost-cohorts.js";
 import { PEER_INDUSTRY } from "../src/peer-cost-position.js";
+import { FINOPS_GLANCE_CHART_FIXTURE } from "./fixtures/finops-glance-chart-fixture.js";
 
 const html = await readFile(new URL("../src/evolution.html", import.meta.url), "utf8");
 const analysis = loadExampleDataset();
@@ -370,4 +371,52 @@ test("a figure the page could not measure is given no picture", () => {
   const document = parseHtml(html);
   applyFinopsGlance(document, composeFinopsGlance({ analysis: {}, reproducibility: null }));
   assert.equal(chartsIn(document.getElementById(GLANCE_IDS.block)).length, 0);
+});
+
+// Geometry tuples deliberately contain only rendered tag/count/attributes, not
+// harness IDs. The surrounding paragraph supplies the prose/model association.
+const geometry = (chart) => [...chart.children].map((shape) => shape.tagName === "POLYLINE"
+  ? [shape.tagName, shape.getAttribute("points")]
+  : shape.tagName === "CIRCLE"
+    ? [shape.tagName, shape.getAttribute("cx"), shape.getAttribute("cy"),
+      shape.getAttribute("r"), shape.getAttribute("fill-opacity")]
+    : [shape.tagName, shape.getAttribute("x"), shape.getAttribute("y"),
+      shape.getAttribute("width"), shape.getAttribute("height"), shape.getAttribute("fill-opacity")]);
+
+function assertFixtureAgreement(glance, block) {
+  const charts = chartsIn(block);
+  assert.equal(charts.length, 4, `${FINOPS_GLANCE_CHART_FIXTURE.label} did not draw four readings`);
+  for (const figure of glance.figures) {
+    const expected = FINOPS_GLANCE_CHART_FIXTURE.figures[figure.key];
+    assert.deepEqual([...figure.series], expected.series, `${figure.key} model series diverged`);
+    const matches = charts.filter((chart) => chart.getAttribute("data-chart") === figure.key);
+    assert.equal(matches.length, 1, `${figure.key} did not render exactly once`);
+    assert.equal(textOf(matches[0].parentNode), figure.line,
+      `${figure.key} picture is not adjacent to its model's exact prose`);
+    assert.deepEqual(geometry(matches[0]), expected.shapes, `${figure.key} geometry diverged`);
+  }
+}
+
+test("the real overview renders all four fixture series from the adjacent prose model", () => {
+  const glance = composeStandHeadline({
+    analysis, source: "example", position: ranking().position, reproducibility: ranking(),
+  }).glance;
+  const first = renderedGlance(ranking());
+  const second = renderedGlance(ranking());
+  assertFixtureAgreement(glance, first.block);
+  assertFixtureAgreement(glance, second.block);
+  assert.deepEqual(chartsIn(first.block).map(geometry), chartsIn(second.block).map(geometry),
+    "repeated production renders changed coordinates");
+});
+
+test("the agreement check detects a perturbation in every model series", () => {
+  const rendered = renderedGlance(ranking());
+  const baseline = composeFinopsGlance({ analysis, reproducibility: ranking() });
+  for (const [index, figure] of baseline.figures.entries()) {
+    const figures = baseline.figures.map((item, itemIndex) => itemIndex === index
+      ? { ...item, series: [Number(item.series[0]) + 1, ...item.series.slice(1)] }
+      : item);
+    assert.throws(() => assertFixtureAgreement({ ...baseline, figures }, rendered.block),
+      /model series diverged/, `${figure.key} perturbation escaped the production agreement check`);
+  }
 });

@@ -101,15 +101,18 @@ for (const [name, render] of RENDERERS) {
   }
 }
 
-test("one point draws one valid shape in every renderer", () => {
-  for (const [name, render] of RENDERERS) {
+test("one point uses prose for movement and remains valid for categorical figures", () => {
+  for (const [name, render] of RENDERERS.filter(([, candidate]) => candidate !== renderMovementChart)) {
     const chart = render(doc(), [7]);
     assert.equal(chart.tagName, "SVG", `${name} refused a single datum`);
     assert.ok(elements(chart).length > 1, `${name} drew an empty root for a single datum`);
   }
   // A single period is a point, not a line: there is nothing to join.
-  assert.equal(shapes(renderMovementChart(doc(), [7]), "polyline").length, 0);
-  assert.equal(shapes(renderMovementChart(doc(), [7]), "circle").length, 1);
+  const document = doc();
+  const before = textOf(document.querySelector("p"));
+  assert.equal(renderMovementChart(document, [7]) === null, true);
+  assert.equal(textOf(document.querySelector("p")), before,
+    "the single-period fallback changed the model's explanatory prose");
 });
 
 test("a ranked list stays inside its box however many departments arrive", () => {
@@ -140,11 +143,13 @@ test("an all-zero series draws its track and no fill, and never divides by zero"
   const widths = shapes(rank, "rect").map((rect) => Number(rect.getAttribute("width")));
   assert.equal(widths.filter((width) => width === 0).length, 3, "a zero row drew a bar");
 
-  // A flat sparkline has no span to normalise against; every point lands level.
-  const flat = renderMovementChart(doc(), [0, 0, 0]);
-  const points = shapes(flat, "polyline")[0].getAttribute("points").split(" ");
-  const heights = new Set(points.map((point) => point.split(",")[1]));
-  assert.equal(heights.size, 1, "a flat series drew a slope");
+  // A flat sparkline would imply a meaningful trend. Prose is the fallback.
+  const document = doc();
+  const before = textOf(document.querySelector("p"));
+  assert.equal(renderMovementChart(document, [0, 0, 0]) === null, true);
+  assert.equal(renderMovementChart(document, [7, 7]) === null, true);
+  assert.equal(textOf(document.querySelector("p")), before,
+    "the all-equal fallback changed the model's explanatory prose");
 });
 
 test("no series writes NaN or a negative length into an attribute", () => {

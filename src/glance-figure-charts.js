@@ -25,11 +25,12 @@
 // THE DEGENERATE SERIES ARE THE FEATURE, NOT A GUARD.
 //   • No points: nothing is drawn and null is returned, so the caller keeps its
 //     text and the DOM gains no empty SVG shell.
-//   • One point: a valid single-datum shape, not an axis and not a trend.
+//   • One movement point: no trend is claimed; the caller's prose is the
+//     fallback. Other figures can honestly depict one category, row, or band.
 //   • Many points: bounded. A ranked list draws at most RANK_ROWS rows.
-//   • All zero, or flat: no denominator is ever zero, because a non-positive
-//     denominator maps every datum to zero length. The chart then draws its
-//     track and no fill — "nothing here", rather than NaN in a width.
+//   • All zero, or flat: proportional bars draw only their empty track. A flat
+//     movement series draws nothing because a level sparkline would imply a
+//     trend the model cannot distinguish; the adjacent text remains the answer.
 //   • Negative: magnitude and direction are separated before any attribute is
 //     written. Month-over-month can fall, and a rect refuses a negative height.
 
@@ -150,7 +151,9 @@ export function renderRankChart(doc, series) {
  */
 export function renderMovementChart(doc, series) {
   const values = finite(series);
-  if (values.length === 0) return null;
+  // Movement needs both a comparison and a non-zero range. In these states the
+  // model's documented sentence is more truthful than a lone dot or flat line.
+  if (values.length < 2 || new Set(values).size === 1) return null;
   const node = root(doc, "movement");
   const low = Math.min(...values);
   const span = Math.max(...values) - low;
