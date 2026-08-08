@@ -144,6 +144,15 @@ test("a first-time visitor lands on a display name that has image posts", async 
     assert.equal(selectedChip(page)?.dataset.author, "Zed");
     assert.equal(textOf(document.querySelector("#profile-name")), "Active display-name filter: Zed",
       "the header names someone other than the picker's own value");
+    assert.match(textOf(document.querySelector(".profile-role")),
+      /Zed is a display name[\s\S]*This view shows image posts only\. See every post on Social, including the ones published without an image\./,
+      "the selected-name results state does not explain its image-only scope or route to the posts it leaves out");
+    // The same two facts where a reader who scrolled to the grid meets them:
+    // the heading counts image posts, the eyebrow above it names the surface
+    // that has the rest. Neither states the scope in the other's words.
+    const panelHeading = document.querySelector(".list-heading");
+    assert.equal(textOf(panelHeading.querySelectorAll(".eyebrow")[0]),
+      "Newest first · posts without images are on Social");
     assert.match(textOf(document.querySelector("#profile-summary")), /^2 image posts/);
     assert.equal(document.querySelectorAll(".profile-tile").length, 2);
     assert.equal(document.querySelectorAll(".empty-state").length, 0);
@@ -305,6 +314,48 @@ test("an empty display name is named in prose once and counted once", async () =
   }
 });
 
+// A display name is publisher-supplied text — "anyone can publish under any
+// name" is the sentence this page prints beside it — so this page renders
+// hostile input by design, in prose, in a heading, and inside a URL.
+//
+// The name chosen here is a decoy route: 35 characters, so the API's own
+// 60-character author limit (MAX_SOCIAL_AUTHOR_LENGTH, src/social-posts-api.js)
+// would accept it, and shaped to impersonate the one link this paragraph now
+// carries. If any of these landed as markup instead of text, the page would
+// offer a reader a second "Social" link pointing somewhere else, in the exact
+// spot the copy tells them to go for the posts this view leaves out.
+//
+// This is the value half of that defence — the name arrives whole, and encoded
+// where it lands in a URL. The render half, that every one of these is written
+// through textContent and never innerHTML, is pinned at the source in
+// tests/profile.test.js, because the page harness parses no markup and so could
+// not tell a text node from a parsed one.
+const DECOY_NAME = '<a href="//evil.example">Social</a>';
+
+test("a display name that is markup is rendered as text and forges no second route", async () => {
+  const page = await people({ search: `?author=${encodeURIComponent(DECOY_NAME)}` });
+  try {
+    const { document } = page;
+    // Whole and literal in the prose and in the results heading: parsed markup
+    // would have left only the anchor's own text behind.
+    assert.equal(textOf(document.querySelector("#profile-role-name")), DECOY_NAME);
+    assert.equal(resultsHeading(document), `${DECOY_NAME} · 0 image posts`);
+    // The scope sentence still owns exactly one route, and it is Social's.
+    const routes = document.querySelector(".profile-role").querySelectorAll("a");
+    assert.equal(routes.length, 1);
+    assert.equal(routes[0].getAttribute("href"), "/social.html");
+    // The one place the name is written into an attribute rather than a text
+    // node. Percent-encoded by URLSearchParams, so the quotes in it cannot end
+    // the attribute, and the route is still this site's Paint editor.
+    const paint = document.querySelector("#profile-paint-cta").getAttribute("href");
+    assert.doesNotMatch(paint, /["'<>]/, "the display name reached the href unencoded");
+    assert.equal(new URL(paint, "https://shiplog.test").pathname, "/paint/");
+    assert.equal(new URL(paint, "https://shiplog.test").searchParams.get("author"), DECOY_NAME);
+  } finally {
+    page.restore();
+  }
+});
+
 test("choosing another name updates the page in place and keeps the URL and storage in step", async () => {
   for (const key of [" ", "Enter"]) {
     const page = await people();
@@ -321,6 +372,8 @@ test("choosing another name updates the page in place and keeps the URL and stor
       // chips were rebuilt around it.
       assert.equal(document.activeElement?.dataset.author, "Bea");
       assert.equal(textOf(document.querySelector("#profile-name")), "Active display-name filter: Bea");
+      assert.match(textOf(document.querySelector(".profile-role")),
+        /Bea is a display name[\s\S]*See every post on Social, including the ones published without an image\./);
       assert.match(textOf(document.querySelector("#profile-summary")), /^1 image post /);
       assert.equal(document.querySelectorAll(".profile-tile").length, 1);
       assert.equal(page.navigations.length, 0);

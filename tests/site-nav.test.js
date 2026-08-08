@@ -267,7 +267,12 @@ test("the profile page defines the selected name as a display name", async () =>
   // The second sentence stays on the same subject the first one names. It used
   // to swap to "this display name" mid-paragraph, and before that to "that
   // person's image posts", which gave the page a second word for the name.
-  assert.match(role[1], /This view shows only that name's image posts\./);
+  assert.match(role[1], /This view shows image posts only\./);
+  // The route out is Social's whole feed, under the label the empty state's own
+  // button uses, and the clause after it — not the label — is what says where a
+  // post without an image is. A link that reads "see posts without images on
+  // Social" would make Social sound like the other half of a split feed.
+  assert.match(role[1], /<a class="text-link" href="\/social\.html">See every post on Social<\/a>, including the ones published without an image\./);
   assert.doesNotMatch(rendered, /that person's|their image posts/,
     "no rendered copy on People calls a display name's posts someone's");
   // Subordinate, not trapped: the way back to the whole feed is right there.
