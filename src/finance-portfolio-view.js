@@ -13,8 +13,10 @@
 //      and bounds the length. A caption cannot silently reorder a currency
 //      figure or push the rest of the card off the board.
 //
-// The module builds no links, images, or event handlers from fixture data, so
-// there is no URL to scheme-check and no sink to escape into.
+// The module builds no images and no event handlers at all, and its one link —
+// the handoff into the commitment workflow — carries a literal href written
+// here. No fixture value ever reaches a URL, so there is no scheme to check and
+// no sink to escape into.
 
 import { formatUsd } from "./evolution.js";
 import { confidenceLabel } from "./finance-portfolio.js";
@@ -70,6 +72,118 @@ function fact(list, label, value) {
  */
 function usdOrUnavailable(value, fallback = "Unavailable") {
   return Number.isFinite(value) ? formatUsd(value) : fallback;
+}
+
+function commitmentLink(label = "Continue to commitment") {
+  const link = element("a", "primary-button", label);
+  link.href = "/savings-commitment.html";
+  return link;
+}
+
+/** The first item is the ranked contract's winner; this view never re-scores it. */
+export function renderRecommendedAction(portfolio, action) {
+  const item = element("li", "portfolio-recommendation");
+  item.dataset.state = action.status;
+  const article = element("article", "portfolio-recommendation-content");
+
+  const lead = element("div", "portfolio-recommendation-lead");
+  lead.append(
+    element("p", "portfolio-rank", "Recommended next action"),
+    element("h3", undefined, safeText(action.title, "Untitled action")),
+    element("p", "portfolio-why", safeText(action.diagnosis, "Why this matters is unavailable.")),
+  );
+  const facts = element("dl", "portfolio-recommendation-facts");
+  fact(facts, "Recoverable spend benchmark", usdOrUnavailable(action.baseline?.value));
+  fact(facts, "Projected recovery", usdOrUnavailable(action.estimatedImpactUsd));
+  fact(facts, "Confidence", confidenceLabel(action.confidence));
+  fact(facts, "Owning department",
+    `${safeText(action.departmentName, "Department unavailable")} · ${safeText(action.accountableRole, "Owner unassigned")}`);
+
+  const actionRow = element("div", "portfolio-recommendation-action");
+  actionRow.append(commitmentLink(), element("p", undefined,
+    `Next step: ${nextStepText(action)} Then record it in the existing commitment workflow.`));
+  // The lead recommendation carries the same evidence disclosure as a card. A
+  // recommendation a leader cannot trace back to its evidence is an assertion,
+  // and the one action being singled out is the one that most needs sourcing.
+  article.append(lead, facts, actionRow, evidenceDisclosure(portfolio, action));
+  item.append(article);
+  return item;
+}
+
+/** The most findings a consolidated line names before it counts the rest. */
+const LIST_LIMIT = 3;
+
+/**
+ * A joined list that stays bounded. Each element is already length-capped, but
+ * a hostile export chooses how many elements there are, so an uncapped join is
+ * an uncapped string: one row with 500 evidence refs would otherwise push every
+ * other opportunity off the screen.
+ */
+function joinCapped(values, limit = LIST_LIMIT) {
+  const unique = [...new Set(values)];
+  const shown = unique.slice(0, limit).join(", ");
+  return unique.length > limit ? `${shown}, and ${unique.length - limit} more` : shown;
+}
+
+function renderOpportunityGroup(portfolio, actions) {
+  const item = element("li", "portfolio-opportunity");
+  const departments = joinCapped(actions.map((action) => safeText(action.departmentName)));
+  const amount = actions.reduce((total, action) => total
+    + (Number.isFinite(action.estimatedImpactUsd) ? action.estimatedImpactUsd : 0), 0);
+  const confidence = Math.min(...actions.map((action) => Number(action.confidence?.value))
+    .filter(Number.isFinite));
+  // Consolidation is stated, never silent: a summed figure that does not say how
+  // many findings it sums reads as one finding worth that much.
+  const merged = actions.length > 1 ? ` · ${actions.length} related findings` : "";
+  item.append(
+    element("h4", undefined, safeText(actions[0].title, "Untitled opportunity")),
+    element("p", "portfolio-opportunity-summary",
+      `${usdOrUnavailable(amount)} projected recovery · ${confidenceLabel({ value: confidence })} confidence · ${departments}${merged}`),
+    element("p", undefined, safeText(actions[0].diagnosis, "Why this matters is unavailable.")),
+  );
+  // Evidence is gathered across every consolidated finding. Reading only the
+  // first one's would source a summed figure from a fraction of its rows.
+  const evidence = actions.flatMap((action) => portfolio.evidenceFor(action));
+  item.append(element("p", "portfolio-opportunity-evidence", evidence.length
+    ? `Evidence: ${joinCapped(evidence.map((record) => `${safeText(record.sampleId)} · ${safeText(record.category)}`))}.`
+    : "Evidence: unavailable."));
+  item.append(element("p", "portfolio-opportunity-provenance",
+    `Provenance: ${safeText(actions[0].provenance?.confidence, "unavailable")}`));
+  return item;
+}
+
+/**
+ * Two findings are the same finding only when their titles are identical as
+ * authored. Grouping on the displayed string would merge anything sharing a
+ * truncated prefix, and would fold every untitled row into one summed heading —
+ * either way a real finding disappears into another one's narrative and its
+ * dollars are re-attributed. Untitled rows therefore each stand alone, and the
+ * two key spaces are prefixed so an authored title cannot collide with the key
+ * an untitled row is given.
+ */
+function consolidate(actions) {
+  const groups = new Map();
+  for (const [index, action] of actions.entries()) {
+    const titled = typeof action.title === "string" && action.title.trim();
+    const key = titled ? `title:${action.title}` : `row:${index}`;
+    groups.set(key, [...(groups.get(key) ?? []), action]);
+  }
+  return [...groups.values()];
+}
+
+export function renderRemainingOpportunities(portfolio, actions) {
+  const item = element("li", "portfolio-more");
+  const disclosure = element("details", "portfolio-details portfolio-more-details");
+  // Native details owns its expanded state. Do not add a static aria-expanded.
+  disclosure.append(element("summary", undefined,
+    `Review ${actions.length} remaining ${actions.length === 1 ? "opportunity" : "opportunities"}`));
+  const intro = element("p", undefined,
+    "Related findings are consolidated by action so the recommendation remains the clear priority.");
+  const list = element("ul", "portfolio-opportunity-list");
+  list.append(...consolidate(actions).map((group) => renderOpportunityGroup(portfolio, group)));
+  disclosure.append(intro, list);
+  item.append(disclosure);
+  return item;
 }
 
 /**
@@ -155,6 +269,56 @@ function outcomeState(action, comparison) {
   };
 }
 
+/**
+ * Owner, provenance, and evidence for one action, behind native disclosure.
+ *
+ * Shared by the ranked recommendation and the cards so the recommendation is
+ * evidence-backed through the same code path rather than a second copy that can
+ * drift. The details element owns its own expanded state, so nothing here sets
+ * aria-expanded: a value written once goes stale the moment a reader opens it,
+ * and a reader would then be told the evidence is still hidden while it is on
+ * screen.
+ */
+function evidenceDisclosure(portfolio, action) {
+  const details = element("details", "portfolio-details");
+  const title = safeText(action.title, "Untitled action", 80);
+  const summary = element("summary", undefined, "Review owner, provenance, and evidence");
+  summary.setAttribute("aria-label", `Review owner, provenance, and evidence for ${title}`);
+  details.append(summary);
+  // Supporting evidence answers "where did this target come from?", so it shows
+  // the two spend figures the savings target is the difference between. Status,
+  // confidence, and the period are on the face of the card and are not repeated
+  // here; a disclosure that restates the summary is surface, not evidence.
+  const body = element("div", "portfolio-details-body");
+  const facts = element("dl", "portfolio-facts");
+  const period = safeText(portfolio.periodFor(action.target?.periodRef)?.label, "an unstated period");
+  const basePeriod = safeText(portfolio.periodFor(action.baseline?.periodRef)?.label, "an unstated period");
+  fact(facts, "Accountable owner", safeText(action.accountableRole, "Owner unassigned"));
+  fact(facts, "Baseline recoverable spend",
+    `${usdOrUnavailable(action.baseline?.value)} over ${basePeriod}`);
+  fact(facts, "Target recoverable spend",
+    `${usdOrUnavailable(action.target?.value)} or less over ${period}`);
+
+  const evidenceList = element("ul", "portfolio-evidence");
+  const records = portfolio.evidenceFor(action);
+  if (!records.length)
+    evidenceList.append(element("li", undefined, "Verification evidence unavailable."));
+  for (const record of records)
+    evidenceList.append(element("li", undefined, [
+      safeText(record.sampleId, "Unidentified sample"),
+      safeText(record.category, "Uncategorized"),
+      safeText(record.summary, "No summary retained"),
+    ].join(" · ")));
+
+  const provenance = element("p", "portfolio-provenance");
+  provenance.append(element("strong", undefined, "Confidence provenance: "),
+    element("span", undefined,
+      safeText(action.provenance?.confidence, "Provenance unavailable")));
+  body.append(facts, element("h4", undefined, "Verification evidence"), evidenceList, provenance);
+  details.append(body);
+  return details;
+}
+
 const OUTCOME_MARKS = Object.freeze({
   short: "↓", met: "✓", "not-usable": "!", unavailable: "—",
 });
@@ -216,42 +380,8 @@ export function renderPortfolioCard(portfolio, action) {
     element("span", undefined, outcome.text),
   );
 
-  const details = element("details", "portfolio-details");
-  const title = safeText(action.title, "Untitled action", 80);
-  const summary = element("summary", undefined, "Review owner, provenance, and evidence");
-  summary.setAttribute("aria-label", `Review owner, provenance, and evidence for ${title}`);
-  details.append(summary);
-  // Supporting evidence answers "where did this target come from?", so it shows
-  // the two spend figures the savings target is the difference between. Status,
-  // confidence, and the period are on the face of the card and are not repeated
-  // here; a disclosure that restates the summary is surface, not evidence.
-  const body = element("div", "portfolio-details-body");
-  const facts = element("dl", "portfolio-facts");
-  const basePeriod = safeText(portfolio.periodFor(action.baseline?.periodRef)?.label, "an unstated period");
-  fact(facts, "Accountable owner", safeText(action.accountableRole, "Owner unassigned"));
-  fact(facts, "Baseline recoverable spend",
-    `${usdOrUnavailable(action.baseline?.value)} over ${basePeriod}`);
-  fact(facts, "Target recoverable spend",
-    `${usdOrUnavailable(action.target?.value)} or less over ${period || "an unstated period"}`);
-
-  const evidenceList = element("ul", "portfolio-evidence");
-  const records = portfolio.evidenceFor(action);
-  if (!records.length)
-    evidenceList.append(element("li", undefined, "Verification evidence unavailable."));
-  for (const record of records)
-    evidenceList.append(element("li", undefined, [
-      safeText(record.sampleId, "Unidentified sample"),
-      safeText(record.category, "Uncategorized"),
-      safeText(record.summary, "No summary retained"),
-    ].join(" · ")));
-
-  const provenance = element("p", "portfolio-provenance");
-  provenance.append(element("strong", undefined, "Confidence provenance: "),
-    element("span", undefined,
-      safeText(action.provenance?.confidence, "Provenance unavailable")));
-  body.append(facts, element("h4", undefined, "Verification evidence"), evidenceList, provenance);
-  details.append(body);
-  article.append(heading, moneyBlock, status, next, comparison, details);
+  article.append(heading, moneyBlock, status, next, comparison,
+    evidenceDisclosure(portfolio, action));
   item.append(article);
   return item;
 }
@@ -263,6 +393,43 @@ export function renderPortfolioEmpty() {
     element("p", undefined,
       "Change the department or lifecycle filter to see another state."));
   return empty;
+}
+
+export function renderNoSupportedOpportunity() {
+  const empty = element("li", "portfolio-message");
+  empty.dataset.state = "empty";
+  empty.append(element("h3", undefined, "No supported savings opportunity"),
+    element("p", undefined,
+      "This analysis did not find enough evidence for a recommended action. Import another supported period or broaden the evaluated scope."));
+  return empty;
+}
+
+export function renderPortfolioUnsupported(reason) {
+  const item = element("li", "portfolio-message");
+  item.dataset.state = "unsupported";
+  item.append(element("h3", undefined, "This export cannot be ranked"),
+    element("p", undefined, safeText(reason,
+      "Its export format or evaluated classes are not supported by this portfolio. Use a supported FinOps export; no recommendation was inferred.")));
+  return item;
+}
+
+/**
+ * Nothing to rank has two causes a leader has to act on differently, so the
+ * data decides which one is claimed rather than the call site guessing.
+ *
+ * Rows the export declared that this analysis could not evaluate are already
+ * reported by the portfolio contract; if there are any, the honest answer is
+ * that this export could not be ranked, and the rows are named so someone can
+ * go and look. With no rejected rows, everything was evaluated and there simply
+ * was no opportunity — which is a result, not a failure, and gets no alert.
+ */
+function nothingToRank(portfolio) {
+  const rejected = portfolio.rejectedLifecycle ?? [];
+  if (!rejected.length) return renderNoSupportedOpportunity();
+  const named = joinCapped(rejected.map((row) =>
+    `${safeText(row.actionId, "unnamed row")} (${safeText(row.code, "unstated reason")})`));
+  return renderPortfolioUnsupported(`${rejected.length} declared ${rejected.length === 1
+    ? "row" : "rows"} could not be evaluated by this analysis: ${named}. No recommendation was inferred from them.`);
 }
 
 export function renderPortfolioUnavailable(reason) {
@@ -314,9 +481,17 @@ export function mountFinancePortfolio(portfolio, nodes) {
         `${totals.actionCount} ${totals.actionCount === 1 ? "action" : "actions"} shown`;
     }
     list.setAttribute("aria-busy", "false");
-    list.replaceChildren(...(actions.length
-      ? actions.map((action) => renderPortfolioCard(portfolio, action))
-      : [renderPortfolioEmpty()]));
+    if (!actions.length) {
+      // Which empty this is comes from the data, not from the control values:
+      // the portfolio normalizes an unrecognized filter back to "all", so a
+      // junk state would otherwise be blamed on a filter the reader never set.
+      const hidden = portfolio.select().length > 0;
+      list.replaceChildren(hidden ? renderPortfolioEmpty() : nothingToRank(portfolio));
+      return;
+    }
+    const [recommended, ...remaining] = actions;
+    list.replaceChildren(renderRecommendedAction(portfolio, recommended),
+      ...(remaining.length ? [renderRemainingOpportunities(portfolio, remaining)] : []));
   };
 
   for (const control of [department, state]) control.addEventListener("change", render);

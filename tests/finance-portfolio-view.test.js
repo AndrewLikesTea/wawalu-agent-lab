@@ -15,7 +15,8 @@ installDocument();
 
 const {
   MAX_TEXT_LENGTH, mountFinancePortfolio, renderPortfolioCard,
-  renderPortfolioUnavailable, safeText,
+  renderPortfolioUnavailable, renderPortfolioUnsupported,
+  renderRemainingOpportunities, safeText,
 } = await import("../src/finance-portfolio-view.js");
 const { createFinancePortfolio } = await import("../src/finance-portfolio.js");
 
@@ -75,6 +76,29 @@ test("hostile fixture text renders as inert text, never as markup or attributes"
     assert.deepEqual(Object.keys(node.attributes), allowed, node.tagName);
     assert.deepEqual(Object.keys(node.listeners), [], node.tagName);
   }
+});
+
+// The card above is no longer what the page paints: the panel now leads with a
+// recommendation and folds the rest into a disclosure. Hostile text has to be
+// checked on what is actually painted, or the guarantee covers a code path a
+// reader never sees.
+test("the painted panel renders hostile export text as inert text end to end", () => {
+  const { hostile } = withHostileText();
+  const nodes = panel();
+  mountFinancePortfolio(createFinancePortfolio(hostile), nodes);
+  for (const details of tags(nodes.list, "DETAILS")) details.open = true;
+
+  assert.ok(nodes.list.textContent.includes(XSS));
+  for (const tagName of ["IMG", "SCRIPT", "IFRAME", "SVG"])
+    assert.deepEqual(tags(nodes.list, tagName), [], tagName);
+
+  // The panel's only link is the commitment handoff, and its href is a literal
+  // written in the module. No fixture value reaches a URL or a listener.
+  const links = tags(nodes.list, "A");
+  assert.equal(links.length, 1);
+  assert.equal(links[0].href, "/savings-commitment.html");
+  for (const node of walk(nodes.list, () => true))
+    assert.deepEqual(Object.keys(node.listeners ?? {}), [], node.tagName);
 });
 
 test("safeText bounds length, drops invisible characters, and refuses non-strings", () => {
@@ -270,7 +294,10 @@ test("filters rebuild from data, stay keyboard-native, and keep an accessible em
   assert.deepEqual(nodes.department.children.map((option) => option.value),
     ["all", ...portfolio.departments().map((department) => department.id)]);
   assert.equal(nodes.count.textContent, "5 actions shown");
-  assert.equal(nodes.list.children.length, 5);
+  // One recommendation leads; the other four are one progressively disclosed group.
+  assert.equal(nodes.list.children.length, 2);
+  assert.equal(nodes.list.children[0].className, "portfolio-recommendation");
+  assert.equal(nodes.list.children[1].className, "portfolio-more");
 
   nodes.department.value = "quality";
   nodes.state.value = "verified";
@@ -307,6 +334,173 @@ test("an unreadable action plan states that no savings figure is shown", () => {
   assert.equal(item.getAttribute("role"), "alert");
   assert.match(item.textContent, /Portfolio unavailable/);
   assert.match(item.textContent, /could not be read/);
+});
+
+test("the primary state leads with exactly one ranked action and commitment handoff", () => {
+  const nodes = panel();
+  const portfolio = createFinancePortfolio(fixture);
+  mountFinancePortfolio(portfolio, nodes);
+  const recommendation = nodes.list.children[0];
+
+  assert.equal(byClass(nodes.list, "portfolio-recommendation").length, 1);
+  assert.equal(tags(recommendation, "H3")[0].textContent, portfolio.select()[0].title);
+  assert.match(recommendation.textContent, /Recoverable spend benchmark.*Confidence.*Owning department/);
+  const links = tags(recommendation, "A");
+  assert.equal(links.length, 1);
+  assert.equal(links[0].href, "/savings-commitment.html");
+  assert.equal(links[0].textContent, "Continue to commitment");
+});
+
+test("multiple opportunities consolidate related findings behind native disclosure", () => {
+  const nodes = panel();
+  mountFinancePortfolio(createFinancePortfolio(fixture), nodes);
+  const details = tags(nodes.list.children[1], "DETAILS")[0];
+
+  assert.equal(tags(details, "SUMMARY")[0].textContent, "Review 4 remaining opportunities");
+  assert.equal(details.getAttribute("aria-expanded"), null);
+  // The two remaining repeated down-routing findings become one supporting item.
+  assert.equal(byClass(details, "portfolio-opportunity").length, 3);
+  assert.match(details.textContent, /projected recovery.*confidence.*Evidence:/);
+});
+
+test("expanded disclosure relies on synchronized native details semantics", () => {
+  const nodes = panel();
+  mountFinancePortfolio(createFinancePortfolio(fixture), nodes);
+  const details = tags(nodes.list.children[1], "DETAILS")[0];
+  details.open = true;
+
+  assert.equal(details.open, true);
+  assert.equal(details.getAttribute("aria-expanded"), null,
+    "native details must not retain a hard-coded false aria-expanded value");
+  assert.ok(byClass(details, "portfolio-opportunity").length > 0);
+});
+
+// The narrow check above can only fail on the one element it names. A static
+// aria-expanded is a lie wherever it is written — on the summary, on a wrapper,
+// on a card's own disclosure — because nothing in this module observes the
+// toggle, so nothing can ever update it. The guard is therefore that the
+// attribute appears nowhere in the painted panel.
+test("nothing in the painted portfolio writes an aria-expanded it cannot update", () => {
+  const nodes = panel();
+  mountFinancePortfolio(createFinancePortfolio(fixture), nodes);
+  const disclosures = tags(nodes.list, "DETAILS");
+  assert.ok(disclosures.length >= 2, "recommendation and remaining opportunities both disclose");
+
+  for (const details of disclosures) details.open = true;
+  for (const node of walk(nodes.list, () => true))
+    assert.equal(node.attributes?.["aria-expanded"], undefined, node.tagName);
+});
+
+test("the lead recommendation is traceable to its own evidence and provenance", () => {
+  const nodes = panel();
+  const portfolio = createFinancePortfolio(fixture);
+  mountFinancePortfolio(portfolio, nodes);
+  const details = tags(nodes.list.children[0], "DETAILS")[0];
+  const records = portfolio.evidenceFor(portfolio.select()[0]);
+
+  assert.ok(records.length > 0, "the top-ranked action carries evidence in the fixture");
+  assert.equal(byClass(details, "portfolio-evidence")[0].children.length, records.length);
+  assert.match(details.textContent, /Confidence provenance:/);
+  assert.match(details.textContent, /Baseline recoverable spend/);
+});
+
+// Consolidation re-attributes money: a group states one heading, one diagnosis,
+// and the sum of its members. Merging two findings that are not the same finding
+// therefore makes one of them disappear into the other's narrative while its
+// dollars are still counted, and an export chooses the titles.
+test("consolidation groups by authored title, never by the truncated display text", () => {
+  const prefix = "a".repeat(MAX_TEXT_LENGTH);
+  const value = { value: 0.9 };
+  const item = renderRemainingOpportunities({ evidenceFor: () => [] }, [
+    { title: `${prefix} first`, estimatedImpactUsd: 10, confidence: value },
+    { title: `${prefix} second`, estimatedImpactUsd: 20, confidence: value },
+    { title: undefined, estimatedImpactUsd: 30, confidence: value },
+    { title: "   ", estimatedImpactUsd: 40, confidence: value },
+    { title: "row:2", estimatedImpactUsd: 50, confidence: value },
+  ]);
+  const opportunities = byClass(item, "portfolio-opportunity");
+
+  // Five findings, five items: a shared 320-character prefix, two titles that
+  // are unusable in different ways, and a title shaped like the key this module
+  // gives an untitled row all stay separate.
+  assert.equal(opportunities.length, 5);
+  for (const opportunity of opportunities)
+    assert.doesNotMatch(opportunity.textContent, /related findings/);
+});
+
+test("a genuine merge states how many findings it summed", () => {
+  const nodes = panel();
+  mountFinancePortfolio(createFinancePortfolio(fixture), nodes);
+  const merged = byClass(nodes.list, "portfolio-opportunity")
+    .filter((item) => /related findings/.test(item.textContent));
+
+  assert.equal(merged.length, 1);
+  assert.match(byClass(merged[0], "portfolio-opportunity-summary")[0].textContent,
+    /projected recovery · .+ confidence · .+ · 2 related findings$/);
+});
+
+// One hostile row chooses how many evidence refs and departments a line names.
+// Each value is length-bounded on its own, so an unbounded join is the way the
+// bound is escaped: the count is the input the module does not control.
+test("a consolidated line stays bounded however many findings feed it", () => {
+  const flood = Array.from({ length: 40 }, (_, index) => ({
+    sampleId: `sample-${index}`, category: "c".repeat(MAX_TEXT_LENGTH),
+  }));
+  const item = renderRemainingOpportunities({ evidenceFor: () => flood },
+    Array.from({ length: 40 }, (_, index) => ({
+      title: "One finding", departmentName: `Department ${index}`,
+      estimatedImpactUsd: 1, confidence: { value: 0.9 },
+    })));
+  const summary = byClass(item, "portfolio-opportunity-summary")[0].textContent;
+
+  assert.match(summary, /Department 0, Department 1, Department 2, and 37 more/);
+  // 40 findings each citing the same 40 records is 1600 references and 40
+  // distinct rows; the line names three of them and counts the rest.
+  assert.match(byClass(item, "portfolio-opportunity-evidence")[0].textContent,
+    /^Evidence: sample-0 · c+, sample-1 · c+, sample-2 · c+, and 37 more\.$/);
+});
+
+test("unsupported export or class evaluation has a distinct non-alert state", () => {
+  const state = renderPortfolioUnsupported();
+  assert.equal(state.dataset.state, "unsupported");
+  assert.equal(state.getAttribute("role"), null);
+  assert.match(state.textContent, /cannot be ranked.*format or evaluated classes.*no recommendation/i);
+});
+
+// "Nothing to rank" is claimed from the portfolio's own rejection list rather
+// than chosen by the call site, so the panel cannot say the export was fully
+// understood when rows in it were skipped.
+test("rows the analysis could not evaluate read as unrankable, not as no opportunity", () => {
+  const unrankable = structuredClone(fixture);
+  unrankable.actionPlan.actions = [];
+  unrankable.portfolioLifecycle[0].actionId = XSS;
+  const nodes = panel();
+  mountFinancePortfolio(createFinancePortfolio(unrankable), nodes);
+  const item = nodes.list.children[0];
+
+  assert.equal(item.dataset.state, "unsupported");
+  // Unsupported data is a state to read, not an alarm to clear: no alert wall.
+  assert.equal(item.getAttribute("role"), null);
+  assert.match(item.textContent, /could not be evaluated by this analysis/);
+  assert.doesNotMatch(item.textContent, /No supported savings opportunity/);
+  // The skipped rows are named from the export, so their ids are hostile text.
+  for (const tagName of ["IMG", "SCRIPT", "IFRAME", "A"])
+    assert.deepEqual(tags(item, tagName), [], tagName);
+  assert.ok(item.textContent.length < MAX_TEXT_LENGTH * 2);
+});
+
+test("a supported evaluation with no opportunities names that empty result", () => {
+  const emptyFixture = structuredClone(fixture);
+  emptyFixture.actionPlan.actions = [];
+  emptyFixture.portfolioLifecycle = [];
+  const nodes = panel();
+  nodes.department.value = "all";
+  nodes.state.value = "all";
+  mountFinancePortfolio(createFinancePortfolio(emptyFixture), nodes);
+
+  assert.equal(nodes.list.children[0].dataset.state, "empty");
+  assert.match(nodes.list.textContent, /No supported savings opportunity.*enough evidence/i);
+  assert.doesNotMatch(nodes.list.textContent, /cannot be ranked/i);
 });
 
 // The loading row is served in the markup, so it is on screen before this
