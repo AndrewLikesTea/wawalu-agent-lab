@@ -1820,6 +1820,7 @@ section[data-workspace-current="true"] { box-shadow:-6px 0 0 0 var(--import-wash
 .portfolio-summary strong { font-size:25px; }
 .portfolio-count { margin:0 0 12px; color:var(--ink-muted); font:650 11px/1.4 ui-monospace,monospace; }
 .portfolio-list { display:grid; gap:12px; margin:0; padding:0; list-style:none; }
+.portfolio-recommendation { border:2px solid #315f50; padding:20px; background:#f3f8f5; }
 .portfolio-card { border:1px solid #d5d3cb; border-left:5px solid #565650; border-radius:12px; padding:18px; background:#fff; }
 .portfolio-card[data-state="in_progress"] { border-left-style:dashed; }
 .portfolio-card[data-state="completed"] { border-left-style:double; border-left-width:7px; }

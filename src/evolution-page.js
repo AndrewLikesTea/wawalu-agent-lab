@@ -4321,6 +4321,10 @@ function renderFinancePortfolio(data) {
     console.error("finance_portfolio_unavailable", { error: error?.message ?? String(error) });
     setText("portfolio-count", "0 actions shown");
     list.setAttribute("aria-busy", "false");
+    // This is a failure to read the data, not data the analysis declined to
+    // rank, and the two must not be confused: the unsupported state tells a
+    // leader the export was understood and had nothing to offer, which here
+    // would be a claim nobody checked.
     list.replaceChildren(renderPortfolioUnavailable(
       "The bundled action lifecycle could not be read, so no savings figure is shown."));
   }
