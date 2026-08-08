@@ -22,8 +22,31 @@ import { BUILD_STAMP } from "./build-stamp.js";
 import { releaseBuildMatchLine, releaseBuildStatus } from "./release-build-match.js";
 import { initDeploymentStatus } from "./deployment-status-view.js";
 import { RELEASE_FORM_ERRORS, createRelease, mountDecisionPicker, recordedSummaryText } from "./release-form.js";
+import { copyRecordUrl } from "./share-link.js";
 
 const SAVE_FAILED = "This release could not be saved in this browser. Your entries are still here; free some browser storage and try again.";
+
+export function initShiplogProof(root, options = {}) {
+  const button = root.querySelector("#shiplog-proof-copy");
+  const link = root.querySelector(".shiplog-proof-link");
+  const status = root.querySelector("#shiplog-proof-copy-status");
+  if (!button || !link || !status) return;
+  const locationRef = options.location ?? globalThis.window?.location;
+  const clipboard = options.clipboard ?? globalThis.navigator?.clipboard;
+  let url = "";
+  try {
+    url = new URL(link.getAttribute("href"), locationRef?.origin).href;
+  } catch {}
+  button.addEventListener("click", async () => {
+    button.disabled = true;
+    status.textContent = "";
+    const copied = await copyRecordUrl(clipboard, url);
+    status.textContent = copied
+      ? "Proof link copied to clipboard."
+      : "Clipboard unavailable. Use Share this proof to open or copy the link.";
+    button.disabled = false;
+  });
+}
 
 // The recorder. Returns null when the page carries no form, so the list wiring
 // below is unaffected on a surface that only browses.
@@ -140,6 +163,7 @@ export function initReleasesPage(root = document, storage = localStorage, option
   const locationRef = options.location ?? globalThis.window?.location;
   const historyRef = options.history ?? globalThis.window?.history;
   if (!container) return;
+  initShiplogProof(root, options);
 
   // Every early return below leaves the page in a stated end state: the list
   // shows why it is empty, the count says so, and no stale follow-up survives
@@ -286,7 +310,7 @@ export function initReleasesPage(root = document, storage = localStorage, option
 
   update();
   const focusId = new URLSearchParams(locationRef?.search ?? "").get("focus");
-  if (focusId) focusRelease(container, focusId);
+  if (focusId) focusRelease(container, focusId, { expand: true });
   const documentElement = root.documentElement ?? globalThis.document?.documentElement;
   if (documentElement) documentElement.dataset.shiplogReleases = "ready";
 }
