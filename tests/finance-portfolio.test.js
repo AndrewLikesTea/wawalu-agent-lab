@@ -156,7 +156,9 @@ test("finance leader UI has labelled native filters, resilient states, and non-c
   assert.doesNotMatch(html.split("portfolio-list")[1].split("</ol>")[0], /\$0|\$—/);
   assert.match(css, /border-left-style:dashed/);
   assert.match(css, /border-left-style:double/);
-  assert.match(view, /No matching portfolio actions/);
+  assert.match(view, /No supported opportunity/);
+  assert.match(view, /Unsupported export or data class/);
+  assert.match(view, /Review this commitment/);
   assert.match(view, /Review owner, provenance, and evidence/);
   assert.match(view, /Savings outcome:/);
   // Each outcome state needs a shape or a mark of its own; colour alone cannot

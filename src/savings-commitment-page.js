@@ -47,6 +47,13 @@ const status = document.getElementById("commit-handoff-status");
 
 const BUNDLED_ORIGIN = "Bundled example analysis · nothing of yours is loaded yet";
 
+// The portfolio passes only its canonical action id. It is context, not trusted
+// commitment data: the commitment below still has to pass the existing contract.
+const portfolioAction = (() => {
+  const value = new URLSearchParams(globalThis.location?.search ?? "").get("portfolioAction");
+  return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value ?? "") && value.length <= 96 ? value : null;
+})();
+
 // The commitment currently on screen. Held for as long as the tab is open and
 // no longer: a briefing is the visitor's own spend, and this page has no reason
 // to keep a copy of it once they close it.
@@ -255,7 +262,12 @@ fileInput?.addEventListener("change", async (event) => {
 
 try {
   current = { preview: await loadSavingsCommitment(), origin: BUNDLED_ORIGIN };
-  say("Showing the bundled example analysis. Open an exported briefing to decide on your own.");
+  // The arriving id is named but not credited: this page is still showing the
+  // bundled example, and saying otherwise would put a leader's own department
+  // name on a commitment built from someone else's numbers.
+  say(portfolioAction
+    ? `Arrived from portfolio action ${portfolioAction}. This page is still showing the bundled example analysis — open that action's exported briefing to decide on it.`
+    : "Showing the bundled example analysis. Open an exported briefing to decide on your own.");
 } catch (error) {
   console.error("savings_commitment_unavailable", {
     error: error?.message ?? String(error),

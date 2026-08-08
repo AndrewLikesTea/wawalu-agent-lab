@@ -131,6 +131,33 @@ export function createFinancePortfolio(fixture) {
   });
 }
 
+/**
+ * The one action to recommend first, or null when this selection supports none.
+ *
+ * `priorityRank` ranks within a department — the plan's own ordering rule gives
+ * every included department exactly one rank-1 action — so it carries no
+ * cross-department meaning, and the first row of an all-departments selection is
+ * decided by the `actionId` tiebreak. Promoting that row would answer "where
+ * should we reduce spend first?" with alphabetical order. The recommendation is
+ * the largest supported recoverable-spend figure instead.
+ *
+ * An action with no usable savings figure is not a recommendation, so a
+ * non-finite or zero estimate is not eligible at all. Ties keep the earlier
+ * action, which leaves the store's stable order as the tiebreak rather than
+ * letting the promotion move between renders.
+ *
+ * @param actions a selection in `select()` order.
+ */
+export function selectPrimaryAction(actions = []) {
+  let best = null;
+  for (const action of actions) {
+    const value = action?.estimatedImpactUsd;
+    if (!Number.isFinite(value) || value <= 0) continue;
+    if (best === null || value > best.estimatedImpactUsd) best = action;
+  }
+  return best;
+}
+
 export function confidenceLabel(confidence = {}) {
   const value = Number(confidence?.value);
   if (!Number.isFinite(value)) return "Unavailable";

@@ -1821,6 +1821,7 @@ section[data-workspace-current="true"] { box-shadow:-6px 0 0 0 var(--import-wash
 .portfolio-count { margin:0 0 12px; color:var(--ink-muted); font:650 11px/1.4 ui-monospace,monospace; }
 .portfolio-list { display:grid; gap:12px; margin:0; padding:0; list-style:none; }
 .portfolio-card { border:1px solid #d5d3cb; border-left:5px solid #565650; border-radius:12px; padding:18px; background:#fff; }
+.portfolio-card[data-priority="highest"] { border-left:8px solid #315f50; }
 .portfolio-card[data-state="in_progress"] { border-left-style:dashed; }
 .portfolio-card[data-state="completed"] { border-left-style:double; border-left-width:7px; }
 .portfolio-card[data-state="verified"] { border-left:8px double #315f50; }

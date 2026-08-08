@@ -13,11 +13,11 @@
 //      and bounds the length. A caption cannot silently reorder a currency
 //      figure or push the rest of the card off the board.
 //
-// The module builds no links, images, or event handlers from fixture data, so
-// there is no URL to scheme-check and no sink to escape into.
+// The one link carries a canonical action id through encodeURIComponent; no
+// fixture URL or markup is accepted, so there is no scheme-controlled sink.
 
 import { formatUsd } from "./evolution.js";
-import { confidenceLabel } from "./finance-portfolio.js";
+import { confidenceLabel, selectPrimaryAction } from "./finance-portfolio.js";
 
 /** The longest fixture string this card renders today is ~260 characters. */
 export const MAX_TEXT_LENGTH = 320;
@@ -159,9 +159,10 @@ const OUTCOME_MARKS = Object.freeze({
   short: "↓", met: "✓", "not-usable": "!", unavailable: "—",
 });
 
-export function renderPortfolioCard(portfolio, action) {
+export function renderPortfolioCard(portfolio, action, { primary = false } = {}) {
   const item = element("li", "portfolio-card");
   item.dataset.state = action.status;
+  if (primary) item.dataset.priority = "highest";
 
   const article = element("article", "portfolio-card-content");
   const rank = Number.isFinite(action.priorityRank)
@@ -199,6 +200,14 @@ export function renderPortfolioCard(portfolio, action) {
   const next = element("p", "portfolio-next");
   next.append(element("strong", undefined, "Next action: "),
     element("span", undefined, nextStepText(action)));
+
+  // Why it matters is the plan's own diagnosis of this action, not a sentence
+  // this view writes about it. A card that has to invent its own justification
+  // is asserting something no evidence behind it says.
+  const why = element("p", "portfolio-why");
+  why.append(element("strong", undefined, "Why it matters: "),
+    element("span", undefined, safeText(action.diagnosis,
+      "No diagnosis was retained for this action.")));
 
   // The verdict is carried by the visible words, not by the colour and not by
   // an aria-label. An aria-label on a plain element is routinely dropped, so
@@ -251,7 +260,30 @@ export function renderPortfolioCard(portfolio, action) {
       safeText(action.provenance?.confidence, "Provenance unavailable")));
   body.append(facts, element("h4", undefined, "Verification evidence"), evidenceList, provenance);
   details.append(body);
-  article.append(heading, moneyBlock, status, next, comparison, details);
+  article.append(heading, moneyBlock, status, why, next, comparison);
+  if (primary) {
+    // Why this action and not one of the others. The rank printed at the top of
+    // every card is a within-department rank, so it cannot carry a promotion on
+    // its own; the basis the promotion was actually made on is stated here, with
+    // the figure it was made on, so a reader can check it against the disclosure
+    // below rather than take it. Provenance is not restated here — it has one
+    // home, in the disclosure, under one name.
+    const basis = element("p", "portfolio-primary-basis");
+    basis.append(element("strong", undefined, "Recommended first: "),
+      element("span", undefined, `Largest supported savings target in this view, at ${
+        usdOrUnavailable(action.estimatedImpactUsd)} over ${period || "an unstated period"}.`));
+    const benchmark = element("p", "portfolio-primary-benchmark");
+    benchmark.append(element("strong", undefined, "Recoverable-spend benchmark: "),
+      element("span", undefined,
+        `${usdOrUnavailable(action.target?.value)} or less, from a ${usdOrUnavailable(action.baseline?.value)} baseline.`));
+    const cta = element("a", "primary-button", "Review this commitment");
+    cta.href = `/savings-commitment.html?portfolioAction=${encodeURIComponent(action.actionId)}`;
+    cta.setAttribute("aria-label", `Review commitment for ${title}`);
+    const actions = element("div", "portfolio-primary-actions");
+    actions.append(cta);
+    article.append(basis, benchmark, actions);
+  }
+  article.append(details);
   item.append(article);
   return item;
 }
@@ -259,9 +291,9 @@ export function renderPortfolioCard(portfolio, action) {
 export function renderPortfolioEmpty() {
   const empty = element("li", "portfolio-message");
   empty.dataset.state = "empty";
-  empty.append(element("h3", undefined, "No matching portfolio actions"),
+  empty.append(element("h3", undefined, "No supported opportunity"),
     element("p", undefined,
-      "Change the department or lifecycle filter to see another state."));
+      "No opportunity meets the evidence requirements in this view. Change a filter or import supported cost and routing data."));
   return empty;
 }
 
@@ -269,7 +301,7 @@ export function renderPortfolioUnavailable(reason) {
   const item = element("li", "portfolio-message");
   item.dataset.state = "error";
   item.setAttribute("role", "alert");
-  item.append(element("h3", undefined, "Portfolio unavailable"),
+  item.append(element("h3", undefined, "Unsupported export or data class"),
     element("p", undefined,
       safeText(reason, "The bundled action lifecycle could not be read.")));
   return item;
@@ -278,6 +310,25 @@ export function renderPortfolioUnavailable(reason) {
 // There is no renderPortfolioLoading(): the loading row is served in the markup
 // so it is visible before this module runs, and the page only ever replaces it.
 // A second copy here would be user-facing copy maintained in two places.
+
+/**
+ * Everything that was not recommended, behind one disclosure. Folded rather
+ * than dropped: an opportunity that lost the ranking is still the answer for a
+ * reader who disagrees with the ranking, and it keeps its full card so the
+ * comparison is like for like.
+ */
+function renderRemaining(portfolio, actions) {
+  const item = element("li", "portfolio-remaining");
+  const disclosure = element("details", "portfolio-details portfolio-remaining-disclosure");
+  const summary = element("summary", undefined,
+    `Review ${actions.length} more ranked ${actions.length === 1 ? "opportunity" : "opportunities"}`);
+  const nested = element("ol", "portfolio-list portfolio-list-secondary");
+  nested.setAttribute("aria-label", "Remaining ranked savings opportunities");
+  nested.append(...actions.map((action) => renderPortfolioCard(portfolio, action)));
+  disclosure.append(summary, nested);
+  item.append(disclosure);
+  return item;
+}
 
 /** Departments are rebuilt from the data so a stale option cannot dead-end. */
 function fillDepartmentOptions(select, portfolio) {
@@ -314,9 +365,18 @@ export function mountFinancePortfolio(portfolio, nodes) {
         `${totals.actionCount} ${totals.actionCount === 1 ? "action" : "actions"} shown`;
     }
     list.setAttribute("aria-busy", "false");
-    list.replaceChildren(...(actions.length
-      ? actions.map((action) => renderPortfolioCard(portfolio, action))
-      : [renderPortfolioEmpty()]));
+    // Four states, one shape: a recommendation if the selection supports one,
+    // the "no supported opportunity" message if it does not, and whatever is
+    // left folded behind the single disclosure. Nothing is promoted on evidence
+    // that is not there, and nothing is dropped for failing to be promoted.
+    const recommended = selectPrimaryAction(actions);
+    const rest = actions.filter((action) => action !== recommended);
+    const lead = recommended
+      ? renderPortfolioCard(portfolio, recommended, { primary: true })
+      : renderPortfolioEmpty();
+    list.replaceChildren(...(rest.length
+      ? [lead, renderRemaining(portfolio, rest)]
+      : [lead]));
   };
 
   for (const control of [department, state]) control.addEventListener("change", render);

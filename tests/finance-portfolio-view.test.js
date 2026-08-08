@@ -17,7 +17,8 @@ const {
   MAX_TEXT_LENGTH, mountFinancePortfolio, renderPortfolioCard,
   renderPortfolioUnavailable, safeText,
 } = await import("../src/finance-portfolio-view.js");
-const { createFinancePortfolio } = await import("../src/finance-portfolio.js");
+const { createFinancePortfolio, selectPrimaryAction } =
+  await import("../src/finance-portfolio.js");
 
 const fixture = JSON.parse(await readFile(
   new URL("../src/evolution-demo-data.json", import.meta.url), "utf8",
@@ -149,12 +150,13 @@ test("card reading order leads from action to money, status, confidence, and nex
 
   assert.deepEqual(article.children.map((node) => node.className), [
     "portfolio-card-heading", "portfolio-money-block", "portfolio-status-line",
-    "portfolio-next", "portfolio-comparison", "portfolio-details",
+    "portfolio-why", "portfolio-next", "portfolio-comparison", "portfolio-details",
   ]);
   assert.equal(tags(article.children[0], "H3").length, 1);
   assert.match(article.children[1].textContent, /Savings target/);
   assert.match(article.children[2].textContent, /Confidence ·/);
-  assert.match(article.children[3].textContent, /Next action:/);
+  assert.match(article.children[3].textContent, /Why it matters:/);
+  assert.match(article.children[4].textContent, /Next action:/);
 });
 
 // Every dollar figure on a card covers one 31-day measurement period. Labelling
@@ -270,7 +272,13 @@ test("filters rebuild from data, stay keyboard-native, and keep an accessible em
   assert.deepEqual(nodes.department.children.map((option) => option.value),
     ["all", ...portfolio.departments().map((department) => department.id)]);
   assert.equal(nodes.count.textContent, "5 actions shown");
-  assert.equal(nodes.list.children.length, 5);
+  assert.equal(nodes.list.children.length, 2);
+  assert.equal(nodes.list.children[0].dataset.priority, "highest");
+  const remaining = tags(nodes.list.children[1], "DETAILS")[0];
+  assert.ok(remaining);
+  assert.match(tags(remaining, "SUMMARY")[0].textContent, /Review 4 more ranked opportunities/);
+  // Folded, never dropped: the count above the list stays the count of cards.
+  assert.equal(byClass(remaining, "portfolio-card").length, 4);
 
   nodes.department.value = "quality";
   nodes.state.value = "verified";
@@ -284,7 +292,7 @@ test("filters rebuild from data, stay keyboard-native, and keep an accessible em
   assert.equal(nodes.list.children.length, 1);
   assert.equal(nodes.list.children[0].className, "portfolio-message");
   assert.equal(nodes.list.children[0].dataset.state, "empty");
-  assert.match(nodes.list.children[0].textContent, /No matching portfolio actions/);
+  assert.match(nodes.list.children[0].textContent, /No supported opportunity/);
   assert.equal(nodes.projected.textContent, "$0");
 });
 
@@ -305,8 +313,94 @@ test("an unreadable action plan states that no savings figure is shown", () => {
   const item = renderPortfolioUnavailable(undefined);
   assert.equal(item.dataset.state, "error");
   assert.equal(item.getAttribute("role"), "alert");
-  assert.match(item.textContent, /Portfolio unavailable/);
+  assert.match(item.textContent, /Unsupported export or data class/);
   assert.match(item.textContent, /could not be read/);
+});
+
+test("the single primary recommendation exposes benchmark, owner, confidence, evidence, and handoff", () => {
+  const nodes = panel();
+  const portfolio = createFinancePortfolio(fixture);
+  mountFinancePortfolio(portfolio, nodes);
+
+  const primary = nodes.list.children[0];
+  const recommended = selectPrimaryAction(portfolio.select());
+  assert.equal(primary.dataset.priority, "highest");
+  assert.match(primary.textContent, new RegExp(recommended.departmentName));
+  assert.match(primary.textContent, /Savings target.*Confidence ·.*Why it matters:/);
+  assert.match(primary.textContent, /Recommended first:\s+Largest supported savings target/);
+  assert.match(primary.textContent, /Recoverable-spend benchmark:.*or less, from a.*baseline/);
+  // The evidence behind the promotion is one disclosure away, under one name.
+  assert.match(primary.textContent, /Baseline recoverable spend.*Target recoverable spend/);
+  assert.match(primary.textContent, /Confidence provenance:/);
+  assert.doesNotMatch(primary.textContent, /Supporting provenance:/);
+  // The promotion reads after the card that earned it and before the evidence
+  // that supports it, so the one link on the panel is the last thing before the
+  // disclosure rather than a button floating above its own justification.
+  assert.deepEqual(tags(primary, "ARTICLE")[0].children.map((node) => node.className), [
+    "portfolio-card-heading", "portfolio-money-block", "portfolio-status-line",
+    "portfolio-why", "portfolio-next", "portfolio-comparison",
+    "portfolio-primary-basis", "portfolio-primary-benchmark",
+    "portfolio-primary-actions", "portfolio-details",
+  ]);
+  const link = tags(primary, "A")[0];
+  assert.equal(link.textContent, "Review this commitment");
+  assert.match(link.href, new RegExp(`portfolioAction=${recommended.actionId}$`));
+  assert.match(link.getAttribute("aria-label"), /^Review commitment for /);
+});
+
+// `priorityRank` ranks within a department, and the bundled plan gives all five
+// departments a rank-1 action, so the first row of an all-departments selection
+// is whichever actionId sorts first. Promoting that row would answer "where
+// should we reduce spend first?" with alphabetical order — and on this fixture
+// it names the $5,201 department over the $5,214 one.
+test("the promoted action is the largest savings target, not the first row of the selection", () => {
+  const portfolio = createFinancePortfolio(fixture);
+  const actions = portfolio.select();
+  const recommended = selectPrimaryAction(actions);
+
+  assert.equal(recommended.actionId, "action-data-ml-acceptable-use-v1");
+  assert.notEqual(recommended.actionId, actions[0].actionId,
+    "the fixture must keep proving that list order is not spend order");
+  assert.equal(recommended.estimatedImpactUsd,
+    Math.max(...actions.map((action) => action.estimatedImpactUsd)));
+
+  // Per department there is one action, so the promotion is that action.
+  for (const department of portfolio.departments()) {
+    const scoped = portfolio.select({ department: department.id });
+    assert.equal(selectPrimaryAction(scoped), scoped[0], department.id);
+  }
+});
+
+test("an unsupported selection promotes nothing rather than promoting a zero", () => {
+  const zeroed = structuredClone(fixture);
+  for (const action of zeroed.actionPlan.actions) {
+    action.estimatedSavingsUsd = 0;
+    action.target.value = action.baseline.value;
+  }
+  const nodes = panel();
+  const portfolio = createFinancePortfolio(zeroed);
+  mountFinancePortfolio(portfolio, nodes);
+
+  assert.equal(selectPrimaryAction(portfolio.select()), null);
+  assert.equal(nodes.list.children[0].dataset.state, "empty");
+  assert.match(nodes.list.children[0].textContent, /No supported opportunity/);
+  // The opportunities are still readable; only the recommendation is withheld.
+  assert.equal(byClass(nodes.list.children[1], "portfolio-card").length, 5);
+  assert.equal(nodes.count.textContent, "5 actions shown");
+});
+
+// The promoted card is the module's only link, so it is its only URL sink.
+test("a hostile action id stays inside the query string of a fixed path", () => {
+  const hostile = structuredClone(fixture);
+  const [action] = hostile.actionPlan.actions;
+  action.actionId = "javascript:alert(1)#/../";
+  const portfolio = createFinancePortfolio(hostile);
+  const recommended = selectPrimaryAction(portfolio.select());
+  const link = tags(renderPortfolioCard(portfolio, recommended, { primary: true }), "A")[0];
+
+  assert.equal(link.href,
+    "/savings-commitment.html?portfolioAction=javascript%3Aalert(1)%23%2F..%2F");
+  assert.ok(link.href.startsWith("/savings-commitment.html?"));
 });
 
 // The loading row is served in the markup, so it is on screen before this
