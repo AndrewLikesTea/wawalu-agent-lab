@@ -1,40 +1,15 @@
-// The third state of a follow-up form: it landed.
-//
-// Both work-email panels — the About Shiplog one in the footer
-// (src/site-footer.js) and the one under a FinOps brief, including the executive
-// briefing's copy of it (src/finops-contact.js) — had two visible outcomes and
-// one invisible one. A failure got a red box and a way to retry; a success got a
-// sentence in the live region above a form that still looked ready to send. This
-// is the missing state, written once so the two cannot word it differently.
-//
-//   1. Success is terminal until the visitor says otherwise. The form is hidden
-//      and its submit control disabled, so no click, key press, or tab stop can
-//      send twice; `sent` is checked by the submit handler too, so nothing
-//      synthetic can either. Coming back is the reopen button, a deliberate act.
-//   2. The address is rendered as text. `textContent` is all this module writes,
-//      so nothing a visitor types can become a node.
-//   3. It says only what the visitor supplied. `postLeadEmail` builds the body
-//      from the address and a fixed routing label, so the receipt names the address and
-//      repeats the form's own privacy vocabulary — no figure, file, filter, or
-//      page identity — and promises no response time, because nobody here has
-//      committed to one.
-//
-// Announcement follows the panel rather than inventing a second pattern: the
-// surface's status paragraph is a `role="status"` region and still carries the
-// outcome sentence exactly as it does on failure, and the receipt is one too and
-// takes focus. In practice the sentence is what a screen reader speaks — a live
-// region inserted already-populated is not reliably announced — and focus
-// landing on the receipt is what puts a reader inside it.
+// Shared terminal success state for the footer and FinOps follow-up forms.
 
 /**
  * The receipt, in the register the forms already use: what was sent, who reads
  * it, and what did not travel. `LEAD` is deliberately split around the address
  * so the address arrives as a text node of its own.
  */
-export const CONFIRMATION_LEAD = "We sent one thing: ";
+export const CONFIRMATION_LEAD = "Follow-up requested for ";
 export const CONFIRMATION_DETAIL = "A person from the Wawalu team replies to that address by email. "
   + "Nothing else on this page — nothing you have read, filtered, imported, or exported — was read, "
   + "attached, or transmitted.";
+const INTEREST_CONFIRMATION_DETAIL = "Wawalu will reply to that address by email.";
 export const REOPEN_LABEL = "Request another follow-up";
 
 /**
@@ -58,7 +33,7 @@ function classBase(status) {
  * exists only after a request lands, so there is no hidden node for a screen
  * reader to find first.
  */
-export function createFollowUpConfirmation({ form, status, submit, email, onReopen = () => {} }) {
+export function createFollowUpConfirmation({ form, status, submit, email, interest = null, onReopen = () => {} }) {
   const document = form.ownerDocument;
   const base = classBase(status);
   const prefix = form.id.replace(/-form$/, "");
@@ -86,7 +61,10 @@ export function createFollowUpConfirmation({ form, status, submit, email, onReop
 
   const detail = document.createElement("p");
   detail.className = `${base}-confirmation-detail`;
-  detail.textContent = CONFIRMATION_DETAIL;
+  detail.textContent = interest ? INTEREST_CONFIRMATION_DETAIL : CONFIRMATION_DETAIL;
+
+  const disclosure = document.createElement("p");
+  disclosure.className = `${base}-confirmation-disclosure`;
 
   const again = document.createElement("button");
   again.className = `${base}-confirmation-again`;
@@ -101,13 +79,18 @@ export function createFollowUpConfirmation({ form, status, submit, email, onReop
     email.focus();
   });
 
-  region.append(lead, detail, again);
+  region.append(lead, detail);
+  if (interest) region.append(disclosure);
+  region.append(again);
 
   let sent = false;
 
   /** Put the panel into its terminal state, naming the address that was sent. */
   function show(value) {
     address.textContent = value;
+    if (interest) {
+      disclosure.textContent = `Fields sent — work email: ${value}; stated interest: ${interest.value.trim() || "not provided"}. No other fields were sent.`;
+    }
     if (!region.parentNode) form.parentNode.insertBefore(region, form);
     // Hiding the form takes the field and both of its buttons out of the tab
     // order; disabling submit means even a stray click on it does nothing.

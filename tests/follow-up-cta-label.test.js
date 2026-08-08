@@ -21,7 +21,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { loadPage, textOf } from "./support/browser.js";
-import { CONTACT_COPY, FOLLOW_UP_PRIVACY } from "../src/lead-capture.js";
+import { CONTACT_COPY, FOOTER_FOLLOW_UP_PRIVACY, FOLLOW_UP_PRIVACY } from "../src/lead-capture.js";
 import { INVITATION } from "../src/site-footer.js";
 
 /** The one label. Written out here so a rename has to be a decision, not a diff. */
@@ -146,7 +146,7 @@ test("no follow-up surface calls the same errand a walkthrough, a discussion, or
   }
 });
 
-test("each surface says beside its button that submitting sends only the work email typed", async () => {
+test("each surface says beside its button exactly which visible fields are sent", async () => {
   // The label carries no context, so this is the copy that has to carry it: what
   // the button asks for, and the one thing that leaves the browser. Every
   // surface now says it in the same sentence — see tests/follow-up-privacy.test.js
@@ -155,7 +155,10 @@ test("each surface says beside its button that submitting sends only the work em
     const page = await loadPage(pageUrl(file));
     try {
       const copy = context.map((id) => textOf(byId(page.document, id))).join(" ");
-      assert.ok(copy.includes(FOLLOW_UP_PRIVACY), `${what}: nothing beside the button says what is sent`);
+      const disclosure = what === "agent observatory footer"
+        ? FOOTER_FOLLOW_UP_PRIVACY
+        : FOLLOW_UP_PRIVACY;
+      assert.ok(copy.includes(disclosure), `${what}: nothing beside the button says what is sent`);
       assert.match(copy, /follow-up/i, `${what}: nothing beside the button names what is being asked for`);
     } finally {
       page.restore();

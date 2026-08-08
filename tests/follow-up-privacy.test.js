@@ -9,10 +9,8 @@
 // two of them had to work out whether two different lists meant two different
 // promises. They did not.
 //
-// So there is one string, `FOLLOW_UP_PRIVACY` in src/lead-capture.js, next to
-// the transport that makes it true: `postLeadEmail` builds the whole request
-// body from one argument, the typed address, so no page state has a route to
-// the wire on any surface.
+// The shared transport keeps both disclosures true: it accepts only the typed
+// address and, for the generic footer, the optional stated interest.
 //
 // The pages are static HTML and the build copies src/ verbatim, so each form
 // embeds the rendered sentence rather than asking a script for it. That is what
@@ -24,7 +22,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readdir, readFile } from "node:fs/promises";
-import { FOLLOW_UP_PRIVACY } from "../src/lead-capture.js";
+import { FOOTER_FOLLOW_UP_PRIVACY, FOLLOW_UP_PRIVACY } from "../src/lead-capture.js";
 import { parseHtml, pressEnter, pressTab, tabSequence, textOf } from "./support/browser.js";
 
 const SRC = new URL("../src/", import.meta.url);
@@ -88,6 +86,13 @@ test("the shared sentence is one sentence, under 25 words, and names all three t
   }
 });
 
+test("the footer disclosure names its two submitted fields and excludes page activity", () => {
+  assert.ok(FOOTER_FOLLOW_UP_PRIVACY.split(/\s+/).length <= 25);
+  assert.match(FOOTER_FOLLOW_UP_PRIVACY, /work email and stated Shiplog interest/);
+  assert.match(FOOTER_FOLLOW_UP_PRIVACY, /nothing else on this page is sent/);
+  assert.doesNotMatch(FOOTER_FOLLOW_UP_PRIVACY, /activity|prompt|export|Social content/i);
+});
+
 test("every follow-up form on the site renders that sentence, byte for byte", async () => {
   const forms = await followUpForms();
   assert.ok(forms.length >= NAMED_PAGES.length, "no follow-up form was found at all");
@@ -109,7 +114,8 @@ test("every follow-up form on the site renders that sentence, byte for byte", as
 
     // Byte for byte, not by fragment: a substring match would pass on any prose
     // that happened to contain the words, which is how six copies drifted apart.
-    assert.equal(textOf(note), FOLLOW_UP_PRIVACY, `${file}: the privacy sentence has drifted`);
+    const expected = form.querySelector("#site-footer-interest") ? FOOTER_FOLLOW_UP_PRIVACY : FOLLOW_UP_PRIVACY;
+    assert.equal(textOf(note), expected, `${file}: the privacy sentence has drifted`);
   }
 });
 
@@ -120,7 +126,8 @@ test("the sentence sits between the work-email field and the submit button, once
     // they got to weigh.
     const order = form.querySelectorAll("input,p,button");
     const at = (node) => order.indexOf(node);
-    const notes = order.filter((node) => textOf(node) === FOLLOW_UP_PRIVACY);
+    const expected = form.querySelector("#site-footer-interest") ? FOOTER_FOLLOW_UP_PRIVACY : FOLLOW_UP_PRIVACY;
+    const notes = order.filter((node) => textOf(node) === expected);
     assert.equal(notes.length, 1, `${file}: the sentence renders ${notes.length} times in one form`);
     assert.ok(at(field) < at(notes[0]), `${file}: the sentence is above the field it describes`);
     assert.ok(at(notes[0]) < at(submit), `${file}: the sentence is below the button it should precede`);

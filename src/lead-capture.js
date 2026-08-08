@@ -87,9 +87,8 @@ export const CONTACT_COPY = Object.freeze({
  * It used to be three paragraphs of about ninety words each, worded differently
  * on every surface, each one listing the particular things that page holds. A
  * reader who moved between two of them had to work out whether two different
- * lists meant two different promises. They did not: `postLeadEmail` below builds
- * the whole request body from one argument, the typed address, so no page state
- * has a route to the wire on any surface. One claim, one sentence, one string.
+ * lists meant two different promises. They did not. The generic footer now has
+ * its own equally short disclosure because it also accepts stated interest.
  *
  * It names the three things a reader is deciding on: what is sent, who receives
  * it, and that nothing else goes with it. The pages are static HTML and the
@@ -99,6 +98,7 @@ export const CONTACT_COPY = Object.freeze({
  */
 export const FOLLOW_UP_PRIVACY = "The work email address you type here goes to the Wawalu team that "
   + "operates Shiplog; nothing else on this page is sent.";
+export const FOOTER_FOLLOW_UP_PRIVACY = "Your work email and stated Shiplog interest go to Wawalu; nothing else on this page is sent.";
 
 // This form's own pending and success states: the contact forms promise
 // something else, so each set owns that sentence. Both repeat src/index.html's
@@ -132,10 +132,8 @@ export function resolveFailure(response, body, copy) {
 }
 
 /**
- * The one request either form makes. The body is built here from the address
- * and a fixed routing label, so no caller can widen what leaves the browser:
- * `{ email, purpose }` is the entire documented request shape. The purpose is
- * never page content.
+ * The one request either form makes. The body is built here from the address,
+ * a fixed routing label, and optional stated interest. No page state is accepted.
  *
  * Resolves every 2xx response as a capture. HTTP success is the durable
  * browser/server contract: older deployed handlers returned `subscribed`
@@ -145,11 +143,12 @@ export function resolveFailure(response, body, copy) {
  * existing one. Non-2xx responses still throw a SubmissionError carrying copy
  * this module owns plus the reason code that drives recovery.
  */
-export async function postLeadEmail(request, email, purpose, copy) {
+export async function postLeadEmail(request, email, purpose, copy, interest) {
+  const payload = interest === undefined ? { email, purpose } : { email, interest };
   const response = await request(ENDPOINT, {
     method: "POST",
     headers: { "content-type": "application/json", accept: "application/json" },
-    body: JSON.stringify({ email, purpose }),
+    body: JSON.stringify(payload),
     // Without this a hung request strands the visitor on "Submitting…"
     // with the control disabled and no way to recover.
     signal: globalThis.AbortSignal?.timeout?.(TIMEOUT_MS),

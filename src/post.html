@@ -184,15 +184,19 @@
                    and would otherwise be read on first focus. -->
               <input id="site-footer-email" name="email" type="email" maxlength="254" inputmode="email" autocomplete="email" placeholder="you@company.com" required aria-describedby="site-footer-note" />
             </div>
+            <div class="site-footer-field">
+              <label for="site-footer-interest">What interests you about Shiplog? <span>(optional)</span></label>
+              <input id="site-footer-interest" name="interest" type="text" maxlength="280" autocomplete="off" />
+            </div>
             <p class="site-footer-error" id="site-footer-error" hidden></p>
-            <p class="site-footer-note" id="site-footer-note">The work email address you type here goes to the Wawalu team that operates Shiplog; nothing else on this page is sent.</p>
+            <p class="site-footer-note" id="site-footer-note">Your work email and stated Shiplog interest go to Wawalu; nothing else on this page is sent.</p>
             <div class="site-footer-actions">
               <button type="submit">Request a follow-up</button>
               <button id="site-footer-dismiss" type="button">Close</button>
             </div>
           </form>
           <p class="site-footer-status" id="site-footer-status" role="status" aria-live="polite"></p>
-          <p class="site-footer-recovery" id="site-footer-recovery" hidden>We could not send your follow-up request. Try again in a few minutes. Your email address is still in the field above, and nothing else on this page changed.</p>
+          <p class="site-footer-recovery" id="site-footer-recovery" hidden>We could not send your follow-up request. Try again in a few minutes. Your email and stated interest are still in the fields above.</p>
         </div>
       </div>
     </footer>

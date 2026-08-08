@@ -1,4 +1,5 @@
 export const MAX_EMAIL_LENGTH = 254;
+export const MAX_INTEREST_LENGTH = 280;
 export const LEAD_PURPOSES = Object.freeze(["field_notes", "follow_up"]);
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -24,7 +25,7 @@ function json(body, status, requestId, headers = {}) {
 export function createMemoryLeadStore() {
   const submissions = new Set();
   return {
-    async capture(email, purpose) {
+    async capture(email, purpose, _createdAt, interest = null) {
       const key = `${purpose}:${email}`;
       const created = !submissions.has(key);
       submissions.add(key);
@@ -36,10 +37,10 @@ export function createMemoryLeadStore() {
 
 export function createD1LeadStore(db) {
   return {
-    async capture(email, purpose, createdAt) {
+    async capture(email, purpose, createdAt, interest = null) {
       const result = await db.prepare(
-        "INSERT OR IGNORE INTO lead_submissions (email, purpose, created_at) VALUES (?, ?, ?)",
-      ).bind(email, purpose, createdAt).run();
+        "INSERT OR IGNORE INTO lead_submissions (email, purpose, created_at, interest) VALUES (?, ?, ?, ?)",
+      ).bind(email, purpose, createdAt, interest).run();
       return Number(result.meta?.changes ?? 0) > 0;
     },
   };
@@ -65,24 +66,34 @@ export async function handleLeadRequest(request, {
   }
   const isObject = input !== null && typeof input === "object" && !Array.isArray(input);
   const keys = isObject ? Object.keys(input) : [];
-  if (!isObject || keys.length !== 2 || !keys.includes("email") || !keys.includes("purpose")) {
-    return json({ error: { code: "invalid_request", message: "Body must contain only email and purpose.", request_id: requestId } }, 400, requestId);
+  const statedInterestRequest = keys.includes("interest") && !keys.includes("purpose");
+  const validKeys = statedInterestRequest
+    ? keys.length === 2 && keys.includes("email")
+    : keys.length === 2 && keys.includes("email") && keys.includes("purpose");
+  if (!isObject || !validKeys) {
+    return json({ error: { code: "invalid_request", message: "Body contains unsupported fields.", request_id: requestId } }, 400, requestId);
   }
+  const purpose = statedInterestRequest ? "follow_up" : input.purpose;
   const email = normalizeEmail(input.email);
   if (!email) {
     return json({ error: { code: "invalid_email", message: "Enter a valid email address.", request_id: requestId } }, 422, requestId);
   }
-  if (!LEAD_PURPOSES.includes(input.purpose)) {
+  if (!LEAD_PURPOSES.includes(purpose)) {
     return json({ error: { code: "invalid_purpose", message: "Purpose must be field_notes or follow_up.", request_id: requestId } }, 422, requestId);
   }
+  if (input.interest !== undefined
+    && (typeof input.interest !== "string" || input.interest.trim().length > MAX_INTEREST_LENGTH)) {
+    return json({ error: { code: "invalid_request", message: "Interest must be at most 280 characters.", request_id: requestId } }, 400, requestId);
+  }
+  const interest = statedInterestRequest ? (input.interest.trim() || null) : null;
 
   try {
-    const created = await store.capture(email, input.purpose, now());
-    return json({ captured: true, created, purpose: input.purpose }, created ? 201 : 200, requestId);
+    const created = await store.capture(email, purpose, now(), interest);
+    return json({ captured: true, created, purpose }, created ? 201 : 200, requestId);
   } catch {
     // Correlatable in platform logs without copying a driver message that may
     // contain connection or schema detail into the event.
-    console.error("lead_capture_storage_error", { requestId, purpose: input.purpose });
+    console.error("lead_capture_storage_error", { requestId, purpose });
     return json({ error: { code: "storage_error", message: "We couldn’t save your email. Please try again.", request_id: requestId } }, 500, requestId);
   }
 }
