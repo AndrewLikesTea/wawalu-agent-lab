@@ -31,7 +31,7 @@ const PAGE = fileURLToPath(new URL("../src/social.html", import.meta.url));
 // rewording fails here instead of passing against itself.
 const UNSUPPORTED_TYPE = "This file is not a PNG, JPEG, GIF, or WebP. Convert or re-export it in one of those formats, then upload it again.";
 const OVER_LIMIT = "This file is over the 512 KB maximum. Pick a smaller file, or export a smaller PNG from Paint.";
-const PREVIEW_FAILURE = "We couldn’t create a preview of the uploaded image. Remove the image, upload the file again, and check the preview before publishing.";
+const PREVIEW_FAILURE = "We couldn’t create an image preview. Choose Remove image to remove the file, then choose Upload image to upload it again. Confirm that the preview appears before publishing.";
 
 // The composer as it is served: real markup, real wiring, no network beyond the
 // two responses the page's own start-up asks for.

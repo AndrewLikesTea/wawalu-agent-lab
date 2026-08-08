@@ -146,7 +146,7 @@ function mountMediaComposer(root, description) {
     frame.dataset.state = "error";
     preview.hidden = true;
     fallback.hidden = false;
-    setStatus("We couldn’t create a preview of the uploaded image. Remove the image, upload the file again, and check the preview before publishing.", true);
+    setStatus("We couldn’t create an image preview. Choose Remove image to remove the file, then choose Upload image to upload it again. Confirm that the preview appears before publishing.", true);
   });
   input.addEventListener("change", async () => {
     const generation = ++selectionGeneration;
