@@ -40,9 +40,14 @@ import { normalizeImage } from "./social.js";
 // label is never softened to fit a state, it is simply not offered in one.
 export const POST_EXITS = {
   social: { href: "/social.html", label: "Open Social to read the whole feed" },
-  people: { href: "/profile.html", label: "Open People to see this display name's other image posts" },
+  people: { href: "/profile.html" },
 };
 const MAX_RETURN_AUTHOR_LENGTH = 60;
+
+export function postPeopleLabel(author = "") {
+  const name = String(author).trim();
+  return name && name.length <= MAX_RETURN_AUTHOR_LENGTH ? `Open People to see ${name}’s other image posts` : "";
+}
 
 // Where the People link goes. The words promise one display name's image posts,
 // so the destination narrows to that name whenever the page can honestly name
@@ -458,7 +463,10 @@ export function renderPostDetail(container, post, options = {}) {
   article.append(stats);
 
   if (caption) article.setAttribute("aria-labelledby", "detail-caption");
-  container.append(article);
+  container.append(
+    article,
+    el("p", "hint detail-identity", "A display name is not a signed-in user — nobody owns or verifies one, and anyone can publish under any name."),
+  );
 }
 
 // The page heading names the post the way a reader would: by who wrote it. The

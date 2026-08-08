@@ -9,6 +9,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { loadPage, tabSequence, textOf } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
 
@@ -51,7 +52,13 @@ const seedOnly = (posts) => (url) => {
 // document rather than from known ids: a third one appearing anywhere — in the
 // markup, in a state panel — fails here, and so does a stray "back".
 function exits(document) {
-  return document.querySelectorAll("a").filter((link) => /^Open (Social|People) to |←|Back to/.test(link.textContent));
+  return document.querySelectorAll("a").filter((link) =>
+    /^Open (Social|People) to |←|Back to/.test(link.textContent)
+    // …and any chrome link that is on the page with no words in it. The People
+    // label is now written from the loaded display name, so a name the page
+    // cannot put in a label leaves a focusable link holding nothing — the one
+    // failure a text-only match cannot see, because there is no text to match.
+    || (link.classList.contains("detail-back") && !link.hidden));
 }
 
 // Social in every state, People wherever there is a post to belong to one.
@@ -71,8 +78,15 @@ function assertExits(page, peopleHref, where) {
   );
 }
 
+// What a display name is, in the bytes Social's composer and People's role line
+// already ship. Written out here so the permalink's own sentence is readable in
+// the test that asserts it, and pinned against those two pages below so none of
+// the three can drift — a claim that agrees in substance and differs in a comma
+// reads as two claims to anyone who meets both.
+const IDENTITY = "A display name is not a signed-in user — nobody owns or verifies one, and anyone can publish under any name.";
+
 const SOCIAL = { label: "Open Social to read the whole feed", href: "/social.html" };
-const PEOPLE = { label: "Open People to see this display name's other image posts", href: "/profile.html" };
+const PEOPLE = { label: "Open People to see Mina Okafor’s other image posts", href: "/profile.html" };
 const MINA = "/profile.html?author=Mina%20Okafor";
 
 test("a post that loads is headed by its author and reads name, time, image, caption", async () => {
@@ -91,10 +105,43 @@ test("a post that loads is headed by its author and reads name, time, image, cap
     assert.equal(figure.querySelectorAll("img").length, 1);
     assert.equal(textOf(figure.querySelector("figcaption")), "The middle card, ringed.");
     assert.equal(page.panel.getAttribute("aria-busy"), "false");
+    assert.ok(textOf(page.panel).includes(IDENTITY),
+      "a stranger arriving on this link is not told what a display name is");
 
     // The post named its author, so the People link now points at that one
     // display name's view — which is what its words promised all along.
     assertExits(page, MINA, "loaded");
+  } finally {
+    page.restore();
+  }
+});
+
+// Read out of the two pages that already ship the claim rather than typed again
+// here, so this fails the moment any of the three surfaces rewords it. Compared
+// on the clause the three genuinely share: Social attaches it to the composer's
+// field and People attaches it to a named person ("Ari is a display name…"), so
+// only the permalink can carry the whole sentence, and the sentence it carries
+// has to end in exactly their bytes.
+test("the permalink says what a display name is in Social's and People's own bytes", async () => {
+  const shipped = [];
+  for (const file of ["social.html", "profile.html"]) {
+    const html = (await readFile(new URL(`../src/${file}`, import.meta.url), "utf8")).replace(/<!--[\s\S]*?-->/g, "");
+    const clause = html.match(/not a signed-in user[^.<]*\./)?.[0];
+    assert.ok(clause, `${file} no longer tells a reader a display name is not an account`);
+    shipped.push(clause);
+  }
+  assert.equal(new Set(shipped).size, 1, "Social and People drifted into two ways of saying it");
+  assert.ok(IDENTITY.endsWith(shipped[0]), `the permalink does not end in the clause the other two ship: ${shipped[0]}`);
+
+  const page = await openPostPage("?id=p-image", seedOnly([SEED_POST]));
+  try {
+    const rendered = textOf(page.panel);
+    // Once. A fact stated twice on one screen is a fact a reader skips.
+    assert.equal(rendered.split(IDENTITY).length - 1, 1, "the permalink states it other than exactly once");
+    // The page's other "signed-in" sentence is about Social, not about a name,
+    // and it belongs to the states with no post. Both on one screen would read
+    // as two claims about the same thing.
+    assert.doesNotMatch(rendered, /not a signed-in account/);
   } finally {
     page.restore();
   }
@@ -118,6 +165,7 @@ test("an unknown id is named as a missing post, with the feed still the way out"
     assert.match(textOf(page.panel), /Post not found/);
     assert.match(textOf(page.panel), /This post was not found\./);
     assert.match(textOf(page.panel), /Social is a shared demo feed, not a signed-in account\./);
+    assert.doesNotMatch(textOf(page.panel), /A display name is not a signed-in user/);
     // No post, no author: the h1 names the page rather than standing as "Post".
     assert.equal(textOf(page.document.querySelector("#page-title")), "Post from Social");
     assert.doesNotMatch(textOf(page.panel), /Try again/);
@@ -236,6 +284,7 @@ test("the loading state is one announced line in the post's region, and takes no
     assert.equal(state.getAttribute("role"), "status", "the state is announced without stealing focus");
     assert.equal(page.document.activeElement, null, "nothing may take focus on load");
     assert.equal(textOf(state), "Loading this post…");
+    assert.doesNotMatch(textOf(panel), /A display name is not a signed-in user/);
     // Nothing is named yet, so the h1 names the page — the same words a reader
     // sees in the shipped markup before any script runs.
     assert.equal(textOf(page.document.querySelector("#page-title")), "Post from Social");
@@ -247,7 +296,9 @@ test("the loading state is one announced line in the post's region, and takes no
     // The frame around it still says what the page is, so the region is never
     // an unexplained blank.
     assert.match(textOf(page.document.querySelector(".hero-post")), /Social is a shared demo feed/);
-    assertExits(page, PEOPLE.href, "loading");
+    assertExits(page, null, "loading");
+    assert.equal(textOf(page.document.querySelector("#post-people")), "", "loading must not expose an empty or placeholder display name");
+    assert.equal(page.document.querySelector("#post-people").hidden, true);
     // Nothing inside the waiting region is tabbable, so the exit stays the
     // first thing on the page a keyboard reader reaches after the site frame.
     assert.equal(tabSequence(page.document).filter((node) => node.closest("#post-detail")).length, 0);
@@ -280,7 +331,7 @@ test("the page opens already saying it is loading, and the post replaces that li
     assert.equal(panel.querySelectorAll(".detail-state-message").length, 0);
     assert.equal(panel.querySelectorAll(".detail-post").length, 0);
     // And it takes nothing away from the exit above it.
-    assertExits(page, PEOPLE.href, "before the script runs");
+    assertExits(page, null, "before the script runs");
     assert.equal(tabSequence(page.document).filter((node) => node.closest("#post-detail")).length, 0);
 
     // Held open, so the script's own render of the same line can be read.

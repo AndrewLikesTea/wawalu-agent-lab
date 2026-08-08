@@ -6,7 +6,7 @@
 // asked first, and the seed is still consulted when the API has no answer.
 
 import { normalizeProfileApiPosts, normalizeSeedPosts } from "/profile.js";
-import { POST_EXITS, findPostById, postDetailTitle, postPageHeading, postPeopleHref, renderPostDetail } from "/post-detail.js";
+import { POST_EXITS, findPostById, postDetailTitle, postPageHeading, postPeopleHref, postPeopleLabel, renderPostDetail } from "/post-detail.js";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -40,7 +40,9 @@ async function init() {
   const people = document.querySelector("#post-people");
   const exits = people?.parentNode ?? null;
   const aimPeople = (author) => {
-    if (people) people.href = postPeopleHref(window.location.search, author);
+    if (!people) return;
+    people.href = postPeopleHref(window.location.search, author);
+    people.textContent = postPeopleLabel(author);
   };
   // …and whether it is offered at all. Its words promise "this display name's
   // other image posts", which only means something while there is a post, or
@@ -64,11 +66,11 @@ async function init() {
   const offerPeople = (offered) => {
     if (!people || !exits) return;
     if (offered) {
-      if (!people.parentNode) exits.append(people);
+      people.hidden = false;
       return;
     }
     if (document.activeElement === people) document.querySelector("#post-back")?.focus?.();
-    people.remove();
+    people.hidden = true;
   };
   aimPeople("");
 
@@ -84,7 +86,7 @@ async function init() {
     // page (a test, a smoke check) sees the second fetch as its own load.
     document.documentElement.dataset.shiplogPostDetail = "loading";
     nameHeading(null);
-    offerPeople(true);
+    offerPeople(false);
     renderPostDetail(container, null, { state: "loading", id, author: requestedAuthor, returnHref: POST_EXITS.social.href });
     let post = null;
     let failed = false;

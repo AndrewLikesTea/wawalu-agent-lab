@@ -255,12 +255,12 @@ test("the states with no post withdraw the People link and keep the one to Socia
   for (const [where, search, answer] of cases) {
     const page = await openPostPage(search, answer);
     try {
-      const exits = page.document.querySelectorAll(".detail-back");
+      const exits = page.document.querySelectorAll(".detail-back").filter((link) => !link.hidden);
       assert.deepEqual(exits.map(textOf), [SOCIAL_LINK], `${where}: the routes out`);
       assert.equal(exits[0].getAttribute("href"), "/social.html");
       // Withdrawn from the document, not hidden: a hidden link still reads to a
       // screen reader in this harness, which models no layout at all.
-      assert.equal(page.document.querySelectorAll("#post-people").length, 0, `${where}: the People link is still in the document`);
+      assert.equal(page.document.querySelector("#post-people").hidden, true, `${where}: the People link is rendered`);
       assert.equal(textOf(page.document.querySelector("main")).includes(PEOPLE_LINK), false, `${where}: its words are still on the page`);
       // And it is not merely out of the tab order while still being read.
       assert.equal(tabSequence(page.document).filter((stop) => textOf(stop) === PEOPLE_LINK).length, 0);
@@ -293,7 +293,7 @@ test("a reader standing on the People link keeps their place when it is withdraw
 
     // The post was not there, so the link is gone — and focus is on the exit
     // beside it rather than nowhere.
-    assert.equal(page.document.querySelectorAll("#post-people").length, 0);
+    assert.equal(page.document.querySelector("#post-people").hidden, true);
     assert.equal(page.document.activeElement, page.document.querySelector("#post-back"));
   } finally {
     page.restore();
@@ -605,14 +605,14 @@ test("a post with no image renders no image element and no empty frame to hold o
 // either way — so this is asserted in the missing state as well as the loaded
 // one, not just in the state that happens to work.
 const SOCIAL_LINK = "Open Social to read the whole feed";
-const PEOPLE_LINK = "Open People to see this display name's other image posts";
+const PEOPLE_LINK = "Open People to see Mina Okafor’s other image posts";
 const CHROME_LINKS = [SOCIAL_LINK, PEOPLE_LINK];
 // What each state offers. Social is true whatever the lookup did — the feed
 // exists either way — so it stands in all four. People is offered only where
 // there is a post, because its words are about that post's display name and a
 // state with no post has no name to put behind them.
 const EXITS_BY_STATE = {
-  loading: CHROME_LINKS,
+  loading: [SOCIAL_LINK],
   loaded: CHROME_LINKS,
   "not-found": [SOCIAL_LINK],
   error: [SOCIAL_LINK],
@@ -639,7 +639,7 @@ test("the words of a route out never change, and the demo sentence survives ever
       // The labels this state offers, in this order. Counted and read, never
       // checked for absence against null. No state rewrites a label — a state
       // with nothing to say behind one withdraws the whole link instead.
-      assert.deepEqual(page.document.querySelectorAll(".detail-back").map(textOf), EXITS_BY_STATE[state],
+      assert.deepEqual(page.document.querySelectorAll(".detail-back").filter((link) => !link.hidden).map(textOf), EXITS_BY_STATE[state],
         `the ${state} state changed the page's routes out`);
 
       // Neither says "Back", and neither carries a return glyph: nobody arriving
@@ -664,7 +664,7 @@ test("the words of a route out never change, and the demo sentence survives ever
   // The frame paints before any script runs, so the words above are read from
   // the shipped markup too, not only from a page that has finished loading.
   const html = await readFile(new URL("../src/post.html", import.meta.url), "utf8");
-  for (const label of CHROME_LINKS) assert.ok(html.includes(`>${label}</a>`), `${label} must ship in the markup`);
+  assert.ok(html.includes(`>${SOCIAL_LINK}</a>`), `${SOCIAL_LINK} must ship in the markup`);
   assert.ok(html.includes(`<p>${DEMO_SENTENCE}</p>`), "the demo sentence must ship in the markup");
   // The eyebrow ends on the marker the feed pages end on, so a permalink is
   // stamped as a demo the same way /social.html and /profile.html are.
@@ -854,10 +854,12 @@ function assertLeadsWithThePost(document, where) {
     assert.equal(Boolean(main.querySelector(id).closest("#post-detail")), false, `${where}: ${id} must survive a re-render`);
   }
 
-  // Both are still offered, still worded as shipped, and still reachable.
+  // Only links valid for this state are offered and reachable.
   const sequence = tabSequence(document);
-  assert.deepEqual(main.querySelectorAll(".detail-back").map(textOf), CHROME_LINKS, `${where}: a route out changed`);
-  for (const id of ["#post-back", "#post-people"]) {
+  const offered = main.querySelectorAll(".detail-back").filter((link) => !link.hidden);
+  const expected = main.querySelector("#post-people").hidden ? [SOCIAL_LINK] : CHROME_LINKS;
+  assert.deepEqual(offered.map(textOf), expected, `${where}: a route out changed`);
+  for (const id of offered.map((link) => `#${link.id}`)) {
     assert.ok(sequence.includes(main.querySelector(id)), `${where}: ${id} must stay reachable by keyboard`);
   }
 
@@ -899,7 +901,7 @@ test("the permalink leads with the post and puts the feed context under it, load
   assert.ok(at('id="post-detail"') < at(`<p>${CONTEXT_SENTENCE}</p>`), "the post precedes what the page says about Social");
   assert.ok(at(`<p>${CONTEXT_SENTENCE}</p>`) < at(`<p>${DEMO_SENTENCE}</p>`), "the two standing sentences keep their order");
   assert.ok(at(`<p>${DEMO_SENTENCE}</p>`) < at(`>${SOCIAL_LINK}</a>`), "the intro precedes the Social route out");
-  assert.ok(at(`>${SOCIAL_LINK}</a>`) < at(`>${PEOPLE_LINK}</a>`), "Social precedes People, the order the nav names them in");
+  assert.ok(at(`>${SOCIAL_LINK}</a>`) < at('id="post-people"'), "Social precedes People, the order the nav names them in");
   // Moved in the markup, not turned around in CSS: a stylesheet reorder would
   // leave reading order and tab order in the order this change exists to end.
   const css = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
