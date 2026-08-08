@@ -70,6 +70,19 @@ test("the workflow is discoverable and idle before anything is pasted", async ()
     assert.equal(section.getAttribute("aria-labelledby"), "prompt-coaching-question");
     assert.equal(textOf(byId(document, "prompt-coaching-question")),
       "Would a model answer this prompt well?");
+    // The guidance still says what may be pasted and what it is measured
+    // against, and names that rubric as this page's own.
+    const guidance = textOf(section.querySelector(".section-heading").querySelectorAll("p")[1]);
+    assert.match(guidance, /^Paste a prompt, or the few turns around it,/, guidance);
+    assert.match(guidance, /prompt rubric bundled with this page/, guidance);
+
+    // No rendered sentence pairs AI FinOps with the rubric. The two surfaces do
+    // share scoring code, but a visitor who reads that as one shared grade
+    // infers a scoring system neither surface offers, so the copy describes AI
+    // FinOps by what it reads — provider exports — and never by this grade.
+    for (const sentence of textOf(document.querySelector("main")).split(/(?<=[.?!])\s+/)) {
+      assert.equal(/AI FinOps/.test(sentence) && /rubric/i.test(sentence), false, sentence);
+    }
 
     // The field is labelled and described, and no result is claimed yet.
     const field = byId(document, "prompt-coaching-input");
