@@ -20,9 +20,10 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { loadPage, textOf } from "./support/browser.js";
-import { CONTACT_COPY, FOLLOW_UP_PRIVACY } from "../src/lead-capture.js";
-import { INVITATION } from "../src/site-footer.js";
+import { CONTACT_COPY, FOLLOW_UP_PRIVACY, FOLLOW_UP_RESPONSE } from "../src/lead-capture.js";
+import { followUpCtaMarkup, initSiteFooter, INVITATION } from "../src/site-footer.js";
 
 /** The one label. Written out here so a rename has to be a decision, not a diff. */
 const CTA = "Request a follow-up";
@@ -165,4 +166,54 @@ test("each surface says beside its button that submitting sends only the work em
   // The invitation outside the footer's panel is readable before the panel is
   // opened, and it is what names who a visitor would be talking to.
   assert.match(INVITATION, /Shiplog/);
+});
+
+test("the home page asks where the figure is, in the footer's words and to the footer's form", async () => {
+  // The recoverable-spend figure is the moment a visitor decides they want a
+  // person; the footer is eight sections below it. So the hero carries the ask
+  // too — the same label, pointing at the same form, promising the same window.
+  const html = await readFile(pageUrl("index.html"), "utf8");
+  assert.ok(html.includes(followUpCtaMarkup()), "the hero ask has drifted from src/site-footer.js");
+
+  const page = await loadPage(pageUrl("index.html"));
+  try {
+    const ask = byId(page.document, "hero-followup");
+    assert.ok(ask, "the hero must carry the ask");
+    const link = ask.querySelector("a");
+    assert.equal(textOf(link), CTA, "the hero ask must read the one label");
+    // A pointer, not a second form: it leads to the control that opens the
+    // footer's, and it works as a plain fragment link with no script at all.
+    assert.equal(link.getAttribute("href"), "#site-footer-open");
+    assert.equal(link.getAttribute("data-follow-up-cta"), "site-footer");
+    assert.equal(page.document.querySelectorAll('input[name="email"]').length, 2,
+      "the home page carries the field-note field and the footer's, and no third");
+    // Who reads it and how soon, before anything is typed.
+    assert.ok(textOf(ask).includes(FOLLOW_UP_RESPONSE), "the hero ask must say who replies and by when");
+    assert.ok(INVITATION.includes(FOLLOW_UP_RESPONSE), "and it must be the footer's promise, not a second one");
+  } finally {
+    page.restore();
+  }
+});
+
+test("following the home page's ask opens the footer's form and lands the cursor in it", async () => {
+  const page = await loadPage(pageUrl("index.html"));
+  try {
+    const { document } = page;
+    initSiteFooter(document, async () => { throw new Error("no request is made by opening the form"); });
+    const panel = byId(document, "site-footer-panel");
+    assert.equal(panel.hidden, true, "the form starts closed");
+
+    byId(document, "hero-followup").querySelector("a").click();
+    assert.equal(panel.hidden, false, "the ask must open the footer's form");
+    assert.equal(byId(document, "site-footer-open").getAttribute("aria-expanded"), "true");
+    assert.equal(document.activeElement?.id, "site-footer-email",
+      "a visitor who asked for the form must land in its field");
+
+    // Unlike the trigger it never toggles: a second press on a link that asks
+    // for the form must not be the thing that takes it away.
+    byId(document, "hero-followup").querySelector("a").click();
+    assert.equal(panel.hidden, false, "the ask must not close what it opened");
+  } finally {
+    page.restore();
+  }
 });

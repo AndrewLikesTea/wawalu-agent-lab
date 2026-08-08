@@ -43,25 +43,27 @@
 
 import { createFollowUpConfirmation } from "./follow-up-confirmation.js";
 import {
-  CONTACT_COPY, describeWith, emailFieldError, looksLikeEmail, postLeadEmail, SubmissionError,
+  CONTACT_COPY, describeWith, emailFieldError, FOLLOW_UP_RESPONSE, looksLikeEmail, postLeadEmail,
+  SubmissionError,
 } from "./lead-capture.js";
 
 /**
  * What a visitor is told once the address is stored. It names what was asked
- * for, the one thing that travelled, who answers, and by when. Two business days
- * is the commitment this makes; nothing here claims a customer, a saving, or an
- * outcome.
+ * for, the one thing that travelled, who answers, and by when. The who-and-when
+ * clause is FOLLOW_UP_RESPONSE, the sentence every follow-up surface now shows
+ * before the button as well as after it — this form said the same thing in its
+ * own words for a while, and one commitment worded two ways reads as two.
+ * Nothing here claims a customer, a saving, or an outcome.
  *
  * It opens on "Follow-up requested" for the same reason the site footer's does:
  * the live region announces this sentence on its own, out of the context of the
  * button that was pressed, so the first words have to say which request
  * succeeded rather than merely that something was sent.
  */
-export const CAPTURED = "Follow-up requested — we sent your email address, and nothing else. Someone here "
-  + "replies within two business days. We cannot see your analysis, so say in your reply what you would "
-  + "like to go through.";
+export const CAPTURED = `Follow-up requested — we sent your email address, and nothing else. ${FOLLOW_UP_RESPONSE} `
+  + "We cannot see your analysis, so say in your reply what you would like to go through.";
 export const ALREADY_CAPTURED = "Follow-up requested — that address is already on our list, so nothing new "
-  + "was stored. Someone here replies within two business days.";
+  + `was stored. ${FOLLOW_UP_RESPONSE}`;
 
 const SUBMITTING = "Requesting a follow-up — sending your email address…";
 

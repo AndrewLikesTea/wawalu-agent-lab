@@ -30,7 +30,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { loadPage, pressEnter, pressKey, pressTab, tabSequence, textOf, typeText } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
-import { FOLLOW_UP_PRIVACY } from "../src/lead-capture.js";
+import { FOLLOW_UP_PRIVACY, FOLLOW_UP_RESPONSE } from "../src/lead-capture.js";
 
 const EVOLUTION_PAGE = new URL("../src/evolution.html", import.meta.url);
 const BRIEFING_PAGE = new URL("../src/executive-briefing.html", import.meta.url);
@@ -400,7 +400,7 @@ test("a confirmed request keeps the briefing on screen and its print action with
     // What happens next, said in words: who replies, by when, and what was sent.
     const confirmation = shownText(document, "briefing-contact-status");
     assert.match(confirmation, CAPTURED_OPENING);
-    assert.match(confirmation, /replies within two business days/);
+    assert.ok(confirmation.includes(FOLLOW_UP_RESPONSE), "the confirmation must repeat the reply window");
     assert.match(confirmation, /cannot see your analysis/);
 
     // The briefing is still the page, unchanged, with its sections intact.

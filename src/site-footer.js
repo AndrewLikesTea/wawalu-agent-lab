@@ -32,8 +32,8 @@
 
 import { createFollowUpConfirmation } from "./follow-up-confirmation.js";
 import {
-  CONTACT_COPY, describeWith, emailFieldError, FOLLOW_UP_PRIVACY, looksLikeEmail, postLeadEmail,
-  SubmissionError,
+  CONTACT_COPY, describeWith, emailFieldError, FOLLOW_UP_PRIVACY, FOLLOW_UP_RESPONSE, looksLikeEmail,
+  postLeadEmail, SubmissionError,
 } from "./lead-capture.js";
 
 const ERROR_ID = "site-footer-error";
@@ -116,26 +116,20 @@ export const DEMOS = Object.freeze([
  * follow-up about what, from whom. It sits outside the panel because a visitor
  * reads it before deciding whether to open anything.
  */
-export const INVITATION = "Questions about Shiplog? Ask the Wawalu team that operates it, and a "
-  + "person replies by email.";
+export const INVITATION = `Questions about Shiplog? ${FOLLOW_UP_RESPONSE}`;
 
 // What the field sends is not this footer's sentence to write. It is the same
 // claim the AI FinOps form and the briefing's form make, so all three render one
 // string — FOLLOW_UP_PRIVACY in src/lead-capture.js, beside the transport that
 // makes it true.
 
-// What a visitor is told once the address is stored.
-//
-// Deliberately not an SLA. The AI FinOps form answers within two business days
-// because someone watches that queue; this footer sits on eight pages of a
-// demonstration product and nobody has promised to watch it that closely. So it
-// says what is actually true — the address is recorded, a person is the one who
-// reads it, and no machine is about to reply — rather than a response time this
-// demo would break.
-const CAPTURED = "Follow-up requested — we sent your email address, and nothing else. It is recorded "
-  + "for the Wawalu team, and a person replies by email; nothing here answers automatically.";
+// What a visitor is told once the address is stored: the sentence they read
+// above the button, word for word. This footer used to name no window while the
+// AI FinOps form named two business days, but both post the same `follow_up`
+// label to the same queue — never two commitments, only two descriptions of one.
+const CAPTURED = `Follow-up requested — we sent your email address, and nothing else. ${FOLLOW_UP_RESPONSE}`;
 const ALREADY_CAPTURED = "Follow-up requested — that address is already on our list, so nothing new "
-  + "was recorded. The Wawalu team can reach you there.";
+  + `was recorded. ${FOLLOW_UP_RESPONSE}`;
 
 const SUBMITTING = "Requesting a follow-up — sending your email address…";
 
@@ -166,6 +160,30 @@ export const FOLLOW_UP_REDIRECT = Object.freeze({
     href: "#briefing-contact",
   }),
 });
+
+/**
+ * The home page's second door to the same follow-up form.
+ *
+ * A visitor wants a person the moment they finish the recoverable-spend figure
+ * in the hero, not eight sections later in the footer. So the hero carries a
+ * pointer — not a second form: two work-email fields on one page is the
+ * ambiguity the field-note note already explains away, and a third would need
+ * explaining too.
+ *
+ * It is a real link to `#site-footer-open`, so with no script it still lands a
+ * reader on the control that opens the form; `initSiteFooter` upgrades it to
+ * open the panel and put the cursor in the field, the contract
+ * `data-follow-up-cta` already has on the AI FinOps result. The words are here
+ * so they cannot drift from the footer's: tests/follow-up-cta-label.test.js
+ * requires src/index.html to match this exactly.
+ */
+export const FOLLOW_UP_CTA_LEAD = "Want to go through these numbers with a person?";
+
+export function followUpCtaMarkup(indent = "        ") {
+  return `${indent}<p class="hero-followup" id="hero-followup">${FOLLOW_UP_CTA_LEAD} `
+    + '<a href="#site-footer-open" data-follow-up-cta="site-footer">Request a follow-up</a>. '
+    + `${FOLLOW_UP_RESPONSE}</p>`;
+}
 
 /**
  * The footer as it appears in every page's source. `indent` is the indentation
@@ -288,15 +306,19 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
     onReopen: () => { status.textContent = ""; delete form.dataset.state; },
   });
 
-  function open() {
-    if (!panel.hidden) return;
+  // Revealing a form and leaving focus on the trigger above it strands a
+  // keyboard user at the very moment they asked for the form. After a request
+  // has landed there is no form to land in, so the receipt takes the focus.
+  function reveal() {
     panel.hidden = false;
     trigger.setAttribute("aria-expanded", "true");
-    // Revealing a form and leaving focus on the trigger above it strands a
-    // keyboard user at the very moment they asked for the form. After a request
-    // has landed there is no form to land in, so the receipt takes the focus.
     if (confirmation.sent) confirmation.region.focus();
     else email.focus();
+  }
+
+  function open() {
+    if (!panel.hidden) return;
+    reveal();
   }
 
   function close() {
@@ -310,6 +332,16 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
 
   trigger.addEventListener("click", () => (panel.hidden ? open() : close()));
   dismiss?.addEventListener("click", close);
+
+  // The home page's hero ask leads here. Unlike the trigger it never toggles: a
+  // visitor who followed a link asking for the form and got it shut would have
+  // to press twice. The fragment is suppressed because this lands the cursor in
+  // the field, which is further than the fragment alone would take them.
+  root.addEventListener?.("click", (event) => {
+    if (!event.target?.closest?.('[data-follow-up-cta="site-footer"]')) return;
+    event.preventDefault?.();
+    reveal();
+  });
   panel.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") return;
     event.preventDefault();

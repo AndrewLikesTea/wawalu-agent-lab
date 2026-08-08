@@ -74,6 +74,13 @@
           <a class="button-link" href="/evolution.html">Read the worked decision in AI FinOps <span aria-hidden="true">→</span></a>
           <a class="text-link" href="#landing-decision">Or read the example briefing below</a>
         </div>
+        <!-- The ask, where the figure is. A visitor convinced by the recoverable
+             share should not have to scroll eight sections to the footer to
+             reach a person, so this points at the footer's own form rather than
+             adding a second one — rendered from followUpCtaMarkup() in
+             src/site-footer.js so the label, the ask, and the reply window are
+             the footer's words, not a second set. -->
+        <p class="hero-followup" id="hero-followup">Want to go through these numbers with a person? <a href="#site-footer-open" data-follow-up-cta="site-footer">Request a follow-up</a>. A person from the Wawalu team that operates Shiplog replies by email within two business days.</p>
         <p class="hero-boundary"><strong>Your files do not leave this tab.</strong> <span>Exports are read and analyzed in this browser. No upload, no credentials, no account, and nothing of yours is stored.</span></p>
       </section>
 
@@ -310,7 +317,7 @@
               <button type="submit">Subscribe to field notes <span aria-hidden="true">→</span></button>
             </div>
           </div>
-          <p class="lead-capture-note" id="lead-capture-note">Submitting subscribes you to field notes. It is not a way to reach anyone: to ask a question, use “Request a follow-up” in the footer of this page, where a person replies by email. We use your email for nothing else. No spam. Unsubscribe anytime.</p>
+          <p class="lead-capture-note" id="lead-capture-note">Submitting subscribes you to field notes. It is not a way to reach anyone: to ask a question, use “Request a follow-up” on this page, where a person replies by email. We use your email for nothing else. No spam. Unsubscribe anytime.</p>
           <p class="lead-capture-status" id="lead-capture-status" role="status" aria-live="polite"></p>
           <p class="lead-capture-recovery" id="lead-capture-recovery" hidden>Your email is still in the field above. Sign-up usually recovers within a few minutes — resubmit then to subscribe, or <a href="#decision-to-release">follow the decision-to-release story</a> in the meantime.</p>
         </form>
@@ -690,7 +697,7 @@
           <li><a href="/paint/">Paint</a> — crop or draw an image, export a PNG, publish it on Social</li>
           <li><a href="/agents.html">Agent observatory</a> — watch a synthetic engineering team build and review work</li>
         </ul>
-        <p class="site-footer-invitation">Questions about Shiplog? Ask the Wawalu team that operates it, and a person replies by email.</p>
+        <p class="site-footer-invitation">Questions about Shiplog? A person from the Wawalu team that operates Shiplog replies by email within two business days.</p>
         <button class="site-footer-trigger" id="site-footer-open" type="button" aria-expanded="false" aria-controls="site-footer-panel">
           Request a follow-up
         </button>
