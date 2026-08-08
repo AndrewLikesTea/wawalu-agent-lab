@@ -4,7 +4,7 @@ import test from "node:test";
 
 import { parseHtml, textOf } from "./support/browser.js";
 import {
-  CONFIDENCE_RULE, EVIDENCE_CATEGORIES, analysisReadiness, evidenceConfidence, evidenceHeld,
+  CONFIDENCE_RULE, EVIDENCE_CATEGORIES, analysisReadinessForDataset, evidenceConfidence, evidenceHeld,
   readinessScore,
 } from "../src/finops-analysis-readiness.js";
 import { bundledFirstAction } from "../src/finops-bundled-next-step.js";
@@ -32,7 +32,7 @@ test("readiness and confidence are computed from the categories the dataset carr
 // a dataset it was never given, or promises a recommendation it has not got,
 // answers the reader's question with a decoration.
 test("an empty dataset scores zero and withholds the recommendation it cannot make", () => {
-  const empty = analysisReadiness({});
+  const empty = analysisReadinessForDataset({});
   assert.equal(empty.score.value, 0);
   assert.equal(empty.confidence.value, 0);
   assert.equal(empty.level, "insufficient");
@@ -40,7 +40,7 @@ test("an empty dataset scores zero and withholds the recommendation it cannot ma
   assert.match(empty.supportedConclusion, /^No savings recommendation is supported/);
   assert.match(empty.currentEvidence, /^0 of 4 required categories are sufficient: none\./);
   assert.equal(empty.upgrades.length, 4, "every unmet category is offered as an upgrade");
-  const partial = analysisReadiness({ departments: [{ spendUsd: 10, queries: 5 }] });
+  const partial = analysisReadinessForDataset({ departments: [{ spendUsd: 10, queries: 5 }] });
   assert.equal(partial.score.value, 25);
   assert.equal(partial.confidence.value, 40, "35×1 + 20×.25, classification absent");
 });
@@ -48,7 +48,7 @@ test("an empty dataset scores zero and withholds the recommendation it cannot ma
 // #1020: one page, one prioritized action. This region must quote the record
 // the rest of the page already paints, not re-rank the same table beside it.
 test("the readiness answer quotes the page's one derived next-step record", () => {
-  const result = analysisReadiness(DATA);
+  const result = analysisReadinessForDataset(DATA);
   const step = bundledFirstAction(DATA);
   assert.equal(result.version, "finops-analysis-readiness/2.0.0");
   assert.equal(result.level, "illustrative_only");
@@ -65,7 +65,7 @@ test("the readiness answer quotes the page's one derived next-step record", () =
 
 test("the active analysis surface answers readiness and makes the one action inspectable", async () => {
   const document = parseHtml(await readFile(PAGE, "utf8"));
-  const result = analysisReadiness(DATA);
+  const result = analysisReadinessForDataset(DATA);
   renderAnalysisReadiness(document, result);
   const region = document.getElementById("finops-analysis-readiness");
   assert.equal(region.dataset.level, "illustrative_only");
