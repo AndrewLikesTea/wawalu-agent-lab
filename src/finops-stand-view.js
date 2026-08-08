@@ -37,6 +37,10 @@ import { ANSWER_REPRODUCTION } from "./finops-answer-reproduction.js";
 // headline rather than from the DOM it just wrote, so the copied qualifier and
 // the rendered one are two readings of one object.
 import { applyAnswerCopy } from "./finops-answer-copy.js";
+// The four-figure glance and the ids it owns. The block is painted from the
+// composed headline's own `glance`, so it can never be as of a different dataset
+// from the claim above it.
+import { GLANCE_IDS } from "./finops-glance-spec.js";
 
 /** The state chip, in the same two channels the rest of this page uses. */
 export const STAND_DISCLOSURE_STATE = Object.freeze({
@@ -614,6 +618,42 @@ export function bindStandResolution(doc) {
 }
 
 /**
+ * Paint the four-figure glance: one lead, one next action, the rest supporting.
+ *
+ * Every string is the composer's. This decides nothing about which figure leads
+ * and computes no figure — it reads `glance.leadKey`, `glance.lead`,
+ * `glance.nextAction` and `glance.supporting` and writes them. That matters most
+ * for the peer figure: the composer marks it unmeasured whenever the ranking
+ * model refused the claim, so there is no branch here that could put a band on
+ * the surface in a state the model declined to rank.
+ *
+ * `data-lead` carries the winning key, or "none" when nothing crossed, so a
+ * printed page, a screenshot and a test read the same channel the block does.
+ */
+export function applyFinopsGlance(doc, glance) {
+  const block = byId(doc, GLANCE_IDS.block);
+  if (!block || !glance) return null;
+  block.dataset.lead = glance.leadKey ?? "none";
+  block.dataset.crossed = glance.crossed ? "true" : "false";
+  const lead = setText(doc, GLANCE_IDS.lead, glance.lead ?? "");
+  // "Nothing crossed" is a STATE, not a missing value: the block says so in
+  // words and the slot is marked unavailable, which is how the rest of this
+  // region already distinguishes a stated absence from an empty one.
+  if (lead) lead.dataset.available = glance.crossed ? "true" : "false";
+  setText(doc, GLANCE_IDS.next, glance.nextAction ?? "");
+  const supporting = byId(doc, GLANCE_IDS.supporting);
+  if (supporting) {
+    supporting.replaceChildren(...(glance.supporting ?? []).map((line) => {
+      const node = doc.createElement("p");
+      node.className = "stand-figure-basis";
+      node.textContent = line;
+      return node;
+    }));
+  }
+  return block;
+}
+
+/**
  * Apply a composed headline to the document.
  *
  * `announce: false` is the boot paint's option and nothing else's: the answer it
@@ -673,9 +713,14 @@ export function applyStandHeadline(doc, headline, { announce = true } = {}) {
   // or a cleared import returning to the bundled example — puts them back. A
   // one-way `hidden = true` here is how a repainted region ends up asserting
   // "this export can be graded" over a gutted headline.
-  for (const node of region.querySelectorAll?.(".stand-figures, .stand-team") ?? []) {
+  for (const node of region.querySelectorAll?.(".stand-figures, .stand-team, .stand-glance") ?? []) {
     node.hidden = Boolean(headline.figuresSuppressed);
   }
+
+  // The glance sits under that same verdict, and is painted from this paint's
+  // own composed block. Before the figures below, because it is the block that
+  // says which of them is worth reading.
+  applyFinopsGlance(doc, headline.glance);
 
   // The entitlement line: two indicators, both words, immediately under the
   // claim. Neither is a colour and neither is behind a disclosure — a lead who

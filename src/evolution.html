@@ -333,6 +333,25 @@
             <p class="stand-figure-basis" id="finops-stand-position-basis"></p>
           </div>
         </div>
+        <!-- THE FIVE-SECOND TRIAGE (#1345). Four figures compete for a lead's
+             attention above the fold; this block says which ONE of them is the
+             reason to keep reading, states the next action for it, and drops the
+             other three to supporting lines. The four questions, their units,
+             the shipped model function behind each, and the numeric threshold
+             each is called out at are declared in src/finops-glance-spec.js —
+             the lead is the first figure in that declared order that is measured
+             AND crosses its own threshold, so two engineers reading the spec
+             pick the same lead from the same data. A figure the page could not
+             measure — including a peer position the ranking model refused to
+             claim — states that it is not measured and why, and is not eligible
+             to lead. Painted by `applyFinopsGlance` in finops-stand-view.js.
+             Reuses .stand-figure and its three text classes; no new layout. -->
+        <div class="stand-figure stand-glance pre-analysis-withheld" id="finops-glance" data-lead="none" data-crossed="false" hidden>
+          <h3 class="stand-figure-label">Which of these four is the reason to keep reading?</h3>
+          <p class="stand-figure-value" id="finops-glance-lead" data-available="false"></p>
+          <p class="stand-figure-basis" id="finops-glance-next"></p>
+          <div class="stand-glance-lines" id="finops-glance-supporting"></div>
+        </div>
         <!-- The same "how we know this" pattern as the answer band above, in the
              same three parts and under the same summary words, so a reader who
              opened one already knows what this one holds. Authored prose about
