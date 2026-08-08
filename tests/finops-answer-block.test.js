@@ -388,6 +388,9 @@ test("every top-level section that existed before the answer block is still on t
     // is in flight or that failed has somewhere named to be read.
     "destination-load-evidence", "destination-load-department",
     "destination-load-act-and-verify",
+    // #1393: the guided first analysis — the scenario chooser, and the evidence
+    // and department destinations it repaints.
+    "finops-guided-choice", "finops-guided-evidence", "finops-guided-department",
     "finops-workspace-context", "finops-load-state", "score-card",
     "finops-portfolio-brief", "monthly-review-projection", "guided-result", "local-import", "prompt-coaching",
     "finops-contact", "finops-proof-point", "finops-headline", "classifier-agreement",

@@ -149,6 +149,11 @@ const REGIONS = Object.freeze({
   "destination-load-evidence": REGION_CLASS.evidence,
   "destination-load-department": REGION_CLASS.evidence,
   "destination-load-act-and-verify": REGION_CLASS.evidence,
+  // The guided first analysis: its chooser and the two destinations that are
+  // repainted from whichever bundled scenario is chosen.
+  "finops-guided-choice": REGION_CLASS.evidence,
+  "finops-guided-evidence": REGION_CLASS.evidence,
+  "finops-guided-department": REGION_CLASS.evidence,
   "finops-workspace-context": REGION_CLASS.evidence,
   "finops-first-run-conversion": REGION_CLASS.removed,
   "finops-load-state": REGION_CLASS.evidence,
@@ -207,6 +212,9 @@ const EVIDENCE_LAYERS = Object.freeze([
     // the complete record behind the figure it states.
     regionIds: Object.freeze([
       "finops-recoverable-answer", "finops-analysis-readiness",
+      // The guided flow continues the readiness answer above it: one chosen
+      // bundled scenario, and the evidence and department detail it produces.
+      "finops-guided-choice", "finops-guided-evidence", "finops-guided-department",
       "finops-first-run", "guided-result", "finops-portfolio-brief", "monthly-review-projection",
     ]),
   }),

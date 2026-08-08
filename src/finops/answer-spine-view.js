@@ -337,6 +337,26 @@ export const ANSWER_SPINE = Object.freeze([
     headingId: "destination-load-act-and-verify-title",
   },
   {
+    id: "finops-guided-choice",
+    role: ROLE.step,
+    question: "Which bundled provider export has the most recoverable AI spend, and who should act on it first?",
+    headingId: "finops-guided-question",
+    entitledToAssert: "One prioritized action for the chosen bundled scenario, on that scenario's"
+      + " own invented provider-export-shaped records, computed locally and named as synthetic.",
+  },
+  {
+    id: "finops-guided-evidence",
+    role: ROLE.detail,
+    question: "What is the evidence behind the scenario I chose?",
+    headingId: "finops-guided-evidence-title",
+  },
+  {
+    id: "finops-guided-department",
+    role: ROLE.detail,
+    question: "Which department acts on the scenario I chose, and on what?",
+    headingId: "finops-guided-department-title",
+  },
+  {
     id: "finops-workspace-context",
     role: ROLE.detail,
     question: "What did I carry here from the answer?",
