@@ -23,6 +23,9 @@ import {
 } from "../src/finops-attribution-policy.js";
 import { coverageChangeSummary } from "../src/attribution-confidence.js";
 import { applyAttributionSplit, applyChangeSummary } from "../src/attribution-confidence-view.js";
+// Keep the portfolio ranking and rendered-link handoff in the established AI
+// FinOps analysis entry run: node --test executes imported test modules too.
+import "./finops-opportunity-analysis.test.js";
 
 const PAGE = new URL("../src/evolution.html", import.meta.url);
 const DEMO_DATA = JSON.parse(await readFile(new URL("../src/evolution-demo-data.json", import.meta.url), "utf8"));

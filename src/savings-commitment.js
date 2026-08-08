@@ -541,7 +541,7 @@ const DOWNSTREAM = Object.freeze({
  * @param {object} analysis an imported-analysis envelope, `savings-commitment-input/1.0.0`.
  * @returns a deeply frozen preview matching SAVINGS_COMMITMENT_VERSION.
  */
-export function buildSavingsCommitment(analysis) {
+export function buildSavingsCommitment(analysis, selection = {}) {
   validateImportedAnalysis(analysis);
   const { source } = analysis;
 
@@ -559,7 +559,18 @@ export function buildSavingsCommitment(analysis) {
       || right.candidate.confidence.percent - left.candidate.confidence.percent
       || compareCanonicalIds(left.candidate.candidateId, right.candidate.candidateId));
 
-  const winner = eligible[0] ?? null;
+  const requestedId = selection?.opportunityId ?? null;
+  if (requestedId !== null) canonicalId(requestedId, "selection.opportunityId");
+  if (selection?.action !== undefined && selection.action !== "routing") {
+    invalid("selection.action", "must be routing for a routing commitment fixture");
+  }
+  const winner = requestedId === null
+    ? (eligible[0] ?? null)
+    : (eligible.find((entry) => entry.candidate.candidateId === requestedId) ?? null);
+  if (requestedId !== null && !winner) {
+    invalid("selection.opportunityId",
+      "must name an eligible opportunity in this destination analysis fixture");
+  }
   const excluded = scored
     .filter((entry) => entry !== winner)
     .map((entry) => ({
@@ -729,7 +740,7 @@ export const SAVINGS_COMMITMENT_FIXTURE_URL = "/savings-commitment-fixture.json"
  * Read the bundled synthetic analysis and build its preview. This is the only
  * I/O in the module, it is same-origin, and nothing it returns is persisted.
  */
-export async function loadSavingsCommitment(fetcher = fetch) {
+export async function loadSavingsCommitment(fetcher = fetch, selection = {}) {
   const response = await fetcher(SAVINGS_COMMITMENT_FIXTURE_URL, {
     cache: "no-store",
     credentials: "omit",
@@ -737,5 +748,5 @@ export async function loadSavingsCommitment(fetcher = fetch) {
   if (!response?.ok) {
     throw new Error("The bundled savings-commitment analysis could not be loaded.");
   }
-  return buildSavingsCommitment(await response.json());
+  return buildSavingsCommitment(await response.json(), selection);
 }

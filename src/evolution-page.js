@@ -273,6 +273,8 @@ import {
 // from the department's aggregate record and nothing else.
 import { scoreDepartmentIntervention } from "/department-intervention-scoring.js";
 import { interventionActionFields } from "/department-intervention-view.js";
+import { analyzeFinopsOpportunities, opportunityCommitmentHref } from "/finops-opportunity-analysis.js";
+import { BUNDLED_FINOPS_OPPORTUNITY_FIXTURES } from "/finops-opportunity-fixtures.js";
 // The other half of the drill-down: the evidence behind the grade and the fix
 // pack that rides on the same model, painted into the two sections
 // `evolution.html` ships empty for them.
@@ -626,6 +628,20 @@ const DATA_URL = "/evolution-demo-data.json";
 const EVALUATION_URL = "/finops-evaluation-fixtures.json";
 const AGREEMENT_CORPUS_URL = "/finops-classifier-agreement-corpus.json";
 const MODEL_OVERSPEND_URL = "/model-overspend-finding-fixture.json";
+
+// The production page consumes the bundled aggregate fixtures through the same
+// scorer used for imported department records. The primary handoff therefore
+// names the opportunity the scoring path actually ranked, not a hand-authored
+// candidate beside it.
+const bundledOpportunityPortfolio = analyzeFinopsOpportunities(
+  BUNDLED_FINOPS_OPPORTUNITY_FIXTURES,
+);
+const primaryCommitmentLink = document.getElementById("finops-primary-commitment");
+if (primaryCommitmentLink) {
+  primaryCommitmentLink.href = opportunityCommitmentHref(
+    bundledOpportunityPortfolio.primaryRecommendation,
+  );
+}
 // Repainting the bundled headline and mix, from the last analysis that loaded.
 // "Return to example data" has to put the example figures back into the same
 // slots a graded sample borrowed, and re-running the two renderers is the only
