@@ -63,12 +63,11 @@
              form's own image field is labelled "(optional)", so the composer
              takes a caption with an image or without one and the control that
              opens it may not promise otherwise. It claims nothing about images
-             in either direction now, and it does not repeat the heading it
-             lands on either: it used to read "Write a post", word for word the
-             h2 below it, so the page named the same form twice before a
-             visitor had typed anything. Releases already gets this right —
-             "New record" over "Record a release" — so this names the thing it
-             opens and lets the heading keep the verb.
+             in either direction now. It says word for word what the heading it
+             lands on says: one thing gets one name, so the trigger reads as the
+             door to that heading and not as a fourth destination. The third
+             name went with it — an eyebrow read "New post" above the heading —
+             and the submit button still names the act, not the form.
              The primary names the act and the tool — "Paint" alone is what the
              nav already says, and a control that repeats the nav adds nothing.
              It stops at the act, though: where the image goes afterwards is the
@@ -79,7 +78,7 @@
              glyph is decorative and is hidden from assistive technology. -->
         <div class="hero-actions">
           <a class="button-link" id="social-paint-cta" href="/paint/" target="_blank" rel="noopener"><span>Create an image in Paint <span class="new-tab-note">(opens in a new tab)</span></span> <span aria-hidden="true">↗</span></a>
-          <a class="text-link" href="#post-form">Open the post form</a>
+          <a class="text-link" href="#post-form">Write a post</a>
         </div>
       </section>
 
@@ -88,14 +87,13 @@
            from the region — the same word three times before a single post. It
            is named after what it holds now, the way Decisions names its region
            "Decision log" and Releases names its own "Release log".
-           The composer panel is named by its heading, the same wiring both of
-           those forms use: one badge, one heading, and the heading carries the
-           id the panel points at, so the form is announced once and by the
-           words a reader can see. -->
+           The composer panel is named by its heading and by nothing above it:
+           the heading carries the id the panel points at, so the form is
+           announced once, in the words the trigger promised, and the reader
+           does not pass a second name on the way to the first field. -->
       <section class="workspace" aria-label="Post log">
         <div class="form-panel" aria-labelledby="post-form-title">
           <div class="section-heading">
-            <p class="eyebrow">New post</p>
             <h2 id="post-form-title">Write a post</h2>
           </div>
 
