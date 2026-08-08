@@ -1751,7 +1751,12 @@
       <section class="finops-panel" id="finops-guided-choice" data-workspace-region="answer" data-guided-scenario="aws-bedrock-cur-v1" aria-labelledby="finops-guided-question">
         <h2 id="finops-guided-question">Which bundled provider export has the most recoverable AI spend, and who should act on it first?</h2>
         <p class="sample-marker" id="finops-guided-notice">Local synthetic demonstrations. No real data is entered, uploaded or transmitted — every figure is computed locally in this browser from invented records.</p>
-        <div id="finops-guided-chooser"></div>
+        <div id="finops-guided-chooser" data-state="loading" aria-busy="true">
+          <div class="guided-state-message">
+            <p class="guided-state-label"><span class="status-shape guided-shape" aria-hidden="true">○</span><span class="guided-label">Analysis pending</span><span class="guided-value">Waiting for the page result</span></p>
+            <p class="guided-state-remedy">The finding and action will appear here.</p>
+          </div>
+        </div>
         <p class="visually-hidden" id="finops-guided-live" role="status" aria-live="polite" aria-atomic="true"></p>
       </section>
       <section class="finops-panel" id="finops-guided-evidence" data-workspace-region="evidence" data-guided-scenario="aws-bedrock-cur-v1" aria-labelledby="finops-guided-evidence-title">
