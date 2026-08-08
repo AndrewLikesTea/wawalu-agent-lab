@@ -5,12 +5,14 @@
 // what their browser already holds — has exactly one thing they might want that
 // the page cannot give them: a person. This module is that, and nothing more.
 //
-// It drives two surfaces now, so every id it touches is derived from a `prefix`
-// rather than written out: `finops-contact` on the AI FinOps result and
-// `briefing-contact` on the executive briefing. The markup stays with each page
-// — the copy beside a briefing is not the copy beside an import — but the
-// behaviour, the transport, and the promise made once an address lands are one
-// implementation, so the two surfaces cannot drift apart.
+// It drives three surfaces now, so every id it touches is derived from a
+// `prefix` rather than written out: `finops-contact` on the AI FinOps result,
+// `briefing-contact` on the executive briefing, and `hero-contact` in the home
+// page's opening section, beside the recoverable-spend figure a visitor reads
+// first. The markup stays with each page — the copy beside a briefing is not the
+// copy beside an import — but the behaviour, the transport, and the shape of the
+// promise made once an address lands are one implementation, so the surfaces
+// cannot drift apart.
 //
 // Four rules hold it together:
 //
@@ -56,6 +58,12 @@ import {
  * the live region announces this sentence on its own, out of the context of the
  * button that was pressed, so the first words have to say which request
  * succeeded rather than merely that something was sent.
+ *
+ * These two are the default, not the only pair. A surface may pass its own
+ * through `captured` and `alreadyCaptured` — the home page's does, because the
+ * third sentence here is about an analysis it does not carry. What a surface
+ * cannot do is word the *outcome* differently: every set opens on "Follow-up
+ * requested", and every set says who replies and within how long.
  */
 export const CAPTURED = "Follow-up requested — we sent your email address, and nothing else. Someone here "
   + "replies within two business days. We cannot see your analysis, so say in your reply what you would "
@@ -71,11 +79,15 @@ const SUBMITTING = "Requesting a follow-up — sending your email address…";
  * `prefix` names the family of ids the surface ships: `<prefix>-form`, `-open`,
  * `-panel`, `-email`, `-error`, `-status`, `-recovery`, `-dismiss`, `-next`. A
  * page that ships none of them gets `null` and no listeners.
+ *
+ * `captured` and `alreadyCaptured` are the two sentences the live region reads
+ * out once a request lands. They default to this module's own; a surface passes
+ * its own only when the default names something that surface does not carry.
  */
 export function initFinopsContact(
   root = document,
   request = (...args) => globalThis.fetch(...args),
-  { prefix = "finops-contact" } = {},
+  { prefix = "finops-contact", captured = CAPTURED, alreadyCaptured = ALREADY_CAPTURED } = {},
 ) {
   const ERROR_ID = `${prefix}-error`;
   const RECOVERY_ID = `${prefix}-recovery`;
@@ -217,7 +229,7 @@ export function initFinopsContact(
       const address = email.value.trim();
       const body = await postLeadEmail(request, email.value, "follow_up", CONTACT_COPY);
       form.dataset.state = "success";
-      status.textContent = body.created ? CAPTURED : ALREADY_CAPTURED;
+      status.textContent = body.created ? captured : alreadyCaptured;
       // Waiting two business days is not a next action, so the surface offers
       // one: somewhere to go now, in this tab, that does not depend on the reply.
       // It survives the swap below: the form goes, this stays.
