@@ -44,7 +44,7 @@ import { GLANCE_IDS } from "./finops-glance-spec.js";
 // The small picture beside each glance figure. Decorative by construction — see
 // the contract at the top of that file — so nothing below reads its return value
 // for meaning, only for whether there was a shape to append.
-import { renderGlanceFigureChart } from "./glance-figure-charts.js";
+import { glanceChartFallback, renderGlanceFigureChart } from "./glance-figure-charts.js";
 
 /** The state chip, in the same two channels the rest of this page uses. */
 export const STAND_DISCLOSURE_STATE = Object.freeze({
@@ -650,6 +650,15 @@ export function applyFinopsGlance(doc, glance) {
   const illustrate = (node, figure) => {
     const chart = renderGlanceFigureChart(doc, figure);
     if (chart) node.append(chart);
+    else {
+      const fallback = glanceChartFallback(figure);
+      if (fallback) {
+        const text = doc.createElement("span");
+        text.className = "glance-chart-fallback";
+        text.textContent = ` ${fallback}`;
+        node.append(text);
+      }
+    }
     return node;
   };
 

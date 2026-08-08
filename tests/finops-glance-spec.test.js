@@ -26,6 +26,9 @@ import {
   composeFinopsGlance, measureGlanceFigures,
 } from "../src/finops-glance-spec.js";
 import { applyFinopsGlance, applyStandHeadline } from "../src/finops-stand-view.js";
+import {
+  GLANCE_CHART_FALLBACK, glanceChartAgrees, renderGlanceFigureChart,
+} from "../src/glance-figure-charts.js";
 import { composeStandHeadline } from "../src/finops-stand.js";
 import {
   MINIMUM_RANKED_SUCCESSFUL_TASKS, REPRODUCIBILITY_REFUSED, SHIPPED_COHORT_SNAPSHOT,
@@ -370,4 +373,79 @@ test("a figure the page could not measure is given no picture", () => {
   const document = parseHtml(html);
   applyFinopsGlance(document, composeFinopsGlance({ analysis: {}, reproducibility: null }));
   assert.equal(chartsIn(document.getElementById(GLANCE_IDS.block)).length, 0);
+});
+
+test("labelled model fixtures determine every SVG count, coordinate, and adjacent line", () => {
+  const fixtureAnalysis = {
+    ...analysis,
+    history: { periods: [
+      { period: "2026-06", spendUsd: 400 },
+      { period: "2026-07", spendUsd: 500 },
+    ] },
+  };
+  const glance = composeFinopsGlance({ analysis: fixtureAnalysis, reproducibility: ranking() });
+  const document = parseHtml(html);
+  applyFinopsGlance(document, glance);
+  const charts = chartsIn(document.getElementById(GLANCE_IDS.block));
+  assert.deepEqual(charts.map((chart) => chart.getAttribute("data-chart")).sort(),
+    [...GLANCE_FIGURE_KEYS].sort(), "the four labelled series did not all reach production paint");
+
+  for (const figure of glance.figures) {
+    const chart = charts.find((candidate) => candidate.getAttribute("data-chart") === figure.key);
+    assert.equal(glanceChartAgrees(figure, chart), true, `${figure.key} lost model provenance`);
+    assert.equal(textOf(chart.parentNode), figure.line,
+      `${figure.key} geometry is not adjacent to its model's exact prose`);
+    const shape = (tag) => elementsUnder(chart).filter((node) => node.tagName === tag);
+    if (figure.key === "spendMix") {
+      const rects = shape("RECT");
+      assert.equal(rects.length, figure.series.length + 1);
+      const total = figure.series.reduce((sum, value) => sum + value, 0);
+      assert.deepEqual(rects.slice(1).map((rect) => Number(rect.getAttribute("width"))),
+        figure.series.map((value) => Math.max(0, (value / total) * 48 - 0.6)));
+    } else if (figure.key === "departmentRank") {
+      const rects = shape("RECT");
+      const rows = figure.series.slice(0, 4);
+      const largest = Math.max(...rows);
+      assert.equal(rects.length, rows.length * 2);
+      assert.deepEqual(rects.filter((_, index) => index % 2 === 1)
+        .map((rect) => Number(rect.getAttribute("width"))),
+      rows.map((value) => (value / largest) * 48));
+    } else if (figure.key === "movement") {
+      const [first, latest] = figure.series;
+      const rising = latest > first;
+      assert.equal(shape("POLYLINE").length, 1);
+      assert.equal(shape("POLYLINE")[0].getAttribute("points"),
+        rising ? "6,10.5 54,1.5" : "6,1.5 54,10.5");
+      assert.equal(Number(shape("CIRCLE")[0].getAttribute("cy")), rising ? 1.5 : 10.5);
+    } else {
+      const opacities = shape("RECT").map((rect) => rect.getAttribute("fill-opacity"));
+      assert.equal(opacities.length, 4);
+      for (const occupied of figure.series) assert.equal(opacities[occupied - 1], "0.95");
+    }
+  }
+});
+
+test("a perturbed model output is detected against already-rendered geometry", () => {
+  const figure = measureGlanceFigures({ analysis, reproducibility: ranking() })
+    .find((entry) => entry.key === "spendMix");
+  const chart = renderGlanceFigureChart(parseHtml("<main></main>"), figure);
+  assert.equal(glanceChartAgrees(figure, chart), true, "the labelled control fixture disagrees");
+  assert.equal(glanceChartAgrees({ ...figure, value: figure.value + 0.1 }, chart), false,
+    "a changed prose value was not detected");
+  assert.equal(glanceChartAgrees({ ...figure, series: [...figure.series, 0.01] }, chart), false,
+    "a changed coordinate source was not detected");
+});
+
+test("empty, single-point, and all-equal quantitative series paint the documented fallback", () => {
+  for (const [label, series] of [["empty", []], ["single", [7]], ["all equal", [7, 7]]]) {
+    const figure = { key: "movement", measured: true, value: 0, series, line: `${label} fixture.` };
+    const document = parseHtml(html);
+    applyFinopsGlance(document, {
+      leadKey: "movement", crossed: true, lead: figure.line, nextAction: "Inspect the source.",
+      figures: [figure], supporting: [],
+    });
+    const lead = document.getElementById(GLANCE_IDS.lead);
+    assert.equal(chartsIn(lead).length, 0, `${label} drew misleading geometry`);
+    assert.equal(textOf(lead), `${figure.line} ${GLANCE_CHART_FALLBACK}`);
+  }
 });

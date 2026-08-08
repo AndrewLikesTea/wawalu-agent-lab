@@ -25,11 +25,12 @@
 // THE DEGENERATE SERIES ARE THE FEATURE, NOT A GUARD.
 //   • No points: nothing is drawn and null is returned, so the caller keeps its
 //     text and the DOM gains no empty SVG shell.
-//   • One point: a valid single-datum shape, not an axis and not a trend.
+//   • One point, or all-equal points: no quantitative chart. A dot or flat
+//     line implies comparison where the model supplied none, so the caller
+//     prints GLANCE_CHART_FALLBACK instead.
 //   • Many points: bounded. A ranked list draws at most RANK_ROWS rows.
-//   • All zero, or flat: no denominator is ever zero, because a non-positive
-//     denominator maps every datum to zero length. The chart then draws its
-//     track and no fill — "nothing here", rather than NaN in a width.
+//   • All zero, or flat: the same named textual fallback; no zero denominator,
+//     invented slope, or decorative track reaches the executive surface.
 //   • Negative: magnitude and direction are separated before any attribute is
 //     written. Month-over-month can fall, and a rect refuses a negative height.
 
@@ -55,10 +56,19 @@ export const RANK_ROWS = 4;
 /** The peer figure's scale: four quartiles, always drawn, one or two marked. */
 export const PEER_SLOTS = 4;
 
+/** The exact sentence painted when quantitative geometry would imply a trend. */
+export const GLANCE_CHART_FALLBACK = "No comparison chart: at least two distinct values are required.";
+
 /** Only real numbers reach a coordinate. A series of NaN is a series of none. */
 const finite = (series) => (Array.isArray(series) ? series : [])
   .map((value) => Number(value))
   .filter((value) => Number.isFinite(value));
+
+const comparable = (series) => {
+  const values = finite(series);
+  return values.length > 1 && new Set(values).size > 1 ? values : null;
+};
+const distinct = (values) => values.length > 1 && new Set(values).size > 1;
 
 const el = (doc, name, attributes) => {
   const node = doc.createElementNS(SVG_NS, name);
@@ -93,7 +103,7 @@ const bar = (doc, { x, y, width, height, opacity }) => el(doc, "rect", {
  */
 export function renderSpendMixChart(doc, series) {
   const values = finite(series).map((value) => Math.max(0, value));
-  if (values.length === 0) return null;
+  if (!distinct(values)) return null;
   const node = root(doc, "spendMix");
   node.append(bar(doc, { x: GAP, y: 3, width: WIDTH, height: 6, opacity: TRACK }));
   const total = values.reduce((sum, value) => sum + value, 0);
@@ -123,7 +133,7 @@ export function renderSpendMixChart(doc, series) {
  */
 export function renderRankChart(doc, series) {
   const values = finite(series).map((value) => Math.max(0, value));
-  if (values.length === 0) return null;
+  if (!distinct(values)) return null;
   const node = root(doc, "departmentRank");
   const rows = values.slice(0, RANK_ROWS);
   const largest = Math.max(...rows);
@@ -145,12 +155,12 @@ export function renderRankChart(doc, series) {
  * Movement: a sparkline over the periods, with the latest one marked.
  *
  * The sign is carried by where the last point sits, not by a length, so a fall
- * draws exactly as safely as a rise. A flat or all-zero series has no span to
- * normalise against and draws a level line through the middle.
+ * draws exactly as safely as a rise. A flat or all-zero series has no comparison
+ * to encode and is refused in favour of the documented textual fallback.
  */
 export function renderMovementChart(doc, series) {
-  const values = finite(series);
-  if (values.length === 0) return null;
+  const values = comparable(series);
+  if (!values) return null;
   const node = root(doc, "movement");
   const low = Math.min(...values);
   const span = Math.max(...values) - low;
@@ -217,5 +227,28 @@ const RENDERERS = Object.freeze({
 export function renderGlanceFigureChart(doc, figure) {
   if (!doc?.createElementNS || !figure?.measured) return null;
   const render = RENDERERS[figure.key];
-  return render ? render(doc, figure.series ?? []) : null;
+  const chart = render ? render(doc, figure.series ?? []) : null;
+  if (!chart) return null;
+  // These attributes are an executable provenance seam. Tests (and a disputed
+  // score) can compare the exact named model output with the geometry already
+  // painted, without depending on harness element identity.
+  chart.setAttribute("data-model-value", String(figure.value));
+  chart.setAttribute("data-model-series", JSON.stringify(finite(figure.series)));
+  return chart;
+}
+
+/** Explain a missing quantitative chart; unmeasured prose already explains itself. */
+export function glanceChartFallback(figure) {
+  if (!figure?.measured || figure.key === "peerPosition") return null;
+  const values = figure.key === "movement" ? finite(figure.series)
+    : finite(figure.series).map((value) => Math.max(0, value));
+  return distinct(values) ? null : GLANCE_CHART_FALLBACK;
+}
+
+/** Detect a chart retained after its named model output changed. */
+export function glanceChartAgrees(figure, chart) {
+  if (!figure?.measured || !chart) return false;
+  return chart.getAttribute("data-chart") === figure.key
+    && chart.getAttribute("data-model-value") === String(figure.value)
+    && chart.getAttribute("data-model-series") === JSON.stringify(finite(figure.series));
 }

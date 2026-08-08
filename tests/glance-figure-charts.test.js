@@ -21,7 +21,8 @@ import assert from "node:assert/strict";
 
 import { parseHtml, textOf } from "./support/browser.js";
 import {
-  PEER_SLOTS, RANK_ROWS, renderGlanceFigureChart, renderMovementChart,
+  GLANCE_CHART_FALLBACK, PEER_SLOTS, RANK_ROWS, glanceChartFallback,
+  renderGlanceFigureChart, renderMovementChart,
   renderPositionChart, renderRankChart, renderSpendMixChart,
 } from "../src/glance-figure-charts.js";
 
@@ -101,15 +102,16 @@ for (const [name, render] of RENDERERS) {
   }
 }
 
-test("one point draws one valid shape in every renderer", () => {
-  for (const [name, render] of RENDERERS) {
-    const chart = render(doc(), [7]);
-    assert.equal(chart.tagName, "SVG", `${name} refused a single datum`);
-    assert.ok(elements(chart).length > 1, `${name} drew an empty root for a single datum`);
+test("a single quantitative point uses the documented prose fallback", () => {
+  for (const [key, render] of [
+    ["spendMix", renderSpendMixChart], ["departmentRank", renderRankChart],
+    ["movement", renderMovementChart],
+  ]) {
+    assert.equal(render(doc(), [7]) === null, true, `${key} implied a comparison from one point`);
+    assert.equal(glanceChartFallback({ key, measured: true, series: [7] }), GLANCE_CHART_FALLBACK);
   }
-  // A single period is a point, not a line: there is nothing to join.
-  assert.equal(shapes(renderMovementChart(doc(), [7]), "polyline").length, 0);
-  assert.equal(shapes(renderMovementChart(doc(), [7]), "circle").length, 1);
+  // Peer position is a categorical occupied slot, not a quantitative series.
+  assert.equal(shapes(renderPositionChart(doc(), [4]), "rect").length, PEER_SLOTS);
 });
 
 test("a ranked list stays inside its box however many departments arrive", () => {
@@ -121,7 +123,7 @@ test("a ranked list stays inside its box however many departments arrive", () =>
 });
 
 test("many points draw one segment each without leaving the spend-mix bar", () => {
-  const many = Array.from({ length: 25 }, () => 4);
+  const many = Array.from({ length: 25 }, (_, index) => index + 1);
   const chart = renderSpendMixChart(doc(), many);
   // The track, plus one slice per class.
   assert.equal(shapes(chart, "rect").length, many.length + 1);
@@ -131,20 +133,15 @@ test("many points draw one segment each without leaving the spend-mix bar", () =
   for (const edge of right) assert.ok(edge <= box + 0.001, `a slice ran to ${edge} past ${box}`);
 });
 
-test("an all-zero series draws its track and no fill, and never divides by zero", () => {
-  const mix = renderSpendMixChart(doc(), [0, 0, 0, 0]);
-  // The track alone: no denominator, so no slice claims a share of nothing.
-  assert.equal(shapes(mix, "rect").length, 1);
-
-  const rank = renderRankChart(doc(), [0, 0, 0]);
-  const widths = shapes(rank, "rect").map((rect) => Number(rect.getAttribute("width")));
-  assert.equal(widths.filter((width) => width === 0).length, 3, "a zero row drew a bar");
-
-  // A flat sparkline has no span to normalise against; every point lands level.
-  const flat = renderMovementChart(doc(), [0, 0, 0]);
-  const points = shapes(flat, "polyline")[0].getAttribute("points").split(" ");
-  const heights = new Set(points.map((point) => point.split(",")[1]));
-  assert.equal(heights.size, 1, "a flat series drew a slope");
+test("all-equal quantitative series use prose instead of a misleading flat chart", () => {
+  for (const [key, render] of [
+    ["spendMix", renderSpendMixChart], ["departmentRank", renderRankChart],
+    ["movement", renderMovementChart],
+  ]) {
+    assert.equal(render(doc(), [7, 7, 7]) === null, true, `${key} drew an all-equal series`);
+    assert.equal(glanceChartFallback({ key, measured: true, series: [7, 7, 7] }),
+      GLANCE_CHART_FALLBACK);
+  }
 });
 
 test("no series writes NaN or a negative length into an attribute", () => {
