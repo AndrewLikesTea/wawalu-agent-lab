@@ -321,7 +321,13 @@
           </div>
           <!-- The graded floor, beside the modelled figure and never instead of
                it. Both name the base they are taken over, so the pair is not
-               two answers to one question. Reuses .stand-figure; no new CSS. -->
+               two answers to one question. Reuses .stand-figure; no new CSS.
+               #1482: the amount is printed only when the rubric has scored at
+               least the published coverage bar of analyzed spend, and it is
+               printed with that coverage percentage in the same line. Under the
+               bar this slot states the shortfall and which departments would
+               clear it, and prints no currency at all — a dollar figure under a
+               graded label is read as graded whatever sits beside it. -->
           <div class="stand-figure stand-figure-floor">
             <h3 class="stand-figure-label">Graded floor · scored departments only</h3>
             <p class="stand-figure-value" id="finops-stand-floor-value" data-available="false"></p>

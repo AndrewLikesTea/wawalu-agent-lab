@@ -16,7 +16,8 @@ import { readFile } from "node:fs/promises";
 
 import { parseHtml, textOf } from "./support/browser.js";
 import {
-  FLOOR_LABEL, FLOOR_UNSCORED_REASON, RECOVERABLE_FLOOR_VERSION, STAND_DISCLOSURE, STAND_IDS,
+  FLOOR_LABEL, FLOOR_PUBLISH_BAR, FLOOR_UNSCORED_REASON, RECOVERABLE_FLOOR_VERSION,
+  STAND_DISCLOSURE, STAND_IDS,
   STAND_MOUNTED_DISCLOSURES, STAND_PENDING, buildStandHeadline, composeStandHeadline,
   gradedRecoverableFloor, standHeadlineForImport,
 } from "../src/finops-stand.js";
@@ -246,7 +247,11 @@ test("the disclosure lists every scored department and the sum they make", () =>
   for (const department of scoredRows) {
     const row = rows.find((item) => item.term.startsWith(department.name));
     assert.ok(row, `${department.name} was scored but is not in the floor's working`);
-    assert.match(row.detail, new RegExp(`\\$${department.recoverableUsd.toLocaleString("en-US")}`));
+    // Rounded to whole dollars, as every printed amount on this page is: the
+    // envelope carries half-dollar recoverable figures and the working shows
+    // what a reader sees, not the unrounded term behind it.
+    assert.match(row.detail,
+      new RegExp(`\\$${Math.round(department.recoverableUsd).toLocaleString("en-US")}`));
   }
   const sum = rows.at(-1);
   assert.equal(sum.term, "Sum");
@@ -309,4 +314,201 @@ test("an imported export recomputes both figures from its own envelope", () => {
   const rows = headline.disclosures.find((item) => item.id === STAND_DISCLOSURE.floor).entries;
   assert.deepEqual(rows.map((row) => row.term),
     ["Alpha · rubric score 61", "Beta · rubric score 77", "Sum"]);
+});
+
+// ---------------------------------------------------------------------------
+// 5. Reproducibility (#1482). The figure is a literal, the contributing set is a
+//    literal, and neither moves when the rows arrive in a different order.
+// ---------------------------------------------------------------------------
+
+/**
+ * The flagship figure, written out rather than re-summed.
+ *
+ * Every other assertion in this file derives its expectation from the envelope,
+ * which proves the module agrees with itself. This one does not: it is the
+ * number a reader is shown, typed here, so that a fixture edit that moves the
+ * published figure has to be acknowledged in this file rather than absorbed by
+ * an expectation that moved with it.
+ */
+const FLAGSHIP_FLOOR = Object.freeze({
+  floorUsd: 48_829,
+  scoredSpendUsd: 143_500,
+  totalSpendUsd: 154_500,
+  coveragePercent: 93,
+  barPercent: 50,
+  departmentIds: Object.freeze([
+    "psn_example_unit_atlas0",
+    "psn_example_unit_boreal",
+    "psn_example_unit_cinder",
+    "psn_example_unit_quartz",
+  ]),
+});
+
+/**
+ * The same envelope with every ordered input reversed.
+ *
+ * Reversing both the ranked departments and the rubric's own rows is the whole
+ * point: a sum that depended on load order, and a contributing set that
+ * depended on iteration order, would both move here and nowhere else.
+ */
+function reversedAnalysis(source) {
+  return {
+    ...source,
+    rankedDepartments: [...source.rankedDepartments].reverse(),
+    literacy: { ...source.literacy, departments: [...source.literacy.departments].reverse() },
+  };
+}
+
+test("the flagship floor is the published figure, over the published set, at the published coverage", () => {
+  const floor = gradedRecoverableFloor(analysis);
+  assert.equal(floor.scored, true);
+  assert.equal(floor.publishable, true, "the flagship example no longer clears the publishing bar");
+  assert.equal(floor.floorUsd, FLAGSHIP_FLOOR.floorUsd);
+  assert.equal(floor.scoredSpendUsd, FLAGSHIP_FLOOR.scoredSpendUsd);
+  assert.equal(floor.totalSpendUsd, FLAGSHIP_FLOOR.totalSpendUsd);
+  assert.equal(floor.coveragePercent, FLAGSHIP_FLOOR.coveragePercent);
+  assert.equal(floor.barPercent, FLAGSHIP_FLOOR.barPercent);
+  // The set, exactly: an extra contributor and a missing one both fail here.
+  assert.deepEqual([...floor.departmentIds], [...FLAGSHIP_FLOOR.departmentIds]);
+  // Sorted, and sorted by the stable key rather than by whatever order they
+  // arrived in — so the set is a set, not a rendering of one traversal.
+  assert.deepEqual([...floor.departmentIds], [...floor.departmentIds].sort());
+  // Coverage clears the bar the page publishes at, and the two are the same
+  // published number rather than one typed here.
+  assert.ok(floor.coverage >= floor.bar);
+  assert.equal(floor.bar, FLOOR_PUBLISH_BAR);
+});
+
+test("the floor is identical when the fixture rows are permuted", () => {
+  const natural = gradedRecoverableFloor(analysis);
+  const permuted = gradedRecoverableFloor(reversedAnalysis(analysis));
+
+  // The figure, byte for byte, and the set it derives from — not merely the
+  // same call twice on the same input, which would prove only that the function
+  // is a function.
+  assert.equal(permuted.floorUsd, natural.floorUsd);
+  assert.equal(permuted.floorUsd, FLAGSHIP_FLOOR.floorUsd);
+  assert.equal(permuted.scoredSpendUsd, natural.scoredSpendUsd);
+  assert.equal(permuted.coveragePercent, natural.coveragePercent);
+  assert.deepEqual([...permuted.departmentIds], [...natural.departmentIds]);
+
+  // The permutation really did change the input, so the equality above is a
+  // result rather than an accident of the two arrays being the same array.
+  assert.notDeepEqual(
+    reversedAnalysis(analysis).rankedDepartments.map((row) => row.id),
+    analysis.rankedDepartments.map((row) => row.id));
+  // …and it changed the DISPLAY order, which is allowed to follow the envelope.
+  assert.notDeepEqual(permuted.contributions.map((row) => row.id),
+    natural.contributions.map((row) => row.id));
+  // The rendered value line is the same string either way, which is what a
+  // reader would compare between two runs.
+  assert.equal(
+    composeStandHeadline({ analysis: reversedAnalysis(analysis) }).recoverableFloor.value,
+    composeStandHeadline({ analysis }).recoverableFloor.value);
+});
+
+// ---------------------------------------------------------------------------
+// 6. Non-retroactivity. These scores were published before #1482 widened the
+//    sample; this test exists to prove a rubric or fixture edit cannot move a
+//    score that has already been shown to the department it grades. A change
+//    that moves one of these numbers is not necessarily wrong — it is a change
+//    that has to be argued for in review rather than absorbed silently.
+// ---------------------------------------------------------------------------
+
+/** Read off the fixture output before the sample was widened, and pinned since. */
+const SCORES_BEFORE_1482 = Object.freeze({
+  psn_example_unit_cinder: 54,
+  psn_example_unit_quartz: 74,
+  psn_example_unit_boreal: 82,
+});
+
+test("widening the scored sample did not move an already-published score", () => {
+  const scores = new Map(analysis.literacy.departments
+    .filter((row) => row.gradeable === true).map((row) => [row.departmentId, row.score]));
+  for (const [id, score] of Object.entries(SCORES_BEFORE_1482)) {
+    assert.equal(scores.get(id), score,
+      `${id} was published at ${score} before the sample was widened and now scores `
+      + `${scores.get(id)}; a rubric change must not be retroactive`);
+  }
+  // The floor quotes the same numbers it filtered on, so a score that moved in
+  // one place and not the other fails here too.
+  const floor = gradedRecoverableFloor(analysis);
+  for (const row of floor.contributions) {
+    if (row.id in SCORES_BEFORE_1482) assert.equal(row.score, SCORES_BEFORE_1482[row.id]);
+  }
+  // The newly scored department is genuinely new, and genuinely scored.
+  const added = floor.contributions.find((row) => !(row.id in SCORES_BEFORE_1482));
+  assert.ok(added, "#1482 added no newly scored department to the floor");
+  assert.ok(Number.isFinite(added.score));
+});
+
+test("every contributing department carries its dimensions, its marks, and a written rationale", () => {
+  const floor = gradedRecoverableFloor(analysis);
+  for (const row of floor.contributions) {
+    // The rubric's own axes, all of them, with the weight each carries.
+    assert.deepEqual(row.subscores.map((axis) => axis.key), ["intent", "efficiency", "modelFit"]);
+    assert.deepEqual(row.subscores.map((axis) => axis.weightPercent), [50, 30, 20]);
+    for (const axis of row.subscores) assert.ok(Number.isFinite(axis.score));
+    // …and a sentence, not a bare number: the score, the dimensions behind it,
+    // and the mix it was taken over.
+    assert.match(row.rationale, new RegExp(`Scored ${row.score} of 100`));
+    assert.match(row.rationale, /Dimensions: Intent \d+ \(weight 50%\)/);
+    assert.match(row.rationale, /Mix behind it: /);
+  }
+  // The rationale reaches the page, beside the row it explains.
+  const entries = buildStandHeadline().disclosures
+    .find((item) => item.id === STAND_DISCLOSURE.floor).entries;
+  assert.match(entries[0].detail, /Scored \d+ of 100 on rubric literacy-mix\/1\.0\.0/);
+  // The sum states the coverage it was computed at, in the same row.
+  assert.match(entries.at(-1).detail, new RegExp(`${FLAGSHIP_FLOOR.coveragePercent}% of the `));
+});
+
+// ---------------------------------------------------------------------------
+// 7. Below the bar: the shortfall, never a number dressed up as a graded one.
+// ---------------------------------------------------------------------------
+
+test("below the publishing bar the slot states the shortfall and prints no currency", () => {
+  // A quarter of the spend scored — departments were graded, so an amount does
+  // exist; it is simply not one this page will publish under a graded label.
+  const belowBar = importedAnalysis({
+    scored: [{ id: "u-alpha", name: "Alpha", spendUsd: 25000, recoverableUsd: 9000, score: 61 }],
+    unscored: [
+      { id: "u-gamma", name: "Gamma", spendUsd: 50000, recoverableUsd: 20000 },
+      { id: "u-delta", name: "Delta", spendUsd: 25000, recoverableUsd: 5000 },
+    ],
+  });
+  const floor = gradedRecoverableFloor(belowBar);
+  assert.equal(floor.scored, true, "the fixture must actually score a department");
+  assert.equal(floor.publishable, false);
+  assert.equal(floor.coveragePercent, 25);
+  assert.ok(floor.coverage < floor.bar);
+
+  const document = parseHtml(html);
+  applyStandHeadline(document, composeStandHeadline({ analysis: belowBar, source: "import" }));
+  const value = shownText(document, STAND_IDS.floorValue);
+  const basis = shownText(document, STAND_IDS.floorBasis);
+
+  // Never empty. The slot always says something.
+  assert.ok(value.trim().length > 0 && basis.trim().length > 0);
+  // The shortfall, in both directions: where coverage is, and where the bar is.
+  assert.match(value, /25% of analyzed spend is scored/);
+  assert.match(value, /under the 50% bar/);
+  assert.match(basis, /published only once the rubric has scored 50%/);
+  // …and what would clear it, by name.
+  assert.match(basis, /Score Gamma, Delta to clear it\./);
+
+  // NO CURRENCY. Not the withheld floor, not the scored spend, not a zero. A
+  // dollar figure under a "Graded floor" label is read as graded whatever the
+  // sentence beside it says, which is the entire reason this branch exists.
+  assert.equal(/\$/.test(value), false, `the below-bar slot printed currency: "${value}"`);
+  assert.equal(/\$/.test(basis), false, `the below-bar basis printed currency: "${basis}"`);
+  assert.equal(byId(document, STAND_IDS.floorValue).dataset.available, "false");
+
+  // The arithmetic is withheld from the headline, not destroyed: the working is
+  // still one interaction away, which is what keeps this a stated refusal
+  // rather than a missing figure.
+  const rows = composeStandHeadline({ analysis: belowBar, source: "import" })
+    .disclosures.find((item) => item.id === STAND_DISCLOSURE.floor).entries;
+  assert.equal(rows.at(-1).term, "Sum");
+  assert.match(rows.at(-1).detail, /\$9,000/);
 });

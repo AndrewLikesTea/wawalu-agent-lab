@@ -545,15 +545,32 @@ export function exampleDatasetFiles() {
 // recoverable over that same spend. The example could not exercise the one gate
 // it exists to demonstrate.
 //
-// WHICH TEAMS ARE SAMPLED, AND WHY NOT ALL OF THEM. Boreal, Cinder and Quartz
-// route through the invented gateway that emits this sample; Atlas and Ember do
-// not. That is the authored shape of the example and it is load bearing: the
-// department driving the increase is the one with the least evidence under it,
-// so the coverage figure lands between the published tier floors, the letter is
-// shown and marked not actionable alone, and the residue the panel names is a
-// real one a reader can act on. A sample covering every team would put the
-// example in the graded tier, where there is no residue to rank and the worked
-// example teaches nothing about coverage.
+// WHICH TEAMS ARE SAMPLED, AND WHY NOT ALL OF THEM. Atlas, Boreal, Cinder and
+// Quartz route through the invented gateway that emits this sample; Ember does
+// not.
+//
+// Atlas was outside the sample until #1482 and that was the wrong shape. Atlas
+// carries $79,000 of the $154,500 in scope — a clear majority — so leaving it
+// unscored held sampled-spend coverage at 42%, under the 50% bar
+// `export-gradability.js` publishes a grade at. The worked example therefore
+// demonstrated the withheld path and nothing else: the graded floor beside the
+// modelled figure could never be published, and a first-time reader never saw
+// the figure the region exists to show. Scoring the department that drives the
+// increase is also the honest shape — it is the one a reader would sample first
+// — and it takes coverage to 93%.
+//
+// EMBER STAYS OUT, DELIBERATELY. A sample covering every team would leave no
+// residue to rank, no uncovered cluster for the eligibility verdict to name,
+// and nothing for the ungraded-department exclusion in the graded floor to
+// exclude. Ember is $11,000 of the total, so the example still teaches that
+// coverage is partial without hiding the figure behind a shortfall.
+//
+// Atlas's own mix is deliberately the weakest of the four — one high-value
+// query against two over-provisioned, two inefficient and one out-of-scope —
+// because a department whose spend jumped hardest while its prompts stayed
+// worst is the finding this example is built to produce. Its score is a
+// consequence of that mix and of the published rubric weights; nothing here
+// assigns it a number.
 //
 // Every row is invented, carries a pre-assigned rubric category rather than a
 // prompt excerpt — the contract's other accepted shape — and joins a billed
@@ -562,6 +579,12 @@ const SAMPLE_DAYS = Object.freeze(["15", "16", "17", "18", "19", "20"]);
 
 /** Six sampled queries per sampled team, in `SAMPLE_DAYS` order. */
 const SAMPLED_UNITS = Object.freeze([
+  Object.freeze({
+    unitId: "psn_example_unit_atlas0",
+    categories: Object.freeze([
+      "overProvisioned", "inefficient", "highValue", "inefficient", "overProvisioned", "outOfScope",
+    ]),
+  }),
   Object.freeze({
     unitId: "psn_example_unit_boreal",
     categories: Object.freeze([

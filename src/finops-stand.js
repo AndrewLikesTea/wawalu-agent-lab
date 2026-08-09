@@ -53,7 +53,13 @@ import { validateCohortAttribution } from "./cohort-attribution.js";
 // The gate this region reads before it quotes a figure out of a reader's file.
 // It owns the coverage bar, the four states, and the sentence for each; nothing
 // about gradability is decided here.
-import { gradeExport } from "./export-gradability.js";
+import { COVERAGE_BAR, gradeExport } from "./export-gradability.js";
+// The coverage metric itself, so the floor is measured with the same function
+// the eligibility verdict is measured with rather than a second division here.
+import { sampledSpendCoverage } from "./grade-eligibility.js";
+// The rubric as data. Read for its axis labels and weights only: no number in
+// it is copied, and the assumption behind each weight is published beside it.
+import { PROMPT_LITERACY_RUBRIC, RUBRIC_VERSION_ID } from "./prompt-literacy-scoring.js";
 import { STAND_LABEL, periodLabel, scoredCoverage } from "./finops-screen-contract.js";
 import {
   COST_BAND, COST_BAND_DIRECTION, COST_METRIC, COST_POSITION_WITHHELD, PEER_COST_COHORTS,
@@ -561,7 +567,49 @@ function recoverableSlot(analysis, gradability) {
 }
 
 /** Bump when the filter, the sum, or the shape of a contribution changes. */
-export const RECOVERABLE_FLOOR_VERSION = "finops-recoverable-floor/1.0.0";
+export const RECOVERABLE_FLOOR_VERSION = "finops-recoverable-floor/1.1.0";
+
+/**
+ * The bar this figure is published at, imported rather than restated:
+ * `export-gradability.js`'s `COVERAGE_BAR`, which is itself the lowest coverage
+ * floor in `grade-eligibility.js` whose tier still calls a result graded. A
+ * director who disputes the bar reads one file, and moving the tier table moves
+ * this figure's publishing rule with it.
+ */
+export const FLOOR_PUBLISH_BAR = COVERAGE_BAR;
+
+// ---------------------------------------------------------------------------
+// THE ASSUMPTION BEHIND EVERY WEIGHT IN THE SCORE THIS FLOOR FILTERS ON.
+// Stated here, in the module that consumes the scores, in the terms a director
+// whose team is being graded can dispute — the argument, not the arithmetic.
+// The numbers themselves are read from `prompt-literacy-rubric.json`, which
+// carries the full assumption text beside each one; these are the one-liners.
+//
+//   Intent, 50%      Half the score, because intent is the only axis the
+//                    requester can move by rewriting the request. Dispute it if
+//                    you believe your team's spend is set by routing policy
+//                    rather than by how the request was written.
+//   Efficiency, 30%  Above model fit, because a re-prompt spiral burns more
+//                    than one mis-routed call. Dispute it if your work is
+//                    genuinely iterative and repeat turns are the method.
+//   Model fit, 20%   The smallest share, because a gateway rule can fix routing
+//                    without the requester changing anything. Dispute it if you
+//                    have no gateway and the requester really does choose.
+//   Per query, not   Every scored query counts once, whatever it cost, so a
+//   per dollar       mis-modelled cheap query and an expensive one move the
+//                    grade equally. The dollar gap is carried by THIS figure,
+//                    not by the letter. Dispute it if you want spend-weighting.
+//   Coverage bar,    A floor is published only when the rubric scored at least
+//   50% of spend     half the analyzed spend. Below it the shortfall is stated
+//                    instead, because a graded-looking dollar figure taken over
+//                    a minority of the money is the failure mode this whole
+//                    module exists to prevent. Dispute it in COVERAGE_TIERS.
+// ---------------------------------------------------------------------------
+
+/** The rubric's axes, in published order. Labels and weights, never a score. */
+const FLOOR_RUBRIC_AXES = Object.freeze(PROMPT_LITERACY_RUBRIC.axes.map((axis) => Object.freeze({
+  key: axis.key, label: axis.label, weightPercent: axis.weightPercent,
+})));
 
 /**
  * Why no floor could be taken. A cause per state, never a zero: an empty rubric
@@ -574,6 +622,52 @@ export const FLOOR_UNSCORED_REASON = Object.freeze({
   noneScored: "The rubric has not scored any department in this analysis yet, so no graded floor "
     + "is taken. Nothing scored is not a recoverable floor of $0.",
 });
+
+/**
+ * The rubric dimensions and this department's mark on each, in published axis
+ * order. Read off the row the rubric emitted; nothing is scored here.
+ */
+function floorSubscores(row) {
+  const marks = row?.subscores ?? null;
+  return Object.freeze(FLOOR_RUBRIC_AXES
+    .filter((axis) => Number.isFinite(Number(marks?.[axis.key])))
+    .map((axis) => Object.freeze({
+      key: axis.key,
+      label: axis.label,
+      weightPercent: axis.weightPercent,
+      score: Number(marks[axis.key]),
+    })));
+}
+
+/**
+ * One sentence restating what a department's score rests on: the dimensions and
+ * their marks, the weight each carries, and the category mix underneath.
+ *
+ * DERIVED, NEVER AUTHORED. A hand-written rationale beside a computed score is
+ * a second source of truth that drifts the first time the rubric moves; this
+ * one is built from the same row the score came from, so it cannot disagree
+ * with the number it explains. It restates the basis of a score and changes no
+ * score. Every value in it is a number or a rubric-owned label — no prompt
+ * text, no excerpt, and nothing a reader's file supplied, reaches it.
+ */
+function floorRationale(row) {
+  const score = Number(row?.score);
+  const marks = floorSubscores(row)
+    .map((axis) => `${axis.label} ${Math.round(axis.score)} (weight ${axis.weightPercent}%)`);
+  const categories = Array.isArray(row?.categories) ? row.categories : [];
+  const sampled = categories.reduce((sum, item) => sum + (Number(item?.records) || 0), 0);
+  const mix = [...categories]
+    .filter((item) => Number(item?.share) > 0)
+    .sort((left, right) => Number(right.share) - Number(left.share)
+      || String(left.key).localeCompare(String(right.key)))
+    .map((item) => `${SHARE.format(Number(item.share))} ${String(item.label).toLowerCase()}`);
+  const parts = [`Scored ${Math.round(score)} of 100 on rubric `
+    + `${row?.rubricVersion ?? RUBRIC_VERSION_ID} from ${COUNT.format(sampled)} sampled `
+    + `quer${sampled === 1 ? "y" : "ies"}.`];
+  if (marks.length) parts.push(`Dimensions: ${marks.join(", ")}.`);
+  if (mix.length) parts.push(`Mix behind it: ${mix.join(", ")}.`);
+  return parts.join(" ");
+}
 
 /**
  * The recoverable spend that survives the coverage caveat.
@@ -595,34 +689,77 @@ export function gradedRecoverableFloor(analysis = null) {
   const ranked = Array.isArray(analysis?.rankedDepartments) ? analysis.rankedDepartments : [];
   const literacy = Array.isArray(analysis?.literacy?.departments)
     ? analysis.literacy.departments : [];
-  const scores = new Map();
+  const scored = new Map();
   for (const row of literacy) {
     if (row?.gradeable === true && Number.isFinite(Number(row?.score))) {
-      scores.set(row.departmentId, Number(row.score));
+      scored.set(row.departmentId, row);
     }
   }
   const contributions = [];
-  let floorUsd = 0;
-  let scoredSpendUsd = 0;
+  const unscored = [];
   for (const department of ranked) {
-    if (!scores.has(department?.id)) continue;
+    const name = filled(department?.name) ? department.name : department?.id ?? "";
+    if (!scored.has(department?.id)) {
+      if (filled(name)) unscored.push(name);
+      continue;
+    }
     const recoverableUsd = Number(department?.recoverableUsd);
     const spendUsd = Number(department?.spendUsd);
     if (!Number.isFinite(recoverableUsd) || !Number.isFinite(spendUsd)) continue;
-    floorUsd += recoverableUsd;
-    scoredSpendUsd += spendUsd;
+    const row = scored.get(department.id);
     contributions.push(Object.freeze({
       id: department.id,
-      name: filled(department.name) ? department.name : department.id,
-      score: scores.get(department.id),
+      name,
+      score: Number(row.score),
       spendUsd,
       recoverableUsd,
+      // The rubric dimensions and the per-dimension marks behind that score, and
+      // one sentence restating what the score rests on. Derived from the row the
+      // rubric already published, so a rationale cannot drift from its number.
+      subscores: floorSubscores(row),
+      rationale: floorRationale(row),
     }));
   }
+  // ORDER-INDEPENDENCE, ON PURPOSE, IN TWO ORDERS. `contributions` keeps the
+  // envelope's ranked order because that is the order the page already lists
+  // departments in and the order the disclosure below prints. The SUM is taken
+  // over a copy sorted by department id, so the figure cannot depend on the
+  // order rows happened to load in. Ids are compared with a plain code-unit
+  // comparison rather than `localeCompare`, because a reader's locale must not
+  // reorder an arithmetic input.
+  const summable = [...contributions].sort((left, right) => (left.id < right.id ? -1
+    : left.id > right.id ? 1 : 0));
+  let floorUsd = 0;
+  let scoredSpendUsd = 0;
+  for (const row of summable) {
+    floorUsd += row.recoverableUsd;
+    scoredSpendUsd += row.spendUsd;
+  }
+  // ONE ROUNDING STEP, HERE, AFTER THE SUM. Nothing above rounds a term, so no
+  // per-addition residue accumulates; nothing below rounds again, so the figure,
+  // the percentage and the disclosure all quote the same rounded value.
+  const coverage = sampledSpendCoverage({
+    coveredUsd: scoredSpendUsd, totalUsd: Number(analysis?.spendUsd),
+  });
+  const shared = {
+    version: RECOVERABLE_FLOOR_VERSION,
+    /** Sorted ascending by id: the contributing set, as a set, for a caller to pin. */
+    departmentIds: Object.freeze(summable.map((row) => row.id)),
+    /** The names the rubric has not reached, ranked order, for the shortfall sentence. */
+    unscoredNames: Object.freeze(unscored),
+    /** The denominator the coverage below was taken over. Never re-derived by a view. */
+    totalSpendUsd: coverage.ratio === null ? null : Math.round(coverage.totalUsd),
+    /** The raw ratio the figure was computed at, and the same ratio as whole percent. */
+    coverage: coverage.ratio,
+    coveragePercent: coverage.ratio === null ? null : Math.round(coverage.ratio * 100),
+    bar: FLOOR_PUBLISH_BAR,
+    barPercent: Math.round(FLOOR_PUBLISH_BAR * 100),
+  };
   if (!contributions.length) {
     return Object.freeze({
-      version: RECOVERABLE_FLOOR_VERSION,
+      ...shared,
       scored: false,
+      publishable: false,
       floorUsd: null,
       scoredSpendUsd: null,
       contributions: Object.freeze([]),
@@ -631,9 +768,10 @@ export function gradedRecoverableFloor(analysis = null) {
     });
   }
   return Object.freeze({
-    version: RECOVERABLE_FLOOR_VERSION,
+    ...shared,
     scored: true,
-    // Rounded ONCE, after the sum, exactly as the modelled figure is.
+    /** Whether the coverage this was computed at clears the published bar. */
+    publishable: coverage.ratio !== null && coverage.ratio >= FLOOR_PUBLISH_BAR,
     floorUsd: Math.round(floorUsd),
     scoredSpendUsd: Math.round(scoredSpendUsd),
     contributions: Object.freeze(contributions),
@@ -643,6 +781,9 @@ export function gradedRecoverableFloor(analysis = null) {
 
 /** The floor's label. It says "floor" in both halves so no reader reads a total. */
 export const FLOOR_LABEL = "Graded floor · scored departments only";
+
+/** How many unscored departments the shortfall sentence names before counting. */
+const FLOOR_NAMED_LIMIT = 2;
 
 /**
  * The floor beside the modelled figure, each naming the base it is taken over.
@@ -656,18 +797,51 @@ function recoverableFloorSlot(analysis) {
       available: false, label: FLOOR_LABEL, value: STAND_PENDING.floor, basis: floor.reason, floor,
     });
   }
+  const count = floor.contributions.length;
+  // BELOW THE BAR: THE SHORTFALL, NEVER THE NUMBER. Departments were scored, so
+  // an amount exists — but it was taken over a minority of the money, and a
+  // dollar figure printed under a "graded" label is read as graded whatever the
+  // caveat beside it says. So the slot states how far short the coverage is and
+  // which departments would close it, and prints no currency at all. The
+  // arithmetic is not withheld: `floor` still carries it, and the disclosure
+  // below still shows every row and the sum it makes.
+  if (!floor.publishable) {
+    const remaining = floor.unscoredNames;
+    const named = remaining.length
+      ? `Score ${remaining.slice(0, FLOOR_NAMED_LIMIT).join(", ")}`
+        + `${remaining.length > FLOOR_NAMED_LIMIT
+          ? ` and ${COUNT.format(remaining.length - FLOOR_NAMED_LIMIT)} more` : ""}`
+        + " to clear it."
+      : "No unscored department is left to name, so the coverage figure and the rubric's own "
+        + "department list disagree; neither is published until they do not.";
+    return Object.freeze({
+      available: false,
+      label: FLOOR_LABEL,
+      value: `Withheld · ${floor.coveragePercent}% of analyzed spend is scored, `
+        + `under the ${floor.barPercent}% bar`,
+      basis: `A graded floor is published only once the rubric has scored ${floor.barPercent}% of `
+        + `analyzed spend. It has scored ${floor.coveragePercent}%, across `
+        + `${COUNT.format(count)} department${count === 1 ? "" : "s"}, so this figure would be `
+        + `taken over a minority of the money and is withheld rather than shown. ${named} `
+        + "The working is under “How the graded floor was computed”.",
+      floor,
+    });
+  }
   const amount = usd(floor.floorUsd);
   const base = usd(floor.scoredSpendUsd);
-  const count = floor.contributions.length;
+  // The figure never appears without the coverage it was computed at, in the
+  // same line: a reader who copies the number copies its basis with it.
   return Object.freeze({
     available: true,
     label: FLOOR_LABEL,
-    value: `${amount} · over ${base} the rubric scored`,
+    value: `${amount} · over ${base} the rubric scored, ${floor.coveragePercent}% of analyzed spend`,
     basis: `The defensible floor, not a total: ${amount} summed from the ${COUNT.format(count)} `
       + `department${count === 1 ? "" : "s"} the rubric actually scored, over the ${base} of spend `
-      + "they carry. The modelled figure beside it is taken over the full analyzed spend, so the "
-      + "two are not competing answers — this is the part of it that survives the coverage gap. "
-      + "Every scored department is under “How the graded floor was computed”.",
+      + `they carry — ${floor.coveragePercent}% of everything analyzed, against a `
+      + `${floor.barPercent}% publishing bar. The modelled figure beside it is taken over the full `
+      + "analyzed spend, so the two are not competing answers — this is the part of it that "
+      + "survives the coverage gap. Every scored department, its rubric dimensions and the "
+      + "rationale for its score are under “How the graded floor was computed”.",
     floor,
   });
 }
@@ -1188,12 +1362,24 @@ function floorEntries(floor) {
   if (!floor?.scored) {
     return [entry("Graded floor", floor?.reason ?? FLOOR_UNSCORED_REASON.noneScored)];
   }
+  // The rationale rides with the row it explains: a score with no stated basis
+  // beside it is the thing a graded director is entitled to dispute and cannot.
   const rows = floor.contributions.map((row) => entry(
     `${row.name} · rubric score ${row.score}`,
-    `${usd(row.recoverableUsd)} modelled recoverable, over ${usd(row.spendUsd)} of scored spend.`));
+    `${usd(row.recoverableUsd)} modelled recoverable, over ${usd(row.spendUsd)} of scored spend. `
+    + row.rationale));
+  // The addends are printed in the order they were ADDED — sorted by department
+  // id — so the working shown is the working done, not a second arrangement of
+  // it. The coverage the figure was computed at is in the same row as the sum,
+  // because the two are one fact.
+  const byId = new Map(floor.contributions.map((row) => [row.id, row]));
+  const addends = floor.departmentIds.map((id) => usd(byId.get(id)?.recoverableUsd));
   rows.push(entry("Sum",
-    `${floor.contributions.map((row) => usd(row.recoverableUsd)).join(" + ")} = `
-    + `${usd(floor.floorUsd)}, over ${usd(floor.scoredSpendUsd)} of scored spend. A department the `
+    `${addends.join(" + ")} = `
+    + `${usd(floor.floorUsd)}, over ${usd(floor.scoredSpendUsd)} of scored spend — `
+    + `${floor.coveragePercent}% of the ${usd(floor.totalSpendUsd)} analyzed, against a `
+    + `${floor.barPercent}% publishing bar. Summed in department-id order and rounded once, after `
+    + "the sum, so the figure does not depend on the order the rows loaded in. A department the "
     + "rubric did not score contributes nothing, which is what makes this a floor rather than an "
     + "estimate of the whole."));
   return rows;
