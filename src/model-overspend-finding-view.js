@@ -80,7 +80,9 @@ function hidden(doc, tag, text) {
 // so a repaint can read back what the reader had open without a module global.
 
 function state(section) {
-  if (!section.__modelOverspend) section.__modelOverspend = { finding: null, storage: null };
+  if (!section.__modelOverspend) {
+    section.__modelOverspend = { finding: null, storage: null, importSource: null };
+  }
   return section.__modelOverspend;
 }
 
@@ -89,13 +91,23 @@ function state(section) {
  *
  * `storage` is this browser's `localStorage` (or a stand-in): the only place
  * org-unit labels live. Nothing here reads or writes anything else.
+ *
+ * `importSource` is an optional `(doc) => node | null` a caller supplies when
+ * the finding came out of a file the reader selected, rather than out of the
+ * bundled example. It is held as a *builder*, not a node, because `paint`
+ * replaces the whole body on every disclosure toggle and every rename: a node
+ * appended once by the caller would survive exactly until the reader's first
+ * interaction, then vanish. Rebuilding it here keeps the source of a figure on
+ * screen for as long as the figure is.
  */
-export function renderModelOverspendFinding(doc, finding, { storage = null } = {}) {
+export function renderModelOverspendFinding(doc, finding,
+  { storage = null, importSource = null } = {}) {
   const section = byId(doc, SECTION_ID);
   if (!section || !finding) return null;
   const mounted = state(section);
   mounted.finding = finding;
   mounted.storage = storage;
+  mounted.importSource = importSource;
   if (section.dataset.expanded !== "true") section.dataset.expanded = "false";
   section.hidden = false;
   paint(doc, section);
@@ -116,6 +128,7 @@ export function clearModelOverspendFinding(doc, { storage = null } = {}) {
   if (!section) return null;
   const mounted = state(section);
   mounted.finding = null;
+  mounted.importSource = null;
   section.hidden = true;
   section.dataset.status = "unavailable";
   section.dataset.expanded = "false";
@@ -161,6 +174,9 @@ function paint(doc, section) {
     actionBlock(doc, finding, labels, units),
     confidenceBlock(doc, finding),
     benchmarkBlock(doc, finding),
+    // The file, before the columns: which export this came out of is the outer
+    // question, and the reader's own column names are the inner one.
+    mounted.importSource?.(doc) ?? null,
     provenanceBlock(doc, finding, labels),
     disclosure(doc, section, finding, labels, expanded),
   ];
