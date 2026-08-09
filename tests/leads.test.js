@@ -111,6 +111,16 @@ test("stores field-note and follow-up intent independently for the same address"
   assert.equal(store.has("mina@example.com", "follow_up"), true);
 });
 
+test("persists every reviewed follow-up request type independently", async () => {
+  const store = createMemoryLeadStore();
+  for (const purpose of ["follow_up_coach", "follow_up_releases", "follow_up_social", "follow_up_people", "follow_up_agents"]) {
+    const response = await handleLeadRequest(request({ email: "rowan@example.com", purpose }), { store });
+    assert.equal(response.status, 201, purpose);
+    assert.deepEqual(await response.json(), { captured: true, created: true, purpose });
+    assert.equal(store.has("rowan@example.com", purpose), true);
+  }
+});
+
 test("returns actionable client errors and opaque storage errors", async () => {
   assert.equal((await handleLeadRequest(request({ email: "not-an-email", purpose: "field_notes" }), { store: createMemoryLeadStore() })).status, 422);
   assert.equal((await handleLeadRequest(request("{", { raw: true }), { store: createMemoryLeadStore() })).status, 400);
@@ -133,7 +143,8 @@ test("D1 store persists normalized leads and deduplicates atomically", async (t)
   assert.equal(await store.capture("mina@example.com", "field_notes", "2026-07-25T12:00:00.000Z"), true);
   assert.equal(await store.capture("mina@example.com", "follow_up", "2026-07-25T12:01:00.000Z"), true);
   assert.equal(await store.capture("mina@example.com", "follow_up", "2026-07-25T12:02:00.000Z"), false);
-  assert.equal(db.raw.prepare("SELECT count(*) AS count FROM lead_submissions").get().count, 2);
+  assert.equal(await store.capture("mina@example.com", "follow_up_agents", "2026-07-25T12:03:00.000Z"), true);
+  assert.equal(db.raw.prepare("SELECT count(*) AS count FROM lead_submissions").get().count, 3);
 });
 
 test("homepage ships the labelled lead form and its deployment adapter", async () => {

@@ -31,10 +31,9 @@
  * it, and what did not travel. `LEAD` is deliberately split around the address
  * so the address arrives as a text node of its own.
  */
-export const CONFIRMATION_LEAD = "We sent one thing: ";
-export const CONFIRMATION_DETAIL = "A person from the Wawalu team replies to that address by email. "
-  + "Nothing else on this page — nothing you have read, filtered, imported, or exported — was read, "
-  + "attached, or transmitted.";
+export const CONFIRMATION_LEAD = "The Wawalu team received this work email: ";
+export const CONFIRMATION_DETAIL = "The requested follow-up type is the only other information sent. "
+  + "A person from the Wawalu team replies to that address by email.";
 export const REOPEN_LABEL = "Request another follow-up";
 
 /**

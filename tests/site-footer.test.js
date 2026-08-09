@@ -59,6 +59,11 @@ const describedBy = (document) => byId(document, "site-footer-email").getAttribu
 // this table has to record, and src/site-footer.js has to offer copy for.
 const FOOTER_VARIANT = new Map([
   ["executive-briefing.html", { redirect: FOLLOW_UP_REDIRECT.briefing }],
+  ["coach.html", { followUpType: "follow_up_coach" }],
+  ["releases.html", { followUpType: "follow_up_releases" }],
+  ["social.html", { followUpType: "follow_up_social" }],
+  ["profile.html", { followUpType: "follow_up_people" }],
+  ["agents.html", { followUpType: "follow_up_agents" }],
 ]);
 
 test("every page of the site renders the footer, byte for byte from src/site-footer.js", async () => {
