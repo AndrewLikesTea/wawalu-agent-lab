@@ -29,6 +29,7 @@ import {
 import {
   JOURNEY_SNAPSHOT_KEY, JOURNEY_SNAPSHOT_VERSION, validateJourneySnapshot,
 } from "../src/finops-journey-snapshot.js";
+import { ELIGIBLE_MODEL_OVERSPEND_PROVIDER_FIXTURE } from "../src/model-overspend-provider-fixtures.js";
 
 const PAGE = new URL("../src/evolution.html", import.meta.url);
 
@@ -49,6 +50,8 @@ const NATIVE_EXPORTS = new URL("../contracts/integrations/native-provider-export
 const NATIVE_OPENAI = await readFile(new URL("openai-supported.csv", NATIVE_EXPORTS), "utf8");
 const INCOMPLETE_ANTHROPIC = await readFile(
   new URL("anthropic-missing-required.csv", NATIVE_EXPORTS), "utf8");
+const ELIGIBLE_BILLING_EXPORT = await readFile(
+  new URL("../src/model-overspend-provider-eligible.json", import.meta.url), "utf8");
 
 // ---------------------------------------------------------------------------
 // What the fixture is worth, derived from its own bytes.
@@ -159,8 +162,8 @@ const consentSeed = (state) => ({
  */
 function chooseFiles(document, files) {
   const input = document.getElementById("local-finops-files");
-  input.files = files.map(({ name, text }) => ({
-    name, type: "text/csv", text: async () => text,
+  input.files = files.map(({ name, text, type = "text/csv" }) => ({
+    name, type, text: async () => text,
   }));
   input.dispatchEvent(new DomEvent("change", { bubbles: true }));
 }
@@ -201,6 +204,53 @@ test("a supported native provider export bypasses mapping and opens its analysis
     assert.equal(byId(document, "local-export-activation").dataset.confidence, "0.875");
     assert.equal(document.activeElement?.id, "finops-stand",
       "focus should move to the existing analysis answer");
+  } finally {
+    page.restore();
+  }
+});
+
+test("the eligible billing export keeps its aggregate finding aligned through JSON export", async () => {
+  const page = await openFinopsTab();
+  const { document } = page;
+  const expected = ELIGIBLE_MODEL_OVERSPEND_PROVIDER_FIXTURE.expected;
+  try {
+    chooseFiles(document, [{ name: "model-overspend-provider-eligible.json",
+      type: "application/json", text: ELIGIBLE_BILLING_EXPORT }]);
+    await waitFor(() => !byId(document, "model-overspend").hidden
+      && shownText(document, "model-overspend-question").startsWith("In 2026-07"),
+    "the imported aggregate model finding to render");
+
+    assert.equal(shownText(document, "model-overspend-body")
+      .includes(`${(expected.amountMinor / 100).toFixed(2)} USD`), true,
+    "the displayed material metric must be the aggregate finding, not a per-resource value");
+    assert.equal(byId(document, "model-overspend").dataset.status, "degraded_single_period");
+    assert.match(shownText(document, "model-overspend-body"),
+      /Confidence: low[\s\S]*Only one period[\s\S]*partial month/i);
+    assert.match(shownText(document, "model-overspend-body"), /2 of 2 rows accepted/i);
+    assert.match(shownText(document, "model-overspend-body"),
+      /Do this next[\s\S]*Route .*synthetic-premium traffic to synthetic-economy[\s\S]*Confirm output quality/i);
+
+    byId(document, "export-local-json").click();
+    assert.equal(page.downloads.length, 1, "the matching briefing JSON was not downloaded");
+    const downloadText = page.downloads[0].text;
+    const payload = JSON.parse(downloadText);
+    const finding = payload.modelOverspendFinding;
+    assert.equal(payload.briefing.materialMetric.value, 65,
+      "the briefing's separate recoverable-scenario aggregate changed unexpectedly");
+    assert.notEqual(payload.briefing.materialMetric.value, expected.amountMinor / 100,
+      "the per-model headline must not be compared with a different briefing metric");
+    assert.equal(finding.metric.amountMinor, expected.amountMinor,
+      "the export must select the aggregate metric record (232500 minor), not a supporting row value");
+    assert.equal(finding.confidence.level, expected.confidence);
+    assert.equal(finding.action.available, true);
+    assert.match(finding.action.text,
+      /Route .*synthetic-premium traffic to synthetic-economy[\s\S]*Confirm output quality/i);
+    assert.equal("records" in payload, false, "raw customer billing records reached the briefing");
+    assert.doesNotMatch(downloadText,
+      /psn_aggregate_fixture_|psn_provider_fixture_|input_tokens|output_tokens/i,
+      "customer/source rows reached the briefing export");
+    assert.doesNotMatch(downloadText, /<\/?(?:script|iframe|object|embed|img|svg)\b|javascript:/i,
+      "executable HTML reached the briefing export");
   } finally {
     page.restore();
   }

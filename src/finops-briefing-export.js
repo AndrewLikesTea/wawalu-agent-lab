@@ -281,6 +281,27 @@ function projectResults(result, departments) {
   };
 }
 
+/**
+ * The decision-ready aggregate from the imported per-model finding.
+ *
+ * The progressive evidence table is intentionally not portable: its rows carry
+ * the source export's model-by-unit detail. The headline metric, confidence,
+ * aggregate provenance, and recommendation are the records the reader acted on
+ * and are enough to prove that the downloaded brief matches the screen.
+ */
+function projectModelOverspendFinding(finding) {
+  if (!finding || typeof finding !== "object") return null;
+  return {
+    action: finding.action ?? null,
+    confidence: finding.confidence ?? null,
+    metric: finding.metric ?? null,
+    provenance: finding.provenance ?? null,
+    question: finding.question ?? "",
+    schemaVersion: finding.schemaVersion ?? null,
+    status: finding.status ?? null,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Derived unit names, their provenance, and the corrections a reader made.
 // ---------------------------------------------------------------------------
@@ -655,6 +676,7 @@ export function validateBriefingPayload(payload) {
  */
 export function buildBriefing(analysis, {
   dataset, exportedAt, attributionWithheld = false, unitNaming = null, readerLabels = null,
+  modelOverspendFinding = null,
 } = {}) {
   const result = analysis && typeof analysis === "object" ? analysis : null;
   const briefing = buildFinopsBriefing(result, { attributionWithheld });
@@ -718,6 +740,8 @@ export function buildBriefing(analysis, {
     // statement at `briefing.provenance`, and a second copy under a second name
     // is the fork this whole seam exists to prevent.
     results: projectResults(result, departments),
+    ...(modelOverspendFinding
+      ? { modelOverspendFinding: projectModelOverspendFinding(modelOverspendFinding) } : {}),
     // The one commitment this analysis supports, or a stated reason it supports
     // none. It sits beside `results` rather than inside it because it is not a
     // projection of the analysis: it is Noor's savings-commitment contract
