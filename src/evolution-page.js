@@ -513,6 +513,11 @@ import {
 } from "/finops-stand-view.js";
 // …and how sure the answer region is about the figure it leads with (#1186).
 import { applyRecoverableConfidence } from "/finops-recoverable-confidence-view.js";
+// …and which labelled case that whole answer is derived from, whether the case
+// validated eligible, and the assumption behind every weight it applies (#1464).
+// Provenance for a figure that is already on screen, so it goes into the
+// disclosure the region already ships rather than beside the money.
+import { applyCanonicalClaim } from "/finops-canonical-claim-view.js";
 import { applyRecoverableSpendCoverage } from "/recoverable-spend-coverage-view.js";
 import { applyFinopsFrontDoor, bindFrontDoorWorking } from "/finops-destinations.js";
 // …and what a lead would have to state before that figure is checkable against
@@ -5018,6 +5023,12 @@ async function init() {
   // document with, so this repaints what the document already says rather than
   // changing it — and a document served without the seed still gets the grade.
   applyRecoverableConfidence(document);
+  // …and inside the disclosure behind that figure, where the whole answer came
+  // from: the named case, its validation status, and the assumption behind each
+  // weight. Painted from the same record the document is authored from, so this
+  // repaints what the served page already states rather than changing it — and a
+  // case that stopped validating clears the claim instead of leaving it standing.
+  applyCanonicalClaim(document);
   // The current static/import contracts carry aggregates, not the request and
   // commitment fields this taxonomy requires. Paint that boundary explicitly:
   // an unsupported class must never disappear into the recoverable total as $0.
