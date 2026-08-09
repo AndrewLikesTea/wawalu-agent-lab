@@ -179,15 +179,12 @@ test("empty, loading, and error states are three distinct renders", () => {
   const noPostsPanel = first(noPosts, "empty-state");
   assert.match(noPostsPanel.textContent, /No posts on Social yet\./);
   assert.match(noPostsPanel.textContent, /Publish a post, or create an image in Paint first\./);
-  const paintAction = first(noPostsPanel, "state-action");
-  // The page's one name for the act, and the same new-tab disclosure the hero
-  // and the composer carry: this is a third placement of one action, not a
-  // third action.
-  assert.equal(paintAction.textContent, "Create an image in Paint");
-  assert.equal(first(paintAction, "new-tab-note").textContent, " (opens in a new tab)");
-  assert.equal(paintAction.href, "/paint/");
-  assert.equal(paintAction.target, "_blank");
-  assert.equal(paintAction.rel, "noopener");
+  // The sentence points at Paint; the button that used to repeat it under this
+  // line is gone. Social offered one action in three places — the hero, the
+  // composer, and here — and the composer's is the one beside the field an image
+  // is actually attached to. Counted, not compared against null.
+  assert.equal(byClass(noPostsPanel, "state-action").length, 0,
+    "the empty state offers Paint a second time under the sentence that names it");
 
   const empty = createElement("div");
   renderPosts(empty, [], { noMatch: { author: "Ari", range: "from the past hour", total: 4, onClear() {} } });

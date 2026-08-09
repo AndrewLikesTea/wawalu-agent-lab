@@ -258,7 +258,12 @@ test("social page is wired, labeled, and linked from the other pages", async () 
   // refusal an empty caption actually meets — is named by the textarea itself.
   assert.match(page, /<label for="post-body">Caption <span class="label-optional label-required">\(required\)<\/span><\/label>/);
   assert.match(page, /aria-describedby="post-body-hint post-counter-label post-counter"/);
-  assert.match(page, /id="post-body-hint">Publish post stops on an empty caption/);
+  // The rule and the budget, and nothing about what the browser will do to an
+  // empty field: the hint used to narrate a refusal before the reader had typed
+  // anything. The number is the textarea's own maxlength.
+  assert.match(page, /id="post-body-hint">Required\. Up to 280 characters\.<\/span>/);
+  assert.doesNotMatch(page, /your browser asks you to fill this in/);
+  assert.doesNotMatch(page, /nothing is published\.<\/span>/);
   assert.match(page, /id="post-counter"[^>]*aria-live="polite"/);
   assert.match(page, /id="post-count">Loading the Social feed…<\/span>/);
   // The count and the connection line describe one wait, so they ship the same
@@ -280,9 +285,17 @@ test("social page is wired, labeled, and linked from the other pages", async () 
   assert.match(page, /id="post-image"[^>]*type="file"[^>]*accept="image\/png,image\/jpeg,image\/gif,image\/webp"/);
   assert.match(page, /href="\/paint\/"/);
   assert.match(page, /id="compose-preview-image" alt=""/);
-  const previewFailure = "We couldn’t create an image preview. Choose Remove image to remove the file, then choose Upload image to upload it again. Confirm that the preview appears before publishing.";
-  assert.ok(page.includes(`<p id="compose-preview-error" hidden>${previewFailure}</p>`));
-  assert.ok(wiring.includes(`setStatus("${previewFailure}", true);`));
+  // The preview failure is not in the page as served. It shipped in the markup
+  // behind `hidden`, so a page nobody had uploaded anything to still carried a
+  // sentence about a file that had failed to decode. The element stays — the
+  // wiring fills it on the image's error event — and it ships empty.
+  const previewFailure = "We couldn’t create an image preview. Choose Remove image, then Upload image to try again.";
+  assert.ok(page.includes('<p id="compose-preview-error" hidden></p>'));
+  assert.doesNotMatch(page, /create an image preview/);
+  assert.doesNotMatch(page, /Confirm that the preview appears/);
+  assert.ok(wiring.includes(`export const PREVIEW_FAILURE = "${previewFailure}";`));
+  assert.ok(wiring.includes("fallback.textContent = PREVIEW_FAILURE;"));
+  assert.ok(wiring.includes("setStatus(PREVIEW_FAILURE, true);"));
   assert.match(page, /id="post-image-alt"/);
   assert.match(page, /id="post-media-status" role="status" aria-live="polite"/);
   assert.match(page, /id="post-submit"[^>]*aria-describedby="post-consequence social-notice"/);
@@ -294,6 +307,47 @@ test("social page is wired, labeled, and linked from the other pages", async () 
 
   // No innerHTML anywhere in the interactive layers (no user-generated HTML).
   assert.doesNotMatch(`${component}\n${wiring}`, /innerHTML/);
+});
+
+// The composer used to explain three things that had not happened: what the
+// browser would do to an empty caption, that an image preview had failed, and
+// how to recover from that failure. All three shipped in the markup, so a
+// first-time visitor read them before touching a control. What is pinned here is
+// the page as a reader meets it on arrival.
+test("the composer describes no failure that has not happened yet", async (t) => {
+  const page = await loadPage(new URL("../src/social.html", import.meta.url), {});
+  t.after(() => page.restore());
+
+  // Read from the rendered body, not the source: `hidden` is no defence here —
+  // this harness reads text straight through it, the way find-in-page and reader
+  // mode do — so the text has to be absent, not concealed.
+  const rendered = textOf(page.document.querySelector("body"));
+  for (const gone of [
+    "your browser asks you to fill this in",
+    "nothing is published",
+    "create an image preview",
+    "Confirm that the preview appears",
+  ]) {
+    assert.ok(!rendered.includes(gone), `the page still says "${gone}" before anything has failed`);
+  }
+
+  // The element that says it when a preview does fail is still here, still
+  // hidden, and still the one src/social-page.js writes to. Counted, never
+  // compared against null.
+  assert.equal(page.document.querySelectorAll("#compose-preview-error").length, 1);
+  assert.equal(textOf(page.document.querySelector("#compose-preview-error")), "");
+
+  // What the caption hint says instead: the rule, and the budget the counter
+  // beside it counts down from.
+  assert.equal(textOf(page.document.querySelector("#post-body-hint")), "Required. Up to 280 characters.");
+  assert.equal(page.document.querySelector("#post-body").getAttribute("maxlength"), "280");
+
+  // One offer of Paint on the page, and it is the composer's. The hero carried a
+  // second button with the same four words, and the feed's empty state a third.
+  const paint = page.document.querySelectorAll("a")
+    .filter((anchor) => textOf(anchor).startsWith("Create an image in Paint"));
+  assert.equal(paint.length, 1, "Social offers Paint more than once again");
+  assert.match(textOf(paint[0]), /\(opens in a new tab\)/);
 });
 
 // The control that opens the composer used to read "Write a post without an

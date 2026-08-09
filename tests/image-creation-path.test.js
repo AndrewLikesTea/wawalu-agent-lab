@@ -41,7 +41,7 @@ const documents = Object.fromEntries(
 // The nearby invitation is People's alone now. People has no composer, so the
 // link beside its grid is the only route out of it; Social had three offers of
 // the same feature in three voices, and this was the third — see
-// "Social offers Paint exactly twice" below.
+// "Social offers Paint exactly once" below.
 const NEARBY_INVITATION = { People: documents.People };
 
 /** Every anchor on a page that points at the Paint editor. */
@@ -124,31 +124,31 @@ test("People's nearby helper links to the editor without repeating the empty-sta
 });
 
 /* ---------------------------- the primary route ---------------------------- */
-// The invitation above covers a reader already scrolling the feed. This covers
-// the reader who has just arrived: the publishing path has to be on screen and
-// stated as an outcome before any scrolling happens, because "Paint" in the nav
-// names a destination without saying that it is how an image gets published.
+// The invitation above covers a reader already scrolling the feed. Social's own
+// route is the composer's, and it is the only one: the page used to lead with a
+// hero button carrying the same four words, which offered one action a screen
+// before the field it attaches to.
 
-/** The page's leading call to action: the primary control in its hero. */
-const heroCta = (document) => document.querySelector(".hero-actions").querySelector("a");
-
-test("Social leads with a call to action that names the act, not the destination alone", () => {
-  const cta = heroCta(documents.Social);
-  assert.equal(cta.tagName, "A", "the primary route is not an anchor");
-  assert.ok(opensPaint(cta.href), `Social's primary route does not open Paint: ${cta.href}`);
+test("Social's route into Paint is the composer's control, and there is no second one", () => {
+  const composer = composerPaintLink();
+  assert.equal(composer.tagName, "A", "the route is not an anchor");
+  assert.ok(opensPaint(composer.href), `Social's route does not open Paint: ${composer.href}`);
   // Making an image, in words. "Paint" alone repeats the nav item beside it, an
   // arrow alone names nothing, and a colour alone names nothing a reader can
   // act on. It stops at the act: the empty state says where the image goes.
-  assert.match(textOf(cta), /^Create an image in Paint/);
-  assert.doesNotMatch(textOf(cta), /then (publish|post)/i,
-    "the hero restates the publishing path the empty state already gives");
-  assert.ok(tabSequence(documents.Social).includes(cta), "the primary route is not keyboard reachable");
+  assert.match(textOf(composer), /^Create an image in Paint/);
+  assert.doesNotMatch(textOf(composer), /then (publish|post)/i,
+    "the composer's control restates the publishing path the empty state already gives");
+  assert.ok(tabSequence(documents.Social).includes(composer), "the route is not keyboard reachable");
 
-  // Above the composer and the feed, in the source, so it is the first route a
-  // reader meets rather than one more control inside the form.
-  const html = sources.Social;
-  assert.ok(html.indexOf('id="social-paint-cta"') < html.indexOf('id="post-form"'));
-  assert.ok(html.indexOf('id="social-paint-cta"') < html.indexOf('id="post-feed"'));
+  // The hero's duplicate is gone. Counted, never compared against null: a
+  // surviving element sends assert.equal through the whole parsed page.
+  assert.equal(documents.Social.querySelectorAll("#social-paint-cta").length, 0,
+    "Social's hero offers Paint a second time again");
+  // The hero still has its one route, and it goes to the composer.
+  const heroLinks = documents.Social.querySelector(".hero-actions").querySelectorAll("a");
+  assert.equal(heroLinks.length, 1);
+  assert.equal(heroLinks[0].getAttribute("href"), "#post-form");
 });
 
 test("People offers distinct Social and Paint routes from its entry point", () => {
@@ -197,27 +197,25 @@ test("the composer's own Paint control carries the same label as every other rou
   assert.match(textOf(composer), /^Create an image in Paint/);
 });
 
-/* ------------------- one feature, offered exactly twice ------------------- */
+/* -------------------- one feature, offered exactly once -------------------- */
 // Social used to make the same offer three times in three voices: the hero's
 // "Create an image in Paint", the composer's "Create in Paint", and a third
-// paragraph beside the feed reading "Open Paint". Two of them are the feature —
-// the standing invitation and the in-flow control — and this is the assertion
-// that keeps a third from growing back.
+// paragraph beside the feed reading "Open Paint". They were brought to one name
+// and then to one placement — the in-flow control, beside the field the image
+// is attached to — and this is the assertion that keeps a second from growing
+// back.
 
-test("Social offers Paint exactly twice: the standing invitation and the in-flow control", () => {
-  // Four anchors in the page, and two of them are the site's directories — the
+test("Social offers Paint exactly once: the composer's in-flow control", () => {
+  // Three anchors in the page, and two of them are the site's directories — the
   // header nav's item and the footer site map's row. Paint is a destination on
-  // this site, and every page lists it twice for that reason. The two that are
-  // invitations are the ones counted here.
-  assert.equal(paintLinks(documents.Social).length, 4, "the number of routes into Paint from Social changed");
+  // this site, and every page lists it twice for that reason. The one that is an
+  // invitation is the one counted here.
+  assert.equal(paintLinks(documents.Social).length, 3, "the number of routes into Paint from Social changed");
   const entryPoints = socialEntryPoints();
-  assert.equal(entryPoints.length, 2, "Social offers Paint more than twice again");
-  assert.equal(entryPoints[0].id, "social-paint-cta", "the standing invitation is not the first offer");
-  assert.equal(entryPoints[1], composerPaintLink(), "the composer's control is not the second offer");
+  assert.equal(entryPoints.length, 1, "Social offers Paint more than once again");
+  assert.equal(entryPoints[0], composerPaintLink(), "the composer's control is not the offer");
 
-  // One feature, two placements, one name: both labels open with the same four
-  // words, so the two read as one thing offered where a reader is, not as two
-  // features.
+  // One feature, one placement, one name.
   for (const link of entryPoints) assert.match(textOf(link), /^Create an image in Paint/);
 
   // The removed third invitation named the destination alone. Nothing outside
@@ -232,8 +230,8 @@ test("Social offers Paint exactly twice: the standing invitation and the in-flow
 // pages hand off to Paint the same way, so both say the same thing about it.
 test("every route into Paint on Social and People says in words that it opens a new tab", () => {
   // Counted first, so a filter that stops matching a page's links fails here
-  // rather than passing an empty loop: two offers on Social, two on People.
-  for (const [name, count] of [["Social", 2], ["People", 2]]) {
+  // rather than passing an empty loop: one offer on Social, two on People.
+  for (const [name, count] of [["Social", 1], ["People", 2]]) {
     assert.equal(entryPointsOn(name).length, count, `${name} offers Paint a different number of times`);
     for (const link of entryPointsOn(name)) {
       // The behaviour first: the tab really does change, so the disclosure is a
@@ -255,7 +253,7 @@ test("every route into Paint on Social and People says in words that it opens a 
 test("the button-shaped routes into Paint carry one arrow, and it is the leaves-this-tab one", () => {
   const buttons = ["Social", "People"].flatMap((name) => entryPointsOn(name))
     .filter((link) => /button-link|secondary-button/.test(link.className ?? ""));
-  assert.equal(buttons.length, 3, "the number of button-shaped routes into Paint changed");
+  assert.equal(buttons.length, 2, "the number of button-shaped routes into Paint changed");
 
   for (const link of buttons) {
     // The arrow is decoration on top of the disclosure: hidden from assistive
@@ -271,26 +269,30 @@ test("the button-shaped routes into Paint carry one arrow, and it is the leaves-
 // Paint uploads nothing: the visitor exports a PNG and carries it back. The
 // composer is where that has to be said, in order, in the page as served.
 
-test("the composer names the whole round trip, in order, as an ordered list", () => {
+test("the composer names the whole round trip in one sentence, in order", () => {
   const steps = documents.Social.getElementById("post-image-steps");
   assert.ok(steps, "the composer names no steps at all");
-  assert.equal(steps.tagName, "OL", "the sequence is not structural, only visual");
 
-  const items = steps.querySelectorAll("li");
-  assert.equal(items.length, 3, "the round trip is not told in three steps");
-  assert.match(textOf(items[0]), /Paint/);
-  assert.match(textOf(items[0]), /PNG/);
-  assert.match(textOf(items[1]), /this tab/);
-  assert.match(textOf(items[2]), /Upload image/);
+  // Three steps, one sentence. It was a three-item ordered list, which spent
+  // three lines telling a reader what the two controls beside it already imply;
+  // what has to survive is the order and the export, because Paint uploads
+  // nothing and the visitor is the transport.
+  const sentence = textOf(steps);
+  assert.match(sentence, /PNG/, "the sentence never says what to export");
+  assert.ok(sentence.indexOf("Paint") < sentence.indexOf("return to this tab"),
+    "the sentence asks the reader to return before it sends them anywhere");
+  assert.ok(sentence.indexOf("return to this tab") < sentence.indexOf("Upload image"),
+    "the sentence uploads before it comes back");
+  // The control is named exactly as it is labelled, not described.
+  assert.match(sentence, /Upload image/);
+  assert.ok(sentence.split(".").filter((part) => part.trim()).length === 1,
+    `the round trip is told in more than one sentence: ${sentence}`);
 
   // In the page as served, not folded behind a disclosure widget and not
   // written in by a script after load: a curl has to contain it. (The harness
   // reads text straight through a closed disclosure, so the count below is what
   // actually rules one out.)
-  const html = sources.Social;
-  assert.match(html, /<ol class="hint image-steps" id="post-image-steps">/);
-  assert.ok(html.indexOf("export it as a PNG") < html.indexOf("Return to this tab"));
-  assert.ok(html.indexOf("Return to this tab") < html.indexOf("Choose Upload image"));
+  assert.match(sources.Social, /<p class="hint" id="post-image-steps">/);
   assert.equal(documents.Social.querySelectorAll("details").length, 0,
     "Social folded content behind a disclosure widget");
   assert.ok(!steps.getAttribute("hidden"), "the steps ship hidden");
