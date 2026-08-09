@@ -41,11 +41,31 @@ export function createMemoryLeadStore() {
   };
 }
 
+/**
+ * `ON CONFLICT DO NOTHING`, not `INSERT OR IGNORE`.
+ *
+ * The two look interchangeable and are not. `OR IGNORE` ignores every
+ * constraint failure on the row, including a CHECK violation, and still reports
+ * `changes = 0` — the same answer a genuine duplicate gives. So a purpose the
+ * deployed table does not accept is dropped on the floor and handed back to the
+ * browser as `created: false`, which every follow-up form renders as "that
+ * address is already on our list". Nothing was written, and no caller can tell.
+ *
+ * That is not hypothetical: migration 0008 widened the purpose CHECK to the five
+ * bounded `follow_up_<surface>` request types, and nothing in this repository
+ * applies migrations — no workflow, no build step. Until an operator runs them,
+ * every page that sends one of those types writes no row and claims capture.
+ *
+ * The `ON CONFLICT (email, purpose)` form ignores exactly the primary-key
+ * conflict it means to ignore. Anything else raises, and `handleLeadRequest`
+ * turns it into a truthful `storage_error` the visitor can act on.
+ */
 export function createD1LeadStore(db) {
   return {
     async capture(email, purpose, createdAt) {
       const result = await db.prepare(
-        "INSERT OR IGNORE INTO lead_submissions (email, purpose, created_at) VALUES (?, ?, ?)",
+        "INSERT INTO lead_submissions (email, purpose, created_at) VALUES (?, ?, ?)"
+        + " ON CONFLICT (email, purpose) DO NOTHING",
       ).bind(email, purpose, createdAt).run();
       return Number(result.meta?.changes ?? 0) > 0;
     },

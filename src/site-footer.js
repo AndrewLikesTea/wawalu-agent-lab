@@ -38,6 +38,7 @@ import {
 
 const ERROR_ID = "site-footer-error";
 const RECOVERY_ID = "site-footer-recovery";
+const STATUS_ID = "site-footer-status";
 
 /**
  * What a visitor can do here, then who runs it and where — on every page.
@@ -47,11 +48,10 @@ const RECOVERY_ID = "site-footer-recovery";
  * and contradicts what the site leads with: the home page's title, heading, and
  * first call to action are all AI FinOps.
  *
- * The second sentence still names an organisation and a hosting claim, both
- * checkable from outside. Between them they claim no customer, no usage, no
- * funding, and no result — there is no evidence here for any of those. Every
- * verb in the first sentence is something a page this site ships today does,
- * and DEMOS says which page.
+ * The second sentence names an organisation and a hosting claim, both checkable
+ * from outside. Between them they claim no customer, usage, funding, or result —
+ * there is no evidence here for any of those. Every verb in the first sentence
+ * is something a page this site ships today does, and DEMOS says which page.
  */
 export const IDENTITY = "On this site you can analyze your own AI spend, check a prompt before you send "
   + "it, and read the decisions and releases behind it. Shiplog is a demonstration product, built and "
@@ -61,21 +61,18 @@ export const IDENTITY = "On this site you can analyze your own AI spend, check a
  * Every door the navigation offers, and what each one is for.
  *
  * This band is the only directory on the pages whose body carries none, so a
- * surface left out is one a reader has to guess at. Every row is a link: a name
- * a reader cannot follow is a name they have to go and find in the header.
+ * surface left out is one a reader has to guess at. Every row is a link.
  *
- * `label` and `href` are the word and the path src/site-nav.js uses — one name
- * per concept, one door per name. They are copied rather than imported: this
- * module is in every page's initial payload and src/site-nav.js is 6 KB of it,
- * so tests/site-footer.test.js compares the two tables instead.
+ * `label` and `href` are the word and the path src/site-nav.js uses. They are
+ * copied rather than imported: this module is in every page's initial payload
+ * and src/site-nav.js is 6 KB of it, so tests/site-footer.test.js compares the
+ * two tables instead.
  *
- * `purpose` is a fragment, shorter than the home page's sentence for the same
- * surface — the footer points, the home page explains — and built from that
- * sentence's verb and noun, keeping the facts the act turns on: where Paint's
- * PNG goes, what order People's posts come in. AI FinOps keeps "in this browser
- * tab", a promise about where an export is read. Social is the exception and
- * carries the whole sentence, the same bytes the home page's card, the post
- * permalink, and the start of Social's own intro carry.
+ * `purpose` is a fragment built from the home page's sentence for the same
+ * surface — the footer points, the home page explains — keeping the facts the
+ * act turns on: where Paint's PNG goes, what order People's posts come in. AI
+ * FinOps keeps "in this browser tab", a promise about where an export is read.
+ * Social carries the whole sentence, the same bytes its own intro carries.
  */
 export const DEMOS = Object.freeze([
   Object.freeze({
@@ -143,20 +140,14 @@ const SUBMITTING = "Requesting a follow-up — sending your email address…";
  * The pages that answer a follow-up request better than this footer can, and
  * therefore ship a pointer to their own form instead of a second one.
  *
- * There is exactly one today. The executive briefing ends on a decision, and its
+ * There is exactly one today. The executive briefing ends on a decision and its
  * own form arrives attached to it — a request from there says which figure and
  * which action it is about, which a generic "talk to us about Shiplog" cannot.
- * Two identical work-email fields on one screen also make a reader who has just
- * decided something choose between them, and the choice has no right answer.
+ * That is also why the recovery paragraph names it as the alternative route: a
+ * visitor whose retries keep failing has one door left, and it is a real one.
  *
- * The pointer is a real link, not a button: it works with no script at all,
- * which is the same promise the rest of this footer makes.
- *
- * It is a link and nothing else. It used to be preceded by a paragraph
- * explaining that the page carries its own form and which of the page's two
- * forms to use — an explanation a reader only needs if the link is unclear, and
- * the fix for that is a clear link. So it carries the one label every control
- * that leads to a follow-up carries, and the target takes focus (see the
+ * A link and nothing else, carrying the one label every follow-up control
+ * carries. It works with no script at all, and the target takes focus (see the
  * `tabindex="-1"` on #briefing-contact) so following it lands a keyboard reader
  * in the form rather than merely scrolling it into view.
  */
@@ -234,7 +225,7 @@ function contactDisclosureLines(followUpType) {
     "        </div>",
     "      </form>",
     '      <p class="site-footer-status" id="site-footer-status" role="status" aria-live="polite"></p>',
-    '      <p class="site-footer-recovery" id="site-footer-recovery" hidden>We could not send your follow-up request. Try again in a few minutes. Your email address is still in the field above, and nothing else on this page changed.</p>',
+    '      <p class="site-footer-recovery" id="site-footer-recovery" hidden>We could not send your follow-up request. Try again in a few minutes. Your email address is still in the field above, and nothing else on this page changed. If it keeps failing, the <a href="/executive-briefing.html#briefing-contact">executive briefing carries its own follow-up form</a>.</p>',
     "    </div>",
   ];
 }
@@ -275,6 +266,15 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
     describeWith(email, RECOVERY_ID, visible);
   }
 
+  // A success moves focus into the receipt. A failure leaves a reader at the
+  // field they have to resubmit, so that field carries the outcome in its
+  // description and reads as invalid until another request starts.
+  function setOutcomeDescribed(failed) {
+    describeWith(email, STATUS_ID, failed);
+    if (failed) email.setAttribute("aria-invalid", "true");
+    else email.removeAttribute("aria-invalid");
+  }
+
   // The success state. Once a request lands the form goes away and this receipt
   // takes its place, so there is nothing left to press a second time; the
   // announcement stays in the live region below, where the failure's does.
@@ -285,7 +285,7 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
     email,
     // Coming back to the form clears the outcome of the last request: it reports
     // something that happened, and the visitor has just said they are not done.
-    onReopen: () => { status.textContent = ""; delete form.dataset.state; },
+    onReopen: () => { status.textContent = ""; delete form.dataset.state; setOutcomeDescribed(false); },
   });
 
   function open() {
@@ -323,6 +323,11 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
     if (form.dataset.state === "invalid") {
       delete form.dataset.state;
       setFieldError(null);
+    } else if (form.dataset.state === "error") {
+      // The address is being changed, so it is no longer the one the last
+      // attempt failed on. The live region and the recovery paragraph stay —
+      // that request really did fail — but the field stops reading as invalid.
+      setOutcomeDescribed(false);
     }
   });
 
@@ -343,6 +348,8 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
     form.dataset.state = "submitting";
     setFieldError(null);
     setRecoveryVisible(false);
+    // The last outcome stops describing the field once a new one is in flight.
+    setOutcomeDescribed(false);
     submit.disabled = true;
     submit.setAttribute("aria-disabled", "true");
     // Announced, not merely spun: the live region carries the pending state to a
@@ -365,8 +372,11 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
       form.dataset.state = "error";
       status.textContent = error instanceof SubmissionError ? error.message : CONTACT_COPY.unconfirmed;
       // Every failure here is retryable in place, so the paragraph that says so
-      // appears on all of them — the same rule the AI FinOps form follows.
+      // appears on all of them — the same rule the AI FinOps form follows. It is
+      // also where the one alternative route lives, for a visitor whose retries
+      // keep failing.
       setRecoveryVisible(true);
+      setOutcomeDescribed(true);
     } finally {
       // Retry has to work without a reload, so the control comes back on every
       // path out of the request — except the one where the request landed and
