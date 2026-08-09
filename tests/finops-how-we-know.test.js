@@ -23,6 +23,7 @@ import { readFile } from "node:fs/promises";
 
 import { parseHtml, textOf } from "./support/browser.js";
 import { FOCUS_SPEC } from "../src/finops-decision-interaction.js";
+import { applyRateCardLadder, readinessFor } from "../src/finops-rate-card-view.js";
 
 const PAGE = new URL("../src/evolution.html", import.meta.url);
 const html = await readFile(PAGE, "utf8");
@@ -69,8 +70,13 @@ test("the answer region states its figure before any sentence qualifying it", ()
     "the full qualification is not below the short one");
 
   // THE MARKER CARRIES ITS MEANING AS TEXT. Not a colour, not a glyph alone:
-  // a word a reader can read and a screen reader can speak.
+  // a word a reader can read and a screen reader can speak. The word itself is
+  // resolved by the readiness contract and seeded into the served document
+  // (#1480), so it is read here through the same paint the page boots with
+  // rather than from a tier word authored beside it.
+  applyRateCardLadder(document);
   const marker = document.getElementById("finops-recoverable-marker");
+  assert.equal(textOf(marker).trim(), readinessFor().marker);
   assert.equal(textOf(marker).trim(), "Illustrative");
   assert.equal(marker.getAttribute("aria-hidden"), null,
     "the only marker on the figure is hidden from assistive technology");

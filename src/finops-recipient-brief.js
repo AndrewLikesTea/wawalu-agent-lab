@@ -59,7 +59,7 @@ export const RECIPIENT_BRIEF_IDS = Object.freeze({
   destinationLine: "finops-shared-brief-destination",
 });
 
-/** What the marker chip beside the figure says instead of "Illustrative". */
+/** What the marker chip says instead of the readiness tier the page resolved. */
 export const SHARED_MARKER = "Shared brief";
 
 /** What a part the brief did not carry says. Absent, stated, never dropped. */

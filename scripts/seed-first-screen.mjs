@@ -59,6 +59,7 @@ import {
   BUNDLED_PRICING_PROVENANCE, pricingProvenanceChip, pricingProvenanceDetail,
   pricingProvenanceSummary,
 } from "../src/finops-pricing-provenance.js";
+import { applyRateCardLadder, RATE_CARD_IDS } from "../src/finops-rate-card-view.js";
 import { buildStandHeadline } from "../src/finops-stand.js";
 import { standClaimSentence } from "../src/finops-stand-view.js";
 
@@ -145,6 +146,12 @@ export function firstScreenEdits(bundled) {
   const projection = recordingRoot();
   renderExecutiveBriefingProjection(projection,
     projectExecutiveBriefing(bundled?.briefingReadiness ?? null));
+  // The recoverable figure's readiness (#1480), driven through the page's OWN
+  // paint rather than restated here. With no analysis in hand the contract
+  // publishes the rate-card rung, which is what the boot onto this document
+  // resolves to as well, so no tier word is written down twice.
+  const readinessSlots = recordingRoot();
+  applyRateCardLadder(readinessSlots);
 
   const available = (value) => (value ? "true" : "false");
   const edits = [
@@ -221,6 +228,18 @@ export function firstScreenEdits(bundled) {
     authoredText("recoverable pricing provenance reason", "finops-recoverable-provenance-reason",
       "Whose prices this figure uses has not been scored for this document.",
       pricingProvenanceSummary(BUNDLED_PRICING_PROVENANCE)),
+    // ---- And whether the figure may be quoted at all (#1480). One contract, one
+    // tier: the marker chip beside the money, the readiness sentence in Limits
+    // and the one outstanding ask beside it are all this paint's own output, so
+    // the served bytes carry no tier word that the render could contradict.
+    authoredText("recoverable readiness marker", RATE_CARD_IDS.marker,
+      "Readiness not resolved", readinessSlots.text(RATE_CARD_IDS.marker)),
+    authoredText("recoverable readiness sentence", RATE_CARD_IDS.readiness,
+      "Readiness is resolved when this document is built.",
+      readinessSlots.text(RATE_CARD_IDS.readiness)),
+    authoredText("recoverable readiness next ask", RATE_CARD_IDS.nextStep,
+      "The one outstanding ask is stated once this figure's readiness is resolved.",
+      readinessSlots.text(RATE_CARD_IDS.nextStep)),
     authoredText("recoverable pricing provenance bands", "finops-recoverable-provenance-detail",
       "The pricing-provenance sub-score beside the figure has not been computed for this document.",
       pricingProvenanceDetail(BUNDLED_PRICING_PROVENANCE)),
