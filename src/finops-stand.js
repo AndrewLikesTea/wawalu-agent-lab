@@ -59,7 +59,7 @@ import {
   COST_BAND, COST_BAND_DIRECTION, COST_METRIC, COST_POSITION_WITHHELD, PEER_COST_COHORTS,
   PEER_COST_PROVENANCE, PEER_COST_SNAPSHOT_ID, PEER_RANK_LABEL, displayCostPerSuccessfulTask,
 } from "./peer-cost-position.js";
-import { evaluatePeerCostBenchmarkFit } from "./peer-cost-benchmark-scope.js";
+import { calculatePeerCostBenchmark } from "./peer-cost-benchmark.js";
 
 export { PEER_RANK_LABEL } from "./peer-cost-position.js";
 import {
@@ -456,7 +456,7 @@ const filled = (value) => typeof value === "string" && value.trim().length > 0;
  * quarter · $38.63 per successful task", with the boundaries and the published
  * band name under it, is a claim they can repeat and someone else can verify.
  */
-function positionSlot(position, period) {
+function positionSlot(position, period, benchmark = null) {
   if (!position?.available) return null;
   const { cohort } = position;
   const quarter = BAND_IN_WORDS[position.band] ?? "comparison group";
@@ -468,7 +468,8 @@ function positionSlot(position, period) {
     band: position.band,
     /** The metric on its own, for the one sentence the answer repeats. */
     perTask: position.valueDisplay,
-    basis: `${COST_METRIC.label}${period ? ` for ${period}` : ""}, compared with organizations `
+    basis: `${COST_METRIC.label}${period ? ` for ${period}` : ""}. ${benchmark?.percentile}th `
+      + `percentile for cost efficiency among ${benchmark?.cohortSize} synthetic peers, compared with organizations `
       + `that declared the same size and industry — ${cohort.label}. A quarter of that group `
       + `spends less than ${displayCostPerSuccessfulTask(cohort.p25)} and a quarter spends more `
       + `than ${displayCostPerSuccessfulTask(cohort.p75)} per successful task, so this `
@@ -1225,14 +1226,31 @@ export function composeStandHeadline({
   const team = teamSlot(finding);
   const action = actionSlot(destinations);
   const period = periodLabel(analysis);
-  const placed = positionSlot(position, period);
-  const analysisWindowEnd = / to (\d{4}-\d{2}-\d{2})$/.exec(String(analysis?.period ?? ""))?.[1];
-  const benchmarkFit = evaluatePeerCostBenchmarkFit({
-    metricId: position?.metric?.id,
-    sizeBand: position?.declaredSizeBand,
-    industry: position?.declaredIndustry,
-    cohort: position?.cohort,
-    asOfDate: analysisWindowEnd ?? PEER_COST_SNAPSHOT_ID,
+  const peerBenchmark = calculatePeerCostBenchmark({
+    org: position?.available ? {
+      sizeBand: position.declaredSizeBand, industry: position.declaredIndustry,
+      snapshotId: position.cohort?.snapshotId,
+    } : null,
+    spendUsd: position?.spendUsd,
+    tasks: position?.available ? [{ outcome: "success", count: position.successfulTasks }] : null,
+    asOfDate: / to (\d{4}-\d{2}-\d{2})$/.exec(String(analysis?.period ?? ""))?.[1]
+      ?? PEER_COST_SNAPSHOT_ID,
+  });
+  const placed = positionSlot(peerBenchmark.position, period, peerBenchmark);
+  const benchmarkFit = Object.freeze({
+    ...peerBenchmark.freshness,
+    ...peerBenchmark.eligibility,
+    outcome: peerBenchmark.eligibility.reason,
+    cohortId: position?.cohort?.cohortId ?? null,
+    cohortSize: peerBenchmark.cohortSize,
+    snapshotDate: peerBenchmark.freshness.snapshotDate,
+    ageDays: peerBenchmark.freshness.ageDays,
+    confidence: peerBenchmark.confidence.level,
+    confidenceRuleId: peerBenchmark.confidence.ruleId,
+    confidenceBasis: peerBenchmark.confidence.basis,
+    methodology: "The repository publishes synthetic p25 and p75 boundaries for each permitted segment; the unrounded organization metric is placed against those fixed boundaries. Lower is better.",
+    provenance: peerBenchmark.provenance,
+    exclusions: "Cohorts are synthetic and privacy-preserving. They do not imply access to customer, provider, or HRIS data, and they are not measured market performance.",
   });
   const withheld = placed ? null : withheldFrom(position, eligibility, source);
   // The headline claim is RESOLVED, not assembled: every signal states itself as
@@ -1281,6 +1299,8 @@ export function composeStandHeadline({
       basis: withheld?.missing ?? STAND_PENDING.answer,
     }),
     benchmarkFit,
+    /** The typed calculator result consumed by the position and fitness slots. */
+    peerBenchmark,
     recoverable,
     /**
      * The graded floor beside it: the amount, the scored spend it is taken over,
