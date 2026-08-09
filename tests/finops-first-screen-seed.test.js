@@ -126,7 +126,11 @@ test("every seeded slot matches the authored markup exactly once", () => {
   // plus the three the pricing-provenance sub-score added (#1266): the chip and
   // its one sentence beside the figure, and the four bands inside that same
   // disclosure.
-  assert.equal(edits.length, 39, "the seed covers 39 first-screen slots");
+  // …plus the three the readiness contract added (#1480): the tier marker beside
+  // the figure, and the readiness sentence and the one outstanding ask inside
+  // that same disclosure. All three are seeded from the page's own paint, so no
+  // tier word is authored in the document for the render to contradict.
+  assert.equal(edits.length, 42, "the seed covers 42 first-screen slots");
   for (const { slot, find } of edits) {
     assert.equal(SOURCE.split(find).length - 1, 1, `${slot} matches the authored markup once`);
   }

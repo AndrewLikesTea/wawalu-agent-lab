@@ -13,8 +13,9 @@
 //      text being findable.
 //   3. ABSENT IS NOT ZERO. A part the brief did not carry says so in words.
 //   4. NO PAYLOAD AND NO USABLE PAYLOAD BOTH LEAVE THE PAGE ALONE. Asserted on
-//      markers of the NORMAL region — its authored figure and its "Illustrative"
-//      chip — rather than on the absence of the recipient view, because an
+//      markers of the NORMAL region — its authored figure and the readiness
+//      chip the page boots with — rather than on the absence of the recipient
+//      view, because an
 //      empty shell would satisfy the second and fail a reader.
 //   5. READ-ONLY. No button, input or write-back control appears in the region,
 //      and the state adds no tab stop to the one the served page already has.
@@ -35,6 +36,7 @@ import {
 } from "../src/finops-recipient-brief.js";
 import { BRIEF_VIEW_FIELD, BRIEF_VIEW_REASON, BRIEF_VIEW_SCHEMA } from "../src/finops-brief-view.js";
 import { FINOPS_DESTINATIONS } from "../src/finops-destinations.js";
+import { applyRateCardLadder, readinessFor } from "../src/finops-rate-card-view.js";
 
 const PAGE = new URL("../src/evolution.html", import.meta.url);
 const html = await readFile(PAGE, "utf8");
@@ -219,13 +221,16 @@ test("an opened brief file paints the same state through the same reader", async
 
 test("no payload leaves the normal answer region exactly as the page ships it", () => {
   const document = doc();
+  // The boot resolves the marker from the readiness contract (#1480) before any
+  // brief is read, so this models the page as it ships rather than as it parses.
+  applyRateCardLadder(document);
   const read = applyRecipientBrief(document, { hash: "#finops-recoverable-answer" });
   assert.equal(read.ok, false);
   assert.equal(read.reason, "no_shared_briefing");
 
   // Markers of the NORMAL region, not the absence of the recipient one.
   assert.equal(textOf(byId(document, RECIPIENT_BRIEF_IDS.value)), "$62,400");
-  assert.equal(textOf(byId(document, RECIPIENT_BRIEF_IDS.marker)), "Illustrative");
+  assert.equal(textOf(byId(document, RECIPIENT_BRIEF_IDS.marker)), readinessFor().marker);
   assert.match(textOf(partBody(document, "Provenance")), /bundled synthetic example/);
   assert.equal(byId(document, RECIPIENT_BRIEF_IDS.action).hidden, false);
   assert.equal(byId(document, RECIPIENT_BRIEF_IDS.region).dataset.sharedBrief, undefined);
@@ -235,6 +240,7 @@ test("no payload leaves the normal answer region exactly as the page ships it", 
 
 test("a refused payload states why and leaves the normal region functional", () => {
   const document = doc();
+  applyRateCardLadder(document);
   const read = applyRecipientBrief(document, { hash: "#brief=this-is-not-base64url!!" });
   assert.equal(read.ok, false);
 
@@ -245,7 +251,7 @@ test("a refused payload states why and leaves the normal region functional", () 
   assert.equal(within(notice, byId(document, RECIPIENT_BRIEF_IDS.region)), false);
 
   assert.equal(textOf(byId(document, RECIPIENT_BRIEF_IDS.value)), "$62,400");
-  assert.equal(textOf(byId(document, RECIPIENT_BRIEF_IDS.marker)), "Illustrative");
+  assert.equal(textOf(byId(document, RECIPIENT_BRIEF_IDS.marker)), readinessFor().marker);
   assert.equal(byId(document, RECIPIENT_BRIEF_IDS.region).dataset.sharedBrief, undefined);
 
   // …and the region's own disclosure still opens, on the page's own content.

@@ -523,7 +523,10 @@ import { applyRecoverableConfidence } from "/finops-recoverable-confidence-view.
 import { applyRecoverableSpendCoverage } from "/recoverable-spend-coverage-view.js";
 import { applyFinopsFrontDoor, bindFrontDoorWorking } from "/finops-destinations.js";
 // …and what a lead would have to state before that figure is checkable against
-// their own contract, rather than against a published list price (#1262).
+// their own contract, rather than against a published list price (#1262) — now
+// resolved together with how much of the exported spend the figure covers, as
+// ONE tier from one contract, so the marker beside the money and the readiness
+// line inside the disclosure cannot state two different things (#1480).
 import { applyRateCardLadder } from "/finops-rate-card-view.js";
 // And beside the money, whose prices it is: a sub-score banded off the rate
 // declaration's metadata alone, never off the rates, so a lead cannot raise it by
@@ -2064,11 +2067,14 @@ function mountLocalFinopsImport() {
     // The marker and hedge beside the recoverable figure now come from the card
     // that actually priced this envelope (#1263), not from a bundled constant
     // painted once at boot. With no declared card the analysis resolves to the
-    // published-list reference card, the verdict is the bundled one, and the
-    // three slots are rewritten with exactly the strings they already carried.
-    if (next?.modelRouting?.rateCardConfidence) {
-      applyRateCardLadder(document, next.modelRouting.rateCardConfidence);
-    }
+    // published-list reference card and the verdict is the bundled one.
+    // The analysis goes in with it (#1480): the tier is resolved from the card
+    // AND from how much of this envelope's own spend is named, graded and priced,
+    // so a figure quoted over half an export cannot be marked "Declared" because
+    // the half it does cover was priced well. That is why the slots may change
+    // here even when the card did not — this envelope's coverage is a second
+    // input the served document had no answer for.
+    applyRateCardLadder(document, next?.modelRouting?.rateCardConfidence, next ?? null);
     // …and the provenance of those prices, scored from the card this envelope
     // declared rather than from the figures it produced. The date it is judged
     // against is the envelope's OWN period, so the sub-score does not change on a
