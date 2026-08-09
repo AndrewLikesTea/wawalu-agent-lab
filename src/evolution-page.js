@@ -263,7 +263,8 @@ import { renderAnalysisReadiness } from "/finops-analysis-readiness-view.js";
 // benchmark, the stated percentage and the readiness state, and withholds a
 // figure entirely rather than publishing one a leader could not trace.
 import { finopsAnswerSignals, resolveFinopsAnswer } from "/finops-answer-contract.js";
-import { renderFinopsAnswer } from "/finops-answer-contract-view.js";
+import { evaluateFinopsClaim, finopsClaimFinding } from "/finops-answer-eligibility.js";
+import { renderFinopsAnswer, renderFinopsClaimProvenance } from "/finops-answer-contract-view.js";
 // Whether the letter may be shown at all is decided before it is drawn: the
 // score card is a roll-up of only the departments the rubric actually scored.
 import { CLAMPED_REASON, gradeEligibility } from "/grade-eligibility.js";
@@ -5388,6 +5389,13 @@ const bundledAnalysis = analysisReadiness({ scenarioId: "aws-bedrock-cur-v1" });
 renderAnalysisReadiness(document, bundledAnalysis.ok ? bundledAnalysis.readiness : null);
 renderFinopsAnswer(document, bundledAnalysis.ok
   ? resolveFinopsAnswer(finopsAnswerSignals(bundledAnalysis)) : null);
+// …and the grade of that same claim, into the evidence disclosure below it: the
+// status, the finding it derives from, and the assumption behind the threshold
+// that governed it. Same record, same rules the labelled fixtures are driven
+// through, so the executive figure cannot diverge from the check behind it.
+renderFinopsClaimProvenance(document, bundledAnalysis.ok
+  ? evaluateFinopsClaim(finopsClaimFinding(bundledAnalysis), { source: "bundled-analysis" })
+  : null);
 // …and the guided flow over the same boundary: the reader picks one of the
 // bundled provider exports and the evidence and department destinations below
 // are repainted from THAT scenario. Mounted here, beside the readiness answer it

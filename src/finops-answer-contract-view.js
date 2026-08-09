@@ -36,6 +36,7 @@
 // `.stand-figure-basis` is the small role provenance is stated in — beside the
 // answer, never behind a control.
 import { ANSWER_STATUS, WITHHELD } from "./finops-answer-contract.js";
+import { CLAIM_STATUS } from "./finops-answer-eligibility.js";
 import { PANEL_STATUS, panelStatusPresentation } from "./panel-status-view.js";
 
 /** The five reading states of the answer region. There is no sixth. */
@@ -290,4 +291,74 @@ export function renderFinopsAnswer(doc, answer, options = {}) {
       + ` of the analyzed baseline. ${plausibility.caveat ?? ""}`.trim()
     : `${panelStatusPresentation(CHIP_STATUS[state]).word}: ${STATE_SUMMARY[state]}`));
   return region;
+}
+
+// ── The eligibility trace, inside the evidence disclosure (#1464) ─────────────
+//
+// THREE ROWS, IN THE DISCLOSURE THE PAGE ALREADY SHIPS. Not a new region, not a
+// new panel: the "Inspect the figure, confidence, and provenance" list is where
+// a reader already goes to check a number, so the grade of that number belongs
+// in the same list rather than one control away from it.
+//
+// WHAT THE THREE ROWS OWE A READER: the status of the claim shown above, the
+// finding it was derived from, and the assumption behind the threshold that
+// governed the status. An executive who disputes the grade can then dispute the
+// SENTENCE, which is a conversation, rather than a number, which is not.
+//
+// AND NEVER A FIGURE WITHOUT ONE. When the status is incomplete or conflicting
+// the status row states the withheld-claim explanation and the reasons that
+// produced it, and no figure appears in this list at all.
+
+const CLAIM_LEAD = Object.freeze({
+  [CLAIM_STATUS.eligible]: "Eligible — every published eligibility rule passed, so the figure"
+    + " above may be quoted.",
+  [CLAIM_STATUS.incomplete]: "Withheld as incomplete — no figure is published here, because an"
+    + " input this claim is defined from is missing or too thin to check.",
+  [CLAIM_STATUS.conflicting]: "Withheld as conflicting — no figure is published here, because"
+    + " two synthetic findings disagree about the same metric.",
+});
+
+const UNEVALUATED = "Not evaluated — the bundled analysis did not load, so no claim was graded"
+  + " and no figure is published here.";
+
+/**
+ * Paint the claim's eligibility trace into the existing evidence disclosure.
+ *
+ * IT GRADES NOTHING. Every value below is a field of the record
+ * `evaluateFinopsClaim` returned, written through `textContent`, so untrusted
+ * finding prose reaches this page as text and can never be markup.
+ *
+ * @param doc the document holding `#analysis-readiness-how-we-know`.
+ * @param evaluation a `finops-claim-eligibility/1.0.0` record, or null when the
+ *   bundled analysis failed to load.
+ * @returns the disclosure, or null when the page does not carry one.
+ */
+export function renderFinopsClaimProvenance(doc, evaluation) {
+  const disclosure = doc.getElementById("analysis-readiness-how-we-know");
+  if (!disclosure) return null;
+  const status = evaluation?.status ?? "unevaluated";
+  disclosure.dataset.claimStatus = status;
+
+  const eligible = status === CLAIM_STATUS.eligible;
+  const headline = evaluation?.claim?.headline;
+  const reasons = (evaluation?.reasons ?? []).map((entry) => entry.sentence).join(" ");
+  set(doc, "analysis-readiness-claim-status", !evaluation ? UNEVALUATED
+    : `${CLAIM_LEAD[status]} ${eligible
+      ? `${USD.format(headline.annualSavingsUsd)} a year, ${headline.savingsPercent}% of the`
+        + ` ${USD.format(headline.annualBaselineSpendUsd)} analyzed baseline, on a benchmark this`
+        + ` layer reads as ${evaluation.claim.benchmark.material ? "material" : "immaterial"}.`
+      : reasons}`.trim());
+
+  const provenance = evaluation?.provenance;
+  set(doc, "analysis-readiness-claim-source", !provenance
+    ? "No finding was graded, so there is no provenance to state."
+    : `Finding ${provenance.findingId ?? "unnamed"} from ${provenance.source}${
+      provenance.fixtureId ? `, fixture ${provenance.fixtureId}` : ""}, graded by`
+      + ` ${evaluation.evaluation} over ${evaluation.contract}.${provenance.narrative
+        ? ` Finding statement, quoted inert: “${provenance.narrative}”` : ""}`);
+
+  set(doc, "analysis-readiness-claim-assumption", !provenance
+    ? "No rule governed, so there is no assumption to state."
+    : `Governing rule ${provenance.governingRule}. ${provenance.assumption}`);
+  return disclosure;
 }

@@ -72,9 +72,11 @@ const READINESS_BY_LEVEL = Object.freeze({
 });
 
 // Money is compared at whole dollars or half a percent, whichever is wider, so
-// two figures that round differently are not called a conflict.
-const CONFLICT_ABSOLUTE_USD = 1;
-const CONFLICT_RELATIVE = 0.005;
+// two figures that round differently are not called a conflict. Exported so the
+// eligibility layer can publish the tolerance it classifies a conflict by
+// instead of restating the numbers and letting the two drift apart.
+export const CONFLICT_ABSOLUTE_USD = 1;
+export const CONFLICT_RELATIVE = 0.005;
 // A stated percentage may differ from the computed one by at most this, in
 // percentage points, before the two are treated as disagreeing.
 const PERCENT_TOLERANCE = 0.1;
