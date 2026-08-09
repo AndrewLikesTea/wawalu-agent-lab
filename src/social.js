@@ -486,9 +486,12 @@ function renderSkeleton(container, count = 3) {
 // get; a filtered-out feed is already full, so it names what excluded the posts
 // and hands over the one control that brings them back.
 //
-// "create an image in Paint" is the site's one name for that act — the hero, the
-// composer, and both of People's invitations all use it — so this sentence uses
-// it too rather than the "open Paint" it used to say.
+// "create an image in Paint" is the site's one name for that act — the composer
+// and both of People's invitations all use it — so this sentence uses it too
+// rather than the "open Paint" it used to say. It is the sentence that points at
+// Paint here; the button that used to repeat it under this line is gone, because
+// Social offered one action three times and the composer above is where the
+// image is actually attached.
 const NO_POSTS_GUIDANCE = "Publish a post, or create an image in Paint first.";
 
 // One wait, one sentence. Social and People are both waiting on the same fetch,
@@ -550,10 +553,6 @@ export function renderPosts(container, posts, options = {}) {
         label: "Social feed status",
         value: "No posts on Social yet.",
         description: NO_POSTS_GUIDANCE,
-        // Same label, same tab behaviour, same disclosure as the hero and the
-        // composer above it: one action offered in a third place, not a third
-        // action.
-        action: { label: "Create an image in Paint", href: "/paint/", newTab: true },
       });
       panel.classList.add("empty-state");
     }

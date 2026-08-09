@@ -217,14 +217,16 @@ test("the missing-description refusal is announced where every other publish out
   // own label, not in a colour behind it.
   assert.match(said, /Not published/);
 
-  // It reads like the caption's refusal because it is built on the same clauses:
-  // what stops, what is asked of you, and that nothing is published.
-  const captionRefusal = textOf(harness.document.querySelector("#post-body-hint"));
-  for (const sentence of [captionRefusal, IMAGE_DESCRIPTION_REFUSAL_NOTE]) {
-    assert.match(sentence, /^Publish post stops on an /);
-    assert.match(sentence, /—/);
-    assert.match(sentence, /, and nothing is published\.$/);
-  }
+  // The shape of a refusal on this page: what stopped, what is asked of you, and
+  // that nothing was published. It is said when the refusal happens and nowhere
+  // else — the caption's hint used to carry the same three clauses in the page as
+  // served, describing a failure the reader had not met yet, and now states only
+  // the rule and the budget.
+  assert.match(IMAGE_DESCRIPTION_REFUSAL_NOTE, /^Publish post stops on an /);
+  assert.match(IMAGE_DESCRIPTION_REFUSAL_NOTE, /—/);
+  assert.match(IMAGE_DESCRIPTION_REFUSAL_NOTE, /, and nothing is published\.$/);
+  const captionHint = textOf(harness.document.querySelector("#post-body-hint"));
+  assert.equal(captionHint, "Required. Up to 280 characters.");
 
   // Announced, and then the reader is put where the fix is.
   assert.equal(harness.document.activeElement?.id, "post-image-alt");

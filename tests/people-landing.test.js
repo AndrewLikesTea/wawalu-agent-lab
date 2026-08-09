@@ -145,14 +145,16 @@ test("a first-time visitor lands on a display name that has image posts", async 
     assert.equal(textOf(document.querySelector("#profile-name")), "Active display-name filter: Zed",
       "the header names someone other than the picker's own value");
     assert.match(textOf(document.querySelector(".profile-role")),
-      /Zed is a display name[\s\S]*This view shows image posts only\. See every post on Social, including the ones published without an image\./,
-      "the selected-name results state does not explain its image-only scope or route to the posts it leaves out");
-    // The same two facts where a reader who scrolled to the grid meets them:
-    // the heading counts image posts, the eyebrow above it names the surface
-    // that has the rest. Neither states the scope in the other's words.
+      /Zed is a display name[\s\S]*See every post on Social\.$/,
+      "the selected-name results state does not route to the posts it leaves out");
+    // The scope is the intro's to state, once. This paragraph and the eyebrow
+    // over the grid both used to restate it in their own words.
+    assert.match(textOf(document.querySelector(".profile-lede")),
+      /Open Social when you want the whole feed, including posts with no image\./);
+    // What a reader who scrolled straight to the grid meets: the heading counts
+    // image posts, the eyebrow above it orders them. Neither repeats the other.
     const panelHeading = document.querySelector(".list-heading");
-    assert.equal(textOf(panelHeading.querySelectorAll(".eyebrow")[0]),
-      "Newest first · posts without images are on Social");
+    assert.equal(textOf(panelHeading.querySelectorAll(".eyebrow")[0]), "Newest first");
     assert.match(textOf(document.querySelector("#profile-summary")), /^2 image posts/);
     assert.equal(document.querySelectorAll(".profile-tile").length, 2);
     assert.equal(document.querySelectorAll(".empty-state").length, 0);
@@ -373,7 +375,7 @@ test("choosing another name updates the page in place and keeps the URL and stor
       assert.equal(document.activeElement?.dataset.author, "Bea");
       assert.equal(textOf(document.querySelector("#profile-name")), "Active display-name filter: Bea");
       assert.match(textOf(document.querySelector(".profile-role")),
-        /Bea is a display name[\s\S]*See every post on Social, including the ones published without an image\./);
+        /Bea is a display name[\s\S]*See every post on Social\.$/);
       assert.match(textOf(document.querySelector("#profile-summary")), /^1 image post /);
       assert.equal(document.querySelectorAll(".profile-tile").length, 1);
       assert.equal(page.navigations.length, 0);

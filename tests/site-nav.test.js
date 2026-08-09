@@ -264,15 +264,19 @@ test("the profile page defines the selected name as a display name", async () =>
   // composer's own words, for the reader who arrives from a shared link and
   // never sees the composer: it is not an account, and it is not reserved.
   assert.match(role[1], /not a signed-in user — nobody owns or verifies one, and anyone can publish under any name/);
-  // The second sentence stays on the same subject the first one names. It used
-  // to swap to "this display name" mid-paragraph, and before that to "that
-  // person's image posts", which gave the page a second word for the name.
-  assert.match(role[1], /This view shows image posts only\./);
+  // The scope is not restated here. This paragraph used to add "This view shows
+  // image posts only. See every post on Social, including the ones published
+  // without an image", which is the intro sentence in different words and the
+  // eyebrow over the grid in different words again — the same rule told three
+  // times before the reader saw a picture. The intro tells it once.
+  assert.doesNotMatch(role[1], /This view shows image posts only/);
+  assert.doesNotMatch(role[1], /including the ones published without an image/);
+  assert.match(html, /<p class="profile-lede">People shows the image posts published under one display name[^<]*Open Social when you want the whole feed, including posts with no image\./,
+    "the intro no longer states the rule the paragraph below stopped repeating");
   // The route out is Social's whole feed, under the label the empty state's own
-  // button uses, and the clause after it — not the label — is what says where a
-  // post without an image is. A link that reads "see posts without images on
-  // Social" would make Social sound like the other half of a split feed.
-  assert.match(role[1], /<a class="text-link" href="\/social\.html">See every post on Social<\/a>, including the ones published without an image\./);
+  // button uses. A link that reads "see posts without images on Social" would
+  // make Social sound like the other half of a split feed.
+  assert.match(role[1], /<a class="text-link" href="\/social\.html">See every post on Social<\/a>\.$/);
   assert.doesNotMatch(rendered, /that person's|their image posts/,
     "no rendered copy on People calls a display name's posts someone's");
   // Subordinate, not trapped: the way back to the whole feed is right there.
