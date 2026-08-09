@@ -1,6 +1,9 @@
 import { validateMonthlyReviewProjection } from "./monthly-review-projection.js";
 
 const percent = (ppm) => Number.isInteger(ppm) ? `${(ppm / 10_000).toFixed(1)}%` : "unavailable";
+const money = (minor) => Number.isSafeInteger(minor)
+  ? new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(minor / 100)
+  : "unavailable";
 const text = (doc, tag, className, value) => {
   const node = doc.createElement(tag);
   if (className) node.className = className;
@@ -119,6 +122,8 @@ export function renderMonthlyReviewProjection(doc, review) {
     text(doc, "p", "monthly-review-value", percent(review.materialBenchmark.currentSharePpm)),
     text(doc, "p", "monthly-review-comparison",
       `Current recoverable share · ${percent(review.materialBenchmark.currentSharePpm)}. Baseline · ${percent(review.materialBenchmark.baselineSharePpm)}. Change · ${direction} ${percent(Math.abs(change))}.`),
+    text(doc, "p", "monthly-review-savings-claim",
+      `Savings outcome · ${review.savingsClaim.label.replaceAll("_", " ")}. Realized ${money(review.savingsClaim.realizedSavingsMinor)} versus projected ${money(review.savingsClaim.projectedSavingsMinor)}. Comparison confidence ${review.savingsClaim.confidence.score}/100 (${review.savingsClaim.confidence.band}).`),
   );
 
   const action = text(doc, "section", "monthly-review-projection-action", "");
@@ -152,6 +157,7 @@ export function renderMonthlyReviewProjection(doc, review) {
       : "No department contributor available."),
     labelled(doc, "Prior commitment", `${review.priorCommitmentVerification.status}. ${review.priorCommitmentVerification.basis}`),
     labelled(doc, "Confidence", `${review.confidence.level}. ${review.confidence.basis}`),
+    labelled(doc, "Savings scoring", `${review.savingsClaim.confidence.formula}. Realized: ${review.savingsClaim.assumptions.realized}`),
     labelled(doc, "Source", `${review.schemaVersion} · ${review.inputVersion}`),
     labelled(doc, "Periods", review.provenance.periodIds.join(", ") || "None"),
   );

@@ -1,0 +1,10 @@
+{
+  "schemaVersion": "retained-savings-fixtures/1.0.0",
+  "privacy": "Synthetic aggregates only. No prompts, raw rows, credentials, customer data, or network sources.",
+  "fixtures": [
+    {"id":"successful-commitment","expectedLabel":"successful_commitment","periods":[{"period":"2026-05","dataset":"synthetic","analyzedSpendMinor":1000000,"recoverableScenarioMinor":100000,"coverageRatioPpm":1000000,"materialMetricId":"recoverable_scenario"},{"period":"2026-06","dataset":"synthetic","analyzedSpendMinor":890000,"recoverableScenarioMinor":50000,"coverageRatioPpm":1000000,"materialMetricId":"recoverable_scenario"}]},
+    {"id":"missed-commitment","expectedLabel":"missed_commitment","periods":[{"period":"2026-05","dataset":"synthetic","analyzedSpendMinor":1000000,"recoverableScenarioMinor":100000,"coverageRatioPpm":900000,"materialMetricId":"recoverable_scenario"},{"period":"2026-06","dataset":"synthetic","analyzedSpendMinor":960000,"recoverableScenarioMinor":120000,"coverageRatioPpm":900000,"materialMetricId":"recoverable_scenario"}]},
+    {"id":"incomplete-comparison-evidence","expectedLabel":"incomplete_comparison_evidence","periods":[{"period":"2026-06","dataset":"synthetic","analyzedSpendMinor":960000,"recoverableScenarioMinor":120000,"coverageRatioPpm":900000,"materialMetricId":"recoverable_scenario"}]},
+    {"id":"newly-emerging-opportunity","expectedLabel":"newly_emerging_opportunity","periods":[{"period":"2026-05","dataset":"synthetic","analyzedSpendMinor":1000000,"recoverableScenarioMinor":0,"coverageRatioPpm":1000000,"materialMetricId":"recoverable_scenario"},{"period":"2026-06","dataset":"synthetic","analyzedSpendMinor":1000000,"recoverableScenarioMinor":80000,"coverageRatioPpm":1000000,"materialMetricId":"recoverable_scenario"}]}
+  ]
+}
