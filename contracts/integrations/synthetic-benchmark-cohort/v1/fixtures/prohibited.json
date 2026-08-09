@@ -1,0 +1,11 @@
+{
+  "contractVersion": "synthetic-cohort-snapshot/1.0.0",
+  "snapshot": { "id": "synthetic-cohorts-2026-07", "generatedAt": "2026-08-01T00:00:00Z" },
+  "provider_account_id": "must-never-be-consumed",
+  "scenarios": [{
+    "scenario_id": "fixture-scenario", "provider_family": "synthetic-provider",
+    "export_format": "aggregate-json", "department_label": "Example Team",
+    "spend_usd": 1000, "query_count": 2000, "recoverable_spend_usd": 200,
+    "action_code": "route_standard", "prompt_content": "must-never-be-consumed"
+  }]
+}

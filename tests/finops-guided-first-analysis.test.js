@@ -85,6 +85,7 @@ test("the evidence destination renders the chosen scenario, and a second choice 
   assert.match(googleEvidence, /\$4,500/);
   assert.match(googleEvidence, /vertex-ai/);
   assert.match(googleEvidence, /computed locally in this browser/);
+  assert.match(googleEvidence, /Benchmark eligible.*synthetic-cohorts-2026-07.*validated on the client/);
   assert.match(googleEvidence, /vertex-sanitized-1/);
   assert.match(googleEvidence, /Evidence confidence \d+\/100/);
   assert.match(googleEvidence, /No real data is entered, uploaded or transmitted/);

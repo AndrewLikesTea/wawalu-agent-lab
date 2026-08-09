@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://labs.wawalu.org/contracts/integrations/synthetic-benchmark-cohort/v1/schema.json",
+  "title": "Synthetic benchmark cohort snapshot v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contractVersion", "snapshot", "scenarios"],
+  "properties": {
+    "contractVersion": { "const": "synthetic-cohort-snapshot/1.0.0" },
+    "snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "generatedAt"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^synthetic-cohorts-[0-9]{4}-(0[1-9]|1[0-2])$" },
+        "generatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "scenarios": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "scenario_id", "provider_family", "export_format", "department_label",
+          "spend_usd", "query_count", "recoverable_spend_usd", "action_code"
+        ],
+        "properties": {
+          "scenario_id": { "type": "string", "minLength": 1 },
+          "provider_family": { "type": "string", "minLength": 1 },
+          "export_format": { "type": "string", "minLength": 1 },
+          "department_label": { "type": "string", "minLength": 1 },
+          "spend_usd": { "type": "number", "minimum": 0 },
+          "query_count": { "type": "number", "minimum": 0 },
+          "recoverable_spend_usd": { "type": "number", "minimum": 0 },
+          "action_code": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  }
+}

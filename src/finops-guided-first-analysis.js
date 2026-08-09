@@ -82,7 +82,7 @@ export function guidedScenarioAddress(scenarioId, destination = "") {
 export function guidedAnalysis(scenarioId) {
   const result = analysisReadiness({ scenarioId });
   if (!result.ok) return null;
-  const { finding, readiness, providerExportShape: shape, sample } = result;
+  const { finding, readiness, providerExportShape: shape, sample, eligibility } = result;
   const step = readiness.recommendation;
   const department = sample.departments[0];
   const evidence = sample.evidence[0];
@@ -91,12 +91,15 @@ export function guidedAnalysis(scenarioId) {
   const figure = step.figure;
   return Object.freeze({
     contract: GUIDED_FLOW_CONTRACT, scenarioId: result.scenarioId, label: result.label,
+    eligibility,
     question: GUIDED_QUESTION,
     // The one material benchmark, said as a sentence a leader can repeat.
     benchmark: `${figure.text} of ${figure.metricName.replace(/_/g, " ")} over ${figure.period}`,
     answer: finding.statement,
     provenance: `Bundled synthetic ${shape.providerId} export, computed locally in this browser:`
       + ` ${finding.provenance.source}.`,
+    eligibilityText: `Benchmark eligible · ${eligibility.snapshotId} · validated on the client`
+      + " · no network, provider, or HRIS connection required.",
     confidence: `Evidence confidence ${readiness.confidence.value}/100 ·`
       + ` ${readiness.score.numerator} of ${readiness.score.denominator} required evidence`
       + ` categories sufficient · action confidence ${step.confidence}/100.`,

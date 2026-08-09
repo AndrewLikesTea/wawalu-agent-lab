@@ -2,6 +2,8 @@
 // choose one stable scenario id; provider shape, sanitized records and the
 // canonical projection are private registry facts, never request fields.
 import { analysisReadinessForDataset } from "./finops-analysis-readiness.js";
+import { inspectSyntheticCohort } from "./synthetic-cohort-contract.js";
+import { SYNTHETIC_COHORT_FIXTURE } from "./synthetic-cohort-fixture.js";
 
 export const BUNDLED_SCENARIO_CONTRACT = "finops-bundled-scenario/1.0.0";
 export const BUNDLED_SCENARIO_ERROR = Object.freeze({
@@ -88,12 +90,20 @@ export function analyzeBundledScenario(request) {
   if (!selected) return failure(BUNDLED_SCENARIO_ERROR.UNKNOWN_SCENARIO,
     `No bundled scenario is registered as ${request.scenarioId}.`, request.scenarioId);
 
+  const eligibility = inspectSyntheticCohort(SYNTHETIC_COHORT_FIXTURE);
+  if (!eligibility.eligible) return Object.freeze({
+    ok: false, contract: BUNDLED_SCENARIO_CONTRACT, eligibility,
+    error: Object.freeze({ code: BUNDLED_SCENARIO_ERROR.INVALID_INPUT,
+      message: "The bundled synthetic cohort is not eligible for scenario comparison.",
+      scenarioId: selected.id }),
+  });
+
   const readiness = analysisReadinessForDataset(selected.dataset);
   const next = readiness.recommendation;
   const threshold = 1000;
   return Object.freeze({
     ok: true, contract: BUNDLED_SCENARIO_CONTRACT, scenarioId: selected.id,
-    label: selected.label,
+    label: selected.label, eligibility,
     providerExportShape: selected.providerExportShape, readiness,
     // The sanitized rows the finding was computed from, published so a view can
     // SHOW the scenario rather than restate a summary of it. Read-only output,

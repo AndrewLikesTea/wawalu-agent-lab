@@ -1,0 +1,18 @@
+{
+  "contractVersion": "synthetic-cohort-snapshot/1.0.0",
+  "execution": { "location": "client", "networkRequired": false },
+  "schema": "schema.json",
+  "allowlistedScenarioAttributes": [
+    "scenario_id", "provider_family", "export_format", "department_label",
+    "spend_usd", "query_count", "recoverable_spend_usd", "action_code"
+  ],
+  "behavior": {
+    "partial": "Reject when a required aggregate or snapshot field is missing.",
+    "stale": "Retain the immutable snapshot month in eligibility; consumers decide display freshness.",
+    "malformed": "Reject deterministically with sorted issue strings and no source-value echo.",
+    "reordered": "Accept object keys and scenario rows in any order; duplicate scenario IDs are rejected.",
+    "incompatible": "Reject versions other than synthetic-cohort-snapshot/1.0.0.",
+    "prohibited": "Reject identifiers, credentials, prompts, provider account IDs, employee records, and raw customer data before comparison."
+  },
+  "fixtures": ["valid.json", "missing.json", "incompatible.json", "prohibited.json"]
+}

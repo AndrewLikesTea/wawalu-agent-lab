@@ -223,6 +223,7 @@ export function renderGuidedEvidence(doc, model) {
     el(doc, "p", "stand-answer", model.answer),
     el(doc, "p", "stand-figure", model.benchmark),
     line(doc, "stand-answer", "Provenance", model.provenance),
+    line(doc, "stand-answer", "Benchmark eligibility", model.eligibilityText),
     line(doc, "stand-answer", "Confidence", model.confidence),
     el(doc, "p", "sample-marker", GUIDED_SYNTHETIC_NOTICE),
     rows(doc, model.evidenceRows),
