@@ -6,9 +6,10 @@ import {
   buildExecutiveBriefing, validateExecutiveBriefing,
 } from "./executive-finops-briefing.js";
 import { FINOPS_PERIOD_FIELDS } from "./finops-workspace-contract.js";
+import { scoreRetainedSavingsComparison } from "./retained-savings-score.js";
 
 export const MONTHLY_REVIEW_INPUT_VERSION = "monthly-review-input/1.0.0";
-export const MONTHLY_REVIEW_VERSION = "monthly-review-projection/1.0.0";
+export const MONTHLY_REVIEW_VERSION = "monthly-review-projection/1.1.0";
 
 const freeze = Object.freeze;
 const INPUT_FIELDS = freeze(["schemaVersion", "retainedPeriods"]);
@@ -50,11 +51,9 @@ export function validateMonthlyReviewInput(input) {
   return freeze({ valid: errors.length === 0, errors: freeze(errors) });
 }
 
-const action = (id, statement, evidence) => freeze({
-  rank: 1, id, statement, evidence: freeze(evidence),
-});
-
 function absentProjection(input, errors) {
+  const { nextAction, ...claim } = scoreRetainedSavingsComparison([]);
+  const savingsClaim = freeze(claim);
   return freeze({
     schemaVersion: MONTHLY_REVIEW_VERSION,
     inputVersion: input?.schemaVersion ?? null,
@@ -70,8 +69,9 @@ function absentProjection(input, errors) {
       status: "not_verifiable", basis: "No comparable prior retained periods establish an outcome to verify.",
     }),
     confidence: freeze({ level: "insufficient", basis: "comparison_evidence_missing" }),
+    savingsClaim,
     provenance: freeze({ inputVersion: input?.schemaVersion ?? null, periodIds: freeze([]), errors: freeze(errors) }),
-    nextAction: action("retain_comparable_period", "Retain the immediately preceding comparable month, then rebuild this review.", ["comparison_evidence_missing"]),
+    nextAction,
   });
 }
 
@@ -90,6 +90,8 @@ export function buildMonthlyReviewProjection(input) {
   }
 
   const variance = briefing.benchmark.varianceSharePpm;
+  const { nextAction, ...claim } = scoreRetainedSavingsComparison(briefing.periods ?? input.retainedPeriods);
+  const savingsClaim = freeze(claim);
   const status = briefing.benchmark.standing === BENCHMARK_STANDING.less ? "improving"
     : briefing.benchmark.standing === BENCHMARK_STANDING.more ? "worsening" : "stable";
   const material = Math.abs(variance) > BENCHMARK_MATERIAL_VARIANCE_PPM;
@@ -104,11 +106,7 @@ export function buildMonthlyReviewProjection(input) {
         ? "The retained outcome worsened, so prior-commitment success is not supported."
         : "The movement did not clear the materiality threshold.",
     });
-  const nextAction = status === "improving" && material
-    ? action("verify_prior_commitment", "Verify the prior commitment against its recorded scope before closing or extending it.", ["material_improvement", "causality_not_established"])
-    : status === "worsening" && material
-      ? action("revise_ranked_department_action", "Revise the action for the strongest department contributor before the next review.", ["material_worsening"])
-      : action("continue_measurement", "Keep the current action bounded and compare again next month.", ["no_material_change"]);
+  // One scorer owns priority. Trend remains evidence, never a competing action.
 
   return freeze({
     schemaVersion: MONTHLY_REVIEW_VERSION,
@@ -129,6 +127,7 @@ export function buildMonthlyReviewProjection(input) {
     }),
     priorCommitmentVerification: verification,
     confidence: freeze({ level: briefing.confidence.level, basis: briefing.confidence.meaning }),
+    savingsClaim,
     provenance: freeze({
       inputVersion: input.schemaVersion,
       periodIds: freeze([...briefing.provenance.periodIds]),
@@ -159,6 +158,7 @@ export function validateMonthlyReviewProjection(review) {
   }
   if (typeof review.priorCommitmentVerification?.status !== "string") errors.push("priorCommitmentVerification: required");
   if (typeof review.confidence?.level !== "string") errors.push("confidence: required");
+  if (typeof review.savingsClaim?.confidence?.score !== "number") errors.push("savingsClaim: score is required");
   if (!Array.isArray(review.provenance?.periodIds)) errors.push("provenance.periodIds: required array");
   if (review.materialBenchmark?.status === "improving" && !(review.materialBenchmark.changeSharePpm < 0)) {
     errors.push("materialBenchmark: improving requires a negative change");

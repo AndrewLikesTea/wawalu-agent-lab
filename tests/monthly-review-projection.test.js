@@ -48,7 +48,9 @@ test("material improvement projects prior-commitment verification and one ranked
   assert.equal(review.priorCommitmentVerification.status, "candidate_supported");
   assert.equal(review.confidence.level, "high");
   assert.equal(review.nextAction.rank, 1);
-  assert.equal(review.nextAction.id, "verify_prior_commitment");
+  assert.equal(Object.hasOwn(review.savingsClaim, "nextAction"), false,
+    "the output must not duplicate its single prioritized action");
+  assert.equal(review.nextAction.id, "revise_commitment");
   assert.equal(validateMonthlyReviewProjection(review).valid, true);
 });
 
@@ -57,7 +59,7 @@ test("material worsening produces one corrective action without claiming commitm
   assert.equal(review.status, "worsening");
   assert.equal(review.materialBenchmark.changeSharePpm, 60_000);
   assert.equal(review.priorCommitmentVerification.status, "not_supported");
-  assert.equal(review.nextAction.id, "revise_ranked_department_action");
+  assert.equal(review.nextAction.id, "revise_commitment");
   assert.deepEqual(Object.keys(review).filter((key) => key === "nextAction"), ["nextAction"]);
 });
 
@@ -110,7 +112,7 @@ test("monthly decision orders its heading, finding, benchmark, action, and evide
   ]);
   assert.match(textOf(root.querySelector(".monthly-review-status")), /▲ Worsening/);
   const action = root.querySelector(".monthly-review-projection-action");
-  assert.match(textOf(action), /Revise the action/);
+  assert.match(textOf(action), /Revise the missed commitment/);
   const link = root.querySelector(".monthly-review-department-link");
   assert.equal(textOf(link), "Review syn-support department evidence");
   assert.equal(link.href, "#department-decision-panel");
@@ -137,8 +139,8 @@ test("evidence disclosure is named, keyboard operable, stateful, and announced",
   const facts = details.querySelector("dl.monthly-review-evidence");
   assert.ok(facts, "the deferred details are not a description list");
   assert.deepEqual([...facts.querySelectorAll("dt")].map(textOf),
-    ["Trend", "Department evidence", "Prior commitment", "Confidence", "Source", "Periods"]);
-  assert.equal(facts.querySelectorAll("dd").length, 6);
+    ["Trend", "Department evidence", "Prior commitment", "Confidence", "Savings scoring", "Source", "Periods"]);
+  assert.equal(facts.querySelectorAll("dd").length, 7);
   for (const orphan of details.querySelectorAll("dt")) {
     assert.equal(orphan.closest("dl"), facts, "a term ships outside the description list");
   }
