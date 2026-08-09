@@ -374,15 +374,26 @@ const has = (value) => value !== null && value !== undefined && value !== "";
  */
 export function importedPanelFacts({
   providers = [], result = null, attributedShare = 0,
-  scoredPrompts = 0, gradedDepartments = 0, peerCohortRecords = 0,
+  scoredPrompts = 0, gradedDepartments = 0, peerCohortRecords = 0, modelFindingRows = 0,
 } = {}) {
   const rows = providers.flatMap((envelope) => records(envelope));
   return panelFacts({
     providerPeriodFiles: providers.length,
     costedRows: rows.filter((row) => Number.isFinite(row?.cost?.amount_minor)).length,
     orgUnitRows: rows.filter((row) => has(row?.org_unit_id)).length,
-    modelIdentifiedRows: rows.filter((row) => has(row?.usage?.model_raw)).length,
-    requestCountedRows: rows.filter((row) => Number.isFinite(row?.usage?.request_count)).length,
+    // A per-model finding that was actually produced is proof the two fields it
+    // needs were there. The row counts alone are a proxy that reads `usage.*` off
+    // individual rows, and an envelope of provider AGGREGATES — the shape that
+    // answers this question best — carries none, so the proxy said 0 and the
+    // panel declared itself unavailable. That hides `model-overspend-body`, the
+    // panel's own declared figure, with the finding's headline, recommended
+    // action and evidence control already painted into it: on screen the article
+    // was its question and nothing else, and the disclosure button was not in
+    // the tab order at all.
+    modelIdentifiedRows: Math.max(modelFindingRows,
+      rows.filter((row) => has(row?.usage?.model_raw)).length),
+    requestCountedRows: Math.max(modelFindingRows,
+      rows.filter((row) => Number.isFinite(row?.usage?.request_count)).length),
     attributedShare,
     rankedDepartments: result?.rankedDepartments?.length ?? 0,
     scoredPrompts,

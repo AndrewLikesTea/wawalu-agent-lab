@@ -1616,6 +1616,10 @@ function mountLocalFinopsImport() {
         const peer = importedPeer();
         return peer.available ? peer.cohort.memberCount : 0;
       })(),
+      // The per-model finding this same import produced, if it produced one. The
+      // panel's row proxy cannot see it in an aggregate envelope, and this is the
+      // one place that already holds the answer.
+      modelFindingRows: importedOverspend?.finding ? 1 : 0,
     });
   };
   const executivePanelFacts = () => {

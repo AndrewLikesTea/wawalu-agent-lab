@@ -72,6 +72,11 @@ export function renderImportedModelOverspendProjection(doc, projection, { storag
   const [reason, actionText] = WITHHELD[projection.withholding?.[0]?.code]
     ?? WITHHELD.no_source_rows;
   section.hidden = false;
+  // This refusal is painted into the panel's own declared figure, which the
+  // panel contract hides while the panel is unavailable — and a withheld finding
+  // is exactly that state. The reason the reader has to act on is in here, so it
+  // is shown even though the panel around it stays unavailable.
+  body.hidden = false;
   section.dataset.status = "unavailable";
   section.dataset.expanded = "false";
   const question = doc.getElementById("model-overspend-question");
