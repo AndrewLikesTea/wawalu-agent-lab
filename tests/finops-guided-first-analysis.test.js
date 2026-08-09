@@ -76,6 +76,12 @@ test("two scenarios do not produce the same model", () => {
   assert.equal(guidedAnalysis("not-registered"), null);
 });
 
+test("the rendered guided model exposes local synthetic comparison eligibility", () => {
+  const model = guidedAnalysis(GOOGLE);
+  assert.equal(model.comparisonEligibility.code, "eligible");
+  assert.match(model.provenance, /Synthetic cohort comparison: eligible/);
+});
+
 test("the evidence destination renders the chosen scenario, and a second choice replaces it", () => {
   const document = parseHtml(html);
   applyGuidedScenario(document, GOOGLE);

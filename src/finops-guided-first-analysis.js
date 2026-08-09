@@ -83,6 +83,7 @@ export function guidedAnalysis(scenarioId) {
   const result = analysisReadiness({ scenarioId });
   if (!result.ok) return null;
   const { finding, readiness, providerExportShape: shape, sample } = result;
+  const eligibility = result.comparisonEligibility;
   const step = readiness.recommendation;
   const department = sample.departments[0];
   const evidence = sample.evidence[0];
@@ -96,7 +97,9 @@ export function guidedAnalysis(scenarioId) {
     benchmark: `${figure.text} of ${figure.metricName.replace(/_/g, " ")} over ${figure.period}`,
     answer: finding.statement,
     provenance: `Bundled synthetic ${shape.providerId} export, computed locally in this browser:`
-      + ` ${finding.provenance.source}.`,
+      + ` ${finding.provenance.source}. Synthetic cohort comparison: ${eligibility.code}`
+      + ` — ${eligibility.message}`,
+    comparisonEligibility: eligibility,
     confidence: `Evidence confidence ${readiness.confidence.value}/100 ·`
       + ` ${readiness.score.numerator} of ${readiness.score.denominator} required evidence`
       + ` categories sufficient · action confidence ${step.confidence}/100.`,
