@@ -115,6 +115,7 @@ export function renderMonthlyReviewProjection(doc, review) {
   const benchmarkTitle = text(doc, "h3", undefined, "Headline finding");
   benchmarkTitle.id = "monthly-review-benchmark-title";
   const change = review.materialBenchmark.changeSharePpm;
+  const comparison = review.comparison;
   const direction = change < 0 ? "down" : change > 0 ? "up" : "unchanged";
   benchmark.append(
     benchmarkTitle,
@@ -122,8 +123,9 @@ export function renderMonthlyReviewProjection(doc, review) {
     text(doc, "p", "monthly-review-value", percent(review.materialBenchmark.currentSharePpm)),
     text(doc, "p", "monthly-review-comparison",
       `Current recoverable share · ${percent(review.materialBenchmark.currentSharePpm)}. Baseline · ${percent(review.materialBenchmark.baselineSharePpm)}. Change · ${direction} ${percent(Math.abs(change))}.`),
-    text(doc, "p", "monthly-review-savings-claim",
-      `Savings outcome · ${review.savingsClaim.label.replaceAll("_", " ")}. Realized ${money(review.savingsClaim.realizedSavingsMinor)} versus projected ${money(review.savingsClaim.projectedSavingsMinor)}. Comparison confidence ${review.savingsClaim.confidence.score}/100 (${review.savingsClaim.confidence.band}).`),
+    text(doc, "p", "monthly-review-savings-claim", comparison.state === "available"
+      ? `Prior action · ${comparison.priorAction.status}. ${comparison.periods.baseline} to ${comparison.periods.current}: realized ${money(comparison.savings.realizedMinor)} versus projected ${money(comparison.savings.projectedMinor)}; variance ${money(comparison.savings.varianceMinor)}. Confidence ${comparison.confidence.score}/100 (${comparison.confidence.band}).`
+      : `Prior action · unavailable (${comparison.unavailableReason}). No savings comparison is claimed.`),
   );
 
   const action = text(doc, "section", "monthly-review-projection-action", "");
@@ -158,6 +160,7 @@ export function renderMonthlyReviewProjection(doc, review) {
     labelled(doc, "Prior commitment", `${review.priorCommitmentVerification.status}. ${review.priorCommitmentVerification.basis}`),
     labelled(doc, "Confidence", `${review.confidence.level}. ${review.confidence.basis}`),
     labelled(doc, "Savings scoring", `${review.savingsClaim.confidence.formula}. Realized: ${review.savingsClaim.assumptions.realized}`),
+    labelled(doc, "Comparison provenance", `${comparison.provenance.source} · ${comparison.provenance.commitmentId ?? "no commitment"}`),
     labelled(doc, "Source", `${review.schemaVersion} · ${review.inputVersion}`),
     labelled(doc, "Periods", review.provenance.periodIds.join(", ") || "None"),
   );

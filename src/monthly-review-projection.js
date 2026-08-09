@@ -5,14 +5,15 @@ import {
   BENCHMARK_MATERIAL_VARIANCE_PPM, BENCHMARK_STANDING,
   buildExecutiveBriefing, validateExecutiveBriefing,
 } from "./executive-finops-briefing.js";
-import { FINOPS_PERIOD_FIELDS } from "./finops-workspace-contract.js";
+import { FINOPS_COMMITMENT_ENVELOPE_FIELDS, FINOPS_PERIOD_FIELDS } from "./finops-workspace-contract.js";
 import { scoreRetainedSavingsComparison } from "./retained-savings-score.js";
+import { buildRetainedPeriodComparison } from "./retained-period-comparison.js";
 
 export const MONTHLY_REVIEW_INPUT_VERSION = "monthly-review-input/1.0.0";
 export const MONTHLY_REVIEW_VERSION = "monthly-review-projection/1.1.0";
 
 const freeze = Object.freeze;
-const INPUT_FIELDS = freeze(["schemaVersion", "retainedPeriods"]);
+const INPUT_FIELDS = freeze(["schemaVersion", "retainedPeriods", "retainedCommitments"]);
 
 function closedObject(value, fields, path, errors) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -48,12 +49,22 @@ export function validateMonthlyReviewInput(input) {
       }
     });
   }
+  if (input.retainedCommitments !== undefined && !Array.isArray(input.retainedCommitments)) {
+    errors.push("input.retainedCommitments: expected array");
+  } else {
+    (input.retainedCommitments ?? []).forEach((commitment, index) => {
+      closedObject(commitment, FINOPS_COMMITMENT_ENVELOPE_FIELDS,
+        `input.retainedCommitments[${index}]`, errors);
+    });
+  }
   return freeze({ valid: errors.length === 0, errors: freeze(errors) });
 }
 
 function absentProjection(input, errors) {
-  const { nextAction, ...claim } = scoreRetainedSavingsComparison([]);
+  const { nextAction: _legacyAction, ...claim } = scoreRetainedSavingsComparison([]);
   const savingsClaim = freeze(claim);
+  const { nextAction, ...comparisonFields } = buildRetainedPeriodComparison();
+  const comparison = freeze(comparisonFields);
   return freeze({
     schemaVersion: MONTHLY_REVIEW_VERSION,
     inputVersion: input?.schemaVersion ?? null,
@@ -70,6 +81,7 @@ function absentProjection(input, errors) {
     }),
     confidence: freeze({ level: "insufficient", basis: "comparison_evidence_missing" }),
     savingsClaim,
+    comparison,
     provenance: freeze({ inputVersion: input?.schemaVersion ?? null, periodIds: freeze([]), errors: freeze(errors) }),
     nextAction,
   });
@@ -83,6 +95,11 @@ export function buildMonthlyReviewProjection(input) {
   const checked = validateMonthlyReviewInput(input);
   if (!checked.valid) return absentProjection(input, [...checked.errors]);
   const briefing = buildExecutiveBriefing(input.retainedPeriods);
+  const { nextAction: comparisonAction, ...comparisonFields } = buildRetainedPeriodComparison({
+    periods: input.retainedPeriods,
+    commitments: input.retainedCommitments ?? [],
+  });
+  const comparison = freeze(comparisonFields);
   const briefingCheck = validateExecutiveBriefing(briefing);
   if (!briefingCheck.valid || !briefing.reportingPeriod || !briefing.benchmark?.eligible) {
     return absentProjection(input, briefingCheck.valid ? []
@@ -90,7 +107,7 @@ export function buildMonthlyReviewProjection(input) {
   }
 
   const variance = briefing.benchmark.varianceSharePpm;
-  const { nextAction, ...claim } = scoreRetainedSavingsComparison(briefing.periods ?? input.retainedPeriods);
+  const { nextAction: _legacyAction, ...claim } = scoreRetainedSavingsComparison(briefing.periods ?? input.retainedPeriods);
   const savingsClaim = freeze(claim);
   const status = briefing.benchmark.standing === BENCHMARK_STANDING.less ? "improving"
     : briefing.benchmark.standing === BENCHMARK_STANDING.more ? "worsening" : "stable";
@@ -128,6 +145,7 @@ export function buildMonthlyReviewProjection(input) {
     priorCommitmentVerification: verification,
     confidence: freeze({ level: briefing.confidence.level, basis: briefing.confidence.meaning }),
     savingsClaim,
+    comparison,
     provenance: freeze({
       inputVersion: input.schemaVersion,
       periodIds: freeze([...briefing.provenance.periodIds]),
@@ -135,7 +153,7 @@ export function buildMonthlyReviewProjection(input) {
       dataset: briefing.provenance.dataset,
       errors: freeze([]),
     }),
-    nextAction,
+    nextAction: comparisonAction,
   });
 }
 
@@ -146,7 +164,8 @@ export function validateMonthlyReviewProjection(review) {
     return freeze({ valid: false, errors: freeze(["review: expected object"]) });
   }
   if (review.schemaVersion !== MONTHLY_REVIEW_VERSION) errors.push("schemaVersion: unsupported version");
-  if (review.nextAction?.rank !== 1 || typeof review.nextAction?.id !== "string") {
+  if (review.nextAction?.rank !== 1 || typeof review.nextAction?.id !== "string"
+    || Object.hasOwn(review.comparison ?? {}, "nextAction")) {
     errors.push("nextAction: exactly one rank-1 action is required");
   }
   if (!review.materialBenchmark || !("material" in review.materialBenchmark)) {
@@ -159,6 +178,7 @@ export function validateMonthlyReviewProjection(review) {
   if (typeof review.priorCommitmentVerification?.status !== "string") errors.push("priorCommitmentVerification: required");
   if (typeof review.confidence?.level !== "string") errors.push("confidence: required");
   if (typeof review.savingsClaim?.confidence?.score !== "number") errors.push("savingsClaim: score is required");
+  if (!["available", "unavailable"].includes(review.comparison?.state)) errors.push("comparison: required");
   if (!Array.isArray(review.provenance?.periodIds)) errors.push("provenance.periodIds: required array");
   if (review.materialBenchmark?.status === "improving" && !(review.materialBenchmark.changeSharePpm < 0)) {
     errors.push("materialBenchmark: improving requires a negative change");

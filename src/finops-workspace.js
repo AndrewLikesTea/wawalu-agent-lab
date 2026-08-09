@@ -452,12 +452,14 @@ export function finopsRetentionGranted(storage) {
   return readFinopsConsent(storage).state === FINOPS_CONSENT.granted;
 }
 
-/** Bounded read for pure monthly-review consumers: periods and nothing else. */
+/** Bounded read for pure monthly-review consumers: closed retained records only. */
 export function readRetainedPeriodInputs(storage) {
   const { access, document } = readFinopsDocument(storage);
   return Object.freeze({
     ok: access === "ok",
     periods: Object.freeze(access === "ok" ? document.periods.map((period) => Object.freeze({ ...period })) : []),
+    commitments: Object.freeze(access === "ok"
+      ? document.commitments.map((commitment) => Object.freeze(structuredClone(commitment))) : []),
   });
 }
 

@@ -1668,6 +1668,7 @@ function mountLocalFinopsImport() {
     renderMonthlyReviewProjection(document, buildMonthlyReviewProjection({
       schemaVersion: MONTHLY_REVIEW_INPUT_VERSION,
       retainedPeriods: retainedPeriods.periods,
+      retainedCommitments: retainedPeriods.commitments,
     }));
     const retained = readMonthlyAction(storage);
     const evidence = readCurrentReviewEvidence(storage);

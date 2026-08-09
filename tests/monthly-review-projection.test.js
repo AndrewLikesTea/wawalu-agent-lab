@@ -31,9 +31,20 @@ const period = (month, recoverableScenarioMinor, overrides = {}) => Object.freez
   ...overrides,
 });
 
-const input = (latest, periods = [period("2026-05", 200_000), period("2026-06", 200_000)]) => ({
+const commitment = (month = "2026-06", savings = 200_000, overrides = {}) => ({
+  schemaVersion: "shiplog-finops-commitment/1.0.0",
+  commitmentId: `commit-${month}`,
+  claim: { baselineMonthlyCostMinor: 1_000_000, monthlySavingsMinor: savings, period: month },
+  confidence: { percent: 90, band: "high" },
+  provenance: { designation: "import", analysisPeriod: month, recordCount: 20 },
+  recommendedAction: {}, recordedAt: `${month}-28T13:00:00.000Z`, status: "recorded",
+  decisionId: null, periodId: `user:${month}`, ...overrides,
+});
+
+const input = (latest, periods = [period("2026-05", 200_000), period("2026-06", 200_000)], commitments = [commitment()]) => ({
   schemaVersion: MONTHLY_REVIEW_INPUT_VERSION,
   retainedPeriods: [...periods, latest],
+  retainedCommitments: commitments,
 });
 
 test("material improvement projects prior-commitment verification and one ranked action", () => {
@@ -48,9 +59,9 @@ test("material improvement projects prior-commitment verification and one ranked
   assert.equal(review.priorCommitmentVerification.status, "candidate_supported");
   assert.equal(review.confidence.level, "high");
   assert.equal(review.nextAction.rank, 1);
-  assert.equal(Object.hasOwn(review.savingsClaim, "nextAction"), false,
+  assert.equal(Object.hasOwn(review.comparison, "nextAction"), false,
     "the output must not duplicate its single prioritized action");
-  assert.equal(review.nextAction.id, "revise_commitment");
+  assert.equal(review.nextAction.id, "revise_missed_commitment");
   assert.equal(validateMonthlyReviewProjection(review).valid, true);
 });
 
@@ -59,8 +70,8 @@ test("material worsening produces one corrective action without claiming commitm
   assert.equal(review.status, "worsening");
   assert.equal(review.materialBenchmark.changeSharePpm, 60_000);
   assert.equal(review.priorCommitmentVerification.status, "not_supported");
-  assert.equal(review.nextAction.id, "revise_commitment");
-  assert.deepEqual(Object.keys(review).filter((key) => key === "nextAction"), ["nextAction"]);
+  assert.equal(review.nextAction.id, "revise_missed_commitment");
+  assert.equal(Object.hasOwn(review.comparison, "nextAction"), false);
 });
 
 test("missing comparison evidence stays explicit and ranks collection first", () => {
@@ -71,7 +82,7 @@ test("missing comparison evidence stays explicit and ranks collection first", ()
   assert.equal(review.strongestDepartmentContributor, null);
   assert.equal(review.priorCommitmentVerification.status, "not_verifiable");
   assert.equal(review.confidence.level, "insufficient");
-  assert.equal(review.nextAction.id, "retain_comparable_period");
+  assert.equal(review.nextAction.id, "retain_prior_period");
   assert.equal(validateMonthlyReviewProjection(review).valid, true);
 });
 
@@ -139,8 +150,8 @@ test("evidence disclosure is named, keyboard operable, stateful, and announced",
   const facts = details.querySelector("dl.monthly-review-evidence");
   assert.ok(facts, "the deferred details are not a description list");
   assert.deepEqual([...facts.querySelectorAll("dt")].map(textOf),
-    ["Trend", "Department evidence", "Prior commitment", "Confidence", "Savings scoring", "Source", "Periods"]);
-  assert.equal(facts.querySelectorAll("dd").length, 7);
+    ["Trend", "Department evidence", "Prior commitment", "Confidence", "Savings scoring", "Comparison provenance", "Source", "Periods"]);
+  assert.equal(facts.querySelectorAll("dd").length, 8);
   for (const orphan of details.querySelectorAll("dt")) {
     assert.equal(orphan.closest("dl"), facts, "a term ships outside the description list");
   }
