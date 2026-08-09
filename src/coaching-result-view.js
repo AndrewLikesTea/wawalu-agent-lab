@@ -139,7 +139,7 @@ function actionBlock(doc, region, level) {
   if (region.worth) section.append(element(doc, "p", "coaching-result-worth", region.worth));
   if (region.control) {
     const target = element(doc, "p", "coaching-result-action-control",
-      `The control that acts on this: ${region.control}`);
+      `Use: ${region.control}`);
     section.append(target);
   }
   return section;

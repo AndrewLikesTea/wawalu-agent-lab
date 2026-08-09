@@ -383,9 +383,9 @@ test("the boundary is stated in the markup, before any script runs", async () =>
     const preview = byId(document, "prompt-coaching-preview");
     assert.ok(preview, "the preview must ship in the page markup");
     const claim = textOf(preview.querySelector(".prompt-coaching-preview-static"));
-    assert.match(claim, /bundled static client-side code/);
-    assert.match(claim, /No request is sent for coaching/);
-    assert.match(claim, /no persistence is implemented/);
+    assert.match(claim, /reads only the text you paste and the optional model choice/);
+    assert.match(claim, /not sent to a model or stored/);
+    assert.match(claim, /does not access your accounts, files, or customer data/);
     // A privacy claim a reader can only see once JavaScript succeeds is a claim
     // they cannot rely on, so this one does not wait for the entry module. And
     // it says how the analysis runs rather than how many files a build emits:
@@ -486,8 +486,8 @@ test("the front door states what this is and what it never reaches, before any s
     // boundary disclosure. What has to survive a dead script is the promise a
     // visitor needs before pasting, and it is immediately before the form.
     const privacy = textOf(document.querySelector(".prompt-coaching-entry-static"));
-    assert.match(privacy, /Grading happens in your browser/);
-    assert.match(privacy, /Pasted text is not sent to a model or stored/);
+    assert.match(privacy, /pasted text stays in this browser/i);
+    assert.match(privacy, /not sent to a model or stored/);
   } finally {
     page.restore();
   }

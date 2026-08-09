@@ -251,8 +251,8 @@ test("the destination reads as one page about one thing", async () => {
   // all: it is in the shipped markup, not painted by a module. And it is read
   // immediately before the form rather than in a hero the reader scrolled past.
   const privacy = document.querySelector(".prompt-coaching-entry-static");
-  assert.match(textOf(privacy), /Grading happens in your browser/);
-  assert.match(textOf(privacy), /Pasted text is not sent to a model or stored/);
+  assert.match(textOf(privacy), /pasted text stays in this browser/i);
+  assert.match(textOf(privacy), /not sent to a model or stored/);
   const markup = await read("coach.html");
   assert.ok(markup.indexOf('class="prompt-coaching-entry-static"') < markup.indexOf('id="prompt-coaching-input"'),
     "the privacy statement must be read before the prompt field");
@@ -264,7 +264,8 @@ test("the destination reads as one page about one thing", async () => {
   // "bundled synthetic example" — and says what it is made of in the same breath.
   const sample = textOf(document.querySelector(".prompt-coach-sample-static"));
   assert.match(sample, /bundled synthetic example/);
-  assert.match(sample, /bundled synthetic text/);
+  assert.match(sample, /not your prompt/);
+  assert.match(sample, /real prompt/);
 
   // One purpose statement, at the top: what a visitor does here and what comes
   // back. It does not spend its second sentence on the promise the form makes.
@@ -291,10 +292,10 @@ test("the first screen names the result and the next action, before any script r
   // where that number sits, and the one thing to do about it.
   const start = textOf(document.querySelector(".prompt-coaching-entry-static"));
   assert.match(start, /score out of 100/, "the first screen must say what a visitor receives");
-  assert.match(start, /single change worth making first/);
-  assert.match(start, /Grading happens in your browser/);
-  assert.match(start, /Pasted text is not sent to a model or stored/);
-  assert.match(start, /Paste a prompt or short conversation below, then select “Grade this prompt.”/);
+  assert.match(start, /first change to make/);
+  assert.match(start, /pasted text stays in this browser/i);
+  assert.match(start, /not sent to a model or stored/);
+  assert.match(start, /Paste a prompt or short conversation, then select “Grade this prompt”/);
 
   // And the next action, named with the words on the controls a visitor presses,
   // so the instruction and the button cannot be read as two different things.
@@ -311,8 +312,8 @@ test("the first screen names the result and the next action, before any script r
     "the field and the button the static copy names are in the shipped markup");
 
   const sampleFallback = textOf(document.querySelector(".prompt-coach-sample-lead"));
-  assert.match(sampleFallback, /Loading the graded bundled synthetic example/);
-  assert.match(sampleFallback, /paste your own prompt below while it loads/);
+  assert.match(sampleFallback, /Loading the bundled example/);
+  assert.match(sampleFallback, /paste your own prompt below now/);
 });
 
 test("one name per concept: the example, the grade button, and the clear button", async () => {
