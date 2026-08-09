@@ -42,10 +42,12 @@ const read = (file) => readFile(pageUrl(file), "utf8");
 const TYPED_EMAIL = "director@example.com";
 
 // The recovery paragraph, in the order a person needs it: what happened, what to
-// do, then what is still safe. Pinned whole rather than by fragment — the order
-// of the three sentences is the point, and a substring match would not see it.
+// do, what is still safe, then the one other door if doing it again keeps
+// failing. Pinned whole rather than by fragment — the order of the four
+// sentences is the point, and a substring match would not see it.
 const RECOVERY_COPY = "We could not send your follow-up request. Try again in a few minutes. "
-  + "Your email address is still in the field above, and nothing else on this page changed.";
+  + "Your email address is still in the field above, and nothing else on this page changed. "
+  + "If it keeps failing, the executive briefing carries its own follow-up form.";
 
 const byId = (document, id) => document.getElementById(id);
 const shownText = (document, id) => textOf(byId(document, id));

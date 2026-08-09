@@ -20,12 +20,11 @@ const TIMEOUT_MS = 10000;
  * The home page carries two work-email forms that do different things — one
  * subscribes you to field notes, the other asks a person to get back to you —
  * and they used to fail in identical words, so "Enter a valid work email
- * address." told a visitor nothing about which of the two they had just failed
- * to do. So every string a visitor can read about a submission now arrives as
- * one of these sets, passed in by the form that owns the surface. Each set
- * answers the same questions in the same order, which is what makes a third
- * surface a copy of this shape rather than an invention: what to type, what a
- * rejection means, and what is and is not known when nothing answered.
+ * address." told a visitor nothing about which of the two they had failed to do.
+ * Every string a visitor can read about a submission now arrives as one of these
+ * sets, passed in by the form that owns the surface, and each set answers the
+ * same questions in the same order: what to type, what a rejection means, and
+ * what is and is not known when nothing answered.
  */
 const UNREADABLE_CODES = ["invalid_request", "invalid_purpose", "invalid_json", "unsupported_media_type", "method_not_allowed"];
 
@@ -84,17 +83,15 @@ export const CONTACT_COPY = Object.freeze({
  * submit button — the footer's, the AI FinOps result's, and the executive
  * briefing's.
  *
- * It used to be three paragraphs of about ninety words each, worded differently
- * on every surface, each one listing the particular things that page holds. A
- * reader who moved between two of them had to work out whether two different
- * lists meant two different promises. They did not: `postLeadEmail` below builds
- * the whole request body from one argument, the typed address, so no page state
- * has a route to the wire on any surface. One claim, one sentence, one string.
+ * It used to be a paragraph per surface, each listing the particular things that
+ * page holds, and a reader moving between two had to work out whether two lists
+ * meant two promises. They did not: `postLeadEmail` below builds the whole
+ * request body from one argument, the typed address, so no page state has a
+ * route to the wire anywhere. One claim, one sentence, one string, naming what
+ * is sent, who receives it, and that nothing else goes with it.
  *
- * It names the three things a reader is deciding on: what is sent, who receives
- * it, and that nothing else goes with it. The pages are static HTML and the
- * build copies src/ verbatim, so each form embeds the rendered text rather than
- * asking a script for it; tests/follow-up-privacy.test.js reads this constant
+ * The pages are static HTML and the build copies src/ verbatim, so each form
+ * embeds the rendered text; tests/follow-up-privacy.test.js reads this constant
  * and requires every form to render it exactly.
  */
 export const FOLLOW_UP_PRIVACY = "The work email address you type here goes to the Wawalu team that "

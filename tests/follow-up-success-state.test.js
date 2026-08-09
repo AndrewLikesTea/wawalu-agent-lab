@@ -179,17 +179,19 @@ for (const { name, open, prefix } of SURFACES) {
       // The address the visitor typed, in the receipt, as text.
       assert.match(textOf(receipt), new RegExp(LONG_EMAIL.replace(/[.]/g, "\\.")));
       assert.equal(textOf(receipt.querySelector(`.${receipt.className}-address`)), LONG_EMAIL);
-      // Who answers, and what travelled — the form's own privacy vocabulary.
-      assert.match(textOf(receipt), /A person from the Wawalu team replies to that address by email/);
+      // Who answers, and roughly when — the response time the FinOps form
+      // already states, hedged, because someone reads this queue and nobody has
+      // promised the hour.
+      assert.match(textOf(receipt), /Someone here replies to that address by email, usually within two business days/);
       assert.match(textOf(receipt), /requested follow-up type is the only other information sent/);
-      // Nothing about when. This demo has not promised anyone a response time,
-      // and the receipt is not the place to invent one.
-      assert.doesNotMatch(textOf(receipt), /business days?|within \d|hours?\b|shortly|specialist/i);
-      // And nothing about what else is on the page: the request carried one
-      // field, so the only thing the receipt can name is the address. No figure,
-      // no file, no filter, no prompt, and no page identity.
-      assert.doesNotMatch(textOf(receipt), /\$|\d/, "no figure from the page may appear in the receipt");
-      assert.doesNotMatch(textOf(receipt), /briefing|prompt|file|column|department/i);
+      // And what stayed behind, named rather than left to be assumed: the
+      // request carried one field, so the receipt says so out loud.
+      assert.match(textOf(receipt), /no page content, prompt text, uploaded file, or browsing data went with it/);
+      // The categories may be named; a value from the page may not. The address
+      // line is the only place a page could leak into, so it is checked alone.
+      const addressLine = textOf(receipt.querySelector(`.${receipt.className}-lead`));
+      assert.doesNotMatch(addressLine, /\$/, "no figure from the page may appear in the receipt");
+      assert.doesNotMatch(addressLine, /briefing|column|department/i);
     } finally {
       page.restore();
     }

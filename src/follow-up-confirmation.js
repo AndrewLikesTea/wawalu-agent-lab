@@ -1,39 +1,36 @@
-// The third state of a follow-up form: it landed.
-//
-// Both work-email panels — the About Shiplog one in the footer
-// (src/site-footer.js) and the one under a FinOps brief, including the executive
-// briefing's copy of it (src/finops-contact.js) — had two visible outcomes and
-// one invisible one. A failure got a red box and a way to retry; a success got a
-// sentence in the live region above a form that still looked ready to send. This
-// is the missing state, written once so the two cannot word it differently.
+// The third state of a follow-up form: it landed. Written once, for both
+// work-email panels — the About Shiplog one in the footer (src/site-footer.js)
+// and the one under a FinOps brief (src/finops-contact.js) — so the two cannot
+// word a success differently.
 //
 //   1. Success is terminal until the visitor says otherwise. The form is hidden
 //      and its submit control disabled, so no click, key press, or tab stop can
-//      send twice; `sent` is checked by the submit handler too, so nothing
-//      synthetic can either. Coming back is the reopen button, a deliberate act.
+//      send twice; `sent` is checked by the submit handler too. Coming back is
+//      the reopen button, a deliberate act.
 //   2. The address is rendered as text. `textContent` is all this module writes,
 //      so nothing a visitor types can become a node.
-//   3. It says only what the visitor supplied. `postLeadEmail` builds the body
-//      from the address and a fixed routing label, so the receipt names the address and
-//      repeats the form's own privacy vocabulary — no figure, file, filter, or
-//      page identity — and promises no response time, because nobody here has
-//      committed to one.
 //
 // Announcement follows the panel rather than inventing a second pattern: the
-// surface's status paragraph is a `role="status"` region and still carries the
-// outcome sentence exactly as it does on failure, and the receipt is one too and
-// takes focus. In practice the sentence is what a screen reader speaks — a live
-// region inserted already-populated is not reliably announced — and focus
+// surface's status paragraph carries the outcome sentence exactly as it does on
+// failure, and the receipt is a `role="status"` region too and takes focus. A
+// live region inserted already-populated is not reliably announced, so focus
 // landing on the receipt is what puts a reader inside it.
 
 /**
- * The receipt, in the register the forms already use: what was sent, who reads
- * it, and what did not travel. `LEAD` is deliberately split around the address
- * so the address arrives as a text node of its own.
+ * The receipt answers three questions and nothing else: what was sent, what did
+ * not go with it, and who replies and roughly when. `LEAD` is deliberately split
+ * around the address so the address arrives as a text node of its own.
+ *
+ * The exclusion list is not decoration. `postLeadEmail` builds the whole request
+ * body from the typed address and a fixed routing label, so no page state has a
+ * route to the wire on any surface — the sentence is true by construction, and
+ * naming what stayed behind is the point of it. The response time is the one the
+ * FinOps form states, hedged: someone reads this queue, nobody promised an hour.
  */
 export const CONFIRMATION_LEAD = "The Wawalu team received this work email: ";
-export const CONFIRMATION_DETAIL = "The requested follow-up type is the only other information sent. "
-  + "A person from the Wawalu team replies to that address by email.";
+export const CONFIRMATION_DETAIL = "The requested follow-up type is the only other information sent: no page "
+  + "content, prompt text, uploaded file, or browsing data went with it. Someone here replies to that "
+  + "address by email, usually within two business days.";
 export const REOPEN_LABEL = "Request another follow-up";
 
 /**

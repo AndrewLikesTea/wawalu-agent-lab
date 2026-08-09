@@ -12,7 +12,7 @@
 import { DatabaseSync } from "node:sqlite";
 import { readFile } from "node:fs/promises";
 
-const MIGRATIONS = ["0003_social_posts.sql", "0004_social_post_media.sql", "0005_media_objects.sql", "0006_leads.sql", "0007_lead_submissions.sql", "0008_follow_up_request_types.sql"];
+export const MIGRATIONS = ["0003_social_posts.sql", "0004_social_post_media.sql", "0005_media_objects.sql", "0006_leads.sql", "0007_lead_submissions.sql", "0008_follow_up_request_types.sql"];
 
 function normalizeArgs(args) {
   // D1 accepts JS nulls/booleans; node:sqlite wants null/number/string/bigint/
@@ -30,10 +30,17 @@ function returnsRows(sql) {
   return /^\s*(?:SELECT|WITH)\b/i.test(sql) || /\bRETURNING\b/i.test(sql);
 }
 
-export async function createTestD1() {
+/**
+ * `migrations` defaults to every migration this suite runs. A test passes a
+ * shorter prefix to stand a database up at an older schema — the state a live
+ * database is in between a merge that adds a migration and an operator running
+ * it, which is where "the write was refused" and "the row already existed" stop
+ * being the same answer.
+ */
+export async function createTestD1({ migrations = MIGRATIONS } = {}) {
   const db = new DatabaseSync(":memory:");
   db.exec("PRAGMA foreign_keys = ON");
-  for (const name of MIGRATIONS) {
+  for (const name of migrations) {
     db.exec(await readFile(new URL(`../../migrations/${name}`, import.meta.url), "utf8"));
   }
 
