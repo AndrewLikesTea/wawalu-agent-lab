@@ -25,6 +25,8 @@ import {
   evaluatePeerBenchmark, METRIC_DIRECTION, PEER_ACTION_CANDIDATES, PEER_COHORT_PROVENANCE,
   PEER_UNAVAILABLE_REASON,
 } from "./peer-cohort-contract.js";
+import { validateBenchmarkComparisonInput } from "./synthetic-benchmark-contract.js";
+import { comparisonInput, SYNTHETIC_COHORT_FIXTURE } from "./synthetic-benchmark-fixture.js";
 import { formatPercent, formatUsd } from "./evolution.js";
 
 // Unchanged by #433 on purpose: this issue added presentation helpers below and
@@ -352,9 +354,12 @@ export function importedPeerFinding({ peer = null, analysis = null } = {}) {
 export function importedPeerBenchmark({ grade = null, analysis = null } = {}) {
   const segment = importedPeerSegment(analysis);
   const organization = importedPeerRollup(grade, analysis);
+  const comparisonEligibility = validateBenchmarkComparisonInput(
+    comparisonInput({ organization, segment }), SYNTHETIC_COHORT_FIXTURE);
   const result = evaluatePeerBenchmark({ organization, segment });
   return Object.freeze({
     ...result,
+    comparisonEligibility,
     derivationVersion: IMPORTED_PEER_BENCHMARK_VERSION,
     /**
      * The import's own inputs, published beside the comparison so a reader can
