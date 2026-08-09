@@ -133,6 +133,26 @@
              The four per-criterion bands are in the disclosure below, in Limits,
              beside the confidence grade's own explanation. -->
         <p class="stand-answer" id="finops-recoverable-provenance-reason">Whose prices this figure uses has not been scored for this document.</p>
+        <!-- WHEN A FIGURE ABOVE CAME OUT OF THIS BROWSER'S MEMORY (#1484). The
+             declared rates a lead states below are retained locally, so a return
+             visit can meet a provenance that was earned rather than one that
+             starts again at the published list. A figure that moved because
+             something was remembered has to say so beside itself, so this slot
+             carries the capture time and names which of the claims above depend
+             on the retained entry — and, when the store degraded (no site
+             storage, a refused write, an entry this build will not read), the
+             store's own refusal sentence instead, above figures that are the
+             unretained baseline.
+
+             IT SHIPS EMPTY AND HIDDEN. A visitor with nothing retained meets the
+             first screen exactly as it was before this existed: no text, no tab
+             stop, and nothing in the accessibility tree. It is only ever written
+             by src/finops-declared-rate-view.js from src/finops-retained-state.js,
+             reuses `.stand-answer` — the class the two sentences above it already
+             use — and adds no rule to either stylesheet. The controls that write
+             and forget the entry are beside the form that fills it, further down
+             this page, because this screen has no spare tab stop. -->
+        <p class="stand-answer" id="finops-retained-state" data-state="unretained" hidden></p>
         <a class="stand-action" id="finops-recoverable-action" href="/savings-action-center.html">Move Atlas Platform's short, low-context requests to the standard model</a>
         <!-- HOW WE KNOW THIS — the one disclosure pattern this page reuses
              (#1185). The figure and the move are read first; everything that
@@ -2156,6 +2176,18 @@
           </form>
           <p class="local-cohort-declare-message" id="declared-rates-status" role="status" aria-live="polite" data-state="empty">No contracted rates declared. The figure above stays priced at the published list.</p>
           <p class="local-cohort-declare-lead" id="declared-rates-attribution">No contracted rate is declared for a destination this analysis prices, so every one of them is priced at the published list — a ceiling, not your contract.</p>
+          <!-- FORGETTING, IN TWO PRESSES (#1484). Applying rates above retains
+               them in this browser under one versioned key, with the scored
+               coverage the graded floor was taken at; the first screen says so
+               beside the figure. This is the way back out. The confirm control
+               ships hidden and is revealed by the first press, so no single
+               press is a deletion and pressing the first again cancels. Both
+               ship authored and labelled, so a visitor whose script never ran
+               still meets complete controls, and both reuse `.secondary-button`
+               — no rule is added to either stylesheet. The reset control is
+               hidden until there is something to forget. -->
+          <p class="local-cohort-declare-field"><button class="secondary-button" id="retained-state-reset" type="button" hidden>Forget retained state</button><button class="secondary-button" id="retained-state-confirm" type="button" hidden>Confirm: forget retained state</button></p>
+          <p class="local-cohort-declare-message" id="retained-state-status" role="status" aria-live="polite" data-state="unretained">Nothing is retained in this browser.</p>
         </section>
         <div class="local-export-activation" id="local-export-activation" data-state="idle" aria-busy="false">
           <div>
