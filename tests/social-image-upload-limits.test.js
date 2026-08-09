@@ -31,7 +31,7 @@ const PAGE = fileURLToPath(new URL("../src/social.html", import.meta.url));
 // rewording fails here instead of passing against itself.
 const UNSUPPORTED_TYPE = "This file is not a PNG, JPEG, GIF, or WebP. Convert or re-export it in one of those formats, then upload it again.";
 const OVER_LIMIT = "This file is over the 512 KB maximum. Pick a smaller file, or export a smaller PNG from Paint.";
-const PREVIEW_FAILURE = "We couldn’t create an image preview. Choose Remove image to remove the file, then choose Upload image to upload it again. Confirm that the preview appears before publishing.";
+const PREVIEW_FAILURE = "We couldn’t create an image preview. Choose Remove image, then Upload image to try again.";
 
 // The composer as it is served: real markup, real wiring, no network beyond the
 // two responses the page's own start-up asks for.
@@ -141,6 +141,8 @@ test("the preview failure still speaks for a file that passes both checks", asyn
   preview.dispatchEvent(new DomEvent("error", { bubbles: false }));
 
   assert.equal(textOf(document.querySelector("#post-media-status")), PREVIEW_FAILURE);
+  // Written here on the error, not shipped in the markup and unhidden: the page
+  // as served says nothing about a preview that has not failed.
   assert.equal(textOf(fallback), PREVIEW_FAILURE);
   assert.equal(fallback.hidden, false);
   assert.equal(preview.hidden, true);

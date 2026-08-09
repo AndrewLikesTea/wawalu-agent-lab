@@ -20,6 +20,14 @@ import { paintHandoffIntent, renderPaintArrival } from "/paint-handoff.js";
 
 const REFRESH_INTERVAL = 10_000;
 
+// The one wording for a file that was accepted and then would not decode. It
+// lives here, not in src/social.html, because a message about a failure only
+// belongs on the page once the failure happens: the markup ships #compose-
+// preview-error empty and this fills it. Said once and used twice — in that
+// element and in the media status line — so the two cannot drift apart. It
+// names the two controls it asks for exactly as they are labelled.
+export const PREVIEW_FAILURE = "We couldn’t create an image preview. Choose Remove image, then Upload image to try again.";
+
 async function fetchLivePosts() {
   const response = await fetch("/api/social-posts?limit=100", { cache: "no-store", headers: { accept: "application/json" } });
   if (!response.ok) throw new Error(`Posts API returned ${response.status}`);
@@ -122,6 +130,10 @@ function mountMediaComposer(root, description) {
     description.clear();
     description.setAttached(false);
     preview.removeAttribute("src");
+    // Removing the file takes the failure sentence with it: a hidden panel still
+    // holds text a reader can reach, and it describes a file that is now gone.
+    fallback.textContent = "";
+    fallback.hidden = true;
     panel.hidden = true;
     setStatus("");
     if (focus) input.focus();
@@ -131,6 +143,7 @@ function mountMediaComposer(root, description) {
     media = next;
     panel.hidden = false;
     frame.dataset.state = "loading";
+    fallback.textContent = "";
     fallback.hidden = true;
     preview.hidden = false;
     preview.src = next.preview;
@@ -145,8 +158,9 @@ function mountMediaComposer(root, description) {
   preview.addEventListener("error", () => {
     frame.dataset.state = "error";
     preview.hidden = true;
+    fallback.textContent = PREVIEW_FAILURE;
     fallback.hidden = false;
-    setStatus("We couldn’t create an image preview. Choose Remove image to remove the file, then choose Upload image to upload it again. Confirm that the preview appears before publishing.", true);
+    setStatus(PREVIEW_FAILURE, true);
   });
   input.addEventListener("change", async () => {
     const generation = ++selectionGeneration;

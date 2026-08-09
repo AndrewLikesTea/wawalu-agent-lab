@@ -120,16 +120,19 @@
              one the intro, the label, and the hint use; there is one term now,
              and the second sentence stays on the subject the first one names
              rather than restating the concept.
-             The scope clause is the shortest true one: the identity line above
-             already names the filter, so "for the selected display name" would
-             be the page saying the same subject a third time. The link keeps
-             the empty state's label word for word (postActionLabel in
-             src/profile.js) — one route out of this view has one name on both
-             surfaces — and the clause after it, not the label, is what says
-             where a post without an image ended up. A link reading "see posts
-             without images on Social" would describe Social as the text-only
-             half of this split, which it is not: it carries every post. -->
-        <p class="profile-role"><span id="profile-role-name">Ari</span> is a display name in the Social feed, not a signed-in user — nobody owns or verifies one, and anyone can publish under any name. This view shows image posts only. <a class="text-link" href="/social.html">See every post on Social</a>, including the ones published without an image.</p>
+             What this paragraph no longer does is restate the scope. It read
+             "This view shows image posts only. See every post on Social,
+             including the ones published without an image" — which is the intro
+             sentence above it in different words, and the eyebrow over the grid
+             in different words again, so the page told a reader the same rule
+             three times before showing them a picture. The intro states it
+             once. What is left here is the route, under the label the empty
+             state's own button uses (postActionLabel in src/profile.js), so one
+             way out of this view has one name on both surfaces. A link reading
+             "see posts without images on Social" would describe Social as the
+             text-only half of a split, which it is not: it carries every
+             post. -->
+        <p class="profile-role"><span id="profile-role-name">Ari</span> is a display name in the Social feed, not a signed-in user — nobody owns or verifies one, and anyone can publish under any name. <a class="text-link" href="/social.html">See every post on Social</a>.</p>
         <!-- Two ways out of this view are visible on arrival: the sentence above
              returns to every post on Social, and this route opens Paint. The
              label names the act and the tool, because "Paint" alone is what the
@@ -167,22 +170,17 @@
                name the seed feed lands on; nothing has been counted in that
                frame, so the heading names the posts without numbering them, the
                way the picker says "Counting…" rather than "0".
-               The eyebrow is the page's one statement of the ordering; the
-               heading counts and does not repeat it. It also carries what this
-               region excludes, because that is the one fact a reader cannot get
-               from the heading under it: the heading counts image posts, so it
-               says what is here, and nothing on the results themselves said
-               where a post without an image went. The hero says so too, in a
-               sentence a reader who scrolled straight to the grid never met.
-               It states the exclusion rather than repeating "image posts only",
-               which the heading below and the picker's hint above both already
-               carry — the same fact said a third time in the same words is the
-               repetition this page keeps having to cut. Social is named and not
-               linked here: the hero's link is the route, and this panel's other
-               paragraph already holds the one link into Paint. -->
+               The eyebrow is the page's one statement of the ordering, said
+               against the grid it orders; the heading counts and does not
+               repeat it, and the intro no longer does either. It used to carry
+               "· posts without images are on Social" as well, which was the
+               third telling of a rule the intro and the hero paragraph had
+               already given — the repetition this page keeps having to cut. The
+               intro states it once now, and this line says the one thing the
+               heading under it cannot. -->
           <div class="section-heading list-heading">
             <div>
-              <p class="eyebrow">Newest first · posts without images are on Social</p>
+              <p class="eyebrow">Newest first</p>
               <h2 id="grid-title">Ari · image posts</h2>
             </div>
           </div>
