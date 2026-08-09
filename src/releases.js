@@ -635,9 +635,9 @@ export function statusSummaryText(resolved) {
 }
 
 // Focus math for the release controls. Arrow/Home/End move focus and clamp at
-// the ends (no wrap); Enter activates the selected release's detail action.
-// Space retains the native button behavior and expands the inline disclosure.
-const NAV_KEYS = new Set(["ArrowDown", "ArrowUp", "Enter", "Home", "End"]);
+// the ends (no wrap). Enter and Space retain native button behavior and expand
+// the inline disclosure; the named detail link remains the route out.
+const NAV_KEYS = new Set(["ArrowDown", "ArrowUp", "Home", "End"]);
 
 export function nextIndex(current, key, length) {
   if (length === 0) return -1;
@@ -914,11 +914,7 @@ export function handleReleaseListKeydown(event, container) {
   if (!toggle || event.target !== toggle || !NAV_KEYS.has(event.key)) return false;
   const toggles = [...container.querySelectorAll(".release-toggle")];
   event.preventDefault();
-  if (event.key === "Enter") {
-    toggle.closest?.(".release-item")?.querySelector?.(".release-detail-link")?.click();
-  } else {
-    focusToggle(toggles, nextIndex(toggles.indexOf(toggle), event.key, toggles.length));
-  }
+  focusToggle(toggles, nextIndex(toggles.indexOf(toggle), event.key, toggles.length));
   return true;
 }
 
@@ -959,8 +955,8 @@ export function mountReleaseList(container, data = {}) {
     handleReleaseListKeydown(event, container);
   });
 
-  // Toggle the disclosure. Pointer clicks and Space activation on the native
-  // button arrive here; Enter is intercepted above to open the detail view.
+  // Toggle the disclosure. Pointer clicks and Enter/Space activation on the
+  // native button arrive here through the platform's button behavior.
   container.addEventListener("click", (event) => {
     const toggle = event.target.closest?.(".release-toggle");
     if (!toggle) return;

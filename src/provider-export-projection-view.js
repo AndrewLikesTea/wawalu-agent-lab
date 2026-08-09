@@ -20,7 +20,7 @@ const WITHHELD = Object.freeze({
     "Correct the producer rows named in validation, then import a new export."],
   conflicting_revisions: ["The producer supplied conflicting aggregate revisions.",
     "Export one authoritative revision per aggregate, then import it again."],
-  unsafe_aggregate: ["The accepted values cannot be safely aggregated.",
+  unsafe_aggregate: ["Finding withheld — one or more values are implausibly extreme and cannot be safely aggregated.",
     "Correct out-of-range request or cost values, then import the export again."],
   no_source_rows: ["No provider usage rows support a model finding.",
     "Export usage rows with month, workload, model, request count, and cost, then import again."],
@@ -31,6 +31,37 @@ function node(doc, tag, className, text) {
   if (className) item.className = className;
   if (text !== undefined) item.textContent = text;
   return item;
+}
+
+/** Paint a non-result state in the result position; this module loads on import. */
+export function renderImportedModelOverspendState(doc, stateName, detail = "") {
+  const section = doc.getElementById("model-overspend");
+  const body = doc.getElementById("model-overspend-body");
+  if (!section || !body) return null;
+  const states = {
+    loading: ["◌", "Calculating savings impact…",
+      "Reading accepted model, request-count, cost, period, and org-unit values in this browser."],
+    empty: ["○", "No model finding yet",
+      "Choose a provider export to calculate a defensible per-model savings action."],
+    error: ["!", "Calculation could not be completed",
+      detail || "Review the import error, correct the named fields, and try the export again."],
+  };
+  const [shapeText, label, copy] = states[stateName] ?? states.empty;
+  section.hidden = false;
+  section.dataset.status = stateName;
+  section.dataset.expanded = "false";
+  const question = doc.getElementById("model-overspend-question");
+  if (question) question.textContent = "What savings action does this export support?";
+  const status = node(doc, "p", "model-overspend-state");
+  status.dataset.status = stateName;
+  const shape = node(doc, "span", "status-shape", shapeText);
+  shape.setAttribute("aria-hidden", "true");
+  status.append(shape, node(doc, "span", "model-overspend-state-word", label));
+  const message = node(doc, "p", "model-overspend-state-detail", copy);
+  if (stateName === "loading") message.setAttribute("role", "status");
+  if (stateName === "error") message.setAttribute("role", "alert");
+  body.replaceChildren(status, message);
+  return section;
 }
 
 function importSource(doc, projection) {
