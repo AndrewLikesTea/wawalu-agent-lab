@@ -273,6 +273,10 @@ test("the destination reads as one page about one thing", async () => {
   assert.match(lead, /Paste a prompt/);
   assert.doesNotMatch(lead, /leaves this tab|uploaded|no sign-in/i,
     "the purpose statement is not a second copy of the privacy statement");
+  // Nor a second copy of the instructions: what to do, in what order, is said
+  // once in the Start here block that sits immediately before the field.
+  assert.doesNotMatch(lead, /grade it again|bundled/i,
+    "the purpose statement is not a second copy of the Start here block");
 
   // The copy a visitor reads before any script runs describes what they get,
   // not how this page is built. Contracts, fixtures, and script loading are
@@ -331,4 +335,12 @@ test("one name per concept: the example, the grade button, and the clear button"
   // it, rather than by a name for the region it clears.
   assert.equal(textOf(byId(document, "prompt-coaching-clear")), "Clear and start over");
   assert.doesNotMatch(text, /clear the panel/i);
+
+  // And a result that points at a control names it by what a reader sees on the
+  // page. The id stays in data, where a consumer reads it, and out of the prose.
+  for (const line of document.querySelectorAll(".coaching-result-action-control")) {
+    assert.match(textOf(line), /^Do this in the prompt field, then grade again\.$/,
+      "a result names a control by its label, not by its element id");
+    assert.equal(line.dataset.control, "prompt-coaching-input");
+  }
 });

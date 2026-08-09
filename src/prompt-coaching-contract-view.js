@@ -153,7 +153,7 @@ function boundaryBlock(doc) {
   block.append(
     element(doc, "h3", "eyebrow", "What stays out"),
     element(doc, "p", "prompt-coaching-preview-lead",
-      "Your pasted text stays in this browser. It is not sent to a model or stored."),
+      "Each item below is something the coach never touches, with how to check it."),
     list,
   );
   return block;
