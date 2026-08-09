@@ -5156,7 +5156,17 @@ async function init() {
   // declaration is submitted, so a visitor who states no rate meets exactly the
   // published-list provenance the served document already carries. The effective
   // dates are judged against the bundled example's own period, never a clock.
-  bindDeclaredRateIntake(document, { period: loadExampleDataset()?.period ?? null });
+  // Bound with the two things the retained store needs and cannot go and get
+  // itself (#1484): the scored coverage the graded floor was last taken at, read
+  // through a getter so a later import is what a write records, and the clock a
+  // write is stamped with. Storage is left unnamed, so the store reaches for the
+  // browser's own accessor through its wrapper. Binding also HYDRATES: a browser
+  // holding a valid entry restores the declaration it was written from, and one
+  // holding nothing paints nothing at all.
+  bindDeclaredRateIntake(document, {
+    period: loadExampleDataset()?.period ?? null,
+    scoredCoverageOf: () => answerState.getHeadline()?.recoverableFloor?.floor ?? null,
+  });
   // Then the returning lead's question, in the same synchronous pass and for
   // the same reason: a leader who opens this page once a month is not asking
   // what the example would tell them, they are asking which single thing to do
