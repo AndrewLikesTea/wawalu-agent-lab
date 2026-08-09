@@ -96,8 +96,14 @@ test("the shipped evolution surface renders the validated projection contract", 
   assert.match(textOf(root), /Department evidencesyn-support/);
   assert.match(textOf(root), /Prior commitmentcandidate_supported/);
   assert.match(textOf(root), /Next action · priority 1/);
+  assert.match(textOf(root.querySelector(".monthly-review-finding-evidence")),
+    /Improving trend · prior commitment candidate supported · high confidence · user dataset\./);
+  assert.deepEqual(root.querySelector(".monthly-review-savings").querySelectorAll("dt").map(textOf),
+    ["Realized savings", "Projected savings"]);
   assert.match(textOf(root), new RegExp(MONTHLY_REVIEW_VERSION.replaceAll(".", "\\.")));
   assert.equal(root.querySelectorAll(".monthly-review-projection-action").length, 1);
+  assert.deepEqual(root.querySelectorAll(".monthly-review-context-link").map((link) => link.href),
+    ["/savings-commitment.html", "/savings-action-center.html"]);
 });
 
 test("monthly decision orders its heading, finding, benchmark, action, and evidence", async () => {
@@ -107,7 +113,7 @@ test("monthly decision orders its heading, finding, benchmark, action, and evide
   const headings = root.querySelectorAll("h2,h3").map((node) => `${node.tagName}:${textOf(node)}`);
   assert.deepEqual(headings, [
     "H2:What changed this month, and what should we do next?",
-    "H3:Headline finding",
+    "H3:Evidence-backed finding",
     "H3:Next action · priority 1",
   ]);
   assert.match(textOf(root.querySelector(".monthly-review-status")), /▲ Worsening/);
@@ -126,7 +132,7 @@ test("evidence disclosure is named, keyboard operable, stateful, and announced",
   const details = root.querySelector("details");
   const summary = root.querySelector("summary");
   const live = root.querySelector('[aria-live="polite"]');
-  assert.equal(textOf(summary), "Trend, department, commitment, confidence, and provenance");
+  assert.equal(textOf(summary), "Period and calculation details");
   assert.equal(summary.getAttribute("aria-controls"), "monthly-review-provenance-content");
   assert.equal(summary.getAttribute("aria-expanded"), "false");
   assert.ok(tabSequence(doc).includes(summary));
@@ -183,17 +189,23 @@ test("loading, empty, error, and implausible extremes withhold unsupported decis
   assert.equal(loading.dataset.state, "loading");
   assert.equal(loading.getAttribute("aria-busy"), "true");
   assert.match(textOf(loading), /◌ Loading/);
+  // Loading is rebuilt on every sync, so it offers nothing focusable to lose focus with.
+  assert.equal(loading.querySelectorAll(".monthly-review-context-link").length, 0);
 
   const empty = draw(buildMonthlyReviewProjection(input(period("2026-07", 150_000), [])));
   assert.equal(empty.dataset.state, "empty");
   assert.match(textOf(empty), /○ Empty/);
   assert.equal(empty.querySelector(".monthly-review-projection-action"), null);
+  assert.equal(empty.querySelector("nav").getAttribute("aria-label"),
+    "Continue monthly savings workflow");
+  assert.ok(tabSequence(empty.ownerDocument).includes(empty.querySelector(".monthly-review-context-link")));
 
   const invalid = structuredClone(buildMonthlyReviewProjection(input(period("2026-07", 150_000))));
   invalid.nextAction.rank = 2;
   const error = draw(invalid);
   assert.equal(error.dataset.state, "error");
   assert.match(textOf(error), /× Error/);
+  assert.equal(error.querySelectorAll(".monthly-review-context-link").length, 2);
 
   const extreme = structuredClone(buildMonthlyReviewProjection(input(period("2026-07", 150_000))));
   extreme.materialBenchmark.currentSharePpm = 1_200_000;
@@ -203,4 +215,15 @@ test("loading, empty, error, and implausible extremes withhold unsupported decis
   assert.equal(implausible.dataset.state, "implausible_extreme");
   assert.match(textOf(implausible), /outside 0%–100%/);
   assert.equal(implausible.querySelector(".monthly-review-projection-action"), null);
+  assert.equal(implausible.querySelectorAll(".monthly-review-context-link").length, 2);
+});
+
+test("a projection missing unvalidated provenance still renders one attributed finding", async () => {
+  const html = await readFile(new URL("../src/evolution.html", import.meta.url), "utf8");
+  const drifted = structuredClone(buildMonthlyReviewProjection(input(period("2026-07", 150_000))));
+  delete drifted.provenance.dataset;
+  const root = renderMonthlyReviewProjection(parseHtml(html), drifted);
+  assert.equal(root.dataset.state, "improving");
+  assert.match(textOf(root.querySelector(".monthly-review-finding-evidence")), /unattributed dataset\./);
+  assert.equal(root.querySelectorAll(".monthly-review-savings-metric").length, 2);
 });
