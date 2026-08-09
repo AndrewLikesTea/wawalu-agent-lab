@@ -106,6 +106,14 @@ export const STAND_IDS = Object.freeze({
   positionValue: "finops-stand-position-value",
   positionBasis: "finops-stand-position-basis",
   benchmarkFit: "finops-stand-benchmark-fit",
+  peerBrief: "finops-peer-brief",
+  peerStatus: "finops-peer-status",
+  peerAnswer: "finops-peer-answer",
+  peerMetric: "finops-peer-metric",
+  peerInvestigation: "finops-peer-investigation",
+  peerEvidence: "finops-peer-evidence",
+  peerEvidenceSummary: "finops-peer-evidence-summary",
+  peerEvidenceList: "finops-peer-evidence-list",
   recoverableValue: "finops-stand-recoverable-value",
   recoverableBasis: "finops-stand-recoverable-basis",
   /** The graded floor beside it: the same figure over only the scored spend. */
@@ -476,6 +484,43 @@ function positionSlot(position, period, benchmark = null) {
       + `organization is in the ${quarter}, measured over `
       + `${COUNT.format(position.successfulTasks)} successful tasks. ${COST_BAND_DIRECTION} `
       + `Published band name for this quarter: ${position.bandLabel}.`,
+  });
+}
+
+/** One decision-shaped reading of the dependency's benchmark-result contract. */
+export function peerComparisonBriefing(benchmark, position = null, team = null) {
+  const available = Boolean(benchmark?.available && position?.available);
+  const confidence = benchmark?.confidence?.level ?? "none";
+  if (!available) {
+    return Object.freeze({
+      state: "unavailable",
+      status: "Peer comparison unavailable",
+      answer: benchmark?.eligibility?.reason
+        ?? "No comparable peer benchmark was produced for this analysis.",
+      metric: "Cost per successful task cannot be benchmarked from the available evidence.",
+      investigation: "Next investigation: confirm attributed spend, successful task outcomes, organization size, and industry for the same analysis window.",
+      evidence: Object.freeze([]),
+    });
+  }
+  const lowConfidence = confidence === "low";
+  const cohort = position.cohort;
+  const teamName = team?.available ? team.name : null;
+  return Object.freeze({
+    state: lowConfidence ? "low-confidence" : "ready",
+    status: lowConfidence ? "Low-confidence peer comparison" : "Peer comparison ready",
+    answer: `${position.valueDisplay} per successful task is in the ${BAND_IN_WORDS[position.band]} of similar organizations (${benchmark.percentile}th percentile for cost efficiency).`,
+    metric: `${COST_METRIC.label}: ${position.valueDisplay} · ${position.successfulTasks} successful tasks · lower is better.`,
+    investigation: `Next investigation: ${teamName
+      ? `review failed tasks, retries, and attributed spend in ${teamName} first.`
+      : "review failed tasks, retries, and attributed spend in the highest-cost department first."}`,
+    evidence: Object.freeze([
+      entry("Cohort", `${cohort.label} · ${benchmark.cohortSize} synthetic organizations`),
+      entry("Percentile", `${benchmark.percentile}th percentile for cost efficiency; lower cost is better`),
+      entry("Freshness", `Snapshot ${benchmark.freshness.snapshotDate}; ${benchmark.freshness.ageDays} day${benchmark.freshness.ageDays === 1 ? "" : "s"} old at evaluation`),
+      entry("Confidence", `${confidence} — ${benchmark.confidence.basis}`),
+      entry("Methodology", `${benchmark.finding.evidence} ${COST_BAND_DIRECTION}`),
+      entry("Provenance", `${benchmark.provenance.label} · snapshot ${benchmark.provenance.snapshotId} · rubric ${benchmark.provenance.rubricVersion} · ${cohort.cohortId}`),
+    ]),
   });
 }
 
@@ -1252,6 +1297,7 @@ export function composeStandHeadline({
     provenance: peerBenchmark.provenance,
     exclusions: "Cohorts are synthetic and privacy-preserving. They do not imply access to customer, provider, or HRIS data, and they are not measured market performance.",
   });
+  const peerBriefing = peerComparisonBriefing(peerBenchmark, peerBenchmark.position, team);
   const withheld = placed ? null : withheldFrom(position, eligibility, source);
   // The headline claim is RESOLVED, not assembled: every signal states itself as
   // a candidate and the ranked winner's claim is what this region asserts.
@@ -1301,6 +1347,7 @@ export function composeStandHeadline({
     benchmarkFit,
     /** The typed calculator result consumed by the position and fitness slots. */
     peerBenchmark,
+    peerBriefing,
     recoverable,
     /**
      * The graded floor beside it: the amount, the scored spend it is taken over,

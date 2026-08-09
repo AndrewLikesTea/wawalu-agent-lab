@@ -782,6 +782,31 @@ export function applyStandHeadline(doc, headline, { announce = true } = {}) {
     benchmarkFit.dataset.confidence = headline.benchmarkFit?.confidence ?? "none";
   }
 
+  const peerBrief = byId(doc, STAND_IDS.peerBrief);
+  const peer = headline.peerBriefing;
+  if (peerBrief && peer) {
+    peerBrief.dataset.state = peer.state;
+    setText(doc, STAND_IDS.peerStatus, peer.status);
+    setText(doc, STAND_IDS.peerAnswer, peer.answer);
+    setText(doc, STAND_IDS.peerMetric, peer.metric);
+    setText(doc, STAND_IDS.peerInvestigation, peer.investigation);
+    const evidence = byId(doc, STAND_IDS.peerEvidence);
+    const summary = byId(doc, STAND_IDS.peerEvidenceSummary);
+    const list = byId(doc, STAND_IDS.peerEvidenceList);
+    if (list) list.replaceChildren(...peer.evidence.map((row) => definition(doc, row)));
+    // The disclosure is never withdrawn, only emptied of cohort rows. It also
+    // holds the benchmark-fit answer and its synthetic-cohort qualifier, and
+    // the state with no cohort rows is exactly the state a reader most needs
+    // those in: hiding the details takes the explanation away with the table.
+    // An empty grid `dl` occupies no height, so nothing is drawn for it.
+    if (evidence && summary && evidence.dataset.bound !== "true") {
+      evidence.addEventListener("toggle", () => {
+        summary.setAttribute("aria-expanded", evidence.open ? "true" : "false");
+      });
+      evidence.dataset.bound = "true";
+    }
+  }
+
   const recoverable = setText(doc, STAND_IDS.recoverableValue, headline.recoverable?.value ?? "");
   if (recoverable) recoverable.dataset.available = headline.recoverable?.available ? "true" : "false";
   setText(doc, STAND_IDS.recoverableBasis, headline.recoverable?.basis ?? "");
