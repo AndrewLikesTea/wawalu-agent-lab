@@ -271,16 +271,18 @@ test("the profile page defines the selected name as a display name", async () =>
   // times before the reader saw a picture. The intro tells it once.
   assert.doesNotMatch(role[1], /This view shows image posts only/);
   assert.doesNotMatch(role[1], /including the ones published without an image/);
-  assert.match(html, /<p class="profile-lede">People shows the image posts published under one display name[^<]*Open Social when you want the whole feed, including posts with no image\./,
+  // One sentence, and it is the intro's: the rule and the way to the rest of
+  // the feed in a single clause, with Social as the link. A link that reads
+  // "see posts without images on Social" would make Social sound like the other
+  // half of a split feed, so the sentence says what Social holds instead.
+  assert.match(html, /<p class="profile-lede">People shows the image posts published under one display name — open <a class="text-link" href="\/social\.html">Social<\/a> when you want the whole feed, including posts with no image\./,
     "the intro no longer states the rule the paragraph below stopped repeating");
-  // The route out is Social's whole feed, under the label the empty state's own
-  // button uses. A link that reads "see posts without images on Social" would
-  // make Social sound like the other half of a split feed.
-  assert.match(role[1], /<a class="text-link" href="\/social\.html">See every post on Social<\/a>\.$/);
+  // And it is the page's only route to Social outside the nav and the footer:
+  // this paragraph used to end on a second one, three lines under the first.
+  assert.equal(role[1].match(/href="\/social\.html"/g), null,
+    "the display-name paragraph offers Social a second time again");
   assert.doesNotMatch(rendered, /that person's|their image posts/,
     "no rendered copy on People calls a display name's posts someone's");
-  // Subordinate, not trapped: the way back to the whole feed is right there.
-  assert.match(role[1], /href="\/social\.html"/);
 
   // A reader who clicked "People" arrives at a heading that says People, so the
   // link and the page agree on one name for this surface. The selected person is
@@ -296,7 +298,10 @@ test("the profile page defines the selected name as a display name", async () =>
 test("Social and People each disambiguate the other in the sentence under the heading", async () => {
   const pages = [
     { file: "social.html", heading: "Social", other: "People", lede: /<h1 id="page-title">Social<\/h1>\s*<p>([^<]*)<\/p>/ },
-    { file: "profile.html", heading: "People", other: "Social", lede: /<h1 id="page-title">People<\/h1>\s*<p class="profile-lede">([^<]*)<\/p>/ },
+    // People's description carries the link to Social inside itself, so the
+    // capture takes markup: the sentence that names the other surface is the
+    // sentence that opens it.
+    { file: "profile.html", heading: "People", other: "Social", lede: /<h1 id="page-title">People<\/h1>\s*<p class="profile-lede">([\s\S]*?)<\/p>/ },
   ];
 
   const descriptions = [];
@@ -314,7 +319,10 @@ test("Social and People each disambiguate the other in the sentence under the he
 
     const mentions = description.split(other).length - 1;
     assert.equal(mentions, 1, `${file}: the description must name ${other} exactly once, not ${mentions} times`);
-    assert.match(description, new RegExp(`Open ${other} when`), `${file}: it must say when to open ${other} instead`);
+    // Sentence-initial on Social, mid-sentence on People, where the clause is
+    // joined to the rule it qualifies rather than left standing alone.
+    assert.match(description, new RegExp(`[Oo]pen (<[^>]+>)?${other}`), `${file}: it must name ${other} as somewhere to open`);
+    assert.match(description, new RegExp(`${other}(</a>)? when`), `${file}: it must say when to open ${other} instead`);
   }
 
   assert.notEqual(descriptions[0], descriptions[1], "the two descriptions must not be the same sentence");

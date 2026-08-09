@@ -124,10 +124,16 @@ test("the picker is read and reached before the name, the count, and the results
 
     // And the tab sequence agrees, without a tabindex propping it up: every
     // display name is its own tab stop, in reading order, and they are the first
-    // things a keyboard reaches inside the main content.
+    // controls a keyboard reaches inside the main content. Ahead of them is the
+    // intro's link to Social, which is a word in the opening sentence rather
+    // than a control on this view — a reader who wants the whole feed meets the
+    // way to it before the filter they would otherwise have to escape.
     const inMain = tabSequence(document).filter((element) => element.closest("#main-content"));
-    assert.deepEqual(inMain.slice(0, 3).map((element) => element.dataset.author), ["Ari", "Bea", "Zed"],
-      "the first tab stops in main are not the display-name buttons in reading order");
+    assert.equal(inMain[0].getAttribute("href"), "/social.html",
+      "the first tab stop in main is not the intro's route to Social");
+    assert.equal(inMain[0].parentNode?.classList?.contains("profile-lede"), true);
+    assert.deepEqual(inMain.slice(1, 4).map((element) => element.dataset.author), ["Ari", "Bea", "Zed"],
+      "the first controls in main are not the display-name buttons in reading order");
     for (const chip of chips(page))
       assert.equal(chip.getAttribute("tabindex"), null, "the order is markup order, not a tabindex trick");
   } finally {
@@ -145,12 +151,13 @@ test("a first-time visitor lands on a display name that has image posts", async 
     assert.equal(textOf(document.querySelector("#profile-name")), "Active display-name filter: Zed",
       "the header names someone other than the picker's own value");
     assert.match(textOf(document.querySelector(".profile-role")),
-      /Zed is a display name[\s\S]*See every post on Social\.$/,
-      "the selected-name results state does not route to the posts it leaves out");
-    // The scope is the intro's to state, once. This paragraph and the eyebrow
-    // over the grid both used to restate it in their own words.
+      /^Zed is a display name[\s\S]*anyone can publish under any name\.$/,
+      "the display-name sentence does not follow the selected name");
+    // The scope is the intro's to state, once, and it is the intro that carries
+    // the link. This paragraph and the eyebrow over the grid both used to
+    // restate the rule in their own words.
     assert.match(textOf(document.querySelector(".profile-lede")),
-      /Open Social when you want the whole feed, including posts with no image\./);
+      /^People shows the image posts published under one display name — open Social when you want the whole feed, including posts with no image\./);
     // What a reader who scrolled straight to the grid meets: the heading counts
     // image posts, the eyebrow above it orders them. Neither repeats the other.
     const panelHeading = document.querySelector(".list-heading");
@@ -161,6 +168,49 @@ test("a first-time visitor lands on a display name that has image posts", async 
     // A default is not a choice: nothing was written on the reader's behalf.
     assert.equal(page.storage.getItem("shiplog.social.author"), null);
     assert.equal(page.replaced.length, 0);
+  } finally {
+    page.restore();
+  }
+});
+
+// The reported defect: in about a hundred words, People told a reader what it
+// shows and where the rest of the posts are three times — the intro, the
+// paragraph beside the picker, and the eyebrow over the grid — and offered the
+// same route into Paint twice. A first-time visitor has the rule after the
+// first sentence; every telling after that is a page repeating itself.
+test("People states the images-only rule once and offers each route once", async () => {
+  const page = await people();
+  try {
+    const main = page.document.getElementById("main-content");
+    const anchors = main.querySelectorAll("a");
+    const rendered = textOf(main);
+
+    // Counted over the rendered page, hydrated, not over the source: what a
+    // reader hears is what the module wrote, not what the markup shipped.
+    assert.equal(rendered.split("including posts with no image").length - 1, 1,
+      "the intro's rule is stated more than once in the main content");
+    assert.doesNotMatch(rendered, /This view shows image posts only/);
+    assert.doesNotMatch(rendered, /posts without images are on Social/);
+    // The ordering label orders, and stops there: it used to carry the rule as
+    // a tail on the end of it.
+    assert.equal(textOf(main.querySelector(".list-heading").querySelectorAll(".eyebrow")[0]), "Newest first");
+
+    // One route to Social, and it is the sentence that states the rule — so the
+    // reader who has just been told what this view leaves out can act on it
+    // without hunting for a second link.
+    const toSocial = anchors.filter((anchor) => anchor.getAttribute("href") === "/social.html");
+    assert.equal(toSocial.length, 1, "the main content offers Social more than once");
+    assert.equal(toSocial[0].parentNode?.classList?.contains("profile-lede"), true,
+      "the link to Social is not in the sentence that states the rule");
+
+    // One route into Paint, beside the pictures that prompt it, still saying
+    // what the tab does in its own text.
+    const toPaint = anchors.filter((anchor) => textOf(anchor).startsWith("Create an image in Paint"));
+    assert.equal(toPaint.length, 1, "the main content offers Paint more than once");
+    assert.equal(textOf(toPaint[0]), "Create an image in Paint (opens in a new tab)");
+    assert.equal(toPaint[0].getAttribute("target"), "_blank");
+    assert.equal(toPaint[0].getAttribute("rel"), "noopener");
+    assert.equal(toPaint[0].getAttribute("id"), "profile-paint-route");
   } finally {
     page.restore();
   }
@@ -322,8 +372,8 @@ test("an empty display name is named in prose once and counted once", async () =
 //
 // The name chosen here is a decoy route: 35 characters, so the API's own
 // 60-character author limit (MAX_SOCIAL_AUTHOR_LENGTH, src/social-posts-api.js)
-// would accept it, and shaped to impersonate the one link this paragraph now
-// carries. If any of these landed as markup instead of text, the page would
+// would accept it, and shaped to impersonate the page's one link to Social. If
+// any of these landed as markup instead of text, the page would
 // offer a reader a second "Social" link pointing somewhere else, in the exact
 // spot the copy tells them to go for the posts this view leaves out.
 //
@@ -342,14 +392,18 @@ test("a display name that is markup is rendered as text and forges no second rou
     // would have left only the anchor's own text behind.
     assert.equal(textOf(document.querySelector("#profile-role-name")), DECOY_NAME);
     assert.equal(resultsHeading(document), `${DECOY_NAME} · 0 image posts`);
-    // The scope sentence still owns exactly one route, and it is Social's.
-    const routes = document.querySelector(".profile-role").querySelectorAll("a");
+    // The paragraph the name is written into holds no link at all, so a forged
+    // one would be the only anchor in it. The page's one route to Social is the
+    // intro's, above it, and the name never reaches that sentence.
+    assert.equal(document.querySelector(".profile-role").querySelectorAll("a").length, 0);
+    const routes = document.querySelector(".profile-lede").querySelectorAll("a");
     assert.equal(routes.length, 1);
     assert.equal(routes[0].getAttribute("href"), "/social.html");
+    assert.equal(textOf(routes[0]), "Social");
     // The one place the name is written into an attribute rather than a text
     // node. Percent-encoded by URLSearchParams, so the quotes in it cannot end
     // the attribute, and the route is still this site's Paint editor.
-    const paint = document.querySelector("#profile-paint-cta").getAttribute("href");
+    const paint = document.querySelector("#profile-paint-route").getAttribute("href");
     assert.doesNotMatch(paint, /["'<>]/, "the display name reached the href unencoded");
     assert.equal(new URL(paint, "https://shiplog.test").pathname, "/paint/");
     assert.equal(new URL(paint, "https://shiplog.test").searchParams.get("author"), DECOY_NAME);
@@ -375,13 +429,13 @@ test("choosing another name updates the page in place and keeps the URL and stor
       assert.equal(document.activeElement?.dataset.author, "Bea");
       assert.equal(textOf(document.querySelector("#profile-name")), "Active display-name filter: Bea");
       assert.match(textOf(document.querySelector(".profile-role")),
-        /Bea is a display name[\s\S]*See every post on Social\.$/);
+        /^Bea is a display name[\s\S]*anyone can publish under any name\.$/);
       assert.match(textOf(document.querySelector("#profile-summary")), /^1 image post /);
       assert.equal(document.querySelectorAll(".profile-tile").length, 1);
       assert.equal(page.navigations.length, 0);
       assert.equal(page.storage.getItem("shiplog.social.author"), "Bea");
       assert.deepEqual(page.replaced.at(-1)?.[2], "/profile.html?author=Bea");
-      assert.equal(document.querySelector("#profile-paint-cta").href, "/paint/?from=profile&author=Bea");
+      assert.equal(document.querySelector("#profile-paint-route").href, "/paint/?from=profile&author=Bea");
     } finally {
       page.restore();
     }
@@ -404,7 +458,7 @@ test("selecting with the pointer moves the heading, the list, the URL, and the s
     assert.equal(page.storage.getItem("shiplog.social.author"), "Bea");
     assert.deepEqual(page.replaced.at(-1)?.[2], "/profile.html?author=Bea");
     // The route into Paint follows the selection, so its back link returns here.
-    assert.equal(document.querySelector("#profile-paint-cta").href, "/paint/?from=profile&author=Bea");
+    assert.equal(document.querySelector("#profile-paint-route").href, "/paint/?from=profile&author=Bea");
   } finally {
     page.restore();
   }
