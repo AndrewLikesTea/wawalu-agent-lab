@@ -332,11 +332,10 @@ test("the About Shiplog band reads the same on every page of the site", async ()
   for (const demo of DEMOS) assert.ok(expected.includes(demo.purpose), `the band lost "${demo.label}"`);
 });
 
-test("Social is defined in one sentence, and all four surfaces that define it use those bytes", async () => {
-  // Four surfaces have to say what Social is, and a visitor may arrive at any
-  // one of them first: the home page's directory card, a post permalink pasted
-  // to them, the band at the foot of every page, and Social's own intro. A
-  // second wording for one feed is a second feed as far as a reader can tell.
+test("Social's directories share one definition, while a permalink explains the specific post", async () => {
+  // Directory and feed surfaces use one definition. The permalink instead
+  // identifies the specific item a visitor opened, so the two explanations do
+  // not compete beside the post.
   const SENTENCE = DEMOS.find((demo) => demo.label === "Social").purpose;
 
   const guide = parseHtml(await read("index.html")).querySelector(".site-guide");
@@ -345,10 +344,12 @@ test("Social is defined in one sentence, and all four surfaces that define it us
   assert.equal(textOf(card).slice("Social".length).trim(), SENTENCE,
     "the home page's card states what Social is in its own words");
 
-  // The permalink's standing copy, outside #post-detail so it survives every
-  // state the lookup lands in.
+  // The permalink's standing copy is post-specific and does not repeat the
+  // generic feed definition beside it.
   const permalink = parseHtml(await read("post.html")).querySelector("#main-content");
-  assert.ok(textOf(permalink).includes(SENTENCE), "the post permalink states what Social is in its own words");
+  assert.ok(textOf(permalink).includes("Shared links like this one open a single post from Social’s shared demo feed."));
+  assert.equal(textOf(permalink).includes(SENTENCE), false,
+    "the post permalink repeats the generic Social definition beside the post-specific explanation");
 
   // The band, on the page a reader is most likely to meet it cold.
   const band = parseHtml(await read("social.html")).querySelector(".site-footer-demos");

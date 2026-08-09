@@ -349,7 +349,7 @@ test("the post page's loading tab order reaches Social without a placeholder Peo
       SKIP_TEXT,
       "Shiplog",
       ...SITE_NAV.map((link) => link.label),
-      "Open Social to read the whole feed",
+      "Open the full Social feed",
     ],
     "the post page's tab order changed",
   );
@@ -409,7 +409,7 @@ test("the post page withholds People until it can name the loaded display name",
   assert.deepEqual(
     exits.map((link) => [link.href, textOf(link)]),
     [
-      ["/social.html", "Open Social to read the whole feed"],
+      ["/social.html", "Open the full Social feed"],
       ["/profile.html", ""],
     ],
   );

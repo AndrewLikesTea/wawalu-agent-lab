@@ -77,20 +77,27 @@
                  together. The wording here is the one post-detail.js renders,
                  character for character; a test pins them to each other. -->
             <div id="post-detail" data-post-state="loading" aria-busy="true">
-              <div class="detail-loading detail-state-panel" data-post-state-panel="loading" role="status" aria-labelledby="post-state-loading-title"><h2 class="detail-loading-title" id="post-state-loading-title">Loading shared Social post</h2><p class="detail-loading-line"><span class="detail-loading-dot" aria-hidden="true"></span><span class="detail-loading-text">Loading this post from Social’s shared demo feed…</span></p></div>
+              <div class="detail-loading detail-state-panel" data-post-state-panel="loading" role="status" aria-labelledby="post-state-loading-title"><h2 class="detail-loading-title" id="post-state-loading-title">Loading shared Social post</h2><p class="detail-loading-line"><span class="detail-loading-dot" aria-hidden="true"></span><span class="detail-loading-text">Fetching it from the feed…</span></p></div>
             </div>
           </div>
         </section>
 
         <!-- Standing copy: it sits in the frame, not in #post-detail, so a
-             visitor who arrived from a shared link is told what Social is
+             visitor who arrived from a shared link is told what this page is
              whatever the lookup did — while it runs, and still if it never
              finds a post. It reads after the post rather than before it: a
              reader who followed a shared link already knows they wanted this
-             post, and what Social is only becomes a question once they have
+             post, and what the page is only becomes a question once they have
              read it. The heading above is rewritten by JS; this sentence is
-             not. -->
-        <p>Social is a shared demo feed of short posts about what the team ships, images optional.</p>
+             not.
+
+             It describes the link, not the panel. "This is one post from…"
+             would be a claim about something on screen, and this sentence
+             outlives the two states where nothing is: not-found and error have
+             no post for it to be about. Saying what a shared link opens is true
+             in all four states, and it is the fact a cold visitor is missing —
+             that they are on a one-post page and the rest is a feed away. -->
+        <p>Shared links like this one open a single post from Social’s shared demo feed.</p>
         <!-- Word for word the last sentence of Social's own intro. A visitor who
              arrives here from a shared link may never open /social.html, so the
              fact that nothing in the feed is real has to be on this page too, in
@@ -149,7 +156,7 @@
              The Social link is offered in all four states — the feed is true
              whether or not this one post is. -->
         <p class="detail-page-exits">
-          <a class="detail-back detail-page-back" id="post-back" href="/social.html">Open Social to read the whole feed</a>
+          <a class="detail-back detail-page-back" id="post-back" href="/social.html">Open the full Social feed</a>
           <a class="detail-back detail-page-back" id="post-people" href="/profile.html" hidden></a>
         </p>
       </section>
