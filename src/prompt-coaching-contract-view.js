@@ -69,8 +69,7 @@ function analyzedBlock(doc, sample, session) {
       ["Model tier named", session.input.modelTier ?? "not specified"],
     ]),
     element(doc, "p", "prompt-coaching-preview-note",
-      "Those counts are the whole of what a session says about the text. The text "
-      + "itself is measured and left in the field you typed it into."),
+      "The grade uses these counts, but does not keep your pasted text. Your text remains in the field."),
   );
   return block;
 }
@@ -89,7 +88,7 @@ function resultBlock(doc, session) {
         : session.result.recovery.title}`),
     definitions(doc, "prompt-coaching-preview-fields",
       RESULT_FIELD_MEANINGS.map((entry) => [entry.field, entry.meaning])),
-    collapsed(doc, `The whole session as JSON (${COACHING_SESSION_VERSION})`,
+    collapsed(doc, `View grade details as JSON (${COACHING_SESSION_VERSION})`,
       element(doc, "pre", "prompt-coaching-preview-json",
         serializeCoachingSessionPreview(session.sessionId))),
   );
@@ -125,9 +124,9 @@ function statesBlock(doc, outcomes) {
     list.append(item);
   }
   block.append(
-    element(doc, "h3", "eyebrow", "Every state this can return"),
+    element(doc, "h3", "eyebrow", "Possible results"),
     element(doc, "p", "prompt-coaching-preview-lead",
-      "Four states, each demonstrated below by a bundled sample graded when this page rendered."),
+      "Each result below comes from a bundled example, not text you pasted."),
     list,
   );
   return block;
@@ -154,8 +153,7 @@ function boundaryBlock(doc) {
   block.append(
     element(doc, "h3", "eyebrow", "What stays out"),
     element(doc, "p", "prompt-coaching-preview-lead",
-      "Coaching runs in this browser from bundled static client-side code. No request "
-      + "is sent for coaching and no persistence is implemented."),
+      "Your pasted text stays in this browser. It is not sent to a model or stored."),
     list,
   );
   return block;

@@ -79,11 +79,11 @@ test("before a second grade the cue offers re-grading and nothing claims a chang
     assert.ok(cue, "the re-grade cue must ship in the markup, before any script runs");
     assert.equal(cue.hidden, false);
     const words = textOf(cue);
-    assert.match(words, /revise and re-grade in this session/i);
+    assert.match(words, /Compare a revision/i);
     // Privacy and storage are stated once before the field, so this cue stays
     // focused on the revision workflow instead of repeating that disclosure.
-    assert.match(words, /Grade once, edit, and grade again/i);
-    assert.match(words, /previous and revised scores, what moved, and one next step/i);
+    assert.match(words, /Grade your prompt, edit it, then grade it again/i);
+    assert.match(words, /both scores and what changed/i);
     assert.doesNotMatch(words, /model|memory|text you pasted|saved|stored|history|account|upload/i);
 
     assert.equal(changeRegion(document).hidden, true);
