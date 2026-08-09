@@ -9,7 +9,10 @@ import {
   projectProviderExport, providerExportPreflight,
   PROVIDER_EXPORT_ERROR, PROVIDER_EXPORT_PROJECTION_VERSION,
 } from "../src/provider-export-projection.js";
-import { renderProviderExportProjection } from "../src/provider-export-projection-view.js";
+import {
+  renderImportedModelOverspendProjection, renderProviderExportProjection,
+} from "../src/provider-export-projection-view.js";
+import { parseHtml, pressEnter, textOf } from "./support/browser.js";
 import { createElement } from "./support/dom.js";
 
 const contract = (name) => new URL(
@@ -294,7 +297,66 @@ test("the live workspace wires JSON and mapped provider exports into the project
   assert.match(entry, /import\("\/provider-export-projection\.js"\)/);
   assert.match(entry, /const projection = projectProviderExport\(providerDocument\)/);
   assert.match(entry, /importedOverspend = projectModelOverspendFinding\(providerDocument\)/);
-  assert.match(entry, /renderModelOverspendFinding\(document, importedOverspend\.finding/);
+  assert.match(entry, /importedOverspendRenderer\(document, importedOverspend/);
   assert.match(entry, /renderProviderExportProjection\(document, projection\)/);
   assert.equal((entry.match(/await paintProviderProjection\(parsed\.document\)/g) ?? []).length, 3);
+});
+
+test("an eligible imported model finding keeps projection provenance at a glance", async () => {
+  const document = await provider();
+  document.schema_version = "1.1";
+  const template = document.records[0];
+  document.records = [
+    observedRow(template, { aggregate_id: "a", usage_date: "2026-06-01",
+      org_unit_id: "rowan-api", model_raw: "model-large", request_count: 4000,
+      cost: { ...template.cost, amount_minor: 80000 } }),
+    observedRow(template, { aggregate_id: "b", usage_date: "2026-06-01",
+      org_unit_id: "rowan-api", model_raw: "model-small", request_count: 6000,
+      cost: { ...template.cost, amount_minor: 30000 } }),
+  ];
+  const projection = projectModelOverspendFinding(document);
+  const doc = parseHtml(await readFile(new URL("../src/evolution.html", import.meta.url), "utf8"));
+  doc.getElementById("local-results").hidden = false;
+
+  renderImportedModelOverspendProjection(doc, projection);
+
+  assert.equal(textOf(doc.querySelectorAll(".model-overspend-metric-value")[0]), "18000.00 USD");
+  assert.match(textOf(doc.querySelectorAll(".model-overspend-metric-where")[0]),
+    /model-large.*rowan-api/);
+  assert.match(textOf(doc.querySelectorAll(".model-overspend-confidence")[0]), /Confidence:/);
+  const source = doc.querySelectorAll(".model-overspend-import-source")[0];
+  assert.match(textOf(source), /Selected provider export/);
+  assert.match(textOf(source), /2 of 2 rows accepted.*0 rejected.*0 superseded/);
+  assert.match(textOf(source), /browser memory only.*no upload/i);
+  assert.equal(doc.querySelectorAll(".model-overspend-action").length, 1);
+  assert.equal(doc.getElementById("model-overspend-evidence-panel").hidden, true);
+
+  // The finding renderer owns this body and rebuilds it whole on every
+  // disclosure toggle and rename. Provenance that only survives to the reader's
+  // first keystroke is not provenance "at a glance", so the state that matters
+  // is the one after an interaction, not the one on first paint.
+  doc.getElementById("model-overspend-evidence-toggle").focus();
+  pressEnter(doc);
+  assert.equal(doc.getElementById("model-overspend-evidence-panel").hidden, false);
+  assert.match(textOf(doc.querySelectorAll(".model-overspend-import-source")[0]),
+    /2 of 2 rows accepted/);
+  assert.equal(doc.querySelectorAll(".model-overspend-import-source").length, 1);
+});
+
+test("a producer-withheld projection gives one recovery action and invents no savings", async () => {
+  const document = await provider();
+  document.records[0].usage_date = "not-a-date";
+  const projection = projectModelOverspendFinding(document);
+  const doc = parseHtml(await readFile(new URL("../src/evolution.html", import.meta.url), "utf8"));
+
+  renderImportedModelOverspendProjection(doc, projection);
+
+  assert.match(textOf(doc.querySelectorAll(".model-overspend-state")[0]),
+    /withheld.*insufficient evidence/i);
+  assert.equal(textOf(doc.querySelectorAll(".model-overspend-metric-withheld")[0]), "Withheld");
+  assert.equal(doc.querySelectorAll(".model-overspend-metric-value").length, 0);
+  assert.equal(doc.querySelectorAll(".model-overspend-action").length, 1);
+  assert.match(textOf(doc.querySelectorAll(".model-overspend-action")[0]), /Correct the producer rows/);
+  assert.match(textOf(doc.querySelectorAll(".model-overspend-import-source")[0]),
+    /0 of 1 rows accepted.*1 rejected/);
 });
