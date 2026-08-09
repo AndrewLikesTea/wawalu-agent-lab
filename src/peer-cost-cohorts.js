@@ -78,7 +78,7 @@ export const PEER_COST_RUBRIC_VERSION = "finops-cost-rubric/v2";
  */
 export function costCohortProblem(record) {
   if (!record || typeof record !== "object") return "a cohort record must be an object.";
-  const { cohortId, sizeBand, industry, p25, p75 } = record;
+  const { cohortId, sizeBand, industry, p25, p75, memberValues } = record;
   if (typeof cohortId !== "string" || !cohortId) return "a cohort record must declare a cohortId.";
   if (!Object.values(ORG_SIZE_BAND).includes(sizeBand)) {
     return `cohort ${cohortId} declares an unpublished size band.`;
@@ -92,6 +92,12 @@ export function costCohortProblem(record) {
   // or above p75 the "middle range" is empty and one value could satisfy both
   // the top and the bottom rule.
   if (!(p25 < p75)) return `cohort ${cohortId} must publish p25 strictly below p75.`;
+  if (!Array.isArray(memberValues) || memberValues.length !== record.memberCount) {
+    return `cohort ${cohortId} must publish one metric value for each member.`;
+  }
+  if (memberValues.some((value) => !Number.isFinite(value) || value < 0)) {
+    return `cohort ${cohortId} member values must be finite non-negative numbers.`;
+  }
   return null;
 }
 
@@ -118,7 +124,18 @@ export function assertPublishableCostCohorts(records) {
   return records;
 }
 
-const cohort = (cohortId, sizeBand, industry, p25, p75, memberCount = 40) => Object.freeze({
+// Forty executable synthetic observations per cohort. Boundary values are
+// included deliberately, so equality is a normal fixture case rather than a
+// calculator branch no shipped data can reach. The values are fixed from the
+// two authored boundaries and never depend on visitor input or runtime state.
+const memberValues = (p25, p75) => Object.freeze(Array.from({ length: 40 }, (_, index) => {
+  if (index < 10) return Number((p25 * (0.55 + index * 0.05)).toFixed(4));
+  if (index < 20) return p25;
+  if (index < 30) return Number((p25 + ((p75 - p25) * (index - 19)) / 10).toFixed(4));
+  return p75;
+}));
+
+const cohort = (cohortId, sizeBand, industry, p25, p75) => Object.freeze({
   cohortId,
   /** The eligibility predicate, as data: both attributes, both exact matches. */
   sizeBand,
@@ -128,7 +145,9 @@ const cohort = (cohortId, sizeBand, industry, p25, p75, memberCount = 40) => Obj
   p25,
   p75,
   /** Invented distribution size; used only to gate synthetic benchmark fitness. */
-  memberCount,
+  memberCount: 40,
+  /** Cost-per-successful-task observations; synthetic fixture data, never identities. */
+  memberValues: memberValues(p25, p75),
   snapshotId: PEER_COST_SNAPSHOT_ID,
   rubricVersion: PEER_COST_RUBRIC_VERSION,
 });
