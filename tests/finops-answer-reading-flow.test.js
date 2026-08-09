@@ -19,7 +19,8 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-import { parseHtml, pressEnter, pressSpace, tabSequence, textOf } from "./support/browser.js";
+import { loadPage, parseHtml, pressEnter, pressSpace, tabSequence, textOf } from "./support/browser.js";
+import { importPageModule, waitFor } from "./support/page-module.js";
 import { analysisReadiness } from "../src/finops-bundled-scenarios.js";
 import { resolveFinopsAnswer, finopsAnswerSignals } from "../src/finops-answer-contract.js";
 import {
@@ -27,14 +28,22 @@ import {
 } from "../src/finops-answer-contract-view.js";
 import { analysisReadinessForDataset } from "../src/finops-analysis-readiness.js";
 import { renderAnalysisReadiness } from "../src/finops-analysis-readiness-view.js";
+import { applyGuidedScenario } from "../src/finops-guided-first-analysis-view.js";
 
 const PAGE = new URL("../src/evolution.html", import.meta.url);
 const HTML = await readFile(PAGE, "utf8");
 const DATA = JSON.parse(await readFile(
   new URL("../src/evolution-demo-data.json", import.meta.url), "utf8"));
+const EVALUATION_FIXTURES = JSON.parse(await readFile(
+  new URL("../src/finops-evaluation-fixtures.json", import.meta.url), "utf8"));
 
 const REGION = "finops-analysis-readiness";
 const ANSWER = "finops-canonical-answer";
+// The chooser that moves the analysis. It is part of the live analysis for the
+// purposes of this file: what it renders competes with the briefing or supports
+// it, and there is no third option.
+const CHOOSER = "finops-guided-choice";
+const GOOGLE = "google-vertex-detailed-v1";
 
 const doc = () => parseHtml(HTML);
 const byId = (document, id) => document.getElementById(id);
@@ -144,6 +153,149 @@ test("focus order follows the reading order: action, then the disclosures under 
   assert.ok(rank(`${ANSWER}-action`) >= 0, "the action must be reachable by Tab");
   assert.ok(rank(`${ANSWER}-action`) < rank("analysis-readiness-detail-summary"));
   assert.ok(rank("analysis-readiness-detail-summary") >= 0);
+});
+
+// ---------------------------------------------------------------------------
+// 1b. ONE answer for the whole live analysis (#1466)
+//
+// #1465 made this region read as one answer. It did not stop the surface BELOW
+// it publishing a second one: the guided chooser painted its own headline
+// finding, its own benchmark, its own confidence and its own "Prioritized next
+// action", while the briefing above stayed frozen on a hard-coded scenario id.
+// Two savings figures, and the one presented as canonical was the stale one.
+// ---------------------------------------------------------------------------
+
+const hasClass = (node, name) => String(node.className ?? "").split(/\s+/).includes(name);
+
+/** Every element of the live analysis: the briefing, and the chooser under it. */
+const liveNodes = (document) => [REGION, CHOOSER].flatMap((id) => walk(byId(document, id)));
+
+/** A live analysis with both halves painted, as a reader meets it. */
+function livePage(scenarioId = "aws-bedrock-cur-v1") {
+  const document = doc();
+  const analysis = analysisReadiness({ scenarioId });
+  renderFinopsAnswer(document, resolveFinopsAnswer(finopsAnswerSignals(analysis)),
+    { scenarioLabel: analysis.label });
+  applyGuidedScenario(document, scenarioId);
+  return document;
+}
+
+test("one element in the live analysis carries a savings figure at headline prominence", () => {
+  const document = livePage();
+  // The page's own largest type role, plus the two roles the chooser used to
+  // compete in. A reintroduction of either fails here rather than in review.
+  const headline = liveNodes(document).filter((node) => ["stand-figure-value",
+    "guided-finding", "guided-action-text"].some((role) => hasClass(node, role)));
+  assert.equal(headline.length, 1, "a second headline figure is a second answer");
+  assert.equal(headline[0].id, `${ANSWER}-figure`);
+
+  // And role-independently: every currency amount the chooser renders is
+  // supporting evidence behind its disclosure, not a competing claim. Only
+  // nodes that hold no disclosure of their own count — an ancestor reads its
+  // descendants' text, and this harness reads straight through a shut one.
+  const loose = walk(byId(document, CHOOSER))
+    .filter((node) => node.tagName !== "DETAILS"
+      && !walk(node).some((child) => child.tagName === "DETAILS"))
+    .filter((node) => /\$[\d,]/.test(textOf(node)) && !insideDisclosure(node));
+  assert.equal(loose.length, 0,
+    `the chooser states ${loose.length} money figures outside its disclosure`);
+});
+
+test("exactly one control asks the reader to take the answer's next action", () => {
+  const document = livePage();
+  const label = resolveFinopsAnswer(finopsAnswerSignals(
+    analysisReadiness({ scenarioId: "aws-bedrock-cur-v1" }))).primaryAction.label;
+  const restating = liveNodes(document)
+    .filter((node) => node.tagName === "A" || node.tagName === "BUTTON")
+    .filter((node) => textOf(node).includes(label));
+  assert.equal(restating.length, 1, "a second control restates the one next action");
+  assert.equal(restating[0].id, `${ANSWER}-action`);
+  assert.equal(restating[0].hidden, false, "the one action must be operable");
+  // The chooser keeps its navigation, and none of it is an instruction: those
+  // links go to evidence and to a department, which is not the action.
+  const chooserLinks = walk(byId(document, CHOOSER)).filter((node) => node.tagName === "A");
+  assert.equal(chooserLinks.length, 2, "the two destinations are the flow, not a call to action");
+  for (const link of chooserLinks) assert.doesNotMatch(textOf(link), /^Pilot |^Route |^Default /);
+});
+
+test("the synthetic-data qualifier is read with the figure and behind no control", () => {
+  const document = doc();
+  const marker = byId(document, `${ANSWER}-synthetic`);
+  assert.equal(insideDisclosure(marker), false,
+    "a qualifier folded into a disclosure passes this harness and is unread in a browser");
+  assert.match(textOf(marker), /Bundled synthetic example/);
+  assert.match(textOf(marker), /not your spend/);
+
+  // It is authored rather than painted, so it survives all five states — the
+  // four a record decides, and the loading state the document ships in.
+  for (const [answer, options] of [
+    [null, { state: ANSWER_STATE.loading }], [answered(), {}],
+    [resolveFinopsAnswer(null), {}], [null, {}],
+  ]) {
+    const page = doc();
+    renderFinopsAnswer(page, answer, options);
+    assert.match(textOf(byId(page, `${ANSWER}-synthetic`)), /Bundled synthetic example/,
+      `the qualifier was lost in the ${byId(page, ANSWER).dataset.state} state`);
+  }
+
+  // …and it is read between the figure and the benchmark, so a reader cannot
+  // reach the headline claim without it.
+  const order = walk(byId(document, REGION)).map((node) => node.id).filter(Boolean);
+  const at = (id) => order.indexOf(id);
+  assert.ok(at(`${ANSWER}-figure`) < at(`${ANSWER}-synthetic`));
+  assert.ok(at(`${ANSWER}-synthetic`) < at(`${ANSWER}-benchmark`));
+});
+
+test("the briefing names the analysis it is of, and two scenarios do not share one", () => {
+  const bedrock = livePage();
+  const google = livePage(GOOGLE);
+  assert.match(slot(bedrock, "scenario"), /AWS Bedrock/);
+  assert.match(slot(google, "scenario"), /Google Vertex AI/);
+  // $3,600 and $4,500 a month, annualised. Different scenario, different answer.
+  assert.ok(slot(bedrock, "figure").includes("$43,200"), slot(bedrock, "figure"));
+  assert.ok(slot(google, "figure").includes("$54,000"), slot(google, "figure"));
+});
+
+// Booted for real, because the claim is about the PAGE's wiring: a hook the
+// chooser calls and the entry ignores would pass every assertion above.
+test("choosing another bundled export restates the briefing on the live page", async () => {
+  const page = await loadPage(PAGE, {
+    routes: { "/evolution-demo-data.json": DATA,
+      "/finops-evaluation-fixtures.json": EVALUATION_FIXTURES },
+  });
+  try {
+    const document = page.document;
+    await importPageModule("/evolution-page.js");
+    await waitFor(() => byId(document, ANSWER).dataset.state === ANSWER_STATE.answered,
+      "the briefing never resolved on a real boot");
+    // Every start the page makes, not only the first: restoring the globals out
+    // from under a request still in flight surfaces in whichever test runs next.
+    await waitFor(() => document.documentElement.dataset.shiplogEvolution === "ready"
+      || byId(document, "finops-load-state")?.dataset.state === "error",
+    "the page never settled into a resolved load state");
+    await waitFor(() => byId(document, "integration-contract-provenance")
+      ?.textContent.trim().startsWith("Gateway completed"), "the static contract gateway to settle");
+    await waitFor(() => byId(document, "finops-evaluation-result")
+      ?.getAttribute("aria-busy") === "false", "the evaluation panel to settle");
+    assert.match(slot(document, "scenario"), /AWS Bedrock/);
+    const before = slot(document, "figure");
+    assert.ok(before.includes("$43,200"), before);
+
+    const select = byId(document, "finops-guided-select");
+    select.value = GOOGLE;
+    select.dispatchEvent({ type: "change", target: select, bubbles: true });
+
+    assert.match(slot(document, "scenario"), /Google Vertex AI/,
+      "the briefing kept naming the export the reader had already left");
+    assert.ok(slot(document, "figure").includes("$54,000"), slot(document, "figure"));
+    assert.notEqual(slot(document, "figure"), before);
+    // The qualifiers on that figure move with it, rather than being left over
+    // from the analysis before.
+    assert.match(slot(document, "sources"), /readiness/);
+    assert.match(textOf(byId(document, `${ANSWER}-live`)), /Answer resolved/);
+  } finally {
+    page.restore();
+  }
 });
 
 // ---------------------------------------------------------------------------
@@ -324,7 +476,7 @@ test("a very large figure renders as one legible sentence and wraps rather than 
   const figure = slot(document, "figure");
   assert.ok(figure.includes("$9,876,543,210 a year"), figure);
   assert.ok(figure.includes("19.8% of the $50,000,000,000"), figure);
-  assert.ok(figure.endsWith("not a realized saving."), "the sentence is truncated or broken");
+  assert.ok(figure.endsWith("analyzed baseline."), "the sentence is truncated or broken");
   assert.equal(answerPlausibility(huge).implausible, false,
     "large is not the same as impossible; only a saving above its own baseline is");
 });

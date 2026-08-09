@@ -174,30 +174,72 @@ test("an ordinary open is silent, and choosing announces the change and the reco
   assert.match(text(document, GUIDED_IDS.evidenceBody), /Developer Experience/);
 });
 
-test("the primary surface answers one question and states one prioritized action", () => {
+// #1466: the chooser no longer publishes a briefing of its own. It names the
+// loaded export and points at the one answer; everything that used to compete
+// with that answer is evidence inside the disclosure, phrased as a record this
+// scenario carries rather than as a second instruction.
+test("the chooser names the loaded export and states no second answer", () => {
   const document = parseHtml(html);
   applyGuidedScenario(document, AZURE);
   assert.match(text(document, "finops-guided-question"), /\?$/);
-  const summary = text(document, GUIDED_IDS.summary);
-  assert.match(summary, /Prioritized next action.*Developer Experience is the team that should take it first\./);
-  assert.match(summary, /Evidence confidence/);
-  assert.match(summary, /computed locally in this browser/);
-  assert.match(summary, /% of that department's modelled spend/);
-  assert.equal(byId(document, GUIDED_IDS.summary).querySelectorAll(".guided-action").length, 1,
-    "a second action region is a second ranking");
+  const summary = byId(document, GUIDED_IDS.summary);
+  const lede = summary.querySelector(".guided-lede");
+  assert.match(textOf(lede), /Azure OpenAI/, "the reader is not told which export is loaded");
+  assert.match(textOf(lede), /stated once, in the executive briefing above/);
+  // No money and no imperative outside the disclosure: those belong to the one
+  // briefing, and a second copy of either is a second answer.
+  assert.doesNotMatch(textOf(lede), /\$[\d,]/);
+  assert.equal(summary.querySelectorAll(".guided-action").length, 0,
+    "the competing call-to-action treatment is back");
+  assert.equal(summary.querySelectorAll(".guided-finding").length, 0,
+    "the competing headline finding is back");
+
+  // Nothing was deleted: every figure the panel used to headline is still here,
+  // one disclosure down and labelled as evidence.
+  const support = textOf(summary.querySelector(".guided-support"));
+  assert.match(support, /Primary finding.*\$3,000 in modelled recoverable spend/);
+  assert.match(support, /Material benchmark/);
+  assert.match(support, /Evidence confidence/);
+  assert.match(support, /computed locally in this browser/);
+  assert.match(support, /% of that department's modelled spend/);
+  assert.match(support, /Action this scenario carries.*Developer Experience is the department/);
 });
 
-test("the semantic and visual reading order is finding, trust, action, then support", () => {
+test("the semantic and visual reading order is the loaded export, then its evidence", () => {
   const document = parseHtml(html);
   applyGuidedScenario(document, GOOGLE);
   const summary = byId(document, GUIDED_IDS.summary);
-  const positions = [".guided-finding", ".guided-trust", ".guided-action", ".guided-support"]
+  const positions = [".guided-lede", ".guided-support"]
     .map((selector) => summary.children.indexOf(summary.querySelector(selector)));
   assert.deepEqual(positions, [...positions].sort((a, b) => a - b));
   assert.ok(positions.every((position) => position >= 0));
   const support = summary.querySelector(".guided-support");
   assert.equal(support.tagName, "DETAILS");
   assert.equal(support.querySelector("summary")?.tagName, "SUMMARY");
+  // The two destinations are read last, after the evidence they lead into.
+  assert.ok(summary.children.indexOf(summary.querySelector("a")) > positions[1]);
+});
+
+// THE WIRING #1466 EXISTS FOR. The chooser moves the analysis; the one briefing
+// is painted from whatever it moved to. A hook that is not called on the paths
+// a reader actually takes is a briefing that outlives its own dataset.
+test("every scenario the flow settles on is reported to the one briefing", () => {
+  const document = parseHtml(html);
+  const seen = [];
+  const { location, history } = addressDouble();
+  installGuidedFirstAnalysis(document, { location, history, onScenario: (id) => seen.push(id) });
+  assert.deepEqual(seen, [DEFAULT_GUIDED_SCENARIO], "the first paint told nobody");
+
+  choose(document, GOOGLE);
+  choose(document, AZURE);
+  assert.deepEqual(seen, [DEFAULT_GUIDED_SCENARIO, GOOGLE, AZURE],
+    "a choice repainted the panel and left the briefing on the previous analysis");
+
+  // An id the registry does not know reports null rather than the last good
+  // one: the briefing must go to its own no-analysis state, not lie.
+  const reported = [];
+  applyGuidedScenario(document, "not-registered", { onScenario: (id) => reported.push(id) });
+  assert.deepEqual(reported, [null]);
 });
 
 test("the native support disclosure is keyboard reachable and exposes open and closed states", () => {
@@ -285,7 +327,7 @@ test("a withheld extreme keeps the control its own remedy tells the reader to us
   // node, so proving the node survived is only half of proving the way out did.
   choose(document, AZURE);
   assert.equal(byId(document, GUIDED_IDS.chooser).dataset.state, GUIDED_VIEW_STATE.ready);
-  assert.match(text(document, GUIDED_IDS.summary), /Prioritized next action/);
+  assert.match(text(document, GUIDED_IDS.summary), /Action this scenario carries/);
 });
 
 test("the control is labelled, and the assumptions are behind the disclosure, not the status", () => {

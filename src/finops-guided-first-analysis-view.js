@@ -139,10 +139,15 @@ const destinationLink = (doc, scenarioId, destination, text) => {
 };
 
 /**
- * The chooser and the primary surface: the question is authored above it, and
- * this paints the answer, the one benchmark, confidence, provenance, impact,
- * why it matters and the one action — all at a glance, with the second-order
- * calculations behind the one disclosure.
+ * The chooser, and the EVIDENCE for the answer stated once above it (#1466).
+ *
+ * This surface used to publish a competing briefing: a finding in the largest
+ * type role on the panel, a benchmark, confidence, provenance, and a second
+ * "Prioritized next action" in a call-to-action treatment. Two headline savings
+ * figures — a monthly recoverable here, an annual one in the canonical region —
+ * is how a leader ends up quoting the wrong one. So the control stays, the
+ * scenario is named, and everything that qualifies the answer is demoted into
+ * the one disclosure, phrased as evidence rather than as a second instruction.
  */
 export function renderGuidedChooser(doc, model) {
   const host = doc.getElementById(GUIDED_IDS.chooser);
@@ -177,32 +182,30 @@ export function renderGuidedChooser(doc, model) {
     else option.removeAttribute("selected");
   }
   doc.getElementById(GUIDED_IDS.summary).replaceChildren(
-    el(doc, "h3", "guided-finding-label", "Primary finding"),
-    el(doc, "p", "guided-finding", model.answer),
-    labelled(doc, "guided-benchmark", "Material benchmark", model.benchmark),
-    el(doc, "div", "guided-trust"),
-    el(doc, "section", "guided-action"),
-    disclosure(doc, "Supporting assumptions and calculation", [
+    // Outside the disclosure: only what the CONTROL owes its reader — which
+    // export is loaded, and where the answer for it is stated.
+    el(doc, "p", "guided-lede", `${model.label} is loaded. The savings figure it`
+      + " implies, how far to trust it, and the one action to take are stated once, in the"
+      + " executive briefing above."),
+    disclosure(doc, "Evidence behind this scenario", [
       rows(doc, [
+        { term: "Primary finding", detail: model.answer },
+        { term: "Material benchmark", detail: model.benchmark },
+        { term: "Confidence", detail: model.confidence },
+        { term: "Provenance", detail: model.provenance },
         { term: "Impact", detail: model.impact },
         { term: "Why this matters", detail: model.whyItMatters },
+        // Stated as the record this scenario carries, not as an instruction: the
+        // one thing a reader is asked to do is the briefing's action, above.
+        {
+          term: "Action this scenario carries",
+          detail: `${model.action.text} ${model.action.team} is the department it falls to.`,
+        },
         { term: "Why this action is ranked first", detail: model.action.reason },
         { term: "What this figure is not", detail: model.limitation },
         ...model.assumptions.map((text, index) => ({ term: `Assumption ${index + 1}`, detail: text })),
       ]),
     ]),
-  );
-  const trust = doc.getElementById(GUIDED_IDS.summary).querySelector(".guided-trust");
-  trust.setAttribute("aria-label", "Confidence and provenance");
-  trust.append(
-    labelled(doc, "guided-signal", "Confidence", model.confidence, "●", "status-shape"),
-    labelled(doc, "guided-signal", "Provenance", model.provenance, "◇", "provenance-shape"),
-  );
-  const action = doc.getElementById(GUIDED_IDS.summary).querySelector(".guided-action");
-  action.append(
-    el(doc, "h3", "guided-action-label", "Prioritized next action"),
-    el(doc, "p", "guided-action-text", model.action.text),
-    el(doc, "p", "guided-action-owner", `${model.action.team} is the team that should take it first.`),
   );
   doc.getElementById(GUIDED_IDS.summary).append(
     destinationLink(doc, model.scenarioId, GUIDED_DESTINATION.evidence,
@@ -263,11 +266,19 @@ export function renderGuidedDepartment(doc, model) {
  * a status that speaks on a cold open is a status a reader learns to ignore.
  * `focus` is used when a destination view swaps in under the reader, so the
  * keyboard lands in what just changed rather than where the old view was.
+ *
+ * `onScenario` is called with the id this flow settled on — null when nothing
+ * could be analyzed. It is how the page's ONE canonical briefing follows the
+ * chooser (#1466); without it the briefing keeps stating an answer for the
+ * scenario the reader has already left, which is worse than stating none.
  */
-export function applyGuidedScenario(doc, scenarioId, { announce = false, focus = null } = {}) {
+export function applyGuidedScenario(
+  doc, scenarioId, { announce = false, focus = null, onScenario = null } = {},
+) {
   const model = guidedAnalysis(scenarioId);
   if (!model) {
     renderGuidedState(doc, GUIDED_VIEW_STATE.empty);
+    onScenario?.(null);
     return null;
   }
   selected = model.scenarioId;
@@ -283,6 +294,8 @@ export function applyGuidedScenario(doc, scenarioId, { announce = false, focus =
   }
   const live = doc.getElementById(GUIDED_IDS.live);
   if (live) live.textContent = announce ? model.announcement : "";
+  // Last, so the briefing is restated from a surface that has already settled.
+  onScenario?.(model.scenarioId);
   return model;
 }
 
@@ -290,7 +303,9 @@ export function applyGuidedScenario(doc, scenarioId, { announce = false, focus =
  * Mount the flow: paint it from the address, then keep the address and the
  * surfaces in step as the reader chooses.
  */
-export function installGuidedFirstAnalysis(doc, { location = null, history = null } = {}) {
+export function installGuidedFirstAnalysis(
+  doc, { location = null, history = null, onScenario = null } = {},
+) {
   const address = `${location?.search ?? ""}`;
   const fragment = `${location?.hash ?? ""}`;
   const chosen = guidedScenarioFromAddress(address);
@@ -300,18 +315,21 @@ export function installGuidedFirstAnalysis(doc, { location = null, history = nul
   const landing = !named ? null
     : fragment === GUIDED_DESTINATION.evidence ? "evidence"
       : fragment === GUIDED_DESTINATION.department ? "department" : null;
-  const retry = () => installGuidedFirstAnalysis(doc, { location, history });
+  const retry = () => installGuidedFirstAnalysis(doc, { location, history, onScenario });
   renderGuidedState(doc, GUIDED_VIEW_STATE.loading);
   let model = null;
   try {
-    model = applyGuidedScenario(doc, chosen, { focus: landing });
+    model = applyGuidedScenario(doc, chosen, { focus: landing, onScenario });
   } catch {
     renderGuidedState(doc, GUIDED_VIEW_STATE.error, { onRetry: retry });
+    // The briefing above must not be left mid-paint in its authored loading
+    // state when nothing is coming: it is told there is no analysis.
+    onScenario?.(null);
   }
   const select = doc.getElementById(GUIDED_IDS.select);
   select?.addEventListener("change", (event) => {
     const next = event?.target?.value ?? select.value;
-    const applied = applyGuidedScenario(doc, next, { announce: true });
+    const applied = applyGuidedScenario(doc, next, { announce: true, onScenario });
     if (!applied) return;
     // The address follows the choice rather than the other way round, and it is
     // a replacement: choosing again is refining one question, not a step back

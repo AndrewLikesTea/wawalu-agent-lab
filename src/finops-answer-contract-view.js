@@ -29,6 +29,16 @@
 // in greyscale, in forced colours, and to a reader who sees no hue at all. The
 // tone is the fourth channel, never the first.
 //
+// THE ONE ANSWER, AND IT IS LIVE (#1466). This region is the page's single
+// executive briefing for the bundled analysis: the figure, the qualifiers on
+// it, and the one next action. Every other presentation of those four things in
+// the live analysis is supporting evidence inside a disclosure. It is repainted
+// on every scenario change, so `scenarioLabel` names the export it is of — an
+// answer that silently outlives the dataset it was computed from is worse than
+// no answer. The synthetic-data qualifier is AUTHORED in the markup rather than
+// painted here, because it must be true in all five states and a paint that
+// took a different branch is a paint that can lose it.
+//
 // NO NEW TOKEN AND NO NEW CLASS. Type roles are the ones this page already
 // ships: `.stand-figure-value` is the largest role on the surface and carries
 // the answer; `.stand-answer` is the body role and carries the benchmark;
@@ -104,6 +114,8 @@ const set = (doc, id, text) => {
 const money = (value, unit) => (unit === "USD" ? USD.format(value) : `${value} ${unit}`);
 
 const named = (ids) => (ids?.length ? ids.join(", ") : "none");
+
+const filled = (value) => typeof value === "string" && value.trim().length > 0;
 
 /**
  * Display-only bounds on the figure the contract published.
@@ -211,6 +223,8 @@ function paintAction(doc, answer, answered) {
  *   analysis itself failed to load.
  * @param options.state force a state — `"loading"` is the only one a caller
  *   asks for, because the other four are decided by the record.
+ * @param options.scenarioLabel the bundled export this answer is of, so the one
+ *   briefing on the page names its own subject as the reader changes it.
  * @returns the region, or null when the page does not carry one.
  */
 export function renderFinopsAnswer(doc, answer, options = {}) {
@@ -242,9 +256,16 @@ export function renderFinopsAnswer(doc, answer, options = {}) {
             + ` ${USD.format(answer.annualBaselineSpendUsd)} analyzed baseline.`
           : "No annual saving is modelled: the recommended actions come to"
             + ` ${USD.format(answer.annualSavingsUsd)} a year against the`
-            + ` ${USD.format(answer.annualBaselineSpendUsd)} analyzed baseline.`)
-        + " Modelled from invented records, not a realized saving.");
+            + ` ${USD.format(answer.annualBaselineSpendUsd)} analyzed baseline.`));
   }
+
+  // WHICH scenario this answer is of. The region is now repainted every time the
+  // reader changes the bundled export below (#1466), so a briefing that did not
+  // name its subject would silently become an answer about a different dataset.
+  set(doc, `${ID}-scenario`, filled(options.scenarioLabel)
+    ? `Analyzing ${options.scenarioLabel}. Choosing another bundled provider export`
+      + " below restates this briefing from that analysis."
+    : "Analyzing the bundled provider export selected in the chooser below.");
 
   // The benchmark slot always says something. An empty line under a figure reads
   // as a benchmark that was forgotten rather than one that does not exist.

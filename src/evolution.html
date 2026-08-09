@@ -909,6 +909,10 @@
             <p class="panel-status-line" id="finops-canonical-answer-state-line" role="note"><span class="panel-status-chip" id="finops-canonical-answer-chip" data-silhouette="filled"><span class="panel-status-shape" id="finops-canonical-answer-shape" aria-hidden="true">◌</span><span class="panel-status-word" id="finops-canonical-answer-word">Reading</span></span> <span class="panel-status-summary" id="finops-canonical-answer-state-summary">Resolving one annual figure, the benchmark behind it, and the action it implies.</span></p>
           </div>
           <p class="stand-figure-value" id="finops-canonical-answer-figure" data-available="false">Resolving the annual figure from the analyzed scenario…</p>
+          <!-- THE SYNTHETIC QUALIFIER, NEVER BEHIND A CONTROL (#1466):
+               authored, never repainted, so it survives all five states. -->
+          <p class="sample-marker" id="finops-canonical-answer-synthetic"><span class="sample-marker-shape" aria-hidden="true">◇</span><strong>Bundled synthetic example</strong> Every figure in this briefing is modelled in this browser from invented provider-export records — not your spend, not a realized saving.</p>
+          <p class="stand-figure-basis" id="finops-canonical-answer-scenario">Analyzing the bundled provider export selected in the chooser below.</p>
           <p class="stand-answer" id="finops-canonical-answer-benchmark">Checking that figure against the analysis benchmark…</p>
           <a class="stand-action" id="finops-canonical-answer-action" href="/savings-action-center.html" hidden></a>
           <p class="stand-action-basis" id="finops-canonical-answer-action-basis">Ranking the recommended actions…</p>
@@ -1798,8 +1802,10 @@
 
       <!-- THE GUIDED FIRST ANALYSIS (#1393). Three shells, authored empty
            because the point is that what they hold changes with the chosen
-           scenario: the chooser stands in the answer, and the two panels under
-           it ARE the evidence and department destinations, painted from
+           scenario: the chooser CHANGES the one answer above rather than
+           restating it (#1466 — it repaints #finops-canonical-answer), and the
+           two panels under it ARE the evidence and department destinations,
+           painted from
            src/finops-guided-first-analysis.js for the one selected id. The
            status region is authored here and outside every disclosure — one
            inserted when it is written into is one no screen reader was watching,
