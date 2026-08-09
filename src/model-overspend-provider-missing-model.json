@@ -1,0 +1,10 @@
+{
+  "schema_version": "1.1",
+  "kind": "wawalu.integration.provider-usage-billing",
+  "export_id": "41000000-0000-4000-8000-000000000002",
+  "snapshot": { "source_instance_id": "psn_provider_fixture_02", "sequence": 1, "generated_at": "2026-07-02T00:00:00Z", "period_start": "2026-07-01", "period_end": "2026-07-02", "completeness": "complete", "omitted_record_count": 0, "issues": [] },
+  "privacy": { "aggregation": "daily-org-unit-service", "minimum_group_size": 10, "direct_identifiers_included": false, "content_included": false },
+  "records": [
+    { "aggregate_id": "psn_aggregate_fixture_0003", "revision": 0, "usage_date": "2026-07-01", "org_unit_id": "psn_unit_fixture_000002", "provider": "other", "service_category": "text-generation", "usage": { "quantity": 2000000, "unit": "tokens" }, "cost": { "amount_minor": 10000, "currency": "USD", "status": "final" }, "model_raw": null, "model_tier": null, "request_count": 1000, "input_tokens": 1500000, "output_tokens": 500000 }
+  ]
+}
