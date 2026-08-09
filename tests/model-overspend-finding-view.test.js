@@ -366,7 +366,7 @@ test("a file with no request counts shows the contract's sentences, never a zero
   assert.match(textOf(doc.querySelectorAll(".model-overspend-headline")[0]),
     /largest block of model spend/);
   assert.match(textOf(doc.querySelectorAll(".model-overspend-action")[0]),
-    /Why there is no action yet/);
+    /Do this next · unblock the finding/);
   assert.match(textOf(doc.querySelectorAll(".model-overspend-action-text")[0]),
     /^Re-import with the request-count column mapped/);
 
@@ -401,6 +401,16 @@ test("an unavailable metric names the gate that failed rather than emptying the 
   open(doc);
   assert.equal(rows(doc).length, 2);
   assert.match(textOf(doc.querySelectorAll(".model-overspend-total-withheld")[0]), /No total/);
+});
+
+test("an implausibly long impact stays exact and carries a visible verification warning", async () => {
+  const finding = structuredClone(await okFinding());
+  finding.metric.amountMinor = 900_719_925_474_000;
+  const { doc } = await mount(finding);
+  const metric = doc.querySelectorAll(".model-overspend-metric")[0];
+  assert.equal(metric.dataset.scale, "extreme");
+  assert.match(textOf(metric), /9007199254740\.00 USD/);
+  assert.match(textOf(metric), /Unusually large estimate.*verify the imported cost unit/);
 });
 
 test("a file whose models are all placeholders reports the unattributed spend, not an empty grid", async () => {

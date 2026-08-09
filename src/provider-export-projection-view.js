@@ -11,9 +11,111 @@ import { providerExportPreflight } from "./provider-export-projection.js";
 import {
   renderOwnDataEvidencePreflight, retireDowngradedTier,
 } from "./own-data-evidence-preflight-view.js";
+import { renderModelOverspendFinding } from "./model-overspend-finding-view.js";
 
 /** The word every downgraded figure carries, so no figure can be read as a full-import one. */
 const TIER_MARK = "downgraded tier";
+const WITHHELD = Object.freeze({
+  malformed_source_rows: ["The producer supplied unreadable rows; no savings were estimated.",
+    "Correct the producer rows named in validation, then import a new export."],
+  conflicting_revisions: ["The producer supplied conflicting aggregate revisions.",
+    "Export one authoritative revision per aggregate, then import it again."],
+  unsafe_aggregate: ["The accepted values cannot be safely aggregated.",
+    "Correct out-of-range request or cost values, then import the export again."],
+  no_source_rows: ["No provider usage rows support a model finding.",
+    "Export usage rows with month, workload, model, request count, and cost, then import again."],
+});
+
+function node(doc, tag, className, text) {
+  const item = doc.createElement(tag);
+  if (className) item.className = className;
+  if (text !== undefined) item.textContent = text;
+  return item;
+}
+
+function importSource(doc, projection) {
+  const p = projection?.provenance;
+  if (!p) return null;
+  const block = node(doc, "div", "model-overspend-import-source");
+  block.setAttribute("role", "note");
+  block.setAttribute("aria-label", "Import source provenance");
+  const accepted = p.acceptedRows ?? p.sourceRows ?? 0;
+  const total = p.sourceRows ?? accepted;
+  block.append(node(doc, "p", "model-overspend-import-source-label", "Import source"),
+    node(doc, "p", "model-overspend-import-source-summary",
+      `Selected provider export · ${accepted} of ${total} rows accepted · `
+      + `${p.rejectedRows ?? total - accepted} rejected · ${p.supersededRows ?? 0} superseded`),
+    node(doc, "p", "model-overspend-import-source-boundary",
+      "Computed in browser memory only; no upload or external lookup."));
+  return block;
+}
+
+function renderImportedState(doc, state, detail) {
+  const section = doc.getElementById("model-overspend");
+  const body = doc.getElementById("model-overspend-body");
+  if (!section || !body) return null;
+  const copy = {
+    loading: ["Reading imported recommendation evidence", "Loading", "Checking model, request-count, cost, and org-unit fields before estimating savings."],
+    empty: ["What evidence is needed for a savings recommendation?", "Nothing to analyze", "Import provider usage rows with model, request count, cost, month, and org unit."],
+    error: ["The imported recommendation could not be read", "Could not complete analysis", "Review the import error, correct the file, and try again. No savings figure was published."],
+  }[state];
+  if (!copy) return null;
+  section.hidden = false;
+  section.dataset.status = state;
+  section.setAttribute("aria-busy", state === "loading" ? "true" : "false");
+  const question = doc.getElementById("model-overspend-question");
+  if (question) question.textContent = copy[0];
+  const status = node(doc, "p", "model-overspend-state");
+  status.dataset.status = state;
+  const shape = node(doc, "span", "status-shape", state === "loading" ? "◌" : state === "empty" ? "◇" : "!");
+  shape.setAttribute("aria-hidden", "true");
+  status.append(shape, node(doc, "span", "model-overspend-state-word", copy[1]));
+  const message = node(doc, "p", "model-overspend-state-message", detail || copy[2]);
+  body.replaceChildren(status, message);
+  return section;
+}
+
+export function renderImportedModelOverspendState(doc, state, detail = null) {
+  return renderImportedState(doc, state, detail);
+}
+
+export function renderImportedModelOverspendProjection(doc, projection, { storage = null } = {}) {
+  const section = doc.getElementById("model-overspend");
+  if (!section || !projection) return renderImportedState(doc, "empty");
+  section.removeAttribute("aria-busy");
+  if (projection.finding) {
+    return renderModelOverspendFinding(doc, projection.finding,
+      { storage, importSource: (target) => importSource(target, projection) }) ?? section;
+  }
+  const body = doc.getElementById("model-overspend-body");
+  if (!body) return null;
+  const [reason, actionText] = WITHHELD[projection.withholding?.[0]?.code]
+    ?? WITHHELD.no_source_rows;
+  section.hidden = false;
+  section.dataset.status = "unavailable";
+  section.dataset.expanded = "false";
+  const question = doc.getElementById("model-overspend-question");
+  if (question) question.textContent = "What evidence is needed for a model down-routing finding?";
+  const status = node(doc, "p", "model-overspend-state");
+  status.dataset.status = "unavailable";
+  const shape = node(doc, "span", "status-shape", "○");
+  shape.setAttribute("aria-hidden", "true");
+  status.append(shape, node(doc, "span", "model-overspend-state-word",
+    "Finding withheld — insufficient evidence"));
+  const metric = node(doc, "div", "model-overspend-metric");
+  metric.dataset.available = "false";
+  metric.append(node(doc, "p", "model-overspend-metric-label", "Recoverable monthly spend"),
+    node(doc, "p", "model-overspend-metric-withheld", "Withheld"),
+    node(doc, "p", "model-overspend-metric-reason", reason));
+  const action = node(doc, "section", "model-overspend-action");
+  action.dataset.available = "false";
+  action.setAttribute("aria-labelledby", "model-overspend-action-label");
+  const label = node(doc, "h5", "model-overspend-action-label", "Do this next · unblock the finding");
+  label.id = "model-overspend-action-label";
+  action.append(label, node(doc, "p", "model-overspend-action-text", actionText));
+  body.replaceChildren(...[status, metric, action, importSource(doc, projection)].filter(Boolean));
+  return section;
+}
 
 function line(document, parts, data) {
   const item = document.createElement("li");

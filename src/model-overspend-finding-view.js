@@ -80,7 +80,9 @@ function hidden(doc, tag, text) {
 // so a repaint can read back what the reader had open without a module global.
 
 function state(section) {
-  if (!section.__modelOverspend) section.__modelOverspend = { finding: null, storage: null };
+  if (!section.__modelOverspend) {
+    section.__modelOverspend = { finding: null, storage: null, importSource: null };
+  }
   return section.__modelOverspend;
 }
 
@@ -90,12 +92,14 @@ function state(section) {
  * `storage` is this browser's `localStorage` (or a stand-in): the only place
  * org-unit labels live. Nothing here reads or writes anything else.
  */
-export function renderModelOverspendFinding(doc, finding, { storage = null } = {}) {
+export function renderModelOverspendFinding(doc, finding,
+  { storage = null, importSource = null } = {}) {
   const section = byId(doc, SECTION_ID);
   if (!section || !finding) return null;
   const mounted = state(section);
   mounted.finding = finding;
   mounted.storage = storage;
+  mounted.importSource = importSource;
   if (section.dataset.expanded !== "true") section.dataset.expanded = "false";
   section.hidden = false;
   paint(doc, section);
@@ -116,6 +120,7 @@ export function clearModelOverspendFinding(doc, { storage = null } = {}) {
   if (!section) return null;
   const mounted = state(section);
   mounted.finding = null;
+  mounted.importSource = null;
   section.hidden = true;
   section.dataset.status = "unavailable";
   section.dataset.expanded = "false";
@@ -161,6 +166,7 @@ function paint(doc, section) {
     actionBlock(doc, finding, labels, units),
     confidenceBlock(doc, finding),
     benchmarkBlock(doc, finding),
+    mounted.importSource?.(doc) ?? null,
     provenanceBlock(doc, finding, labels),
     disclosure(doc, section, finding, labels, expanded),
   ];
@@ -189,10 +195,15 @@ function metricBlock(doc, section, finding, labels, units) {
   const block = element(doc, "div", "model-overspend-metric");
   block.dataset.available = metric.available ? "true" : "false";
   if (metric.available) {
+    const formatted = money(metric.amountMinor);
+    const extreme = formatted.length > 18;
+    block.dataset.scale = extreme ? "extreme" : "standard";
     block.append(
       element(doc, "p", "model-overspend-metric-label", "Estimated monthly overspend"),
-      element(doc, "p", "model-overspend-metric-value", money(metric.amountMinor)),
+      element(doc, "p", "model-overspend-metric-value", formatted),
     );
+    if (extreme) block.append(element(doc, "p", "model-overspend-extreme",
+      "Unusually large estimate — verify the imported cost unit before acting."));
     const where = element(doc, "p", "model-overspend-metric-where");
     where.append(element(doc, "span", "model-overspend-metric-model", metric.model));
     where.append(element(doc, "span", "model-overspend-metric-sep", " in "));
@@ -230,11 +241,14 @@ function metricBlock(doc, section, finding, labels, units) {
 
 function actionBlock(doc, finding, labels, units) {
   const action = finding.action;
-  const block = element(doc, "p", "model-overspend-action");
+  const block = element(doc, "section", "model-overspend-action");
+  block.setAttribute("aria-labelledby", "model-overspend-action-label");
   block.dataset.available = action.available ? "true" : "false";
-  block.append(element(doc, "span", "model-overspend-action-label",
-    action.available ? "Do this next" : "Why there is no action yet"));
-  block.append(element(doc, "span", "model-overspend-action-text",
+  const label = element(doc, "h5", "model-overspend-action-label",
+    action.available ? "Do this next · priority 1" : "Do this next · unblock the finding");
+  label.id = "model-overspend-action-label";
+  block.append(label);
+  block.append(element(doc, "p", "model-overspend-action-text",
     applyOrgUnitLabelsToText(action.available ? action.text : action.reason, labels, units)));
   return block;
 }

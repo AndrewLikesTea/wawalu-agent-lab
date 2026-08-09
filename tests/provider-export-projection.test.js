@@ -9,7 +9,11 @@ import {
   projectProviderExport, providerExportPreflight,
   PROVIDER_EXPORT_ERROR, PROVIDER_EXPORT_PROJECTION_VERSION,
 } from "../src/provider-export-projection.js";
-import { renderProviderExportProjection } from "../src/provider-export-projection-view.js";
+import {
+  renderImportedModelOverspendProjection, renderImportedModelOverspendState,
+  renderProviderExportProjection,
+} from "../src/provider-export-projection-view.js";
+import { parseHtml, pressEnter, textOf } from "./support/browser.js";
 import { createElement } from "./support/dom.js";
 
 const contract = (name) => new URL(
@@ -294,7 +298,60 @@ test("the live workspace wires JSON and mapped provider exports into the project
   assert.match(entry, /import\("\/provider-export-projection\.js"\)/);
   assert.match(entry, /const projection = projectProviderExport\(providerDocument\)/);
   assert.match(entry, /importedOverspend = projectModelOverspendFinding\(providerDocument\)/);
-  assert.match(entry, /renderModelOverspendFinding\(document, importedOverspend\.finding/);
+  assert.match(entry, /importedOverspendRenderer\(document, importedOverspend/);
   assert.match(entry, /renderProviderExportProjection\(document, projection\)/);
   assert.equal((entry.match(/await paintProviderProjection\(parsed\.document\)/g) ?? []).length, 3);
+});
+
+test("eligible imported savings read impact, action, confidence, and provenance before evidence", async () => {
+  const document = await provider();
+  document.schema_version = "1.1";
+  const template = document.records[0];
+  document.records = [
+    observedRow(template, { aggregate_id: "a", usage_date: "2026-06-01",
+      org_unit_id: "rowan-api", model_raw: "model-large", request_count: 4000,
+      cost: { ...template.cost, amount_minor: 80000 } }),
+    observedRow(template, { aggregate_id: "b", usage_date: "2026-06-01",
+      org_unit_id: "rowan-api", model_raw: "model-small", request_count: 6000,
+      cost: { ...template.cost, amount_minor: 30000 } }),
+  ];
+  const projection = projectModelOverspendFinding(document);
+  const doc = parseHtml(await readFile(new URL("../src/evolution.html", import.meta.url), "utf8"));
+  doc.getElementById("local-results").hidden = false;
+  renderImportedModelOverspendProjection(doc, projection);
+  assert.equal(textOf(doc.querySelectorAll(".model-overspend-metric-value")[0]), "18000.00 USD");
+  assert.match(textOf(doc.querySelectorAll(".model-overspend-action-label")[0]), /priority 1/);
+  assert.match(textOf(doc.querySelectorAll(".model-overspend-confidence")[0]), /Confidence:/);
+  assert.match(textOf(doc.querySelectorAll(".model-overspend-import-source")[0]),
+    /2 of 2 rows accepted.*browser memory only/);
+  const toggle = doc.getElementById("model-overspend-evidence-toggle");
+  assert.equal(toggle.getAttribute("aria-expanded"), "false");
+  toggle.focus();
+  pressEnter(doc);
+  assert.equal(doc.activeElement.id, "model-overspend-evidence-toggle");
+  assert.equal(doc.getElementById("model-overspend-evidence-panel").hidden, false);
+  assert.match(textOf(doc.querySelectorAll(".model-overspend-import-source")[0]), /2 of 2/);
+});
+
+test("withheld imported savings names the missing figure and one recovery action", async () => {
+  const document = await provider();
+  document.records[0].usage_date = "not-a-date";
+  const doc = parseHtml(await readFile(new URL("../src/evolution.html", import.meta.url), "utf8"));
+  renderImportedModelOverspendProjection(doc, projectModelOverspendFinding(document));
+  assert.match(textOf(doc.querySelectorAll(".model-overspend-state")[0]), /withheld/i);
+  assert.equal(textOf(doc.querySelectorAll(".model-overspend-metric-withheld")[0]), "Withheld");
+  assert.equal(doc.querySelectorAll(".model-overspend-metric-value").length, 0);
+  assert.match(textOf(doc.querySelectorAll(".model-overspend-action-label")[0]), /unblock/);
+  assert.equal(doc.querySelectorAll(".model-overspend-action").length, 1);
+});
+
+test("loading, empty, and error are distinct labelled states", async () => {
+  for (const [state, label] of [["loading", "Loading"], ["empty", "Nothing to analyze"],
+    ["error", "Could not complete analysis"]]) {
+    const doc = parseHtml(await readFile(new URL("../src/evolution.html", import.meta.url), "utf8"));
+    const section = renderImportedModelOverspendState(doc, state);
+    assert.equal(section.dataset.status, state);
+    assert.match(textOf(section), new RegExp(label));
+    assert.equal(section.getAttribute("aria-busy"), state === "loading" ? "true" : "false");
+  }
 });

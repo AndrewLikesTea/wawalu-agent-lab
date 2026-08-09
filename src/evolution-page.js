@@ -1119,7 +1119,9 @@ function mountLocalFinopsImport() {
   const paintProviderProjection = async (providerDocument) => {
     renderOwnDataEvidenceState(document, OWN_DATA_VIEW_STATE.LOADING);
     const [
-      { projectProviderExport, projectModelOverspendFinding }, { renderProviderExportProjection },
+      { projectProviderExport, projectModelOverspendFinding },
+      { renderProviderExportProjection, renderImportedModelOverspendProjection,
+        renderImportedModelOverspendState },
       { determineImportedExportEligibility }, { renderImportedExportEligibility },
     ] = await Promise.all([
       import("/provider-export-projection.js"),
@@ -1127,8 +1129,10 @@ function mountLocalFinopsImport() {
       import("/imported-export-eligibility.js"),
       import("/imported-export-eligibility-view.js"),
     ]);
+    renderImportedModelOverspendState(document, "loading");
     const projection = projectProviderExport(providerDocument);
     importedOverspend = projectModelOverspendFinding(providerDocument);
+    importedOverspendRenderer = renderImportedModelOverspendProjection;
     if (!renderProviderExportProjection(document, projection)) {
       renderOwnDataEvidenceState(document, OWN_DATA_VIEW_STATE.VALIDATION_ERROR);
       renderLocalExportActivation(document, LOCAL_EXPORT_ACTIVATION_STATE.ERROR);
@@ -2426,10 +2430,11 @@ function mountLocalFinopsImport() {
   // panel says which two fields would supply them.
   let overspendFinding = null;
   let importedOverspend = null;
+  let importedOverspendRenderer = null;
   const paintModelOverspend = async (example) => {
     if (!example) {
-      return importedOverspend?.finding
-        ? renderModelOverspendFinding(document, importedOverspend.finding,
+      return importedOverspend && importedOverspendRenderer
+        ? importedOverspendRenderer(document, importedOverspend,
           { storage: labelStorage() })
         : null;
     }
