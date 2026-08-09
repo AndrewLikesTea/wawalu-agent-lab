@@ -23,6 +23,13 @@ test("empty account: a first-time user sees a rendered blank canvas and every co
   assert.equal(harness.viewport.getAttribute("aria-label"), "Image canvas, 1200 by 800 pixels");
 });
 
+test("render performance labels distinguish the frame-budget breach", () => {
+  const harness = createPaintHarness({ renderMilliseconds: 20 });
+  initEditor(harness.root, harness.environment);
+
+  assert.equal(harness.status.textContent, "WebGL · 20.0 ms (over frame budget)");
+});
+
 test("core canvas flow: drawing updates pixels, save state, and the visible WebGL texture", async () => {
   const harness = createPaintHarness();
   const editor = initEditor(harness.root, harness.environment);

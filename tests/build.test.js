@@ -37,7 +37,10 @@ async function copyDeployableArtifact(directory) {
 }
 
 test("product has a health endpoint and accessible title", async () => {
-  assert.equal((await readFile(new URL("../src/healthz", import.meta.url), "utf8")).trim(), "ok");
+  assert.deepEqual(
+    JSON.parse(await readFile(new URL("../src/healthz", import.meta.url), "utf8")),
+    { status: "healthy", version: "unstamped" },
+  );
   const html = await readFile(new URL("../src/index.html", import.meta.url), "utf8");
   assert.match(html, /<title>Shiplog · one site for AI spend, decisions, and releases<\/title>/);
   // The landmark the skip link targets — header and nav sit outside it.

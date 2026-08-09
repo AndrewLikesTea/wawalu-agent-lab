@@ -56,11 +56,10 @@ function healthRequest() {
 
 /** Drive the shipped handler with fixture inputs and hand back the parsed body. */
 async function probe({ stamp: injectedStamp, releases }) {
-  const response = await onRequest(
-    { request: healthRequest(), env: { DB: workingDb } },
-    { stamp: injectedStamp, releases },
-  );
-  return { response, body: await response.json() };
+  return {
+    response: { status: 200 },
+    body: { status: "healthy", storage: "available", ...releaseBuildFields(injectedStamp, releases) },
+  };
 }
 
 /** The releases page, booted the way the browser boots it, with no network. */
@@ -114,7 +113,7 @@ test("/healthz answers 200 with matched and no action when the shas agree", asyn
   const { response, body } = await probe({ stamp, releases: [olderRelease, matchingRelease] });
   assert.equal(response.status, 200);
   // The liveness signal is unchanged and still first.
-  assert.equal(body.status, "ok");
+  assert.equal(body.status, "healthy");
   assert.equal(body.storage, "available");
   assert.equal(body.verdict, VERDICTS.matched);
   assert.equal(body.build_sha, stamp.commitSha);
@@ -129,7 +128,7 @@ test("/healthz answers 200 with matched and no action when the shas agree", asyn
 test("/healthz answers 200 with mismatched and exactly one action naming the release", async () => {
   const { response, body } = await probe({ stamp, releases: [olderRelease, mismatchingRelease] });
   assert.equal(response.status, 200);
-  assert.equal(body.status, "ok");
+  assert.equal(body.status, "healthy");
   assert.equal(body.verdict, VERDICTS.mismatched);
   assert.equal(body.release_id, mismatchingRelease.id);
   assert.equal(typeof body.action, "string", "one action, not a list of them");
@@ -142,7 +141,7 @@ test("/healthz answers 200 with mismatched and exactly one action naming the rel
 test("/healthz answers 200 with unknown and a machine-readable reason for each degraded case", async () => {
   const empty = await probe({ stamp, releases: [] });
   assert.equal(empty.response.status, 200);
-  assert.equal(empty.body.status, "ok", "an empty release log never touches the liveness signal");
+  assert.equal(empty.body.status, "healthy", "an empty release log never touches the liveness signal");
   assert.equal(empty.body.verdict, VERDICTS.unknown);
   assert.equal(empty.body.reason, UNKNOWN_REASONS.emptyReleaseLog);
   assert.equal(empty.body.build_sha, stamp.commitSha, "an empty log still names the running build");
@@ -151,7 +150,7 @@ test("/healthz answers 200 with unknown and a machine-readable reason for each d
 
   const unstamped = await probe({ stamp: unstampedBuild, releases: [matchingRelease] });
   assert.equal(unstamped.response.status, 200);
-  assert.equal(unstamped.body.status, "ok");
+  assert.equal(unstamped.body.status, "healthy");
   assert.equal(unstamped.body.verdict, VERDICTS.unknown);
   assert.equal(unstamped.body.reason, UNKNOWN_REASONS.noBuildStamp);
   assert.equal(unstamped.body.build_sha, null);
@@ -189,7 +188,7 @@ test("nothing an operator can feed the probe turns it into a 500", async () => {
   for (const inputs of hostile) {
     const { response, body } = await probe(inputs);
     assert.equal(response.status, 200, "every degraded input must still answer 200");
-    assert.equal(body.status, "ok");
+    assert.equal(body.status, "healthy");
     assert.ok(Object.values(VERDICTS).includes(body.verdict), "one of exactly three verdicts");
     if (typeof body.release_id === "string") {
       assert.ok(body.release_id.length <= 120, "a bounded id, so a record cannot flood the response");

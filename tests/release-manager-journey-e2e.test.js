@@ -470,35 +470,17 @@ test("the journey exports as one JSON file carrying the decision, the release, a
 });
 
 test("GET /healthz returns a successful health response without credentials or external services", async () => {
-  const statements = [];
-  const db = {
-    prepare(sql) {
-      statements.push(sql);
-      return { async first() { return { healthy: 1 }; } };
-    },
-  };
-
   const response = await healthz({
     request: new Request("https://shiplog.test/healthz", { headers: { "cf-ray": "shiplog-e2e" } }),
-    env: { DB: db },
+    env: {},
   });
 
   assert.equal(response.status, 200);
   assert.equal(response.headers.get("cache-control"), "no-store");
   assert.equal(response.headers.get("x-request-id"), "shiplog-e2e");
   const body = await response.json();
-  assert.deepEqual(
-    { status: body.status, storage: body.storage, auth: body.auth },
-    { status: "ok", storage: "available", auth: "unconfigured" },
-  );
-  // The same response also answers "is this the build the release log says
-  // shipped" — one top-level word, computed from the build stamp and the
-  // shipped records, with no binding, storage read, or network call behind it.
-  // Its value depends on the checked-out commit, so only its shape is pinned
-  // here; tests/release-build-match.test.js drives the four cases.
-  assert.ok(["matched", "mismatched", "unknown"].includes(body.verdict));
-  assert.equal("build_sha" in body && "release_id" in body, true);
-  assert.deepEqual(statements, ["SELECT 1 AS healthy"], "the health probe performed work beyond its read-only query");
+  assert.deepEqual(body, { status: "healthy", version: body.version });
+  assert.match(body.version, /^(?:[0-9a-f]{40}|unstamped)$/);
 });
 
 // Without this, a green production run only means "some directory called dist
@@ -521,6 +503,14 @@ test("the journey ran against files the build verified and shipped", {
       `${BUILD_ROOT}/${path} is not the file the build verified`,
     );
   }
+});
+
+test("the production artifact includes the health contract", {
+  skip: BUILD_ROOT === "src" && "source run: health fallback is generated during build",
+}, async () => {
+  const body = JSON.parse(await readFile(artifact("healthz"), "utf8"));
+  assert.deepEqual(body, { status: "healthy", version: body.version });
+  assert.match(body.version, /^[0-9a-f]{40}$/);
 });
 
 test("a reload between the steps loses nothing the manager recorded", async (t) => {
