@@ -4225,6 +4225,9 @@ function mountLocalFinopsImport() {
       // would claim a provenance the example does not have.
       unitNaming: exampleActive ? null : importedUnitNaming(),
       readerLabels: exampleActive ? null : orgUnitLabels,
+      // Carry the aggregate record the imported model panel displays. The
+      // briefing exporter deliberately drops its progressive source-row table.
+      modelOverspendFinding: exampleActive ? null : importedOverspend?.finding,
     });
     downloadLocalExport(file.text, file.mediaType, file.fileName);
   });
