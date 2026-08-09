@@ -100,22 +100,60 @@ const SURFACES = [
   { name: "the executive briefing", open: openBriefingPage, prefix: "briefing-contact" },
 ];
 
-test("Social, People, Releases, and Prompt coach all show the shared success confirmation", async () => {
-  const pages = ["social.html", "profile.html", "releases.html", "coach.html"];
-  for (const file of pages) {
+test("Coach, Releases, Social, People, and Agents send one bounded request and show durable success", async () => {
+  const pages = [
+    ["coach.html", "follow_up_coach", "Paste a prompt"],
+    ["releases.html", "follow_up_releases", "Deployment status"],
+    ["social.html", "follow_up_social", "shared demo feed"],
+    ["profile.html", "follow_up_people", "image posts"],
+    ["agents.html", "follow_up_agents", "Agent Observatory"],
+  ];
+  for (const [file, requestType, pageContent] of pages) {
     const page = await openNamedFooterPage(file);
-    const calls = interceptLeads(() => jsonReply({ subscribed: true }, 201));
+    const calls = interceptLeads(() => jsonReply({ captured: true, created: true, purpose: requestType }, 201));
     try {
       byId(page.document, "site-footer-open").click();
       submitEmail(page.document, "site-footer", LONG_EMAIL);
       await settled(page.document, "site-footer");
 
       assert.equal(calls.length, 1, `${file}: valid submission must be sent once`);
+      const payload = JSON.parse(calls[0].options.body);
+      assert.deepEqual(payload, { email: LONG_EMAIL, purpose: requestType }, `${file}: bounded payload`);
+      assert.deepEqual(Object.keys(payload), ["email", "purpose"], `${file}: no third field can disclose content`);
+      assert.doesNotMatch(calls[0].options.body, new RegExp(pageContent, "i"), `${file}: page content stays local`);
       assert.equal(byId(page.document, "site-footer-form").dataset.state, "success", `${file}: success state`);
-      assert.ok(byId(page.document, "site-footer-confirmation"), `${file}: visible confirmation`);
+      const confirmation = byId(page.document, "site-footer-confirmation");
+      assert.ok(confirmation, `${file}: visible confirmation`);
       assert.equal(page.document.activeElement?.id, "site-footer-confirmation", `${file}: focus reaches confirmation`);
+      assert.match(textOf(confirmation), /Wawalu team received this work email/, `${file}: receipt names recipient`);
+      assert.match(textOf(confirmation), /requested follow-up type is the only other information sent/, `${file}: receipt states disclosure`);
+      assert.doesNotMatch(textOf(confirmation), new RegExp(pageContent, "i"), `${file}: receipt does not render page content`);
       assert.match(shownText(page.document, "site-footer-status"), /person replies by email/,
         `${file}: confirmation states the next step`);
+    } finally {
+      page.restore();
+    }
+  }
+});
+
+test("each reviewed page keeps empty and invalid email inline and sends nothing", async () => {
+  for (const file of ["coach.html", "releases.html", "social.html", "profile.html", "agents.html"]) {
+    const page = await openNamedFooterPage(file);
+    const calls = interceptLeads(() => jsonReply({ captured: true, created: true }, 201));
+    try {
+      byId(page.document, "site-footer-open").click();
+      const field = byId(page.document, "site-footer-email");
+      for (const [value, copy] of [
+        ["", /Enter your work email/],
+        ["rowan at example", /Enter a valid work email address/],
+      ]) {
+        submitEmail(page.document, "site-footer", value);
+        assert.equal(calls.length, 0, `${file}: ${JSON.stringify(value)} must not be sent`);
+        assert.equal(field.getAttribute("aria-invalid"), "true", `${file}: field exposes invalid state`);
+        assert.match(shownText(page.document, "site-footer-error"), copy, `${file}: inline diagnostic`);
+        assert.match(field.getAttribute("aria-describedby"), /site-footer-error/, `${file}: diagnostic is associated`);
+        assert.equal(byId(page.document, "site-footer-confirmation"), null, `${file}: validation cannot look successful`);
+      }
     } finally {
       page.restore();
     }
@@ -143,8 +181,7 @@ for (const { name, open, prefix } of SURFACES) {
       assert.equal(textOf(receipt.querySelector(`.${receipt.className}-address`)), LONG_EMAIL);
       // Who answers, and what travelled — the form's own privacy vocabulary.
       assert.match(textOf(receipt), /A person from the Wawalu team replies to that address by email/);
-      assert.match(textOf(receipt), /Nothing else on this page/);
-      assert.match(textOf(receipt), /read, attached, or transmitted/);
+      assert.match(textOf(receipt), /requested follow-up type is the only other information sent/);
       // Nothing about when. This demo has not promised anyone a response time,
       // and the receipt is not the place to invent one.
       assert.doesNotMatch(textOf(receipt), /business days?|within \d|hours?\b|shortly|specialist/i);
@@ -263,7 +300,7 @@ for (const { name, open, prefix } of SURFACES) {
       assert.equal(recovery.hidden, false);
       assert.match(textOf(recovery), /Your email address is still in the field/);
       assert.doesNotMatch(textOf(recovery), new RegExp(CONFIRMATION_DETAIL.slice(0, 40)));
-      assert.doesNotMatch(shownText(document, `${prefix}-status`), /We sent one thing/);
+      assert.doesNotMatch(shownText(document, `${prefix}-status`), /Wawalu team received this work email/);
     } finally {
       page.restore();
     }

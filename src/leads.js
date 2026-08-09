@@ -1,5 +1,12 @@
 export const MAX_EMAIL_LENGTH = 254;
-export const LEAD_PURPOSES = Object.freeze(["field_notes", "follow_up"]);
+export const FOLLOW_UP_REQUEST_TYPES = Object.freeze([
+  "follow_up_coach",
+  "follow_up_releases",
+  "follow_up_social",
+  "follow_up_people",
+  "follow_up_agents",
+]);
+export const LEAD_PURPOSES = Object.freeze(["field_notes", "follow_up", ...FOLLOW_UP_REQUEST_TYPES]);
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function normalizeEmail(value) {
@@ -73,7 +80,7 @@ export async function handleLeadRequest(request, {
     return json({ error: { code: "invalid_email", message: "Enter a valid email address.", request_id: requestId } }, 422, requestId);
   }
   if (!LEAD_PURPOSES.includes(input.purpose)) {
-    return json({ error: { code: "invalid_purpose", message: "Purpose must be field_notes or follow_up.", request_id: requestId } }, 422, requestId);
+    return json({ error: { code: "invalid_purpose", message: "Purpose is not a supported request type.", request_id: requestId } }, 422, requestId);
   }
 
   try {

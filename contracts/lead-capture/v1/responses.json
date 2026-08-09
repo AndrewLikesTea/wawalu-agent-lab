@@ -7,7 +7,7 @@
     "content_type": "application/json",
     "body": {
       "email": "string, trimmed and lowercased server-side, max 254 chars",
-      "purpose": "field_notes or follow_up; no additional fields are accepted"
+      "purpose": "field_notes, legacy follow_up, or one bounded follow_up_<surface> request type; no additional fields are accepted"
     }
   },
   "response_headers": {
@@ -53,7 +53,7 @@
       "origin": "application",
       "captured": false,
       "retryable": true,
-      "meaning": "Purpose was not field_notes or follow_up."
+      "meaning": "Purpose was not field_notes, legacy follow_up, or a supported bounded follow-up request type."
     },
     {
       "id": "invalid_email",

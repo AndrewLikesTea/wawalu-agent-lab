@@ -176,10 +176,10 @@ export const FOLLOW_UP_REDIRECT = Object.freeze({
  * follow-up form — see FOLLOW_UP_REDIRECT. The identity paragraph never varies:
  * every page says who runs Shiplog and where.
  */
-export function siteFooterMarkup(indent = "    ", { redirect = null } = {}) {
+export function siteFooterMarkup(indent = "    ", { redirect = null, followUpType = null } = {}) {
   const contact = redirect ? [
     `    <a class="site-footer-redirect-link" href="${redirect.href}">${redirect.label}</a>`,
-  ] : contactDisclosureLines();
+  ] : contactDisclosureLines(followUpType);
   const lines = [
     '<footer class="site-footer" id="site-footer" aria-labelledby="site-footer-title">',
     '  <div class="site-footer-inner">',
@@ -209,14 +209,14 @@ function demoListLines() {
   ];
 }
 
-function contactDisclosureLines() {
+function contactDisclosureLines(followUpType) {
   return [
     `    <p class="site-footer-invitation">${INVITATION}</p>`,
     '    <button class="site-footer-trigger" id="site-footer-open" type="button" aria-expanded="false" aria-controls="site-footer-panel">',
     "      Request a follow-up",
     "    </button>",
     '    <div class="site-footer-panel" id="site-footer-panel" hidden>',
-    '      <form id="site-footer-form" class="site-footer-form" novalidate>',
+    `      <form id="site-footer-form" class="site-footer-form"${followUpType ? ` data-follow-up-type="${followUpType}"` : ""} novalidate>`,
     '        <div class="site-footer-field">',
     '          <label for="site-footer-email">Work email</label>',
     "          <!-- Only the note is named here. The inline error and the recovery",
@@ -328,9 +328,6 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
 
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
-    // A request that landed is the end of this form's work. Nothing reachable
-    // can fire this handler once the receipt is up, and this is the guarantee
-    // that stays true even if something synthetic tries.
     if (confirmation.sent) return;
     const invalid = emailFieldError(email.value, looksLikeEmail(email.value), CONTACT_COPY);
     if (invalid) {
@@ -354,7 +351,9 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
 
     try {
       const address = email.value.trim();
-      const body = await postLeadEmail(request, email.value, "follow_up", CONTACT_COPY);
+      const body = await postLeadEmail(
+        request, email.value, form.dataset.followUpType || "follow_up", CONTACT_COPY,
+      );
       form.dataset.state = "success";
       status.textContent = body.created ? CAPTURED : ALREADY_CAPTURED;
       // The form is replaced from here, so the control that would send again is
