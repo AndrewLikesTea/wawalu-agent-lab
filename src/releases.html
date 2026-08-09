@@ -37,11 +37,15 @@
       <section class="shiplog-proof" id="shiplog-proof" aria-labelledby="shiplog-proof-title" tabindex="-1">
         <div class="shiplog-proof-heading">
           <div>
-            <p class="eyebrow">Representative Shiplog proof</p>
+            <p class="eyebrow">From decision to release</p>
             <h2 id="shiplog-proof-title">A decision carried through to release</h2>
           </div>
           <span class="badge badge-example">Synthetic example · not customer data</span>
         </div>
+        <!-- The badge says these records are synthetic; this line says it in a
+             sentence and points at the two links that show the trail, so a
+             first-time reader is not left to infer either from a label. -->
+        <p class="shiplog-proof-note">This example is invented: no such decision or release shipped. Open each link below to follow the trail from the decision to the release that carried it.</p>
         <dl class="shiplog-proof-facts">
           <div><dt>Decision</dt><dd><a href="/decision.html?id=demo-queue">Adopt a durable job queue</a></dd></div>
           <div><dt>Decision owner</dt><dd>Kai</dd></div>
@@ -71,7 +75,7 @@
       <section class="release-followup-slot" id="deployment-status" aria-labelledby="deployment-status-title">
         <div class="release-followup" id="deployment-status-callout">
           <h2 class="release-followup-title" id="deployment-status-title">Deployment status</h2>
-          <p class="release-followup-lead" id="deployment-verdict" role="status">Comparing the running deployment with the newest release record…</p>
+          <p class="release-followup-lead" id="deployment-verdict" role="status">Checking the running deployment now, then comparing it with the newest release record…</p>
           <p class="detail-summary" id="deployment-metric"></p>
           <!-- The commit-sha half of the same question, written by
                releases-page.js from src/release-build-match.js: the same
@@ -85,7 +89,7 @@
           <p class="detail-summary" id="deployment-build-match"></p>
           <div id="deployment-next-action"></div>
           <details class="supersede-disclosure" id="deployment-evidence" data-disclosure="collapsed">
-            <summary class="supersede-disclosure-summary" id="deployment-evidence-summary" aria-expanded="false" aria-controls="deployment-evidence-body">Evidence: the health response and the record it was compared with</summary>
+            <summary class="supersede-disclosure-summary" id="deployment-evidence-summary" aria-expanded="false" aria-controls="deployment-evidence-body">Evidence: what the running deployment answered, and the release record it was compared with</summary>
             <dl class="supersede-disclosure-body" id="deployment-evidence-body"></dl>
           </details>
         </div>
