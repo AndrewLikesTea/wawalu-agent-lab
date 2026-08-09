@@ -370,7 +370,7 @@ function disclosure(doc, section, finding, labels, expanded) {
   toggle.setAttribute("aria-expanded", expanded ? "true" : "false");
   toggle.setAttribute("aria-controls", PANEL_ID);
   const rowCount = finding.evidence.rows.length;
-  toggle.textContent = `${expanded ? "Hide" : "Show"} the per-model evidence `
+  toggle.textContent = `${expanded ? "Hide" : "Show"} calculation evidence `
     + `(${rowCount} row${rowCount === 1 ? "" : "s"})`;
   toggle.addEventListener("click", () => {
     section.dataset.expanded = expanded ? "false" : "true";

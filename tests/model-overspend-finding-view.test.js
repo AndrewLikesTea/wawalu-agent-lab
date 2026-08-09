@@ -21,6 +21,7 @@ import { ORG_UNIT_LABEL_STORAGE_KEY, writeOrgUnitLabel } from "../src/org-unit-l
 import {
   clearModelOverspendFinding, renderModelOverspendFinding,
 } from "../src/model-overspend-finding-view.js";
+import { renderImportedModelOverspendState } from "../src/provider-export-projection-view.js";
 
 const PAGE = new URL("../src/evolution.html", import.meta.url);
 const FIXTURE = new URL("../src/model-overspend-finding-fixture.json", import.meta.url);
@@ -138,13 +139,31 @@ test("the disclosure opens and closes from the keyboard and never drops focus", 
   // The panel was repainted; focus is back on the control that owns it, not
   // dropped to the top of the document.
   assert.equal(doc.activeElement, toggle(doc));
-  assert.match(textOf(toggle(doc)), /^Hide the per-model evidence \(4 rows\)/);
+  assert.match(textOf(toggle(doc)), /^Hide calculation evidence \(4 rows\)/);
 
   toggle(doc).focus();
   pressSpace(doc);
   assert.equal(toggle(doc).getAttribute("aria-expanded"), "false");
   assert.equal(doc.activeElement, toggle(doc));
-  assert.match(textOf(toggle(doc)), /^Show the per-model evidence/);
+  assert.match(textOf(toggle(doc)), /^Show calculation evidence/);
+});
+
+test("loading, empty, and error states occupy the result position and name their meaning", async () => {
+  const doc = await page();
+  doc.getElementById("local-results").hidden = false;
+  for (const [state, words, role] of [
+    ["loading", /Calculating savings impact/, "status"],
+    ["empty", /No model finding yet/, null],
+    ["error", /Calculation could not be completed/, "alert"],
+  ]) {
+    renderImportedModelOverspendState(doc, state);
+    const section = doc.getElementById("model-overspend");
+    assert.equal(section.dataset.status, state);
+    assert.match(textOf(section), words);
+    const detail = doc.querySelectorAll(".model-overspend-state-detail")[0];
+    assert.equal(detail.getAttribute("role"), role);
+    assert.equal(doc.querySelectorAll(".model-overspend-metric-value").length, 0);
+  }
 });
 
 // --- B. evidence rows that reconcile ---------------------------------------
@@ -436,4 +455,11 @@ test("nothing about a label leaves this browser", async () => {
   // The page clears the labels through the reset it already had.
   const pageSource = await readFile(new URL("../src/evolution-page.js", import.meta.url), "utf8");
   assert.match(pageSource, /clearModelOverspendFinding\(document, \{ storage: labelStorage\(\) \}\)/);
+});
+
+test("the narrow layout keeps calculation evidence keyboard reachable without widening the page", async () => {
+  const css = await readFile(new URL("../src/evolution.css", import.meta.url), "utf8");
+  assert.match(css, /@media\(max-width:640px\)[\s\S]*\.model-overspend-evidence-toggle \{ width:100%; \}/);
+  assert.match(css, /\.model-overspend-scroll \{ overflow-x:auto;/);
+  assert.match(css, /\.model-overspend-scroll:focus-visible \{ outline:3px solid var\(--import-accent\)/);
 });

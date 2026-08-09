@@ -1119,8 +1119,7 @@ function mountLocalFinopsImport() {
   const paintProviderProjection = async (providerDocument) => {
     renderOwnDataEvidenceState(document, OWN_DATA_VIEW_STATE.LOADING);
     const [
-      { projectProviderExport, projectModelOverspendFinding },
-      { renderProviderExportProjection, renderImportedModelOverspendProjection },
+      { projectProviderExport, projectModelOverspendFinding }, providerView,
       { determineImportedExportEligibility }, { renderImportedExportEligibility },
     ] = await Promise.all([
       import("/provider-export-projection.js"),
@@ -1128,11 +1127,17 @@ function mountLocalFinopsImport() {
       import("/imported-export-eligibility.js"),
       import("/imported-export-eligibility-view.js"),
     ]);
+    const {
+      renderProviderExportProjection, renderImportedModelOverspendProjection,
+      renderImportedModelOverspendState,
+    } = providerView;
+    renderImportedModelOverspendState(document, "loading");
     const projection = projectProviderExport(providerDocument);
     importedOverspend = projectModelOverspendFinding(providerDocument);
     importedOverspendRenderer = renderImportedModelOverspendProjection;
     if (!renderProviderExportProjection(document, projection)) {
       renderOwnDataEvidenceState(document, OWN_DATA_VIEW_STATE.VALIDATION_ERROR);
+      renderImportedModelOverspendState(document, "error");
       renderLocalExportActivation(document, LOCAL_EXPORT_ACTIVATION_STATE.ERROR);
       return false;
     }

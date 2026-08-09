@@ -217,22 +217,22 @@ function keyboardFixture() {
   return { calls, items, container, event };
 }
 
-test("release Enter activates details and arrows move focus", () => {
+test("release navigation keys move focus and Enter stays native to the disclosure", () => {
   const { calls, container, event } = keyboardFixture();
-  assert.equal(handleReleaseListKeydown(event("Enter"), container), true);
-  assert.equal(calls.selected, 1);
+  assert.equal(handleReleaseListKeydown(event("Enter"), container), false);
+  assert.equal(calls.selected, 0);
   assert.deepEqual(calls.focused, []);
   assert.equal(handleReleaseListKeydown(event("ArrowDown"), container), true);
   assert.deepEqual(calls.focused, [2]);
-  assert.equal(calls.prevented, 2);
+  assert.equal(calls.prevented, 1);
 });
 
-test("Space and unhandled keys fall through so the disclosure still expands", () => {
+test("Enter, Space, and unhandled keys fall through so the disclosure still expands", () => {
   // Space (and any non-nav key) must NOT be intercepted: the native <button>
   // click is the single source of truth for inline expansion. If a future edit
   // adds " " to NAV_KEYS, preventDefault would swallow the toggle click.
   const { calls, container, event } = keyboardFixture();
-  for (const key of [" ", "Tab", "a"]) {
+  for (const key of ["Enter", " ", "Tab", "a"]) {
     assert.equal(handleReleaseListKeydown(event(key), container), false);
   }
   assert.equal(calls.prevented, 0);
