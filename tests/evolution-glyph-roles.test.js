@@ -80,6 +80,11 @@ const ROLE_OF = new Map(Object.entries({
   "fjc-chip-shape": ROLE.status,
   "fjc-phase-shape": ROLE.status,
   "import-chip-shape": ROLE.status,
+  // The shared panel-status chip. It always drew on the circle ramp — the table
+  // below already checks `panelStatusPresentation`'s shapes — but until #1465
+  // authored one into evolution.html it was only ever painted, so the static
+  // walk never met it. Same class, same glyphs, same role.
+  "panel-status-shape": ROLE.status,
 
   "finops-action-shape": ROLE.action,
 

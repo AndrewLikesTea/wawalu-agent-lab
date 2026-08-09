@@ -212,11 +212,13 @@ test("the answer region states the figure, the benchmark, the action and the sou
   assert.match(textOf(document.getElementById("finops-canonical-answer-sources")),
     /readiness\.recommendation\.figure\.value/);
   assert.equal(textOf(document.getElementById("finops-canonical-answer-reason")), "");
-  // The trustworthy figure is plain text, not a control: this region sits above
-  // the first-run region and its tab order has no room for another stop.
+  // The answer itself is never behind a control — no disclosure and no button
+  // stands between a reader and the figure. #1465 added exactly one operable
+  // element, the action the figure implies, because an answer whose next step a
+  // reader cannot act on is a report rather than a decision.
   assert.equal(region.querySelectorAll("details").length, 0);
   assert.equal(region.querySelectorAll("button").length, 0);
-  assert.equal(region.querySelectorAll("a").length, 0);
+  assert.equal(region.querySelectorAll("a").length, 1);
 });
 
 test("a withheld scenario renders the reason and no answer at all", async () => {
@@ -228,7 +230,10 @@ test("a withheld scenario renders the reason and no answer at all", async () => 
   const figure = document.getElementById("finops-canonical-answer-figure");
   assert.equal(figure.dataset.available, "false");
   assert.equal(textOf(figure), "", "no annual figure");
-  assert.equal(textOf(document.getElementById("finops-canonical-answer-benchmark")), "");
+  // #1465: the slot says why it is empty rather than being empty. A blank line
+  // under a figure reads as a benchmark somebody forgot, not one that is absent.
+  assert.match(textOf(document.getElementById("finops-canonical-answer-benchmark")),
+    /nothing for a benchmark to support/);
   assert.equal(textOf(document.getElementById("finops-canonical-answer-action")), "",
     "no prioritized action");
   const reason = textOf(document.getElementById("finops-canonical-answer-reason"));

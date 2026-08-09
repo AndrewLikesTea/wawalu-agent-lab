@@ -890,11 +890,53 @@
       <section class="finops-recoverable-answer" id="finops-analysis-readiness" data-level="illustrative_only" data-subordinate="true" data-workspace-frame="true" aria-labelledby="analysis-readiness-question">
         <p class="eyebrow">Analysis readiness</p>
         <h2 id="analysis-readiness-question">Can I get a trustworthy savings recommendation now?</h2>
-        <p class="stand-answer" id="analysis-readiness-verdict">Yes for an illustrative scenario recommendation; no for an organization-specific savings commitment.</p>
-        <p class="stand-figure" id="analysis-readiness-benchmark">Readiness is calculated from four required evidence categories.</p>
-        <p class="stand-answer" id="analysis-readiness-evidence">Current evidence is limited to bundled synthetic scenarios.</p>
-        <p class="stand-answer" id="analysis-readiness-limit">No conclusion about your organization is supported.</p>
-        <p class="stand-answer" id="analysis-readiness-action">The prioritized illustrative action is read from the bundled scenario's own next-step record.</p>
+        <!-- ONE DOMINANT ANSWER, READ FIRST (#1465). The answer the analysis
+             implies now leads its own region: the figure in the largest type
+             role this page ships, the benchmark that gives it meaning in the
+             body role, one operable action, and provenance beside it rather
+             than behind a control. Every slot is written by
+             src/finops-answer-contract-view.js from the single record
+             src/finops-answer-contract.js resolved; no number is authored here.
+             The authored state is `loading`, because that is the state the
+             document is genuinely in before the module runs, and every slot
+             carries a placeholder naming what is being resolved so the block
+             holds its height and the layout does not jump on first paint.
+             The status chip is the page's shared five-state vocabulary — word,
+             glyph, silhouette, then tone — so no state is told by colour. -->
+        <div class="stand-figure" id="finops-canonical-answer" data-status="withheld" data-reason="missing-input" data-state="loading">
+          <h3 class="eyebrow" id="finops-canonical-answer-heading">Why this is the answer</h3>
+          <div class="panel-status" id="finops-canonical-answer-state" data-status="loading" data-tone="neutral">
+            <p class="panel-status-line" id="finops-canonical-answer-state-line" role="note"><span class="panel-status-chip" id="finops-canonical-answer-chip" data-silhouette="filled"><span class="panel-status-shape" id="finops-canonical-answer-shape" aria-hidden="true">◌</span><span class="panel-status-word" id="finops-canonical-answer-word">Reading</span></span> <span class="panel-status-summary" id="finops-canonical-answer-state-summary">Resolving one annual figure, the benchmark behind it, and the action it implies.</span></p>
+          </div>
+          <p class="stand-figure-value" id="finops-canonical-answer-figure" data-available="false">Resolving the annual figure from the analyzed scenario…</p>
+          <p class="stand-answer" id="finops-canonical-answer-benchmark">Checking that figure against the analysis benchmark…</p>
+          <a class="stand-action" id="finops-canonical-answer-action" href="/savings-action-center.html" hidden></a>
+          <p class="stand-action-basis" id="finops-canonical-answer-action-basis">Ranking the recommended actions…</p>
+          <p class="stand-answer" id="finops-canonical-answer-reason">The answer is resolved locally, from the analysis this page already loaded.</p>
+          <p class="panel-status-caveat" id="finops-canonical-answer-caveat" hidden></p>
+          <p class="stand-figure-basis" id="finops-canonical-answer-sources">Provenance is stated with the figure, from the analysis's own signal names.</p>
+        </div>
+        <!-- The answer's announcement, and it is a sibling of every disclosure
+             in this region rather than a child of one. A status region folded
+             inside a shut disclosure still reads to a test harness and is
+             silent in a browser. -->
+        <p class="visually-hidden" id="finops-canonical-answer-live" role="status" aria-live="polite" aria-atomic="true"></p>
+        <!-- DEMOTED, NOT DELETED (#1465). These five lines used to compete with
+             the answer above at the same weight, so a reader met the
+             qualifier before the thing it qualifies. Every one of them is still
+             here, still painted by the same module, one disclosure down and in
+             the small role — and the summary carries the readiness score, so it
+             is informative shut. -->
+        <details class="figure-source" id="analysis-readiness-detail">
+          <summary class="figure-source-summary" id="analysis-readiness-detail-summary" aria-expanded="false"><span class="figure-source-state"><span class="figure-source-shape" aria-hidden="true">▸</span> Readiness verdict, evidence, and limits <span id="analysis-readiness-detail-score">— score pending</span></span></summary>
+          <div class="figure-source-detail">
+            <p class="figure-source-legend" id="analysis-readiness-verdict">Yes for an illustrative scenario recommendation; no for an organization-specific savings commitment.</p>
+            <p class="figure-source-legend" id="analysis-readiness-benchmark">Readiness is calculated from four required evidence categories.</p>
+            <p class="figure-source-legend" id="analysis-readiness-evidence">Current evidence is limited to bundled synthetic scenarios.</p>
+            <p class="figure-source-legend" id="analysis-readiness-limit">No conclusion about your organization is supported.</p>
+            <p class="figure-source-legend" id="analysis-readiness-action">The prioritized illustrative action is read from the bundled scenario's own next-step record.</p>
+          </div>
+        </details>
         <details class="figure-source" id="analysis-readiness-how-we-know">
           <summary class="figure-source-summary"><span class="figure-source-state"><span class="figure-source-shape" aria-hidden="true">▸</span> Inspect the figure, confidence, and provenance</span></summary>
           <dl class="figure-source-detail">
@@ -905,24 +947,6 @@
             <div><dt>Evidence confidence</dt><dd id="analysis-readiness-confidence">Computed from the evidence categories the bundled scenario carries.</dd></div>
           </dl>
         </details>
-        <!-- WHY THIS IS THE ANSWER (#1463). One annual figure, the benchmark
-             that supports it, the one action it implies, and which signals
-             produced each — every slot written by
-             src/finops-answer-contract-view.js from the single record
-             src/finops-answer-contract.js resolved. Nothing here is authored as
-             a number: the placeholders below are replaced on first paint, and a
-             scenario the contract cannot answer clears the first three slots
-             and states its reason code instead. No disclosure control, because
-             this region sits above the first-run region and that tab order is
-             already full. -->
-        <div class="stand-figure" id="finops-canonical-answer" data-status="withheld" data-reason="missing-input">
-          <p class="eyebrow" id="finops-canonical-answer-heading">Why this is the answer</p>
-          <p class="stand-figure-value" id="finops-canonical-answer-figure" data-available="false"></p>
-          <p class="stand-figure-basis" id="finops-canonical-answer-benchmark"></p>
-          <p class="stand-answer" id="finops-canonical-answer-action"></p>
-          <p class="stand-answer" id="finops-canonical-answer-reason">The canonical answer is resolved locally when the analysis loads.</p>
-          <p class="stand-figure-basis" id="finops-canonical-answer-sources"></p>
-        </div>
         <details class="figure-source" id="analysis-readiness-upgrade-detail">
           <summary class="figure-source-summary"><span class="figure-source-state"><span class="figure-source-shape" aria-hidden="true">▸</span> What later evidence would enable</span></summary>
           <ul class="figure-source-detail" id="analysis-readiness-upgrades"></ul>
