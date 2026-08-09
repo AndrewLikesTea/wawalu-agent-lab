@@ -596,15 +596,13 @@ export function mountProfile(root, options = {}) {
     status: root.querySelector("#profile-status"),
     announcer: root.querySelector("#profile-announcer"),
     picker: root.querySelector("#profile-author"),
-    // The always-visible routes into Paint: the hero's primary call to action
-    // and the invitation above the grid. Both are real anchors in the markup and
-    // stay ones whether or not this runs; all that is added here is the display
-    // name, so Paint's back link returns to the profile that was actually being
-    // read rather than the default display name.
-    paintRoutes: [
-      root.querySelector("#profile-paint-cta"),
-      root.querySelector("#profile-paint-route"),
-    ].filter(Boolean),
+    // The one route into Paint: the invitation above the grid. It is a real
+    // anchor in the markup and stays one whether or not this runs; all that is
+    // added here is the display name, so Paint's back link returns to the
+    // profile that was actually being read rather than the default display
+    // name. The hero used to carry a second copy of the same offer, four words
+    // and one label identical to this one.
+    paintRoutes: [root.querySelector("#profile-paint-route")].filter(Boolean),
   };
 
   let posts = options.posts ?? [];

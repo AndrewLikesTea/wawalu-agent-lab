@@ -37,7 +37,13 @@
              surface, not the surface's name, so it moved down to the identity
              line below and is still the first thing under the description.
              The sentence under the heading names Social once and says when to
-             open it; Social carries the mirror sentence.
+             open it; Social carries the mirror sentence. It is one sentence
+             because the rule and the way to the rest of the feed are one fact:
+             the page used to give the scope here, again in the paragraph beside
+             the picker, and again in the eyebrow over the grid, so a reader was
+             told the same thing three times in a hundred words. It is the link
+             to Social too, so the sentence that states the rule is the sentence
+             that acts on it.
              It ends on the demo-data sentence, word for word the one Social's
              intro and the post permalink end on. People is the third page that
              shows published posts and was the one page that never said the
@@ -46,10 +52,11 @@
              paraphrased: a second wording for one fact is a second fact as far
              as a reader can tell. -->
         <h1 id="page-title">People</h1>
-        <p class="profile-lede">People shows the image posts published under one display name, newest first; select a post to read it in full. Open Social when you want the whole feed, including posts with no image. Posts use no customer or production data.</p>
+        <p class="profile-lede">People shows the image posts published under one display name — open <a class="text-link" href="/social.html">Social</a> when you want the whole feed, including posts with no image. Select a post to read it in full. Posts use no customer or production data.</p>
 
         <!-- The picker comes before the answer, in the markup and not merely in
-             the layout: it is the first tab stop in the main content, and a
+             the layout: it is the first control in the main content — only the
+             route to Social inside the sentence above it comes first — and a
              reader who arrives from Social's "Open People" pointer sees whose
              posts they are about to read, and who else has any, before they read
              a name, a count, or a grid. It used to sit below all of them, so the
@@ -109,9 +116,7 @@
           </div>
         </div>
         <!-- People is a filtered view of Social, and the nav says so by nesting
-             them. This says it in words at the destination and keeps the way
-             back one link away.
-             It is also where People defines the thing its picker selects, in
+             them. This is where People defines the thing its picker selects, in
              the composer's own clause — "not a signed-in user — nobody owns or
              verifies one, and anyone can publish under any name" — so a reader
              who arrives from a shared link and never opens Social is told the
@@ -120,37 +125,18 @@
              one the intro, the label, and the hint use; there is one term now,
              and the second sentence stays on the subject the first one names
              rather than restating the concept.
-             What this paragraph no longer does is restate the scope. It read
+             What this paragraph no longer does is point at Social. It carried
              "This view shows image posts only. See every post on Social,
-             including the ones published without an image" — which is the intro
-             sentence above it in different words, and the eyebrow over the grid
-             in different words again, so the page told a reader the same rule
-             three times before showing them a picture. The intro states it
-             once. What is left here is the route, under the label the empty
-             state's own button uses (postActionLabel in src/profile.js), so one
-             way out of this view has one name on both surfaces. A link reading
-             "see posts without images on Social" would describe Social as the
-             text-only half of a split, which it is not: it carries every
-             post. -->
-        <p class="profile-role"><span id="profile-role-name">Ari</span> is a display name in the Social feed, not a signed-in user — nobody owns or verifies one, and anyone can publish under any name. <a class="text-link" href="/social.html">See every post on Social</a>.</p>
-        <!-- Two ways out of this view are visible on arrival: the sentence above
-             returns to every post on Social, and this route opens Paint. The
-             label names the act and the tool, because "Paint" alone is what the
-             nav already says; where the image goes afterwards is the empty
-             state's sentence to say, not a second telling here. It is the same
-             label Social's hero and composer use, word for word, so one action
-             has one name on both surfaces. `from=profile` is provenance, not
-             state — it is what lets Paint's one back link say "Back to People";
-             profile.js adds the selected display name so the return lands on the
-             profile that was being read.
-             Paint opens in a new tab here for the reason it does on Social — the
-             hand-off is a round trip, and the profile being read survives it —
-             so the label says so in words and the glyph is ↗, which is what this
-             site's links use when they leave the current tab. → is for the ones
-             that stay in it. -->
-        <div class="hero-actions">
-          <a class="button-link" id="profile-paint-cta" href="/paint/?from=profile" target="_blank" rel="noopener"><span>Create an image in Paint <span class="new-tab-note">(opens in a new tab)</span></span> <span aria-hidden="true">↗</span></a>
-        </div>
+             including the ones published without an image" — the intro sentence
+             above it in different words — and then, once that was cut, the bare
+             link on its own, which put a second route to Social three lines
+             under the first. The intro states the rule and carries the link;
+             this paragraph stays on the display name it defines.
+             This is also the last paragraph of the hero, so no route into Paint
+             follows it: that offer is one paragraph above the grid, beside the
+             pictures that prompt it, and the site makes it once per page the way
+             Social does. -->
+        <p class="profile-role"><span id="profile-role-name">Ari</span> is a display name in the Social feed, not a signed-in user — nobody owns or verifies one, and anyone can publish under any name.</p>
       </section>
 
       <section class="workspace profile-workspace" aria-labelledby="grid-title">

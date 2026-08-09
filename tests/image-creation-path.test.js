@@ -151,39 +151,41 @@ test("Social's route into Paint is the composer's control, and there is no secon
   assert.equal(heroLinks[0].getAttribute("href"), "#post-form");
 });
 
-test("People offers distinct Social and Paint routes from its entry point", () => {
-  // Two distinct visible links in the page's opening section: back to every post
-  // on Social, and on to the editor. Neither depends on an icon or a colour, and
-  // each says which destination it goes to.
+test("People routes to Social from its entry point and to Paint beside its grid", () => {
+  // The way back to the whole feed is in the page's opening section, in the
+  // sentence that says what this view leaves out. The way into Paint is one
+  // paragraph above the grid, beside the pictures that prompt it. Each is a
+  // visible link that names its destination, and neither is offered twice: the
+  // hero used to carry a second Paint control with the same four words on it.
   const hero = documents.People.querySelector(".hero");
-  const links = hero.querySelectorAll("a");
-  const toPaint = links.filter((anchor) => opensPaint(anchor.href));
-  const toSocial = links.filter((anchor) => anchor.href.startsWith("/social.html"));
-  assert.equal(toPaint.length, 1, "People's entry point offers no single way into Paint");
+  const toSocial = hero.querySelectorAll("a").filter((anchor) => anchor.href.startsWith("/social.html"));
   assert.equal(toSocial.length, 1, "People's entry point offers no single way back to Social");
-  assert.match(textOf(toPaint[0]), /^Create an image in Paint/);
   assert.match(textOf(toSocial[0]), /Social/);
+
+  const toPaint = entryPointsOn("People");
+  assert.equal(toPaint.length, 1, "People offers Paint more than once again");
+  assert.match(textOf(toPaint[0]), /^Create an image in Paint/);
+  assert.equal(documents.People.querySelectorAll("#profile-paint-cta").length, 0,
+    "People's hero offers Paint a second time again");
 
   const sequence = tabSequence(documents.People);
   for (const link of [toPaint[0], toSocial[0]]) {
     assert.ok(sequence.includes(link), `${textOf(link)} is not keyboard reachable`);
   }
-  // The primary control carries the provenance, so Paint's back link returns
+  // The surviving control carries the provenance, so Paint's back link returns
   // here rather than to Social.
   assert.equal(paintReturnContext(toPaint[0].href.slice(PAINT_PATH.length)).label, "Back to People");
 });
 
-test("both of People's routes into Paint follow the profile actually being read", async () => {
+test("People's route into Paint follows the profile actually being read", async () => {
   const page = await loadPage(PAGES.People);
   try {
     const profile = mountProfile(page.document, { posts: [], author: "Ari" });
     profile.setAuthor("Mina O'Neil");
-    for (const id of ["profile-paint-cta", "profile-paint-route"]) {
-      const link = page.document.getElementById(id);
-      assert.ok(link, `#${id} is missing from People`);
-      assert.equal(link.href, profilePaintHref("Mina O'Neil"), `#${id} still points at the default persona`);
-      assert.equal(paintReturnContext(link.href.slice(PAINT_PATH.length)).href, "/profile.html?author=Mina%20O'Neil");
-    }
+    const link = page.document.getElementById("profile-paint-route");
+    assert.ok(link, "#profile-paint-route is missing from People");
+    assert.equal(link.href, profilePaintHref("Mina O'Neil"), "#profile-paint-route still points at the default persona");
+    assert.equal(paintReturnContext(link.href.slice(PAINT_PATH.length)).href, "/profile.html?author=Mina%20O'Neil");
   } finally {
     page.restore();
   }
@@ -230,8 +232,10 @@ test("Social offers Paint exactly once: the composer's in-flow control", () => {
 // pages hand off to Paint the same way, so both say the same thing about it.
 test("every route into Paint on Social and People says in words that it opens a new tab", () => {
   // Counted first, so a filter that stops matching a page's links fails here
-  // rather than passing an empty loop: one offer on Social, two on People.
-  for (const [name, count] of [["Social", 1], ["People", 2]]) {
+  // rather than passing an empty loop: one offer on each page. People made it
+  // twice — a hero button and the invitation beside the grid, four identical
+  // words apart — until the invitation was left to make it alone.
+  for (const [name, count] of [["Social", 1], ["People", 1]]) {
     assert.equal(entryPointsOn(name).length, count, `${name} offers Paint a different number of times`);
     for (const link of entryPointsOn(name)) {
       // The behaviour first: the tab really does change, so the disclosure is a
@@ -250,10 +254,12 @@ test("every route into Paint on Social and People says in words that it opens a 
 // ↗ means "this leaves the tab you are in"; → means "this moves you inside it".
 // The site's every other arrow is a → on a same-tab route, and People's Paint
 // button used to carry one while Social's carried ↗ for the identical action.
+// That button is gone — it was People's second offer of the same route — so
+// what is left to check is the composer's, and the rule it has to follow.
 test("the button-shaped routes into Paint carry one arrow, and it is the leaves-this-tab one", () => {
   const buttons = ["Social", "People"].flatMap((name) => entryPointsOn(name))
     .filter((link) => /button-link|secondary-button/.test(link.className ?? ""));
-  assert.equal(buttons.length, 2, "the number of button-shaped routes into Paint changed");
+  assert.equal(buttons.length, 1, "the number of button-shaped routes into Paint changed");
 
   for (const link of buttons) {
     // The arrow is decoration on top of the disclosure: hidden from assistive
