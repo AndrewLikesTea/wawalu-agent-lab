@@ -70,14 +70,36 @@
         <h1 id="page-title">One site for your AI spend,<br />your decisions, and your releases.</h1>
         <p>Shiplog is for engineering teams that answer for both an AI bill and a release history: it names what your AI spend is buying, and it keeps the reasoning behind what shipped.</p>
         <p class="hero-proof-point">A worked decision is already computed on the AI FinOps page: 33% of analyzed AI spend is recoverable — $51,254 of $154,500 — and Atlas Platform is driving the increase. It is a bundled synthetic example, computed from invented data for an invented company, so reading it takes no export of yours, no sign-in, and no account.</p>
-        <aside class="executive-takeaway" aria-labelledby="executive-takeaway-title">
-          <p class="eyebrow" id="executive-takeaway-title">Executive takeaway</p>
-          <p id="executive-takeaway-text">$51,254 of $154,500 in analyzed AI spend is recoverable (33%) — a modelled ceiling on what re-routing this work could save, not money already saved. First recommended action: Pilot lower-cost routing in Atlas Platform. Accountable role: Platform Engineering Lead. Figures are from a bundled synthetic example and are not visitor data.</p>
-          <div class="executive-takeaway-actions">
-            <button id="copy-executive-takeaway" type="button">Copy executive takeaway</button>
+        <div class="executive-proof-action">
+          <button id="open-executive-proof" type="button" aria-haspopup="dialog" aria-controls="executive-proof-handoff">Share or print executive proof</button>
+          <span>Buyer-ready handoff</span>
+        </div>
+        <div id="executive-proof-handoff" class="executive-proof-dialog" role="dialog" aria-modal="true" aria-labelledby="executive-proof-title" aria-describedby="executive-proof-qualifications" hidden>
+          <article class="executive-takeaway" id="executive-proof-artifact" aria-labelledby="executive-proof-title">
+            <header>
+              <p class="eyebrow">Executive proof · bundled example</p>
+              <button id="close-executive-proof" class="executive-proof-close" type="button">Close handoff</button>
+              <h2 id="executive-proof-title">33% of analyzed AI spend is recoverable</h2>
+              <p class="executive-proof-figure">$51,254 <span>of $154,500 analyzed</span></p>
+            </header>
+            <dl class="executive-proof-decision">
+              <div><dt>Recommended action</dt><dd>Pilot lower-cost routing in Atlas Platform.</dd></div>
+              <div><dt>Accountable role</dt><dd>Platform Engineering Lead</dd></div>
+            </dl>
+            <div id="executive-proof-qualifications" class="executive-proof-qualifications">
+              <h3>Qualifications</h3>
+              <p><strong>Synthetic example:</strong> These figures come from a bundled synthetic example built from invented data for an invented company.</p>
+              <p><strong>Modelled ceiling:</strong> The headline figure is a modelled ceiling on what re-routing this work could save, not money already saved or realized customer savings.</p>
+              <p><strong>Data boundary:</strong> No visitor export, account, or customer data was used to produce this handoff.</p>
+            </div>
+            <div class="executive-takeaway-actions" aria-label="Executive proof actions">
+              <button id="copy-executive-takeaway" type="button">Copy handoff</button>
+              <button id="print-executive-takeaway" type="button">Print handoff</button>
+            </div>
             <p id="executive-takeaway-status" class="executive-takeaway-status" role="status" aria-live="polite"></p>
-          </div>
-        </aside>
+            <textarea id="executive-takeaway-fallback" class="executive-takeaway-fallback" readonly hidden aria-label="Executive proof text to copy manually"></textarea>
+          </article>
+        </div>
         <div class="hero-actions" data-conversion-slot="hero">
           <a class="button-link" href="/evolution.html">Read the worked decision in AI FinOps <span aria-hidden="true">→</span></a>
           <a class="text-link" href="#landing-decision">Or read the example briefing below</a>

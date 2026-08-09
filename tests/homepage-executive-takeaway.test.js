@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { loadPage, pressEnter, tabSequence, textOf } from "./support/browser.js";
+import { loadPage, pressEnter, pressKey, tabSequence, textOf } from "./support/browser.js";
 import { importPageModule } from "./support/page-module.js";
 import {
   EXECUTIVE_TAKEAWAY, TAKEAWAY_COPY_FEEDBACK,
@@ -11,10 +11,11 @@ import { buildFirstRunResult } from "../src/finops-first-run.js";
 
 const PAGE = new URL("../src/index.html", import.meta.url);
 
-async function openTakeaway(t, clipboard) {
+async function openTakeaway(t, clipboard, print) {
   const page = await loadPage(PAGE);
   t.after(() => page.restore());
   Object.defineProperty(globalThis.navigator, "clipboard", { value: clipboard, configurable: true });
+  if (print) globalThis.window.print = print;
   await importPageModule("/homepage-executive-takeaway.js");
   return page.document;
 }
@@ -22,16 +23,17 @@ async function openTakeaway(t, clipboard) {
 test("the homepage visibly labels a concise, qualified executive takeaway", async (t) => {
   const document = await openTakeaway(t, { writeText: async () => {} });
   const region = document.querySelector(".executive-takeaway");
-  const text = textOf(document.getElementById("executive-takeaway-text"));
+  const text = textOf(region);
 
-  assert.equal(region.getAttribute("aria-labelledby"), "executive-takeaway-title");
-  assert.equal(textOf(document.getElementById("executive-takeaway-title")), "Executive takeaway");
-  assert.equal(text, EXECUTIVE_TAKEAWAY);
+  assert.equal(region.getAttribute("aria-labelledby"), "executive-proof-title");
+  assert.equal(textOf(document.getElementById("executive-proof-title")), "33% of analyzed AI spend is recoverable");
   assert.match(text, /\$51,254 of \$154,500/);
   assert.match(text, /33%/);
   assert.match(text, /Pilot lower-cost routing in Atlas Platform/);
-  assert.match(text, /Accountable role: Platform Engineering Lead/);
-  assert.match(text, /bundled synthetic example and are not visitor data/);
+  assert.equal(textOf(region.querySelectorAll("dt")[1]), "Accountable role");
+  assert.equal(textOf(region.querySelectorAll("dd")[1]), "Platform Engineering Lead");
+  assert.match(text, /bundled synthetic example built from invented data for an invented company/);
+  assert.match(text, /No visitor export, account, or customer data was used/);
   // A takeaway written to be forwarded is the worst place on the site to drop
   // the limit on this figure: read alone, "$51,254 is recoverable" is a saving
   // somebody can be held to. It travels with the ceiling or it does not travel.
@@ -70,9 +72,15 @@ test("the keyboard-operable control copies only the takeaway and confirms succes
   const copied = [];
   const document = await openTakeaway(t, { writeText: async (value) => copied.push(value) });
   const button = document.getElementById("copy-executive-takeaway");
+  const opener = document.getElementById("open-executive-proof");
 
   assert.equal(button.tagName, "BUTTON");
   assert.equal(button.type, "button");
+  assert.ok(tabSequence(document).includes(opener));
+  opener.focus();
+  pressEnter(document);
+  assert.equal(document.getElementById("executive-proof-handoff").hidden, false);
+  assert.equal(document.activeElement, document.getElementById("close-executive-proof"));
   assert.ok(tabSequence(document).includes(button));
   button.focus();
   pressEnter(document);
@@ -80,6 +88,10 @@ test("the keyboard-operable control copies only the takeaway and confirms succes
 
   assert.deepEqual(copied, [EXECUTIVE_TAKEAWAY]);
   assert.equal(textOf(document.getElementById("executive-takeaway-status")), TAKEAWAY_COPY_FEEDBACK.copied);
+
+  pressKey(document, "Escape");
+  assert.equal(document.getElementById("executive-proof-handoff").hidden, true);
+  assert.equal(document.activeElement, opener);
 });
 
 test("clipboard refusal leaves visible recovery guidance", async (t) => {
@@ -91,4 +103,33 @@ test("clipboard refusal leaves visible recovery guidance", async (t) => {
   assert.equal(status.getAttribute("role"), "status");
   assert.equal(status.getAttribute("aria-live"), "polite");
   assert.equal(textOf(status), TAKEAWAY_COPY_FEEDBACK.failed);
+  const fallback = document.getElementById("executive-takeaway-fallback");
+  assert.equal(fallback.hidden, false);
+  assert.equal(fallback.value, EXECUTIVE_TAKEAWAY);
+  assert.equal(document.activeElement, fallback);
+});
+
+test("print invokes the browser with only the handoff marked for output", async (t) => {
+  let printed = 0;
+  const document = await openTakeaway(t, { writeText: async () => {} }, () => {
+    printed += 1;
+    assert.equal(document.body.classList.contains("printing-executive-proof"), true);
+  });
+  document.getElementById("open-executive-proof").click();
+  document.getElementById("print-executive-takeaway").click();
+  assert.equal(printed, 1);
+
+  const css = await (await import("node:fs/promises")).readFile(
+    new URL("../src/landing-decision.css", import.meta.url), "utf8");
+  assert.match(css, /body\.printing-executive-proof #main-content > \* \{ display:none !important; \}/);
+  assert.match(css, /#executive-proof-artifact \{ display:block !important/);
+});
+
+test("missing print capability leaves browser-command recovery guidance", async (t) => {
+  const document = await openTakeaway(t, { writeText: async () => {} });
+  delete globalThis.window.print;
+  document.getElementById("open-executive-proof").click();
+  document.getElementById("print-executive-takeaway").click();
+  assert.equal(textOf(document.getElementById("executive-takeaway-status")),
+    TAKEAWAY_COPY_FEEDBACK.printFailed);
 });

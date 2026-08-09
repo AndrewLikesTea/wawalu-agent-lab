@@ -17,21 +17,39 @@
  * own body ink. */
 .hero > p.hero-proof-point { margin-top:18px; }
 
-.executive-takeaway {
-  max-width:760px; margin:22px 0 0; border:1px solid #b9cec4; border-left:5px solid #315f50;
-  border-radius:12px; padding:16px; background:#eef6f2;
-}
-.executive-takeaway > p:not(.eyebrow) { margin:8px 0 0; font-size:15px; line-height:1.55; }
+.executive-proof-action { display:flex; align-items:center; gap:10px; margin-top:14px; }
+.executive-proof-action button { background:#173f35; box-shadow:0 5px 16px rgba(23,63,53,.18); }
+.executive-proof-action span { color:#4c5650; font:700 11px/1.3 ui-monospace,monospace; text-transform:uppercase; }
+.executive-proof-dialog { position:fixed; z-index:20; inset:0; overflow:auto; padding:clamp(16px,5vw,64px); background:rgba(20,29,26,.78); }
+.executive-proof-dialog[hidden] { display:none; }
+.executive-takeaway { position:relative; max-width:760px; margin:0 auto; border:1px solid #8ead9d; border-top:7px solid #315f50; border-radius:14px; padding:clamp(22px,5vw,44px); background:#fff; box-shadow:0 24px 80px rgba(0,0,0,.24); }
+.executive-takeaway header { padding-right:150px; }
+.executive-proof-close { position:absolute; top:22px; right:22px; background:#fff; color:#173f35; border:1px solid #8ead9d; }
+.executive-takeaway h2 { margin:8px 0; font-size:clamp(26px,5vw,42px); line-height:1.08; }
+.executive-proof-figure { margin:18px 0 26px; color:#245643; font-size:clamp(36px,8vw,64px); font-weight:800; line-height:1; }
+.executive-proof-figure span { display:block; margin-top:7px; color:#4c5650; font-size:15px; font-weight:600; }
+.executive-proof-decision { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin:0; }
+.executive-proof-decision div { border-radius:10px; padding:15px; background:#f1f8f4; }
+.executive-proof-decision dt { color:#4c5650; font:700 11px/1.4 ui-monospace,monospace; text-transform:uppercase; }
+.executive-proof-decision dd { margin:6px 0 0; font-weight:750; line-height:1.4; }
+.executive-proof-qualifications { margin-top:22px; border-top:1px solid #d3ddd7; padding-top:18px; }
+.executive-proof-qualifications h3 { margin:0 0 10px; font-size:16px; }
+.executive-proof-qualifications p { margin:7px 0; color:#4c5650; font-size:13px; line-height:1.55; }
 .executive-takeaway-actions {
   display:flex; align-items:center; flex-wrap:wrap; gap:10px 14px; margin-top:14px;
 }
 .executive-takeaway-actions button { flex:0 1 auto; }
 .executive-takeaway-status { min-width:0; margin:0; color:#245643; font-size:13px; font-weight:700; }
+.executive-takeaway-fallback { width:100%; min-height:120px; margin-top:12px; }
 
 @media (max-width:520px) {
   .executive-takeaway-actions { align-items:stretch; flex-direction:column; }
   .executive-takeaway-actions button { width:100%; }
   .executive-takeaway-status { overflow-wrap:anywhere; }
+  .executive-proof-action { align-items:stretch; flex-direction:column; }
+  .executive-proof-action button { width:100%; }
+  .executive-takeaway header { padding-right:0; padding-top:50px; }
+  .executive-proof-decision { grid-template-columns:1fr; }
 }
 
 /* The privacy boundary is a claim a reader checks before they decide to try
@@ -87,6 +105,15 @@
  * on the sheet. The intro copy and the "your own numbers" links go with them:
  * they are this page speaking about the document, not the document. */
 @media print {
+  body.printing-executive-proof #main-content > * { display:none !important; }
+  body.printing-executive-proof #main-content > #top { display:block !important; }
+  body.printing-executive-proof #top > * { display:none !important; }
+  body.printing-executive-proof #executive-proof-handoff { display:block !important; position:static; padding:0; background:none; }
+  body.printing-executive-proof #executive-proof-artifact { display:block !important; max-width:none; border:2px solid #315f50; box-shadow:none; }
+  body.printing-executive-proof .executive-proof-close,
+  body.printing-executive-proof .executive-takeaway-actions,
+  body.printing-executive-proof .executive-takeaway-status,
+  body.printing-executive-proof .executive-takeaway-fallback { display:none !important; }
   #main-content > *:not(.landing-decision) { display:none !important; }
   .landing-decision { padding:0; }
   .landing-decision-intro,.landing-decision-next { display:none !important; }
