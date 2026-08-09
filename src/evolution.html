@@ -2132,6 +2132,25 @@
           </div>
           <div id="import-on-ramp-detail" hidden></div>
         </section>
+        <!-- THE DECLARED-RATE INTAKE (#1481). The figure at the top of this page
+             is priced at published list prices and the provenance beside it says
+             so; this is the one way to move it. The same #1266 sub-score and the
+             same #1263 ladder are recomputed from a card built out of what is
+             typed here — no second provenance scale exists. It is HERE and not
+             beside the figure because the first screen has no spare tab stop.
+             Every sentence below is composed by finops-declared-rate-contract.js
+             and painted as text by finops-declared-rate-view.js. -->
+        <section class="provider-readiness" id="declared-rates" aria-labelledby="declared-rates-title">
+          <p class="eyebrow">Contracted rates · synthetic, this tab only</p>
+          <h3 class="provider-readiness-title" id="declared-rates-title">What do you actually pay per model?</h3>
+          <p class="local-cohort-declare-lead">Declared rates are synthetic and held locally only: nothing is uploaded, no credential or contact detail is accepted, and no live provider connection is made. One record per line — model, unit, rate, effective date, source label — or paste a JSON array of the same five fields. Accepted units: usd-per-million-input and usd-per-million-output. A line that cannot be read is handed back with every other problem in the paste, and none of them are applied.</p>
+          <form class="local-cohort-declare" id="declared-rates-form">
+            <p class="local-import-field"><label for="declared-rates-input">Contracted per-model rates</label><textarea id="declared-rates-input" rows="4" spellcheck="false" placeholder="premium-text, usd-per-million-input, 14.00, 2026-05-01, MSA 2026 Schedule B"></textarea></p>
+            <p class="local-cohort-declare-field"><button class="secondary-button" id="declared-rates-submit" type="submit">Apply these declared rates</button><button class="secondary-button" id="declared-rates-clear" type="button">Clear and return to list prices</button></p>
+          </form>
+          <p class="local-cohort-declare-message" id="declared-rates-status" role="status" aria-live="polite" data-state="empty">No contracted rates declared. The figure above stays priced at the published list.</p>
+          <p class="local-cohort-declare-lead" id="declared-rates-attribution">No contracted rate is declared for a destination this analysis prices, so every one of them is priced at the published list — a ceiling, not your contract.</p>
+        </section>
         <div class="local-export-activation" id="local-export-activation" data-state="idle" aria-busy="false">
           <div>
             <p class="eyebrow">Start with one file</p>

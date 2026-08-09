@@ -395,6 +395,10 @@ import {
   applyFirstRunResult, applyFirstRunSupersession, bindFirstRunActions, bindFirstRunDisclosure,
 } from "/finops-first-run-view.js";
 import { bindDeclaredFactIntake } from "/finops-declared-fact-intake-view.js";
+// The other declaration only this reader can make: the rates they are
+// contracted to pay, which is what moves the pricing provenance beside the
+// recoverable figure off the published-list ceiling (#1481).
+import { bindDeclaredRateIntake } from "/finops-declared-rate-view.js";
 // The estimate that intake produces, in the period series' own shape (#1106),
 // so a later real import for the same month can be scored against it.
 import { estimatedPeriodFacts } from "/finops-declared-fact-intake.js";
@@ -554,7 +558,9 @@ import {
   FINOPS_IMPORT_STATUS, finopsProvenanceModel, promptImportFacts,
 } from "/finops-provenance-model.js";
 import { applyFinopsProvenance, clearFinopsProvenance } from "/finops-provenance-view.js";
-import { loadExampleDatasetInputs, nameExampleDepartments } from "/example-dataset.js";
+import {
+  loadExampleDataset, loadExampleDatasetInputs, nameExampleDepartments,
+} from "/example-dataset.js";
 import { EXAMPLE_QUERY_SAMPLE_FILE, exampleQuerySampleText } from "/query-sample-example.js";
 import {
   CONVERSATION_EXAMPLE_FILES, conversationExampleText,
@@ -5145,6 +5151,12 @@ async function init() {
   bindDeclaredFactIntake(document, {
     onEstimate: (estimate) => recordDeclaredEstimate?.(estimate),
   });
+  // And beside it, the other thing only this reader knows: what they are
+  // contracted to pay (#1481). Binding only — nothing is painted until a
+  // declaration is submitted, so a visitor who states no rate meets exactly the
+  // published-list provenance the served document already carries. The effective
+  // dates are judged against the bundled example's own period, never a clock.
+  bindDeclaredRateIntake(document, { period: loadExampleDataset()?.period ?? null });
   // Then the returning lead's question, in the same synchronous pass and for
   // the same reason: a leader who opens this page once a month is not asking
   // what the example would tell them, they are asking which single thing to do
