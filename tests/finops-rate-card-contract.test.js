@@ -236,12 +236,21 @@ test("the reference card's rates ARE the constants the recoverable figure is pri
 
 test("the sentences are generated, and the served markup carries what they generate", () => {
   const document = parseHtml(SOURCE);
-  assert.equal(textOf(document.getElementById(RATE_CARD_IDS.marker)).trim(),
-    rateCardMarker(BUNDLED_RATE_CARD_CONFIDENCE));
   assert.equal(textOf(document.getElementById(RATE_CARD_IDS.hedge)).trim(),
     rateCardHedge(BUNDLED_RATE_CARD_CONFIDENCE));
-  assert.equal(textOf(document.getElementById(RATE_CARD_IDS.nextStep)).trim(),
-    rateCardNextStep(BUNDLED_RATE_CARD_CONFIDENCE));
+  // THE TIER WORD IS NOT AUTHORED (#1480). The marker and the next ask are
+  // resolved by the readiness contract and written into the served document by
+  // scripts/seed-first-screen.mjs, so what the source carries is a placeholder
+  // that states no tier at all. A hand-kept "Illustrative" here would be a
+  // second answer to the question the contract already answers, so this asserts
+  // its absence rather than its value; the seeded value is pinned against the
+  // page's own paint in tests/finops-first-screen-seed.test.js.
+  for (const id of [RATE_CARD_IDS.marker, RATE_CARD_IDS.nextStep]) {
+    const authored = textOf(document.getElementById(id)).trim();
+    for (const tier of [/Illustrative/i, /Declared/i, /Insufficient/i]) {
+      assert.doesNotMatch(authored, tier, `#${id} authors a tier word the contract owns`);
+    }
+  }
 });
 
 test("the next action names what to state, for whom, and what it moves the figure to", () => {
