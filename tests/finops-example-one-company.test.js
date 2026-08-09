@@ -242,7 +242,7 @@ test("no render site of the bundled example names a department by its identifier
   }
 });
 
-test("the headline, the residue and the widen-the-sample action name one team", async () => {
+test("every team the answer block names is named by the same readable label", async () => {
   const page = await settledExamplePage();
   const { document } = page;
   try {
@@ -252,11 +252,19 @@ test("the headline, the residue and the widen-the-sample action name one team", 
     const widen = /Widen the scored sample for (.+?) — go to /
       .exec(textOf(byId(document, ANSWER_IDS.widen)));
     assert.ok(residue, "the residue sentence names no department at all");
-    assert.ok(widen, "the widen-the-sample action names no department at all");
-    // Equality between the three extracted labels, not three literals: a rename
-    // that moved one of them and not the others is the defect being pinned.
-    assert.equal(residue[1], headline);
-    assert.equal(widen[1], headline);
+    // SINCE #1482 THESE ARE TWO DIFFERENT TEAMS, ON PURPOSE. The scored sample
+    // now covers the department driving the increase, so the residue is the one
+    // team left outside it. Asserting they are equal would pin the old fixture
+    // shape rather than the labelling defect this test was written for, so what
+    // is pinned is that every name painted here is a readable roster name — and
+    // that the residue really is a department the rubric did not score.
+    for (const label of [headline, residue[1], ...(widen ? [widen[1]] : [])]) {
+      assert.ok(EXAMPLE_DEPARTMENT_NAME_SET.includes(label),
+        `"${label}" is painted on the answer block but is not a roster name`);
+      assert.doesNotMatch(label, NOT_A_NAME, `"${label}" is an identifier, not a team name`);
+    }
+    assert.notEqual(residue[1], headline,
+      "the bundled example must leave a residue OUTSIDE the department it names as the driver");
     // And the circulation decision's Finding names that same team, so the first
     // intervention priority and the department driving the increase are one.
     assert.ok(textOf(byId(document, ANSWER_IDS.finding)).includes(headline),

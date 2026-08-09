@@ -145,11 +145,17 @@ test("the bundled example picks one lead and states three supporting lines", () 
   const glance = composeFinopsGlance({ analysis, reproducibility: ranking() });
   assert.equal(glance.figures.length, 4);
   assert.equal(glance.crossed, true);
-  assert.equal(glance.leadKey, "spendMix",
-    "the first declared figure crosses on the bundled example, so it is the lead");
+  // Since #1482 widened the scored sample to cover Atlas, the graded query mix
+  // is spread across four departments and its largest class sits under its own
+  // threshold — so the first declared figure no longer crosses, and the lead is
+  // the first one that does. The lead is a consequence of the data, which is
+  // exactly why it moved when the data got better.
+  assert.equal(byKey(glance.figures, "spendMix").crossed, false);
+  assert.equal(glance.leadKey, "departmentRank",
+    "the first CROSSING figure in declared order is the lead");
   assert.equal(glance.supporting.length, 3);
   assert.ok(!glance.supporting.includes(glance.lead), "the lead is also a supporting line");
-  assert.equal(glance.nextAction, byKey(glance.figures, "spendMix").action);
+  assert.equal(glance.nextAction, byKey(glance.figures, "departmentRank").action);
   // Recomposed from the same inputs, twice: the lead is a consequence of the
   // data, so it cannot move between two reads of it.
   assert.equal(composeFinopsGlance({ analysis, reproducibility: ranking() }).leadKey,
@@ -245,7 +251,7 @@ function renderedGlance(reproducibility) {
 test("the shipped page paints the glance with one lead, one action, three lines", () => {
   const rendered = renderedGlance(ranking());
   assert.equal(rendered.block.hidden, false, "the glance never reached the reader");
-  assert.equal(rendered.block.dataset.lead, "spendMix");
+  assert.equal(rendered.block.dataset.lead, "departmentRank");
   assert.equal(rendered.block.dataset.crossed, "true");
   assert.equal(rendered.supporting.length, 3);
   assert.ok(rendered.lead.length > 30, "the lead slot is empty");
@@ -329,7 +335,8 @@ test("the shipped page draws the spend-mix and department-rank figures", () => {
   assert.ok(keys.includes("departmentRank"), "the department ranking got no picture");
   // Each picture sits inside the line it illustrates, not in a block of its own
   // below the prose: the lead's shape is a child of the lead paragraph.
-  assert.equal(chartKeys(rendered.document.getElementById(GLANCE_IDS.lead)).join(), "spendMix");
+  assert.equal(chartKeys(rendered.document.getElementById(GLANCE_IDS.lead)).join(),
+    "departmentRank");
   assert.equal(chartsIn(rendered.document.getElementById(GLANCE_IDS.next)).length, 0,
     "a picture landed on the next-action line, which states no figure");
 });
