@@ -73,3 +73,50 @@ export function renderFinopsAnswer(doc, answer) {
       + ` readiness ${answer.readiness.state} from ${named(sources.readiness)}.`);
   return region;
 }
+
+/**
+ * Paints WHICH finding the answer above came from, and whether that finding
+ * validated — the two things that make the figure reproducible rather than
+ * merely stated (#1464).
+ *
+ * Separate from `renderFinopsAnswer` because it is a separate claim: that one
+ * paints the answer the contract resolved, this one paints the provenance and
+ * the validation status of the evidence set it was resolved from. Both write
+ * into the same region, and neither invents a value the record does not carry.
+ *
+ * @param doc the document holding `#finops-canonical-answer`.
+ * @param resolved a `finops-evidence-answer/1.0.0` record, or null when no
+ *   evidence set could be assembled at all.
+ * @returns the region, or null when the page does not carry one.
+ */
+export function renderFinopsProvenance(doc, resolved) {
+  const region = doc.getElementById("finops-canonical-answer");
+  if (!region) return null;
+  const status = resolved?.validationStatus ?? "incomplete";
+  region.dataset.validation = status;
+  region.dataset.evidenceClass = resolved?.evidenceClass ?? "INCOMPLETE";
+
+  const provenance = resolved?.provenance;
+  set(doc, "finops-canonical-answer-provenance", provenance?.findingId
+    ? `Derived from one named finding: ${provenance.findingId}`
+      + `${provenance.evidenceId ? ` in evidence set ${provenance.evidenceId}` : ""}`
+      + ` — class ${resolved.evidenceClass}, ${provenance.findingIds.length} finding`
+      + `${provenance.findingIds.length === 1 ? "" : "s"} considered, superseded:`
+      + ` ${named(provenance.supersededFindingIds)}.`
+    : "No finding could be named, so nothing above is derived from one.");
+
+  // The confidence arithmetic is printed, not just its band: a number an
+  // executive cannot take apart is a number they cannot dispute.
+  const confidence = resolved?.confidence;
+  const deductions = confidence?.deductions?.length
+    ? confidence.deductions.map((item) => `less ${item.points} for ${item.id}`).join(", ")
+    : "no deductions";
+  set(doc, "finops-canonical-answer-validation", confidence
+    ? `Validation: ${status}${provenance?.missingFields?.length
+      ? ` — unmet: ${named(provenance.missingFields)}` : ""}.`
+      + ` Confidence ${confidence.label} (${confidence.value}/100):`
+      + ` ${confidence.scoreBeforeDeductions} from ${confidence.weights.length} declared weights,`
+      + ` ${deductions}.`
+    : "Validation: incomplete. No evidence set was assembled, so no confidence is stated.");
+  return region;
+}

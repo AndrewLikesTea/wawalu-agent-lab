@@ -922,6 +922,16 @@
           <p class="stand-answer" id="finops-canonical-answer-action"></p>
           <p class="stand-answer" id="finops-canonical-answer-reason">The canonical answer is resolved locally when the analysis loads.</p>
           <p class="stand-figure-basis" id="finops-canonical-answer-sources"></p>
+          <!-- WHERE THE ANSWER CAME FROM (#1464). The two slots below name the
+               single synthetic finding the four values above were derived from,
+               the evidence class it fell into, and whether it validated — all
+               written by renderFinopsProvenance from the same record. The same
+               path is exercised by the labelled fixtures in
+               src/finops-evidence-fixtures.js, so an eligible, an incomplete and
+               a conflicting evidence set each have a stated expected answer a
+               test checks rather than a claim in this comment. -->
+          <p class="stand-figure-basis" id="finops-canonical-answer-provenance">Provenance is stated when the analysis loads.</p>
+          <p class="stand-figure-basis" id="finops-canonical-answer-validation">Validation runs locally when the analysis loads.</p>
         </div>
         <details class="figure-source" id="analysis-readiness-upgrade-detail">
           <summary class="figure-source-summary"><span class="figure-source-state"><span class="figure-source-shape" aria-hidden="true">▸</span> What later evidence would enable</span></summary>

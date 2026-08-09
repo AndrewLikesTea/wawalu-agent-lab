@@ -262,8 +262,13 @@ import { renderAnalysisReadiness } from "/finops-analysis-readiness-view.js";
 // recommended actions' monthly savings, annualises them, checks them against the
 // benchmark, the stated percentage and the readiness state, and withholds a
 // figure entirely rather than publishing one a leader could not trace.
-import { finopsAnswerSignals, resolveFinopsAnswer } from "/finops-answer-contract.js";
-import { renderFinopsAnswer } from "/finops-answer-contract-view.js";
+// …resolved from ONE named finding, so the figure, the benchmark, the
+// confidence and the action cannot come from different places (#1464). The
+// evidence layer selects the finding, applies the published incomplete and
+// conflict rules, scores confidence from weights that each carry their
+// assumption, and hands the contract a signal set built only from that finding.
+import { bundledFinopsEvidence, resolveEvidenceAnswer } from "/finops-evidence-answer.js";
+import { renderFinopsAnswer, renderFinopsProvenance } from "/finops-answer-contract-view.js";
 // Whether the letter may be shown at all is decided before it is drawn: the
 // score card is a roll-up of only the departments the rubric actually scored.
 import { CLAMPED_REASON, gradeEligibility } from "/grade-eligibility.js";
@@ -5386,8 +5391,9 @@ async function init() {
 renderOwnDataEvidencePreflight(document, assessOwnDataEvidence(BUNDLED_OWN_DATA_EVIDENCE));
 const bundledAnalysis = analysisReadiness({ scenarioId: "aws-bedrock-cur-v1" });
 renderAnalysisReadiness(document, bundledAnalysis.ok ? bundledAnalysis.readiness : null);
-renderFinopsAnswer(document, bundledAnalysis.ok
-  ? resolveFinopsAnswer(finopsAnswerSignals(bundledAnalysis)) : null);
+const canonicalAnswer = resolveEvidenceAnswer(bundledFinopsEvidence(bundledAnalysis));
+renderFinopsAnswer(document, canonicalAnswer.answer);
+renderFinopsProvenance(document, canonicalAnswer);
 // …and the guided flow over the same boundary: the reader picks one of the
 // bundled provider exports and the evidence and department destinations below
 // are repainted from THAT scenario. Mounted here, beside the readiness answer it
