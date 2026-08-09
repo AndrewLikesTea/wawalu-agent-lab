@@ -17,6 +17,23 @@
  * own body ink. */
 .hero > p.hero-proof-point { margin-top:18px; }
 
+.executive-takeaway {
+  max-width:760px; margin:22px 0 0; border:1px solid #b9cec4; border-left:5px solid #315f50;
+  border-radius:12px; padding:16px; background:#eef6f2;
+}
+.executive-takeaway > p:not(.eyebrow) { margin:8px 0 0; font-size:15px; line-height:1.55; }
+.executive-takeaway-actions {
+  display:flex; align-items:center; flex-wrap:wrap; gap:10px 14px; margin-top:14px;
+}
+.executive-takeaway-actions button { flex:0 1 auto; }
+.executive-takeaway-status { min-width:0; margin:0; color:#245643; font-size:13px; font-weight:700; }
+
+@media (max-width:520px) {
+  .executive-takeaway-actions { align-items:stretch; flex-direction:column; }
+  .executive-takeaway-actions button { width:100%; }
+  .executive-takeaway-status { overflow-wrap:anywhere; }
+}
+
 /* The privacy boundary is a claim a reader checks before they decide to try
  * anything, so it is stated in the hero rather than beside the picker a page
  * away. Bordered, not tinted: the words carry it in greyscale too. */
