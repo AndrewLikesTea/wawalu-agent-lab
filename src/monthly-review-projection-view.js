@@ -1,8 +1,8 @@
 import { validateMonthlyReviewProjection } from "./monthly-review-projection.js";
 
 const percent = (ppm) => Number.isInteger(ppm) ? `${(ppm / 10_000).toFixed(1)}%` : "unavailable";
-const money = (minor) => Number.isSafeInteger(minor)
-  ? new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(minor / 100)
+const money = (amount) => amount?.status === "available" && Number.isSafeInteger(amount.minor)
+  ? new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(amount.minor / 100)
   : "unavailable";
 const text = (doc, tag, className, value) => {
   const node = doc.createElement(tag);
@@ -146,8 +146,11 @@ export function renderMonthlyReviewProjection(doc, review) {
     + ` · ${review.confidence.level} confidence · ${review.provenance.dataset ?? "unattributed"} dataset.`);
   const savings = text(doc, "dl", "monthly-review-savings", "");
   savings.append(
-    labelled(doc, "Realized savings", money(review.savingsClaim.realizedSavingsMinor), "monthly-review-savings-metric"),
-    labelled(doc, "Projected savings", money(review.savingsClaim.projectedSavingsMinor), "monthly-review-savings-metric"),
+    labelled(doc, "Baseline period", review.savingsClaim.periods.baseline.label ?? "unavailable", "monthly-review-savings-metric"),
+    labelled(doc, "Current period", review.savingsClaim.periods.current.label ?? "unavailable", "monthly-review-savings-metric"),
+    labelled(doc, "Realized savings", money(review.savingsClaim.realizedSavings), "monthly-review-savings-metric"),
+    labelled(doc, "Projected savings", money(review.savingsClaim.projectedSavings), "monthly-review-savings-metric"),
+    labelled(doc, "Variance", money(review.savingsClaim.variance), "monthly-review-savings-metric"),
   );
   benchmark.append(
     benchmarkTitle,
@@ -158,7 +161,7 @@ export function renderMonthlyReviewProjection(doc, review) {
       `Current recoverable share · ${percent(review.materialBenchmark.currentSharePpm)}. Baseline · ${percent(review.materialBenchmark.baselineSharePpm)}. Change · ${direction} ${percent(Math.abs(change))}.`),
     savings,
     text(doc, "p", "monthly-review-savings-claim",
-      `Savings outcome · ${review.savingsClaim.label.replaceAll("_", " ")} · comparison confidence ${review.savingsClaim.confidence.score}/100 (${review.savingsClaim.confidence.band}).`),
+      `Savings outcome · ${review.savingsClaim.status.replaceAll("_", " ")} · comparison confidence ${review.savingsClaim.confidence.score ?? "unavailable"}${review.savingsClaim.confidence.score === null ? "" : "/100"} (${review.savingsClaim.confidence.band}).`),
   );
 
   const action = text(doc, "section", "monthly-review-projection-action", "");
@@ -193,7 +196,7 @@ export function renderMonthlyReviewProjection(doc, review) {
       : "No department contributor available."),
     labelled(doc, "Prior commitment", `${review.priorCommitmentVerification.status}. ${review.priorCommitmentVerification.basis}`),
     labelled(doc, "Confidence", `${review.confidence.level}. ${review.confidence.basis}`),
-    labelled(doc, "Savings scoring", `${review.savingsClaim.confidence.formula}. Realized: ${review.savingsClaim.assumptions.realized}`),
+    labelled(doc, "Savings scoring", `${review.savingsClaim.provenance.scoringPolicy}. Realized: ${review.savingsClaim.assumptions.realized}`),
     labelled(doc, "Source", `${review.schemaVersion} · ${review.inputVersion}`),
     labelled(doc, "Periods", review.provenance.periodIds.join(", ") || "None"),
   );

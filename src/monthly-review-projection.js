@@ -5,14 +5,16 @@ import {
   BENCHMARK_MATERIAL_VARIANCE_PPM, BENCHMARK_STANDING,
   buildExecutiveBriefing, validateExecutiveBriefing,
 } from "./executive-finops-briefing.js";
-import { FINOPS_PERIOD_FIELDS } from "./finops-workspace-contract.js";
+import {
+  FINOPS_COMMITMENT_ENVELOPE_FIELDS, FINOPS_PERIOD_FIELDS,
+} from "./finops-workspace-contract.js";
 import { scoreRetainedSavingsComparison } from "./retained-savings-score.js";
 
-export const MONTHLY_REVIEW_INPUT_VERSION = "monthly-review-input/1.0.0";
-export const MONTHLY_REVIEW_VERSION = "monthly-review-projection/1.1.0";
+export const MONTHLY_REVIEW_INPUT_VERSION = "monthly-review-input/2.0.0";
+export const MONTHLY_REVIEW_VERSION = "monthly-review-projection/2.0.0";
 
 const freeze = Object.freeze;
-const INPUT_FIELDS = freeze(["schemaVersion", "retainedPeriods"]);
+const INPUT_FIELDS = freeze(["schemaVersion", "retainedPeriods", "retainedCommitments"]);
 
 function closedObject(value, fields, path, errors) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -48,11 +50,22 @@ export function validateMonthlyReviewInput(input) {
       }
     });
   }
+  if (!Array.isArray(input.retainedCommitments)) {
+    errors.push("input.retainedCommitments: expected array");
+  } else {
+    input.retainedCommitments.forEach((commitment, index) => {
+      const path = `input.retainedCommitments[${index}]`;
+      if (!closedObject(commitment, FINOPS_COMMITMENT_ENVELOPE_FIELDS, path, errors)) return;
+      if (typeof commitment.commitmentId !== "string" || !commitment.commitmentId) {
+        errors.push(`${path}.commitmentId: required string`);
+      }
+    });
+  }
   return freeze({ valid: errors.length === 0, errors: freeze(errors) });
 }
 
 function absentProjection(input, errors) {
-  const { nextAction, ...claim } = scoreRetainedSavingsComparison([]);
+  const { nextAction, ...claim } = scoreRetainedSavingsComparison([], []);
   const savingsClaim = freeze(claim);
   return freeze({
     schemaVersion: MONTHLY_REVIEW_VERSION,
@@ -90,22 +103,19 @@ export function buildMonthlyReviewProjection(input) {
   }
 
   const variance = briefing.benchmark.varianceSharePpm;
-  const { nextAction, ...claim } = scoreRetainedSavingsComparison(briefing.periods ?? input.retainedPeriods);
+  const { nextAction, ...claim } = scoreRetainedSavingsComparison(
+    briefing.periods ?? input.retainedPeriods, input.retainedCommitments,
+  );
   const savingsClaim = freeze(claim);
   const status = briefing.benchmark.standing === BENCHMARK_STANDING.less ? "improving"
     : briefing.benchmark.standing === BENCHMARK_STANDING.more ? "worsening" : "stable";
   const material = Math.abs(variance) > BENCHMARK_MATERIAL_VARIANCE_PPM;
-  const verification = status === "improving" && material
-    ? freeze({
-      status: "candidate_supported",
-      basis: "Recoverable share materially improved against retained history; this supports checking the prior commitment, not attributing causality to it.",
-    })
-    : freeze({
-      status: "not_supported",
-      basis: status === "worsening"
-        ? "The retained outcome worsened, so prior-commitment success is not supported."
-        : "The movement did not clear the materiality threshold.",
-    });
+  const verification = freeze({
+    status: savingsClaim.priorAction.status,
+    basis: savingsClaim.priorAction.status === "unavailable"
+      ? "No retained baseline commitment is available for this comparison."
+      : `Read from retained commitment ${savingsClaim.priorAction.commitmentId}; trend does not alter this status.`,
+  });
   // One scorer owns priority. Trend remains evidence, never a competing action.
 
   return freeze({
@@ -158,7 +168,13 @@ export function validateMonthlyReviewProjection(review) {
   }
   if (typeof review.priorCommitmentVerification?.status !== "string") errors.push("priorCommitmentVerification: required");
   if (typeof review.confidence?.level !== "string") errors.push("confidence: required");
-  if (typeof review.savingsClaim?.confidence?.score !== "number") errors.push("savingsClaim: score is required");
+  if (!(review.savingsClaim?.confidence?.status === "unavailable"
+    || typeof review.savingsClaim?.confidence?.score === "number")) {
+    errors.push("savingsClaim: confidence must be scored or explicitly unavailable");
+  }
+  if (!review.savingsClaim?.periods?.baseline?.status || !review.savingsClaim?.periods?.current?.status) {
+    errors.push("savingsClaim.periods: explicit baseline and current states are required");
+  }
   if (!Array.isArray(review.provenance?.periodIds)) errors.push("provenance.periodIds: required array");
   if (review.materialBenchmark?.status === "improving" && !(review.materialBenchmark.changeSharePpm < 0)) {
     errors.push("materialBenchmark: improving requires a negative change");

@@ -31,34 +31,49 @@ const period = (month, recoverableScenarioMinor, overrides = {}) => Object.freez
   ...overrides,
 });
 
-const input = (latest, periods = [period("2026-05", 200_000), period("2026-06", 200_000)]) => ({
-  schemaVersion: MONTHLY_REVIEW_INPUT_VERSION,
-  retainedPeriods: [...periods, latest],
+const commitment = (baseline = period("2026-06", 200_000), overrides = {}) => ({
+  schemaVersion: "shiplog-finops-commitment/1.0.0",
+  commitmentId: `commit-${baseline.period}`,
+  claim: { monthlySavingsMinor: 100_000, period: baseline.period },
+  confidence: { percent: 90, band: "high" },
+  provenance: {}, recommendedAction: {}, recordedAt: `${baseline.period}-28T13:00:00.000Z`,
+  status: "decision_linked", decisionId: "decision-1", periodId: baseline.periodId,
+  ...overrides,
 });
 
-test("material improvement projects prior-commitment verification and one ranked action", () => {
-  const review = buildMonthlyReviewProjection(input(period("2026-07", 150_000)));
+const input = (latest, periods = [period("2026-05", 200_000), period("2026-06", 200_000)], commitments) => ({
+  schemaVersion: MONTHLY_REVIEW_INPUT_VERSION,
+  retainedPeriods: [...periods, latest],
+  retainedCommitments: commitments ?? (periods.length ? [commitment(periods.at(-1))] : []),
+});
+
+test("material improvement compares realized savings with the retained commitment", () => {
+  const review = buildMonthlyReviewProjection(input(period("2026-07", 150_000, { analyzedSpendMinor: 850_000 })));
   assert.equal(review.schemaVersion, MONTHLY_REVIEW_VERSION);
   assert.equal(review.status, "improving");
   assert.deepEqual(review.materialBenchmark, {
-    status: "improving", material: true, currentSharePpm: 150_000,
-    baselineSharePpm: 200_000, changeSharePpm: -50_000, thresholdPpm: 10_000, reason: null,
+    status: "improving", material: true, currentSharePpm: 176_471,
+    baselineSharePpm: 200_000, changeSharePpm: -23_529, thresholdPpm: 10_000, reason: null,
   });
   assert.equal(review.strongestDepartmentContributor.departmentId, "syn-support");
-  assert.equal(review.priorCommitmentVerification.status, "candidate_supported");
+  assert.equal(review.priorCommitmentVerification.status, "decision_linked");
   assert.equal(review.confidence.level, "high");
   assert.equal(review.nextAction.rank, 1);
   assert.equal(Object.hasOwn(review.savingsClaim, "nextAction"), false,
     "the output must not duplicate its single prioritized action");
-  assert.equal(review.nextAction.id, "revise_commitment");
+  assert.equal(review.savingsClaim.realizedSavings.minor, 150_000);
+  assert.equal(review.savingsClaim.projectedSavings.minor, 100_000);
+  assert.equal(review.savingsClaim.variance.minor, 50_000);
+  assert.equal(review.nextAction.id, "verify_and_close_commitment");
   assert.equal(validateMonthlyReviewProjection(review).valid, true);
 });
 
-test("material worsening produces one corrective action without claiming commitment success", () => {
-  const review = buildMonthlyReviewProjection(input(period("2026-07", 260_000)));
+test("missed commitment produces one corrective action", () => {
+  const review = buildMonthlyReviewProjection(input(period("2026-07", 260_000, { analyzedSpendMinor: 960_000 })));
   assert.equal(review.status, "worsening");
-  assert.equal(review.materialBenchmark.changeSharePpm, 60_000);
-  assert.equal(review.priorCommitmentVerification.status, "not_supported");
+  assert.equal(review.materialBenchmark.changeSharePpm, 70_833);
+  assert.equal(review.priorCommitmentVerification.status, "decision_linked");
+  assert.equal(review.savingsClaim.status, "missed_commitment");
   assert.equal(review.nextAction.id, "revise_commitment");
   assert.deepEqual(Object.keys(review).filter((key) => key === "nextAction"), ["nextAction"]);
 });
@@ -88,18 +103,18 @@ test("input is closed and output validation rejects contradictory direction", ()
 test("the shipped evolution surface renders the validated projection contract", async () => {
   const html = await readFile(new URL("../src/evolution.html", import.meta.url), "utf8");
   const doc = parseHtml(html);
-  const review = buildMonthlyReviewProjection(input(period("2026-07", 150_000)));
+  const review = buildMonthlyReviewProjection(input(period("2026-07", 150_000, { analyzedSpendMinor: 850_000 })));
   const root = renderMonthlyReviewProjection(doc, review);
   assert.equal(root.hidden, false);
   assert.equal(root.dataset.state, "improving");
-  assert.match(textOf(root), /Current recoverable share · 15\.0%\. Baseline · 20\.0%/);
+  assert.match(textOf(root), /Current recoverable share · 17\.6%\. Baseline · 20\.0%/);
   assert.match(textOf(root), /Department evidencesyn-support/);
-  assert.match(textOf(root), /Prior commitmentcandidate_supported/);
+  assert.match(textOf(root), /Prior commitmentdecision_linked/);
   assert.match(textOf(root), /Next action · priority 1/);
   assert.match(textOf(root.querySelector(".monthly-review-finding-evidence")),
-    /Improving trend · prior commitment candidate supported · high confidence · user dataset\./);
+    /Improving trend · prior commitment decision linked · high confidence · user dataset\./);
   assert.deepEqual(root.querySelector(".monthly-review-savings").querySelectorAll("dt").map(textOf),
-    ["Realized savings", "Projected savings"]);
+    ["Baseline period", "Current period", "Realized savings", "Projected savings", "Variance"]);
   assert.match(textOf(root), new RegExp(MONTHLY_REVIEW_VERSION.replaceAll(".", "\\.")));
   assert.equal(root.querySelectorAll(".monthly-review-projection-action").length, 1);
   assert.deepEqual(root.querySelectorAll(".monthly-review-context-link").map((link) => link.href),
@@ -225,5 +240,5 @@ test("a projection missing unvalidated provenance still renders one attributed f
   const root = renderMonthlyReviewProjection(parseHtml(html), drifted);
   assert.equal(root.dataset.state, "improving");
   assert.match(textOf(root.querySelector(".monthly-review-finding-evidence")), /unattributed dataset\./);
-  assert.equal(root.querySelectorAll(".monthly-review-savings-metric").length, 2);
+  assert.equal(root.querySelectorAll(".monthly-review-savings-metric").length, 5);
 });

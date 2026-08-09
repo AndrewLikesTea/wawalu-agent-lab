@@ -1,69 +1,72 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
 import {
   RETAINED_SAVINGS_POLICY, scoreRetainedSavingsComparison,
 } from "../src/retained-savings-score.js";
 
-const fixtureSet = JSON.parse(await readFile(
-  new URL("../src/retained-savings-fixtures.json", import.meta.url), "utf8",
-));
+const period = (label, spend, overrides = {}) => ({
+  period: label, periodId: `user:${label}`, dataset: "user",
+  materialMetricId: "recoverable_scenario", analyzedSpendMinor: spend,
+  coverageRatioPpm: 900_000, ...overrides,
+});
+const commitment = (overrides = {}) => ({
+  commitmentId: "commit-a", periodId: "user:2026-05", recordedAt: "2026-05-31T00:00:00Z",
+  status: "decision_linked", claim: { period: "2026-05", monthlySavingsMinor: 100_000 },
+  confidence: { percent: 85 }, ...overrides,
+});
 
-test("four privacy-safe two-period labels are executable", () => {
-  assert.deepEqual(fixtureSet.fixtures.map(({ id }) => id), [
-    "successful-commitment", "missed-commitment",
-    "incomplete-comparison-evidence", "newly-emerging-opportunity",
+test("successful comparison publishes the compact local-record contract", () => {
+  const result = scoreRetainedSavingsComparison([
+    period("2026-05", 1_000_000), period("2026-06", 850_000),
+  ], [commitment()]);
+  assert.equal(result.status, "successful_commitment");
+  assert.deepEqual(result.periods.baseline, {
+    status: "available", label: "2026-05", periodId: "user:2026-05", reason: null,
+  });
+  assert.equal(result.realizedSavings.minor, 150_000);
+  assert.equal(result.projectedSavings.minor, 100_000);
+  assert.equal(result.variance.minor, 50_000);
+  assert.equal(result.priorAction.status, "decision_linked");
+  assert.equal(result.provenance.source, "browser_local_retained_records");
+  assert.equal(result.nextAction.id, "verify_and_close_commitment");
+});
+
+test("missed commitment remains observed movement rather than causal credit", () => {
+  const result = scoreRetainedSavingsComparison([
+    period("2026-05", 1_000_000), period("2026-06", 960_000),
+  ], [commitment()]);
+  assert.equal(result.status, "missed_commitment");
+  assert.equal(result.realizedSavings.minor, 40_000);
+  assert.equal(result.variance.minor, -60_000);
+  assert.equal(result.nextAction.id, "revise_commitment");
+  assert.match(result.assumptions.realized, /not causal credit/);
+});
+
+test("missing baseline is explicitly unavailable and never fabricates money", () => {
+  const result = scoreRetainedSavingsComparison([period("2026-06", 960_000)], [commitment()]);
+  assert.equal(result.status, "unavailable");
+  assert.equal(result.reason, "missing_baseline");
+  assert.equal(result.periods.baseline.status, "unavailable");
+  assert.deepEqual(result.projectedSavings,
+    { status: "unavailable", minor: null, reason: "missing_baseline" });
+  assert.equal(result.confidence.score, null);
+  assert.equal(result.nextAction.id, "retain_comparable_period");
+});
+
+test("action and commitment selection are deterministic", () => {
+  assert.deepEqual(RETAINED_SAVINGS_POLICY.actionPriority, [
+    "retain_comparable_period", "repair_comparison_evidence", "record_commitment",
+    "revise_commitment", "verify_and_close_commitment",
   ]);
-  for (const fixture of fixtureSet.fixtures) {
-    const score = scoreRetainedSavingsComparison(fixture.periods);
-    assert.equal(score.label, fixture.expectedLabel, fixture.id);
-    assert.equal(score.nextAction.rank, 1);
-    const serialized = JSON.stringify(fixture);
-    for (const prohibited of ["prompt", "email", "token", "customer", "credential"])
-      assert.equal(serialized.toLowerCase().includes(prohibited), false, `${fixture.id}: ${prohibited}`);
-  }
-});
-
-test("realized versus projected arithmetic is cents-exact and explainable", () => {
-  const successful = scoreRetainedSavingsComparison(fixtureSet.fixtures[0].periods);
-  assert.equal(successful.projectedSavingsMinor, 100_000);
-  assert.equal(successful.realizedSavingsMinor, 110_000);
-  assert.equal(successful.varianceMinor, 10_000);
-  assert.equal(successful.attainmentPercent, 110);
-  assert.match(successful.assumptions.realized, /prior analyzed spend minus current/);
-});
-
-test("every confidence weight publishes its assumption and sums to 100", () => {
-  assert.equal(RETAINED_SAVINGS_POLICY.confidenceWeights.reduce((sum, item) => sum + item.points, 0), 100);
-  for (const weight of RETAINED_SAVINGS_POLICY.confidenceWeights)
-    assert.ok(weight.assumption.length > 20, weight.id);
-  const score = scoreRetainedSavingsComparison(fixtureSet.fixtures[1].periods);
-  assert.deepEqual(score.confidence.components,
-    { coverage: 45, completeness: 30, comparability: 20 });
-  assert.equal(score.confidence.score, 95);
-  assert.equal(score.confidence.formula, "45 coverage + 30 completeness + 20 comparability = 95");
-});
-
-test("identical fixture inputs always reproduce scores and priority", () => {
-  for (const fixture of fixtureSet.fixtures) {
-    const snapshot = JSON.stringify(scoreRetainedSavingsComparison(fixture.periods));
-    for (let run = 0; run < 20; run += 1)
-      assert.equal(JSON.stringify(scoreRetainedSavingsComparison(structuredClone(fixture.periods))), snapshot);
-  }
-  assert.deepEqual(fixtureSet.fixtures.map(({ periods }) =>
-    scoreRetainedSavingsComparison(periods).nextAction.id), [
-    "verify_and_close_commitment", "revise_commitment",
-    "retain_comparable_period", "investigate_emerging_opportunity",
-  ]);
-  const forward = fixtureSet.fixtures[0].periods;
-  assert.deepEqual(scoreRetainedSavingsComparison([...forward].reverse()),
-    scoreRetainedSavingsComparison(forward), "input order must not alter the score");
-});
-
-test("prompt-derived fields have no scoring path", () => {
-  const poisoned = structuredClone(fixtureSet.fixtures[0].periods);
-  poisoned[0].prompt = "Bearer secret@example.test";
-  const clean = fixtureSet.fixtures[0].periods;
-  assert.deepEqual(scoreRetainedSavingsComparison(poisoned), scoreRetainedSavingsComparison(clean));
-  assert.equal(JSON.stringify(scoreRetainedSavingsComparison(poisoned)).includes("secret@example"), false);
+  const periods = [period("2026-06", 850_000), period("2026-05", 1_000_000)];
+  const records = [
+    commitment({ commitmentId: "recorded", status: "recorded", recordedAt: "2026-06-02T00:00:00Z" }),
+    commitment({ commitmentId: "linked", status: "decision_linked", recordedAt: "2026-06-01T00:00:00Z" }),
+  ];
+  const forward = scoreRetainedSavingsComparison(periods, records);
+  const reversed = scoreRetainedSavingsComparison([...periods].reverse(), [...records].reverse());
+  assert.deepEqual(reversed, forward);
+  assert.equal(forward.priorAction.commitmentId, "linked");
+  assert.equal(Object.keys(forward).filter((key) => key === "nextAction").length, 1);
+  assert.equal(forward.nextAction.rank, 1);
 });

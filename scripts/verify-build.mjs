@@ -622,7 +622,7 @@ export async function verifyArtifact(root) {
   // The screen a visitor with nothing retained actually gets. It must stay an
   // explicit refusal with no benchmark, no contributor, and no invented history.
   const noHistory = buildMonthlyReviewProjection({
-    schemaVersion: MONTHLY_REVIEW_INPUT_VERSION, retainedPeriods: [],
+    schemaVersion: MONTHLY_REVIEW_INPUT_VERSION, retainedPeriods: [], retainedCommitments: [],
   });
   if (noHistory.status !== "missing_comparison_evidence"
     || noHistory.materialBenchmark.status !== "unavailable"
@@ -662,6 +662,14 @@ export async function verifyArtifact(root) {
     retainedPeriods: [
       probePeriod("2026-05", 2_000), probePeriod("2026-06", 2_000), probePeriod("2026-07", 1_500),
     ],
+    retainedCommitments: [{
+      schemaVersion: "shiplog-finops-commitment/1.0.0",
+      commitmentId: "build-probe-2026-06",
+      claim: { period: "2026-06", monthlySavingsMinor: 50_000 },
+      confidence: { percent: 90 }, provenance: {}, recommendedAction: {},
+      recordedAt: "2026-06-28T13:00:00.000Z", status: "decision_linked",
+      decisionId: "build-probe-decision", periodId: "user:2026-06",
+    }],
   });
   if (comparable.status !== "improving" || comparable.materialBenchmark.status === "unavailable"
     || comparable.nextAction?.rank !== 1
@@ -674,7 +682,8 @@ export async function verifyArtifact(root) {
   // reaches a decision in this file and a page that never hands it this browser's
   // retained periods is a green build and a destination that is always empty.
   for (const wiring of [
-    "readRetainedPeriodInputs", "buildMonthlyReviewProjection", "renderMonthlyReviewProjection",
+    "readRetainedPeriodInputs", "readRetainedCommitments",
+    "buildMonthlyReviewProjection", "renderMonthlyReviewProjection",
   ]) {
     if (!evolutionEntry.includes(wiring)) {
       throw new Error(`the AI FinOps entry no longer joins ${wiring} into its monthly review`);

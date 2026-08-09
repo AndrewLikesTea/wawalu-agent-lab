@@ -1665,9 +1665,11 @@ function mountLocalFinopsImport() {
     const composed = composeGuidedResult(guidedInputs());
     const storage = browserFinopsWorkspaceStorage();
     const retainedPeriods = readRetainedPeriodInputs(storage);
+    const retainedCommitments = readRetainedCommitments(storage);
     renderMonthlyReviewProjection(document, buildMonthlyReviewProjection({
       schemaVersion: MONTHLY_REVIEW_INPUT_VERSION,
       retainedPeriods: retainedPeriods.periods,
+      retainedCommitments,
     }));
     const retained = readMonthlyAction(storage);
     const evidence = readCurrentReviewEvidence(storage);
