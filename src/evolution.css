@@ -1292,21 +1292,13 @@
 #finops-guided-select:focus-visible,.guided-retry:focus-visible,.guided-analysis a:focus-visible,
 .guided-support>summary:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
 .guided-analysis { display:grid; gap:18px; margin-top:6px; }
-.guided-finding-label,.guided-action-label { margin:0; color:var(--ink-muted); font:700 10px/1.5 ui-monospace,monospace; letter-spacing:.08em; text-transform:uppercase; }
-.guided-finding { margin:-10px 0 0; max-width:32ch; color:var(--ink); font-size:clamp(24px,3.6vw,34px); font-weight:750; line-height:1.14; letter-spacing:-.02em; overflow-wrap:anywhere; }
-.guided-benchmark { display:grid; justify-items:start; gap:3px; margin:0; border-left:5px solid var(--import-accent); padding:4px 0 4px 12px; }
+/* #1466 removed this panel's headline finding, benchmark, trust pair and
+   call-to-action treatment: the answer they competed with is stated once, in
+   the canonical briefing. What is left is the line naming the loaded export. */
+.guided-lede { margin:0; max-width:64ch; color:var(--ink); font-size:15px; line-height:1.55; overflow-wrap:anywhere; }
 .guided-label { color:var(--ink-muted); font:700 10px/1.5 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; }
 .guided-value { max-width:70ch; font-size:13px; font-weight:650; line-height:1.5; overflow-wrap:anywhere; }
-.guided-benchmark .guided-value { color:var(--ink); font-size:clamp(17px,2.2vw,21px); font-weight:750; }
 .guided-shape { flex:none; font-weight:750; }
-.guided-trust { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
-.guided-signal { display:grid; grid-template-columns:auto 1fr; align-content:start; gap:2px 7px; margin:0; border-radius:7px; padding:9px 10px; }
-.guided-signal:first-child { background:var(--import-wash); color:var(--import-ink); }
-.guided-signal:last-child { border:1px solid var(--panel-border); background:transparent; }
-.guided-signal .guided-value { grid-column:1/-1; color:var(--ink); font-weight:500; }
-.guided-action { display:grid; justify-items:start; gap:6px; border:1px solid var(--import-line); border-left:5px solid var(--import-accent); border-radius:10px; padding:14px 16px; background:#fff; }
-.guided-action-text { margin:0; max-width:42ch; font-size:clamp(18px,2.4vw,23px); font-weight:750; line-height:1.25; overflow-wrap:anywhere; }
-.guided-action-owner { margin:0; color:var(--ink-muted); font-size:13px; line-height:1.5; }
 .guided-analysis a { min-height:44px; display:inline-flex; align-items:center; color:var(--import-ink); font-weight:700; overflow-wrap:anywhere; }
 .guided-support { border-top:1px solid var(--panel-border); padding-top:4px; }
 .guided-support>summary { min-height:44px; display:flex; align-items:center; cursor:pointer; color:var(--ink); font:700 12px/1.5 ui-monospace,monospace; }
@@ -1318,11 +1310,6 @@
 #finops-guided-chooser[data-state="error"] .guided-state-message { border-style:solid; border-color:var(--state-error-line); }
 #finops-guided-chooser[data-state="extreme"] .guided-state-message { border-color:var(--state-warn-line); }
 .guided-retry { min-height:44px; border:1px solid currentColor; border-radius:8px; padding:9px 13px; background:#fff; color:var(--state-error-ink); font-weight:750; cursor:pointer; }
-@media (max-width:620px) {
-  .guided-trust { grid-template-columns:1fr; }
-  .guided-finding { max-width:none; }
-  .guided-action { padding:14px; }
-}
 /* The entitlement line. Both indicators are words, so the colour and the border
    are decoration on a state the reader can already read, hear, and print. */
 .stand-entitlement { display:flex; flex-wrap:wrap; gap:6px 10px; margin:0; }

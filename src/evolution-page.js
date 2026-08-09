@@ -5384,17 +5384,28 @@ async function init() {
 // Painted before init() so the evidence gate is answered on first paint rather
 // than after the bundled analysis loads. It reads only the bundled package.
 renderOwnDataEvidencePreflight(document, assessOwnDataEvidence(BUNDLED_OWN_DATA_EVIDENCE));
-const bundledAnalysis = analysisReadiness({ scenarioId: "aws-bedrock-cur-v1" });
-renderAnalysisReadiness(document, bundledAnalysis.ok ? bundledAnalysis.readiness : null);
-renderFinopsAnswer(document, bundledAnalysis.ok
-  ? resolveFinopsAnswer(finopsAnswerSignals(bundledAnalysis)) : null);
+// THE ONE BRIEFING, AND IT FOLLOWS THE ANALYSIS (#1466). The canonical answer
+// used to be resolved once, for a hard-coded scenario id, while the chooser
+// below moved the analysis underneath it — so a reader on Azure read an AWS
+// answer stated as the page's single answer. It is now painted from whichever
+// bundled export the flow settled on, along with the readiness lines that
+// qualify it, and it names that export so the two can never disagree silently.
+const paintCanonicalAnswer = (scenarioId) => {
+  const analysis = scenarioId ? analysisReadiness({ scenarioId }) : null;
+  const ok = analysis?.ok === true;
+  renderAnalysisReadiness(document, ok ? analysis.readiness : null);
+  renderFinopsAnswer(document, ok ? resolveFinopsAnswer(finopsAnswerSignals(analysis)) : null,
+    { scenarioLabel: ok ? analysis.label : null });
+};
 // …and the guided flow over the same boundary: the reader picks one of the
 // bundled provider exports and the evidence and department destinations below
 // are repainted from THAT scenario. Mounted here, beside the readiness answer it
 // continues, and before init() so a chosen scenario is on screen — and in the
-// address — without waiting on the seed fetch.
+// address — without waiting on the seed fetch. Its `onScenario` is the only
+// thing that paints the briefing, so there is one paint path and not two.
 installGuidedFirstAnalysis(document, {
   location: globalThis.location ?? null, history: globalThis.history ?? null,
+  onScenario: paintCanonicalAnswer,
 });
 
 init();
