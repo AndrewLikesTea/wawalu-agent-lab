@@ -85,7 +85,7 @@ function assertExits(page, peopleHref, where) {
 // reads as two claims to anyone who meets both.
 const IDENTITY = "A display name is not a signed-in user — nobody owns or verifies one, and anyone can publish under any name.";
 
-const SOCIAL = { label: "Open Social to read the whole feed", href: "/social.html" };
+const SOCIAL = { label: "Open the full Social feed", href: "/social.html" };
 const PEOPLE = { label: "Open People to see Mina Okafor’s other image posts", href: "/profile.html" };
 const MINA = "/profile.html?author=Mina%20Okafor";
 
@@ -211,7 +211,7 @@ test("a missing post reached from a profile still offers the feed it belonged to
         && !link.closest(".site-nav") && !link.closest("#site-footer"));
     // The panel's own action reads first, because the panel is where the post
     // would have been and now stands above the page's standing routes out.
-    assert.deepEqual(toFeed.map(textOf), ["Go to the Social feed", "Open Social to read the whole feed"]);
+    assert.deepEqual(toFeed.map(textOf), ["Go to the Social feed", "Open the full Social feed"]);
 
     // Tab order agrees: the state's own next step, then the standing exit.
     const sequence = tabSequence(page.document);
@@ -288,7 +288,7 @@ test("the loading state is one announced line in the post's region, and takes no
     assert.equal(panel.getAttribute("aria-busy"), "true");
     assert.equal(state.getAttribute("role"), "status", "the state is announced without stealing focus");
     assert.equal(page.document.activeElement, null, "nothing may take focus on load");
-    assert.equal(textOf(state.querySelector(".detail-loading-text")), "Loading this post from Social’s shared demo feed…");
+    assert.equal(textOf(state.querySelector(".detail-loading-text")), "Fetching it from the feed…");
     assert.doesNotMatch(textOf(panel), /A display name is not a signed-in user/);
     // Nothing is named yet, so the h1 names the page — the same words a reader
     // sees in the shipped markup before any script runs.
@@ -301,7 +301,8 @@ test("the loading state is one announced line in the post's region, and takes no
     assert.equal(panel.querySelectorAll(".skeleton-media").length, 0);
     // The frame around it still says what the page is, so the region is never
     // an unexplained blank.
-    assert.match(textOf(page.document.querySelector(".hero-post")), /Social is a shared demo feed/);
+    assert.match(textOf(page.document.querySelector(".hero-post")),
+      /Shared links like this one open a single post from Social’s shared demo feed\./);
     assertExits(page, null, "loading");
     assert.equal(textOf(page.document.querySelector("#post-people")), "", "loading must not expose an empty or placeholder display name");
     assert.equal(page.document.querySelector("#post-people").hidden, true);
@@ -330,7 +331,7 @@ test("the page opens already saying it is loading, and the post replaces that li
     assert.equal(panel.dataset.postState, "loading");
     assert.equal(panel.getAttribute("aria-busy"), "true");
     assert.equal(panel.querySelectorAll(".detail-loading").length, 1);
-    assert.equal(textOf(panel.querySelector(".detail-loading-text")), "Loading this post from Social’s shared demo feed…");
+    assert.equal(textOf(panel.querySelector(".detail-loading-text")), "Fetching it from the feed…");
     assert.equal(panel.querySelector(".detail-loading").getAttribute("role"), "status");
     // The states that explain an absent post are not in the markup at all, so
     // the wait and an unavailable panel cannot be read together at any point.
@@ -348,7 +349,7 @@ test("the page opens already saying it is loading, and the post replaces that li
 
     assert.equal(panel.dataset.postState, "loading", "the script agrees with the markup it replaced");
     assert.equal(panel.querySelectorAll(".detail-loading").length, 1, "one wait line, not the shipped one plus a second");
-    assert.equal(textOf(panel.querySelector(".detail-loading-text")), "Loading this post from Social’s shared demo feed…");
+    assert.equal(textOf(panel.querySelector(".detail-loading-text")), "Fetching it from the feed…");
     assert.equal(panel.querySelectorAll(".detail-state-message").length, 0);
 
     release();

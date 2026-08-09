@@ -288,13 +288,15 @@ test("the loading state has a heading and explanatory status text", () => {
   assert.equal(status.getAttribute("role"), "status");
   assert.equal(first(status, "detail-loading-title").textContent, POST_LOADING_TITLE);
   assert.equal(first(status, "detail-loading-text").textContent, POST_LOADING_LINE);
-  assert.equal(POST_LOADING_LINE, "Loading this post from Social’s shared demo feed…");
+  assert.equal(POST_LOADING_LINE, "Fetching it from the feed…");
   // A real ellipsis, the way "Loading the Social feed…" and "Loading releases…"
   // spell it, not three periods pretending to be one.
   assert.ok(POST_LOADING_LINE.endsWith("…") && !POST_LOADING_LINE.includes("..."));
-  // The wait identifies both the Social surface and its established shared
-  // demo feed description for someone who opened the permalink cold.
-  assert.match(POST_LOADING_LINE, /^Loading this post from Social’s shared demo feed…$/);
+  // The wait reports the wait. What the page is belongs to the standing
+  // sentence a couple of lines below, which is on screen in every state; the
+  // line must not say it a second time to a reader who can see both at once.
+  assert.equal(POST_LOADING_LINE.includes("shared demo feed"), false,
+    "the wait must not repeat the standing sentence's description of the page");
 
   // Concise: one semantic heading, no oversized state banner, and no
   // placeholder block pretending to be an image the post may not even have.
@@ -358,7 +360,7 @@ test("the post page's two routes out sit after the site frame, and name where th
 
   // Social ships in visible text. People waits for the loaded display name, so
   // loading cannot expose an empty or placeholder name.
-  assert.match(html, /<a class="detail-back detail-page-back" id="post-back" href="\/social\.html">Open Social to read the whole feed<\/a>/);
+  assert.match(html, /<a class="detail-back detail-page-back" id="post-back" href="\/social\.html">Open the full Social feed<\/a>/);
   assert.match(html, /<a class="detail-back detail-page-back" id="post-people" href="\/profile\.html" hidden><\/a>/);
   assert.equal(html.includes("post-back-feed"), false, "the old stacked exit is gone");
   const exits = html.match(/<p class="detail-page-exits">[\s\S]*?<\/p>/)[0];
@@ -385,12 +387,12 @@ test("both destinations ship as constants, and only the People link's target nar
   // The words are fixed. Nothing about a lookup may rewrite them, because they
   // have to read the same before, during and after it.
   assert.deepEqual(POST_EXITS, {
-    social: { href: "/social.html", label: "Open Social to read the whole feed" },
+    social: { href: "/social.html", label: "Open the full Social feed" },
     people: { href: "/profile.html" },
   });
   // Both name a destination the nav offers: this site has a People page and no
   // page called Profile, so a link here cannot promise one.
-  assert.match(POST_EXITS.social.label, /^Open Social to /);
+  assert.equal(POST_EXITS.social.label, "Open the full Social feed");
 
   // The loaded post's own author wins, then the ?author= profile.js writes into
   // its tiles.
@@ -423,13 +425,12 @@ test("both destinations ship as constants, and only the People link's target nar
 
 // Word-for-word with the <p> in src/post.html's hero. It is pinned here because
 // the whole point of the sentence is that it is standing copy: a reader who
-// arrived from a shared link has to be told what Social is before, during, and
-// after the post load — including when the post never arrives.
-// It is also the single Social definition, repeated word-for-word on the home
-// page card and the Social page intro — one sentence, one vocabulary, wherever
-// a visitor first meets Social.
-const STANDING_SENTENCE =
-  "Social is a shared demo feed of short posts about what the team ships, images optional.";
+// arrived from a shared link has to be told what this page is before, during,
+// and after the post load — including when the post never arrives.
+// It describes what a shared link opens rather than what is on screen, which is
+// why it can outlive not-found and error: those states have no post, so a
+// sentence beginning "This is one post…" would be describing an empty panel.
+const STANDING_SENTENCE = "Shared links like this one open a single post from Social’s shared demo feed.";
 
 // Every state the panel can be in, named the way a reader would name it.
 const PANEL_STATES = [
@@ -442,7 +443,7 @@ const PANEL_STATES = [
 
 const postPageHtml = () => readFile(new URL("../src/post.html", import.meta.url), "utf8");
 
-test("the page says what Social is in one plain sentence, written once, outside the panel", async () => {
+test("the page identifies one post from the shared demo feed, written once outside the panel", async () => {
   const html = await postPageHtml();
   assert.ok(html.includes(`<p>${STANDING_SENTENCE}</p>`), "the standing sentence must ship in the markup");
   // Counted over the page's own content, not the whole document: the About
@@ -451,6 +452,8 @@ test("the page says what Social is in one plain sentence, written once, outside 
   // this rule is about is the page repeating it once per panel state.
   const content = html.slice(0, html.indexOf('<footer class="site-footer"'));
   assert.equal(content.split(STANDING_SENTENCE).length - 1, 1, "it is written once, not repeated per state");
+  assert.equal(content.includes("Social is a shared demo feed of short posts"), false,
+    "the post-specific explanation must not sit beside a generic feed description");
 
   // Short enough to read at a glance, and one sentence rather than a paragraph.
   assert.ok(STANDING_SENTENCE.split(/\s+/).length <= 25, "the standing sentence stays at 25 words or fewer");
@@ -481,7 +484,7 @@ test("the standing sentence outlives every state the panel renders", () => {
 
     renderPostDetail(container, value, options);
 
-    assert.match(main.textContent, /Social is a shared demo feed/, `the sentence is gone in the ${name} state`);
+    assert.ok(main.textContent.includes(STANDING_SENTENCE), `the sentence is gone in the ${name} state`);
     if (["missing", "error"].includes(name)) {
       assert.doesNotMatch(container.textContent, /private|signed-in|your post/i,
         `the ${name} state must not invent a reason or owner`);
@@ -595,7 +598,7 @@ test("the standing exits remain while unavailable states add a clear feed action
   assert.equal([...html.matchAll(/id="post-back"/g)].length, 1, "one Social exit in the markup");
   assert.equal([...html.matchAll(/id="post-people"/g)].length, 1, "one People exit in the markup");
   assert.equal([...html.matchAll(/class="detail-back detail-page-back"/g)].length, 2, "the pair, and only the pair");
-  assert.equal([...html.matchAll(/<a [^>]*>Open Social to /g)].length, 1, "the standing Social label appears once");
+  assert.equal([...html.matchAll(/<a [^>]*>Open the full Social feed<\/a>/g)].length, 1, "the standing Social label appears once");
 
   for (const [name, value, options] of PANEL_STATES) {
     const container = createElement("div");

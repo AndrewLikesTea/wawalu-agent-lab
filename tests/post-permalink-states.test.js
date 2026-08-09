@@ -47,7 +47,7 @@ const TEXT_POST = {
 // The headline each state puts on screen. Whichever one is active, the other
 // three of these must not appear anywhere in the page's text.
 const STATE_HEADLINES = {
-  loading: "Loading this post from Social’s shared demo feed…",
+  loading: "Fetching it from the feed…",
   loaded: "Post by ",
   "not-found": "Post unavailable",
   error: "Post could not be loaded",
@@ -604,7 +604,7 @@ test("a post with no image renders no image element and no empty frame to hold o
 // can resolve to a post or to nothing at all, and the frame has to read the same
 // either way — so this is asserted in the missing state as well as the loaded
 // one, not just in the state that happens to work.
-const SOCIAL_LINK = "Open Social to read the whole feed";
+const SOCIAL_LINK = "Open the full Social feed";
 const PEOPLE_LINK = "Open People to see Mina Okafor’s other image posts";
 const CHROME_LINKS = [SOCIAL_LINK, PEOPLE_LINK];
 // What each state offers. Social is true whatever the lookup did — the feed
@@ -620,10 +620,11 @@ const EXITS_BY_STATE = {
 // Word for word the last sentence of Social's own intro, because a visitor who
 // lands here may never open /social.html.
 const DEMO_SENTENCE = "Posts use no customer or production data.";
-// What Social is, for a reader who arrived on a pasted link and has never seen
-// the feed. It is context about the surface, not about this post, so it reads
-// after the post rather than in front of it.
-const CONTEXT_SENTENCE = "Social is a shared demo feed of short posts about what the team ships, images optional.";
+// What a pasted link opens, for a reader who has never seen the feed. It is
+// context about the page, not about this post — which is also why it holds in
+// the states where the lookup found nothing — so it reads after the post
+// rather than in front of it.
+const CONTEXT_SENTENCE = "Shared links like this one open a single post from Social’s shared demo feed.";
 
 test("the words of a route out never change, and the demo sentence survives every state", async () => {
   const cases = [
@@ -746,7 +747,7 @@ test("every state the page can reach puts exactly one of the four on screen", as
     assert.equal(panel.getAttribute("aria-busy"), "true");
     // The wait carries visible words, not a bare spinner: the dot is aria-hidden
     // decoration and the sentence is the state.
-    assert.equal(textOf(panel.querySelector(".detail-loading-text")), "Loading this post from Social’s shared demo feed…");
+    assert.equal(textOf(panel.querySelector(".detail-loading-text")), "Fetching it from the feed…");
     assert.equal(panel.querySelector(".detail-loading-dot").getAttribute("aria-hidden"), "true");
 
     release();
@@ -779,7 +780,7 @@ test("every state the page can reach puts exactly one of the four on screen", as
 // an icon to be understood. Asserted on text with every class name ignored.
 test("all four states carry a visible text label, not colour alone", async () => {
   const labels = {
-    loading: /Loading this post from Social’s shared demo feed…/,
+    loading: /Fetching it from the feed…/,
     loaded: /Rowan Diaz/,
     "not-found": /Post unavailable/,
     error: /Post could not be loaded/,

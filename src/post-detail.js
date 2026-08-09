@@ -39,7 +39,7 @@ import { normalizeImage } from "./social.js";
 // where there is no post and so no display name its words can be about — the
 // label is never softened to fit a state, it is simply not offered in one.
 export const POST_EXITS = {
-  social: { href: "/social.html", label: "Open Social to read the whole feed" },
+  social: { href: "/social.html", label: "Open the full Social feed" },
   people: { href: "/profile.html" },
 };
 const MAX_RETURN_AUTHOR_LENGTH = 60;
@@ -306,10 +306,13 @@ function renderFailed(container, onRetry) {
 // The wait, in one place, because src/post.html ships this same line in its
 // markup so the region is never blank before this module runs. Two spellings of
 // one sentence would flash a rewrite at the reader on every visit; one exported
-// string cannot. It names the post's source because a shared link can be a
-// visitor's first contact with Social, and uses the same "shared demo feed"
-// description that stands below the state and on Social itself.
-export const POST_LOADING_LINE = "Loading this post from Social’s shared demo feed…";
+// string cannot. It reports the wait and nothing more. It used to name the
+// surface as well — "from Social's shared demo feed" — because the sentence
+// standing below this region was then the generic definition of the feed. That
+// sentence now names this page as one post from that feed, two lines under this
+// one, so repeating the description here was the page stuttering at a reader
+// who is already waiting. The heading above the line still says which post.
+export const POST_LOADING_LINE = "Fetching it from the feed…";
 export const POST_LOADING_TITLE = "Loading shared Social post";
 
 // Waiting is not one of the states above, and it does not get their furniture.
