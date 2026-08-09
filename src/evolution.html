@@ -905,6 +905,24 @@
             <div><dt>Evidence confidence</dt><dd id="analysis-readiness-confidence">Computed from the evidence categories the bundled scenario carries.</dd></div>
           </dl>
         </details>
+        <!-- WHY THIS IS THE ANSWER (#1463). One annual figure, the benchmark
+             that supports it, the one action it implies, and which signals
+             produced each — every slot written by
+             src/finops-answer-contract-view.js from the single record
+             src/finops-answer-contract.js resolved. Nothing here is authored as
+             a number: the placeholders below are replaced on first paint, and a
+             scenario the contract cannot answer clears the first three slots
+             and states its reason code instead. No disclosure control, because
+             this region sits above the first-run region and that tab order is
+             already full. -->
+        <div class="stand-figure" id="finops-canonical-answer" data-status="withheld" data-reason="missing-input">
+          <p class="eyebrow" id="finops-canonical-answer-heading">Why this is the answer</p>
+          <p class="stand-figure-value" id="finops-canonical-answer-figure" data-available="false"></p>
+          <p class="stand-figure-basis" id="finops-canonical-answer-benchmark"></p>
+          <p class="stand-answer" id="finops-canonical-answer-action"></p>
+          <p class="stand-answer" id="finops-canonical-answer-reason">The canonical answer is resolved locally when the analysis loads.</p>
+          <p class="stand-figure-basis" id="finops-canonical-answer-sources"></p>
+        </div>
         <details class="figure-source" id="analysis-readiness-upgrade-detail">
           <summary class="figure-source-summary"><span class="figure-source-state"><span class="figure-source-shape" aria-hidden="true">▸</span> What later evidence would enable</span></summary>
           <ul class="figure-source-detail" id="analysis-readiness-upgrades"></ul>

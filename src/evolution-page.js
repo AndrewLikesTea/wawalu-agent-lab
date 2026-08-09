@@ -257,6 +257,13 @@ import { renderBundledNextStep } from "/finops-bundled-next-step-view.js";
 import { analysisReadiness } from "/finops-bundled-scenarios.js";
 import { installGuidedFirstAnalysis } from "/finops-guided-first-analysis-view.js";
 import { renderAnalysisReadiness } from "/finops-analysis-readiness-view.js";
+// …and the one canonical answer that analysis implies (#1463). The annual
+// savings figure is derived here and nowhere else: the contract sums the
+// recommended actions' monthly savings, annualises them, checks them against the
+// benchmark, the stated percentage and the readiness state, and withholds a
+// figure entirely rather than publishing one a leader could not trace.
+import { finopsAnswerSignals, resolveFinopsAnswer } from "/finops-answer-contract.js";
+import { renderFinopsAnswer } from "/finops-answer-contract-view.js";
 // Whether the letter may be shown at all is decided before it is drawn: the
 // score card is a roll-up of only the departments the rubric actually scored.
 import { CLAMPED_REASON, gradeEligibility } from "/grade-eligibility.js";
@@ -5379,6 +5386,8 @@ async function init() {
 renderOwnDataEvidencePreflight(document, assessOwnDataEvidence(BUNDLED_OWN_DATA_EVIDENCE));
 const bundledAnalysis = analysisReadiness({ scenarioId: "aws-bedrock-cur-v1" });
 renderAnalysisReadiness(document, bundledAnalysis.ok ? bundledAnalysis.readiness : null);
+renderFinopsAnswer(document, bundledAnalysis.ok
+  ? resolveFinopsAnswer(finopsAnswerSignals(bundledAnalysis)) : null);
 // …and the guided flow over the same boundary: the reader picks one of the
 // bundled provider exports and the evidence and department destinations below
 // are repainted from THAT scenario. Mounted here, beside the readiness answer it
