@@ -112,7 +112,7 @@ function twoDimensionalCanvas(bitmap) {
   return { context, operations };
 }
 
-export function createPaintHarness({ createImageBitmap, exportBlob } = {}) {
+export function createPaintHarness({ createImageBitmap, exportBlob, renderMilliseconds = 1 } = {}) {
   const { gl, uploads } = webGl();
   const frame = element();
   const statusLine = element();
@@ -224,6 +224,12 @@ export function createPaintHarness({ createImageBitmap, exportBlob } = {}) {
     },
     requestAnimationFrame(callback) {
       callback();
+    },
+    performance: {
+      now() {
+        environment.renderClock = (environment.renderClock ?? 0) + renderMilliseconds;
+        return environment.renderClock;
+      },
     },
     addEventListener() {},
     prompt() { return null; },

@@ -4,6 +4,7 @@ import { relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { parseHtml } from "../tests/support/browser.js";
 import { DECISION_SUMMARY } from "../src/finops-screen-contract.js";
+import { HEALTH_STATUS } from "../src/health-contract.js";
 
 const MANIFEST = "build-manifest.json";
 
@@ -91,8 +92,10 @@ export async function verifyArtifact(root) {
   const actual = await inventory(root);
   if (JSON.stringify(actual) !== JSON.stringify(manifest.files)) throw new Error("artifact does not match build manifest");
 
-  const health = await readFile(resolve(root, "healthz"), "utf8");
-  if (health.trim() !== "ok") throw new Error("healthz must return exactly ok");
+  const health = JSON.parse(await readFile(resolve(root, "healthz"), "utf8"));
+  if (health.status !== HEALTH_STATUS || !/^(?:[0-9a-f]{40}|unstamped)$/.test(health.version)) {
+    throw new Error("healthz must contain the healthy status and deterministic build version");
+  }
 
   // Every guarded page ships with the modules that make it usable: a
   // half-published set is a blank panel in production, which the manifest alone

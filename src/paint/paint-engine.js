@@ -178,8 +178,9 @@ function shader(gl, type, source) {
 }
 
 export class WebGLPresenter {
-  constructor(canvas) {
+  constructor(canvas, now = () => globalThis.performance?.now?.() ?? 0) {
     this.canvas = canvas;
+    this.now = now;
     this.gl = canvas.getContext("webgl", {
       alpha: false, antialias: false, depth: false, stencil: false,
       premultipliedAlpha: true, preserveDrawingBuffer: true,
@@ -211,7 +212,7 @@ export class WebGLPresenter {
   }
 
   render(document, devicePixelRatio = 1) {
-    const start = globalThis.performance?.now?.() ?? 0;
+    const start = this.now();
     const rect = this.canvas.getBoundingClientRect();
     const width = Math.max(1, Math.round(rect.width * devicePixelRatio));
     const height = Math.max(1, Math.round(rect.height * devicePixelRatio));
@@ -227,6 +228,6 @@ export class WebGLPresenter {
       this.uploadedRevision = document.revision;
     }
     gl.drawArrays(gl.TRIANGLES, 0, 6);
-    return (globalThis.performance?.now?.() ?? start) - start;
+    return this.now() - start;
   }
 }

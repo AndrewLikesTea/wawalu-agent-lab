@@ -147,7 +147,7 @@ export function initEditor(root = document, environment = globalThis) {
   const status = root.querySelector("#render-status");
   let presenter;
   try {
-    presenter = new WebGLPresenter(canvas);
+    presenter = new WebGLPresenter(canvas, () => environment.performance?.now?.() ?? 0);
   } catch {
     status.textContent = "WebGL unavailable on this device";
     status.closest("p")?.classList.add("is-error");

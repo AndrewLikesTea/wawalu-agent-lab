@@ -88,32 +88,13 @@ test("the public projection leaks no token, name, or principal count", () => {
   assert.doesNotMatch(serialized, /\d/);
 });
 
-test("healthz reports degraded auth without failing the probe", async () => {
+test("root healthz does not inspect auth or storage bindings", async () => {
   const { onRequest } = await import("../functions/healthz.js");
   const request = () => new Request("https://test.invalid/healthz", { headers: { "cf-ray": "health-edge" } });
 
-  // Only the binding fields are pinned here: the probe also carries the
-  // build-versus-release-log verdict, whose value depends on the commit that is
-  // checked out. tests/release-build-match.test.js drives that from a fixture.
-  const authOf = async (response) => (await response.json()).auth;
-
   const healthy = await onRequest({ request: request(), env: { DB: db, AGENT_TOKENS: JSON.stringify({ t: writer }) } });
   assert.equal(healthy.status, 200);
-  assert.equal(await authOf(healthy), "ok");
-
-  // A botched rotation is observable, but must not turn the rollout/rollback
-  // smoke test red: storage is the only hard dependency.
-  const degraded = await onRequest({ request: request(), env: { DB: db, AGENT_TOKENS: "not json" } });
-  assert.equal(degraded.status, 200);
-  assert.equal(await authOf(degraded), "invalid");
-
-  const unconfigured = await onRequest({ request: request(), env: { DB: db } });
-  assert.equal((await unconfigured.json()).auth, "unconfigured");
-
-  // Storage still fails closed even when auth is perfectly healthy.
-  const noStore = await onRequest({ request: request(), env: { AGENT_TOKENS: JSON.stringify({ t: writer }) } });
-  assert.equal(noStore.status, 503);
-  assert.equal((await noStore.json()).error.code, "storage_unavailable");
+  assert.deepEqual(await healthy.json(), { status: "healthy", version: (await import("../src/build-stamp.js")).BUILD_STAMP.commitSha ?? "unstamped" });
 });
 
 test("the posts healthz alias reports the same auth status", async () => {
@@ -127,7 +108,7 @@ test("the posts healthz alias reports the same auth status", async () => {
   assert.equal(response.headers.get("cache-control"), "no-store");
 });
 
-test("an unauthenticated probe never authenticates or mutates storage", async () => {
+test("an unauthenticated root probe never reads or mutates storage", async () => {
   const { onRequest } = await import("../functions/healthz.js");
   const statements = [];
   const recording = { prepare(sql) { statements.push(sql); return { async first() { return { healthy: 1 }; } }; } };
@@ -136,5 +117,5 @@ test("an unauthenticated probe never authenticates or mutates storage", async ()
     env: { DB: recording, AGENT_TOKENS: JSON.stringify({ t: writer }) },
   });
   assert.equal(response.status, 200);
-  assert.deepEqual(statements, ["SELECT 1 AS healthy"]);
+  assert.deepEqual(statements, []);
 });

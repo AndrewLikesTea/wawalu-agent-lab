@@ -112,30 +112,16 @@ test("deployment adapter reports a consistent storage configuration error", asyn
   });
 });
 
-test("root healthz probes the D1 binding and fails closed when it is absent", async () => {
+test("root healthz is independent of the posts binding", async () => {
   const { onRequest } = await import("../functions/healthz.js");
   const request = new Request("https://test.invalid/healthz", { headers: { "cf-ray": "health-edge" } });
-  const missing = await onRequest({ request, env: {} });
-  assert.equal(missing.status, 503);
-  assert.equal(missing.headers.get("cache-control"), "no-store");
-  assert.equal((await missing.json()).error.request_id, "health-edge");
-
-  const db = { prepare(sql) { assert.match(sql, /SELECT 1/); return { async first() { return { healthy: 1 }; } }; } };
-  const healthy = await onRequest({ request, env: { DB: db } });
+  const healthy = await onRequest({ request, env: {} });
   assert.equal(healthy.status, 200);
-  // No AGENT_TOKENS secret in this env, so the auth binding reports unconfigured
-  // without failing the probe. See tests/bindings.test.js.
-  // The probe also reports whether the running build is the build the release
-  // log says shipped; tests/release-build-match.test.js owns that verdict, whose
-  // value depends on the checked-out commit. Assert the liveness contract on the
-  // fields it is actually made of, so that verdict cannot make this test flap.
   const body = await healthy.json();
-  assert.equal(body.status, "ok");
-  assert.equal(body.storage, "available");
-  assert.equal(body.auth, "unconfigured");
-  assert.ok(["matched", "mismatched", "unknown"].includes(body.verdict), "exactly one top-level verdict");
+  assert.equal(body.status, "healthy");
+  assert.match(body.version, /^(?:[0-9a-f]{40}|unstamped)$/);
 
-  const rejected = await onRequest({ request: new Request("https://test.invalid/healthz", { method: "POST" }), env: { DB: db } });
+  const rejected = await onRequest({ request: new Request("https://test.invalid/healthz", { method: "POST" }), env: {} });
   assert.equal(rejected.status, 405);
   assert.equal(rejected.headers.get("allow"), "GET");
 });

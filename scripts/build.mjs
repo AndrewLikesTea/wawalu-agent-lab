@@ -1,8 +1,9 @@
-import { cp, mkdir, mkdtemp, rename, rm } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, rename, rm, writeFile } from "node:fs/promises";
 import { basename, resolve } from "node:path";
 import { createManifest, verifyArtifact } from "./verify-build.mjs";
 import { seedFirstScreen } from "./seed-first-screen.mjs";
 import { writeBuildStamp } from "./write-build-stamp.mjs";
+import { healthContract } from "../src/health-contract.js";
 
 const root = resolve(import.meta.dirname, "..");
 const output = resolve(root, "dist");
@@ -21,6 +22,13 @@ try {
   console.log(`stamped build ${stamp.commitSha ?? "unknown (no git metadata)"} at ${stamp.builtAt ?? "an unrecorded time"}`);
   await mkdir(staging, { recursive: true });
   await cp(resolve(root, "src"), staging, { recursive: true });
+  // Pages Functions owns this route in production. Keep a JSON static fallback
+  // in the artifact as well, generated from the identical stamped contract, so
+  // a routing/configuration regression is still a useful healthy response.
+  await writeFile(
+    resolve(staging, "healthz"),
+    `${JSON.stringify(healthContract(stamp))}\n`,
+  );
   // Ship the reviewed schemas, compatibility metadata, and synthetic fixtures.
   // No integration credential, transport, or live customer/provider data exists.
   for (const integration of ["hris-org", "provider-usage-billing", "query-sample",
