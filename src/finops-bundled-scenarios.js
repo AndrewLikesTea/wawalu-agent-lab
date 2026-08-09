@@ -2,6 +2,7 @@
 // choose one stable scenario id; provider shape, sanitized records and the
 // canonical projection are private registry facts, never request fields.
 import { analysisReadinessForDataset } from "./finops-analysis-readiness.js";
+import { ORG_SIZE_BAND, PEER_INDUSTRY } from "./peer-cost-cohorts.js";
 
 export const BUNDLED_SCENARIO_CONTRACT = "finops-bundled-scenario/1.0.0";
 export const BUNDLED_SCENARIO_ERROR = Object.freeze({
@@ -22,6 +23,11 @@ const scenario = ({ id, label, providerId, format, department, spendUsd, queries
     provenance: Object.freeze({
       label: `Bundled sanitized ${providerId} fixture`,
       source: `${format} provider-export-shaped records; invented values; no customer or HRIS data`,
+    }),
+    syntheticPeerComparison: Object.freeze({
+      metricId: "cost_per_successful_task", sizeBand: ORG_SIZE_BAND.enterprise,
+      industry: PEER_INDUSTRY.saas, cohortSize: 42,
+      snapshotDate: "2026-06-30", decisionDate: "2026-07-31",
     }),
     departments: Object.freeze([Object.freeze({ name: department, spendUsd, queries })]),
     evidence: Object.freeze([Object.freeze({ sampleId: evidenceId, category: "Over-provisioned" })]),

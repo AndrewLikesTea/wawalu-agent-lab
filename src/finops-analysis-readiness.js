@@ -15,6 +15,7 @@
 // readiness benchmark that answers the same way for a dataset it never read is
 // not a benchmark.
 import { bundledFirstAction } from "./finops-bundled-next-step.js";
+import { evaluatePeerCostBenchmarkFit } from "./peer-cost-benchmark-fit.js";
 
 export const READINESS_MODEL_VERSION = "finops-analysis-readiness/2.0.0";
 
@@ -111,6 +112,8 @@ export function analysisReadinessForDataset(dataset) {
   const sufficient = held.filter((item) => item.sufficient);
   return Object.freeze({
     version: READINESS_MODEL_VERSION, level, score, confidence, categories: held,
+    benchmarkFit: dataset?.syntheticPeerComparison
+      ? evaluatePeerCostBenchmarkFit(dataset.syntheticPeerComparison) : null,
     currentEvidence: `${score.numerator} of ${score.denominator} required categories are`
       + ` sufficient: ${sufficient.map((item) => item.label).join("; ") || "none"}.`
       + " These are invented provider-export-shaped scenarios, not your data.",

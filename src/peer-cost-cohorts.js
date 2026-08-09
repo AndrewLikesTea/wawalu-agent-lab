@@ -165,3 +165,42 @@ export const PEER_COST_PROVENANCE = Object.freeze({
   /** The snapshot travels with the rubric it was built for. See above. */
   rubricVersion: PEER_COST_RUBRIC_VERSION,
 });
+
+/**
+ * Complete planning-suitability policy for the synthetic cost comparison.
+ * Consumers may replace this object in tests, but must not supply an unstated
+ * fallback: the policy is the sole source of cohort, freshness and confidence
+ * decisions.
+ */
+export const PEER_COST_BENCHMARK_SCOPE = Object.freeze({
+  version: "peer-cost-benchmark-scope/1.0.0",
+  decisionQuestion: "Is this synthetic peer comparison suitable for setting a planning target for cost per successful task?",
+  metric: Object.freeze({
+    id: "cost_per_successful_task",
+    unit: "USD per successful task",
+    numerator: "Sum of AI spend attributed in USD to the organization during the comparison window, including spend from successful, failed, and abandoned tasks.",
+    denominator: "Count of tasks in that same window whose terminal outcome is exactly success; failed, abandoned, queued, running, and unknown outcomes do not count.",
+    window: "Use one identical half-open UTC interval [start, end) for spend attribution and terminal outcomes.",
+    calculation: "numerator USD divided by denominator; undefined when the denominator is zero; compute at full precision and round only display to two decimal places.",
+    direction: "Lower is better.",
+  }),
+  permittedCohorts: Object.freeze({
+    sizeBands: Object.freeze(Object.values(ORG_SIZE_BAND)),
+    industries: Object.freeze(Object.values(PEER_INDUSTRY)),
+    matchRule: "Declared size band and declared industry must each exactly match one permitted value; neither may be inferred from spend, provider, or employee records.",
+  }),
+  minimumCohortSize: 30,
+  freshness: Object.freeze({
+    maximumAgeDays: 90,
+    rule: "Whole UTC days from snapshot date through decision date; age must be from 0 through 90 inclusive.",
+  }),
+  syntheticData: Object.freeze({
+    privacy: "Cohorts are synthetic, privacy-preserving reference data authored in this repository. They use no customer, provider, or HRIS data and imply no access to those sources.",
+    confidenceRules: Object.freeze([
+      Object.freeze({ id: "strong_eligible", states: Object.freeze(["eligible"]), minimumCohortSize: 40, maximumAgeDays: 45, confidence: "high" }),
+      Object.freeze({ id: "eligible_floor", states: Object.freeze(["eligible"]), minimumCohortSize: 30, maximumAgeDays: 90, confidence: "moderate" }),
+      Object.freeze({ id: "not_suitable", states: Object.freeze(["insufficient_cohort", "stale_cohort", "incomparable_scenario"]), confidence: "none" }),
+    ]),
+    limitation: "Suitable means usable as a directional planning reference only; it does not establish a market fact, negotiated rate, realized saving, or performance target for any real organization.",
+  }),
+});

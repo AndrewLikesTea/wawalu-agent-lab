@@ -19,6 +19,15 @@ export function renderAnalysisReadiness(doc, model) {
   set(doc, "analysis-readiness-reason", action?.reason ?? "No eligible bundled action.");
   set(doc, "analysis-readiness-provenance", action?.provenance ?? "Bundled synthetic fixture.");
   set(doc, "analysis-readiness-confidence", `Evidence confidence ${model.confidence.value}/100. ${model.confidence.rule}`);
+  const fit = model.benchmarkFit;
+  if (fit) {
+    const fitRegion = doc.getElementById("analysis-readiness-benchmark-fit");
+    if (fitRegion) fitRegion.dataset.state = fit.state;
+    set(doc, "analysis-readiness-benchmark-fit-answer", fit.answer);
+    set(doc, "analysis-readiness-benchmark-fit-confidence", `Confidence: ${fit.confidence.level} (${fit.confidence.ruleId}).`);
+    set(doc, "analysis-readiness-benchmark-fit-method", `${fit.metric.calculation} ${fit.methodology}`);
+    set(doc, "analysis-readiness-benchmark-fit-provenance", `${fit.provenance} ${fit.limitation}`);
+  }
   const list = doc.getElementById("analysis-readiness-upgrades");
   if (list) list.replaceChildren(...model.upgrades.map((upgrade) => {
     const item = doc.createElement("li");

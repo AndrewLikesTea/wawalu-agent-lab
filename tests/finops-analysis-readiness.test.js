@@ -9,6 +9,7 @@ import {
 } from "../src/finops-analysis-readiness.js";
 import { bundledFirstAction } from "../src/finops-bundled-next-step.js";
 import { renderAnalysisReadiness } from "../src/finops-analysis-readiness-view.js";
+import { analysisReadiness } from "../src/finops-bundled-scenarios.js";
 
 const PAGE = new URL("../src/evolution.html", import.meta.url);
 const DATA = JSON.parse(await readFile(
@@ -86,6 +87,23 @@ test("the active analysis surface answers readiness and makes the one action ins
   }
   // Counts, not identity: asserting an element is null makes a failing run hang
   // on inspecting the parsed page instead of reporting the regression.
+  assert.equal(region.querySelectorAll("input").length, 0);
+  assert.equal(region.querySelectorAll("button").length, 0);
+});
+
+test("the existing analysis entry renders benchmark suitability and its privacy boundary", async () => {
+  const document = parseHtml(await readFile(PAGE, "utf8"));
+  const entry = analysisReadiness({ scenarioId: "aws-bedrock-cur-v1" });
+  assert.equal(entry.ok, true);
+  renderAnalysisReadiness(document, entry.readiness);
+  const region = document.getElementById("analysis-readiness-benchmark-fit");
+  assert.equal(region.dataset.state, "eligible");
+  assert.match(textOf(document.getElementById("analysis-readiness-benchmark-fit-answer")), /^Yes/);
+  assert.match(textOf(document.getElementById("analysis-readiness-benchmark-fit-confidence")), /high \(strong_eligible\)/);
+  assert.match(textOf(document.getElementById("analysis-readiness-benchmark-fit-method")), /half-open UTC interval/);
+  const provenance = textOf(document.getElementById("analysis-readiness-benchmark-fit-provenance"));
+  assert.match(provenance, /synthetic, privacy-preserving/i);
+  assert.match(provenance, /no customer, provider, or HRIS data/i);
   assert.equal(region.querySelectorAll("input").length, 0);
   assert.equal(region.querySelectorAll("button").length, 0);
 });
