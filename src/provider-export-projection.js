@@ -203,11 +203,15 @@ export function projectModelOverspendFinding(document) {
   const finding = buildModelOverspendFinding({ columns: MODEL_OVERSPEND_SOURCE_COLUMNS, rows });
   const missingModels = records.filter((row) => readUsageDetail(row).model_raw === null).length;
   const missingRequests = records.filter((row) => readUsageDetail(row).request_count === null).length;
+  const insufficientObservedCost = records.length > 0
+    && records.every((row) => row.cost.amount_minor === 0);
   const withholding = [
     missingModels ? Object.freeze({ code: "model_identifier_missing", count: missingModels,
       field: MODEL_OVERSPEND_SOURCE_COLUMNS.model }) : null,
     missingRequests ? Object.freeze({ code: "request_count_missing", count: missingRequests,
       field: MODEL_OVERSPEND_SOURCE_COLUMNS.requests }) : null,
+    insufficientObservedCost ? Object.freeze({ code: "insufficient_observed_cost",
+      count: records.length, field: MODEL_OVERSPEND_SOURCE_COLUMNS.spend }) : null,
   ].filter(Boolean);
   return Object.freeze({ ...base, finding, confidence: finding.confidence.level,
     provenance: Object.freeze({ source: "selected_provider_export", sourceRows: document.records.length,

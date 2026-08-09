@@ -92,7 +92,9 @@ import { mountFinancePortfolio, renderPortfolioUnavailable } from "/finance-port
 import {
   renderFinopsEvaluationPanel, renderFinopsEvaluationUnavailable,
 } from "/finops-evaluation-view.js";
-import { localFinopsMeetingSummary, normalizeLocalFinopsHistory } from "/local-finops.js";
+import {
+  localFinopsMeetingSummary, normalizeLocalFinopsHistory, parseLocalFinopsFile,
+} from "/local-finops.js";
 // The portfolio-primary answer. It reads the intake plan the analysis already
 // carries, so it cannot disagree with the coverage list painted from the same
 // object, and it hands the page back to the single-provider brief when no
@@ -605,6 +607,7 @@ import { trustVerdict } from "/finops-trust-verdict.js";
 import {
   clearModelOverspendFinding, renderModelOverspendFinding,
 } from "/model-overspend-finding-view.js";
+import { ELIGIBLE_MODEL_OVERSPEND_PROVIDER_FIXTURE } from "/model-overspend-provider-fixtures.js";
 // The one thing this page writes down, and it is not analysis state: the
 // display labels a leader gives their own opaque org-unit identifiers. The
 // store is reached through that module, so this file persists nothing itself.
@@ -626,6 +629,11 @@ const DATA_URL = "/evolution-demo-data.json";
 const EVALUATION_URL = "/finops-evaluation-fixtures.json";
 const AGREEMENT_CORPUS_URL = "/finops-classifier-agreement-corpus.json";
 const MODEL_OVERSPEND_URL = "/model-overspend-finding-fixture.json";
+// Begin loading the already-shipped projection chunk with the page, but keep it
+// outside the initial static graph. By the time the example fixture resolves,
+// this promise is normally settled; more importantly, every caller awaits the
+// same work instead of starting a late import after a user action.
+const providerProjectionModule = import("/provider-export-projection.js");
 // Repainting the bundled headline and mix, from the last analysis that loaded.
 // "Return to example data" has to put the example figures back into the same
 // slots a graded sample borrowed, and re-running the two renderers is the only
@@ -2431,7 +2439,12 @@ function mountLocalFinopsImport() {
           cache: "no-store", headers: { accept: "application/json" },
         });
         if (!response.ok) throw new Error(`Overspend fixture returned ${response.status}`);
-        overspendFinding = (await response.json()).finding;
+        const payload = await response.json();
+        const text = JSON.stringify(payload.provider_export);
+        const { projectModelOverspendFinding } = await providerProjectionModule;
+        const parsed = parseLocalFinopsFile(text,
+          ELIGIBLE_MODEL_OVERSPEND_PROVIDER_FIXTURE.url, "application/json");
+        overspendFinding = projectModelOverspendFinding(parsed.document).finding;
       }
       return renderModelOverspendFinding(document, overspendFinding, { storage: labelStorage() });
     } catch {
