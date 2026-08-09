@@ -22,6 +22,11 @@ test("renders one clearly disclosed synthetic proof connecting decision, owner, 
   const proof = page.document.querySelector("#shiplog-proof");
   const copy = page.document.querySelector("#shiplog-proof-copy");
   assert.match(textOf(proof), /Synthetic example · not customer data/);
+  // The panel says in a sentence what the badge says in a label: the records
+  // are invented, and the two links are what a reader follows next.
+  assert.match(textOf(proof), /This example is invented: no such decision or release shipped\./);
+  assert.match(textOf(proof), /Open each link below to follow the trail/);
+  assert.doesNotMatch(textOf(proof), /[Rr]epresentative/);
   assert.match(textOf(proof), /Adopt a durable job queue/);
   assert.equal(textOf(proof.querySelectorAll("dd")[1]), "Kai");
   assert.equal(textOf(proof.querySelectorAll("dd")[2]), "accepted");
