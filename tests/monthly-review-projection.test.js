@@ -34,6 +34,76 @@ const period = (month, recoverableScenarioMinor, overrides = {}) => Object.freez
 const input = (latest, periods = [period("2026-05", 200_000), period("2026-06", 200_000)]) => ({
   schemaVersion: MONTHLY_REVIEW_INPUT_VERSION,
   retainedPeriods: [...periods, latest],
+  commitments: [],
+});
+
+const commitment = (overrides = {}) => ({
+  commitmentId: "commit-may",
+  claim: { period: "2026-05", monthlySavingsMinor: 20_000 },
+  confidence: { percent: 90 },
+  recommendedAction: { departmentId: "syn-support" },
+  periodId: "user:2026-05",
+  recordedAt: "2026-05-31T12:00:00.000Z",
+  ...overrides,
+});
+
+const comparisonInput = ({ baselineSpend = 1_000_000, observedSpend = 970_000,
+  commitments = [commitment()], periods } = {}) => ({
+  schemaVersion: MONTHLY_REVIEW_INPUT_VERSION,
+  retainedPeriods: periods ?? [
+    period("2026-05", 200_000, { analyzedSpendMinor: baselineSpend }),
+    period("2026-06", 180_000, { analyzedSpendMinor: observedSpend }),
+    period("2026-07", 150_000),
+  ],
+  commitments,
+});
+
+test("retained periods and commitment produce a scored monthly savings comparison", () => {
+  const review = buildMonthlyReviewProjection(comparisonInput());
+  assert.equal(review.comparison.status, "available");
+  assert.deepEqual(review.comparison.periods, {
+    baseline: { period: "2026-05", label: "May 2026" },
+    observed: { period: "2026-06", label: "June 2026" },
+  });
+  assert.deepEqual(review.comparison.savings,
+    { projectedUsd: 200, realizedUsd: 300, varianceUsd: 100 });
+  assert.equal(review.comparison.priorAction.status, "successful");
+  assert.equal(review.comparison.provenance.scoringPolicy, "action-outcome/1.0.0");
+});
+
+test("a missed retained commitment is explicit and becomes the one next action", () => {
+  const review = buildMonthlyReviewProjection(comparisonInput({ observedSpend: 995_000 }));
+  assert.equal(review.comparison.priorAction.status, "under_target");
+  assert.deepEqual(review.comparison.savings,
+    { projectedUsd: 200, realizedUsd: 50, varianceUsd: -150 });
+  assert.equal(review.nextAction.id, "correct_missed_commitment");
+  assert.equal(review.nextAction.rank, 1);
+});
+
+test("a missing retained baseline withholds every savings figure", () => {
+  const review = buildMonthlyReviewProjection(comparisonInput({
+    periods: [period("2026-04", 210_000), period("2026-06", 180_000), period("2026-07", 150_000)],
+  }));
+  assert.equal(review.comparison.status, "unavailable");
+  assert.equal(review.comparison.reason, "baseline_period_absent");
+  assert.deepEqual(review.comparison.savings,
+    { projectedUsd: null, realizedUsd: null, varianceUsd: null });
+  assert.equal(review.nextAction.id, "complete_comparison_evidence");
+});
+
+test("comparison evidence deterministically outranks a conflicting trend action", () => {
+  const args = comparisonInput({
+    periods: [period("2026-04", 180_000), period("2026-06", 200_000), period("2026-07", 260_000)],
+    commitments: [
+      commitment({ commitmentId: "z-last", recordedAt: "2026-06-01T00:00:00.000Z" }),
+      commitment({ commitmentId: "a-first", recordedAt: "2026-06-01T00:00:00.000Z" }),
+    ],
+  });
+  const first = buildMonthlyReviewProjection(args);
+  const second = buildMonthlyReviewProjection({ ...args, commitments: [...args.commitments].reverse() });
+  assert.equal(first.comparison.provenance.commitmentId, "a-first");
+  assert.equal(first.nextAction.id, "complete_comparison_evidence");
+  assert.deepEqual(second, first);
 });
 
 test("material improvement projects prior-commitment verification and one ranked action", () => {
@@ -92,7 +162,7 @@ test("the shipped evolution surface renders the validated projection contract", 
   assert.equal(root.dataset.state, "improving");
   assert.match(textOf(root), /Current recoverable share · 15\.0%\. Baseline · 20\.0%/);
   assert.match(textOf(root), /Department evidencesyn-support/);
-  assert.match(textOf(root), /Prior commitmentcandidate_supported/);
+  assert.match(textOf(root), /Prior commitmentunavailable/);
   assert.match(textOf(root), /Next action · priority 1/);
   assert.match(textOf(root), new RegExp(MONTHLY_REVIEW_VERSION.replaceAll(".", "\\.")));
   assert.equal(root.querySelectorAll(".monthly-review-projection-action").length, 1);
@@ -137,8 +207,8 @@ test("evidence disclosure is named, keyboard operable, stateful, and announced",
   const facts = details.querySelector("dl.monthly-review-evidence");
   assert.ok(facts, "the deferred details are not a description list");
   assert.deepEqual([...facts.querySelectorAll("dt")].map(textOf),
-    ["Trend", "Department evidence", "Prior commitment", "Confidence", "Source", "Periods"]);
-  assert.equal(facts.querySelectorAll("dd").length, 6);
+    ["Compared periods", "Savings outcome", "Trend", "Department evidence", "Prior commitment", "Confidence", "Source", "Periods"]);
+  assert.equal(facts.querySelectorAll("dd").length, 8);
   for (const orphan of details.querySelectorAll("dt")) {
     assert.equal(orphan.closest("dl"), facts, "a term ships outside the description list");
   }

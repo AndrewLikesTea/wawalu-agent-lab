@@ -1,6 +1,7 @@
 import { validateMonthlyReviewProjection } from "./monthly-review-projection.js";
 
 const percent = (ppm) => Number.isInteger(ppm) ? `${(ppm / 10_000).toFixed(1)}%` : "unavailable";
+const money = (value) => Number.isFinite(value) ? `$${value.toLocaleString("en-US")}` : "Unavailable";
 const text = (doc, tag, className, value) => {
   const node = doc.createElement(tag);
   if (className) node.className = className;
@@ -146,11 +147,15 @@ export function renderMonthlyReviewProjection(doc, review) {
   // whole set, so it sits after the list rather than inside it.
   const facts = text(doc, "dl", "monthly-review-evidence", "");
   facts.append(
+    labelled(doc, "Compared periods", `${review.comparison.periods.baseline.label ?? "Unavailable"} → ${review.comparison.periods.observed.label ?? "Unavailable"}`),
+    labelled(doc, "Savings outcome", review.comparison.status === "available"
+      ? `Projected ${money(review.comparison.savings.projectedUsd)}. Realized ${money(review.comparison.savings.realizedUsd)}. Variance ${money(review.comparison.savings.varianceUsd)}.`
+      : `Unavailable: ${review.comparison.reason}.`),
     labelled(doc, "Trend", `${state.label}. Change ${direction} ${percent(Math.abs(change))}.`),
     labelled(doc, "Department evidence", review.strongestDepartmentContributor
       ? `${review.strongestDepartmentContributor.departmentId}. ${review.strongestDepartmentContributor.basis}`
       : "No department contributor available."),
-    labelled(doc, "Prior commitment", `${review.priorCommitmentVerification.status}. ${review.priorCommitmentVerification.basis}`),
+    labelled(doc, "Prior commitment", `${review.comparison.priorAction.status}. ${review.priorCommitmentVerification.basis}`),
     labelled(doc, "Confidence", `${review.confidence.level}. ${review.confidence.basis}`),
     labelled(doc, "Source", `${review.schemaVersion} · ${review.inputVersion}`),
     labelled(doc, "Periods", review.provenance.periodIds.join(", ") || "None"),
