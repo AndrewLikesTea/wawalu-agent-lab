@@ -59,6 +59,7 @@ import {
   COST_BAND, COST_BAND_DIRECTION, COST_METRIC, COST_POSITION_WITHHELD, PEER_COST_COHORTS,
   PEER_COST_PROVENANCE, PEER_COST_SNAPSHOT_ID, PEER_RANK_LABEL, displayCostPerSuccessfulTask,
 } from "./peer-cost-position.js";
+import { evaluatePeerCostBenchmarkFit } from "./peer-cost-benchmark-scope.js";
 
 export { PEER_RANK_LABEL } from "./peer-cost-position.js";
 import {
@@ -104,6 +105,7 @@ export const STAND_IDS = Object.freeze({
   claim: "finops-stand-claim",
   positionValue: "finops-stand-position-value",
   positionBasis: "finops-stand-position-basis",
+  benchmarkFit: "finops-stand-benchmark-fit",
   recoverableValue: "finops-stand-recoverable-value",
   recoverableBasis: "finops-stand-recoverable-basis",
   /** The graded floor beside it: the same figure over only the scored spend. */
@@ -1224,6 +1226,14 @@ export function composeStandHeadline({
   const action = actionSlot(destinations);
   const period = periodLabel(analysis);
   const placed = positionSlot(position, period);
+  const analysisWindowEnd = / to (\d{4}-\d{2}-\d{2})$/.exec(String(analysis?.period ?? ""))?.[1];
+  const benchmarkFit = evaluatePeerCostBenchmarkFit({
+    metricId: position?.metric?.id,
+    sizeBand: position?.declaredSizeBand,
+    industry: position?.declaredIndustry,
+    cohort: position?.cohort,
+    asOfDate: analysisWindowEnd ?? PEER_COST_SNAPSHOT_ID,
+  });
   const withheld = placed ? null : withheldFrom(position, eligibility, source);
   // The headline claim is RESOLVED, not assembled: every signal states itself as
   // a candidate and the ranked winner's claim is what this region asserts.
@@ -1270,6 +1280,7 @@ export function composeStandHeadline({
       available: false, label: PEER_RANK_LABEL, value: STAND_PENDING.position, band: null,
       basis: withheld?.missing ?? STAND_PENDING.answer,
     }),
+    benchmarkFit,
     recoverable,
     /**
      * The graded floor beside it: the amount, the scored spend it is taken over,

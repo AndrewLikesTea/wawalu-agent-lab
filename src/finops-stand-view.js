@@ -47,6 +47,7 @@ import { GLANCE_IDS } from "./finops-glance-spec.js";
 import {
   GLANCE_CHART_FALLBACK, renderGlanceFigureChart,
 } from "./glance-figure-charts.js";
+import { benchmarkFitAnswer } from "./peer-cost-benchmark-scope.js";
 
 /** The state chip, in the same two channels the rest of this page uses. */
 export const STAND_DISCLOSURE_STATE = Object.freeze({
@@ -774,6 +775,12 @@ export function applyStandHeadline(doc, headline, { announce = true } = {}) {
   const position = setText(doc, STAND_IDS.positionValue, headline.position?.value ?? "");
   if (position) position.dataset.available = headline.position?.available ? "true" : "false";
   setText(doc, STAND_IDS.positionBasis, headline.position?.basis ?? "");
+  const benchmarkFit = setText(doc, STAND_IDS.benchmarkFit,
+    headline.benchmarkFit ? benchmarkFitAnswer(headline.benchmarkFit) : "");
+  if (benchmarkFit) {
+    benchmarkFit.dataset.state = headline.benchmarkFit?.state ?? "incomparable";
+    benchmarkFit.dataset.confidence = headline.benchmarkFit?.confidence ?? "none";
+  }
 
   const recoverable = setText(doc, STAND_IDS.recoverableValue, headline.recoverable?.value ?? "");
   if (recoverable) recoverable.dataset.available = headline.recoverable?.available ? "true" : "false";

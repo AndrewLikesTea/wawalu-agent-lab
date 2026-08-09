@@ -293,6 +293,8 @@ function cohortSummary(cohort) {
     industryLabel: PEER_INDUSTRY_LABEL[cohort.industry],
     p25: cohort.p25,
     p75: cohort.p75,
+    memberCount: cohort.memberCount,
+    rubricVersion: cohort.rubricVersion,
     snapshotId: cohort.snapshotId,
   });
 }

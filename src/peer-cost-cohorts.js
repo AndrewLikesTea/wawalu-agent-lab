@@ -66,6 +66,9 @@ export const PEER_INDUSTRY_LABEL = Object.freeze({
   [PEER_INDUSTRY.financialServices]: "Financial services",
 });
 
+/** Bump whenever a boundary or the cost metric definition changes. */
+export const PEER_COST_RUBRIC_VERSION = "finops-cost-rubric/v2";
+
 /**
  * The rule every published record has to satisfy, as a function rather than as
  * a module-level `if`, so a test can hand it a deliberately broken record and
@@ -115,7 +118,7 @@ export function assertPublishableCostCohorts(records) {
   return records;
 }
 
-const cohort = (cohortId, sizeBand, industry, p25, p75) => Object.freeze({
+const cohort = (cohortId, sizeBand, industry, p25, p75, memberCount = 40) => Object.freeze({
   cohortId,
   /** The eligibility predicate, as data: both attributes, both exact matches. */
   sizeBand,
@@ -124,7 +127,10 @@ const cohort = (cohortId, sizeBand, industry, p25, p75) => Object.freeze({
   /** USD per successful task. Lower is better, so p25 is the cheap boundary. */
   p25,
   p75,
+  /** Invented distribution size; used only to gate synthetic benchmark fitness. */
+  memberCount,
   snapshotId: PEER_COST_SNAPSHOT_ID,
+  rubricVersion: PEER_COST_RUBRIC_VERSION,
 });
 
 /**
@@ -153,8 +159,6 @@ export const PEER_COST_COHORTS = Object.freeze(assertPublishableCostCohorts([
  * rubric to keep a trend unbroken; `ranking-reproducibility.js` refuses it.
  * Bump this whenever a boundary number above or the metric under it changes.
  */
-export const PEER_COST_RUBRIC_VERSION = "finops-cost-rubric/v2";
-
 /** What the cohorts are, stated once so no consuming surface restates it. */
 export const PEER_COST_PROVENANCE = Object.freeze({
   label: "Published synthetic cost cohorts",
