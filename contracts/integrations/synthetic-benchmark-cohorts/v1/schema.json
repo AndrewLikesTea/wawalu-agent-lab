@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "/contracts/integrations/synthetic-benchmark-cohorts/v1/schema.json",
+  "title": "Local synthetic benchmark cohort snapshot",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "kind", "snapshot", "cohorts"],
+  "properties": {
+    "schemaVersion": {"const": "1.0.0"},
+    "kind": {"const": "wawalu.integration.synthetic-benchmark-cohorts"},
+    "snapshot": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "generatedAt", "source", "completeness"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^synthetic-cohorts-[0-9]{4}-(0[1-9]|1[0-2])$"},
+        "generatedAt": {"type": "string", "format": "date-time", "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{3})?Z$"},
+        "source": {"const": "local-synthetic"},
+        "completeness": {"const": "complete"}
+      }
+    },
+    "cohorts": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/cohort"}}
+  },
+  "$defs": {
+    "cohort": {
+      "type": "object", "additionalProperties": false,
+      "required": ["cohortKey", "organizationSize", "industry", "memberCount", "monthlySpendUsd"],
+      "properties": {
+        "cohortKey": {"type": "string", "pattern": "^cohort-[a-z0-9-]+$"},
+        "organizationSize": {"enum": ["small", "mid", "enterprise"]},
+        "industry": {"enum": ["software", "financial-services", "healthcare"]},
+        "memberCount": {"type": "integer", "minimum": 20},
+        "monthlySpendUsd": {
+          "type": "object", "additionalProperties": false,
+          "required": ["p25", "p50", "p75"],
+          "properties": {"p25": {"type": "number", "minimum": 0}, "p50": {"type": "number", "minimum": 0}, "p75": {"type": "number", "minimum": 0}}
+        }
+      }
+    }
+  }
+}
