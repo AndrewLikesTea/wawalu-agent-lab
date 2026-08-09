@@ -290,7 +290,7 @@ function benchmarkRegion(status, session, notices) {
       ...region,
       facts: Object.freeze(facts),
       noteLabel: "Not scored",
-      note: "No composite, no letter, and no partial grade: this workflow returns a state or an answer, never half of one.",
+      note: "No composite, no letter, and no partial grade — you get the reason it was not graded and what to do next.",
     });
   }
   const { benchmark, basis } = session.result;

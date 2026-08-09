@@ -138,8 +138,11 @@ function actionBlock(doc, region, level) {
   }
   if (region.worth) section.append(element(doc, "p", "coaching-result-worth", region.worth));
   if (region.control) {
+    // The control is named by what a reader sees on the page, not by its id.
+    // The id stays on the node, where a consumer can still read it.
     const target = element(doc, "p", "coaching-result-action-control",
-      `Use: ${region.control}`);
+      "Do this in the prompt field, then grade again.");
+    target.dataset.control = region.control;
     section.append(target);
   }
   return section;
