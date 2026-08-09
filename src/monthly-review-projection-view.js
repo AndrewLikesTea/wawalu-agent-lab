@@ -16,6 +16,22 @@ const labelled = (doc, label, value, className = "monthly-review-fact") => {
   return item;
 };
 
+const contextLink = (doc, href, value) => {
+  const link = text(doc, "a", "monthly-review-context-link", value);
+  link.href = href;
+  return link;
+};
+
+const appendWorkflowLinks = (doc, root) => {
+  const links = text(doc, "nav", "monthly-review-context-links", "");
+  links.setAttribute("aria-label", "Continue monthly savings workflow");
+  links.append(
+    contextLink(doc, "/savings-commitment.html", "Review savings commitment"),
+    contextLink(doc, "/savings-action-center.html", "Open savings action center"),
+  );
+  root.append(links);
+};
+
 const STATE_COPY = Object.freeze({
   improving: { mark: "▼", label: "Improving", finding: "Recoverable share fell against the retained baseline." },
   worsening: { mark: "▲", label: "Worsening", finding: "Recoverable share rose against the retained baseline." },
@@ -33,6 +49,12 @@ function renderState(doc, root, state, title, message, action) {
     text(doc, "p", "monthly-review-state-label", message),
   );
   if (action) root.append(text(doc, "p", "monthly-review-state-action", action));
+  // Every settled state keeps the commitment and action-centre workflow reachable, so
+  // a withheld recommendation never strands a reader. Deriving that from the state
+  // rather than a flag per call site means the next state added inherits it. Loading
+  // is the exception: this root is rebuilt with `replaceChildren` on every sync, and a
+  // link offered mid-build takes keyboard focus with it when the settled state lands.
+  if (state !== "loading") appendWorkflowLinks(doc, root);
   return root;
 }
 
@@ -112,18 +134,31 @@ export function renderMonthlyReviewProjection(doc, review) {
 
   const benchmark = text(doc, "section", "monthly-review-benchmark", "");
   benchmark.setAttribute("aria-labelledby", "monthly-review-benchmark-title");
-  const benchmarkTitle = text(doc, "h3", undefined, "Headline finding");
+  const benchmarkTitle = text(doc, "h3", undefined, "Evidence-backed finding");
   benchmarkTitle.id = "monthly-review-benchmark-title";
   const change = review.materialBenchmark.changeSharePpm;
   const direction = change < 0 ? "down" : change > 0 ? "up" : "unchanged";
+  // `provenance.dataset` is the one fact in this sentence the output validator does not
+  // require, and this render is the first statement of the workspace sync, so a shape
+  // drift would otherwise print "undefined" to a CTO and take four later panels with it.
+  const evidence = text(doc, "p", "monthly-review-finding-evidence",
+    `${state.label} trend · prior commitment ${review.priorCommitmentVerification.status.replaceAll("_", " ")}`
+    + ` · ${review.confidence.level} confidence · ${review.provenance.dataset ?? "unattributed"} dataset.`);
+  const savings = text(doc, "dl", "monthly-review-savings", "");
+  savings.append(
+    labelled(doc, "Realized savings", money(review.savingsClaim.realizedSavingsMinor), "monthly-review-savings-metric"),
+    labelled(doc, "Projected savings", money(review.savingsClaim.projectedSavingsMinor), "monthly-review-savings-metric"),
+  );
   benchmark.append(
     benchmarkTitle,
     text(doc, "p", "monthly-review-finding", state.finding),
+    evidence,
     text(doc, "p", "monthly-review-value", percent(review.materialBenchmark.currentSharePpm)),
     text(doc, "p", "monthly-review-comparison",
       `Current recoverable share · ${percent(review.materialBenchmark.currentSharePpm)}. Baseline · ${percent(review.materialBenchmark.baselineSharePpm)}. Change · ${direction} ${percent(Math.abs(change))}.`),
+    savings,
     text(doc, "p", "monthly-review-savings-claim",
-      `Savings outcome · ${review.savingsClaim.label.replaceAll("_", " ")}. Realized ${money(review.savingsClaim.realizedSavingsMinor)} versus projected ${money(review.savingsClaim.projectedSavingsMinor)}. Comparison confidence ${review.savingsClaim.confidence.score}/100 (${review.savingsClaim.confidence.band}).`),
+      `Savings outcome · ${review.savingsClaim.label.replaceAll("_", " ")} · comparison confidence ${review.savingsClaim.confidence.score}/100 (${review.savingsClaim.confidence.band}).`),
   );
 
   const action = text(doc, "section", "monthly-review-projection-action", "");
@@ -138,9 +173,10 @@ export function renderMonthlyReviewProjection(doc, review) {
     action.append(link);
     bindDepartmentRoundTrip(doc, link, heading);
   }
+  appendWorkflowLinks(doc, action);
 
   const details = text(doc, "details", "monthly-review-projection-provenance", "");
-  const summary = text(doc, "summary", undefined, "Trend, department, commitment, confidence, and provenance");
+  const summary = text(doc, "summary", undefined, "Period and calculation details");
   summary.setAttribute("aria-controls", "monthly-review-provenance-content");
   const content = text(doc, "div", "monthly-review-provenance-content", "");
   content.id = "monthly-review-provenance-content";

@@ -273,8 +273,14 @@
 .monthly-review-benchmark { border-top:1px solid var(--panel-border); padding-top:16px; }
 .monthly-review-benchmark h3,.monthly-review-projection-action h3 { margin:0 0 7px; color:var(--ink-muted); font:700 11px/1.4 ui-monospace,monospace; letter-spacing:.09em; text-transform:uppercase; }
 .monthly-review-finding { margin:0; font-size:17px; font-weight:650; }
+.monthly-review-finding-evidence { margin:7px 0 0; color:var(--ink-muted); font-size:13px; }
 .monthly-review-value { margin:8px 0 0; font:700 clamp(30px,6vw,44px)/1.05 system-ui,sans-serif; letter-spacing:-.035em; }
 .monthly-review-comparison { margin:7px 0 0; color:var(--ink-muted); font-size:13px; }
+.monthly-review-savings { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; max-width:620px; margin:18px 0 0; }
+.monthly-review-savings-metric { border:1px solid var(--panel-border); border-radius:10px; padding:14px; background:#fff; }
+.monthly-review-savings-metric dt { color:var(--ink-muted); font:700 10px/1.4 ui-monospace,monospace; letter-spacing:.08em; text-transform:uppercase; }
+.monthly-review-savings-metric dd { margin:5px 0 0; font:750 clamp(22px,4vw,32px)/1.1 system-ui,sans-serif; letter-spacing:-.025em; overflow-wrap:anywhere; }
+.monthly-review-savings-claim { margin:8px 0 0; color:var(--ink-muted); font-size:13px; }
 .monthly-review-projection-action { margin-top:20px; border-left:5px solid var(--import-accent); padding:15px 16px; background:#fff; }
 .monthly-review-action-statement { margin:0; font-size:17px; font-weight:700; }
 .monthly-review-disposition { margin:0 0 8px; color:#244c3c; font-weight:800; text-transform:uppercase; }
@@ -286,7 +292,9 @@
 .monthly-review-cycle-controls button[disabled] { opacity:.55; cursor:not-allowed; }
 .monthly-review-cycle-controls button:focus-visible,.monthly-review-cycle-choice input:focus-visible,.monthly-review-projection > button:focus-visible,#monthly-review-projection-title:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
 .monthly-review-department-link { display:inline-flex; min-height:44px; align-items:center; margin-top:12px; color:#1f70c1; font-weight:750; text-underline-offset:4px; }
-.monthly-review-department-link:focus-visible,.monthly-review-return:focus-visible,.monthly-review-projection-provenance summary:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.monthly-review-context-links { display:flex; flex-wrap:wrap; gap:4px 18px; margin-top:10px; }
+.monthly-review-context-link { display:inline-flex; min-height:44px; align-items:center; color:#1f70c1; font-weight:750; text-underline-offset:4px; }
+.monthly-review-department-link:focus-visible,.monthly-review-return:focus-visible,.monthly-review-context-link:focus-visible,.monthly-review-projection-provenance summary:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
 .monthly-review-return { display:inline-flex; min-height:44px; align-items:center; margin-bottom:16px; color:#1f70c1; font-weight:750; text-underline-offset:4px; }
 .monthly-review-evidence { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr)); gap:14px; margin:0; }
 .monthly-review-fact { min-width:0; border-top:1px solid var(--panel-border); padding-top:10px; }
@@ -298,6 +306,8 @@
 .monthly-review-boundary { margin:0; color:var(--ink-muted); font-size:12px; }
 @media (max-width:560px) {
   .monthly-review-cycle-controls button,.monthly-review-projection > button { width:100%; }
+  .monthly-review-savings { grid-template-columns:1fr; }
+  .monthly-review-context-links { display:grid; }
 }
 .recurring-review-workspace[data-state="blocked"],.recurring-review-workspace[data-state="insufficient_evidence"] { background:#fff9ec; }
 /* By id: `.guided-result h2` is equally specific and later in the file, so it
