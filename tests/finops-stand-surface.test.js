@@ -19,7 +19,7 @@ import { importPageModule, waitFor } from "./support/page-module.js";
 import {
   STAND_CONFIDENCE_LABEL, STAND_DISCLOSURE_ORDER, STAND_EVIDENCE_LABEL, STAND_IDS,
   STAND_MOUNTED_DISCLOSURES, STAND_QUESTION, STAND_RESOLUTION_ACTION, buildStandHeadline,
-  composeStandHeadline, standHeadlineForImport,
+  composeStandHeadline, peerComparisonBriefing, standHeadlineForImport,
 } from "../src/finops-stand.js";
 import {
   CONFIDENCE_LEVELS, EVIDENCE_CLASS, SYNTHETIC_CLAIM_QUALIFIER,
@@ -92,6 +92,64 @@ test("the complete headline renders on first load with no import and no stored s
 
   // Nothing is placed yet is a lie here, so the withheld path must be shut.
   assert.equal(byId(document, STAND_IDS.withheld).hidden, true);
+});
+
+test("the peer briefing leads with one ready answer, benchmark, and investigation", async () => {
+  const { document } = await openWithClearedStorage();
+  const brief = byId(document, STAND_IDS.peerBrief);
+  assert.equal(brief.dataset.state, "ready");
+  assert.equal(shownText(document, STAND_IDS.peerStatus), "Peer comparison ready");
+  assert.match(shownText(document, STAND_IDS.peerAnswer),
+    /\$38\.63 per successful task is in the most expensive quarter.*\d+th percentile/);
+  assert.match(shownText(document, STAND_IDS.peerMetric),
+    /Cost per successful task: \$38\.63 · \d+ successful tasks · lower is better/);
+  assert.match(shownText(document, STAND_IDS.peerInvestigation),
+    /^Next investigation: review failed tasks, retries, and attributed spend in Atlas Platform first\.$/);
+
+  const terms = byId(document, STAND_IDS.peerEvidenceList)
+    .querySelectorAll("dt").map((node) => textOf(node));
+  assert.deepEqual(terms, ["Cohort", "Percentile", "Freshness", "Confidence", "Methodology", "Provenance"]);
+});
+
+test("the peer briefing states unavailable and low-confidence outcomes explicitly", () => {
+  const document = parseHtml(html);
+  const unavailable = peerComparisonBriefing(null);
+  applyStandHeadline(document, { ...buildStandHeadline(), peerBriefing: unavailable });
+  assert.equal(byId(document, STAND_IDS.peerBrief).dataset.state, "unavailable");
+  assert.match(shownText(document, STAND_IDS.peerAnswer), /No comparable peer benchmark/);
+  assert.match(shownText(document, STAND_IDS.peerInvestigation), /^Next investigation:/);
+  // No cohort rows to list, but the disclosure stays: it is the only route to
+  // the benchmark-fit answer and the synthetic-cohort qualifier, and this is
+  // the state a reader most needs to reach them in.
+  assert.equal(byId(document, STAND_IDS.peerEvidence).hidden, false);
+  assert.equal(byId(document, STAND_IDS.peerEvidenceList).children.length, 0);
+  assert.match(textOf(byId(document, STAND_IDS.peerEvidence)), /privacy-preserving/);
+
+  const ready = buildStandHeadline();
+  const lowBenchmark = {
+    ...ready.peerBenchmark,
+    confidence: { ...ready.peerBenchmark.confidence, level: "low",
+      basis: "The cohort is within the publication window but too old for moderate confidence." },
+  };
+  const low = peerComparisonBriefing(lowBenchmark, ready.peerBenchmark.position, ready.team);
+  applyStandHeadline(document, { ...ready, peerBriefing: low });
+  assert.equal(byId(document, STAND_IDS.peerBrief).dataset.state, "low-confidence");
+  assert.equal(shownText(document, STAND_IDS.peerStatus), "Low-confidence peer comparison");
+  assert.match(textOf(byId(document, STAND_IDS.peerEvidenceList)), /too old for moderate confidence/);
+});
+
+test("the peer evidence disclosure keeps native keyboard semantics and exposes state", async () => {
+  const { document } = await openWithClearedStorage();
+  const details = byId(document, STAND_IDS.peerEvidence);
+  const summary = byId(document, STAND_IDS.peerEvidenceSummary);
+  assert.equal(summary.tagName.toLowerCase(), "summary");
+  assert.equal(summary.getAttribute("role"), null);
+  assert.equal(summary.getAttribute("tabindex"), null);
+  assert.doesNotMatch(textOf(summary), /[▸▾]/, "the disclosure introduced a second glyph role");
+  assert.ok(tabSequence(document).includes(summary));
+  details.open = true;
+  details.dispatchEvent(new DomEvent("toggle", { bubbles: false }));
+  assert.equal(summary.getAttribute("aria-expanded"), "true");
 });
 
 /**
@@ -312,11 +370,34 @@ test("a visible focus indicator is published for every control this region adds"
   const css = await readFile(new URL("../src/evolution.css", import.meta.url), "utf8");
   for (const selector of [
     ".stand-disclosure>summary:focus-visible", ".stand-action:focus-visible",
-    ".stand-withheld-action:focus-visible",
+    ".stand-withheld-action:focus-visible", ".peer-brief-evidence>summary:focus-visible",
   ]) {
     const rule = new RegExp(`${selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*\\{[^}]*outline:`);
     assert.match(css, rule, `${selector} has no outline rule`);
   }
+});
+
+test("the peer answer is sized as a sentence, not as one of the figure's numbers", async () => {
+  const css = await readFile(new URL("../src/evolution.css", import.meta.url), "utf8");
+  const ramp = (selector) => {
+    const rule = css.match(new RegExp(`\\${selector} \\{([^}]*)\\}`))?.[1] ?? "";
+    return {
+      max: Number(rule.match(/font-size:(?:clamp\([^,]+,[^,]+,)?\s*(\d+)px/)?.[1] ?? NaN),
+      leading: Number(rule.match(/line-height:([\d.]+)/)?.[1] ?? NaN),
+    };
+  };
+  const answer = ramp(".peer-brief-answer");
+  const value = ramp(".stand-figure-value");
+  // It carries `.stand-figure-value`, so a dropped override silently reverts it
+  // to the single-line number ramp: 30px at 1.15, which in a 260px column wraps
+  // to ~8 colliding lines and drives the whole figures row taller.
+  assert.ok(answer.max < value.max,
+    `the answer sentence renders at ${answer.max}px, the ramp meant for a one-line figure`);
+  assert.ok(answer.max > 13,
+    "the answer no longer outranks the 13px basis lines it is supposed to lead");
+  assert.ok(answer.leading >= 1.25,
+    `${answer.leading} leading collides descenders once the sentence wraps`);
+  assert.ok(value.leading < answer.leading, "the number's tight leading was widened with it");
 });
 
 test("opening a disclosure moves every state channel, not just the chevron", async () => {

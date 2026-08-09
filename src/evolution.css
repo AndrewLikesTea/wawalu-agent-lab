@@ -1338,8 +1338,36 @@
 .stand-figure-label { margin:0; color:var(--import-ink); font:700 10px/1.5 ui-monospace,monospace; letter-spacing:.08em; text-transform:uppercase; }
 .stand-figure-value { margin:0; color:var(--ink); font-size:clamp(22px,3vw,30px); font-weight:750; line-height:1.15; overflow-wrap:anywhere; }
 .stand-figure-value[data-available="false"] { color:var(--state-warn-ink); font-size:clamp(16px,2vw,18px); font-weight:700; }
-.stand-figure:has(>.stand-figure-value[data-available="false"]) { border-top-style:dashed; border-top-color:var(--state-warn-line); }
+/* A figure's edge is dashed by what the reader can SEE is unavailable. The
+   position figure keeps an unrendered value slot for copy/export consumers, and
+   an element with no box must not paint a warning border for one that has one —
+   so the hidden slot is excluded and the visible briefing states its own case. */
+.stand-figure:has(>.stand-figure-value[data-available="false"]:not([hidden])),.stand-figure:has(>.peer-brief[data-state="unavailable"]) { border-top-style:dashed; border-top-color:var(--state-warn-line); }
 .stand-figure-basis { margin:0; max-width:60ch; color:var(--ink-muted); font-size:13px; line-height:1.55; overflow-wrap:anywhere; }
+.peer-brief { display:grid; gap:8px; }
+.peer-brief-status { width:fit-content; margin:0; border-radius:99px; padding:3px 9px; background:var(--import-wash); color:var(--import-ink); font:700 10px/1.5 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; }
+.peer-brief[data-state="low-confidence"] .peer-brief-status,.peer-brief[data-state="unavailable"] .peer-brief-status { background:var(--state-warn-wash); color:var(--state-warn-ink); }
+.peer-brief[data-state="low-confidence"] .peer-brief-next,.peer-brief[data-state="unavailable"] .peer-brief-next { border-left-color:var(--state-warn-line); }
+/* The lead answer is a SENTENCE in a column the figures grid narrows to 260px,
+   not the single-line number `.stand-figure-value` sets its ramp for. At that
+   ramp (30px/1.15) it wraps to ~8 lines whose descenders collide and it drives
+   the whole figures row ~110px taller than the values beside it. Traded down a
+   step: still the largest and heaviest thing in its cell, so it still leads the
+   label above it and the 13px lines below it, with leading a wrapped line can
+   survive. tests/finops-headline-accessibility.test.js holds the no-clip rule. */
+.peer-brief-answer { max-width:34ch; font-size:clamp(17px,1.9vw,21px); line-height:1.3; }
+/* Both lines carry a department name an import supplied, so both wrap inside
+   the column the way every other basis line on this page does. */
+.peer-brief-metric,.peer-brief-next { margin:0; max-width:62ch; color:var(--ink-muted); font-size:13px; line-height:1.55; overflow-wrap:anywhere; }
+.peer-brief-next { border-left:3px solid var(--import-accent); padding-left:10px; color:var(--ink); font-weight:700; }
+.peer-brief-evidence { margin-top:2px; border-top:1px solid var(--panel-border); padding-top:8px; }
+.peer-brief-evidence>summary { width:fit-content; cursor:pointer; color:var(--import-ink); font-size:13px; font-weight:700; }
+.peer-brief-evidence>summary:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; border-radius:4px; }
+.peer-brief-evidence dl { display:grid; gap:8px; margin:10px 0 0; }
+.peer-brief-method { margin:10px 0 0; color:var(--ink-muted); font-size:13px; line-height:1.55; }
+.peer-brief-evidence dl>div { display:grid; gap:2px; }
+.peer-brief-evidence dt { color:var(--import-ink); font:700 10px/1.5 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; }
+.peer-brief-evidence dd { margin:0; color:var(--ink-muted); font-size:13px; line-height:1.55; overflow-wrap:anywhere; }
 .stand-glance-lines { display:grid; gap:4px; }
 .stand-team { display:grid; align-content:start; gap:6px; border-top:3px solid var(--import-accent); padding-top:10px; }
 .stand-team[data-available="false"] { border-top-style:dashed; border-top-color:var(--state-warn-line); }

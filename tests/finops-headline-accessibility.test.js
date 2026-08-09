@@ -466,7 +466,10 @@ test("the claim survives a long question, an extreme figure, and the lowest tier
   // Nothing in the region is allowed to cut a value off rather than wrap it, and
   // the three slots the extremes actually land in say so explicitly.
   const css = await readFile(STYLES, "utf8");
-  for (const line of css.split("\n").filter((row) => row.startsWith(".stand"))) {
+  // The peer briefing renders inside a `.stand-figure` but names itself, so the
+  // audit reads it by its own prefix instead of letting it out through the gap.
+  const inHeadline = (row) => row.startsWith(".stand") || row.startsWith(".peer-brief");
+  for (const line of css.split("\n").filter(inHeadline)) {
     assert.doesNotMatch(line, /text-overflow\s*:\s*ellipsis/, `a headline rule ellipses: ${line}`);
     assert.doesNotMatch(line, /white-space\s*:\s*nowrap/, `a headline rule refuses to wrap: ${line}`);
     assert.doesNotMatch(line, /-webkit-line-clamp/, `a headline rule clamps lines: ${line}`);

@@ -329,9 +329,23 @@
           </div>
           <div class="stand-figure stand-figure-position">
             <h3 class="stand-figure-label">Rank against similar organizations</h3>
-            <p class="stand-figure-value" id="finops-stand-position-value" data-available="false"></p>
-            <p class="stand-figure-basis" id="finops-stand-position-basis"></p>
-            <p class="stand-figure-basis" id="finops-stand-benchmark-fit" data-state="incomparable" data-confidence="none">Benchmark fit has not been evaluated. Synthetic cohorts are privacy-preserving and do not imply access to customer, provider, or HRIS data.</p>
+            <div class="peer-brief" id="finops-peer-brief" data-state="unavailable">
+              <p class="peer-brief-status" id="finops-peer-status">Peer comparison unavailable</p>
+              <p class="stand-figure-value peer-brief-answer" id="finops-peer-answer"></p>
+              <p class="peer-brief-metric" id="finops-peer-metric"></p>
+              <p class="peer-brief-next" id="finops-peer-investigation"></p>
+              <!-- Native disclosure: the browser supplies its marker and keyboard
+                   behavior. No glyph is assigned a second visual or semantic role. -->
+              <details class="peer-brief-evidence" id="finops-peer-evidence">
+                <summary id="finops-peer-evidence-summary" aria-expanded="false" aria-controls="finops-peer-evidence-list">Inspect cohort evidence and method</summary>
+                <p class="peer-brief-method" id="finops-stand-benchmark-fit" data-state="incomparable" data-confidence="none">Benchmark fit has not been evaluated. Synthetic cohorts are privacy-preserving and do not imply access to customer, provider, or HRIS data.</p>
+                <dl id="finops-peer-evidence-list"></dl>
+              </details>
+            </div>
+            <!-- Compatibility slots retained for copy/export consumers. The new
+                 briefing above is the visible comparison. -->
+            <p hidden id="finops-stand-position-value" data-available="false"></p>
+            <p hidden id="finops-stand-position-basis"></p>
           </div>
         </div>
         <!-- THE FIVE-SECOND TRIAGE (#1345). Four figures compete for a lead's
