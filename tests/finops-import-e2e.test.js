@@ -170,6 +170,14 @@ function chooseFiles(document, files) {
 
 const byId = (document, id) => document.getElementById(id);
 const shownText = (document, id) => textOf(byId(document, id));
+// Shown to a reader, not merely present: `hidden` on any ancestor takes the node
+// off the screen and out of the tab order just as surely as `hidden` on the node
+// itself. Checking only the node's own flag is how a finding painted into a
+// hidden container reads as rendered — which is exactly what this panel did.
+function visible(node) {
+  for (let up = node; up && up.nodeType === 1; up = up.parentNode) if (up.hidden) return false;
+  return Boolean(node);
+}
 
 /** Wait for the mapping step to be open on a named file. */
 function reviewOpens(document, fileName) {
@@ -188,6 +196,134 @@ function tabTo(document, id) {
   assert.fail(`"${id}" is not reachable by Tab from ${document.activeElement?.id || "the current focus"}; `
     + `a keyboard user cannot complete this step. Tab stops: ${stops}.`);
 }
+
+/** The recommendation sentence shown for an imported provider finding. */
+function importedActions(document) {
+  return byId(document, "model-overspend-body")
+    .querySelectorAll(".model-overspend-action")
+    .filter(visible);
+}
+
+test("an empty local account offers one keyboard-reachable import next step and no savings claim", async () => {
+  const page = await openFinopsTab();
+  const { document } = page;
+  try {
+    assert.equal(byId(document, "local-export-activation").dataset.state, "idle");
+    assert.equal(byId(document, "local-results").hidden, true,
+      "an account with no selected evidence must not show a local result");
+    assert.equal(importedActions(document).length, 0,
+      "an empty account must not inherit a recommendation from example data");
+    assert.doesNotMatch(shownText(document, "local-export-activation-status"),
+      /(?:save|saving|recover)\s+[$€£]?\d|[$€£]\d+|\d+(?:\.\d+)?%/i,
+      "the empty state must not imply unsupported savings");
+
+    const next = tabTo(document, "activate-local-export");
+    assert.equal(textOf(next), "Choose a provider export");
+    pressEnter(document);
+    assert.equal(document.activeElement?.id, "local-finops-files",
+      "the empty-state action must hand keyboard focus to the real import control");
+  } finally {
+    page.restore();
+  }
+});
+
+test("an eligible local billing export exposes exactly one supported action and keyboard evidence", async () => {
+  const page = await openFinopsTab();
+  const { document } = page;
+  const expected = ELIGIBLE_MODEL_OVERSPEND_PROVIDER_FIXTURE.expected;
+  try {
+    chooseFiles(document, [{ name: "model-overspend-provider-eligible.json",
+      type: "application/json", text: ELIGIBLE_BILLING_EXPORT }]);
+    await waitFor(() => !byId(document, "model-overspend").hidden
+      && importedActions(document).length === 1,
+      "the prioritized imported finding to render");
+
+    const actions = importedActions(document);
+    assert.equal(actions.length, 1, "an eligible export must produce exactly one recommendation");
+    assert.equal(actions[0].dataset.available, "true");
+    assert.match(textOf(actions[0]),
+      /Do this next[\s\S]*Route .*synthetic-premium traffic to synthetic-economy[\s\S]*Confirm output quality/i);
+    assert.doesNotMatch(textOf(actions[0]), /(?:save|saving)\s+[$€£]?\d|guarantee/i,
+      "the recommendation must not turn the evidence-backed estimate into a savings promise");
+    assert.equal(shownText(document, "model-overspend-body")
+      .includes(`${(expected.amountMinor / 100).toFixed(2)} USD`), true,
+    "the action must remain beside the evidence-backed aggregate amount");
+
+    // The panel this finding is painted into has to agree that it has one. The
+    // declared state owns `model-overspend-body`'s `hidden` flag, so a panel
+    // still calling itself unavailable takes the whole finding off the screen
+    // while every assertion above it — which reads the DOM, not the pixels —
+    // goes on passing. That is the shape of the bug this test found.
+    assert.equal(byId(document, "model-overspend").dataset.panelState, "available",
+      "a panel with a rendered finding must not declare itself unavailable");
+    assert.equal(visible(byId(document, "model-overspend-unavailable")), false,
+      "the 'map these two columns' note must not sit beside a finding that was produced");
+
+    // The recommendation is decision-critical, not decorative copy — but it is
+    // prose, not a control, so it earns no tab stop of its own: a paragraph that
+    // takes focus and does nothing on Enter is a stop a keyboard reader has to
+    // pay for twice. What has to hold instead is that it is painted in the open
+    // body, ahead of the one control that discloses the rows behind it, so the
+    // Tab that reaches the evidence has already passed the claim it supports.
+    const order = byId(document, "model-overspend-body").children;
+    const actionAt = order.indexOf(actions[0]);
+    const evidence = tabTo(document, "model-overspend-evidence-toggle");
+    const evidenceAt = order.indexOf(evidence.parentNode);
+    assert.equal(actionAt >= 0, true,
+      "the prioritized action must sit in the open body, not behind a disclosure");
+    assert.equal(evidenceAt > actionAt, true,
+      "Tab to the evidence control must pass the action it supports, not overshoot it "
+      + `(action at ${actionAt}, evidence at ${evidenceAt})`);
+    assert.equal(evidence.getAttribute("aria-expanded"), "false");
+    pressEnter(document);
+    // Disclosing rebuilds the whole body, so both the recommendation and the
+    // place the keyboard reader was holding have to survive the repaint.
+    assert.equal(byId(document, "model-overspend-evidence-toggle")
+      .getAttribute("aria-expanded"), "true");
+    assert.equal(document.activeElement?.id, "model-overspend-evidence-toggle",
+      "the repaint on disclosure must not drop the keyboard reader's place");
+    assert.equal(importedActions(document).length, 1,
+      "the repaint must leave exactly one recommendation, not drop or duplicate it");
+    assert.equal(byId(document, "model-overspend-evidence-panel").hidden, false);
+    assert.match(shownText(document, "model-overspend-evidence-panel"), /synthetic-premium/i,
+      "the disclosed rows must support the prioritized model-routing action");
+  } finally {
+    page.restore();
+  }
+});
+
+test("an invalid local billing export requires a corrected file and refreshes cleanly", async () => {
+  let page = await openFinopsTab();
+  try {
+    const { document } = page;
+    chooseFiles(document, [{ name: "anthropic-incomplete.csv", text: INCOMPLETE_ANTHROPIC }]);
+    await waitFor(() => byId(document, "local-export-activation").dataset.state === "error",
+      "the invalid export recovery to render");
+
+    assert.equal(byId(document, "local-results").hidden, true);
+    assert.equal(importedActions(document).length, 0,
+      "an invalid export must not produce a cost recommendation");
+    assert.match(shownText(document, "local-export-activation-status"),
+      /incomplete.*missing required column.*cost_usd/i);
+    assert.equal(textOf(byId(document, "activate-local-export")), "Choose a corrected export");
+    assert.doesNotMatch(shownText(document, "local-export-activation"),
+      /(?:save|saving|recover)\s+[$€£]?\d|[$€£]\d+|\d+(?:\.\d+)?%/i);
+    tabTo(document, "activate-local-export");
+    pressEnter(document);
+    assert.equal(document.activeElement?.id, "local-finops-files");
+
+    // Selection errors are intentionally tab-local and are not retained. A
+    // refresh therefore returns to the one safe next step instead of reviving a
+    // rejected file or a result derived from it.
+    page.restore();
+    page = await openFinopsTab();
+    assert.equal(byId(page.document, "local-export-activation").dataset.state, "idle");
+    assert.equal(byId(page.document, "local-results").hidden, true);
+    assert.equal(textOf(tabTo(page.document, "activate-local-export")), "Choose a provider export");
+  } finally {
+    page.restore();
+  }
+});
 
 test("a supported native provider export bypasses mapping and opens its analysis", async () => {
   const page = await openFinopsTab();
