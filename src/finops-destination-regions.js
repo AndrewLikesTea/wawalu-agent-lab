@@ -84,6 +84,9 @@ const REGION_IDS = Object.freeze({
   // computed inside — and none whose job is to recommend anything.
   evidence: Object.freeze([
     "destination-load-evidence",
+    // The destination's own first screen (#1524): the claim, the chain, the
+    // rubric and the sources, before any panel that answers a narrower question.
+    "finops-evidence-working",
     "finops-guided-evidence",
     "score-card",
     "finops-proof-point",

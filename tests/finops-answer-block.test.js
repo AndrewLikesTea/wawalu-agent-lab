@@ -393,6 +393,10 @@ test("every top-level section that existed before the answer block is still on t
     // is in flight or that failed has somewhere named to be read.
     "destination-load-evidence", "destination-load-department",
     "destination-load-act-and-verify",
+    // #1524: the evidence destination's own first screen — the claim carrying
+    // the canonical figure, the arithmetic chain, the rubric and the sources.
+    // Nothing left this list to make room for it.
+    "finops-evidence-working",
     // #1393: the guided first analysis — the scenario chooser, and the evidence
     // and department destinations it repaints.
     "finops-guided-choice", "finops-guided-evidence", "finops-guided-department",

@@ -354,6 +354,16 @@ export const ANSWER_SPINE = Object.freeze([
     question: "Is the Act and verify destination still opening?",
     headingId: "destination-load-act-and-verify-title",
   },
+  // The evidence destination's own first screen (#1524). Its naming heading is
+  // the CLAIM — a statement carrying the canonical figure, not a question — so
+  // the question below is what the region answers, and the two are deliberately
+  // different strings.
+  {
+    id: "finops-evidence-working",
+    role: ROLE.detail,
+    question: "How was the recoverable figure computed, and where did each input come from?",
+    headingId: "evidence-working-claim",
+  },
   {
     id: "finops-guided-choice",
     role: ROLE.step,

@@ -157,6 +157,9 @@ const REGIONS = Object.freeze({
   "destination-load-evidence": REGION_CLASS.evidence,
   "destination-load-department": REGION_CLASS.evidence,
   "destination-load-act-and-verify": REGION_CLASS.evidence,
+  // The evidence destination's own first screen (#1524): the claim, the chain
+  // that produced it, the rubric it was graded against, and the sources.
+  "finops-evidence-working": REGION_CLASS.evidence,
   // The guided first analysis: its chooser and the two destinations that are
   // repainted from whichever bundled scenario is chosen.
   "finops-guided-choice": REGION_CLASS.evidence,
@@ -258,6 +261,7 @@ const EVIDENCE_LAYERS = Object.freeze([
     id: "how-it-was-worked-out",
     question: "How was this worked out, and can someone else repeat it?",
     regionIds: Object.freeze([
+      "finops-evidence-working",
       "score-card", "finops-headline", "classifier-agreement",
       "disclosure-grade-comparisons", "graded-sample",
       "disclosure-recommendation-evidence", "prompt-coaching", "finops-proof-point",

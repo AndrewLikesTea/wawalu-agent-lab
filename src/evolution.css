@@ -3912,3 +3912,16 @@ section[data-workspace-current="true"] { box-shadow:-6px 0 0 0 var(--import-wash
 .first-run-unit-label-input { flex:1 1 12rem; min-width:0; padding:.3rem .45rem; font:inherit; font-size:.85rem; }
 .first-run-unit-label-help { flex-basis:100%; font-size:.72rem; color:var(--muted); }
 .first-run-unit-label-input:focus-visible,.first-run-unit-label-save:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+
+/* The evidence destination's working (#1524). No new token and no new scale:
+   the operation line and the band chip are the muted ink and the panel border
+   this page already ships. A band identifier is an OUTLINE chip because it
+   classifies; a fill is reserved for a dynamic signal, per the chip rule in
+   design-system/claude-design/review-08-foundations.html. The running result is
+   the heaviest thing on its line, so a reader scanning the chain reads the
+   totals down one column. */
+.evidence-claim-figure { white-space:nowrap; }
+.evidence-working-steps,.evidence-working-sources { margin:12px 0 0; padding-left:22px; display:grid; gap:10px; line-height:1.5; }
+.evidence-step-op { display:block; color:var(--ink-muted); font-size:.85rem; }
+.evidence-step-result { display:block; font-size:.95rem; }
+.evidence-band { font-family:ui-monospace,Menlo,monospace; font-size:.7rem; color:var(--ink-muted); border:1px solid var(--panel-border); border-radius:5px; padding:1px 6px; }
