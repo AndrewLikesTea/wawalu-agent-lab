@@ -20,7 +20,12 @@ import {
   durationText,
   verdictMetricText,
 } from "../src/deployment-status.js";
-import { parseHealthBody, probeHealth } from "../src/deployment-status-view.js";
+import {
+  DEPLOYMENT_IDS,
+  parseHealthBody,
+  probeHealth,
+  renderDeploymentStatus,
+} from "../src/deployment-status-view.js";
 import { loadPage, pressEnter, pressTab, textOf } from "./support/browser.js";
 import { waitFor } from "./support/page-module.js";
 
@@ -93,14 +98,76 @@ function mutatingControls(node, found = []) {
   return found;
 }
 
+/* --------------------------- what the check proves ------------------------ */
+
+test("the band opens with what the check proves, ahead of the answer and outside every disclosure", async (t) => {
+  const page = await openReleases(t, { readHealth: answers({ status: "ok", build: "v2.1.0" }) });
+  const proof = page.document.querySelector("#deployment-status-proof");
+  const sentence = textOf(proof);
+
+  // What the check proves, in the page's own words, before any evidence.
+  assert.match(sentence, /does the newest release record below name the version this site is running right now\?/);
+  // And the line the rest of the page draws, kept here: the worked example
+  // above is invented, this answer is not.
+  assert.match(sentence, /The example decision and release above are invented; this answer is not\./);
+
+  // The harness reads text through a closed disclosure, so "a reader sees this
+  // without expanding anything" is asserted on where the node sits: inside the
+  // band, hidden by nothing, with no disclosure anywhere above it.
+  let inBand = false;
+  for (let node = proof; node; node = node.parentNode) {
+    assert.notEqual(node.tagName, "DETAILS", "the proof sentence sits behind the evidence disclosure");
+    assert.equal(node.hidden ?? false, false, "the proof sentence is hidden from assistive technology");
+    if (node.id === DEPLOYMENT_IDS.panel) {
+      inBand = true;
+      break;
+    }
+  }
+  assert.ok(inBand, "the proof sentence is not inside the deployment status band");
+
+  // It leads: the answer line comes after it, not before.
+  const lines = page.document.querySelector("#deployment-status-callout").childElements.map((node) => node.id);
+  assert.ok(
+    lines.indexOf("deployment-status-proof") < lines.indexOf(DEPLOYMENT_IDS.verdict),
+    "the answer is rendered above the sentence saying what the check proves",
+  );
+});
+
 /* ------------------------------- the verdict ------------------------------ */
+
+test("match, mismatch, and a check that did not complete each read as a different answer", async (t) => {
+  const page = await openReleases(t, { readHealth: answers({ status: "ok", build: "v2.1.0" }) });
+  // Rendered into the shipped markup, one state after another, so what is
+  // compared is the sentence a reader would actually see.
+  const render = (reading) => {
+    renderDeploymentStatus(page.document, deploymentVerdict(reading, NEWEST, NOW), { reading, release: NEWEST });
+    return verdictText(page);
+  };
+  const matched = render({ health: { status: "ok", build: "v2.1.0" } });
+  const drifted = render({ health: { status: "ok", build: "v2.0.0" } });
+  const stalled = render({ failure: "unreachable" });
+
+  assert.equal(new Set([matched, drifted, stalled]).size, 3, "two states told a reader the same thing");
+  assert.match(matched, /^Confirmed: this site is running v2\.1\.0/);
+  assert.match(drifted, /^Not a match:/);
+  assert.match(stalled, /^The check did not complete/);
+
+  // A check that could not finish is not a mismatch, and neither of them may
+  // be read as a match.
+  assert.notEqual(drifted, stalled);
+  for (const sentence of [drifted, stalled]) {
+    assert.doesNotMatch(sentence, /Confirmed|is the version|matches/, "a non-matching state hinted at a match");
+  }
+  // The match reads without the evidence: no endpoint, no sha, no field name.
+  assert.doesNotMatch(matched, /healthz|sha|identifier|payload/i);
+});
 
 test("a running build that equals the newest record reads as a match and offers no action", async (t) => {
   const page = await openReleases(t, { readHealth: answers({ status: "ok", build: "v2.1.0" }) });
 
   assert.equal(
     verdictText(page),
-    "The running deployment matches the newest release record: v2.1.0.",
+    "Confirmed: this site is running v2.1.0, the version the newest release record names.",
   );
   assert.equal(metricText(page), "Running v2.1.0 · Newest record v2.1.0 · recorded 2 days ago");
   // The match state's whole claim: there is nothing to do, and nothing to click.
@@ -117,7 +184,7 @@ test("a running build that differs from the newest record reads as drift and nam
 
   assert.equal(
     verdictText(page),
-    "The running deployment does not match the newest release record: v2.0.0 is running, v2.1.0 is recorded.",
+    "Not a match: this site is running v2.0.0, but the newest release record names v2.1.0.",
   );
   assert.equal(metricText(page), "Running v2.0.0 · Newest record v2.1.0 · recorded 2 days ago");
 
@@ -135,7 +202,7 @@ test("a health response in an unexpected shape reads as unknown, in plain langua
 
   assert.equal(
     verdictText(page),
-    "Whether the running deployment matches the newest release record is unknown. "
+    "The check did not complete, so nothing here says which version this site is running. "
       + UNKNOWN_REASONS["unexpected-shape"],
   );
   // The comparison it can still make: the recorded build is last-known-good.
@@ -150,7 +217,7 @@ test("an unreachable health check reads as unknown and still reports the last-kn
 
   assert.equal(
     verdictText(page),
-    "Whether the running deployment matches the newest release record is unknown. "
+    "The check did not complete, so nothing here says which version this site is running. "
       + UNKNOWN_REASONS.unreachable,
   );
   assert.equal(metricText(page), "Running not reported · Newest record v2.1.0 · recorded 2 days ago");
