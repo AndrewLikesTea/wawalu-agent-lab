@@ -369,6 +369,12 @@ export const ANSWER_SPINE = Object.freeze([
     headingId: "finops-guided-evidence-title",
   },
   {
+    id: "finops-evidence-case",
+    role: ROLE.detail,
+    question: "Can this recoverable figure be defended in a meeting?",
+    headingId: "finops-evidence-case-title",
+  },
+  {
     id: "finops-guided-department",
     role: ROLE.detail,
     question: "Which department acts on the scenario I chose, and on what?",

@@ -337,6 +337,45 @@ export function paintDestinationLoadState(doc, key, state) {
 }
 
 /**
+ * The evidence destination's own working, fetched on the open that asks for it.
+ *
+ * A SECOND `import()` AND NOT A STATIC ONE. src/finops-evidence-case.js paints
+ * the claim, the arithmetic chain, the rubric and the provenance per input into
+ * the region evolution.html authors empty. It is reachable from nothing in
+ * `evolution-page.js`'s static graph, so `scripts/check-size-budget.mjs` does not
+ * count it and the answer screen pays nothing for a destination a reader may
+ * never open — which is the whole reason the region ships its bodies empty.
+ *
+ * IT IS NOT PART OF THE LOADER'S DATASET. The loader memoises one value per
+ * destination and the evidence entry's value is the briefing contract, which
+ * other panels on this destination read. This paint is a side effect of arriving,
+ * so it is run beside that load rather than folded into it, and it repaints on
+ * every open: the region replaces each list whole, so coming back does not append
+ * a second chain.
+ *
+ * A FAILED FETCH IS DRAWN, NOT SWALLOWED. The state and the sentence are authored
+ * in the document — the caller holding a failed `import()` cannot be holding the
+ * module that would paint them — so this only marks the region and unhides the
+ * line that was already served.
+ */
+export const EVIDENCE_CASE_REGION_ID = "finops-evidence-case";
+const EVIDENCE_CASE_ERROR_ID = "finops-evidence-case-error";
+
+export function paintEvidenceCase(doc, key) {
+  if (key !== WORKSPACE_DESTINATION.evidence) return Promise.resolve(null);
+  const region = byId(doc, EVIDENCE_CASE_REGION_ID);
+  if (!region) return Promise.resolve(null);
+  return import("./finops-evidence-case.js")
+    .then((module) => module.renderEvidenceCase(doc))
+    .catch(() => {
+      region.setAttribute("data-evidence-state", "error");
+      const failure = byId(doc, EVIDENCE_CASE_ERROR_ID);
+      if (failure) failure.hidden = false;
+      return "error";
+    });
+}
+
+/**
  * Open one destination's module: paint the wait, fetch it, paint the outcome.
  *
  * Resolves to the state it painted and never rejects, so the synchronous paint
@@ -352,7 +391,10 @@ export function openDestination(doc, key, { loader = destinationLoader } = {}) {
     const state = outcome.status === DESTINATION_LOAD_STATE.error
       ? DESTINATION_LOAD_STATE.error : DESTINATION_LOAD_STATE.ready;
     paintDestinationLoadState(doc, key, state);
-    return state;
+    // Beside the dataset, never blocking on it: the working is composed from the
+    // one answer accessor, so it is worth drawing even on the open where this
+    // destination's own briefing contract failed to arrive.
+    return paintEvidenceCase(doc, key).then(() => state);
   });
   OPENING.set(key, opening);
   return opening;

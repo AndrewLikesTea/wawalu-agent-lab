@@ -85,6 +85,11 @@ const REGION_IDS = Object.freeze({
   evidence: Object.freeze([
     "destination-load-evidence",
     "finops-guided-evidence",
+    // #1524. The claim, the arithmetic chain, the rubric and pricing bands, and
+    // the provenance per input — the four things a skeptic reads in that order.
+    // First on this destination because everything after it is a panel about one
+    // input, and a reader who cannot see the chain has nowhere to put them.
+    "finops-evidence-case",
     "score-card",
     "finops-proof-point",
     "finops-headline",

@@ -2030,6 +2030,39 @@
         <h2 class="eyebrow" id="finops-guided-evidence-title" tabindex="-1">Evidence · chosen scenario</h2>
         <div id="finops-guided-evidence-body"></div>
       </section>
+      <!-- #1524 — THE CASE FOR THE RECOVERABLE FIGURE, first on the evidence
+           destination, in the order a director defending it reads: what is being
+           claimed, the arithmetic that produced it, the versions and pricing
+           bands it was graded against, then where each input came from. Four
+           questions, four headings, one level below this region's own, so the
+           reading order IS the heading order and a check can assert the sequence
+           rather than spot-check one heading.
+           THE FIGURE IS NEVER FOLDED AWAY: it is the thing being defended, so it
+           is painted outside every disclosure here, and the collapsible layer
+           holds only an input's assumption. No live region is authored — the
+           destination already has one, and a second speaker for one open is how a
+           screen-reader user learns to ignore both.
+           THE BODIES SHIP EMPTY and the state slot ships with the sentence that
+           is true before the chain arrives. src/finops-evidence-case.js paints
+           all four sections on the open that brings a reader here and is reached
+           only by an import() on that open, so this region adds no module to the
+           first screen: the answer screen pays nothing for it. The error line is
+           authored rather than painted because the caller that has to show it is
+           the one holding a failed import, which cannot be holding the painter. -->
+      <section class="finops-panel" id="finops-evidence-case" data-workspace-region="evidence" data-evidence-state="pending" aria-labelledby="finops-evidence-case-title">
+        <p class="eyebrow" id="finops-evidence-case-label">Evidence · the working behind the figure</p>
+        <h2 id="finops-evidence-case-title" tabindex="-1">Can this recoverable figure be defended in a meeting?</h2>
+        <h3 class="answer-figure-label" id="finops-evidence-claim-title">What is being claimed</h3>
+        <p class="answer-figure-value" id="finops-evidence-claim-figure" data-available="false">Not yet composed</p>
+        <p class="answer-figure-basis" id="finops-evidence-claim-sentence">The claim is the one stated in the answer above. Its working is composed when this destination opens.</p>
+        <h3 class="answer-figure-label" id="finops-evidence-chain-title">How it was computed, step by step</h3>
+        <ol id="finops-evidence-chain"></ol>
+        <h3 class="answer-figure-label" id="finops-evidence-rubric-title">Which rubric version and which pricing bands</h3>
+        <dl class="data-guarantee-list" id="finops-evidence-rubric"></dl>
+        <h3 class="answer-figure-label" id="finops-evidence-provenance-title">Where each input came from</h3>
+        <dl class="data-guarantee-list" id="finops-evidence-provenance"></dl>
+        <p class="field-error" id="finops-evidence-case-error" hidden>The working could not be loaded. Nothing in the answer above changed, and nothing of yours was uploaded or stored.</p>
+      </section>
       <section class="finops-panel" id="finops-guided-department" data-workspace-region="department" data-guided-scenario="aws-bedrock-cur-v1" aria-labelledby="finops-guided-department-title">
         <h2 class="eyebrow" id="finops-guided-department-title" tabindex="-1">Department detail · chosen scenario</h2>
         <div id="finops-guided-department-body"></div>

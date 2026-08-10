@@ -161,6 +161,9 @@ const REGIONS = Object.freeze({
   // repainted from whichever bundled scenario is chosen.
   "finops-guided-choice": REGION_CLASS.evidence,
   "finops-guided-evidence": REGION_CLASS.evidence,
+  // #1524: the working behind the recoverable figure. Evidence, and it asserts no
+  // figure of its own — every number in it is read off the one accessor.
+  "finops-evidence-case": REGION_CLASS.evidence,
   "finops-guided-department": REGION_CLASS.evidence,
   "finops-workspace-context": REGION_CLASS.evidence,
   "finops-first-run-conversion": REGION_CLASS.removed,
@@ -225,7 +228,8 @@ const EVIDENCE_LAYERS = Object.freeze([
       "finops-recoverable-answer", "finops-analysis-readiness",
       // The guided flow continues the readiness answer above it: one chosen
       // bundled scenario, and the evidence and department detail it produces.
-      "finops-guided-choice", "finops-guided-evidence", "finops-guided-department",
+      "finops-guided-choice", "finops-guided-evidence", "finops-evidence-case",
+      "finops-guided-department",
       // #1483 belongs to this layer and not to the next one: its subject is how
       // far this record is stood behind, which is this layer's own question.
       "finops-first-run", "finops-readiness-loop",

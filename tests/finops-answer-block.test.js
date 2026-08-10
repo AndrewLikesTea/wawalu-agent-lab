@@ -395,7 +395,11 @@ test("every top-level section that existed before the answer block is still on t
     "destination-load-act-and-verify",
     // #1393: the guided first analysis — the scenario chooser, and the evidence
     // and department destinations it repaints.
-    "finops-guided-choice", "finops-guided-evidence", "finops-guided-department",
+    "finops-guided-choice", "finops-guided-evidence",
+    // #1524: the working behind the recoverable figure — the claim, the arithmetic
+    // chain, the rubric and pricing bands, the provenance per input. Added to this
+    // list, and nothing left it to make room.
+    "finops-evidence-case", "finops-guided-department",
     "finops-workspace-context", "finops-load-state", "score-card",
     "finops-portfolio-brief", "monthly-review-projection", "guided-result", "local-import", "prompt-coaching",
     "finops-contact", "finops-proof-point", "finops-headline", "classifier-agreement",

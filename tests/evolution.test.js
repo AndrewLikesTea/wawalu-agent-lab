@@ -485,6 +485,250 @@ test("no recoverable-dollar figure in the answer region is undeclared", async ()
     "the projection is stated beside the figure and inside its working, nowhere else");
 });
 
+// ---------------------------------------------------------------------------
+// #1524 — THE EVIDENCE DESTINATION READS AS A PLACE A SKEPTIC CAN TRUST.
+//
+// Four assertions, matching the four things the reading order promises: the
+// heading sequence IS the reading order, every disclosure is reachable and
+// operable by keyboard with the defended figure never inside one, the pairs used
+// resolve to tokens the shipped stylesheets already define, and every provenance
+// label the page states still appears somewhere in the product.
+//
+// Everything below is asserted on the heading sequence, on counts, and on
+// attributes — never on visibility, which this harness reads straight through a
+// closed `details`, and never against an element object.
+// ---------------------------------------------------------------------------
+
+const EVIDENCE_CASE_ID = "finops-evidence-case";
+
+test("the evidence destination's headings are the reading order, with no level skipped", async () => {
+  const document = parseHtml(await read("src/evolution.html"));
+  const region = document.getElementById(EVIDENCE_CASE_ID);
+  const headings = headingsWithin(document, region);
+
+  // THE SEQUENCE, in document order — not a spot check of one heading.
+  assert.deepEqual(headings.map((heading) => heading.tagName),
+    ["H2", "H3", "H3", "H3", "H3"],
+    "the region's own question is an h2 and its four sections are h3s under it");
+  assert.deepEqual(headings.map((heading) => heading.id), [
+    "finops-evidence-case-title",
+    "finops-evidence-claim-title",
+    "finops-evidence-chain-title",
+    "finops-evidence-rubric-title",
+    "finops-evidence-provenance-title",
+  ], "claim, then arithmetic, then rubric and bands, then provenance");
+  // No level is skipped: every step down the sequence is one level at a time.
+  const levels = headings.map((heading) => Number(heading.tagName.slice(1)));
+  for (let index = 1; index < levels.length; index += 1) {
+    assert.ok(levels[index] - levels[index - 1] <= 1,
+      `heading ${index} skips from h${levels[index - 1]} to h${levels[index]}`);
+  }
+  assert.ok(textOf(headings[0]).endsWith("?"), "the region states the question it answers");
+  assert.equal(region.getAttribute("data-workspace-region"), "evidence",
+    "the working belongs to the evidence destination and is hidden with it");
+});
+
+test("the evidence chain is the one accessor's arithmetic, step by step", async () => {
+  const document = parseHtml(await read("src/evolution.html"));
+  const dataset = loadExampleDataset();
+  const recoverable = getRecoverableSpend(dataset);
+  const { evidenceCase, recoverableChain, renderEvidenceCase } =
+    await import("../src/finops-evidence-case.js");
+
+  // ONE STEP PER SCORED DEPARTMENT, then the exclusion, the projection and the
+  // rounding. The last addition's running total IS the canonical monthly figure,
+  // which is what makes this a view of that record and not a second opinion.
+  const chain = recoverableChain(dataset, recoverable);
+  assert.equal(chain.length, recoverable.scoredDepartments + 2,
+    "every scored department is its own step, and the projection and rounding follow");
+  assert.equal(chain[recoverable.scoredDepartments - 1].running, recoverable.monthlyDisplay);
+  assert.equal(chain.at(-1).running, recoverable.annualisedDisplay);
+  assert.match(chain.at(-2).operation, /multiply by 12/);
+  assert.match(chain[0].operation, /^start at \$/, "the chain opens at an operand, not at a total");
+
+  const record = evidenceCase(dataset);
+  assert.equal(record.state, "ready");
+  assert.equal(record.claim.figure, recoverable.monthlyDisplay,
+    "the claim is the canonical figure, restated nowhere else and recomputed nowhere");
+
+  assert.equal(renderEvidenceCase(document, dataset), "ready");
+  assert.equal(document.getElementById(EVIDENCE_CASE_ID).getAttribute("data-evidence-state"),
+    "ready");
+  assert.equal(textOf(document.getElementById("finops-evidence-claim-figure")).trim(),
+    recoverable.monthlyDisplay);
+  const steps = [...document.getElementById("finops-evidence-chain").children]
+    .filter((node) => node?.nodeType === 1);
+  assert.equal(steps.length, chain.length, "every step of the chain is on screen");
+  assert.deepEqual(steps.map((step) => step.getAttribute("data-running")),
+    chain.map((step) => step.running), "each step shows the running result after it");
+
+  // THE RUBRIC AND THE BANDS ARE STATED ONCE, at one known place, quotable.
+  const rubric = textOf(document.getElementById("finops-evidence-rubric"));
+  assert.match(rubric, /literacy-mix\/1\.0\.0/, "the rubric version is quotable verbatim");
+  assert.match(rubric, /finops-rate-card\/1\.0\.0/);
+  assert.match(rubric, /\$20 per million tokens/, "the premium band is stated");
+  assert.match(rubric, /\$15 per million tokens/, "the standard band is stated");
+  assert.match(rubric, /ceiling/, "a published list price is named as a ceiling");
+});
+
+test("the evidence destination draws its empty and its extreme states", async () => {
+  const document = parseHtml(await read("src/evolution.html"));
+  const { renderEvidenceCase } = await import("../src/finops-evidence-case.js");
+  const dataset = loadExampleDataset();
+
+  // EMPTY — an export with no completed score. The four headings survive, the
+  // figure says so in words rather than showing a $0 that reads as a measurement.
+  const unscored = {
+    ...dataset,
+    rankedDepartments: dataset.rankedDepartments.map((row) => ({ ...row, recoverableUsd: null })),
+  };
+  assert.equal(renderEvidenceCase(document, unscored), "empty");
+  const region = document.getElementById(EVIDENCE_CASE_ID);
+  assert.equal(region.getAttribute("data-evidence-state"), "empty");
+  assert.equal(headingsWithin(document, region).length, 5, "an empty state keeps the spine");
+  assert.equal(document.getElementById("finops-evidence-claim-figure")
+    .getAttribute("data-available"), "false");
+  assert.match(textOf(document.getElementById("finops-evidence-chain")), /nothing to add/);
+
+  // IMPLAUSIBLE EXTREMES — a figure with many digits, a very long department name
+  // carried into a step, and a chain with many steps. The layout must not collapse:
+  // the spine is intact, every step is still its own item, and the figure is still
+  // one string in the slot that states it.
+  const many = Array.from({ length: 24 }, (_, index) => ({
+    ...dataset.rankedDepartments[0],
+    id: `dept-${index}`,
+    name: `Department ${index} ${"of a very long organizational unit name ".repeat(4)}`,
+    recoverableUsd: 987_654_321,
+  }));
+  assert.equal(renderEvidenceCase(document, { ...dataset, rankedDepartments: many }), "ready");
+  const steps = [...document.getElementById("finops-evidence-chain").children]
+    .filter((node) => node?.nodeType === 1);
+  assert.equal(steps.length, 26, "24 additions, the projection and the rounding");
+  assert.equal(headingsWithin(document, document.getElementById(EVIDENCE_CASE_ID)).length, 5);
+  assert.match(textOf(document.getElementById("finops-evidence-claim-figure")),
+    /^\$23,703,703,704$/, "a many-digit figure is stated whole, not truncated");
+});
+
+test("every disclosure on the evidence destination is keyboard-operable and folds nothing load-bearing", async () => {
+  const document = parseHtml(await read("src/evolution.html"));
+  const { renderEvidenceCase } = await import("../src/finops-evidence-case.js");
+  renderEvidenceCase(document, loadExampleDataset());
+  const region = document.getElementById(EVIDENCE_CASE_ID);
+
+  const within = (node) => {
+    for (let up = node; up; up = up.parentNode) if (up === region) return true;
+    return false;
+  };
+  const disclosures = [...document.querySelectorAll("details")].filter(within);
+  const summaries = [...document.querySelectorAll("summary")].filter(within);
+  assert.ok(disclosures.length > 0, "the assumptions are behind progressive disclosure");
+  assert.equal(summaries.length, disclosures.length, "every disclosure has its own summary");
+
+  for (const details of disclosures) {
+    // CLOSED ON ARRIVAL, and closed is an attribute rather than a rendering: this
+    // harness reads text straight through a folded `details`, so `open` is the
+    // only honest reading of whether the reader has to press anything.
+    assert.equal(details.getAttribute("open"), null, "a disclosure opens on a press, not on load");
+    assert.equal(details.getAttribute("data-disclosure"), "collapsed");
+  }
+  for (const summary of summaries) {
+    // A REAL SUMMARY, so the keyboard reaches it with no tabindex of ours and the
+    // browser owns the expanded state. `aria-expanded` agrees with it on arrival.
+    assert.equal(summary.getAttribute("aria-expanded"), "false");
+    assert.equal(summary.getAttribute("tabindex"), null,
+      "a tabindex on a summary is a tab stop the browser already gave us");
+    assert.match(textOf(summary), /Show the assumption/,
+      "the affordance carries a word, never a colour or a glyph alone");
+  }
+
+  // NOTHING LOAD-BEARING IS INSIDE ONE. The defended figure, the claim sentence,
+  // the chain and the four headings are all siblings of the disclosures.
+  const folded = (id) => {
+    for (let up = document.getElementById(id); up; up = up.parentNode) {
+      if (up.tagName === "DETAILS") return true;
+    }
+    return false;
+  };
+  for (const id of ["finops-evidence-claim-figure", "finops-evidence-claim-sentence",
+    "finops-evidence-chain", "finops-evidence-case-title", "finops-evidence-provenance-title"]) {
+    assert.equal(folded(id), false, `${id} must not be inside a collapsed disclosure`);
+  }
+  // AND NO LIVE REGION IS AUTHORED HERE: one inside a closed `details` is silent
+  // in a real browser, and the destination already has exactly one speaker.
+  assert.equal([...document.querySelectorAll("[aria-live]")].filter(within).length, 0);
+});
+
+test("the evidence destination's colour pairs resolve to tokens the sheets already ship", async () => {
+  const document = parseHtml(await read("src/evolution.html"));
+  const evolutionCss = await read("src/evolution.css");
+  const styles = await read("src/styles.css");
+  const { renderEvidenceCase } = await import("../src/finops-evidence-case.js");
+  renderEvidenceCase(document, loadExampleDataset());
+
+  // The harness cannot compute a rendered colour, so what is asserted is that
+  // every class this region composes with is one the shipped sheets define — the
+  // pairs are therefore the ones already contrast-checked on this page, and no
+  // rule, class or token was authored for #1524.
+  const defined = (selector, sheet) => assert.ok(sheet.includes(selector),
+    `${selector} must already be defined rather than authored for this region`);
+  defined(".answer-figure-value,#finops-recoverable-value { color:var(--ink)", evolutionCss);
+  defined(".answer-figure-basis { color:var(--muted)", evolutionCss);
+  defined(".answer-figure-label { color:var(--muted)", evolutionCss);
+  defined(".stand-figure-label { margin:0; color:var(--import-ink)", evolutionCss);
+  defined(".data-guarantee-list dd { margin:0; color:#496056", evolutionCss);
+  defined(".eyebrow { margin:0; color:#65717d", styles);
+  defined(".field-error { margin:0; color:#8c2f28", styles);
+  // OUTLINE, NOT A WASH: the Claude Design foundations rule is filled wash for a
+  // dynamic signal and outline for a static classification, and where an operand
+  // came from is a classification. Both origins take the same silhouette, so the
+  // two are told apart by the word inside the chip and never by its fill.
+  defined(".brief-provenance[data-silhouette=\"outline\"] { border-color:var(--ink-muted)",
+    evolutionCss);
+  const region = document.getElementById(EVIDENCE_CASE_ID);
+  const chips = [];
+  const walk = (node) => {
+    for (const child of node?.children ?? []) {
+      if (child.dataset?.silhouette) chips.push(child.dataset.silhouette);
+      walk(child);
+    }
+  };
+  walk(region);
+  assert.ok(chips.length > 0, "the origins and the running totals are chips");
+  assert.deepEqual([...new Set(chips)], ["outline"], "no chip on this region carries a wash");
+});
+
+test("every provenance label the answer screen states still appears in the product", async () => {
+  const evolution = await read("src/evolution.html");
+  const document = parseHtml(evolution);
+  const { INPUT_LABEL, ORIGIN_LABEL, renderEvidenceCase } =
+    await import("../src/finops-evidence-case.js");
+  renderEvidenceCase(document, loadExampleDataset());
+
+  // THE HEDGES AND MARKERS THE ANSWER SCREEN CARRIES. Each one is a provenance
+  // statement a reader learned to read, so none of them may be deleted by a
+  // change that moves working onto the evidence destination. They are asserted
+  // against the served document, so a silent removal reddens here.
+  for (const label of ["Derived here", "Estimated, not measured", "Not in these files",
+    "Bundled synthetic example", "Where each figure came from"]) {
+    assert.ok(evolution.includes(label), `the provenance label "${label}" must survive`);
+  }
+
+  // AND EVERY INPUT THE ATTESTATION NAMES IS LABELLED ON THE DESTINATION, with an
+  // origin a skeptic can trace and an assumption behind it.
+  const provenance = textOf(document.getElementById("finops-evidence-provenance"));
+  for (const label of Object.values(INPUT_LABEL)) {
+    assert.ok(provenance.includes(label), `the input "${label}" must name where it came from`);
+  }
+  const origins = [...document.querySelectorAll("[data-origin]")]
+    .map((node) => node.getAttribute("data-origin"));
+  assert.ok(origins.length >= Object.keys(INPUT_LABEL).length,
+    "every input carries its origin, not just the ones that are derived");
+  for (const origin of new Set(origins)) {
+    assert.ok(provenance.includes(ORIGIN_LABEL[origin]),
+      `the origin "${origin}" is stated as a word, not only as an attribute`);
+  }
+});
+
 test("the action center points at the answer instead of restating it", async () => {
   const document = parseHtml(await read("src/savings-action-center.html"));
   const link = document.getElementById("finops-journey-owner-link");

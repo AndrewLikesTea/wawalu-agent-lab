@@ -301,14 +301,16 @@ function usdWhole(value) {
   return `${value < 0 ? "-$" : "$"}${grouped}`;
 }
 
-/** Every department the dataset published, scored or not. */
-const departmentRows = (dataset) => (Array.isArray(dataset)
+/** Every department the dataset published, scored or not. Exported for #1524's
+ *  arithmetic chain, which shows the addition step by step and must sum the rows
+ *  this record summed rather than a second opinion about which rows count. */
+export const departmentRows = (dataset) => (Array.isArray(dataset)
   ? dataset
   : list(dataset?.rankedDepartments ?? dataset?.departments)).filter(isRecord);
 
 /** A completed FinOps score: a finite, non-negative recoverable line. A row
  *  that opts out with `scored: false` is honoured even when it carries one. */
-const isScored = (row) => row.scored !== false
+export const isScored = (row) => row.scored !== false
   && Number.isFinite(row.recoverableUsd) && row.recoverableUsd >= 0;
 
 /** The level, off the analysis's EXISTING confidence signal — a 0–100 evidence
