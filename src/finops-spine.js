@@ -141,6 +141,9 @@ const REGIONS = Object.freeze({
   "disclosure-next-step": REGION_CLASS.evidence,
   "disclosure-journey": REGION_CLASS.evidence,
   "finops-first-run": REGION_CLASS.evidence,
+  // #1483. It orders what is still outstanding for the answer above and asserts
+  // no figure of its own, so it is evidence and it is read after that answer.
+  "finops-readiness-loop": REGION_CLASS.evidence,
   "finops-front-door": REGION_CLASS.evidence,
   "finops-destinations": REGION_CLASS.evidence,
   "finops-workspace-nav": REGION_CLASS.evidence,
@@ -215,7 +218,10 @@ const EVIDENCE_LAYERS = Object.freeze([
       // The guided flow continues the readiness answer above it: one chosen
       // bundled scenario, and the evidence and department detail it produces.
       "finops-guided-choice", "finops-guided-evidence", "finops-guided-department",
-      "finops-first-run", "guided-result", "finops-portfolio-brief", "monthly-review-projection",
+      // #1483 belongs to this layer and not to the next one: its subject is how
+      // far this record is stood behind, which is this layer's own question.
+      "finops-first-run", "finops-readiness-loop",
+      "guided-result", "finops-portfolio-brief", "monthly-review-projection",
     ]),
   }),
   Object.freeze({

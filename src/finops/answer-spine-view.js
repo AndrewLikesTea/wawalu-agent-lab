@@ -279,6 +279,20 @@ export const ANSWER_SPINE = Object.freeze([
       + "confidence score with its basis. Estimated, never invoiced.",
   },
   {
+    // The guided loop (#1483). It is read after the brief because it is about
+    // what would raise that brief's claim, and a list of outstanding work read
+    // before the answer it qualifies is a gate rather than a next step.
+    id: "finops-readiness-loop",
+    role: ROLE.step,
+    question: "What still stands between this figure and a claim we could defend?",
+    headingId: "readiness-loop-question",
+    entitledToAssert:
+      "One ordered pass over the readiness contract's own evidence categories, "
+      + "with each step's done/not-done taken from the module that owns it — the "
+      + "declared-rate contract and the graded floor. It computes no figure: the "
+      + "claim and its inputs are quoted from the slots this page already painted.",
+  },
+  {
     // The registry front door (#1325). It carries no heading on purpose — a
     // heading here would be a second question at headline weight — so it names
     // itself through its eyebrow label, which is what `headingId` points at.

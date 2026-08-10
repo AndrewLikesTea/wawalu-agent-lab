@@ -378,6 +378,10 @@ test("every top-level section that existed before the answer block is still on t
     // it qualifies. Nothing left this list to make room for it.
     "finops-analysis-readiness",
     "finops-first-run",
+    // #1483 added one: the ordered loop over what is still outstanding for the
+    // claim above it, read directly after the brief it qualifies. Nothing left
+    // this list to make room for it.
+    "finops-readiness-loop",
     // #1325 added one: the registry front door, three named destinations with
     // the question each answers and one material metric apiece. Nothing left
     // this list to make room for it.
