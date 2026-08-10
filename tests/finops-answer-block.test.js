@@ -398,7 +398,11 @@ test("every top-level section that existed before the answer block is still on t
     "finops-guided-choice", "finops-guided-evidence", "finops-guided-department",
     "finops-workspace-context", "finops-load-state", "score-card",
     "finops-portfolio-brief", "monthly-review-projection", "guided-result", "local-import", "prompt-coaching",
-    "finops-contact", "finops-proof-point", "finops-headline", "classifier-agreement",
+    // #1524 added one: the working behind the recoverable figure, in the
+    // evidence destination. An ADDITION, never a replacement — nothing left the
+    // list to make room for it, which is the only thing this assertion guards.
+    "finops-contact", "finops-proof-point", "finops-evidence-working",
+    "finops-headline", "classifier-agreement",
     "disclosure-grade-comparisons", "graded-sample", "org-coaching", "spend-per-delivery",
     "department-evidence", "department-fix-pack", "monthly-department-decision",
     // #1286: what a lead has committed out of that slate, stated before it.

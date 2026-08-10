@@ -3548,6 +3548,51 @@
            visitor meets a coherent headline before any script runs and so the
            surface does not jump when one does. A test pins these strings against
            the model, which is what keeps the two from drifting apart. -->
+      <!-- THE WORKING, FOR A READER WHO DOES NOT BELIEVE THE NUMBER (#1524).
+           Every string below is written once in src/finops-evidence-working.js
+           and rendered by `evidenceWorkingMarkup()`; the document ships that
+           render so the working is readable with no script at all, and
+           tests/finops-evidence-working.test.js compares the two byte for byte,
+           which is the same contract src/finops-destinations.js keeps with the
+           front door. The rubric version and the pricing provenance are stated
+           HERE and once — they qualify the figure rather than competing with
+           it. The claim and the state line are siblings of the disclosure and
+           never children of it: folded into a shut details element, a state a
+           reader depends on is a state nobody is told. It adds no rule to
+           either stylesheet; every class on it is already shipped. -->
+      <section class="finops-panel" id="finops-evidence-working" data-workspace-region="evidence" data-decision-summary="evidence" data-state="ready" aria-labelledby="finops-evidence-working-title">
+        <p class="eyebrow">The working</p>
+        <h2 id="finops-evidence-working-title">How was $51,254 computed, and from what?</h2>
+        <p class="stand-answer" id="finops-evidence-working-claim">Recoverable AI spend per month: $51,254, over 2026-06-01 to 2026-07-01. Every step, source and assumption behind that figure is below.</p>
+        <p class="panel-status-line" id="finops-evidence-working-state"><span class="panel-status-chip" id="finops-evidence-working-chip" data-silhouette="outline"><span class="panel-status-shape" id="finops-evidence-working-shape" aria-hidden="true">✓</span><span class="panel-status-word" id="finops-evidence-working-word">Checked</span></span> <span class="panel-status-summary" id="finops-evidence-working-summary">Every step below is computed from the bundled synthetic export this page already loaded.</span></p>
+        <h3 id="finops-evidence-arithmetic-title">The arithmetic, step by step</h3>
+        <ol class="action-list" id="finops-evidence-arithmetic">
+          <li>Analyzed AI spend in the reporting month — start from the export's own analyzed total. Running total: $154,500.</li>
+          <li>Departments carrying a completed FinOps score — keep only those, at 5 of 5, so nothing is dropped for want of a score. Running total: $154,500 still in scope.</li>
+          <li>Each scored department's identified recoverable line — sum them; unscored departments contribute zero and are never extrapolated to. Running total: $51,254.</li>
+          <li>The sum above — round once, after the arithmetic, at the unit it is displayed in. Running total: $51,254 a month — the figure this page states.</li>
+          <li>The monthly figure — multiply by 12 to state the annual form, with no seasonality or growth adjustment. Running total: about $615,048 a year if this month holds.</li>
+        </ol>
+        <h3 id="finops-evidence-rubric-title">Rubric version and pricing provenance</h3>
+        <dl class="figure-source-detail" id="finops-evidence-rubric">
+          <div><dt>Rubric version</dt><dd>literacy-mix/1.0.0, the published rubric every prompt grade on this page is scored against. A quoted grade is arguable against this version and no other.</dd></div>
+          <div><dt>Pricing card</dt><dd>Published list rates, with nothing contracted. That makes the figure a ceiling at list prices rather than a saving, and it moves the moment contracted input and output rates are declared for the premium and standard text tiers.</dd></div>
+          <div><dt>Pricing provenance</dt><dd>Not scored for this document: the four per-criterion bands — where the rates came from, how complete the card is, how old it is, how much of the analysis it covers — are read from the declaration's metadata, and this document carries no declaration.</dd></div>
+          <div><dt>Confidence</dt><dd>Medium — the workloads behind the figure are named, but their cost is priced by applying the published rate card to counted requests rather than read off an invoice line.</dd></div>
+          <div><dt>As of</dt><dd>Bundled synthetic example, as of 2026-07-01. Invented usage records for an invented company: not your spend, not customer data, and not a realized saving.</dd></div>
+        </dl>
+        <h3 id="finops-evidence-inputs-title">Where each input came from</h3>
+        <details class="figure-source" id="finops-evidence-inputs" data-disclosure="collapsed">
+          <summary class="figure-source-summary" id="finops-evidence-inputs-summary" aria-expanded="false"><span class="figure-source-state" data-disclosure="collapsed"><span class="figure-source-shape" aria-hidden="true">▸</span> Source of record and as-of date for each of the 4 inputs</span></summary>
+          <dl class="figure-source-detail" id="finops-evidence-inputs-detail">
+            <div><dt>Analyzed spend</dt><dd>Bundled synthetic provider export shipped with this page, as of 2026-07-01.</dd></div>
+            <div><dt>Department scores</dt><dd>Computed in this browser from that export; 5 of 5 departments completed.</dd></div>
+            <div><dt>Unit prices</dt><dd>Published list rate card, as of 2026-07-01. No contracted or committed-use rate is applied.</dd></div>
+            <div><dt>Prompt grades</dt><dd>Synthetic prompt corpus scored by literacy-mix/1.0.0, weighted by each department's spend.</dd></div>
+          </dl>
+        </details>
+      </section>
+
       <section class="finops-headline" id="finops-headline" data-decision-summary="evidence" data-workspace-region="evidence" data-status="ready" data-state="sample_only" data-source="sample" aria-labelledby="finops-headline-question" aria-describedby="finops-headline-basis">
         <p class="eyebrow">Your grade</p>
         <!-- One question, and it is the heading: a reader listing headings meets

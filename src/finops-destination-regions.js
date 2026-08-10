@@ -87,6 +87,7 @@ const REGION_IDS = Object.freeze({
     "finops-guided-evidence",
     "score-card",
     "finops-proof-point",
+    "finops-evidence-working",
     "finops-headline",
     "classifier-agreement",
     "disclosure-grade-comparisons",

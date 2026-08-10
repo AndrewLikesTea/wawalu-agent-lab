@@ -458,6 +458,14 @@ export const ANSWER_SPINE = Object.freeze([
     headingId: "proof-point-title",
   },
   {
+    // #1524: the working behind the recoverable figure, assembled in one place
+    // for a reader who is checking it rather than reading it.
+    id: "finops-evidence-working",
+    role: ROLE.detail,
+    question: "How was the recoverable figure computed, and from what?",
+    headingId: "finops-evidence-working-title",
+  },
+  {
     id: "finops-headline",
     role: ROLE.detail,
     question: "Is this grade mine, or the example's?",

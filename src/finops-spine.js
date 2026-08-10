@@ -193,6 +193,9 @@ const REGIONS = Object.freeze({
   "disclosure-savings-portfolio": REGION_CLASS.evidence,
   "disclosure-recommendation-evidence": REGION_CLASS.evidence,
   "finops-privacy": REGION_CLASS.evidence,
+  // #1524: the arithmetic, the rubric version and the pricing provenance, in
+  // one place a skeptic can read straight down.
+  "finops-evidence-working": REGION_CLASS.evidence,
 });
 
 /**
@@ -258,7 +261,7 @@ const EVIDENCE_LAYERS = Object.freeze([
     id: "how-it-was-worked-out",
     question: "How was this worked out, and can someone else repeat it?",
     regionIds: Object.freeze([
-      "score-card", "finops-headline", "classifier-agreement",
+      "score-card", "finops-evidence-working", "finops-headline", "classifier-agreement",
       "disclosure-grade-comparisons", "graded-sample",
       "disclosure-recommendation-evidence", "prompt-coaching", "finops-proof-point",
       "finops-contact",

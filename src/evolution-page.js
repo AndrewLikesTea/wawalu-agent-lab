@@ -544,6 +544,7 @@ import {
 import { applyRecoverableConfidence } from "/finops-recoverable-confidence-view.js";
 import { applyRecoverableSpendCoverage } from "/recoverable-spend-coverage-view.js";
 import { applyFinopsFrontDoor, bindFrontDoorWorking } from "/finops-destinations.js";
+import { applyEvidenceWorking, bindEvidenceInputs } from "/finops-evidence-working.js";
 // …and what a lead would have to state before that figure is checkable against
 // their own contract, rather than against a published list price (#1262).
 import { applyRateCardLadder } from "/finops-rate-card-view.js";
@@ -5073,6 +5074,13 @@ async function init() {
   // stay the browser's. This binding only mirrors `open` onto the state channels
   // the collapsed chip reads.
   bindFrontDoorWorking(document);
+  // …and, in the evidence destination, the same discipline over the recoverable
+  // figure itself: the arithmetic as an ordered sequence, the rubric version and
+  // the pricing provenance stated once, and each input's source behind one
+  // disclosure. Repainted from /finops-evidence-working.js, which the document
+  // already ships the render of.
+  applyEvidenceWorking(document);
+  bindEvidenceInputs(document);
   // …and beside that grade, the rate card the figure is priced at: the tier
   // marker, the hedge under the figure, and the one thing to state next, all
   // derived from the same ladder so no wording is kept by hand. Before the
