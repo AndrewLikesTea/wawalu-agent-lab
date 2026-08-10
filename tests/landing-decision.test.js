@@ -26,7 +26,8 @@ import { RELEASE_STORAGE_KEY } from "../src/releases.js";
 import { loadPage, pressEnter, tabSequence, textOf } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
 import {
-  composeLandingDecision, LANDING_DECISION_SLOTS, LANDING_DECISION_STATE,
+  composeLandingDecision, LANDING_DECISION_IDS, LANDING_DECISION_ORIGIN,
+  LANDING_DECISION_SLOTS, LANDING_DECISION_STATE,
 } from "../src/landing-decision.js";
 
 const PAGE = new URL("../src/index.html", import.meta.url);
@@ -111,17 +112,85 @@ test("no summary figure on the front door is authored in its markup", async () =
   assert.ok(!html.includes(String(composed.briefing.recoverable.valueMinor / 100)));
   assert.ok(!html.includes(composed.briefing.nextAction.statement));
 
-  // The one authored pair is the deliberate exception: the hero states the AI
-  // FinOps example's headline result, then repeats that same pair in its
-  // labelled, copyable takeaway. Both carry the synthetic qualifier, and
-  // build.test.js pins the figures against the composer that paints them on
-  // AI FinOps.
+  // The one authored pair is the deliberate exception, and it is authored once:
+  // the labelled, copyable takeaway states the AI FinOps example's headline
+  // result, and the paragraph that introduces the example no longer repeats it.
+  // The takeaway carries the synthetic qualifier, and build.test.js pins the
+  // figures against the composer that paints them on AI FinOps.
   const beforeLog = html.slice(0, html.indexOf("record-history"));
-  assert.deepEqual(beforeLog.match(/\$[\d,]+/g), ["$51,254", "$154,500", "$51,254", "$154,500"]);
+  assert.deepEqual(beforeLog.match(/\$[\d,]+/g), ["$51,254", "$154,500"]);
   const start = beforeLog.indexOf('<p class="hero-proof-point">');
   const proofPoint = beforeLog.slice(start, beforeLog.indexOf("</p>", start));
-  assert.match(proofPoint, /\$51,254 of \$154,500/);
+  assert.doesNotMatch(proofPoint, /\$[\d,]+|33%/,
+    "the paragraph above the takeaway must not restate the figure the takeaway carries");
   assert.match(proofPoint, /bundled synthetic example/);
+});
+
+/**
+ * A block that asserts the privacy promise: that reading happens in this tab or
+ * browser, or that nothing is uploaded, fetched, or stored. Naming where the
+ * retained periods live ("the periods this browser keeps") is not the promise
+ * and is not counted.
+ */
+const PROMISE =
+  /\b(?:in|leaves?) this (?:tab|browser)\b|\bthis browser tab\b|\b(?:nothing|no)\b[^.]{0,60}\b(?:upload|uploaded|stored|storage|fetch|fetched)\b/i;
+
+const PROMISE_BLOCKS = new Set(["P", "H1", "H2", "H3", "H4", "LI", "DT", "DD", "SUMMARY", "BUTTON"]);
+
+/**
+ * Every visible block on the first screen that makes the promise.
+ *
+ * A closed disclosure is skipped: text behind `hidden` is not something a
+ * reader is being told, so counting it would let a fifth copy hide in a panel.
+ */
+function promiseBlocks(root, skip = () => false, found = []) {
+  if (root.nodeType !== 1 || root.hasAttribute("hidden") || skip(root)) return found;
+  if (PROMISE_BLOCKS.has(root.tagName) && PROMISE.test(textOf(root))) found.push(textOf(root));
+  else for (const child of root.children) promiseBlocks(child, skip, found);
+  return found;
+}
+
+test("the first screen makes its privacy promise at most twice, beside the link it describes", async (t) => {
+  const { document, mount } = await openFrontDoor(t);
+
+  // #1544: this screen used to say it five times — in the hero boundary, on the
+  // summary's kicker, in the summary's loading state, in its next step, and in
+  // the origin line the summary itself carries. Saying it once per element a
+  // reader's eye lands on is not reassurance; it reads as a page protesting.
+  //
+  // Counted here is what this page authors. The mounted briefing document and
+  // its print controls are excluded and counted through their one homepage
+  // string below, because the rest of what they say about provenance is the
+  // shared executive briefing's own and reads the same on
+  // /executive-briefing.html; trimming it would rewrite that page from here.
+  const hero = document.getElementById("top");
+  const section = document.getElementById("landing-decision");
+  const mounted = (node) => node === mount || node.getAttribute("id") === LANDING_DECISION_IDS.actions;
+  const found = [
+    ...promiseBlocks(hero),
+    ...promiseBlocks(section, mounted),
+    ...promiseBlocks(mount).filter((text) => text === LANDING_DECISION_ORIGIN),
+  ];
+  assert.ok(found.length <= 2, `the first screen makes the promise ${found.length} times:\n${found.join("\n")}`);
+  assert.ok(found.length >= 1, "the first screen must still make the promise once");
+
+  // Whichever copy survives keeps all three claims. A shorter promise that drops
+  // storage or upload is a weaker promise, not a tidier one.
+  const boundary = textOf(hero.querySelector(".hero-boundary"));
+  assert.match(boundary, /do not leave this tab/);
+  assert.match(boundary, /read and analyzed in this browser/);
+  assert.match(boundary, /No upload/);
+  assert.match(boundary, /nothing of yours is stored/);
+
+  // And it is made where the file is: in the hero's own block, immediately
+  // after the AI FinOps link a reader is deciding to click — not in a banner
+  // further up the page that they have already scrolled past by then.
+  const blocks = hero.childElements;
+  const actions = blocks.findIndex((node) => node.getAttribute("class") === "hero-actions");
+  const promise = blocks.findIndex((node) => (node.getAttribute("class") ?? "").includes("hero-boundary"));
+  assert.ok(actions >= 0 && promise === actions + 1,
+    "the promise must read in the same block as the AI FinOps entry point, directly after it");
+  assert.match(textOf(blocks[actions]), /Read the worked decision in AI FinOps/);
 });
 
 test("the front-door answer reproduces Noor's labelled canonical fixture exactly", async () => {
