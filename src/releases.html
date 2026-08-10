@@ -75,6 +75,12 @@
            this log? Read only — it probes /healthz, compares, and links; it
            never deploys, rolls back, or writes a record.
 
+           The lead sentence is static markup, not a slot: what this check
+           proves is true before the probe answers and stays true if it never
+           does, so a reader with no JavaScript still learns what the band is
+           for. It also draws the line the rest of this page draws — the example
+           decision and release above are invented, this answer is not.
+
            The classes are the release follow-up callout's, reused rather than
            extended: styles.css is at its measured size budget, and this band is
            the same thing that pattern already means — one state, one sentence,
@@ -87,7 +93,8 @@
       <section class="release-followup-slot" id="deployment-status" aria-labelledby="deployment-status-title">
         <div class="release-followup" id="deployment-status-callout">
           <h2 class="release-followup-title" id="deployment-status-title">Deployment status</h2>
-          <p class="release-followup-lead" id="deployment-verdict" role="status">Checking the running deployment now, then comparing it with the newest release record…</p>
+          <p class="release-followup-lead" id="deployment-status-proof">This check answers one question: does the newest release record below name the version this site is running right now? It reads the running deployment when the page loads. The example decision and release above are invented; this answer is not.</p>
+          <p class="release-followup-lead" id="deployment-verdict" role="status">Checking the running deployment now…</p>
           <p class="detail-summary" id="deployment-metric"></p>
           <!-- The commit-sha half of the same question, written by
                releases-page.js from src/release-build-match.js: the same

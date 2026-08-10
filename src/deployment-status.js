@@ -43,9 +43,9 @@ export const DEPLOYMENT_STATES = Object.freeze(["match", "drift", "unknown"]);
 export const UNKNOWN_REASONS = Object.freeze({
   unreachable: "The health check could not be reached.",
   timeout: "The health check did not answer in time.",
-  "unexpected-shape": "The health check answered in a shape this view does not recognise.",
+  "unexpected-shape": "The health check answered in a shape this page does not recognise.",
   "no-build": "The health check answered, but it named no build identifier.",
-  "no-record": "The release log holds no record to compare the running build against.",
+  "no-record": "The release log holds no record to compare the running deployment against.",
 });
 
 const FALLBACK_REASON = UNKNOWN_REASONS.unreachable;
@@ -162,19 +162,24 @@ export function deploymentVerdict(reading = {}, release = null, now = new Date()
   return { ...base, state: "drift", deployedBuild, nextAction: nextActionFor(release) };
 }
 
-// The one sentence the view leads with. Returned as a string and written through
-// textContent by the renderer — never assembled into markup — because both
-// identifiers originate outside this page.
+// The answer, in one sentence a reader who opens nothing can act on. The page's
+// static lead says what the check proves; this says how it came out. Returned as
+// a string and written through textContent by the renderer — never assembled
+// into markup — because both identifiers originate outside this page.
+//
+// The three states read as three different sentences on purpose. A check that
+// could not run is not a mismatch, and neither of them may be mistaken for the
+// match: only the match names a version as the one this site is running.
 export function verdictSentence(verdict) {
   const deployed = verdict.deployedBuild ?? "an unreported build";
   const recorded = verdict.recordedBuild ?? "no recorded build";
   if (verdict.state === "match") {
-    return `The running deployment matches the newest release record: ${deployed}.`;
+    return `Confirmed: this site is running ${deployed}, the version the newest release record names.`;
   }
   if (verdict.state === "drift") {
-    return `The running deployment does not match the newest release record: ${deployed} is running, ${recorded} is recorded.`;
+    return `Not a match: this site is running ${deployed}, but the newest release record names ${recorded}.`;
   }
-  return `Whether the running deployment matches the newest release record is unknown. ${verdict.reason}`;
+  return `The check did not complete, so nothing here says which version this site is running. ${verdict.reason}`;
 }
 
 // The single headline metric: both identifiers and how long the state has held.
@@ -186,4 +191,4 @@ export function verdictMetricText(verdict) {
 }
 
 // What a matching verdict says instead of offering an action.
-export const NO_ACTION_TEXT = "No action is needed: the running build is the newest release on record.";
+export const NO_ACTION_TEXT = "No action is needed: the version running is the newest release on record.";
