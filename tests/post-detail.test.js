@@ -225,13 +225,28 @@ test("a missing post is named in plain language, with no id or code echoed back"
   renderPostDetail(missing, null, { id: "p-gone", author: "Mina" });
   assert.equal(first(missing, "detail-state-label").textContent, "Not found");
   assert.equal(first(missing, "empty-title").textContent, "Post unavailable");
-  assert.match(missing.textContent, /This post can’t be shown\./);
+  // It names the situation — the feed answered and this post is not in it —
+  // rather than passing a verdict a reader would have to interpret.
+  assert.match(missing.textContent, /This post isn’t in the Social feed\./);
   assert.doesNotMatch(missing.textContent, /removed|private|signed-in|your post/i);
+  // And it is not the error state's answer wearing different words: nothing
+  // here says the feed failed, because it did not.
+  assert.doesNotMatch(missing.textContent, /could not be reached|couldn’t reach|error/i);
   assert.equal(missing.firstChild.getAttribute("role"), "status");
   assert.ok(ids(missing).includes(missing.firstChild.getAttribute("aria-labelledby")));
   const feed = first(missing, "detail-state-feed");
   assert.equal(feed.textContent, "Go to the Social feed");
   assert.equal(feed.href, "/social.html");
+  // Two next steps, not one: read the feed the post is not in, or put a post of
+  // your own into it. The second is what makes this state a page rather than an
+  // apology, and it goes to the fragment that opens the composer on arrival.
+  const compose = first(missing, "detail-state-compose");
+  assert.equal(compose.tagName, "A");
+  assert.equal(compose.textContent, "Publish a post of your own");
+  assert.equal(compose.href, "/social.html#post-form");
+  assert.equal(byClass(missing, "empty-action").length, 2, "the feed and the composer, in that order");
+  assert.deepEqual(byClass(missing, "empty-action").map((node) => node.textContent),
+    ["Go to the Social feed", "Publish a post of your own"]);
   // The reader is told the post is gone, not shown the string they typed.
   assert.doesNotMatch(missing.textContent, /p-gone|404|null|undefined/);
 });
@@ -266,13 +281,15 @@ test("an id-less visit is headed by the same not-found words, and offers the fee
   // Only the sentence differs, because only it can say what is true of *this*
   // link: nothing was asked for, as against something that was not there.
   assert.match(container.textContent, /This link does not point to a post we can show\./);
-  assert.doesNotMatch(container.textContent, /This post can’t be shown\./);
-  // And one next step, named where the problem is explained. This state used to
-  // offer none at all, leaving a dead end with nothing pointing out of it.
+  assert.doesNotMatch(container.textContent, /This post isn’t in the Social feed\./);
+  // And the same two next steps, named where the problem is explained. This
+  // state used to offer none at all, leaving a dead end with nothing pointing
+  // out of it, and then only the feed.
   const feed = first(container, "detail-state-feed");
   assert.equal(feed.textContent, "Go to the Social feed");
   assert.equal(feed.href, "/social.html");
-  assert.equal(byClass(container, "empty-action").length, 1, "one action, not a stack");
+  assert.equal(first(container, "detail-state-compose").href, "/social.html#post-form");
+  assert.equal(byClass(container, "empty-action").length, 2, "the feed and the composer");
   // Nothing to retry: no id was asked for, so a second attempt asks nothing.
   assert.equal(tags(container, "BUTTON").length, 0);
 });
@@ -613,14 +630,27 @@ test("the standing exits remain while unavailable states add a clear feed action
   }
 });
 
+// Which next steps each state owns, counted by the class that names the step
+// rather than by the class that styles it. The two states with no post offer the
+// feed and the composer; the state that could not reach the feed offers the feed
+// and a retry, and never invites a reader to publish into a feed this page has
+// just failed to read.
 test("only unavailable requested-post states render a feed action", () => {
   for (const [name, value, options] of PANEL_STATES) {
     const container = createElement("div");
     renderPostDetail(container, value, options);
+    const unresolved = ["missing", "error", "id-less"].includes(name);
+    assert.equal(byClass(container, "detail-state-feed").length, unresolved ? 1 : 0,
+      `the ${name} state has the expected feed action`);
+    assert.equal(byClass(container, "detail-state-compose").length,
+      ["missing", "id-less"].includes(name) ? 1 : 0,
+      `the ${name} state has the expected compose action`);
+    // One filled control per state: the feed leads where the post is merely
+    // absent, the retry leads where the feed itself did not answer.
     assert.equal(
       byClass(container, "empty-action-secondary").length,
-      ["missing", "error", "id-less"].includes(name) ? 1 : 0,
-      `the ${name} state has the expected feed action`,
+      unresolved ? 1 : 0,
+      `the ${name} state marks exactly one action as the secondary`,
     );
     // Retry is the one action a state still owns, because no standing link can
     // re-run a failed fetch.
@@ -654,7 +684,8 @@ test("loading and unavailable states say what happened in words", () => {
   const missingWords = words(missing);
   const failedWords = words(failed);
   const only = (a, b) => [...a].filter((word) => !b.has(word));
-  assert.ok(only(missingWords, failedWords).includes("shown"), "the missing state says only that the post cannot be shown");
+  assert.ok(only(missingWords, failedWords).includes("isn’t"), "the missing state says the post is not in the feed");
+  assert.ok(only(missingWords, failedWords).includes("publish"), "and offers the reader a post of their own");
   assert.ok(only(failedWords, missingWords).includes("reach"), "the failed state must name the feed it could not reach");
 
   // Neither state makes the temporary failure sound like confirmed deletion.
@@ -716,8 +747,15 @@ test("a missing post reaches the feed even when the standing exit does not", () 
   assert.equal(feed.tagName, "A");
   assert.equal(feed.href, "/social.html");
   assert.equal(feed.textContent, "Go to the Social feed");
-  // It comes after the words that explain it, so it is not tabbed to first.
-  assert.equal(fromProfile.firstChild.lastChild, feed);
+  // The actions come after the words that explain them, so neither is tabbed to
+  // before the sentence that says why it is there. Asserted on the row's class
+  // and the order inside it, never by comparing nodes.
+  const row = fromProfile.firstChild.lastChild;
+  assert.ok(row.className.includes("empty-actions"), "the two next steps close the panel");
+  assert.deepEqual(byClass(row, "empty-action").map((node) => node.className), [
+    "empty-action detail-state-feed",
+    "empty-action empty-action-secondary detail-state-compose",
+  ]);
 
   // The unavailable state owns this next step even when the standing exit also
   // points to Social.

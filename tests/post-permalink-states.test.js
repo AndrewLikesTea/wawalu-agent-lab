@@ -106,8 +106,11 @@ test("a post id that does not exist is headed as not found, with no wait left be
   try {
     const heading = page.panel.querySelector(".empty-title");
     assert.equal(textOf(heading), "Post unavailable");
-    assert.match(textOf(page.panel), /This post can’t be shown\./);
+    // The situation, named: the feed answered and this post is not in it. Not
+    // a verdict on the post, and not a word of the error state's vocabulary.
+    assert.match(textOf(page.panel), /This post isn’t in the Social feed\./);
     assert.doesNotMatch(textOf(page.panel), /removed|private|signed-in|your post/i);
+    assert.doesNotMatch(textOf(page.panel), /could not be reached|couldn’t reach|error/i);
 
     // The line the page ships with is gone, not pushed below the explanation.
     assert.equal(textOf(page.panel).includes(STATE_HEADLINES.loading), false);
@@ -119,6 +122,14 @@ test("a post id that does not exist is headed as not found, with no wait left be
     assert.equal(feed.tagName, "A");
     assert.equal(feed.getAttribute("href"), "/social.html");
     assert.equal(textOf(feed), "Go to the Social feed");
+
+    // And a second way onward, so the state is not a door back to one surface a
+    // stranger has never seen: the composer that puts a post into the feed the
+    // shared one is missing from.
+    const compose = page.panel.querySelector(".detail-state-compose");
+    assert.equal(compose.tagName, "A");
+    assert.equal(textOf(compose), "Publish a post of your own");
+    assert.equal(compose.getAttribute("href"), "/social.html#post-form");
 
     // Nothing to retry: the feed answered, and asking it again cannot change
     // the answer. Only the error state owns a retry.
@@ -162,12 +173,13 @@ test("the wait and the not-found answer are one slot, so they can never both sta
     assert.equal(panel.querySelectorAll(".detail-loading-text").length, 0);
     assert.equal(panel.querySelectorAll("[data-post-state-panel]").length, 1);
     assert.equal(textOf(page.document.querySelector("main")).includes(STATE_HEADLINES.loading), false);
-    assert.match(textOf(panel), /This post can’t be shown\./);
+    assert.match(textOf(panel), /This post isn’t in the Social feed\./);
 
     // One slot: the same region node held both, so there is no second element
     // for a later state to be parked in.
     assert.equal(page.document.querySelectorAll("#post-detail").length, 1);
     assert.equal(panel.dataset.postState, "not-found");
+    assert.equal(textOf(panel.querySelector(".detail-state-compose")), "Publish a post of your own");
 
     // And the stated outcome reads before the standing route onward, which is
     // still there in its shipped position and wording.
@@ -212,8 +224,8 @@ test("an answered feed with no matching id is not-found, not an error", async ()
 const NOT_FOUND_ROUTES = [
   ["no id at all", "", () => { throw new Error("a link with no id must not ask the network"); },
     /This link does not point to a post we can show/],
-  ["a truncated id", "?id=8f14e45f-ceea-467a", seedOnly([IMAGE_POST, TEXT_POST]), /This post can’t be shown\./],
-  ["an id that is only spaces", "?id=%20%20", seedOnly([IMAGE_POST]), /This post can’t be shown\./],
+  ["a truncated id", "?id=8f14e45f-ceea-467a", seedOnly([IMAGE_POST, TEXT_POST]), /This post isn’t in the Social feed\./],
+  ["an id that is only spaces", "?id=%20%20", seedOnly([IMAGE_POST]), /This post isn’t in the Social feed\./],
 ];
 
 test("a link with no id, or a truncated one, lands in the same not-found state as a stale id", async () => {
@@ -230,14 +242,73 @@ test("a link with no id, or a truncated one, lands in the same not-found state a
       assert.equal(textOf(page.document.querySelector("main")).includes(STATE_HEADLINES.loading), false, `${route}: the wait is still on the page`);
       assert.equal(page.panel.querySelectorAll(".detail-loading").length, 0, `${route}: a loading node survived`);
 
-      // One next step: the feed. Counted, because the assertion is about how
-      // many routes forward this state offers, not which node is where.
-      assert.equal(page.panel.querySelectorAll(".empty-action").length, 1, `${route}: one next step, not a stack`);
-      assert.equal(textOf(page.panel.querySelector(".detail-state-feed")), "Go to the Social feed");
+      // Two next steps, in one order, however the link failed: read the feed,
+      // or write into it. Counted and read as a list, because the assertion is
+      // about what this state offers and in which order, not which node is
+      // where. A reader who cannot get the post is not left with one door.
+      assert.deepEqual(page.panel.querySelectorAll(".empty-action").map(textOf),
+        ["Go to the Social feed", "Publish a post of your own"], `${route}: the routes onward`);
+      assert.equal(page.panel.querySelector(".detail-state-compose").getAttribute("href"), "/social.html#post-form",
+        `${route}: the composer link must open the composer, not land beside it`);
+      // Both reachable by keyboard, in the order they read.
+      const sequence = tabSequence(page.document);
+      const steps = page.panel.querySelectorAll(".empty-action");
+      assert.ok(sequence.indexOf(steps[0]) >= 0 && sequence.indexOf(steps[0]) < sequence.indexOf(steps[1]),
+        `${route}: both next steps must be tabbable, feed first`);
       assert.equal(page.panel.querySelectorAll("button").length, 0, `${route}: nothing here can be retried`);
     } finally {
       page.restore();
     }
+  }
+});
+
+// The second next step, checked at the other end of the link.
+//
+// `/social.html` on its own would drop a reader on the feed with the composer
+// still folded away — it ships collapsed — one more click from the thing the
+// label just promised. So the link carries the fragment src/social-page.js
+// already honours for the Paint handoff, and the promise is pinned here because
+// it is kept on a different page from the one that makes it.
+test("the not-found state's compose link lands on Social with the composer already open", async () => {
+  const page = await loadPage(new URL("../src/social.html", import.meta.url), {
+    location: { hash: "#post-form" },
+    routes: { "/social-demo-data.json": { posts: [] }, "/api/social-posts?limit=100": { posts: [] } },
+  });
+  // The feed polls on a timer, and a live interval would outlive this test.
+  const timers = [];
+  const realSetInterval = globalThis.setInterval;
+  globalThis.setInterval = (...args) => {
+    const handle = realSetInterval(...args);
+    timers.push(handle);
+    return handle;
+  };
+  // src/social-page.js reads the arriving URL off `globalThis.location`, which
+  // in a browser *is* `window.location`. This harness defines the window one and
+  // leaves the global undefined, so the fragment has to be put where the page
+  // actually looks for it, and taken back afterwards.
+  const savedLocation = Object.getOwnPropertyDescriptor(globalThis, "location");
+  Object.defineProperty(globalThis, "location", {
+    value: { hash: "#post-form", search: "" }, writable: true, configurable: true,
+  });
+  try {
+    await importPageModule("/social-page.js");
+    await waitFor(() => page.document.documentElement.dataset.shiplogSocial === "ready", "the Social page finished its first load");
+
+    const panel = page.document.querySelector("#post-compose-panel");
+    assert.equal(panel.hidden, false, "the fragment the permalink links to must open the composer");
+    assert.equal(page.document.querySelector("#post-compose-open").getAttribute("aria-expanded"), "true");
+    // And the fragment names a real element, so the browser's own jump lands on
+    // the form rather than at the top of a page the reader did not ask for.
+    assert.equal(page.document.querySelectorAll("#post-form").length, 1);
+    // The caption field is reachable now that the panel is open, which is the
+    // whole point of sending a reader here rather than to the feed.
+    assert.ok(tabSequence(page.document).includes(page.document.querySelector("#post-body")));
+  } finally {
+    globalThis.setInterval = realSetInterval;
+    for (const handle of timers) clearInterval(handle);
+    if (savedLocation) Object.defineProperty(globalThis, "location", savedLocation);
+    else delete globalThis.location;
+    page.restore();
   }
 });
 
@@ -315,6 +386,13 @@ test("an unreachable feed is named as such, with a keyboard-reachable retry afte
     assert.equal(textOf(page.panel.querySelector(".empty-title")), "Post could not be loaded");
     // A word, not just a wash: the state reads with the stylesheet gone.
     assert.equal(textOf(page.panel.querySelector(".detail-state-chip")), "Unreachable");
+
+    // No invitation to publish here. The not-found state offers the composer
+    // because the feed answered; this state could not read the feed at all, and
+    // sending a reader to write into it would be a promise this page has just
+    // failed to keep. The retry and the feed link, and nothing else.
+    assert.equal(page.panel.querySelectorAll(".detail-state-compose").length, 0);
+    assert.deepEqual(page.panel.querySelectorAll(".empty-action").map(textOf), ["Go to the Social feed", "Retry"]);
 
     const retry = page.panel.querySelector(".detail-retry");
     // A real button. Not a div with a click handler: this is why it is in the

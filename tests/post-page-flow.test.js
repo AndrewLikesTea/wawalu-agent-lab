@@ -168,7 +168,7 @@ test("an unknown id is named as a missing post, with the feed still the way out"
   const page = await openPostPage("?id=p-gone", seedOnly([SEED_POST]));
   try {
     assert.match(textOf(page.panel), /Post unavailable/);
-    assert.match(textOf(page.panel), /This post can’t be shown\./);
+    assert.match(textOf(page.panel), /This post isn’t in the Social feed\./);
     assert.doesNotMatch(textOf(page.panel), /removed|private|signed-in|your post/i);
     assert.doesNotMatch(textOf(page.panel), /A display name is not a signed-in user/);
     // No post, no author: the h1 names the page rather than standing as "Post".

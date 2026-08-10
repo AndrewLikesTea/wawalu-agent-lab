@@ -44,6 +44,19 @@ export const POST_EXITS = {
 };
 const MAX_RETURN_AUTHOR_LENGTH = 60;
 
+// The second thing a reader can do when the post a link promised is not in the
+// feed: write one of their own. It is not a third page exit — it is an action
+// the not-found state owns, so it lives with that state's words rather than in
+// POST_EXITS, which pins what src/post.html ships.
+//
+// The fragment is not decoration. Social's composer ships collapsed, and
+// src/social-page.js opens it for exactly two arrivals: the Paint handoff, and
+// anyone landing on `#post-form`. Linking at /social.html alone would drop a
+// reader on the feed with the composer still folded away, one more click from
+// the thing the label just promised.
+export const POST_COMPOSE_HREF = "/social.html#post-form";
+export const POST_COMPOSE_LABEL = "Publish a post of your own";
+
 export function postPeopleLabel(author = "") {
   const name = String(author).trim();
   return name && name.length <= MAX_RETURN_AUTHOR_LENGTH ? `Open People to see ${name}’s other image posts` : "";
@@ -79,8 +92,8 @@ function formatDateTime(iso) {
 }
 
 // The page carries both standing exits in src/post.html, named by POST_EXITS
-// above. An unavailable-post state also owns an explicit return action so the
-// next step remains visible beside the explanation.
+// above. An unavailable-post state also owns its own next steps, so what to do
+// remains visible beside the explanation of why it is needed.
 
 // One title and one sentence per resolved state, in the same shape the decision
 // detail uses: a status chip, a heading that names the state, then a single line
@@ -119,7 +132,12 @@ const POST_STATE_COPY = {
     tone: "missing",
     label: "Not found",
     title: "Post unavailable",
-    description: "This post can’t be shown.",
+    // It names the situation rather than passing a verdict on the post. "This
+    // post can’t be shown" reads as a refusal — removed, private, not for you —
+    // and a reader who guesses at which of those it is guesses wrong. The feed
+    // answered and had no post under this id, so that is what the sentence
+    // says, in the same terms the state's two next steps are offered in.
+    description: "This post isn’t in the Social feed.",
   },
   // The error state names the thing that broke — the feed — rather than
   // describing the post as "unavailable", which reads as a verdict about the
@@ -157,9 +175,25 @@ function labelledState(key, actions = []) {
 // Every unavailable requested-post panel links to the feed itself. Keeping the
 // action with the state makes the next step explicit even when the standing
 // exit above leads to the same place.
-function feedAction() {
-  const link = el("a", "empty-action empty-action-secondary detail-state-feed", "Go to the Social feed");
+//
+// Weight says which route the *state* leads with, not which link this is. Where
+// the post is simply not in the feed, the feed is the way onward and carries the
+// solid fill; where the feed could not be reached, the retry is the way onward
+// and this steps back to the outline beside it. One filled control per state,
+// which is the rule the People empty state and the composer already follow.
+function feedAction(primary = false) {
+  const link = el("a", `empty-action${primary ? "" : " empty-action-secondary"} detail-state-feed`, "Go to the Social feed");
   link.href = POST_EXITS.social.href;
+  return link;
+}
+
+// The second next step, and the one that makes this state something other than
+// an apology: a reader who arrived on a link to a post that is not in the feed
+// can put a post of their own in it. Outlined, second, and after the feed —
+// reading the feed is the smaller ask, so it leads.
+function composeAction() {
+  const link = el("a", "empty-action empty-action-secondary detail-state-compose", POST_COMPOSE_LABEL);
+  link.href = POST_COMPOSE_HREF;
   return link;
 }
 
@@ -282,14 +316,23 @@ function renderMedia(image, description) {
   return frame;
 }
 
-// One next step, and exactly one: the feed. Whichever way a link failed to
-// reach a post — no id, a truncated id, an id nobody posted under — the only
-// thing this page can honestly offer is the feed the post would have been in.
-// The id-less case used to offer nothing at all, on the grounds that the
-// standing exit above already names Social; that left the state explaining a
-// dead end without pointing anywhere out of it.
+// Two next steps, side by side, whichever way the link failed to reach a post —
+// no id, a truncated id, an id nobody posted under. The feed the post would have
+// been in, and the composer that puts a post into it.
+//
+// The second one is the difference between a dead end and a page. This state
+// used to offer the feed alone, and before that nothing at all: a stranger who
+// followed a shared link to a post that is not there was handed one door back to
+// a surface they had never seen. Reading the feed and writing to it are the two
+// things Social is for, so the state that has no post to show offers both.
+//
+// They sit in the row class the People empty state already uses for exactly this
+// pair, so two actions are a row rather than a stack and src/styles.css grows no
+// rule — it has no bytes to grow one with.
 function renderMissing(container, id) {
-  container.append(labelledState(id ? "not-found" : "empty", [feedAction()]));
+  const actions = el("div", "empty-actions");
+  actions.append(feedAction(true), composeAction());
+  container.append(labelledState(id ? "not-found" : "empty", [actions]));
 }
 
 // The retry is a real <button>, so it is in the natural tab order and picks up
