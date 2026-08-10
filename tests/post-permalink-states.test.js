@@ -19,7 +19,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { DomEvent, loadPage, parseHtml, pressEnter, pressTab, tabSequence, textOf } from "./support/browser.js";
-import { postDetailHref } from "../src/social-links.js";
+import { postDetailHref, profileHref } from "../src/social-links.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
 
 const SEED_URL = "/social-demo-data.json";
@@ -230,10 +230,12 @@ test("a link with no id, or a truncated one, lands in the same not-found state a
       assert.equal(textOf(page.document.querySelector("main")).includes(STATE_HEADLINES.loading), false, `${route}: the wait is still on the page`);
       assert.equal(page.panel.querySelectorAll(".detail-loading").length, 0, `${route}: a loading node survived`);
 
-      // One next step: the feed. Counted, because the assertion is about how
-      // many routes forward this state offers, not which node is where.
-      assert.equal(page.panel.querySelectorAll(".empty-action").length, 1, `${route}: one next step, not a stack`);
+      // Two next steps: read the feed, or write one. Counted, because the
+      // assertion is about how many routes forward this state offers, not which
+      // node is where.
+      assert.equal(page.panel.querySelectorAll(".empty-action").length, 2, `${route}: two next steps, and no third`);
       assert.equal(textOf(page.panel.querySelector(".detail-state-feed")), "Go to the Social feed");
+      assert.equal(textOf(page.panel.querySelector(".detail-state-compose")), COMPOSE_LINK);
       assert.equal(page.panel.querySelectorAll("button").length, 0, `${route}: nothing here can be retried`);
     } finally {
       page.restore();
@@ -497,12 +499,12 @@ test("a loaded post shows the poster's image description under a visible label",
     assert.equal(textOf(label), DESCRIPTION_LABEL, "the description is labelled in words, not by position");
     assert.equal(textOf(text), IMAGE_POST.image.alt, "and the label is followed by what the poster wrote");
 
-    // The description leads the image in source order, followed by the image's
-    // caption. It remains adjacent to the figure and inside the post region.
+    // The post's own caption leads, then the description, then the image it
+    // describes. All three sit inside the post region.
     const parts = page.panel.querySelectorAll(".detail-image-description-text,.detail-image,figcaption");
     assert.deepEqual(parts.map((node) => node.className),
-      ["detail-image-description-text", "detail-image", "detail-caption"],
-      "description, then image, then the post's caption");
+      ["detail-caption", "detail-image-description-text", "detail-image"],
+      "the post's caption, then the description, then the image");
 
     // No new type role and no new hue: the paragraph carries the class the feed
     // and a People tile already draw this text with. styles.css has no headroom
@@ -606,6 +608,10 @@ test("a post with no image renders no image element and no empty frame to hold o
 // one, not just in the state that happens to work.
 const SOCIAL_LINK = "Open the full Social feed";
 const PEOPLE_LINK = "Open People to see Mina Okafor’s other image posts";
+// The second next step a state with no post owes its reader: the other thing
+// Social is for. It is a panel action, not one of the page's standing exits, so
+// it lives inside #post-detail and goes with the state that offered it.
+const COMPOSE_LINK = "Publish a post of your own";
 const CHROME_LINKS = [SOCIAL_LINK, PEOPLE_LINK];
 // What each state offers. Social is true whatever the lookup did — the feed
 // exists either way — so it stands in all four. People is offered only where
@@ -928,7 +934,7 @@ test("a loaded post's caption, name, time and image all read before the feed con
     // post is made of, then the context sentence, then the two routes out.
     const flow = main.querySelectorAll(".detail-author-link,.detail-date,.detail-image,figcaption,#post-back,#post-people");
     const names = flow.map((node) => node.id || node.className);
-    assert.deepEqual(names, ["detail-image", "detail-caption", "detail-author-link", "post-date detail-date", "post-back", "post-people"],
+    assert.deepEqual(names, ["detail-caption", "detail-image", "detail-author-link", "post-date detail-date", "post-back", "post-people"],
       "the post's parts must all precede the routes off the page");
 
     // The image is announced by the description the poster stored, in the post
@@ -975,5 +981,201 @@ test("a permalink built the old way still resolves to the same post", async () =
     } finally {
       page.restore();
     }
+  }
+});
+
+/* ------------- the four regions, driven one case at a time ---------------- */
+
+// The claim this page is built on, restated as a table: four lookups, four
+// answers, and for each one exactly one region in the document carrying its own
+// literal label. The label strings are written out here rather than imported,
+// because the point is that a reader meets these words — a constant renamed on
+// both sides would pass an import-based check while the page said something
+// else. Counted, never compared against null: a node compared to null walks the
+// whole parsed page and outlives the test timeout.
+const STATE_LABELS = {
+  loading: "Loading shared Social post",
+  loaded: "Mina Okafor",
+  "not-found": "Post unavailable",
+  error: "Post could not be loaded",
+};
+
+test("each of the four lookups draws exactly one region, labelled in its own words", async () => {
+  // The wait, held open, because it is the only state a settled fetch cannot
+  // show. Everything else is read off a lookup that finished.
+  const waiting = await loadPage(new URL("../src/post.html", import.meta.url), { location: { search: "?id=p-image" } });
+  try {
+    let release;
+    globalThis.fetch = () => new Promise((resolve) => { release = () => resolve(seedResponse([IMAGE_POST])); });
+    await importPageModule("/post-page.js");
+    const panel = waiting.document.querySelector("#post-detail");
+    await waitFor(() => panel.querySelectorAll(".detail-loading").length === 1, "the loading state rendered");
+
+    assert.equal(panel.querySelectorAll("[data-post-state-panel]").length, 1, "loading: one region, not four");
+    assert.equal(panel.dataset.postState, "loading");
+    assert.ok(textOf(panel).includes(STATE_LABELS.loading), "loading: its own words");
+    for (const [state, label] of Object.entries(STATE_LABELS)) {
+      if (state === "loading") continue;
+      assert.equal(textOf(panel).includes(label), false, `loading: the ${state} label is also on screen`);
+    }
+    release();
+    await waitFor(() => waiting.document.documentElement.dataset.shiplogPostDetail === "ready", "the post arrived");
+  } finally {
+    waiting.restore();
+  }
+
+  const settled = [
+    ["loaded", "?id=p-image", seedOnly([IMAGE_POST])],
+    ["not-found", "?id=p-never-existed", seedOnly([IMAGE_POST])],
+    ["error", "?id=p-image", () => { throw new TypeError("Failed to fetch"); }],
+  ];
+  for (const [state, search, answer] of settled) {
+    const page = await openPostPage(search, answer);
+    try {
+      // Exactly one region present — not one visible. An inactive branch has no
+      // node at all, so it cannot contribute a heading or be reached by a
+      // screen reader through something folded shut.
+      assert.equal(page.panel.querySelectorAll("[data-post-state-panel]").length, 1, `${state}: one region, not four`);
+      assert.equal(page.panel.querySelectorAll(`[data-post-state-panel="${state}"]`).length, 1, `${state}: and it is this one`);
+      assert.equal(page.panel.dataset.postState, state);
+      assert.equal(page.panel.getAttribute("aria-busy"), "false");
+
+      // Its own label, in text, and none of the other three anywhere in main —
+      // including the wait, which is gone from the document rather than hidden.
+      const text = textOf(page.document.querySelector("main"));
+      assert.ok(text.includes(STATE_LABELS[state]), `${state}: must carry its own label in words`);
+      for (const [other, label] of Object.entries(STATE_LABELS)) {
+        if (other === state) continue;
+        assert.equal(text.includes(label), false, `${state}: the ${other} label is also on screen`);
+      }
+      assert.equal(page.panel.querySelectorAll(".detail-loading").length, 0, `${state}: a loading node survived`);
+      assert.equal(text.includes("Fetching it from the feed…"), false, `${state}: the loading line survived`);
+    } finally {
+      page.restore();
+    }
+  }
+});
+
+// The order a shared image post is read in, top to bottom: the poster's caption
+// first, then the image it captions carrying the description the post was
+// published with, then who wrote it, then when. Asserted on one combined query,
+// which comes back in document order, so this is reading order and tab order
+// rather than whatever a stylesheet does to it.
+test("a loaded post reads caption, then image with its published alt, then name, then time", async () => {
+  const page = await openPostPage("?id=p-image", seedOnly([IMAGE_POST]));
+  try {
+    assertOneState(page, "loaded", "a loaded post");
+
+    const flow = page.panel.querySelectorAll("figcaption,.detail-image,.detail-author-link,.detail-date");
+    assert.deepEqual(flow.map((node) => node.className),
+      ["detail-caption", "detail-image", "detail-author-link", "post-date detail-date"],
+      "caption, image, display name, then the posted time");
+
+    assert.equal(textOf(flow[0]), IMAGE_POST.caption);
+    // A property, not getAttribute: this harness reflects no properties, so the
+    // attribute would read as absent even though the image is named.
+    assert.equal(flow[1].alt, IMAGE_POST.image.alt, "the image carries the alt the post was published with");
+    assert.equal(textOf(flow[2]), IMAGE_POST.author);
+    // Machine-readable as well as human-readable, so the time is not a string
+    // that only looks like one.
+    assert.equal(flow[3].getAttribute("datetime"), IMAGE_POST.createdAt);
+    assert.ok(textOf(flow[3]).length > 0, "the time needs words as well as an attribute");
+
+    // The display name is the link into that one name's People view, built the
+    // way People's own URL shape is built, and it is reached by Tab in the same
+    // place it is read.
+    const link = flow[2];
+    assert.equal(link.tagName, "A");
+    assert.equal(link.getAttribute("href"), profileHref(IMAGE_POST.author));
+    assert.equal(link.getAttribute("href"), "/profile.html?author=Mina%20Okafor");
+    const sequence = tabSequence(page.document);
+    assert.ok(sequence.includes(link), "the display name is keyboard-reachable");
+    assert.ok(sequence.indexOf(link) < sequence.indexOf(page.document.querySelector("#post-back")),
+      "and it is reached in the order it is read, before the page's standing exits");
+  } finally {
+    page.restore();
+  }
+});
+
+// A link that reached no post is a dead end unless the state says what else
+// there is to do. It offers both: the feed the post would have been in, and the
+// composer — the other thing Social is for, and the only one of the two that is
+// an act rather than more reading.
+test("the not-found state offers both next steps as links, to the feed and to the composer", async () => {
+  const page = await openPostPage("?id=p-never-existed", seedOnly([IMAGE_POST]));
+  try {
+    assertOneState(page, "not-found", "an id that reached no post");
+    assert.equal(textOf(page.panel.querySelector(".empty-title")), STATE_LABELS["not-found"]);
+
+    const steps = page.panel.querySelectorAll(".empty-action");
+    assert.equal(steps.length, 2, "two next steps, and no third");
+    assert.deepEqual(steps.map((node) => node.tagName), ["A", "A"], "both are links, not controls");
+    assert.deepEqual(steps.map(textOf), ["Go to the Social feed", COMPOSE_LINK]);
+    assert.deepEqual(steps.map((node) => node.getAttribute("href")), ["/social.html", "/social.html#post-form"]);
+
+    // The composer's target is the deep link src/social-page.js already opens
+    // the collapsed panel for, so the link lands on a form rather than on a
+    // fragment nothing is rendering.
+    const social = await readFile(new URL("../src/social-page.js", import.meta.url), "utf8");
+    assert.ok(social.includes('=== "#post-form"'), "social-page.js must still open the composer for #post-form");
+    const markup = await readFile(new URL("../src/social.html", import.meta.url), "utf8");
+    assert.ok(markup.includes('id="post-form"'), "and the id the link names must exist on Social");
+
+    // Both are in the tab order, and both are reached before the page's standing
+    // routes out — the state's own next steps come first because the state is
+    // where the reader is.
+    const sequence = tabSequence(page.document);
+    for (const step of steps) assert.ok(sequence.includes(step), `${textOf(step)} must be keyboard-reachable`);
+    assert.ok(sequence.indexOf(steps[1]) < sequence.indexOf(page.document.querySelector("#post-back")));
+  } finally {
+    page.restore();
+  }
+});
+
+// The two unresolved answers may not read alike. not-found says the post is not
+// in the feed and offers somewhere else to be; error says the feed itself could
+// not be reached and offers to ask it again. Same missing post, two states, and
+// nothing shared but the link to the feed.
+test("the error state owns a retry and says something the not-found state does not", async () => {
+  const missing = await openPostPage("?id=p-gone", seedOnly([IMAGE_POST]));
+  const missingText = textOf(missing.panel);
+  missing.restore();
+
+  const page = await openPostPage("?id=p-gone", () => { throw new TypeError("Failed to fetch"); });
+  try {
+    assertOneState(page, "error", "the feed could not be reached");
+    const failedText = textOf(page.panel);
+
+    // The wording, compared rather than asserted twice: neither state's headline
+    // sentence may appear in the other.
+    assert.match(failedText, /We couldn’t reach the Social feed to load this post\./);
+    assert.equal(missingText.includes("couldn’t reach the Social feed"), false,
+      "not-found must not claim the feed was unreachable");
+    assert.match(missingText, /This post can’t be shown\./);
+    assert.equal(failedText.includes("This post can’t be shown."), false,
+      "the error state must not read as a verdict about the post");
+    assert.equal(textOf(page.panel.querySelector(".empty-title")), STATE_LABELS.error);
+    assert.equal(textOf(page.panel.querySelector(".detail-state-chip")), "Unreachable");
+
+    // The retry is a real button — the one control on this page, and only here.
+    const retry = page.panel.querySelector(".detail-retry");
+    assert.equal(retry.tagName, "BUTTON");
+    assert.equal(retry.type, "button");
+    assert.equal(page.panel.querySelectorAll("button").length, 1, "one control, and it is the retry");
+    assert.ok(tabSequence(page.document).includes(retry), "the retry is keyboard-reachable");
+
+    // And it re-runs the fetch rather than redrawing the last answer.
+    const attempts = page.requests.length;
+    retry.click();
+    await waitFor(page.settled, "the retry finished");
+    assert.ok(page.requests.length > attempts, "the retry must ask the feed again");
+
+    // The composer is not offered here: the post may still exist, so the honest
+    // next step is asking again, not writing something else instead.
+    assert.equal(page.panel.querySelectorAll(".detail-state-compose").length, 0);
+    assert.equal(textOf(page.panel).includes(COMPOSE_LINK), false);
+    assert.equal(textOf(page.panel.querySelector(".detail-state-feed")), "Go to the Social feed");
+  } finally {
+    page.restore();
   }
 });

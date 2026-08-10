@@ -42,6 +42,18 @@ export const POST_EXITS = {
   social: { href: "/social.html", label: "Open the full Social feed" },
   people: { href: "/profile.html" },
 };
+// The second next step a link that reached no post owes its reader. "Go to the
+// Social feed" answers "where is everything else"; it does not answer "what do I
+// do now", and a permalink that resolves to nothing is the one page in this
+// product where a visitor has arrived for a post that is not there. So the state
+// offers the other thing this surface is for — publishing one — rather than
+// leaving reading the feed as the only move.
+//
+// The href is the composer's own deep link, not a second vocabulary invented
+// here: src/social-page.js opens the collapsed composer for exactly
+// `#post-form` (alongside the Paint handoff), so this link lands on an open form
+// rather than on a fragment that is not being rendered.
+export const POST_COMPOSE_ACTION = { href: "/social.html#post-form", label: "Publish a post of your own" };
 const MAX_RETURN_AUTHOR_LENGTH = 60;
 
 export function postPeopleLabel(author = "") {
@@ -147,10 +159,26 @@ function labelledState(key, actions = []) {
     heading,
     el("p", undefined, copy.description),
   );
-  // A state offers the actions it owns — retrying a failed load, or reaching the
-  // feed when the standing exit leads somewhere else. The way *back* is still
-  // the standing link, and these come after the words that explain them.
-  for (const action of actions.filter(Boolean)) node.append(action);
+  // A state offers the actions it owns — retrying a failed load, reaching the
+  // feed when the standing exit leads somewhere else, or publishing a post of
+  // your own. The way *back* is still the standing link, and these come after
+  // the words that explain them.
+  //
+  // Two or more of them go in the site's own `.empty-actions` row rather than
+  // straight into the panel. A lone .empty-action is centred by `margin:… auto`,
+  // and two of those become four competing auto margins that push the pair to
+  // opposite edges — a primary and its secondary reading as two unrelated
+  // controls (see the note above the rule in src/styles.css). The row already
+  // exists for this, so the pair is laid out by a rule this site ships rather
+  // than by a new one; styles.css has no room for a second spelling of it.
+  const offered = actions.filter(Boolean);
+  if (offered.length > 1) {
+    const row = el("div", "empty-actions detail-state-actions-row");
+    row.append(...offered);
+    node.append(row);
+  } else {
+    for (const action of offered) node.append(action);
+  }
   return node;
 }
 
@@ -160,6 +188,17 @@ function labelledState(key, actions = []) {
 function feedAction() {
   const link = el("a", "empty-action empty-action-secondary detail-state-feed", "Go to the Social feed");
   link.href = POST_EXITS.social.href;
+  return link;
+}
+
+// The other next step, offered only where the page has no post to show. Its
+// words name the act, not the destination, because the destination is the same
+// page the link beside it already names — what differs is what a reader goes
+// there to do. Same shape and same classes as the feed action, so the two read
+// as a pair of routes forward rather than as a control and a link.
+function composeAction() {
+  const link = el("a", "empty-action empty-action-secondary detail-state-compose", POST_COMPOSE_ACTION.label);
+  link.href = POST_COMPOSE_ACTION.href;
   return link;
 }
 
@@ -282,14 +321,21 @@ function renderMedia(image, description) {
   return frame;
 }
 
-// One next step, and exactly one: the feed. Whichever way a link failed to
-// reach a post — no id, a truncated id, an id nobody posted under — the only
-// thing this page can honestly offer is the feed the post would have been in.
-// The id-less case used to offer nothing at all, on the grounds that the
-// standing exit above already names Social; that left the state explaining a
-// dead end without pointing anywhere out of it.
+// Two next steps, both true whichever way a link failed to reach a post — no
+// id, a truncated id, an id nobody posted under. The feed is where the post
+// would have been; the composer is the other thing Social is for, and it is
+// what a reader who came for a post and found none can still do here. The
+// id-less case used to offer nothing at all, on the grounds that the standing
+// exit above already names Social; that left the state explaining a dead end
+// without pointing anywhere out of it. One link out of a dead end is better
+// than none, and it is still only one: it hands a reader who arrived for
+// somebody's post a feed to scroll, and nothing to do.
+//
+// Not offered on the error state, which keeps its retry: there the post may
+// still exist, so the honest next step is asking again rather than writing
+// something instead.
 function renderMissing(container, id) {
-  container.append(labelledState(id ? "not-found" : "empty", [feedAction()]));
+  container.append(labelledState(id ? "not-found" : "empty", [feedAction(), composeAction()]));
 }
 
 // The retry is a real <button>, so it is in the natural tab order and picks up
@@ -386,9 +432,16 @@ export function renderPostDetail(container, post, options = {}) {
   article.setAttribute("tabindex", "-1");
 
   // Reading order follows the content a shared image post was opened to read:
-  // image description, image, caption, display name, then posting time. This is
-  // DOM order rather than a visual CSS reorder, so keyboard and screen-reader
+  // caption, then the image, then the display name, then the posting time. This
+  // is DOM order rather than a visual CSS reorder, so keyboard and screen-reader
   // users receive the same hierarchy as sighted readers.
+  //
+  // The caption leads now; the image used to. A permalink is opened cold from a
+  // pasted link, and the caption is the poster's own sentence about why the post
+  // exists — the one line that tells a reader what they are looking at before
+  // they look at it. Reading the image first left a screen-reader user hearing a
+  // description of a picture whose point had not been stated yet, and left a
+  // sighted reader scrolling past the image to find out what it was for.
   const caption = captionFor(post);
   // The page normally receives posts through profile.js's normalizers, but
   // this renderer is also an exported boundary. Recheck the URL at the final
@@ -416,19 +469,22 @@ export function renderPostDetail(container, post, options = {}) {
     // when, the poster actually wrote one; where it appears it is `description`
     // itself, so it is still the identical string the alt attribute holds.
     const stored = typeof image.alt === "string" && image.alt.trim() !== "";
-    // The visible description leads the image. Keep it outside the figure so
-    // the figcaption can immediately follow the image it captions while the
-    // overall article retains description → image → caption source order.
-    if (stored) article.append(renderImageDescription(description));
-    figure.append(renderMedia(image, description));
-    // An empty figcaption would announce a caption that is not there. A post
-    // with neither caption nor body cannot come out of the normalizers, but the
-    // renderer is handed plain objects and must not invent text either way.
+    // The caption opens the figure, which is where a figcaption is allowed to
+    // sit besides last, so it is still the image's caption to a screen reader
+    // rather than a paragraph that happens to be nearby. An empty figcaption
+    // would announce a caption that is not there: a post with neither caption
+    // nor body cannot come out of the normalizers, but the renderer is handed
+    // plain objects and must not invent text either way.
     if (caption) {
       const figcaption = el("figcaption", "detail-caption", caption);
       figcaption.id = "detail-caption";
       figure.append(figcaption);
     }
+    // Then the visible description, still immediately leading the image it
+    // describes, and inside the figure now so the whole image — what it is for,
+    // what it shows, and the image itself — is one grouped thing.
+    if (stored) figure.append(renderImageDescription(description));
+    figure.append(renderMedia(image, description));
     article.append(figure);
   } else if (caption) {
     const body = el("p", "detail-body", caption);

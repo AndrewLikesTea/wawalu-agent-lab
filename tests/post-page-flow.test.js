@@ -89,7 +89,7 @@ const SOCIAL = { label: "Open the full Social feed", href: "/social.html" };
 const PEOPLE = { label: "Open People to see Mina Okafor’s other image posts", href: "/profile.html" };
 const MINA = "/profile.html?author=Mina%20Okafor";
 
-test("a post that loads is headed by its author and reads description, image, caption, name, time", async () => {
+test("a post that loads is headed by its author and reads caption, image, name, time", async () => {
   const page = await openPostPage("?id=p-image", seedOnly([SEED_POST]));
   try {
     const { document } = page;
@@ -105,9 +105,14 @@ test("a post that loads is headed by its author and reads description, image, ca
     assert.equal(figure.querySelectorAll("img").length, 1);
     assert.equal(textOf(figure.querySelector("figcaption")), "The middle card, ringed.");
     assert.deepEqual(
-      article.children.slice(0, 4).map((node) => node.className),
-      ["description-note detail-image-description", "detail-figure", "detail-byline", "post-date detail-date"],
+      article.children.slice(0, 3).map((node) => node.className),
+      ["detail-figure", "detail-byline", "post-date detail-date"],
       "the routed page preserves the valid-post reading order",
+    );
+    assert.deepEqual(
+      figure.children.map((node) => node.className),
+      ["detail-caption", "description-note detail-image-description", "detail-media"],
+      "caption, then the image's description, then the image",
     );
     assert.equal(page.panel.getAttribute("aria-busy"), "false");
     assert.ok(textOf(page.panel).includes(IDENTITY),
