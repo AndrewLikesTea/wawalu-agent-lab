@@ -44,11 +44,39 @@
 // surfaces that run on a visitor's own material first, the demonstrations after
 // them. tests/site-footer.test.js compares the two tables, and the ordering is
 // the footer's because that is the list the home page's "start here" points at.
+// THE ROW SAYS WHICH DOORS ARE FOR THE READER'S OWN WORK (#1537). Eight names
+// in one flat row said nothing about the one difference that decides where a
+// visitor should start: four of these surfaces run on material the reader
+// brings — a spend export, their own prompts, their own decisions and releases
+// — and four are demonstrations on sample data. A reader scanning the row had
+// to open a destination to find out which kind it was, and the ones who opened
+// Social first concluded the whole site was a demo.
+//
+// So the row is two named groups now, in the order the site already ranks them:
+// the surfaces that run on your own work, then the demonstrations. `set` on
+// each destination below says which group it is in, which means a new
+// destination cannot be added without deciding — the generator renders nothing
+// for a destination whose `set` matches no group.
+//
+// The names are plain text in the row: no hover, no summary element to open, no
+// title attribute, and no screen-reader-only class. A grouping a sighted
+// scanning reader cannot see is not the grouping this issue asked for. Each
+// group's list carries `aria-labelledby` pointing at its name, so a screen
+// reader announces the same two groups rather than one list of eight.
+//
+// What did not change: the order, the labels, the hrefs, and the tab order. The
+// names are spans, so the row still holds exactly eight tab stops.
+export const NAV_SETS = [
+  { key: "own", id: "nav-set-own", label: "Runs on your own work" },
+  { key: "demo", id: "nav-set-demo", label: "Demos, sample data" },
+];
+
 export const SITE_NAV = [
   {
     href: "/evolution.html",
     label: "AI FinOps",
     className: "nav-evolution",
+    set: "own",
     // One door, and it opens on the answer rather than on the way to it. The
     // page's top is a hero and a five-destination rail, so a reader who clicked
     // "AI FinOps" arrived at a choice; `fragment` lands them on the answer.
@@ -77,13 +105,13 @@ export const SITE_NAV = [
   // sits beside AI FinOps because that is the surface it is closest to, and it
   // is a peer rather than a subordinate because neither one is a view of the
   // other.
-  { href: "/coach.html", label: "Prompt coach", className: "nav-coach", section: ["/personal-history.html"] },
-  { href: "/", label: "Decisions", section: ["/index.html", "/decision.html", "/workspace.html"] },
-  { href: "/releases.html", label: "Releases", section: ["/release.html"] },
-  { href: "/social.html", label: "Social", className: "nav-social", group: "social", section: ["/post.html"] },
-  { href: "/profile.html", label: "People", className: "nav-profile", group: "social", subordinate: true },
-  { href: "/paint/", label: "Paint" },
-  { href: "/agents.html", label: "Agent observatory", section: ["/agent-trace.html"] },
+  { href: "/coach.html", label: "Prompt coach", className: "nav-coach", set: "own", section: ["/personal-history.html"] },
+  { href: "/", label: "Decisions", set: "own", section: ["/index.html", "/decision.html", "/workspace.html"] },
+  { href: "/releases.html", label: "Releases", set: "own", section: ["/release.html"] },
+  { href: "/social.html", label: "Social", className: "nav-social", group: "social", set: "demo", section: ["/post.html"] },
+  { href: "/profile.html", label: "People", className: "nav-profile", group: "social", set: "demo", subordinate: true },
+  { href: "/paint/", label: "Paint", set: "demo" },
+  { href: "/agents.html", label: "Agent observatory", set: "demo", section: ["/agent-trace.html"] },
 ];
 
 export const SITE_NAV_LABELS = SITE_NAV.map((link) => link.label);
@@ -126,29 +154,43 @@ export function navCurrentFor(url) {
 // every page here ships static markup. Detail pages resolve to the surface they
 // belong to: a release detail is still "Releases".
 export function siteNavMarkup(current = null, indent = "        ") {
-  const anchor = (link, depth) => {
+  const pad = (depth) => `${indent}${"  ".repeat(depth)}`;
+  const anchor = (link) => {
     const { href, label, className } = link;
     const attributes = [
       className ? `class="${className}"` : null,
       href === current ? 'aria-current="page"' : null,
       `href="${navHref(link)}"`,
     ].filter(Boolean).join(" ");
-    return `${indent}${"  ".repeat(depth)}<a ${attributes}>${label}</a>`;
+    return `<a ${attributes}>${label}</a>`;
   };
 
-  const lines = [];
-  for (let index = 0; index < SITE_NAV.length; index += 1) {
-    const link = SITE_NAV[index];
-    if (link.subordinate) continue;
+  // One list item per destination, so the group's list has the count a screen
+  // reader announces. The Social pair is one item: People is a view of Social,
+  // not a ninth door, and it keeps the span the stylesheet steps it in with.
+  const item = (link, depth) => {
     const children = SITE_NAV.filter((entry) => entry.group && entry.group === link.group && entry.subordinate);
-    if (!children.length) {
-      lines.push(anchor(link, 1));
-      continue;
-    }
-    lines.push(`${indent}  <span class="nav-group">`);
-    lines.push(anchor(link, 2), ...children.map((child) => anchor(child, 2)));
-    lines.push(`${indent}  </span>`);
-  }
+    if (!children.length) return [`${pad(depth)}<li>${anchor(link)}</li>`];
+    return [
+      `${pad(depth)}<li>`,
+      `${pad(depth + 1)}<span class="nav-group">`,
+      ...[link, ...children].map((entry) => `${pad(depth + 2)}${anchor(entry)}`),
+      `${pad(depth + 1)}</span>`,
+      `${pad(depth)}</li>`,
+    ];
+  };
+
+  // `role="list"` is not redundant: the group lists carry list-style:none, which
+  // is enough for Safari to drop the list role and with it the count and the
+  // group's announced name.
+  const lines = NAV_SETS.flatMap(({ key, id, label }) => [
+    `${pad(1)}<div class="nav-set">`,
+    `${pad(2)}<span class="nav-set-name" id="${id}">${label}</span>`,
+    `${pad(2)}<ul role="list" aria-labelledby="${id}">`,
+    ...SITE_NAV.filter((link) => link.set === key && !link.subordinate).flatMap((link) => item(link, 3)),
+    `${pad(2)}</ul>`,
+    `${pad(1)}</div>`,
+  ]);
   return [
     // "Site", not the product name: these pages also carry in-page navigation
     // (the AI FinOps workspace rail) and tab-like controls, and a reader

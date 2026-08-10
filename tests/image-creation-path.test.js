@@ -57,9 +57,14 @@ const composerPaintLink = () => documents.Social.querySelector(".media-source-ac
  * site map — neither is an invitation this page extends, and counting them
  * would make "how many times does Social offer Paint" a question about the
  * frame rather than about the page.
+ *
+ * Asked of the nav as a whole rather than of a link's parent: the row groups its
+ * destinations now (#1537), so a nav link's parent is its list item, and a
+ * parent-only test would have started counting the frame's Paint door as one of
+ * this page's invitations.
  */
 const entryPointsOn = (name) => paintLinks(documents[name])
-  .filter((anchor) => !anchor.parentNode?.classList?.contains("site-nav") && !anchor.closest("#site-footer"));
+  .filter((anchor) => !anchor.closest(".site-nav") && !anchor.closest("#site-footer"));
 const socialEntryPoints = () => entryPointsOn("Social");
 
 for (const [name, document] of Object.entries(NEARBY_INVITATION)) {
