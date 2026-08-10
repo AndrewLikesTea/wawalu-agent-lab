@@ -47,6 +47,11 @@ import { sharedBriefingHref } from "./finops-shared-briefing-link.js";
 // (#1210). Checked at paint, beside the control, because a lead who has already
 // pressed the button has already sent it.
 import { checkSharedBriefingParity } from "./finops-share-parity.js";
+// Where the briefed figure is stated (#1525). Routed, never hand-built: the
+// router owns the fragment, so a routing change moves this line with it.
+import {
+  BRIEFED_FIGURE_DESTINATION, briefingDestinationHref,
+} from "./finops-briefing-destination.js";
 
 /** The ids this control owns. Authored in evolution.html, written only here. */
 export const SHARE_LINK_IDS = Object.freeze({
@@ -57,6 +62,7 @@ export const SHARE_LINK_IDS = Object.freeze({
   status: "finops-share-status",
   fallback: "finops-share-fallback",
   text: "finops-share-text",
+  destination: "finops-share-destination",
 });
 
 /** The control's accessible name. It says what it copies, not "Copy". */
@@ -187,6 +193,17 @@ export function applyShareLink(
     if (parityNode.textContent !== sentence) parityNode.textContent = sentence;
     if (parity) parityNode.dataset.parity = parity.reason;
     else delete parityNode.dataset.parity;
+  }
+
+  // The destination this briefing hands the reader, as an address rather than as
+  // a mid-page anchor (#1525). Written on every paint from the router, so the
+  // line in the document and the route the shell resolves cannot disagree. Text
+  // and not a control: the first screen has no spare tab stop.
+  const destination = byId(doc, SHARE_LINK_IDS.destination);
+  if (destination) {
+    const href = briefingDestinationHref(BRIEFED_FIGURE_DESTINATION);
+    if (destination.textContent !== href) destination.textContent = href;
+    destination.dataset.destination = BRIEFED_FIGURE_DESTINATION;
   }
 
   block.hidden = !link.ok;
