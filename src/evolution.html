@@ -151,6 +151,33 @@
              inside a shut disclosure is a grade nobody is told, which is what
              tests/finops-recoverable-confidence.test.js pins by name. -->
         <p class="stand-figure" id="finops-recoverable-figure" data-available="true" data-basis="monthly" data-scored-departments="5" data-total-departments="5"><span class="stand-figure-label" id="finops-recoverable-label">Recoverable AI spend per month</span> <span class="stand-figure-value" id="finops-recoverable-value">$51,254</span> <span class="figure-source-state" id="finops-recoverable-trust">How far to trust this figure: <span class="figure-source-state" id="finops-recoverable-marker">Illustrative</span> · <span class="figure-source-state" id="finops-recoverable-grade" data-grade="ungraded">Confidence: not graded</span> · <span class="figure-source-state" id="finops-recoverable-provenance" data-band="0">Pricing provenance: not scored</span> · the arithmetic, the sources and the limits are under How we know this, below.</span></p>
+        <!-- HOW BIG THAT IS AGAINST EVERYTHING WE SPEND (#1512). The headline
+             says what is recoverable. It cannot say what share of the bill that
+             is, and the same figure reads completely differently against a
+             $150k month and a $15m one. So the spend is drawn once, as one bar
+             cut into three parts that sum to the current annual spend, beside
+             the number rather than under a disclosure.
+
+             THE TEXT IS THE CHART. The three values ship in the sentence below,
+             visually hidden, and the canvas is an enhancement over it: a
+             browser with no 2d context, and every reader on assistive
+             technology, gets the same three numbers from the DOM. The canvas is
+             aria-hidden so it does not announce as an empty graphic beside a
+             sentence that already said it, and it is not focusable, because
+             this screen has no spare tab stop.
+
+             NO NUMBER IS DERIVED HERE OR IN THE CHART. `getSpendShape` in
+             src/finops-answer-contract.js reads the canonical headline off the
+             same `getRecoverableSpend` record the figure above is painted from
+             and subtracts the rest out of the export's own analyzed total; the
+             chart is handed that record and owns geometry only. The authored
+             values are that function's own output, so the served bytes and the
+             render agree. Each part carries three carriers — fill, pattern and
+             an in-place label — so none of them is signalled by colour. -->
+        <div class="spend-shape" id="finops-spend-shape" data-available="true" data-drawn="false" data-total="1854000" data-recoverable="615048" data-not-recoverable="1238952" data-unscored="0">
+          <canvas class="spend-shape-canvas" id="finops-spend-shape-canvas" width="520" height="30" aria-hidden="true"></canvas>
+          <p class="visually-hidden" id="finops-spend-shape-text">Spend shape, annualised: $1,854,000 current annual spend, split into $615,048 defensible recoverable, $1,238,952 not recoverable and $0 not yet scored. Defensible recoverable is the headline monthly figure multiplied by 12. Not recoverable is the analyzed annual spend left after the recoverable part and the unscored part are taken out of it. Not yet scored is annualised spend in departments carrying no completed FinOps score, which the headline makes no claim about. The three parts add up to the current annual spend.</p>
+        </div>
         <!-- OVER WHAT PERIOD, ACROSS WHICH DEPARTMENTS, AND WHAT IT COMES TO IN
              A YEAR (#1496). The second question a leader asks about a recovery
              figure, answered in one sentence directly under it: the scope it

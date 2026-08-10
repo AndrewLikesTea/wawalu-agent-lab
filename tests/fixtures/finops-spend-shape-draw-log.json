@@ -1,0 +1,28 @@
+{
+  "$comment": "GOLDEN DRAW LOG for the first screen's spend shape (#1512). This harness cannot rasterise, so this is the deterministic stand-in for a golden pixel comparison: the ordered sequence of primitive calls the chart makes, with every rectangle and every label in DEVICE pixels. It is the bundled example dataset, laid out at a 520 css-px measured width and a device-pixel ratio of 2 — a retina layout, because that is the one a css-pixel bug hides in. Regenerate it only when the drawing genuinely changes, and say in the pull request what moved and why.",
+  "input": { "dataset": "src/example-dataset.js loadExampleDataset()", "cssWidth": 520, "scale": 2 },
+  "log": [
+    { "op": "begin", "deviceWidth": 1040, "deviceHeight": 140, "scale": 2 },
+    {
+      "op": "segment", "key": "recoverable", "pattern": "solid", "fill": "#315f50",
+      "x": 0, "y": 0, "width": 345, "height": 60
+    },
+    {
+      "op": "segment", "key": "notRecoverable", "pattern": "hatch", "fill": "#6f6f69",
+      "x": 345, "y": 0, "width": 695, "height": 60
+    },
+    {
+      "op": "label", "key": "recoverable", "text": "$615,048 defensible recoverable",
+      "compact": false, "ink": "#171713", "placement": "below", "x": 0, "y": 96
+    },
+    {
+      "op": "label", "key": "notRecoverable", "text": "$1,238,952 not recoverable",
+      "compact": false, "ink": "#ffffff", "placement": "inside", "x": 359, "y": 39
+    },
+    {
+      "op": "label", "key": "unscored", "text": "$0 not yet scored",
+      "compact": false, "ink": "#171713", "placement": "below", "x": 786, "y": 130
+    },
+    { "op": "end" }
+  ]
+}
