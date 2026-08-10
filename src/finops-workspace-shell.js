@@ -804,22 +804,39 @@ export function initWorkspaceShell(doc, {
     return true;
   };
 
+  /**
+   * A DOOR ON THE RAIL, opened. One function, so the pointer path and the
+   * keyboard path cannot drift into two different ideas of what a press does.
+   *
+   * The route is written here rather than left to the anchor, so the browser
+   * fires no `hashchange` behind the handler — which is what stopped one press
+   * producing two runs of the change path, and two writes into one live region.
+   * Focus goes to the screen's heading, and only when the press actually changed
+   * the screen: moving the keyboard for a press that changed nothing would take
+   * it off the rail a reader is still choosing from.
+   *
+   * Returns whether the address moved, which is what the click path reads to
+   * decide whether the anchor's own default still has anything left to do.
+   */
+  const openDoor = (href) => {
+    const key = destinationForFragment(doc, href);
+    const changing = Boolean(key) && key !== currentWorkspaceDestination(doc);
+    const wrote = pushRoute(key);
+    select(href, { announce: changing, focus: changing });
+    return wrote;
+  };
+
   const onClick = (event) => {
     if (event.defaultPrevented) return;
     const link = event.target?.closest?.("a");
     const href = link?.getAttribute?.("href");
     if (!href || !href.startsWith("#")) return;
-    const key = destinationForFragment(doc, href);
-    const changing = Boolean(key) && key !== currentWorkspaceDestination(doc);
     if (ownsFragment(href)) {
-      // A DOOR ON THE RAIL. The route is written here rather than left to the
-      // anchor, so the browser fires no `hashchange` behind this handler — which
-      // is what stopped one press producing two runs of the change path, and two
-      // writes into one live region. Focus goes to the screen's heading.
-      if (pushRoute(key)) event.preventDefault?.();
-      select(href, { announce: changing, focus: changing });
+      if (openDoor(href)) event.preventDefault?.();
       return;
     }
+    const key = destinationForFragment(doc, href);
+    const changing = Boolean(key) && key !== currentWorkspaceDestination(doc);
     // A DEEP LINK. The destination is opened first — a target inside a hidden
     // container cannot take focus — and then the default is allowed to run, so
     // deep-link-disclosure.js still unfolds the panel and lands the reader on
@@ -828,10 +845,44 @@ export function initWorkspaceShell(doc, {
     select(href, { announce: changing, focus: false });
   };
 
+  /**
+   * SPACE ON A DOOR, which an anchor does not answer on its own.
+   *
+   * Enter is already the browser's: pressing it on a link runs the link's
+   * activation behaviour, which fires the click `onClick` above is listening
+   * for, so nothing here touches Enter and there is exactly one activation path
+   * for it. Space is the gap. On a plain link Space scrolls the document, and
+   * these five are not plain links in the way a reader meets them — they are a
+   * persistent destination switcher, sitting one beside the next, each marked
+   * `aria-current` when it is the one you are in. That is a control people press
+   * with Space, and a reader who does gets the page jumping down a screen while
+   * the destination they asked for never opens.
+   *
+   * So Space activates the door and scrolls nothing. `preventDefault` is what
+   * suppresses the scroll, and it is called before the swap rather than after,
+   * because the swap moves focus and a default that ran in between would be
+   * scrolling away from the heading the keyboard just landed on.
+   *
+   * Only the rail's own doors: the guard is `ownsFragment`, so Space anywhere
+   * else on this page — a deep link into a panel, a link in the body copy, a
+   * link in the site nav — still does exactly what the browser does today.
+   */
+  const onKeyDown = (event) => {
+    if (event.defaultPrevented) return;
+    // "Spacebar" is the legacy `key` value; both are the same press.
+    if (event.key !== " " && event.key !== "Spacebar") return;
+    const link = event.target?.closest?.("a");
+    const href = link?.getAttribute?.("href");
+    if (!href || !ownsFragment(href)) return;
+    event.preventDefault?.();
+    openDoor(href);
+  };
+
   const onHashChange = () => select(win?.location?.hash ?? "", { announce: true, restore: true });
 
   doc.addEventListener?.("click", onClick, true);
   doc.addEventListener?.("click", onRetry);
+  doc.addEventListener?.("keydown", onKeyDown);
   win?.addEventListener?.("hashchange", onHashChange);
   win?.addEventListener?.("popstate", onHashChange);
 
@@ -851,6 +902,7 @@ export function initWorkspaceShell(doc, {
     dispose() {
       doc.removeEventListener?.("click", onClick, true);
       doc.removeEventListener?.("click", onRetry);
+      doc.removeEventListener?.("keydown", onKeyDown);
       win?.removeEventListener?.("hashchange", onHashChange);
       win?.removeEventListener?.("popstate", onHashChange);
     },
