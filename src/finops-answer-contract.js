@@ -15,6 +15,8 @@
 // Pure: no DOM, no storage, no clock, no network, no locale-dependent sort.
 // Synthetic client-side signals arrive as an argument.
 
+import { readerPhrase } from "./finops-executive-vocabulary.js";
+
 export const FINOPS_ANSWER_CONTRACT = "finops-answer-contract/1.0.0";
 
 export const ANSWER_STATUS = Object.freeze({ answered: "answered", withheld: "withheld" });
@@ -538,6 +540,10 @@ export function getSpendShape(dataset, record = getRecoverableSpend(dataset)) {
 /** Bump when a dimension, an operand, or what one means changes. */
 export const RECOVERABLE_ATTESTATION = "finops-recoverable-attestation/1.0.0";
 
+/** Where every operand below is pinned with its assumption. Named here, in the
+ *  source, and never in the sentence a reader is shown (#1554). */
+const ATTESTATION_EVIDENCE = "tests/fixtures/finops-consolidated-answer-attestation.json";
+
 /**
  * EVERY OPERAND THE CONSOLIDATED ANSWER IS READ FROM, with the assumption that
  * puts it there. Theo's rule: no count without the assumption written beside it.
@@ -647,13 +653,21 @@ export function recoverableAttestation(dataset, record = getRecoverableSpend(dat
     // #1502 closed. So the attested headline travels as `data-headline` — read
     // by the check, not repainted at a reader — and the sentence says only that
     // it matched.
-    statement: `Attested ${RECOVERABLE_ATTESTATION} — the headline above is the one figure this `
-      + `region states, on the monthly basis of record · confidence ${confidence} · provenance `
-      + `${declared} of ${operands.length} operands declared by the export, ${derived} derived `
-      + `here · coverage ${dimensions.coverage.scored} of ${dimensions.coverage.inScope} `
-      + "departments scored. Each carries its assumption in "
-      + "tests/fixtures/finops-consolidated-answer-attestation.json, and a drift in any of the "
-      + "four fails by naming it.",
+    //
+    // AND IT IS SAID IN A READER'S WORDS (#1554). One sentence answering the two
+    // questions a leader has about the figure above it — what it is priced from,
+    // and how sure we are — with the evidence source and the assurance taken from
+    // src/finops-executive-vocabulary.js rather than named as a fixture path and
+    // a contract version. Both identifiers are still on the page, verbatim, in
+    // the "How we know this" disclosure this region already ships: this is a
+    // demotion, so a skeptic can still get from the money to the file that pins
+    // it, one press away instead of in the answer's own sentence.
+    statement: `Priced from ${readerPhrase(ATTESTATION_EVIDENCE)}, and `
+      + `${readerPhrase(RECOVERABLE_ATTESTATION)} — our confidence in `
+      + `it is ${confidence}, with ${declared} of ${operands.length} inputs stated by the export `
+      + `and ${derived} worked out here across ${dimensions.coverage.scored} of `
+      + `${dimensions.coverage.inScope} departments scored, and the exact sources are named `
+      + "under How we know this, below.",
   });
 }
 

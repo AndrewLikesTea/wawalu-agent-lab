@@ -634,6 +634,12 @@ const ALLOWED_MODULES = Object.freeze([
   // one. It is the module the two reference rates now live in, so the path
   // reaching it is the path reaching its own prices.
   "finops-rate-card-contract.js",
+  // #1554, reviewed onto the path with the attestation sentence: the words a
+  // reader is shown in place of a fixture path and a contract version. It is a
+  // frozen table of phrases plus a regexp matcher over a string — no DOM, no
+  // storage, no clock, no request, and it imports nothing at all, so it adds a
+  // leaf to the graph rather than a dependency.
+  "finops-executive-vocabulary.js",
 ]);
 
 /**

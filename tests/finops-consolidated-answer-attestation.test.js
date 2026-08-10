@@ -178,7 +178,10 @@ test("coverage moves when a department stops carrying a completed score", () => 
  */
 function pageDimensions(node, text) {
   const headline = node.getAttribute("data-headline") ?? "absent";
-  const confidence = /confidence (\w+) ·/.exec(text)?.[1] ?? "absent";
+  // The band is read out of the sentence, not the attribute, so a page whose
+  // prose and attributes disagree still fails here. #1554 moved the words
+  // around it — "our confidence in it is medium" — and not the value.
+  const confidence = /confidence in it is ([\w ]+?),/.exec(text)?.[1] ?? "absent";
   return {
     headline,
     confidence,
