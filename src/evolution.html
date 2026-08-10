@@ -69,9 +69,22 @@
              The per-period working is appended by the view as a collapsed
              details element. The figure, the badge and the action stay outside
              it: folded into a shut disclosure, a grade is a grade nobody is
-             told. -->
+             told.
+
+             ITS QUESTION IS NO LONGER A HEADING (#1497). It shipped as an `h2`,
+             which put TWO top-level questions above the fold — this one and the
+             answer region's — and on a first visit this one has no figure and no
+             action to answer itself with. Two headings at the same rank asking
+             variants of "are we wasting money?" is two answers, so it is no
+             answer, and the CTO's five seconds went on deciding which to read.
+             The words, the id, the position and the region's accessible name are
+             all unchanged: `aria-labelledby` still points at this node, so the
+             section is still a named `region` landmark and is still reachable by
+             landmark navigation. What it no longer is, is a rival entry in the
+             heading outline. It is NOT an `h3` instead: the only heading above it
+             in this hero is the page `h1`, and h1 → h3 is a skipped level. -->
         <section class="hero-track-record" id="finops-track-record" data-state="no-track-record" aria-labelledby="finops-track-record-question">
-          <h2 class="track-record-question" id="finops-track-record-question">Did what we committed to work?</h2>
+          <p class="track-record-question" id="finops-track-record-question">Did what we committed to work?</p>
           <p class="local-lead-basis" id="finops-track-record-context">No track record on file: this browser is keeping no period. Importing one provider export keeps the month it covers and starts the record.</p>
         </section>
       </section>
@@ -109,7 +122,35 @@
            second export recomputes any part of it. -->
       <section class="finops-recoverable-answer" id="finops-recoverable-answer" data-workspace-frame="true" aria-labelledby="finops-recoverable-question">
         <h2 id="finops-recoverable-question">How much of our AI spend can we recover?</h2>
-        <p class="stand-figure" id="finops-recoverable-figure" data-available="true" data-basis="monthly" data-scored-departments="5" data-total-departments="5"><span class="stand-figure-label" id="finops-recoverable-label">Recoverable AI spend per month</span> <span class="stand-figure-value" id="finops-recoverable-value">$51,254</span> <span class="figure-source-state" id="finops-recoverable-marker">Illustrative</span> <span class="figure-source-state" id="finops-recoverable-grade" data-grade="ungraded">Confidence: not graded</span> <span class="figure-source-state" id="finops-recoverable-provenance" data-band="0">Pricing provenance: not scored</span></p>
+        <!-- ONE NUMBER, AND ONE TRUST STATEMENT UNDER IT (#1497). This paragraph
+             is a grid, so every span in it is a row. It shipped as FIVE rows —
+             the label, the money, and then three separate 11px monospace
+             fragments, each on a line of its own, each carrying one trust signal
+             and none of them saying how they related to each other. A reader with
+             five seconds counted five things and left with none.
+
+             It is three rows now: the label, the money, and ONE trust statement
+             that names all three signals in a single line, in the order a leader
+             needs them — what kind of number this is, how confident it is, and
+             whose prices it is priced at — and ends by naming where the working
+             is. The three values are the SAME three nodes, with the same ids, the
+             same classes and the same text: no provenance value is dropped,
+             reworded or moved behind anything. They are wrapped, not replaced.
+
+             EACH SIGNAL KEEPS ITS OWN LABEL. "Illustrative", "Confidence: …" and
+             "Pricing provenance: …" are words a screen reader speaks and a
+             monochrome print carries; nothing here is signalled by colour, and
+             nothing here is a chip whose fill is its meaning. That is the chip
+             rule in design-system/claude-design/review-08-foundations.html.
+
+             THE SIGNALS STAY OUTSIDE THE DISCLOSURE. The supporting DETAIL for
+             all three — the confidence rubric's reasons, the four per-criterion
+             pricing bands, the basis and the limits — is one press away in the
+             single "How we know this" disclosure below, which is where it already
+             was. The graded values themselves are not folded in with it: a grade
+             inside a shut disclosure is a grade nobody is told, which is what
+             tests/finops-recoverable-confidence.test.js pins by name. -->
+        <p class="stand-figure" id="finops-recoverable-figure" data-available="true" data-basis="monthly" data-scored-departments="5" data-total-departments="5"><span class="stand-figure-label" id="finops-recoverable-label">Recoverable AI spend per month</span> <span class="stand-figure-value" id="finops-recoverable-value">$51,254</span> <span class="figure-source-state" id="finops-recoverable-trust">How far to trust this figure: <span class="figure-source-state" id="finops-recoverable-marker">Illustrative</span> · <span class="figure-source-state" id="finops-recoverable-grade" data-grade="ungraded">Confidence: not graded</span> · <span class="figure-source-state" id="finops-recoverable-provenance" data-band="0">Pricing provenance: not scored</span> · the arithmetic, the sources and the limits are under How we know this, below.</span></p>
         <!-- OVER WHAT PERIOD, ACROSS WHICH DEPARTMENTS, AND WHAT IT COMES TO IN
              A YEAR (#1496). The second question a leader asks about a recovery
              figure, answered in one sentence directly under it: the scope it
