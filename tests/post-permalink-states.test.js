@@ -230,10 +230,14 @@ test("a link with no id, or a truncated one, lands in the same not-found state a
       assert.equal(textOf(page.document.querySelector("main")).includes(STATE_HEADLINES.loading), false, `${route}: the wait is still on the page`);
       assert.equal(page.panel.querySelectorAll(".detail-loading").length, 0, `${route}: a loading node survived`);
 
-      // One next step: the feed. Counted, because the assertion is about how
-      // many routes forward this state offers, not which node is where.
-      assert.equal(page.panel.querySelectorAll(".empty-action").length, 1, `${route}: one next step, not a stack`);
+      // Two next steps, and both of them forward: the feed the post would have
+      // been in, and the composer where a reader can publish one of their own.
+      // Counted, because the assertion is about how many routes forward this
+      // state offers, not which node is where.
+      assert.equal(page.panel.querySelectorAll(".empty-action").length, 2, `${route}: two next steps`);
       assert.equal(textOf(page.panel.querySelector(".detail-state-feed")), "Go to the Social feed");
+      assert.equal(textOf(page.panel.querySelector(".detail-state-publish")), "Publish a post");
+      assert.equal(page.panel.querySelector(".detail-state-publish").getAttribute("href"), "/social.html#post-form");
       assert.equal(page.panel.querySelectorAll("button").length, 0, `${route}: nothing here can be retried`);
     } finally {
       page.restore();
@@ -497,12 +501,13 @@ test("a loaded post shows the poster's image description under a visible label",
     assert.equal(textOf(label), DESCRIPTION_LABEL, "the description is labelled in words, not by position");
     assert.equal(textOf(text), IMAGE_POST.image.alt, "and the label is followed by what the poster wrote");
 
-    // The description leads the image in source order, followed by the image's
-    // caption. It remains adjacent to the figure and inside the post region.
+    // The feed's own order (src/social.js): the poster's caption, the image it
+    // is about, then what the image shows. The description stays adjacent to the
+    // figure — inside it — and inside the post region.
     const parts = page.panel.querySelectorAll(".detail-image-description-text,.detail-image,figcaption");
     assert.deepEqual(parts.map((node) => node.className),
-      ["detail-image-description-text", "detail-image", "detail-caption"],
-      "description, then image, then the post's caption");
+      ["detail-caption", "detail-image", "detail-image-description-text"],
+      "the post's caption, then the image, then the description of it");
 
     // No new type role and no new hue: the paragraph carries the class the feed
     // and a People tile already draw this text with. styles.css has no headroom
@@ -928,7 +933,7 @@ test("a loaded post's caption, name, time and image all read before the feed con
     // post is made of, then the context sentence, then the two routes out.
     const flow = main.querySelectorAll(".detail-author-link,.detail-date,.detail-image,figcaption,#post-back,#post-people");
     const names = flow.map((node) => node.id || node.className);
-    assert.deepEqual(names, ["detail-image", "detail-caption", "detail-author-link", "post-date detail-date", "post-back", "post-people"],
+    assert.deepEqual(names, ["detail-caption", "detail-image", "detail-author-link", "post-date detail-date", "post-back", "post-people"],
       "the post's parts must all precede the routes off the page");
 
     // The image is announced by the description the poster stored, in the post

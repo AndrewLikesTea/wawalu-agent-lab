@@ -69,7 +69,7 @@ test("the detail view shows the image whole, with its caption and counts", () =>
   assert.ok(ids(article).includes(label), `${label} must resolve inside the article`);
 });
 
-test("the post reads in one order: description, image, caption, name, then time", () => {
+test("the post reads in one order: caption, image, description, name, then time", () => {
   const container = createElement("div");
   renderPostDetail(container, post);
   const article = first(container, "detail-post");
@@ -85,23 +85,29 @@ test("the post reads in one order: description, image, caption, name, then time"
 
   const sequence = article.children.map((child) => child.className);
   assert.deepEqual(
-    sequence.slice(0, 4),
-    ["description-note detail-image-description", "detail-figure", "detail-byline", "post-date detail-date"],
-    "the description and media lead, followed by the display name and timestamp",
+    sequence.slice(0, 3),
+    ["detail-figure", "detail-byline", "post-date detail-date"],
+    "the post's media block leads, followed by the display name and timestamp",
   );
 
+  // Inside the figure, the feed's own arrangement (src/social.js): the caption
+  // the poster wrote, the image it is about, then what the image shows. A
+  // figcaption is legal first or last, and first is what puts the words above
+  // the picture for a reader coming down the page.
   const figure = tags(article, "FIGURE")[0];
   assert.deepEqual(
     figure.children.map((child) => child.tagName),
-    ["DIV", "FIGCAPTION"],
-    "the caption is the image's figcaption and immediately follows it",
+    ["FIGCAPTION", "DIV", "P"],
+    "the caption leads the image, and the image description follows it",
   );
+  assert.equal(tags(figure, "FIGCAPTION")[0].textContent, "The middle card, ringed.");
   assert.ok(tags(figure, "IMG").length === 1, "the image sits inside the figure");
+  assert.equal(first(figure, "detail-image-description-text").textContent, "A card wrapped in a blue focus ring");
 
   // The byline is the name itself, linked — never "profile" or "view profile",
   // which would leave a screen reader's link list unable to say whose.
   const byline = first(article, "detail-byline");
-  assert.equal(article.children[2], byline, "the byline follows the image caption");
+  assert.equal(article.children[1], byline, "the byline follows the post's media block");
   const link = first(byline, "detail-author-link");
   assert.equal(link.tagName, "A");
   assert.equal(link.textContent, "Mina Okafor");
@@ -272,7 +278,14 @@ test("an id-less visit is headed by the same not-found words, and offers the fee
   const feed = first(container, "detail-state-feed");
   assert.equal(feed.textContent, "Go to the Social feed");
   assert.equal(feed.href, "/social.html");
-  assert.equal(byClass(container, "empty-action").length, 1, "one action, not a stack");
+  // Two, and both about somewhere a reader can actually get to: the feed the
+  // post would have been in, and the composer where they can write one. They sit
+  // in one `.empty-actions` row rather than stacking down the panel.
+  assert.equal(byClass(container, "empty-action").length, 2, "a row of two next steps, not a stack");
+  assert.equal(byClass(container, "empty-actions").length, 1);
+  const publish = first(container, "detail-state-publish");
+  assert.equal(publish.textContent, "Publish a post");
+  assert.equal(publish.href, "/social.html#post-form");
   // Nothing to retry: no id was asked for, so a second attempt asks nothing.
   assert.equal(tags(container, "BUTTON").length, 0);
 });
@@ -618,9 +631,17 @@ test("only unavailable requested-post states render a feed action", () => {
     const container = createElement("div");
     renderPostDetail(container, value, options);
     assert.equal(
-      byClass(container, "empty-action-secondary").length,
+      byClass(container, "detail-state-feed").length,
       ["missing", "error", "id-less"].includes(name) ? 1 : 0,
       `the ${name} state has the expected feed action`,
+    );
+    // Writing a post of your own is offered where there is no post to read, and
+    // nowhere else: a loaded permalink is somebody else's post, and the error
+    // state cannot promise a composer on a feed it has just failed to reach.
+    assert.equal(
+      byClass(container, "detail-state-publish").length,
+      ["missing", "id-less"].includes(name) ? 1 : 0,
+      `the ${name} state's invitation to publish`,
     );
     // Retry is the one action a state still owns, because no standing link can
     // re-run a failed fetch.
@@ -716,8 +737,16 @@ test("a missing post reaches the feed even when the standing exit does not", () 
   assert.equal(feed.tagName, "A");
   assert.equal(feed.href, "/social.html");
   assert.equal(feed.textContent, "Go to the Social feed");
-  // It comes after the words that explain it, so it is not tabbed to first.
-  assert.equal(fromProfile.firstChild.lastChild, feed);
+  // The actions come after the words that explain them, so neither is tabbed to
+  // first. Asserted through the panel's own children rather than by comparing a
+  // node against another node's property.
+  const panel = first(fromProfile, "detail-state-message");
+  assert.equal(panel.children.at(-1).className, "empty-actions", "the actions close the panel");
+  assert.deepEqual(
+    panel.children.at(-1).children.map((child) => child.textContent),
+    ["Go to the Social feed", "Publish a post"],
+    "the feed the post would have been in, then the composer",
+  );
 
   // The unavailable state owns this next step even when the standing exit also
   // points to Social.

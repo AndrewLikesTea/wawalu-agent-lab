@@ -89,7 +89,156 @@ const SOCIAL = { label: "Open the full Social feed", href: "/social.html" };
 const PEOPLE = { label: "Open People to see Mina Okafor’s other image posts", href: "/profile.html" };
 const MINA = "/profile.html?author=Mina%20Okafor";
 
-test("a post that loads is headed by its author and reads description, image, caption, name, time", async () => {
+// Held open: the seed never answers, so the page stays in its loading state for
+// as long as a test needs it. `release()` lets the post arrive.
+async function openLoadingPostPage() {
+  const page = await loadPage(new URL("../src/post.html", import.meta.url), { location: { search: "?id=p-image" } });
+  let resolveSeed;
+  globalThis.fetch = () => new Promise((resolve) => { resolveSeed = () => resolve(seedResponse([SEED_POST])); });
+  await importPageModule("/post-page.js");
+  const panel = page.document.querySelector("#post-detail");
+  await waitFor(() => panel.querySelectorAll(".detail-loading").length === 1, "the loading state rendered");
+  return { ...page, panel, release: () => resolveSeed() };
+}
+
+// The four states a shared link can land in, each with the one sentence a reader
+// can tell it apart by with the stylesheet gone, and the class its region is
+// drawn under. Nothing here reads a colour: the label is the state.
+const PAGE_STATES = [
+  {
+    name: "loading",
+    words: "Fetching it from the feed…",
+    region: ".detail-loading",
+    open: () => openLoadingPostPage(),
+  },
+  {
+    name: "loaded",
+    words: "The middle card, ringed.",
+    region: ".detail-post",
+    open: () => openPostPage("?id=p-image", seedOnly([SEED_POST])),
+  },
+  {
+    name: "not-found",
+    words: "This post can’t be shown.",
+    region: ".detail-state-not-found",
+    open: () => openPostPage("?id=p-gone", seedOnly([SEED_POST])),
+  },
+  {
+    name: "error",
+    words: "We couldn’t reach the Social feed to load this post.",
+    region: ".detail-state-unavailable",
+    open: () => openPostPage("?id=p-image", () => { throw new TypeError("Failed to fetch"); }),
+  },
+];
+
+// The whole shape of this page in one table: four answers a shared link can get,
+// four states, and never two of them on screen together. Counted rather than
+// asserted absent — an inactive state must have no node at all, because a
+// heading pushed off screen is still a heading and still in the heading count.
+test("each of the four states stands alone, in its own words, with no region of the other three", async () => {
+  for (const state of PAGE_STATES) {
+    const page = await state.open();
+    try {
+      const { panel } = page;
+      assert.equal(panel.dataset.postState, state.name, `${state.name}: the region names the state it is in`);
+      assert.ok(textOf(panel).includes(state.words), `${state.name}: its own words are missing`);
+      assert.equal(panel.getAttribute("aria-busy"), state.name === "loading" ? "true" : "false");
+      // One panel, and it is this state's. The other three are absent from the
+      // document rather than hidden inside it.
+      assert.equal(panel.querySelectorAll(".detail-state-panel").length, 1, `${state.name}: one panel, not a stack`);
+      for (const other of PAGE_STATES) {
+        assert.equal(
+          panel.querySelectorAll(other.region).length,
+          other.name === state.name ? 1 : 0,
+          `${state.name}: ${other.name}'s region`,
+        );
+        if (other.name !== state.name) {
+          assert.equal(textOf(panel).includes(other.words), false, `${state.name}: ${other.name}'s words survived`);
+        }
+      }
+      // And the wait, specifically: both of its strings are gone from the page
+      // once a real answer is on it, not merely hidden under the answer.
+      if (state.name !== "loading") {
+        const content = textOf(page.document.querySelector("#main-content"));
+        assert.equal(content.includes("Loading shared Social post"), false, `${state.name}: the loading heading survived`);
+        assert.equal(content.includes("Fetching it from the feed…"), false, `${state.name}: the loading line survived`);
+      }
+    } finally {
+      page.restore();
+    }
+  }
+});
+
+test("a loaded post keeps its published alt text and hands the display name to People", async () => {
+  const page = await openPostPage("?id=p-image", seedOnly([SEED_POST]));
+  try {
+    const { document, panel } = page;
+
+    // The alt the poster published, carried through the fetch, the normalizers
+    // and the render without being rewritten or prefixed. Asserted on the
+    // property: the harness does not reflect it to an attribute.
+    const image = panel.querySelectorAll("img")[0];
+    assert.equal(image.alt, "A card wrapped in a blue focus ring");
+    assert.equal(panel.querySelectorAll("img").length, 1);
+
+    // The display name is a link to that name's People view, in the URL shape
+    // Social's own feed builds (src/social-links.js), and its text is the name
+    // rather than a generic "profile" — a screen reader's link list has to be
+    // able to say whose.
+    const author = panel.querySelectorAll(".detail-author-link")[0];
+    assert.equal(textOf(author), "Mina Okafor");
+    assert.equal(author.getAttribute("href"), MINA);
+
+    // Reachable by keyboard, in the post's reading order: after the post it
+    // belongs to and before the page's standing routes out.
+    const sequence = tabSequence(document);
+    assert.ok(sequence.includes(author), "the display name must be reachable by keyboard");
+    assert.ok(
+      sequence.indexOf(author) < sequence.indexOf(document.querySelector("#post-back")),
+      "the post's own link onward comes before the page's standing exits",
+    );
+  } finally {
+    page.restore();
+  }
+});
+
+test("a post that is not in the feed says so and offers two ways onward", async () => {
+  const page = await openPostPage("?id=p-gone", seedOnly([SEED_POST]));
+  try {
+    const { document, panel } = page;
+    // Named literally: this post is not in the feed. Not a code, not the id.
+    assert.match(textOf(panel), /Post unavailable/);
+    assert.match(textOf(panel), /This post can’t be shown\./);
+
+    // Two next steps, both links, both saying where they go: the feed the post
+    // would have been in, and the composer where a reader can publish one of
+    // their own. Retry is not among them — the feed answered, so asking it again
+    // returns the same answer more slowly.
+    const actions = panel.querySelectorAll(".empty-action");
+    assert.deepEqual(actions.map(textOf), ["Go to the Social feed", "Publish a post"]);
+    assert.deepEqual(actions.map((link) => link.getAttribute("href")), ["/social.html", "/social.html#post-form"]);
+    assert.equal(panel.querySelectorAll("button").length, 0, "nothing to retry when the feed answered");
+
+    const sequence = tabSequence(document);
+    assert.ok(sequence.indexOf(actions[0]) < sequence.indexOf(actions[1]), "the actions tab in the order they read");
+    assert.ok(
+      sequence.indexOf(actions[1]) < sequence.indexOf(document.querySelector("#post-back")),
+      "and both come before the page's standing exits",
+    );
+
+    // The composer link is written from script, so link-integrity's sweep of the
+    // shipped markup cannot see it: its destination is pinned here instead, in
+    // the words Social's own hero control uses for the same act.
+    const social = await readFile(new URL("../src/social.html", import.meta.url), "utf8");
+    assert.match(social, /id="post-form"/, "the composer link must land on something");
+    assert.match(social, /<a class="text-link" href="#post-form">Publish a post<\/a>/,
+      "and it must say what Social already calls this");
+  } finally {
+    page.restore();
+  }
+});
+
+test("a post that loads is headed by its author and reads caption, image, description, name, time", async () => {
   const page = await openPostPage("?id=p-image", seedOnly([SEED_POST]));
   try {
     const { document } = page;
@@ -105,9 +254,14 @@ test("a post that loads is headed by its author and reads description, image, ca
     assert.equal(figure.querySelectorAll("img").length, 1);
     assert.equal(textOf(figure.querySelector("figcaption")), "The middle card, ringed.");
     assert.deepEqual(
-      article.children.slice(0, 4).map((node) => node.className),
-      ["description-note detail-image-description", "detail-figure", "detail-byline", "post-date detail-date"],
+      article.children.slice(0, 3).map((node) => node.className),
+      ["detail-figure", "detail-byline", "post-date detail-date"],
       "the routed page preserves the valid-post reading order",
+    );
+    assert.deepEqual(
+      figure.children.map((node) => node.tagName),
+      ["FIGCAPTION", "DIV", "P"],
+      "and the feed's own order inside the figure: caption, image, description",
     );
     assert.equal(page.panel.getAttribute("aria-busy"), "false");
     assert.ok(textOf(page.panel).includes(IDENTITY),
