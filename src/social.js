@@ -719,9 +719,9 @@ export function mountComposerDisclosure(root) {
 }
 
 // Wire the interactive behaviour: compose submission, the live character
-// counter, and roving-focus navigation over the feed. Handlers are delegated to
-// the feed container so they survive a re-render without re-binding. Returns a
-// small API so the page can seed and re-render with fresh data.
+// counter, and the two feed filters. Nothing here binds a key over the feed —
+// it is a list of ordinary links, so Tab and the arrow keys stay the browser's.
+// Returns a small API so the page can seed and re-render with fresh data.
 export function mountSocialFeed(root, options = {}) {
   const feed = root.querySelector("#post-feed");
   const form = root.querySelector("#post-form");

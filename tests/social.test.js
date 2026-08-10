@@ -103,12 +103,27 @@ test("counterState reports remaining budget and warning thresholds", () => {
   assert.equal(over.near, false);
 });
 
-test("the feed keeps native reading and keyboard order", async (t) => {
+// The feed's instructions are not keyboard instructions. social.js binds no key
+// over the list, so the paragraph that described Tab and the arrow keys
+// described the browser; what a reader entering the list needs is how it is
+// sorted, and that is what the list now points its description at — the same
+// direction People's grid uses for its own ordering line.
+test("the feed list is described by its ordering line, not by keyboard instructions", async (t) => {
   const page = await loadPage(new URL("../src/social.html", import.meta.url), {});
   t.after(() => page.restore());
 
-  const hint = textOf(page.document.querySelector(".feed-hint"));
-  assert.equal(hint, "Read posts in page order. Tab reaches each display name’s People link; arrow keys keep their native page-scrolling behavior.");
+  const feed = page.document.querySelector("#post-feed");
+  assert.equal(feed.getAttribute("aria-describedby"), "feed-order");
+  // The exact accessible description, read off the element the list names.
+  assert.equal(textOf(page.document.querySelector("#feed-order")), "Post order: newest first");
+
+  const markup = await readFile(new URL("../src/social.html", import.meta.url), "utf8");
+  const rendered = markup.replace(/<!--[\s\S]*?-->/g, "");
+  assert.doesNotMatch(rendered, /arrow keys/, "no keyboard sentence survives on the feed");
+  assert.doesNotMatch(rendered, /native/, "the feed instructions never name the browser's own behaviour");
+  assert.doesNotMatch(rendered, /Clear filters shows every post again/,
+    "the button's label is not restated as a sentence beside it");
+  assert.equal(rendered.match(/class="hint feed-hint"/), null);
 
   const posts = [0, 1, 2, 3, 4].map((i) => ({
     id: `p${i}`, author: `A${i}`, body: `body ${i}`, createdAt: `2026-07-0${i + 1}T00:00:00.000Z`,
@@ -629,7 +644,7 @@ test("the feed toolbar names what each control filters, in the site's own terms"
     "the poster filter reuses the composer's and People's term for a byline");
   assert.match(markup, /<option value="all">All display names<\/option>/,
     "the all-values option names the thing the menu holds, in the label's own term");
-  assert.match(markup, /class="eyebrow">Post order: newest first</,
+  assert.match(markup, /class="eyebrow" id="feed-order">Post order: newest first</,
     "the feed's order is a named fact, not a bare value floating above the heading");
   // "Show posts" named no field — it read as the button beside it rather than
   // as the label above a menu. The label is the fact the menu narrows on.
@@ -639,13 +654,13 @@ test("the feed toolbar names what each control filters, in the site's own terms"
     "the label that read like a button survives somewhere on the page");
   assert.match(markup, /<option value="hour">From the past hour<\/option>/,
     "each option states what it includes, so the closed menu is already readable");
-  // One word for the person who wrote a post, in all three places a reader
-  // meets the concept: the filter's label, the note under Clear filters, and
-  // the summary sentence (asserted on a booted page below).
-  assert.match(markup, /id="post-filter-clear-hint">Clear filters shows every post again, from any time and every display name\.</,
-    "Clear filters says what it restores, in the two menus' own terms");
-  assert.match(markup, /id="post-filter-clear"[^>]*aria-describedby="post-filter-clear-hint"/,
-    "the note is the button's description, not a paragraph that happens to sit near it");
+  // The button carries no description paragraph: the one it had opened by
+  // restating its own label. What the filters are doing to the feed is the
+  // summary sentence's job (asserted on a booted page below).
+  assert.doesNotMatch(markup, /post-filter-clear-hint/,
+    "the button's label is not restated as a sentence beside it");
+  assert.match(markup, /<button class="clear-filters social-clear" id="post-filter-clear" type="button">Clear filters<\/button>/,
+    "Clear filters is the whole control: a label a reader has already read needs no gloss");
 
   // Only the Agent observatory destination may still carry the word.
   const beyondNav = markup.replace(/Agent observatory/g, "").replace(/href="\/agents\.html"/g, "");

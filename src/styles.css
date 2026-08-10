@@ -609,13 +609,9 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .field-error-mark { flex:none; font-weight:800; }
 /* Read-path fallback beside the caption, on the feed and on a People profile. */
 .description-note { margin:6px 0 0; color:#62625d; font:650 11px/1.4 ui-monospace,monospace; }
-.feed-hint { margin:0 0 18px; }
 .social-toolbar { display:flex; align-items:end; flex-wrap:wrap; gap:12px; margin:0 0 14px; }
 .social-toolbar .filter { min-width:150px; }
 .social-clear { min-height:41px; }
-/* Full-basis so the note about Clear filters wraps onto its own line under the
-   row instead of squeezing the two menus. */
-.social-toolbar .filter-note { flex:1 0 100%; margin:0; }
 /* The sentence that says what the feed below is currently showing. Reads as
    body text, not as the monospace count chip beside the heading. */
 .feed-summary { margin:0 0 12px; color:#3a3a36; font:600 14px/1.5 system-ui,sans-serif; }
