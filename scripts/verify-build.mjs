@@ -3,6 +3,9 @@ import { readdir, readFile, writeFile } from "node:fs/promises";
 import { relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { parseHtml } from "../tests/support/browser.js";
+import {
+  checkFinopsFirstScreen, formatFirstScreenReport,
+} from "./check-finops-first-screen.mjs";
 import { DECISION_SUMMARY } from "../src/finops-screen-contract.js";
 import { HEALTH_STATUS } from "../src/health-contract.js";
 
@@ -438,6 +441,17 @@ export async function verifyArtifact(root) {
   // required for the production build to fail before deployment.
   const finopsHtml = await readFile(resolve(root, "evolution.html"), "utf8");
   verifyEvolutionStructure(finopsHtml);
+
+  // THE CONSOLIDATED ANSWER, IN THE BYTES PAGES WILL SERVE (#1509). The first
+  // screen is one question, one headline recoverable figure, one grade with the
+  // provenance label beside it, and one primary next action — and two of those
+  // four slots are filled by the build's own seed rather than authored. Source
+  // tests prove the modules; nothing proved the document after it was seeded,
+  // narrowed and staged. A drift there is a divergent answer in front of a CTO
+  // with every source assertion still green, so it fails here, before promotion,
+  // naming the element that moved and both readings of it.
+  const firstScreen = checkFinopsFirstScreen(finopsHtml);
+  if (!firstScreen.ok) throw new Error(formatFirstScreenReport(firstScreen));
 
   // EVERY DOOR ON THE RAIL, AGAINST THE ARTIFACT IT OPENS INTO. A destination is
   // three facts kept in three files: a screen-contract entry that names the
