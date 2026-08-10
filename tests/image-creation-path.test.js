@@ -139,16 +139,28 @@ test("Social's route into Paint is the composer's control, and there is no secon
   assert.match(textOf(composer), /^Create an image in Paint/);
   assert.doesNotMatch(textOf(composer), /then (publish|post)/i,
     "the composer's control restates the publishing path the empty state already gives");
-  assert.ok(tabSequence(documents.Social).includes(composer), "the route is not keyboard reachable");
+  // With the composer open: it ships collapsed behind the hero's Publish a post
+  // control, so a collapsed panel holding no tab stop is the point, not a bug.
+  const panel = documents.Social.getElementById("post-compose-panel");
+  panel.hidden = false;
+  try {
+    assert.ok(tabSequence(documents.Social).includes(composer), "the route is not keyboard reachable");
+  } finally {
+    panel.hidden = true;
+  }
 
   // The hero's duplicate is gone. Counted, never compared against null: a
   // surviving element sends assert.equal through the whole parsed page.
   assert.equal(documents.Social.querySelectorAll("#social-paint-cta").length, 0,
     "Social's hero offers Paint a second time again");
-  // The hero still has its one route, and it goes to the composer.
-  const heroLinks = documents.Social.querySelector(".hero-actions").querySelectorAll("a");
-  assert.equal(heroLinks.length, 1);
-  assert.equal(heroLinks[0].getAttribute("href"), "#post-form");
+  // The hero still has its one route into the composer. It reveals the panel
+  // now rather than jumping to it, so it is a disclosure trigger and not a
+  // link — and it is the only control the hero offers.
+  const heroControls = documents.Social.querySelector(".hero-actions")
+    .querySelectorAll("a,button");
+  assert.equal(heroControls.length, 1);
+  assert.equal(heroControls[0].getAttribute("id"), "post-compose-open");
+  assert.equal(heroControls[0].getAttribute("aria-controls"), "post-compose-panel");
 });
 
 test("People routes to Social from its entry point and to Paint beside its grid", () => {
@@ -324,6 +336,7 @@ test("the composer's Paint link sits between Upload image and Image description"
   // the description field only exists once an image is attached.
   const page = await loadPage(PAGES.Social);
   try {
+    page.document.getElementById("post-compose-panel").hidden = false;
     page.document.getElementById("compose-media").hidden = false;
     const sequence = tabSequence(page.document);
     const at = (id) => sequence.indexOf(page.document.getElementById(id));

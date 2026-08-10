@@ -21,8 +21,9 @@ import {
   MAX_IMAGE_ALT_LENGTH,
   DEFAULT_AUTHOR,
   mountSocialFeed,
+  mountComposerDisclosure,
 } from "../src/social.js";
-import { loadPage, pressKey, tabSequence, textOf } from "./support/browser.js";
+import { loadPage, pressKey, tabSequence, textOf, typeText } from "./support/browser.js";
 
 const sample = [
   { id: "p-old", author: "Kai",  body: "first",  createdAt: "2026-07-10T00:00:00.000Z" },
@@ -363,11 +364,18 @@ test("the composer trigger names the action and its heading names the destinatio
   const page = await loadPage(new URL("../src/social.html", import.meta.url), {});
   t.after(() => page.restore());
 
-  const entry = page.document.querySelector(".hero-actions").querySelectorAll("a")
-    .filter((anchor) => anchor.getAttribute("href") === "#post-form");
+  const entry = page.document.querySelector(".hero-actions")
+    .querySelectorAll("#post-compose-open");
   assert.equal(entry.length, 1, "the hero offers exactly one route into the composer");
   assert.equal(textOf(entry[0]), "Publish a post",
     "the control that opens the composer no longer names the publishing action");
+  // A disclosure, told the way this site's other one is told: the button owns
+  // the state, the panel it names is the composer, and it starts collapsed.
+  assert.equal(entry[0].tagName, "BUTTON");
+  assert.equal(entry[0].type, "button", "the trigger would submit something");
+  assert.equal(entry[0].getAttribute("aria-expanded"), "false");
+  assert.equal(entry[0].getAttribute("aria-controls"), "post-compose-panel");
+  assert.equal(page.document.querySelector("#post-compose-panel").hidden, true);
   assert.equal(textOf(page.document.querySelector("#post-form-title")), "Create a Social post",
     "the composer heading no longer identifies where to create a Social post");
   // Counted, not compared against null: a surviving element sends assert.equal
@@ -541,6 +549,11 @@ test("Social, People, and a post permalink say the demo-data fact in the same by
 test("the display name field says what the name does and does not mean", async (t) => {
   const page = await loadPage(new URL("../src/social.html", import.meta.url), {});
   t.after(() => page.restore());
+  // The composer ships collapsed now, so this asks the question about the state
+  // a reader is actually in when they read the field: opened through the page's
+  // own control, not by clearing `hidden` behind its back.
+  mountComposerDisclosure(page.document);
+  page.document.querySelector("#post-compose-open").click();
 
   const identity = page.document.querySelectorAll("#post-author-identity");
   assert.equal(identity.length, 1, "the display name field carries exactly one identity hint");
@@ -1085,4 +1098,175 @@ test("every global social destination link uses the Social label", async () => {
       `${page} must use the Social navigation label`,
     );
   }
+});
+
+// ---------------------------------------------------------------------------
+// The composer as a disclosure (#1514).
+//
+// A first-time visitor used to land on Social and meet a caption box, a file
+// picker, a name field and a Publish button before a single post — the page
+// asked them to write before it let them read. The feed comes first now and the
+// composer is one keystroke away behind the hero's Publish a post control.
+//
+// Every assertion below reads the disclosure's own state alongside the text,
+// because this harness models no layout: textOf reads straight through a
+// collapsed panel, so "the caution is present" passes on a page where nobody
+// can see it. `hidden` on the panel and `aria-expanded` on the trigger are what
+// actually fail when the reveal breaks.
+// ---------------------------------------------------------------------------
+
+/** The shipped page with the composer wired, and nothing else mounted. */
+async function socialDisclosure(t) {
+  const page = await loadPage(new URL("../src/social.html", import.meta.url), {});
+  t.after(() => page.restore());
+  const composer = mountComposerDisclosure(page.document);
+  const id = (name) => page.document.querySelector(`#${name}`);
+  return { page, document: page.document, composer, id };
+}
+
+/** Ancestry by walk: the harness throws on a descendant selector. */
+const foldedAway = (node) => {
+  for (let cursor = node; cursor; cursor = cursor.parentNode) {
+    if (cursor.tagName === "DETAILS" && !cursor.hasAttribute?.("open")) return true;
+    if (cursor.getAttribute?.("hidden") !== null && cursor.getAttribute) return true;
+  }
+  return false;
+};
+
+test("the feed is what a first-time visitor reads first, and the composer follows it", async (t) => {
+  const { document } = await socialDisclosure(t);
+
+  // Rendered order, in the source of truth for the markup: the feed panel and
+  // the composer panel are siblings, and the feed is first. A CSS reordering
+  // would satisfy neither this nor the tab order below.
+  const panels = document.querySelector(".workspace").childElements
+    .filter((node) => node.getAttribute("class")?.includes("-panel"));
+  assert.deepEqual(panels.map((node) => node.getAttribute("class")),
+    ["list-panel", "form-panel"],
+    "the composer is authored ahead of the feed again");
+
+  // And the fields are no longer the first interactive controls after the page
+  // heading. Counted inside <main>, which is where the skip link lands: the
+  // site nav above it is not what this change is about.
+  const main = document.querySelector("#main-content");
+  const stops = tabSequence(document).filter((node) => {
+    for (let cursor = node; cursor; cursor = cursor.parentNode) if (cursor === main) return true;
+    return false;
+  });
+  const composerFields = ["post-body", "post-image", "post-author", "post-submit"];
+  assert.equal(composerFields.includes(stops[0]?.id), false,
+    `the first control inside <main> is a composer field: ${stops[0]?.id}`);
+  for (const field of composerFields) {
+    assert.equal(stops.filter((node) => node.id === field).length, 0,
+      `${field} is still a tab stop while the composer is collapsed`);
+  }
+
+  // The concrete sequence, not just a count, so a regression names itself: the
+  // skip link's destination, then the trigger, then the feed's own controls.
+  assert.equal(document.querySelector(".skip-link").getAttribute("href"), "#main-content");
+  assert.equal(main.getAttribute("tabindex"), "-1");
+  assert.deepEqual(stops.slice(0, 4).map((node) => node.id),
+    ["post-compose-open", "post-name-filter", "post-time-filter", "post-filter-clear"],
+    "the first controls after the page heading are not the trigger and then the feed");
+  // "No more than three tab stops from the skip link to the first feed control":
+  // the display-name filter is stop 2.
+  assert.ok(stops.findIndex((node) => node.id === "post-name-filter") + 1 <= 3);
+});
+
+test("the trigger reveals the composer and puts focus in the caption field", async (t) => {
+  const { document, id } = await socialDisclosure(t);
+  const trigger = id("post-compose-open");
+  const panel = id("post-compose-panel");
+
+  assert.equal(panel.hidden, true, "the composer ships open");
+  assert.equal(trigger.getAttribute("aria-expanded"), "false");
+  assert.equal(foldedAway(id("post-body")), true, "the caption is reachable before it is revealed");
+
+  trigger.click();
+
+  assert.equal(panel.hidden, false, "activating the trigger did not reveal the composer");
+  assert.equal(trigger.getAttribute("aria-expanded"), "true");
+  assert.equal(document.activeElement?.id, "post-body",
+    "focus did not land in the caption field the trigger promised");
+  // And the fields a keyboard reader now walks are the composer's, in order.
+  const revealed = tabSequence(document).map((node) => node.id);
+  assert.ok(revealed.indexOf("post-body") > revealed.indexOf("post-compose-open"));
+  assert.ok(revealed.indexOf("post-body") < revealed.indexOf("post-image"));
+});
+
+test("closing the composer returns focus to the trigger, never to the top of the document", async (t) => {
+  const { document, id } = await socialDisclosure(t);
+  const trigger = id("post-compose-open");
+  const panel = id("post-compose-panel");
+
+  // Every way it closes today. The Close control first.
+  trigger.click();
+  id("post-compose-cancel").click();
+  assert.equal(panel.hidden, true, "Close left the composer open");
+  assert.equal(trigger.getAttribute("aria-expanded"), "false");
+  assert.equal(document.activeElement?.id, "post-compose-open",
+    "Close dropped focus somewhere other than the control that opened the panel");
+
+  // Escape from inside the panel, which is what the footer's disclosure honours.
+  trigger.click();
+  id("post-body").focus();
+  pressKey(document, "Escape");
+  assert.equal(panel.hidden, true, "Escape left the composer open");
+  assert.equal(document.activeElement?.id, "post-compose-open",
+    "Escape dropped focus somewhere other than the trigger");
+
+  // And the trigger itself, pressed a second time.
+  trigger.click();
+  trigger.click();
+  assert.equal(panel.hidden, true);
+  assert.equal(document.activeElement?.id, "post-compose-open");
+});
+
+test("the character counter still announces in the composer the trigger revealed", async (t) => {
+  const page = await loadPage(new URL("../src/social.html", import.meta.url), {});
+  t.after(() => page.restore());
+  const document = page.document;
+  const feed = mountSocialFeed(document, { posts: [], state: "ready", storage: page.storage });
+  const counter = document.querySelector("#post-counter");
+
+  // The live region ships with the panel and is never re-created, so the reveal
+  // cannot drop an announcement: same node, same live attributes, afterwards.
+  document.querySelector("#post-compose-open").click();
+  assert.equal(document.querySelector("#post-counter"), counter, "the reveal re-created the live region");
+  assert.equal(counter.getAttribute("aria-live"), "polite");
+  assert.equal(counter.getAttribute("aria-atomic"), "true");
+  assert.equal(foldedAway(counter), false, "the live region is announcing from inside something hidden");
+  assert.equal(textOf(counter), "280");
+
+  // Typed into after the reveal, the way a reader reaches it — not into a
+  // composer that was never hidden.
+  assert.equal(document.activeElement?.id, "post-body");
+  typeText(document, "Shipped the reorder.");
+  assert.equal(textOf(counter), String(MAX_POST_LENGTH - "Shipped the reorder.".length));
+  assert.equal(feed.getPosts().length, 0);
+});
+
+test("the composer's three cautions still read word for word once it is open", async (t) => {
+  const { document, id } = await socialDisclosure(t);
+  id("post-compose-open").click();
+  // The alt-text requirement lives with the image it describes, so it is on
+  // screen exactly when an image is attached — the composer's own rule, which
+  // this change moved and did not touch. This is the state src/social-page.js
+  // puts the panel in when a file is chosen.
+  id("compose-media").hidden = false;
+
+  const cautions = {
+    "post-image-alt-hint": "Describe what matters in the image for people who cannot see it.",
+    "post-author-identity": "People groups image posts by display name, so this is the name yours appear under. A display name is not a signed-in user — nobody owns or verifies one, and anyone can publish under any name.",
+    "post-consequence": "Anyone who visits Shiplog can read your post, its image, and the display name you publish it with. You cannot delete it afterwards, so post nothing you would not put on a public page.",
+  };
+  for (const [id_, wording] of Object.entries(cautions)) {
+    const node = document.querySelector(`#${id_}`);
+    assert.equal(textOf(node), wording, `${id_} was rewritten rather than moved`);
+    // The text alone would pass behind a collapsed panel, so state the state.
+    assert.equal(foldedAway(node), false, `${id_} is rendered inside something hidden`);
+  }
+  // The requirement marker beside the image description, in its own words.
+  assert.equal(textOf(id("post-image-alt-required")), "(required with an image)");
+  assert.equal(id("post-compose-panel").hidden, false);
 });

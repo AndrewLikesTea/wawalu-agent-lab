@@ -906,7 +906,7 @@ test("the permalink leads with the post and puts the feed context under it, load
   // Moved in the markup, not turned around in CSS: a stylesheet reorder would
   // leave reading order and tab order in the order this change exists to end.
   const css = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
-  for (const rule of [".detail-page-exits", ".profile-workspace", ".hero"]) {
+  for (const rule of [".detail-page-exits", ".workspace-single", ".hero"]) {
     const declarations = css.match(new RegExp(`^\\${rule} \\{([^}]*)\\}`, "m"))?.[1] ?? "";
     assert.doesNotMatch(declarations, /order:\s*-?\d|column-reverse|wrap-reverse|position:\s*absolute/,
       `${rule} must not re-sequence the page visually`);

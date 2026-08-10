@@ -57,23 +57,31 @@
              the act, to a screen reader and to an eye alike, instead of being
              offered early and forgotten. -->
 
-        <!-- One route out of the hero: the composer. It used to read "Write a
-             post without an image", which contradicted the form it jumps to:
-             that form's own image field is labelled "(optional)", so the
-             composer takes a caption with an image or without one and the
-             control that opens it may not promise otherwise. It claims nothing
-             about images in either direction now. It names the publishing
-             action, while the heading it lands on identifies the Social
-             composer. The third name went with it — an eyebrow read "New post"
-             above the heading — and the submit button still names the act, not
-             the form.
+        <!-- One route out of the hero, and now the control that reveals the
+             composer rather than a link that jumps to it. The composer used to
+             be the first thing under this heading, so a first-time visitor met
+             a caption box, a file picker and a name field before a single post.
+             The feed is read first now and the composer sits below it, opened
+             from here. This is the site's own disclosure pattern, the one the
+             footer's follow-up panel already uses: a button carrying
+             aria-expanded, a panel carrying hidden, Escape from inside it, and
+             focus that comes back to this control on every close.
+             It used to read "Write a post without an image", which contradicted
+             the form it opens: that form's own image field is labelled
+             "(optional)", so the composer takes a caption with an image or
+             without one and the control that opens it may not promise
+             otherwise. It claims nothing about images in either direction now.
+             It names the publishing action, while the heading it reveals
+             identifies the Social composer. The third name went with it — an
+             eyebrow read "New post" above the heading — and the submit button
+             still names the act, not the form.
              A second button stood here carrying the composer's own Paint label
              word for word, which offered the in-flow control a screen early: one
              action, offered twice, before the reader had a caption to attach an
              image to. Paint is offered once now, beside Upload image, where the
-             image is attached. An ordinary anchor, so Tab and Enter behave. -->
+             image is attached. -->
         <div class="hero-actions">
-          <a class="text-link" href="#post-form">Publish a post</a>
+          <button class="secondary-button" id="post-compose-open" type="button" aria-expanded="false" aria-controls="post-compose-panel">Publish a post</button>
         </div>
       </section>
 
@@ -85,9 +93,149 @@
            The composer panel is named by its heading and by nothing above it:
            the heading carries the id the panel points at, so the form is
            announced once, in the words the trigger promised, and the reader
-           does not pass a second name on the way to the first field. -->
-      <section class="workspace" aria-label="Post log">
-        <div class="form-panel" aria-labelledby="post-form-title">
+           does not pass a second name on the way to the first field.
+           The feed comes first and the composer follows it, in the document
+           order a keyboard reader and a screen reader both travel: this page is
+           a feed you read, and the composer is what you open when you have
+           something to add. That is also why the workspace is the sidebar-less
+           one — the composer is a full-width panel below the posts now, not a
+           column standing permanently beside them. -->
+      <section class="workspace workspace-single" aria-label="Post log">
+        <div class="list-panel" aria-labelledby="feed-title">
+          <div class="section-heading list-heading">
+            <div>
+              <p class="eyebrow">Post order: newest first</p>
+              <!-- Rewritten by social.js on every render to name what the
+                   filters are showing and how many posts matched — "All posts"
+                   was fixed, so a feed narrowed to one display name still
+                   claimed to hold every post, and this heading is the whole
+                   panel's accessible name. It ships as the unfiltered wording
+                   because a count is a claim the page cannot make until a fetch
+                   has come back. -->
+              <!-- Focusable by script only: recovering from the no-match state
+                   destroys the control that was pressed, so focus is moved to
+                   the restored list, and this heading is where it lands when
+                   there is no card to land on. tabindex="-1" adds no tab stop. -->
+              <h2 id="feed-title" tabindex="-1">All posts</h2>
+            </div>
+            <!-- Not a live region any more. The summary below the filters says
+                 the same news in a fuller sentence — how many of how many, and
+                 which filters produced that — and that is the region announced
+                 now, so leaving aria-live here would read every filter change
+                 out twice. -->
+            <span class="count" id="post-count">Loading the Social feed…</span>
+          </div>
+          <!-- Who wrote what a reader is about to scroll through, said once and
+               said here, because here is where the names are. A reader meets
+               "Ari" on a card and reads an account unless the page tells them
+               otherwise; "invented" is the word this site already uses for what
+               it made up — the homepage and AI FinOps both say it — and
+               "display name" is the one term the composer's field, this panel's
+               filter, and People's picker all use for the name a post carries.
+               Neither word is new. It replaced a phrase built on "persona",
+               which named the same thing a fourth way and asked a first-time
+               visitor to know that noun before they could read the sentence.
+               It is the feed panel's own markup, outside every branch social.js
+               swaps — loading, ready, empty, and no-match all render it — so the
+               claim about who wrote the posts does not depend on a fetch having
+               answered. It is plain prose: no heading, nothing focusable, no
+               live region, and no rule of its own in the stylesheet.
+               It sits under the heading row rather than inside it, because the
+               heading and the count beside it are one line that reads as a pair,
+               and a second paragraph between them would drop the count away
+               from the words it counts. -->
+          <p class="hint" id="feed-source-note">Every display name below is invented for this demo or a name a visitor published under.</p>
+          <!-- Social offers Paint twice, and only twice: the hero's standing
+               invitation and the composer's in-flow control. A third invitation
+               beside the feed, reading "Open Paint", used to sit here; it named
+               the destination rather than the act, it was the furthest of the
+               three from the field an image actually enters a post through, and
+               a reader met the same offer in a third voice within one scroll.
+               People keeps its own version, because People has no composer and
+               that link is the only route out of the grid. -->
+          <div class="social-toolbar" aria-label="Filter posts">
+            <div class="filter">
+              <!-- "Display name" is the one term this site uses for the name a
+                   post is published under: the composer's own field is labelled
+                   the same way and People's picker holds the same names, so the
+                   filter names what the byline on each card already says. This
+                   control used to be headed with a word that appears nowhere on
+                   a post, which left a reader guessing what the menu held. -->
+              <label for="post-name-filter">Display name</label>
+              <select id="post-name-filter">
+                <option value="all">All display names</option>
+              </select>
+            </div>
+            <div class="filter">
+              <!-- "Show posts" named no field: it read as the button next to it
+                   rather than as the label above a menu, and a reader scanning
+                   the row learned nothing about what the menu narrows. The label
+                   is the fact the menu filters on — when a post was posted —
+                   and it is a label for the control, exactly like the display
+                   name filter beside it, so clicking it moves focus to the menu
+                   and a screen reader reads the pair. -->
+              <label for="post-time-filter">Time posted</label>
+              <select id="post-time-filter">
+                <option value="all">From any time</option>
+                <option value="hour">From the past hour</option>
+                <option value="day">From the past 24 hours</option>
+                <option value="week">From the past 7 days</option>
+              </select>
+            </div>
+            <button class="clear-filters social-clear" id="post-filter-clear" type="button" aria-describedby="post-filter-clear-hint">Clear filters</button>
+            <!-- What the button restores, in the same two terms the two menus
+                 use: "any time" is the time menu's own first option, and
+                 "display name" is the term the composer, People, and the filter
+                 beside it all use for the name a post is published under. -->
+            <p class="hint filter-note" id="post-filter-clear-hint">Clear filters shows every post again, from any time and every display name.</p>
+          </div>
+          <div class="feed-connection" aria-live="polite">
+            <span class="live-dot" aria-hidden="true"></span>
+            <span id="feed-status">Loading the Social feed…</span>
+          </div>
+          <!-- Every key here is one the feed's keydown handler actually binds
+               (NAV_KEYS in social.js): ←/→ step one card, ↑/↓ step one grid
+               row, Home/End go to the ends. Each movement is named once, so
+               the two arrow pairs no longer read as the same thing. Enter is
+               deliberately absent — nothing on a card is a link, so there is
+               no detail view to open, and the second sentence says so rather
+               than leaving a reader hunting for one. Verbs match the Releases
+               hint: arrows "move", Home and End "jump". -->
+          <p class="hint feed-hint">Read posts in page order. Tab reaches each display name’s People link; arrow keys keep their native page-scrolling behavior.</p>
+          <p class="visually-hidden" id="feed-announcer" aria-live="polite" aria-atomic="true"></p>
+          <!-- One sentence for "what am I looking at": how many of how many
+               posts are below this line, and which filters produced them.
+               social.js writes it from the same array it renders the cards
+               from, so the number here is the number of cards, in every state
+               including none, and it names the filters in the option text read
+               back off the two menus rather than from a second copy of that
+               vocabulary.
+               Ships empty because a count is a claim the page cannot make until
+               a fetch has come back — nothing here says "0 posts" while the
+               first fetch is open.
+               This element is the page's one announcement of a filter change:
+               it is here on first paint and stays, and social.js replaces only
+               its text, which is what makes an update announce once. It carries
+               no role="status" and holds no second live region, and nothing
+               folds it away — a live region behind a closed disclosure is
+               silent, and a reader who needs this sentence needs it before the
+               cards. -->
+          <p class="feed-summary" id="feed-summary" aria-live="polite"></p>
+          <div id="post-feed"></div>
+        </div>
+
+        <!-- Ships collapsed, and is revealed by the hero's Publish a post
+             control. `hidden` and not a CSS reordering: the acceptance
+             criterion is rendered order and tab order, and a panel that is only
+             visually moved still stands between the heading and the first post
+             for a keyboard reader and a screen reader. Everything inside it —
+             the alt-text requirement, the display-name caution, the publish
+             consequence — is the wording that was already here, moved and
+             revealed rather than rewritten.
+             The two live regions this panel holds (#post-counter and
+             #post-image-alt-counter) ship with it and are never re-created, so
+             an announcement fires into a region the reader can already see. -->
+        <div class="form-panel" id="post-compose-panel" aria-labelledby="post-form-title" hidden>
           <div class="section-heading">
             <h2 id="post-form-title">Create a Social post</h2>
           </div>
@@ -248,131 +396,16 @@
             <button id="post-submit" type="submit" aria-describedby="post-consequence social-notice">
               <span class="submit-label">Publish post</span> <span aria-hidden="true">→</span>
             </button>
+            <!-- The way out, in the word the footer's panel already uses for
+                 the same act. It collapses the composer and puts focus back on
+                 Publish a post in the hero, which is the only place focus can
+                 go that does not drop a keyboard reader at the top of the
+                 document. Escape from anywhere inside this panel does the same
+                 thing. A publish that succeeds does NOT close the panel: the
+                 receipt below is where focus goes, and it lives in here. -->
+            <button class="text-button" id="post-compose-cancel" type="button">Close</button>
             <p class="notice submit-feedback" id="social-notice" role="status" aria-live="polite" aria-atomic="true" hidden></p>
           </form>
-        </div>
-
-        <div class="list-panel" aria-labelledby="feed-title">
-          <div class="section-heading list-heading">
-            <div>
-              <p class="eyebrow">Post order: newest first</p>
-              <!-- Rewritten by social.js on every render to name what the
-                   filters are showing and how many posts matched — "All posts"
-                   was fixed, so a feed narrowed to one display name still
-                   claimed to hold every post, and this heading is the whole
-                   panel's accessible name. It ships as the unfiltered wording
-                   because a count is a claim the page cannot make until a fetch
-                   has come back. -->
-              <!-- Focusable by script only: recovering from the no-match state
-                   destroys the control that was pressed, so focus is moved to
-                   the restored list, and this heading is where it lands when
-                   there is no card to land on. tabindex="-1" adds no tab stop. -->
-              <h2 id="feed-title" tabindex="-1">All posts</h2>
-            </div>
-            <!-- Not a live region any more. The summary below the filters says
-                 the same news in a fuller sentence — how many of how many, and
-                 which filters produced that — and that is the region announced
-                 now, so leaving aria-live here would read every filter change
-                 out twice. -->
-            <span class="count" id="post-count">Loading the Social feed…</span>
-          </div>
-          <!-- Who wrote what a reader is about to scroll through, said once and
-               said here, because here is where the names are. A reader meets
-               "Ari" on a card and reads an account unless the page tells them
-               otherwise; "invented" is the word this site already uses for what
-               it made up — the homepage and AI FinOps both say it — and
-               "display name" is the one term the composer's field, this panel's
-               filter, and People's picker all use for the name a post carries.
-               Neither word is new. It replaced a phrase built on "persona",
-               which named the same thing a fourth way and asked a first-time
-               visitor to know that noun before they could read the sentence.
-               It is the feed panel's own markup, outside every branch social.js
-               swaps — loading, ready, empty, and no-match all render it — so the
-               claim about who wrote the posts does not depend on a fetch having
-               answered. It is plain prose: no heading, nothing focusable, no
-               live region, and no rule of its own in the stylesheet.
-               It sits under the heading row rather than inside it, because the
-               heading and the count beside it are one line that reads as a pair,
-               and a second paragraph between them would drop the count away
-               from the words it counts. -->
-          <p class="hint" id="feed-source-note">Every display name below is invented for this demo or a name a visitor published under.</p>
-          <!-- Social offers Paint twice, and only twice: the hero's standing
-               invitation and the composer's in-flow control. A third invitation
-               beside the feed, reading "Open Paint", used to sit here; it named
-               the destination rather than the act, it was the furthest of the
-               three from the field an image actually enters a post through, and
-               a reader met the same offer in a third voice within one scroll.
-               People keeps its own version, because People has no composer and
-               that link is the only route out of the grid. -->
-          <div class="social-toolbar" aria-label="Filter posts">
-            <div class="filter">
-              <!-- "Display name" is the one term this site uses for the name a
-                   post is published under: the composer's own field is labelled
-                   the same way and People's picker holds the same names, so the
-                   filter names what the byline on each card already says. This
-                   control used to be headed with a word that appears nowhere on
-                   a post, which left a reader guessing what the menu held. -->
-              <label for="post-name-filter">Display name</label>
-              <select id="post-name-filter">
-                <option value="all">All display names</option>
-              </select>
-            </div>
-            <div class="filter">
-              <!-- "Show posts" named no field: it read as the button next to it
-                   rather than as the label above a menu, and a reader scanning
-                   the row learned nothing about what the menu narrows. The label
-                   is the fact the menu filters on — when a post was posted —
-                   and it is a label for the control, exactly like the display
-                   name filter beside it, so clicking it moves focus to the menu
-                   and a screen reader reads the pair. -->
-              <label for="post-time-filter">Time posted</label>
-              <select id="post-time-filter">
-                <option value="all">From any time</option>
-                <option value="hour">From the past hour</option>
-                <option value="day">From the past 24 hours</option>
-                <option value="week">From the past 7 days</option>
-              </select>
-            </div>
-            <button class="clear-filters social-clear" id="post-filter-clear" type="button" aria-describedby="post-filter-clear-hint">Clear filters</button>
-            <!-- What the button restores, in the same two terms the two menus
-                 use: "any time" is the time menu's own first option, and
-                 "display name" is the term the composer, People, and the filter
-                 beside it all use for the name a post is published under. -->
-            <p class="hint filter-note" id="post-filter-clear-hint">Clear filters shows every post again, from any time and every display name.</p>
-          </div>
-          <div class="feed-connection" aria-live="polite">
-            <span class="live-dot" aria-hidden="true"></span>
-            <span id="feed-status">Loading the Social feed…</span>
-          </div>
-          <!-- Every key here is one the feed's keydown handler actually binds
-               (NAV_KEYS in social.js): ←/→ step one card, ↑/↓ step one grid
-               row, Home/End go to the ends. Each movement is named once, so
-               the two arrow pairs no longer read as the same thing. Enter is
-               deliberately absent — nothing on a card is a link, so there is
-               no detail view to open, and the second sentence says so rather
-               than leaving a reader hunting for one. Verbs match the Releases
-               hint: arrows "move", Home and End "jump". -->
-          <p class="hint feed-hint">Read posts in page order. Tab reaches each display name’s People link; arrow keys keep their native page-scrolling behavior.</p>
-          <p class="visually-hidden" id="feed-announcer" aria-live="polite" aria-atomic="true"></p>
-          <!-- One sentence for "what am I looking at": how many of how many
-               posts are below this line, and which filters produced them.
-               social.js writes it from the same array it renders the cards
-               from, so the number here is the number of cards, in every state
-               including none, and it names the filters in the option text read
-               back off the two menus rather than from a second copy of that
-               vocabulary.
-               Ships empty because a count is a claim the page cannot make until
-               a fetch has come back — nothing here says "0 posts" while the
-               first fetch is open.
-               This element is the page's one announcement of a filter change:
-               it is here on first paint and stays, and social.js replaces only
-               its text, which is what makes an update announce once. It carries
-               no role="status" and holds no second live region, and nothing
-               folds it away — a live region behind a closed disclosure is
-               silent, and a reader who needs this sentence needs it before the
-               cards. -->
-          <p class="feed-summary" id="feed-summary" aria-live="polite"></p>
-          <div id="post-feed"></div>
         </div>
       </section>
       </main>
