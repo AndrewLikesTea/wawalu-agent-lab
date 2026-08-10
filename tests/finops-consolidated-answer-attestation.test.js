@@ -178,7 +178,12 @@ test("coverage moves when a department stops carrying a completed score", () => 
  */
 function pageDimensions(node, text) {
   const headline = node.getAttribute("data-headline") ?? "absent";
-  const confidence = /confidence (\w+) ·/.exec(text)?.[1] ?? "absent";
+  // The band is still read out of the SENTENCE, not out of `data-confidence`:
+  // the point of this check is that the words a reader sees and the record the
+  // page computed agree. Since #1554 the band is said as a leading clause —
+  // "Medium confidence — enough to plan against" — rather than as the term of
+  // art "confidence medium ·", so the shape moved and the source did not.
+  const confidence = /\b(\w+) confidence\b/.exec(text)?.[1]?.toLowerCase() ?? "absent";
   return {
     headline,
     confidence,

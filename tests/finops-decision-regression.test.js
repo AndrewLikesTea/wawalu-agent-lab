@@ -634,6 +634,17 @@ const ALLOWED_MODULES = Object.freeze([
   // one. It is the module the two reference rates now live in, so the path
   // reaching it is the path reaching its own prices.
   "finops-rate-card-contract.js",
+  // Reviewed on with #1554, which put the first screen's attestation into words
+  // a reader outside this repository can repeat. `finops-executive-vocabulary.js`
+  // is a frozen table of authored English keyed by the identifiers the FinOps
+  // surfaces print, plus pure predicates over a string. It imports NOTHING —
+  // it is a leaf of this graph, not a door out of it — holds no module-level
+  // mutable state, and opens no request, no storage, no cookie, no clock and no
+  // random source. It is on the path because `finops-answer-contract.js` now
+  // resolves the attestation sentence's phrasing through it instead of typing
+  // the identifiers into the sentence. Adding it narrows what the path prints
+  // rather than widening what it reaches: no data provider, no I/O of any kind.
+  "finops-executive-vocabulary.js",
 ]);
 
 /**

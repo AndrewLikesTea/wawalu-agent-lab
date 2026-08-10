@@ -14,6 +14,12 @@
 //
 // Pure: no DOM, no storage, no clock, no network, no locale-dependent sort.
 // Synthetic client-side signals arrive as an argument.
+//
+// The one import is the reader-facing phrasing table (#1554): a frozen string
+// map and pure predicates, with no imports, no I/O and no state of its own, so
+// it changes none of the properties above.
+
+import { READER_PHRASING, readerPhraseFor } from "./finops-executive-vocabulary.js";
 
 export const FINOPS_ANSWER_CONTRACT = "finops-answer-contract/1.0.0";
 
@@ -647,13 +653,26 @@ export function recoverableAttestation(dataset, record = getRecoverableSpend(dat
     // #1502 closed. So the attested headline travels as `data-headline` — read
     // by the check, not repainted at a reader — and the sentence says only that
     // it matched.
-    statement: `Attested ${RECOVERABLE_ATTESTATION} — the headline above is the one figure this `
-      + `region states, on the monthly basis of record · confidence ${confidence} · provenance `
-      + `${declared} of ${operands.length} operands declared by the export, ${derived} derived `
-      + `here · coverage ${dimensions.coverage.scored} of ${dimensions.coverage.inScope} `
-      + "departments scored. Each carries its assumption in "
-      + "tests/fixtures/finops-consolidated-answer-attestation.json, and a drift in any of the "
-      + "four fails by naming it.",
+    //
+    // AND IT IS SAID IN A READER'S WORDS (#1554). The sentence answers the one
+    // question this screen exists for — what is the figure priced from, and how
+    // sure are we — in language a CTO who has never opened this repository can
+    // repeat. The version, the pinned evidence file and the per-operand
+    // assumptions are not gone: they are stated in the "How we know this"
+    // disclosure this same region carries, and the attested values still ride
+    // on the slot's data attributes. `finops-executive-vocabulary.js` owns the
+    // mapping from each internal identifier to its phrase, and its own
+    // predicate is what `tests/finops-executive-vocabulary.test.js` holds this
+    // sentence to as the copy evolves.
+    statement: `Priced from the bundled example export's own usage records: ${declared} of the `
+      + `${operands.length} inputs behind the figure above are `
+      + `${readerPhraseFor(ATTESTATION_ORIGIN.declared)} and ${derived} are `
+      + `${readerPhraseFor(ATTESTATION_ORIGIN.derived)}, covering `
+      + `${dimensions.coverage.scored} of ${dimensions.coverage.inScope} departments in scope, `
+      + `over ${readerPhraseFor(record.basis) ?? "the basis of record"}. `
+      + `${readerPhraseFor(confidence) ?? READER_PHRASING["not graded"]}. The How we know this `
+      + "note above names the version of this check, the pinned evidence file, and the assumption "
+      + "behind every input.",
   });
 }
 
