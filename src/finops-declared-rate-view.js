@@ -34,6 +34,13 @@ import {
   RETAINED_REASON, clearRetainedState, loadRetainedState, retainedProvenanceLine,
   saveRetainedState,
 } from "./finops-retained-state.js";
+// Where an id an older build published lives on the shortened page (#1500). The
+// restore path resolves its slot through the same table the deep-link path uses,
+// so a payload written before #1498 paints into the surviving slot instead of
+// silently painting nowhere.
+import {
+  CANONICAL_ANSWER_REGION_ID, resolveRegionElement,
+} from "./retired-anchor-compatibility.js";
 
 /** The slots this region authors. */
 export const DECLARED_RATE_IDS = Object.freeze({
@@ -138,9 +145,16 @@ export function applyDeclaredRates(doc, { asOf = null, destinations } = {}) {
  */
 function paintRetained(doc, outcome) {
   retained = outcome;
-  const line = byId(doc, RETAINED_STATE_IDS.line);
-  if (!line) return outcome;
   const reason = outcome?.reason ?? RETAINED_REASON.unretained;
+  // The canonical answer region carries the outcome whether or not the slot
+  // below is on this document, so the figure a restore qualifies states its own
+  // provenance state rather than leaving it to a paragraph that may be gone.
+  doc?.getElementById?.(CANONICAL_ANSWER_REGION_ID)
+    ?.setAttribute?.("data-retained-state", reason);
+  // Resolved, not looked up: an id #1498 merged answers with its survivor, and a
+  // slot this page genuinely does not have paints nothing rather than throwing.
+  const line = resolveRegionElement(doc, RETAINED_STATE_IDS.line);
+  if (!line) return outcome;
   const text = outcome?.retained
     ? retainedProvenanceLine(outcome.payload)
     : (reason === RETAINED_REASON.unretained ? "" : outcome?.message ?? "");

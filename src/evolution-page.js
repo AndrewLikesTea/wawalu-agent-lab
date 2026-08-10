@@ -50,7 +50,7 @@ import { installDeepLinkDisclosure } from "/deep-link-disclosure.js";
 // the document however it was linked to, so "look at commitment coverage" is a
 // sentence in a chat message rather than something a colleague can send.
 import { installDestinationRouting } from "/destination-route-view.js";
-import { forwardRetiredAnchor } from "/retired-anchor-compatibility.js";
+import { installRetiredAnchorForwarding } from "/retired-anchor-compatibility.js";
 // Disclosure-only method prose, fetched from a static fragment on first expand
 // rather than shipped in this page's initial payload. It carries no figure and
 // gates nothing: the panels it fills are readable before it runs and readable
@@ -4993,9 +4993,14 @@ function paintConsolidatedJourney() {
 
 async function init() {
   if (!document.getElementById("department-priority")) return;
-  // Preserve bookmarks to deleted summary regions. This is a local fragment
-  // replacement only: no redirect, request, storage, or server coupling.
-  forwardRetiredAnchor(window);
+  // Preserve bookmarks and share links into regions #1498 merged away. This is a
+  // local fragment replacement only: no redirect, request, storage, or server
+  // coupling. The document is passed so the resolver can tell a live id from a
+  // missing one — a missing one lands on the canonical answer region rather than
+  // at the top of a page that never says why. Registered before
+  // `installDeepLinkDisclosure` below, so a link pasted into an already-open tab
+  // is rewritten before the handler that unfolds its disclosures reads it.
+  installRetiredAnchorForwarding(window, document);
   // Before anything else touches the document: every top-level region is
   // stamped with the question it answers and its place in the reading order, so
   // the classification is true of the DOM a reader receives rather than only of
