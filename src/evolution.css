@@ -1220,8 +1220,15 @@
    three fragments a reader has to reassemble. */
 .answer-figure { display:grid; gap:4px; margin:0; overflow-wrap:anywhere; }
 .answer-figure-label { color:var(--muted); font-size:13px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; }
-.answer-figure-value { color:var(--ink); font-size:clamp(38px,7vw,68px); font-weight:800; line-height:1.05; }
-.answer-block[data-available="false"] .answer-figure-value { color:var(--state-warn-ink); font-size:clamp(20px,3vw,26px); }
+/* THE PAGE'S DISPLAY STEP FOR A FIGURE, which the first screen's headline figure
+   now joins (#1497) rather than growing a second one. The id is added to the
+   SELECTOR, not given a copy of the declaration — a step only one element uses is
+   a step that drifts — and it outranks `.stand-figure-value`, which the element
+   keeps so its no-clip and grid rules still apply. */
+.answer-figure-value,#finops-recoverable-value { color:var(--ink); font-size:clamp(38px,7vw,68px); font-weight:800; line-height:1.05; }
+/* And the same descent when there is no figure to state, for the same reason:
+   "Not stated" set at 68px is a headline claiming to be a measurement. */
+.answer-block[data-available="false"] .answer-figure-value,#finops-recoverable-figure[data-available="false"]>#finops-recoverable-value { color:var(--state-warn-ink); font-size:clamp(20px,3vw,26px); }
 .answer-figure-direction { max-width:62ch; color:var(--ink); font-size:15px; font-weight:650; line-height:1.5; overflow-wrap:anywhere; }
 /* THE RANK: the numeral clamp, the 15px body step for the confidence sentence,
    that step inside a control for the action — a descent at 320px and at 200%
@@ -1550,6 +1557,14 @@
    fold instead of 14%. The whole hero measures about 210px at a 1440px width,
    so the answer region's heading and first figure still open the first screen. */
 .finops-hero[data-subordinate="true"] { padding-top:24px; }
+/* AND THE HERO'S TYPE, for the same reason and on the same condition (#1497).
+   The page name sat at the site display step `clamp(44px,7.3vw,82px)` — larger at
+   every width than the recoverable figure below it, so the biggest thing on a
+   screen that exists to answer "are we wasting money?" was a slogan. Stepped down
+   to the step `.coach-hero h1` already ships, not a new one. The figure's ramp
+   beats it at the floor (38 > 32), the ceiling (68 > 52) and between (7vw >
+   5.6vw), so the number leads at every width rather than only at one. */
+.finops-hero[data-subordinate="true"] h1 { font-size:clamp(32px,5.6vw,52px); }
 
 /* The demoted first-run block. It keeps every word; it stops competing for the
    eye with the headline above it. */
