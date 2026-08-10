@@ -258,8 +258,12 @@ test("every Shiplog workflow is still on the front door and still works", async 
   // Every nav destination is still offered, unchanged.
   const nav = document.querySelector(".site-nav").querySelectorAll("a");
   assert.equal(nav.length, 8);
-  // AI FinOps is one door onto its answer region, not a list of FinOps pages
-  // (#1187): same destination, same count, an anchor added.
-  assert.ok(nav.some((link) => link.getAttribute("href") === "/evolution.html#finops-recoverable-answer"));
+  // AI FinOps is one door onto its answer, not a list of FinOps pages (#1187):
+  // same destination, same count, an anchor added. The anchor is the answer
+  // DESTINATION's address rather than the id of the band inside it (#1523) —
+  // /evolution.html shows one destination at a time, so a mid-page anchor named
+  // a section without saying which destination the reader had asked for.
+  assert.ok(nav.some((link) => link.getAttribute("href") === "/evolution.html#workspace-answer"),
+    "the AI FinOps door must open the answer destination");
   assert.ok(nav.some((link) => link.getAttribute("href") === "/"));
 });

@@ -51,12 +51,24 @@ export const SITE_NAV = [
     className: "nav-evolution",
     // One door, and it opens on the answer rather than on the way to it. The
     // page's top is a hero and a five-destination rail, so a reader who clicked
-    // "AI FinOps" arrived at a choice; `fragment` lands them on the region that
-    // states the recoverable figure, the first destination, and how far to trust
-    // it. It is a rendering detail of this one link, never a second identity for
+    // "AI FinOps" arrived at a choice; `fragment` lands them on the answer.
+    //
+    // IT NAMES THE DESTINATION, NOT A REGION INSIDE IT (#1523). This used to be
+    // `finops-recoverable-answer`, the id of the band that states the figure.
+    // That was a mid-page anchor: it scrolled a reader to one section of a
+    // workspace that now shows one destination at a time, and it said nothing
+    // about which destination they had arrived in — so the rail could mark the
+    // answer while the URL named a band. `#workspace-answer` is the answer
+    // destination's own address, the same string the workspace rail's first door
+    // carries and the one src/finops-workspace-shell.js resolves, so the link a
+    // reader follows from any page and the link they copy back out are one
+    // address. The answer band keeps its id and every saved link to it still
+    // resolves; what moved is only what this door points at.
+    //
+    // It stays a rendering detail of this one link, never a second identity for
     // the destination: `href` stays the path, so navCurrentFor(), the footer
     // band, and the home page's destination list keep comparing one string.
-    fragment: "finops-recoverable-answer",
+    fragment: "workspace-answer",
     section: ["/savings-action-center.html", "/savings-commitment.html", "/executive-briefing.html"],
   },
   // The prompt coach is a destination, not a panel of AI FinOps: it shares no

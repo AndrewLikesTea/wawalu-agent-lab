@@ -10,6 +10,9 @@ import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
 import { SITE_NAV, SITE_NAV_LABELS, navCurrentFor, navHref, navParentOf, siteNavMarkup } from "../src/site-nav.js";
 import { parseHtml, tabSequence, textOf } from "./support/browser.js";
+// The AI FinOps door's fragment is the workspace's own answer address, read from
+// the module that publishes it rather than re-typed here (#1523).
+import { DEFAULT_DESTINATION, DESTINATION_FRAGMENT } from "../src/finops-workspace-nav.js";
 
 // `current` is the surface the page belongs to, not always its own URL: a
 // release detail is still "Releases", a single post is still "Social".
@@ -115,12 +118,21 @@ test("each nav destination exists and each page title names its surface the way 
 
 /* ------------------------- one door, on the answer ------------------------- */
 // The AI FinOps surface is five pages and a five-destination rail. It gets one
-// nav entry, and that entry opens on the region that answers the question a
-// reader arrives with — not on the hero above it, and not on the rail, which is
-// a list of places to choose between. The other four pages stay reachable, from
-// this page's own content, at their own unchanged URLs.
+// nav entry, and that entry opens on the answer a reader arrives with a question
+// for — not on the hero above it, and not on the rail, which is a list of places
+// to choose between. The other four pages stay reachable, from this page's own
+// content, at their own unchanged URLs.
+//
+// THE DOOR NAMES THE DESTINATION, NOT A BAND INSIDE IT (#1523). It used to carry
+// `#finops-recoverable-answer`, the id of the section that states the figure. On
+// a page that shows one destination at a time that is a mid-page anchor: it
+// scrolls, and it tells the workspace nothing about which destination the reader
+// asked for. The href is the answer destination's own address now — the same
+// string the rail's first door carries and the one the shell resolves — so this
+// assertion is written against `DESTINATION_FRAGMENT` rather than a re-typed
+// literal, and a fragment rename cannot leave the site nav pointing at nothing.
 
-test("the one AI FinOps door opens on the recoverable-dollars answer, not on a menu", async () => {
+test("the one AI FinOps door opens on the answer destination, not on a menu", async () => {
   // Every published FinOps URL, so re-promoting any of them to a top-level entry
   // fails here rather than growing the row back one item at a time.
   const FINOPS = ["/evolution.html", "/savings-action-center.html", "/savings-commitment.html",
@@ -130,13 +142,20 @@ test("the one AI FinOps door opens on the recoverable-dollars answer, not on a m
   assert.equal(doors.length, 1, `the nav offers ${doors.length} AI FinOps doors`);
   const [door] = doors;
   assert.equal(door.label, "AI FinOps");
-  assert.equal(navHref(door), "/evolution.html#finops-recoverable-answer");
+  assert.equal(navHref(door), `/evolution.html${DESTINATION_FRAGMENT[DEFAULT_DESTINATION]}`);
+  assert.equal(navHref(door), "/evolution.html#workspace-answer",
+    "the published door, spelled out, so a fragment rename is a visible diff here");
 
-  // The region exists, and it is the one holding the figure — a rename that left
-  // the id pointing at an empty band would pass a fragment check and fail here.
+  // The rail carries the same address on its own first door, so the link a
+  // reader follows in and the link they copy back out are one string.
   const html = await readFile(pageUrl("evolution.html"), "utf8");
+  assert.ok(html.includes(`href="${DESTINATION_FRAGMENT[DEFAULT_DESTINATION]}" aria-current="true"`),
+    "the workspace rail must carry the same answer address the site nav points at");
+
+  // And the destination still holds the figure — a door onto a destination whose
+  // answer band was renamed away would pass a fragment check and fail here.
   const region = html.match(/<section class="finops-recoverable-answer" id="finops-recoverable-answer"[\s\S]*?<\/section>/);
-  assert.ok(region, "evolution.html must carry the region the door names");
+  assert.ok(region, "evolution.html must carry the region the answer destination is for");
   assert.match(region[0], /id="finops-recoverable-value">\$[\d,]+</, "the door must land on the figure");
   assert.match(region[0], /How much of our AI spend can we recover/, "and on the question it answers");
 

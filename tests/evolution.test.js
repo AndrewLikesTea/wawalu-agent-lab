@@ -183,11 +183,13 @@ test("the AI FinOps tab ships from every page and keeps the demo boundary", asyn
   // it so the skip link has somewhere worth skipping to. tests/page-skip-link.js
   // owns the rest of that contract.
   assert.match(page, /<main id="main-content" tabindex="-1">/);
-  // The one AI FinOps door lands on the answer region rather than on the top of
-  // this page (#1187). src/site-nav.js owns that href and tests/site-nav.test.js
-  // owns the contract; this line is here so the tab this test walks is the one a
-  // reader actually arrives through.
-  assert.match(page, /aria-current="page" href="\/evolution\.html#finops-recoverable-answer"/);
+  // The one AI FinOps door lands on the answer rather than on the top of this
+  // page (#1187), and it names the answer DESTINATION rather than a band inside
+  // it (#1523) — this page shows one destination at a time, so the address a
+  // reader arrives on has to say which one. src/site-nav.js owns that href and
+  // tests/site-nav.test.js owns the contract; this line is here so the tab this
+  // test walks is the one a reader actually arrives through.
+  assert.match(page, /aria-current="page" href="\/evolution\.html#workspace-answer"/);
   // Intervention priority is metric-defined, so there is no "Rank by" control
   // to assert. This used to match a label that only existed inside a developer
   // comment; the ordered list the page actually ships is the real coverage.
