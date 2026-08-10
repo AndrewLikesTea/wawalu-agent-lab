@@ -31,8 +31,12 @@ import { WORKSPACE_DESTINATION } from "../src/finops-workspace-nav.js";
 import {
   CONTEXT_TERMS, DESTINATION_FRAGMENT, SHELL_STATE_LABEL, WORKSPACE_SHELL_IDS,
   applyWorkspaceDestination, currentWorkspaceDestination, destinationForFragment,
-  destinationStatusId, initWorkspaceShell, paintWorkspaceContext, regionsFor, workspaceRegions,
+  destinationStatusId, initWorkspaceShell, paintWorkspaceContext, regionDestination,
+  regionsFor, workspaceRegions,
 } from "../src/finops-workspace-shell.js";
+import {
+  DECLARED_REGION_IDS, DESTINATION_REGIONS, FRAME_REGION_IDS, destinationRegions,
+} from "../src/finops-destination-regions.js";
 
 const PAGE = new URL("../src/evolution.html", import.meta.url);
 const html = await readFile(PAGE, "utf8");
@@ -521,4 +525,140 @@ test("the shipped page entry brings the shell up, before the rail is bound", asy
   const document = parseHtml(html);
   assert.deepEqual(doors(document).map((door) => door.getAttribute("href")),
     KEYS.map((key) => DESTINATION_FRAGMENT[key]));
+});
+
+/* ---------------------------- the declared map ----------------------------- */
+//
+// The test above this group checks that every region CARRYING the attribute
+// claims a real destination. It cannot check the case that actually breaks this
+// page, because that case has no attribute to inspect: a top-level region that
+// ships without one is hidden by nothing, so it appears on all five screens at
+// once and the workspace quietly becomes the monolith again. So #1521 declares
+// the assignment in src/finops-destination-regions.js and these assertions hold
+// the document and the declaration to each other in BOTH directions.
+
+/** Every top-level region of the page: a direct element child of main, with an id. */
+function topLevelRegions(document) {
+  const main = byId(document, "main-content");
+  const out = [];
+  for (const child of main.children ?? []) {
+    if (child?.nodeType !== 1) continue;
+    if (!child.id) continue;
+    out.push(child);
+  }
+  return out;
+}
+
+test("every top-level region of the page is declared frame or assigned to exactly one destination", () => {
+  const document = parseHtml(html);
+  const regions = topLevelRegions(document);
+  assert.ok(regions.length >= 40, `only ${regions.length} top-level regions were found`);
+
+  const frame = new Set(FRAME_REGION_IDS);
+  for (const region of regions) {
+    const owners = DESTINATION_REGIONS.filter((entry) => entry.regionIds.includes(region.id));
+    if (frame.has(region.id)) {
+      assert.equal(region.getAttribute("data-workspace-frame"), "true",
+        `${region.id} is declared frame but the markup does not mark it as frame`);
+      assert.equal(owners.length, 0, `${region.id} is declared both frame and destination content`);
+      continue;
+    }
+    assert.equal(owners.length, 1,
+      `${region.id} is assigned to ${owners.length} destinations, not exactly one`
+      + " — add it to src/finops-destination-regions.js");
+    assert.equal(region.dataset.workspaceRegion, owners[0].slug,
+      `${region.id} is declared under "${owners[0].slug}" and marked`
+      + ` "${region.dataset.workspaceRegion}" in the markup`);
+  }
+});
+
+test("no id in the map is missing from the page, and none of them is nested inside another region", () => {
+  const document = parseHtml(html);
+  const topLevel = new Set(topLevelRegions(document).map((region) => region.id));
+  for (const id of [...DECLARED_REGION_IDS, ...FRAME_REGION_IDS]) {
+    assert.equal(topLevel.has(id), true,
+      `the map declares "${id}", which is not a top-level region of evolution.html`);
+  }
+  // Both directions of the count, so a declaration that quietly gained a
+  // duplicate entry fails here rather than passing as "assigned once each".
+  assert.equal(new Set(DECLARED_REGION_IDS).size, DECLARED_REGION_IDS.length,
+    "one region id is declared twice in the map");
+  assert.equal(DECLARED_REGION_IDS.length + FRAME_REGION_IDS.length, topLevel.size,
+    "the map and the document do not cover the same set of top-level regions");
+});
+
+test("every destination in the map carries at least one region and the contract's own question", () => {
+  assert.deepEqual(DESTINATION_REGIONS.map((entry) => entry.slug), KEYS,
+    "the map's destinations are not the shell's destinations, in the shell's order");
+  const questions = new Map(SCREEN_CONTRACT.map((screen) => [screen.shellDestination, screen]));
+  for (const entry of DESTINATION_REGIONS) {
+    assert.ok(entry.regionIds.length >= 1,
+      `${entry.slug} answers a question with no region behind it`);
+    assert.equal(entry.question, questions.get(entry.slug).question,
+      `${entry.slug} states a question the screen contract does not publish`);
+    assert.equal(entry.label, questions.get(entry.slug).name,
+      `${entry.slug} carries a door label the screen contract does not publish`);
+  }
+});
+
+test("a region whose attribute went missing is still hidden by its declaration", () => {
+  const document = parseHtml(html);
+  const stray = byId(document, "department-evidence");
+  stray.removeAttribute("data-workspace-region");
+  // The declaration, not the markup, is what the shell reads.
+  assert.equal(regionDestination(stray), WORKSPACE_DESTINATION.department);
+  assert.equal(destinationForFragment(document, "#department-evidence"),
+    WORKSPACE_DESTINATION.department,
+    "a fragment at a declared region stopped resolving when its attribute went missing");
+});
+
+/* --------------------- one statement of the headline ----------------------- */
+
+/** The canonical recoverable figure, read off the page rather than written here. */
+const headlineFigure = (document) => textOf(byId(document, "finops-recoverable-value")).trim();
+
+/** How many times a string is stated inside one region's text. */
+const statedIn = (document, id, needle) =>
+  textOf(byId(document, id)).split(needle).length - 1;
+
+test("the answer destination states the recoverable figure once, and no supporting region restates it", () => {
+  const document = parseHtml(html);
+  const figure = headlineFigure(document);
+  assert.match(figure, /^\$[\d,]+$/, "the headline figure was not read off the page");
+
+  assert.equal(statedIn(document, "finops-recoverable-answer", figure), 1,
+    "the answer region states the recoverable figure more than once");
+  for (const id of destinationRegions(WORKSPACE_DESTINATION.answer).regionIds) {
+    assert.equal(statedIn(document, id, figure), 0,
+      `${id} restates the headline figure the answer region above it already states`);
+  }
+});
+
+test("the bundled worked example's restatements of the figure only ever go down", () => {
+  // #1521's ratchet. `finops-first-run` is the one complete worked decision, and
+  // it narrates the same figure through its answer, its benchmark, its impact
+  // and its action. Collapsing that is its own change against its own tests; what
+  // this pins is that nobody adds a ninth statement of it to the first screen.
+  const document = parseHtml(html);
+  assert.ok(statedIn(document, "finops-first-run", headlineFigure(document)) <= 7,
+    "a new restatement of the recoverable figure was added to the bundled worked example");
+});
+
+test("the first screen carries a door to every destination the answer is not", () => {
+  const document = parseHtml(html);
+  applyWorkspaceDestination(document, WORKSPACE_DESTINATION.answer);
+
+  // The rail is frame, so it is on screen while the answer is.
+  const rail = byId(document, "finops-workspace-nav");
+  assert.equal(rail.getAttribute("data-workspace-frame"), "true");
+  assert.equal(rail.hidden, false, "the rail is hidden on the screen its doors are read from");
+
+  for (const entry of DESTINATION_REGIONS) {
+    if (entry.slug === WORKSPACE_DESTINATION.answer) continue;
+    const door = doorFor(document, entry.slug);
+    assert.ok(door, `the first screen carries no door to ${entry.slug}`);
+    assert.equal(door.getAttribute("href"), DESTINATION_FRAGMENT[entry.slug]);
+    assert.match(textOf(door), new RegExp(entry.label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")),
+      `the door to ${entry.slug} does not carry its label`);
+  }
 });
