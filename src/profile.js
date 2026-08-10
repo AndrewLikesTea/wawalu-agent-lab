@@ -22,7 +22,7 @@
 //      rings landed everywhere" is a usable name; the alt text is still exposed
 //      on the image inside the link when the tile is read rather than listed.
 
-import { FEED_LOADING_LINE, normalizeImage } from "./social.js";
+import { normalizeImage } from "./social.js";
 import { postDetailHref, profileHref } from "./social-links.js";
 import { imageDescription, renderDescriptionNote, renderImageUnavailable } from "./image-description.js";
 import { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH } from "./social-identity.js";
@@ -308,21 +308,26 @@ export function emptySummaryText(author) {
   return `${name} hasn’t posted an image yet.`;
 }
 
-// What the identity line says before the module has counted anything. The page
-// ships this line as static markup, so it is what a visitor reads for the frame
-// before hydration — and it used to ship "Ari hasn't posted an image yet", a
-// sentence that was false for the seeded feed and was the first thing a reader
-// following Social's "Open People" pointer saw. A page that has not counted yet
-// says so; it does not guess a count.
+// What the identity line and the connection line say before anything has been
+// counted. Both wait on the same fetch, so both say this word for word — and
+// what they name is what People is actually fetching: the image posts published
+// under the selected display name. They used to say "Loading the Social feed…",
+// Social's sentence about the whole feed, three lines under People's own intro
+// telling a reader to open Social when they want that feed — and it was the
+// first thing a screen reader announced on this page.
 //
-// It says it in the feed's own words rather than its own. The wait is the Social
-// fetch, the same one Social waits on, and the connection line a few elements
-// below this one was already naming that fetch — so a reader used to get one
-// wait described two ways on one screen. It takes no display name now because
-// the sentence is not about a name: nothing on this page has been counted yet,
-// including which name is being counted.
-export function loadingSummaryText() {
-  return FEED_LOADING_LINE;
+// It still does not guess a count: the page ships this line as static markup for
+// the frame before hydration, where it once shipped "Ari hasn't posted an image
+// yet", a verdict that was false for the seeded feed.
+//
+// The name is written through textContent everywhere it lands, so an apostrophe
+// inside a display name needs no escaping; nothing here is parsed as markup.
+// With no name chosen the sentence drops the possessive rather than inventing
+// one — the posts are still image posts, and this page still only shows the ones
+// under a display name.
+export function loadingSummaryText(author) {
+  const name = String(author ?? "").trim();
+  return name ? `Loading ${name}’s image posts…` : "Loading image posts…";
 }
 
 // The profile description under the name, and the one place on the page that
@@ -628,6 +633,12 @@ export function mountProfile(root, options = {}) {
       const counted = state === "ready" || (state === "error" && mine.length > 0);
       elements.heading.textContent = profileResultsHeading(author, counted ? mine.length : null);
     }
+    // The connection line is a placeholder until the first fetch answers and
+    // profile-page.js writes the real one over it. While that is in flight it
+    // names the wait the same way the identity line ships it in markup, from the
+    // display name in hand — so a reader who switches names mid-load is not left
+    // reading the name the page happened to ship with.
+    if (elements.status && state === "loading") elements.status.textContent = loadingSummaryText(author);
     for (const route of elements.paintRoutes) route.href = profilePaintHref(author);
     renderProfileGrid(grid, mine, {
       state,
