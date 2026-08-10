@@ -166,6 +166,44 @@ export function renderRecoverableSpend(doc, recoverable) {
   return figure;
 }
 
+/** The one slot the attestation is stated in (#1499). */
+export const RECOVERABLE_ATTESTATION_ID = "finops-recoverable-attestation";
+
+/**
+ * State the four attested dimensions in the supporting-detail layer (#1499).
+ *
+ * IT DERIVES NOTHING. The sentence is the `statement` field of the record
+ * `recoverableAttestation` returned, written into the slot verbatim, so the page
+ * and the fixture that pins it cannot say two different things.
+ *
+ * IT IS NOT BEHIND A DISCLOSURE. The provenance split and the coverage are the
+ * two facts a director disputing this figure asks for first; folded into a shut
+ * details element they would read to a test harness and be silent in a browser.
+ *
+ * @returns the slot, or null when the page carries none.
+ */
+export function renderRecoverableAttestation(doc, attestation) {
+  const node = doc.getElementById(RECOVERABLE_ATTESTATION_ID);
+  if (!node) return null;
+  const dimensions = attestation?.dimensions ?? null;
+  node.dataset.attested = dimensions ? "true" : "false";
+  if (dimensions) {
+    node.dataset.version = attestation.version;
+    // The headline as an attribute rather than as prose: this region states its
+    // one money figure once, so the attestation carries it for the check without
+    // painting a third dollar string beside the answer.
+    node.dataset.headline = dimensions.headline;
+    node.dataset.confidence = dimensions.confidence;
+    node.dataset.declared = String(dimensions.provenance.declared);
+    node.dataset.derived = String(dimensions.provenance.derived);
+    node.dataset.scored = String(dimensions.coverage.scored);
+    node.dataset.inScope = String(dimensions.coverage.inScope);
+  }
+  node.textContent = attestation?.statement
+    ?? `${ERROR_SENTENCE} There is no consolidated answer to attest.`;
+  return node;
+}
+
 /**
  * Display-only bounds on the figure the contract published.
  *
