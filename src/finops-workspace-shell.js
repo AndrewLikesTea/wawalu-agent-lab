@@ -78,6 +78,16 @@ import { canonicalQuery, parseDestinationRoute } from "./destination-route.js";
 // The page's one status vocabulary. Reused, never extended: a destination that
 // is still fetching its module is a panel in a state this module already draws.
 import { PANEL_STATUS, applyPanelStatus } from "./panel-status-view.js";
+// Which destination owns which region, declared rather than inferred. Until
+// #1521 this module had exactly one answer to that — the `data-workspace-region`
+// attribute on the region itself — and no way to tell a region that legitimately
+// belongs to the frame from one that shipped without the attribute by mistake.
+// The second kind is never hidden, so it shows up on every destination at once,
+// which is the drift back to a dozen equal-weight regions this workspace exists
+// to have ended. The declaration is now the authority and the attribute is the
+// fallback, so an unmarked-but-declared region is hidden correctly and a marked
+// region this file has not been told about keeps working exactly as it did.
+import { destinationForRegion } from "./finops-destination-regions.js";
 
 /**
  * The ids the shipped markup carries, in one place so a test can name them.
@@ -348,6 +358,20 @@ export function openDestination(doc, key, { loader = destinationLoader } = {}) {
   return opening;
 }
 
+/**
+ * The destination one region belongs to, or null.
+ *
+ * THE DECLARATION WINS. `finops-destination-regions.js` is the list a check
+ * compares the document against, so a region it names is owned by that
+ * destination even if the markup lost its attribute — which is the case this
+ * exists for, because an unmarked region is otherwise shown on every screen.
+ * A region the declaration does not name falls back to its own attribute, so
+ * nothing that is marked today stops being hidden tomorrow.
+ */
+export function regionDestination(region) {
+  return destinationForRegion(region?.id) ?? region?.dataset?.workspaceRegion ?? null;
+}
+
 /** Every region the shell may show or hide, in document order. */
 export function workspaceRegions(doc) {
   return [...(doc?.querySelectorAll?.("[data-workspace-region]") ?? [])];
@@ -355,7 +379,7 @@ export function workspaceRegions(doc) {
 
 /** The regions belonging to one destination. */
 export function regionsFor(doc, key) {
-  return workspaceRegions(doc).filter((region) => region.dataset.workspaceRegion === key);
+  return workspaceRegions(doc).filter((region) => regionDestination(region) === key);
 }
 
 /**
@@ -382,7 +406,10 @@ export function destinationForFragment(doc, hash) {
   const target = byId(doc, raw.slice(1));
   if (!target) return null;
   const region = target.closest?.("[data-workspace-region]") ?? null;
-  const key = region?.dataset?.workspaceRegion ?? null;
+  // The declaration first, and the target's own id before the region around it:
+  // a fragment pointing at a declared region resolves even on a build where the
+  // attribute went missing, which is the whole point of declaring it.
+  const key = destinationForRegion(target.id) ?? regionDestination(region);
   if (isDestination(key)) return key;
   return target.closest?.("[data-workspace-frame]") ? DEFAULT_DESTINATION : null;
 }
@@ -464,7 +491,7 @@ export function applyWorkspaceDestination(doc, key, {
 
   let shown = 0;
   for (const region of regions) {
-    const active = region.dataset.workspaceRegion === key;
+    const active = regionDestination(region) === key;
     region.dataset.workspaceActive = active ? "true" : "false";
     const heldBack = region.getAttribute("data-workspace-hidden") === HIDDEN_BY.shell;
     if (active) {
