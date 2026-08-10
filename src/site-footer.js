@@ -72,7 +72,6 @@ export const IDENTITY = "On this site you can analyze your own AI spend, check a
  * surface — the footer points, the home page explains — keeping the facts the
  * act turns on: where Paint's PNG goes, what order People's posts come in. AI
  * FinOps keeps "in this browser tab", a promise about where an export is read.
- * Social carries the whole sentence, the same bytes its own intro carries.
  */
 export const DEMOS = Object.freeze([
   Object.freeze({
@@ -98,7 +97,7 @@ export const DEMOS = Object.freeze([
   }),
   Object.freeze({ label: "Decisions", href: "/", purpose: "record a decision, then search the history" }),
   Object.freeze({ label: "Releases", href: "/releases.html", purpose: "every release and the decisions it carried" }),
-  Object.freeze({ label: "Social", href: "/social.html", purpose: "Social is a shared demo feed of short posts about what the team ships, images optional." }),
+  Object.freeze({ label: "Social", href: "/social.html", purpose: "read short posts about what the team ships, images optional" }),
   Object.freeze({ label: "People", href: "/profile.html", purpose: "pick a display name, see its image posts, newest first" }),
   Object.freeze({ label: "Paint", href: "/paint/", purpose: "crop or draw an image, export a PNG, publish it on Social" }),
   Object.freeze({ label: "Agent observatory", href: "/agents.html", purpose: "watch a synthetic engineering team build and review work" }),

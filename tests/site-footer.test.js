@@ -262,22 +262,18 @@ test("the footer is a site map: every destination the navigation offers, each on
       assert.doesNotMatch(demo.purpose, /powerful|seamless|unlock|leverage|central hub/i, `"${demo.label}" uses filler`);
     }
 
-    // Every row a fragment, and one whole sentence. Rows used to be word for
-    // word the home page's sentence for that surface, so the home page printed
-    // the same eight sentences twice and every other page carried an essay.
-    // Social is the deliberate exception: it is the one destination four
-    // separate surfaces have to define, and a reader who lands on a pasted post
-    // link may never see any of the others. Every other row stays a fragment
-    // that says less than the home page does.
+    // Every row a fragment. Rows used to be word for word the home page's
+    // sentence for that surface, so the home page printed the same eight
+    // sentences twice and every other page carried an essay. Social used to be
+    // the standing exception — it carried a whole sentence, opening by naming
+    // the destination its own link had just named — and it is a fragment like
+    // the rest now. Its words and the home page's are deliberately the same
+    // words, which the test below pins; here it only has to be a fragment.
     for (const demo of DEMOS) {
-      const repeats = textOf(items.find((row) => textOf(row).startsWith(demo.label))).includes(guideSentence(demo));
-      if (demo.label === "Social") {
-        assert.ok(repeats, "the footer must carry Social's canonical sentence, not a second wording of it");
-        assert.match(demo.purpose, /\.$/, "the canonical sentence is a sentence");
-        continue;
-      }
-      assert.ok(!repeats, `${demo.label} repeats the home page's sentence in the footer`);
       assert.doesNotMatch(demo.purpose, /[.!?]$/, `"${demo.label}" is written as a sentence`);
+      if (demo.label === "Social") continue;
+      const repeats = textOf(items.find((row) => textOf(row).startsWith(demo.label))).includes(guideSentence(demo));
+      assert.ok(!repeats, `${demo.label} repeats the home page's sentence in the footer`);
     }
 
     // And it is the same list on every page, including the one whose footer
@@ -334,33 +330,62 @@ test("the About Shiplog band reads the same on every page of the site", async ()
   for (const demo of DEMOS) assert.ok(expected.includes(demo.purpose), `the band lost "${demo.label}"`);
 });
 
-test("Social's directories share one definition, while a permalink explains the specific post", async () => {
-  // Directory and feed surfaces use one definition. The permalink instead
-  // identifies the specific item a visitor opened, so the two explanations do
-  // not compete beside the post.
-  const SENTENCE = DEMOS.find((demo) => demo.label === "Social").purpose;
+// The description a fragment and a card may differ in, and nothing else: the
+// band lists fragments, the home page's directory lists sentences.
+const asFragment = (text) => text.replace(/\.$/, "").replace(/^./, (first) => first.toLowerCase());
+
+test("Social's directories share one description, while a permalink explains the specific post", async () => {
+  // Directory surfaces use one description, in the shape every other row uses.
+  // Social used to be described by its own intro sentence, pasted into the band
+  // and the home page's card: a whole sentence among fragments, opening by
+  // repeating the word the link beside it had already said, and never saying
+  // what a visitor does there. The permalink instead identifies the specific
+  // item a visitor opened, so the two explanations do not compete beside the
+  // post.
+  const PURPOSE = DEMOS.find((demo) => demo.label === "Social").purpose;
+
+  // A verb first, and never the destination's own name: the link says "Social"
+  // one character earlier on every surface this text lands on.
+  assert.match(PURPOSE, /^read /, "the Social row must open with what a visitor does");
+  assert.doesNotMatch(PURPOSE, /^social\b/i, "the Social row repeats the name of the link beside it");
 
   const guide = parseHtml(await read("index.html")).querySelector(".site-guide");
   const card = [...guide.querySelectorAll("li")].find((row) => row.querySelector('a[href="/social.html"]'));
   assert.ok(Boolean(card), "the home page's directory must name Social");
-  assert.equal(textOf(card).slice("Social".length).trim(), SENTENCE,
-    "the home page's card states what Social is in its own words");
+  const cardText = textOf(card).slice("Social".length).trim();
+  assert.doesNotMatch(cardText, /^Social\b/, "the home page's card repeats the name of the link beside it");
+  // Word for word the band's, down to the punctuation the two lists differ in.
+  assert.equal(asFragment(cardText), PURPOSE,
+    "the home page's card and the About Shiplog band describe Social differently");
 
   // The permalink's standing copy is post-specific and does not repeat the
-  // generic feed definition beside it.
+  // generic feed description beside it.
   const permalink = parseHtml(await read("post.html")).querySelector("#main-content");
   assert.ok(textOf(permalink).includes("Shared links like this one open a single post from Social’s shared demo feed."));
-  assert.equal(textOf(permalink).includes(SENTENCE), false,
-    "the post permalink repeats the generic Social definition beside the post-specific explanation");
+  assert.equal(textOf(permalink).includes(PURPOSE), false,
+    "the post permalink repeats the generic Social description beside the post-specific explanation");
 
   // The band, on the page a reader is most likely to meet it cold.
   const band = parseHtml(await read("social.html")).querySelector(".site-footer-demos");
-  assert.ok(textOf(band).includes(SENTENCE), "the band states what Social is in its own words");
+  assert.ok(textOf(band).includes(PURPOSE), "the band states what a visitor does on Social");
 
-  // And Social's own intro opens with it: whatever else the intro says about
-  // reading, publishing, or People comes after the definition, not before it.
+  // Social's own intro is not a directory row and keeps its own sentences: a
+  // first-time visitor still learns the feed is shared, the posts are short,
+  // the images are optional, and when to open People instead.
   const intro = textOf(parseHtml(await read("social.html")).querySelector(".hero-social").querySelectorAll("p")[1]);
-  assert.ok(intro.startsWith(SENTENCE), `Social's intro opens with "${intro.slice(0, SENTENCE.length)}"`);
+  for (const fact of ["shared demo feed", "short posts", "images optional", "People"]) {
+    assert.ok(intro.includes(fact), `Social's intro no longer tells a first-time visitor about ${fact}`);
+  }
+
+  // But it says it once per page. The band used to carry that intro sentence
+  // byte for byte, so Social's own page printed it twice, one screen apart.
+  const PASTED = "is a shared demo feed of short posts about what the team ships";
+  for (const file of PAGES) {
+    const times = (await read(file)).split(PASTED).length - 1;
+    assert.ok(times <= 1, `${file} carries the same Social sentence ${times} times`);
+  }
+  assert.equal((await read("social.html")).split(PASTED).length - 1, 1,
+    "Social's own page must still say what the feed is, once");
 
   // The wordings this replaces, retired everywhere rather than left in a corner.
   for (const file of PAGES) {
