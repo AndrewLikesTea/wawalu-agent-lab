@@ -547,7 +547,7 @@ async function handleCollection(request, deps, requestId, nowMs, url) {
       // id. Something else refused the row, so report it as ours and roll back.
       console.error("social_post_inline_image_rollback", { requestId, mediaId: ingested.id });
       await discardImage(deps, ingested, identity.id, requestId);
-      return failure(500, "internal", "The post could not be created.", requestId, {}, headers);
+      return failure(500, "internal", "The post could not be published.", requestId, {}, headers);
     }
     // A null on the media_id path means only one thing: the guarded insert's
     // image condition failed. Classify it with a follow-up read so the caller

@@ -955,7 +955,7 @@ export function mountSocialFeed(root, options = {}) {
       } catch (error) {
         // Should be unreachable behind reportValidity()/maxlength, but keeps the
         // submit flow resilient rather than throwing into the console.
-        showFailure(error?.message || "That post could not be created. Add a caption within the limit.");
+        showFailure(error?.message || "That post could not be published. Add a caption within the limit.");
         return;
       }
 
