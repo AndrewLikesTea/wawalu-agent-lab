@@ -364,9 +364,16 @@ test("the served markup carries the three slots, and states what it generates", 
   assert.equal(within(document.getElementById(PRICING_PROVENANCE_IDS.detail), "DETAILS"), true,
     "the four bands belong behind the disclosure the region already ships");
   // And no control was added to the region: its tab order is the one it had.
+  // …to the ANSWER's own content. #1498 folded the readiness region inside this
+  // one; its controls are the supporting layer's and are counted where they are
+  // asserted, in tests/finops-answer-reading-flow.test.js.
   const region = document.getElementById("finops-recoverable-answer");
-  assert.equal([...region.querySelectorAll("a")].length, 1);
-  assert.equal([...region.querySelectorAll("button")].length, 0);
+  const own = (node) => {
+    for (let up = node; up; up = up.parentNode) if (up.id === "finops-answer-support") return false;
+    return true;
+  };
+  assert.equal([...region.querySelectorAll("a")].filter(own).length, 1);
+  assert.equal([...region.querySelectorAll("button")].filter(own).length, 0);
 });
 
 test("the view writes the three slots and leaves a document without them alone", () => {

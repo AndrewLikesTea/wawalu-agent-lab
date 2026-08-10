@@ -310,6 +310,12 @@ test("the real page paints the ladder, and the figure beside it does not move", 
   assert.equal(read(RATE_CARD_IDS.nextStep), rateCardNextStep(BUNDLED_RATE_CARD_CONFIDENCE));
   // The next action lives inside the disclosure the region already ships, and
   // adds no control: the region's links are still the one action anchor.
+  // The answer's own links. #1498 folded the readiness region inside this one;
+  // the anchor it brings is the supporting layer's, not a second next action.
   const region = page.document.getElementById("finops-recoverable-answer");
-  assert.equal([...region.querySelectorAll("a")].length, 1);
+  const own = (node) => {
+    for (let up = node; up; up = up.parentNode) if (up.id === "finops-answer-support") return false;
+    return true;
+  };
+  assert.equal([...region.querySelectorAll("a")].filter(own).length, 1);
 });
