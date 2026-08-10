@@ -263,9 +263,11 @@ import { renderAnalysisReadiness } from "/finops-analysis-readiness-view.js";
 // benchmark, the stated percentage and the readiness state, and withholds a
 // figure entirely rather than publishing one a leader could not trace.
 import {
-  finopsAnswerSignals, getRecoverableSpend, resolveFinopsAnswer,
+  finopsAnswerSignals, getRecoverableSpend, recoverableAttestation, resolveFinopsAnswer,
 } from "/finops-answer-contract.js";
-import { renderFinopsAnswer, renderRecoverableSpend } from "/finops-answer-contract-view.js";
+import {
+  renderFinopsAnswer, renderRecoverableAttestation, renderRecoverableSpend,
+} from "/finops-answer-contract-view.js";
 // Whether the letter may be shown at all is decided before it is drawn: the
 // score card is a roll-up of only the departments the rubric actually scored.
 import { CLAMPED_REASON, gradeEligibility } from "/grade-eligibility.js";
@@ -5096,7 +5098,14 @@ async function init() {
   // recoverable numbers again. Painted after the brief for the same reason the
   // corrections table is: the figure below is on screen before the one that
   // summarises it moves.
-  renderRecoverableSpend(document, getRecoverableSpend(loadExampleDataset()));
+  const exampleDataset = loadExampleDataset();
+  const exampleRecoverable = getRecoverableSpend(exampleDataset);
+  renderRecoverableSpend(document, exampleRecoverable);
+  // AND WHAT IT ATTESTS TO (#1499). The same record again, read once — the four
+  // dimensions the fixture pins are stated in the supporting layer rather than
+  // computed a second time for it.
+  renderRecoverableAttestation(document,
+    recoverableAttestation(exampleDataset, exampleRecoverable));
   // After the result, so the correction table is built over the same figures the
   // reader has just been shown rather than over a half-painted region.
   mountFigureCorrections(document);

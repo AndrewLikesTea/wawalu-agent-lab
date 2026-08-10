@@ -1,0 +1,43 @@
+{
+  "fixtureVersion": "finops-consolidated-answer-attestation/1.0.0",
+  "attestationVersion": "finops-recoverable-attestation/1.0.0",
+  "readFirst": "#1502, #1503 and #1504 shortened /evolution.html hard: two conflicting recoverable figures became one, and seven regions became one answer with a supporting layer. Each of those was a rewrite of the words around a number, which is exactly when a number quietly stops meaning what it meant. This file pins the four dimensions of the answer that survived, with the assumption behind each, so a fifth rewrite that moves one of them fails by name instead of shipping.",
+  "versionStamp": "`fixtureVersion` is the ONLY stamp. There is no timestamp and no git sha here on purpose: both change on a re-run that changed nothing, so neither can tell a reader whether a value moved. Bump `fixtureVersion` when a pinned value or an assumption changes, and `attestationVersion` when the module's own contract does.",
+  "safety": "Fully synthetic. Every figure is computed in-process from the bundled invented example dataset — no customer data, no credential, no network call, no live integration, and nothing read from a reader's browser. Nothing in this file is interpolated into HTML.",
+  "computedBy": [
+    "src/example-dataset.js — loadExampleDataset()",
+    "src/finops-answer-contract.js — getRecoverableSpend(dataset), then recoverableAttestation(dataset, record)",
+    "…which is the same pair src/evolution-page.js calls to paint #finops-recoverable-attestation on /evolution.html. There is no second arithmetic path, here or on the page."
+  ],
+  "regenerate": "node --input-type=module -e \"import {loadExampleDataset} from './src/example-dataset.js'; import {recoverableAttestation} from './src/finops-answer-contract.js'; const a = recoverableAttestation(loadExampleDataset()); console.log(JSON.stringify({dimensions: a.dimensions, statement: a.statement}, null, 2));\" — then copy `dimensions` into the four `value` fields below and `statement` into `statement`, and paste the same sentence into #finops-recoverable-attestation in src/evolution.html. Deterministic: the generator reads no clock and no random source, so a re-run reproduces these bytes exactly. tests/finops-consolidated-answer-attestation.test.js fails if any of the three copies disagree.",
+  "dimensions": {
+    "headline": {
+      "value": "$51,254",
+      "assumption": "The monthly sum over scored departments is the basis of record because it is the only recoverable figure derived from real per-department rows; the annual figure is a projection of it and is never quoted on its own. This is the reconciliation #1502 landed, and pinning the monthly figure is what stops a second annual constant reappearing beside it."
+    },
+    "confidence": {
+      "value": "medium",
+      "assumption": "The band is the analysis envelope's own confidence signal ('Medium'), normalised through the published cut points — high at 75, medium at 50, low below — and not a second scale invented for this answer. A decimal here would read as a probability that the figure is correct, which nothing on this page measures."
+    },
+    "provenance": {
+      "value": { "declared": 5, "derived": 2, "total": 7 },
+      "assumption": "A figure the export states survives a challenge from the person who exported it; a figure this page worked out must be defended on its rule instead, so the split is the provenance fact a disputing director needs first. Declared is CHECKED, not labelled: an operand counts as declared only when the envelope states that exact value itself, verified operand by operand on every call. 5 of 7 declared is the honest reading of this dataset — the period, the scope count, the analyzed total, the monthly recoverable line and the confidence band are the export's own; the scored-department count and the annual projection are ours."
+    },
+    "coverage": {
+      "value": { "scored": 5, "inScope": 5 },
+      "assumption": "A department is scored or it is not; there is no partial credit and nothing is ever extrapolated from the scored departments to the unscored ones. Both counts travel with the figure because a total over a subset that does not say so is a floor presented as a ceiling. 5 of 5 means this dataset supports the figure as an organisation total rather than a floor."
+    }
+  },
+  "operands": [
+    { "key": "period", "origin": "declared", "value": "2026-06-01 to 2026-07-01" },
+    { "key": "departmentsInScope", "origin": "declared", "value": 5 },
+    { "key": "analyzedSpendUsd", "origin": "declared", "value": 154500 },
+    { "key": "monthlyRecoverableUsd", "origin": "declared", "value": 51254 },
+    { "key": "confidenceBand", "origin": "declared", "value": "medium" },
+    { "key": "scoredDepartments", "origin": "derived", "value": 5 },
+    { "key": "annualRecoverableUsd", "origin": "derived", "value": 615048 }
+  ],
+  "operandsNote": "The full table, so the two provenance counts above can be audited rather than taken on trust. Each operand's own one-line assumption lives beside it in src/finops-answer-contract.js — ATTESTATION_OPERANDS — because that is where a reader changing one would be standing.",
+  "statement": "Attested finops-recoverable-attestation/1.0.0 — the headline above is the one figure this region states, on the monthly basis of record · confidence medium · provenance 5 of 7 operands declared by the export, 2 derived here · coverage 5 of 5 departments scored. Each carries its assumption in tests/fixtures/finops-consolidated-answer-attestation.json, and a drift in any of the four fails by naming it.",
+  "statementNote": "The exact sentence #finops-recoverable-attestation carries on /evolution.html, authored in the served markup and repainted verbatim by src/finops-answer-contract-view.js. The page holds no number of its own: if the authored bytes and this string disagree, the page is wrong, not this file. THE HEADLINE IS DELIBERATELY NOT IN THE SENTENCE. #finops-recoverable-answer states its one recoverable figure once and its annual projection once — tests/evolution.test.js holds it to exactly that — so restating $51,254 here would put back the competing figure #1496 and #1502 removed. The attested headline rides as the slot's `data-headline` attribute instead, which the drift check reads and no reader is shown twice."
+}
