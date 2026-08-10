@@ -195,8 +195,16 @@ test("the grade is authored outside every disclosure, beside the figure", () => 
 test("the explanation is inside the one disclosure the region already ships", () => {
   const document = parseHtml(SOURCE);
   const region = document.getElementById(REGION_ID);
-  assert.equal(region.querySelectorAll("details").length, 1,
-    "the answer region grew a second disclosure");
+  // The answer's OWN disclosures. #1498 folded the readiness region into this
+  // one, under a labelled supporting-detail group, and that region brings its
+  // own single control with it — which is one fewer than the page carried
+  // before, not one more. The rule this asserts is unchanged: the canonical
+  // answer itself offers exactly one place to open.
+  const own = [...region.querySelectorAll("details")].filter((node) => {
+    for (let up = node; up; up = up.parentNode) if (up.id === "finops-answer-support") return false;
+    return true;
+  });
+  assert.equal(own.length, 1, "the answer region grew a second disclosure");
 
   const detail = document.getElementById(RECOVERABLE_CONFIDENCE_IDS.detail);
   const chain = ancestors(detail);

@@ -38,6 +38,10 @@ const EVALUATION_FIXTURES = JSON.parse(await readFile(
   new URL("../src/finops-evaluation-fixtures.json", import.meta.url), "utf8"));
 
 const REGION = "finops-analysis-readiness";
+// The one canonical answer region. #1498 folded REGION inside it, so the
+// "exactly one dominant figure" rule is asserted at this scope rather than at
+// REGION's — that is the whole point of the fold.
+const CANONICAL = "finops-recoverable-answer";
 const ANSWER = "finops-canonical-answer";
 // The chooser that moves the analysis. It is part of the live analysis for the
 // purposes of this file: what it renders competes with the briefing or supports
@@ -120,12 +124,18 @@ test("the answer region states one figure, its benchmark, one action and its pro
   assert.ok(slot(document, "sources").includes(answer.sources.primaryAction[0]),
     "provenance names the signal the action came from");
 
-  // EXACTLY ONE dominant figure. A second element in the page's largest role
-  // inside this region is a second answer, whatever it is labelled.
-  const dominant = walk(byId(document, REGION))
+  // EXACTLY ONE dominant figure IN THE CANONICAL ANSWER REGION, which since
+  // #1498 is the region this one sits inside. A second element in the page's
+  // largest type role there is a second answer, whatever it is labelled — and
+  // before #1498 this region held one of its own, one screen under a canonical
+  // figure that said something else. The one that survives is the canonical
+  // monthly figure; this region's annual scenario projection is supporting.
+  const dominant = walk(byId(document, CANONICAL))
     .filter((node) => String(node.className ?? "").split(/\s+/).includes("stand-figure-value"));
   assert.equal(dominant.length, 1, "a second largest-role figure is a second answer");
-  assert.equal(dominant[0].id, `${ANSWER}-figure`);
+  assert.equal(dominant[0].id, "finops-recoverable-value");
+  assert.equal(byId(document, `${ANSWER}-figure`).className, "stand-figure-basis",
+    "the scenario projection is drawn in the supporting role, not the headline one");
 });
 
 test("the answer is read before anything that qualifies it, and behind no control", () => {
@@ -135,8 +145,10 @@ test("the answer is read before anything that qualifies it, and behind no contro
     `${second} is read before ${first}`);
   before(`${ANSWER}-figure`, `${ANSWER}-benchmark`);
   before(`${ANSWER}-benchmark`, `${ANSWER}-action`);
+  // #1498 merged this region's three sibling disclosures into one, so the
+  // ordering that matters is the last one left: the answer is read before the
+  // control that qualifies it.
   before(`${ANSWER}-action`, "analysis-readiness-detail");
-  before("analysis-readiness-detail", "analysis-readiness-how-we-know");
 
   // Nothing a reader needs to reach the answer may be a control they must open.
   for (const id of ["figure", "benchmark", "action", "sources"]) {
@@ -186,8 +198,15 @@ test("one element in the live analysis carries a savings figure at headline prom
   // compete in. A reintroduction of either fails here rather than in review.
   const headline = liveNodes(document).filter((node) => ["stand-figure-value",
     "guided-finding", "guided-action-text"].some((role) => hasClass(node, role)));
-  assert.equal(headline.length, 1, "a second headline figure is a second answer");
-  assert.equal(headline[0].id, `${ANSWER}-figure`);
+  // Zero since #1498: the live analysis states no figure in the page's largest
+  // type role at all, because the one element entitled to it is the canonical
+  // recoverable figure this whole analysis now sits under. The rule did not
+  // relax — it moved up one region, and it is asserted there.
+  assert.equal(headline.length, 0, "a second headline figure is a second answer");
+  const canonical = walk(byId(document, CANONICAL))
+    .filter((node) => hasClass(node, "stand-figure-value"));
+  assert.deepEqual(canonical.map((node) => node.id), ["finops-recoverable-value"],
+    "the page's one largest-role figure is the canonical recoverable answer");
 
   // And role-independently: every currency amount the chooser renders is
   // supporting evidence behind its disclosure, not a competing claim. Only
@@ -307,9 +326,16 @@ test("the region's headings nest without a skipped level", () => {
   const levels = walk(byId(document, REGION))
     .filter((node) => /^H[1-6]$/.test(node.tagName ?? ""))
     .map((node) => Number(node.tagName.slice(1)));
-  assert.deepEqual(levels, [2, 3], "the answer sits one level under the region's own question");
-  assert.equal(byId(document, "analysis-readiness-question").tagName, "H2");
-  assert.equal(byId(document, `${ANSWER}-heading`).tagName, "H3");
+  // One level deeper since #1498: the region is inside the canonical answer's
+  // supporting-detail group, so its question is an h3 under that region's h2 and
+  // the answer block below it is an h4. No level is skipped at any depth, and
+  // the page still carries exactly one h1 — tests/finops-page-structure.test.js
+  // audits both from the shipped document.
+  assert.deepEqual(levels, [3, 4], "the answer sits one level under the region's own question");
+  assert.equal(byId(document, "analysis-readiness-question").tagName, "H3");
+  assert.equal(byId(document, `${ANSWER}-heading`).tagName, "H4");
+  assert.equal(byId(document, "finops-recoverable-question").tagName, "H2",
+    "the canonical question above it is the h2 this region's h3 hangs off");
 });
 
 // ---------------------------------------------------------------------------
@@ -343,7 +369,11 @@ test("the demoted readiness detail keeps every number and names what it holds", 
 test("every disclosure in the region is a real control with correct state exposure", () => {
   const document = doc();
   const summaries = walk(byId(document, REGION)).filter((node) => node.tagName === "SUMMARY");
-  assert.equal(summaries.length, 3, "one demoted detail plus the two the region already had");
+  // ONE, since #1498. The verdict, the figure's own working and what later
+  // evidence would enable were three sibling controls asking one question
+  // between them, and three tab stops on the first screen to offer it. Every
+  // line they held is still painted, into the same ids, inside this one.
+  assert.equal(summaries.length, 1, "the region's supporting detail is one control, not three");
   const sequence = tabSequence(document);
   for (const summary of summaries) {
     assert.equal(summary.parentNode.tagName, "DETAILS", "a stray summary is not a control");

@@ -293,12 +293,28 @@ test("the recoverable answer is the first content region a reader meets", async 
   assert.ok(regions.indexOf(ANSWER_REGION_ID) < regions.indexOf("finops-first-run"));
 });
 
+/**
+ * True when `node` is the answer's OWN content rather than the supporting-detail
+ * layer #1498 folded underneath it.
+ *
+ * The rules below — one question, one figure, one move — are rules about what
+ * the canonical answer asserts, and they were written when the region held
+ * nothing else. The supporting layer is subordinate by construction: an h3 under
+ * the h2, its figure in the supporting type role, and its own controls after the
+ * one action. Walking `parentNode` rather than using a `:not()` selector because
+ * this harness rejects anything but a simple selector.
+ */
+const answersOwn = (node) => {
+  for (let up = node; up; up = up.parentNode) if (up.id === "finops-answer-support") return false;
+  return true;
+};
+
 test("the answer region asks one question, states one figure, and names one move", async () => {
   const document = parseHtml(await read("src/evolution.html"));
   const region = document.getElementById(ANSWER_REGION_ID);
 
   // ONE QUESTION, at the level directly below the page h1.
-  const headings = headingsWithin(document, region);
+  const headings = headingsWithin(document, region).filter(answersOwn);
   assert.equal(headings.length, 1, "a second heading here is a second question");
   assert.equal(headings[0].tagName, "H2");
   assert.equal(headings[0].id, "finops-recoverable-question");
@@ -317,7 +333,7 @@ test("the answer region asks one question, states one figure, and names one move
   assert.match(confidence, /ceiling/i);
 
   // ONE NEXT ACTION, and it is a link to where the move is carried out.
-  const links = [...region.querySelectorAll("a")];
+  const links = [...region.querySelectorAll("a")].filter(answersOwn);
   assert.deepEqual(links.map((link) => link.id), ["finops-recoverable-action"],
     "a second link here hands the ranking decision back to the reader");
   assert.equal(links[0].getAttribute("href"), "/savings-action-center.html");

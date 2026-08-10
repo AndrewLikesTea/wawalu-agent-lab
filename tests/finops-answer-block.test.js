@@ -375,8 +375,9 @@ test("every top-level section that existed before the answer block is still on t
     // supports it. It is the only addition to this list, and nothing left it.
     "finops-hero", "finops-recoverable-answer", "finops-stand",
     // #1391 added one: how far the held evidence carries, read after the answer
-    // it qualifies. Nothing left this list to make room for it.
-    "finops-analysis-readiness",
+    // it qualifies. #1498 took it back OUT of this list — it did not leave the
+    // page, it moved INSIDE the recoverable answer's one supporting-detail
+    // group, and the assertion below holds it to where it went.
     "finops-first-run",
     // #1483 added one: the ordered loop over what is still outstanding for the
     // claim above it, read directly after the brief it qualifies. Nothing left
@@ -422,6 +423,12 @@ test("every top-level section that existed before the answer block is still on t
     assert.equal(byId(document, id)?.parentNode?.id, "finops-stand-disclosures",
       `${id} left the top level without arriving in the answer's disclosure group`);
   }
+  // #1498's relocation, held to the same bar: the readiness region is inside the
+  // recoverable answer's one supporting-detail group, not deleted from the page.
+  assert.equal(byId(document, "finops-analysis-readiness")?.parentNode?.id,
+    "finops-answer-support",
+    "the readiness region left the top level without arriving in the answer's support group");
+  relocated.push("finops-analysis-readiness");
   for (const id of [...existing, ...relocated]) {
     const region = byId(document, id);
     assert.ok(region.children.filter((node) => node.nodeType === 1).length > 0,

@@ -296,7 +296,13 @@ test("the shipped page carries its roles and its reading order after init", asyn
   // region below it sizes that answer against the peer position.
   assert.equal(stepOf("finops-recoverable-answer"), "2",
     "the answer does not immediately follow the hero");
-  assert.equal(stepOf(HEADLINE_REGION_ID), "3", "the headline does not follow the answer");
+  // #1498 folded the readiness region INSIDE the recoverable answer, so it is
+  // step 3 — the answer's own supporting detail, read before the page moves on —
+  // and the headline region is step 4. It is still stamped, because the census
+  // addresses a region by id and not by depth.
+  assert.equal(stepOf("finops-analysis-readiness"), "3",
+    "the answer's supporting detail is not read directly after the answer");
+  assert.equal(stepOf(HEADLINE_REGION_ID), "4", "the headline does not follow the answer");
   assert.equal(roleOf("finops-privacy"), ROLE.detail);
   assert.equal(stepOf("finops-privacy"), null, "a supporting region takes no place in the reading order");
   // A retired region is not stamped, because it is not there to stamp: the mark

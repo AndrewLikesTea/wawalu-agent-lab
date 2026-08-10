@@ -122,10 +122,15 @@ const REGIONS = Object.freeze({
   // #1183. `answer` is reserved for the spine's headline, still `finops-stand`;
   // this region is a step, so the class that agrees with that role is evidence.
   "finops-recoverable-answer": REGION_CLASS.evidence,
-  "finops-stand": REGION_CLASS.answer,
-  // #1391. It qualifies the answer above it — how far the held evidence carries
-  // — so it is evidence, and it is read after the answer, not before it.
+  // #1391. It qualifies the recoverable figure — how far the held evidence
+  // carries — so it is evidence, and it is read after that figure, not before.
+  // #1498 moved it INSIDE the region above, into that region's one supporting-
+  // detail group, so like the two disclosure entries below it is no longer a
+  // top-level region. It is still classified, still stamped and still found the
+  // same way: applyFinopsSpine() resolves every id with getElementById, which
+  // does not care how deep a region sits.
   "finops-analysis-readiness": REGION_CLASS.evidence,
+  "finops-stand": REGION_CLASS.answer,
   // Two of the three "this month" regions are addressed as their DISCLOSURE,
   // not as their section: #742 folded each into the page's `support-disclosure`
   // idiom so an evidence region no longer opens at the answer's weight. The
@@ -214,6 +219,9 @@ const EVIDENCE_LAYERS = Object.freeze([
     // The recoverable answer leads this layer (#1183); the regions after it are
     // the complete record behind the figure it states.
     regionIds: Object.freeze([
+      // #1498 folded the readiness region into the recoverable answer's one
+      // supporting-detail group. It keeps its place in this layer: the reading
+      // priority is unchanged, only the nesting is.
       "finops-recoverable-answer", "finops-analysis-readiness",
       // The guided flow continues the readiness answer above it: one chosen
       // bundled scenario, and the evidence and department detail it produces.
