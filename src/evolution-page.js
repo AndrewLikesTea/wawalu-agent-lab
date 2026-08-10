@@ -398,7 +398,11 @@ import { bindDeclaredFactIntake } from "/finops-declared-fact-intake-view.js";
 // The other declaration only this reader can make: the rates they are
 // contracted to pay, which is what moves the pricing provenance beside the
 // recoverable figure off the published-list ceiling (#1481).
-import { bindDeclaredRateIntake } from "/finops-declared-rate-view.js";
+import { bindDeclaredRateIntake, currentRateDeclaration } from "/finops-declared-rate-view.js";
+// And the ordered loop over what is still outstanding, which reads that
+// declaration, the readiness benchmark and the graded floor as one list (#1483).
+import { readinessLoop } from "/finops-readiness-loop.js";
+import { applyReadinessLoop, bindReadinessLoop } from "/finops-readiness-loop-view.js";
 // The estimate that intake produces, in the period series' own shape (#1106),
 // so a later real import for the same month can be scored against it.
 import { estimatedPeriodFacts } from "/finops-declared-fact-intake.js";
@@ -5412,13 +5416,31 @@ renderOwnDataEvidencePreflight(document, assessOwnDataEvidence(BUNDLED_OWN_DATA_
 // answer stated as the page's single answer. It is now painted from whichever
 // bundled export the flow settled on, along with the readiness lines that
 // qualify it, and it names that export so the two can never disagree silently.
+let loopScenarioId = null;
+// AND THE ONE ORDERED LOOP OVER WHAT IS LEFT (#1483). Painted LAST in this pass,
+// because it quotes the slots the two paints above have just written: the loop
+// reports what the reader's last step moved, and a loop that read the page
+// before it was repainted would report the step before the one they took. The
+// floor is the record the headline already carries, not a second computation of
+// it, and the declaration is the one the intake below is holding.
+const paintReadinessLoop = (readiness) => applyReadinessLoop(document, readinessLoop({
+  readiness,
+  floor: answerState.getHeadline()?.recoverableFloor?.floor ?? null,
+  declaration: currentRateDeclaration(),
+  asOf: analysisDateOf(loadExampleDataset()?.period ?? null),
+}));
 const paintCanonicalAnswer = (scenarioId) => {
   const analysis = scenarioId ? analysisReadiness({ scenarioId }) : null;
   const ok = analysis?.ok === true;
+  loopScenarioId = scenarioId ?? loopScenarioId;
   renderAnalysisReadiness(document, ok ? analysis.readiness : null);
   renderFinopsAnswer(document, ok ? resolveFinopsAnswer(finopsAnswerSignals(analysis)) : null,
     { scenarioLabel: ok ? analysis.label : null });
+  paintReadinessLoop(ok ? analysis.readiness : null);
 };
+// The recheck control runs the page's OWN paint path again rather than a second
+// one, so what the loop reports is what the page would have painted anyway.
+bindReadinessLoop(document, { recompute: () => paintCanonicalAnswer(loopScenarioId) });
 // …and the guided flow over the same boundary: the reader picks one of the
 // bundled provider exports and the evidence and department destinations below
 // are repainted from THAT scenario. Mounted here, beside the readiness answer it

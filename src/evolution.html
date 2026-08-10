@@ -1535,6 +1535,58 @@
         <p class="visually-hidden" id="finops-first-run-live" role="status" aria-live="polite" aria-atomic="true"></p>
       </section>
 
+      <!-- ONE GUIDED LOOP FROM A HEDGED CEILING TO A DEFENSIBLE CLAIM (#1483).
+           The readiness benchmark, the pricing provenance and the graded floor
+           each name a reason the figure above is not yet a claim, in three
+           regions, with no ordering between them. This section is the ordering
+           and nothing else: src/finops-readiness-loop.js projects the readiness
+           contract's own categories into one ordered loop and delegates every
+           done/not-done decision to the module that owns it, and
+           src/finops-readiness-loop-view.js fills the slots below.
+
+           THE TOP IS HELD TO THREE LINES — one question, one metric, one
+           prioritized next action. Every step, its state, the module that
+           decided it and the itemised before-and-after of the claim's five
+           inputs are behind the disclosure, which is a native details element
+           so Enter and Space are the browser's.
+
+           IT ADDS EXACTLY TWO FOCUSABLE NODES, both below #finops-first-run:
+           this disclosure's own summary and the recheck button. Nothing above
+           the first-run region moved, so the first screen's tab order up to
+           that point is byte-for-byte the one it had.
+
+           NO FIGURE IS AUTHORED HERE and none is computed by the view. The
+           claim, the tier, the confidence grade, the pricing-provenance chip and
+           the graded floor in the before-and-after are QUOTED, by id, out of the
+           five slots this page has already painted, so this region and the
+           answer at the top cannot state two different numbers.
+
+           IT REUSES CLASSES THAT ALREADY SHIP — .finops-panel, .answer-question,
+           .answer-figure-basis, .action-list, .secondary-button, .figure-source
+           and its summary/state/shape/detail parts, and .visually-hidden — and
+           adds no rule to either stylesheet. It is NOT a how-we-know disclosure:
+           that pattern is three regions and a fixed three-part body, and this
+           one is a step list.
+
+           THE LIVE REGION IS A SIBLING OF THE DISCLOSURE, not a child, and is
+           written last. Folded into a shut details element an announcement is
+           one nobody is told. -->
+      <section class="finops-panel" id="finops-readiness-loop" data-state="unavailable" data-remaining="0" data-workspace-frame="true" aria-labelledby="readiness-loop-question">
+        <h2 class="answer-question" id="readiness-loop-question">What still stands between this figure and a claim we could defend?</h2>
+        <p class="answer-figure-basis" id="readiness-loop-metric">No readiness benchmark has been taken for this analysis yet.</p>
+        <p class="answer-figure-basis" id="readiness-loop-action">Nothing to guide yet: no analysis has been read.</p>
+        <p class="answer-figure-basis" id="readiness-loop-change">The claim above and its inputs are quoted here once the analysis has been read.</p>
+        <button class="secondary-button" type="button" id="readiness-loop-recheck" aria-describedby="readiness-loop-metric readiness-loop-change">Recheck this claim</button>
+        <details class="figure-source" id="readiness-loop-detail" data-disclosure="collapsed">
+          <summary class="figure-source-summary" id="readiness-loop-detail-summary"><span class="figure-source-state" data-disclosure="collapsed"><span class="figure-source-shape" aria-hidden="true">▸</span> Every step, and what the last one moved</span></summary>
+          <div class="figure-source-detail">
+            <ol class="action-list" id="readiness-loop-steps"></ol>
+            <ul class="action-list" id="readiness-loop-changes"></ul>
+          </div>
+        </details>
+        <p class="visually-hidden" id="readiness-loop-live" role="status" aria-live="polite" aria-atomic="true"></p>
+      </section>
+
       <!-- WHERE TO GO NEXT, at the front door rather than below the fold
            (#1325). The region above states the decision and is held to one
            question, one figure and one link; what it never said is where a
