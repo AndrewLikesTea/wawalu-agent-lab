@@ -376,6 +376,42 @@ test("no developer note leaks into the copy a visitor reads", async () => {
   }
 });
 
+// An ampersand, letters, a semicolon: the shape of an HTML entity reference
+// that reached a reader as characters instead of being read as punctuation.
+const ENTITY_IN_TEXT = /&[A-Za-z][A-Za-z0-9]*;/g;
+
+test("no page paints an HTML entity reference at a reader", async (t) => {
+  // Asserted on the artifact a host would serve, and on its text rather than on
+  // its markup: an entity reference in the source is how the source spells a
+  // character, and the harness resolves the ones a browser resolves. What this
+  // catches is the residue — a reference the source wrote that nothing resolves,
+  // so the reader is shown "rsquo" where an apostrophe belongs. The Prompt coach
+  // shipped three of those (issue 1518) while every other page wrote the real
+  // character, which is why this guard sweeps the whole artifact rather than
+  // that one page.
+  const directory = await mkdtemp(resolve(tmpdir(), "shiplog-entity-text-test-"));
+  t.after(async () => (await import("node:fs/promises")).rm(directory, { recursive: true, force: true }));
+  await copyDeployableArtifact(directory);
+
+  const entries = await readdir(directory, { withFileTypes: true, recursive: true });
+  const pages = entries.filter((entry) => entry.isFile() && entry.name.endsWith(".html"));
+  assert.ok(pages.length > 2, "the page sweep found no pages to check");
+
+  for (const page of pages) {
+    const path = resolve(page.parentPath, page.name);
+    // Named by route-relative path so a failure on /paint/ is not read as one
+    // on the home page.
+    const file = relative(directory, path);
+    const text = parseHtml(await readFile(path, "utf8")).body.textContent;
+    for (const match of text.matchAll(ENTITY_IN_TEXT)) {
+      // Quoted with the words either side of it, so the next reader can find the
+      // string in the source on one search rather than on a guess.
+      const around = text.slice(Math.max(0, match.index - 60), match.index + 60).replace(/\s+/g, " ").trim();
+      assert.fail(`${file} paints the entity reference ${match[0]} at a reader: …${around}…`);
+    }
+  }
+});
+
 test("the AI FinOps call to action is reachable by Tab alone and opens on Enter", async () => {
   const document = parseHtml(await readFile(new URL("../src/index.html", import.meta.url), "utf8"));
   const primary = document.querySelector('a[href="/evolution.html"].button-link');
