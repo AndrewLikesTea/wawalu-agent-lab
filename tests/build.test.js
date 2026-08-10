@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import {
   createManifest, headerRule, verifyArtifact, verifyEvolutionStructure,
 } from "../scripts/verify-build.mjs";
+import { seedFirstScreen } from "../scripts/seed-first-screen.mjs";
 import {
   SAMPLE_DECISION_ID,
   SAMPLE_RELEASE_ID,
@@ -34,6 +35,12 @@ async function copyDeployableArtifact(directory) {
     "shiplog-delivery-history-contract.md"]) {
     await cp(new URL(`../docs/${page}`, import.meta.url), resolve(directory, "docs", page));
   }
+  // The build seeds the AI FinOps first screen into its staging copy BEFORE it
+  // verifies it (#944), and #1509 made `verifyArtifact` hold that screen against
+  // the modules that render it. A stand-in artifact therefore has to be seeded
+  // too: an unseeded copy is a document the build never promotes, so verifying
+  // one would prove nothing about what Pages receives.
+  await seedFirstScreen(directory);
 }
 
 test("product has a health endpoint and accessible title", async () => {
