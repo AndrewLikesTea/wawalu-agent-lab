@@ -38,6 +38,32 @@ test("the homepage visibly labels a concise, qualified executive takeaway", asyn
   assert.match(text, /modelled ceiling on what re-routing this work could save, not money already saved/);
 });
 
+test("the recoverable figure is stated once on the first screen, and it is stated here", async (t) => {
+  const document = await openTakeaway(t, { writeText: async () => {} });
+  const hero = textOf(document.getElementById("top"));
+  const intro = textOf(document.querySelector(".hero-proof-point"));
+  const takeaway = textOf(document.getElementById("executive-takeaway-text"));
+  const times = (text, figure) => text.split(figure).length - 1;
+
+  // #1544: the paragraph above the takeaway used to state the same pair and the
+  // same rate a line before it, so the first screen made one claim twice and a
+  // reader had to compare two sentences to find out it was one claim. The
+  // takeaway is the copyable, qualified version, so it keeps the money.
+  for (const figure of ["$51,254", "$154,500", "33%"]) {
+    assert.equal(times(hero, figure), 1, `the first screen states ${figure} ${times(hero, figure)} times`);
+    assert.equal(times(takeaway, figure), 1, `the takeaway must be where ${figure} is stated`);
+  }
+
+  // The paragraph still does its own job: it says a worked decision is already
+  // computed, whose it is, and what reading it costs. It just does not do the
+  // takeaway's job as well.
+  assert.match(intro, /A worked decision is already computed on the AI FinOps page/);
+  assert.match(intro, /bundled synthetic example/);
+  assert.match(intro, /no export of yours, no sign-in, and no account/);
+  assert.doesNotMatch(intro, /\$[\d,]+|\d+%/,
+    "the paragraph that introduces the example must not restate the figures the takeaway carries");
+});
+
 test("every authored claim in the takeaway is one AI FinOps still publishes", () => {
   // The takeaway is prose typed into a document, which makes it a second source
   // of truth for figures the composer owns. It is allowed to be — the import

@@ -218,19 +218,25 @@ test("the log entry's proof point ties a recorded decision to the release that s
   // figure the hero states must be one AI FinOps publishes, the synthetic
   // disclosure must read in the same paragraph as the figure, and the words
   // this site never uses about a modelled ceiling stay barred.
-  const proofPoint = hero.slice(
-    hero.indexOf('<p class="hero-proof-point">'),
-    hero.indexOf("</p>", hero.indexOf('<p class="hero-proof-point">')),
-  );
+  // The paragraph that holds the money moved: the hero used to state the pair
+  // twice, once in this paragraph and again in the takeaway a line below it, so
+  // the guard now reads the takeaway — the one place the figure is written —
+  // and holds the paragraph above it empty of the same claim.
+  const paragraphAt = (marker) =>
+    hero.slice(hero.indexOf(marker), hero.indexOf("</p>", hero.indexOf(marker)));
+  const proofPoint = paragraphAt('<p class="hero-proof-point">');
+  const takeaway = paragraphAt('<p id="executive-takeaway-text">');
   for (const figure of hero.match(/\$[\d,]+|\d+% of analyzed AI spend/g) ?? []) {
-    assert.ok(proofPoint.includes(figure),
+    assert.ok(takeaway.includes(figure),
       `the hero states ${figure} outside the paragraph that discloses the example`);
     assert.ok(finops.includes(figure), `the hero states ${figure}, which AI FinOps does not publish`);
   }
-  assert.match(proofPoint, /33% of analyzed AI spend is recoverable/,
+  assert.match(takeaway, /\$51,254 of \$154,500 in analyzed AI spend is recoverable \(33%\)/,
     "the first screen must state the result, not the categories of an answer");
-  assert.match(proofPoint, /bundled synthetic example/,
+  assert.match(takeaway, /bundled synthetic example/,
     "a money figure in the hero must carry its disclosure in the same paragraph");
+  assert.match(proofPoint, /bundled synthetic example/,
+    "the paragraph that introduces the example must still say it is synthetic");
   assert.doesNotMatch(hero, /realized savings|saved \$|per month/i);
 
   // The department is composed rather than authored on AI FinOps, so it is
