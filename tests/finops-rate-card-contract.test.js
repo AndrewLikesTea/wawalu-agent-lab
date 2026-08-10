@@ -303,7 +303,7 @@ test("the real page paints the ladder, and the figure beside it does not move", 
   await waitFor(() => page.document.documentElement.dataset.shiplogEvolution === "ready",
     "the bundled analysis to finish rendering");
   const read = (id) => textOf(page.document.getElementById(id)).trim();
-  assert.equal(read("finops-recoverable-value"), "$62,400",
+  assert.equal(read("finops-recoverable-value"), "$51,254",
     "the headline is byte-identical on first load with the default reference card");
   assert.equal(read(RATE_CARD_IDS.marker), "Illustrative");
   assert.equal(read(RATE_CARD_IDS.hedge), rateCardHedge(BUNDLED_RATE_CARD_CONFIDENCE));

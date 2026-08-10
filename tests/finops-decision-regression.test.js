@@ -541,7 +541,16 @@ const ALLOWED_MODULES = Object.freeze([
   "attribution-units.js", "dialect-profiles.js", "down-routing-candidates.js", "evolution.js",
   "example-dataset.js",
   "executive-briefing-sample.js", "executive-briefing-view.js", "executive-finops-briefing.js",
-  "finops-attribution-policy.js", "finops-briefing-contract.js", "finops-decision-contract.js",
+  "finops-attribution-policy.js",
+  // Reviewed on: the canonical recoverable-spend accessor (#1496). It is the
+  // page's one derivation of a recoverable figure — the monthly sum over scored
+  // departments, and the x12 projection off it — and it is on this path because
+  // `finops-first-run.js` now takes the region's total from it rather than
+  // deriving a second one. Pure: no imports, no DOM, no fetch, storage, clock,
+  // or randomness, and its money formatting is hand-rolled rather than `Intl`
+  // so two machines produce the same string.
+  "finops-answer-contract.js",
+  "finops-briefing-contract.js", "finops-decision-contract.js",
   "finops-decision-interaction.js", "finops-display.js", "finops-first-run.js",
   "finops-leading-finding.js",
   // Reviewed on: the display-label layer over the pseudonymous org-unit

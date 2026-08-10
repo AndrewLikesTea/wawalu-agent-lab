@@ -81,20 +81,46 @@
            money, one move. One hedge and one control, because a second of either
            hands the ranking decision back to the reader.
 
+           ONE FIGURE, ONE BASIS (#1496). This region used to state $62,400 a
+           year while the analysis region below stated $51,254 for the month.
+           Two recoverable figures on one page, derived two different ways, is
+           two answers to the page's first question — so it was no answer. The
+           MEASURED figure is the monthly one, summed per department by the
+           recoverability rule, and it is the headline. The annual figure is a
+           PROJECTION of it, stated as a relationship in the sentence under it
+           rather than as a second headline, and computed as monthly x 12 in
+           src/finops-answer-contract.js every time it is shown. The old annual
+           constant is deleted rather than reconciled toward: it came off a
+           single modelled destination move worth 5,200 USD a month, which the
+           per-department derivation does not reproduce, so keeping it would
+           have meant averaging two things that measure different quantities.
+
            DERIVATION, so two engineers compute the same figure.
-           recoverable_annual_usd = sum over every workload row in this page's
-           spend model of (current_annual_usd minus the cheapest annual cost of a
-           destination this page already models for that row), counting a row as
-           0 when that difference is not positive. The bundled model carries one
-           qualifying move — Atlas Platform's short, low-context requests to the
-           standard model — worth 5,200 USD a month, the figure named by
-           evolution-demo-data.json's recommendedAction and by the proof point's
-           "Projected savings" row below. 5,200 x 12 = 62,400, rounded after the
-           arithmetic. No other row models a destination, so none contributes.
-           No figure was invented and no data source was added. -->
+           recoverable_monthly_usd = sum, over departments carrying a completed
+           FinOps score in the current dataset, of that department's identified
+           recoverable spend for the most recent complete month. An unscored
+           department contributes zero and is counted in neither the numerator
+           nor the department count; nothing is extrapolated from the scored
+           departments to the unscored ones. recoverable_annual_usd =
+           recoverable_monthly_usd x 12, rounded once, with no seasonality and
+           no growth adjustment. The scored and total department counts ship
+           beside the figure so the scope is legible without opening anything.
+           `getRecoverableSpend` is the single accessor both regions read; no
+           second export recomputes any part of it. -->
       <section class="finops-recoverable-answer" id="finops-recoverable-answer" data-workspace-frame="true" aria-labelledby="finops-recoverable-question">
         <h2 id="finops-recoverable-question">How much of our AI spend can we recover?</h2>
-        <p class="stand-figure" id="finops-recoverable-figure"><span class="stand-figure-label" id="finops-recoverable-label">Recoverable annual AI spend</span> <span class="stand-figure-value" id="finops-recoverable-value">$62,400</span> <span class="figure-source-state" id="finops-recoverable-marker">Illustrative</span> <span class="figure-source-state" id="finops-recoverable-grade" data-grade="ungraded">Confidence: not graded</span> <span class="figure-source-state" id="finops-recoverable-provenance" data-band="0">Pricing provenance: not scored</span></p>
+        <p class="stand-figure" id="finops-recoverable-figure" data-available="true" data-basis="monthly" data-scored-departments="5" data-total-departments="5"><span class="stand-figure-label" id="finops-recoverable-label">Recoverable AI spend per month</span> <span class="stand-figure-value" id="finops-recoverable-value">$51,254</span> <span class="figure-source-state" id="finops-recoverable-marker">Illustrative</span> <span class="figure-source-state" id="finops-recoverable-grade" data-grade="ungraded">Confidence: not graded</span> <span class="figure-source-state" id="finops-recoverable-provenance" data-band="0">Pricing provenance: not scored</span></p>
+        <!-- OVER WHAT PERIOD, ACROSS WHICH DEPARTMENTS, AND WHAT IT COMES TO IN
+             A YEAR (#1496). The second question a leader asks about a recovery
+             figure, answered in one sentence directly under it: the scope it
+             holds over, and the annual projection stated as a multiple of the
+             headline rather than as a rival to it. Written by
+             `renderRecoverableSpend` from the same record the figure above is,
+             so the two cannot drift; authored here with that function's own
+             output so the served bytes and the render agree. It reuses
+             `.stand-answer`, the class the two sentences below it already use,
+             adds no rule to either stylesheet, and is not focusable. -->
+        <p class="stand-answer" id="finops-recoverable-basis">Summed over the 5 of 5 departments carrying a completed FinOps score for 2026-06-01 to 2026-07-01. Unscored departments contribute zero and are never extrapolated to. About $615,048 a year if this month holds — the monthly figure multiplied by 12, with no seasonality or growth adjustment.</p>
         <!-- HOW SURE WE ARE, BESIDE THE MONEY (#1186). One grade from a rubric
              with published cut points — src/finops-recoverable-confidence.js
              names each threshold and states the assumption behind it, and
@@ -179,7 +205,7 @@
           <summary class="figure-source-summary how-we-know-summary" id="finops-recoverable-how-we-know-summary"><span class="figure-source-state" data-disclosure="collapsed"><span class="figure-source-shape" aria-hidden="true">▸</span> How we know this</span></summary>
           <dl class="figure-source-detail how-we-know-detail">
             <div><dt>Provenance</dt><dd>The bundled synthetic example: invented usage records for an invented company, shipped with this page. Not your spend, not customer data, and not a realized saving. No file of yours is read, uploaded, or stored to produce it.</dd></div>
-            <div><dt>Basis</dt><dd>Recoverable annual spend sums, over every workload the example models, the difference between what that workload costs today and the cheapest destination this page already models for it, treating a workload as zero where that difference is not positive. One workload qualifies — Atlas Platform's short, low-context requests moved to the standard model — at $5,200 a month; 5,200 x 12 = 62,400, rounded once after the arithmetic.</dd></div>
+            <div><dt>Basis</dt><dd><span id="finops-recoverable-basis-detail">Summed over the 5 of 5 departments carrying a completed FinOps score for 2026-06-01 to 2026-07-01. Unscored departments contribute zero and are never extrapolated to. About $615,048 a year if this month holds — the monthly figure multiplied by 12, with no seasonality or growth adjustment.</span> The monthly figure is the measurement: each department's identified recoverable spend for the most recent complete month, summed. The annual figure is that figure multiplied by 12 and is stated nowhere on its own.</dd></div>
             <div><dt>Limits</dt><dd><span id="finops-recoverable-contract-next">State contracted input and output rates for the premium text tier and the standard text tier — that moves this figure to Declared · Medium. Until then it stays illustrative: a list-price ceiling, not a saving.</span> Measured throughput is left out of the arithmetic too. It is stated as of the bundled synthetic example and moves the moment a provider export of your own is analyzed. <span id="finops-recoverable-confidence-detail">The confidence grade beside the figure has not been computed for this document.</span> <span id="finops-recoverable-provenance-detail">The pricing-provenance sub-score beside the figure has not been computed for this document.</span><section id="recoverable-spend-coverage" aria-label="Recovery-class coverage">Coverage detail is computed locally when the analysis loads.</section></dd></div>
           </dl>
         </details>

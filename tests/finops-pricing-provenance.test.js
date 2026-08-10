@@ -399,7 +399,7 @@ test("the real page paints the sub-score, and the figure beside it does not move
   await waitFor(() => page.document.documentElement.dataset.shiplogEvolution === "ready",
     "the bundled analysis to finish rendering");
   const read = (id) => textOf(page.document.getElementById(id)).trim();
-  assert.equal(read("finops-recoverable-value"), "$62,400",
+  assert.equal(read("finops-recoverable-value"), "$51,254",
     "the headline is byte-identical on first load with the default reference card");
   assert.equal(read(PRICING_PROVENANCE_IDS.score),
     pricingProvenanceChip(BUNDLED_PRICING_PROVENANCE));

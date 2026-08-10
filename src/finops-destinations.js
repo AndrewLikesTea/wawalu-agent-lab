@@ -35,9 +35,11 @@
 //   example the quarter is Q2 2026, closed, and one workload qualifies — Atlas
 //   Platform's short, low-context requests, addressable by the shipped routing
 //   lever at 5,200 USD a month. 5,200 x 3 = 15,600, rounded once after the
-//   arithmetic to 16,000 and displayed as $16k. The same lever annualised is
-//   the $62,400 the answer region above states; one lever, two windows, and
-//   neither is a second claim.
+//   arithmetic to 16,000 and displayed as $16k. This is the QUARTER-TO-DATE
+//   cost of the spend one shipped lever addresses — a different quantity from
+//   the answer region's recoverable figure above, which sums every scored
+//   department's recoverable line for the month (#1496). Neither is a second
+//   claim about the other, and neither is derived from the other.
 //
 // * CONFIDENCE. Exactly three levels and no fourth. `high` — every contributing
 //   line item is attributed to a NAMED workload. `medium` — at least one
@@ -92,9 +94,11 @@ import { applyDestinationProvenance, destinationProvenanceText } from "./finops-
 // The one interrogative sentence at the top of the page, and the id of the
 // heading that carries it. #1325 asked for "How much of our AI spend can we
 // recover this quarter?" and the window is deliberately NOT in the question:
-// the figure the page states directly beside this heading is the annual form of
-// the same lever ($62,400), contracted by the answer block, the seed and half a
-// dozen tests. A question about the quarter answered by an annual number is the
+// the figure the page states directly beside this heading is the MONTHLY
+// recoverable total over scored departments (#1496), contracted by the answer
+// block, the seed and half a dozen tests, with its annual form stated only as a
+// projection of it. A question about the quarter answered by a figure over
+// another window is the
 // defect the front door exists to remove, so the window lives on the figure it
 // qualifies — see the quarter figure below — and the question stays the one the
 // page can honestly answer where it is asked. It also lost its second clause:

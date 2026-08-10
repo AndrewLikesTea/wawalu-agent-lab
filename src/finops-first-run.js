@@ -50,6 +50,7 @@ import {
   EXAMPLE_ORG_COHORT_PROFILE, EXAMPLE_TASK_LEDGER, exampleCohortPosition,
   loadExampleDataset, nameExampleDepartments,
 } from "./example-dataset.js";
+import { getRecoverableSpend } from "./finops-answer-contract.js";
 import { buildFinopsBriefing, validateBriefing } from "./finops-briefing-contract.js";
 import {
   COST_BAND, PEER_RANK_LABEL, costPositionDetail, costPositionHeadline, resolveCostPosition,
@@ -841,7 +842,17 @@ export function buildFirstRunResult(load = loadExampleDataset, loadDecision = lo
     // benchmark, the literacy corpus's department column, the peer cohort, and
     // the internal gap all read this one object, which is what makes the three
     // blocks of the brief describe one company rather than three.
-    const analysis = nameExampleDepartments(load());
+    const named = nameExampleDepartments(load());
+    // ONE RECOVERABLE FIGURE FOR THE PAGE (#1496). The total this region divides
+    // and prints is taken from the canonical accessor rather than from the
+    // envelope's own field, so the figure here and the one in the answer region
+    // at the top of the page are the same derivation and not two that happen to
+    // agree. Scored departments only: an envelope carrying an unscored
+    // department contributes zero for it here too.
+    const recoverable = getRecoverableSpend(named);
+    const analysis = Number.isFinite(recoverable.monthly)
+      ? Object.freeze({ ...named, recoverableUsd: recoverable.monthly })
+      : named;
     // The established example analysis and the authored fixture are independent
     // local inputs. A broken fixture must not hide a still-valid benchmark and
     // action; it only removes the confidence claim it owns.
