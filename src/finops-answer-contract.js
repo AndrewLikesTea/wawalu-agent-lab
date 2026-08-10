@@ -15,6 +15,8 @@
 // Pure: no DOM, no storage, no clock, no network, no locale-dependent sort.
 // Synthetic client-side signals arrive as an argument.
 
+import { attestationSentence } from "./finops-executive-vocabulary.js";
+
 export const FINOPS_ANSWER_CONTRACT = "finops-answer-contract/1.0.0";
 
 export const ANSWER_STATUS = Object.freeze({ answered: "answered", withheld: "withheld" });
@@ -647,13 +649,13 @@ export function recoverableAttestation(dataset, record = getRecoverableSpend(dat
     // #1502 closed. So the attested headline travels as `data-headline` — read
     // by the check, not repainted at a reader — and the sentence says only that
     // it matched.
-    statement: `Attested ${RECOVERABLE_ATTESTATION} — the headline above is the one figure this `
-      + `region states, on the monthly basis of record · confidence ${confidence} · provenance `
-      + `${declared} of ${operands.length} operands declared by the export, ${derived} derived `
-      + `here · coverage ${dimensions.coverage.scored} of ${dimensions.coverage.inScope} `
-      + "departments scored. Each carries its assumption in "
-      + "tests/fixtures/finops-consolidated-answer-attestation.json, and a drift in any of the "
-      + "four fails by naming it.",
+    //
+    // THE WORDS ARE NOT AUTHORED HERE EITHER (#1554). The sentence is composed
+    // by src/finops-executive-vocabulary.js, which owns the evidence-source noun
+    // phrase, the banded confidence wording, and the identifiers that were
+    // demoted into the audit disclosure. This module still owns every count in
+    // it; it no longer owns the vocabulary they are stated in.
+    statement: attestationSentence(dimensions),
   });
 }
 

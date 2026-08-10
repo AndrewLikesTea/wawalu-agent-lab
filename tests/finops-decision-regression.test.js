@@ -634,6 +634,18 @@ const ALLOWED_MODULES = Object.freeze([
   // one. It is the module the two reference rates now live in, so the path
   // reaching it is the path reaching its own prices.
   "finops-rate-card-contract.js",
+  // Reviewed on with #1554, which gave the first-screen attestation a reader's
+  // vocabulary: `finops-executive-vocabulary.js` is the evidence-source noun
+  // phrase, the banded confidence wording, the reader-phrase table for the
+  // identifiers demoted into the audit disclosure, and the forbidden-token
+  // shapes a test runs over the rendered sentence. It is literal tables and pure
+  // functions with NO import of its own — no request, no storage, no clock, no
+  // dynamic import, no fixture or JSON read, and no random source. It states no
+  // figure and grades nothing: the counts still come from
+  // `finops-answer-contract.js`, and the confidence bands are that module's
+  // published cut points restated as data so this one can stay dependency-free,
+  // with tests/finops-executive-vocabulary.test.js pinning the two together.
+  "finops-executive-vocabulary.js",
 ]);
 
 /**

@@ -169,16 +169,20 @@ test("coverage moves when a department stops carrying a completed score", () => 
 // ---------------------------------------------------------------------------
 
 /**
- * The four, read off the authored markup's own attributes and text.
+ * The four, read off the authored markup's own attributes.
  *
  * The headline comes from `data-headline` rather than from the sentence on
  * purpose: this region states its one recoverable figure once and its projection
  * once, so the attestation carries the money for the check without painting a
- * third dollar string beside the answer.
+ * third dollar string beside the answer. The confidence band is read the same
+ * way since #1554, because the sentence now states the confidence in a reader's
+ * words — "reasonably evidenced", not "confidence medium" — and a drift check
+ * that scraped a band out of prose would be pinning the wording rather than the
+ * grade. `data-confidence` is the machine reading; the sentence is the human one.
  */
-function pageDimensions(node, text) {
+function pageDimensions(node) {
   const headline = node.getAttribute("data-headline") ?? "absent";
-  const confidence = /confidence (\w+) ·/.exec(text)?.[1] ?? "absent";
+  const confidence = node.getAttribute("data-confidence") ?? "absent";
   return {
     headline,
     confidence,
@@ -194,7 +198,7 @@ test("the served page states the pinned four, in text and in attributes", () => 
   const node = document.getElementById(RECOVERABLE_ATTESTATION_ID);
   assert.ok(node, "the served page carries no attestation slot");
   const text = textOf(node);
-  assertNoDrift("served page", pageDimensions(node, text));
+  assertNoDrift("served page", pageDimensions(node));
   assert.equal(text, fixture.statement,
     "the authored sentence and the fixture's `statement` disagree; the page holds no number of "
     + "its own, so regenerate the page from the fixture's command rather than editing the bytes");
@@ -245,7 +249,7 @@ test("the paint writes the same four the served bytes already carry", () => {
   const document = parseHtml(html);
   const node = renderRecoverableAttestation(document, attestation);
   assert.ok(node, "the paint found no slot to write into");
-  assertNoDrift("paint", pageDimensions(node, textOf(node)));
+  assertNoDrift("paint", pageDimensions(node));
   assert.equal(textOf(node), fixture.statement,
     "the paint and the served bytes state two different attestations");
   assert.equal(node.dataset.attested, "true");
