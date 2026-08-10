@@ -11,7 +11,7 @@ installDocument();
 const { FEED_LOADING_LINE } = await import("../src/social.js");
 
 const {
-  PROFILE_EMPTY_COPY, authorChipLabel, authorInitials, captionFor, countLabel, defaultProfileAuthor,
+  EMPTY_SUMMARY_LINE, PROFILE_EMPTY_COPY, authorChipLabel, authorInitials, captionFor, countLabel, defaultProfileAuthor,
   distinctAuthors, emptySummaryText, hasExplicitAuthor, imagePostCounts, loadingSummaryText,
   mergePostsById, normalizeProfileApiPosts, normalizeSeedPosts, pickerEntries, postDetailHref,
   profileAnnouncement, profileHref, profilePaintHref, profileResultsHeading, profileSummary, profileSummaryText,
@@ -494,23 +494,34 @@ test("the header shows who this is and what the counts mean", () => {
   const elements = {
     avatar: createElement("span"),
     name: createElement("span"),
-    roleName: createElement("span"),
     summary: createElement("p"),
   };
   renderProfileHeader(elements, "Mina Okafor", { total: 3, withImages: 2, likes: 6, latest: "2026-07-15T09:00:00.000Z" });
   assert.equal(elements.avatar.textContent, "MO");
   assert.equal(elements.avatar.getAttribute("aria-hidden"), "true", "the avatar is decoration beside the name");
   assert.equal(elements.name.textContent, "Active display-name filter: Mina Okafor");
-  assert.equal(elements.roleName.textContent, "Mina Okafor", "the display-name sentence follows the selected name");
   assert.match(elements.summary.textContent, /^2 image posts · 3 posts in total · last posted /);
+  // The header writes the display name into exactly one of the elements it
+  // touches. The heading beside them carries it a second time and that is the
+  // whole budget for this region: the avatar must not spend a copy because it is
+  // initials nobody should hear, and the counts line must not because it is read
+  // directly under a heading that has just said the name.
+  const written = [elements.avatar, elements.name, elements.summary]
+    .filter((node) => node.textContent.includes("Mina Okafor"));
+  assert.deepEqual(written, [elements.name], `${written.length} of the header's lines print the display name`);
 });
 
 test("an empty header states the situation once, in image-post terms", () => {
   const elements = { avatar: createElement("span"), name: createElement("span"), summary: createElement("p") };
   renderProfileHeader(elements, "Mina Okafor", { total: 0, withImages: 0, likes: 0, latest: null });
-  // The empty line names the person the page is showing, not the surface: it is
-  // never true that "People" has no image posts, only that this name has none.
-  assert.equal(elements.summary.textContent, "Mina Okafor hasn’t posted an image yet.");
+  // The empty line states the situation and names nobody: the heading above it
+  // says "Mina Okafor · 0 image posts", so this line is read against a subject
+  // the region has already given, and it used to open on that name as a third
+  // visible copy of it. It still does not name the surface — it is never true
+  // that "People" has no image posts, only that this display name has none.
+  assert.equal(elements.summary.textContent, EMPTY_SUMMARY_LINE);
+  assert.equal(elements.summary.textContent, "No image posts under this display name yet.");
+  assert.doesNotMatch(elements.summary.textContent, /Mina/);
   // The description states the state; the grid's empty state gives the action.
   // Neither repeats the other's sentence — that repetition was the bug.
   assert.notEqual(elements.summary.textContent, PROFILE_EMPTY_COPY.guidance);
@@ -523,9 +534,11 @@ test("the description carries the posted-but-no-images case, so the empty state 
     profileSummaryText({ total: 3, withImages: 0, likes: 0, latest: null }),
     "0 image posts · 3 posts in total",
   );
+  // And it states the empty case without a display name, whatever it is passed:
+  // the line is read under a heading that has already named one.
   assert.equal(
-    profileSummaryText({ total: 0, withImages: 0, likes: 0, latest: null }, "Mina"),
-    "Mina hasn’t posted an image yet.",
+    profileSummaryText({ total: 0, withImages: 0, likes: 0, latest: null }),
+    EMPTY_SUMMARY_LINE,
   );
 });
 
@@ -548,7 +561,14 @@ test("the empty profile says it once across the whole page", () => {
   // a live region has no page around it to borrow context from.
   const onPage = spoken.slice(0, 2);
   assert.equal(new Set(onPage).size, onPage.length, "no two page regions print the same sentence");
-  assert.equal(onPage.filter((text) => text.includes(emptySummaryText("Mina"))).length, 1);
+  // The named wording survives in the announcement alone. On the page itself the
+  // counts line states the same fact without the name, because the heading over
+  // it has already given the subject and this page keeps the display name to two
+  // visible elements in that region.
+  assert.equal(onPage.filter((text) => text.includes(emptySummaryText("Mina"))).length, 0);
+  assert.equal(spoken.filter((text) => text.includes(emptySummaryText("Mina"))).length, 1);
+  assert.equal(onPage.filter((text) => text.includes("Mina")).length, 0);
+  assert.equal(onPage.filter((text) => text === EMPTY_SUMMARY_LINE).length, 1);
   assert.equal(onPage.filter((text) => text.includes("Paint")).length, 1);
   // Neither the identity line nor the grid prints a bare count: an empty name
   // reads one sentence here and one sentence there. The zero itself belongs to
@@ -560,16 +580,15 @@ test("the empty profile says it once across the whole page", () => {
   assert.equal(profileAnnouncement("Mina", 2), "Showing 2 image posts by Mina.");
 });
 
-test("the waiting line names image posts, with or without a display name", () => {
-  assert.equal(loadingSummaryText("Zed"), "Loading Zed’s image posts…");
-  // The typographic apostrophe the rest of this page's copy uses, written
-  // through textContent — never the HTML entity, which a reader would see.
-  assert.doesNotMatch(loadingSummaryText("Zed"), /&rsquo;|&#/);
-  // Nothing selected yet is not a name, and it is not the whole feed either: the
-  // sentence drops the possessive and keeps its subject.
-  for (const nothing of [undefined, null, "", "   "]) {
-    assert.equal(loadingSummaryText(nothing), "Loading image posts…");
-  }
+test("the waiting line names image posts and names nobody", () => {
+  // People's own wait, not Social's whole feed — and not a display name either.
+  // Both lines that ship it sit under the profile header, whose heading has
+  // already said whose posts are being counted; the possessive form they used to
+  // take ("Loading Zed's image posts…") was a third and fourth visible copy of a
+  // name this region now states exactly twice.
+  assert.equal(loadingSummaryText(), "Loading image posts…");
+  // Passing a name changes nothing: there is no caller that can reintroduce one.
+  assert.equal(loadingSummaryText("Zed"), "Loading image posts…");
 });
 
 test("the profile page's static copy does not drift from the module's", async () => {
@@ -578,16 +597,18 @@ test("the profile page's static copy does not drift from the module's", async ()
   // state — a verdict about a name nobody had chosen, and a false one for the
   // seeded feed — so it now says only that the counting has not happened yet.
   const html = await readFile(new URL("../src/profile.html", import.meta.url), "utf8");
-  assert.match(html, new RegExp(`id="profile-summary">${loadingSummaryText("Ari")}<`));
+  assert.match(html, new RegExp(`id="profile-summary">${loadingSummaryText()}<`));
   assert.doesNotMatch(html, new RegExp(emptySummaryText("Ari")));
-  // One wait, one sentence — People's own. The identity line and the connection
+  // One wait, one sentence — People's own. The counts line and the connection
   // line below it are waiting on the same fetch, so they say the same thing
   // rather than counting one name's posts in one place and "connecting" in the
-  // other. What they name is what this page fetches: the image posts under the
-  // selected display name. They used to announce Social's whole feed, on the
-  // page whose opening sentence sends a reader to Social for exactly that.
-  assert.equal(loadingSummaryText("Ari"), "Loading Ari’s image posts…");
-  assert.match(html, new RegExp(`id="profile-status">${loadingSummaryText("Ari")}<`));
+  // other. What they name is what this page fetches: image posts. They used to
+  // announce Social's whole feed, on the page whose opening sentence sends a
+  // reader to Social for exactly that — and after that they named the selected
+  // display name, which the heading above them already establishes.
+  assert.equal(loadingSummaryText(), "Loading image posts…");
+  assert.match(html, new RegExp(`id="profile-status">${loadingSummaryText()}<`));
+  assert.doesNotMatch(html, /Loading Ari/, "a waiting line names the display name again");
   assert.doesNotMatch(html, new RegExp(FEED_LOADING_LINE), "People is announcing Social's feed again");
   // The results heading ships the same words the module writes there, so the
   // frame before hydration reads as the state it is in: the display name the

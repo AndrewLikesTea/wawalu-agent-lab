@@ -34,8 +34,9 @@
              no heading a first-time visitor could match to the link they
              clicked — the exact confusion between this surface and Social that
              this copy has to end. Which display name is selected is a filter on this
-             surface, not the surface's name, so it moved down to the identity
-             line below and is still the first thing under the description.
+             surface, not the surface's name, so it is stated once in the profile
+             header that opens the results region below, under the picker that
+             chooses it.
              The sentence under the heading names Social once and says when to
              open it; Social carries the mirror sentence. It is one sentence
              because the rule and the way to the rest of the feed are one fact:
@@ -94,81 +95,104 @@
           </fieldset>
         </div>
 
-        <!-- The avatar is decorative: the name beside it is the first line of
-             the identity block, so nothing here is announced twice. -->
-        <div class="profile-identity">
-          <span class="profile-avatar" id="profile-avatar" aria-hidden="true">AR</span>
-          <div class="profile-identity-text">
-            <!-- "Ari" is the pre-hydration render of the display name the seed
-                 feed lands on. The picker replaces it once a reader chooses. -->
-            <p class="profile-active-filter" id="profile-name">Active display-name filter: Ari</p>
-            <!-- The pre-hydration line of a page that has not counted anything
-                 yet. It must stay word-for-word with loadingSummaryText() in
-                 src/profile.js, which names what People fetches — the image
-                 posts under the selected display name; a test pins both. It used
-                 to ship the empty state — "Ari hasn't posted an image yet" —
-                 which was false for the seeded feed, and then Social's "Loading
-                 the Social feed…", which announced the whole feed on the page
-                 that tells you to open Social for it. Once the module runs, this
-                 line is the page's only statement of the image-post count, empty
-                 case included. -->
-            <p class="profile-summary" id="profile-summary">Loading Ari’s image posts…</p>
-          </div>
-        </div>
-        <!-- People is a filtered view of Social, and the nav says so by nesting
-             them. This is where People defines the thing its picker selects, in
-             the composer's own clause — "not a signed-in user — nobody owns or
-             verifies one, and anyone can publish under any name" — so a reader
-             who arrives from a shared link and never opens Social is told the
-             same thing as the visitor typing a name into the composer. This
-             sentence used to give the selected name a different word from the
-             one the intro, the label, and the hint use; there is one term now,
-             and the second sentence stays on the subject the first one names
-             rather than restating the concept.
-             What this paragraph no longer does is point at Social. It carried
-             "This view shows image posts only. See every post on Social,
-             including the ones published without an image" — the intro sentence
-             above it in different words — and then, once that was cut, the bare
-             link on its own, which put a second route to Social three lines
-             under the first. The intro states the rule and carries the link;
-             this paragraph stays on the display name it defines.
-             This is also the last paragraph of the hero, so no route into Paint
-             follows it: that offer is one paragraph above the grid, beside the
-             pictures that prompt it, and the site makes it once per page the way
-             Social does. -->
-        <p class="profile-role"><span id="profile-role-name">Ari</span> is a display name in the Social feed, not a signed-in user — nobody owns or verifies one, and anyone can publish under any name.</p>
       </section>
 
       <section class="workspace workspace-single" aria-labelledby="grid-title">
         <div class="list-panel">
-          <!-- This heading is the accessible name of the results section around
-               it, so it has to say whose posts are below it and how many. It
-               said "Image posts" in every state, which named the contents of
-               Social's feed just as well as this filtered view of it, and left
-               a reader who had just picked a display name with nothing on the
-               results to match against the name they picked.
-               No count chip beside it: the number belongs in the heading text,
-               where the region's own name carries it, rather than in a bare
-               figure a first-time visitor cannot tell from a broken feature.
-               profile.js writes it from the same list it draws the tiles from —
-               it must stay word-for-word with profileResultsHeading(), and a
-               test pins both. "Ari" is the pre-hydration render of the display
-               name the seed feed lands on; nothing has been counted in that
-               frame, so the heading names the posts without numbering them, the
-               way the picker says "Counting…" rather than "0".
-               The eyebrow is the page's one statement of the ordering, said
-               against the grid it orders; the heading counts and does not
-               repeat it, and the intro no longer does either. It used to carry
-               "· posts without images are on Social" as well, which was the
-               third telling of a rule the intro and the hero paragraph had
-               already given — the repetition this page keeps having to cut. The
-               intro states it once now, and this line says the one thing the
-               heading under it cannot. -->
-          <div class="section-heading list-heading">
-            <div>
-              <p class="eyebrow">Newest first</p>
+          <!-- The profile header: one block that establishes whose posts these
+               are, at the top of the results region and before the line that
+               orders them.
+               It used to be four fragments in the hero, above this panel — an
+               initials blob, the active-filter line, the counts line, and a
+               paragraph defining a display name — so a reader met the name four
+               times and met the heading that names the results last, after the
+               ordering label that sorts them. Reading order is the fix, not a
+               reposition: picker, then this header, then the ordering label,
+               then the posts.
+               Two visible elements inside this region carry the display name and
+               no more. The heading, which names the results and counts them, and
+               the active-filter chip, which says which entry of the picker above
+               is doing the filtering. The counts line and the paragraph below
+               stopped repeating it; the polite live region further down still
+               announces it, because an announcement has no page around it to
+               borrow context from.
+               The avatar is decoration and is hidden from assistive technology,
+               so the name is announced once, from the heading, and never as the
+               word "AR". -->
+          <div class="profile-identity">
+            <span class="profile-avatar" id="profile-avatar" aria-hidden="true">AR</span>
+            <div class="profile-identity-text">
+              <!-- This heading is the accessible name of the results section
+                   around it, so it has to say whose posts are below it and how
+                   many. It said "Image posts" in every state, which named the
+                   contents of Social's feed just as well as this filtered view
+                   of it, and left a reader who had just picked a display name
+                   with nothing on the results to match against the name they
+                   picked. It is the one section-level heading that opens this
+                   region: the ordering line below it is a label on the list, not
+                   a second heading over it.
+                   No count chip beside it: the number belongs in the heading
+                   text, where the region's own name carries it, rather than in a
+                   bare figure a first-time visitor cannot tell from a broken
+                   feature.
+                   profile.js writes it from the same list it draws the tiles
+                   from — it must stay word-for-word with profileResultsHeading(),
+                   and a test pins both. "Ari" is the pre-hydration render of the
+                   display name the seed feed lands on; nothing has been counted
+                   in that frame, so the heading names the posts without numbering
+                   them, the way the picker says "Counting…" rather than "0". -->
               <h2 id="grid-title">Ari · image posts</h2>
+              <!-- The second and last visible copy of the display name in this
+                   region, and the only one that says what the name is doing:
+                   it is the picker's current value, echoed where the results
+                   are, for a reader who scrolled past the control. "Ari" is the
+                   pre-hydration render; the picker replaces it on every change.
+                   A filled wash rather than an outline, because it reports a
+                   state that changes (design-system/claude-design,
+                   review-08-foundations: filled wash = dynamic signal, outline =
+                   static classification), in the same two colours the avatar
+                   beside it already uses. -->
+              <p class="profile-active-filter" id="profile-name">Active display-name filter: Ari</p>
+              <!-- People is a filtered view of Social, and the nav says so by
+                   nesting them. This is where People defines the thing its
+                   picker selects, in the composer's own clause — "not a
+                   signed-in user — nobody owns or verifies one, and anyone can
+                   publish under any name" — so a reader who arrives from a
+                   shared link and never opens Social is told the same thing as
+                   the visitor typing a name into the composer.
+                   It states the caveat about display names in general and names
+                   nobody: it used to open on the selected name, which made it
+                   the third visible copy of a name the heading two lines above
+                   had already established. The heading is the subject this
+                   sentence is read against.
+                   What this paragraph does not do is point at Social. It carried
+                   "This view shows image posts only. See every post on Social,
+                   including the ones published without an image" — the intro
+                   sentence above it in different words — and then, once that was
+                   cut, the bare link on its own, which put a second route to
+                   Social three lines under the first. The intro states the rule
+                   and carries the link; this paragraph stays on the display name
+                   it defines. -->
+              <p class="profile-role">A display name in the Social feed is not a signed-in user — nobody owns or verifies one, and anyone can publish under any name.</p>
             </div>
+          </div>
+          <!-- The ordering line, and the counts beside it: a label on the list
+               below, under the heading that names it rather than above it. It is
+               the page's one statement of the ordering, said against the grid it
+               orders — the grid points its aria-describedby at it, so a reader
+               who enters the list is told how it is sorted without the label
+               having to be a control it is not. It used to carry "· posts
+               without images are on Social" as well, which was the third telling
+               of a rule the intro had already given.
+               The counts line waits with the same words the connection line
+               below ships (loadingSummaryText() in src/profile.js; a test pins
+               both), and it names nobody in any state: the heading above already
+               says whose posts are counted, and this line used to repeat that
+               name as a third visible copy of it. Once the module runs it is the
+               page's only statement of the image-post total. -->
+          <div class="section-heading list-heading">
+            <p class="eyebrow" id="profile-order">Newest first</p>
+            <p class="profile-summary" id="profile-summary">Loading image posts…</p>
           </div>
           <!-- People is where a visitor browses images, so the route into the
                editor stays beside them. The sentence names every step in the
@@ -198,18 +222,25 @@
 
           <div class="feed-connection" aria-live="polite">
             <span class="live-dot" aria-hidden="true"></span>
-            <!-- The same waiting sentence the identity line above ships, because
-                 it is the same wait; profile.js rewrites it from the selected
-                 display name, and profile-page.js replaces it once the fetch
-                 answers. -->
-            <span id="profile-status">Loading Ari’s image posts…</span>
+            <!-- The same waiting sentence the counts line above ships, because
+                 it is the same wait; profile-page.js replaces it once the fetch
+                 answers. This region is polite and announces, so what it must
+                 not do is print the display name a fourth time: the heading and
+                 the active-filter chip carry it, and this line says what is
+                 happening to the posts under it. -->
+            <span id="profile-status">Loading image posts…</span>
           </div>
           <p class="visually-hidden" id="profile-announcer" aria-live="polite" aria-atomic="true"></p>
 
           <!-- The grid container itself carries aria-busy while the first load is
                in flight; the tiles inside are ordinary links, so Tab, Enter, and
-               open-in-new-tab all behave the way the browser already promises. -->
-          <div id="profile-grid"></div>
+               open-in-new-tab all behave the way the browser already promises.
+               aria-describedby ties the list to the line that orders it, in the
+               direction that is actually announced: the ordering is a static
+               label rather than a control, so the list carries the reference and
+               a reader entering it hears "Newest first" against the posts it
+               describes. No new tab stop is added above the results for it. -->
+          <div id="profile-grid" aria-describedby="profile-order"></div>
         </div>
       </section>
       </main>

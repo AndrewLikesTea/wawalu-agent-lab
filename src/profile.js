@@ -308,30 +308,36 @@ export function emptySummaryText(author) {
   return `${name} hasn’t posted an image yet.`;
 }
 
-// What the identity line and the connection line say before anything has been
+// What the counts line and the connection line say before anything has been
 // counted. Both wait on the same fetch, so both say this word for word — and
-// what they name is what People is actually fetching: the image posts published
-// under the selected display name. They used to say "Loading the Social feed…",
-// Social's sentence about the whole feed, three lines under People's own intro
-// telling a reader to open Social when they want that feed — and it was the
-// first thing a screen reader announced on this page.
+// what they name is what People is actually fetching: image posts. They used to
+// say "Loading the Social feed…", Social's sentence about the whole feed, three
+// lines under People's own intro telling a reader to open Social when they want
+// that feed — and it was the first thing a screen reader announced on this page.
+//
+// It names nobody. Both lines sit under the profile header, whose heading has
+// already said whose posts are being counted, and this page keeps the display
+// name to two visible elements in that region — the heading and the
+// active-filter chip. The possessive form these lines used to take ("Loading
+// Ari's image posts…") was the third and fourth of those copies.
 //
 // It still does not guess a count: the page ships this line as static markup for
 // the frame before hydration, where it once shipped "Ari hasn't posted an image
 // yet", a verdict that was false for the seeded feed.
-//
-// The name is written through textContent everywhere it lands, so an apostrophe
-// inside a display name needs no escaping; nothing here is parsed as markup.
-// With no name chosen the sentence drops the possessive rather than inventing
-// one — the posts are still image posts, and this page still only shows the ones
-// under a display name.
-export function loadingSummaryText(author) {
-  const name = String(author ?? "").trim();
-  return name ? `Loading ${name}’s image posts…` : "Loading image posts…";
+export function loadingSummaryText() {
+  return "Loading image posts…";
 }
 
-// The profile description under the name, and the one place on the page that
-// states the image-post count. The results panel used to repeat it in a chip
+// The counts line when the selected display name has nothing to show. It states
+// the situation without naming anyone, because the heading directly above it
+// does — "Nova · 0 image posts" — and this line is read against it.
+// emptySummaryText() above still carries the name, because the one place that
+// wording still lands is the polite announcement, which has no page around it to
+// borrow a subject from.
+export const EMPTY_SUMMARY_LINE = "No image posts under this display name yet.";
+
+// The counts line beside the ordering label, and the one place on the page that
+// states the image-post total. The results panel used to repeat it in a chip
 // beside its heading, so an empty name printed "hasn't posted an image yet" and
 // "0 image posts" on the same render, in two voices, one of them a bare number
 // a first-time visitor could not tell from a broken feature.
@@ -339,8 +345,11 @@ export function loadingSummaryText(author) {
 // An author with posts but no images reads "0 image posts · 3 posts in total",
 // so the counts carry the "you posted, just without pictures" case that the
 // empty state used to spell out in prose.
-export function profileSummaryText(summary, author) {
-  if (summary.total === 0) return emptySummaryText(author);
+//
+// It takes no display name: this line is read under a heading that has already
+// named one, and naming it again here was the third visible copy of it.
+export function profileSummaryText(summary) {
+  if (summary.total === 0) return EMPTY_SUMMARY_LINE;
   const parts = [countLabel(summary.withImages, "image post"), `${countLabel(summary.total, "post")} in total`];
   if (summary.latest) parts.push(`last posted ${formatDate(summary.latest)}`);
   return parts.join(" · ");
@@ -567,20 +576,25 @@ export function renderAuthorPicker(container, entries, { author, counted = true,
   }));
 }
 
-// The identity block between the picker and the grid: avatar, name, and the
-// counts that explain what the grid is showing, empty case included. The results
-// heading below it states the selected name and the number of tiles it heads
-// (profileResultsHeading); this line is where the image posts are put next to the
-// posts in total and the last posting date, which is the context a bare count
-// beside the heading cannot carry.
+// The profile header that opens the results region — avatar, heading,
+// active-filter chip — plus the counts line under it that explains what the grid
+// is showing, empty case included.
+//
+// The heading (profileResultsHeading, written in mountProfile from the same list
+// the tiles come from) states the selected name and the number of tiles; the
+// chip states which picker entry is filtering. Those two are the whole visible
+// budget for the display name in this region, so nothing else written here
+// carries it: the avatar is initials and is hidden from assistive technology, so
+// the name is announced once and never as the word "AR", and the counts line
+// puts the image posts next to the posts in total and the last posting date
+// without naming anybody.
 export function renderProfileHeader(elements, author, summary) {
   if (elements.avatar) {
     elements.avatar.textContent = authorInitials(author);
     elements.avatar.setAttribute("aria-hidden", "true");
   }
   if (elements.name) elements.name.textContent = `Active display-name filter: ${author}`;
-  if (elements.roleName) elements.roleName.textContent = author;
-  if (elements.summary) elements.summary.textContent = profileSummaryText(summary, author);
+  if (elements.summary) elements.summary.textContent = profileSummaryText(summary);
 }
 
 /* -------------------------------- mounting -------------------------------- */
@@ -595,7 +609,6 @@ export function mountProfile(root, options = {}) {
   const elements = {
     avatar: root.querySelector("#profile-avatar"),
     name: root.querySelector("#profile-name"),
-    roleName: root.querySelector("#profile-role-name"),
     summary: root.querySelector("#profile-summary"),
     heading: root.querySelector("#grid-title"),
     status: root.querySelector("#profile-status"),
@@ -635,10 +648,11 @@ export function mountProfile(root, options = {}) {
     }
     // The connection line is a placeholder until the first fetch answers and
     // profile-page.js writes the real one over it. While that is in flight it
-    // names the wait the same way the identity line ships it in markup, from the
-    // display name in hand — so a reader who switches names mid-load is not left
-    // reading the name the page happened to ship with.
-    if (elements.status && state === "loading") elements.status.textContent = loadingSummaryText(author);
+    // names the wait the same way the counts line ships it in markup, and names
+    // nobody: the heading above states whose posts are being counted, so a
+    // reader who switches names mid-load reads one moved heading rather than a
+    // display name repeated down the region.
+    if (elements.status && state === "loading") elements.status.textContent = loadingSummaryText();
     for (const route of elements.paintRoutes) route.href = profilePaintHref(author);
     renderProfileGrid(grid, mine, {
       state,
