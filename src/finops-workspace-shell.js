@@ -533,6 +533,68 @@ export function applyWorkspaceDestination(doc, key, {
 }
 
 /**
+ * The list the department drill-down paints its ranked choices into, and the
+ * attribute each choice carries its id on. Named here so the selector is written
+ * once and a test can name the same thing the page does.
+ */
+export const SELECTION_LIST_ID = "department-priority";
+export const SELECTION_ATTRIBUTE = "data-department-id";
+
+/**
+ * Apply a parsed route from src/finops-destination-router.js to this document.
+ *
+ * A ROUTE CHANGE IS A VIEW SWITCH AND NOTHING ELSE. It shows a destination and
+ * presses a selection inside it. It reads and writes no store, so the earned
+ * grade and the committed-action state the FinOps workspace persistence owns are
+ * untouched by moving between destinations — which is the whole reason the
+ * durable state was never put on the address in the first place.
+ *
+ * IDEMPOTENT, because it has to be. The department drill-down is painted from a
+ * fixture that resolves long after boot, so a `?dept=` that arrived on a cold
+ * load has nothing to press the first time through. The page calls this again
+ * once that list exists rather than queueing an action into a stale document,
+ * and pressing a choice that is already pressed does nothing.
+ *
+ * A `foreign` route claims no destination: the fragment belongs to somebody
+ * else — a saved deep link into a panel — and the shell's own resolution has
+ * already opened whatever contains it.
+ */
+export function applyScreenRoute(doc, route, {
+  announce = false, focus = null, loader = destinationLoader,
+} = {}) {
+  const opened = route?.owned === false
+    ? currentWorkspaceDestination(doc)
+    : applyWorkspaceDestination(doc, route?.slug, { announce, focus, loader });
+  const selection = route?.selection ?? null;
+  const screen = byId(doc, WORKSPACE_SHELL_IDS.screen);
+  if (screen) {
+    if (selection) screen.setAttribute("data-screen-selection", selection);
+    else screen.removeAttribute?.("data-screen-selection");
+  }
+  return Object.freeze({
+    destination: opened,
+    selection,
+    selectionApplied: selection === null ? false : pressSelection(doc, selection),
+  });
+}
+
+/**
+ * Press the ranked choice for one selection, and report whether it landed.
+ *
+ * `false` means the list has not been painted yet — never that the id was wrong,
+ * which the router already refused on the way in.
+ */
+function pressSelection(doc, selection) {
+  const list = byId(doc, SELECTION_LIST_ID);
+  const choice = [...(list?.querySelectorAll?.(`[${SELECTION_ATTRIBUTE}]`) ?? [])]
+    .find((node) => node.dataset?.departmentId === selection) ?? null;
+  if (!choice) return false;
+  if (choice.getAttribute?.("aria-pressed") === "true") return true;
+  choice.click?.();
+  return true;
+}
+
+/**
  * Say the change once, in the one region the shipped document already carries.
  *
  * THE SINGLE-ANNOUNCEMENT INVARIANT IS STRUCTURAL, not a convention every caller

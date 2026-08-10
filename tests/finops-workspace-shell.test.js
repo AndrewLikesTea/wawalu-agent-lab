@@ -512,7 +512,10 @@ test("a record that failed its contract carries a labelled unavailable state, no
 
 test("the shipped page entry brings the shell up, before the rail is bound", async () => {
   const entry = await readFile(new URL("../src/evolution-page.js", import.meta.url), "utf8");
-  assert.match(entry, /import \{ initWorkspaceShell \} from "\/finops-workspace-shell\.js";/,
+  // The named import, not the whole clause: #1522 added `applyScreenRoute`
+  // beside it, and a check that pins the punctuation between two names fails on
+  // a second import of the same module rather than on the wiring going away.
+  assert.match(entry, /import \{[^}]*\binitWorkspaceShell\b[^}]*\} from "\/finops-workspace-shell\.js";/,
     "the shipped page entry does not load the shell");
   const shell = entry.indexOf("initWorkspaceShell(document");
   const rail = entry.indexOf("bindWorkspaceNav(document)");

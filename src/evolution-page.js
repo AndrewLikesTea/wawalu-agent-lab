@@ -431,6 +431,7 @@ import {
 // second list — but it is navigation rather than a recommendation, so it survives
 // the supersession that retires the ranking.
 import {
+  WORKSPACE_DESTINATION,
   applyWorkspaceNav, bindWorkspaceNav, supersedeWorkspaceNavRanking,
 } from "/finops-workspace-nav.js";
 // The question one level above the import panel: not "what did you read?" but
@@ -445,7 +446,12 @@ import { bindPortfolioSamples } from "/portfolio-comparability-view.js";
 // the adapter names it.
 import { evaluatePartialEvidence, partialEvidenceFromAnalysis } from "/partial-evidence.js";
 import { applyPartialEvidence, clearPartialEvidence } from "/partial-evidence-view.js";
-import { initWorkspaceShell } from "/finops-workspace-shell.js";
+import { applyScreenRoute, initWorkspaceShell } from "/finops-workspace-shell.js";
+// One URL per destination, and the department it was opened on (#1522). Parsing
+// and history live in the router; showing the destination and pressing the
+// selection live in the shell above. Nothing else on this page touches a History
+// for a destination change.
+import { createScreenRouter } from "/finops-destination-router.js";
 // What each region of this page is for, declared in reading order. It writes
 // attributes and no copy, so it cannot change what a reader sees today; what it
 // changes is that "headline or support?" has an answer in the repository.
@@ -889,6 +895,11 @@ let bundledEvaluationRecords = 0;
 // actually been painted — on a cold load the route is read before the seed
 // arrives, and a selection with nothing to select is a selection that is lost.
 let destinationRouting = null;
+// The destination router's handle (#1522), assigned during boot. Held for the
+// same reason as the line above and for one more: the ranked department controls
+// write their selection back through it, so the address bar states which
+// department is on screen rather than only which screen is.
+let screenRouter = null;
 // The import closure owns the imported half of the facts, so it publishes the
 // repaint the same way the bundled analysis does. Assigned in
 // `mountLocalFinopsImport`; a no-op until then.
@@ -4838,6 +4849,11 @@ function renderDecisionSurface(data, departments) {
       list.querySelectorAll("button").forEach((candidate) =>
         candidate.setAttribute("aria-pressed", String(candidate === button)));
       renderDecisionDetail(department, data);
+      // …and the address says which department is on screen (#1522). Written
+      // through the router rather than by hand, so the fragment, every foreign
+      // parameter and the front door's own route all survive it, and pressing
+      // the department already selected pushes no history entry.
+      screenRouter?.navigate({ slug: WORKSPACE_DESTINATION.department, selection: department.id });
     });
     item.append(button);
     list?.append(item);
@@ -5226,6 +5242,16 @@ async function init() {
   initWorkspaceShell(document, {
     win: window, loaded: destinations, history: window.history, location: window.location,
   });
+  // …and directly after it, the address (#1522). The shell resolves the fragment
+  // it owns; this resolves the whole route — destination plus the department it
+  // was opened on — and applies it on the cold load and on every history move.
+  // It switches the view in place: no reload, no re-fetch, and nothing of the
+  // retained workspace read or written, because a destination change is not a
+  // change to what this browser remembers.
+  screenRouter = createScreenRouter({
+    history: window.history, location: window.location, target: window,
+  });
+  screenRouter.subscribe((route) => applyScreenRoute(document, route));
   bindWorkspaceNav(document);
   const monthlyPreviewEntry = document.getElementById("monthly-review-preview-entry");
   monthlyPreviewEntry?.addEventListener("click", async () => {
@@ -5417,6 +5443,10 @@ async function init() {
     // The department controls exist now, so an address that named one is
     // honoured. Re-reads the URL and scrolls nothing.
     destinationRouting?.refresh();
+    // …and the same for the route (#1522), for the same reason: the ranked
+    // choices exist now, so a `?dept=` that arrived before them is pressed here
+    // rather than lost. Applying an already-applied route presses nothing.
+    if (screenRouter) applyScreenRoute(document, screenRouter.current());
     renderRedaction(data.redactionSamples);
 
     // Ready is the lifecycle; "are these numbers mine?" is the question. The
