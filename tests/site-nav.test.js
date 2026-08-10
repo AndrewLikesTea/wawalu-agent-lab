@@ -269,7 +269,13 @@ test("the profile page defines the selected name as a display name", async () =>
   const html = await readFile(pageUrl("profile.html"), "utf8");
   const role = html.match(/<p class="profile-role">([\s\S]*?)<\/p>/);
   assert.ok(role, "the profile page must state its role near its heading");
-  assert.match(role[1], /<span id="profile-role-name">Ari<\/span> is a display name/);
+  // It defines display names in general and names none of them. The selected
+  // name is established once above it, by the heading that opens the profile
+  // header this paragraph closes; it used to open on that name, which made it a
+  // third visible copy of something the reader had just been told twice.
+  assert.match(role[1], /^A display name in the Social feed is not a signed-in user/);
+  assert.equal(role[1].includes("Ari"), false, "the caveat restates the selected display name");
+  assert.doesNotMatch(html, /id="profile-role-name"/, "the caveat still holds a slot for the name");
   // One term, and "persona" is not it. This sentence used to say "demo
   // persona" while the intro, the label, and the hint said "display name",
   // which left a reader with two words for the one thing the picker selects.
@@ -305,8 +311,8 @@ test("the profile page defines the selected name as a display name", async () =>
 
   // A reader who clicked "People" arrives at a heading that says People, so the
   // link and the page agree on one name for this surface. The selected person is
-  // a filter on it, not its name, so the name renders in the identity line under
-  // the description — still present, still the pre-hydration default.
+  // a filter on it, not its name, so the name renders in the profile header that
+  // opens the results — still present, still the pre-hydration default.
   assert.match(html, /<h1 id="page-title">People<\/h1>/);
   assert.match(html, /<p class="profile-active-filter" id="profile-name">Active display-name filter: Ari<\/p>/);
 });

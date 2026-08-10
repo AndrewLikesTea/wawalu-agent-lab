@@ -12,7 +12,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { loadPage, textOf, tabSequence, pressKey } from "./support/browser.js";
+import { loadPage, textOf, tabSequence, pressKey, pressTab } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
 
 const PAGE_URL = new URL("../src/profile.html", import.meta.url);
@@ -151,8 +151,10 @@ test("a first-time visitor lands on a display name that has image posts", async 
     assert.equal(textOf(document.querySelector("#profile-name")), "Active display-name filter: Zed",
       "the header names someone other than the picker's own value");
     assert.match(textOf(document.querySelector(".profile-role")),
-      /^Zed is a display name[\s\S]*anyone can publish under any name\.$/,
-      "the display-name sentence does not follow the selected name");
+      /^A display name in the Social feed is not a signed-in user[\s\S]*anyone can publish under any name\.$/,
+      "the display-name caveat is not the general one");
+    assert.equal(textOf(document.querySelector(".profile-role")).includes("Zed"), false,
+      "the caveat spends a third visible copy of the display name");
     // The scope is the intro's to state, once, and it is the intro that carries
     // the link. This paragraph and the eyebrow over the grid both used to
     // restate the rule in their own words.
@@ -374,9 +376,13 @@ test("an empty display name is named in prose once and counted once", async () =
     const { document } = page;
     assert.equal(selectedChip(page)?.dataset.author, "Nova");
     const spoken = spokenRegions(document);
-    const statements = spoken.flatMap((text) => text.match(/hasn’t posted an image yet|\d+ image posts?/g) ?? []);
-    assert.deepEqual(statements, ["hasn’t posted an image yet", "0 image posts"],
+    const statements = spoken.flatMap((text) => text.match(/No image posts under this display name yet|\d+ image posts?/g) ?? []);
+    assert.deepEqual(statements, ["0 image posts", "No image posts under this display name yet"],
       `the page states the same thing twice: ${statements.join(" / ")}`);
+    // The named wording survives in the polite announcement only, which has no
+    // page around it to borrow a subject from.
+    assert.equal(spoken.filter((text) => text.includes("hasn’t posted an image yet")).length, 0);
+    assert.match(textOf(document.querySelector("#profile-announcer")), /^Nova hasn’t posted an image yet\./);
     // An answered zero, in the same words a populated name gets, and it is the
     // heading that carries it: a reader entering the results region is told
     // whose posts are missing rather than that some feature is empty.
@@ -416,13 +422,16 @@ test("a display name that is markup is rendered as text and forges no second rou
   const page = await people({ search: `?author=${encodeURIComponent(DECOY_NAME)}` });
   try {
     const { document } = page;
-    // Whole and literal in the prose and in the results heading: parsed markup
-    // would have left only the anchor's own text behind.
-    assert.equal(textOf(document.querySelector("#profile-role-name")), DECOY_NAME);
+    // Whole and literal in the results heading and in the active-filter chip —
+    // the two visible elements this region spends on the display name, and both
+    // of the places the name still lands as text. Parsed markup would have left
+    // only the anchor's own text behind.
     assert.equal(resultsHeading(document), `${DECOY_NAME} · 0 image posts`);
-    // The paragraph the name is written into holds no link at all, so a forged
-    // one would be the only anchor in it. The page's one route to Social is the
-    // intro's, above it, and the name never reaches that sentence.
+    assert.equal(textOf(document.querySelector("#profile-name")), `Active display-name filter: ${DECOY_NAME}`);
+    // The header block the name is written into holds no link at all, so a
+    // forged one would be the only anchor in it. The page's one route to Social
+    // is the intro's, above it, and the name never reaches that sentence.
+    assert.equal(document.querySelector(".profile-identity").querySelectorAll("a").length, 0);
     assert.equal(document.querySelector(".profile-role").querySelectorAll("a").length, 0);
     const routes = document.querySelector(".profile-lede").querySelectorAll("a");
     assert.equal(routes.length, 1);
@@ -456,8 +465,7 @@ test("choosing another name updates the page in place and keeps the URL and stor
       // chips were rebuilt around it.
       assert.equal(document.activeElement?.dataset.author, "Bea");
       assert.equal(textOf(document.querySelector("#profile-name")), "Active display-name filter: Bea");
-      assert.match(textOf(document.querySelector(".profile-role")),
-        /^Bea is a display name[\s\S]*anyone can publish under any name\.$/);
+      assert.equal(textOf(document.querySelector(".profile-role")).includes("Bea"), false);
       assert.match(textOf(document.querySelector("#profile-summary")), /^1 image post /);
       assert.equal(document.querySelectorAll(".profile-tile").length, 1);
       assert.equal(page.navigations.length, 0);
@@ -551,6 +559,198 @@ test("a feed with no image posts at all still lands on the empty state", async (
     assert.match(textOf(document.querySelector("#profile-summary")), /^0 image posts · 1 post in total · last posted /);
   } finally {
     globalThis.setInterval = savedInterval;
+    page.restore();
+  }
+});
+
+/* --------------------------- one profile header --------------------------- */
+
+// The reported defect, in DOM order: picker, initials blob, active-filter line,
+// counts line, display-name paragraph, ordering label, and only then the heading
+// that names what any of it is. The name arrived four times and the heading last,
+// after the label that orders the list it heads.
+
+// An element's own text, not its descendants'. textOf() reads a whole subtree, so
+// counting "elements that carry the name" with it would count every ancestor of
+// the one that actually prints it.
+const ownText = (node) => node.children.filter((child) => child.nodeType === 3).map((child) => child.data).join("");
+
+// Is this element, or anything above it, offscreen-only? The polite announcer is
+// allowed to restate the name; it is not a visible copy of it.
+function hidden(node) {
+  for (let walk = node; walk; walk = walk.parentNode) {
+    if (walk.classList?.contains("visually-hidden")) return true;
+    if (walk.getAttribute?.("aria-hidden") === "true") return true;
+  }
+  return false;
+}
+
+// Every visible element in the results region that prints the display name in
+// its own text. The grid is skipped: a tile's caption is the post's words, and
+// in this feed a post's body legitimately contains the name that published it —
+// that is content, not the page telling a reader the same thing again.
+function nameCarriers(document, name) {
+  const grid = document.querySelector("#profile-grid");
+  const found = [];
+  const visit = (node) => {
+    for (const child of node.children) {
+      if (child.nodeType !== 1 || child === grid) continue;
+      if (!hidden(child) && ownText(child).includes(name)) found.push(child);
+      visit(child);
+    }
+  };
+  visit(document.querySelector(".list-panel"));
+  return found;
+}
+
+const headingsIn = (node) => {
+  const found = [];
+  const visit = (current) => {
+    for (const child of current.children) {
+      if (child.nodeType !== 1) continue;
+      if (/^H[1-6]$/.test(child.tagName)) found.push(child);
+      visit(child);
+    }
+  };
+  visit(node);
+  return found;
+};
+
+test("one profile header opens the results, above the line that orders them", async () => {
+  const page = await people();
+  try {
+    const { document } = page;
+    const order = documentOrder(document);
+    const at = (selector) => order.indexOf(document.querySelector(selector));
+
+    // Reading order, top to bottom: intro, picker, profile header, ordering
+    // label, posts. The heading used to be the last of those.
+    assert.ok(at(".profile-lede") < at("#profile-author"), "the intro no longer opens the page");
+    assert.ok(at("#profile-author") < at("#grid-title"), "the heading is read before the picker that fills it");
+    assert.ok(at("#grid-title") < at("#profile-order"), "the ordering label still precedes the heading it orders under");
+    assert.ok(at("#profile-order") < order.indexOf(document.querySelectorAll(".profile-tile")[0]),
+      "the ordering label is read after the posts it orders");
+
+    // One block, not four fragments: the initials, the heading, and the caveat
+    // are children of the same container, and that container opens the panel.
+    const header = document.querySelector(".profile-identity");
+    const panel = document.querySelector(".list-panel");
+    assert.equal(panel.childElements[0], header, "something else opens the results region");
+    assert.equal(document.querySelector("#profile-avatar").parentNode, header);
+    assert.equal(document.querySelector("#grid-title").parentNode.parentNode, header);
+    assert.equal(document.querySelector(".profile-role").parentNode.parentNode, header);
+    // And the hero it came from keeps no piece of it behind.
+    const hero = document.querySelector(".hero-profile");
+    assert.equal(hero.querySelectorAll(".profile-identity").length, 0);
+    assert.equal(hero.querySelectorAll(".profile-role").length, 0);
+
+    // The initials are decoration: announced, "AR" is a word, and the name is
+    // already the heading's. This survives a picker change, because the module
+    // rewrites the element on every render.
+    const initials = document.querySelector("#profile-avatar");
+    assert.equal(initials.getAttribute("aria-hidden"), "true");
+    assert.equal(textOf(initials), "ZE");
+    chipFor(page, "Bea").click();
+    assert.equal(textOf(initials), "BE");
+    assert.equal(initials.getAttribute("aria-hidden"), "true", "a re-render dropped the avatar's aria-hidden");
+  } finally {
+    page.restore();
+  }
+});
+
+test("one section-level heading opens the results region, and it names the display name", async () => {
+  const page = await people();
+  try {
+    const { document } = page;
+    const headings = headingsIn(document.querySelector(".list-panel"));
+    assert.deepEqual(headings.map((heading) => heading.getAttribute("id")), ["grid-title"],
+      `the results region opens with ${headings.length} headings`);
+    assert.equal(headings[0].tagName, "H2");
+    // It is the section's accessible name too, so the region a reader enters is
+    // named by the same words the header shows them.
+    assert.equal(document.querySelector(".workspace").getAttribute("aria-labelledby"), "grid-title");
+    assert.equal(resultsHeading(document), "Zed · 2 image posts");
+    // The ordering label is a label, not a second heading over the same list.
+    assert.equal(document.querySelector("#profile-order").tagName, "P");
+  } finally {
+    page.restore();
+  }
+});
+
+test("the display name is visible twice in the results region, and no more", async () => {
+  const page = await people();
+  try {
+    const { document } = page;
+    for (const name of ["Zed", "Bea", "Ari"]) {
+      chipFor(page, name).click();
+      const carriers = nameCarriers(document, name).map((node) => node.getAttribute("id") ?? node.className);
+      assert.deepEqual(carriers, ["grid-title", "profile-name"],
+        `${name} is printed by ${carriers.length} visible elements: ${carriers.join(" / ")}`);
+    }
+    // The two that are left say different things about the same name: what the
+    // results are, and which picker entry chose them.
+    assert.equal(resultsHeading(document), "Ari · 0 image posts");
+    assert.equal(textOf(document.querySelector("#profile-name")), "Active display-name filter: Ari");
+    // The lines that gave up their copy still say their own thing: Ari has
+    // posted, just never a picture, and the counts carry that without a name.
+    assert.match(textOf(document.querySelector("#profile-summary")), /^0 image posts · 1 post in total · last posted /);
+    assert.match(textOf(document.querySelector(".profile-role")), /^A display name in the Social feed/);
+    // The announcement keeps the name, because it is heard away from the page.
+    assert.match(textOf(document.querySelector("#profile-announcer")), /Ari/);
+  } finally {
+    page.restore();
+  }
+});
+
+test("the line that orders the posts is tied to the list it orders", async () => {
+  const page = await people();
+  try {
+    const { document } = page;
+    const grid = document.querySelector("#profile-grid");
+    const label = document.querySelector("#profile-order");
+    // The ordering is a static statement rather than a control, so the reference
+    // runs from the list to the label: a reader entering the list is told how it
+    // is sorted, and the page grows no tab stop to carry the fact.
+    assert.equal(grid.getAttribute("aria-describedby"), "profile-order");
+    assert.equal(document.querySelectorAll("#profile-order").length, 1, "the description resolves to no element or to two");
+    assert.equal(textOf(label), "Newest first");
+    assert.equal(tabSequence(document).includes(label), false, "the ordering label became a tab stop");
+  } finally {
+    page.restore();
+  }
+});
+
+test("tabbing from the top reaches the picker, then the posts under the header", async () => {
+  const page = await people();
+  try {
+    const { document } = page;
+    // Walked, not read off the markup: every stop is a real focus move made by
+    // the page harness that boots the shipped markup with the shipped module.
+    document.querySelector(".profile-lede").querySelectorAll("a")[0].focus();
+    const walked = [];
+    for (let step = 0; step < 5; step += 1) walked.push(pressTab(document));
+    assert.deepEqual(walked.slice(0, 3).map((node) => node.dataset?.author), ["Ari", "Bea", "Zed"],
+      "the display-name picker is not the first thing a keyboard reaches in main");
+    // Then the panel's own route into Paint, then the first post. The ordering
+    // label sits between the picker and these, and takes no stop of its own —
+    // nothing focusable was added above the results to carry it.
+    assert.equal(walked[3].getAttribute("id"), "profile-paint-route");
+    assert.equal(walked[4].classList.contains("profile-tile"), true, "the fifth stop is not the first post");
+
+    // And the visual order the tab order is supposed to match: every one of
+    // those stops comes after the heading, and the posts come after the label.
+    const order = documentOrder(document);
+    const at = (node) => order.indexOf(node);
+    assert.ok(at(document.querySelector("#profile-author")) < at(document.querySelector("#grid-title")));
+    assert.ok(at(document.querySelector("#grid-title")) < at(document.querySelector("#profile-order")));
+    assert.ok(at(document.querySelector("#profile-order")) < at(walked[4]));
+    // No new focusable above the results region: the intro's link to Social and
+    // the picker are still the whole of it.
+    const inMain = tabSequence(document).filter((element) => element.closest("#main-content"));
+    const beforePanel = inMain.filter((element) => !element.closest(".list-panel"));
+    assert.deepEqual(beforePanel.map((element) => element.dataset?.author ?? element.getAttribute("href")),
+      ["/social.html", "Ari", "Bea", "Zed"]);
+  } finally {
     page.restore();
   }
 });
