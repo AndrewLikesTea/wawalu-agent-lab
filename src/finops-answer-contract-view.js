@@ -117,6 +117,55 @@ const named = (ids) => (ids?.length ? ids.join(", ") : "none");
 
 const filled = (value) => typeof value === "string" && value.trim().length > 0;
 
+/** The four slots the ONE recoverable figure is read in (#1496). */
+export const RECOVERABLE_SPEND_IDS = Object.freeze({
+  figure: "finops-recoverable-figure",
+  label: "finops-recoverable-label",
+  value: "finops-recoverable-value",
+  basis: "finops-recoverable-basis",
+  detail: "finops-recoverable-basis-detail",
+});
+
+export const RECOVERABLE_SPEND_LABEL = "Recoverable AI spend per month";
+
+/**
+ * Paint the page's one recoverable-spend figure (#1496).
+ *
+ * ONE HEADLINE, ONE BASIS. The headline slot takes the MEASURED figure — the
+ * monthly sum over scored departments — and the annual projection is stated in
+ * the sentence under it, as a relationship to that headline rather than as a
+ * second number competing with it. Both come out of one `getRecoverableSpend`
+ * record, so the page cannot state two recoverable figures again.
+ *
+ * NO SECOND CONFIDENCE SCALE. The region's existing grade chip and hedge
+ * sentence still own "how sure are we?"; the scored-department counts here are
+ * scope, and they ride the figure as text and as attributes rather than as
+ * another graded claim.
+ *
+ * @param doc the document holding the answer region.
+ * @param recoverable a `finops-recoverable-spend/1.0.0` record, or null when
+ *   the bundled analysis did not load.
+ * @returns the figure paragraph, or null when the page carries no such region.
+ */
+export function renderRecoverableSpend(doc, recoverable) {
+  const figure = doc.getElementById(RECOVERABLE_SPEND_IDS.figure);
+  if (!figure) return null;
+  const stated = Number.isFinite(recoverable?.monthly);
+  figure.dataset.available = stated ? "true" : "false";
+  figure.dataset.basis = recoverable?.basis ?? "none";
+  figure.dataset.scoredDepartments = String(recoverable?.scoredDepartments ?? 0);
+  figure.dataset.totalDepartments = String(recoverable?.totalDepartments ?? 0);
+  set(doc, RECOVERABLE_SPEND_IDS.label, RECOVERABLE_SPEND_LABEL);
+  set(doc, RECOVERABLE_SPEND_IDS.value,
+    stated ? recoverable.monthlyDisplay : "Not stated");
+  const basis = recoverable
+    ? recoverable.basisSentence
+    : `${ERROR_SENTENCE} No recoverable figure is stated for it.`;
+  set(doc, RECOVERABLE_SPEND_IDS.basis, basis);
+  set(doc, RECOVERABLE_SPEND_IDS.detail, basis);
+  return figure;
+}
+
 /**
  * Display-only bounds on the figure the contract published.
  *

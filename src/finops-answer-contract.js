@@ -252,6 +252,151 @@ export function resolveFinopsAnswer(signals) {
   });
 }
 
+// ---------------------------------------------------------------------------
+// THE ONE RECOVERABLE-SPEND FIGURE (#1496)
+//
+// /evolution.html carried two of them. The answer region at the top stated
+// $62,400 a year, annualised from a single modelled destination move worth
+// $5,200 a month; the analysis region below stated $51,254 for the month,
+// summed per department by the recoverability rule. Two numbers, two bases, one
+// page, and no way for a reader to tell which one is the answer — so neither
+// was one.
+//
+// THE MONTHLY FIGURE IS THE BASIS OF RECORD, because it is the one derived from
+// real per-department data. The annual figure is a PROJECTION of it and is
+// computed here, from it, every time. There is deliberately no annual constant
+// left to drift: the $62,400 did not equal 51,254 x 12, and a figure that
+// cannot be reproduced from the departments is deleted rather than reconciled
+// toward.
+//
+// SCORED DEPARTMENTS ONLY. A department counts when the current dataset carries
+// a completed FinOps score for it — a finite, non-negative recoverable line
+// under the recoverability rule. A department without one contributes zero and
+// is counted in neither numerator nor denominator; nothing is ever extrapolated
+// from the scored departments to the unscored ones. The two counts travel with
+// the figure so the scope is legible without opening anything.
+// ---------------------------------------------------------------------------
+
+export const RECOVERABLE_SPEND_CONTRACT = "finops-recoverable-spend/1.0.0";
+
+/** The projection factor, written once. No seasonality, no growth adjustment. */
+export const MONTHS_PER_YEAR = 12;
+
+export const RECOVERABLE_SPEND_RULE =
+  "Recoverable spend is the sum, over departments carrying a completed FinOps score in the "
+  + "current dataset, of that department's identified recoverable spend for the most recent "
+  + "complete month. Unscored departments contribute zero and are excluded from the count. The "
+  + "annual figure is that monthly figure multiplied by 12, rounded once to whole dollars, with "
+  + "no seasonality or growth adjustment.";
+
+/** Whole dollars, grouped. Hand-rolled because `Intl` is locale-dependent and
+ *  this module must give two machines the same string. */
+function usdWhole(value) {
+  const whole = String(Math.abs(roundHalfUp(value)));
+  let grouped = "";
+  for (let index = 0; index < whole.length; index += 1) {
+    if (index > 0 && (whole.length - index) % 3 === 0) grouped += ",";
+    grouped += whole[index];
+  }
+  return `${value < 0 ? "-$" : "$"}${grouped}`;
+}
+
+/** Every department the dataset published, scored or not. */
+const departmentRows = (dataset) => (Array.isArray(dataset)
+  ? dataset
+  : list(dataset?.rankedDepartments ?? dataset?.departments)).filter(isRecord);
+
+/** A completed FinOps score: a finite, non-negative recoverable line. A row
+ *  that opts out with `scored: false` is honoured even when it carries one. */
+const isScored = (row) => row.scored !== false
+  && Number.isFinite(row.recoverableUsd) && row.recoverableUsd >= 0;
+
+/** The level, off the analysis's EXISTING confidence signal — a 0–100 evidence
+ *  value read through `confidenceLevel`, or a level word the analysis already
+ *  publishes. No second scale is invented here. */
+function recoverableConfidenceLevel(dataset) {
+  const raw = dataset?.confidence;
+  const value = isRecord(raw) ? raw.value : raw;
+  if (Number.isFinite(value)) return confidenceLevel(value);
+  const word = filled(value) ? value.trim().toLowerCase() : null;
+  return word === "high" || word === "medium" || word === "low" ? word : null;
+}
+
+/**
+ * The canonical recoverable-spend figure, and everything needed to read it.
+ *
+ * One accessor, so divergence is structurally impossible: both regions of
+ * /evolution.html paint from this object, and nothing else on the page derives
+ * a recoverable figure of its own.
+ *
+ * @param dataset the analysis envelope — `{ rankedDepartments, period,
+ *   confidence }` — or the department rows on their own.
+ * @returns a frozen record. `monthly` and `annualised` are null together when
+ *   no department carries a completed score; the sentences say why.
+ */
+export function getRecoverableSpend(dataset) {
+  const rows = departmentRows(dataset);
+  const scored = rows.filter(isScored);
+  const totalDepartments = rows.length;
+  const scoredDepartments = scored.length;
+  const periodLabel = filled(dataset?.period) ? dataset.period.trim()
+    : (filled(dataset?.period?.label) ? dataset.period.label.trim() : null);
+  const window = periodLabel ? ` for ${periodLabel}` : "";
+  const coverage = `${scoredDepartments} of ${totalDepartments} `
+    + `${totalDepartments === 1 ? "department" : "departments"}`;
+  const level = recoverableConfidenceLevel(dataset);
+  const partial = scoredDepartments < totalDepartments;
+  const grade = level ? `Confidence: ${level}` : "Confidence: not graded";
+
+  if (!scoredDepartments) {
+    return Object.freeze({
+      contract: RECOVERABLE_SPEND_CONTRACT, basis: "monthly",
+      monthly: null, annualised: null, monthlyDisplay: null, annualisedDisplay: null,
+      scoredDepartments, totalDepartments, periodLabel,
+      headline: "No recoverable figure is stated",
+      scopeSentence: `No department in this dataset carries a completed FinOps score${window}, `
+        + "so there is nothing to sum and nothing is projected from the unscored ones.",
+      projectionSentence: "",
+      basisSentence: `No department in this dataset carries a completed FinOps score${window}, `
+        + "so there is nothing to sum and nothing is projected from the unscored ones.",
+      confidence: Object.freeze({
+        level, partialCoverage: partial,
+        sentence: `${grade} — nothing is scored yet, so no recoverable figure is claimed.`,
+      }),
+    });
+  }
+
+  const monthly = roundHalfUp(scored.reduce((sum, row) => sum + row.recoverableUsd, 0));
+  const annualised = roundHalfUp(monthly * MONTHS_PER_YEAR);
+  const monthlyDisplay = usdWhole(monthly);
+  const annualisedDisplay = usdWhole(annualised);
+  // Partial coverage is said in the SCOPE sentence, not in a second confidence
+  // grade: the region already carries one graded claim about this figure, and a
+  // second scale beside it would be two answers to "how sure are we?" again.
+  const scopeSentence = `Summed over the ${coverage} carrying a completed FinOps score`
+    + `${window}. Unscored departments contribute zero and are never extrapolated to`
+    + `${partial ? ", so this is a floor for the organization rather than its total" : ""}.`;
+  const projectionSentence = `About ${annualisedDisplay} a year if this month holds — the monthly `
+    + "figure multiplied by 12, with no seasonality or growth adjustment.";
+
+  return Object.freeze({
+    contract: RECOVERABLE_SPEND_CONTRACT, basis: "monthly",
+    monthly, annualised, monthlyDisplay, annualisedDisplay,
+    scoredDepartments, totalDepartments, periodLabel,
+    headline: `${monthlyDisplay} recoverable per month`,
+    scopeSentence, projectionSentence,
+    basisSentence: `${scopeSentence} ${projectionSentence}`,
+    confidence: Object.freeze({
+      level, partialCoverage: partial,
+      sentence: partial
+        ? `${grade}, over scored spend only — ${coverage} carry a completed score, so this is a `
+          + "floor for the organization rather than its total."
+        : `${grade} — every department in this dataset carries a completed score, so nothing`
+          + " here is extrapolated.",
+    }),
+  });
+}
+
 /**
  * The page's existing bundled analysis, read as this contract's signal set.
  *

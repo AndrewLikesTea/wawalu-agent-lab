@@ -4,9 +4,9 @@
 // THE DEFECT THIS CLOSES. Since #1263 a FinOps lead may declare their own rate
 // card, and since #1274 the recoverable headline, the ranked actions and the
 // commitments are all repriced against it. Every one of those numbers therefore
-// moves with a figure the reader typed. An evaluator looking at $62,400 cannot
-// tell a contracted price from a hopeful one, and the existing surfaces do not
-// help: the #1262 ladder grades WHICH INPUTS ARE DECLARED and #1186 grades the
+// moves with a figure the reader typed. An evaluator looking at the recoverable
+// headline cannot tell a contracted price from a hopeful one, and the existing
+// surfaces do not help: the #1262 ladder grades WHICH INPUTS ARE DECLARED and #1186 grades the
 // SHARE OF SPEND SCORED. Neither grades where the prices came from.
 //
 // ---------------------------------------------------------------------------

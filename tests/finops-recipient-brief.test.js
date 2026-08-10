@@ -224,7 +224,7 @@ test("no payload leaves the normal answer region exactly as the page ships it", 
   assert.equal(read.reason, "no_shared_briefing");
 
   // Markers of the NORMAL region, not the absence of the recipient one.
-  assert.equal(textOf(byId(document, RECIPIENT_BRIEF_IDS.value)), "$62,400");
+  assert.equal(textOf(byId(document, RECIPIENT_BRIEF_IDS.value)), "$51,254");
   assert.equal(textOf(byId(document, RECIPIENT_BRIEF_IDS.marker)), "Illustrative");
   assert.match(textOf(partBody(document, "Provenance")), /bundled synthetic example/);
   assert.equal(byId(document, RECIPIENT_BRIEF_IDS.action).hidden, false);
@@ -244,7 +244,7 @@ test("a refused payload states why and leaves the normal region functional", () 
   // A paragraph in the open, above the region, and never a folded-away one.
   assert.equal(within(notice, byId(document, RECIPIENT_BRIEF_IDS.region)), false);
 
-  assert.equal(textOf(byId(document, RECIPIENT_BRIEF_IDS.value)), "$62,400");
+  assert.equal(textOf(byId(document, RECIPIENT_BRIEF_IDS.value)), "$51,254");
   assert.equal(textOf(byId(document, RECIPIENT_BRIEF_IDS.marker)), "Illustrative");
   assert.equal(byId(document, RECIPIENT_BRIEF_IDS.region).dataset.sharedBrief, undefined);
 
@@ -266,7 +266,7 @@ test("a brief refused by the shared validation paints no part of itself", () => 
   assert.equal(read.ok, false);
   assert.equal(read.reason, "missing_limits_disclosures");
 
-  assert.equal(textOf(byId(document, RECIPIENT_BRIEF_IDS.value)), "$62,400");
+  assert.equal(textOf(byId(document, RECIPIENT_BRIEF_IDS.value)), "$51,254");
   assert.equal(byId(document, RECIPIENT_BRIEF_IDS.region).dataset.sharedBrief, undefined);
   assert.equal(document.querySelectorAll(`#${RECIPIENT_BRIEF_IDS.origin}`).length, 0);
 });

@@ -262,8 +262,10 @@ import { renderAnalysisReadiness } from "/finops-analysis-readiness-view.js";
 // recommended actions' monthly savings, annualises them, checks them against the
 // benchmark, the stated percentage and the readiness state, and withholds a
 // figure entirely rather than publishing one a leader could not trace.
-import { finopsAnswerSignals, resolveFinopsAnswer } from "/finops-answer-contract.js";
-import { renderFinopsAnswer } from "/finops-answer-contract-view.js";
+import {
+  finopsAnswerSignals, getRecoverableSpend, resolveFinopsAnswer,
+} from "/finops-answer-contract.js";
+import { renderFinopsAnswer, renderRecoverableSpend } from "/finops-answer-contract-view.js";
 // Whether the letter may be shown at all is decided before it is drawn: the
 // score card is a roll-up of only the departments the rubric actually scored.
 import { CLAMPED_REASON, gradeEligibility } from "/grade-eligibility.js";
@@ -5088,6 +5090,13 @@ async function init() {
   // first, so they are operable in the unavailable state too.
   bindFirstRunActions(document);
   applyFirstRunResult(document, buildFirstRunResult());
+  // THE SAME RECOVERABLE FIGURE THE REGION ABOVE STATES (#1496). One accessor,
+  // over the same bundled dataset the brief just painted from, so the answer at
+  // the top of the page and the analysis under it cannot state two different
+  // recoverable numbers again. Painted after the brief for the same reason the
+  // corrections table is: the figure below is on screen before the one that
+  // summarises it moves.
+  renderRecoverableSpend(document, getRecoverableSpend(loadExampleDataset()));
   // After the result, so the correction table is built over the same figures the
   // reader has just been shown rather than over a half-painted region.
   mountFigureCorrections(document);
