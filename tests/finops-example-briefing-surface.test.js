@@ -75,7 +75,17 @@ test("the note beside the hand-off is not a fourth upload promise", async () => 
   // The two analysis choices keep their own note class and their own count: the
   // no-upload promise still sits once, beside the choice that reads a file.
   assert.equal(document.querySelectorAll(".first-run-action-note").length, 2);
-  assert.equal(document.querySelectorAll(".first-run-handoff-note").length, 1);
+  // TWO notes in the hand-off block since #1525, and the count is not the claim
+  // this test is making. The claim is that exactly ONE of them makes a promise
+  // about a reader's data: the second is the forwardable destination address,
+  // which says nothing about uploads and must not grow into a fourth copy of
+  // the promise. Asserted on the wording rather than on the tally, because a
+  // tally would have hidden a real fourth promise behind the same number.
+  const notes = [...document.querySelectorAll(".first-run-handoff-note")];
+  assert.equal(notes.length, 2);
+  const promises = notes.filter((note) => /uploaded|your spend/i.test(textOf(note)));
+  assert.equal(promises.length, 1,
+    "the hand-off block states the no-upload promise more than once");
 });
 
 /* --------------------------- the CTA, once booted -------------------------- */
