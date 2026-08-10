@@ -145,6 +145,12 @@ function paintRetained(doc, outcome) {
     ? retainedProvenanceLine(outcome.payload)
     : (reason === RETAINED_REASON.unretained ? "" : outcome?.message ?? "");
   line.dataset.state = reason;
+  // The LIVE region this retained state explains, already carried through the
+  // retirement table by the store (#1500). An entry written before the
+  // consolidation named a region this page deleted; stamping what it resolved
+  // to is what keeps a restored provenance line attached to the figure it is
+  // about instead of to nothing.
+  if (outcome?.payload?.region) line.dataset.region = outcome.payload.region;
   line.textContent = text;
   line.hidden = text === "";
   const reset = byId(doc, RETAINED_STATE_IDS.reset);

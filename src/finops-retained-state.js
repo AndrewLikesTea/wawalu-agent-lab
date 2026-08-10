@@ -26,21 +26,30 @@
 // degrade to the baseline with a reason. No fetch, no DOM, no clock unless one
 // is passed in.
 //
-// WHAT MAY BE RETAINED IS CLOSED. Five declared-rate fields and a coverage ratio
-// with the department ids it was taken over. Intake already refuses
-// credential-shaped and contact-shaped text, and the validator below rebuilds a
-// record from the five known fields rather than keeping what it was handed.
+// WHAT MAY BE RETAINED IS CLOSED. Five declared-rate fields, a coverage ratio
+// with the department ids it was taken over, and the id of the region these
+// figures are stated against. Intake already refuses credential-shaped and
+// contact-shaped text, and the validator below rebuilds a record from the known
+// fields rather than keeping what it was handed.
+//
+// THE REGION IS RESOLVED, NEVER TRUSTED (#1500). An entry written before the
+// consolidation names a region this page deleted. That is not a corruption and
+// it is not a reason to discard a reader's declared rates: the id is carried
+// through the retirement table to whatever survived it, an id nobody retired is
+// kept as it is, and anything else lands on the canonical answer region. No
+// value of this field can refuse a payload.
 
 import {
   DECLARED_RATE_UNITS, RATE_MAX,
 } from "./finops-declared-rate-contract.js";
 import { isCalendarDate } from "./finops-rate-card-contract.js";
+import { resolveRetiredRegionId } from "./finops-spine.js";
 
 /** One key, stable across versions. The payload states which version it is. */
 export const RETAINED_STATE_KEY = "shiplog.finops.retained-state";
 
 /** The shape this build writes. Bump with a migration, never on its own. */
-export const RETAINED_STATE_VERSION = 2;
+export const RETAINED_STATE_VERSION = 3;
 
 /** Bounds, so a tampered or runaway entry cannot become a render cost. */
 export const RETAINED_LIMITS = Object.freeze({
@@ -144,8 +153,28 @@ function upgrade_1_to_2(payload) {
  * version has an entry; a version with none is `incomplete_migration`, which is
  * a refusal and not a fallback.
  */
+/**
+ * 2 → 3.
+ *
+ * Version 2 said which rates and which coverage; it did not say which region of
+ * the page they explain. Version 3 does, because the consolidation moved the
+ * answer they are stated against and an entry that names no region cannot be
+ * told from one that names a region that is gone.
+ *
+ * A v2 entry may still carry a `region` key — the shape predates the field
+ * being declared, and a reader's browser is not a place this build controls. So
+ * it is READ IF PRESENT and put through the retirement table, which is what
+ * turns a pre-consolidation target into the live one that took its content. An
+ * entry with no region resolves to the canonical answer region. Nothing here
+ * invents a region from today's page: the table is the only thing consulted.
+ */
+function upgrade_2_to_3(payload) {
+  return { ...payload, version: 3, region: resolveRetiredRegionId(payload.region) };
+}
+
 export const RETAINED_STATE_MIGRATIONS = Object.freeze({
   1: upgrade_1_to_2,
+  2: upgrade_2_to_3,
 });
 
 /**
@@ -245,6 +274,9 @@ export function validateRetainedPayload(value) {
     capturedAt,
     declaredRates: Object.freeze(declaredRates),
     scoredCoverage,
+    // Resolved, not validated: there is no value of this field that may cost a
+    // reader the rates above it, so it has no refusal branch at all.
+    region: resolveRetiredRegionId(value.region),
   });
 }
 
@@ -295,7 +327,7 @@ export function loadRetainedState({ storage = browserRetainedStorage() } = {}) {
  * @returns the same outcome shape the load returns, so a caller renders one way.
  */
 export function saveRetainedState({
-  declaredRates = [], scoredCoverage = null, capturedAt = new Date(),
+  declaredRates = [], scoredCoverage = null, capturedAt = new Date(), region = null,
   storage = browserRetainedStorage(),
 } = {}) {
   const stamp = capturedAt instanceof Date ? capturedAt.toISOString() : capturedAt;
@@ -304,6 +336,7 @@ export function saveRetainedState({
     capturedAt: stamp,
     declaredRates,
     scoredCoverage: scoredCoverage ?? { coverage: null, departmentIds: [] },
+    region,
   });
   if (!payload) {
     return baseline(Array.isArray(declaredRates) && declaredRates.length === 0

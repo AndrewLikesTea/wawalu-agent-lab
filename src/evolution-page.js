@@ -448,7 +448,7 @@ import { initWorkspaceShell } from "/finops-workspace-shell.js";
 import { applyAnswerSpine } from "/finops/answer-spine-view.js";
 // The answer spine itself — one question, one metric, one action, one artifact,
 // and the classification of every other top-level region as evidence or gone.
-import { applyFinopsSpine } from "/finops-spine.js";
+import { applyFinopsSpine, resolveRegionTargetId } from "/finops-spine.js";
 // The page's one announcer, and the list of regions that had to stop echoing it.
 import {
   announceAnswer, importFailureAnnouncement, silenceEchoedRegions,
@@ -5064,7 +5064,11 @@ async function init() {
   // same bundled verdict the build seeds the served document with, so this repaints
   // what the document already says rather than changing it.
   applyPricingProvenance(document);
-  installDeepLinkDisclosure(document, window);
+  // WITH THIS PAGE'S RETIREMENT TABLE (#1500). A share link or a reload carrying
+  // a target the consolidation deleted resolved to nothing and left the reader at
+  // the top of the document; the resolver is asked only about ids this document
+  // does not have, so no working fragment changes where it lands.
+  installDeepLinkDisclosure(document, window, { resolve: resolveRegionTargetId });
   // Directly after the disclosure opener, because an in-page destination lands
   // on a fragment and needs that machinery to have run. A route that names
   // nothing leaves the page exactly as it was.

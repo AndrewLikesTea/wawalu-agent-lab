@@ -83,11 +83,26 @@ function openDisclosure(details) {
  * the DOM afterwards. A missing target returns null; that is not a failure,
  * because a page legitimately ships fragments for panels that are not on screen
  * in every state.
+ *
+ * `resolve` is how a page says where its own retired targets went. It is only
+ * ever asked about an id THIS DOCUMENT DOES NOT HAVE, so a working fragment is
+ * never rerouted, and a caller that passes none — every page but /evolution.html
+ * — behaves exactly as it did before the option existed. This module knows no
+ * page's ids and will not learn any: the table belongs to the page that retired
+ * them.
  */
-export function revealFragmentTarget(doc, hash, { scroll = true, focus = true } = {}) {
-  const id = fragmentId(hash);
-  if (!id || !doc?.getElementById) return null;
-  const target = doc.getElementById(id);
+export function revealFragmentTarget(
+  doc, hash, { scroll = true, focus = true, resolve = null } = {},
+) {
+  const requested = fragmentId(hash);
+  if (!requested || !doc?.getElementById) return null;
+  let id = requested;
+  let target = doc.getElementById(id);
+  if (!target && typeof resolve === "function") {
+    const resolved = resolve(requested, doc);
+    id = typeof resolved === "string" && resolved !== "" ? resolved : requested;
+    target = id === requested ? null : doc.getElementById(id);
+  }
   if (!target) return null;
 
   const opened = [];
@@ -108,7 +123,9 @@ export function revealFragmentTarget(doc, hash, { scroll = true, focus = true } 
   }
   if (scroll) target.scrollIntoView?.({ block: "start" });
 
-  return { id, target, opened };
+  // `requested` beside `id` so a caller can tell a link that worked from one
+  // that was carried to a survivor, without re-deriving it from the address.
+  return { id, requested, target, opened };
 }
 
 /**

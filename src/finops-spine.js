@@ -532,6 +532,98 @@ export function removedRegionIds(spine = FINOPS_SPINE) {
   return regionsClassified(REGION_CLASS.removed, spine);
 }
 
+// ---------------------------------------------------------------------------
+// WHERE A RETIRED TARGET'S READERS GO (#1500)
+// ---------------------------------------------------------------------------
+//
+// The consolidation passes (#1498, #1502, #1503, #1504) merged this page's
+// duplicate regions into the one answer above them and deleted two disclosures
+// outright. Their ids did not stop existing when the markup did: they are in
+// bookmarks, in share links a lead already pasted into a thread, and in state a
+// browser retained before the merge. Every one of those resolves to nothing
+// today, which puts a reader at the top of a page holding a link somebody told
+// them was the evidence.
+//
+// This is the whole rule, and it is a TABLE. A rewrite derived from the id — a
+// prefix, a suffix, a nearest-live-ancestor walk — would be this build guessing
+// where a question went, and the person doing the next deletion would have to
+// re-derive the guess. A line here is a decision somebody made once.
+//
+// ONLY ids that are GONE belong here. A region the consolidation demoted rather
+// than deleted still carries its own id and still resolves to itself; adding it
+// would reroute a target that works.
+
+/** Retired target id → the live id that took its content. */
+export const RETIRED_REGION_ALIASES = Object.freeze({
+  // #1498 and #1504 folded the readiness region's three sibling disclosures
+  // into one. Both deleted ids' contents are inside the survivor, under the
+  // same child ids they always had.
+  "analysis-readiness-how-we-know": "analysis-readiness-detail",
+  "analysis-readiness-upgrade-detail": "analysis-readiness-detail",
+  // The one region the census declares retired: its ask is finops-contact's.
+  "finops-first-run-conversion": "finops-contact",
+});
+
+/**
+ * The region an otherwise unresolvable target lands in.
+ *
+ * NOT `finops-stand`, whose `answer` class above is about which region carries
+ * the spine's headline. This is the region the site nav addresses, the region
+ * the consolidation merged into, and the first thing on the page that states
+ * the question and the number — so a reader sent to a target that no longer
+ * exists arrives at the answer rather than at the top of the document.
+ */
+export const CANONICAL_ANSWER_REGION_ID = "finops-recoverable-answer";
+
+/** Own-property lookup only: a target named `constructor` is not an alias. */
+const aliasFor = (id, aliases) => (typeof id === "string"
+  && Object.prototype.hasOwnProperty.call(aliases, id) ? aliases[id] : null);
+
+/**
+ * Every id this module can vouch for without a document in front of it: a
+ * region the census above still classifies, or a destination the table names.
+ * Both are declarations somebody wrote down, so nothing here is inferred.
+ */
+const vouchedIds = (aliases, spine) => new Set([
+  ...Object.keys(spine?.regions ?? {})
+    .filter((id) => spine.regions[id] !== REGION_CLASS.removed),
+  ...Object.values(aliases),
+]);
+
+/**
+ * The surviving id for a target, from the two tables alone.
+ *
+ * Total, and reads no document — this is the form the retained store uses,
+ * which runs before any paint and on a page it cannot see. A retired id becomes
+ * its survivor; an id the census still declares comes back unchanged; anything
+ * else at all, including absent, empty, non-string and inherited keys like
+ * `__proto__`, lands on the canonical answer region rather than nowhere.
+ */
+export function resolveRetiredRegionId(
+  id, aliases = RETIRED_REGION_ALIASES, spine = FINOPS_SPINE,
+) {
+  const aliased = aliasFor(id, aliases);
+  if (aliased) return aliased;
+  return vouchedIds(aliases, spine).has(id) ? id : CANONICAL_ANSWER_REGION_ID;
+}
+
+/**
+ * The surviving id for a target, checked against the document in front of us.
+ *
+ * The order is deliberate. An id the page still carries is NEVER rerouted, so
+ * this cannot move a working link. Only then is the table consulted, and only
+ * then does an unknown id fall back to the canonical answer region. Null when
+ * even that region is absent — this module never invents a landing place on a
+ * page that does not have one.
+ */
+export function resolveRegionTargetId(id, doc, aliases = RETIRED_REGION_ALIASES) {
+  const present = (candidate) => Boolean(candidate && doc?.getElementById?.(candidate));
+  if (present(id)) return id;
+  const aliased = aliasFor(id, aliases);
+  if (present(aliased)) return aliased;
+  return present(CANONICAL_ANSWER_REGION_ID) ? CANONICAL_ANSWER_REGION_ID : null;
+}
+
 /**
  * The evidence regions in the order the layers put them, flattened.
  *

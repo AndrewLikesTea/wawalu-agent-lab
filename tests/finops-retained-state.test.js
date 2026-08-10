@@ -37,6 +37,7 @@ import { PRICED_DESTINATIONS } from "../src/finops-pricing-provenance.js";
 import { PRICING_PROVENANCE_IDS } from "../src/finops-pricing-provenance-view.js";
 import { RETAINED_RESET_COPY } from "../src/finops-declared-rate-view.js";
 import { FIRST_RUN_IDS } from "../src/finops-first-run.js";
+import { CANONICAL_ANSWER_REGION_ID } from "../src/finops-spine.js";
 
 const PAGE = new URL("../src/evolution.html", import.meta.url);
 const DEMO_DATA = JSON.parse(
@@ -112,6 +113,9 @@ test("a saved entry loads back as the same validated current-shape payload", () 
     capturedAt: CAPTURED_AT,
     declaredRates: RATES,
     scoredCoverage: COVERAGE,
+    // The region these figures are stated against (#1500). A write that names
+    // none resolves to the page's one answer region rather than to nothing.
+    region: CANONICAL_ANSWER_REGION_ID,
   });
 });
 
@@ -150,7 +154,7 @@ test("an older entry is walked forward into the current shape", () => {
   assert.deepEqual(loaded.payload.declaredRates, RATES);
   assert.match(retainedProvenanceLine(loaded.payload),
     /over departments the entry did not record/);
-  assert.deepEqual(Object.keys(RETAINED_STATE_MIGRATIONS), ["1"],
+  assert.deepEqual(Object.keys(RETAINED_STATE_MIGRATIONS), ["1", "2"],
     "every readable version below the current one has exactly one step out of it");
 });
 
@@ -340,7 +344,11 @@ test("applying rates is what retains them, and the first screen says so", async 
   assert.equal(typeof payload.scoredCoverage.coverage, "number",
     "the scored coverage the graded floor was taken at is captured with them");
   assert.deepEqual(Object.keys(payload).sort(),
-    ["capturedAt", "declaredRates", "scoredCoverage", "version"]);
+    ["capturedAt", "declaredRates", "region", "scoredCoverage", "version"]);
+  assert.equal(payload.region, CANONICAL_ANSWER_REGION_ID,
+    "and the region it is retained against, so a later read has a live target");
+  assert.equal(byId(first, "finops-retained-state").dataset.region, CANONICAL_ANSWER_REGION_ID,
+    "which the first screen's provenance line states, resolved rather than stored raw");
   assert.match(textOf(byId(first, "finops-retained-state")),
     /^Retained in this browser: 4 declared rates, captured /);
   assert.equal(byId(first, "retained-state-reset").hidden, false);
