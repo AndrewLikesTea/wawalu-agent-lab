@@ -14,16 +14,28 @@
       <header class="site-header">
         <a class="brand" href="/"><span class="mark" aria-hidden="true"></span>Shiplog</a>
         <nav class="site-nav" aria-label="Site">
-          <a class="nav-evolution" href="/evolution.html#workspace-answer">AI FinOps</a>
-          <a class="nav-coach" href="/coach.html">Prompt coach</a>
-          <a href="/">Decisions</a>
-          <a aria-current="page" href="/releases.html">Releases</a>
-          <span class="nav-group">
-            <a class="nav-social" href="/social.html">Social</a>
-            <a class="nav-profile" href="/profile.html">People</a>
-          </span>
-          <a href="/paint/">Paint</a>
-          <a href="/agents.html">Agent observatory</a>
+          <div class="nav-set">
+            <span class="nav-set-name" id="nav-set-own">Runs on your own work</span>
+            <ul role="list" aria-labelledby="nav-set-own">
+              <li><a class="nav-evolution" href="/evolution.html#workspace-answer">AI FinOps</a></li>
+              <li><a class="nav-coach" href="/coach.html">Prompt coach</a></li>
+              <li><a href="/">Decisions</a></li>
+              <li><a aria-current="page" href="/releases.html">Releases</a></li>
+            </ul>
+          </div>
+          <div class="nav-set">
+            <span class="nav-set-name" id="nav-set-demo">Demos, sample data</span>
+            <ul role="list" aria-labelledby="nav-set-demo">
+              <li>
+                <span class="nav-group">
+                  <a class="nav-social" href="/social.html">Social</a>
+                  <a class="nav-profile" href="/profile.html">People</a>
+                </span>
+              </li>
+              <li><a href="/paint/">Paint</a></li>
+              <li><a href="/agents.html">Agent observatory</a></li>
+            </ul>
+          </div>
         </nav>
       </header>
 
