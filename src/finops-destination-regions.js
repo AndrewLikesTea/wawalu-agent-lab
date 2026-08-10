@@ -29,6 +29,12 @@
 // shell and by the test, and both need it to be the same list.
 
 import { SCREEN_CONTRACT } from "./finops-screen-contract.js";
+// The department identifiers the bundled analysis actually holds, pinned against
+// src/evolution-demo-data.json by tests/finops-destinations.test.js. Read rather
+// than restated: a second list of the same seven ids is a second thing to get
+// wrong, and an address that selects a department the seed does not contain is a
+// link to an empty drill-down.
+import { FINOPS_DEPARTMENT_IDS } from "./finops-destinations.js";
 
 /**
  * The regions that belong to no destination because they carry the page.
@@ -121,6 +127,25 @@ const REGION_IDS = Object.freeze({
 });
 
 /**
+ * Which destinations are addressable at a SUB-SELECTION, and which values each
+ * one accepts (#1522).
+ *
+ * One entry, because one destination is read that way: the department screen IS
+ * the per-department breakdown, and the other four answer a question about the
+ * whole org. An absent entry is a deliberate statement — "this destination is
+ * not read per anything" — and not an omission, which is the same discipline the
+ * `route` declarations in src/finops-destinations.js already keep.
+ *
+ * It lives here rather than in the router for the reason the region lists do:
+ * a router with its own copy of the valid ids would be a second authority for
+ * what this page can be addressed at, and the two would disagree the first time
+ * a department was added.
+ */
+const SELECTION_IDS = Object.freeze({
+  department: FINOPS_DEPARTMENT_IDS,
+});
+
+/**
  * The destinations in reading order, each with the one question it answers, the
  * text its door carries, and the regions it is made of.
  *
@@ -134,11 +159,21 @@ export const DESTINATION_REGIONS = Object.freeze(SCREEN_CONTRACT.map((screen) =>
   question: screen.question,
   label: screen.name,
   regionIds: REGION_IDS[screen.shellDestination] ?? Object.freeze([]),
+  selectionIds: SELECTION_IDS[screen.shellDestination] ?? Object.freeze([]),
 })));
 
 /** One destination's declaration, or null. Never throws on an unknown slug. */
 export function destinationRegions(slug) {
   return DESTINATION_REGIONS.find((entry) => entry.slug === slug) ?? null;
+}
+
+/**
+ * The selection ids one destination accepts, in ranking order. Empty for a slug
+ * this map does not hold and for one that is not read per department, which a
+ * caller reads the same way: no address may carry a selection here.
+ */
+export function destinationSelections(slug) {
+  return destinationRegions(slug)?.selectionIds ?? Object.freeze([]);
 }
 
 /**
