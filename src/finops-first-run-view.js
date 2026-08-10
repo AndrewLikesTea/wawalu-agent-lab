@@ -13,7 +13,9 @@
 // contract's own operation line and a department label taken out of an analysis.
 
 import { FIRST_RUN_ACTIONS, FIRST_RUN_IDS } from "./finops-first-run.js";
-import { EXAMPLE_BRIEFING_CTA, EXAMPLE_BRIEFING_HREF } from "./finops-example-briefing.js";
+import {
+  BRIEFING_DESTINATION_URL, EXAMPLE_BRIEFING_CTA, EXAMPLE_BRIEFING_HREF,
+} from "./finops-example-briefing.js";
 import { DISCLOSURE_SPEC, disclosureStateLabel } from "./finops-decision-interaction.js";
 import { DRILLDOWN_HEADING, DRILLDOWN_QUESTION } from "./finops-imported-departments.js";
 // The ceiling on a reader-supplied name. It is the import module's constant
@@ -571,6 +573,12 @@ export function applyExampleBriefingCta(doc) {
   // text already says where it goes and whose figures are on the other end.
   link.setAttribute("aria-describedby", FIRST_RUN_IDS.briefingNote);
   setText(doc, FIRST_RUN_IDS.briefingNote, EXAMPLE_BRIEFING_CTA.note);
+  // …and the address a recipient of the forwarded briefing opens (#1525). The
+  // router builds it; this repaints the authored copy from the router's value
+  // and carries the same string on the control, so the one control in this
+  // block states its own forwardable destination without becoming two controls.
+  setText(doc, FIRST_RUN_IDS.briefingUrl, BRIEFING_DESTINATION_URL);
+  link.setAttribute("data-figure-destination", BRIEFING_DESTINATION_URL);
   return link;
 }
 

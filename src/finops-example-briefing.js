@@ -44,6 +44,10 @@ import { normalizeLocalFinopsHistory } from "./local-finops.js";
 import { buildFinopsBriefing } from "./finops-briefing-contract.js";
 import { projectRetainedPeriod } from "./finops-workspace.js";
 import { SAMPLE_LABEL } from "./finops-first-run.js";
+// The one URL builder for a FinOps destination, and the destination keys it is
+// built over. Imported rather than restated: see BRIEFING_DESTINATION_URL below.
+import { serializeScreenRoute } from "./finops-destination-router.js";
+import { WORKSPACE_DESTINATION } from "./finops-workspace-nav.js";
 
 /** Bump when the link, the parameter, or the derivation changes meaning. */
 export const EXAMPLE_BRIEFING_VERSION = "finops-example-briefing/1.0.0";
@@ -58,6 +62,46 @@ export const EXAMPLE_BRIEFING_HREF =
 
 /** And the way back, to the region the reader left. */
 export const EXAMPLE_RETURN_HREF = "/evolution.html#finops-first-run";
+
+/**
+ * WHERE A FORWARDED BRIEFING POINTS (#1525).
+ *
+ * The hand-off above is a way OUT of this page. This is the way back INTO it
+ * for somebody who was never on it: the address a recipient of the briefing
+ * opens to see the headline recoverable figure stated on the page that computes
+ * it. It is a destination URL and not a mid-page anchor, and the fragment is
+ * `serializeScreenRoute`'s rather than a string spelled out here — that builder
+ * is what the rail, the shell, and the address bar already agree on, so a
+ * second hand-concatenated hash would be a second source of truth for a
+ * published URL and would be the copy that did not move the day a fragment was
+ * renamed.
+ *
+ * THE ANSWER DESTINATION, and the assumption behind that choice stated once:
+ * the recoverable answer and the stand headline are workspace FRAME regions, so
+ * they are on screen at every destination, and the answer destination is the
+ * one whose question they answer. The evidence destination states no copy of
+ * the figure at all — tests/finops-briefing-reproducibility.test.js pins that
+ * rather than leaving it to be assumed.
+ */
+export const BRIEFING_DESTINATION_SLUG = WORKSPACE_DESTINATION.answer;
+
+/** The whole address, path included, so a recipient can read and copy it. */
+export const BRIEFING_DESTINATION_URL =
+  `/evolution.html${serializeScreenRoute({ slug: BRIEFING_DESTINATION_SLUG })}`;
+
+/**
+ * The sentence the address is carried by.
+ *
+ * Text, not a second link, and that is a deliberate accessibility constraint
+ * rather than a style: the first screen's reading order is its focus order, and
+ * a second control in this block would add a tab stop between the briefing
+ * hand-off and the estimate form. A recipient copies an address; they do not
+ * need to be able to focus it.
+ */
+export const BRIEFING_DESTINATION_COPY = Object.freeze({
+  lead: "Forward this address to open the figure where it is stated:",
+  url: BRIEFING_DESTINATION_URL,
+});
 
 /**
  * The dataset name these periods are filed under.

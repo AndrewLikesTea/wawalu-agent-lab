@@ -127,6 +127,11 @@ export const FIRST_RUN_IDS = Object.freeze({
   briefing: "finops-first-run-briefing",
   briefingHeading: "finops-first-run-briefing-heading",
   briefingNote: "finops-first-run-briefing-note",
+  // The destination URL a recipient of the forwarded briefing opens (#1525),
+  // as text beside the hand-off rather than as a second control: this block
+  // keeps exactly one tab stop.
+  briefingAddress: "finops-first-run-briefing-address",
+  briefingUrl: "finops-first-run-briefing-url",
   live: "finops-first-run-live",
 });
 
