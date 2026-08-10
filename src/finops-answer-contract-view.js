@@ -46,6 +46,7 @@
 // `.stand-figure-basis` is the small role provenance is stated in — beside the
 // answer, never behind a control.
 import { ANSWER_STATUS, WITHHELD } from "./finops-answer-contract.js";
+import { answerAssumptionSentence, answerProofSentence } from "./finops-answer-dimensions.js";
 import { PANEL_STATUS, panelStatusPresentation } from "./panel-status-view.js";
 
 /** The five reading states of the answer region. There is no sixth. */
@@ -164,6 +165,55 @@ export function renderRecoverableSpend(doc, recoverable) {
   set(doc, RECOVERABLE_SPEND_IDS.basis, basis);
   set(doc, RECOVERABLE_SPEND_IDS.detail, basis);
   return figure;
+}
+
+/** The two slots the supporting-detail layer keeps for the answer's proof
+ *  (#1499): the counts, and the assumptions those counts stand on. */
+export const ANSWER_PROOF_IDS = Object.freeze({
+  sentence: "finops-answer-proof",
+  assumptions: "finops-answer-proof-assumptions",
+});
+
+/**
+ * Paint the provenance-and-coverage proof under the consolidated answer (#1499).
+ *
+ * THE COUNTS AND THEIR ASSUMPTIONS TRAVEL TOGETHER. Both slots are written from
+ * one `finopsAnswerDimensions` record, so there is no path that states a count
+ * whose assumption is stale, and no path that states an assumption for a count
+ * that is no longer beside it.
+ *
+ * THE FOUR DIMENSIONS ALSO RIDE AS ATTRIBUTES, unrounded and unworded. The
+ * sentence is for a reader; the attributes are what the drift test in
+ * tests/finops-answer-dimensions.test.js compares against the pinned fixture,
+ * so a copy edit that leaves every number alone cannot red it and a number that
+ * moved cannot hide behind a rewording.
+ *
+ * NO MONEY IS RESTATED HERE. The headline figure is stated once, above; this
+ * layer carries it only as an attribute, because a second rendered dollar
+ * amount in this region is the thing #1496 and #1498 spent two changes removing.
+ *
+ * @param doc the document holding the answer region.
+ * @param dimensions a `finopsAnswerDimensions` record.
+ * @returns the sentence paragraph, or null when the page carries no such slot.
+ */
+export function renderAnswerProof(doc, dimensions) {
+  const sentence = doc?.getElementById?.(ANSWER_PROOF_IDS.sentence) ?? null;
+  if (!sentence || !dimensions) return null;
+  sentence.textContent = answerProofSentence(dimensions);
+  sentence.dataset.answerVersion = dimensions.version;
+  sentence.dataset.headlineUsd = String(dimensions.headline.monthlyUsd);
+  sentence.dataset.confidenceGrade = dimensions.confidence.grade;
+  sentence.dataset.provenanceDeclared = String(dimensions.provenance.declared);
+  sentence.dataset.provenanceDerived = String(dimensions.provenance.derived);
+  sentence.dataset.coverageScored = String(dimensions.coverage.scored);
+  sentence.dataset.coverageTotal = String(dimensions.coverage.total);
+  // WHICH departments, not just how many: a scored set that changed membership
+  // without changing size is a different answer, and a count alone cannot say
+  // so. Sorted ids, space separated, pseudonymous — these are the example
+  // corpus's own unit ids and carry no name of a real person or customer.
+  sentence.dataset.coverageDepartments = dimensions.coverage.departmentIds.join(" ");
+  set(doc, ANSWER_PROOF_IDS.assumptions, answerAssumptionSentence(dimensions));
+  return sentence;
 }
 
 /**

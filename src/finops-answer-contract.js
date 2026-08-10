@@ -302,14 +302,25 @@ function usdWhole(value) {
 }
 
 /** Every department the dataset published, scored or not. */
-const departmentRows = (dataset) => (Array.isArray(dataset)
+export const departmentRows = (dataset) => (Array.isArray(dataset)
   ? dataset
   : list(dataset?.rankedDepartments ?? dataset?.departments)).filter(isRecord);
 
 /** A completed FinOps score: a finite, non-negative recoverable line. A row
- *  that opts out with `scored: false` is honoured even when it carries one. */
-const isScored = (row) => row.scored !== false
+ *  that opts out with `scored: false` is honoured even when it carries one.
+ *
+ *  EXPORTED so nothing states this rule twice. The scored/total counts beside
+ *  the figure, and any surface that has to say WHICH departments were counted,
+ *  must select the same set the sum was taken over — a second predicate that
+ *  agreed today is a second predicate that can disagree tomorrow. */
+export const isScoredDepartment = (row) => isRecord(row) && row.scored !== false
   && Number.isFinite(row.recoverableUsd) && row.recoverableUsd >= 0;
+
+/** The rows the recoverable figure was summed over, in the dataset's own order. */
+export const scoredDepartmentRows = (dataset) =>
+  departmentRows(dataset).filter(isScoredDepartment);
+
+const isScored = isScoredDepartment;
 
 /** The level, off the analysis's EXISTING confidence signal — a 0–100 evidence
  *  value read through `confidenceLevel`, or a level word the analysis already

@@ -274,6 +274,31 @@
              addresses a region that is no longer a child of the main element,
              the marker #832 used for the same move. -->
         <div class="stand-disclosures" id="finops-answer-support" role="group" aria-label="Supporting detail for this answer">
+          <!-- THE PROOF THAT THE CONSOLIDATED ANSWER STAYED TRUTHFUL (#1499).
+               Consolidating four regions into one is only worth having if the
+               surviving answer can be shown not to have drifted while it was
+               being simplified. These two lines are that showing: how much was
+               scored, how much of it is declared rather than derived, and what
+               each of those counts assumes — the assumption beside the number,
+               in the same layer, so no count here is quotable without the
+               sentence a director would have to argue with.
+
+               BOTH LINES ARE WRITTEN BY `renderAnswerProof` from ONE
+               `finopsAnswerDimensions` record, which selects its four values out
+               of the modules that already own them and derives none of its own.
+               The authored text below IS that function's output for the bundled
+               example, and the four values also ride as data attributes, so
+               tests/finops-answer-dimensions.test.js can compare the served
+               bytes and the render against the version-stamped fixture in
+               tests/fixtures/finops-answer-dimensions.js and name which of the
+               four drifted.
+
+               NO MONEY IS RESTATED. The headline is stated once, above; it is
+               carried here only as an attribute. Both lines reuse
+               `.stand-answer`, add no rule to either stylesheet, and are not
+               focusable — this screen has no spare tab stop. -->
+          <p class="stand-answer" id="finops-answer-proof" data-answer-version="finops-answer-v1" data-headline-usd="51254" data-confidence-grade="high" data-provenance-declared="0" data-provenance-derived="5" data-coverage-scored="5" data-coverage-total="5" data-coverage-departments="psn_example_unit_atlas0 psn_example_unit_boreal psn_example_unit_cinder psn_example_unit_ember0 psn_example_unit_quartz">All 5 departments behind this answer carry a completed FinOps score, so none of them contributed zero to it. Of the 5 recoverable lines that make up the figure, 0 are priced at rates someone declared and 5 are derived from published list prices. Confidence is graded High — the band published from 80% to 100% of analyzed spend scored, and this answer measures 93%.</p>
+          <p class="stand-answer" id="finops-answer-proof-assumptions">What those numbers assume. A department counts as scored when the dataset carries a finite, non-negative recoverable line for it, and nothing is extrapolated from a scored department to an unscored one. A line counts as declared only when it is priced from a rate card someone stated; a list-price line is derived however precise it looks. The band is read off the share of analyzed spend sitting in departments the rubric scored, at cut points this page publishes rather than at a reviewer's judgement. The headline is the monthly sum of the recoverable lines over scored departments; the annual figure is that sum multiplied by 12 and is never a second measurement. Pinned for review as finops-answer-v1.</p>
           <section id="finops-analysis-readiness" data-spine-region data-level="illustrative_only" data-subordinate="true" data-workspace-frame="true" aria-labelledby="analysis-readiness-question">
             <p class="eyebrow">Analysis readiness</p>
             <h3 id="analysis-readiness-question">Can I get a trustworthy savings recommendation now?</h3>

@@ -265,7 +265,12 @@ import { renderAnalysisReadiness } from "/finops-analysis-readiness-view.js";
 import {
   finopsAnswerSignals, getRecoverableSpend, resolveFinopsAnswer,
 } from "/finops-answer-contract.js";
-import { renderFinopsAnswer, renderRecoverableSpend } from "/finops-answer-contract-view.js";
+import {
+  renderAnswerProof, renderFinopsAnswer, renderRecoverableSpend,
+} from "/finops-answer-contract-view.js";
+// The four dimensions the consolidated answer is pinned on, and the proof line
+// the supporting layer states them in (#1499).
+import { finopsAnswerDimensions } from "/finops-answer-dimensions.js";
 // Whether the letter may be shown at all is decided before it is drawn: the
 // score card is a roll-up of only the departments the rubric actually scored.
 import { CLAMPED_REASON, gradeEligibility } from "/grade-eligibility.js";
@@ -5096,7 +5101,12 @@ async function init() {
   // recoverable numbers again. Painted after the brief for the same reason the
   // corrections table is: the figure below is on screen before the one that
   // summarises it moves.
-  renderRecoverableSpend(document, getRecoverableSpend(loadExampleDataset()));
+  const bundledAnalysis = loadExampleDataset();
+  renderRecoverableSpend(document, getRecoverableSpend(bundledAnalysis));
+  // The proof under it, off the SAME dataset the figure was just painted from:
+  // a coverage sentence computed against a different envelope than the number it
+  // qualifies is the drift this pair exists to make impossible.
+  renderAnswerProof(document, finopsAnswerDimensions(bundledAnalysis));
   // After the result, so the correction table is built over the same figures the
   // reader has just been shown rather than over a half-painted region.
   mountFigureCorrections(document);
