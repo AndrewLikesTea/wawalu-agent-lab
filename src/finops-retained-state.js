@@ -89,9 +89,31 @@ export const RETAINED_MESSAGE = Object.freeze({
 
 const isRecord = (value) => typeof value === "object" && value !== null && !Array.isArray(value);
 
+/**
+ * The region an entry says it was captured at, if it says one.
+ *
+ * NOT A PAYLOAD FIELD, and deliberately not one. `validateRetainedPayload`
+ * rebuilds a record from the closed list of fields this build derives figures
+ * from, and a region id derives no figure — it is wayfinding. So it is read off
+ * the RAW parsed entry, bounded, and handed back beside the payload rather than
+ * inside it: the closed shape stays closed, an entry written by a build that
+ * recorded no region is not invalid for the omission, and a pointer at a region
+ * this build merged away cannot become a reason to discard a reader's rates.
+ *
+ * It is returned as it was written. Resolving it to a region this page actually
+ * carries is `canonicalAnchorTarget`'s, in the view that has a document — this
+ * module reads no DOM.
+ */
+function capturedRegion(value) {
+  const region = isRecord(value) ? value.region : null;
+  if (typeof region !== "string") return null;
+  const trimmed = region.trim();
+  return trimmed !== "" && trimmed.length <= RETAINED_LIMITS.text ? trimmed : null;
+}
+
 /** An outcome with no payload: the unretained baseline, plus why. */
 const baseline = (reason) => Object.freeze({
-  retained: false, payload: null, reason, message: RETAINED_MESSAGE[reason],
+  retained: false, payload: null, region: null, reason, message: RETAINED_MESSAGE[reason],
 });
 
 /**
@@ -282,7 +304,7 @@ export function loadRetainedState({ storage = browserRetainedStorage() } = {}) {
   const payload = validateRetainedPayload(migrated.payload);
   if (!payload) return baseline(RETAINED_REASON.invalidShape);
   return Object.freeze({
-    retained: true, payload, reason: RETAINED_REASON.retained,
+    retained: true, payload, region: capturedRegion(parsed), reason: RETAINED_REASON.retained,
     message: RETAINED_MESSAGE[RETAINED_REASON.retained],
   });
 }
@@ -320,8 +342,11 @@ export function saveRetainedState({
     // so rather than rendering as though something were.
     return baseline(RETAINED_REASON.writeFailed);
   }
+  // No region: this build records where a reader IS from the document, not from
+  // the entry, and writing a pointer it never reads back would be a field to
+  // keep true for nothing.
   return Object.freeze({
-    retained: true, payload, reason: RETAINED_REASON.retained,
+    retained: true, payload, region: null, reason: RETAINED_REASON.retained,
     message: RETAINED_MESSAGE[RETAINED_REASON.retained],
   });
 }

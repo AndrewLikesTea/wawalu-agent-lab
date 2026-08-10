@@ -37,6 +37,10 @@ import { PRICED_DESTINATIONS } from "../src/finops-pricing-provenance.js";
 import { PRICING_PROVENANCE_IDS } from "../src/finops-pricing-provenance-view.js";
 import { RETAINED_RESET_COPY } from "../src/finops-declared-rate-view.js";
 import { FIRST_RUN_IDS } from "../src/finops-first-run.js";
+import {
+  ANCHOR_ALIASES, CANONICAL_ANSWER_REGION, MERGED_ANCHOR_TARGETS, canonicalAnchorTarget,
+  forwardRetiredAnchor,
+} from "../src/retired-anchor-compatibility.js";
 
 const PAGE = new URL("../src/evolution.html", import.meta.url);
 const DEMO_DATA = JSON.parse(
@@ -415,4 +419,98 @@ test("a browser that refuses the write leaves the page on the baseline and says 
   // The declaration still applies to THIS tab: a browser that will not remember
   // is not a reason to refuse the rates the reader just stated.
   assert.match(textOf(byId(page, "declared-rates-status")), /2 declared rates applied/);
+});
+
+// --- 5. links and entries written before the page was consolidated (#1500) ---
+//
+// #1494, #1502, #1503 and #1504 merged the FinOps page down to one answer with a
+// second layer. Links somebody sent, and entries a browser persisted, still name
+// the ids that were true when they were written; neither can be repaired where
+// it is stored. Both are repaired on the way in, by the same map.
+//
+// One boot serves the whole group. It uses all three settle waits rather than
+// `ready` alone: waiting only on `ready` leaves a paint in flight, which is
+// green here and an unhandled rejection in CI.
+
+/** A pre-consolidation region id. Nothing in this build carries it. */
+const REMOVED_REGION = "finops-recoverable-ceiling";
+
+const bootAt = async (t, hash, storage = {}) => {
+  const page = await loadPage(PAGE, { routes: ROUTES, storage, location: { hash } });
+  t.after(page.restore);
+  await importPageModule("/evolution-page.js");
+  await waitFor(() => page.document.documentElement.dataset.shiplogEvolution === "ready",
+    "page ready");
+  await waitFor(() => byId(page, "finops-evaluation-result").getAttribute("aria-busy") === "false",
+    "evaluation settled");
+  await waitFor(() => page.document.getElementById("integration-contract-provenance")
+    .textContent.trim().startsWith("Gateway completed"), "static gateway settled");
+  return page;
+};
+
+test("a pre-consolidation link and entry land on the canonical answer, state intact", async (t) => {
+  const page = await bootAt(t, `#${REMOVED_REGION}`, {
+    // The shape a build wrote before the consolidation: the current payload
+    // fields, plus a region pointer at a disclosure that has since been merged.
+    [RETAINED_STATE_KEY]: entry({ region: "analysis-readiness-how-we-know" }),
+  });
+
+  // 1. THE LINK. The id is on no region of this page, so rather than scrolling
+  // nowhere the reader is put on the region that states the reconciled figure.
+  assert.equal(window.location.hash, `#${CANONICAL_ANSWER_REGION}`);
+  assert.equal(byId(page, CANONICAL_ANSWER_REGION) !== null, true,
+    "the degrade target has to be a region this build actually carries");
+
+  // 2. THE ENTRY. The pointer IS in the map, so it resolves to the disclosure
+  // that took the merged one's content — not to the blanket fallback.
+  const line = byId(page, "finops-retained-state");
+  assert.equal(line.dataset.region, "analysis-readiness-detail");
+  assert.equal(byId(page, "analysis-readiness-detail") !== null, true);
+
+  // 3. AND THE STATE IS STILL THERE. A stale pointer is wayfinding; it may not
+  // cost the reader the period, the rates, or the grade they earned.
+  assert.equal(line.dataset.state, RETAINED_REASON.retained);
+  assert.equal(line.hidden, false);
+  assert.match(textOf(line), /captured 2026-07-01 at 09:30 UTC/,
+    "the retained period survives the reload");
+  assert.match(textOf(line), /62% of analyzed spend across 3 scored departments/);
+  assert.match(textOf(byId(page, "declared-rates-status")),
+    /4 declared rates restored from this browser/, "the declared rates survive it too");
+  assert.match(provenance(page), /Pricing provenance: Strong \(88\/100\)/,
+    "and the earned grade is still the earned grade, against the one canonical figure");
+
+  // 4. THE MAP ITSELF, against the document a reader was just served. Every
+  // alias resolves to something on the page, so no entry can send anyone to an
+  // id that is as gone as the one they arrived with.
+  for (const [from, to] of Object.entries(ANCHOR_ALIASES)) {
+    // `=== null` rather than a bare equal: asserting an ELEMENT against null
+    // makes the runner diff the whole parsed page, which does not come back.
+    assert.equal(byId(page, from) === null, true,
+      `"${from}" is retired, so nothing may still render it`);
+    assert.equal(canonicalAnchorTarget(from, page.document), to);
+    assert.equal(byId(page, to) !== null, true, `"${to}" must be on the page to be a destination`);
+  }
+  assert.equal(canonicalAnchorTarget(REMOVED_REGION, page.document), CANONICAL_ANSWER_REGION);
+  for (const absent of [null, undefined, "", "   ", 42, {}]) {
+    assert.equal(canonicalAnchorTarget(absent, page.document), CANONICAL_ANSWER_REGION,
+      "an unusable pointer is the fallback, never a throw and never nothing");
+  }
+});
+
+test("a live fragment is left alone, and every merged id names a live target", () => {
+  // The map may only ever REDIRECT a dead id. An entry for an id the page still
+  // carries would silently move a reader away from what they asked for.
+  for (const from of Object.keys(MERGED_ANCHOR_TARGETS)) {
+    assert.equal(Object.hasOwn(ANCHOR_ALIASES, from), true);
+  }
+  // Without a document there is no way to know an id is dead, so only a declared
+  // alias moves and everything else stays exactly as it was written.
+  const win = { location: { hash: `#${REMOVED_REGION}` } };
+  assert.equal(forwardRetiredAnchor(win), null);
+  assert.equal(win.location.hash, `#${REMOVED_REGION}`);
+  // And an empty fragment is not a stale one: a reader who asked for the top of
+  // the page is left at the top of the page.
+  const top = { location: { hash: "" } };
+  assert.equal(forwardRetiredAnchor(top, { getElementById: () => null }), null);
+  assert.equal(top.location.hash, "");
 });

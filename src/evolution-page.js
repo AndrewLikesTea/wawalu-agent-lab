@@ -4995,7 +4995,10 @@ async function init() {
   if (!document.getElementById("department-priority")) return;
   // Preserve bookmarks to deleted summary regions. This is a local fragment
   // replacement only: no redirect, request, storage, or server coupling.
-  forwardRetiredAnchor(window);
+  // The document is passed so a fragment naming a region the consolidation
+  // removed — one the alias map does not name either — degrades to the page's
+  // canonical answer instead of leaving the reader scrolled nowhere.
+  forwardRetiredAnchor(window, document);
   // Before anything else touches the document: every top-level region is
   // stamped with the question it answers and its place in the reading order, so
   // the classification is true of the DOM a reader receives rather than only of

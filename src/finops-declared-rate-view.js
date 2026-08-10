@@ -34,6 +34,10 @@ import {
   RETAINED_REASON, clearRetainedState, loadRetainedState, retainedProvenanceLine,
   saveRetainedState,
 } from "./finops-retained-state.js";
+// Where a region id written by an earlier build lands on this one. The same
+// resolver the deep-link path uses, so a stale pointer inside a persisted entry
+// and a stale fragment in a saved link cannot disagree about where they go.
+import { canonicalAnchorTarget } from "./retired-anchor-compatibility.js";
 
 /** The slots this region authors. */
 export const DECLARED_RATE_IDS = Object.freeze({
@@ -135,11 +139,21 @@ export function applyDeclaredRates(doc, { asOf = null, destinations } = {}) {
  * reader is told the figures are the baseline and why. Unretained: empty and
  * `hidden`, which is what keeps a fresh visitor's first screen byte-for-byte the
  * one this page shipped before any of this existed.
+ *
+ * THE REGION IS RESOLVED HERE, ON EVERY PAINT. An entry written before the page
+ * was consolidated can name a region this build merged away or removed. That
+ * pointer is resolved against the shipped document — alias first, then the
+ * canonical answer region for anything the page does not carry — and stamped on
+ * the slot as `data-region`, so what the retained state is rendered against is
+ * the one reconciled figure and never a stale duplicate. It is wayfinding only:
+ * a pointer that resolves nowhere costs the reader nothing, because it never
+ * gates whether the rates and coverage below are painted.
  */
 function paintRetained(doc, outcome) {
   retained = outcome;
   const line = byId(doc, RETAINED_STATE_IDS.line);
   if (!line) return outcome;
+  line.dataset.region = canonicalAnchorTarget(outcome?.region ?? null, doc);
   const reason = outcome?.reason ?? RETAINED_REASON.unretained;
   const text = outcome?.retained
     ? retainedProvenanceLine(outcome.payload)
