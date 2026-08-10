@@ -173,6 +173,34 @@ test("a first-time visitor lands on a display name that has image posts", async 
   }
 });
 
+// The waiting copy is People's own — the image posts under the selected display
+// name — and it is copy for a wait, so it must not outlive one. It used to be
+// Social's "Loading the Social feed…", which announced the whole feed on the
+// page that tells a reader to open Social when they want it, and was the first
+// thing a screen reader read here.
+test("no placeholder is still announcing a load once the posts are on screen", async () => {
+  const page = await people();
+  try {
+    const { document } = page;
+    assert.equal(tileCount(document), 2, "the settled page has no posts, so nothing replaced the placeholders");
+    const settled = [...spokenRegions(document), textOf(document.querySelector(".feed-connection"))];
+    for (const text of settled) {
+      assert.doesNotMatch(text, /Loading/, "a loading placeholder outlived the posts it stood in for");
+    }
+    // Replaced by what the reader was waiting for, not merely emptied.
+    assert.match(textOf(document.querySelector("#profile-summary")), /^2 image posts/);
+    assert.match(textOf(document.querySelector("#profile-status")), /^Live · updated /);
+
+    // And a name switch re-renders those regions rather than dropping back to a
+    // placeholder — the state the old copy was wrong in twice over.
+    chipFor(page, "Bea").click();
+    for (const text of spokenRegions(document)) assert.doesNotMatch(text, /Loading/);
+    assert.match(textOf(document.querySelector("#profile-summary")), /^1 image post /);
+  } finally {
+    page.restore();
+  }
+});
+
 // The reported defect: in about a hundred words, People told a reader what it
 // shows and where the rest of the posts are three times — the intro, the
 // paragraph beside the picker, and the eyebrow over the grid — and offered the

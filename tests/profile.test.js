@@ -560,19 +560,35 @@ test("the empty profile says it once across the whole page", () => {
   assert.equal(profileAnnouncement("Mina", 2), "Showing 2 image posts by Mina.");
 });
 
+test("the waiting line names image posts, with or without a display name", () => {
+  assert.equal(loadingSummaryText("Zed"), "Loading Zed’s image posts…");
+  // The typographic apostrophe the rest of this page's copy uses, written
+  // through textContent — never the HTML entity, which a reader would see.
+  assert.doesNotMatch(loadingSummaryText("Zed"), /&rsquo;|&#/);
+  // Nothing selected yet is not a name, and it is not the whole feed either: the
+  // sentence drops the possessive and keeps its subject.
+  for (const nothing of [undefined, null, "", "   "]) {
+    assert.equal(loadingSummaryText(nothing), "Loading image posts…");
+  }
+});
+
 test("the profile page's static copy does not drift from the module's", async () => {
   // profile.html renders before the module runs, so its defaults are what a
   // first-time visitor actually reads first. That frame used to ship the empty
   // state — a verdict about a name nobody had chosen, and a false one for the
   // seeded feed — so it now says only that the counting has not happened yet.
   const html = await readFile(new URL("../src/profile.html", import.meta.url), "utf8");
-  assert.match(html, new RegExp(`id="profile-summary">${loadingSummaryText()}<`));
+  assert.match(html, new RegExp(`id="profile-summary">${loadingSummaryText("Ari")}<`));
   assert.doesNotMatch(html, new RegExp(emptySummaryText("Ari")));
-  // One wait, one sentence. The identity line and the connection line below it
-  // are waiting on the same Social fetch, so they say the same thing rather than
-  // counting one name's posts in one place and "connecting" in the other.
-  assert.equal(loadingSummaryText(), FEED_LOADING_LINE);
-  assert.match(html, new RegExp(`id="profile-status">${FEED_LOADING_LINE}<`));
+  // One wait, one sentence — People's own. The identity line and the connection
+  // line below it are waiting on the same fetch, so they say the same thing
+  // rather than counting one name's posts in one place and "connecting" in the
+  // other. What they name is what this page fetches: the image posts under the
+  // selected display name. They used to announce Social's whole feed, on the
+  // page whose opening sentence sends a reader to Social for exactly that.
+  assert.equal(loadingSummaryText("Ari"), "Loading Ari’s image posts…");
+  assert.match(html, new RegExp(`id="profile-status">${loadingSummaryText("Ari")}<`));
+  assert.doesNotMatch(html, new RegExp(FEED_LOADING_LINE), "People is announcing Social's feed again");
   // The results heading ships the same words the module writes there, so the
   // frame before hydration reads as the state it is in: the display name the
   // seed lands on, and the posts under it, with nothing counted yet.

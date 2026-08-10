@@ -494,16 +494,17 @@ function renderSkeleton(container, count = 3) {
 // image is actually attached.
 const NO_POSTS_GUIDANCE = "Publish a post, or create an image in Paint first.";
 
-// One wait, one sentence. Social and People are both waiting on the same fetch,
-// and each of them used to describe it twice at once — a visible line ("Loading
-// posts…", "Counting Ari's image posts…") beside a live region that said
+// One wait, one sentence — on this page. Social used to describe it twice at
+// once: a visible line ("Loading posts…") beside a live region that said
 // something else ("Connecting to the Social feed…"). A reader saw two claims and
-// a screen reader heard two; neither was more true than the other. Both surfaces
-// now say this, word for word: the static markup a page ships, the panel over
-// the empty grid, the count, and the connection line. People imports it from
-// here because it already reads this module. src/social.html and
-// src/profile.html carry it in markup for the frame before hydration, so a
-// change here is a change in three files, not one.
+// a screen reader heard two; neither was more true than the other. Every waiting
+// surface here now says this, word for word: the static markup, the panel over
+// the empty grid, the count, and the connection line. src/social.html carries it
+// for the frame before hydration, so a change here is a change in two files.
+//
+// People is not one of them. It waits on the same fetch but shows one display
+// name's image posts, so it says that instead (loadingSummaryText,
+// src/profile.js); this sentence stays Social's.
 export const FEED_LOADING_LINE = "Loading the Social feed…";
 
 // `state` separates "we have nothing yet because we are still fetching" from
