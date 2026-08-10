@@ -4997,7 +4997,20 @@ async function init() {
   if (!document.getElementById("department-priority")) return;
   // Preserve bookmarks to deleted summary regions. This is a local fragment
   // replacement only: no redirect, request, storage, or server coupling.
+  //
+  // #1500 put the FinOps consolidation's merged ids in the same map, and hung
+  // the same call on `hashchange`. Two reasons, both about a link that was
+  // saved before the consolidation. On a RELOAD this line runs before
+  // `installDeepLinkDisclosure` below, so the address the disclosure path
+  // restores from already names a region that exists. And a link pasted into
+  // the address bar mid-session reaches the page as a `hashchange` and never
+  // came past here at all, so it used to open the right destination and then
+  // land on nothing. Registered before the shell's own listeners so the rewrite
+  // is finished by the time they read the address; a fragment in neither the
+  // document nor the map is returned untouched, so this rewrites no ordinary
+  // deep link and no history entry is added either way.
   forwardRetiredAnchor(window);
+  window.addEventListener("hashchange", () => forwardRetiredAnchor(window));
   // Before anything else touches the document: every top-level region is
   // stamped with the question it answers and its place in the reading order, so
   // the classification is true of the DOM a reader receives rather than only of

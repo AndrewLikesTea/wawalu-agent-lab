@@ -78,6 +78,11 @@ import { canonicalQuery, parseDestinationRoute } from "./destination-route.js";
 // The page's one status vocabulary. Reused, never extended: a destination that
 // is still fetching its module is a panel in a state this module already draws.
 import { PANEL_STATUS, applyPanelStatus } from "./panel-status-view.js";
+// #1500's one alias map, consumed rather than restated. A link saved before the
+// FinOps consolidation names markup that was merged away; the map says which
+// surviving region absorbed it, and it is the same map the boot-time address
+// rewrite reads, so the two paths cannot disagree about where an old link goes.
+import { canonicalRegionId } from "./retired-anchor-compatibility.js";
 
 /**
  * The ids the shipped markup carries, in one place so a test can name them.
@@ -371,6 +376,15 @@ export function regionsFor(doc, key) {
  *      selects the default, because the frame belongs to the answer.
  *
  * Anything else returns null, which callers read as "leave the selection alone".
+ *
+ * BETWEEN 2 AND 3, ONE LOOKUP (#1500). A fragment that names no element on this
+ * page is checked against the alias map before it is given up on: a link shared
+ * before the FinOps consolidation points at markup that was merged into a
+ * surviving region, and resolving it here is what makes that link open the
+ * canonical answer rather than nothing at all. One indirection only — the map's
+ * value is looked up as an element and is never itself re-aliased — so a
+ * mistaken pairing cannot become a cycle. An id in neither the document nor the
+ * map is still null, and null is still "leave the selection alone".
  */
 export function destinationForFragment(doc, hash) {
   const raw = String(hash ?? "");
@@ -379,7 +393,9 @@ export function destinationForFragment(doc, hash) {
     .find((key) => DESTINATION_FRAGMENT[key] === raw);
   if (owned) return owned;
 
-  const target = byId(doc, raw.slice(1));
+  const id = raw.slice(1);
+  const alias = canonicalRegionId(id);
+  const target = byId(doc, id) ?? (alias ? byId(doc, alias) : null);
   if (!target) return null;
   const region = target.closest?.("[data-workspace-region]") ?? null;
   const key = region?.dataset?.workspaceRegion ?? null;
