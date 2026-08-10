@@ -398,6 +398,110 @@ export function getRecoverableSpend(dataset) {
 }
 
 // ---------------------------------------------------------------------------
+// THE SHAPE OF THE SPEND THE HEADLINE IS A SLICE OF (#1512)
+//
+// The headline states what is recoverable. It cannot state how big that is
+// against everything else, and "$51,254 a month" reads the same whether the
+// organization spends $150k a month or $15m. So the first screen also draws the
+// spend as ONE bar cut into three parts, and this is where those parts are
+// derived — in the data layer, once, so the chart owns no arithmetic of its own.
+//
+// THE BAR IS THE CURRENT ANNUAL SPEND, and the three parts sum to it exactly.
+// There is no fourth series and no part that is a share of something else:
+//
+//   defensible recoverable  the canonical headline, annualised. Read off the
+//                           `getRecoverableSpend` record above and never
+//                           recomputed here.
+//   not recoverable         what is left of the analyzed annual spend once the
+//                           recoverable part is taken out of it. A RESIDUAL, by
+//                           subtraction, so the three cannot fail to add up.
+//   not yet scored          annualised spend sitting in departments that carry
+//                           no completed FinOps score. It is inside the residual
+//                           by construction, so it is subtracted out of it and
+//                           shown on its own: it is the part a reader can act on
+//                           by scoring a department, and the part the headline is
+//                           explicitly not a claim about.
+//
+// THE DENOMINATOR IS THE ENVELOPE'S OWN. `spendUsd` is the analyzed total the
+// export declares, annualised by the same ×12 the headline projection uses. This
+// page does not re-sum it from the rows, for the same reason the attestation
+// does not: a total this page computed cannot disagree with the export, because
+// it is never asked to. If the declared total is smaller than the parts it is
+// supposed to contain, the shape is withheld rather than clamped — a bar drawn
+// from a residual that went negative is a picture that lies quietly.
+// ---------------------------------------------------------------------------
+
+export const SPEND_SHAPE_CONTRACT = "finops-spend-shape/1.0.0";
+
+/** The three parts, in drawing order: the answer first, the unknown last. */
+export const SPEND_SHAPE_PARTS = Object.freeze(["recoverable", "notRecoverable", "unscored"]);
+
+/** Short enough to sit inside a bar segment. The precise definition of each is
+ *  in `definition` and is stated beside the chart, never inside the label. */
+const SPEND_SHAPE_LABEL = Object.freeze({
+  recoverable: "defensible recoverable",
+  notRecoverable: "not recoverable",
+  unscored: "not yet scored",
+});
+
+const SPEND_SHAPE_DEFINITION = Object.freeze({
+  recoverable: "Defensible recoverable is the headline monthly figure multiplied by 12.",
+  notRecoverable: "Not recoverable is the analyzed annual spend left after the recoverable part"
+    + " and the unscored part are taken out of it.",
+  unscored: "Not yet scored is annualised spend in departments carrying no completed FinOps"
+    + " score, which the headline makes no claim about.",
+});
+
+const NO_SHAPE_SENTENCE = "No spend shape is drawn: the analyzed total this page would draw it"
+  + " against is missing, or it is smaller than the parts it is supposed to contain.";
+
+/**
+ * The current annual spend, and the three parts of it the first screen draws.
+ *
+ * @param dataset the analysis envelope the consolidated answer is computed over.
+ * @param record the `getRecoverableSpend` record for it, passed in by callers
+ *   that already hold one so the canonical figure is read once, never re-derived.
+ * @returns a frozen `finops-spend-shape/1.0.0` record. `available` is false when
+ *   there is no total to draw against; `segments` is then empty and
+ *   `textAlternative` says why, so a caller never has to distinguish null.
+ */
+export function getSpendShape(dataset, record = getRecoverableSpend(dataset)) {
+  const declared = Number.isFinite(dataset?.spendUsd)
+    ? roundHalfUp(dataset.spendUsd * MONTHS_PER_YEAR) : null;
+  const recoverable = Number.isFinite(record?.annualised) ? record.annualised : null;
+  const unscored = roundHalfUp(departmentRows(dataset)
+    .filter((row) => !isScored(row) && Number.isFinite(row.spendUsd))
+    .reduce((sum, row) => sum + row.spendUsd, 0) * MONTHS_PER_YEAR);
+  const notRecoverable = declared === null || recoverable === null
+    ? null : declared - recoverable - unscored;
+  const periodLabel = record?.periodLabel ?? null;
+
+  if (notRecoverable === null || notRecoverable < 0 || unscored < 0) {
+    return Object.freeze({
+      contract: SPEND_SHAPE_CONTRACT, available: false, periodLabel,
+      annualSpendUsd: null, annualSpendDisplay: null,
+      segments: Object.freeze([]), textAlternative: NO_SHAPE_SENTENCE,
+    });
+  }
+
+  const value = { recoverable, notRecoverable, unscored };
+  const segments = SPEND_SHAPE_PARTS.map((key) => Object.freeze({
+    key, value: value[key], display: usdWhole(value[key]),
+    label: `${usdWhole(value[key])} ${SPEND_SHAPE_LABEL[key]}`,
+    definition: SPEND_SHAPE_DEFINITION[key],
+  }));
+  const listed = `${segments[0].label}, ${segments[1].label} and ${segments[2].label}`;
+  return Object.freeze({
+    contract: SPEND_SHAPE_CONTRACT, available: true, periodLabel,
+    annualSpendUsd: declared, annualSpendDisplay: usdWhole(declared),
+    segments: Object.freeze(segments),
+    textAlternative: `Spend shape, annualised: ${usdWhole(declared)} current annual spend, split`
+      + ` into ${listed}. ${segments.map((segment) => segment.definition).join(" ")} The three`
+      + " parts add up to the current annual spend.",
+  });
+}
+
+// ---------------------------------------------------------------------------
 // THE ATTESTATION: DID THE CONSOLIDATED ANSWER STAY TRUE? (#1499)
 //
 // #1502, #1503 and #1504 shortened this page hard — two conflicting recoverable

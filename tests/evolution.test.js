@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { parseHtml, textOf } from "./support/browser.js";
 import { loadExampleDataset } from "../src/example-dataset.js";
-import { getRecoverableSpend } from "../src/finops-answer-contract.js";
+import { getRecoverableSpend, getSpendShape } from "../src/finops-answer-contract.js";
 import { renderRecoverableSpend } from "../src/finops-answer-contract-view.js";
 import {
   QUERY_CATEGORIES, categorySpendUsd, explainLiteracyScore, formatUsd, letterGrade, literacyScore,
@@ -352,10 +352,11 @@ test("the answer region asks one question, states one figure, and names one move
 // ---------------------------------------------------------------------------
 
 /** Every recoverable-dollar string rendered anywhere under a node. */
-const dollarsUnder = (node) => {
+const dollarsUnder = (node, skipId = null) => {
   const found = [];
   const walk = (current) => {
     for (const child of current?.children ?? []) {
+      if (child.id && child.id === skipId) continue;
       if (typeof child.textContent === "string" && !child.children?.length) {
         found.push(...(child.textContent.match(/\$[\d,]+/g) ?? []));
       }
@@ -450,7 +451,26 @@ test("no recoverable-dollar figure in the answer region is undeclared", async ()
 
   const region = document.getElementById("finops-recoverable-answer");
   const derived = new Set([recoverable.monthlyDisplay, recoverable.annualisedDisplay]);
-  const rendered = dollarsUnder(region);
+  // THE SPEND SHAPE IS COUNTED SEPARATELY, AND HELD TO THE SAME RULE (#1512).
+  // Its figures are declared — `getSpendShape` reads this same accessor and
+  // subtracts the rest out of the export's own analyzed total — but they are the
+  // accessible equivalent of a picture, in a visually-hidden sentence beside an
+  // aria-hidden canvas, not a second money string in the region's prose. So the
+  // one-headline-one-projection count below is taken over the READING, and every
+  // dollar inside the chart is checked against the shape record instead.
+  const shape = getSpendShape(loadExampleDataset(), recoverable);
+  const declaredByShape = new Set([shape.annualSpendDisplay,
+    ...shape.segments.map((segment) => segment.display)]);
+  const drawn = dollarsUnder(document.getElementById("finops-spend-shape"));
+  assert.ok(drawn.length > 0, "the chart states its three parts in the DOM, not only in pixels");
+  for (const amount of drawn) {
+    assert.ok(declaredByShape.has(amount),
+      `${amount} in the spend shape is not a part the shape record declares`);
+  }
+  assert.ok(declaredByShape.has(recoverable.annualisedDisplay),
+    "the recoverable part of the chart IS the one accessor's annual projection");
+
+  const rendered = dollarsUnder(region, "finops-spend-shape");
   assert.ok(rendered.length > 0, "the region states a figure at all");
   for (const amount of rendered) {
     assert.ok(derived.has(amount),
