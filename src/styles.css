@@ -655,12 +655,12 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .skeleton-line-short { width:62%; }
 .skeleton-media,.skeleton-line { background:linear-gradient(100deg,#eeece5 30%,#f7f6f2 50%,#eeece5 70%) #eeece5; background-size:220% 100%; animation:shiplog-shimmer 1.4s linear infinite; }
 /* ---------------------------------------------------------------------------
-   Profile: one author's image posts as a grid of linked tiles.
-   The grid has no sidebar, so the panel spans the full width and the tiles do
-   the reflowing — the identity block above them stays a fixed hierarchy of
-   avatar → name → counts at every size.
+   The sidebar-less workspace: People's tile grid, a post permalink, and Social,
+   whose composer opens below the feed instead of standing beside it. The panel
+   spans the full width and the tiles do the reflowing — People's identity block
+   above them stays a fixed hierarchy of avatar → name → counts at every size.
    --------------------------------------------------------------------------- */
-.profile-workspace { grid-template-columns:1fr; }
+.workspace-single { grid-template-columns:1fr; }
 .hero-profile { padding-bottom:56px; }
 .hero-profile h1 { margin:18px 0 0; font-size:clamp(34px,5.2vw,58px); line-height:1.02; overflow-wrap:anywhere; }
 /* The identity line answers the picker above it, so it keeps the same gap the

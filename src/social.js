@@ -662,6 +662,61 @@ export function mountImageDescription(root) {
   };
 }
 
+// The composer as a disclosure, wired the way this site already wires its other
+// one (src/site-footer.js): a trigger that carries `aria-expanded`, a panel that
+// carries `hidden`, Escape from inside the panel, and focus that returns to the
+// trigger on every close. No new pattern, no new class, no new rule.
+//
+// Why the panel is `hidden` rather than moved with CSS: the point of the reorder
+// is that the feed comes first in the order a keyboard reader and a screen
+// reader travel, and a visually-repositioned form still stands between the
+// heading and the first post in both of those. `hidden` also takes the four
+// composer fields out of the tab sequence until somebody asks for them.
+//
+// Focus is the half that makes it usable, so it is stated once here and holds
+// for every route: open puts the caret in the caption field, because revealing a
+// form and leaving focus on the trigger above it strands the reader at the exact
+// moment they asked for the form; close puts it back on the trigger, because
+// anything else drops them at the top of the document, above everything they
+// have already read.
+//
+// A publish that succeeds deliberately does NOT close the panel. The receipt —
+// #social-notice, with the permalink and the People link — is inside it, and
+// src/social.js already moves focus there; collapsing the composer would hide
+// the announcement the reader was just sent to.
+export function mountComposerDisclosure(root) {
+  const trigger = root.querySelector("#post-compose-open");
+  const panel = root.querySelector("#post-compose-panel");
+  const caption = root.querySelector("#post-body");
+  const cancel = root.querySelector("#post-compose-cancel");
+  const closed = { open() {}, close() {}, get isOpen() { return false; } };
+  if (!trigger || !panel) return closed;
+
+  // `focus: false` is for the two arrivals that already own where the reader
+  // lands — a Paint handoff, and a cold load on the composer's own fragment.
+  const open = ({ focus = true } = {}) => {
+    panel.hidden = false;
+    trigger.setAttribute("aria-expanded", "true");
+    if (focus) caption?.focus();
+  };
+  const close = () => {
+    if (panel.hidden) return;
+    panel.hidden = true;
+    trigger.setAttribute("aria-expanded", "false");
+    trigger.focus();
+  };
+
+  trigger.addEventListener("click", () => (panel.hidden ? open() : close()));
+  cancel?.addEventListener("click", close);
+  panel.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    event.preventDefault();
+    close();
+  });
+
+  return { open, close, get isOpen() { return !panel.hidden; } };
+}
+
 // Wire the interactive behaviour: compose submission, the live character
 // counter, and roving-focus navigation over the feed. Handlers are delegated to
 // the feed container so they survive a re-render without re-binding. Returns a
@@ -683,6 +738,7 @@ export function mountSocialFeed(root, options = {}) {
   const timeFilter = root.querySelector("#post-time-filter");
   const clearFilters = root.querySelector("#post-filter-clear");
   const description = options.description ?? mountImageDescription(root);
+  const composer = mountComposerDisclosure(root);
 
   let posts = options.posts ?? [];
   let state = options.state ?? "ready";
@@ -973,6 +1029,9 @@ export function mountSocialFeed(root, options = {}) {
     // Handed back so the media composer can tell the field when an image
     // arrives or leaves, without either half owning the other's DOM.
     description,
+    // Handed back so the page can reveal the composer for the two arrivals that
+    // ask for it by URL — a Paint handoff, and a cold load on #post-form.
+    composer,
     seed(next) { posts = next ?? []; state = "ready"; renderNames(); render(); },
     // Loading/error are display states only — they never discard posts already
     // on screen, so a failed refresh degrades to "stale but readable".

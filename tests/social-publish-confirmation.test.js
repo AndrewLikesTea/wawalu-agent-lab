@@ -65,6 +65,9 @@ async function composer(t, { hasImage = false, fail = null } = {}) {
     },
   });
   feed.description.setAttached(Boolean(media));
+  // The composer ships collapsed behind the hero's Publish a post control, and
+  // the receipt this file is about lives inside it, so open it first.
+  feed.composer.open();
   if (media) {
     document.querySelector("#compose-preview-image").src = media.preview;
     document.querySelector("#compose-media").hidden = false;

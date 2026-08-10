@@ -242,6 +242,15 @@ async function init() {
     getMedia: () => media.get(),
     clearMedia: () => media.clear(),
   });
+  // The composer ships collapsed, so the two arrivals that name it in the URL
+  // have to open it or they land on a fragment that is not being rendered: the
+  // Paint handoff (/social.html?from=paint&image=…#post-form) and anyone who
+  // pasted or bookmarked #post-form. Opened without taking focus — the handoff's
+  // own arrival panel and the browser's fragment jump each already decide where
+  // the reader lands, and mountMediaComposer below runs after this.
+  const wantsComposer = Boolean(paintHandoffIntent(globalThis.location?.search))
+    || globalThis.location?.hash === "#post-form";
+  if (wantsComposer) feed.composer.open({ focus: false });
   const media = mountMediaComposer(root, feed.description);
 
   const fallback = dedupeById(await fetchDemoPosts());
