@@ -42,8 +42,8 @@ export function initShiplogProof(root, options = {}) {
     status.textContent = "";
     const copied = await copyRecordUrl(clipboard, url);
     status.textContent = copied
-      ? "Proof link copied to clipboard."
-      : "Clipboard unavailable. Use Share this proof to open or copy the link.";
+      ? "Example link copied to clipboard."
+      : "Clipboard unavailable. Use the Open this example link to open or copy it.";
     button.disabled = false;
   });
 }

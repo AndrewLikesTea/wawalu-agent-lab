@@ -31,7 +31,13 @@ test("renders one clearly disclosed synthetic proof connecting decision, owner, 
   assert.equal(textOf(proof.querySelectorAll("dd")[1]), "Kai");
   assert.equal(textOf(proof.querySelectorAll("dd")[2]), "accepted");
   assert.equal(textOf(proof.querySelectorAll("dd")[3]), "v1.3.0 · Throughput and latency");
-  assert.equal(copy.getAttribute("aria-label"), "Copy link to this synthetic Shiplog proof");
+  // The word "proof" belongs to the deployment check below, not to invented
+  // records: the share controls name what they open, and the button's
+  // accessible name is its visible text rather than a differing aria-label.
+  assert.doesNotMatch(textOf(proof), /proof/i);
+  assert.equal(textOf(page.document.querySelector(".shiplog-proof-link")), "Open this example");
+  assert.equal(textOf(copy), "Copy link to this example");
+  assert.equal(copy.getAttribute("aria-label"), null);
   assert.equal(page.document.querySelector(".shiplog-proof-link").getAttribute("href"), `/releases.html?focus=${SAMPLE_RELEASE_ID}#shiplog-proof`);
 });
 
@@ -53,7 +59,7 @@ test("copy announces success and keeps a usable share link when clipboard is una
   await Promise.resolve();
   await Promise.resolve();
   assert.equal(copied, `https://labs.wawalu.org/releases.html?focus=${SAMPLE_RELEASE_ID}#shiplog-proof`);
-  assert.equal(textOf(page.document.querySelector("#shiplog-proof-copy-status")), "Proof link copied to clipboard.");
+  assert.equal(textOf(page.document.querySelector("#shiplog-proof-copy-status")), "Example link copied to clipboard.");
 
   const unavailable = await open(t, { clipboard: {} });
   unavailable.document.querySelector("#shiplog-proof-copy").click();
