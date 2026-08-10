@@ -355,11 +355,14 @@ test("the composer describes no failure that has not happened yet", async (t) =>
 // image" while the form it opens labels its image field "(optional)" — one page
 // telling a reader both that a post cannot carry an image and that it may. The
 // field label is the anchor term and is unchanged; the entry control names the
-// act and stops there. The same pass pins the destination for image posts: this
-// site has no page called Profile, so "profile" survives on Social only as the
-// People page's URL and the class that styles its nav item, never as a word a
-// reader sees.
-test("the composer trigger names the action and its heading names the destination", async (t) => {
+// act and stops there. The heading it reveals now says the same word: it read
+// "Create a Social post", so the panel named one act with two verbs, and the
+// second one is the verb this page keeps for images. "Create" on Social means
+// an image and nothing else. The same pass pins the destination for image
+// posts: this site has no page called Profile, so "profile" survives on Social
+// only as the People page's URL and the class that styles its nav item, never
+// as a word a reader sees.
+test("the composer opener, heading and submit control name one action", async (t) => {
   const markup = await readFile(new URL("../src/social.html", import.meta.url), "utf8");
   const page = await loadPage(new URL("../src/social.html", import.meta.url), {});
   t.after(() => page.restore());
@@ -376,8 +379,16 @@ test("the composer trigger names the action and its heading names the destinatio
   assert.equal(entry[0].getAttribute("aria-expanded"), "false");
   assert.equal(entry[0].getAttribute("aria-controls"), "post-compose-panel");
   assert.equal(page.document.querySelector("#post-compose-panel").hidden, true);
-  assert.equal(textOf(page.document.querySelector("#post-form-title")), "Create a Social post",
-    "the composer heading no longer identifies where to create a Social post");
+  assert.equal(textOf(page.document.querySelector("#post-form-title")), "Publish a post",
+    "the composer heading names the act with a different verb from the control that opens it");
+  // One verb, end to end: opener, heading, submit. "Create" survives on this
+  // page for images only, at "Create an image in Paint".
+  assert.equal(textOf(page.document.querySelector("#post-submit")), "Publish post →",
+    "the submit control no longer ends the action the opener and heading name");
+  const panelWords = textOf(page.document.querySelector("#post-compose-panel"))
+    .replaceAll("Create an image in Paint", "");
+  assert.doesNotMatch(panelWords, /\bcreate\b/i,
+    "the composer names the post with a second verb again");
   // Counted, not compared against null: a surviving element sends assert.equal
   // through the whole parsed page instead of failing.
   assert.equal(page.document.querySelector(".form-panel").querySelectorAll(".eyebrow").length, 0,
