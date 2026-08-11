@@ -94,6 +94,10 @@ import { applyDestinationProvenance, destinationProvenanceText } from "./finops-
 // One way only, for the same reason: that module restates nothing this one
 // computes, so the two cannot cycle and the pin test joins them.
 import { FINOPS_WORKSPACE_INDEX, indexRowText } from "./finops-workspace-index.js";
+// The department selector (#1612), which reads the ids off the bundled record
+// rather than holding a list. One way only, again: it knows nothing about this
+// registry.
+import { knownDepartmentSlugs } from "./finops-department-view-model.js";
 
 // The one interrogative sentence at the top of the page, and the id of the
 // heading that carries it. #1325 asked for "How much of our AI spend can we
@@ -175,15 +179,17 @@ export const FINOPS_FRONT_DOOR = Object.freeze({
 export const FINOPS_SCOPES = Object.freeze(["month", "quarter"]);
 
 /**
- * The department identifiers the bundled analysis actually holds. Written here
- * because this module is the registry, and pinned against
- * src/evolution-demo-data.json in tests/finops-destinations.test.js so the two
- * cannot drift — a route that addresses a department the seed does not contain
- * is a link to an empty drill-down.
+ * The department identifiers the bundled analysis actually holds.
+ *
+ * COMPUTED, not authored (#1612). It used to be seven strings typed here and
+ * pinned against src/evolution-demo-data.json by a test, which caught a drift
+ * one commit after it happened. Now the selector reads the ids off the record
+ * itself, in the record's order, and this is that call — so an addressable
+ * department the analysis does not hold cannot be written down in the first
+ * place, and the pin in tests/finops-destinations.test.js becomes a statement
+ * about the seed rather than a chore.
  */
-export const FINOPS_DEPARTMENT_IDS = Object.freeze([
-  "data-ml", "backend", "frontend", "sre", "mobile", "quality", "security",
-]);
+export const FINOPS_DEPARTMENT_IDS = knownDepartmentSlugs();
 
 /** A destination that carries no addressable qualifier of either kind. */
 const NO_QUALIFIERS = Object.freeze({
