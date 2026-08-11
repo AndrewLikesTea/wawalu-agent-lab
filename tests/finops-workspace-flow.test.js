@@ -22,9 +22,10 @@ import {
 import {
   FINOPS_CONSENT, FINOPS_OUTCOME, FINOPS_STATE,
   finopsWorkspaceFile, forgetFinopsWorkspace, projectRetainedPeriod, readFinopsWorkspace,
-  retainFinopsPeriod, setFinopsConsent,
+  retainApprovedCommitment, retainFinopsPeriod, setFinopsConsent,
 } from "../src/finops-workspace.js";
 import { serializeFinopsPortableRecord } from "../src/finops-portable-record.js";
+import { WORKSPACE_DECISION_QUESTION } from "../src/finops-workspace-decision.js";
 import { DomEvent, loadPage, tabSequence, textOf } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
 
@@ -260,7 +261,12 @@ test("the page ships a readable FinOps loading state before any module runs", as
   // The boundary claims are static markup: they do not wait for a script.
   assert.match(shown(document, "finops-preview-title"), /What AI FinOps would remember here/);
   assert.match(shown(document, "finops-never-stored"), /Credentials, prompts, raw imports/);
-  // Nothing is claimed to be kept before the store has been read.
+  // The question is static markup — it does not change with the store, so it is
+  // asked before any script runs — and it is the contract's question rather than
+  // a second wording of it that could drift away from what is computed.
+  assert.equal(shown(document, "fw-answer-question"), WORKSPACE_DECISION_QUESTION);
+  // Nothing is claimed to be kept, or answered, before the store has been read.
+  assert.equal(document.querySelector("#fw-answer").hidden, true);
   assert.equal(document.querySelector("#fw-briefing").hidden, true);
 });
 
@@ -334,9 +340,12 @@ test("a retaining browser draws one benchmark, one confidence chip, and one acti
     const chips = document.querySelector("#fw-facts").querySelectorAll(".ws-chip");
     assert.deepEqual(chips.map((chip) => textOf(chip)), ["Remembering", "High"]);
     assert.deepEqual(chips.map((chip) => chip.dataset.tone), ["on", "verified"]);
-    // Exactly one prioritized action, and it is the one the figure sizes.
+    // Exactly one prioritized action, and it is the one the question above
+    // needs answered: two months are kept, neither carries a committed figure,
+    // so there is nothing to judge a commitment against yet.
     assert.equal(document.querySelector("#fw-next").querySelectorAll(".ws-next-action").length, 1);
-    assert.match(shown(document, "fw-next-title"), /Record the decision this figure sizes/);
+    assert.match(shown(document, "fw-next-title"), /Add a month/);
+    assert.equal(shown(document, "fw-answer-figure"), "Not yet");
   } finally {
     restore();
   }
@@ -368,6 +377,139 @@ test("supporting evidence stays behind disclosures that name what is inside them
   }
 });
 
+/* ------------------- the one question, and the one action ------------------- */
+
+/** The approved-commitment block a recorded decision carries, per month. */
+const commitmentMetadata = (month, projectedMinor) => ({
+  commitmentId: `route-support-triage-${month.replace("-", "")}`,
+  claim: {
+    baselineMonthlyCostMinor: projectedMinor + 200_000,
+    projectedMonthlyCostMinor: projectedMinor,
+    monthlySavingsMinor: 200_000,
+    currency: "USD", unit: "usd_minor", period: month,
+  },
+  confidence: { percent: 78, band: "high" },
+  provenance: { designation: "demo", analysisPeriod: month, recordCount: 2 },
+  recommendedAction: {
+    workloadId: "support-triage", departmentId: "customer-support",
+    fromModelId: "opus-tier", toModelId: "haiku-tier",
+  },
+});
+
+/**
+ * A returning lead's browser: retained months, each with the committed monthly
+ * cost that month was judged against. Both figures come from the shipped
+ * retention path, so the seed is a store this product can actually produce.
+ */
+function seedJudgeable(periods, committedMinor) {
+  const storage = retaining(periods);
+  for (const period of periods) {
+    const result = retainApprovedCommitment(storage, {
+      metadata: commitmentMetadata(period.period, committedMinor),
+      periodId: period.periodId,
+      approvedAt: `${period.period}-28T09:00:00.000Z`,
+    }, { now: NOW });
+    assert.equal(result.ok, true, `the seed commitment for ${period.period} was refused`);
+  }
+  return { [FINOPS_WORKSPACE_KEY]: storage.getItem(FINOPS_WORKSPACE_KEY) };
+}
+
+test("two consecutive judged months answer the question at the top, with the movement", async () => {
+  const { document, restore } = await open(seedJudgeable(
+    [periodOf({ month: "2026-05", spendUsd: 7000 }), periodOf({ month: "2026-06", spendUsd: 7430 })],
+    1_000_000,
+  ));
+  try {
+    // 70.0% of committed spend, then 74.3%: 4.3 percentage points worse.
+    assert.equal(document.querySelector("#fw-answer").hidden, false);
+    assert.equal(shown(document, "fw-answer-figure"), "+4.3 pp");
+    assert.match(shown(document, "fw-answer-label"), /Commitment utilization worsened between 2026-05 and 2026-06/);
+    assert.match(shown(document, "fw-answer-detail"), /from 70\.0% of committed spend in 2026-05 to 74\.3% in 2026-06/);
+    // The verdict is the primary. Gap-filling is named as words, not as a
+    // second control competing with the first.
+    assert.equal(document.querySelector("#fw-next").querySelectorAll(".ws-next-action").length, 1);
+    assert.match(shown(document, "fw-next-title"), /Record the decision this movement sizes/);
+    assert.match(shown(document, "fw-next-secondary"), /^Still open, and not the next step: Open the AI FinOps page\.$/);
+  } finally {
+    restore();
+  }
+});
+
+test("the basis and the limits are a closed disclosure, not competition for the finding", async () => {
+  const { document, restore } = await open(seedJudgeable(
+    [periodOf({ month: "2026-05", spendUsd: 7000 }), periodOf({ month: "2026-06", spendUsd: 7430 })],
+    1_000_000,
+  ));
+  try {
+    const basis = document.querySelector("#fw-answer-basis");
+    // Asserted as structure, not as absent text: this harness reads text
+    // through a closed details element, so "the words are not on screen" is a
+    // claim it cannot make. The element and its open state are what a browser
+    // actually collapses.
+    assert.equal(basis.hidden, false);
+    assert.equal(basis.tagName, "DETAILS");
+    assert.equal(basis.hasAttribute("open"), false);
+    assert.equal(basis.querySelector("summary").tagName, "SUMMARY");
+    assert.match(shown(document, "fw-answer-provenance"), /user:2026-05, user:2026-06/);
+    assert.match(shown(document, "fw-answer-provenance"), /provider: wawalu\.integration\.provider-usage-billing/);
+    assert.match(shown(document, "fw-answer-limits"), /does not prove the commitment caused the movement/);
+  } finally {
+    restore();
+  }
+});
+
+test("a portable record waiting to be imported outranks adding a month", async () => {
+  const source = await open(seedOf([periodOf({ month: "2026-04" })]));
+  const portable = serializeFinopsPortableRecord(source.storage);
+  source.restore();
+  // A browser that already holds a month: the state the previous contract got
+  // wrong by promoting "Add a month" over a record the reader already has.
+  const target = await open(seedOf([periodOf({ month: "2026-06" })]));
+  const { document } = target;
+  try {
+    assert.match(shown(document, "fw-next-title"), /Add a month/);
+
+    const input = document.querySelector("#fw-import");
+    input.files = [{ text: async () => portable }];
+    await input.dispatchEvent(new DomEvent("change", { bubbles: true }));
+
+    assert.match(shown(document, "fw-next-title"), /Import your portable record/);
+    assert.equal(textOf(document.querySelector("#fw-next-action")), "Import your portable record");
+    assert.match(shown(document, "fw-next-secondary"), /not the next step: Open the AI FinOps page/);
+    assert.match(shown(document, "fw-answer-provenance"), /present in this session and can be imported/);
+    // The action leads to the review it needs, not back to the file picker.
+    await click(document, "fw-next-action");
+    assert.equal(document.activeElement, document.querySelector("#fw-import-confirm-title"));
+
+    // Cancelling puts the record beyond reach again, and the answer says so.
+    await click(document, "fw-import-confirm-no");
+    assert.match(shown(document, "fw-next-title"), /Add a month/);
+  } finally {
+    target.restore();
+  }
+});
+
+test("a first visit is asked for a first import, and never for a record it does not hold", async () => {
+  const page = await open();
+  const { document } = page;
+  try {
+    // Not asked yet: there is no prior-period evidence to be short of.
+    assert.equal(document.querySelector("#fw-answer").hidden, true);
+    assert.equal(document.querySelector("#fw-answer-basis").hidden, true);
+
+    await click(document, "fw-grant");
+
+    assert.equal(document.querySelector("#fw-answer").hidden, false);
+    assert.equal(shown(document, "fw-answer-figure"), "Not yet");
+    assert.match(shown(document, "fw-answer-detail"), /holds 0 retained months/);
+    assert.match(shown(document, "fw-next-title"), /Import a provider export/);
+    // Nothing else is offered beside it: there is no second thing to do.
+    assert.equal(document.querySelector("#fw-next").querySelectorAll("#fw-next-secondary").length, 0);
+  } finally {
+    page.restore();
+  }
+});
+
 test("the reader can reach every FinOps control by keyboard, in the order they are asked for", async () => {
   const { document, restore } = await open(seedOf([periodOf()]));
   try {
@@ -388,6 +530,7 @@ test("the reader can reach every FinOps control by keyboard, in the order they a
       "Inspect every retained field and sample value",
       "finops-preview-json",
       "Open the AI FinOps page",
+      "What this answer rests on, and what it cannot tell you",
       "Check the 1 retained period behind this figure",
       "Where every figure above comes from",
       "Keep using files only",

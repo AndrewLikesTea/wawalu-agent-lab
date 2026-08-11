@@ -5,10 +5,13 @@
 // One flow, top to bottom, stoppable at any point:
 //
 //   1. the boundary and the choice — what would be kept, and yes or no;
-//   2. the consolidated briefing — one benchmark, one confidence, one period;
-//   3. exactly one prioritized next action;
-//   4. the evidence and the provenance, behind closed disclosures;
-//   5. the retained records, the download, and the forget action.
+//   2. one question and its answer — is there enough prior-period evidence to
+//      judge last month's commitment, and by how much utilization moved if so;
+//   3. exactly one prioritized next action, from the same decision contract;
+//   4. the basis, the limits, the evidence and the provenance, behind closed
+//      disclosures;
+//   5. the consolidated briefing, the retained records, the download, and the
+//      forget action.
 //
 // (1)'s explanatory copy and the contract preview are static markup, because a
 // claim about what a page would keep must be true before any script runs.
@@ -29,11 +32,12 @@
 
 import {
   FINOPS_CONSENT, FINOPS_OUTCOME, FINOPS_STATE,
-  forgetFinopsWorkspace, readFinopsWorkspace, setFinopsConsent,
+  forgetFinopsWorkspace, readFinopsDocument, readFinopsWorkspace, setFinopsConsent,
 } from "./finops-workspace.js";
 import {
   buildFinopsPortableRecord, importFinopsPortableRecord, parseFinopsPortableRecord,
 } from "./finops-portable-record.js";
+import { buildWorkspaceDecision } from "./finops-workspace-decision.js";
 
 function element(tag, className, text) {
   const node = document.createElement(tag);
@@ -90,6 +94,13 @@ export function initFinopsWorkspace(root, storage, options = {}) {
   const now = () => options.now?.() ?? new Date();
   const download = options.download ?? downloadFinopsWorkspace;
 
+  const answer = byId("fw-answer");
+  const answerFigure = byId("fw-answer-figure");
+  const answerLabel = byId("fw-answer-label");
+  const answerDetail = byId("fw-answer-detail");
+  const answerBasis = byId("fw-answer-basis");
+  const answerProvenance = byId("fw-answer-provenance");
+  const answerLimits = byId("fw-answer-limits");
   const status = byId("fw-status");
   const facts = byId("fw-facts");
   const summary = byId("fw-summary");
@@ -128,7 +139,27 @@ export function initFinopsWorkspace(root, storage, options = {}) {
   const confirmNo = byId("fw-confirm-no");
 
   let view = null;
+  let decision = null;
   let pendingImport = null;
+
+  /**
+   * Whether a versioned portable FinOps record is present and importable right
+   * now, read off the portable-record module's own parse result rather than
+   * guessed at from a period count. `pendingImport` is only ever a record that
+   * `parseFinopsPortableRecord` accepted and whose declarations are compatible,
+   * held for the reader's approval — which is exactly "present and importable
+   * in this browser session".
+   */
+  const portableRecordAvailable = () => pendingImport !== null;
+
+  /** The declared provider/HRIS sources, for the provenance disclosure only. */
+  function sourceDeclarations() {
+    try {
+      return buildFinopsPortableRecord(storage).sourceDeclarations;
+    } catch {
+      return [];
+    }
+  }
 
   // One announcement channel. The visible notice and the screen-reader text are
   // the same sentence, so nothing is said to one reader and withheld from the
@@ -162,6 +193,40 @@ export function initFinopsWorkspace(root, storage, options = {}) {
     summary.textContent = view.summary;
     status.dataset.state = view.state;
     panel.setAttribute("aria-busy", "false");
+  }
+
+  /**
+   * The one question, and the answer to it.
+   *
+   * Drawn only where the question can honestly be asked: a browser that has not
+   * been asked to remember anything, or was told not to, has no prior-period
+   * evidence to be short of, and telling it to add a month would be answering a
+   * question nobody put. Those states keep the consent ladder below instead.
+   *
+   * The decision itself is `buildWorkspaceDecision`'s. Nothing here re-derives
+   * sufficiency, movement, or precedence; this function writes text into slots.
+   */
+  function renderAnswer() {
+    const active = view.state === FINOPS_STATE.empty || view.state === FINOPS_STATE.retaining;
+    answer.hidden = !active;
+    answerBasis.hidden = !active;
+    if (!active) return;
+    const sufficient = decision.evidence.sufficient;
+    answer.dataset.available = String(sufficient);
+    answerFigure.dataset.available = String(sufficient);
+    answerFigure.textContent = sufficient
+      ? `${decision.movement.points > 0 ? "+" : ""}${decision.movement.points.toFixed(1)} pp`
+      : "Not yet";
+    answerLabel.textContent = sufficient
+      ? decision.movement.label
+      : `${decision.evidence.requiredPeriods} consecutive retained months are needed to judge it`;
+    answerDetail.textContent = sufficient
+      ? `${decision.movement.statement} ${decision.evidence.statement}`
+      : decision.evidence.statement;
+    answerProvenance.replaceChildren(...decision.provenance
+      .map((row) => fact(row.term, element("span", null, row.detail))));
+    answerLimits.replaceChildren(...decision.limitations
+      .map((limitation) => element("li", "fw-record", limitation)));
   }
 
   /**
@@ -206,8 +271,20 @@ export function initFinopsWorkspace(root, storage, options = {}) {
       .map((row) => fact(row.term, element("span", null, row.detail))));
   }
 
+  /**
+   * Exactly one prioritized action, and where it comes from.
+   *
+   * Once the question above can be asked, the decision contract owns the answer
+   * and the action that follows from it, so this card renders its primary and
+   * nothing else. The consent ladder still names the action for the states the
+   * contract does not speak to — unreadable storage, an unanswered choice.
+   *
+   * Secondary actions are listed as words, not controls: a second button beside
+   * the first is a second answer, and this page's whole claim is that there is
+   * one.
+   */
   function renderNext() {
-    const action = view.nextAction;
+    const action = decision?.primaryAction && !answer.hidden ? decision.primaryAction : view.nextAction;
     const card = element("section", "ws-next-card");
     card.dataset.action = action.code;
     card.setAttribute("aria-labelledby", "fw-next-title");
@@ -227,6 +304,13 @@ export function initFinopsWorkspace(root, storage, options = {}) {
     }
     control.id = "fw-next-action";
     card.append(control);
+    if (action === decision?.primaryAction && decision.secondaryActions.length) {
+      const secondary = element("p", "ws-next-why",
+        `Still open, and not the next step: ${decision.secondaryActions
+          .map((entry) => entry.label).join("; ")}.`);
+      secondary.id = "fw-next-secondary";
+      card.append(secondary);
+    }
     next.replaceChildren(card);
   }
 
@@ -279,6 +363,12 @@ export function initFinopsWorkspace(root, storage, options = {}) {
 
   function render() {
     view = readFinopsWorkspace(storage, { now: now() });
+    decision = buildWorkspaceDecision({
+      document: readFinopsDocument(storage).document,
+      portableRecordAvailable: portableRecordAvailable(),
+      sourceDeclarations: sourceDeclarations(),
+    });
+    renderAnswer();
     renderStatus();
     renderBriefing();
     renderNext();
@@ -335,6 +425,9 @@ export function initFinopsWorkspace(root, storage, options = {}) {
       importConfirm.hidden = false;
       importReviewResult.textContent = parsed.compatibility.message;
       importReplaceNote.hidden = !result.replaces;
+      // A record is now present and importable, which is an input to the answer
+      // above — so the answer is redrawn before the reader is sent to approve it.
+      render();
       importConfirmTitle.focus();
       report(result.message, { tone: "neutral" });
       return;
@@ -368,6 +461,10 @@ export function initFinopsWorkspace(root, storage, options = {}) {
   function runAction(kind) {
     if (kind === "grant") return choose(FINOPS_CONSENT.granted);
     if (kind === "forget") return openConfirm();
+    // "import": the record is already parsed and waiting on the source review,
+    // so this puts the reader on the approval it needs rather than reopening a
+    // file picker they have already used.
+    if (kind === "import") return importConfirmTitle.focus();
     // "recheck": read both keys again and say so, whether or not the answer moved.
     return settle("This browser's FinOps storage was read again.", { tone: "neutral" });
   }
@@ -379,6 +476,7 @@ export function initFinopsWorkspace(root, storage, options = {}) {
   importConfirmNo.addEventListener("click", () => {
     closeImportConfirm({ focusInput: true });
     importInput.value = "";
+    render();
     report("Import cancelled. Nothing in this browser was changed.", { tone: "neutral" });
   });
   importConfirmYes.addEventListener("click", () => {

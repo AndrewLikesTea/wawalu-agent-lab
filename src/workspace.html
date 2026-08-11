@@ -179,6 +179,32 @@
         <p class="visually-hidden" id="fw-announcement" role="status" aria-live="polite"></p>
 
         <div id="fw-panel" aria-busy="true">
+          <!-- One question, asked once, above everything that depends on it. The
+               question is static markup because it does not change with the
+               store: only the answer under it waits on this browser being read.
+               The basis and the limits sit behind a closed disclosure so they
+               cannot compete with the finding they support. -->
+          <section class="fw-briefing" id="fw-answer" aria-labelledby="fw-answer-question" data-available="false" hidden>
+            <h3 id="fw-answer-question">Do I have enough prior-period evidence to judge last month’s commitment?</h3>
+            <p class="fw-benchmark-figure" id="fw-answer-figure" data-available="false"></p>
+            <p class="fw-benchmark-label" id="fw-answer-label"></p>
+            <p class="fw-benchmark-detail" id="fw-answer-detail"></p>
+          </section>
+
+          <div id="fw-next">
+            <section class="ws-next-card" aria-labelledby="fw-next-loading-title" role="status">
+              <p class="eyebrow">Do this next</p>
+              <h3 class="ws-next-title" id="fw-next-loading-title">Reading this browser</h3>
+              <p class="ws-next-why">Checking whether FinOps has been asked to remember anything here, and what it holds if it has. This page will name one thing to do as soon as it knows.</p>
+            </section>
+          </div>
+
+          <details class="ws-provenance fw-disclosure" id="fw-answer-basis" hidden>
+            <summary id="fw-answer-basis-summary">What this answer rests on, and what it cannot tell you</summary>
+            <dl class="ws-facts" id="fw-answer-provenance"></dl>
+            <ul class="fw-records" id="fw-answer-limits"></ul>
+          </details>
+
           <div class="ws-status fw-status" id="fw-status" aria-labelledby="fw-status-title">
             <h3 id="fw-status-title">What FinOps is keeping</h3>
             <p class="ws-summary" id="fw-summary">Reading this browser's FinOps keys…</p>
@@ -199,14 +225,6 @@
             <p class="fw-benchmark-detail" id="fw-benchmark-detail"></p>
             <p class="fw-briefing-period" id="fw-briefing-period"></p>
           </section>
-
-          <div id="fw-next">
-            <section class="ws-next-card" aria-labelledby="fw-next-loading-title" role="status">
-              <p class="eyebrow">Do this next</p>
-              <h3 class="ws-next-title" id="fw-next-loading-title">Reading this browser</h3>
-              <p class="ws-next-why">Checking whether FinOps has been asked to remember anything here, and what it holds if it has. This page will name one thing to do as soon as it knows.</p>
-            </section>
-          </div>
 
           <details class="ws-provenance fw-disclosure" id="fw-evidence" hidden>
             <summary id="fw-evidence-summary">Check the retained periods behind this figure</summary>
