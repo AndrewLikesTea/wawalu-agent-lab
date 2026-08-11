@@ -153,20 +153,65 @@ function linkDecision(page, title) {
   assert.equal(option.checked, true, `"${title}" could not be linked to the release`);
 }
 
-async function recordRelease(t, storage) {
+async function recordRelease(t, storage, { linkTitle = DECISION.title } = {}) {
   const page = await openReleases(t, storage);
   fill(page, "release-version", RELEASE.version);
   fill(page, "release-released-on", RELEASE.releasedOn);
   fill(page, "release-owner", RELEASE.owner);
   fill(page, "release-title", RELEASE.title);
   fill(page, "release-description", RELEASE.description);
-  linkDecision(page, DECISION.title);
+  if (linkTitle) linkDecision(page, linkTitle);
   clickButton(page, "Record release");
 
   const stored = JSON.parse(page.storage.getItem(RELEASE_STORAGE_KEY) ?? "[]");
   assert.equal(stored.length, 1, "the recorded release was not saved in this browser");
   return { page, release: stored[0] };
 }
+
+test("release history retains the selected decision after the page is revisited", async (t) => {
+  const recorder = await recordDecision(t);
+  const decision = recorder.decision;
+  const afterDecision = browserState(recorder.page);
+  recorder.page.restore();
+
+  const firstVisit = await recordRelease(t, afterDecision);
+  const release = firstVisit.release;
+  const afterRelease = browserState(firstVisit.page);
+  firstVisit.page.restore();
+
+  const revisited = await openReleases(t, afterRelease);
+  const row = revisited.document.querySelector(".release-item");
+  assert.ok(row, "revisited release history no longer shows the recorded release");
+  assert.match(textOf(row.querySelector(".release-toggle")), /1 decision · 1 accepted/);
+  row.querySelector(".release-toggle").click();
+  const linked = row.querySelectorAll(".release-decision-link");
+  assert.equal(linked.length, 1, "revisited release history lost the selected decision");
+  assert.equal(textOf(linked[0]), DECISION.title);
+  assert.equal(idInHref(linked[0].getAttribute("href")), decision.id);
+  assert.deepEqual(release.decisionIds, [decision.id]);
+});
+
+test("a release with no selected decisions remains valid after release history is revisited", async (t) => {
+  const firstVisit = await recordRelease(t, EMPTY_BROWSER, { linkTitle: null });
+  const afterRelease = browserState(firstVisit.page);
+  firstVisit.page.restore();
+
+  const revisited = await openReleases(t, afterRelease);
+  const rows = revisited.document.querySelectorAll(".release-item");
+  assert.equal(rows.length, 1, "the unlinked release was not retained after revisiting release history");
+  const row = rows[0];
+  assert.match(textOf(row.querySelector(".release-toggle")), new RegExp(RELEASE.title));
+  assert.equal(
+    row.querySelectorAll(".release-decision-link").length,
+    0,
+    "an unlinked release renders a misleading linked-decision control",
+  );
+  assert.deepEqual(
+    JSON.parse(revisited.storage.getItem(RELEASE_STORAGE_KEY) ?? "[]")[0].decisionIds,
+    [],
+    "the unlinked release did not persist an explicit empty association",
+  );
+});
 
 // Both records, through both recorders, ending on the history page that has to
 // show the association. Returns the ids the recorders wrote, so a test asserts

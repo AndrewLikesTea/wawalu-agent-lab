@@ -195,7 +195,7 @@ test("a rejected submit keeps the linked decisions and writes nothing", async (t
   assert.deepEqual(stored(page)[0].decisionIds, [CACHE_DECISION.id]);
 });
 
-test("a release with no decision linked is refused, explained, and returns focus to the group", async (t) => {
+test("a release with no decision linked is recorded with an explicit empty association", async (t) => {
   const page = await openReleases(t, { decisions: [QUEUE_DECISION, CACHE_DECISION] });
 
   // Every native field is complete; the only thing missing is the association
@@ -203,26 +203,11 @@ test("a release with no decision linked is refused, explained, and returns focus
   fillRequired(page, { version: "v3.0.0" });
   submit(page);
 
-  assert.deepEqual(stored(page), [], "a release with no linked decision was written");
-  const error = formError(page);
-  assert.equal(error.hidden, false, "the refusal was silent");
-  assert.equal(error.getAttribute("role"), "alert", "the refusal is not announced");
-  assert.match(textOf(error), /must link at least one decision/);
-  // The group is marked invalid and focus lands inside it, so the fix is the
-  // next keystroke rather than a hunt back up the form.
-  const group = page.document.querySelector("#release-decisions-field");
-  assert.equal(group.getAttribute("aria-invalid"), "true");
-  assert.equal(page.document.activeElement, optionFor(page, QUEUE_DECISION.title));
-
-  // Acting on the complaint clears it immediately rather than at next submit.
-  pressSpace(page.document);
-  assert.equal(error.hidden, true, "the alert outlived the problem it reported");
-  assert.equal(group.hasAttribute("aria-invalid"), false);
-
-  // Nothing typed was lost, so resubmitting records the release.
-  submit(page);
   assert.equal(stored(page).length, 1);
-  assert.deepEqual(stored(page)[0].decisionIds, [QUEUE_DECISION.id]);
+  assert.deepEqual(stored(page)[0].decisionIds, []);
+  assert.equal(textOf(page.document.querySelector("#release-record-status")), "Recorded v3.0.0 with no linked decisions.");
+  const group = page.document.querySelector("#release-decisions-field");
+  assert.equal(group.hasAttribute("aria-invalid"), false);
   assert.equal(stored(page)[0].createdAt, "2026-07-02T00:00:00.000Z");
 });
 
@@ -256,19 +241,17 @@ test("with no decisions to link, the picker says so and offers the way out", asy
   assert.match(textOf(empty), /No decisions to link yet\./);
   assert.equal(summaryText(page), "No decisions are available to link yet.");
   const action = page.document.querySelector(".decision-picker-empty-action");
-  assert.match(textOf(action), /Record a decision first/);
+  assert.equal(textOf(action), "Record a decision");
   // The action is a real link to the decision recorder, not a dead end.
   action.click();
   assert.deepEqual(page.navigations, ["/#decision-form"]);
 
-  // With nothing to link, no release can be recorded: the refusal names the
-  // reason and the empty state above it names the way out, so this is a
-  // signposted dead end rather than a silent one.
+  // With nothing to link, the release remains a valid record.
   fillRequired(page, { version: "v0.1.0", owner: "Mina" });
   submit(page);
-  assert.deepEqual(stored(page), [], "a release was recorded with no decision to link");
-  assert.match(textOf(formError(page)), /must link at least one decision/);
-  assert.equal(textOf(page.document.querySelector("#release-record-status")), "");
+  assert.equal(stored(page).length, 1);
+  assert.deepEqual(stored(page)[0].decisionIds, []);
+  assert.equal(textOf(page.document.querySelector("#release-record-status")), "Recorded v0.1.0 with no linked decisions.");
 });
 
 test("the picker is a keyboard-reachable group inside the form's tab order", async (t) => {
