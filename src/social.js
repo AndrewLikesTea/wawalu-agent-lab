@@ -497,15 +497,15 @@ const NO_POSTS_GUIDANCE = "Publish a post, or create an image in Paint first.";
 // One wait, one sentence — on this page. Social used to describe it twice at
 // once: a visible line ("Loading posts…") beside a live region that said
 // something else ("Connecting to the Social feed…"). A reader saw two claims and
-// a screen reader heard two; neither was more true than the other. Every waiting
-// surface here now says this, word for word: the static markup, the panel over
-// the empty grid, the count, and the connection line. src/social.html carries it
-// for the frame before hydration, so a change here is a change in two files.
+// a screen reader heard two; neither was more true than the other. The waiting
+// feed now uses one short status in the static markup and the panel that replaces
+// it. src/social.html carries it for the frame before hydration, so a change here
+// is a change in two files.
 //
 // People is not one of them. It waits on the same fetch but shows one display
 // name's image posts, so it says that instead (loadingSummaryText,
 // src/profile.js); this sentence stays Social's.
-export const FEED_LOADING_LINE = "Loading the Social feed…";
+export const FEED_LOADING_LINE = "Retrieving posts…";
 
 // `state` separates "we have nothing yet because we are still fetching" from
 // "we have nothing because there is nothing" and from "we have nothing because

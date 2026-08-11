@@ -282,10 +282,9 @@ test("social page is wired, labeled, and linked from the other pages", async () 
   assert.doesNotMatch(page, /nothing is published\.<\/span>/);
   assert.match(page, /id="post-counter"[^>]*aria-live="polite"/);
   assert.match(page, /id="post-count">Counting posts…<\/span>/);
-  // The count and the connection line describe one wait, so they ship the same
-  // sentence rather than "Loading posts…" beside "Connecting to the Social feed…".
+  // The feed itself ships one short retrieval status.
   assert.match(page, /id="feed-status">Connecting to live updates…<\/span>/);
-  assert.equal((page.match(/Loading the Social feed…/g) ?? []).length, 1);
+  assert.equal((page.match(/Retrieving posts…/g) ?? []).length, 1);
   assert.doesNotMatch(page, /id="post-count"[^>]*>0 posts<\/span>/);
   // One announced region for a filter change, and it is the summary: the count
   // beside the heading says a thinner version of the same news, so announcing
@@ -1048,7 +1047,7 @@ test("the post count never claims zero posts before the feed has any answer", as
   // connection line are all waiting on the same fetch, so a reader gets one
   // description of it and a screen reader hears one, not three.
   assert.equal(page.document.querySelector("#post-feed").querySelectorAll(".state-title").length, 1);
-  assert.equal(textOf(page.document.querySelector("#post-feed").querySelector(".state-title")), "Loading the Social feed…");
+  assert.equal(textOf(page.document.querySelector("#post-feed").querySelector(".state-title")), "Retrieving posts…");
 
   feed.setState("error");
   assert.equal(textOf(count), "Unavailable", "a failed fetch is not a count of zero");

@@ -177,7 +177,7 @@ test("a first-time visitor lands on a display name that has image posts", async 
 
 // The waiting copy is People's own — the image posts under the selected display
 // name — and it is copy for a wait, so it must not outlive one. It used to be
-// Social's "Loading the Social feed…", which announced the whole feed on the
+// Social's old whole-feed loading message, which announced the whole feed on the
 // page that tells a reader to open Social when they want it, and was the first
 // thing a screen reader read here.
 test("no placeholder is still announcing a load once the posts are on screen", async () => {

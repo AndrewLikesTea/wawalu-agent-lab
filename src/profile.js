@@ -308,24 +308,15 @@ export function emptySummaryText(author) {
   return `${name} hasn’t posted an image yet.`;
 }
 
-// What the counts line and the connection line say before anything has been
-// counted. Both wait on the same fetch, so both say this word for word — and
-// what they name is what People is actually fetching: image posts. They used to
-// say "Loading the Social feed…", Social's sentence about the whole feed, three
-// lines under People's own intro telling a reader to open Social when they want
-// that feed — and it was the first thing a screen reader announced on this page.
+// The grid's first-load status says exactly what People is retrieving and names
+// the selected display name. The name is interpolated as text, never markup.
 //
-// It names nobody. Both lines sit under the profile header, whose heading has
-// already said whose posts are being counted, and this page keeps the display
-// name to two visible elements in that region — the heading and the
-// active-filter chip. The possessive form these lines used to take ("Loading
-// Ari's image posts…") was the third and fourth of those copies.
-//
-// It still does not guess a count: the page ships this line as static markup for
+// It does not guess a count: the page ships this line as static markup for
 // the frame before hydration, where it once shipped "Ari hasn't posted an image
 // yet", a verdict that was false for the seeded feed.
-export function loadingSummaryText() {
-  return "Loading image posts…";
+export function loadingSummaryText(author = DEFAULT_AUTHOR) {
+  const name = String(author ?? "").trim() || DEFAULT_AUTHOR;
+  return `Retrieving image posts for ${name}…`;
 }
 
 // The counts line when the selected display name has nothing to show. It states
@@ -474,8 +465,8 @@ function renderTile(post, index) {
 
 // First-load placeholders. Hidden from assistive tech because the live region on
 // the page announces the real status; a shimmering box announces nothing.
-function renderSkeleton(container, count = 6) {
-  container.append(el("p", "profile-loading-message", loadingSummaryText()));
+function renderSkeleton(container, author, count = 6) {
+  container.append(el("p", "profile-loading-message", loadingSummaryText(author)));
   const list = el("ul", "profile-grid profile-grid-skeleton");
   list.setAttribute("role", "list");
   list.setAttribute("aria-hidden", "true");
@@ -535,7 +526,7 @@ export function renderProfileGrid(container, posts, options = {}) {
   container.setAttribute("aria-busy", state === "loading" && ordered.length === 0 ? "true" : "false");
 
   if (ordered.length === 0) {
-    if (state === "loading") renderSkeleton(container);
+    if (state === "loading") renderSkeleton(container, author);
     else if (state === "error") renderError(container, onRetry);
     else renderEmpty(container, author);
     return;
