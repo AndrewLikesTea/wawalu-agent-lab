@@ -453,6 +453,10 @@ import { applyScreenRoute, initWorkspaceShell } from "/finops-workspace-shell.js
 // selection live in the shell above. Nothing else on this page touches a History
 // for a destination change.
 import { createScreenRouter } from "/finops-destination-router.js";
+// A forwarded `?department=<slug>` link, landed on the department decision
+// region rather than at the top of the document (#1612). The five figures behind
+// it are a pure selector; this is only the wiring.
+import { applyForwardedDepartment } from "/finops-forwarded-department-view.js";
 // What each region of this page is for, declared in reading order. It writes
 // attributes and no copy, so it cannot change what a reader sees today; what it
 // changes is that "headline or support?" has an answer in the repository.
@@ -5110,6 +5114,15 @@ async function init() {
   destinationRouting = installDestinationRouting(document, {
     history: window.history, location: window.location, target: window,
   });
+  // …and directly after it, the bare `?department=` a colleague forwarded
+  // (#1612). It is read on its own rather than only as a qualifier of
+  // `?destination=`, because that is the link people actually paste. Nothing is
+  // redirected: the department region is opened and focused, and a slug this
+  // analysis does not hold says so in one sentence inside that region instead of
+  // substituting somebody else's numbers under its name.
+  applyForwardedDepartment(document, {
+    search: window.location?.search, record: BUNDLED_EXAMPLE_DATASET,
+  });
   // Immediately after it, and for the same reason: a deep link may have already
   // opened a deferred panel, and the read for that panel is taken at install.
   // Nothing below this line waits on it — the returned promises are the tests'
@@ -5462,6 +5475,13 @@ async function init() {
     // The department controls exist now, so an address that named one is
     // honoured. Re-reads the URL and scrolls nothing.
     destinationRouting?.refresh();
+    // …and the same for a bare `?department=` (#1612): the ranked controls exist
+    // now, so the department the link named is pressed here rather than lost.
+    // `move: false` — a reader who has already started reading must not be
+    // thrown back up the page by a late fixture.
+    applyForwardedDepartment(document, {
+      search: window.location?.search, record: data, move: false,
+    });
     // …and the same for the route (#1522), for the same reason: the ranked
     // choices exist now, so a `?dept=` that arrived before them is pressed here
     // rather than lost. Applying an already-applied route presses nothing.
