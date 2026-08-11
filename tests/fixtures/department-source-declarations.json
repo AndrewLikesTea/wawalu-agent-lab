@@ -1,0 +1,52 @@
+{
+  "$comment": "Committed synthetic declarations for tests/department-source-provenance.test.js. Two analysis documents in the shape src/evolution-demo-data.json publishes: one that declares both integrations and one that declares neither. No credential, no endpoint, no live export and no customer record is in this file — every name is invented.",
+  "declared": {
+    "organization": {
+      "name": "Northbeam Systems",
+      "period": "1 Jun – 1 Jul 2026",
+      "hrisSource": "Workday · synthetic sync",
+      "providers": ["OpenAI", "Anthropic"]
+    },
+    "provenance": {
+      "label": "Bundled synthetic fixture",
+      "generatedAt": "2026-07-01",
+      "billingSource": "hand-authored provider aggregate fixture",
+      "orgSource": "hand-authored HRIS mapping fixture"
+    },
+    "departments": [
+      {
+        "id": "platform",
+        "name": "Platform Engineering",
+        "period": "2026-06",
+        "spendUsd": 41200,
+        "headcount": 24
+      },
+      {
+        "id": "contractors",
+        "name": "Contract Delivery",
+        "period": "2026-06",
+        "spendUsd": 8600,
+        "headcount": 0
+      }
+    ]
+  },
+  "undeclared": {
+    "organization": {
+      "name": "Northbeam Systems",
+      "period": "1 Jun – 1 Jul 2026"
+    },
+    "provenance": {
+      "label": "Bundled synthetic fixture",
+      "generatedAt": "2026-07-01"
+    },
+    "departments": [
+      {
+        "id": "platform",
+        "name": "Platform Engineering",
+        "period": "2026-06",
+        "spendUsd": 41200,
+        "headcount": 24
+      }
+    ]
+  }
+}

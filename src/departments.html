@@ -78,6 +78,11 @@
               </div>
             </dl>
             <p class="context" id="department-metric-basis"></p>
+            <!-- Which declared exports the figure above rests on, at a glance
+                 and outside every disclosure on this screen. A basis that is
+                 incomplete names the absent source in THIS line, because a
+                 director who never expands anything must still learn it. -->
+            <p class="context" id="department-sources-line"></p>
             <p class="context" id="department-verdict-confidence"></p>
             <p class="context" id="department-verdict-evidence"></p>
             <p class="context" id="department-verdict-basis"></p>
@@ -86,6 +91,31 @@
             <p class="detail-body" id="department-action-headline"></p>
             <p class="detail-body" id="department-action-text"></p>
             <p class="context" id="department-action-worth"></p>
+
+            <!-- The per-source detail, behind the same disclosure pattern the
+                 four readings below already use. Every row ships empty and is
+                 filled from the analysis document's own declarations. -->
+            <details id="department-sources">
+              <summary><h3 id="department-sources-heading">Which exports this figure rests on</h3></summary>
+              <dl class="detail-meta">
+                <div class="detail-meta-row">
+                  <dt class="detail-meta-label">Provider export</dt>
+                  <dd class="detail-meta-value" id="department-sources-provider"></dd>
+                </div>
+                <div class="detail-meta-row">
+                  <dt class="detail-meta-label">HRIS headcount source</dt>
+                  <dd class="detail-meta-value" id="department-sources-hris"></dd>
+                </div>
+                <div class="detail-meta-row">
+                  <dt class="detail-meta-label">Period covered</dt>
+                  <dd class="detail-meta-value" id="department-sources-period"></dd>
+                </div>
+                <div class="detail-meta-row">
+                  <dt class="detail-meta-label">Freshness</dt>
+                  <dd class="detail-meta-value" id="department-sources-freshness"></dd>
+                </div>
+              </dl>
+            </details>
 
             <details id="department-mix">
               <summary><h3 id="department-mix-heading">Where the spend goes</h3></summary>
