@@ -205,6 +205,13 @@ export async function verifyArtifact(root) {
     // and the workspace reader to do it. A dropped one is a rejected entry
     // module — a page stuck on its loading state with no briefing at all.
     "executive-briefing-source.js", "finops-workspace.js",
+    // The per-department screen a forwarded ?department= link resolves on. Its
+    // entry imports the composer and the painter, and the composer reads the
+    // per-department view model in evolution.js. A dropped one of these is a
+    // rejected entry module — a screen stuck on "Reading this department's
+    // figures" with no figure, no action, and no way back.
+    "departments.html", "department-screen-page.js", "department-screen-view.js",
+    "department-screen.js",
     // The personal AI-history reader is a destination of its own, and its entry
     // imports the contract, the reader, the canonical synthetic export, the
     // entry rules, and the view. A dropped one of these is a rejected entry
