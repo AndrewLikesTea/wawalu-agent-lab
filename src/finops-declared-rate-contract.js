@@ -4,8 +4,9 @@
 //
 // WHAT THIS IS FOR. Since #1263 the page prices every destination at
 // DEFAULT_REFERENCE_CARD — published list prices — and #1266 grades that
-// honestly: `reference-published`, 66.8/100, Partial, "a checkable ceiling, not
-// your contract". There was no way to move it, because there was no way to say
+// honestly: `reference-published`, 66.8/100, Limited confidence, "the
+// published-list reference card, not your contract". There was no way to move
+// it, because there was no way to say
 // what you actually pay. This module is that way in, and it is the ONLY new
 // contract: what it produces is a rate card in the #1263 shape, handed to the
 // SAME `scorePricingProvenance` and `confidenceFor` the first screen already

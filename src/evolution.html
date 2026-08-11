@@ -134,20 +134,28 @@
            second export recomputes any part of it. -->
       <section class="finops-recoverable-answer" id="finops-recoverable-answer" data-workspace-frame="true" aria-labelledby="finops-recoverable-question">
         <h2 id="finops-recoverable-question">How much of our AI spend can we recover?</h2>
-        <!-- ONE NUMBER, AND ONE TRUST STATEMENT UNDER IT (#1497). This paragraph
-             is a grid, so every span in it is a row. It shipped as FIVE rows —
-             the label, the money, and then three separate 11px monospace
-             fragments, each on a line of its own, each carrying one trust signal
-             and none of them saying how they related to each other. A reader with
-             five seconds counted five things and left with none.
+        <!-- ONE NUMBER, ONE EVIDENCE LINE (#1556, superseding the row #1497 built).
+             #1497 got the three trust signals onto one row and stopped there: three
+             peers split by middots — Illustrative · Confidence: High · Pricing
+             provenance: Limited confidence (67/100) — with two more sentences under
+             them, one from the rate-card ladder and one from the pricing rubric,
+             both saying "ceiling". A CTO met two graded words that both read
+             "confidence", disagreed, and never said that one grades the PRICES and
+             the other the COVERAGE. Three signals competing for one glance is none.
 
-             It is three rows now: the label, the money, and ONE trust statement
-             that names all three signals in a single line, in the order a leader
-             needs them — what kind of number this is, how confident it is, and
-             whose prices it is priced at — and ends by naming where the working
-             is. The three values are the SAME three nodes, with the same ids, the
-             same classes and the same text: no provenance value is dropped,
-             reworded or moved behind anything. They are wrapped, not replaced.
+             It is ONE LINE now, in the order a leader needs: what kind of number
+             this is, the grade on the prices and the grade on the coverage — each
+             naming what it grades, so neither reads as a verdict on the other — why
+             the prices are graded that way, the single thing to state that moves
+             them, and where the working is. Every value is the SAME node, id, seeded
+             text and owning module; the two former paragraphs are spans in this
+             line, so six blocks between the money and the move are one.
+
+             IT IS ONE ANNOUNCEMENT: one text flow in one paragraph, read once
+             rather than once per signal. It wears `.stand-figure-basis` — the small
+             readable role this page already states provenance in — rather than 11px
+             monospace `.figure-source-state`, which stays on the chips inside it.
+             No rule is added to either stylesheet.
 
              EACH SIGNAL KEEPS ITS OWN LABEL. "Illustrative", "Confidence: …" and
              "Pricing provenance: …" are words a screen reader speaks and a
@@ -155,14 +163,12 @@
              nothing here is a chip whose fill is its meaning. That is the chip
              rule in design-system/claude-design/review-08-foundations.html.
 
-             THE SIGNALS STAY OUTSIDE THE DISCLOSURE. The supporting DETAIL for
-             all three — the confidence rubric's reasons, the four per-criterion
-             pricing bands, the basis and the limits — is one press away in the
-             single "How we know this" disclosure below, which is where it already
-             was. The graded values themselves are not folded in with it: a grade
+             THE GRADES STAY OUTSIDE THE DISCLOSURE. What is behind "How we know
+             this" is the BREAKDOWN — the rubric's reasons, the four pricing bands,
+             the arithmetic, the limits — which is where it already was. A grade
              inside a shut disclosure is a grade nobody is told, which is what
              tests/finops-recoverable-confidence.test.js pins by name. -->
-        <p class="stand-figure" id="finops-recoverable-figure" data-available="true" data-basis="monthly" data-scored-departments="5" data-total-departments="5"><span class="stand-figure-label" id="finops-recoverable-label">Recoverable AI spend per month</span> <span class="stand-figure-value" id="finops-recoverable-value">$51,254</span> <span class="figure-source-state" id="finops-recoverable-trust">How far to trust this figure: <span class="figure-source-state" id="finops-recoverable-marker">Illustrative</span> · <span class="figure-source-state" id="finops-recoverable-grade" data-grade="ungraded">Confidence: not graded</span> · <span class="figure-source-state" id="finops-recoverable-provenance" data-band="unscored">Pricing provenance: not scored</span> · the arithmetic, the sources and the limits are under How we know this, below.</span></p>
+        <p class="stand-figure" id="finops-recoverable-figure" data-available="true" data-basis="monthly" data-scored-departments="5" data-total-departments="5"><span class="stand-figure-label" id="finops-recoverable-label">Recoverable AI spend per month</span> <span class="stand-figure-value" id="finops-recoverable-value">$51,254</span> <span class="stand-figure-basis" id="finops-recoverable-trust">How far to trust this figure: <span class="figure-source-state" id="finops-recoverable-marker">Illustrative</span> — <span class="figure-source-state" id="finops-recoverable-provenance" data-band="unscored">Pricing provenance: not scored</span> on the prices, <span class="figure-source-state" id="finops-recoverable-grade" data-grade="ungraded">Confidence: not graded</span> on the spend coverage. <span id="finops-recoverable-provenance-reason">Whose prices this figure uses has not been scored for this document.</span> <span id="finops-recoverable-confidence">A ceiling at list prices until 2 destination models state contracted rates and committed-use.</span> Both grades, the arithmetic behind them and the limits are under How we know this, below.</span></p>
         <!-- HOW BIG THAT IS AGAINST EVERYTHING WE SPEND (#1512). The headline
              says what is recoverable. It cannot say what share of the bill that
              is, and the same figure reads completely differently against a
@@ -201,44 +207,36 @@
              `.stand-answer`, the class the two sentences below it already use,
              adds no rule to either stylesheet, and is not focusable. -->
         <p class="stand-answer" id="finops-recoverable-basis">Summed over the 5 of 5 departments carrying a completed FinOps score for 2026-06-01 to 2026-07-01. Unscored departments contribute zero and are never extrapolated to. About $615,048 a year if this month holds — the monthly figure multiplied by 12, with no seasonality or growth adjustment.</p>
-        <!-- HOW SURE WE ARE, BESIDE THE MONEY (#1186). One grade from a rubric
-             with published cut points — src/finops-recoverable-confidence.js
-             names each threshold and states the assumption behind it, and
-             tests/finops-recoverable-confidence.test.js runs a labelled fixture
-             through it. It is a static span in the figure's own paragraph, so it
-             is read with the number and needs no tab stop of its own; the
-             explanation is inside the one disclosure below, in Limits.
+        <!-- WHO WRITES THE FIVE SLOTS IN THE LINE ABOVE. None is authored by hand
+             and none is derived twice; #1556 moved the last two out of paragraphs
+             of their own into that line, which is all that changed about them.
 
-             It reuses `.figure-source-state`, the chip the Illustrative marker
-             beside it already ships, and adds no rule to either stylesheet.
-             Authored "not graded" and seeded with the real grade by
-             scripts/seed-first-screen.mjs, which reads the same module the page
-             paints from, so the served bytes and the render agree. -->
-        <!-- WHAT MUST BE STATED BEFORE THIS NUMBER IS CHECKABLE (#1262). The
-             marker above and this sentence are both written by
-             src/finops-rate-card-contract.js from the card the figure is priced
-             at — the published list, with nothing contracted — so neither can
-             say "Illustrative" on a day the inputs no longer are. The authored
-             text IS that function's output for the default card, pinned by
-             tests/finops-rate-card-contract.test.js, so the served bytes and the
-             render cannot state two different things. -->
-        <p class="stand-answer" id="finops-recoverable-confidence">A ceiling at list prices until 2 destination models state contracted rates and committed-use.</p>
-        <!-- WHOSE PRICES THIS FIGURE IS, SCORED (#1266). Since a lead may declare
-             their own rate card, this number moves with prices the reader typed,
-             and neither marker above says whether they are contracted or
-             flattering. The chip beside the figure and this sentence are written
-             by src/finops-pricing-provenance.js from the DECLARATION'S METADATA
-             ONLY — where the rates came from, how complete the card is, how old
-             it is, how much of the analysis it covers. No rate, discount or
-             dollar figure is read, so scaling every declared price leaves the
-             sub-score and every word of it byte-identical; that is asserted in
-             tests/finops-pricing-provenance.test.js rather than assumed.
+             THE COVERAGE GRADE (#1186) — `#finops-recoverable-grade`, from a rubric
+             with published cut points: src/finops-recoverable-confidence.js names
+             each threshold and the assumption behind it, and its test runs a
+             labelled fixture through it. Authored "not graded" and seeded with the
+             real grade by scripts/seed-first-screen.mjs off the same module the
+             page paints from, so the served bytes and the render agree. Its
+             explanation is in the one disclosure below, in Limits.
 
-             It reuses `.figure-source-state` and `.stand-answer`, both already on
-             this region, and adds no rule to either stylesheet and no tab stop.
-             The four per-criterion bands are in the disclosure below, in Limits,
-             beside the confidence grade's own explanation. -->
-        <p class="stand-answer" id="finops-recoverable-provenance-reason">Whose prices this figure uses has not been scored for this document.</p>
+             THE TIER AND THE NEXT ACTION (#1262) — `#finops-recoverable-marker` and
+             `#finops-recoverable-confidence`, both written by
+             src/finops-rate-card-contract.js from the card the figure is priced at,
+             so neither can say "Illustrative" on a day the inputs no longer are.
+             The authored text IS that function's output for the default card,
+             pinned by tests/finops-rate-card-contract.test.js. The hedge is the ONE
+             next action the line ends on, capped at HEDGE_MAX_CHARS so it cannot
+             grow back into a paragraph; the full move is one press away in Limits.
+
+             THE PRICING GRADE AND ITS REASON (#1266) —
+             `#finops-recoverable-provenance` and `-provenance-reason`, written by
+             src/finops-pricing-provenance.js from the DECLARATION'S METADATA ONLY:
+             where the rates came from, how complete the card is, how old it is, how
+             much of the analysis it covers. No rate, discount or dollar figure is
+             read, so scaling every declared price leaves the sub-score and every
+             word of it byte-identical; tests/finops-pricing-provenance.test.js
+             asserts that rather than assuming it. The four per-criterion bands are
+             in Limits, beside the coverage grade's own explanation. -->
         <!-- WHEN A FIGURE ABOVE CAME OUT OF THIS BROWSER'S MEMORY (#1484). The
              declared rates a lead states below are retained locally, so a return
              visit can meet a provenance that was earned rather than one that

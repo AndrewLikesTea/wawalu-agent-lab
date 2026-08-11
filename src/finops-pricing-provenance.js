@@ -404,8 +404,12 @@ function observe(card, asOf, pricedDestinations) {
 const SOURCE_REASON = Object.freeze({
   "contracted-cited": (observed) =>
     `Rates are declared as contracted and cite a source, "${observed.citation}".`,
+  // "which is a checkable ceiling" was dropped in #1556: this sentence and the
+  // rate-card hedge now sit in the same evidence line, and the hedge is the one
+  // that says "ceiling". Two sentences making the same point back to back read as
+  // one point stated twice, which is how a reader learns to skip both.
   "reference-published": () =>
-    "Rates come from the published-list reference card, which is a checkable ceiling, not your contract.",
+    "Rates come from the published-list reference card, not your contract.",
   "contracted-uncited": () =>
     "Rates are declared as contracted but cite no source, so nobody outside this browser can check them.",
   "mixed-source": (observed) =>
