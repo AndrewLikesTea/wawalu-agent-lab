@@ -94,6 +94,10 @@ import { applyDestinationProvenance, destinationProvenanceText } from "./finops-
 // One way only, for the same reason: that module restates nothing this one
 // computes, so the two cannot cycle and the pin test joins them.
 import { FINOPS_WORKSPACE_INDEX, indexRowText } from "./finops-workspace-index.js";
+// The department vocabulary, read by the selector that resolves a forwarded
+// `?department=` (#1612). One way only, and that module imports nothing from
+// here, so the two cannot cycle.
+import { FINOPS_DEPARTMENT_SLUGS } from "./finops-department-answer.js";
 
 // The one interrogative sentence at the top of the page, and the id of the
 // heading that carries it. #1325 asked for "How much of our AI spend can we
@@ -175,15 +179,18 @@ export const FINOPS_FRONT_DOOR = Object.freeze({
 export const FINOPS_SCOPES = Object.freeze(["month", "quarter"]);
 
 /**
- * The department identifiers the bundled analysis actually holds. Written here
- * because this module is the registry, and pinned against
- * src/evolution-demo-data.json in tests/finops-destinations.test.js so the two
- * cannot drift — a route that addresses a department the seed does not contain
- * is a link to an empty drill-down.
+ * The department identifiers the bundled analysis actually holds.
+ *
+ * NOT WRITTEN HERE ANY MORE (#1612). The registry used to author its own list of
+ * seven strings beside a comment promising it matched the seed; the selector
+ * that resolves a forwarded `?department=` needs the same vocabulary, and two
+ * authorities for one published list disagree the first time one is edited. The
+ * list is now read by `listDepartmentSlugs`, the one function that decides what
+ * a department slug is, and is still pinned against src/evolution-demo-data.json
+ * in tests/finops-destinations.test.js — a route that addresses a department the
+ * seed does not contain is a link to an empty drill-down.
  */
-export const FINOPS_DEPARTMENT_IDS = Object.freeze([
-  "data-ml", "backend", "frontend", "sre", "mobile", "quality", "security",
-]);
+export const FINOPS_DEPARTMENT_IDS = FINOPS_DEPARTMENT_SLUGS;
 
 /** A destination that carries no addressable qualifier of either kind. */
 const NO_QUALIFIERS = Object.freeze({

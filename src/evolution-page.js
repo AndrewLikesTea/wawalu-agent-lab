@@ -453,6 +453,11 @@ import { applyScreenRoute, initWorkspaceShell } from "/finops-workspace-shell.js
 // selection live in the shell above. Nothing else on this page touches a History
 // for a destination change.
 import { createScreenRouter } from "/finops-destination-router.js";
+// A forwarded bare `?department=` (#1612), which neither of the two routes above
+// reads: the selector says which department it names and the view opens that
+// region, presses its control and puts the reader in it. An address that names
+// nothing this analysis has leaves the organization answer alone and says why.
+import { applyDepartmentAnswer } from "/finops-department-answer-view.js";
 // What each region of this page is for, declared in reading order. It writes
 // attributes and no copy, so it cannot change what a reader sees today; what it
 // changes is that "headline or support?" has an answer in the repository.
@@ -5448,6 +5453,12 @@ async function init() {
     // choices exist now, so a `?dept=` that arrived before them is pressed here
     // rather than lost. Applying an already-applied route presses nothing.
     if (screenRouter) applyScreenRoute(document, screenRouter.current());
+    // …and the same for a forwarded bare `?department=` (#1612). Here rather
+    // than at boot for the same reason both lines above are: the ranked control
+    // this presses does not exist until the analysis has painted it. Last of the
+    // three, so the sentence it may leave in the front door is not overwritten
+    // by a route re-application that has nothing to say.
+    applyDepartmentAnswer(document, data, window.location);
     renderRedaction(data.redactionSamples);
 
     // Ready is the lifecycle; "are these numbers mine?" is the question. The
