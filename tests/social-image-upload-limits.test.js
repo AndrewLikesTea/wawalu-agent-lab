@@ -29,9 +29,9 @@ const PAGE = fileURLToPath(new URL("../src/social.html", import.meta.url));
 
 // The strings a visitor reads, written out rather than imported, so a silent
 // rewording fails here instead of passing against itself.
-const UNSUPPORTED_TYPE = "This file is not a PNG, JPEG, GIF, or WebP. Convert or re-export it in one of those formats, then upload it again.";
+const UNSUPPORTED_TYPE = "This file is not a PNG, JPEG, GIF, or WebP. Convert or re-export it in one of those formats, then choose it again.";
 const OVER_LIMIT = "This file is over the 512 KB maximum. Pick a smaller file, or export a smaller PNG from Paint.";
-const PREVIEW_FAILURE = "We couldn’t create an image preview. Choose Remove image, then Upload image to try again.";
+const PREVIEW_FAILURE = "We couldn’t create an image preview. Select Remove image, then Choose image to try again.";
 
 // The composer as it is served: real markup, real wiring, no network beyond the
 // two responses the page's own start-up asks for.
@@ -129,6 +129,26 @@ test("the help text and the refusals state the limit and the formats identically
   const formats = source.match(/PNG,[^.·]*WebP/g) ?? [];
   assert.ok(formats.length >= 3, "the format list is stated beside the field and in both refusals");
   for (const mention of formats) assert.equal(mention, "PNG, JPEG, GIF, or WebP");
+});
+
+// The rule behind the wording, stated once so no single label has to carry it:
+// nothing the visitor chooses is sent until they publish, so no control, hint,
+// heading, or refusal in the composer may call the act "upload". This reads the
+// composer as served and as opened — the Paint arrival panel is empty here,
+// which is the point: arriving from Paint, that panel says "uploaded nothing",
+// and a negation is the one place the word still earns its keep.
+test("nothing a visitor reads in the composer calls choosing a file uploading", async (t) => {
+  const { document } = await openComposer(t);
+  const panel = document.querySelector("#post-compose-panel");
+
+  assert.doesNotMatch(textOf(panel), /upload/i);
+  // Not shipped in the markup either, so the refusals and the chosen-image
+  // region cannot reintroduce it once the wiring reveals them.
+  assert.doesNotMatch(UNSUPPORTED_TYPE, /upload/i);
+  assert.doesNotMatch(OVER_LIMIT, /upload/i);
+  assert.doesNotMatch(PREVIEW_FAILURE, /upload/i);
+  // And the region that names the chosen file names it as pending, not as sent.
+  assert.equal(textOf(document.querySelector("#compose-media-source")), "Image to publish");
 });
 
 // The message that was already here still belongs to its own case: a file that

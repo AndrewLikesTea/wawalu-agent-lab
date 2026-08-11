@@ -119,7 +119,7 @@ test("the caption is the composer's first field, in source order and in the tab 
 
   const stops = tabSequence(harness.document).filter(insideForm).map((node) => node.id);
   assert.equal(stops[0], "post-body", "the composer's first tab stop is not the caption");
-  assert.equal(stops[1], "post-image", "something focusable sits between the caption and Upload image");
+  assert.equal(stops[1], "post-image", "something focusable sits between the caption and Choose image");
   assert.ok(stops.indexOf("post-image-alt") > stops.indexOf("post-image"));
   assert.ok(stops.indexOf("post-author") > stops.indexOf("post-image-alt"));
 });
@@ -334,6 +334,24 @@ test("the description counter is the caption's counter, pointed at this field's 
   type(input, "n".repeat(MAX_IMAGE_ALT_LENGTH + 5));
   assert.equal(textOf(counter), "-5");
   assert.equal(counter.classList.contains("over"), true);
+});
+
+// Two adjacent required fields, one way of stating a limit. The assertion is on
+// the shared closing clause as well as on each field's whole hint, so rewording
+// the caption's hint without rewording this one fails here rather than passing
+// against a copy of itself.
+test("the description help states its limit in the caption hint's own form", async (t) => {
+  const harness = await composer(t);
+  const description = textOf(harness.document.querySelector("#post-image-alt-hint"));
+  const caption = textOf(harness.document.querySelector("#post-body-hint"));
+
+  assert.equal(description, "Describe what matters in the image for people who cannot see it. Up to 200 characters.");
+  assert.equal(caption, "Required. Up to 280 characters.");
+  assert.match(caption, /Up to \d+ characters\.$/);
+  assert.match(description, /Up to \d+ characters\.$/);
+  // Each field's number is its own maxlength, and the counter still opens on it.
+  assert.equal(harness.document.querySelector("#post-image-alt").getAttribute("maxlength"), "200");
+  assert.equal(textOf(harness.document.querySelector("#post-image-alt-counter")), "200");
 });
 
 test("imageDescriptionProblem requires a description only of an image post", () => {

@@ -8,7 +8,7 @@ export const PUBLISH_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/gi
 // reader who is refused reads back the same rule they were shown. Every refusal
 // in this file follows the same shape: what stopped the file, then the step.
 export const UNSUPPORTED_TYPE_ERROR =
-  "This file is not a PNG, JPEG, GIF, or WebP. Convert or re-export it in one of those formats, then upload it again.";
+  "This file is not a PNG, JPEG, GIF, or WebP. Convert or re-export it in one of those formats, then choose it again.";
 export const OVER_LIMIT_ERROR =
   "This file is over the 512 KB maximum. Pick a smaller file, or export a smaller PNG from Paint.";
 

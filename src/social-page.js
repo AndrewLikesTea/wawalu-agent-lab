@@ -26,7 +26,7 @@ const REFRESH_INTERVAL = 10_000;
 // preview-error empty and this fills it. Said once and used twice — in that
 // element and in the media status line — so the two cannot drift apart. It
 // names the two controls it asks for exactly as they are labelled.
-export const PREVIEW_FAILURE = "We couldn’t create an image preview. Choose Remove image, then Upload image to try again.";
+export const PREVIEW_FAILURE = "We couldn’t create an image preview. Select Remove image, then Choose image to try again.";
 
 async function fetchLivePosts() {
   const response = await fetch("/api/social-posts?limit=100", { cache: "no-store", headers: { accept: "application/json" } });
@@ -147,9 +147,14 @@ function mountMediaComposer(root, description) {
     fallback.hidden = true;
     preview.hidden = false;
     preview.src = next.preview;
-    source.textContent = next.source === "paint" ? "Paint drawing" : "Uploaded image";
+    source.textContent = "Image to publish";
     caption.textContent = `${next.width} × ${next.height} px · ${Math.max(1, Math.ceil(next.size / 1024))} KB`;
-    setStatus(`${source.textContent} ready to describe and post.`);
+    // Written out, not composed from the heading above: the heading is a noun
+    // phrase naming the pending state, and interpolating it produced "Image to
+    // publish ready to describe and post." This is also the one moment a
+    // visitor who never went near Paint is told where the file is — said once,
+    // here, rather than repeated beside every control.
+    setStatus("Image ready to describe and post. Nothing is sent until you publish.");
     description.setAttached(true);
     alt.focus();
   };

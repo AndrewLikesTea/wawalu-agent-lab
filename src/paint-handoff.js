@@ -25,7 +25,7 @@ export const PAINT_HANDOFF_COPY = Object.freeze({
     action: "Add it to a post on Social",
     arrivalTitle: "Attach the PNG you exported",
     arrivalDetail: `Paint saved ${EXPORT_FILE_NAME} to this device and uploaded nothing. Nothing is attached to this post yet.`,
-    arrivalStep: "Choose “Upload image” below and pick that file.",
+    arrivalStep: "Select “Choose image” below and pick that file.",
   }),
   prepared: Object.freeze({
     kind: "prepared",
