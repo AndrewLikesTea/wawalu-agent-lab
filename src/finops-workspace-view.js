@@ -116,6 +116,8 @@ export function initFinopsWorkspace(root, storage, options = {}) {
   const importInput = byId("fw-import");
   const importConfirm = byId("fw-import-confirm");
   const importConfirmTitle = byId("fw-import-confirm-title");
+  const importReviewResult = byId("fw-import-review-result");
+  const importReplaceNote = byId("fw-import-replace-note");
   const importConfirmYes = byId("fw-import-confirm-yes");
   const importConfirmNo = byId("fw-import-confirm-no");
   const forgetButton = byId("fw-forget");
@@ -322,18 +324,24 @@ export function initFinopsWorkspace(root, storage, options = {}) {
     catch { parsed = { ok: false, errors: ["File could not be read"] }; }
     if (!parsed.ok) {
       importInput.setAttribute("aria-invalid", "true");
-      report(`Import refused: ${parsed.errors[0]}. Nothing changed.`, { tone: "bad" });
+      report(`Import refused: ${parsed.errors[0]}. Nothing changed. ${parsed.compatibility?.message ?? ""}`.trim(),
+        { tone: "bad" });
       return;
     }
     importInput.setAttribute("aria-invalid", "false");
     const result = importFinopsPortableRecord(storage, parsed, { now: now() });
-    if (result.code === "confirmation_required") {
+    if (result.code === "source_review_required") {
       pendingImport = parsed;
       importConfirm.hidden = false;
+      importReviewResult.textContent = parsed.compatibility.message;
+      importReplaceNote.hidden = !result.replaces;
       importConfirmTitle.focus();
       report(result.message, { tone: "neutral" });
       return;
     }
+    // A file refused for its declarations is as invalid a choice as one that
+    // would not parse, so the control it was chosen with says so either way.
+    if (result.code?.endsWith("_source")) importInput.setAttribute("aria-invalid", "true");
     settle(result.message, { tone: result.ok ? "good" : "bad", focus: false });
     importInput.value = "";
   }
