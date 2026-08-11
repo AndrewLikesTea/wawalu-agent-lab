@@ -106,6 +106,20 @@ test("the workflow is discoverable and idle before anything is pasted", async ()
   }
 });
 
+test("the AI FinOps cross-link describes its distinct purpose and privacy boundary", async () => {
+  const page = await openCoachingPage();
+  try {
+    const neighbour = page.document.querySelector(".coach-neighbour");
+    const description = textOf(neighbour.querySelectorAll("p")[1]);
+    assert.equal(description,
+      "This page grades one text. AI FinOps analyzes a provider export to find ways to reduce AI spend. Your files stay in that browser tab.");
+    assert.equal(textOf(neighbour.querySelector("a.secondary-button")), "Open AI FinOps");
+    assert.equal(neighbour.querySelector("a.secondary-button").getAttribute("href"), "/evolution.html");
+  } finally {
+    page.restore();
+  }
+});
+
 test("pasting a weak prompt returns an answer, one benchmark, and one move", async () => {
   const page = await openCoachingPage();
   try {
