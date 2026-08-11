@@ -113,11 +113,15 @@ for (const [file, purpose] of REVIEWED) {
         assert.notEqual(node.tagName, "DETAILS", `${file}: the live region must not sit inside a details`);
       }
 
-      // The recovery paragraph names the one alternative route, and it is a real
-      // link, so a visitor whose retries keep failing has somewhere to go.
-      const alternative = byId(document, "site-footer-recovery").children
-        .find((child) => child.tagName === "A");
-      assert.equal(alternative?.getAttribute("href"), "/executive-briefing.html#briefing-contact");
+      // The recovery ships with the page and stays on it: a paragraph that
+      // leaves for no other form, and a retry control inside this very form.
+      const recovery = byId(document, "site-footer-recovery");
+      assert.equal(recovery.children.filter((child) => child.tagName === "A").length, 0,
+        `${file}: a failure here must be recovered here, not on another page`);
+      const retry = byId(document, "site-footer-retry");
+      assert.equal(retry.type, "submit");
+      assert.equal(retry.hidden, true, `${file}: nothing has failed, so nothing offers a retry`);
+      assert.equal(retry.closest("form")?.id, "site-footer-form");
     } finally {
       page.restore();
     }
@@ -212,13 +216,16 @@ for (const [name, transport] of [
       assert.doesNotMatch(message, RECEIPT_CLAIM, `a failure must not claim receipt: ${message}`);
       assert.match(message, /^We (didn|couldn)['’]t/);
 
-      // The retry path: the control comes back, and the recovery paragraph names
-      // the one alternative route that already exists.
+      // The retry path: the control comes back, and the recovery it belongs to
+      // keeps the reader on the page the request failed on.
       assert.equal(submitControl(document).disabled, false);
       const recovery = byId(document, "site-footer-recovery");
       assert.equal(recovery.hidden, false);
-      assert.match(textOf(recovery), /Try again in a few minutes/);
-      assert.match(textOf(recovery), /executive briefing carries its own follow-up form/);
+      assert.match(textOf(recovery), /Retry sends the same request again from this page/);
+      assert.doesNotMatch(textOf(recovery), /briefing/i);
+      const retry = byId(document, "site-footer-retry");
+      assert.equal(retry.hidden, false, "a failure must offer a retry where it happened");
+      assert.equal(textOf(retry), "Retry sending this request");
 
       // The outcome is wired to the field a reader has to come back to.
       assert.equal(field.getAttribute("aria-invalid"), "true");
@@ -271,11 +278,14 @@ test("the whole panel is operable from the keyboard, including the retry after a
     await settled(document);
     assert.equal(byId(document, "site-footer-form").dataset.state, "error");
 
-    // The retry affordance is reachable without a pointer, and the alternative
-    // route is a tab stop of its own.
+    // The retry affordance is reachable without a pointer, at its own place in
+    // the form rather than as a link off the page.
     const ids = tabSequence(document).map((node) => node.id);
     assert.ok(ids.includes("site-footer-email"), "the field stays in the tab order after a failure");
     assert.ok(ids.includes("site-footer-dismiss"));
+    assert.ok(ids.indexOf("site-footer-email") < ids.indexOf("site-footer-retry"),
+      "the retry follows the field a reader may want to correct first");
+    assert.ok(ids.indexOf("site-footer-retry") < ids.indexOf("site-footer-dismiss"));
 
     byId(document, "site-footer-email").focus();
     pressEnter(document);
