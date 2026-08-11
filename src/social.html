@@ -92,7 +92,7 @@
              A second button stood here carrying the composer's own Paint label
              word for word, which offered the in-flow control a screen early: one
              action, offered twice, before the reader had a caption to attach an
-             image to. Paint is offered once now, beside Upload image, where the
+             image to. Paint is offered once now, beside Choose image, where the
              image is attached. -->
         <div class="hero-actions">
           <button class="secondary-button" id="post-compose-open" type="button" aria-expanded="false" aria-controls="post-compose-panel">Publish a post</button>
@@ -305,7 +305,7 @@
             <fieldset class="media-picker">
               <legend>Image <span class="label-optional">(optional)</span></legend>
               <div class="media-source-actions">
-                <label class="secondary-button file-button" for="post-image">Upload image
+                <label class="secondary-button file-button" for="post-image">Choose image
                   <input id="post-image" name="image" type="file"
                     accept="image/png,image/jpeg,image/gif,image/webp" aria-describedby="post-image-steps post-image-hint post-media-status" />
                 </label>
@@ -317,14 +317,14 @@
                    upload — which spent three lines on a sequence the two
                    controls beside it already imply; one sentence names the same
                    three steps in the same order. It is named by the file input's
-                   own aria-describedby, so focusing Upload image reads it, and
+                   own aria-describedby, so focusing Choose image reads it, and
                    nothing folds it away — no disclosure widget, no hover, no
                    script — because a reader who needs it needs it first. -->
-              <p class="hint" id="post-image-steps">Export your Paint drawing as a PNG, return to this tab, then choose Upload image.</p>
+              <p class="hint" id="post-image-steps">Export your Paint drawing as a PNG, return to this tab, then select Choose image.</p>
               <p class="hint" id="post-image-hint">PNG, JPEG, GIF, or WebP · 512 KB maximum.</p>
               <div class="compose-media" id="compose-media" hidden>
                 <div class="compose-media-head">
-                  <p><span class="source-shape" aria-hidden="true"></span><strong id="compose-media-source">Uploaded image</strong></p>
+                  <p><span class="source-shape" aria-hidden="true"></span><strong id="compose-media-source">Image to publish</strong></p>
                   <button class="text-button" id="remove-image" type="button">Remove image</button>
                 </div>
                 <figure class="compose-preview">
@@ -355,13 +355,17 @@
                      social.js still owns the live marker, and hides it if the
                      image is removed.
                      The counter is the caption's counter pointed at this field's
-                     budget: same wording, same live region, same math. -->
+                     budget: same wording, same live region, same math. The hint
+                     closes on the caption hint's own limit clause, so two
+                     adjacent required fields stop stating one rule two ways;
+                     the clause before it is the guidance only this field needs,
+                     because only this field is written for someone else. -->
                 <div class="field field-wide">
                   <label for="post-image-alt">Image description <span class="label-optional label-required" id="post-image-alt-required">(required with an image)</span></label>
                   <textarea id="post-image-alt" name="image-alt" rows="2" maxlength="200"
                     aria-describedby="post-image-alt-hint post-image-alt-counter-label post-image-alt-counter"></textarea>
                   <p class="field-error compose-error" id="post-image-alt-error" hidden></p>
-                  <span class="hint" id="post-image-alt-hint">Describe what matters in the image for people who cannot see it.</span>
+                  <span class="hint" id="post-image-alt-hint">Describe what matters in the image for people who cannot see it. Up to 200 characters.</span>
                   <p class="counter-row">
                     <span id="post-image-alt-counter-label">Characters remaining:</span>
                     <span id="post-image-alt-counter" aria-live="polite" aria-atomic="true">200</span>

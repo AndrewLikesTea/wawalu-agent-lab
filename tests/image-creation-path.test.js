@@ -292,6 +292,14 @@ test("the button-shaped routes into Paint carry one arrow, and it is the leaves-
 // Paint uploads nothing: the visitor exports a PNG and carries it back. The
 // composer is where that has to be said, in order, in the page as served.
 
+test("the image control and chosen-image state name the action and pending result", () => {
+  const control = documents.Social.querySelector('label[for="post-image"]');
+  assert.equal(textOf(control), "Choose image");
+  assert.equal(textOf(documents.Social.getElementById("compose-media-source")), "Image to publish");
+  assert.equal(textOf(documents.Social.getElementById("remove-image")), "Remove image");
+  assert.equal(textOf(documents.Social.getElementById("compose-preview-caption")), "Preview before posting");
+});
+
 test("the composer names the whole round trip in one sentence, in order", () => {
   const steps = documents.Social.getElementById("post-image-steps");
   assert.ok(steps, "the composer names no steps at all");
@@ -304,10 +312,10 @@ test("the composer names the whole round trip in one sentence, in order", () => 
   assert.match(sentence, /PNG/, "the sentence never says what to export");
   assert.ok(sentence.indexOf("Paint") < sentence.indexOf("return to this tab"),
     "the sentence asks the reader to return before it sends them anywhere");
-  assert.ok(sentence.indexOf("return to this tab") < sentence.indexOf("Upload image"),
+  assert.ok(sentence.indexOf("return to this tab") < sentence.indexOf("Choose image"),
     "the sentence uploads before it comes back");
   // The control is named exactly as it is labelled, not described.
-  assert.match(sentence, /Upload image/);
+  assert.match(sentence, /Choose image/);
   assert.ok(sentence.split(".").filter((part) => part.trim()).length === 1,
     `the round trip is told in more than one sentence: ${sentence}`);
 
@@ -324,13 +332,13 @@ test("the composer names the whole round trip in one sentence, in order", () => 
 test("the steps are the image field's own description, so focusing it reads them", () => {
   const input = documents.Social.getElementById("post-image");
   const described = (input.getAttribute("aria-describedby") ?? "").split(/\s+/);
-  assert.ok(described.includes("post-image-steps"), "Upload image is not described by the steps");
+  assert.ok(described.includes("post-image-steps"), "Choose image is not described by the steps");
   // The mechanism the other fields already use, and the order it is read in:
   // the round trip, then the file constraint, then the live status.
   assert.deepEqual(described, ["post-image-steps", "post-image-hint", "post-media-status"]);
 });
 
-test("the composer's Paint link sits between Upload image and Image description", async () => {
+test("the composer's Paint link sits between Choose image and Image description", async () => {
   // Source order, which is what the task is: no tabindex anywhere near it.
   const html = sources.Social;
   assert.ok(html.indexOf('id="post-image"') < html.indexOf('class="secondary-button paint-link"'));
@@ -348,7 +356,7 @@ test("the composer's Paint link sits between Upload image and Image description"
     const paint = sequence.indexOf(page.document.querySelector(".media-source-actions").querySelector("a"));
     assert.ok(at("post-image") >= 0 && paint >= 0 && at("post-image-alt") >= 0,
       "one of the composer's image controls is not keyboard reachable");
-    assert.ok(at("post-image") < paint, "the Paint link comes before Upload image");
+    assert.ok(at("post-image") < paint, "the Paint link comes before Choose image");
     assert.ok(paint < at("post-image-alt"), "the Paint link comes after Image description");
   } finally {
     page.restore();

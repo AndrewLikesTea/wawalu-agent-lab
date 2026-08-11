@@ -175,7 +175,7 @@ test("the composer explains an exported file was not uploaded and names the next
   assert.equal(panel.dataset.handoff, "exported");
   assert.match(panel.textContent, /uploaded nothing/i);
   assert.match(panel.textContent, /Nothing is attached to this post yet/i);
-  assert.match(byClass(panel, "paint-arrival-next")[0].textContent, /Upload image/);
+  assert.match(byClass(panel, "paint-arrival-next")[0].textContent, /Choose image/);
   assert.match(panel.textContent, new RegExp(EXPORT_FILE_NAME));
   assert.equal(byClass(panel, "paint-arrival-shape").length, 1, "the chip carries a shape, not only a colour");
 });

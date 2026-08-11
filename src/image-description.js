@@ -46,8 +46,8 @@ export function renderDescriptionNote() {
 //
 // NOT the composer's preview failure. That one (#compose-preview-error in
 // src/social.html) is *pre-publish*: the file is in the reader's own hand, the
-// preview did not draw, and the honest instruction is "upload the file again
-// and check the preview before publishing". This is its read-time sibling — the
+// preview did not draw, and the honest instruction is to remove the file and
+// choose it again before publishing. This is its read-time sibling — the
 // post is published, someone else is reading it, and the image will not load
 // for them. Nothing here can be re-uploaded, so this state offers no action; it
 // states the classification and hands over the one thing that still describes

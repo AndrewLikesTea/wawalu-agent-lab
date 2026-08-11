@@ -305,7 +305,7 @@ test("social page is wired, labeled, and linked from the other pages", async () 
   // behind `hidden`, so a page nobody had uploaded anything to still carried a
   // sentence about a file that had failed to decode. The element stays — the
   // wiring fills it on the image's error event — and it ships empty.
-  const previewFailure = "We couldn’t create an image preview. Choose Remove image, then Upload image to try again.";
+  const previewFailure = "We couldn’t create an image preview. Select Remove image, then Choose image to try again.";
   assert.ok(page.includes('<p id="compose-preview-error" hidden></p>'));
   assert.doesNotMatch(page, /create an image preview/);
   assert.doesNotMatch(page, /Confirm that the preview appears/);
@@ -1282,7 +1282,7 @@ test("the composer's three cautions still read word for word once it is open", a
   id("compose-media").hidden = false;
 
   const cautions = {
-    "post-image-alt-hint": "Describe what matters in the image for people who cannot see it.",
+    "post-image-alt-hint": "Describe what matters in the image for people who cannot see it. Up to 200 characters.",
     "post-author-identity": "People groups image posts by display name, so this is the name yours appear under. A display name is not a signed-in user — nobody owns or verifies one, and anyone can publish under any name.",
     "post-consequence": "Anyone who visits Shiplog can read your post, its image, and the display name you publish it with. You cannot delete it afterwards, so post nothing you would not put on a public page.",
   };
