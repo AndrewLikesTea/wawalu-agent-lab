@@ -53,6 +53,43 @@ export function redactedFixtureErrors(input) {
   return errors;
 }
 
+/**
+ * Shape a caller's two months into the closed input this module accepts.
+ *
+ * A browser-local return flow holds real retained months and a real stored
+ * commitment, not a fixture literal. It still has to reach the evaluator through
+ * the same closed door, so the mapping — canonical ids, YYYY-MM months, integer
+ * minor units, at most two periods — lives here rather than in a page script
+ * that would otherwise be free to invent a shape this module then rejects.
+ *
+ * Nothing is validated here: `evaluateTwoPeriodCommitment` is still the only
+ * gate, so a caller cannot get a scored verdict out of a shape it refused.
+ */
+export function buildRedactedTwoPeriodInput({
+  id, scope, commitmentId, commitmentPeriod, savingMinor, periods = [], followUpPeriod,
+} = {}) {
+  const canonical = (value, fallback) => {
+    const text = String(value ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+    return ID.test(text) ? text : fallback;
+  };
+  const series = canonical(scope, "local-record");
+  return Object.freeze({
+    schemaVersion: TWO_PERIOD_FIXTURE_VERSION,
+    id: canonical(id, "local-return"),
+    redacted: true,
+    scope: series,
+    commitment: Object.freeze({
+      id: canonical(commitmentId, "local-commitment"),
+      period: String(commitmentPeriod ?? ""),
+      savingMinor,
+      scope: series,
+    }),
+    periods: Object.freeze(periods.map(({ period, spendMinor }) =>
+      Object.freeze({ period: String(period ?? ""), spendMinor }))),
+    followUpPeriod: String(followUpPeriod ?? ""),
+  });
+}
+
 const freeze = (value) => {
   if (value && typeof value === "object" && !Object.isFrozen(value)) {
     Object.freeze(value);

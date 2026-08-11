@@ -347,6 +347,10 @@ test("the page names one next action, and the reader can reach every control by 
       "Inspect every retained field and sample value",
       "finops-preview-json",
       "Remember these figures in this browser",
+      // The return path — choose a record written earlier, or start from scratch
+      // — sits between the FinOps next action and the controls it prefills.
+      "fw-return-file",
+      "Start over and set up from scratch",
       "Remember these figures in this browser",
       "Keep using files only",
       "fw-import",
