@@ -124,6 +124,7 @@ import {
 import {
   applyImportedMovement, clearImportedMovement,
 } from "/finops-imported-movement-view.js";
+import { renderTwoPeriodCommitmentExample } from "/two-period-commitment-view.js";
 // And how complete the brief those two blocks compose is, against the one the
 // bundled example earns: seven weighted slots, one tier, one prioritized gap.
 import {
@@ -5467,6 +5468,9 @@ async function init() {
 // Painted before init() so the evidence gate is answered on first paint rather
 // than after the bundled analysis loads. It reads only the bundled package.
 renderOwnDataEvidencePreflight(document, assessOwnDataEvidence(BUNDLED_OWN_DATA_EVIDENCE));
+// A checked, explicitly synthetic worked verdict in Trends. It is an example of
+// the return-decision rubric, never a claim about the reader's imported data.
+renderTwoPeriodCommitmentExample(document);
 // THE ONE BRIEFING, AND IT FOLLOWS THE ANALYSIS (#1466). The canonical answer
 // used to be resolved once, for a hard-coded scenario id, while the chooser
 // below moved the analysis underneath it — so a reader on Azure read an AWS
