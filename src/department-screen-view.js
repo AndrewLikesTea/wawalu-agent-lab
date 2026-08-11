@@ -66,6 +66,16 @@ export function applyDepartmentScreen(doc, model) {
   link(doc, "department-org-answer", model.backHref);
   link(doc, "department-unavailable-org-answer", model.backHref);
 
+  // The verdict slots are written on EVERY state, before the early return, so
+  // one department's verdict, confidence or evidence count can never survive
+  // into the next department's screen — including the states where the block
+  // is hidden rather than repainted.
+  write(doc, "department-verdict-label", model.verdict?.label ?? "Intervention verdict");
+  write(doc, "department-verdict-value", model.verdict?.value ?? "");
+  write(doc, "department-verdict-confidence", model.verdict?.confidenceDetail ?? "");
+  write(doc, "department-verdict-evidence", model.verdict?.evidence ?? "");
+  write(doc, "department-verdict-basis", model.verdict?.basis ?? "");
+
   if (!resolved) return root;
 
   write(doc, "department-metric-label", model.metric.label);

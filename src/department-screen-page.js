@@ -23,12 +23,17 @@ import {
   departmentScreenModel,
   departmentSlugFrom,
   pendingDepartmentScreen,
+  periodSlugFrom,
   unavailableDepartmentScreen,
 } from "/department-screen.js";
 
 const DATA_URL = "/evolution-demo-data.json";
 
-const slug = departmentSlugFrom(globalThis.window?.location?.search ?? "");
+const search = globalThis.window?.location?.search ?? "";
+const slug = departmentSlugFrom(search);
+// Optional: a link forwarded before periods were addressable names none, and
+// resolves to this department's first record exactly as it always did.
+const period = periodSlugFrom(search);
 
 /**
  * Load the bundled analysis and paint the answer for `slug`.
@@ -48,6 +53,7 @@ export async function loadDepartmentScreen() {
       departments: data?.departments,
       benchmark: data?.benchmark,
       slug,
+      period,
     }));
   } catch {
     applyDepartmentScreen(document,

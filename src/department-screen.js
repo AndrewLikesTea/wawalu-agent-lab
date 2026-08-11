@@ -37,9 +37,9 @@ import {
   formatUsd,
   normalizeMix,
   quartileLabel,
-  recommendationFor,
   recoverableSpendUsd,
 } from "./evolution.js";
+import { departmentVerdict, periodKeyOf } from "./department-verdict.js";
 
 /** The one question this screen exists to answer, stated once. */
 export const DEPARTMENT_QUESTION =
@@ -47,6 +47,17 @@ export const DEPARTMENT_QUESTION =
 
 /** The query parameter both directions of the round trip carry. */
 export const DEPARTMENT_PARAM = "department";
+
+/**
+ * The optional second half of the address: which period is being answered for.
+ *
+ * A verdict is only a verdict for one department AND one period, so a forwarded
+ * link that names a department an analysis holds twice has to say which month
+ * it meant. Optional, because every link forwarded before this existed names no
+ * period and must keep resolving: with none given the first record for that
+ * department is answered, exactly as before.
+ */
+export const PERIOD_PARAM = "period";
 
 /** This screen's own path, and the organization-wide answer it came from. */
 export const DEPARTMENT_SCREEN_PATH = "/departments.html";
@@ -67,10 +78,17 @@ export function departmentSlugFrom(search) {
   return slug === "" ? null : slug;
 }
 
+/** The `?period=` value of a query string, as a period key, or null. */
+export function periodSlugFrom(search) {
+  const raw = new URLSearchParams(String(search ?? "")).get(PERIOD_PARAM);
+  return periodKeyOf({ periodId: raw });
+}
+
 /** This screen's address for one department — the link evolution.html forwards. */
-export function departmentScreenHref(slug) {
+export function departmentScreenHref(slug, period = null) {
   if (!slug) return DEPARTMENT_SCREEN_PATH;
-  return `${DEPARTMENT_SCREEN_PATH}?${DEPARTMENT_PARAM}=${encodeURIComponent(slug)}`;
+  const tail = period ? `&${PERIOD_PARAM}=${encodeURIComponent(period)}` : "";
+  return `${DEPARTMENT_SCREEN_PATH}?${DEPARTMENT_PARAM}=${encodeURIComponent(slug)}${tail}`;
 }
 
 /**
@@ -143,6 +161,7 @@ export function pendingDepartmentScreen(slug = null) {
     status: "Reading the bundled example analysis for this department. "
       + "Nothing is uploaded and nothing is stored.",
     metric: null,
+    verdict: null,
     action: null,
     disclosures: null,
     backHref: orgAnswerHref(slug),
@@ -160,6 +179,7 @@ export function unavailableDepartmentScreen(reason, slug = null) {
     title: unavailableTitle(named, slug),
     status: `${unavailableTitle(named, slug)}. ${REASON_TEXT[named]}`,
     metric: null,
+    verdict: null,
     action: null,
     disclosures: null,
     // The way back is the org answer, and it still carries the selection: a
@@ -243,18 +263,31 @@ function trainingGapText(department) {
  *   publishes them, and the `slug` read off the address bar.
  * @returns a frozen model in exactly one of the three states.
  */
-export function departmentScreenModel({ departments, benchmark = null, slug = null } = {}) {
+export function departmentScreenModel({
+  departments, benchmark = null, slug = null, period = null,
+} = {}) {
   const list = Array.isArray(departments) ? departments : [];
   if (!list.length) return unavailableDepartmentScreen(DEPARTMENT_SCREEN_REASON.loadFailed, slug);
   if (!slug) return unavailableDepartmentScreen(DEPARTMENT_SCREEN_REASON.noDepartment, slug);
 
-  const department = list.find((entry) => String(entry?.id ?? "").toLowerCase() === slug);
+  // A department, and — when the address names one — that department's period.
+  // A named period this analysis does not hold is an unknown selection, not a
+  // silent fall back to whichever month happened to be first: a CTO forwarded a
+  // link to May must never be shown June under May's address.
+  const forSlug = list.filter((entry) => String(entry?.id ?? "").toLowerCase() === slug);
+  const department = period
+    ? forSlug.find((entry) => periodKeyOf(entry) === period)
+    : forSlug[0];
   if (!department) {
     return unavailableDepartmentScreen(DEPARTMENT_SCREEN_REASON.unknownDepartment, slug);
   }
 
   const recoverable = recoverableSpendUsd(department);
-  const recommendation = recommendationFor(department);
+  // The verdict, the confidence and the evidence count come from the one
+  // function the organization-wide review also calls. Nothing on this screen
+  // re-derives them, so a forwarded deep link cannot state a next move the org
+  // answer already refused to prioritize.
+  const verdict = departmentVerdict(department);
   const name = department.name ?? "This department";
   const metric = Object.freeze({
     label: "Recoverable AI spend per month",
@@ -273,15 +306,31 @@ export function departmentScreenModel({ departments, benchmark = null, slug = nu
     // The live region says the answer, not that an answer arrived. A reader who
     // is told "loaded" has been told about the page rather than about the money.
     status: `${name}: ${metric.display} of monthly AI spend is recoverable. `
-      + `First move: ${recommendation.action}`,
+      + `Verdict: ${verdict.verdict}`,
     metric,
+    // The verdict block, in the words a CTO reads it in. The rubric line names
+    // what scored this in reader vocabulary — no file, module, fixture or test
+    // identifier reaches a rendered sentence on this screen.
+    verdict: Object.freeze({
+      label: "Intervention verdict",
+      value: verdict.verdict,
+      confidence: verdict.confidence,
+      confidenceDetail: `Confidence: ${verdict.confidenceDetail}`,
+      evidenceCount: verdict.evidenceCount,
+      evidence: verdict.evidence,
+      basis: verdict.rubricSentence,
+    }),
     action: Object.freeze({
       label: "Do this first",
-      headline: recommendation.headline,
-      text: recommendation.action,
-      worth: recommendation.lostUsd > 0
-        ? `Worth about ${formatUsd(recommendation.lostUsd)} a month of the figure above.`
-        : "No material waste sits behind this department's figure.",
+      headline: verdict.action
+        ? `${formatPercent(verdict.action.shareOfScoredPrompts, { digits: 1 })} of ${name}’s `
+          + `scored prompts are ${verdict.action.patternLabel}.`
+        : verdict.reason ?? verdict.confidenceDetail,
+      text: verdict.action ? verdict.action.text
+        : "No next move is prioritized for this department and period.",
+      worth: verdict.action && verdict.action.valueUsd > 0
+        ? `Worth about ${formatUsd(verdict.action.valueUsd)} a month of the figure above.`
+        : "No dollar value is claimed for this department.",
     }),
     disclosures: Object.freeze({
       mix: Object.freeze(mixRows(department)),
