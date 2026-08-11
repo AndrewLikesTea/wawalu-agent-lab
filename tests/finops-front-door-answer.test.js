@@ -23,6 +23,7 @@ import {
   FRONT_DOOR_STATES, applyFrontDoorState, bindFrontDoorWorking,
   formatRecoverableUsd, frontDoorEvidence, frontDoorFinding,
 } from "../src/finops-destinations.js";
+import { indexRowText, workspaceIndexRow } from "../src/finops-workspace-index.js";
 import { parseHtml, pressEnter, pressSpace, textOf } from "./support/browser.js";
 
 const page = () => readFile(new URL("../src/evolution.html", import.meta.url), "utf8");
@@ -291,19 +292,27 @@ test("the working opens and closes from the keyboard, with no script of its own"
   assert.equal(summary.getAttribute("aria-expanded"), "false");
 });
 
-test("the working holds the arithmetic and every destination's own source", async () => {
+test("the working holds the arithmetic, and each destination's figure is in its row", async () => {
   const document = await doc();
   const list = document.getElementById("finops-front-door-working-detail");
   const terms = list.querySelectorAll("dt").map((node) => textOf(node).trim());
-  assert.deepEqual(terms, [`How ${FINOPS_FRONT_DOOR.figure.display} was computed`,
-    ...FINOPS_DESTINATIONS.map((entry) => entry.name)]);
+  // ONE part, and it is the arithmetic behind the headline. The per-destination
+  // figures that used to sit here moved into the rows themselves (#1611): a
+  // number a scanning reader has to open a disclosure to see is a number they do
+  // not have, and stating it in both places would print the same fact twice.
+  assert.deepEqual(terms, [`How ${FINOPS_FRONT_DOOR.figure.display} was computed`]);
   for (const definition of list.querySelectorAll("dd")) {
     assert.ok(textOf(definition).trim().length > 40, "a labelled part that says nothing");
   }
-  // Each destination's own provenance travels with its own figure.
-  const rows = list.querySelectorAll("dd").map((node) => textOf(node));
-  for (const [index, destination] of FINOPS_DESTINATIONS.entries()) {
-    assert.ok(rows[index + 1].includes(destination.metric.provenance),
+
+  // Each destination's figure, its window, its next action and its own source
+  // are all in that destination's row, visible with the disclosure shut.
+  for (const destination of FINOPS_DESTINATIONS) {
+    const row = workspaceIndexRow(destination.slug);
+    const door = document.querySelector(`[data-front-door-slug="${destination.slug}"]`);
+    assert.equal(textOf(door.querySelector(`[data-index-reading="${destination.slug}"]`)),
+      indexRowText(row), `${destination.slug}'s figure is not in its row`);
+    assert.ok(textOf(door.querySelector(`[data-destination-provenance="${destination.slug}"]`)).length > 0,
       `${destination.slug}'s figure is stated with no source`);
   }
 });
