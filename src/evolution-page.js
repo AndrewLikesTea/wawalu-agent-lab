@@ -4700,9 +4700,19 @@ function renderDecisionDetail(department, data) {
   // link out carries the selection rather than dropping the reader on a screen
   // that has to ask which department they meant (#1613). Built here rather than
   // imported: one query parameter is not worth a module in this page's payload.
+  //
+  // The same forward is authored beside every OTHER region this page's
+  // department destination owns (#1614), because each of those ids is an
+  // address a saved link may already carry. They are updated here, in one loop
+  // over the marker attribute, so the drill-down's selection and every legacy
+  // anchor's pointer can never name two different departments. A pointer whose
+  // href is left as authored still resolves — it names the default the document
+  // ships — so nothing here can strand a reader if the drill-down never runs.
   const screenLink = document.getElementById("department-screen-link");
-  if (screenLink && department.id) {
-    screenLink.setAttribute("href", `/departments.html?department=${encodeURIComponent(department.id)}`);
+  const pointers = [...(document.querySelectorAll?.("[data-department-screen-pointer]") ?? [])];
+  if (department.id) {
+    const href = `/departments.html?department=${encodeURIComponent(department.id)}`;
+    for (const pointer of [screenLink, ...pointers]) pointer?.setAttribute?.("href", href);
   }
   // The drill-down's prompt-literacy half: the evidence behind this
   // department's grade, and the fix pack that rides on the same model so the

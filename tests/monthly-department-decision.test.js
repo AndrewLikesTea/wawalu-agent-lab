@@ -494,11 +494,18 @@ test("the evidence disclosure and action path are named and keyboard reachable i
   applyMonthlyDepartmentDecision(document, pack());
   const section = document.getElementById("monthly-department-decision");
   const controls = section.querySelectorAll("summary,button,a");
-  assert.deepEqual(controls.map((node) => node.tagName), ["SUMMARY", "BUTTON", "BUTTON", "A"]);
-  assert.match(textOf(controls[0]), /Show 5 evidence references/);
-  assert.equal(controls[1].textContent, "Track this action");
-  assert.equal(controls[2].textContent, "Decline for this month");
-  assert.equal(controls[3].textContent, "Review local storage settings");
+  // The leading anchor is the legacy-anchor pointer (#1614): this section's id
+  // is an address saved links already carry, so it states in the open that the
+  // per-department answer moved to its own screen. It is first because a reader
+  // who arrived here for that answer should meet the forward before the
+  // section's own controls, and it is pinned here so it cannot silently become
+  // a second action.
+  assert.deepEqual(controls.map((node) => node.tagName), ["A", "SUMMARY", "BUTTON", "BUTTON", "A"]);
+  assert.match(controls[0].textContent, /moved/);
+  assert.match(textOf(controls[1]), /Show 5 evidence references/);
+  assert.equal(controls[2].textContent, "Track this action");
+  assert.equal(controls[3].textContent, "Decline for this month");
+  assert.equal(controls[4].textContent, "Review local storage settings");
   for (const control of controls) assert.notEqual(control.getAttribute("tabindex"), "-1");
 
   const css = await readFile(new URL("../src/evolution.css", import.meta.url), "utf8");
