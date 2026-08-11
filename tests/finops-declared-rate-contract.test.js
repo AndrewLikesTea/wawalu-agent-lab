@@ -232,7 +232,7 @@ test("no declaration leaves the score exactly where the page already had it", ()
   assert.equal(result.label, PROVENANCE_LABELS[0]);
   assert.equal(result.score, BUNDLED_PRICING_PROVENANCE.subScore,
     "the no-declaration path is the published-list reference card, unchanged");
-  assert.equal(result.ratingLabel, "Partial");
+  assert.equal(result.ratingLabel, "Limited confidence");
   assert.equal(result.confidence.marker, "Illustrative");
   assert.match(result.attribution, /priced at the published list — a ceiling, not your contract\./);
 });
@@ -241,7 +241,7 @@ test("a fully declared cohort reads Declared, scores above the ceiling, and is a
   const result = recomputeProvenance({ declaration: parseRateDeclaration(FULL), asOf: AS_OF });
   assert.equal(result.label, PROVENANCE_LABELS[2]);
   assert.equal(result.score, 88);
-  assert.equal(result.ratingLabel, "Strong");
+  assert.equal(result.ratingLabel, "High confidence");
   assert.deepEqual(result.fallback, []);
   assert.equal(result.attribution,
     `Priced at declared contracted rates from ${SOURCE_LABEL}, effective 2026-05-01.`);
@@ -314,7 +314,7 @@ test("declaring rates on the real page moves the answer region's own slots", asy
     "the declared-rate form never appeared");
 
   const before = textOf(document.getElementById(PRICING_PROVENANCE_IDS.score));
-  assert.match(before, /Pricing provenance: Partial \(67\/100\)/,
+  assert.match(before, /Pricing provenance: Limited confidence \(67\/100\)/,
     "the served page prices at the published list before anything is declared");
 
   document.getElementById("declared-rates-input").value = FULL;
@@ -322,7 +322,7 @@ test("declaring rates on the real page moves the answer region's own slots", asy
     new DomEvent("submit", { bubbles: true }));
 
   assert.match(textOf(document.getElementById(PRICING_PROVENANCE_IDS.score)),
-    /Pricing provenance: Strong \(88\/100\)/);
+    /Pricing provenance: High confidence \(88\/100\)/);
   assert.match(textOf(document.getElementById(RATE_CARD_IDS.marker)), /Declared/);
   assert.doesNotMatch(textOf(document.getElementById(RATE_CARD_IDS.nextStep)),
     /list-price ceiling/, "the readiness blocker must clear once the rates are declared");

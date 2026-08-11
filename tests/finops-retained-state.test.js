@@ -305,7 +305,7 @@ test("a visitor with nothing retained meets the first screen this page shipped",
   assert.equal(textOf(line), "", "an unretained first screen says nothing about retention");
   assert.equal(line.hidden, true, "…and takes no room and no place in the reading order");
   assert.equal(line.dataset.state, RETAINED_REASON.unretained);
-  assert.match(provenance(page), /Pricing provenance: Partial \(67\/100\)/,
+  assert.match(provenance(page), /Pricing provenance: Limited confidence \(67\/100\)/,
     "the figure is priced at the published list, exactly as the served document is");
   assert.equal(byId(page, "retained-state-reset").hidden, true,
     "there is nothing to forget, so no control offers to");
@@ -350,7 +350,7 @@ test("a return visit is hydrated from the retained entry and dates it", async ()
   // The same bytes the test above asserted the page writes, with the capture
   // instant frozen so nothing here depends on the millisecond it ran in.
   const page = await boot({ [RETAINED_STATE_KEY]: entry() });
-  assert.match(provenance(page), /Pricing provenance: Strong \(88\/100\)/,
+  assert.match(provenance(page), /Pricing provenance: High confidence \(88\/100\)/,
     "the earned provenance is restored rather than starting again at the list price");
   assert.match(textOf(byId(page, "declared-rates-status")),
     /4 declared rates restored from this browser/);
@@ -362,7 +362,7 @@ test("a return visit is hydrated from the retained entry and dates it", async ()
 
 test("forgetting takes two presses and puts the unretained baseline back", async () => {
   const page = await boot({ [RETAINED_STATE_KEY]: entry() });
-  assert.match(provenance(page), /Pricing provenance: Strong \(88\/100\)/);
+  assert.match(provenance(page), /Pricing provenance: High confidence \(88\/100\)/);
   const reset = byId(page, "retained-state-reset");
   const confirm = byId(page, "retained-state-confirm");
   assert.equal(confirm.hidden, true, "the deleting control does not exist until it is asked for");
@@ -381,7 +381,7 @@ test("forgetting takes two presses and puts the unretained baseline back", async
   reset.dispatchEvent(new DomEvent("click", { bubbles: true }));
   confirm.dispatchEvent(new DomEvent("click", { bubbles: true }));
   assert.equal(page.storage.getItem(RETAINED_STATE_KEY), null, "the key is gone");
-  assert.match(provenance(page), /Pricing provenance: Partial \(67\/100\)/,
+  assert.match(provenance(page), /Pricing provenance: Limited confidence \(67\/100\)/,
     "and the figures are the unretained baseline again");
   assert.equal(textOf(byId(page, "finops-retained-state")), "");
   assert.equal(byId(page, "finops-retained-state").hidden, true);
@@ -390,7 +390,7 @@ test("forgetting takes two presses and puts the unretained baseline back", async
 
 test("a tampered entry renders the baseline and the reason, never a half-trusted figure", async () => {
   const page = await boot({ [RETAINED_STATE_KEY]: entry({ declaredRates: [{ ...RATES[0], rate: "14.00" }] }) });
-  assert.match(provenance(page), /Pricing provenance: Partial \(67\/100\)/,
+  assert.match(provenance(page), /Pricing provenance: Limited confidence \(67\/100\)/,
     "nothing derived from a partly-valid entry may be painted");
   const line = byId(page, "finops-retained-state");
   assert.equal(line.hidden, false, "the reader is told, on the screen carrying the figure");

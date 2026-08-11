@@ -88,6 +88,9 @@ import { PANEL_STATUS, applyPanelStatus } from "./panel-status-view.js";
 // fallback, so an unmarked-but-declared region is hidden correctly and a marked
 // region this file has not been told about keeps working exactly as it did.
 import { destinationForRegion } from "./finops-destination-regions.js";
+import {
+  BUNDLED_PRICING_PROVENANCE, pricingProvenanceChip, pricingProvenanceSummary,
+} from "./finops-pricing-provenance.js";
 
 /**
  * The ids the shipped markup carries, in one place so a test can name them.
@@ -163,7 +166,7 @@ export const SHELL_STATE_LABEL = Object.freeze({ current: DESTINATION_STATE_LABE
 
 /** The five figures carried into every destination but the answer. */
 export const CONTEXT_TERMS = Object.freeze([
-  "Benchmark", "Impact", "Confidence", "Why this matters", "Provenance",
+  "Benchmark", "Impact", "Confidence", "Pricing confidence", "Why this matters", "Provenance",
 ]);
 
 const DESTINATION_KEYS = Object.freeze(Object.values(WORKSPACE_DESTINATION));
@@ -708,6 +711,8 @@ export function paintWorkspaceContext(doc, loaded = null) {
     pair(doc, "Confidence", `${confidence.band} · ${confidence.score} of ${confidence.scaleMax}`
       + (limits === 0 ? " · no stated limit."
         : ` · ${limits === 1 ? "1 stated limit" : `${limits} stated limits`}.`)),
+    pair(doc, "Pricing confidence", `${pricingProvenanceChip(BUNDLED_PRICING_PROVENANCE)}. `
+      + pricingProvenanceSummary(BUNDLED_PRICING_PROVENANCE)),
     pair(doc, "Why this matters", finding.whyItMatters),
     pair(doc, "Provenance", finding.provenance.sourceLabel ?? finding.provenance.source),
   );

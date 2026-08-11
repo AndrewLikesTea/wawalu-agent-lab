@@ -47,7 +47,7 @@ export function applyPricingProvenance(doc, verdict = BUNDLED_PRICING_PROVENANCE
     score.textContent = pricingProvenanceChip(verdict);
     // The band as data, so a stylesheet or a printed page can read the rating
     // without parsing the sentence. The word is in the text either way.
-    score.dataset.band = String(verdict?.rating ?? 0);
+    score.dataset.band = verdict?.confidence?.key ?? "insufficient";
   }
   if (reason) reason.textContent = pricingProvenanceSummary(verdict);
   if (detail) detail.textContent = pricingProvenanceDetail(verdict);
