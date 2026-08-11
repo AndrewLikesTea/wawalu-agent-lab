@@ -1,4 +1,5 @@
 import { assessBriefingReadiness, READINESS_STATE, SUPPORTED_INPUT_MODEL } from "./briefing-readiness.js";
+import { executivePlainLanguage } from "./finops-executive-vocabulary.js";
 
 export const EXECUTIVE_BRIEFING_VERSION = "executive-briefing/1.0.0";
 export const BUNDLED_SELECTION_VERSION = "bundled-briefing-selection/1.0.0";
@@ -52,7 +53,7 @@ function requiredSelection(input) {
 
 const clean = (value) => value.trim();
 const frozenRecord = (source, fields) => Object.freeze(Object.fromEntries(
-  fields.map((field) => [field, clean(source[field])]),
+  fields.map((field) => [field, executivePlainLanguage(clean(source[field]))]),
 ));
 
 function generatedAt(clock) {
@@ -84,21 +85,22 @@ export function projectExecutiveBriefing(input, { clock = () => new Date() } = {
   const departmentEvidence = Object.freeze(input.departmentEvidence.map((row) =>
     frozenRecord(row, ["department", "evidence", "provenance"])));
   const payload = {
-    schemaVersion: EXECUTIVE_BRIEFING_VERSION,
-    headlineAnswer: readiness.headlineFinding,
-    materialBenchmarkOrTrend: readiness.benchmarkComparison,
-    prioritizedNextAction: readiness.recommendedAction,
-    confidence: readiness.confidence,
+    headlineAnswer: executivePlainLanguage(readiness.headlineFinding),
+    materialBenchmarkOrTrend: executivePlainLanguage(readiness.benchmarkComparison),
+    prioritizedNextAction: executivePlainLanguage(readiness.recommendedAction),
+    confidence: frozenRecord(readiness.confidence, ["level", "basis"]),
     departmentEvidence,
-    period: readiness.sourcePeriod,
-    projectionVersion: clean(input.projectionVersion),
-    provenance: Object.freeze({
+    period: frozenRecord(readiness.sourcePeriod, ["start", "end", "provenance"]),
+    generatedAt: generatedAt(clock),
+    auditAppendix: Object.freeze({
+      label: "Audit appendix — internal identifiers",
+      schemaVersion: EXECUTIVE_BRIEFING_VERSION,
+      projectionVersion: clean(input.projectionVersion),
       inputModel: SUPPORTED_INPUT_MODEL,
       selectionVersion: BUNDLED_SELECTION_VERSION,
       fixtureId: clean(input.fixture.id),
       fixtureVersion: clean(input.fixture.version),
     }),
-    generatedAt: generatedAt(clock),
   };
   return Object.freeze(payload);
 }

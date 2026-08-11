@@ -18,16 +18,20 @@ test("equivalent bundled selections produce identical briefing payloads", () => 
   const reordered = Object.fromEntries(Object.entries(structuredClone(fixture)).reverse());
   const second = projectExecutiveBriefing(reordered, { clock: fixedClock });
   assert.deepEqual(second, first);
-  assert.equal(first.schemaVersion, EXECUTIVE_BRIEFING_VERSION);
+  assert.equal(first.auditAppendix.schemaVersion, EXECUTIVE_BRIEFING_VERSION);
   assert.equal(first.generatedAt, "2026-08-01T12:34:56.000Z");
-  assert.deepEqual(first.provenance, {
+  assert.deepEqual(first.auditAppendix, {
+    label: "Audit appendix — internal identifiers",
+    schemaVersion: EXECUTIVE_BRIEFING_VERSION,
+    projectionVersion: "finops-executive-projection/1.0.0",
     inputModel: "bundled-static-analysis/1.0.0",
     selectionVersion: "bundled-briefing-selection/1.0.0",
     fixtureId: "evolution-demo-data",
     fixtureVersion: "2026-07-25.1",
   });
   assert.equal(first.period.start, "2026-06-25");
-  assert.equal(first.projectionVersion, "finops-executive-projection/1.0.0");
+  assert.doesNotMatch(first.materialBenchmarkOrTrend, /literacy-mix\/1\.0\.0/);
+  assert.match(first.materialBenchmarkOrTrend, /published workload-scoring method/);
   // #1017: one label for one team. The bundled dataset's first intervention
   // priority and the AI FinOps brief's driving department are the same invented
   // department, so the seed names it the same way in both.

@@ -81,6 +81,7 @@ import {
 } from "/executive-briefing-view.js";
 import { projectExecutiveBriefing } from "/executive-briefing-projection.js";
 import { renderPayloadBriefing, renderPayloadState } from "/executive-payload-briefing-view.js";
+import { readExecutivePayloadFragment } from "/executive-payload-share.js";
 
 const root = document.getElementById("executive-briefing");
 const actions = document.getElementById("briefing-actions");
@@ -366,6 +367,15 @@ function paintExampleBriefing() {
  * the bundled document grows one.
  */
 async function paintPayloadBriefing() {
+  const restored = readExecutivePayloadFragment(globalThis.window?.location?.hash ?? "");
+  if (restored) {
+    const article = renderPayloadBriefing(document, restored);
+    paint(article);
+    const control = renderPrintControl({ note: PAYLOAD_PRINT_NOTE });
+    actions?.replaceChildren(control);
+    wirePrintControl(control, article, { scope: globalThis.window ?? globalThis, doc: document });
+    return article;
+  }
   paint(renderPayloadState(document, "loading", "Reading the bundled analysis",
     "Building the printable briefing in this tab from the bundled example's decision payload. "
     + "Nothing of yours is read, and nothing is uploaded."));
