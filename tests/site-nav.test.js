@@ -31,6 +31,7 @@ const PAGES = [
   { file: "savings-action-center.html", current: "/evolution.html", title: "Monthly Savings Action Center · Shiplog" },
   { file: "savings-commitment.html", current: "/evolution.html", title: "Savings Commitment · Shiplog" },
   { file: "executive-briefing.html", current: "/evolution.html", title: "Executive FinOps briefing · Shiplog" },
+  { file: "departments.html", current: "/evolution.html", title: "Department answer · Shiplog" },
   { file: "coach.html", current: "/coach.html", title: "Prompt coach · Shiplog" },
   { file: "personal-history.html", current: "/coach.html", title: "Personal AI history · Shiplog" },
   { file: "agents.html", current: "/agents.html", title: "Agent observatory · Wawalu Labs" },
@@ -136,7 +137,7 @@ test("the one AI FinOps door opens on the answer destination, not on a menu", as
   // Every published FinOps URL, so re-promoting any of them to a top-level entry
   // fails here rather than growing the row back one item at a time.
   const FINOPS = ["/evolution.html", "/savings-action-center.html", "/savings-commitment.html",
-    "/executive-briefing.html"];
+    "/executive-briefing.html", "/departments.html"];
   const doors = SITE_NAV.filter((link) => FINOPS.includes(link.href)
     || (link.section ?? []).some((path) => FINOPS.includes(path)));
   assert.equal(doors.length, 1, `the nav offers ${doors.length} AI FinOps doors`);
@@ -162,8 +163,12 @@ test("the one AI FinOps door opens on the answer destination, not on a menu", as
   // Collapsing the nav must not orphan the pages it used to be able to grow an
   // entry for. Each one is linked from the body of the page the door opens.
   const body = html.replace(/<nav class="site-nav"[\s\S]*?<\/nav>/, "");
+  // A section page addressed per department carries its selection in the link,
+  // so the query string is allowed here — what is not allowed is the path
+  // appearing nowhere in the body at all.
   for (const path of door.section) {
-    assert.ok(body.includes(`href="${path}"`), `${path} is reachable only from the nav`);
+    assert.ok(body.includes(`href="${path}"`) || body.includes(`href="${path}?`),
+      `${path} is reachable only from the nav`);
   }
 });
 

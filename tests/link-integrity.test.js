@@ -146,6 +146,10 @@ test("every published FinOps URL and anchor still resolves", async () => {
     "savings-action-center.html": [],
     "savings-commitment.html": [],
     "executive-briefing.html": [],
+    // The per-department screen. Its ids are the ones a forwarded link and the
+    // page's own entry both address; retiring one silently would leave a
+    // reader's saved ?department= link resolving to a screen that never fills.
+    "departments.html": ["department-answer", "department-status", "department-org-answer"],
   };
   for (const [page, anchors] of Object.entries(PRESERVED)) {
     const url = new URL(page, rootUrl);

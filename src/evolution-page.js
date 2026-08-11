@@ -4696,6 +4696,14 @@ function renderDecisionDetail(department, data) {
   const action = actionPlanFor(department);
 
   setText("detail-name", department.name ?? "Unnamed department");
+  // The department screen is this drill-down read for one department, so the
+  // link out carries the selection rather than dropping the reader on a screen
+  // that has to ask which department they meant (#1613). Built here rather than
+  // imported: one query parameter is not worth a module in this page's payload.
+  const screenLink = document.getElementById("department-screen-link");
+  if (screenLink && department.id) {
+    screenLink.setAttribute("href", `/departments.html?department=${encodeURIComponent(department.id)}`);
+  }
   // The drill-down's prompt-literacy half: the evidence behind this
   // department's grade, and the fix pack that rides on the same model so the
   // two can never describe different departments.

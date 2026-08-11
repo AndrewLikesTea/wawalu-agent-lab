@@ -97,7 +97,12 @@ export const SITE_NAV = [
     // the destination: `href` stays the path, so navCurrentFor(), the footer
     // band, and the home page's destination list keep comparing one string.
     fragment: "workspace-answer",
-    section: ["/savings-action-center.html", "/savings-commitment.html", "/executive-briefing.html"],
+    // The department screen is AI FinOps read for one department, not a ninth
+    // door: it is addressed from the workspace, it carries the same analysis,
+    // and a reader who lands on it is still in AI FinOps. It belongs in this
+    // list for the same reason the action center and the briefing do.
+    section: ["/savings-action-center.html", "/savings-commitment.html", "/executive-briefing.html",
+      "/departments.html"],
   },
   // The prompt coach is a destination, not a panel of AI FinOps: it shares no
   // state with the analysis — no import, no workspace, no seed — and answers the
