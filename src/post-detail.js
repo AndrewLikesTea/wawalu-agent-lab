@@ -306,13 +306,18 @@ function renderFailed(container, onRetry) {
 // The wait, in one place, because src/post.html ships this same line in its
 // markup so the region is never blank before this module runs. Two spellings of
 // one sentence would flash a rewrite at the reader on every visit; one exported
-// string cannot. It reports the wait and nothing more. It used to name the
-// surface as well — "from Social's shared demo feed" — because the sentence
-// standing below this region was then the generic definition of the feed. That
-// sentence now names this page as one post from that feed, two lines under this
-// one, so repeating the description here was the page stuttering at a reader
-// who is already waiting. The heading above the line still says which post.
-export const POST_LOADING_LINE = "Fetching it from the feed…";
+// string cannot.
+//
+// The heading owns the state, and it is the only word for it: the line used to
+// say "Fetching it from the feed", which reported the same wait a second time
+// in a second verb. A reader who is already waiting learns nothing from being
+// told twice. The line now does the work the heading cannot — what to do if the
+// post never lands — and names the page's standing exit in that exit's own
+// words, so the sentence and the link a reader then looks for say the same
+// thing. It points at that link rather than repeating it: this region carries
+// no tab stop, and a second link to one destination would put two in the tab
+// order for as long as the wait lasts.
+export const POST_LOADING_LINE = "If it does not arrive, open the full Social feed below.";
 export const POST_LOADING_TITLE = "Loading shared Social post";
 
 // Waiting is not one of the states above, and it does not get their furniture.

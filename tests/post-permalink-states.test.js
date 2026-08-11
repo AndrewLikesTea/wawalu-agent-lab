@@ -47,7 +47,7 @@ const TEXT_POST = {
 // The headline each state puts on screen. Whichever one is active, the other
 // three of these must not appear anywhere in the page's text.
 const STATE_HEADLINES = {
-  loading: "Fetching it from the feed…",
+  loading: "If it does not arrive, open the full Social feed below.",
   loaded: "Post by ",
   "not-found": "Post unavailable",
   error: "Post could not be loaded",
@@ -747,7 +747,7 @@ test("every state the page can reach puts exactly one of the four on screen", as
     assert.equal(panel.getAttribute("aria-busy"), "true");
     // The wait carries visible words, not a bare spinner: the dot is aria-hidden
     // decoration and the sentence is the state.
-    assert.equal(textOf(panel.querySelector(".detail-loading-text")), "Fetching it from the feed…");
+    assert.equal(textOf(panel.querySelector(".detail-loading-text")), "If it does not arrive, open the full Social feed below.");
     assert.equal(panel.querySelector(".detail-loading-dot").getAttribute("aria-hidden"), "true");
 
     release();
@@ -780,7 +780,7 @@ test("every state the page can reach puts exactly one of the four on screen", as
 // an icon to be understood. Asserted on text with every class name ignored.
 test("all four states carry a visible text label, not colour alone", async () => {
   const labels = {
-    loading: /Fetching it from the feed…/,
+    loading: /If it does not arrive, open the full Social feed below\./,
     loaded: /Rowan Diaz/,
     "not-found": /Post unavailable/,
     error: /Post could not be loaded/,

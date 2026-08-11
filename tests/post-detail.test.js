@@ -288,11 +288,17 @@ test("the loading state has a heading and explanatory status text", () => {
   assert.equal(status.getAttribute("role"), "status");
   assert.equal(first(status, "detail-loading-title").textContent, POST_LOADING_TITLE);
   assert.equal(first(status, "detail-loading-text").textContent, POST_LOADING_LINE);
-  assert.equal(POST_LOADING_LINE, "Fetching it from the feed…");
-  // A real ellipsis, the way "Loading the Social feed…" and "Loading releases…"
-  // spell it, not three periods pretending to be one.
-  assert.ok(POST_LOADING_LINE.endsWith("…") && !POST_LOADING_LINE.includes("..."));
-  // The wait reports the wait. What the page is belongs to the standing
+  assert.equal(POST_LOADING_LINE, "If it does not arrive, open the full Social feed below.");
+  // The heading reports the wait, and it is the only thing that does. The line
+  // used to read "Fetching it from the feed…": the same state in a second verb,
+  // so this state said one thing twice and the way out of it nothing at all.
+  assert.equal(/loading|fetching|waiting/i.test(POST_LOADING_LINE), false,
+    "one progress word in this state, and the heading owns it");
+  // It names the standing exit in that exit's own words, so the sentence and the
+  // link a reader then looks for cannot become two names for one destination.
+  assert.ok(POST_EXITS.social.label.endsWith("the full Social feed"));
+  assert.ok(POST_LOADING_LINE.includes("the full Social feed"));
+  // What the page is belongs to the standing
   // sentence a couple of lines below, which is on screen in every state; the
   // line must not say it a second time to a reader who can see both at once.
   assert.equal(POST_LOADING_LINE.includes("shared demo feed"), false,
