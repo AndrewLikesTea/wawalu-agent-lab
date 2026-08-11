@@ -324,7 +324,8 @@ export function firstScreenEdits(bundled) {
           + ' aria-describedby="finops-stand-action-basis">'
           + `${escapeText(headline.action.label ?? "")}</a>`),
         filledText("stand action basis", "finops-stand-action-basis",
-          { authored: " hidden", seeded: "" }, "p", headline.action.basis ?? ""),
+          { authored: ' data-reader-copy="audit" hidden',
+            seeded: ' data-reader-copy="audit"' }, "p", headline.action.basis ?? ""),
       ]
       : []),
 

@@ -8,6 +8,7 @@ import {
 } from "./check-finops-first-screen.mjs";
 import { DECISION_SUMMARY } from "../src/finops-screen-contract.js";
 import { HEALTH_STATUS } from "../src/health-contract.js";
+import { verifyFinopsReaderVocabulary } from "./check-finops-reader-vocabulary.mjs";
 
 const MANIFEST = "build-manifest.json";
 
@@ -441,6 +442,7 @@ export async function verifyArtifact(root) {
   // required for the production build to fail before deployment.
   const finopsHtml = await readFile(resolve(root, "evolution.html"), "utf8");
   verifyEvolutionStructure(finopsHtml);
+  await verifyFinopsReaderVocabulary(root);
 
   // THE CONSOLIDATED ANSWER, IN THE BYTES PAGES WILL SERVE (#1509). The first
   // screen is one question, one headline recoverable figure, one grade with the

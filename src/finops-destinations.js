@@ -471,7 +471,8 @@ export function frontDoorMarkup(indent = "      ", front = FINOPS_FRONT_DOOR, de
     // the shared computation's own return value; nothing here formats a number.
     // It reuses `.front-door-question`, the muted subordinate weight already
     // shipped for the line above it, so no stylesheet rule is added.
-    const provenance = `<span class="front-door-question" data-destination-provenance="${destination.slug}">`
+    const auditMarker = destination.slug === "optimisation-levers" ? ' data-reader-copy="audit"' : "";
+    const provenance = `<span class="front-door-question" data-destination-provenance="${destination.slug}"${auditMarker}>`
       + `${escape(destinationProvenanceText(destination.slug))}</span>`;
     return `${pad(3)}<li class="workspace-nav-item"><a ${attributes}>`
       + `<strong class="workspace-dest-name">${escape(destination.name)}</strong> `

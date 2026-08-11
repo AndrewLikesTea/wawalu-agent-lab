@@ -41,7 +41,24 @@ export const EXECUTIVE_PHRASES = Object.freeze({
   "literacy-mix/1.0.0": "the published workload-scoring method",
 });
 
-const INTERNAL_TOKEN = /\b(?:[a-z][a-z0-9]*(?:-[a-z0-9]+){2,}(?:\/\d+\.\d+\.\d+)?|[a-z][\w-]*\/\d+\.\d+\.\d+)\b/gi;
+export const EXECUTIVE_INTERNAL_TOKEN = /\b(?:[a-z][a-z0-9]*(?:-[a-z0-9]+){2,}(?:\/\d+\.\d+\.\d+)?|[a-z][\w-]*\/\d+\.\d+\.\d+)\b/gi;
+
+// Artifact validation has a deliberately narrower boundary than the runtime
+// heuristic above. A versioned identifier is unambiguous; exact vocabulary
+// keys cover reviewed unversioned identifiers without rejecting ordinary copy
+// such as "period-over-period" or "Software-as-a-service".
+export const EXECUTIVE_READER_TOKEN = new RegExp(
+  `\\b(?:[a-z][\\w-]*\\/\\d+\\.\\d+\\.\\d+|${Object.keys(EXECUTIVE_PHRASES)
+    .filter((key) => !key.includes("/"))
+    .map((key) => key.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&"))
+    .join("|")})\\b`,
+  "gi",
+);
+
+/** The reviewed reader copy for an identifier, when the vocabulary names one. */
+export function executiveReplacement(identifier) {
+  return EXECUTIVE_PHRASES[String(identifier).toLowerCase()] ?? "a plain-language description";
+}
 
 /** Replace known identifiers and fail closed when reader copy contains an unknown one. */
 export function executivePlainLanguage(value) {
@@ -50,7 +67,7 @@ export function executivePlainLanguage(value) {
   for (const [identifier, phrase] of Object.entries(EXECUTIVE_PHRASES)) {
     result = result.replaceAll(identifier, phrase);
   }
-  const remaining = result.match(INTERNAL_TOKEN) ?? [];
+  const remaining = result.match(EXECUTIVE_INTERNAL_TOKEN) ?? [];
   if (remaining.length) throw new TypeError(`Unmapped executive identifier: ${remaining.join(", ")}`);
   return result;
 }

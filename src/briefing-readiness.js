@@ -5,6 +5,8 @@
 // then exclusions or missing evidence. It deliberately contains no second
 // finding, provider drill-down, prompt analysis, live-data claim, or storage.
 
+import { executivePlainLanguage } from "./finops-executive-vocabulary.js";
+
 export const READINESS_VERSION = "briefing-readiness/1.0.0";
 
 export const READINESS_STATE = Object.freeze({
@@ -91,7 +93,8 @@ export function assessBriefingReadiness(input) {
     state,
     readyToCirculate: state === READINESS_STATE.complete,
     headlineFinding: text(record?.headlineFinding) ? record.headlineFinding.trim() : null,
-    benchmarkComparison: text(record?.benchmarkComparison) ? record.benchmarkComparison.trim() : null,
+    benchmarkComparison: text(record?.benchmarkComparison)
+      ? executivePlainLanguage(record.benchmarkComparison.trim()) : null,
     recommendedAction: text(record?.recommendedAction) ? record.recommendedAction.trim() : null,
     confidence: missing.includes("confidence") ? null : project(record.confidence, CONFIDENCE_FIELDS),
     sourcePeriod: missing.includes("sourcePeriod") ? null : project(record.sourcePeriod, PERIOD_FIELDS),
