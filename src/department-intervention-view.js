@@ -24,6 +24,7 @@
 
 import { formatUsd } from "./evolution.js";
 import { INTERVENTION_OUTCOME, INTERVENTION_REDACTION_STATEMENT } from "./department-intervention-scoring.js";
+import { departmentVerdictFromResult } from "./department-verdict.js";
 
 /**
  * Who owns the action, per kind.
@@ -64,12 +65,6 @@ const OUTCOME_PRESENTATION = Object.freeze({
 
 const NOT_CLAIMED = "No dollar value is claimed for this department.";
 
-const OUTCOME_TITLE = Object.freeze({
-  [INTERVENTION_OUTCOME.ambiguous]: "Two candidate interventions could not be separated",
-  [INTERVENTION_OUTCOME.insufficientEvidence]: "Not enough evidence to prioritize an intervention",
-  [INTERVENTION_OUTCOME.hold]: "Hold — no intervention clears the materiality floor",
-});
-
 /** The provenance line, always ending in the redaction promise. */
 function provenanceLine(result) {
   const provenance = result.provenance;
@@ -80,44 +75,35 @@ function provenanceLine(result) {
 }
 
 /**
- * The confidence field, naming the factor that capped it.
- *
- * A bare "Medium" is the kind of number a director cannot argue with and
- * therefore does not believe. The factor that set the level is printed beside
- * it, so the next question — "what would make this high?" — has an answer on
- * the same line.
- */
-function confidenceLine(recommendation) {
-  const { level, factors } = recommendation.confidence;
-  const capping = factors.find((factor) => factor.level === level) ?? factors[0];
-  return `${level[0].toUpperCase()}${level.slice(1)} · capped by ${capping.key}: ${capping.detail}`;
-}
-
-/**
  * Map a scorer result onto the twelve fields `#action-result` paints.
  *
+ * The title and the confidence are NOT composed here. They are the verdict and
+ * the confidence a department screen shows for the same department and period,
+ * so they come from `departmentVerdict` — the one function allowed to produce
+ * them — and this file only decides where they sit.
+ *
  * @param {object} result a frozen `scoreDepartmentIntervention` result.
+ * @param {object} record the aggregate record it was scored from.
  * @returns {object} a frozen field bag, every value a string, plus `dataStatus`.
  */
-export function interventionActionFields(result) {
+export function interventionActionFields(result, record = {}) {
   const presentation = OUTCOME_PRESENTATION[result.outcome]
     ?? OUTCOME_PRESENTATION[INTERVENTION_OUTCOME.insufficientEvidence];
-  const recommendation = result.recommendation;
+  const verdict = departmentVerdictFromResult(result, record);
+  const recommendation = verdict.withheld ? null : result.recommendation;
 
   if (!recommendation) {
-    const explanation = result.reason?.text
-      ?? "No intervention is recommended for this department.";
+    const explanation = verdict.withheld ? verdict.confidenceDetail
+      : result.reason?.text ?? "No intervention is recommended for this department.";
     return Object.freeze({
-      dataStatus: presentation.dataStatus,
+      dataStatus: verdict.withheld ? "unavailable" : presentation.dataStatus,
       status: presentation.status,
-      title: OUTCOME_TITLE[result.outcome] ?? "No intervention prioritized",
+      title: verdict.verdict,
       rationale: explanation,
       impact: NOT_CLAIMED,
       // The candidates are still named. A reader who is told "we could not
       // separate these" and not told which ones has been given a shrug.
-      confidence: result.candidates.length
-        ? `Not scored. Candidates considered: ${result.candidates.map((candidate) => candidate.kind).join(", ")}.`
-        : "Not scored: no candidate was ranked.",
+      confidence: verdict.confidenceDetail,
       owner: "Unassigned until an intervention is prioritized",
       provenance: provenanceLine(result),
       baseline: "Unavailable",
@@ -135,10 +121,10 @@ export function interventionActionFields(result) {
   return Object.freeze({
     dataStatus: presentation.dataStatus,
     status: presentation.status,
-    title: recommendation.title,
+    title: verdict.verdict,
     rationale: recommendation.rationale.text,
     impact: `Recover about ${formatUsd(estimate)} of monthly AI spend`,
-    confidence: confidenceLine(recommendation),
+    confidence: verdict.confidenceDetail,
     owner: ACCOUNTABLE_ROLE[recommendation.kind] ?? "Unassigned",
     provenance: provenanceLine(result),
     // Baseline is the monthly spend sitting in the pattern; target is what is

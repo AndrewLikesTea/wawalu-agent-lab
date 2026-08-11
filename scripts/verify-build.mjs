@@ -212,6 +212,12 @@ export async function verifyArtifact(root) {
     // figures" with no figure, no action, and no way back.
     "departments.html", "department-screen-page.js", "department-screen-view.js",
     "department-screen.js",
+    // The screen states the same verdict, confidence and evidence count the
+    // organization-wide review does, because both call one function and that
+    // function checks its answer against a committed pin. A dropped one of
+    // these is a rejected entry module — a forwarded deep link that resolves to
+    // a loading state — not merely a screen missing its verdict line.
+    "department-verdict.js", "department-verdict-fixtures.js",
     // The personal AI-history reader is a destination of its own, and its entry
     // imports the contract, the reader, the canonical synthetic export, the
     // entry rules, and the view. A dropped one of these is a rejected entry

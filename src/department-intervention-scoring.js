@@ -36,7 +36,12 @@
 
 import { QUERY_CATEGORIES, normalizeMix } from "./evolution.js";
 import { RUBRIC_VERSION_ID } from "./prompt-literacy-scoring.js";
-import { MIN_SCORED_PROMPTS } from "./finops-panel-contract.js";
+// The grading floor is read from the module that publishes it rather than from
+// the executive panel contract that also borrows it. Same number, one hop
+// shorter: this scorer now runs on the per-department screen too, and a reader
+// opening one department should not download the panel contract and the
+// attribution policy to learn what the floor is.
+import { PROMPT_GRADING_THRESHOLDS } from "./prompt-grading-eligibility.js";
 
 /** Bump when a weight, a threshold, an outcome, or the output shape changes. */
 export const DEPARTMENT_INTERVENTION_VERSION = "department-intervention/1.0.0";
@@ -53,10 +58,12 @@ export const INTERVENTION_OUTCOME = Object.freeze({
  * The scored sample floor, borrowed rather than re-declared.
  *
  * ASSUMPTION: an intervention should not be recommended off a sample too thin to
- * publish a grade from. Reusing `MIN_SCORED_PROMPTS` means a director who has
- * already accepted the grading floor cannot be handed a second, quieter one.
+ * publish a grade from. Reusing the published prompt-grading threshold means a
+ * director who has already accepted the grading floor cannot be handed a second,
+ * quieter one.
  */
-export const MIN_SCORED_PROMPTS_FOR_INTERVENTION = MIN_SCORED_PROMPTS;
+export const MIN_SCORED_PROMPTS_FOR_INTERVENTION =
+  PROMPT_GRADING_THRESHOLDS.minPromptsPerDepartment;
 
 /**
  * Below this the answer is "hold", not a recommendation.

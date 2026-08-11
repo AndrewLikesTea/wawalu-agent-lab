@@ -4744,7 +4744,7 @@ function renderDecisionDetail(department, data) {
     // surface, run the deterministic scorer over the aggregate record the
     // drill-down already holds — it either names one prioritized action with its
     // arithmetic, or names exactly why it will not.
-    renderComputedAction(interventionActionFields(scoreDepartmentIntervention(department)));
+    renderComputedAction(interventionActionFields(scoreDepartmentIntervention(department), department));
   } else {
     setText("action-title", action.title);
     setText("action-rationale", action.rationale);
