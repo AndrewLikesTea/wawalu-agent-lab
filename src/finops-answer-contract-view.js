@@ -126,6 +126,8 @@ export const RECOVERABLE_SPEND_IDS = Object.freeze({
   detail: "finops-recoverable-basis-detail",
 });
 
+export const RECOVERABLE_EVIDENCE_ID = "finops-recoverable-evidence";
+
 export const RECOVERABLE_SPEND_LABEL = "Recoverable AI spend per month";
 
 /**
@@ -150,19 +152,29 @@ export const RECOVERABLE_SPEND_LABEL = "Recoverable AI spend per month";
 export function renderRecoverableSpend(doc, recoverable) {
   const figure = doc.getElementById(RECOVERABLE_SPEND_IDS.figure);
   if (!figure) return null;
+  const loading = recoverable === undefined;
+  const failed = recoverable === null;
   const stated = Number.isFinite(recoverable?.monthly);
+  const state = loading ? "loading" : failed ? "error"
+    : !stated ? "empty" : recoverable.implausible ? "implausible" : "ready";
+  figure.dataset.state = state;
   figure.dataset.available = stated ? "true" : "false";
   figure.dataset.basis = recoverable?.basis ?? "none";
   figure.dataset.scoredDepartments = String(recoverable?.scoredDepartments ?? 0);
   figure.dataset.totalDepartments = String(recoverable?.totalDepartments ?? 0);
   set(doc, RECOVERABLE_SPEND_IDS.label, RECOVERABLE_SPEND_LABEL);
-  set(doc, RECOVERABLE_SPEND_IDS.value,
-    stated ? recoverable.monthlyDisplay : "Not stated");
+  set(doc, RECOVERABLE_SPEND_IDS.value, loading ? "Calculating…"
+    : stated ? recoverable.monthlyDisplay : "Not stated");
   const basis = recoverable
     ? recoverable.basisSentence
     : `${ERROR_SENTENCE} No recoverable figure is stated for it.`;
-  set(doc, RECOVERABLE_SPEND_IDS.basis, basis);
+  const evidenceBasis = loading ? "Basis: waiting for the bundled analysis."
+    : failed ? "Basis unavailable: the bundled analysis did not load."
+      : recoverable.evidenceBasis;
+  set(doc, RECOVERABLE_SPEND_IDS.basis, evidenceBasis);
   set(doc, RECOVERABLE_SPEND_IDS.detail, basis);
+  const evidence = doc.getElementById(RECOVERABLE_EVIDENCE_ID);
+  if (evidence) evidence.dataset.state = state;
   return figure;
 }
 

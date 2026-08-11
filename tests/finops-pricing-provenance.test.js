@@ -351,16 +351,14 @@ test("the served markup carries the three slots, and states what it generates", 
   for (const id of Object.values(PRICING_PROVENANCE_IDS)) {
     assert.ok(document.getElementById(id), `#${id} is no longer authored in the document`);
   }
-  // The sub-score and its sentence are OUTSIDE every disclosure. The harness reads
-  // text through a shut one, so this walks ancestors rather than reading text.
+  // The sub-score remains in the atomic evidence line; its supporting sentence
+  // moves into the existing disclosure rather than becoming a parallel region.
   const within = (node, tag) => {
     for (let walk = node; walk; walk = walk.parentNode) if (walk.tagName === tag) return true;
     return false;
   };
-  for (const id of [PRICING_PROVENANCE_IDS.score, PRICING_PROVENANCE_IDS.reason]) {
-    assert.equal(within(document.getElementById(id), "DETAILS"), false,
-      `#${id} is folded into a disclosure, so it is a number nobody is told`);
-  }
+  assert.equal(within(document.getElementById(PRICING_PROVENANCE_IDS.score), "DETAILS"), false);
+  assert.equal(within(document.getElementById(PRICING_PROVENANCE_IDS.reason), "DETAILS"), true);
   assert.equal(within(document.getElementById(PRICING_PROVENANCE_IDS.detail), "DETAILS"), true,
     "the four bands belong behind the disclosure the region already ships");
   // And no control was added to the region: its tab order is the one it had.

@@ -343,6 +343,61 @@ test("the answer region asks one question, states one figure, and names one move
     "the action names the move to make, not the destination page");
 });
 
+test("the live headline reads figure, one atomic evidence line, then action", async () => {
+  const document = parseHtml(await read("src/evolution.html"));
+  const region = document.getElementById(ANSWER_REGION_ID);
+  const children = region.children.filter((node) => node?.nodeType === 1);
+  const figureAt = children.findIndex((node) => node.id === "finops-recoverable-figure");
+  assert.deepEqual(children.slice(figureAt, figureAt + 3).map((node) => node.id), [
+    "finops-recoverable-figure", "finops-recoverable-evidence", "finops-recoverable-action",
+  ]);
+  const evidence = document.getElementById("finops-recoverable-evidence");
+  assert.equal(evidence.getAttribute("role"), "status");
+  assert.equal(evidence.getAttribute("aria-live"), "polite");
+  assert.equal(evidence.getAttribute("aria-atomic"), "true");
+  assert.equal(evidence.querySelectorAll("a,button,input,select,textarea").length, 0,
+    "the evidence line creates a competing action or tab stop");
+
+  // THE THREE LABELS READ TOGETHER, THEN THE EXPLANATION. Scattering them
+  // through the prose is the stacked-signals problem again on one line, and the
+  // full stop after them is the only sentence boundary a screen reader gets:
+  // the middots between them are announced by nothing.
+  const line = textOf(evidence).replace(/\s+/g, " ").trim();
+  assert.match(line, /^Illustrative · Confidence: [^·]+ · Pricing provenance: [^.]+\. Basis: /);
+  // And it says where the rest is. The disclosure is several elements down the
+  // page now, and this is the only thing that points at it.
+  assert.match(line, /under How we know this, below\.$/);
+  // No clause about unscored departments when every department is scored.
+  assert.doesNotMatch(line, /unscored/i);
+});
+
+test("recoverable evidence names loading, empty, error, and implausible states", async () => {
+  const source = await read("src/evolution.html");
+  const paint = (value) => {
+    const document = parseHtml(source);
+    renderRecoverableSpend(document, value);
+    return {
+      figure: document.getElementById("finops-recoverable-figure"),
+      evidence: document.getElementById("finops-recoverable-evidence"),
+    };
+  };
+  const loading = paint(undefined);
+  assert.equal(loading.figure.dataset.state, "loading");
+  assert.match(textOf(loading.evidence), /waiting/i);
+  const error = paint(null);
+  assert.equal(error.figure.dataset.state, "error");
+  assert.match(textOf(error.evidence), /did not load/i);
+  const empty = paint(getRecoverableSpend({ rankedDepartments: [] }));
+  assert.equal(empty.figure.dataset.state, "empty");
+  assert.match(textOf(empty.evidence), /no department in this analysis/i);
+  const extreme = paint(getRecoverableSpend({ rankedDepartments: [
+    { spendUsd: 10, recoverableUsd: 100 },
+  ] }));
+  assert.equal(extreme.figure.dataset.state, "implausible");
+  assert.match(textOf(extreme.evidence), /Check this figure:/,
+    "the extreme is named in words rather than by color alone");
+});
+
 // ---------------------------------------------------------------------------
 // ONE RECOVERABLE FIGURE, ONE BASIS (#1496)
 //
@@ -379,8 +434,7 @@ test("both recoverable figures on the page trace to the one accessor", async () 
   assert.equal(textOf(document.getElementById("finops-recoverable-value")).trim(),
     recoverable.monthlyDisplay);
   const basis = textOf(document.getElementById("finops-recoverable-basis"));
-  assert.ok(basis.includes(recoverable.annualisedDisplay),
-    "the annual figure is stated as a projection of the headline");
+  assert.equal(basis, recoverable.evidenceBasis);
   assert.ok(!basis.includes("$62,400"), "the deleted annual constant is gone");
 
   // Rendering moves both figures together, off the same record.
@@ -388,7 +442,7 @@ test("both recoverable figures on the page trace to the one accessor", async () 
   assert.equal(textOf(document.getElementById("finops-recoverable-value")).trim(),
     recoverable.monthlyDisplay);
   assert.equal(textOf(document.getElementById("finops-recoverable-basis")).trim(),
-    recoverable.basisSentence);
+    recoverable.evidenceBasis);
   assert.equal(textOf(document.getElementById("finops-recoverable-basis-detail")).trim(),
     recoverable.basisSentence);
 
@@ -406,9 +460,9 @@ test("both recoverable figures on the page trace to the one accessor", async () 
   assert.equal(textOf(document.getElementById("finops-recoverable-value")).trim(),
     moved.monthlyDisplay);
   const movedBasis = textOf(document.getElementById("finops-recoverable-basis"));
-  assert.ok(movedBasis.includes(moved.annualisedDisplay));
-  assert.ok(!movedBasis.includes(recoverable.annualisedDisplay),
-    "the annual figure followed the monthly one rather than staying put");
+  assert.equal(movedBasis, moved.evidenceBasis);
+  assert.ok(textOf(document.getElementById("finops-recoverable-basis-detail"))
+    .includes(moved.annualisedDisplay), "the annual projection moved with the monthly figure");
 });
 
 test("partial scoring is stated as scope and never extrapolated from", async () => {
@@ -441,9 +495,10 @@ test("partial scoring is stated as scope and never extrapolated from", async () 
     answer.monthlyDisplay);
   const basis = textOf(document.getElementById("finops-recoverable-basis"));
   assert.match(basis, /2 of 5 departments/, "the scope says how much is scored");
-  assert.match(basis, /floor for the organization/, "partial coverage is not silent");
-  assert.ok(basis.includes(answer.annualisedDisplay),
-    "the projection is off the scored-only headline, not the whole organization");
+  assert.match(basis, /unscored departments contribute zero/, "partial coverage is not silent");
+  assert.ok(textOf(document.getElementById("finops-recoverable-basis-detail"))
+    .includes(answer.annualisedDisplay),
+  "the disclosed projection is off the scored-only headline, not the whole organization");
 });
 
 test("no recoverable-dollar figure in the answer region is undeclared", async () => {
@@ -481,8 +536,8 @@ test("no recoverable-dollar figure in the answer region is undeclared", async ()
   // The headline is stated once and the projection once: three or more money
   // strings would mean a figure competing with the answer again.
   assert.equal(rendered.filter((amount) => amount === recoverable.monthlyDisplay).length, 1);
-  assert.equal(rendered.filter((amount) => amount === recoverable.annualisedDisplay).length, 2,
-    "the projection is stated beside the figure and inside its working, nowhere else");
+  assert.equal(rendered.filter((amount) => amount === recoverable.annualisedDisplay).length, 1,
+    "the projection is stated inside its working, not as a second visible trust signal");
 });
 
 test("the action center points at the answer instead of restating it", async () => {

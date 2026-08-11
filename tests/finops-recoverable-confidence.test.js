@@ -170,7 +170,7 @@ test("the cut points are named constants and the Moderate floor is the published
 // 4. The surface: the grade is a headline fact, its explanation is one press down.
 // ---------------------------------------------------------------------------
 
-test("the grade is authored outside every disclosure, beside the figure", () => {
+test("the grade is authored outside every disclosure, in the atomic evidence line", () => {
   const document = parseHtml(SOURCE);
   const grade = document.getElementById(RECOVERABLE_CONFIDENCE_IDS.grade);
   assert.ok(grade, "the answer region authors no confidence grade");
@@ -178,8 +178,12 @@ test("the grade is authored outside every disclosure, beside the figure", () => 
   const chain = ancestors(grade);
   assert.equal(chain.filter((node) => node.tagName === "DETAILS").length, 0,
     "the grade is inside a disclosure, so it is a grade nobody is told");
-  assert.equal(chain.filter((node) => node.id === FIGURE_ID).length, 1,
-    "the grade is not in the figure's own paragraph, so it is not read with the number");
+  assert.equal(chain.filter((node) => node.id === FIGURE_ID).length, 0,
+    "the grade was folded back into the headline figure");
+  const evidence = document.getElementById("finops-recoverable-evidence");
+  assert.equal(chain.filter((node) => node === evidence).length, 1);
+  assert.equal(evidence.getAttribute("role"), "status");
+  assert.equal(evidence.getAttribute("aria-atomic"), "true");
   assert.equal(chain.filter((node) => node.id === REGION_ID).length, 1);
 
   // Static text, not a control: the first screen has no tab stop to spare.

@@ -60,13 +60,12 @@ const at = (id) => {
 test("the answer region states its figure before any sentence qualifying it", () => {
   const document = doc();
 
-  // The money, then the marker beside it, then the hedge, then the move.
-  assert.ok(at("finops-recoverable-value") < at("finops-recoverable-marker"),
-    "the marker is authored before the figure it marks");
-  assert.ok(at("finops-recoverable-marker") < at("finops-recoverable-confidence"),
-    "the qualifying sentence is authored before the marker");
-  assert.ok(at("finops-recoverable-confidence") < at("finops-recoverable-how-we-know"),
-    "the full qualification is not below the short one");
+  // The money, one evidence line, the move, then the disclosed breakdown.
+  assert.ok(at("finops-recoverable-value") < at("finops-recoverable-evidence"));
+  assert.ok(at("finops-recoverable-evidence") < at("finops-recoverable-action"));
+  assert.ok(at("finops-recoverable-marker") < at("finops-recoverable-action"));
+  assert.ok(at("finops-recoverable-action") < at("finops-recoverable-provenance-reason"),
+    "the supporting signal breakdown is not behind the existing disclosure");
 
   // THE MARKER CARRIES ITS MEANING AS TEXT. Not a colour, not a glyph alone:
   // a word a reader can read and a screen reader can speak.

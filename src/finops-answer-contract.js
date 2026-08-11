@@ -342,8 +342,8 @@ export function getRecoverableSpend(dataset) {
   const periodLabel = filled(dataset?.period) ? dataset.period.trim()
     : (filled(dataset?.period?.label) ? dataset.period.label.trim() : null);
   const window = periodLabel ? ` for ${periodLabel}` : "";
-  const coverage = `${scoredDepartments} of ${totalDepartments} `
-    + `${totalDepartments === 1 ? "department" : "departments"}`;
+  const departmentWord = totalDepartments === 1 ? "department" : "departments";
+  const coverage = `${scoredDepartments} of ${totalDepartments} ${departmentWord}`;
   const level = recoverableConfidenceLevel(dataset);
   const partial = scoredDepartments < totalDepartments;
   const grade = level ? `Confidence: ${level}` : "Confidence: not graded";
@@ -354,6 +354,10 @@ export function getRecoverableSpend(dataset) {
       monthly: null, annualised: null, monthlyDisplay: null, annualisedDisplay: null,
       scoredDepartments, totalDepartments, periodLabel,
       headline: "No recoverable figure is stated",
+      evidenceBasis: totalDepartments
+        ? `Basis: none of the ${totalDepartments} ${departmentWord} carries a completed score${window}.`
+        : `Basis: no department in this analysis carries a completed score${window}.`,
+      implausible: false,
       scopeSentence: `No department in this dataset carries a completed FinOps score${window}, `
         + "so there is nothing to sum and nothing is projected from the unscored ones.",
       projectionSentence: "",
@@ -367,6 +371,9 @@ export function getRecoverableSpend(dataset) {
   }
 
   const monthly = roundHalfUp(scored.reduce((sum, row) => sum + row.recoverableUsd, 0));
+  const analyzedSpend = roundHalfUp(rows.reduce((sum, row) =>
+    sum + (Number.isFinite(row.spendUsd) && row.spendUsd >= 0 ? row.spendUsd : 0), 0));
+  const implausible = analyzedSpend > 0 && monthly > analyzedSpend;
   const annualised = roundHalfUp(monthly * MONTHS_PER_YEAR);
   const monthlyDisplay = usdWhole(monthly);
   const annualisedDisplay = usdWhole(annualised);
@@ -384,6 +391,14 @@ export function getRecoverableSpend(dataset) {
     monthly, annualised, monthlyDisplay, annualisedDisplay,
     scoredDepartments, totalDepartments, periodLabel,
     headline: `${monthlyDisplay} recoverable per month`,
+    // The evidence line says the scope and only what changes the reading of it.
+    // "Unscored departments contribute zero" is the answer to a question nobody
+    // asks when every department is scored, so it is stated when it is true and
+    // omitted when it is not; the full working stays in the disclosure below.
+    evidenceBasis: `Basis: ${coverage} scored${window}`
+      + `${partial ? ", so this is a floor — unscored departments contribute zero" : ""}.`
+      + `${implausible ? " Check this figure: it is larger than the analyzed spend it comes out of." : ""}`,
+    implausible,
     scopeSentence, projectionSentence,
     basisSentence: `${scopeSentence} ${projectionSentence}`,
     confidence: Object.freeze({

@@ -134,20 +134,29 @@
            second export recomputes any part of it. -->
       <section class="finops-recoverable-answer" id="finops-recoverable-answer" data-workspace-frame="true" aria-labelledby="finops-recoverable-question">
         <h2 id="finops-recoverable-question">How much of our AI spend can we recover?</h2>
-        <!-- ONE NUMBER, AND ONE TRUST STATEMENT UNDER IT (#1497). This paragraph
-             is a grid, so every span in it is a row. It shipped as FIVE rows —
-             the label, the money, and then three separate 11px monospace
-             fragments, each on a line of its own, each carrying one trust signal
-             and none of them saying how they related to each other. A reader with
-             five seconds counted five things and left with none.
+        <!-- ONE FIGURE, ONE EVIDENCE LINE, ONE MOVE (#1556). The money used to
+             carry four things at once: three 11px monospace trust signals and,
+             under them, three separate paragraphs qualifying it. A reader with
+             five seconds counted six things and left with none.
 
-             It is three rows now: the label, the money, and ONE trust statement
-             that names all three signals in a single line, in the order a leader
-             needs them — what kind of number this is, how confident it is, and
-             whose prices it is priced at — and ends by naming where the working
-             is. The three values are the SAME three nodes, with the same ids, the
-             same classes and the same text: no provenance value is dropped,
-             reworded or moved behind anything. They are wrapped, not replaced.
+             Three elements now, in this order in the DOM and on the screen: the
+             figure, the evidence line that qualifies it, and the move to make.
+             Everything the three paragraphs said is either in the evidence line
+             or one press away in the "How we know this" disclosure below — the
+             one this region already ships. Nothing gained a region of its own.
+
+             THE EVIDENCE LINE READS AS ONE SENTENCE RUN. The three labels come
+             first, together, because they answer the same question — how far to
+             trust this — and a reader scanning them should not have to step over
+             a sentence to reach the third. Then the basis, then what holds the
+             figure at a ceiling, then where the working is. The line ends by
+             naming the disclosure, because the disclosure is now several
+             elements down the page and nothing else points at it.
+
+             ANNOUNCED ONCE, NOT PER SIGNAL. `aria-atomic` makes a confidence or
+             basis repaint speak the whole qualification rather than one orphaned
+             fragment, and the full stop after the labels gives a screen reader a
+             sentence boundary where the middots give it nothing.
 
              EACH SIGNAL KEEPS ITS OWN LABEL. "Illustrative", "Confidence: …" and
              "Pricing provenance: …" are words a screen reader speaks and a
@@ -155,14 +164,15 @@
              nothing here is a chip whose fill is its meaning. That is the chip
              rule in design-system/claude-design/review-08-foundations.html.
 
-             THE SIGNALS STAY OUTSIDE THE DISCLOSURE. The supporting DETAIL for
-             all three — the confidence rubric's reasons, the four per-criterion
-             pricing bands, the basis and the limits — is one press away in the
-             single "How we know this" disclosure below, which is where it already
-             was. The graded values themselves are not folded in with it: a grade
-             inside a shut disclosure is a grade nobody is told, which is what
-             tests/finops-recoverable-confidence.test.js pins by name. -->
-        <p class="stand-figure" id="finops-recoverable-figure" data-available="true" data-basis="monthly" data-scored-departments="5" data-total-departments="5"><span class="stand-figure-label" id="finops-recoverable-label">Recoverable AI spend per month</span> <span class="stand-figure-value" id="finops-recoverable-value">$51,254</span> <span class="figure-source-state" id="finops-recoverable-trust">How far to trust this figure: <span class="figure-source-state" id="finops-recoverable-marker">Illustrative</span> · <span class="figure-source-state" id="finops-recoverable-grade" data-grade="ungraded">Confidence: not graded</span> · <span class="figure-source-state" id="finops-recoverable-provenance" data-band="0">Pricing provenance: not scored</span> · the arithmetic, the sources and the limits are under How we know this, below.</span></p>
+             THE GRADED VALUES STAY OUTSIDE THE DISCLOSURE. Their supporting
+             detail — the confidence rubric's reasons, the four per-criterion
+             pricing bands, the basis working and the limits — folds in; the
+             values do not. A grade inside a shut disclosure is a grade nobody is
+             told, which is what tests/finops-recoverable-confidence.test.js pins
+             by name. The grade text itself comes from #1555. -->
+        <p class="stand-figure" id="finops-recoverable-figure" data-available="true" data-basis="monthly" data-scored-departments="5" data-total-departments="5"><span class="stand-figure-label" id="finops-recoverable-label">Recoverable AI spend per month</span> <span class="stand-figure-value" id="finops-recoverable-value">$51,254</span></p>
+        <p class="stand-figure-basis" id="finops-recoverable-evidence" role="status" aria-live="polite" aria-atomic="true"><span class="figure-source-state" id="finops-recoverable-marker">Illustrative</span> · <span class="figure-source-state" id="finops-recoverable-grade" data-grade="ungraded">Confidence: not graded</span> · <span class="figure-source-state" id="finops-recoverable-provenance" data-band="0">Pricing provenance: not scored</span>. <span id="finops-recoverable-basis">Basis: 5 of 5 departments scored for 2026-06-01 to 2026-07-01.</span> <span id="finops-recoverable-confidence">A ceiling at list prices until 2 destination models state contracted rates and committed-use.</span> The arithmetic, the sources and the limits are under How we know this, below.</p>
+        <a class="stand-action" id="finops-recoverable-action" href="/savings-action-center.html">Move Atlas Platform's short, low-context requests to the standard model</a>
         <!-- HOW BIG THAT IS AGAINST EVERYTHING WE SPEND (#1512). The headline
              says what is recoverable. It cannot say what share of the bill that
              is, and the same figure reads completely differently against a
@@ -190,55 +200,37 @@
           <canvas class="spend-shape-canvas" id="finops-spend-shape-canvas" width="520" height="30" aria-hidden="true"></canvas>
           <p class="visually-hidden" id="finops-spend-shape-text">Spend shape, annualised: $1,854,000 current annual spend, split into $615,048 defensible recoverable, $1,238,952 not recoverable and $0 not yet scored. Defensible recoverable is the headline monthly figure multiplied by 12. Not recoverable is the analyzed annual spend left after the recoverable part and the unscored part are taken out of it. Not yet scored is annualised spend in departments carrying no completed FinOps score, which the headline makes no claim about. The three parts add up to the current annual spend.</p>
         </div>
-        <!-- OVER WHAT PERIOD, ACROSS WHICH DEPARTMENTS, AND WHAT IT COMES TO IN
-             A YEAR (#1496). The second question a leader asks about a recovery
-             figure, answered in one sentence directly under it: the scope it
-             holds over, and the annual projection stated as a multiple of the
-             headline rather than as a rival to it. Written by
-             `renderRecoverableSpend` from the same record the figure above is,
-             so the two cannot drift; authored here with that function's own
-             output so the served bytes and the render agree. It reuses
-             `.stand-answer`, the class the two sentences below it already use,
-             adds no rule to either stylesheet, and is not focusable. -->
-        <p class="stand-answer" id="finops-recoverable-basis">Summed over the 5 of 5 departments carrying a completed FinOps score for 2026-06-01 to 2026-07-01. Unscored departments contribute zero and are never extrapolated to. About $615,048 a year if this month holds — the monthly figure multiplied by 12, with no seasonality or growth adjustment.</p>
-        <!-- HOW SURE WE ARE, BESIDE THE MONEY (#1186). One grade from a rubric
-             with published cut points — src/finops-recoverable-confidence.js
-             names each threshold and states the assumption behind it, and
-             tests/finops-recoverable-confidence.test.js runs a labelled fixture
-             through it. It is a static span in the figure's own paragraph, so it
-             is read with the number and needs no tab stop of its own; the
-             explanation is inside the one disclosure below, in Limits.
+        <!-- WHO WRITES EACH PART OF THE EVIDENCE LINE ABOVE. Four modules, one
+             line, and no element here recomputes any of it. Every authored value
+             in it IS its module's own output for the bundled card, so the served
+             bytes and the render cannot state two different things; the seeds are
+             applied by scripts/seed-first-screen.mjs against the same modules.
 
-             It reuses `.figure-source-state`, the chip the Illustrative marker
-             beside it already ships, and adds no rule to either stylesheet.
-             Authored "not graded" and seeded with the real grade by
-             scripts/seed-first-screen.mjs, which reads the same module the page
-             paints from, so the served bytes and the render agree. -->
-        <!-- WHAT MUST BE STATED BEFORE THIS NUMBER IS CHECKABLE (#1262). The
-             marker above and this sentence are both written by
-             src/finops-rate-card-contract.js from the card the figure is priced
-             at — the published list, with nothing contracted — so neither can
-             say "Illustrative" on a day the inputs no longer are. The authored
-             text IS that function's output for the default card, pinned by
-             tests/finops-rate-card-contract.test.js, so the served bytes and the
-             render cannot state two different things. -->
-        <p class="stand-answer" id="finops-recoverable-confidence">A ceiling at list prices until 2 destination models state contracted rates and committed-use.</p>
-        <!-- WHOSE PRICES THIS FIGURE IS, SCORED (#1266). Since a lead may declare
-             their own rate card, this number moves with prices the reader typed,
-             and neither marker above says whether they are contracted or
-             flattering. The chip beside the figure and this sentence are written
-             by src/finops-pricing-provenance.js from the DECLARATION'S METADATA
-             ONLY — where the rates came from, how complete the card is, how old
-             it is, how much of the analysis it covers. No rate, discount or
-             dollar figure is read, so scaling every declared price leaves the
-             sub-score and every word of it byte-identical; that is asserted in
-             tests/finops-pricing-provenance.test.js rather than assumed.
+               * Basis and period (#1496) — `renderRecoverableSpend` in
+                 src/finops-answer-contract-view.js, off the same
+                 `getRecoverableSpend` record the figure is painted from, so the
+                 two cannot drift. The annual projection is stated once, in the
+                 disclosure's Basis part, so it never rivals the monthly figure.
+               * The confidence grade (#1186) — one grade from a rubric with
+                 published cut points in src/finops-recoverable-confidence.js;
+                 tests/finops-recoverable-confidence.test.js runs a labelled
+                 fixture through it. Its reasons are in the disclosure, in Limits.
+               * "Illustrative" and the ceiling sentence (#1262) —
+                 src/finops-rate-card-contract.js, from the card the figure is
+                 priced at, so neither can say "Illustrative" on a day the inputs
+                 no longer are. The hedge is length-capped there, not here.
+               * The pricing-provenance sub-score (#1266) —
+                 src/finops-pricing-provenance.js, from the DECLARATION'S
+                 METADATA ONLY: where the rates came from, how complete the card
+                 is, how old it is, how much of the analysis it covers. No rate,
+                 discount or dollar figure is read, so scaling every declared
+                 price leaves the sub-score and every word of it byte-identical.
+                 Its one-sentence reason is in the disclosure, under Provenance,
+                 and the four per-criterion bands under Limits.
 
-             It reuses `.figure-source-state` and `.stand-answer`, both already on
-             this region, and adds no rule to either stylesheet and no tab stop.
-             The four per-criterion bands are in the disclosure below, in Limits,
-             beside the confidence grade's own explanation. -->
-        <p class="stand-answer" id="finops-recoverable-provenance-reason">Whose prices this figure uses has not been scored for this document.</p>
+             The line reuses `.stand-figure-basis` and `.figure-source-state`,
+             both already on this region; it adds no rule to either stylesheet
+             and no tab stop, which the first screen has none of to spare. -->
         <!-- WHEN A FIGURE ABOVE CAME OUT OF THIS BROWSER'S MEMORY (#1484). The
              declared rates a lead states below are retained locally, so a return
              visit can meet a provenance that was earned rather than one that
@@ -259,7 +251,6 @@
              and forget the entry are beside the form that fills it, further down
              this page, because this screen has no spare tab stop. -->
         <p class="stand-answer" id="finops-retained-state" data-state="unretained" hidden></p>
-        <a class="stand-action" id="finops-recoverable-action" href="/savings-action-center.html">Move Atlas Platform's short, low-context requests to the standard model</a>
         <!-- HOW WE KNOW THIS — the one disclosure pattern this page reuses
              (#1185). The figure and the move are read first; everything that
              qualifies them is one press away, in three labelled parts and in the
@@ -284,7 +275,7 @@
         <details class="figure-source how-we-know" id="finops-recoverable-how-we-know" data-disclosure="collapsed">
           <summary class="figure-source-summary how-we-know-summary" id="finops-recoverable-how-we-know-summary"><span class="figure-source-state" data-disclosure="collapsed"><span class="figure-source-shape" aria-hidden="true">▸</span> How we know this</span></summary>
           <dl class="figure-source-detail how-we-know-detail">
-            <div><dt>Provenance</dt><dd>The bundled synthetic example: invented usage records for an invented company, shipped with this page. Not your spend, not customer data, and not a realized saving. No file of yours is read, uploaded, or stored to produce it.</dd></div>
+            <div><dt>Provenance</dt><dd>The bundled synthetic example: invented usage records for an invented company, shipped with this page. Not your spend, not customer data, and not a realized saving. No file of yours is read, uploaded, or stored to produce it. <span id="finops-recoverable-provenance-reason">Whose prices this figure uses has not been scored for this document.</span></dd></div>
             <div><dt>Basis</dt><dd><span id="finops-recoverable-basis-detail">Summed over the 5 of 5 departments carrying a completed FinOps score for 2026-06-01 to 2026-07-01. Unscored departments contribute zero and are never extrapolated to. About $615,048 a year if this month holds — the monthly figure multiplied by 12, with no seasonality or growth adjustment.</span> The monthly figure is the measurement: each department's identified recoverable spend for the most recent complete month, summed. The annual figure is that figure multiplied by 12 and is stated nowhere on its own.</dd></div>
             <div><dt>Limits</dt><dd><span id="finops-recoverable-contract-next">State contracted input and output rates for the premium text tier and the standard text tier — that moves this figure to Declared · Medium. Until then it stays illustrative: a list-price ceiling, not a saving.</span> Measured throughput is left out of the arithmetic too. It is stated as of the bundled synthetic example and moves the moment a provider export of your own is analyzed. <span id="finops-recoverable-confidence-detail">The confidence grade beside the figure has not been computed for this document.</span> <span id="finops-recoverable-provenance-detail">The pricing-provenance sub-score beside the figure has not been computed for this document.</span><section id="recoverable-spend-coverage" aria-label="Recovery-class coverage">Coverage detail is computed locally when the analysis loads.</section></dd></div>
           </dl>
