@@ -88,6 +88,59 @@ test("the answer region states its figure before any sentence qualifying it", ()
   }
 });
 
+// ---------------------------------------------------------------------------
+// 1b. The trust signals are ONE evidence line, not three (#1556).
+//
+// The defect this replaces: three graded chips separated by middots, then two
+// standalone paragraphs under them saying nearly the same thing. Five blocks
+// between the money and the move, two of them carrying the word "confidence"
+// about different subjects. These assertions are on containment and on order,
+// because that is what a reader experiences: one paragraph is one announcement,
+// and five are five.
+// ---------------------------------------------------------------------------
+
+/** Ids of every node the evidence line is composed from, in reading order. */
+const EVIDENCE_SLOTS = ["finops-recoverable-marker", "finops-recoverable-provenance",
+  "finops-recoverable-grade", "finops-recoverable-provenance-reason",
+  "finops-recoverable-confidence"];
+
+test("the trust signals under the headline figure are one evidence line", () => {
+  const document = doc();
+  const line = document.getElementById("finops-recoverable-trust");
+
+  // EVERY SIGNAL IS INSIDE THE ONE LINE. A signal that escapes into a paragraph
+  // of its own is a second thing to read beside the money, which is the defect.
+  for (const id of EVIDENCE_SLOTS) {
+    const node = document.getElementById(id);
+    assert.ok(node, `#${id} is no longer authored`);
+    assert.ok(within(node, line), `#${id} is stated outside the one evidence line`);
+  }
+
+  // AND IN THAT ORDER: what kind of number, the grade on the prices, the grade
+  // on the coverage, why the prices are graded so, the one thing to state.
+  const positions = EVIDENCE_SLOTS.map(at);
+  assert.deepEqual(positions, [...positions].sort((a, b) => a - b),
+    "the evidence line no longer reads kind, grades, reason, action");
+
+  // EACH GRADE SAYS WHAT IT GRADES. Two chips both wearing "confidence" read as
+  // one verdict contradicting itself unless the line names their subjects.
+  const spoken = textOf(line);
+  assert.match(spoken, /on the prices/, "the pricing grade does not say what it grades");
+  assert.match(spoken, /on the spend coverage/, "the coverage grade does not say what it grades");
+
+  // THE FIGURE, THE LINE, THEN THE MOVE — in source order, which is reading
+  // order on this page and the order assistive technology walks.
+  assert.ok(at("finops-recoverable-value") < at("finops-recoverable-trust"));
+  assert.ok(at("finops-recoverable-trust") < at("finops-recoverable-action"));
+
+  // NOTHING IN IT IS OPERABLE. The one control under the money is the action
+  // anchor; a focusable inside the evidence line would be a second one.
+  for (const tag of ["button", "input", "select", "textarea", "a"]) {
+    assert.equal(line.querySelectorAll(tag).length, 0,
+      `the evidence line carries a ${tag}, so the money and the move are no longer adjacent`);
+  }
+});
+
 test("every supporting section leads with its finding, not its disclaimer", () => {
   // The two synthetic-data markers that survive above their figures are a
   // clause each. The paragraphs they used to be are inside the disclosures.
