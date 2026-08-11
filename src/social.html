@@ -309,7 +309,6 @@
                   <input id="post-image" name="image" type="file"
                     accept="image/png,image/jpeg,image/gif,image/webp" aria-describedby="post-image-steps post-image-hint post-media-status" />
                 </label>
-                <a class="secondary-button paint-link" href="/paint/" target="_blank" rel="noopener">Create an image in Paint <span class="new-tab-note">(opens in a new tab)</span> <span aria-hidden="true">↗</span></a>
               </div>
               <!-- The round trip, in the page as served: Paint uploads nothing,
                    so the visitor is the transport and has to know that before
@@ -320,7 +319,8 @@
                    own aria-describedby, so focusing Choose image reads it, and
                    nothing folds it away — no disclosure widget, no hover, no
                    script — because a reader who needs it needs it first. -->
-              <p class="hint" id="post-image-steps">Export your Paint drawing as a PNG, return to this tab, then select Choose image.</p>
+              <p class="media-status" id="post-media-status" role="status" aria-live="polite" aria-atomic="true"></p>
+              <p class="hint" id="post-image-steps"><a class="secondary-button paint-link" href="/paint/" target="_blank" rel="noopener">Create an image in Paint <span class="new-tab-note">(opens in a new tab)</span> <span aria-hidden="true">↗</span></a>, export a PNG no larger than 512 KB, return to this tab, then select Choose image; if an export is too large, resize or simplify the drawing in Paint and export it again.</p>
               <p class="hint" id="post-image-hint">PNG, JPEG, GIF, or WebP · 512 KB maximum.</p>
               <div class="compose-media" id="compose-media" hidden>
                 <div class="compose-media-head">
@@ -372,7 +372,6 @@
                   </p>
                 </div>
               </div>
-              <p class="media-status" id="post-media-status" role="status" aria-live="polite"></p>
             </fieldset>
 
             <div class="field field-wide">
@@ -417,7 +416,8 @@
                  sentence states that flatly and hands over the only defence
                  there is, which is deciding before you publish. -->
             <p class="hint publish-consequence" id="post-consequence">Anyone who visits Shiplog can read your post, its image, and the display name you publish it with. You cannot delete it afterwards, so post nothing you would not put on a public page.</p>
-            <button id="post-submit" type="submit" aria-describedby="post-consequence social-notice">
+            <p class="field-error compose-error" id="post-publish-blocker" hidden></p>
+            <button id="post-submit" type="submit" aria-describedby="post-consequence post-publish-blocker social-notice">
               <span class="submit-label">Publish post</span> <span aria-hidden="true">→</span>
             </button>
             <!-- The way out, in the word the footer's panel already uses for

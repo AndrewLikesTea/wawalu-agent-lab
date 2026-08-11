@@ -9,10 +9,10 @@
 import { mountSocialFeed, normalizeSocialApiPosts } from "/social.js";
 import {
   MAX_PUBLISH_IMAGE_BYTES,
-  OVER_LIMIT_ERROR,
   PUBLISH_IMAGE_TYPES,
   UNSUPPORTED_TYPE_ERROR,
   dataUrlPayload,
+  overLimitError,
   takePaintHandoff,
   validatePublishImage,
 } from "/publishing-media.js";
@@ -86,7 +86,7 @@ async function fileToPublishImage(file) {
   // be fixed by making it smaller, so telling the reader to shrink it first
   // would cost them a second round trip.
   if (!PUBLISH_IMAGE_TYPES.has(file.type)) throw new Error(UNSUPPORTED_TYPE_ERROR);
-  if (file.size > MAX_PUBLISH_IMAGE_BYTES) throw new Error(OVER_LIMIT_ERROR);
+  if (file.size > MAX_PUBLISH_IMAGE_BYTES) throw new Error(overLimitError(file.size));
   const dataUrl = await readAsDataUrl(file);
   const payload = dataUrlPayload(dataUrl);
   if (!payload) throw new Error("Use a PNG, JPEG, GIF, or WebP image.");
@@ -112,7 +112,10 @@ function mountMediaComposer(root, description) {
   const alt = root.querySelector("#post-image-alt");
   const status = root.querySelector("#post-media-status");
   const remove = root.querySelector("#remove-image");
+  const publishBlocker = root.querySelector("#post-publish-blocker");
+  const submit = root.querySelector("#post-submit");
   let media = null;
+  let selectionProblem = "";
   // FileReader and image decoding are asynchronous. A generation token keeps a
   // slow first selection from replacing a newer preview after it finally
   // finishes.
@@ -121,6 +124,15 @@ function mountMediaComposer(root, description) {
   const setStatus = (message, error = false) => {
     status.textContent = message;
     status.classList.toggle("is-error", error);
+  };
+
+  const setSelectionProblem = (message = "") => {
+    selectionProblem = message;
+    if (publishBlocker) {
+      publishBlocker.textContent = message ? `Publishing is blocked: ${message}` : "";
+      publishBlocker.hidden = !message;
+    }
+    if (submit) submit.disabled = Boolean(message);
   };
 
   const clear = ({ focus = false } = {}) => {
@@ -136,11 +148,13 @@ function mountMediaComposer(root, description) {
     fallback.hidden = true;
     panel.hidden = true;
     setStatus("");
+    setSelectionProblem();
     if (focus) input.focus();
   };
 
   const show = (next) => {
     media = next;
+    setSelectionProblem();
     panel.hidden = false;
     frame.dataset.state = "loading";
     fallback.textContent = "";
@@ -170,6 +184,23 @@ function mountMediaComposer(root, description) {
   input.addEventListener("change", async () => {
     const generation = ++selectionGeneration;
     const file = input.files?.[0];
+    // Refusals are synchronous, so the live region receives only the result —
+    // not a transient "Preparing" update followed immediately by the error.
+    // That makes one invalid choice one announcement.
+    const selectionError = !file
+      ? "Choose an image to continue."
+      : !PUBLISH_IMAGE_TYPES.has(file.type)
+        ? UNSUPPORTED_TYPE_ERROR
+        : file.size > MAX_PUBLISH_IMAGE_BYTES
+          ? overLimitError(file.size)
+          : "";
+    if (selectionError) {
+      clear();
+      setStatus(selectionError, true);
+      setSelectionProblem(selectionError);
+      input.focus();
+      return;
+    }
     setStatus("Preparing image preview…");
     panel.hidden = true;
     try {
@@ -180,6 +211,7 @@ function mountMediaComposer(root, description) {
       if (generation !== selectionGeneration) return;
       clear();
       setStatus(error.message, true);
+      setSelectionProblem(error.message);
       input.focus();
     }
   });
@@ -201,6 +233,7 @@ function mountMediaComposer(root, description) {
     // enough to publish is not this half's call — src/social.js refuses, marks
     // the field, and leaves these bytes sitting right here for the retry.
     get() {
+      if (selectionProblem) throw new Error(selectionProblem);
       return media ? { ...media, alt: alt.value.trim() } : null;
     },
     clear,

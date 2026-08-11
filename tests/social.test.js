@@ -314,7 +314,7 @@ test("social page is wired, labeled, and linked from the other pages", async () 
   assert.ok(wiring.includes("setStatus(PREVIEW_FAILURE, true);"));
   assert.match(page, /id="post-image-alt"/);
   assert.match(page, /id="post-media-status" role="status" aria-live="polite"/);
-  assert.match(page, /id="post-submit"[^>]*aria-describedby="post-consequence social-notice"/);
+  assert.match(page, /id="post-submit"[^>]*aria-describedby="post-consequence post-publish-blocker social-notice"/);
   assert.match(page, /id="social-notice" role="status" aria-live="polite" aria-atomic="true"/);
   assert.match(wiring, /selectionGeneration/);
   assert.match(component, /Publishing…/);

@@ -6,8 +6,8 @@
 // reports with reason `no_build_stamp`.
 export const BUILD_STAMP = Object.freeze({
   schemaVersion: 1,
-  commitSha: "ad3c7b3e99973e07e6db224098e96f109f23d28c",
-  builtAt: "2026-08-11T07:39:40.384Z",
+  commitSha: "f210f02afcde45d58860e7509b351e8319a800ac",
+  builtAt: "2026-08-11T09:23:50.369Z",
 });
 
 export default BUILD_STAMP;
