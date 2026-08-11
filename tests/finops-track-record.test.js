@@ -21,8 +21,9 @@ import { loadPage, parseHtml, textOf } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
 import {
   TRACK_RECORD_IDS, TRACK_RECORD_QUESTION, TRACK_RECORD_STATE,
-  leadWithWorkedDecision, renderTrackRecord, trackRecordModel,
+  latestCompletePeriodMovement, leadWithWorkedDecision, renderTrackRecord, trackRecordModel,
 } from "../src/finops-track-record.js";
+import { TRACK_RECORD_DECISION_CONTRACT } from "../src/finops-track-record-contract.js";
 import { BRIEFING_SERIES_KEY, recordBriefingSeriesEntry } from "../src/finops-briefing-series.js";
 import { FIRST_RUN_IDS } from "../src/finops-first-run.js";
 import { STAND_IDS } from "../src/finops-stand.js";
@@ -189,19 +190,113 @@ test("the next action changes across every branch it is derived from", () => {
   const actionFor = (input) => trackRecordModel(input).action.text;
 
   // Nothing kept: the first import is the only thing that starts a record.
-  assert.equal(actionFor({ series: [] }), "Import a provider export to start the record");
+  assert.equal(actionFor({ series: [] }), "Start fresh");
   // One month: a track record needs a second period before anything moves.
-  assert.equal(actionFor({ series: [entry("2026-06", 1000)] }), "Import a second period");
+  assert.equal(actionFor({ series: [entry("2026-06", 1000)] }), "Add a month");
   // A commitment whose closing month was never imported: import that month.
   assert.equal(actionFor({
     series: [entry("2026-06", 1000), entry("2026-08", 400)],
     commitment: commitmentOf(),
-  }), "Import Jul 2026 to close out the commitment");
+  }), "Add a month");
   // Closed out and scored: the next thing is the next commitment.
   assert.equal(actionFor({ series: TWO_MONTHS, commitment: commitmentOf() }),
     "Commit to the next action");
   // Months on file and nothing committed against them: the same next step.
   assert.equal(actionFor({ series: TWO_MONTHS }), "Commit to the next action");
+});
+
+test("the product consumes the ordered questions and exact metric basis", () => {
+  assert.deepEqual(TRACK_RECORD_DECISION_CONTRACT.views.map(({ order, question }) =>
+    [order, question]), [
+    [1, "Did what we committed to work?"],
+    [2, "What changed in the latest complete month?"],
+    [3, "What should I do next?"],
+  ]);
+  assert.equal(TRACK_RECORD_QUESTION, TRACK_RECORD_DECISION_CONTRACT.views[0].question);
+  assert.equal(TRACK_RECORD_DECISION_CONTRACT.metrics.completePeriod.minimumForVerdict, 2);
+  assert.equal(TRACK_RECORD_DECISION_CONTRACT.metrics.movement.costBasis,
+    "analyzed_spend_usd");
+});
+
+test("first-time, retained-incomplete, and portable-gap states choose one action", () => {
+  // Nothing retained: there is no record to carry back, so the portable path is
+  // not offered here EVEN WHEN THE SURFACE HAS ONE. One state, one action.
+  for (const portableRecordAvailable of [false, true]) {
+    assert.equal(trackRecordModel({ series: [], portableRecordAvailable }).action.text,
+      "Start fresh");
+  }
+  // A retained period with insufficient evidence, no portable path on the
+  // surface: the only way forward is another month.
+  assert.equal(trackRecordModel({ series: [entry("2026-06", 1000)] }).action.text,
+    "Add a month");
+  // The same gap WITH a portable record to hand: importing it leads, because it
+  // can close the gap in one step where adding a month closes it in one month.
+  for (const series of [
+    [entry("2026-06", 1000)], [entry("2026-06", 1000), entry("2026-08", 400)],
+  ]) {
+    const model = trackRecordModel({
+      series, commitment: commitmentOf(), portableRecordAvailable: true,
+    });
+    assert.equal(model.action.text, "Import your portable record");
+    assert.equal(model.action.href, "#local-lead-portability-import");
+  }
+  // Two complete periods scored against a commitment is not a gap at all, so no
+  // recovery path outranks the next commitment.
+  assert.equal(trackRecordModel({
+    series: TWO_MONTHS, commitment: commitmentOf(), portableRecordAvailable: true,
+  }).action.text, "Commit to the next action");
+});
+
+test("the ordering the product runs on is the contract's, keyed by its own states", () => {
+  const { byState } = TRACK_RECORD_DECISION_CONTRACT.returnActions;
+  // Every keyed state is a real one: the contract and the model are coupled by
+  // these strings, and nothing imports the other, so the pin lives here.
+  const states = new Set(Object.values(TRACK_RECORD_STATE));
+  for (const key of Object.keys(byState)) {
+    assert.ok(states.has(key), `${key} is not a track record state`);
+  }
+  // Every listed action is a real one too, so a typo cannot silently fall
+  // through the ordering into the "Add a month" backstop.
+  const actions = new Set(Object.keys(TRACK_RECORD_DECISION_CONTRACT.actions));
+  for (const name of Object.values(byState).flat()) {
+    assert.ok(actions.has(name), `${name} is not a contract action`);
+  }
+  // And the portable record is listed AHEAD of adding a month wherever a
+  // retained record is short of the evidence a verdict needs.
+  assert.deepEqual(byState[TRACK_RECORD_STATE.none], ["startFresh"]);
+  for (const state of [TRACK_RECORD_STATE.single, TRACK_RECORD_STATE.awaiting]) {
+    assert.deepEqual(byState[state], ["portable", "addMonth"]);
+  }
+});
+
+test("movement compares the latest two complete periods on analyzed spend", () => {
+  const movement = latestCompletePeriodMovement([
+    entry("2026-04", 500), entry("2026-05", 1000), entry("2026-06", 750),
+  ]);
+  assert.equal(movement.preceding.period, "2026-05");
+  assert.equal(movement.latest.period, "2026-06");
+  assert.equal(movement.absoluteChangeUsd, -250);
+  assert.equal(movement.percentageChange, -25);
+  assert.match(movement.statement, /fell 250\.00 USD \(25\.0%\)/);
+});
+
+test("two rows in one month are one period, and two providers are no movement", () => {
+  // One provider billing the same month twice is ONE period, not two: a second
+  // row must never read as a second month of history nobody imported.
+  const sameMonth = [entry("2026-06", 600), entry("2026-06", 400)];
+  assert.equal(latestCompletePeriodMovement(sameMonth).available, false);
+  assert.equal(trackRecordModel({ series: sameMonth }).state, TRACK_RECORD_STATE.single);
+
+  // Two providers across two months are two sets of books. The same refusal the
+  // commitment scorer makes, rather than a movement figure summed across them.
+  const mixed = [
+    entry("2026-05", 500), entry("2026-06", 750),
+    { ...entry("2026-05", 200), scope: "aws", providerName: "AWS" },
+    { ...entry("2026-06", 300), scope: "aws", providerName: "AWS" },
+  ];
+  const movement = latestCompletePeriodMovement(mixed);
+  assert.equal(movement.available, false);
+  assert.equal(movement.reason, "mixed_provider_scope");
 });
 
 test("an open commitment names the month that would close it, with no figure yet", () => {
@@ -238,7 +333,7 @@ test("with no series the header says there is no track record, and shows no figu
   // The step is still named — in the sentence, because the first screen already
   // carries that exact control as its primary action.
   assert.equal(countOf(document, "[data-track-record-action]"), 0);
-  assert.equal(model.action.text, "Import a provider export to start the record");
+  assert.equal(model.action.text, "Start fresh");
 });
 
 test("one period gets its own message rather than the multi-period figure", () => {
@@ -387,6 +482,9 @@ test("the shipped page opens on the question, with nothing kept", async () => {
     // The shipped page's own primary action is the one control for this state,
     // so the header adds none: see the authored-header test above.
     assert.equal(document.querySelectorAll("[data-track-record-action]").length, 0);
+    // And no movement line either: "no movement yet" beside "no track record on
+    // file" is one fact said twice, above the worked decision that leads here.
+    assert.equal(document.querySelectorAll(`#${TRACK_RECORD_IDS.movement}`).length, 0);
     // Above the snapshot analysis, and not inside any disclosure on the way up.
     assert.equal(ancestorTags(document.getElementById(TRACK_RECORD_IDS.region))
       .includes("details"), false);

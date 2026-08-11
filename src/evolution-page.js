@@ -168,7 +168,7 @@ import {
   writeRetainedBriefing,
 } from "/finops-briefing-retention.js";
 import {
-  bindBriefingPortability, bindBriefingRetention, clearBriefingRetention,
+  PORTABILITY_IDS, bindBriefingPortability, bindBriefingRetention, clearBriefingRetention,
   renderBriefingPortability, renderBriefingRetention,
 } from "/finops-briefing-retention-view.js";
 import { briefingFromRetained } from "/finops-briefing-retention.js";
@@ -3933,7 +3933,16 @@ function mountLocalFinopsImport() {
     } catch {
       commitment = null;
     }
-    const model = trackRecordModel({ series, commitment });
+    // Whether the PORTABLE RECOVERY PATH IS USABLE ON THIS PAGE — asked of the
+    // portability module's own id and its own disabled state, not of a string
+    // retyped here: a renamed control must break loudly at that module rather
+    // than silently demote every recovery action on this page to "Add a month".
+    const portableImport = document.getElementById(PORTABILITY_IDS.import);
+    const model = trackRecordModel({
+      series,
+      commitment,
+      portableRecordAvailable: Boolean(portableImport) && !portableImport.disabled,
+    });
     renderTrackRecord(document, model);
     // And which of the two a first visit meets first: with nothing on file the
     // bundled worked decision leads and this header reads under it. Same model,

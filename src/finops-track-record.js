@@ -33,6 +33,7 @@ import { scoreCommittedSaving, VERDICT_GRADE } from "./committed-saving-verdict.
 import {
   briefingSeriesSummary, estimateAccuracy, realizedSeriesEntries,
 } from "./finops-briefing-series.js";
+import { TRACK_RECORD_DECISION_CONTRACT } from "./finops-track-record-contract.js";
 
 /** Named once, so the document, the page entry and the tests agree. */
 export const TRACK_RECORD_IDS = Object.freeze({
@@ -44,14 +45,102 @@ export const TRACK_RECORD_IDS = Object.freeze({
   action: "finops-track-record-action",
   detail: "finops-track-record-detail",
   estimate: "finops-track-record-estimate",
+  movement: "finops-track-record-movement",
 });
 
 /** The heading. Carried here so a surface cannot quietly retitle the question. */
-export const TRACK_RECORD_QUESTION = "Did what we committed to work?";
+export const TRACK_RECORD_QUESTION = TRACK_RECORD_DECISION_CONTRACT.views[0].question;
 
-/** Where the import affordance lives on this page, for the action's target. */
-const IMPORT_ANCHOR = "#local-import";
 const COMMIT_PAGE = "/savings-commitment.html";
+
+const decisionAction = (name, { named = false } = {}) => Object.freeze({
+  text: TRACK_RECORD_DECISION_CONTRACT.actions[name].label,
+  href: TRACK_RECORD_DECISION_CONTRACT.actions[name].href,
+  code: TRACK_RECORD_DECISION_CONTRACT.actions[name].code,
+  named,
+});
+
+/**
+ * The ONE action for a gap state, read off the contract's ordered list.
+ *
+ * No branch here decides the priority — the list does, so changing which
+ * recovery leads is a change to configuration a reviewer can read whole. Only
+ * `portable` carries a precondition; the other two are always reachable, so a
+ * state whose list is exhausted still has an action rather than none.
+ *
+ * `named` is a RENDERING fact, not a contract one: in the empty state the page
+ * already ships this exact control as its own primary, and a second copy would
+ * spend a tab stop the first screen does not have.
+ */
+const primaryAction = (state, portableRecordAvailable) => {
+  const offered = { portable: portableRecordAvailable, addMonth: true, startFresh: true };
+  const order = TRACK_RECORD_DECISION_CONTRACT.returnActions.byState[state] ?? [];
+  return decisionAction(order.find((name) => offered[name]) ?? "addMonth",
+    { named: state === TRACK_RECORD_STATE.none });
+};
+
+const movementUsd = (value) => `${Number(value).toLocaleString("en-US", {
+  minimumFractionDigits: 2, maximumFractionDigits: 2,
+})} USD`;
+
+/**
+ * Why there is no movement figure, said in the reader's words. Keyed by the
+ * refusal the model actually made, so a mixed-books refusal is not reported as
+ * a short record — they are different facts with different next actions.
+ */
+const MOVEMENT_UNAVAILABLE = Object.freeze({
+  fewer_than_two_complete_periods:
+    "No movement yet: two complete monthly periods are needed to measure one.",
+  zero_preceding_cost:
+    "No movement percentage: the preceding month's analyzed spend was zero.",
+  mixed_provider_scope:
+    "No movement figure: more than one provider is on file, and two sets of books do not sum "
+    + "into one month. The per-period rows below keep them apart.",
+});
+
+/** Any refusal this file has not named yet still reads as the common one. */
+const movementRefusal = (reason) =>
+  MOVEMENT_UNAVAILABLE[reason] ?? MOVEMENT_UNAVAILABLE.fewer_than_two_complete_periods;
+
+/**
+ * Movement on the contract's agreed cost basis. Values remain unrounded in
+ * state; only the sentence applies the contract's display rounding.
+ */
+export function latestCompletePeriodMovement(series) {
+  const entries = realizedSeriesEntries(series)
+    .filter((entry) => canonicalPeriod(entry?.period) !== null
+      && Number.isFinite(entry?.spendUsd))
+    .sort((left, right) => left.period.localeCompare(right.period));
+  // One monthly period is the whole agreed basis, not one provider row.
+  const complete = [...entries.reduce((months, entry) => {
+    const spendUsd = (months.get(entry.period)?.spendUsd ?? 0) + entry.spendUsd;
+    months.set(entry.period, Object.freeze({ period: entry.period, spendUsd }));
+    return months;
+  }, new Map()).values()];
+  if (complete.length < TRACK_RECORD_DECISION_CONTRACT.metrics.completePeriod.minimumForVerdict) {
+    return Object.freeze({ available: false, reason: "fewer_than_two_complete_periods" });
+  }
+  // The same refusal the commitment scorer makes, for the same reason: summing
+  // two providers' months into one figure reports movement in books that were
+  // never kept together. The rows behind the disclosure still show each scope.
+  if (seriesScopeOf(entries) === "mixed") {
+    return Object.freeze({ available: false, reason: "mixed_provider_scope" });
+  }
+  const preceding = complete.at(-2);
+  const latest = complete.at(-1);
+  if (preceding.spendUsd === 0) {
+    return Object.freeze({ available: false, reason: "zero_preceding_cost", preceding, latest });
+  }
+  const absoluteChangeUsd = latest.spendUsd - preceding.spendUsd;
+  const percentageChange = (absoluteChangeUsd / preceding.spendUsd) * 100;
+  const direction = absoluteChangeUsd > 0 ? "rose" : absoluteChangeUsd < 0 ? "fell" : "was flat";
+  return Object.freeze({
+    available: true, preceding, latest, absoluteChangeUsd, percentageChange,
+    statement: absoluteChangeUsd === 0
+      ? `Analyzed spend was flat at ${movementUsd(latest.spendUsd)} from ${label(preceding.period)} to ${label(latest.period)}.`
+      : `Analyzed spend ${direction} ${movementUsd(Math.abs(absoluteChangeUsd))} (${Math.abs(percentageChange).toFixed(1)}%) from ${label(preceding.period)} to ${label(latest.period)}.`,
+  });
+}
 
 /**
  * The five states, in the order they are tested. The first three are about the
@@ -161,23 +250,29 @@ function figureOf(verdict, committedFrom, followUp) {
  *
  * @param options.series the read shape of `readBriefingSeries`, oldest first.
  * @param options.commitment the newest retained commitment record, or null.
+ * @param options.portableRecordAvailable whether THIS SURFACE offers a usable
+ *   portable-record import path. Passed in, never sniffed out of a document:
+ *   the ordering in `returnActions` turns on it, so a caller that guesses wrong
+ *   demotes or promotes every recovery action at once.
  * @returns a frozen model: `{ state, question, figure, verdict, context,
- *   action, rows, summary, estimateDelta }`. `figure` and `verdict` are null in
- *   the states that have no measurement, and the caller renders nothing for
- *   them; `estimateDelta` is "" when no period holds both an estimate and an
- *   import.
+ *   action, rows, summary, estimateDelta, movement }`. `figure` and `verdict`
+ *   are null in the states that have no measurement, and the caller renders
+ *   nothing for them; `estimateDelta` is "" when no period holds both an
+ *   estimate and an import; `movement` carries `available: false` and a reason
+ *   whenever the contract's basis refuses a figure.
  */
-export function trackRecordModel({ series, commitment = null } = {}) {
+export function trackRecordModel({ series, commitment = null, portableRecordAvailable = false } = {}) {
   const held = (Array.isArray(series) ? series : []).filter(Boolean);
   const entries = realizedSeriesEntries(held);
   // Prepared here, rendered as-is: one sentence per period that was both
   // predicted and then billed, in period order.
   const estimateDelta = estimateAccuracy(held).map((scored) => scored.sentence).join(" ");
   const built = (fields) => model({ estimateDelta, ...fields });
-  const { count, label: span } = briefingSeriesSummary(entries);
+  const { label: span } = briefingSeriesSummary(entries);
   const periods = [...new Set(entries.map((entry) => entry.period))].sort();
+  const movement = latestCompletePeriodMovement(entries);
 
-  if (count === 0) {
+  if (periods.length === 0) {
     return built({
       state: TRACK_RECORD_STATE.none,
       context: "No track record on file: this browser is keeping no period. Importing one "
@@ -193,19 +288,26 @@ export function trackRecordModel({ series, commitment = null } = {}) {
       // control, which leaves exactly one action on that screen rather than
       // two. Every other state renders its action, because by then this header
       // owns the most prioritized next step on the page.
-      action: {
-        text: "Import a provider export to start the record", href: IMPORT_ANCHOR, named: true,
-      },
+      //
+      // AND IT IS `Start fresh`, NOT THE PORTABLE RECORD: a browser keeping
+      // nothing has no gap to fill from a record it is already carrying, so the
+      // contract lists exactly one path for this state. Prioritizing an import
+      // here would put a recovery in front of a reader who has nothing to
+      // recover — and would spend the tab stop the note above is about.
+      action: primaryAction(TRACK_RECORD_STATE.none, portableRecordAvailable),
+      movement,
     });
   }
-  if (count === 1) {
+  if (periods.length === 1) {
     return built({
       state: TRACK_RECORD_STATE.single,
       context: `A track record needs a second period. One month is on file — ${label(periods[0])} `
         + "— so there is no movement to measure.",
-      action: { text: "Import a second period", href: IMPORT_ANCHOR },
+      // A retained period with insufficient evidence: the portable record leads.
+      action: primaryAction(TRACK_RECORD_STATE.single, portableRecordAvailable),
       rows: rowsOf(entries, null),
       summary: span,
+      movement,
     });
   }
 
@@ -218,6 +320,7 @@ export function trackRecordModel({ series, commitment = null } = {}) {
       action: { text: "Commit to the next action", href: COMMIT_PAGE },
       rows: rowsOf(entries, null),
       summary: span,
+      movement,
     });
   }
 
@@ -246,9 +349,12 @@ export function trackRecordModel({ series, commitment = null } = {}) {
       verdict: badgeOf(verdict),
       context: `${committed}. ${label(expected)} is not on file, so nothing has been measured `
         + "against it.",
-      action: { text: `Import ${label(expected)} to close out the commitment`, href: IMPORT_ANCHOR },
+      action: primaryAction(TRACK_RECORD_STATE.awaiting, portableRecordAvailable),
       rows,
       summary: span,
+      // The closing month is missing, not the whole record: the months that ARE
+      // on file still moved, and the line below the context says by how much.
+      movement,
     });
   }
 
@@ -266,9 +372,12 @@ export function trackRecordModel({ series, commitment = null } = {}) {
       // owns the refusal is one link away rather than paraphrased badly.
       : `${span}. These months were not scored against the commitment on file; the commitment `
         + "page names the check that refused.",
-    action: { text: "Commit to the next action", href: COMMIT_PAGE },
+    action: graded
+      ? { text: "Commit to the next action", href: COMMIT_PAGE }
+      : primaryAction(TRACK_RECORD_STATE.awaiting, portableRecordAvailable),
     rows,
     summary: span,
+    movement,
   });
 }
 
@@ -284,6 +393,7 @@ const model = (fields) => Object.freeze({
   rows: [],
   summary: "",
   estimateDelta: "",
+  movement: Object.freeze({ available: false, reason: "fewer_than_two_complete_periods" }),
   ...fields,
 });
 
@@ -382,6 +492,18 @@ export function renderTrackRecord(document, model_) {
   const context = el(document, "p", "local-lead-basis", model_.context);
   context.id = TRACK_RECORD_IDS.context;
   nodes.push(context);
+
+  // The contract's second question, under the first. Skipped only in the empty
+  // state: "no movement yet" beside "no track record on file" is the same fact
+  // twice, and the first screen leads with the worked decision rather than two
+  // lines about a file nobody has brought.
+  if (model_.state !== TRACK_RECORD_STATE.none) {
+    const movement = el(document, "p", "local-lead-basis", model_.movement.available
+      ? model_.movement.statement
+      : movementRefusal(model_.movement.reason));
+    movement.id = TRACK_RECORD_IDS.movement;
+    nodes.push(movement);
+  }
 
   // The estimate against the bill (#1106). TEXT, NOT A CONTROL: the first
   // screen's tab order is a budget another test holds, and this line is
