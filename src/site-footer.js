@@ -38,6 +38,7 @@ import {
 
 const ERROR_ID = "site-footer-error";
 const RECOVERY_ID = "site-footer-recovery";
+const RETRY_ID = "site-footer-retry";
 const STATUS_ID = "site-footer-status";
 
 /**
@@ -115,10 +116,9 @@ export const DEMOS = Object.freeze([
 export const INVITATION = "Questions about Shiplog? Ask the Wawalu team that operates it, and a "
   + "person replies by email.";
 
-// What the field sends is not this footer's sentence to write. It is the same
-// claim the AI FinOps form and the briefing's form make, so all three render one
-// string — FOLLOW_UP_PRIVACY in src/lead-capture.js, beside the transport that
-// makes it true.
+// What the field sends is not this footer's sentence to write: all three
+// follow-up forms render FOLLOW_UP_PRIVACY from src/lead-capture.js, beside
+// the transport that makes it true.
 
 // What a visitor is told once the address is stored.
 //
@@ -142,8 +142,6 @@ const SUBMITTING = "Requesting a follow-up — sending your email address…";
  * There is exactly one today. The executive briefing ends on a decision and its
  * own form arrives attached to it — a request from there says which figure and
  * which action it is about, which a generic "talk to us about Shiplog" cannot.
- * That is also why the recovery paragraph names it as the alternative route: a
- * visitor whose retries keep failing has one door left, and it is a real one.
  *
  * A link and nothing else, carrying the one label every follow-up control
  * carries. It works with no script at all, and the target takes focus (see the
@@ -218,13 +216,14 @@ function contactDisclosureLines(followUpType) {
     "        </div>",
     `        <p class="site-footer-error" id="site-footer-error" hidden></p>`,
     `        <p class="site-footer-note" id="site-footer-note">${FOLLOW_UP_PRIVACY}</p>`,
+    '        <p class="site-footer-recovery" id="site-footer-recovery" hidden>We could not send your follow-up request. Your email address is still in the field above, and nothing else on this page changed. Retry sends the same request again from this page; if it keeps failing, wait a few minutes and retry.</p>',
     '        <div class="site-footer-actions">',
     '          <button type="submit">Request a follow-up</button>',
+    `          <button id="${RETRY_ID}" type="submit" hidden>Retry sending this request</button>`,
     '          <button id="site-footer-dismiss" type="button">Close</button>',
     "        </div>",
     "      </form>",
     '      <p class="site-footer-status" id="site-footer-status" role="status" aria-live="polite"></p>',
-    '      <p class="site-footer-recovery" id="site-footer-recovery" hidden>We could not send your follow-up request. Try again in a few minutes. Your email address is still in the field above, and nothing else on this page changed. If it keeps failing, the <a href="/executive-briefing.html#briefing-contact">executive briefing carries its own follow-up form</a>.</p>',
     "    </div>",
   ];
 }
@@ -251,6 +250,7 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
   const fieldError = root.querySelector(`#${ERROR_ID}`);
   const status = root.querySelector("#site-footer-status");
   const recovery = root.querySelector(`#${RECOVERY_ID}`);
+  const retry = root.querySelector(`#${RETRY_ID}`);
 
   function setFieldError(message) {
     fieldError.textContent = message ?? "";
@@ -260,8 +260,14 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
     else email.removeAttribute("aria-invalid");
   }
 
+  // A failure is recovered here, on the page it happened on: the retry stands
+  // where the send control was and submits this form again, value and all.
   function setRecoveryVisible(visible) {
     recovery.hidden = !visible;
+    if (retry) {
+      retry.hidden = !visible;
+      submit.hidden = visible;
+    }
     describeWith(email, RECOVERY_ID, visible);
   }
 
@@ -371,9 +377,8 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
       form.dataset.state = "error";
       status.textContent = error instanceof SubmissionError ? error.message : CONTACT_COPY.unconfirmed;
       // Every failure here is retryable in place, so the paragraph that says so
-      // appears on all of them — the same rule the AI FinOps form follows. It is
-      // also where the one alternative route lives, for a visitor whose retries
-      // keep failing.
+      // and the control that does it appear on all of them — the same rule the
+      // AI FinOps form follows.
       setRecoveryVisible(true);
       setOutcomeDescribed(true);
     } finally {

@@ -41,13 +41,17 @@ const read = (file) => readFile(pageUrl(file), "utf8");
 
 const TYPED_EMAIL = "director@example.com";
 
-// The recovery paragraph, in the order a person needs it: what happened, what to
-// do, what is still safe, then the one other door if doing it again keeps
-// failing. Pinned whole rather than by fragment — the order of the four
-// sentences is the point, and a substring match would not see it.
-const RECOVERY_COPY = "We could not send your follow-up request. Try again in a few minutes. "
+// The recovery paragraph, in the order a person needs it: what happened, what is
+// still safe, then what the control below it does. Pinned whole rather than by
+// fragment — the order of the three sentences is the point, and a substring
+// match would not see it.
+//
+// It names no other page. A request that failed here is retried here: sending a
+// reader to the executive briefing's form abandoned the page they were reading
+// and left a first-time visitor unable to tell whether anything had been sent.
+const RECOVERY_COPY = "We could not send your follow-up request. "
   + "Your email address is still in the field above, and nothing else on this page changed. "
-  + "If it keeps failing, the executive briefing carries its own follow-up form.";
+  + "Retry sends the same request again from this page; if it keeps failing, wait a few minutes and retry.";
 
 const byId = (document, id) => document.getElementById(id);
 const shownText = (document, id) => textOf(byId(document, id));
@@ -744,6 +748,7 @@ test("a failed submission keeps the typed address, says it can be retried, and t
     const field = byId(document, "site-footer-email");
     const submit = byId(document, "site-footer-panel").querySelector('button[type="submit"]');
     assert.equal(byId(document, "site-footer-recovery").hidden, true, "recovery copy must not exist before an attempt");
+    assert.equal(byId(document, "site-footer-retry").hidden, true, "nothing has failed, so there is nothing to retry");
     assert.doesNotMatch(describedBy(document), /site-footer-recovery/);
 
     submitEmail(document, TYPED_EMAIL);
@@ -771,6 +776,115 @@ test("a failed submission keeps the typed address, says it can be retried, and t
     assert.equal(calls.length, 2, "the retry must make its own request");
     assert.deepEqual(JSON.parse(calls[1].options.body), { email: TYPED_EMAIL, purpose: "follow_up" });
     assert.match(shownText(document, "site-footer-status"), /^Follow-up requested — we sent your email address, and nothing else\./);
+  } finally {
+    page.restore();
+  }
+});
+
+/* --------------------- the recovery stays where it failed -------------------- */
+
+// The five surfaces the follow-up form was reviewed on for #1598. They are read
+// out of the shared module rather than asserted page by page: every page embeds
+// `siteFooterMarkup()` byte for byte (see the first test in this file), so the
+// treatment is shipped once and this is what "once" means.
+const IN_SCOPE = ["social.html", "profile.html", "post.html", "coach.html", "releases.html"];
+
+test("every in-scope page ships the same in-place recovery, and none of them points at another page's form", async () => {
+  const shared = siteFooterMarkup("    ");
+  assert.ok(shared.includes(RECOVERY_COPY), "the shared footer must carry the recovery copy");
+  assert.ok(shared.includes('<button id="site-footer-retry" type="submit" hidden>Retry sending this request</button>'),
+    "the shared footer must carry the retry control");
+
+  for (const file of IN_SCOPE) {
+    const html = await read(file);
+    const page = await loadPage(pageUrl(file));
+    try {
+      const recovery = byId(page.document, "site-footer-recovery");
+      assert.equal(textOf(recovery), RECOVERY_COPY, `${file} words the failure its own way`);
+      // No link out at all: the whole point is that the recovery is here.
+      assert.equal(recovery.children.filter((child) => child.tagName === "A").length, 0,
+        `${file}: the failure copy must not send a reader anywhere`);
+      assert.doesNotMatch(textOf(recovery), /briefing/i, `${file}: the failure copy still names the briefing`);
+      assert.doesNotMatch(html, /site-footer-recovery[^\n]*executive-briefing/,
+        `${file}: the failure copy still links the executive briefing's form`);
+
+      const retry = byId(page.document, "site-footer-retry");
+      assert.equal(retry.tagName, "BUTTON");
+      assert.equal(retry.type, "submit", `${file}: retry must resubmit this form, not navigate`);
+      assert.equal(retry.hidden, true, `${file}: nothing has failed yet`);
+      // It belongs to the form it retries, so the value it sends is the value
+      // still in the field beside it.
+      assert.equal(retry.closest("form")?.id, "site-footer-form");
+    } finally {
+      page.restore();
+    }
+  }
+});
+
+test("a failed request offers its retry in place: named, keyboard-reachable, announced, and never stealing focus", async () => {
+  const page = await openFooterPage("social.html");
+  const { document } = page;
+  let failNext = true;
+  const calls = interceptLeads(() => (failNext
+    ? jsonReply({ error: { code: "storage_error", message: "unreviewed upstream text" } }, 500)
+    : jsonReply({ captured: true, created: true, purpose: "follow_up_social" })));
+
+  // Anything that grabs focus from the field a reader is standing in is the
+  // defect; the harness would not otherwise show a stolen focus as a failure.
+  const focused = [];
+  for (const id of ["site-footer-recovery", "site-footer-status", "site-footer-retry"]) {
+    const node = byId(document, id);
+    node.focus = () => focused.push(id);
+  }
+
+  try {
+    byId(document, "site-footer-open").click();
+    const field = byId(document, "site-footer-email");
+    const submit = byId(document, "site-footer-form").querySelector('button[type="submit"]');
+
+    submitEmail(document, TYPED_EMAIL);
+    await settled(document);
+    assert.equal(byId(document, "site-footer-form").dataset.state, "error");
+
+    // 1. The failure names the action that failed, in the live region the site
+    //    already announces outcomes through — and claims no receipt.
+    const status = byId(document, "site-footer-status");
+    assert.equal(status.getAttribute("role"), "status");
+    assert.equal(status.getAttribute("aria-live"), "polite");
+    assert.equal(textOf(status), "We didn’t get your request — something went wrong at our end. Please try again.");
+    assert.doesNotMatch(textOf(status), /unreviewed upstream text/);
+    // The meaning is in the words, not in a colour: the copy says what failed
+    // even with every stylesheet thrown away.
+    assert.match(textOf(byId(document, "site-footer-recovery")), /^We could not send your follow-up request\./);
+
+    // 2. The retry is visible, in this region, and it is the primary action of
+    //    the row — it stands where the send control was rather than beside it.
+    const retry = byId(document, "site-footer-retry");
+    assert.equal(retry.hidden, false);
+    assert.equal(textOf(retry), "Retry sending this request");
+    assert.equal(submit.hidden, true, "two primary controls that do the same thing is not a hierarchy");
+    assert.equal(retry.disabled, false);
+
+    // 3. Nothing took focus. The reader is left in the field they may want to
+    //    correct, and the retry is a tab away at its own place in the form.
+    assert.deepEqual(focused, [], "the failure state must not move focus");
+    assert.equal(document.activeElement, field);
+    assert.equal(retry.getAttribute("autofocus"), null);
+    const ids = tabSequence(document).map((node) => node.id);
+    for (const [before, after] of [["site-footer-email", "site-footer-retry"], ["site-footer-retry", "site-footer-dismiss"]])
+      assert.ok(ids.indexOf(before) >= 0 && ids.indexOf(before) < ids.indexOf(after),
+        `${before} must come before ${after} in the tab order`);
+
+    // 4. The address survived, and the retry sends that same address again
+    //    without the reader typing anything.
+    assert.equal(field.value, TYPED_EMAIL, "the failed attempt must leave the address in the field");
+    failNext = false;
+    retry.click();
+    await waitFor(() => byId(document, "site-footer-form").dataset.state === "success", "the retry to land");
+    assert.equal(calls.length, 2, "retry must re-attempt the same submission");
+    assert.deepEqual(JSON.parse(calls[1].options.body), JSON.parse(calls[0].options.body));
+    assert.deepEqual(JSON.parse(calls[1].options.body), { email: TYPED_EMAIL, purpose: "follow_up_social" });
+    assert.deepEqual(focused, [], "and the retry must not move focus either");
   } finally {
     page.restore();
   }
