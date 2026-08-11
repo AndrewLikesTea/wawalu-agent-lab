@@ -2002,8 +2002,23 @@
         <p class="eyebrow" id="destination-load-evidence-title">Evidence · destination</p>
         <button id="destination-retry-evidence" type="button" data-destination-retry="evidence" hidden>Retry Evidence</button>
       </section>
+      <!-- #1614: every region this page's department destination owns is an
+           address a saved link may already carry, and the per-department answer
+           moved to /departments.html in #1613. Each keeps its id and gains one
+           ordinary link stating the move, authored as visible copy INSIDE the
+           region rather than beside it: the element children of the main content
+           are a declared spine, so a pointer parked between two regions is an
+           undeclared region, and declaring seven of them would restructure the
+           page to carry a forwarding notice. Each pointer is therefore as
+           visible as the answer it replaces, is in the tab order whenever its
+           region is, and is never hidden, aria-hidden or announce-only itself.
+           evolution-page.js rewrites every href carrying
+           data-department-screen-pointer with the department the drill-down has
+           selected, so the forward keeps the reader's selection. Nothing here
+           redirects: they are links, and the reader presses them. -->
       <section class="finops-panel" id="destination-load-department" data-workspace-region="department" aria-labelledby="destination-load-department-title" hidden>
         <p class="eyebrow" id="destination-load-department-title">Departments · destination</p>
+        <p><a data-department-screen-pointer="destination-load-department" href="/departments.html?department=quality">Departments moved to their own screen: open this department’s screen</a></p>
         <button id="destination-retry-department" type="button" data-destination-retry="department" hidden>Retry Departments</button>
       </section>
       <section class="finops-panel" id="destination-load-act-and-verify" data-workspace-region="act-and-verify" aria-labelledby="destination-load-act-and-verify-title" hidden>
@@ -2039,6 +2054,7 @@
       </section>
       <section class="finops-panel" id="finops-guided-department" data-workspace-region="department" data-guided-scenario="aws-bedrock-cur-v1" aria-labelledby="finops-guided-department-title">
         <h2 class="eyebrow" id="finops-guided-department-title" tabindex="-1">Department detail · chosen scenario</h2>
+        <p><a data-department-screen-pointer="finops-guided-department" href="/departments.html?department=quality">The guided department detail moved: open this department’s own screen</a></p>
         <div id="finops-guided-department-body"></div>
       </section>
 
@@ -3714,6 +3730,7 @@
            the panel and its tests cannot hold two versions of it. -->
       <section class="department-evidence" id="department-evidence" data-state="empty" data-expanded="false" data-workspace-region="department" aria-labelledby="department-evidence-title" hidden>
         <h2 class="eyebrow" id="department-evidence-title">Evidence behind this grade</h2>
+        <p><a data-department-screen-pointer="department-evidence" href="/departments.html?department=quality">Department evidence moved: open this department’s own screen</a></p>
         <div id="department-evidence-body"></div>
         <p class="department-evidence-live" id="department-evidence-live" role="status" aria-live="polite" aria-atomic="true"></p>
       </section>
@@ -3730,6 +3747,7 @@
            different departments. -->
       <section class="department-fix-pack" id="department-fix-pack" data-state="unavailable" data-evidence-expanded="false" data-more-expanded="false" data-workspace-region="department" aria-labelledby="department-fix-pack-title" hidden>
         <h2 class="eyebrow" id="department-fix-pack-title">What this department should do first</h2>
+        <p><a data-department-screen-pointer="department-fix-pack" href="/departments.html?department=quality">The department fix pack moved: open this department’s own screen</a></p>
         <div id="department-fix-pack-body"></div>
         <p class="department-evidence-live" id="department-fix-pack-live" role="status" aria-live="polite" aria-atomic="true"></p>
       </section>
@@ -3740,6 +3758,7 @@
       <section class="department-fix-pack monthly-department-decision" id="monthly-department-decision" data-state="insufficient_evidence" data-workspace-region="department" role="region" aria-labelledby="monthly-department-decision-title" hidden>
         <p class="eyebrow">Monthly action decision</p>
         <h2 id="monthly-department-decision-title">Which department action should I take this month?</h2>
+        <p><a data-department-screen-pointer="monthly-department-decision" href="/departments.html?department=quality">The monthly department decision moved: open this department’s own screen</a></p>
         <div id="monthly-department-decision-body"></div>
       </section>
 
@@ -3914,6 +3933,7 @@
 
       <details class="support-disclosure" id="disclosure-department-priority" data-panel-id="department-priority" data-workspace-region="department">
         <summary class="support-disclosure-summary"><span class="support-disclosure-step" data-role="step">Supporting panel</span> <span class="support-disclosure-question" data-role="question">Which department needs help first, and how is it trending?</span></summary>
+      <p><a data-department-screen-pointer="disclosure-department-priority" href="/departments.html?department=quality">The department priority drill-down moved: open this department’s own screen</a></p>
       <!-- A workspace-rail destination: focusable so the rail can hand it the
            keyboard, and folded inside the disclosure above, which the rail opens
            on the way in. -->
@@ -4002,6 +4022,7 @@
 
       <details class="support-disclosure" id="disclosure-spend-mix" data-panel-id="spend-mix" data-workspace-region="department">
         <summary class="support-disclosure-summary"><span class="support-disclosure-step" data-role="step">Supporting panel</span> <span class="support-disclosure-question" data-role="question">Where does the money go — what was the spend actually asked to do?</span></summary>
+      <p><a data-department-screen-pointer="disclosure-spend-mix" href="/departments.html?department=quality">The department spend mix moved: open this department’s own screen</a></p>
       <section class="finops-panel" id="spend-mix-panel" aria-labelledby="mix-title">
         <div class="section-heading">
           <p class="eyebrow">Quality engine</p>
