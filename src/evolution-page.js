@@ -453,6 +453,14 @@ import { applyScreenRoute, initWorkspaceShell } from "/finops-workspace-shell.js
 // selection live in the shell above. Nothing else on this page touches a History
 // for a destination change.
 import { createScreenRouter } from "/finops-destination-router.js";
+// A forwarded department link, resolved to one department's whole decision
+// (#1612). The selector is pure and total — an unknown, absent or hostile slug
+// returns a named fallback rather than another department's figures — and the
+// view only opens, presses and focuses what the selector already decided.
+import {
+  departmentSlugFromSearch, departmentViewModel,
+} from "/finops-department-view-model.js";
+import { applyForwardedDepartment } from "/finops-forwarded-department-view.js";
 // What each region of this page is for, declared in reading order. It writes
 // attributes and no copy, so it cannot change what a reader sees today; what it
 // changes is that "headline or support?" has an answer in the repository.
@@ -5456,6 +5464,12 @@ async function init() {
     // choices exist now, so a `?dept=` that arrived before them is pressed here
     // rather than lost. Applying an already-applied route presses nothing.
     if (screenRouter) applyScreenRoute(document, screenRouter.current());
+    // …and the forwarded department link (#1612), for the third time the same
+    // reason: the ranked controls exist now. It runs LAST of the three so that a
+    // link carrying both a destination and a department ends with the department
+    // it named on screen, rather than with whichever of the two applied later.
+    applyForwardedDepartment(document, departmentViewModel(data,
+      departmentSlugFromSearch(globalThis.location?.search ?? "")));
     renderRedaction(data.redactionSamples);
 
     // Ready is the lifecycle; "are these numbers mine?" is the question. The

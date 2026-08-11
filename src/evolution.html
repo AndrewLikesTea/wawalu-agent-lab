@@ -3930,6 +3930,13 @@
           <p>Lowest eligible performance score first. Unavailable samples are not scored or ranked as poor performance.</p>
         </div>
         <p class="decision-provenance" id="decision-provenance">Sample provenance not available yet</p>
+        <!-- Where a forwarded ?department= link says which department it resolved
+             to, or why it resolved to none (#1612). Authored empty and hidden;
+             the sentence is finops-department-view-model.js's. DELIBERATELY NOT A
+             LIVE REGION: it sits inside the disclosure above, and a shut
+             disclosure announces to nobody. It is read as ordinary content of the
+             panel the forwarded link focuses, which is open by then. -->
+        <p class="decision-provenance" id="department-forwarded-status" data-department-resolved="false" data-fallback-reason="no-slug" hidden></p>
         <!-- Forwards the current selection to the department screen (#1613). -->
         <p><a id="department-screen-link" href="/departments.html?department=quality">Open this department’s own screen</a></p>
         <div class="decision-layout" id="decision-layout">
