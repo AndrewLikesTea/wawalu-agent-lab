@@ -455,7 +455,7 @@ test("an empty log offers a different next step from a no-match view", async (t)
   assert.equal(countText(page), "0 of 0 releases");
   const state = page.document.querySelector(".list-state-empty");
   assert.equal(textOf(state.querySelector("h3")), "No releases have been recorded yet");
-  assert.match(textOf(state), /Link at least one decision, then record a release\./);
+  assert.match(textOf(state), /Record a release, with or without linked decisions\./);
   assert.equal(state.querySelector(".release-reset-action"), null, "nothing to clear in a first-run state");
 
   const record = state.querySelector(".release-empty-action");

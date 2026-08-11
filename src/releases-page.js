@@ -75,7 +75,7 @@ function initReleaseRecorder(root, storage, options = {}) {
   // Failures the checkbox group owns are also announced *on* the group: the
   // alert states what is wrong, `aria-invalid` marks which control is wrong,
   // and focus lands back in the group so the fix is one keystroke away.
-  const SELECTION_ERRORS = [RELEASE_FORM_ERRORS.noDecisions, RELEASE_FORM_ERRORS.unknownDecision];
+  const SELECTION_ERRORS = [RELEASE_FORM_ERRORS.unknownDecision];
 
   const showError = (message) => {
     if (error) {
@@ -109,10 +109,9 @@ function initReleaseRecorder(root, storage, options = {}) {
         decisionIds: picker.selectedIds(),
       }, { decisions: options.decisions ?? [] });
     } catch (failure) {
-      // An empty checkbox group and a selection that no longer resolves are the
-      // failures native form validity cannot express. They are reported inline
-      // and nothing is written; any other failure is a programming error and
-      // keeps throwing.
+      // A selection that no longer resolves is a failure native form validity
+      // cannot express. It is reported inline and nothing is written; any
+      // other failure is a programming error and keeps throwing.
       if (!Object.values(RELEASE_FORM_ERRORS).includes(failure.message)) throw failure;
       showError(failure.message);
       return;

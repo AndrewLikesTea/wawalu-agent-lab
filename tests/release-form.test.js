@@ -144,17 +144,17 @@ test("createRelease refuses an incomplete, oversized, or dangling record", () =>
     () => createRelease(values, { decisions: DECISIONS }),
     { message },
   );
-  const { required, length, invalidDate, noDecisions, unknownDecision } = RELEASE_FORM_ERRORS;
+  const { required, length, invalidDate, unknownDecision } = RELEASE_FORM_ERRORS;
 
   rejects({ ...VALID, version: "   " }, required);
   rejects({ ...VALID, owner: "" }, required);
   rejects({ ...VALID, status: "shipped" }, required);
-  // Issue #533's three new requirements: a date, a summary, and a link.
+  // A date and summary are required; decision associations are optional.
   rejects({ ...VALID, releasedOn: "" }, required);
   rejects({ ...VALID, description: "   " }, required);
   rejects({ ...VALID, releasedOn: "2026-02-31" }, invalidDate);
-  rejects({ ...VALID, decisionIds: [] }, noDecisions);
-  rejects({ ...VALID, decisionIds: undefined }, noDecisions);
+  assert.deepEqual(createRelease({ ...VALID, decisionIds: [] }, { decisions: DECISIONS }).decisionIds, []);
+  assert.deepEqual(createRelease({ ...VALID, decisionIds: undefined }, { decisions: DECISIONS }).decisionIds, []);
 
   rejects({ ...VALID, version: "v".repeat(MAX_VERSION_LENGTH + 1) }, length);
   // An id that no longer resolves must not be written as a dangling reference.
@@ -221,7 +221,7 @@ test("the picker states there is nothing to link and routes to the decision reco
   assert.match(textOf(empty), /No decisions to link yet\./);
   const action = empty.querySelector("a");
   assert.equal(action.href, RECORD_DECISION_HREF);
-  assert.match(textOf(action), /Record a decision first/);
+  assert.equal(textOf(action), "Record a decision");
 });
 
 test("the mounted picker tracks ticks, announces the count, and survives new data", (t) => {
@@ -278,7 +278,7 @@ test("the recorder markup groups the picker and never builds HTML from stored te
   ]);
   assert.match(page, /id="release-form"/);
   assert.match(page, /id="release-decisions"/);
-  assert.match(page, /<legend>Link decisions to this release <span class="label-optional label-required">\(required\)<\/span><\/legend>/);
+  assert.match(page, /<legend>Link decisions to this release <span class="label-optional">\(optional\)<\/span><\/legend>/);
   // The three required fields issue #533 adds. The date is a native date
   // control, so the platform supplies the picker and the format hint; the
   // summary is required in the markup as well as in createRelease().
@@ -286,8 +286,7 @@ test("the recorder markup groups the picker and never builds HTML from stored te
   assert.match(page, /<label for="release-released-on">Release date <span class="label-optional label-required">\(required\)<\/span><\/label>/);
   assert.match(page, /<label for="release-description">Summary <span class="label-optional label-required">\(required\)<\/span><\/label>/);
   assert.match(page, /id="release-description" name="description"[^>]*\srequired/);
-  // `required` on a checkbox group would demand every option; the group is
-  // described instead, and createRelease() owns the at-least-one rule.
+  // `required` is absent because linking decisions is optional.
   assert.doesNotMatch(page, /class="decision-picker-check"/);
   assert.match(page, /id="release-decisions-field" aria-describedby="release-decisions-hint release-decisions-summary"/);
   assert.match(page, /id="release-decisions-summary" role="status" aria-live="polite"/);

@@ -38,7 +38,6 @@ export const RELEASE_FORM_ERRORS = {
   required: "A release needs a version, an owner, a status, a release date, and a summary.",
   length: "A release field exceeds its maximum length.",
   invalidDate: "A release date must be a real calendar day written as YYYY-MM-DD.",
-  noDecisions: "A release must link at least one decision. Tick every decision this release carried.",
   unknownDecision: "A selected decision is no longer in this log. Review the selection and record the release again.",
 };
 
@@ -134,11 +133,9 @@ export function createRelease(values = {}, options = {}) {
 
   const known = new Set((options.decisions ?? []).map(({ id }) => id));
   const decisionIds = [...new Set(values.decisionIds ?? [])].map(String);
-  // A release exists in this log to carry decisions. One with none is not a
-  // record of why anything shipped, and the two failures below are the pair a
-  // native form cannot express: an empty checkbox group and an id that no
-  // longer resolves. Both are reported inline and nothing is written.
-  if (decisionIds.length === 0) throw new TypeError(RELEASE_FORM_ERRORS.noDecisions);
+  // Linking is optional: releases can be recorded before their supporting
+  // decisions exist. Any id that is selected must still resolve, so the log
+  // never invents a relationship it cannot show.
   if (decisionIds.some((id) => !known.has(id))) throw new TypeError(RELEASE_FORM_ERRORS.unknownDecision);
 
   const release = {
@@ -232,14 +229,14 @@ function renderOption(decision, index, checked) {
   return item;
 }
 
-// Nothing to link yet. A dead end here is a real first-run state — a visitor
-// who cleared their log, or one whose examples were replaced — so it names the
-// next step and links straight to the decision recorder.
+// Nothing to link yet. Recording a decision is useful but not a prerequisite
+// for recording the release, so this state offers the route without presenting
+// the picker as a dead end.
 function renderPickerEmpty() {
   const empty = el("div", "decision-picker-empty");
   empty.append(el("p", "decision-picker-empty-title", "No decisions to link yet."));
-  empty.append(el("p", undefined, "A release links the decisions behind it. Record a decision first, then come back and link it here."));
-  const action = el("a", "empty-action decision-picker-empty-action", "Record a decision first");
+  empty.append(el("p", undefined, "You can record this release now, or record a decision and come back to link it later."));
+  const action = el("a", "empty-action decision-picker-empty-action", "Record a decision");
   action.href = RECORD_DECISION_HREF;
   empty.append(action);
   return empty;
