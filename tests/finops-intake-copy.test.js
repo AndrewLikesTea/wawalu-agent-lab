@@ -49,6 +49,19 @@ test("the front door and the Prompt coach say the same thing about the file", as
   }
 });
 
+test("the Prompt coach cross-link describes AI FinOps as a spend analysis", async () => {
+  const coach = await read("coach.html");
+  const crossLink = coach.match(/<section class="coach-neighbour"[\s\S]*?<\/section>/)?.[0];
+  assert.ok(crossLink, "Prompt coach does not render the AI FinOps cross-link");
+  assert.match(crossLink,
+    /AI FinOps analyzes a provider export to find ways to reduce your AI spend\./);
+  assert.match(crossLink, /Your files stay in that browser tab\./);
+  assert.match(crossLink,
+    /<a class="secondary-button" href="\/evolution\.html">Open AI FinOps<\/a>/);
+  assert.doesNotMatch(crossLink, /intent|efficiency|model fit/i,
+    "the AI FinOps description must not reuse Prompt coach scoring concepts");
+});
+
 test("every provider the pair names is one an import resolves to a result", () => {
   const packaged = new Set(EXPORT_PACKAGES
     .filter((entry) => entry.kind === "usage" || entry.provider)
