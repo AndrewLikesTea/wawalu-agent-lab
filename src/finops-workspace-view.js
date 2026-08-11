@@ -29,8 +29,11 @@
 
 import {
   FINOPS_CONSENT, FINOPS_OUTCOME, FINOPS_STATE,
-  finopsWorkspaceFile, forgetFinopsWorkspace, readFinopsWorkspace, setFinopsConsent,
+  forgetFinopsWorkspace, readFinopsWorkspace, setFinopsConsent,
 } from "./finops-workspace.js";
+import {
+  buildFinopsPortableRecord, importFinopsPortableRecord, parseFinopsPortableRecord,
+} from "./finops-portable-record.js";
 
 function element(tag, className, text) {
   const node = document.createElement(tag);
@@ -64,7 +67,8 @@ export function downloadFinopsWorkspace(payload, options = {}) {
   const href = urlApi.createObjectURL(blob);
   const link = documentRef.createElement("a");
   link.href = href;
-  link.download = `finops-workspace-${payload.exportedAt.slice(0, 10)}.json`;
+  const date = (options.now ?? new Date()).toISOString().slice(0, 10);
+  link.download = `finops-workspace-${date}.json`;
   link.click();
   urlApi.revokeObjectURL(href);
 }
@@ -109,6 +113,11 @@ export function initFinopsWorkspace(root, storage, options = {}) {
   const grantButton = byId("fw-grant");
   const declineButton = byId("fw-decline");
   const exportButton = byId("fw-export");
+  const importInput = byId("fw-import");
+  const importConfirm = byId("fw-import-confirm");
+  const importConfirmTitle = byId("fw-import-confirm-title");
+  const importConfirmYes = byId("fw-import-confirm-yes");
+  const importConfirmNo = byId("fw-import-confirm-no");
   const forgetButton = byId("fw-forget");
   const confirm = byId("fw-confirm");
   const confirmTitle = byId("fw-confirm-title");
@@ -117,6 +126,7 @@ export function initFinopsWorkspace(root, storage, options = {}) {
   const confirmNo = byId("fw-confirm-no");
 
   let view = null;
+  let pendingImport = null;
 
   // One announcement channel. The visible notice and the screen-reader text are
   // the same sentence, so nothing is said to one reader and withheld from the
@@ -291,11 +301,41 @@ export function initFinopsWorkspace(root, storage, options = {}) {
 
   function runExport() {
     try {
-      download(finopsWorkspaceFile(storage, { now: now() }));
+      download(buildFinopsPortableRecord(storage));
       settle(FINOPS_OUTCOME.exported, { tone: "good", focus: false });
     } catch {
       settle(FINOPS_OUTCOME.export_failed, { tone: "bad", focus: false });
     }
+  }
+
+  function closeImportConfirm({ focusInput = false } = {}) {
+    pendingImport = null;
+    importConfirm.hidden = true;
+    if (focusInput) importInput.focus();
+  }
+
+  async function runImport() {
+    const file = importInput.files?.[0];
+    if (!file) return;
+    let parsed;
+    try { parsed = parseFinopsPortableRecord(await file.text()); }
+    catch { parsed = { ok: false, errors: ["File could not be read"] }; }
+    if (!parsed.ok) {
+      importInput.setAttribute("aria-invalid", "true");
+      report(`Import refused: ${parsed.errors[0]}. Nothing changed.`, { tone: "bad" });
+      return;
+    }
+    importInput.setAttribute("aria-invalid", "false");
+    const result = importFinopsPortableRecord(storage, parsed, { now: now() });
+    if (result.code === "confirmation_required") {
+      pendingImport = parsed;
+      importConfirm.hidden = false;
+      importConfirmTitle.focus();
+      report(result.message, { tone: "neutral" });
+      return;
+    }
+    settle(result.message, { tone: result.ok ? "good" : "bad", focus: false });
+    importInput.value = "";
   }
 
   function choose(state) {
@@ -327,6 +367,18 @@ export function initFinopsWorkspace(root, storage, options = {}) {
   grantButton.addEventListener("click", () => choose(FINOPS_CONSENT.granted));
   declineButton.addEventListener("click", () => choose(FINOPS_CONSENT.declined));
   exportButton.addEventListener("click", runExport);
+  importInput.addEventListener("change", runImport);
+  importConfirmNo.addEventListener("click", () => {
+    closeImportConfirm({ focusInput: true });
+    importInput.value = "";
+    report("Import cancelled. Nothing in this browser was changed.", { tone: "neutral" });
+  });
+  importConfirmYes.addEventListener("click", () => {
+    const result = importFinopsPortableRecord(storage, pendingImport, { confirm: true, now: now() });
+    closeImportConfirm();
+    importInput.value = "";
+    settle(result.message, { tone: result.ok ? "good" : "bad" });
+  });
   forgetButton.addEventListener("click", () => {
     if (confirm.hidden) openConfirm();
     else closeConfirm({ focusTrigger: true });

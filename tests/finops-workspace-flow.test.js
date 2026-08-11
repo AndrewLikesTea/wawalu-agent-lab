@@ -391,6 +391,7 @@ test("the reader can reach every FinOps control by keyboard, in the order they a
       "Where every figure above comes from",
       "Keep using files only",
       "Download FinOps JSON",
+      "fw-import",
       "Forget FinOps figures",
       "Review the 1 record this browser is keeping",
     ]);

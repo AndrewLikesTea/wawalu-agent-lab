@@ -349,6 +349,7 @@ test("the page names one next action, and the reader can reach every control by 
       "Remember these figures in this browser",
       "Remember these figures in this browser",
       "Keep using files only",
+      "fw-import",
       "Review what this browser is keeping — nothing, right now",
     ]);
   } finally {
