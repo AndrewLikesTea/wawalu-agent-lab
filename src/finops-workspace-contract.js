@@ -39,6 +39,7 @@ export const FINOPS_PERIOD_FIELDS = Object.freeze([
   "recoverableScenarioMinor", "recordsTotal", "recordsAnalyzed",
   "coverageRatioPpm", "confidence", "missingInputs", "materialMetricId",
   "materialMetricMinor", "absenceReason", "topDepartmentId",
+  "departmentAllocations",
 ]);
 
 export const FINOPS_COMMITMENT_ENVELOPE_FIELDS = Object.freeze([

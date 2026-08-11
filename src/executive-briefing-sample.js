@@ -74,6 +74,10 @@ export const SAMPLE_RETAINED_PERIODS = Object.freeze([
     materialMetricId: "recoverable_scenario",
     materialMetricMinor: 480000,
     topDepartmentId: "syn-support-triage",
+    departmentAllocations: Object.freeze([
+      Object.freeze({ departmentId: "syn-support-triage", recoverableMinor: 330000 }),
+      Object.freeze({ departmentId: "syn-platform", recoverableMinor: 150000 }),
+    ]),
   }),
   Object.freeze({
     periodId: "user:2026-05",
@@ -93,6 +97,10 @@ export const SAMPLE_RETAINED_PERIODS = Object.freeze([
     materialMetricId: "recoverable_scenario",
     materialMetricMinor: 616000,
     topDepartmentId: "syn-support-triage",
+    departmentAllocations: Object.freeze([
+      Object.freeze({ departmentId: "syn-support-triage", recoverableMinor: 406000 }),
+      Object.freeze({ departmentId: "syn-platform", recoverableMinor: 210000 }),
+    ]),
   }),
   Object.freeze({
     periodId: "user:2026-06",
@@ -112,6 +120,10 @@ export const SAMPLE_RETAINED_PERIODS = Object.freeze([
     materialMetricId: "recoverable_scenario",
     materialMetricMinor: 612000,
     topDepartmentId: "syn-support-triage",
+    departmentAllocations: Object.freeze([
+      Object.freeze({ departmentId: "syn-support-triage", recoverableMinor: 382000 }),
+      Object.freeze({ departmentId: "syn-platform", recoverableMinor: 230000 }),
+    ]),
   }),
 ]);
 
@@ -121,5 +133,9 @@ export const SAMPLE_RETAINED_PERIODS = Object.freeze([
  * Returns plain objects with the same values, never a shared reference.
  */
 export function sampleRetainedPeriods() {
-  return SAMPLE_RETAINED_PERIODS.map((entry) => ({ ...entry, missingInputs: [...entry.missingInputs] }));
+  return SAMPLE_RETAINED_PERIODS.map((entry) => ({
+    ...entry,
+    missingInputs: [...entry.missingInputs],
+    departmentAllocations: entry.departmentAllocations.map((row) => ({ ...row })),
+  }));
 }

@@ -57,7 +57,7 @@ test("the page paints the briefing it rebuilt, in the order a leader reads it", 
   // The five things a leader reads, in order, each its own landmarked section.
   assert.deepEqual(
     article.querySelectorAll("[data-role]").map((node) => node.getAttribute("data-role")),
-    ["material-metric", "priority-action", "trust-verdict", "limitations"],
+    ["material-metric", "department-allocation", "priority-action", "trust-verdict", "limitations"],
   );
   const levels = article.querySelectorAll(".brief-disclosure")
     .map((node) => node.getAttribute("data-level"));
@@ -76,8 +76,17 @@ test("the page paints the briefing it rebuilt, in the order a leader reads it", 
   assert.match(textOf(standing), /More recoverable than its own baseline/);
   assert.match(textOf(standing), /\+1\.2 pts against 13\.0% over 2 prior periods/);
 
+  // This is actual per-department allocation data: labelled money rows whose
+  // bar geometry is redundant, never the overall scenario share in disguise.
+  const allocation = document.querySelector(".brief-allocation-figure");
+  assert.equal(allocation.getAttribute("role"), "img");
+  assert.equal(allocation.getAttribute("aria-labelledby"), "brief-allocation-title");
+  assert.equal(allocation.getAttribute("aria-describedby"), "brief-allocation-summary");
+  assert.match(textOf(allocation), /syn-support-triage has the largest allocation at \$3,820\.00/);
+  assert.match(textOf(allocation), /syn-platform\$2,300\.00/);
+
   // The priority action, with the cap the briefing puts on it.
-  const action = article.querySelectorAll("[data-role]")[1];
+  const action = article.querySelector('[data-role="priority-action"]');
   assert.match(textOf(action), /Pilot lower-cost routing/);
   assert.match(textOf(action), /Platform Engineering Lead/);
   assert.match(textOf(action), /\$6,120\.00/);

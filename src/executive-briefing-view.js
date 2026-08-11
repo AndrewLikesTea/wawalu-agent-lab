@@ -564,6 +564,58 @@ function metricSection(briefing) {
   return section;
 }
 
+/**
+ * A genuine comparison of retained per-department recoverable amounts. The
+ * accessible name says what is compared; the summary and labelled rows carry
+ * every value, while bar length is only a redundant scanning aid.
+ */
+function allocationSection(briefing) {
+  const section = el("section", "brief-section brief-allocation");
+  section.dataset.role = "department-allocation";
+  section.setAttribute("aria-labelledby", "brief-allocation-title");
+  const heading = el("h3", "brief-section-title", "Where the opportunity is allocated");
+  heading.id = "brief-allocation-title";
+  section.append(heading);
+
+  const allocation = briefing.departmentAllocation;
+  if (!allocation?.available) {
+    section.dataset.state = "empty";
+    section.append(el("p", "brief-absent",
+      allocation?.reason ?? "No per-department allocation is retained for this period."));
+    return section;
+  }
+
+  const rows = allocation.rows;
+  const total = rows.reduce((sum, row) => sum + row.recoverableMinor, 0);
+  const largest = rows[0];
+  const summary = `${largest.departmentId} has the largest allocation at ${usd(largest.recoverableMinor)}. `
+    + `${count(rows.length)} departments account for ${usd(total)} of recoverable spend in this comparison.`;
+  const figure = el("figure", "brief-allocation-figure");
+  figure.setAttribute("role", "img");
+  figure.setAttribute("aria-labelledby", "brief-allocation-title");
+  figure.setAttribute("aria-describedby", "brief-allocation-summary");
+  const summaryNode = el("figcaption", "brief-allocation-summary", summary);
+  summaryNode.id = "brief-allocation-summary";
+  figure.append(summaryNode);
+  const list = el("ol", "brief-allocation-list");
+  const maximum = Math.max(...rows.map((row) => row.recoverableMinor), 1);
+  for (const [index, row] of rows.entries()) {
+    const item = el("li", "brief-allocation-row");
+    const label = el("span", "brief-allocation-label", `${index + 1}. ${row.departmentId}`);
+    const value = el("strong", "brief-allocation-value", usd(row.recoverableMinor));
+    const track = el("span", "brief-allocation-track");
+    track.setAttribute("aria-hidden", "true");
+    const bar = el("span", "brief-allocation-bar");
+    bar.style.width = `${Math.max(2, (row.recoverableMinor / maximum) * 100)}%`;
+    track.append(bar);
+    item.append(label, value, track);
+    list.append(item);
+  }
+  figure.append(list);
+  section.append(figure, el("p", "brief-allocation-method", allocation.method));
+  return section;
+}
+
 function actionSection(briefing) {
   const section = el("section", "brief-section brief-action");
   section.dataset.role = "priority-action";
@@ -879,7 +931,11 @@ export function renderExecutiveBriefingPreview(
     // way to ask about them. Nothing can be briefed on in the branch above, so
     // there is no decision there to discuss — that page still carries the form
     // at the end of the document.
-    article.append(metricSection(briefing), actionSection(briefing));
+    article.append(metricSection(briefing));
+    // The dedicated one-page briefing owns this allocation figure. The same
+    // renderer also supplies a compact landing preview, which does not.
+    if (followUp) article.append(allocationSection(briefing));
+    article.append(actionSection(briefing));
     if (followUp) article.append(followUpInvitation());
   }
 
