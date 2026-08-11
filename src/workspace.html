@@ -189,9 +189,8 @@
             </dl>
           </div>
 
-          <!-- One benchmark, one confidence, one period. A second headline figure
-               would make the reader decide which one matters, and deciding that
-               is this briefing's whole job. -->
+          <!-- One decision, then its movement benchmark, then one action. The
+               formulas, provenance, and limitations remain in the disclosures. -->
           <section class="fw-briefing" id="fw-briefing" aria-labelledby="fw-briefing-title" data-available="false" hidden>
             <h3 id="fw-briefing-title">The briefing this browser can rebuild</h3>
             <p class="fw-benchmark-figure" id="fw-benchmark-figure" data-available="false"></p>
@@ -237,6 +236,21 @@
             <h4 id="fw-export-title">Download</h4>
             <p class="ws-control-note" id="fw-export-note">Downloads one JSON file holding every FinOps figure, label, and choice this browser is keeping — everything the forget action removes. The file is written in this browser; it is not uploaded anywhere.</p>
             <button id="fw-export" type="button" aria-describedby="fw-export-note" disabled>Download FinOps JSON</button>
+          </div>
+
+          <!-- A browser cannot see a file on a disk, so this page does not guess
+               at one: the reader says whether they are holding a track record,
+               and the prioritized action re-orders around the answer. The press
+               writes nothing and reads nothing — pressing again puts the earlier
+               action back — which is why it is safe to offer before the reader
+               has decided anything else. It is enabled only in the two states
+               whose action the decision contract names; in the others the answer
+               is the consent question or a storage fault, and a control that
+               changed nothing would be a control that lied. -->
+          <div class="ws-control" id="fw-portability">
+            <h4 id="fw-portability-title">Carrying a record in</h4>
+            <p class="ws-control-note" id="fw-portability-note">Press this if you already have a track-record file exported from another browser. The file is not opened, read, or uploaded here: this only tells the page that importing it comes before adding a month. Nothing is written, and pressing again restores the earlier action.</p>
+            <button id="fw-portability-toggle" type="button" aria-pressed="false" aria-describedby="fw-portability-note" disabled>I have a track-record file</button>
           </div>
 
           <!-- Forgetting is two steps, and the second one counts what it will

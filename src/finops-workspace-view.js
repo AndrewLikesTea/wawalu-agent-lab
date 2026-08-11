@@ -31,6 +31,7 @@ import {
   FINOPS_CONSENT, FINOPS_OUTCOME, FINOPS_STATE,
   finopsWorkspaceFile, forgetFinopsWorkspace, readFinopsWorkspace, setFinopsConsent,
 } from "./finops-workspace.js";
+import { PORTABLE_RECORD_AVAILABILITY } from "./finops-workspace-decision.js";
 
 function element(tag, className, text) {
   const node = document.createElement(tag);
@@ -86,11 +87,21 @@ export function initFinopsWorkspace(root, storage, options = {}) {
   const now = () => options.now?.() ?? new Date();
   const download = options.download ?? downloadFinopsWorkspace;
 
+  // The reader's answer to "are you holding a track-record file", which no
+  // store can be asked. It is session state on purpose: persisting it would
+  // mean a third FinOps key, a schema version, and a claim on the consent
+  // sentence — for a value whose only effect is which action is drawn first.
+  // `options.portableRecordAvailability` seeds it so a test can start pressed.
+  let portableRecord = options.portableRecordAvailability
+    ?? PORTABLE_RECORD_AVAILABILITY.unavailable;
+
   const status = byId("fw-status");
   const facts = byId("fw-facts");
   const summary = byId("fw-summary");
   const next = byId("fw-next");
   const briefing = byId("fw-briefing");
+  const briefingTitle = byId("fw-briefing-title");
+  const portabilityToggle = byId("fw-portability-toggle");
   const benchmarkFigure = byId("fw-benchmark-figure");
   const benchmarkLabel = byId("fw-benchmark-label");
   const benchmarkDetail = byId("fw-benchmark-detail");
@@ -169,14 +180,17 @@ export function initFinopsWorkspace(root, storage, options = {}) {
     briefing.hidden = false;
     evidence.hidden = false;
     provenance.hidden = false;
-    briefing.dataset.available = String(view.briefing.available);
-    benchmarkFigure.textContent = view.briefing.benchmark.figure;
-    benchmarkFigure.dataset.available = String(view.briefing.benchmark.available);
-    benchmarkLabel.textContent = view.briefing.benchmark.label;
-    benchmarkDetail.textContent = view.briefing.benchmark.statement;
-    briefingPeriod.textContent = view.briefing.priorPeriod
-      ? `${view.briefing.period}, with ${view.briefing.priorPeriod} retained beside it`
-      : `${view.briefing.period} · the only period kept here`;
+    const decision = view.decision;
+    briefing.dataset.available = String(decision.sufficient);
+    briefingTitle.textContent = decision.question;
+    benchmarkFigure.textContent = decision.sufficient ? decision.verdict.label : "Not enough evidence";
+    benchmarkFigure.dataset.available = String(decision.sufficient);
+    benchmarkLabel.textContent = decision.evidence.statement;
+    benchmarkDetail.textContent = decision.movement?.statement
+      ?? "No movement benchmark is reported until two complete comparable months are retained.";
+    briefingPeriod.textContent = decision.sufficient
+      ? `Compared ${decision.evidence.periods[1]} with ${decision.evidence.periods[0]}`
+      : `${decision.evidence.completeComparablePeriodCount} of 2 required complete comparable months`;
 
     // The disclosures name their contents before they are opened, so a reader
     // decides whether to spend a keystroke on them.
@@ -190,7 +204,11 @@ export function initFinopsWorkspace(root, storage, options = {}) {
         return item;
       }));
     provenanceSummary.textContent = "Where every figure above comes from";
-    provenanceList.replaceChildren(...view.briefing.provenance
+    provenanceList.replaceChildren(...[...view.briefing.provenance,
+      { term: "Decision rule", detail: decision.verdict?.formula ?? decision.evidence.statement },
+      { term: "Movement rule", detail: decision.movement?.formula ?? "No movement is computed from fewer than two complete comparable months." },
+      { term: "Limitations", detail: decision.limitations.join(" ") },
+    ]
       .map((row) => fact(row.term, element("span", null, row.detail))));
   }
 
@@ -253,6 +271,13 @@ export function initFinopsWorkspace(root, storage, options = {}) {
 
     exportButton.disabled = !view.canExport;
     forgetButton.disabled = !view.canForget;
+    // Live in exactly the two states whose next action the decision contract
+    // names. Elsewhere the answer is the consent question or a storage fault,
+    // and the declaration would change nothing the reader can see.
+    portabilityToggle.disabled = view.state !== FINOPS_STATE.empty
+      && view.state !== FINOPS_STATE.retaining;
+    portabilityToggle.setAttribute("aria-pressed", String(
+      view.decision.portableRecordAvailability === PORTABLE_RECORD_AVAILABILITY.available));
     confirmYes.textContent = view.records.length
       ? `Forget ${plural(view.records.length, "record")}`
       : "Forget the stored FinOps text";
@@ -266,7 +291,9 @@ export function initFinopsWorkspace(root, storage, options = {}) {
   }
 
   function render() {
-    view = readFinopsWorkspace(storage, { now: now() });
+    view = readFinopsWorkspace(storage, {
+      now: now(), portableRecordAvailability: portableRecord,
+    });
     renderStatus();
     renderBriefing();
     renderNext();
@@ -327,6 +354,18 @@ export function initFinopsWorkspace(root, storage, options = {}) {
   grantButton.addEventListener("click", () => choose(FINOPS_CONSENT.granted));
   declineButton.addEventListener("click", () => choose(FINOPS_CONSENT.declined));
   exportButton.addEventListener("click", runExport);
+  // Focus stays put: the control keeps its label and its meaning, so moving the
+  // reader to the heading would be moving them away from the thing they toggled.
+  // The live region says what changed instead.
+  portabilityToggle.addEventListener("click", () => {
+    const held = portableRecord === PORTABLE_RECORD_AVAILABILITY.available;
+    portableRecord = held ? PORTABLE_RECORD_AVAILABILITY.unavailable
+      : PORTABLE_RECORD_AVAILABILITY.available;
+    settle(held
+      ? "No track-record file on hand. The next action is the one it displaced."
+      : "A track-record file is on hand, so importing it is now the prioritized action.",
+    { tone: "neutral", focus: false });
+  });
   forgetButton.addEventListener("click", () => {
     if (confirm.hidden) openConfirm();
     else closeConfirm({ focusTrigger: true });

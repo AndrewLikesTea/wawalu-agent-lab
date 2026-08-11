@@ -62,6 +62,9 @@ import { ORG_UNIT_LABEL_STORAGE_KEY, readOrgUnitLabels } from "./org-unit-labels
 import {
   MONTHLY_ACTION_KEY, readMonthlyAction,
 } from "./monthly-department-action-store.js";
+import {
+  finopsWorkspaceDecision, PORTABLE_RECORD_AVAILABILITY,
+} from "./finops-workspace-decision.js";
 
 /** The three answers a visitor can have given. `not_asked` is not `declined`. */
 export const FINOPS_CONSENT = Object.freeze({
@@ -935,7 +938,7 @@ function deriveBriefing(periods) {
  * decision, every figure here is re-derivable from the file it came from, so
  * nagging for a download would be nagging for a copy of a copy.
  */
-function nextAction({ state, briefing }) {
+function nextAction({ state, briefing, decision }) {
   if (state === FINOPS_STATE.unavailable) {
     return {
       code: "recheck_storage",
@@ -971,13 +974,18 @@ function nextAction({ state, briefing }) {
     };
   }
   if (state === FINOPS_STATE.notAsked) {
+    // The contract still answers here — its evidence sentence is the `why` — but
+    // it does not get to name the action. There is no store yet, so no month can
+    // be added to one and no portable record can be imported into one; the only
+    // press available is the consent press, and a control's label has to say
+    // what pressing it does. `decision.primaryAction` is consulted from the
+    // moment there is a store for it to act on, one state below.
     return {
       code: "choose",
       headline: "Choose whether this browser remembers",
-      why: "Nothing FinOps-related is stored here, and nothing will be until you say so. Saying "
-        + "yes keeps the derived monthly figures — spend, coverage, confidence, the one material "
-        + "number — so a later import can be compared with this one. Prompts, files, and "
-        + "credentials are never kept either way.",
+      why: `${decision.evidence.statement} Saying yes keeps the derived monthly figures — spend, `
+        + "coverage, confidence, the one material number — so a later import can be compared with "
+        + "this one. Prompts, files, and credentials are never kept either way.",
       label: "Remember these figures in this browser",
       kind: "grant",
     };
@@ -994,50 +1002,27 @@ function nextAction({ state, briefing }) {
       href: "/evolution.html",
     };
   }
-  if (state === FINOPS_STATE.empty) {
+  // Every state left is one with a store the contract can act on: `empty` and
+  // `retaining`. `empty` needs no branch of its own — a workspace holding no
+  // periods can never hold two complete comparable ones, so it arrives here as
+  // insufficient and takes the same one action for the same stated reason.
+  if (!decision.sufficient) {
     return {
-      code: "first_import",
-      headline: "Import a provider export",
-      why: "This browser is set to remember and is holding nothing. The first analysis you run on "
-        + "the AI FinOps page is kept here as derived monthly figures, and appears below from the "
-        + "moment it is computed.",
-      label: "Open the AI FinOps page",
+      code: decision.primaryAction.code,
+      headline: decision.primaryAction.label,
+      why: `${decision.evidence.statement} ${decision.primaryAction.reason}`,
+      label: decision.primaryAction.label,
       kind: "link",
-      href: "/evolution.html",
-    };
-  }
-  if (!briefing.available) {
-    return {
-      code: "missing_input",
-      headline: "Add the input this period is missing",
-      why: `${briefing.benchmark.statement} Until one is present, ${briefing.period} is retained as `
-        + "evidence but cannot headline a figure or size an action.",
-      label: "Open the AI FinOps page",
-      kind: "link",
-      href: "/evolution.html",
-    };
-  }
-  if (briefing.periodCount < 2) {
-    return {
-      code: "second_period",
-      headline: "Retain a second month",
-      why: `${briefing.period} is the only period kept here, so this browser can show a figure but `
-        + "not a movement. Importing the immediately preceding month gives the benchmark above "
-        + "something to be compared with.",
-      label: "Open the AI FinOps page",
-      kind: "link",
-      href: "/evolution.html",
+      href: decision.primaryAction.href,
     };
   }
   return {
-    code: "record_decision",
-    headline: "Record the decision this figure sizes",
-    why: `${briefing.benchmark.figure} is the material figure for ${briefing.period}, and `
-      + `${briefing.priorPeriod} is retained beside it to compare against. Recording it as a `
-      + "Shiplog decision is what turns a number into something with an owner and an outcome.",
-    label: "Record a commitment",
+    code: decision.primaryAction.code,
+    headline: decision.primaryAction.label,
+    why: `${decision.verdict.statement} ${decision.movement.statement}`,
+    label: decision.primaryAction.label,
     kind: "link",
-    href: "/savings-commitment.html",
+    href: decision.primaryAction.href,
   };
 }
 
@@ -1050,7 +1035,9 @@ function nextAction({ state, briefing }) {
  * @returns a frozen status. Total: it never throws, and every failure storage
  *   can produce arrives as a state with words attached.
  */
-export function readFinopsWorkspace(storage, { now = new Date() } = {}) {
+export function readFinopsWorkspace(storage, {
+  now = new Date(), portableRecordAvailability = PORTABLE_RECORD_AVAILABILITY.unavailable,
+} = {}) {
   const { access, document, characters, dropped, migratedFrom } = readFinopsDocument(storage);
   const labels = access === "unavailable" ? {} : readOrgUnitLabels(storage);
   const labelCount = Object.keys(labels).length;
@@ -1065,6 +1052,7 @@ export function readFinopsWorkspace(storage, { now = new Date() } = {}) {
   else state = FINOPS_STATE.retaining;
 
   const briefing = state === FINOPS_STATE.retaining ? deriveBriefing(document.periods) : null;
+  const decision = finopsWorkspaceDecision({ document, portableRecordAvailability });
 
   const summary = {
     [FINOPS_STATE.unavailable]:
@@ -1124,6 +1112,7 @@ export function readFinopsWorkspace(storage, { now = new Date() } = {}) {
     chip: Object.freeze(stateChip(state)),
     summary,
     briefing,
+    decision,
     counts: Object.freeze({
       periods: document.periods.length,
       commitments: document.commitments.length,
@@ -1145,6 +1134,6 @@ export function readFinopsWorkspace(storage, { now = new Date() } = {}) {
     canForget: access !== "unavailable"
       && (access === "unreadable" || access === "unsupported" || labelCount > 0
         || document.consent.state !== FINOPS_CONSENT.notAsked),
-    nextAction: Object.freeze(nextAction({ state, briefing })),
+    nextAction: Object.freeze(nextAction({ state, briefing, decision })),
   });
 }

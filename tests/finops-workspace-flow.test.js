@@ -26,6 +26,7 @@ import {
 } from "../src/finops-workspace.js";
 import { DomEvent, loadPage, tabSequence, textOf } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
+import { PORTABLE_RECORD_AVAILABILITY } from "../src/finops-workspace-decision.js";
 
 const PAGE = new URL("../src/workspace.html", import.meta.url);
 const NOW = new Date("2026-07-28T11:30:00.000Z");
@@ -105,6 +106,9 @@ test("an unasked browser has nothing stored, and the page says so rather than as
   assert.equal(view.consent.chosen, false);
   assert.equal(view.briefing, null);
   assert.equal(view.nextAction.code, "choose");
+  // The contract still answers the evidence question in this state; what it does
+  // not do is name an action for a store that does not exist yet.
+  assert.match(view.nextAction.why, /^Insufficient: two complete retained months/);
   // Not asked is not declined, and reading the page must not create the store.
   assert.equal(storage.getItem(FINOPS_WORKSPACE_KEY), null);
 });
@@ -180,7 +184,7 @@ test("a period with no material figure is kept as evidence and refuses to headli
   assert.equal(view.briefing.benchmark.figure, "No figure");
   // The reason is the contract's authored statement, not a shrug.
   assert.match(view.briefing.benchmark.statement, /no change against a prior period can be computed/);
-  assert.equal(view.nextAction.code, "missing_input");
+  assert.equal(view.nextAction.code, "add_month");
 });
 
 test("the next action is one, and it is chosen by what the reader cannot yet answer", () => {
@@ -188,9 +192,9 @@ test("the next action is one, and it is chosen by what the reader cannot yet ans
     [storageOf({}, { refuse: true }), "recheck_storage"],
     [storageOf({ [FINOPS_WORKSPACE_KEY]: "{ truncated" }), "forget_unreadable"],
     [storageOf(), "choose"],
-    [retaining([]), "first_import"],
-    [retaining([periodOf()]), "second_period"],
-    [retaining([periodOf({ month: "2026-05" }), periodOf({ month: "2026-06" })]), "record_decision"],
+    [retaining([]), "start_fresh"],
+    [retaining([periodOf()]), "add_month"],
+    [retaining([periodOf({ month: "2026-05" }), periodOf({ month: "2026-06" })]), "add_month"],
   ];
   for (const [storage, code] of ladder) {
     const view = readFinopsWorkspace(storage, { now: NOW });
@@ -247,6 +251,30 @@ function seedOf(periods, extra = {}) {
   return seed;
 }
 
+function completeSeedOf(periods, extra = {}) {
+  const seed = seedOf(periods, extra);
+  const stored = JSON.parse(seed[FINOPS_WORKSPACE_KEY]);
+  stored.commitments = periods.map((period, index) => ({
+    schemaVersion: "shiplog-finops-commitment/1.0.0",
+    commitmentId: `commitment-${index}`,
+    claim: {
+      baselineMonthlyCostMinor: 900_000, projectedMonthlyCostMinor: 800_000,
+      monthlySavingsMinor: 100_000 + (index * 10_000), currency: "USD",
+      unit: "usd_minor", period: period.period,
+    },
+    confidence: { percent: 80, band: "high" },
+    provenance: { designation: "imported", analysisPeriod: period.period, recordCount: 2 },
+    recommendedAction: {
+      workloadId: `workload-${index}`, departmentId: "support",
+      fromModelId: "premium", toModelId: "standard",
+    },
+    recordedAt: `2026-07-0${index + 2}T09:15:00.000Z`, status: "recorded",
+    decisionId: null, periodId: period.periodId,
+  }));
+  seed[FINOPS_WORKSPACE_KEY] = JSON.stringify(stored);
+  return seed;
+}
+
 const shown = (document, id) => textOf(document.querySelector(`#${id}`));
 const click = (document, id) =>
   document.querySelector(`#${id}`).dispatchEvent(new DomEvent("click", { bubbles: true }));
@@ -271,6 +299,9 @@ test("an unasked browser is offered the choice, and neither answer is preselecte
     assert.equal(document.querySelector("#fw-grant").getAttribute("aria-pressed"), "false");
     assert.equal(document.querySelector("#fw-decline").getAttribute("aria-pressed"), "false");
     assert.match(shown(document, "fw-next-title"), /Choose whether this browser remembers/);
+    // The declaration cannot re-order an action that does not exist yet, so it
+    // is not offered as a live control in this state.
+    assert.equal(document.querySelector("#fw-portability-toggle").disabled, true);
     // Neither the briefing nor its disclosures exist to be read past yet.
     assert.equal(document.querySelector("#fw-briefing").hidden, true);
     assert.equal(document.querySelector("#fw-evidence").hidden, true);
@@ -293,7 +324,7 @@ test("opting in is one press, is reflected in the control, and is announced", as
     assert.equal(document.querySelector("#fw-grant").disabled, true);
     assert.equal(shown(document, "fw-announcement"), FINOPS_OUTCOME.granted);
     assert.equal(textOf(document.querySelector("#fw-facts").querySelector(".ws-chip")), "Remembering · nothing kept");
-    assert.match(shown(document, "fw-next-title"), /Import a provider export/);
+    assert.equal(shown(document, "fw-next-title"), "Start fresh");
     // The reader lands on the answer, not on the control whose label just changed.
     assert.equal(document.activeElement, document.querySelector("#fw-next-title"));
     assert.equal(JSON.parse(page.storage.getItem(FINOPS_WORKSPACE_KEY)).consent.state, "granted");
@@ -321,24 +352,72 @@ test("declining leaves the file flow named on screen and writes no figures", asy
 
 test("a retaining browser draws one benchmark, one confidence chip, and one action", async () => {
   const { document, restore } = await open(
-    seedOf([periodOf({ month: "2026-05" }), periodOf({ month: "2026-06" })]),
+    completeSeedOf([periodOf({ month: "2026-05" }), periodOf({ month: "2026-06" })]),
   );
   try {
     assert.equal(document.querySelector("#fw-briefing").hidden, false);
-    assert.equal(shown(document, "fw-benchmark-figure"), "5,200.00 USD");
+    assert.equal(shown(document, "fw-benchmark-figure"), "Achieved");
     assert.equal(document.querySelector("#fw-benchmark-figure").dataset.available, "true");
-    assert.match(shown(document, "fw-benchmark-label"), /Recoverable AI spend in this period/);
-    assert.match(shown(document, "fw-briefing-period"), /2026-06, with 2026-05 retained beside it/);
+    assert.match(shown(document, "fw-benchmark-label"), /Sufficient/);
+    assert.match(shown(document, "fw-briefing-period"), /Compared 2026-06 with 2026-05/);
     // Chips carry their meaning as words; the tone only reinforces it.
     const chips = document.querySelector("#fw-facts").querySelectorAll(".ws-chip");
     assert.deepEqual(chips.map((chip) => textOf(chip)), ["Remembering", "High"]);
     assert.deepEqual(chips.map((chip) => chip.dataset.tone), ["on", "verified"]);
     // Exactly one prioritized action, and it is the one the figure sizes.
     assert.equal(document.querySelector("#fw-next").querySelectorAll(".ws-next-action").length, 1);
-    assert.match(shown(document, "fw-next-title"), /Record the decision this figure sizes/);
+    assert.equal(shown(document, "fw-next-title"), "Commit to the next action");
   } finally {
     restore();
   }
+});
+
+// The state the previous attempt could not reach. It is driven here through the
+// shipped control on the shipped page, not by handing the option to the module:
+// an input only a test can supply is an input the reader does not have.
+test("declaring a track-record file promotes the import above adding a month, and unpressing puts it back", async () => {
+  const { document, storage, restore } = await open(seedOf([periodOf()]));
+  const before = storage.getItem(FINOPS_WORKSPACE_KEY);
+  try {
+    const toggle = document.querySelector("#fw-portability-toggle");
+    assert.equal(toggle.disabled, false);
+    assert.equal(toggle.getAttribute("aria-pressed"), "false");
+    assert.equal(shown(document, "fw-next-title"), "Add a month");
+
+    click(document, "fw-portability-toggle");
+    assert.equal(toggle.getAttribute("aria-pressed"), "true");
+    assert.equal(shown(document, "fw-next-title"), "Import your portable record");
+    assert.equal(shown(document, "fw-next-action"), "Import your portable record");
+    assert.equal(document.querySelector("#fw-next-action").getAttribute("href"),
+      "/evolution.html#local-lead-portability-import");
+    // The reader is told what moved, through the live region rather than by
+    // being moved: the control they pressed still says what it did.
+    assert.match(shown(document, "fw-announcement"), /^A track-record file is on hand/);
+    assert.equal(textOf(toggle), "I have a track-record file");
+    // Declaring a file writes nothing at all: same bytes, both keys.
+    assert.equal(storage.getItem(FINOPS_WORKSPACE_KEY), before);
+    assert.equal(storage.getItem(FINOPS_LABELS_KEY), null);
+
+    click(document, "fw-portability-toggle");
+    assert.equal(toggle.getAttribute("aria-pressed"), "false");
+    assert.equal(shown(document, "fw-next-title"), "Add a month");
+  } finally {
+    restore();
+  }
+});
+
+// The seam is still an injectable option, so a caller that already knows the
+// answer can supply it — and an answer this contract does not recognize reads as
+// the state that asks for less rather than as availability by accident.
+test("an unrecognized availability value is normalized, not trusted", () => {
+  const view = readFinopsWorkspace(retaining([periodOf()]),
+    { now: NOW, portableRecordAvailability: true });
+
+  assert.equal(view.decision.portableRecordAvailability, "unavailable");
+  assert.equal(view.nextAction.code, "add_month");
+  assert.equal(readFinopsWorkspace(retaining([periodOf()]), {
+    now: NOW, portableRecordAvailability: PORTABLE_RECORD_AVAILABILITY.available,
+  }).nextAction.code, "import_portable_record");
 });
 
 test("supporting evidence stays behind disclosures that name what is inside them", async () => {
@@ -386,11 +465,12 @@ test("the reader can reach every FinOps control by keyboard, in the order they a
     assert.deepEqual(labels, [
       "Inspect every retained field and sample value",
       "finops-preview-json",
-      "Open the AI FinOps page",
+      "Add a month",
       "Check the 1 retained period behind this figure",
       "Where every figure above comes from",
       "Keep using files only",
       "Download FinOps JSON",
+      "I have a track-record file",
       "Forget FinOps figures",
       "Review the 1 record this browser is keeping",
     ]);

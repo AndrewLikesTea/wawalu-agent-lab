@@ -583,6 +583,11 @@ const ALLOWED_MODULES = Object.freeze([
   // `peer-cost-position.js` and adds pure arithmetic over the already-normalized
   // envelope — no fetch, storage, clock, or randomness, and no second rubric.
   "internal-cost-gap.js",
+  // Reviewed on with #1587: pure decision arithmetic over the workspace's
+  // closed retained period and commitment records. It receives portable-file
+  // availability as an explicit enum; it opens no request, storage, DOM, or
+  // clock and carries no prompt, credential, raw row, or customer identifier.
+  "finops-workspace-decision.js",
   "finops-workspace-contract.js", "finops-workspace-migrations.js", "finops-workspace.js",
   "grade-eligibility.js", "landing-decision-page.js", "landing-decision.js", "local-finops.js",
   "longitudinal-finops-metrics.js", "multi-provider-intake.js", "org-unit-labels.js", "prompt-literacy-scoring.js",
