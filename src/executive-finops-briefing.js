@@ -680,6 +680,7 @@ function methodFor(reporting) {
       "period", "dataset", "derivedAt", "analyzedSpendMinor", "attributedSpendMinor",
       "recoverableScenarioMinor", "recordsAnalyzed", "recordsTotal", "coverageRatioPpm",
       "confidence", "missingInputs", "topDepartmentId",
+      "departmentAllocations",
     ]),
     derivedFromBriefingContract: reporting?.briefingContractVersion ?? null,
   });
@@ -754,6 +755,14 @@ export function buildExecutiveBriefing(periods) {
   const excludedDatasetPeriods = list.filter((period) => period.dataset !== chosen.dataset).length;
   const benchmark = buildBenchmark(chosen, priors, sharePpm);
   const action = selectNextAction(chosen, benchmark);
+  const allocations = Array.isArray(chosen.departmentAllocations)
+    ? chosen.departmentAllocations
+      .filter((row) => row && typeof row.departmentId === "string"
+        && Number.isInteger(row.recoverableMinor) && row.recoverableMinor >= 0)
+      .map((row) => ({ departmentId: row.departmentId, recoverableMinor: row.recoverableMinor }))
+      .sort((left, right) => right.recoverableMinor - left.recoverableMinor
+        || left.departmentId.localeCompare(right.departmentId))
+    : [];
 
   const ceiling = !benchmark.eligible ? BRIEFING_CONFIDENCE.moderate : null;
   const datasetCeiling = chosen.dataset !== "user" ? BRIEFING_CONFIDENCE.low : null;
@@ -780,6 +789,14 @@ export function buildExecutiveBriefing(periods) {
       sharePpm,
       analyzedSpendMinor: chosen.analyzedSpendMinor,
       label: "Recoverable AI spend indicated for the reporting period (routing scenario, not a realized saving)",
+    }),
+    departmentAllocation: Object.freeze({
+      available: allocations.length >= 2,
+      unit: "recoverable_usd_minor",
+      rows: Object.freeze(allocations.map((row) => Object.freeze(row))),
+      reason: allocations.length >= 2 ? null
+        : "At least two departments with per-department recoverable amounts are required for a comparison.",
+      method: "Each bar is that department's retained recoverableMinor; rows are ordered by amount descending. No scenario share is used.",
     }),
     benchmark,
     primaryFinding: Object.freeze({

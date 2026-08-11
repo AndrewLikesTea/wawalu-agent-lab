@@ -277,6 +277,11 @@ export function validateRetainedPeriod(entry) {
     && !(Array.isArray(entry.missingInputs) && entry.missingInputs.every((i) => typeof i === "string"))) {
     errors.push("period.missingInputs: expected a list of input names");
   }
+  if (entry.departmentAllocations !== undefined && !(Array.isArray(entry.departmentAllocations)
+    && entry.departmentAllocations.every((row) => row && typeof row.departmentId === "string"
+      && row.departmentId.length > 0 && isMinor(row.recoverableMinor) && row.recoverableMinor >= 0))) {
+    errors.push("period.departmentAllocations: expected department ids and non-negative whole minor units");
+  }
   return { ok: errors.length === 0, errors };
 }
 
@@ -552,6 +557,15 @@ export function projectRetainedPeriod({ briefing, analysis, dataset = "user", no
     ? minorOf(ranked.reduce((sum, department) => sum + (Number(department.spendUsd) || 0), 0))
     : null;
   const recoverableScenarioMinor = minorOf(analysis.recoverableUsd);
+  // Aggregate-only allocation: department identity plus its already-modelled
+  // recoverable amount. No raw row, prompt, or scenario share is retained.
+  const departmentAllocations = ranked
+    .filter((row) => typeof row?.id === "string" && row.id
+      && Number.isFinite(row.recoverableUsd) && row.recoverableUsd >= 0)
+    .map((row) => Object.freeze({
+      departmentId: row.id,
+      recoverableMinor: minorOf(row.recoverableUsd),
+    }));
   const recordsAnalyzed = Number(coverage.recordsAnalyzed) || 0;
   const recordsTotal = Number(coverage.recordsTotal) || 0;
 
@@ -576,6 +590,7 @@ export function projectRetainedPeriod({ briefing, analysis, dataset = "user", no
     materialMetricMinor: briefing.materialMetric ? minorOf(briefing.materialMetric.value) : null,
     absenceReason: briefing.absent?.materialMetric?.reason ?? null,
     topDepartmentId: typeof analysis.topDepartment?.id === "string" ? analysis.topDepartment.id : null,
+    departmentAllocations: Object.freeze(departmentAllocations),
   });
 }
 

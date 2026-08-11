@@ -100,6 +100,19 @@
 .brief-caution-list { margin:0; padding-left:20px; color:#5f2b26; font-size:14px; line-height:1.55; }
 .brief-caution-list li + li { margin-top:8px; }
 
+/* Department allocation uses retained per-department money only. The ordered
+ * labels and values are the figure; neutral bar length is a redundant shape,
+ * so neither the site's accent nor colour carries rank. */
+.brief-allocation-figure { margin:0; }
+.brief-allocation-summary { max-width:62ch; margin:0 0 18px; color:var(--brief-ink); font-size:16px; line-height:1.55; }
+.brief-allocation-list { display:grid; gap:13px; margin:0; padding:0; list-style:none; }
+.brief-allocation-row { display:grid; grid-template-columns:minmax(150px,1fr) auto; gap:5px 18px; align-items:baseline; }
+.brief-allocation-label { min-width:0; color:var(--brief-ink); font:700 13px/1.45 ui-monospace,monospace; overflow-wrap:anywhere; }
+.brief-allocation-value { color:var(--brief-ink); font-size:14px; }
+.brief-allocation-track { grid-column:1/-1; display:block; height:10px; border:1px solid var(--brief-line); border-radius:5px; background:var(--brief-quiet); overflow:hidden; }
+.brief-allocation-bar { display:block; height:100%; background:#55554f; }
+.brief-allocation-method { max-width:66ch; margin:16px 0 0; color:#55554f; font-size:13px; line-height:1.55; }
+
 /* ------------------------------- action, trust ----------------------------- */
 
 .brief-action-statement { max-width:62ch; margin:0; color:var(--brief-ink); font-size:19px; line-height:1.45; }
@@ -308,6 +321,8 @@
   .brief-toggle { padding:18px 20px; }
   .brief-panel { padding:0 20px 22px; }
   .brief-facts { grid-template-columns:1fr; }
+  .brief-allocation-row { grid-template-columns:1fr; gap:3px; }
+  .brief-allocation-track { grid-column:1; }
   .brief-figure { font-size:clamp(32px,10vw,44px); }
   /* A control a thumb reaches for is full width rather than a target to aim at. */
   .brief-print-button { width:100%; justify-content:center; }
@@ -370,6 +385,9 @@
   .brief-question { font-size:24px; }
   .brief-facts { grid-template-columns:repeat(2,1fr); }
   .brief-figure,.brief-figure-label,.brief-standing,.brief-action-statement,.brief-verdict { break-after:avoid; }
+  .brief-allocation-figure,.brief-allocation-row { break-inside:avoid; }
+  .brief-allocation-track { border-color:#767670; background:none; }
+  .brief-allocation-bar { background:#171713 !important; print-color-adjust:exact; }
   /* The three things that must survive the trip out of the building with the
      figure: what kind of number it is, whether it is a sample, and where it came
      from. None of them is chrome, so none of them is dropped — they are only

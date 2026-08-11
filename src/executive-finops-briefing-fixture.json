@@ -80,7 +80,11 @@
         "missingInputs": [],
         "materialMetricId": "recoverable_scenario",
         "materialMetricMinor": 480000,
-        "topDepartmentId": "syn-support-triage"
+        "topDepartmentId": "syn-support-triage",
+        "departmentAllocations": [
+          { "departmentId": "syn-support-triage", "recoverableMinor": 330000 },
+          { "departmentId": "syn-platform", "recoverableMinor": 150000 }
+        ]
       },
       {
         "periodId": "user:2026-05",
@@ -99,7 +103,11 @@
         "missingInputs": [],
         "materialMetricId": "recoverable_scenario",
         "materialMetricMinor": 616000,
-        "topDepartmentId": "syn-support-triage"
+        "topDepartmentId": "syn-support-triage",
+        "departmentAllocations": [
+          { "departmentId": "syn-support-triage", "recoverableMinor": 406000 },
+          { "departmentId": "syn-platform", "recoverableMinor": 210000 }
+        ]
       },
       {
         "periodId": "user:2026-06",
@@ -118,7 +126,11 @@
         "missingInputs": [],
         "materialMetricId": "recoverable_scenario",
         "materialMetricMinor": 612000,
-        "topDepartmentId": "syn-support-triage"
+        "topDepartmentId": "syn-support-triage",
+        "departmentAllocations": [
+          { "departmentId": "syn-support-triage", "recoverableMinor": 382000 },
+          { "departmentId": "syn-platform", "recoverableMinor": 230000 }
+        ]
       }
     ]
   },
@@ -207,6 +219,16 @@
       "analyzedSpendMinor": 4300000,
       "label": "Recoverable AI spend indicated for the reporting period (routing scenario, not a realized saving)"
     },
+    "departmentAllocation": {
+      "available": true,
+      "unit": "recoverable_usd_minor",
+      "rows": [
+        { "departmentId": "syn-support-triage", "recoverableMinor": 382000 },
+        { "departmentId": "syn-platform", "recoverableMinor": 230000 }
+      ],
+      "reason": null,
+      "method": "Each bar is that department's retained recoverableMinor; rows are ordered by amount descending. No scenario share is used."
+    },
     "benchmark": {
       "kind": "own_trailing_baseline",
       "eligible": true,
@@ -294,7 +316,8 @@
         "coverageRatioPpm",
         "confidence",
         "missingInputs",
-        "topDepartmentId"
+        "topDepartmentId",
+        "departmentAllocations"
       ],
       "derivedFromBriefingContract": "finops-briefing/1.0.0"
     },
