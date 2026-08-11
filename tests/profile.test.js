@@ -597,7 +597,7 @@ test("the profile page's static copy does not drift from the module's", async ()
   // state — a verdict about a name nobody had chosen, and a false one for the
   // seeded feed — so it now says only that the counting has not happened yet.
   const html = await readFile(new URL("../src/profile.html", import.meta.url), "utf8");
-  assert.match(html, new RegExp(`id="profile-summary">${loadingSummaryText()}<`));
+  assert.match(html, /id="profile-summary">Counting image posts…</);
   assert.doesNotMatch(html, new RegExp(emptySummaryText("Ari")));
   // One wait, one sentence — People's own. The counts line and the connection
   // line below it are waiting on the same fetch, so they say the same thing
@@ -607,7 +607,9 @@ test("the profile page's static copy does not drift from the module's", async ()
   // reader to Social for exactly that — and after that they named the selected
   // display name, which the heading above them already establishes.
   assert.equal(loadingSummaryText(), "Loading image posts…");
-  assert.match(html, new RegExp(`id="profile-status">${loadingSummaryText()}<`));
+  assert.match(html, /id="profile-status">Connecting to live updates…</);
+  assert.equal((html.match(new RegExp(loadingSummaryText(), "g")) ?? []).length, 1,
+    "People renders one authoritative loading message");
   assert.doesNotMatch(html, /Loading Ari/, "a waiting line names the display name again");
   assert.doesNotMatch(html, new RegExp(FEED_LOADING_LINE), "People is announcing Social's feed again");
   // The results heading ships the same words the module writes there, so the

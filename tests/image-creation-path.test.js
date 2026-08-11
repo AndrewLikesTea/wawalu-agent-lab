@@ -49,7 +49,7 @@ const paintLinks = (document) => document.querySelectorAll("a")
   .filter((anchor) => opensPaint(anchor.href));
 
 /** The in-flow control: the composer's media picker offers exactly one link. */
-const composerPaintLink = () => documents.Social.querySelector(".media-source-actions").querySelector("a");
+const composerPaintLink = () => documents.Social.querySelector("#post-image-steps").querySelector("a");
 
 /**
  * Social's Paint entry points: every route into Paint except the site's two
@@ -353,7 +353,7 @@ test("the composer's Paint link sits between Choose image and Image description"
     page.document.getElementById("compose-media").hidden = false;
     const sequence = tabSequence(page.document);
     const at = (id) => sequence.indexOf(page.document.getElementById(id));
-    const paint = sequence.indexOf(page.document.querySelector(".media-source-actions").querySelector("a"));
+    const paint = sequence.indexOf(page.document.querySelector("#post-image-steps").querySelector("a"));
     assert.ok(at("post-image") >= 0 && paint >= 0 && at("post-image-alt") >= 0,
       "one of the composer's image controls is not keyboard reachable");
     assert.ok(at("post-image") < paint, "the Paint link comes before Choose image");
