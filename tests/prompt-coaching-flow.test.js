@@ -86,6 +86,18 @@ test("the workflow is discoverable and idle before anything is pasted", async ()
       assert.equal(/AI FinOps/.test(sentence) && /rubric/i.test(sentence), false, sentence);
     }
 
+    // The neighbouring product is described by the result its export analysis
+    // provides, without borrowing the Prompt coach's scoring dimensions. The
+    // privacy boundary and destination stay beside that description.
+    const neighbour = document.querySelector(".coach-neighbour");
+    assert.match(textOf(neighbour),
+      /AI FinOps analyzes a provider export to find AI-spend savings opportunities\./);
+    assert.match(textOf(neighbour), /Your files stay in that browser tab\./);
+    assert.doesNotMatch(textOf(neighbour), /scores a provider export|intent, efficiency, and model fit/);
+    const finopsLink = [...neighbour.querySelectorAll("a")]
+      .find((link) => textOf(link) === "Open AI FinOps");
+    assert.equal(finopsLink?.getAttribute("href"), "/evolution.html");
+
     // The field is labelled and described, and no result is claimed yet.
     const field = byId(document, "prompt-coaching-input");
     assert.equal(field.tagName, "TEXTAREA");
