@@ -136,6 +136,17 @@ test("the AI FinOps deep link still lands, and hands the reader on", async () =>
     "the import flow must survive the move");
 });
 
+test("the coach describes AI FinOps by its savings outcome", async () => {
+  const document = parseHtml(await read("coach.html"));
+  const neighbour = document.querySelector(".coach-neighbour");
+
+  assert.match(textOf(neighbour),
+    /analyzes a provider export to identify AI-spend savings opportunities/);
+  assert.match(textOf(neighbour), /Your files stay in that browser tab/);
+  const action = neighbour.querySelector('a[href="/evolution.html"]');
+  assert.equal(textOf(action), "Open AI FinOps");
+});
+
 /* -------------------------- the zero-input path --------------------------- */
 
 test("a visitor who types nothing reads one complete result on arrival", async () => {
