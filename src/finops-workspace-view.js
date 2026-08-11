@@ -34,6 +34,9 @@ import {
 import {
   buildFinopsPortableRecord, importFinopsPortableRecord, parseFinopsPortableRecord,
 } from "./finops-portable-record.js";
+import {
+  addReturnMonth, parseSpendInput, planReturn, readReturnFile,
+} from "./finops-month-return.js";
 
 function element(tag, className, text) {
   const node = document.createElement(tag);
@@ -371,6 +374,234 @@ export function initFinopsWorkspace(root, storage, options = {}) {
     // "recheck": read both keys again and say so, whether or not the answer moved.
     return settle("This browser's FinOps storage was read again.", { tone: "neutral" });
   }
+
+  /* ------------------------- coming back, in one step ------------------------ */
+  //
+  // The return flow reuses this module's `report`, so its refusals and its answer
+  // travel through the one live region the section already has. A second region
+  // here would say the same sentence twice to a screen reader and neither copy
+  // would be the authoritative one.
+  //
+  // It writes to this browser at exactly one moment: when a record whose every
+  // declaration is reusable has been reviewed, through the merged codec's own
+  // atomic import. A record holding a declaration that needs review is never
+  // written — the codec refuses it whole, and quietly writing "most of it" would
+  // be the page overruling the contract it is supposed to be enforcing.
+
+  const returnFile = byId("fw-return-file");
+  const returnRestart = byId("fw-return-restart");
+  const returnReplace = byId("fw-return-replace");
+  const returnReplaceTitle = byId("fw-return-replace-title");
+  const returnReplaceDetail = byId("fw-return-replace-detail");
+  const returnReplaceYes = byId("fw-return-replace-yes");
+  const returnReplaceNo = byId("fw-return-replace-no");
+  const returnSetup = byId("fw-return-setup");
+  const returnPrefill = byId("fw-return-prefill");
+  const returnReview = byId("fw-return-review");
+  const returnReviewList = byId("fw-return-review-list");
+  const returnMonth = byId("fw-return-month");
+  const returnSpend = byId("fw-return-spend");
+  const returnAdd = byId("fw-return-add");
+  const returnSummary = byId("fw-return-summary");
+  const returnSummaryTitle = byId("fw-return-summary-title");
+  const returnVerdict = byId("fw-return-verdict");
+  const returnMovement = byId("fw-return-movement");
+  const returnNext = byId("fw-return-next");
+  const returnEvidenceList = byId("fw-return-evidence-list");
+
+  let session = null;
+
+  function clearReturn() {
+    session = null;
+    returnFile.value = "";
+    returnFile.setAttribute("aria-invalid", "false");
+    returnSpend.value = "";
+    returnSpend.setAttribute("aria-invalid", "false");
+    returnMonth.value = "";
+    returnReplace.hidden = true;
+    returnSetup.hidden = true;
+    returnSummary.hidden = true;
+  }
+
+  function renderReview() {
+    const outstanding = session.plan.review;
+    returnReview.hidden = outstanding.length === 0;
+    returnReviewList.replaceChildren(...outstanding.map((entry) => {
+      const item = element("li", "fw-record");
+      const approved = session.approved.includes(entry.role);
+      item.append(
+        element("strong", null, `${entry.wording}: the ${entry.role} declaration`),
+        element("span", null, `It ${entry.why}, so ${entry.holds} ${approved
+          ? "is being used because you reviewed it." : "is held out of this month's answer."}`),
+        element("span", null, entry.message),
+      );
+      if (!approved) {
+        const use = element("button", "secondary-button",
+          `Use the ${entry.wording.toLowerCase()} ${entry.role} declaration anyway`);
+        use.setAttribute("type", "button");
+        use.id = `fw-return-approve-${entry.role}`;
+        use.addEventListener("click", () => {
+          session.approved = [...session.approved, entry.role];
+          renderReview();
+          report(`The ${entry.role} declaration was reviewed and will be used for this month. `
+            + "Add the month again to fold its figures in.", { tone: "neutral" });
+          returnAdd.focus();
+        });
+        item.append(use);
+      }
+      return item;
+    }));
+  }
+
+  /** Stage a valid record: prefill what may be reused, name what may not. */
+  function stageReturn({ committed = false } = {}) {
+    const { plan } = session;
+    returnReplace.hidden = true;
+    returnSetup.hidden = false;
+    returnSummary.hidden = true;
+    returnMonth.value = plan.nextMonth;
+    returnSpend.value = "";
+    const held = plan.review.length;
+    returnPrefill.textContent = `Prefilled from ${plan.recordVersion}: `
+      + `${plural(plan.prefill.periods, "prior month")}, ${plural(plan.prefill.labels, "org-unit label")}, `
+      + `${plural(plan.prefill.declaredRates, "declared rate")}, and `
+      + `${plural(plan.prefill.commitments, "approved commitment")}. `
+      + (held
+        ? `${plural(held, "source declaration")} still needs review and is not prefilled.`
+        : committed
+          ? "Every source declaration is compatible, so this record is now kept in this browser."
+          : "Every source declaration is compatible.")
+      + ` Enter ${plan.nextMonth}'s total and press Add this month.`;
+    renderReview();
+    returnPrefill.focus();
+  }
+
+  async function chooseReturnFile() {
+    const file = returnFile.files?.[0];
+    if (!file) return;
+    let read;
+    try { read = readReturnFile(await file.text()); }
+    catch { read = readReturnFile(null); }
+    if (!read.ok) {
+      clearReturn();
+      returnFile.setAttribute("aria-invalid", "true");
+      report(read.message, { tone: "bad" });
+      return;
+    }
+    returnFile.setAttribute("aria-invalid", "false");
+    session = { parsed: read.parsed, plan: planReturn(read.parsed, { now: now() }), approved: [] };
+    // Reuse is offered only after this browser has been told what it would cost
+    // it. The codec answers both halves of that in one call: whether the file may
+    // be reused at all, and whether a different record is already here.
+    const review = importFinopsPortableRecord(storage, read.parsed, { now: now() });
+    if (review.code === "source_review_required") {
+      const current = readFinopsWorkspace(storage, { now: now() });
+      returnSetup.hidden = true;
+      returnSummary.hidden = true;
+      returnReplace.hidden = false;
+      returnReplaceTitle.textContent = review.replaces
+        ? "Replace the record already in this browser?"
+        : "Keep this record in this browser?";
+      returnReplaceYes.textContent = review.replaces
+        ? "Replace and continue" : "Keep this record and continue";
+      returnReplaceDetail.textContent = (review.replaces
+        ? "This browser already holds a different FinOps record: "
+          + `${plural(current.counts.periods, "retained period")} and `
+          + `${plural(current.counts.labels, "org-unit label")}. Continuing REPLACES all of it — the `
+          + "periods, the labels, the declared rates, and the commitment inputs — with the record in "
+          + "the file you just chose, and there is no other copy here. Nothing has been replaced yet."
+        : "Nothing FinOps-related is stored in this browser yet. Continuing keeps this record's "
+          + "prior months, labels, declared rates, and commitment inputs here, so the next time you "
+          + "come back adding a month needs no file at all.")
+        + ` ${review.message}`;
+      returnReplaceTitle.focus();
+      report(review.replaces
+        ? "This browser already holds a different FinOps record. Say whether it may be replaced "
+          + "before anything is written."
+        : "Review the source declarations, then keep this record to prefill your setup.",
+      { tone: "neutral" });
+      return;
+    }
+    // A record the codec will not write is still a record this tab can read a
+    // month against, once the reader has reviewed what is wrong with it.
+    stageReturn();
+    report(`${session.plan.review.length
+      ? `${plural(session.plan.review.length, "source declaration")} needs review, so this record `
+        + "was not written to this browser. Its reviewed parts can still answer this month here."
+      : "Record read in this tab."} Enter this month's total and press Add this month.`,
+    { tone: "neutral" });
+  }
+
+  function renderReturnSummary(summary) {
+    returnSummary.hidden = false;
+    returnVerdict.textContent = `${summary.verdict.headline}. ${summary.verdict.statement}`;
+    returnMovement.textContent = `${summary.movement.headline}. ${summary.movement.statement}`;
+    returnNext.textContent = `Do this next: ${summary.nextAction.headline}. ${summary.nextAction.why}`;
+    returnEvidenceList.replaceChildren(...[
+      ...summary.evidence.periods.map((line) => ["Period", line]),
+      ...summary.evidence.declarations.map((line) => ["Source declaration", line]),
+      ...summary.evidence.lines.map((line) => ["Record", line]),
+      ...(summary.evidence.rule ? [["Evidence rule", summary.evidence.rule]] : []),
+      ["Added here", `${summary.month} was measured in this tab. It is not written to this `
+        + "browser as a retained period, because a retained period is a figure this page derived "
+        + "from a file it read, not a total typed into a box."],
+    ].map(([term, detail]) => {
+      const item = element("li", "fw-record");
+      item.append(element("strong", null, term), element("span", null, detail));
+      return item;
+    }));
+    returnSummaryTitle.focus();
+  }
+
+  function addReturnMonthNow() {
+    if (!session) return;
+    const spendMinor = parseSpendInput(returnSpend.value);
+    const result = addReturnMonth(session.plan, {
+      month: String(returnMonth.value ?? "").trim(),
+      spendMinor: spendMinor ?? -1,
+      approvedRoles: session.approved,
+    });
+    if (!result.ok) {
+      const field = result.code === "invalid_month" ? returnMonth : returnSpend;
+      field.setAttribute("aria-invalid", "true");
+      returnSummary.hidden = true;
+      report(result.message, { tone: "bad" });
+      field.focus();
+      return;
+    }
+    returnMonth.setAttribute("aria-invalid", "false");
+    returnSpend.setAttribute("aria-invalid", "false");
+    renderReturnSummary(result.summary);
+    report(`${result.summary.month} added. ${result.summary.verdict.headline}. `
+      + `${result.summary.movement.headline}. Next: ${result.summary.nextAction.headline}.`,
+    { tone: result.summary.verdict.comparable ? "good" : "neutral" });
+  }
+
+  returnFile.addEventListener("change", chooseReturnFile);
+  returnAdd.addEventListener("click", addReturnMonthNow);
+  returnReplaceNo.addEventListener("click", () => {
+    clearReturn();
+    report("Nothing was replaced. The FinOps record already in this browser is unchanged.",
+      { tone: "neutral" });
+    returnFile.focus();
+  });
+  returnReplaceYes.addEventListener("click", () => {
+    const result = importFinopsPortableRecord(storage, session.parsed, { confirm: true, now: now() });
+    render();
+    if (!result.ok) {
+      report(result.message, { tone: "bad" });
+      return;
+    }
+    stageReturn({ committed: true });
+    report(`${result.message} Add this month to see whether the last commitment happened.`,
+      { tone: "good" });
+  });
+  returnRestart.addEventListener("click", () => {
+    clearReturn();
+    report("Cleared. Nothing from that file is held here any more. Set up from scratch with the "
+      + "choice below.", { tone: "neutral" });
+    grantButton.focus();
+  });
 
   grantButton.addEventListener("click", () => choose(FINOPS_CONSENT.granted));
   declineButton.addEventListener("click", () => choose(FINOPS_CONSENT.declined));

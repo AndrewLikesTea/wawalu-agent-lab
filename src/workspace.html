@@ -221,6 +221,62 @@
 
         <p class="ws-outcome" id="fw-outcome" role="status" aria-live="polite" hidden></p>
 
+        <!-- Coming back a month later, in one step.
+             The record a reader downloaded already carries the setup: prior
+             months, labels, declared rates, and the commitments made against
+             them. The one thing it cannot carry is the month that has not
+             happened yet, so this region asks for that and nothing else.
+
+             Every outcome here is announced through the one live region above.
+             There is no second status node in this section, so a screen reader
+             hears each refusal and each answer exactly once.
+
+             The summary states three claims and stops. Evidence and provenance
+             sit inside the details element under it, never in place of a claim,
+             because the top level is what a reader quotes without opening
+             anything. -->
+        <section class="ws-control fw-return" id="fw-return" aria-labelledby="fw-return-title">
+          <h4 id="fw-return-title">Coming back? Add this month</h4>
+          <p class="ws-control-note" id="fw-return-note">Choose the FinOps JSON this page downloaded before. Its setup is reused wherever the source declarations in it allow, so adding a month is one step. It is read in this browser only; nothing is written until the review below is answered. With no file, set up from scratch using the choice further down instead.</p>
+          <label for="fw-return-file">Choose your FinOps JSON</label>
+          <input id="fw-return-file" type="file" accept=".json,application/json" aria-describedby="fw-return-note" aria-invalid="false" />
+          <button id="fw-return-restart" type="button" class="secondary-button">Start over and set up from scratch</button>
+
+          <div class="ws-confirm" id="fw-return-replace" role="group" aria-labelledby="fw-return-replace-title" hidden>
+            <h5 class="ws-confirm-title" id="fw-return-replace-title" tabindex="-1">Replace the record already in this browser?</h5>
+            <p id="fw-return-replace-detail"></p>
+            <div class="ws-confirm-actions">
+              <button id="fw-return-replace-yes" type="button" aria-describedby="fw-return-replace-detail">Replace and continue</button>
+              <button id="fw-return-replace-no" type="button" class="secondary-button">Keep what is here</button>
+            </div>
+          </div>
+
+          <div class="fw-return-setup" id="fw-return-setup" hidden>
+            <p class="ws-summary" id="fw-return-prefill" tabindex="-1"></p>
+            <div class="ws-confirm" id="fw-return-review" role="group" aria-labelledby="fw-return-review-title" hidden>
+              <h5 class="ws-confirm-title" id="fw-return-review-title">Held back until you review them</h5>
+              <ul class="fw-records" id="fw-return-review-list"></ul>
+            </div>
+            <label for="fw-return-month">Month to add, as YYYY-MM</label>
+            <input id="fw-return-month" type="text" inputmode="numeric" autocomplete="off" aria-describedby="fw-return-note" />
+            <label for="fw-return-spend">This month's total spend in US dollars</label>
+            <input id="fw-return-spend" type="text" inputmode="decimal" autocomplete="off" aria-describedby="fw-return-spend-note" aria-invalid="false" />
+            <p class="ws-control-note" id="fw-return-spend-note">The one figure your file cannot carry. Everything else was prefilled from it.</p>
+            <button id="fw-return-add" type="button">Add this month</button>
+          </div>
+
+          <section class="fw-return-summary" id="fw-return-summary" aria-labelledby="fw-return-summary-title" hidden>
+            <h5 id="fw-return-summary-title" tabindex="-1">This month, decided</h5>
+            <p class="ws-summary" id="fw-return-verdict" data-claim="verdict"></p>
+            <p class="ws-summary" id="fw-return-movement" data-claim="movement"></p>
+            <p class="ws-summary" id="fw-return-next" data-claim="next-action"></p>
+            <details class="ws-provenance fw-disclosure" id="fw-return-evidence">
+              <summary id="fw-return-evidence-summary">Check the evidence behind these three claims</summary>
+              <ul class="fw-records" id="fw-return-evidence-list"></ul>
+            </details>
+          </section>
+        </section>
+
         <div class="ws-controls fw-controls" role="group" aria-labelledby="fw-controls-title">
           <h3 id="fw-controls-title">What you can do</h3>
 

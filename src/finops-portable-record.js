@@ -114,16 +114,44 @@ export function serializeFinopsPortableRecord(storage) {
   return `${JSON.stringify(buildFinopsPortableRecord(storage), null, 2)}\n`;
 }
 
+/**
+ * The three refusals a reader can act on differently, kept apart.
+ *
+ * A file the browser could not read at all, a record from a version this build
+ * does not speak, and a record whose fields are wrong are three different
+ * errands — re-choose the file, re-export it, correct it — and one generic
+ * "import failed" sends a reader off on the wrong one.
+ */
+export const PORTABLE_IMPORT_FAILURE = Object.freeze({
+  unreadable: "unreadable_file",
+  unsupportedVersion: "unsupported_version",
+  invalidRecord: "invalid_record",
+});
+
+function failureCode(errors) {
+  if (errors.some((error) => error.startsWith("File:"))) return PORTABLE_IMPORT_FAILURE.unreadable;
+  if (errors.some((error) => error.startsWith("record.schemaVersion:"))) {
+    return PORTABLE_IMPORT_FAILURE.unsupportedVersion;
+  }
+  return PORTABLE_IMPORT_FAILURE.invalidRecord;
+}
+
+const refused = (errors, declaredVersion = null, compatibility = undefined) => ({
+  ok: false, code: failureCode(errors), declaredVersion,
+  errors: Object.freeze(errors), ...(compatibility ? { compatibility } : {}),
+});
+
 /** Parse and validate without throwing or echoing file content into an error. */
 export function parseFinopsPortableRecord(text) {
-  if (typeof text !== "string") return { ok: false, errors: ["File: expected JSON text"] };
+  if (typeof text !== "string") return refused(["File: expected JSON text"]);
   if (new TextEncoder().encode(text).length > FINOPS_PORTABLE_LIMITS.bytes) {
-    return { ok: false, errors: [`File: exceeds ${FINOPS_PORTABLE_LIMITS.bytes} byte limit`] };
+    return refused([`File: exceeds ${FINOPS_PORTABLE_LIMITS.bytes} byte limit`]);
   }
   let value;
-  try { value = JSON.parse(text); } catch { return { ok: false, errors: ["File: malformed JSON"] }; }
+  try { value = JSON.parse(text); } catch { return refused(["File: malformed JSON"]); }
+  const declared = object(value) && typeof value.schemaVersion === "string" ? value.schemaVersion : null;
   const errors = [];
-  if (!closed(value, ROOT_FIELDS, "record", errors)) return { ok: false, errors };
+  if (!closed(value, ROOT_FIELDS, "record", errors)) return refused(errors, declared);
   if (value.schemaVersion !== FINOPS_PORTABLE_VERSION) {
     errors.push(`record.schemaVersion: unsupported version ${String(value.schemaVersion)}`);
   }
@@ -194,10 +222,50 @@ export function parseFinopsPortableRecord(text) {
   }
   const scan = scanRetainedContent(value, "record");
   for (const violation of scan.violations) errors.push(`${violation.path}: prohibited content`);
-  if (errors.length) return { ok: false, errors: Object.freeze(errors),
-    compatibility: sourceCompatibility(value, { errors }) };
+  if (errors.length) return refused(errors, declared, sourceCompatibility(value, { errors }));
   return { ok: true, record: Object.freeze(value), errors: Object.freeze([]),
-    compatibility: sourceCompatibility(value) };
+    declaredVersion: declared, compatibility: sourceCompatibility(value),
+    declarations: Object.freeze(value.sourceDeclarations.map(declarationCompatibility)) };
+}
+
+/** Why one declaration is or is not reusable, in the order the states are tested. */
+export const DECLARATION_REASON = Object.freeze({
+  correctionRequired: "correction_required",
+  staleMapping: "stale_mapping",
+  unsupportedContract: "unsupported_contract",
+  compatible: "compatible",
+});
+
+/**
+ * Grade ONE declaration, on its own terms.
+ *
+ * `sourceCompatibility` answers "may this whole file be reused", which is the
+ * question the atomic import asks. A return flow asks a narrower one — may THIS
+ * source's figures be prefilled — and a record can carry one declaration that
+ * may and one that may not. Both answers come from here so they cannot drift.
+ */
+export function declarationCompatibility(entry) {
+  const role = entry?.role;
+  const expected = SOURCE_CONTRACTS[role];
+  if (entry?.reuseState === "correction_required") {
+    return Object.freeze({ role: role ?? null, reason: DECLARATION_REASON.correctionRequired,
+      state: "stale", reusable: false,
+      message: `${role} was marked correction required. Correct its declaration and mapping locally, then choose the file again.` });
+  }
+  if (expected && entry.contractKind === expected.contractKind
+    && entry.contractVersion === expected.contractVersion) {
+    if (entry.mappingVersion !== expected.mappingVersion) {
+      return Object.freeze({ role, reason: DECLARATION_REASON.staleMapping,
+        state: "stale", reusable: false,
+        message: `${role} mapping ${entry.mappingVersion} is stale. Re-export this file locally with ${expected.mappingVersion}; no live connection is required.` });
+    }
+    return Object.freeze({ role, reason: DECLARATION_REASON.compatible,
+      state: "compatible", reusable: true,
+      message: `${role} matches the static ${expected.mappingVersion} contract, so its figures can be reused without a live connection.` });
+  }
+  return Object.freeze({ role: role ?? null, reason: DECLARATION_REASON.unsupportedContract,
+    state: "unsupported", reusable: false,
+    message: `${role ?? "source"} contract ${entry?.contractVersion ?? "unknown"} is unsupported. Correct the declaration locally against browser-compatibility/v1 and choose the file again.` });
 }
 
 /**
@@ -214,20 +282,15 @@ export function sourceCompatibility(record, { errors = null } = {}) {
       ? "A source declaration carries a prohibited or unrecognised value. Correct it in the file on this computer; a declaration never carries a token, identifier, credential, or raw provider export."
       : "This file does not match the portable-record contract. Correct it on this computer and choose it again." });
   const declarations = Array.isArray(record?.sourceDeclarations) ? record.sourceDeclarations : [];
-  const correction = declarations.find((entry) => entry.reuseState === "correction_required");
-  if (correction) return Object.freeze({ state: "stale", automaticReuse: false,
-    message: `${correction.role} was marked correction required. Correct its declaration and mapping locally, then choose the file again.` });
-  const stale = declarations.find((entry) => SOURCE_CONTRACTS[entry.role]
-    && entry.contractKind === SOURCE_CONTRACTS[entry.role].contractKind
-    && entry.contractVersion === SOURCE_CONTRACTS[entry.role].contractVersion
-    && entry.mappingVersion !== SOURCE_CONTRACTS[entry.role].mappingVersion);
-  if (stale) return Object.freeze({ state: "stale", automaticReuse: false,
-    message: `${stale.role} mapping ${stale.mappingVersion} is stale. Re-export this file locally with ${SOURCE_CONTRACTS[stale.role].mappingVersion}; no live connection is required.` });
-  const unsupported = declarations.find((entry) => !SOURCE_CONTRACTS[entry.role]
-    || entry.contractKind !== SOURCE_CONTRACTS[entry.role].contractKind
-    || entry.contractVersion !== SOURCE_CONTRACTS[entry.role].contractVersion);
+  // Graded one at a time, then read in the order the states are tested, so the
+  // whole-file answer and the per-declaration one can never disagree.
+  const graded = declarations.map(declarationCompatibility);
+  const firstOf = (reason) => graded.find((entry) => entry.reason === reason);
+  const blocked = firstOf(DECLARATION_REASON.correctionRequired) ?? firstOf(DECLARATION_REASON.staleMapping);
+  if (blocked) return Object.freeze({ state: "stale", automaticReuse: false, message: blocked.message });
+  const unsupported = firstOf(DECLARATION_REASON.unsupportedContract);
   if (unsupported) return Object.freeze({ state: "unsupported", automaticReuse: false,
-    message: `${unsupported.role ?? "source"} contract ${unsupported.contractVersion ?? "unknown"} is unsupported. Correct the declaration locally against browser-compatibility/v1 and choose the file again.` });
+    message: unsupported.message });
   return Object.freeze({ state: "compatible", automaticReuse: false,
     message: declarations.length
       ? `${declarations.length} privacy-preserving source declaration${declarations.length === 1 ? " is" : "s are"} compatible with the static v1 contracts. Review and approve before reuse.`

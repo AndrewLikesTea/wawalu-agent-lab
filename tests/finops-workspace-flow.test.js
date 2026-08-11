@@ -390,6 +390,12 @@ test("the reader can reach every FinOps control by keyboard, in the order they a
       "Open the AI FinOps page",
       "Check the 1 retained period behind this figure",
       "Where every figure above comes from",
+      // The return path sits above the controls it prefills, and offers exactly
+      // two stops until a file is chosen: the file control and the way back to
+      // setting up from scratch. Everything else it adds is inside a region that
+      // is hidden until there is something in it, so it is not a stop yet.
+      "fw-return-file",
+      "Start over and set up from scratch",
       "Keep using files only",
       "Download FinOps JSON",
       "fw-import",
