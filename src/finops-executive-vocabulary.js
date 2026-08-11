@@ -28,3 +28,15 @@ export const FINOPS_EXECUTIVE_CONFIDENCE = Object.freeze({
   }),
 });
 
+// Implementation identifiers belong in code and audit evidence, not in the
+// executive reading path. Keep the pattern as data so build verification can
+// compile a fresh global RegExp for every text node without sharing mutable
+// `lastIndex` state with a browser renderer or another test.
+export const FINOPS_EXECUTIVE_BANNED_TOKEN_SHAPES = Object.freeze([
+  Object.freeze({
+    id: "versioned-internal-name",
+    pattern: String.raw`\b[a-z][a-z0-9]*(?:-[a-z0-9]+)+\/v?\d+\.\d+\.\d+\b`,
+    flags: "i",
+    replacement: "the published method",
+  }),
+]);

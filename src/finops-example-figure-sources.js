@@ -227,7 +227,7 @@ export const EXAMPLE_FIGURE_SOURCES = Object.freeze([
     id: "literacy",
     host: "finops-first-run-literacy-source",
     qualifies: "AI literacy · graded prompt sample",
-    value: "B · 85 of 100 · literacy-mix/1.0.0",
+    value: "B · 85 of 100 · published literacy rubric",
     source: EXAMPLE_SOURCE.derived,
     origin: "141 of 144 invented prompts were classified and scored by the"
       + " published literacy-mix rubric, then weighted by each department's"

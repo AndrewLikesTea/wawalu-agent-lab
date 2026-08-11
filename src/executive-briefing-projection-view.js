@@ -13,8 +13,8 @@ const put = (root, id, value) => {
  * document, and the paint below completes it with the moment the payload was
  * regenerated in the reader's own browser. One string, one file, no drift.
  */
-export const PROJECTION_STATUS_PREFIX = (schemaVersion) =>
-  `Briefing generated locally · ${schemaVersion}`;
+export const PROJECTION_STATUS_PREFIX = () =>
+  "Briefing generated locally from the published briefing method";
 
 export function renderExecutiveBriefingProjection(root, result) {
   const region = root.getElementById("executive-briefing-projection");

@@ -6,6 +6,7 @@ import { parseHtml } from "../tests/support/browser.js";
 import {
   checkFinopsFirstScreen, formatFirstScreenReport,
 } from "./check-finops-first-screen.mjs";
+import { checkBuiltFinopsVocabulary } from "./check-finops-executive-vocabulary.mjs";
 import { DECISION_SUMMARY } from "../src/finops-screen-contract.js";
 import { HEALTH_STATUS } from "../src/health-contract.js";
 
@@ -94,6 +95,8 @@ export async function verifyArtifact(root) {
   if (manifest.schemaVersion !== 1 || manifest.algorithm !== "sha256") throw new Error("unsupported build manifest");
   const actual = await inventory(root);
   if (JSON.stringify(actual) !== JSON.stringify(manifest.files)) throw new Error("artifact does not match build manifest");
+
+  await checkBuiltFinopsVocabulary(root);
 
   const health = JSON.parse(await readFile(resolve(root, "healthz"), "utf8"));
   if (health.status !== HEALTH_STATUS || !/^(?:[0-9a-f]{40}|unstamped)$/.test(health.version)) {

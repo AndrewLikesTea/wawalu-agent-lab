@@ -130,11 +130,11 @@ test("the shipped first screen draws all five bundled metric tiles", async () =>
   for (const tile of drawn) assert.doesNotMatch(textOf(tile), /not (measured|ranked) yet/i);
 
   // And the fifth is the literacy tile, holding a real letter rather than the
-  // placeholder it replaced: the grade, the numeric score, the rubric id and
-  // version it is attributable to, both coverage denominators, and the
+  // placeholder it replaced: the grade, the numeric score, the reader-facing
+  // rubric name, both coverage denominators, and the
   // synthetic-data label its four siblings already carry.
   const literacy = textOf(drawn[4]);
-  assert.match(literacy, /^AI literacy · graded prompt sample [A-F] · \d{1,3} of 100 · literacy-mix\/\d+\.\d+\.\d+/);
+  assert.match(literacy, /^AI literacy · graded prompt sample [A-F] · \d{1,3} of 100 · published literacy rubric/);
   assert.match(literacy, /\$[\d,]+ of \$[\d,]+ in-scope invented spend was scored/);
   assert.match(literacy, /(high|moderate|provisional|insufficient) coverage/);
   assert.match(literacy, /\d+ of \d+ synthetic prompts classified/);

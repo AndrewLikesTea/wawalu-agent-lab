@@ -252,11 +252,11 @@ test("the drill-down and the literacy letter share the peer position's area", as
     "the internal gap follows the org-level position it drills into, and the letter follows both");
 
   // And the new member is a letter with its rubric attached, not a placeholder
-  // that happened to take a slot: the grade, the score, and the rubric label a
+  // that happened to take a slot: the grade, the score, and the reader-facing rubric label a
   // disputed score has to be argued against are on one line.
   const literacy = byId(document, FIRST_RUN_IDS.literacyValue);
   assert.equal(literacy.dataset.available, "true");
-  assert.match(textOf(literacy), /^[A-F] · \d{1,3} of 100 · literacy-mix\/\d+\.\d+\.\d+$/);
+  assert.match(textOf(literacy), /^[A-F] · \d{1,3} of 100 · published literacy rubric$/);
   assert.equal(textOf(literacy), buildFirstRunResult().literacy.value);
 
   // The same slot idiom as its neighbour, down to the heading level: an h3 under
@@ -338,7 +338,7 @@ test("a visitor with no files meets five resolved slots and one ranked action", 
     // held before #994 bundled a synthetic prompt corpus to score.
     const literacy = byId(document, FIRST_RUN_IDS.literacyValue);
     assert.equal(literacy.dataset.available, "true");
-    assert.match(textOf(literacy), /^[A-F] · \d{1,3} of 100 · literacy-mix\/\d+\.\d+\.\d+$/);
+    assert.match(textOf(literacy), /^[A-F] · \d{1,3} of 100 · published literacy rubric$/);
     const literacyDetail = textOf(byId(document, FIRST_RUN_IDS.literacyDetail));
     assert.match(literacyDetail, /^\$[\d,]+ of \$[\d,]+ in-scope invented spend was scored/);
     assert.match(literacyDetail, /(high|moderate|provisional|insufficient) coverage/);

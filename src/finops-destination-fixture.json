@@ -98,7 +98,7 @@
       "disclosure": "progressive",
       "callToAction": "Open the recommendation evidence",
       "priorityClause": "unchecked_basis",
-      "selectionBasis": "Promoted to rank 1 by clause unchecked_basis under destination-priority/1.0.0: the finding's confidence carries one limit, so the basis is checked before a spend cap is committed."
+      "selectionBasis": "Promoted to rank 1 by the published destination-priority rule: the finding's confidence carries one limit, so the basis is checked before a spend cap is committed."
     },
     {
       "id": "destination-department-priority",

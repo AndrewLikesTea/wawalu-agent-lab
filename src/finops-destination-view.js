@@ -136,6 +136,8 @@ function othersBlock(doc, destinations) {
 function derivationBlock(doc, record, primary) {
   const details = disclosure(doc, "how-this-was-ranked",
     "How this order was decided and what it cannot tell you");
+  details.classList.add("audit-disclosure");
+  details.setAttribute("data-audit-disclosure", "true");
   const list = element(doc, "dl", "dest-derivation");
   list.append(term(doc, "Why this one first", primary.selectionBasis));
   list.append(term(doc, "Rule version", `${PRIORITY_RULE_VERSION} · first matching clause wins,`

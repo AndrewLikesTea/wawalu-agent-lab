@@ -150,10 +150,10 @@ export function composeFirstRunLiteracy(analysis, load = analyzeConversationExpo
     ...figures,
     available: true,
     band: null,
-    // The rubric label rides on the same line as the letter, not in a footnote:
+    // The reader-facing rubric label rides on the same line as the letter, not in a footnote:
     // a score whose scale is one scroll away is a score that gets quoted without
     // it, and then disputed against a rubric version nobody wrote down.
-    value: `${company.grade} · ${company.score} of 100 · ${RUBRIC_VERSION_ID}`,
+    value: `${company.grade} · ${company.score} of 100 · published literacy rubric`,
     detail: `${coverageSentence(figures)} ${eligibility.rule} ${LITERACY_SAMPLE_NOTE}`,
   });
 }

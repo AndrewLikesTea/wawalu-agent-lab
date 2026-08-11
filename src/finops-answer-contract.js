@@ -647,7 +647,7 @@ export function recoverableAttestation(dataset, record = getRecoverableSpend(dat
     // #1502 closed. So the attested headline travels as `data-headline` — read
     // by the check, not repainted at a reader — and the sentence says only that
     // it matched.
-    statement: `Attested ${RECOVERABLE_ATTESTATION} — the headline above is the one figure this `
+    statement: "Attested against the published recoverable-spend method — the headline above is the one figure this "
       + `region states, on the monthly basis of record · confidence ${confidence} · provenance `
       + `${declared} of ${operands.length} operands declared by the export, ${derived} derived `
       + `here · coverage ${dimensions.coverage.scored} of ${dimensions.coverage.inScope} `

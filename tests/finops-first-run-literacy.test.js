@@ -90,9 +90,9 @@ test("the corpus itself is byte-identical across runs and carries no clock", asy
 
 // --- the figures a director would dispute -----------------------------------
 
-test("the letter is attributable: a rubric id and version travel on the same line", () => {
+test("the letter uses reader vocabulary while retaining its attributable rubric id", () => {
   const literacy = composeFirstRunLiteracy(analysis());
-  assert.match(literacy.value, new RegExp(`· ${RUBRIC_VERSION_ID.replace(/[./]/g, "\\$&")}$`));
+  assert.match(literacy.value, /· published literacy rubric$/);
   assert.equal(literacy.rubricVersionId, RUBRIC_VERSION_ID);
   assert.match(literacy.value, /^[A-F] · \d{1,3} of 100 · /);
 });
