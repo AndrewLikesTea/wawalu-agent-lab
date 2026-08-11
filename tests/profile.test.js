@@ -5,6 +5,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { byClass, createElement, first, ids, installDocument, tags } from "./support/dom.js";
+import { loadPage, textOf } from "./support/browser.js";
 
 installDocument();
 
@@ -15,7 +16,7 @@ const {
   distinctAuthors, emptySummaryText, hasExplicitAuthor, imagePostCounts, loadingSummaryText,
   mergePostsById, normalizeProfileApiPosts, normalizeSeedPosts, pickerEntries, postDetailHref,
   profileAnnouncement, profileHref, profilePaintHref, profileResultsHeading, profileSummary, profileSummaryText,
-  renderAuthorPicker, renderProfileGrid, renderProfileHeader, resolveProfileAuthor, selectProfilePosts,
+  mountProfile, renderAuthorPicker, renderProfileGrid, renderProfileHeader, resolveProfileAuthor, selectProfilePosts,
 } = await import("../src/profile.js");
 
 const apiPost = {
@@ -444,7 +445,8 @@ test("the profile and post pages are wired, labelled, and reachable", async () =
   // The picker is buttons, not a menu: an option list can hold the count but
   // cannot hold a pressed state a reader can see.
   assert.doesNotMatch(profile, /<select/);
-  assert.match(profile, /id="profile-announcer"[^>]*aria-live="polite"/);
+  assert.match(profile, /id="profile-status"[^>]*role="status"[^>]*aria-live="polite"/);
+  assert.doesNotMatch(profile, /id="profile-announcer"/);
   assert.match(profile, /src="\/profile-page\.js"/);
   assert.match(profileWiring, /\/api\/social-posts\?limit=100/);
 
@@ -597,7 +599,7 @@ test("the profile page's static copy does not drift from the module's", async ()
   // state — a verdict about a name nobody had chosen, and a false one for the
   // seeded feed — so it now says only that the counting has not happened yet.
   const html = await readFile(new URL("../src/profile.html", import.meta.url), "utf8");
-  assert.match(html, new RegExp(`id="profile-summary">${loadingSummaryText()}<`));
+  assert.match(html, /id="profile-summary"><\/p>/);
   assert.doesNotMatch(html, new RegExp(emptySummaryText("Ari")));
   // One wait, one sentence — People's own. The counts line and the connection
   // line below it are waiting on the same fetch, so they say the same thing
@@ -607,7 +609,7 @@ test("the profile page's static copy does not drift from the module's", async ()
   // reader to Social for exactly that — and after that they named the selected
   // display name, which the heading above them already establishes.
   assert.equal(loadingSummaryText(), "Loading image posts…");
-  assert.match(html, new RegExp(`id="profile-status">${loadingSummaryText()}<`));
+  assert.match(html, new RegExp(`id="profile-status"[^>]*>[\\s\\S]*${loadingSummaryText()}`));
   assert.doesNotMatch(html, /Loading Ari/, "a waiting line names the display name again");
   assert.doesNotMatch(html, new RegExp(FEED_LOADING_LINE), "People is announcing Social's feed again");
   // The results heading ships the same words the module writes there, so the
@@ -622,4 +624,34 @@ test("the profile page's static copy does not drift from the module's", async ()
   // heading's own text now, where the region it names carries it.
   assert.doesNotMatch(html, /id="profile-count"/);
   assert.doesNotMatch(html, /Start by sharing an image/);
+});
+
+test("People uses one visible announced feed status and clears it across live and author transitions", async (t) => {
+  const page = await loadPage(new URL("../src/profile.html", import.meta.url), {});
+  t.after(() => page.restore());
+  const profile = mountProfile(page.document, { posts: [], author: "Mina", state: "loading" });
+  const status = page.document.querySelector("#profile-status");
+  const relevant = () => page.document.querySelectorAll('[role="status"]').filter((node) =>
+    /Loading image posts|hasn’t posted an image|could not be loaded|Images made in Paint/.test(textOf(node)));
+
+  assert.equal(textOf(status), loadingSummaryText());
+  assert.equal(relevant().length, 1, "loading is visible and announced once");
+
+  profile.seed([]);
+  assert.match(textOf(status), /Images made in Paint and published on Social appear here/);
+  assert.equal(relevant().length, 1, "the settled empty guidance replaces loading");
+
+  profile.seed([imagePost]);
+  assert.equal(textOf(status), "", "a live refresh that adds a matching post clears the empty state");
+  assert.equal(relevant().length, 0);
+
+  profile.setAuthor("Ari");
+  assert.match(textOf(status), /Images made in Paint and published on Social appear here/);
+  profile.setAuthor("Mina");
+  assert.equal(textOf(status), "", "switching back to a matching author clears stale guidance");
+
+  profile.seed([]);
+  profile.setState("error");
+  assert.match(textOf(status), /Image posts could not be loaded/);
+  assert.equal(relevant().length, 1, "error guidance occupies the same status region");
 });

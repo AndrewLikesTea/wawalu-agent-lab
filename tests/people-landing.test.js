@@ -189,9 +189,10 @@ test("no placeholder is still announcing a load once the posts are on screen", a
     for (const text of settled) {
       assert.doesNotMatch(text, /Loading/, "a loading placeholder outlived the posts it stood in for");
     }
-    // Replaced by what the reader was waiting for, not merely emptied.
+    // The count reports the populated result; the sole feed-status region is
+    // cleared so no connection or loading message sits beside readable posts.
     assert.match(textOf(document.querySelector("#profile-summary")), /^2 image posts/);
-    assert.match(textOf(document.querySelector("#profile-status")), /^Live · updated /);
+    assert.equal(textOf(document.querySelector("#profile-status")), "");
 
     // And a name switch re-renders those regions rather than dropping back to a
     // placeholder — the state the old copy was wrong in twice over.
@@ -379,10 +380,10 @@ test("an empty display name is named in prose once and counted once", async () =
     const statements = spoken.flatMap((text) => text.match(/No image posts under this display name yet|\d+ image posts?/g) ?? []);
     assert.deepEqual(statements, ["0 image posts", "No image posts under this display name yet"],
       `the page states the same thing twice: ${statements.join(" / ")}`);
-    // The named wording survives in the polite announcement only, which has no
-    // page around it to borrow a subject from.
+    // The one status region carries visible guidance, with no hidden duplicate.
     assert.equal(spoken.filter((text) => text.includes("hasn’t posted an image yet")).length, 0);
-    assert.match(textOf(document.querySelector("#profile-announcer")), /^Nova hasn’t posted an image yet\./);
+    assert.match(textOf(document.querySelector("#profile-status")), /Images made in Paint and published on Social appear here/);
+    assert.equal(document.querySelector("#profile-announcer"), null);
     // An answered zero, in the same words a populated name gets, and it is the
     // heading that carries it: a reader entering the results region is told
     // whose posts are missing rather than that some feature is empty.
@@ -695,8 +696,9 @@ test("the display name is visible twice in the results region, and no more", asy
     // posted, just never a picture, and the counts carry that without a name.
     assert.match(textOf(document.querySelector("#profile-summary")), /^0 image posts · 1 post in total · last posted /);
     assert.match(textOf(document.querySelector(".profile-role")), /^A display name in the Social feed/);
-    // The announcement keeps the name, because it is heard away from the page.
-    assert.match(textOf(document.querySelector("#profile-announcer")), /Ari/);
+    // Empty guidance uses the same visible status region and does not repeat the
+    // display name already carried by the heading and active-filter chip.
+    assert.match(textOf(document.querySelector("#profile-status")), /Images made in Paint and published on Social appear here/);
   } finally {
     page.restore();
   }

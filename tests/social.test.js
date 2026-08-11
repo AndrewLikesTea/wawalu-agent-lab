@@ -258,11 +258,10 @@ test("social page is wired, labeled, and linked from the other pages", async () 
   assert.match(page, /id="post-feed"/);
   assert.match(page, /id="post-name-filter"/);
   assert.match(page, /id="post-time-filter"/);
-  assert.match(page, /id="feed-announcer"[^>]*aria-live="polite"/);
+  assert.match(page, /id="feed-status"[^>]*role="status"[^>]*aria-live="polite"/);
+  assert.doesNotMatch(page, /id="feed-announcer"/);
   assert.match(wiring, /\/api\/social-posts\?limit=100/);
   assert.match(wiring, /method: "POST"/);
-  assert.match(wiring, /connection\.dataset\.state = "live"/);
-  assert.match(wiring, /connection\.dataset\.state = "degraded"/);
   assert.match(styles, /\.feed-connection\[data-state="degraded"\] \.live-dot \{[^}]*border-radius:1px;[^}]*transform:rotate\(45deg\)/,
     "an unavailable live service changes the connection marker's shape, not only its colour");
   assert.doesNotMatch(wiring, /localStorage/);
@@ -281,16 +280,15 @@ test("social page is wired, labeled, and linked from the other pages", async () 
   assert.doesNotMatch(page, /your browser asks you to fill this in/);
   assert.doesNotMatch(page, /nothing is published\.<\/span>/);
   assert.match(page, /id="post-counter"[^>]*aria-live="polite"/);
-  assert.match(page, /id="post-count">Loading the Social feed…<\/span>/);
-  // The count and the connection line describe one wait, so they ship the same
-  // sentence rather than "Loading posts…" beside "Connecting to the Social feed…".
-  assert.match(page, /id="feed-status">Loading the Social feed…<\/span>/);
+  assert.match(page, /id="post-count"><\/span>/);
+  assert.match(page, /id="feed-status"[^>]*>[\s\S]*Loading the Social feed…/);
   assert.doesNotMatch(page, /id="post-count"[^>]*>0 posts<\/span>/);
   // One announced region for a filter change, and it is the summary: the count
   // beside the heading says a thinner version of the same news, so announcing
   // both read every change out twice.
   assert.doesNotMatch(page, /id="post-count"[^>]*aria-live/);
-  assert.match(page, /<p class="feed-summary" id="feed-summary" aria-live="polite"><\/p>/);
+  assert.match(page, /<p class="feed-summary" id="feed-summary"><\/p>/);
+  assert.doesNotMatch(page, /id="feed-summary"[^>]*aria-live/);
   // The live region ships empty, not hidden and not counting: a `hidden` region
   // announces unreliably when its text arrives, and a zero before the first
   // fetch is a claim the page has not earned.
@@ -833,7 +831,7 @@ test("the feed heading tracks the filters and the cards actually rendered", asyn
   // news twice.
   assert.equal(heading.getAttribute("aria-live"), null);
   assert.equal(page.document.querySelector("#post-count").getAttribute("aria-live"), null);
-  assert.equal(page.document.querySelector("#feed-summary").getAttribute("aria-live"), "polite");
+  assert.equal(page.document.querySelector("#feed-summary").getAttribute("aria-live"), null);
 });
 
 test("the feed heading makes no claim about the feed before a fetch has answered", async (t) => {
@@ -884,7 +882,7 @@ test("the summary sentence stays true as the filters change", async (t) => {
   // The sentence is the announced region, and it is in normal flow rather than
   // folded away or hidden — a live region a reader cannot see is one they are
   // told about but cannot check.
-  assert.equal(summary.getAttribute("aria-live"), "polite");
+  assert.equal(summary.getAttribute("aria-live"), null);
   assert.equal(summary.hasAttribute("hidden"), false);
   assert.equal(summary.getAttribute("role"), null, "a role=status on the same text announces it twice");
   assert.equal(summary.querySelectorAll("[aria-live]").length, 0, "a nested live region announces twice");
@@ -1041,16 +1039,13 @@ test("the post count never claims zero posts before the feed has any answer", as
   const count = page.document.querySelector("#post-count");
   const feed = mountSocialFeed(page.document, { posts: [], state: "loading" });
 
-  assert.equal(textOf(count), "Loading the Social feed…", "the first fetch is open, so there is no count to give");
+  assert.equal(textOf(count), "", "the loading message belongs only to the status region");
   assert.equal(page.document.querySelectorAll(".empty-state").length, 0, "loading copy never shares the page with empty-state guidance");
   // One wait, one sentence. The count, the panel over the empty grid, and the
   // connection line are all waiting on the same fetch, so a reader gets one
   // description of it and a screen reader hears one, not three.
-  assert.deepEqual([...new Set([
-    textOf(count),
-    textOf(page.document.querySelector(".state-title")),
-    textOf(page.document.querySelector("#feed-status")),
-  ])], ["Loading the Social feed…"]);
+  assert.equal(textOf(page.document.querySelector("#feed-status")), "Loading the Social feed…");
+  assert.equal(page.document.querySelectorAll('[role="status"]').filter((node) => /Loading the Social feed/.test(textOf(node))).length, 1);
 
   feed.setState("error");
   assert.equal(textOf(count), "Unavailable", "a failed fetch is not a count of zero");
@@ -1062,6 +1057,9 @@ test("the post count never claims zero posts before the feed has any answer", as
   assert.match(textOf(empty), /No posts on Social yet\./);
   assert.match(textOf(empty), /Publish a post, or create an image in Paint first\./);
   assert.doesNotMatch(textOf(empty), /Loading|Connecting/);
+
+  feed.seed([{ id: "ready", author: "Mina", body: "Shipped", createdAt: new Date().toISOString() }]);
+  assert.equal(textOf(page.document.querySelector("#feed-status")), "", "populated feeds clear stale status copy");
 });
 
 test("demo seed contains only valid, demo-only posts", async () => {

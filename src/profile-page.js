@@ -108,9 +108,7 @@ async function init() {
           profile.setAuthor(landing);
         }
       }
-      profile.setStatus(`Live · updated ${new Intl.DateTimeFormat(undefined, { timeStyle: "short" }).format(new Date())}`);
     } catch {
-      profile.setStatus(connected ? "Live updates paused · retrying" : "Demo posts · live service unavailable");
       // The error panel is only for a reader who would otherwise stare at a
       // skeleton forever. With the seed loaded there is something to show — the
       // profile leaves "loading" either way, because a spinner that never ends

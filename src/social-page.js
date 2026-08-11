@@ -233,9 +233,6 @@ async function init() {
   const root = document;
   if (!root.querySelector("#post-feed")) return;
 
-  const status = root.querySelector("#feed-status");
-  const connection = status?.closest(".feed-connection");
-  const announcer = root.querySelector("#feed-announcer");
   // Mount before any fetch resolves so the first paint is a reserved skeleton
   // grid rather than a blank panel that later jumps to full height.
   const feed = mountSocialFeed(root, {
@@ -270,13 +267,8 @@ async function init() {
       const added = live.filter((post) => !knownIds.has(post.id)).length;
       feed.seed(live);
       knownIds = nextIds;
-      if (status) status.textContent = `Live · updated ${new Intl.DateTimeFormat(undefined, { timeStyle: "short" }).format(new Date())}`;
-      if (connection) connection.dataset.state = "live";
-      if (hasConnected && added && announcer) announcer.textContent = `${added} new ${added === 1 ? "post" : "posts"} added to the feed.`;
       hasConnected = true;
     } catch {
-      if (status) status.textContent = hasConnected ? "Live updates paused · retrying" : "Demo posts · live service unavailable";
-      if (connection) connection.dataset.state = "degraded";
       // Posts already on screen stay on screen; the error state is only for the
       // case where a reader would otherwise be staring at a skeleton forever.
       if (feed.getPosts().length === 0) feed.setState("error");

@@ -528,15 +528,18 @@ function renderError(container, onRetry) {
 // always win over a pending or failed refresh — stale content beats a spinner
 // over content the reader could already see.
 export function renderProfileGrid(container, posts, options = {}) {
-  const { state = "ready", onRetry = null, author = DEFAULT_AUTHOR } = options;
+  const { state = "ready", onRetry = null, author = DEFAULT_AUTHOR, status = null } = options;
   const ordered = sortNewestFirst(posts ?? []);
-  container.replaceChildren();
+  container.replaceChildren(...(status?.parentNode === container ? [status] : []));
+  status?.replaceChildren();
   container.setAttribute("aria-busy", state === "loading" && ordered.length === 0 ? "true" : "false");
 
   if (ordered.length === 0) {
-    if (state === "loading") renderSkeleton(container);
-    else if (state === "error") renderError(container, onRetry);
-    else renderEmpty(container, author);
+    if (state === "loading") {
+      renderSkeleton(container);
+      if (status) status.append(el("p", "empty-title", loadingSummaryText()));
+    } else if (state === "error") renderError(status ?? container, onRetry);
+    else renderEmpty(status ?? container, author);
     return;
   }
 
@@ -612,7 +615,6 @@ export function mountProfile(root, options = {}) {
     summary: root.querySelector("#profile-summary"),
     heading: root.querySelector("#grid-title"),
     status: root.querySelector("#profile-status"),
-    announcer: root.querySelector("#profile-announcer"),
     picker: root.querySelector("#profile-author"),
     // The one route into Paint: the invitation above the grid. It is a real
     // anchor in the markup and stays one whether or not this runs; all that is
@@ -652,16 +654,13 @@ export function mountProfile(root, options = {}) {
     // nobody: the heading above states whose posts are being counted, so a
     // reader who switches names mid-load reads one moved heading rather than a
     // display name repeated down the region.
-    if (elements.status && state === "loading") elements.status.textContent = loadingSummaryText();
     for (const route of elements.paintRoutes) route.href = profilePaintHref(author);
     renderProfileGrid(grid, mine, {
       state,
       onRetry: options.onRetry,
       author,
+      status: elements.status,
     });
-    if (elements.announcer && state === "ready") {
-      elements.announcer.textContent = profileAnnouncement(author, mine.length);
-    }
     if (options.onRender) options.onRender({ author, posts: mine, summary });
   };
 
@@ -702,7 +701,6 @@ export function mountProfile(root, options = {}) {
     // The picker re-renders too, because leaving "loading" is exactly what
     // turns "Counting…" into a number.
     setState(next) { state = next; renderPicker(); render(); },
-    setStatus(text) { if (elements.status) elements.status.textContent = text; },
     getPosts() { return [...posts]; },
   };
 }

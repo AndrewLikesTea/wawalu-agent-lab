@@ -142,7 +142,7 @@
                  which filters produced that — and that is the region announced
                  now, so leaving aria-live here would read every filter change
                  out twice. -->
-            <span class="count" id="post-count">Loading the Social feed…</span>
+            <span class="count" id="post-count"></span>
           </div>
           <!-- Who wrote what a reader is about to scroll through, said once and
                said here, because here is where the names are. A reader meets
@@ -210,10 +210,6 @@
                  are showing, and which menus narrowed them. -->
             <button class="clear-filters social-clear" id="post-filter-clear" type="button">Clear filters</button>
           </div>
-          <div class="feed-connection" aria-live="polite">
-            <span class="live-dot" aria-hidden="true"></span>
-            <span id="feed-status">Loading the Social feed…</span>
-          </div>
           <!-- No keyboard sentence. The feed is a plain list of ordinary links:
                social.js binds no key over it — the roving handler that sentence
                was written for is gone — so Tab and the arrow keys do what the
@@ -222,7 +218,6 @@
                need is how it is sorted, and that is the ordering line above,
                which #post-feed now points its aria-describedby at, exactly as
                People's grid points at its own. -->
-          <p class="visually-hidden" id="feed-announcer" aria-live="polite" aria-atomic="true"></p>
           <!-- One sentence for "what am I looking at": how many of how many
                posts are below this line, and which filters produced them.
                social.js writes it from the same array it renders the cards
@@ -240,8 +235,12 @@
                folds it away — a live region behind a closed disclosure is
                silent, and a reader who needs this sentence needs it before the
                cards. -->
-          <p class="feed-summary" id="feed-summary" aria-live="polite"></p>
-          <div id="post-feed" aria-describedby="feed-order"></div>
+          <p class="feed-summary" id="feed-summary"></p>
+          <div id="post-feed" aria-describedby="feed-order">
+            <div class="feed-connection" id="feed-status" role="status" aria-live="polite" aria-atomic="true">
+              <span class="state-title">Loading the Social feed…</span>
+            </div>
+          </div>
         </div>
 
         <!-- Ships collapsed, and is revealed by the hero's Publish a post
