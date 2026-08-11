@@ -849,7 +849,7 @@ test("the feed heading makes no claim about the feed before a fetch has answered
 
   feed.seed([]);
   assert.equal(textOf(heading), "No posts", "an answered fetch with nothing in it is a real zero");
-  assert.match(textOf(page.document.querySelector(".empty-state")), /No posts on Social yet\./);
+  assert.match(textOf(page.document.querySelector("#feed-announcer")), /No posts on Social yet\./);
 });
 
 // The sentence directly above the cards answers "what am I looking at" without
@@ -904,7 +904,7 @@ test("the summary sentence stays true as the filters change", async (t) => {
 
   choose(nameFilter, "Mina");
   assert.equal(shown(), 0);
-  assert.equal(textOf(summary), "Showing 0 of 3 posts from the past hour under the display name Mina.");
+  assert.equal(textOf(summary), "", "the sole feed-status region owns the no-match message");
   // Distinct from the never-posted empty state, which this change leaves alone.
   assert.doesNotMatch(textOf(summary), /No posts on Social yet/);
 
@@ -953,11 +953,12 @@ test("a filter combination matching nothing reads as a dead end with its own rec
   assert.equal(shown(), 0);
 
   const panel = page.document.querySelector(".empty-state");
-  assert.match(textOf(panel), /No posts match these filters: Mina · from the past hour\./);
-  assert.match(textOf(panel), /Social still holds 3 posts\. Clear the filters to read them\./);
+  const status = page.document.querySelector("#feed-announcer");
+  assert.match(textOf(status), /No posts match these filters: Mina · from the past hour\./);
+  assert.match(textOf(status), /Social still holds 3 posts\. Clear the filters to read them\./);
   // Not the never-posted screen, in either of its halves.
-  assert.doesNotMatch(textOf(panel), /No posts on Social yet/);
-  assert.doesNotMatch(textOf(panel), /create an image in Paint/);
+  assert.doesNotMatch(textOf(status), /No posts on Social yet/);
+  assert.doesNotMatch(textOf(status), /create an image in Paint/);
 
   // A real button, after the message in DOM order, and in the tab sequence.
   const buttons = feed.querySelectorAll("button");
@@ -990,6 +991,7 @@ test("a filter combination matching nothing reads as a dead end with its own rec
   assert.equal(landed.closest(".post-card").dataset.postId, "ari-recent");
   // Only the dead end's own control was ever added to the tab sequence.
   assert.equal(feed.querySelectorAll("button").length, 0);
+  assert.equal(textOf(status), "", "populated recovery clears the prior no-match status");
 });
 
 // The dead end belongs to the filters, not to an empty feed: with nothing
@@ -1002,9 +1004,9 @@ test("an empty feed keeps the never-posted state whatever the filters hold", asy
 
   timeFilter.value = "hour";
   timeFilter.dispatchEvent({ type: "change", bubbles: true });
-  const panel = page.document.querySelector(".empty-state");
-  assert.match(textOf(panel), /No posts on Social yet\./);
-  assert.doesNotMatch(textOf(panel), /No posts match/);
+  const status = page.document.querySelector("#feed-announcer");
+  assert.match(textOf(status), /No posts on Social yet\./);
+  assert.doesNotMatch(textOf(status), /No posts match/);
   assert.equal(page.document.querySelector("#post-feed").querySelectorAll("button").length, 0);
   assert.equal(feed.getPosts().length, 0);
 });
@@ -1029,7 +1031,7 @@ test("the summary makes no claim about the feed before a fetch has answered", as
   // panel says it, and the sentence stays out of its way.
   feed.seed([]);
   assert.equal(textOf(summary), "");
-  assert.match(textOf(page.document.querySelector(".empty-state")), /No posts on Social yet\./);
+  assert.match(textOf(page.document.querySelector("#feed-announcer")), /No posts on Social yet\./);
 });
 
 // The shipped markup only pins the count a visitor sees before the feed mounts.
@@ -1047,19 +1049,24 @@ test("the post count never claims zero posts before the feed has any answer", as
   // One wait, one sentence. The count, the panel over the empty grid, and the
   // connection line are all waiting on the same fetch, so a reader gets one
   // description of it and a screen reader hears one, not three.
-  assert.equal(page.document.querySelector("#post-feed").querySelectorAll(".state-title").length, 1);
-  assert.equal(textOf(page.document.querySelector("#post-feed").querySelector(".state-title")), "Loading the Social feed…");
+  const status = page.document.querySelector("#feed-announcer");
+  assert.equal((textOf(page.document.querySelector("#main-content")).match(/Loading the Social feed…/g) ?? []).length, 1);
+  assert.equal(textOf(status), "Loading the Social feed…");
 
   feed.setState("error");
   assert.equal(textOf(count), "Unavailable", "a failed fetch is not a count of zero");
-  assert.match(textOf(page.document.querySelector(".empty-state-error")), /Social posts could not be loaded\./);
+  assert.equal((textOf(page.document.querySelector("#main-content")).match(/Social posts could not be loaded\./g) ?? []).length, 1);
+  assert.match(textOf(status), /Social posts could not be loaded\./);
+  feed.seed([sample[0]]);
+  assert.equal(textOf(status), "", "populated results clear stale error copy");
 
   feed.seed([]);
   assert.equal(textOf(count), "0 posts", "an answered fetch with nothing in it is a real zero");
-  const empty = page.document.querySelector(".empty-state");
-  assert.match(textOf(empty), /No posts on Social yet\./);
-  assert.match(textOf(empty), /Publish a post, or create an image in Paint first\./);
-  assert.doesNotMatch(textOf(empty), /Loading|Connecting/);
+  assert.equal((textOf(page.document.querySelector("#main-content")).match(/No posts on Social yet\./g) ?? []).length, 1);
+  assert.match(textOf(status), /No posts on Social yet\./);
+  assert.match(textOf(status), /Publish a post, or create an image in Paint first\./);
+  feed.seed([sample[0]]);
+  assert.equal(textOf(status), "", "populated results clear stale empty copy");
 });
 
 test("demo seed contains only valid, demo-only posts", async () => {

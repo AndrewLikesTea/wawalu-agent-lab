@@ -513,49 +513,66 @@ export const FEED_LOADING_LINE = "Loading the Social feed…";
 // Posts always win over a pending or failed refresh: stale content beats a
 // spinner over content the reader could already see.
 export function renderPosts(container, posts, options = {}) {
-  const { noMatch = null, state = "ready" } = options;
+  const { noMatch = null, state = "ready", status = null } = options;
   const ordered = sortPostsNewestFirst(posts);
   container.replaceChildren();
   container.setAttribute("aria-busy", state === "loading" && ordered.length === 0 ? "true" : "false");
 
+  // The page-level status region is the only sentence that describes a feed
+  // state. The grid keeps only decoration and recovery controls, and a result
+  // explicitly empties the region so an earlier failure cannot survive a
+  // filter change or live refresh.
+  if (status) {
+    if (ordered.length > 0) status.textContent = "";
+    else if (state === "loading") status.textContent = FEED_LOADING_LINE;
+    else if (state === "error") status.textContent = "Social posts could not be loaded. The feed keeps retrying; check the connection status above.";
+    else if (noMatch) status.textContent = `${noMatchMessage(noMatch)} ${noMatchGuidance(noMatch.total)}`;
+    else status.textContent = `No posts on Social yet. ${NO_POSTS_GUIDANCE}`;
+  }
+
   if (ordered.length === 0) {
     if (state === "loading") {
       renderSkeleton(container);
-      const loading = document.createElement("div");
-      renderState(loading, { state: "loading", title: FEED_LOADING_LINE });
-      container.append(...loading.children);
+      if (!status) {
+        const loading = document.createElement("div");
+        renderState(loading, { state: "loading", title: FEED_LOADING_LINE });
+        container.append(...loading.children);
+      }
       return;
     }
     if (state === "error") {
-      const panel = renderState(container, {
-        state: "error",
-        label: "Social feed error",
-        value: "Social posts could not be loaded.",
-        description: "The feed keeps retrying. Check the connection status above.",
-      });
-      panel.classList.add("empty-state", "empty-state-error");
+      if (!status) {
+        const panel = renderState(container, {
+          state: "error", label: "Social feed error", value: "Social posts could not be loaded.",
+          description: "The feed keeps retrying. Check the connection status above.",
+        });
+        panel.classList.add("empty-state", "empty-state-error");
+      }
     } else if (noMatch) {
       // The filtered dead end. Its own words, its own label, and — unlike every
       // other state on this page — its own control, because this is the one
       // empty screen the reader can undo from where they are standing. A real
       // <button> (renderState builds one whenever an action carries no href),
       // after the message in DOM order, so Tab from the message reaches it.
-      const panel = renderState(container, {
-        state: "empty",
-        label: "Social filter result",
-        value: noMatchMessage(noMatch),
-        description: noMatchGuidance(noMatch.total),
-        action: { label: CLEAR_FILTERS_LABEL, onClick: noMatch.onClear },
+      const panel = status ? el("div", "empty-state") : renderState(container, {
+        state: "empty", label: "Social filter result", value: noMatchMessage(noMatch),
+        description: noMatchGuidance(noMatch.total), action: { label: CLEAR_FILTERS_LABEL, onClick: noMatch.onClear },
       });
+      if (status) {
+        const clear = el("button", "state-action", CLEAR_FILTERS_LABEL);
+        clear.type = "button";
+        clear.addEventListener("click", noMatch.onClear);
+        panel.append(clear);
+        container.append(panel);
+      }
       panel.classList.add("empty-state", "empty-state-filtered");
     } else {
-      const panel = renderState(container, {
-        state: "empty",
-        label: "Social feed status",
-        value: "No posts on Social yet.",
-        description: NO_POSTS_GUIDANCE,
-      });
-      panel.classList.add("empty-state");
+      if (!status) {
+        const panel = renderState(container, {
+          state: "empty", label: "Social feed status", value: "No posts on Social yet.", description: NO_POSTS_GUIDANCE,
+        });
+        panel.classList.add("empty-state");
+      }
     }
     return;
   }
@@ -735,6 +752,7 @@ export function mountSocialFeed(root, options = {}) {
   const count = root.querySelector("#post-count");
   const heading = root.querySelector("#feed-title");
   const summary = root.querySelector("#feed-summary");
+  const feedState = root.querySelector("#feed-announcer");
   const nameFilter = root.querySelector("#post-name-filter");
   const timeFilter = root.querySelector("#post-time-filter");
   const clearFilters = root.querySelector("#post-filter-clear");
@@ -768,7 +786,7 @@ export function mountSocialFeed(root, options = {}) {
     const noMatch = filtering && visible.length === 0 && posts.length > 0
       ? { ...named, total: posts.length, onClear: recoverFromNoMatch }
       : null;
-    renderPosts(feed, visible, { state, noMatch });
+    renderPosts(feed, visible, { state, noMatch, status: feedState });
     // The count answers "how many posts are there", which this page can only
     // answer once a fetch has come back. Until one has, it names which of
     // "still loading" and "could not load" is true instead of printing a zero
@@ -802,7 +820,7 @@ export function mountSocialFeed(root, options = {}) {
     // announces unreliably, if at all. Before a fetch answers the sentence is
     // empty rather than a zero: "Showing 0 posts" is a claim, and the page has
     // not looked yet.
-    if (summary) summary.textContent = answered ? feedSummarySentence(showing) : "";
+    if (summary) summary.textContent = answered && visible.length > 0 ? feedSummarySentence(showing) : "";
 
   };
 

@@ -14,6 +14,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { loadPage, textOf, tabSequence, pressKey, pressTab } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
+import { mountProfile } from "../src/profile.js";
 
 const PAGE_URL = new URL("../src/profile.html", import.meta.url);
 const SEED_ROUTE = "/social-demo-data.json";
@@ -95,6 +96,28 @@ const resultsHeading = (document) => textOf(document.querySelector("#grid-title"
 // The tiles the grid actually drew. Counted, never assumed: the whole point of
 // the heading's number is that it agrees with this.
 const tileCount = (document) => document.querySelectorAll(".profile-tile").length;
+
+test("People has one visible feed status and clears stale loading, error, and empty copy", async (t) => {
+  const page = await loadPage(PAGE_URL, {});
+  t.after(() => page.restore());
+  const { document } = page;
+  const mainText = () => textOf(document.querySelector("#main-content"));
+  const occurrences = (line) => mainText().split(line).length - 1;
+  const status = document.querySelector("#profile-announcer");
+  const profile = mountProfile(document, { posts: [], author: "Mina", state: "loading" });
+
+  assert.equal(status.classList.contains("visually-hidden"), false);
+  assert.equal(occurrences("Loading image posts…"), 1);
+  profile.setState("error");
+  assert.equal(occurrences("Image posts could not be loaded."), 1);
+  profile.seed([seedPost("p-21", "Mina")]);
+  assert.equal(textOf(status), "", "a populated refresh clears the prior error");
+
+  profile.seed([]);
+  assert.equal(occurrences("No image posts under this display name yet."), 1);
+  profile.seed([seedPost("p-22", "Mina")]);
+  assert.equal(textOf(status), "", "a populated refresh clears the prior empty state");
+});
 
 // The regions that speak to the reader on the page. The two polite live regions
 // inside the panel are left out on purpose: an announcement has no page around
@@ -377,12 +400,11 @@ test("an empty display name is named in prose once and counted once", async () =
     assert.equal(selectedChip(page)?.dataset.author, "Nova");
     const spoken = spokenRegions(document);
     const statements = spoken.flatMap((text) => text.match(/No image posts under this display name yet|\d+ image posts?/g) ?? []);
-    assert.deepEqual(statements, ["0 image posts", "No image posts under this display name yet"],
+    assert.deepEqual(statements, ["0 image posts"],
       `the page states the same thing twice: ${statements.join(" / ")}`);
-    // The named wording survives in the polite announcement only, which has no
-    // page around it to borrow a subject from.
-    assert.equal(spoken.filter((text) => text.includes("hasn’t posted an image yet")).length, 0);
-    assert.match(textOf(document.querySelector("#profile-announcer")), /^Nova hasn’t posted an image yet\./);
+    const status = document.querySelector("#profile-announcer");
+    assert.match(textOf(status), /^No image posts under this display name yet\./);
+    assert.equal((textOf(document.querySelector("#main-content")).match(/No image posts under this display name yet\./g) ?? []).length, 1);
     // An answered zero, in the same words a populated name gets, and it is the
     // heading that carries it: a reader entering the results region is told
     // whose posts are missing rather than that some feature is empty.
@@ -695,8 +717,7 @@ test("the display name is visible twice in the results region, and no more", asy
     // posted, just never a picture, and the counts carry that without a name.
     assert.match(textOf(document.querySelector("#profile-summary")), /^0 image posts · 1 post in total · last posted /);
     assert.match(textOf(document.querySelector(".profile-role")), /^A display name in the Social feed/);
-    // The announcement keeps the name, because it is heard away from the page.
-    assert.match(textOf(document.querySelector("#profile-announcer")), /Ari/);
+    assert.match(textOf(document.querySelector("#profile-announcer")), /^No image posts under this display name yet\./);
   } finally {
     page.restore();
   }

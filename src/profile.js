@@ -529,15 +529,49 @@ function renderError(container, onRetry) {
 // always win over a pending or failed refresh — stale content beats a spinner
 // over content the reader could already see.
 export function renderProfileGrid(container, posts, options = {}) {
-  const { state = "ready", onRetry = null, author = DEFAULT_AUTHOR } = options;
+  const { state = "ready", onRetry = null, author = DEFAULT_AUTHOR, status = null } = options;
   const ordered = sortNewestFirst(posts ?? []);
   container.replaceChildren();
   container.setAttribute("aria-busy", state === "loading" && ordered.length === 0 ? "true" : "false");
 
+  if (status) {
+    if (ordered.length > 0) status.textContent = "";
+    else if (state === "loading") status.textContent = loadingSummaryText();
+    else if (state === "error") status.textContent = "Image posts could not be loaded. Nothing was lost; try again.";
+    else status.textContent = `${EMPTY_SUMMARY_LINE} ${PROFILE_EMPTY_COPY.guidance}`;
+  }
+
   if (ordered.length === 0) {
-    if (state === "loading") renderSkeleton(container);
-    else if (state === "error") renderError(container, onRetry);
-    else renderEmpty(container, author);
+    if (state === "loading") {
+      if (status) {
+        const list = el("ul", "profile-grid profile-grid-skeleton");
+        list.setAttribute("role", "list");
+        list.setAttribute("aria-hidden", "true");
+        container.append(list);
+      } else renderSkeleton(container);
+    } else if (state === "error") {
+      if (status) {
+        const failed = el("div", "empty-state empty-state-error");
+        const retry = el("button", "empty-action", "Try again");
+        retry.type = "button";
+        if (onRetry) retry.addEventListener("click", onRetry);
+        failed.append(retry);
+        container.append(failed);
+      } else renderError(container, onRetry);
+    } else if (status) {
+      const empty = el("div", "empty-state");
+      const actions = el("div", "empty-actions");
+      const paint = el("a", "empty-action", PROFILE_EMPTY_COPY.actionLabel);
+      paint.href = profilePaintHref(author);
+      paint.target = "_blank";
+      paint.rel = "noopener";
+      paint.append(el("span", "new-tab-note", ` ${PROFILE_EMPTY_COPY.newTabNote}`));
+      const social = el("a", "empty-action empty-action-secondary", PROFILE_EMPTY_COPY.postActionLabel);
+      social.href = "/social.html";
+      actions.append(paint, social);
+      empty.append(actions);
+      container.append(empty);
+    } else renderEmpty(container, author);
     return;
   }
 
@@ -632,6 +666,9 @@ export function mountProfile(root, options = {}) {
     const mine = selectProfilePosts(posts, author);
     const summary = profileSummary(posts, author);
     renderProfileHeader(elements, author, summary);
+    // Empty/loading/error copy belongs to the dedicated feed status below. The
+    // summary is a count only when there are matching image posts.
+    if (elements.summary && mine.length === 0 && summary.total === 0) elements.summary.textContent = "";
     // The heading is written from `mine`, the same array the tiles are rendered
     // from three lines below, in this one update — so the name it states and the
     // number it states are the name and the number on screen, and neither can
@@ -659,10 +696,8 @@ export function mountProfile(root, options = {}) {
       state,
       onRetry: options.onRetry,
       author,
+      status: elements.announcer,
     });
-    if (elements.announcer && state === "ready") {
-      elements.announcer.textContent = profileAnnouncement(author, mine.length);
-    }
     if (options.onRender) options.onRender({ author, posts: mine, summary });
   };
 

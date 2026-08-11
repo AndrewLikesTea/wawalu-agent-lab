@@ -242,7 +242,7 @@
                  happening to the posts under it. -->
             <span id="profile-status">Connecting to live updates…</span>
           </div>
-          <p class="visually-hidden" id="profile-announcer" aria-live="polite" aria-atomic="true"></p>
+          <p class="feed-state" id="profile-announcer" role="status" aria-live="polite" aria-atomic="true">Loading image posts…</p>
 
           <!-- The grid container itself carries aria-busy while the first load is
                in flight; the tiles inside are ordinary links, so Tab, Enter, and
@@ -252,7 +252,7 @@
                label rather than a control, so the list carries the reference and
                a reader entering it hears "Newest first" against the posts it
                describes. No new tab stop is added above the results for it. -->
-          <div id="profile-grid" role="status" aria-live="polite" aria-atomic="true" aria-describedby="profile-order">Loading image posts…</div>
+          <div id="profile-grid" aria-describedby="profile-order"></div>
         </div>
       </section>
       </main>
