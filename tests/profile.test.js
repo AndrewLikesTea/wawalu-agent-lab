@@ -341,11 +341,12 @@ test("a loaded image settles to ready and keeps the fallback hidden", () => {
 
 test("the first load reserves a skeleton grid instead of a blank panel", () => {
   const container = createElement("div");
-  renderProfileGrid(container, [], { state: "loading", author: "Mina" });
+  const status = createElement("div");
+  renderProfileGrid(container, [], { state: "loading", author: "Mina", statusRegion: status });
   assert.equal(container.getAttribute("aria-busy"), "true");
   const skeleton = first(container, "profile-grid-skeleton");
   assert.equal(skeleton.getAttribute("aria-hidden"), "true", "placeholders announce nothing");
-  assert.equal(first(container, "profile-loading-message").textContent, "Retrieving image posts for Mina…");
+  assert.equal(status.textContent, "Loading image posts…");
   assert.ok(byClass(skeleton, "profile-tile-skeleton").length > 0);
   assert.equal(byClass(container, "empty-state").length, 0);
 });
@@ -581,9 +582,9 @@ test("the empty profile says it once across the whole page", () => {
   assert.equal(profileAnnouncement("Mina", 2), "Showing 2 image posts by Mina.");
 });
 
-test("the waiting line names image posts and the selected display name", () => {
-  assert.equal(loadingSummaryText(), "Retrieving image posts for Guest…");
-  assert.equal(loadingSummaryText("Zed"), "Retrieving image posts for Zed…");
+test("the waiting line names image posts once without duplicating the selected display name", () => {
+  assert.equal(loadingSummaryText(), "Loading image posts…");
+  assert.equal(loadingSummaryText("Zed"), "Loading image posts…");
 });
 
 test("the profile page's static copy does not drift from the module's", async () => {
@@ -594,9 +595,9 @@ test("the profile page's static copy does not drift from the module's", async ()
   const html = await readFile(new URL("../src/profile.html", import.meta.url), "utf8");
   assert.match(html, /id="profile-summary">Counting image posts…</);
   assert.doesNotMatch(html, new RegExp(emptySummaryText("Ari")));
-  // People's one retrieval status names both the content type and the selected
-  // display name.
-  assert.equal(loadingSummaryText("Ari"), "Retrieving image posts for Ari…");
+  // People's one retrieval status names the content type; the heading already
+  // names the selected display name.
+  assert.equal(loadingSummaryText("Ari"), "Loading image posts…");
   assert.match(html, /id="profile-status">Connecting to live updates…</);
   assert.equal((html.match(new RegExp(loadingSummaryText("Ari"), "g")) ?? []).length, 1,
     "People renders one authoritative loading message");

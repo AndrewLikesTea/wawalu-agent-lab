@@ -258,10 +258,46 @@ test("an explicit name wins even when it has no image posts", async () => {
       assert.equal(textOf(document.querySelector("#profile-name")), "Active display-name filter: Ari");
       assert.equal(document.querySelectorAll(".profile-tile").length, 0);
       assert.equal(document.querySelectorAll(".empty-state").length, 1);
+      const status = document.querySelector("#profile-feed-status");
+      assert.equal(status.hidden, false);
+      assert.equal(document.querySelectorAll("#profile-feed-status").length, 1);
+
+      chipFor(page, "Zed").click();
+      assert.equal(document.querySelectorAll(".profile-tile").length, 2);
+      assert.equal(status.hidden, true, "switching from an empty author hides the stale status");
+      assert.equal(textOf(status), "", "empty guidance cannot survive beside another author's posts");
     } finally {
       page.restore();
     }
   }
+});
+
+test("People uses one status node for loading, error, and recovery to live posts", async (t) => {
+  const routes = { [SEED_ROUTE]: { posts: [] } };
+  const page = await loadPage(PAGE_URL, { routes });
+  const savedInterval = globalThis.setInterval;
+  let refresh;
+  globalThis.setInterval = (callback) => { refresh = callback; return 0; };
+  t.after(() => { globalThis.setInterval = savedInterval; page.restore(); });
+
+  const status = page.document.querySelector("#profile-feed-status");
+  assert.equal(textOf(status), "Loading image posts…");
+  assert.equal(page.document.querySelectorAll("#profile-feed-status").length, 1);
+
+  await importPageModule("/profile-page.js");
+  await waitFor(() => page.document.documentElement.dataset.shiplogProfile === "ready", "the failed first load settles");
+  assert.equal(status.querySelectorAll(".empty-state-error").length, 1);
+  assert.match(textOf(status), /Image posts could not be loaded/);
+  assert.match(textOf(status), /try again/i);
+
+  routes[LIVE_ROUTE] = { posts: [{
+    id: "live-image", author: "Mina", content: "Recovered.", timestamp: "2026-07-18T12:00:00.000Z",
+    image_url: "/media/Mina.svg", image_alt: "A drawing signed Mina", image_width: 1200, image_height: 900,
+  }] };
+  await refresh();
+  assert.equal(page.document.querySelectorAll(".profile-tile").length, 1);
+  assert.equal(status.hidden, true, "live refresh hides the failed status after posts arrive");
+  assert.equal(textOf(status), "");
 });
 
 test("every entry says how many image posts that display name has, and which one is showing", async () => {

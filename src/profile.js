@@ -315,8 +315,7 @@ export function emptySummaryText(author) {
 // the frame before hydration, where it once shipped "Ari hasn't posted an image
 // yet", a verdict that was false for the seeded feed.
 export function loadingSummaryText(author = DEFAULT_AUTHOR) {
-  const name = String(author ?? "").trim() || DEFAULT_AUTHOR;
-  return `Retrieving image posts for ${name}…`;
+  return "Loading image posts…";
 }
 
 // The counts line when the selected display name has nothing to show. It states
@@ -466,7 +465,6 @@ function renderTile(post, index) {
 // First-load placeholders. Hidden from assistive tech because the live region on
 // the page announces the real status; a shimmering box announces nothing.
 function renderSkeleton(container, author, count = 6) {
-  container.append(el("p", "profile-loading-message", loadingSummaryText(author)));
   const list = el("ul", "profile-grid profile-grid-skeleton");
   list.setAttribute("role", "list");
   list.setAttribute("aria-hidden", "true");
@@ -520,16 +518,27 @@ function renderError(container, onRetry) {
 // always win over a pending or failed refresh — stale content beats a spinner
 // over content the reader could already see.
 export function renderProfileGrid(container, posts, options = {}) {
-  const { state = "ready", onRetry = null, author = DEFAULT_AUTHOR } = options;
+  const { state = "ready", onRetry = null, author = DEFAULT_AUTHOR, statusRegion = container } = options;
   const ordered = sortNewestFirst(posts ?? []);
   container.replaceChildren();
   container.setAttribute("aria-busy", state === "loading" && ordered.length === 0 ? "true" : "false");
+  if (statusRegion !== container) {
+    statusRegion.replaceChildren();
+    statusRegion.hidden = false;
+  }
 
   if (ordered.length === 0) {
-    if (state === "loading") renderSkeleton(container, author);
-    else if (state === "error") renderError(container, onRetry);
-    else renderEmpty(container, author);
+    if (state === "loading") {
+      statusRegion.textContent = loadingSummaryText(author);
+      renderSkeleton(container, author);
+    } else if (state === "error") renderError(statusRegion, onRetry);
+    else renderEmpty(statusRegion, author);
     return;
+  }
+
+  if (statusRegion !== container) {
+    statusRegion.replaceChildren();
+    statusRegion.hidden = true;
   }
 
   // `role="list"` is explicit because the grid drops list-style, which drops
@@ -604,6 +613,7 @@ export function mountProfile(root, options = {}) {
     summary: root.querySelector("#profile-summary"),
     heading: root.querySelector("#grid-title"),
     status: root.querySelector("#profile-status"),
+    feedStatus: root.querySelector("#profile-feed-status"),
     announcer: root.querySelector("#profile-announcer"),
     picker: root.querySelector("#profile-author"),
     // The one route into Paint: the invitation above the grid. It is a real
@@ -650,6 +660,7 @@ export function mountProfile(root, options = {}) {
       state,
       onRetry: options.onRetry,
       author,
+      statusRegion: elements.feedStatus ?? grid,
     });
     if (elements.announcer && state === "ready") {
       elements.announcer.textContent = profileAnnouncement(author, mine.length);

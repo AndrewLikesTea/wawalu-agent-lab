@@ -505,7 +505,7 @@ const NO_POSTS_GUIDANCE = "Publish a post, or create an image in Paint first.";
 // People is not one of them. It waits on the same fetch but shows one display
 // name's image posts, so it says that instead (loadingSummaryText,
 // src/profile.js); this sentence stays Social's.
-export const FEED_LOADING_LINE = "Retrieving posts…";
+export const FEED_LOADING_LINE = "Loading the Social feed…";
 
 // `state` separates "we have nothing yet because we are still fetching" from
 // "we have nothing because there is nothing" and from "we have nothing because
@@ -513,21 +513,25 @@ export const FEED_LOADING_LINE = "Retrieving posts…";
 // Posts always win over a pending or failed refresh: stale content beats a
 // spinner over content the reader could already see.
 export function renderPosts(container, posts, options = {}) {
-  const { noMatch = null, state = "ready" } = options;
+  const { noMatch = null, state = "ready", statusRegion = container } = options;
   const ordered = sortPostsNewestFirst(posts);
   container.replaceChildren();
   container.setAttribute("aria-busy", state === "loading" && ordered.length === 0 ? "true" : "false");
+  if (statusRegion !== container) {
+    statusRegion.replaceChildren();
+    statusRegion.hidden = false;
+  }
 
   if (ordered.length === 0) {
     if (state === "loading") {
       renderSkeleton(container);
       const loading = document.createElement("div");
       renderState(loading, { state: "loading", title: FEED_LOADING_LINE });
-      container.append(...loading.children);
+      statusRegion.append(...loading.children);
       return;
     }
     if (state === "error") {
-      const panel = renderState(container, {
+      const panel = renderState(statusRegion, {
         state: "error",
         label: "Social feed error",
         value: "Social posts could not be loaded.",
@@ -540,7 +544,7 @@ export function renderPosts(container, posts, options = {}) {
       // empty screen the reader can undo from where they are standing. A real
       // <button> (renderState builds one whenever an action carries no href),
       // after the message in DOM order, so Tab from the message reaches it.
-      const panel = renderState(container, {
+      const panel = renderState(statusRegion, {
         state: "empty",
         label: "Social filter result",
         value: noMatchMessage(noMatch),
@@ -549,7 +553,7 @@ export function renderPosts(container, posts, options = {}) {
       });
       panel.classList.add("empty-state", "empty-state-filtered");
     } else {
-      const panel = renderState(container, {
+      const panel = renderState(statusRegion, {
         state: "empty",
         label: "Social feed status",
         value: "No posts on Social yet.",
@@ -558,6 +562,11 @@ export function renderPosts(container, posts, options = {}) {
       panel.classList.add("empty-state");
     }
     return;
+  }
+
+  if (statusRegion !== container) {
+    statusRegion.replaceChildren();
+    statusRegion.hidden = true;
   }
 
   // `role="list"` is explicit because the grid removes list-style, which drops
@@ -724,6 +733,7 @@ export function mountComposerDisclosure(root) {
 // Returns a small API so the page can seed and re-render with fresh data.
 export function mountSocialFeed(root, options = {}) {
   const feed = root.querySelector("#post-feed");
+  const feedState = root.querySelector("#feed-state");
   const form = root.querySelector("#post-form");
   const bodyInput = root.querySelector("#post-body");
   const authorInput = root.querySelector("#post-author");
@@ -768,7 +778,7 @@ export function mountSocialFeed(root, options = {}) {
     const noMatch = filtering && visible.length === 0 && posts.length > 0
       ? { ...named, total: posts.length, onClear: recoverFromNoMatch }
       : null;
-    renderPosts(feed, visible, { state, noMatch });
+    renderPosts(feed, visible, { state, noMatch, statusRegion: feedState ?? feed });
     // The count answers "how many posts are there", which this page can only
     // answer once a fetch has come back. Until one has, it names which of
     // "still loading" and "could not load" is true instead of printing a zero
