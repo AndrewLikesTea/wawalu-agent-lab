@@ -152,7 +152,7 @@ export function finopsFirstScreenExpectations() {
     }),
     provenance: Object.freeze({
       text: pricingProvenanceChip(BUNDLED_PRICING_PROVENANCE),
-      band: String(BUNDLED_PRICING_PROVENANCE.rating),
+      band: BUNDLED_PRICING_PROVENANCE.confidence.key,
     }),
     action: Object.freeze({ label: action.nextAction, href: action.href }),
   });

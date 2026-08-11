@@ -214,9 +214,9 @@ export function firstScreenEdits(bundled) {
     // moves when a declared rate does.
     edit("recoverable pricing provenance",
       '<span class="figure-source-state" id="finops-recoverable-provenance"'
-      + ' data-band="0">Pricing provenance: not scored</span>',
+      + ' data-band="unscored">Pricing provenance: not scored</span>',
       '<span class="figure-source-state" id="finops-recoverable-provenance"'
-      + ` data-band="${escapeAttribute(String(BUNDLED_PRICING_PROVENANCE.rating))}">`
+      + ` data-band="${escapeAttribute(BUNDLED_PRICING_PROVENANCE.confidence.key)}">`
       + `${escapeText(pricingProvenanceChip(BUNDLED_PRICING_PROVENANCE))}</span>`),
     authoredText("recoverable pricing provenance reason", "finops-recoverable-provenance-reason",
       "Whose prices this figure uses has not been scored for this document.",

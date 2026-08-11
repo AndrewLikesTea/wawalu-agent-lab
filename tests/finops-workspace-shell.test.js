@@ -479,7 +479,7 @@ test("the open destination is told apart by more than a hue, and every door take
 
 /* --------------------------- the carried figures --------------------------- */
 
-test("the five figures a leader is judging against survive leaving the answer", async () => {
+test("the answer's auditable figures survive across all four destinations", async () => {
   const { document } = await shelled();
   const context = byId(document, WORKSPACE_SHELL_IDS.context);
   assert.equal(context.hidden, true, "the answer shows the brief and a copy of it");
@@ -494,6 +494,8 @@ test("the five figures a leader is judging against survive leaving the answer", 
   assert.ok(carried.includes("33.2%"), `the benchmark share is not carried: ${carried}`);
   assert.ok(carried.includes("51,254 USD"), "the impact figure is not carried");
   assert.ok(carried.includes("moderate"), "the confidence band is not carried");
+  assert.ok(carried.includes("Pricing provenance: Limited confidence (67/100)"),
+    "the shared pricing-confidence rubric is not carried");
   assert.ok(carried.includes(loaded.record.finding.whyItMatters), "why it matters is not carried");
   assert.ok(carried.includes(loaded.record.finding.provenance.sourceLabel),
     "the provenance is not carried");

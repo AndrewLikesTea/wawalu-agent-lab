@@ -60,10 +60,11 @@
 
 import { loadExampleDataset } from "./example-dataset.js";
 import { FINOPS_RUBRIC, sanitizeFinopsRecommendation } from "./finops-evaluation.js";
+import { FINOPS_EXECUTIVE_CONFIDENCE } from "./finops-executive-vocabulary.js";
 import { DEFAULT_REFERENCE_CARD, RATE_CARD_FIELDS, isCalendarDate } from "./finops-rate-card-contract.js";
 
 /** Bump when a weight, a band boundary, or what a band means changes. Copy may be reworded. */
-export const PRICING_PROVENANCE_VERSION = "finops-pricing-provenance/1.0.0";
+export const PRICING_PROVENANCE_VERSION = "finops-pricing-provenance/2.0.0";
 
 /**
  * The destinations this page's analysis actually prices, read off the reference
@@ -83,26 +84,42 @@ const QUOTED_TEXT_MAX_CHARS = 48;
  * The 0–4 rating words. They are FINOPS_RUBRIC's own scale anchors, first word
  * each, so a provenance band and a rubric dimension are read in one vocabulary.
  */
-export const PROVENANCE_RATING_LABEL = Object.freeze({
-  0: "Absent", 1: "Weak", 2: "Partial", 3: "Adequate", 4: "Strong",
-});
-
 /**
- * Sub-score floors for each rating, best first, each set against a case rather
- * than by taste. ASSUMPTION: 85 sits above 73.0, which is what a card that is
- * complete, current and fully covering scores from an UNCITED contract, so Strong
- * is reachable only with a citable source. ASSUMPTION: 70 sits above 66.8, which
- * is what the published-list reference card scores, so "we priced at list" reads
- * as Partial and never as Adequate. 45 and 20 divide what is left: half the
- * destinations covered with half the fields filled in lands in Weak.
+ * Exhaustive score-to-confidence rubric. Lower bounds are inclusive; upper
+ * bounds are exclusive except 100, which is inclusive. The existing score and
+ * weights do not change here.
+ *
+ * ASSUMPTION (high, 85): 85 is above the 73 points available to a complete,
+ * current, fully covering but uncited contract, so independently checkable
+ * source evidence is required.
+ * ASSUMPTION (moderate, 70): 70 is above the 66.8 points earned by the bundled
+ * published-list card, so a generic list price cannot be described as usable
+ * executive evidence without a material limitation.
+ * ASSUMPTION (limited, 45): 45 requires nearly half of all weighted evidence;
+ * below that, missing evidence dominates evidence present.
+ * ASSUMPTION (insufficient, 0): every valid numeric score must receive an
+ * explainable label, but a score below 45 must not imply decision readiness.
  */
-export const RATING_FLOORS = Object.freeze([
-  Object.freeze({ rating: 4, floor: 85 }),
-  Object.freeze({ rating: 3, floor: 70 }),
-  Object.freeze({ rating: 2, floor: 45 }),
-  Object.freeze({ rating: 1, floor: 20 }),
-  Object.freeze({ rating: 0, floor: 0 }),
+export const PRICING_CONFIDENCE_BANDS = Object.freeze([
+  Object.freeze({ key: "high", lower: 85, lowerInclusive: true, upper: 100, upperInclusive: true,
+    assumption: "A high label requires citable source evidence; completeness alone cannot earn it." }),
+  Object.freeze({ key: "moderate", lower: 70, lowerInclusive: true, upper: 85, upperInclusive: false,
+    assumption: "A usable basis may carry one material limitation, but published list pricing alone stays below it." }),
+  Object.freeze({ key: "limited", lower: 45, lowerInclusive: true, upper: 70, upperInclusive: false,
+    assumption: "At least 45% of weighted evidence must be present before the basis is called directional." }),
+  Object.freeze({ key: "insufficient", lower: 0, lowerInclusive: true, upper: 45, upperInclusive: false,
+    assumption: "When missing weighted evidence is the majority, the label must withhold decision readiness." }),
 ]);
+
+export function pricingConfidenceFor(score) {
+  if (typeof score !== "number" || !Number.isFinite(score) || score < 0 || score > 100) return null;
+  const band = PRICING_CONFIDENCE_BANDS.find((entry) => score >= entry.lower
+    && (score < entry.upper || (entry.upperInclusive && score <= entry.upper)));
+  if (!band) return null;
+  const words = FINOPS_EXECUTIVE_CONFIDENCE[band.key];
+  return Object.freeze({ ...band, label: words.label, wording: words.wording,
+    whatWouldRaiseConfidence: words.raise });
+}
 
 // ---------------------------------------------------------------------------
 // Staleness, in months, with the cut points stated.
@@ -450,9 +467,6 @@ function ageReason(observed) {
 // The sub-score.
 // ---------------------------------------------------------------------------
 
-const ratingFor = (subScore) =>
-  RATING_FLOORS.find((entry) => subScore >= entry.floor)?.rating ?? 0;
-
 /**
  * Score one declaration's provenance. One sub-score out, always.
  *
@@ -492,7 +506,7 @@ export function scorePricingProvenance(
   });
   const unrounded = criteria.reduce((sum, item) => sum + item.contribution, 0);
   const subScore = Math.round(unrounded * 10) / 10;
-  const rating = ratingFor(subScore);
+  const confidence = pricingConfidenceFor(subScore);
   // THE BINDING CRITERION — the one the sentence beside the money is about.
   //
   // The rule: the criterion losing the most points, with ties broken on the
@@ -509,8 +523,11 @@ export function scorePricingProvenance(
     version: PRICING_PROVENANCE_VERSION,
     subScore,
     scaleMaximum: 100,
-    rating,
-    ratingLabel: PROVENANCE_RATING_LABEL[rating],
+    confidence,
+    // Compatibility aliases retain the stored score contract while every
+    // reader-facing word comes from the single executive vocabulary.
+    rating: Object.freeze({ high: 4, moderate: 3, limited: 2, insufficient: 0 })[confidence.key],
+    ratingLabel: confidence.label,
     ratingScaleMaximum: FINOPS_RUBRIC.scale.max,
     declared: observed.declared,
     observed,
@@ -524,7 +541,7 @@ export function scorePricingProvenance(
 
 /** The headline fact, beside the figure: a word and a number, never a colour alone. */
 export const pricingProvenanceChip = (verdict) =>
-  `Pricing provenance: ${verdict?.ratingLabel ?? PROVENANCE_RATING_LABEL[0]} `
+  `Pricing provenance: ${verdict?.confidence?.label ?? FINOPS_EXECUTIVE_CONFIDENCE.insufficient.label} `
   + `(${(verdict?.subScore ?? 0).toFixed(0)}/100)`;
 
 /** The one sentence under the figure: why the sub-score is not higher. */
@@ -537,11 +554,14 @@ export const pricingProvenanceSummary = (verdict) =>
  */
 export function pricingProvenanceDetail(verdict) {
   const scored = verdict ?? scorePricingProvenance({});
-  return `Pricing provenance scores ${scored.subScore.toFixed(1)} of 100 — ${scored.ratingLabel} — `
-    + "from four banded checks on the rate declaration, never on the rates themselves. "
+  return `Pricing provenance scores ${scored.subScore.toFixed(1)} of 100 — ${scored.confidence.label}. `
+    + `${scored.confidence.wording} What would raise confidence: `
+    + `${scored.confidence.whatWouldRaiseConfidence} Audit inputs: `
     + scored.criteria
-      .map((item) => `${item.label} — ${item.bandLabel}: ${item.reason}`)
-      .join(" ");
+      .map((item) => `${item.label} — ${item.bandLabel}; weight ${(item.weight * 100).toFixed(0)}%; `
+        + `input ${item.points}; contribution ${item.contribution.toFixed(2)}. ${item.reason}`)
+      .join(" ")
+    + ` Total arithmetic: ${scored.arithmetic}`;
 }
 
 /**
