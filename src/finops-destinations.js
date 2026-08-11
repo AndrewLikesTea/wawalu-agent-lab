@@ -90,6 +90,10 @@
 // nothing about this registry, which is what keeps the two out of a cycle and
 // lets the fixture join them without either side vouching for itself.
 import { applyDestinationProvenance, destinationProvenanceText } from "./finops-headline-provenance.js";
+// The reading ORDER and each row's one metric with its explicit window (#1611).
+// One way only, for the same reason: that module restates nothing this one
+// computes, so the two cannot cycle and the pin test joins them.
+import { FINOPS_WORKSPACE_INDEX, indexRowText } from "./finops-workspace-index.js";
 
 // The one interrogative sentence at the top of the page, and the id of the
 // heading that carries it. #1325 asked for "How much of our AI spend can we
@@ -391,25 +395,20 @@ export function frontDoorEvidence(front = FINOPS_FRONT_DOOR, destinations = FINO
 }
 
 /**
- * One destination's material metric, with its own source. The question it
- * answers is NOT in here any more (#1327): the question is the door's visible
- * label, read where a reader chooses, and repeating it in the working would be
- * the same sentence twice on one screen.
+ * The working behind the number.
+ *
+ * The per-destination figures that used to sit here are GONE (#1611), and their
+ * absence is the point: each one is now stated in its own row, above, visible on
+ * load. Keeping both would print the same fact twice on one screen — once where
+ * a reader chooses and once behind a shut triangle — which is exactly the
+ * "one statement per fact" rule this region is held to.
  */
-export const destinationStateText = (destination) =>
-  `${destination.metric.label}: ${destination.metric.display} · ${destination.metric.provenance}`;
-
-/** The working behind the number, and the source under each destination. */
-export const frontDoorWorking = (front = FINOPS_FRONT_DOOR, destinations = FINOPS_DESTINATIONS) =>
+export const frontDoorWorking = (front = FINOPS_FRONT_DOOR) =>
   Object.freeze([
     Object.freeze({
       term: `How ${front.figure.display} was computed`,
       detail: `${front.figure.label} sums the quarter-to-date cost of every workload flagged as addressable by at least one shipped lever. One qualifies, at $5,200 a month: 5,200 x 3 = 15,600, rounded once after the arithmetic and shown as ${front.figure.display}. It is a subset of spend, never a projection, and never spend already recovered.`,
     }),
-    ...destinations.map((destination) => Object.freeze({
-      term: destination.name,
-      detail: destinationStateText(destination),
-    })),
   ]);
 
 /**
@@ -449,12 +448,22 @@ export const frontDoorWorking = (front = FINOPS_FRONT_DOOR, destinations = FINOP
  * itself through `aria-labelledby`, because a heading would be a second question
  * at headline weight directly under the page's one question.
  */
-export function frontDoorMarkup(indent = "      ", front = FINOPS_FRONT_DOOR, destinations = FINOPS_DESTINATIONS) {
+export function frontDoorMarkup(
+  indent = "      ", front = FINOPS_FRONT_DOOR, destinations = FINOPS_DESTINATIONS,
+  index = FINOPS_WORKSPACE_INDEX,
+) {
   const pad = (depth) => `${indent}${"  ".repeat(depth)}`;
   const finding = frontDoorFinding(front, "ready");
   const row = (entry, depth) =>
     `${pad(depth)}<div><dt>${escape(entry.term)}</dt><dd>${escape(entry.detail)}</dd></div>`;
-  const items = destinations.map((destination) => {
+  // THE ROWS ARE THE INDEX'S ORDER, not the registry's (#1611). The registry is
+  // authored in the order the page's prose introduces its destinations; a leader
+  // asking "which screen do I open right now?" needs them by urgency, and the
+  // ordering is the index's to state. A slug the index does not carry is not
+  // drawn at all rather than appended in some other order.
+  const items = index.map((indexed) => {
+    const destination = destinations.find((entry) => entry.slug === indexed.slug);
+    if (!destination) return null;
     const attributes = [
       `class="${destination.prioritized ? "stand-action" : "workspace-dest"}"`,
       `href="${destination.href}"`,
@@ -473,11 +482,18 @@ export function frontDoorMarkup(indent = "      ", front = FINOPS_FRONT_DOOR, de
     // shipped for the line above it, so no stylesheet rule is added.
     const provenance = `<span class="front-door-question" data-destination-provenance="${destination.slug}">`
       + `${escape(destinationProvenanceText(destination.slug))}</span>`;
+    // THE INDEX LINE (#1611): how bad it is, over what window, and the one thing
+    // to do next — inside the row, visible on load. It reuses `.front-door-question`,
+    // the muted subordinate weight already shipped for the line above it, so no
+    // stylesheet rule is added. It is a span and not a control: this page's first
+    // screen has no spare tab stop, and the row was already the link.
+    const reading = `<span class="front-door-question" data-index-reading="${indexed.slug}">`
+      + `${escape(indexRowText(indexed))}</span>`;
     return `${pad(3)}<li class="workspace-nav-item"><a ${attributes}>`
       + `<strong class="workspace-dest-name">${escape(destination.name)}</strong> `
       + `<span class="front-door-question">${escape(destination.question)}</span>`
-      + `${provenance}${recommended}</a></li>`;
-  });
+      + `${reading}${provenance}${recommended}</a></li>`;
+  }).filter(Boolean);
   return [
     `${indent}<section class="finops-front-door" id="finops-front-door" data-subordinate="true" data-workspace-frame="true" data-state="${finding.state}" aria-labelledby="finops-front-door-label">`,
     `${pad(1)}<p class="eyebrow" id="finops-front-door-label">Where to go next · ${destinations.length} destinations</p>`,
@@ -491,9 +507,9 @@ export function frontDoorMarkup(indent = "      ", front = FINOPS_FRONT_DOOR, de
     `${pad(2)}</ol>`,
     `${pad(1)}</nav>`,
     `${pad(1)}<details class="figure-source" id="finops-front-door-working" data-source="derived" data-disclosure="collapsed">`,
-    `${pad(2)}<summary class="figure-source-summary" id="finops-front-door-working-summary" aria-expanded="false" aria-controls="finops-front-door-working-detail"><span class="figure-source-state" data-disclosure="collapsed"><span class="figure-source-shape" aria-hidden="true">▸</span> Show the working behind ${escape(front.figure.display)} and each destination's own figure</span></summary>`,
+    `${pad(2)}<summary class="figure-source-summary" id="finops-front-door-working-summary" aria-expanded="false" aria-controls="finops-front-door-working-detail"><span class="figure-source-state" data-disclosure="collapsed"><span class="figure-source-shape" aria-hidden="true">▸</span> Show the working behind ${escape(front.figure.display)}</span></summary>`,
     `${pad(2)}<dl class="figure-source-detail" id="finops-front-door-working-detail">`,
-    ...frontDoorWorking(front, destinations).map((entry) => row(entry, 3)),
+    ...frontDoorWorking(front).map((entry) => row(entry, 3)),
     `${pad(2)}</dl>`,
     `${pad(1)}</details>`,
     `${indent}</section>`,
@@ -510,6 +526,7 @@ export function frontDoorMarkup(indent = "      ", front = FINOPS_FRONT_DOOR, de
  */
 export function applyFinopsFrontDoor(
   document, front = FINOPS_FRONT_DOOR, destinations = FINOPS_DESTINATIONS, state = "ready",
+  index = FINOPS_WORKSPACE_INDEX,
 ) {
   applyFrontDoorState(document, front, state);
   const rows = (host, entries) => {
@@ -527,7 +544,7 @@ export function applyFinopsFrontDoor(
   rows(document?.getElementById?.("finops-front-door-evidence"),
     frontDoorEvidence(front, destinations));
   rows(document?.getElementById?.("finops-front-door-working-detail"),
-    frontDoorWorking(front, destinations));
+    frontDoorWorking(front));
 
   const list = document?.getElementById?.("finops-front-door-list");
   if (!list) return false;
@@ -546,6 +563,11 @@ export function applyFinopsFrontDoor(
     if (name) name.textContent = destination.name;
     const question = item.querySelector?.(".front-door-question");
     if (question) question.textContent = destination.question;
+    // The index line, repainted from the index rather than from the registry:
+    // the metric, its window and the next action are that module's statement.
+    const reading = item.querySelector?.(`[data-index-reading="${destination.slug}"]`);
+    const indexed = index.find((entry) => entry.slug === destination.slug);
+    if (reading && indexed) reading.textContent = indexRowText(indexed);
   }
   // The provenance line last, from the shared computation rather than from the
   // registry: the registry holds the number a destination states, and the

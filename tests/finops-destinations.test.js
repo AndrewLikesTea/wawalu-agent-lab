@@ -13,9 +13,10 @@ import { readFile } from "node:fs/promises";
 import {
   CONFIDENCE_LEVELS, DESTINATION_CEILING, FINOPS_DESTINATIONS, FINOPS_FRONT_DOOR,
   FRONT_DOOR_QUESTION, FRONT_DOOR_QUESTION_ID,
-  applyFinopsFrontDoor, destinationStateText, frontDoorEvidence,
+  applyFinopsFrontDoor, frontDoorEvidence,
   frontDoorMarkup, prioritizedDestination, prioritizedSlug,
 } from "../src/finops-destinations.js";
+import { FINOPS_WORKSPACE_INDEX, indexRowText } from "../src/finops-workspace-index.js";
 import { parseHtml, textOf } from "./support/browser.js";
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
@@ -118,10 +119,18 @@ test("the page ships the registry's markup and nothing hand-written beside it", 
   // rendered region: a second copy is a copy that can drift.
   const outside = page.split(rendered).join("");
   for (const entry of FINOPS_DESTINATIONS) {
-    assert.equal(outside.includes(destinationStateText(entry)), false,
-      `${entry.slug}'s line is authored once`);
     assert.equal(outside.includes(entry.question), false,
       `${entry.slug}'s question is authored once`);
+  }
+  // Each row's metric, its window and its next action are stated once, in the
+  // row, and nowhere else on the page — including inside this region's own
+  // working disclosure, which no longer restates them (#1611).
+  for (const row of FINOPS_WORKSPACE_INDEX) {
+    assert.equal(outside.includes(indexRowText(row)), false,
+      `${row.slug}'s index line is authored once`);
+    assert.equal((page.match(new RegExp(row.nextAction.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g")) ?? []).length,
+      row.slug === prioritizedDestination().slug ? 2 : 1,
+      `${row.slug}'s next action is stated once, plus the page's one recommended action`);
   }
   assert.equal(outside.includes(FINOPS_FRONT_DOOR.boundary), false,
     "the synthetic-data boundary is stated once, at the front door");
@@ -142,9 +151,15 @@ test("the rendered front door carries three operable doors and one recommendatio
   const document = parseHtml(await read("src/evolution.html"));
   const list = document.getElementById("finops-front-door-list");
   const doors = [...list.querySelectorAll("[data-front-door-slug]")];
-  assert.deepEqual(doors.map((door) => door.dataset?.frontDoorSlug), SLUGS);
+  // The DOORS are in the index's urgency order, which is not the registry's
+  // authoring order (#1611): the registry is ordered as the page's prose
+  // introduces its destinations, the doors as a leader should read them.
+  assert.deepEqual(doors.map((door) => door.dataset?.frontDoorSlug),
+    FINOPS_WORKSPACE_INDEX.map((row) => row.slug));
+  assert.deepEqual([...doors.map((door) => door.dataset?.frontDoorSlug)].sort(), [...SLUGS].sort(),
+    "the doors are the registry's destinations, reordered and not re-chosen");
   assert.deepEqual(doors.map((door) => door.getAttribute("href")),
-    FINOPS_DESTINATIONS.map((entry) => entry.href),
+    FINOPS_WORKSPACE_INDEX.map((row) => row.href),
     "every door is a real anchor with a real href before any script runs");
   assert.equal(
     doors.filter((door) => door.dataset?.frontDoorPrioritized === "true").length, 1,
