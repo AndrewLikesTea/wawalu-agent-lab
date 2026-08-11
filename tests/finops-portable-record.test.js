@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 
 import { FINOPS_WORKSPACE_KEY } from "../src/finops-workspace-contract.js";
 import { ORG_UNIT_LABEL_STORAGE_KEY } from "../src/org-unit-labels.js";
@@ -7,7 +8,7 @@ import { RETAINED_STATE_KEY } from "../src/finops-retained-state.js";
 import { MONTHLY_ACTION_KEY } from "../src/monthly-department-action-store.js";
 import {
   FINOPS_PORTABLE_VERSION, buildFinopsPortableRecord, importFinopsPortableRecord,
-  parseFinopsPortableRecord, serializeFinopsPortableRecord,
+  parseFinopsPortableRecord, serializeFinopsPortableRecord, sourceCompatibility,
 } from "../src/finops-portable-record.js";
 
 const NOW = new Date("2026-08-11T12:00:00.000Z");
@@ -66,7 +67,11 @@ test("portable record round-trips summaries, labels, declared rates, and commitm
   const parsed = parseFinopsPortableRecord(serializeFinopsPortableRecord(source));
   assert.equal(parsed.ok, true, parsed.errors?.join("\n"));
   const target = storageOf();
-  const result = importFinopsPortableRecord(target, parsed, { now: NOW });
+  assert.equal(parsed.compatibility.state, "compatible");
+  const review = importFinopsPortableRecord(target, parsed, { now: NOW });
+  assert.equal(review.code, "source_review_required");
+  assert.equal(review.replaces, false, "an empty browser has nothing to replace");
+  const result = importFinopsPortableRecord(target, parsed, { confirm: true, now: NOW });
   assert.equal(result.ok, true);
   assert.deepEqual(buildFinopsPortableRecord(target), buildFinopsPortableRecord(source));
 });
@@ -94,14 +99,78 @@ test("malformed JSON, unknown versions, invalid values, and prohibited fields ar
   }
 });
 
+test("source declarations are minimal, deterministic, and require review before reuse", () => {
+  const record = buildFinopsPortableRecord(seeded());
+  assert.deepEqual(record.sourceDeclarations.map((entry) => entry.role), ["provider", "hris"]);
+  assert.ok(record.sourceDeclarations.every((entry) => entry.reuseState === "review_required"));
+  const declaration = record.sourceDeclarations[0];
+  for (const forbidden of ["token", "credential", "identifier", "export", "sourceInstanceId", "records"]) {
+    assert.equal(Object.hasOwn(declaration, forbidden), false);
+  }
+});
+
+test("compatibility validation covers compatible, stale, unsupported, and prohibited declarations", () => {
+  const compatible = buildFinopsPortableRecord(seeded());
+  assert.equal(sourceCompatibility(compatible).state, "compatible");
+
+  const stale = structuredClone(compatible);
+  stale.sourceDeclarations[0].mappingVersion = "provider-billing-to-finops/0.9.0";
+  const staleParsed = parseFinopsPortableRecord(JSON.stringify(stale));
+  assert.equal(staleParsed.compatibility.state, "stale");
+  const staleResult = importFinopsPortableRecord(storageOf(), staleParsed, { confirm: true, now: NOW });
+  assert.equal(staleResult.code, "stale_source");
+  assert.match(staleResult.message, /Re-export this file locally/);
+
+  const unsupported = structuredClone(compatible);
+  unsupported.sourceDeclarations[1].contractVersion = "2.0";
+  const unsupportedParsed = parseFinopsPortableRecord(JSON.stringify(unsupported));
+  assert.equal(unsupportedParsed.compatibility.state, "unsupported");
+  assert.match(importFinopsPortableRecord(storageOf(), unsupportedParsed, { confirm: true }).message,
+    /Correct the declaration locally/);
+
+  const prohibited = structuredClone(compatible);
+  prohibited.sourceDeclarations[0].credential = "secret";
+  const prohibitedParsed = parseFinopsPortableRecord(JSON.stringify(prohibited));
+  assert.equal(prohibitedParsed.ok, false);
+  assert.equal(prohibitedParsed.compatibility.state, "prohibited");
+  assert.match(prohibitedParsed.errors.join(" "), /prohibited field/);
+
+  const identifier = structuredClone(compatible);
+  identifier.sourceDeclarations[0].mappingVersion = "account_123456789";
+  const identifierParsed = parseFinopsPortableRecord(JSON.stringify(identifier));
+  assert.equal(identifierParsed.compatibility.state, "prohibited");
+  assert.match(identifierParsed.errors.join(" "), /prohibited identifier/);
+  assert.match(identifierParsed.compatibility.message, /never carries a token/);
+
+  // A file that fails somewhere other than a declaration is not accused of
+  // carrying credentials: the correction it needs is a different one.
+  const badLabel = structuredClone(compatible);
+  badLabel.labels = { "not a label id": "Support" };
+  const badParsed = parseFinopsPortableRecord(JSON.stringify(badLabel));
+  assert.equal(badParsed.ok, false);
+  assert.doesNotMatch(badParsed.compatibility.message, /token|credential/);
+});
+
+test("the declared contracts are the ones the compatibility manifest publishes", async () => {
+  const manifest = JSON.parse(await readFile(
+    new URL("../contracts/integrations/browser-compatibility/v1/manifest.json", import.meta.url), "utf8"));
+  const declared = Object.fromEntries(buildFinopsPortableRecord(seeded())
+    .sourceDeclarations.map((entry) => [entry.role, entry]));
+  for (const [role, contract] of [["provider", "provider_export"], ["hris", "hris_mapping"]]) {
+    assert.equal(declared[role].contractKind, manifest.contracts[contract].kind);
+    assert.equal(declared[role].contractVersion, manifest.contracts[contract].schema_version);
+  }
+});
+
 test("an incompatible existing record requires confirmation and remains byte-identical until confirmed", () => {
   const existing = seeded({ periods: [period("2026-05")] });
   const before = existing.getItem(FINOPS_WORKSPACE_KEY);
   const incoming = parseFinopsPortableRecord(serializeFinopsPortableRecord(seeded()));
   const blocked = importFinopsPortableRecord(existing, incoming, { now: NOW });
-  assert.equal(blocked.code, "confirmation_required");
+  assert.equal(blocked.code, "source_review_required");
+  assert.equal(blocked.replaces, true, "a differing record in this browser must be declared");
   assert.equal(existing.getItem(FINOPS_WORKSPACE_KEY), before);
-  assert.match(blocked.message, /Confirm replacement or cancel/);
+  assert.match(blocked.message, /Review and approve before reuse/);
   assert.equal(importFinopsPortableRecord(existing, incoming, { confirm: true, now: NOW }).ok, true);
   assert.deepEqual(buildFinopsPortableRecord(existing), incoming.record);
 });
@@ -117,5 +186,5 @@ test("the contract rejects nested unknown fields rather than silently dropping t
 });
 
 test("the schema literal is explicit", () => {
-  assert.equal(FINOPS_PORTABLE_VERSION, "finops-portable-record/1.0.0");
+  assert.equal(FINOPS_PORTABLE_VERSION, "finops-portable-record/1.1.0");
 });

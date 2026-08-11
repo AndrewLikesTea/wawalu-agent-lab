@@ -237,14 +237,16 @@
             <h4 id="fw-export-title">Download</h4>
             <p class="ws-control-note" id="fw-export-note">Downloads one versioned JSON file containing derived period summaries, labels, declared rates, and commitment inputs. It never includes credentials, prompts, or raw imported rows.</p>
             <button id="fw-export" type="button" aria-describedby="fw-export-note" disabled>Download FinOps JSON</button>
-            <p class="ws-control-note" id="fw-import-note">Import a FinOps workspace file. A different record is never overwritten without a second confirmation.</p>
+            <p class="ws-control-note" id="fw-import-note">Import a FinOps workspace file. Provider and HRIS declarations are checked locally against the static v1 contracts, then require review before reuse.</p>
             <label for="fw-import">Choose FinOps JSON</label>
             <input id="fw-import" type="file" accept=".json,application/json" aria-describedby="fw-import-note" aria-invalid="false">
             <div class="ws-confirm" id="fw-import-confirm" role="group" aria-labelledby="fw-import-confirm-title" hidden>
-              <h5 class="ws-confirm-title" id="fw-import-confirm-title" tabindex="-1">Replace the FinOps record already in this browser?</h5>
-              <p>This replaces its derived periods, labels, declared rates, and commitment inputs. Shiplog decisions and releases are not touched.</p>
+              <h5 class="ws-confirm-title" id="fw-import-confirm-title" tabindex="-1">Review source compatibility before reuse</h5>
+              <p id="fw-import-review-result">Checking the privacy-preserving source declarations…</p>
+              <p id="fw-import-replace-note" hidden>This browser already holds a different FinOps record. Approving replaces its derived periods, labels, declared rates, and commitment inputs.</p>
+              <p>This reuses derived periods, labels, declared rates, and commitment inputs only. No source identifiers, credentials, tokens, or raw exports are accepted. Shiplog decisions and releases are not touched.</p>
               <div class="ws-confirm-actions">
-                <button id="fw-import-confirm-yes" type="button" aria-describedby="fw-import-confirm-title">Replace FinOps record</button>
+                <button id="fw-import-confirm-yes" type="button" aria-describedby="fw-import-confirm-title fw-import-review-result fw-import-replace-note">Approve local reuse</button>
                 <button id="fw-import-confirm-no" type="button" class="secondary-button">Cancel</button>
               </div>
             </div>

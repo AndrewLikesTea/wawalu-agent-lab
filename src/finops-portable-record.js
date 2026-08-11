@@ -18,11 +18,25 @@ import {
   MONTHLY_ACTION_KEY, readMonthlyAction, validateMonthlyActionRecord,
 } from "./monthly-department-action-store.js";
 
-export const FINOPS_PORTABLE_VERSION = "finops-portable-record/1.0.0";
+export const FINOPS_PORTABLE_VERSION = "finops-portable-record/1.1.0";
 export const FINOPS_PORTABLE_LIMITS = Object.freeze({ bytes: 1_000_000, periods: 24, commitments: 50 });
 const ROOT_FIELDS = Object.freeze([
-  "schemaVersion", "periods", "labels", "declaredRates", "commitmentInputs",
+  "schemaVersion", "sourceDeclarations", "periods", "labels", "declaredRates", "commitmentInputs",
 ]);
+const SOURCE_FIELDS = Object.freeze([
+  "role", "contractKind", "contractVersion", "mappingVersion", "reuseState",
+]);
+// The kinds and schema version below are the reviewed static contracts published
+// in contracts/integrations/browser-compatibility/v1/manifest.json. They are
+// restated rather than imported because the modules that parse those exports are
+// not in this page's graph, so the drift guard is a test that reads the manifest.
+const SOURCE_CONTRACTS = Object.freeze({
+  provider: Object.freeze({ contractKind: "wawalu.integration.provider-usage-billing",
+    contractVersion: "1.0", mappingVersion: "provider-billing-to-finops/1.0.0" }),
+  hris: Object.freeze({ contractKind: "wawalu.integration.hris-org",
+    contractVersion: "1.0", mappingVersion: "hris-org-to-finops/1.0.0" }),
+});
+const REUSE_STATES = Object.freeze(["review_required", "approved_local", "correction_required"]);
 const INPUT_FIELDS = Object.freeze(["approvedCommitments", "monthlyDepartmentAction"]);
 const RATE_FIELDS = Object.freeze(["model", "unit", "rate", "effectiveDate", "sourceLabel"]);
 const ACTION_FIELDS = Object.freeze([
@@ -79,6 +93,9 @@ export function buildFinopsPortableRecord(storage) {
   const monthly = readMonthlyAction(storage).record;
   return Object.freeze({
     schemaVersion: FINOPS_PORTABLE_VERSION,
+    sourceDeclarations: Object.entries(SOURCE_CONTRACTS)
+      .filter(([role]) => role === "provider" ? workspace.periods.length : Object.keys(readOrgUnitLabels(storage)).length)
+      .map(([role, declaration]) => ({ role, ...declaration, reuseState: "review_required" })),
     periods: [...workspace.periods].map((entry) => pick(entry, FINOPS_PERIOD_FIELDS))
       .sort((a, b) => a.periodId.localeCompare(b.periodId)),
     labels: canonical(readOrgUnitLabels(storage)),
@@ -109,6 +126,39 @@ export function parseFinopsPortableRecord(text) {
   if (!closed(value, ROOT_FIELDS, "record", errors)) return { ok: false, errors };
   if (value.schemaVersion !== FINOPS_PORTABLE_VERSION) {
     errors.push(`record.schemaVersion: unsupported version ${String(value.schemaVersion)}`);
+  }
+  if (!Array.isArray(value.sourceDeclarations) || value.sourceDeclarations.length > 2) {
+    errors.push("record.sourceDeclarations: expected at most one provider and one HRIS declaration");
+  } else {
+    const roles = new Set();
+    value.sourceDeclarations.forEach((entry, index) => {
+      const path = `record.sourceDeclarations[${index}]`;
+      if (!closed(entry, SOURCE_FIELDS, path, errors)) return;
+      if (!Object.hasOwn(SOURCE_CONTRACTS, entry.role) || roles.has(entry.role)) {
+        errors.push(`${path}.role: expected one unique provider or hris role`);
+      }
+      roles.add(entry.role);
+      for (const field of ["contractKind", "contractVersion", "mappingVersion"]) {
+        if (typeof entry[field] !== "string" || !entry[field] || entry[field].length > 100) {
+          errors.push(`${path}.${field}: expected a bounded contract declaration`);
+        }
+      }
+      const mappingName = entry.role === "provider" ? "provider-billing-to-finops" : "hris-org-to-finops";
+      if (typeof entry.contractKind === "string"
+        && !/^wawalu\.integration\.[a-z-]+$/.test(entry.contractKind)) {
+        errors.push(`${path}.contractKind: prohibited identifier or free-form value`);
+      }
+      if (typeof entry.contractVersion === "string" && !/^\d+\.\d+$/.test(entry.contractVersion)) {
+        errors.push(`${path}.contractVersion: prohibited identifier or free-form value`);
+      }
+      if (typeof entry.mappingVersion === "string"
+        && !new RegExp(`^${mappingName}/\\d+\\.\\d+\\.\\d+$`).test(entry.mappingVersion)) {
+        errors.push(`${path}.mappingVersion: prohibited identifier or free-form value`);
+      }
+      if (!REUSE_STATES.includes(entry.reuseState)) {
+        errors.push(`${path}.reuseState: expected ${REUSE_STATES.join(", ")}`);
+      }
+    });
   }
   if (!Array.isArray(value.periods) || value.periods.length > FINOPS_PORTABLE_LIMITS.periods) {
     errors.push(`record.periods: expected at most ${FINOPS_PORTABLE_LIMITS.periods} entries`);
@@ -144,8 +194,44 @@ export function parseFinopsPortableRecord(text) {
   }
   const scan = scanRetainedContent(value, "record");
   for (const violation of scan.violations) errors.push(`${violation.path}: prohibited content`);
-  return errors.length ? { ok: false, errors: Object.freeze(errors) }
-    : { ok: true, record: Object.freeze(value), errors: Object.freeze([]) };
+  if (errors.length) return { ok: false, errors: Object.freeze(errors),
+    compatibility: sourceCompatibility(value, { errors }) };
+  return { ok: true, record: Object.freeze(value), errors: Object.freeze([]),
+    compatibility: sourceCompatibility(value) };
+}
+
+/**
+ * Deterministic, network-free comparison with browser-compatibility/v1.
+ *
+ * A refused file is told which correction it needs. A declaration carrying a
+ * prohibited value is not the same failure as a period that will not parse, and
+ * naming tokens and credentials at a reader whose label was too long reads as an
+ * accusation rather than an instruction, so the two say different things.
+ */
+export function sourceCompatibility(record, { errors = null } = {}) {
+  if (errors?.length) return Object.freeze({ state: "prohibited", automaticReuse: false,
+    message: errors.some((error) => error.includes("sourceDeclarations"))
+      ? "A source declaration carries a prohibited or unrecognised value. Correct it in the file on this computer; a declaration never carries a token, identifier, credential, or raw provider export."
+      : "This file does not match the portable-record contract. Correct it on this computer and choose it again." });
+  const declarations = Array.isArray(record?.sourceDeclarations) ? record.sourceDeclarations : [];
+  const correction = declarations.find((entry) => entry.reuseState === "correction_required");
+  if (correction) return Object.freeze({ state: "stale", automaticReuse: false,
+    message: `${correction.role} was marked correction required. Correct its declaration and mapping locally, then choose the file again.` });
+  const stale = declarations.find((entry) => SOURCE_CONTRACTS[entry.role]
+    && entry.contractKind === SOURCE_CONTRACTS[entry.role].contractKind
+    && entry.contractVersion === SOURCE_CONTRACTS[entry.role].contractVersion
+    && entry.mappingVersion !== SOURCE_CONTRACTS[entry.role].mappingVersion);
+  if (stale) return Object.freeze({ state: "stale", automaticReuse: false,
+    message: `${stale.role} mapping ${stale.mappingVersion} is stale. Re-export this file locally with ${SOURCE_CONTRACTS[stale.role].mappingVersion}; no live connection is required.` });
+  const unsupported = declarations.find((entry) => !SOURCE_CONTRACTS[entry.role]
+    || entry.contractKind !== SOURCE_CONTRACTS[entry.role].contractKind
+    || entry.contractVersion !== SOURCE_CONTRACTS[entry.role].contractVersion);
+  if (unsupported) return Object.freeze({ state: "unsupported", automaticReuse: false,
+    message: `${unsupported.role ?? "source"} contract ${unsupported.contractVersion ?? "unknown"} is unsupported. Correct the declaration locally against browser-compatibility/v1 and choose the file again.` });
+  return Object.freeze({ state: "compatible", automaticReuse: false,
+    message: declarations.length
+      ? `${declarations.length} privacy-preserving source declaration${declarations.length === 1 ? " is" : "s are"} compatible with the static v1 contracts. Review and approve before reuse.`
+      : "No provider or HRIS source is declared. Review and approve the derived record before reuse." });
 }
 
 function existingProjection(storage) {
@@ -153,19 +239,28 @@ function existingProjection(storage) {
 }
 
 /**
- * Atomically replace portable state. A non-empty, different record requires an
- * explicit second call with `confirm: true`; failed writes are rolled back.
+ * Atomically replace portable state. Every import requires an explicit second
+ * call with `confirm: true`, because a declared source is reusable only after a
+ * reader has reviewed it; failed writes are rolled back.
+ *
+ * The review result reports `replaces` when this browser already holds a
+ * different record. Compatibility answers "may this be reused"; it does not
+ * answer "what is about to be overwritten", and a reader owed both answers
+ * before one press should not have to infer the second from the first.
  */
 export function importFinopsPortableRecord(storage, parsed, { confirm = false, now = new Date() } = {}) {
   if (!parsed?.ok) return { ok: false, code: "invalid_file", errors: parsed?.errors ?? ["File was not validated"] };
+  const compatibility = parsed.compatibility ?? sourceCompatibility(parsed.record);
+  if (compatibility.state !== "compatible") return { ok: false, code: `${compatibility.state}_source`,
+    message: `${compatibility.message} Nothing changed.` };
   const incoming = parsed.record;
-  const current = existingProjection(storage);
-  const hasCurrent = current.periods.length || Object.keys(current.labels).length
-    || current.declaredRates.length || current.commitmentInputs.approvedCommitments.length
-    || current.commitmentInputs.monthlyDepartmentAction;
-  if (hasCurrent && stable(current) !== stable(incoming) && !confirm) {
-    return { ok: false, code: "confirmation_required",
-      message: "This file differs from the FinOps record already in this browser. Confirm replacement or cancel; nothing has changed." };
+  if (!confirm) {
+    const current = existingProjection(storage);
+    const hasCurrent = current.periods.length || Object.keys(current.labels).length
+      || current.declaredRates.length || current.commitmentInputs.approvedCommitments.length
+      || current.commitmentInputs.monthlyDepartmentAction;
+    return { ok: false, code: "source_review_required", message: compatibility.message,
+      replaces: Boolean(hasCurrent) && stable(current) !== stable(incoming) };
   }
   const keys = [FINOPS_WORKSPACE_KEY, ORG_UNIT_LABEL_STORAGE_KEY, RETAINED_STATE_KEY, MONTHLY_ACTION_KEY];
   const before = new Map();

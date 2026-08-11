@@ -24,6 +24,7 @@ import {
   finopsWorkspaceFile, forgetFinopsWorkspace, projectRetainedPeriod, readFinopsWorkspace,
   retainFinopsPeriod, setFinopsConsent,
 } from "../src/finops-workspace.js";
+import { serializeFinopsPortableRecord } from "../src/finops-portable-record.js";
 import { DomEvent, loadPage, tabSequence, textOf } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
 
@@ -418,6 +419,72 @@ test("the FinOps download writes one file and changes nothing in this browser", 
     assert.equal(page.storage.getItem(FINOPS_WORKSPACE_KEY), before);
   } finally {
     page.restore();
+  }
+});
+
+test("the import review renders static-contract compatibility before local reuse", async () => {
+  const source = await open(seedOf([periodOf()]));
+  const portable = serializeFinopsPortableRecord(source.storage);
+  source.restore();
+  const target = await open();
+  try {
+    const input = target.document.querySelector("#fw-import");
+    input.files = [{ text: async () => portable }];
+    await input.dispatchEvent(new DomEvent("change", { bubbles: true }));
+
+    assert.equal(target.document.querySelector("#fw-import-confirm").hidden, false);
+    assert.match(shown(target.document, "fw-import-review-result"),
+      /privacy-preserving source declaration.*compatible with the static v1 contracts/i);
+    assert.match(shown(target.document, "fw-announcement"), /Review and approve before reuse/);
+    assert.equal(target.document.querySelector("#fw-import-replace-note").hidden, true,
+      "an empty browser is not warned about a replacement that is not happening");
+    assert.equal(target.storage.getItem(FINOPS_WORKSPACE_KEY), null, "review must not write");
+
+    await click(target.document, "fw-import-confirm-yes");
+    assert.match(shown(target.document, "fw-announcement"), /FinOps record imported/);
+    assert.equal(JSON.parse(target.storage.getItem(FINOPS_WORKSPACE_KEY)).periods.length, 1);
+  } finally {
+    target.restore();
+  }
+});
+
+// Compatibility says whether a declaration may be reused. It does not say what
+// is already here, and one press does both, so the review must state both.
+test("a record already in this browser is named as replaceable before reuse is approved", async () => {
+  const source = await open(seedOf([periodOf({ month: "2026-06" })]));
+  const portable = serializeFinopsPortableRecord(source.storage);
+  source.restore();
+  const target = await open(seedOf([periodOf({ month: "2026-05" })]));
+  try {
+    const input = target.document.querySelector("#fw-import");
+    input.files = [{ text: async () => portable }];
+    await input.dispatchEvent(new DomEvent("change", { bubbles: true }));
+
+    assert.equal(target.document.querySelector("#fw-import-replace-note").hidden, false);
+    assert.match(shown(target.document, "fw-import-replace-note"), /Approving replaces/);
+  } finally {
+    target.restore();
+  }
+});
+
+test("a stale declaration is refused with a local correction path and marks the control invalid", async () => {
+  const source = await open(seedOf([periodOf()]));
+  const record = JSON.parse(serializeFinopsPortableRecord(source.storage));
+  source.restore();
+  record.sourceDeclarations[0].mappingVersion = "provider-billing-to-finops/0.9.0";
+  const target = await open();
+  try {
+    const input = target.document.querySelector("#fw-import");
+    input.files = [{ text: async () => JSON.stringify(record) }];
+    await input.dispatchEvent(new DomEvent("change", { bubbles: true }));
+
+    assert.equal(target.document.querySelector("#fw-import-confirm").hidden, true,
+      "a stale declaration must not offer the approval press at all");
+    assert.equal(input.getAttribute("aria-invalid"), "true");
+    assert.match(shown(target.document, "fw-announcement"), /Re-export this file locally/);
+    assert.equal(target.storage.getItem(FINOPS_WORKSPACE_KEY), null);
+  } finally {
+    target.restore();
   }
 });
 
