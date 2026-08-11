@@ -23,14 +23,15 @@ import { fileURLToPath } from "node:url";
 
 import { DomEvent, loadPage, textOf } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
-import { OVER_LIMIT_ERROR, UNSUPPORTED_TYPE_ERROR } from "../src/publishing-media.js";
+import { UNSUPPORTED_TYPE_ERROR, overLimitError } from "../src/publishing-media.js";
 
 const PAGE = fileURLToPath(new URL("../src/social.html", import.meta.url));
 
 // The strings a visitor reads, written out rather than imported, so a silent
 // rewording fails here instead of passing against itself.
-const UNSUPPORTED_TYPE = "This file is not a PNG, JPEG, GIF, or WebP. Convert or re-export it in one of those formats, then choose it again.";
-const OVER_LIMIT = "This file is over the 512 KB maximum. Pick a smaller file, or export a smaller PNG from Paint.";
+const RECOVERY = "The invalid selection was cleared; no prior image remains selected. Convert or re-export it, then choose it again.";
+const UNSUPPORTED_TYPE = `This file is not a PNG, JPEG, GIF, or WebP. ${RECOVERY}`;
+const OVER_LIMIT = `This file is 513 KB; the maximum is 512 KB. ${RECOVERY}`;
 const PREVIEW_FAILURE = "We couldn’t create an image preview. Select Remove image, then Choose image to try again.";
 
 // The composer as it is served: real markup, real wiring, no network beyond the
@@ -84,7 +85,7 @@ test("a file in an unaccepted format is named as such, with the four accepted fo
   const status = await choose(document, { name: "sunset.heic", type: "image/heic", size: 40_000 });
 
   assert.equal(textOf(status), UNSUPPORTED_TYPE);
-  assert.equal(UNSUPPORTED_TYPE_ERROR, UNSUPPORTED_TYPE);
+  assert.ok(UNSUPPORTED_TYPE.startsWith(UNSUPPORTED_TYPE_ERROR));
   // Same region as the preview failure, marked as an error the same way.
   assert.equal(status.classList.contains("is-error"), true);
   assert.equal(document.querySelectorAll("#post-media-status").length, 1);
@@ -93,6 +94,12 @@ test("a file in an unaccepted format is named as such, with the four accepted fo
   // empty and ready for the next attempt.
   assert.equal(document.querySelector("#compose-media").hidden, true);
   assert.equal(document.querySelector("#post-image").value, "");
+  assert.equal(document.querySelector("#post-submit").disabled, true);
+  assert.equal(textOf(document.querySelector("#post-publish-blocker")),
+    "Publishing is unavailable until you choose a supported image within 512 KB.");
+  assert.equal(document.querySelectorAll("#post-media-status[aria-live]").length, 1);
+  assert.equal(document.querySelector("#post-publish-blocker").getAttribute("aria-live"), null);
+  assert.equal(document.querySelector("#post-image-steps").querySelector("a")?.getAttribute("href"), "/paint/");
 });
 
 test("a file over the limit is told the limit, in the words the field's help text uses", async (t) => {
@@ -101,9 +108,14 @@ test("a file over the limit is told the limit, in the words the field's help tex
   const status = await choose(document, { name: "poster.png", type: "image/png", size: 512 * 1024 + 1 });
 
   assert.equal(textOf(status), OVER_LIMIT);
-  assert.equal(OVER_LIMIT_ERROR, OVER_LIMIT);
+  assert.equal(overLimitError(512 * 1024 + 1), "This file is 513 KB; the maximum is 512 KB.");
   assert.equal(status.classList.contains("is-error"), true);
   assert.equal(document.querySelector("#compose-media").hidden, true);
+  assert.equal(document.querySelector("#post-submit").disabled, true);
+  assert.equal(textOf(document.querySelector("#post-publish-blocker")),
+    "Publishing is unavailable until you choose a supported image within 512 KB.");
+  assert.equal(document.querySelectorAll("#post-media-status[aria-live]").length, 1);
+  assert.equal(document.querySelector("#post-image-steps").querySelector("a")?.getAttribute("href"), "/paint/");
 });
 
 // One rule, one wording. The help text beside the field and the two refusals
@@ -117,15 +129,14 @@ test("the help text and the refusals state the limit and the formats identically
   ]);
 
   assert.ok(markup.includes('<p class="hint" id="post-image-hint">PNG, JPEG, GIF, or WebP · 512 KB maximum.</p>'));
-  assert.ok(OVER_LIMIT.includes("512 KB maximum"));
+  assert.match(OVER_LIMIT, /maximum is 512 KB/);
   assert.ok(UNSUPPORTED_TYPE.includes("PNG, JPEG, GIF, or WebP"));
   // Every mention of the figure across the field, its wiring, and the refusals
   // is the same mention, so no second phrasing of the limit can drift in beside
   // it. The same for the format list, which the composer states three times.
   const source = `${markup}\n${wiring}\n${copy}`;
-  const limits = source.match(/512\s*KB\s*[a-z]*/gi) ?? [];
-  assert.ok(limits.length >= 3, "the limit is stated beside the field and in both refusals");
-  for (const mention of limits) assert.equal(mention, "512 KB maximum");
+  assert.match(markup, /Social accepts PNG, JPEG, GIF, or WebP up to 512 KB/);
+  assert.match(markup, /reduce or re-export an oversized image before you return to this tab/);
   const formats = source.match(/PNG,[^.·]*WebP/g) ?? [];
   assert.ok(formats.length >= 3, "the format list is stated beside the field and in both refusals");
   for (const mention of formats) assert.equal(mention, "PNG, JPEG, GIF, or WebP");

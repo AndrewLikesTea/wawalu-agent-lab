@@ -777,7 +777,7 @@ export function mountSocialFeed(root, options = {}) {
     // wording, so the count, the panel over the empty grid, and the connection
     // line are not three descriptions of one wait.
     if (count) {
-      if (posts.length === 0 && state === "loading") count.textContent = FEED_LOADING_LINE;
+      if (posts.length === 0 && state === "loading") count.textContent = "Counting posts…";
       else if (posts.length === 0 && state === "error") count.textContent = "Unavailable";
       else count.textContent = filtering ? `${postLabel(visible.length)} of ${posts.length}` : postLabel(visible.length);
     }

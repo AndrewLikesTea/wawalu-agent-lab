@@ -204,7 +204,7 @@
                page's only statement of the image-post total. -->
           <div class="section-heading list-heading">
             <p class="eyebrow" id="profile-order">Newest first</p>
-            <p class="profile-summary" id="profile-summary">Loading image posts…</p>
+            <p class="profile-summary" id="profile-summary">Counting image posts…</p>
           </div>
           <!-- People is where a visitor browses images, so the route into the
                editor stays beside them. The sentence names every step in the
@@ -232,7 +232,7 @@
             Want a picture of your own here? <a class="text-link paint-link" id="profile-paint-route" href="/paint/?from=profile" target="_blank" rel="noopener">Create an image in Paint <span class="new-tab-note">(opens in a new tab)</span></a>, return to this tab, then publish it on Social under a display name.
           </p>
 
-          <div class="feed-connection" aria-live="polite">
+          <div class="feed-connection">
             <span class="live-dot" aria-hidden="true"></span>
             <!-- The same waiting sentence the counts line above ships, because
                  it is the same wait; profile-page.js replaces it once the fetch
@@ -240,7 +240,7 @@
                  not do is print the display name a fourth time: the heading and
                  the active-filter chip carry it, and this line says what is
                  happening to the posts under it. -->
-            <span id="profile-status">Loading image posts…</span>
+            <span id="profile-status">Connecting to live updates…</span>
           </div>
           <p class="visually-hidden" id="profile-announcer" aria-live="polite" aria-atomic="true"></p>
 
@@ -252,7 +252,7 @@
                label rather than a control, so the list carries the reference and
                a reader entering it hears "Newest first" against the posts it
                describes. No new tab stop is added above the results for it. -->
-          <div id="profile-grid" aria-describedby="profile-order"></div>
+          <div id="profile-grid" role="status" aria-live="polite" aria-atomic="true" aria-describedby="profile-order">Loading image posts…</div>
         </div>
       </section>
       </main>

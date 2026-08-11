@@ -708,14 +708,14 @@ test("the publication consequence is said once, at the button that publishes", a
   // is read on focus rather than only seen.
   assert.ok(social.indexOf('id="post-consequence"') < social.indexOf('id="post-submit"'),
     "the consequence must precede the Publish post button");
-  assert.match(social, /id="post-submit"[^>]*aria-describedby="post-consequence social-notice"/);
+  assert.match(social, /id="post-submit"[^>]*aria-describedby="post-consequence post-publish-blocker social-notice"/);
 
   // The description resolves: every id the button names is on the page, and the
   // consequence's id is unique, so the announcement cannot land on the wrong
   // node or on nothing at all.
   const document = parseHtml(social);
   const described = document.querySelector("#post-submit").getAttribute("aria-describedby").split(/\s+/);
-  assert.deepEqual(described, ["post-consequence", "social-notice"]);
+  assert.deepEqual(described, ["post-consequence", "post-publish-blocker", "social-notice"]);
   for (const id of described) {
     assert.equal(document.querySelectorAll(`#${id}`).length, 1, `aria-describedby names ${id} exactly once on the page`);
   }

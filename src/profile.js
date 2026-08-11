@@ -475,6 +475,7 @@ function renderTile(post, index) {
 // First-load placeholders. Hidden from assistive tech because the live region on
 // the page announces the real status; a shimmering box announces nothing.
 function renderSkeleton(container, count = 6) {
+  container.append(el("p", "profile-loading-message", loadingSummaryText()));
   const list = el("ul", "profile-grid profile-grid-skeleton");
   list.setAttribute("role", "list");
   list.setAttribute("aria-hidden", "true");
@@ -652,7 +653,7 @@ export function mountProfile(root, options = {}) {
     // nobody: the heading above states whose posts are being counted, so a
     // reader who switches names mid-load reads one moved heading rather than a
     // display name repeated down the region.
-    if (elements.status && state === "loading") elements.status.textContent = loadingSummaryText();
+    if (elements.status && state === "loading") elements.status.textContent = "Connecting to live updates…";
     for (const route of elements.paintRoutes) route.href = profilePaintHref(author);
     renderProfileGrid(grid, mine, {
       state,
