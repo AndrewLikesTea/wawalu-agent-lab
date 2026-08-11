@@ -52,6 +52,11 @@ export async function loadDepartmentScreen() {
     applyDepartmentScreen(document, departmentScreenModel({
       departments: data?.departments,
       benchmark: data?.benchmark,
+      // The document's own source declarations, passed through rather than
+      // read a second time: the organization-wide answer names the provider
+      // export and the HRIS source from these same two blocks.
+      organization: data?.organization,
+      provenance: data?.provenance,
       slug,
       period,
     }));

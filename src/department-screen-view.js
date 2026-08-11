@@ -76,6 +76,14 @@ export function applyDepartmentScreen(doc, model) {
   write(doc, "department-verdict-evidence", model.verdict?.evidence ?? "");
   write(doc, "department-verdict-basis", model.verdict?.basis ?? "");
 
+  // The provenance slots are written on EVERY state too, for the same reason
+  // the verdict ones are: one department's declared sources must never survive
+  // into the next department's screen.
+  write(doc, "department-sources-line", model.sources?.line ?? "");
+  for (const [index, id] of ["provider", "hris", "period", "freshness"].entries()) {
+    write(doc, `department-sources-${id}`, model.sources?.rows[index].detail ?? "");
+  }
+
   if (!resolved) return root;
 
   write(doc, "department-metric-label", model.metric.label);

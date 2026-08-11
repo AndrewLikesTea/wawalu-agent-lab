@@ -40,6 +40,7 @@ import {
   recoverableSpendUsd,
 } from "./evolution.js";
 import { departmentVerdict, periodKeyOf } from "./department-verdict.js";
+import { departmentSourceProvenance } from "./department-source-provenance.js";
 
 /** The one question this screen exists to answer, stated once. */
 export const DEPARTMENT_QUESTION =
@@ -163,6 +164,7 @@ export function pendingDepartmentScreen(slug = null) {
     metric: null,
     verdict: null,
     action: null,
+    sources: null,
     disclosures: null,
     backHref: orgAnswerHref(slug),
   });
@@ -181,6 +183,7 @@ export function unavailableDepartmentScreen(reason, slug = null) {
     metric: null,
     verdict: null,
     action: null,
+    sources: null,
     disclosures: null,
     // The way back is the org answer, and it still carries the selection: a
     // reader who mistyped one letter should not also lose which department they
@@ -260,11 +263,15 @@ function trainingGapText(department) {
  * The whole screen for one slug.
  *
  * @param {object} input `departments` and `benchmark` as the bundled example
- *   publishes them, and the `slug` read off the address bar.
+ *   publishes them, and the `slug` read off the address bar. `organization` and
+ *   `provenance` are that same document's source declarations, passed through
+ *   untouched so this screen states which exports the figure rests on without
+ *   re-declaring them; `now` is the caller's date, never a clock read here.
  * @returns a frozen model in exactly one of the three states.
  */
 export function departmentScreenModel({
   departments, benchmark = null, slug = null, period = null,
+  organization = null, provenance = null, now = null,
 } = {}) {
   const list = Array.isArray(departments) ? departments : [];
   if (!list.length) return unavailableDepartmentScreen(DEPARTMENT_SCREEN_REASON.loadFailed, slug);
@@ -331,6 +338,13 @@ export function departmentScreenModel({
       worth: verdict.action && verdict.action.valueUsd > 0
         ? `Worth about ${formatUsd(verdict.action.valueUsd)} a month of the figure above.`
         : "No dollar value is claimed for this department.",
+    }),
+    // Which declared exports this department's figure rests on, projected from
+    // the same declarations the organization-wide answer reads. Nothing here
+    // grades, re-declares, or contacts a source.
+    sources: departmentSourceProvenance({
+      organization, provenance, departments: list, departmentId: slug,
+      period: department.period ?? null, now,
     }),
     disclosures: Object.freeze({
       mix: Object.freeze(mixRows(department)),
