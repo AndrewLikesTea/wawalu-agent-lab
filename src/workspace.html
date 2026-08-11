@@ -235,8 +235,19 @@
 
           <div class="ws-control">
             <h4 id="fw-export-title">Download</h4>
-            <p class="ws-control-note" id="fw-export-note">Downloads one JSON file holding every FinOps figure, label, and choice this browser is keeping — everything the forget action removes. The file is written in this browser; it is not uploaded anywhere.</p>
+            <p class="ws-control-note" id="fw-export-note">Downloads one versioned JSON file containing derived period summaries, labels, declared rates, and commitment inputs. It never includes credentials, prompts, or raw imported rows.</p>
             <button id="fw-export" type="button" aria-describedby="fw-export-note" disabled>Download FinOps JSON</button>
+            <p class="ws-control-note" id="fw-import-note">Import a FinOps workspace file. A different record is never overwritten without a second confirmation.</p>
+            <label for="fw-import">Choose FinOps JSON</label>
+            <input id="fw-import" type="file" accept=".json,application/json" aria-describedby="fw-import-note" aria-invalid="false">
+            <div class="ws-confirm" id="fw-import-confirm" role="group" aria-labelledby="fw-import-confirm-title" hidden>
+              <h5 class="ws-confirm-title" id="fw-import-confirm-title" tabindex="-1">Replace the FinOps record already in this browser?</h5>
+              <p>This replaces its derived periods, labels, declared rates, and commitment inputs. Shiplog decisions and releases are not touched.</p>
+              <div class="ws-confirm-actions">
+                <button id="fw-import-confirm-yes" type="button" aria-describedby="fw-import-confirm-title">Replace FinOps record</button>
+                <button id="fw-import-confirm-no" type="button" class="secondary-button">Cancel</button>
+              </div>
+            </div>
           </div>
 
           <!-- Forgetting is two steps, and the second one counts what it will
