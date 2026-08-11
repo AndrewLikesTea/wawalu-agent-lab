@@ -345,6 +345,7 @@ test("the first load reserves a skeleton grid instead of a blank panel", () => {
   assert.equal(container.getAttribute("aria-busy"), "true");
   const skeleton = first(container, "profile-grid-skeleton");
   assert.equal(skeleton.getAttribute("aria-hidden"), "true", "placeholders announce nothing");
+  assert.equal(first(container, "profile-loading-message").textContent, "Retrieving image posts for Mina…");
   assert.ok(byClass(skeleton, "profile-tile-skeleton").length > 0);
   assert.equal(byClass(container, "empty-state").length, 0);
 });
@@ -580,15 +581,9 @@ test("the empty profile says it once across the whole page", () => {
   assert.equal(profileAnnouncement("Mina", 2), "Showing 2 image posts by Mina.");
 });
 
-test("the waiting line names image posts and names nobody", () => {
-  // People's own wait, not Social's whole feed — and not a display name either.
-  // Both lines that ship it sit under the profile header, whose heading has
-  // already said whose posts are being counted; the possessive form they used to
-  // take ("Loading Zed's image posts…") was a third and fourth visible copy of a
-  // name this region now states exactly twice.
-  assert.equal(loadingSummaryText(), "Loading image posts…");
-  // Passing a name changes nothing: there is no caller that can reintroduce one.
-  assert.equal(loadingSummaryText("Zed"), "Loading image posts…");
+test("the waiting line names image posts and the selected display name", () => {
+  assert.equal(loadingSummaryText(), "Retrieving image posts for Guest…");
+  assert.equal(loadingSummaryText("Zed"), "Retrieving image posts for Zed…");
 });
 
 test("the profile page's static copy does not drift from the module's", async () => {
@@ -599,18 +594,12 @@ test("the profile page's static copy does not drift from the module's", async ()
   const html = await readFile(new URL("../src/profile.html", import.meta.url), "utf8");
   assert.match(html, /id="profile-summary">Counting image posts…</);
   assert.doesNotMatch(html, new RegExp(emptySummaryText("Ari")));
-  // One wait, one sentence — People's own. The counts line and the connection
-  // line below it are waiting on the same fetch, so they say the same thing
-  // rather than counting one name's posts in one place and "connecting" in the
-  // other. What they name is what this page fetches: image posts. They used to
-  // announce Social's whole feed, on the page whose opening sentence sends a
-  // reader to Social for exactly that — and after that they named the selected
-  // display name, which the heading above them already establishes.
-  assert.equal(loadingSummaryText(), "Loading image posts…");
+  // People's one retrieval status names both the content type and the selected
+  // display name.
+  assert.equal(loadingSummaryText("Ari"), "Retrieving image posts for Ari…");
   assert.match(html, /id="profile-status">Connecting to live updates…</);
-  assert.equal((html.match(new RegExp(loadingSummaryText(), "g")) ?? []).length, 1,
+  assert.equal((html.match(new RegExp(loadingSummaryText("Ari"), "g")) ?? []).length, 1,
     "People renders one authoritative loading message");
-  assert.doesNotMatch(html, /Loading Ari/, "a waiting line names the display name again");
   assert.doesNotMatch(html, new RegExp(FEED_LOADING_LINE), "People is announcing Social's feed again");
   // The results heading ships the same words the module writes there, so the
   // frame before hydration reads as the state it is in: the display name the
