@@ -284,7 +284,7 @@ test("social page is wired, labeled, and linked from the other pages", async () 
   assert.match(page, /id="post-count">Counting posts…<\/span>/);
   // The feed itself ships one short retrieval status.
   assert.match(page, /id="feed-status">Connecting to live updates…<\/span>/);
-  assert.equal((page.match(/Retrieving posts…/g) ?? []).length, 1);
+  assert.equal((page.match(/Loading the Social feed…/g) ?? []).length, 1);
   assert.doesNotMatch(page, /id="post-count"[^>]*>0 posts<\/span>/);
   // One announced region for a filter change, and it is the summary: the count
   // beside the heading says a thinner version of the same news, so announcing
@@ -959,7 +959,8 @@ test("a filter combination matching nothing reads as a dead end with its own rec
   assert.doesNotMatch(textOf(panel), /create an image in Paint/);
 
   // A real button, after the message in DOM order, and in the tab sequence.
-  const buttons = feed.querySelectorAll("button");
+  const stateRegion = page.document.querySelector("#feed-state");
+  const buttons = stateRegion.querySelectorAll("button");
   assert.equal(buttons.length, 1, "the dead end adds exactly one control");
   const clear = buttons[0];
   assert.equal(clear.tagName, "BUTTON");
@@ -967,7 +968,7 @@ test("a filter combination matching nothing reads as a dead end with its own rec
   // submit it.
   assert.equal(clear.type, "button");
   assert.equal(textOf(clear), "Clear filters");
-  const order = feed.querySelectorAll("p,button").map((node) => node.tagName);
+  const order = stateRegion.querySelectorAll("p,button").map((node) => node.tagName);
   assert.equal(order.at(-1), "BUTTON", "the control follows the message it recovers from");
   const sequence = tabSequence(page.document);
   assert.equal(sequence.includes(clear), true, "the in-region control is reachable by Tab");
@@ -978,6 +979,8 @@ test("a filter combination matching nothing reads as a dead end with its own rec
   assert.equal(timeFilter.value, "all");
   assert.equal(textOf(page.document.querySelector("#feed-summary")), "Showing all 3 posts, newest first.");
   assert.equal(page.document.querySelectorAll(".empty-state").length, 0);
+  assert.equal(stateRegion.hidden, true, "matching posts hide the no-match status");
+  assert.equal(textOf(stateRegion), "", "no-match copy cannot survive beside matching posts");
 
   // The button that was pressed is gone with the panel, so focus must have been
   // moved somewhere that still exists — never left on a removed node, never
@@ -1046,8 +1049,9 @@ test("the post count never claims zero posts before the feed has any answer", as
   // One wait, one sentence. The count, the panel over the empty grid, and the
   // connection line are all waiting on the same fetch, so a reader gets one
   // description of it and a screen reader hears one, not three.
-  assert.equal(page.document.querySelector("#post-feed").querySelectorAll(".state-title").length, 1);
-  assert.equal(textOf(page.document.querySelector("#post-feed").querySelector(".state-title")), "Retrieving posts…");
+  const status = page.document.querySelector("#feed-state");
+  assert.equal(status.querySelectorAll(".state-title").length, 1);
+  assert.equal(textOf(status.querySelector(".state-title")), "Loading the Social feed…");
 
   feed.setState("error");
   assert.equal(textOf(count), "Unavailable", "a failed fetch is not a count of zero");
@@ -1058,6 +1062,10 @@ test("the post count never claims zero posts before the feed has any answer", as
   const empty = page.document.querySelector(".empty-state");
   assert.match(textOf(empty), /No posts on Social yet\./);
   assert.match(textOf(empty), /Publish a post, or create an image in Paint first\./);
+
+  feed.seed([{ id: "now-populated", author: "Mina", body: "Ready.", createdAt: new Date().toISOString() }]);
+  assert.equal(status.hidden, true, "a populated feed hides the reused status region");
+  assert.equal(textOf(status), "", "empty/error copy cannot survive a populated render");
   assert.doesNotMatch(textOf(empty), /Loading|Connecting/);
 });
 
