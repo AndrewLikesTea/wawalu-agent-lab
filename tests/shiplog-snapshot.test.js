@@ -77,6 +77,30 @@ async function exportAll(decisions, releases, options = {}) {
   return { response, body, payload: JSON.parse(body) };
 }
 
+test("an empty history is a complete, valid linked snapshot", async () => {
+  const { response, body, payload } = await exportAll([], []);
+
+  assert.equal(response.status, 200);
+  assert.doesNotThrow(() => JSON.parse(body));
+  assert.deepEqual(payload, {
+    metadata: {
+      timestamp: NOW.toISOString(),
+      version: EXPORT_VERSION,
+      counts: {
+        decisions: 0,
+        releases: 0,
+        links: 0,
+        decisionsWithoutReleases: 0,
+        releasesWithoutDecisions: 0,
+      },
+      unresolvedLinks: [],
+    },
+    decisions: [],
+    releases: [],
+    links: [],
+  });
+});
+
 test("the snapshot states every release-to-decision association as its own record", async () => {
   const second = decisionRow({ id: "d-second", createdAt: "2026-07-20T09:00:00.000Z" });
   const release = releaseRow({ decisionIds: ["d-second", "d-linked"] });
@@ -165,11 +189,12 @@ test("only declared Shiplog fields leave the server", async () => {
     customer_email: "lead@example.com",
     session_cookie: "sid=abc",
     internal_api_key: "sk-live-1234",
+    customer_bio_html: "<img src=x onerror=alert(1)>",
   });
   const release = releaseRow({ telemetry_events: [{ event: "click" }], internal_notes: "do not ship" });
   const { payload, response, body } = await exportAll([decision], [release]);
 
-  for (const secret of ["customer_email", "lead@example.com", "session_cookie", "sk-live-1234", "telemetry_events", "internal_notes"]) {
+  for (const secret of ["customer_email", "lead@example.com", "session_cookie", "sk-live-1234", "customer_bio_html", "<img", "telemetry_events", "internal_notes"]) {
     assert.doesNotMatch(body, new RegExp(secret), `${secret} must not reach the export`);
   }
   assert.deepEqual(Object.keys(payload.decisions[0]), [
