@@ -1,4 +1,5 @@
 import { BriefingProjectionError } from "./executive-briefing-projection.js";
+import { executivePayloadHref } from "./executive-payload-share.js";
 
 const put = (root, id, value) => {
   const node = root.getElementById(id);
@@ -14,15 +15,18 @@ const put = (root, id, value) => {
  * regenerated in the reader's own browser. One string, one file, no drift.
  */
 export const PROJECTION_STATUS_PREFIX = (schemaVersion) =>
-  `Briefing generated locally · ${schemaVersion}`;
+  "Briefing claims generated locally";
 
 export function renderExecutiveBriefingProjection(root, result) {
   const region = root.getElementById("executive-briefing-projection");
   if (!region) return null;
   region.dataset.state = "ready";
   put(root, "executive-briefing-projection-status",
-    `${PROJECTION_STATUS_PREFIX(result.schemaVersion)} · ${result.generatedAt}`);
+    `${PROJECTION_STATUS_PREFIX()} · ${result.generatedAt}`);
   put(root, "executive-briefing-projection-payload", JSON.stringify(result, null, 2));
+  const open = root.getElementById("executive-briefing-projection-open");
+  if (open?.setAttribute) open.setAttribute("href", executivePayloadHref(result));
+  else if (open) open.href = executivePayloadHref(result);
   return region;
 }
 

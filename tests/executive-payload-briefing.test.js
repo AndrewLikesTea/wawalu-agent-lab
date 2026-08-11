@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { projectExecutiveBriefing } from "../src/executive-briefing-projection.js";
 import { renderPayloadBriefing, renderPayloadState, validatePayload } from "../src/executive-payload-briefing-view.js";
+import { executivePayloadHref, readExecutivePayloadFragment } from "../src/executive-payload-share.js";
 import { installDocument } from "./support/dom.js";
 
 installDocument();
@@ -21,7 +22,7 @@ test("renders the decision-ready payload in leadership reading order", () => {
   const ordered = [
     "Where should we act first?", "Atlas Platform is the first intervention priority",
     "Material benchmark or trend", "Prioritized next action", "Why it matters", "Confidence",
-    "Selected period", "Generated", "Department evidence", "Methodology and provenance",
+    "Selected period", "Generated", "Department evidence", "Audit appendix — internal identifiers",
   ];
   for (let index = 1; index < ordered.length; index += 1) {
     assert.ok(text.indexOf(ordered[index - 1]) < text.indexOf(ordered[index]), ordered[index]);
@@ -32,6 +33,29 @@ test("renders the decision-ready payload in leadership reading order", () => {
   assert.equal(Array.from(article.querySelectorAll("details"))
     .filter((node) => node.getAttribute("open") != null).length, 0);
   assert.doesNotMatch(JSON.stringify(payload()), /providerRows|promptContent|credential|customerData/);
+});
+
+test("internal identifiers render only inside the closed audit appendix", () => {
+  const built = payload();
+  const article = renderPayloadBriefing(createDocument(), built);
+  const appendix = Array.from(article.querySelectorAll("details")).at(-1);
+  assert.equal(appendix.getAttribute("open"), null);
+  assert.match(appendix.textContent, /executive-briefing\/1\.0\.0/);
+  const visible = article.children.filter((node) => node !== appendix).map((node) => node.textContent).join(" ");
+  for (const identifier of Object.values(built.auditAppendix).slice(1)) {
+    assert.equal(visible.includes(identifier), false, identifier);
+  }
+  assert.match(article.querySelector(".payload-signoff").textContent,
+    /claims the finding, comparison, next action, confidence, and source period.*2026-08-01T12:34:56\.000Z/);
+});
+
+test("the share fragment restores the exact payload without regenerating claims or time", () => {
+  const initial = payload();
+  const href = executivePayloadHref(initial);
+  const restored = readExecutivePayloadFragment(new URL(href, "https://labs.wawalu.org").hash);
+  assert.deepEqual(restored, initial);
+  assert.equal(renderPayloadBriefing(createDocument(), restored).textContent,
+    renderPayloadBriefing(createDocument(), initial).textContent);
 });
 
 test("why-it-matters explains the answer instead of restating it", () => {

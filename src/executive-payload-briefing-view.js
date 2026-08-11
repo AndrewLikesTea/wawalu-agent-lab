@@ -10,15 +10,16 @@ function el(doc, tag, className, content) {
 export function validatePayload(payload) {
   const errors = [];
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) return ["payload"];
-  for (const field of ["schemaVersion", "headlineAnswer", "materialBenchmarkOrTrend",
+  for (const field of ["headlineAnswer", "materialBenchmarkOrTrend",
     "prioritizedNextAction", "generatedAt"]) {
     if (!text(payload[field])) errors.push(field);
   }
   if (!text(payload.confidence?.level) || !text(payload.confidence?.basis)) errors.push("confidence");
   if (!text(payload.period?.start) || !text(payload.period?.end) || !text(payload.period?.provenance)) errors.push("period");
-  if (!payload.provenance || !text(payload.provenance.fixtureId)
-    || !text(payload.provenance.fixtureVersion) || !text(payload.provenance.selectionVersion)) {
-    errors.push("provenance");
+  if (!payload.auditAppendix || !text(payload.auditAppendix.label)
+    || !text(payload.auditAppendix.schemaVersion) || !text(payload.auditAppendix.fixtureId)
+    || !text(payload.auditAppendix.fixtureVersion) || !text(payload.auditAppendix.selectionVersion)) {
+    errors.push("auditAppendix");
   }
   if (!Array.isArray(payload.departmentEvidence) || payload.departmentEvidence.length === 0) {
     errors.push("departmentEvidence");
@@ -83,7 +84,6 @@ export function renderPayloadBriefing(doc, payload) {
     ["Selected period", `${payload.period.start} to ${payload.period.end}`],
     ["Period provenance", payload.period.provenance],
     ["Generated", payload.generatedAt],
-    ["Source", `${payload.provenance.fixtureId} · ${payload.provenance.fixtureVersion}`],
   ]) metadata.append(el(doc, "dt", "", term), el(doc, "dd", "", value));
   article.append(metadata);
 
@@ -97,14 +97,17 @@ export function renderPayloadBriefing(doc, payload) {
   article.append(disclosure(doc, "Department evidence", "Supporting department-level observations", evidence));
 
   const method = el(doc, "div", "payload-method");
-  method.append(el(doc, "p", "", "This sheet renders only fields selected by the local executive-briefing projection. It does not read provider rows, prompts, credentials, or customer data."));
+  method.append(el(doc, "p", "", "This sheet states the finding, comparison, action, confidence, period, and supporting department observations selected in this browser. It does not read provider rows, prompts, credentials, or customer data."));
   const versions = el(doc, "dl", "payload-method-versions");
-  for (const [term, value] of [
-    ["Payload", payload.schemaVersion], ["Projection", payload.projectionVersion],
-    ["Selection", payload.provenance.selectionVersion], ["Input model", payload.provenance.inputModel],
-  ]) versions.append(el(doc, "dt", "", term), el(doc, "dd", "", value));
+  for (const [term, value] of Object.entries(payload.auditAppendix)) {
+    if (term !== "label") versions.append(el(doc, "dt", "", term), el(doc, "dd", "", value));
+  }
   method.append(versions);
-  article.append(disclosure(doc, "Methodology and provenance", "How this local payload was selected", method));
+  article.append(disclosure(doc, payload.auditAppendix.label,
+    "Internal identifiers for technical audit; not part of the briefing claims", method));
+
+  article.append(el(doc, "p", "payload-signoff",
+    `This briefing claims the finding, comparison, next action, confidence, and source period shown above. Generated ${payload.generatedAt}.`));
   return article;
 }
 
