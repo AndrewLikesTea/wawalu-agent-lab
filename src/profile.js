@@ -221,6 +221,39 @@ export function pickerEntries(posts, author) {
   return name && !counts.some((entry) => entry.name === name) ? [{ name, images: 0 }, ...counts] : counts;
 }
 
+// The sentence over the picker: which display name is showing, and whether the
+// page chose it or the visitor did. Landing with no ?author= used to state a
+// verdict about a name nobody had picked, so this says the preselection out loud
+// and points at the control that undoes it. A shared link or a remembered name
+// is a choice, and claiming to have preselected one would be untrue, so that
+// clause is only ever written for a visitor who asked for nobody.
+//
+// `choices` is how many entries the picker offers. With one there is nothing to
+// switch to, so the sentence stops after the fact and singleNameNotice() below
+// carries the rest.
+export function pickerNoteText(author, { preselected = false, choices = 2 } = {}) {
+  const name = String(author ?? "").trim() || DEFAULT_AUTHOR;
+  const showing = `Showing ${name}’s image posts.`;
+  if (choices < 2) return showing;
+  if (preselected) return `${showing} We preselected this name for you; pick another below to switch.`;
+  return `${showing} Pick another name below to switch.`;
+}
+
+// A picker holding one entry is not a choice, and a lone chip drawn as one reads
+// as a choice the visitor failed to make. The sentence states the fact in the
+// place the buttons would have taken, so nothing is hidden by the swap — the
+// name and its situation are still text on the page.
+//
+// `counted` is the store's own answer, the same three-state rule the chips use:
+// before it lands, the sentence names the feed's one display name without
+// claiming anything about how many pictures are under it.
+export function singleNameNotice(entries, { counted = true } = {}) {
+  if (!Array.isArray(entries) || entries.length !== 1) return null;
+  const { name, images } = entries[0];
+  if (counted && images > 0) return `Only one display name has image posts: ${name}.`;
+  return `Only one display name is in this feed: ${name}.`;
+}
+
 // The caption a tile shows. An image post may carry a dedicated caption; a post
 // that does not falls back to its body, so a tile is never captionless — which
 // matters more than it looks, because the caption is also the tile's accessible
@@ -565,7 +598,16 @@ export function renderProfileGrid(container, posts, options = {}) {
 // `counted` is the store's own answer, not a guess: while it is false every
 // chip says "Counting…" rather than claiming a number the posts have not
 // supported yet.
+//
+// One entry is the exception: a feed carrying a single display name has no
+// choice in it, so the sentence replaces the button rather than drawing a
+// control whose only value is already selected.
 export function renderAuthorPicker(container, entries, { author, counted = true, onSelect = null } = {}) {
+  const alone = singleNameNotice(entries, { counted });
+  if (alone) {
+    container.replaceChildren(el("p", "hint", alone));
+    return;
+  }
   container.replaceChildren(...entries.map((entry) => {
     const selected = entry.name === author;
     const chip = el("button", "profile-filter-option", authorChipLabel(entry.name, counted ? entry.images : null, { selected }));
@@ -616,6 +658,7 @@ export function mountProfile(root, options = {}) {
     feedStatus: root.querySelector("#profile-feed-status"),
     announcer: root.querySelector("#profile-announcer"),
     picker: root.querySelector("#profile-author"),
+    pickerNote: root.querySelector("#profile-picker-note"),
     // The one route into Paint: the invitation above the grid. It is a real
     // anchor in the markup and stays one whether or not this runs; all that is
     // added here is the display name, so Paint's back link returns to the
@@ -628,6 +671,11 @@ export function mountProfile(root, options = {}) {
   let posts = options.posts ?? [];
   let state = options.state ?? "ready";
   let author = options.author ?? DEFAULT_AUTHOR;
+  // Whether the name on screen is the page's suggestion or the visitor's. It
+  // starts as whatever the wiring worked out from the URL and the remembered
+  // name, and only choose() below can clear it: a landing name that moves when
+  // the live feed answers is still a name nobody picked.
+  let preselected = options.preselected ?? false;
 
   const render = () => {
     const mine = selectProfilePosts(posts, author);
@@ -655,6 +703,11 @@ export function mountProfile(root, options = {}) {
     // reader who switches names mid-load reads one moved heading rather than a
     // display name repeated down the region.
     if (elements.status && state === "loading") elements.status.textContent = "Connecting to live updates…";
+    // The line above the picker, written from the same name the heading states,
+    // so the page never says one name is showing while another is filtering.
+    if (elements.pickerNote) {
+      elements.pickerNote.textContent = pickerNoteText(author, { preselected, choices: pickerEntries(posts, author).length });
+    }
     for (const route of elements.paintRoutes) route.href = profilePaintHref(author);
     renderProfileGrid(grid, mine, {
       state,
@@ -687,6 +740,7 @@ export function mountProfile(root, options = {}) {
   function choose(next) {
     if (next === author) return;
     author = next;
+    preselected = false;
     options.onAuthorChange?.(next);
     renderPicker({ refocus: true });
     render();
