@@ -120,7 +120,6 @@ test("the answer region states one figure, its benchmark, one action and its pro
     .includes(`${answer.annualBaselineSpendUsd.toLocaleString("en-US")}`));
   assert.ok(slot(document, "benchmark").includes(answer.benchmark.label),
     "the benchmark is the contract's, not a second comparison invented here");
-  assert.ok(slot(document, "action").includes(answer.primaryAction.label));
   assert.ok(slot(document, "sources").includes(answer.sources.primaryAction[0]),
     "provenance names the signal the action came from");
 
@@ -144,27 +143,48 @@ test("the answer is read before anything that qualifies it, and behind no contro
   const before = (first, second) => assert.ok(order.indexOf(first) < order.indexOf(second),
     `${second} is read before ${first}`);
   before(`${ANSWER}-figure`, `${ANSWER}-benchmark`);
-  before(`${ANSWER}-benchmark`, `${ANSWER}-action`);
-  // #1498 merged this region's three sibling disclosures into one, so the
-  // ordering that matters is the last one left: the answer is read before the
-  // control that qualifies it.
-  before(`${ANSWER}-action`, "analysis-readiness-detail");
+  // #1498 merged this region's three sibling disclosures into one; #1667 removed
+  // its action link. The ordering that matters is the last one left: the answer
+  // is read before the control that qualifies it.
+  before(`${ANSWER}-benchmark`, "analysis-readiness-detail");
 
   // Nothing a reader needs to reach the answer may be a control they must open.
-  for (const id of ["figure", "benchmark", "action", "sources"]) {
+  for (const id of ["figure", "benchmark", "sources"]) {
     assert.equal(insideDisclosure(byId(document, `${ANSWER}-${id}`)), false,
       `${id} sits inside a disclosure`);
   }
 });
 
-test("focus order follows the reading order: action, then the disclosures under it", () => {
+// #1667: ONE NEXT ACTION ON THE FIRST SCREEN. This region carried a second
+// `.stand-action`, painted at the same weight and pointing at the same
+// destination as #finops-recoverable-action above it — two "do this next" links
+// for one finding, and one more tab stop on a screen with none to spare.
+test("this region states no action of its own; the canonical one is the page's", () => {
   const document = doc();
   renderFinopsAnswer(document, answered());
+  assert.equal(document.querySelectorAll(`#${ANSWER}-action`).length, 0);
+
+  const actions = walk(byId(document, CANONICAL))
+    .filter((node) => String(node.className ?? "").split(/\s+/).includes("stand-action"));
+  assert.equal(actions.length, 1, "a second call-to-action is a second next step");
+  assert.equal(actions[0].id, "finops-recoverable-action");
+
   const stops = tabSequence(document).map((node) => node.id).filter(Boolean);
-  const rank = (id) => stops.indexOf(id);
-  assert.ok(rank(`${ANSWER}-action`) >= 0, "the action must be reachable by Tab");
-  assert.ok(rank(`${ANSWER}-action`) < rank("analysis-readiness-detail-summary"));
-  assert.ok(rank("analysis-readiness-detail-summary") >= 0);
+  assert.ok(stops.indexOf("finops-recoverable-action") >= 0,
+    "the one action must be reachable by Tab");
+  assert.ok(stops.indexOf("finops-recoverable-action")
+    < stops.indexOf("analysis-readiness-detail-summary"));
+});
+
+// And the line that ranked those actions was demoted rather than deleted: it is
+// inside the disclosure this region already had.
+test("the action basis is reachable inside the existing disclosure", () => {
+  const document = doc();
+  const basis = byId(document, `${ANSWER}-action-basis`);
+  assert.ok(basis, "the ranking line survived the cut");
+  assert.equal(insideDisclosure(basis), true, "it was not demoted");
+  const details = byId(document, "analysis-readiness-detail");
+  assert.ok(!details.open, "and the disclosure it sits in is shut");
 });
 
 // ---------------------------------------------------------------------------
@@ -227,9 +247,10 @@ test("exactly one control asks the reader to take the answer's next action", () 
   const restating = liveNodes(document)
     .filter((node) => node.tagName === "A" || node.tagName === "BUTTON")
     .filter((node) => textOf(node).includes(label));
-  assert.equal(restating.length, 1, "a second control restates the one next action");
-  assert.equal(restating[0].id, `${ANSWER}-action`);
-  assert.equal(restating[0].hidden, false, "the one action must be operable");
+  // #1667: ZERO. This region's own link was the second telling of a move the
+  // canonical answer above already states; the label below belongs to the
+  // scenario, and no control in the live analysis may repeat it.
+  assert.equal(restating.length, 0, "a control restates the one next action");
   // The chooser keeps its navigation, and none of it is an instruction: those
   // links go to evidence and to a department, which is not the action.
   const chooserLinks = walk(byId(document, CHOOSER)).filter((node) => node.tagName === "A");
@@ -420,8 +441,9 @@ test("the document ships in the loading state, with a placeholder in every slot"
   renderFinopsAnswer(document, null, { state: ANSWER_STATE.loading });
   assert.equal(byId(document, ANSWER).dataset.state, ANSWER_STATE.loading);
   assert.match(slot(document, "figure"), /Resolving the annual figure/);
-  assert.equal(byId(document, `${ANSWER}-action`).hidden, true,
-    "a link with no action behind it must not take a tab stop");
+  // #1667: a link with no action behind it took a first-screen tab stop in every
+  // state, so it is gone rather than hidden.
+  assert.equal(document.querySelectorAll(`#${ANSWER}-action`).length, 0);
 });
 
 test("no data reads as empty, names what is missing, and says what brings it", () => {

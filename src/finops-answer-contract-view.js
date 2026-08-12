@@ -123,7 +123,6 @@ export const RECOVERABLE_SPEND_IDS = Object.freeze({
   label: "finops-recoverable-label",
   value: "finops-recoverable-value",
   basis: "finops-recoverable-basis",
-  detail: "finops-recoverable-basis-detail",
 });
 
 export const RECOVERABLE_SPEND_LABEL = "Recoverable AI spend per month";
@@ -161,8 +160,8 @@ export function renderRecoverableSpend(doc, recoverable) {
   const basis = recoverable
     ? recoverable.basisSentence
     : `${ERROR_SENTENCE} No recoverable figure is stated for it.`;
+  // #1667: stated once. The disclosure carried the identical sentence.
   set(doc, RECOVERABLE_SPEND_IDS.basis, basis);
-  set(doc, RECOVERABLE_SPEND_IDS.detail, basis);
   return figure;
 }
 

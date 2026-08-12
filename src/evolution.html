@@ -169,33 +169,8 @@
              inside a shut disclosure is a grade nobody is told, which is what
              tests/finops-recoverable-confidence.test.js pins by name. -->
         <p class="stand-figure" id="finops-recoverable-figure" data-available="true" data-basis="monthly" data-scored-departments="5" data-total-departments="5"><span class="stand-figure-label" id="finops-recoverable-label">Recoverable AI spend per month</span> <span class="stand-figure-value" id="finops-recoverable-value">$51,254</span> <span class="stand-figure-basis" id="finops-recoverable-trust">How far to trust this figure: <span class="figure-source-state" id="finops-recoverable-marker">Illustrative</span> — <span class="figure-source-state" id="finops-recoverable-provenance" data-band="unscored">Pricing provenance: not scored</span> on the prices, <span class="figure-source-state" id="finops-recoverable-grade" data-grade="ungraded">Confidence: not graded</span> on the spend coverage. <span id="finops-recoverable-provenance-reason">Whose prices this figure uses has not been scored for this document.</span> <span id="finops-recoverable-confidence">A ceiling at list prices until 2 destination models state contracted rates and committed-use.</span> Both grades, the arithmetic behind them and the limits are under How we know this, below.</span></p>
-        <!-- HOW BIG THAT IS AGAINST EVERYTHING WE SPEND (#1512). The headline
-             says what is recoverable. It cannot say what share of the bill that
-             is, and the same figure reads completely differently against a
-             $150k month and a $15m one. So the spend is drawn once, as one bar
-             cut into three parts that sum to the current annual spend, beside
-             the number rather than under a disclosure.
-
-             THE TEXT IS THE CHART. The three values ship in the sentence below,
-             visually hidden, and the canvas is an enhancement over it: a
-             browser with no 2d context, and every reader on assistive
-             technology, gets the same three numbers from the DOM. The canvas is
-             aria-hidden so it does not announce as an empty graphic beside a
-             sentence that already said it, and it is not focusable, because
-             this screen has no spare tab stop.
-
-             NO NUMBER IS DERIVED HERE OR IN THE CHART. `getSpendShape` in
-             src/finops-answer-contract.js reads the canonical headline off the
-             same `getRecoverableSpend` record the figure above is painted from
-             and subtracts the rest out of the export's own analyzed total; the
-             chart is handed that record and owns geometry only. The authored
-             values are that function's own output, so the served bytes and the
-             render agree. Each part carries three carriers — fill, pattern and
-             an in-place label — so none of them is signalled by colour. -->
-        <div class="spend-shape" id="finops-spend-shape" data-available="true" data-drawn="false" data-total="1854000" data-recoverable="615048" data-not-recoverable="1238952" data-unscored="0">
-          <canvas class="spend-shape-canvas" id="finops-spend-shape-canvas" width="520" height="30" aria-hidden="true"></canvas>
-          <p class="visually-hidden" id="finops-spend-shape-text">Spend shape, annualised: $1,854,000 current annual spend, split into $615,048 defensible recoverable, $1,238,952 not recoverable and $0 not yet scored. Defensible recoverable is the headline monthly figure multiplied by 12. Not recoverable is the analyzed annual spend left after the recoverable part and the unscored part are taken out of it. Not yet scored is annualised spend in departments carrying no completed FinOps score, which the headline makes no claim about. The three parts add up to the current annual spend.</p>
-        </div>
+        <!-- #1667: the annualised spend bar came out. It answered a second
+             question on a second basis between the headline and the move. -->
         <!-- OVER WHAT PERIOD, ACROSS WHICH DEPARTMENTS, AND WHAT IT COMES TO IN
              A YEAR (#1496). The second question a leader asks about a recovery
              figure, answered in one sentence directly under it: the scope it
@@ -283,7 +258,7 @@
           <summary class="figure-source-summary how-we-know-summary" id="finops-recoverable-how-we-know-summary"><span class="figure-source-state" data-disclosure="collapsed"><span class="figure-source-shape" aria-hidden="true">▸</span> How we know this</span></summary>
           <dl class="figure-source-detail how-we-know-detail">
             <div><dt>Provenance</dt><dd>The bundled synthetic example: invented usage records for an invented company, shipped with this page. Not your spend, not customer data, and not a realized saving. No file of yours is read, uploaded, or stored to produce it.</dd></div>
-            <div><dt>Basis</dt><dd><span id="finops-recoverable-basis-detail">Summed over the 5 of 5 departments carrying a completed FinOps score for 2026-06-01 to 2026-07-01. Unscored departments contribute zero and are never extrapolated to. About $615,048 a year if this month holds — the monthly figure multiplied by 12, with no seasonality or growth adjustment.</span> The monthly figure is the measurement: each department's identified recoverable spend for the most recent complete month, summed. The annual figure is that figure multiplied by 12 and is stated nowhere on its own.</dd></div>
+            <div><dt>Basis</dt><dd>The monthly figure is the measurement: each department's identified recoverable spend for the most recent complete month, summed. The annual figure is that figure multiplied by 12 and is stated nowhere on its own.</dd></div>
             <div><dt>Limits</dt><dd><span id="finops-recoverable-contract-next">State contracted input and output rates for the premium text tier and the standard text tier — that moves this figure to Declared · Medium. Until then it stays illustrative: a list-price ceiling, not a saving.</span> Measured throughput is left out of the arithmetic too. It is stated as of the bundled synthetic example and moves the moment a provider export of your own is analyzed. <span id="finops-recoverable-confidence-detail">The confidence grade beside the figure has not been computed for this document.</span> <span id="finops-recoverable-provenance-detail">The pricing-provenance sub-score beside the figure has not been computed for this document.</span><section id="recoverable-spend-coverage" aria-label="Recovery-class coverage">Coverage detail is computed locally when the analysis loads.</section></dd></div>
           </dl>
         </details>
@@ -355,8 +330,8 @@
               <p class="sample-marker" id="finops-canonical-answer-synthetic"><span class="sample-marker-shape" aria-hidden="true">◇</span><strong>Bundled synthetic example</strong> Every figure in this briefing is modelled in this browser from invented provider-export records — not your spend, not a realized saving.</p>
               <p class="stand-figure-basis" id="finops-canonical-answer-scenario">Analyzing the bundled provider export selected in the chooser below.</p>
               <p class="stand-answer" id="finops-canonical-answer-benchmark">Checking that figure against the analysis benchmark…</p>
-              <a class="stand-action" id="finops-canonical-answer-action" href="/savings-action-center.html" hidden></a>
-              <p class="stand-action-basis" id="finops-canonical-answer-action-basis">Ranking the recommended actions…</p>
+              <!-- #1667: the second action link came out; the region's one move
+                   is the anchor above, to the same destination. -->
               <p class="stand-answer" id="finops-canonical-answer-reason">The answer is resolved locally, from the analysis this page already loaded.</p>
               <p class="panel-status-caveat" id="finops-canonical-answer-caveat" hidden></p>
               <p class="stand-figure-basis" id="finops-canonical-answer-sources">Provenance is stated with the figure, from the analysis's own signal names.</p>
@@ -383,6 +358,7 @@
                 <p class="figure-source-legend" id="analysis-readiness-evidence">Current evidence is limited to bundled synthetic scenarios.</p>
                 <p class="figure-source-legend" id="analysis-readiness-limit">No conclusion about your organization is supported.</p>
                 <p class="figure-source-legend" id="analysis-readiness-action">The prioritized illustrative action is read from the bundled scenario's own next-step record.</p>
+                <p class="stand-action-basis" id="finops-canonical-answer-action-basis">Ranking the recommended actions…</p>
                 <dl class="figure-source-detail">
                   <div><dt>Modelled recoverable line</dt><dd id="analysis-readiness-value">Read from the bundled scenario's own next-step record.</dd></div>
                   <div><dt>Action confidence</dt><dd id="analysis-readiness-action-confidence">Read from the quoted fixture action.</dd></div>

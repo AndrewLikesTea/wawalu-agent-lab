@@ -32,8 +32,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-import { loadPage, parseHtml, textOf } from "./support/browser.js";
-import { importPageModule, waitFor } from "./support/page-module.js";
+import { parseHtml, textOf } from "./support/browser.js";
 import { loadExampleDataset } from "../src/example-dataset.js";
 import { getRecoverableSpend, getSpendShape } from "../src/finops-answer-contract.js";
 import {
@@ -41,19 +40,23 @@ import {
   mountSpendShape, renderSpendShape, spendShapeLayout,
 } from "../src/finops-spend-shape-view.js";
 
-const PAGE = new URL("../src/evolution.html", import.meta.url);
-const SOURCE = await readFile(PAGE, "utf8");
 const GOLDEN = JSON.parse(await readFile(
   new URL("./fixtures/finops-spend-shape-draw-log.json", import.meta.url), "utf8"));
 
-const DEMO_DATA = JSON.parse(await readFile(
-  new URL("../src/evolution-demo-data.json", import.meta.url), "utf8"));
-const EVALUATION_FIXTURES = JSON.parse(await readFile(
-  new URL("../src/finops-evaluation-fixtures.json", import.meta.url), "utf8"));
-const ROUTES = {
-  "/evolution-demo-data.json": DEMO_DATA,
-  "/finops-evaluation-fixtures.json": EVALUATION_FIXTURES,
-};
+// #1667 CUT THIS CHART OFF THE AI FINOPS FIRST SCREEN. It stated three annual
+// totals between a monthly headline and the move that headline implies, which is
+// three answers to the page's one question. The MODULE is unchanged and still
+// held to every rule below — the canonical figures, the text alternative, the
+// geometry, the golden draw log — against a host fragment built here rather than
+// against /evolution.html, so this file no longer asserts a surface the product
+// deliberately no longer has. Mounting it on another surface needs this markup
+// and nothing else.
+const SOURCE = `<!doctype html><html><body>
+  <div class="spend-shape" id="finops-spend-shape" data-available="true" data-drawn="false">
+    <canvas class="spend-shape-canvas" id="finops-spend-shape-canvas" width="520" height="30" aria-hidden="true"></canvas>
+    <p class="visually-hidden" id="finops-spend-shape-text"></p>
+  </div>
+</body></html>`;
 
 const DATASET = loadExampleDataset();
 const RECORD = getRecoverableSpend(DATASET);
@@ -369,58 +372,21 @@ test("a coalesced redraw does no work when the measured width has not moved", as
 });
 
 // ---------------------------------------------------------------------------
-// 7. The page.
+// 7. The AI FinOps page, which no longer mounts this.
 // ---------------------------------------------------------------------------
 
-async function boot() {
-  const page = await loadPage(PAGE, { routes: ROUTES });
-  await importPageModule("/evolution-page.js");
-  const { document } = page;
-  await waitFor(() => document.documentElement.dataset.shiplogEvolution === "ready",
-    "the bundled analysis to finish rendering");
-  await waitFor(() => textOf(document.getElementById("integration-contract-provenance"))
-    .startsWith("Gateway completed"), "the static contract gateway to settle");
-  await waitFor(() => document.getElementById("finops-evaluation-result")
-    .getAttribute("aria-busy") === "false", "the evaluation panel to settle");
-  return page;
-}
-
-test("the served bytes state the same three figures the render does", () => {
-  const authored = parseHtml(SOURCE);
+test("the AI FinOps first screen carries no spend shape at all (#1667)", async () => {
+  const page = await readFile(
+    new URL("../src/evolution.html", import.meta.url), "utf8");
+  const document = parseHtml(page);
+  for (const id of Object.values(SPEND_SHAPE_IDS)) {
+    assert.equal(document.querySelectorAll(`#${id}`).length, 0,
+      `${id} is still on the first screen`);
+  }
+  // Two renders of the same record from the same accessor, so the text
+  // alternative is still pinned to the canonical headline wherever it is used.
   const painted = parseHtml(SOURCE);
   renderSpendShape(painted, SHAPE);
-  for (const key of ["available", "total", "recoverable", "notRecoverable", "unscored"]) {
-    assert.equal(region(authored).dataset[key], region(painted).dataset[key],
-      `the authored ${key} is not what the render writes`);
-  }
-  assert.equal(textOf(authored.getElementById(SPEND_SHAPE_IDS.text)),
-    textOf(painted.getElementById(SPEND_SHAPE_IDS.text)));
-  assert.equal(textOf(authored.getElementById(SPEND_SHAPE_IDS.text)), SHAPE.textAlternative);
-});
-
-test("a reload restores the shape from the canonical record, twice over", async () => {
-  const first = await boot();
-  const shown = () => ({
-    total: region(first.document).dataset.total,
-    recoverable: region(first.document).dataset.recoverable,
-    unscored: region(first.document).dataset.unscored,
-    sentence: textOf(first.document.getElementById(SPEND_SHAPE_IDS.text)),
-  });
-  const before = shown();
-  assert.equal(before.recoverable, String(RECORD.annualised),
-    "the mounted page must draw the canonical headline, annualised");
-  assert.equal(before.sentence, SHAPE.textAlternative);
-  // Nothing the drawing did may become the source of the next visit's figures.
-  assert.equal(first.storage.length, 0, "the chart persists nothing of its own");
-  first.restore();
-
-  const second = await boot();
-  const after = {
-    total: region(second.document).dataset.total,
-    recoverable: region(second.document).dataset.recoverable,
-    unscored: region(second.document).dataset.unscored,
-    sentence: textOf(second.document.getElementById(SPEND_SHAPE_IDS.text)),
-  };
-  assert.deepEqual(after, before, "the reloaded page states exactly the same three figures");
-  second.restore();
+  assert.equal(region(painted).dataset.recoverable, String(RECORD.annualised));
+  assert.equal(textOf(painted.getElementById(SPEND_SHAPE_IDS.text)), SHAPE.textAlternative);
 });

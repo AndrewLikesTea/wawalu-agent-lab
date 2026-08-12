@@ -1338,14 +1338,6 @@
    so the hidden slot is excluded and the visible briefing states its own case. */
 .stand-figure:has(>.stand-figure-value[data-available="false"]:not([hidden])),.stand-figure:has(>.peer-brief[data-state="unavailable"]) { border-top-style:dashed; border-top-color:var(--state-warn-line); }
 .stand-figure-basis { margin:0; max-width:60ch; color:var(--ink-muted); font-size:13px; line-height:1.55; overflow-wrap:anywhere; }
-/* The spend shape beside the headline (#1512). Two declarations and no colour:
-   every fill, pattern and label in the bar is painted on the canvas by
-   src/finops-spend-shape-view.js from this page's existing tokens, and the
-   canvas sizes itself in device pixels, so a rule here that set a width would
-   fight the element that measured it. `display:block` only removes the inline
-   baseline gap under it. */
-.spend-shape { margin:12px 0 0; max-width:60ch; }
-.spend-shape-canvas { display:block; }
 /* --ink-muted is 4.48:1 on this page's #f3f1eb — the file already records that
    at the trust-ladder note above, and 13px body text at 4.48:1 misses AA by two
    hundredths. The canonical answer states its provenance and its demoted
