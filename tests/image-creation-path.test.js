@@ -94,16 +94,42 @@ for (const [name, document] of Object.entries(NEARBY_INVITATION)) {
     assert.ok(sentence.indexOf("Paint") < sentence.indexOf("Social"),
       `${name}'s helper names the two steps out of order`);
 
-    // The composer's own sequence, in the composer's words: make the image,
-    // return to this tab, publish it. The middle step is the one a reader who
-    // has just been sent to another tab actually needs, and People used to skip
-    // it — the same round trip told two different ways on two pages.
-    assert.match(sentence, /return to this tab/,
-      `${name}'s helper never says to come back from the tab it opens`);
-    assert.ok(sentence.indexOf("Paint") < sentence.indexOf("return to this tab"),
-      `${name}'s helper asks the reader to return before it sends them anywhere`);
-    assert.ok(sentence.indexOf("return to this tab") < sentence.indexOf("Social"),
-      `${name}'s helper publishes before it comes back`);
+    // Two steps, and the sentence stops at the second one. It used to read
+    // "return to this tab, then publish it on Social", which sent the reader
+    // back to the page they were already on — People has no composer — and then
+    // named Social in plain text, leaving the nav as the only way to it. Both
+    // steps are now links, so "return to this tab" describes nothing the reader
+    // has to do and must not come back.
+    assert.doesNotMatch(sentence, /return to this tab/,
+      `${name}'s helper still routes the reader back to a page with no composer`);
+    assert.doesNotMatch(sentence, /publish it on this page|publish it here/i,
+      `${name}'s helper asks the reader to publish on the page they are reading`);
+    assert.equal(sentence.trim().endsWith("under a display name."), true,
+      `${name}'s helper does not end on the publishing step: ${sentence.trim()}`);
+  });
+
+  test(`${name} offers the publishing step as a link that names it and reaches the composer`, () => {
+    const invitation = document.querySelector(".feed-create");
+    // Named with Social's own control label, so the words on this link and the
+    // words on the button it lands next to are the same words.
+    const toSocial = invitation.querySelectorAll("a")
+      .filter((anchor) => (anchor.getAttribute("href") ?? "").startsWith("/social.html"));
+    assert.equal(toSocial.length, 1, `${name}'s helper names Social without linking it, or links it twice`);
+    assert.equal(textOf(toSocial[0]), "Publish a post on Social");
+    // The composer, not the top of the feed: src/social-page.js reveals the
+    // collapsed panel for this hash, so the reader lands on the field.
+    assert.equal(toSocial[0].getAttribute("href"), `${SOCIAL_COMPOSER_PATH}#post-form`);
+    assert.equal(documents.Social.querySelectorAll("#post-form").length, 1,
+      "the fragment the helper links to resolves to nothing on Social");
+    // Same tab: this step is on this site, so it carries none of the new-tab
+    // apparatus the Paint link needs.
+    assert.equal(toSocial[0].getAttribute("target"), null);
+    assert.ok(tabSequence(document).includes(toSocial[0]),
+      `${name}'s route to the composer is not keyboard reachable`);
+    // And it comes after the editor it depends on, in the order the steps happen.
+    const order = invitation.querySelectorAll("a");
+    assert.equal(order[0].getAttribute("id"), "profile-paint-route");
+    assert.equal(order[1].getAttribute("id"), "profile-publish-route");
   });
 
   test(`${name} keeps the Paint route in the keyboard sequence, before the browsing panel`, () => {
@@ -125,7 +151,10 @@ for (const [name, document] of Object.entries(NEARBY_INVITATION)) {
 test("People's nearby helper links to the editor without repeating the empty-state choices", () => {
   const invitation = documents.People.querySelector(".feed-create");
   const hrefs = invitation.querySelectorAll("a").map((anchor) => anchor.href);
-  assert.deepEqual(hrefs, ["/paint/?from=profile"]);
+  // The two steps the sentence names, and nothing else. The empty state offers
+  // the same two destinations under different labels, for the reader who has no
+  // posts to browse; this paragraph is for the one who does.
+  assert.deepEqual(hrefs, ["/paint/?from=profile", `${SOCIAL_COMPOSER_PATH}#post-form`]);
 });
 
 /* ---------------------------- the primary route ---------------------------- */

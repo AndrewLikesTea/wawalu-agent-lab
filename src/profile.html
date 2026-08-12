@@ -217,24 +217,27 @@
                read "Want a picture of your own here? Open Paint", which made
                opening the editor sound like the whole path and left the
                publishing step to an empty state a reader with posts on screen
-               never sees. The steps are the composer's own three, in the
-               composer's order and words — create the image, return to this tab,
-               publish it — said once and short, because People is not the place
-               to repeat the composer's numbered procedure.
-               The link opens Paint in a new tab, the way every route into Paint
-               on this site does, and its own text says so: a disclosure that
-               sits outside the link is a disclosure the accessible name does not
-               carry.
+               never sees.
+               Two steps, two links, and the sentence ends where the work does.
+               It used to end "return to this tab, then publish it on Social" in
+               plain text, which asked the reader to come back to the one page
+               on this site that has no composer, and then named the place that
+               does have one without offering a way to reach it. The second link
+               carries Social's own control label, "Publish a post", and its
+               href opens the composer rather than the top of the feed:
+               social-page.js reveals the collapsed panel for the #post-form
+               hash.
+               The Paint link opens a new tab, the way every route into Paint on
+               this site does, and its own text says so in the same five words
+               Social's composer uses: a disclosure that sits outside the link is
+               a disclosure the accessible name does not carry.
                `from=profile` is provenance, not state: it is what lets Paint's
                one back link say "Back to People" and mean it. profile.js adds
                the selected display name to it so the return lands on the exact
                profile that was being read; this static href is the
-               pre-hydration render and returns to People either way. Social is
-               named in words and not linked here: the way back to the whole
-               feed is already a link in the hero, and this paragraph holds one
-               route only. -->
+               pre-hydration render and returns to People either way. -->
           <p class="feed-create hint">
-            Want a picture of your own here? <a class="text-link paint-link" id="profile-paint-route" href="/paint/?from=profile" target="_blank" rel="noopener">Create an image in Paint <span class="new-tab-note">(opens in a new tab)</span></a>, return to this tab, then publish it on Social under a display name.
+            Want a picture of your own here? <a class="text-link paint-link" id="profile-paint-route" href="/paint/?from=profile" target="_blank" rel="noopener">Create an image in Paint <span class="new-tab-note">(opens in a new tab)</span></a>, then <a class="text-link" id="profile-publish-route" href="/social.html#post-form">Publish a post on Social</a> under a display name.
           </p>
 
           <div class="feed-connection">
