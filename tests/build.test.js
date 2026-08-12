@@ -14,7 +14,7 @@ import {
   SEED_DECISIONS,
   SEED_RELEASES,
 } from "../src/seed-records.js";
-import { SITE_NAV } from "../src/site-nav.js";
+import { NAV_SETS, SITE_NAV } from "../src/site-nav.js";
 import { buildStandHeadline } from "../src/finops-stand.js";
 import { parseHtml, pressEnter, pressTab, textOf } from "./support/browser.js";
 
@@ -300,12 +300,24 @@ test("the home page names every nav destination and says what each one does", as
 
   // Two groups, each under a real heading one level below the section's own:
   // the surfaces that read a visitor's own material, then the ones furnished
-  // with invented data. The second heading has to say demonstration in a word a
-  // buyer cannot read as a promise about their data.
+  // with invented data. The site names these two families in the nav as well,
+  // and a reader who meets both must not have to work out that they are the
+  // same two families — so these headings are the nav's group names, character
+  // for character, rather than a second wording that means the same thing.
   const headings = [...guide.querySelectorAll("h3")];
   assert.equal(headings.length, 2, "the destinations must be split into exactly two groups");
-  assert.match(textOf(headings[0]), /your own work/i, "the first group must say these run on the reader's own material");
-  assert.match(textOf(headings[1]), /demonstrations?/i, "the second group must say plainly that these are demonstrations");
+  assert.deepEqual(headings.map(textOf), NAV_SETS.map((set) => set.label),
+    "the group headings must be the nav's group names, word for word and in the nav's order");
+  // The caution the demonstration heading used to carry is copy this section
+  // still owes a buyer; it moved into prose so the heading could carry only the
+  // name. It may not simply have been deleted.
+  const guideText = textOf(guide);
+  assert.match(guideText, /not tools for your data/i,
+    "the demonstration group must still say plainly that it is not a tool for the reader's data");
+  assert.ok(
+    guideText.indexOf("not tools for your data") > guideText.indexOf(textOf(headings[1])),
+    "the caution must read under the demonstration heading, not before it",
+  );
 
   const lists = [...guide.querySelectorAll("ul")].map((list) =>
     [...list.querySelectorAll("li")].map((entry) => entry.querySelector("a").getAttribute("href")));

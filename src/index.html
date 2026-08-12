@@ -211,25 +211,29 @@
            Each sentence is the same act, named with the same verb and the same
            noun, as the About Shiplog band's fragment for that destination in
            src/site-footer.js: the band points, this list explains, and the two
-           maps no longer describe one site twice over. Social's entry is the
-           one exception: it is word for word the band's fragment, because the
-           wording that used to sit here opened by repeating the word Social
-           and was pasted from Social's own intro. tests/site-footer.test.js
-           pins both. -->
+           maps no longer describe one site twice over. Social and People are
+           the exceptions: each is word for word the band's fragment, because
+           the wording that used to sit here was pasted from the destination's
+           own page and said less than the band already said. The two group
+           headings are the nav's group names from src/site-nav.js, character
+           for character — the site names these two families once, and the
+           caution the demos heading used to carry sits in the sentence under
+           it. tests/site-footer.test.js and tests/build.test.js pin both. -->
       <section class="site-guide" aria-labelledby="site-guide-title">
         <h2 id="site-guide-title">Where everything is</h2>
         <p class="site-guide-intro">Shiplog names what your AI spend is buying and keeps the reasoning behind what your team shipped — all on this one site.</p>
-        <h3 id="site-guide-tools-title">Tools you run on your own work</h3>
+        <h3 id="site-guide-tools-title">Runs on your own work</h3>
         <ul aria-labelledby="site-guide-tools-title">
           <li><a href="/evolution.html">AI FinOps</a> Find where to act first on your AI spend: score your provider export in this browser tab.</li>
           <li><a href="/coach.html">Prompt coach</a> Grade a prompt against a bundled rubric in your browser tab, then revise and grade again.</li>
           <li><a href="/">Decisions</a> Record a decision with its context, alternatives, and owner, then search and filter the history.</li>
           <li><a href="/releases.html">Releases</a> Every release, newest first, with the decisions it carried.</li>
         </ul>
-        <h3 id="site-guide-demos-title">Demonstrations, not tools for your data</h3>
+        <h3 id="site-guide-demos-title">Demos, sample data</h3>
+        <p>These run on invented sample data. They are not tools for your data.</p>
         <ul aria-labelledby="site-guide-demos-title">
           <li><a href="/social.html">Social</a> Read short posts about what the team ships, images optional.</li>
-          <li><a href="/profile.html">People</a> Pick a display name and see its image posts, newest first. The picker is on the page.</li>
+          <li><a href="/profile.html">People</a> Pick a display name, see its image posts, newest first.</li>
           <li><a href="/paint/">Paint</a> Crop or draw an image in this tab, export a PNG, then publish it on Social yourself.</li>
           <li><a href="/agents.html">Agent observatory</a> Watch a synthetic engineering team build and review work, beside merged pull requests counted from public GitHub activity.</li>
         </ul>
