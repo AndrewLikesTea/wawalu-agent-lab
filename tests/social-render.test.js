@@ -193,8 +193,9 @@ test("empty, loading, and error states are three distinct renders", () => {
   // shared: it says what excluded the posts, how many are waiting behind the
   // filters, and offers the control that brings them back.
   const filtered = first(empty, "empty-state");
-  assert.match(filtered.textContent, /No posts match these filters: Ari · from the past hour\./);
-  assert.match(filtered.textContent, /Social still holds 4 posts\./);
+  assert.match(filtered.textContent, /No posts by Ari from the past hour\. Select Clear filters to see all 4 posts\./);
+  // The way out names the control by the words printed on it.
+  assert.match(filtered.textContent, /Select Clear filters to/);
   assert.doesNotMatch(filtered.textContent, /No posts on Social yet/);
   const clear = first(filtered, "state-action");
   assert.equal(clear.tagName, "BUTTON");

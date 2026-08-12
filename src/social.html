@@ -118,24 +118,23 @@
         <div class="list-panel" aria-labelledby="feed-title">
           <div class="section-heading list-heading">
             <div>
-              <!-- Carries an id because it is the feed list's accessible
-                   description: #post-feed points aria-describedby here, so a
-                   reader entering the list is told how it is sorted. Same
-                   direction and same pattern as People, where the grid points
-                   at its own ordering line. -->
-              <p class="eyebrow" id="feed-order">Post order: newest first</p>
+              <!-- No ordering eyebrow. It read "Post order: newest first" above
+                   a summary sentence that ends "newest first", which is the same
+                   fact told twice on one screen; the sentence keeps it, because
+                   it is the line that also carries the count, and #post-feed
+                   points its aria-describedby there now. -->
               <!-- Rewritten by social.js on every render to name what the
                    filters are showing and how many posts matched — "All posts"
                    was fixed, so a feed narrowed to one display name still
                    claimed to hold every post, and this heading is the whole
-                   panel's accessible name. It ships as the unfiltered wording
-                   because a count is a claim the page cannot make until a fetch
-                   has come back. -->
+                   panel's accessible name. It ships as the bare noun because a
+                   count is a claim the page cannot make until a fetch has come
+                   back. -->
               <!-- Focusable by script only: recovering from the no-match state
                    destroys the control that was pressed, so focus is moved to
                    the restored list, and this heading is where it lands when
                    there is no card to land on. tabindex="-1" adds no tab stop. -->
-              <h2 id="feed-title" tabindex="-1">All posts</h2>
+              <h2 id="feed-title" tabindex="-1">Posts</h2>
             </div>
             <!-- Not a live region any more. The summary below the filters says
                  the same news in a fuller sentence — how many of how many, and
@@ -219,12 +218,15 @@
                was written for is gone — so Tab and the arrow keys do what the
                browser already promises, and a paragraph saying so taught a
                first-time visitor nothing. What a reader entering the list does
-               need is how it is sorted, and that is the ordering line above,
-               which #post-feed now points its aria-describedby at, exactly as
-               People's grid points at its own. -->
+               need is how many posts are below it and how they are sorted, and
+               that is the summary sentence, which #post-feed now points its
+               aria-describedby at. -->
           <p class="visually-hidden" id="feed-announcer" aria-live="polite" aria-atomic="true"></p>
           <!-- One sentence for "what am I looking at": how many of how many
-               posts are below this line, and which filters produced them.
+               posts are below this line, which filters produced them, and the
+               order they are in. It is the page's only statement of the order,
+               and #post-feed points its aria-describedby here, so a reader
+               entering the list hears the count and the sorting together.
                social.js writes it from the same array it renders the cards
                from, so the number here is the number of cards, in every state
                including none, and it names the filters in the option text read
@@ -242,7 +244,7 @@
                cards. -->
           <p class="feed-summary" id="feed-summary" aria-live="polite"></p>
           <div id="feed-state" role="status" aria-live="polite" aria-atomic="true">Loading the Social feed…</div>
-          <div id="post-feed" aria-describedby="feed-order"></div>
+          <div id="post-feed" aria-describedby="feed-summary"></div>
         </div>
 
         <!-- Ships collapsed, and is revealed by the hero's Publish a post

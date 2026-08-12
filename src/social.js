@@ -107,11 +107,14 @@ export function filterPosts(posts, { author = "all", range = "all", now = Date.n
   return sortPostsNewestFirst(posts).filter((post) => postMatchesFilters(post, { author, range, now }));
 }
 
-// The one term this site uses for the name a post is published under. The
-// composer's field hint, People's picker, and the feed's own filter label all
-// say "display name", so the sentence above the feed says it too rather than
-// introducing a second word for the same thing.
-export const AUTHOR_TERM = "display name";
+// The one way this page words the two filters, so the heading, the sentence
+// above the cards, and the no-match panel name a narrowed feed identically.
+// The time clause is the time menu's own option text, read back off the control;
+// the name clause is "by Ari", which is how People already words the same fact
+// ("Showing 3 image posts by Ari") — one phrasing for one concept, both pages.
+function filterClauses({ range = "", author = "" } = {}) {
+  return [author ? `by ${author}` : "", range].filter(Boolean).join(" ");
+}
 
 // The heading above the post list. It read "All posts" in every state, so a
 // reader who narrowed the feed to one display name, or to the past hour, still
@@ -119,26 +122,21 @@ export const AUTHOR_TERM = "display name";
 // accessible name of the whole feed panel, so that claim was also what a screen
 // reader announced on entering the region.
 //
-// It names what the current filters are showing and how many posts matched, in
-// the same words the controls use: the time clause is the time menu's own option
-// text, and the name clause uses AUTHOR_TERM, so the heading, the note under
-// Clear filters, and the sentence above the cards cannot drift apart.
-//
 // A noun phrase, not a sentence — it is a heading, and the summary below it is
-// where the full sentence lives. "All" survives only where it is true and reads:
-// with one post there is nothing to be "all" of, and with none the heading says
-// so in the same words the empty panel does.
+// where the full sentence lives. It no longer says "All": the summary is now the
+// page's one statement of how many of how many posts are showing, so a heading
+// claiming "all" of anything beside it was a second, weaker telling of the same
+// count.
 //
 // `shown` is the length of the array the cards are rendered from, never a second
 // filter pass, which is what keeps the stated count and the visible cards the
 // same number.
-export const DEFAULT_FEED_HEADING = "All posts";
+export const DEFAULT_FEED_HEADING = "Posts";
 
 export function feedHeading({ shown = 0, range = "", author = "" } = {}) {
-  const clauses = [range, author ? `under the ${AUTHOR_TERM} ${author}` : ""].filter(Boolean).join(" ");
+  const clauses = filterClauses({ range, author });
   const counted = shown === 0 ? "No posts" : `${shown} ${shown === 1 ? "post" : "posts"}`;
-  if (!clauses) return shown > 1 ? `All ${shown} posts` : counted;
-  return `${counted} ${clauses}`;
+  return clauses ? `${counted} ${clauses}` : counted;
 }
 
 // The sentence above the post list: how many posts are on screen, out of how
@@ -154,38 +152,50 @@ export function feedHeading({ shown = 0, range = "", author = "" } = {}) {
 // and "Showing all 2 posts" are the same sentence to a reader who cannot see
 // the menus above it.
 //
+// It also carries the ordering, which is why the eyebrow that used to sit above
+// the heading ("Post order: newest first") is gone: the page states the order
+// once, in the sentence that already states the count, and the feed list points
+// its aria-describedby here.
+//
 // An unfiltered, genuinely empty feed returns "": that is the never-posted
 // state, which the empty panel already owns and says more usefully than a
-// sentence counting to zero would. A filtered feed that matched nothing does
-// state its zero — the number is the news — and the recovery lives in the
-// no-match panel below, which owns a control that can act on it.
+// sentence counting to zero would. A filtered feed that matched nothing says so
+// in the no-match wording below, naming the filters and the control that undoes
+// them, because "Showing 0 of 24 posts by Ari, newest first" orders nothing and
+// offers nothing.
 export function feedSummarySentence({ shown = 0, total = shown, range = "", author = "" } = {}) {
-  const clauses = [range, author ? `under the ${AUTHOR_TERM} ${author}` : ""].filter(Boolean).join(" ");
+  const clauses = filterClauses({ range, author });
 
   if (!clauses) {
     if (shown === 0) return "";
-    return shown === 1 ? "Showing 1 post, newest first." : `Showing all ${shown} posts, newest first.`;
+    return `Showing ${shown} ${shown === 1 ? "post" : "posts"}, newest first.`;
   }
-  return `Showing ${shown} of ${total} ${total === 1 ? "post" : "posts"} ${clauses}.`;
+  if (shown === 0) return `${noMatchMessage({ range, author })} ${noMatchGuidance(total)}`;
+  return `Showing ${shown} of ${total} ${total === 1 ? "post" : "posts"} ${clauses}, newest first.`;
 }
 
-// The two lines of the no-match dead end. A filter combination that matches
+// The two sentences of the no-match dead end, rendered in the panel below the
+// feed and composed into the summary above it. A filter combination that matches
 // nothing used to render the never-posted panel — "No posts on Social yet." —
 // which told a reader the feed was empty when in fact it was full and their own
 // two menus were hiding it. These say the opposite, in the menus' own words:
 // what excluded the posts, and how many are waiting behind the filters.
 //
-// The filters are listed after a colon, joined with "·", rather than folded
-// into prose: this is a list of what is currently set, in the menus' own option
-// text, and the colon is what keeps it a sentence when only one of the two is
-// set — "No posts match from the past hour" is not English.
+// Plain sentences, not a colon and a list of set filters: "No posts match these
+// filters: Ari · from the past hour." asked a reader to parse a field before
+// they could read the news. The clauses are the same ones the heading and the
+// summary use, so the three cannot drift apart.
+//
+// The way out names the control by the exact words on it — CLEAR_FILTERS_LABEL
+// is what the button renders — rather than describing the act ("clear the
+// filters"), so a reader can look for the thing they were just told to press.
 export function noMatchMessage({ range = "", author = "" } = {}) {
-  const named = [author, range].filter(Boolean).join(" · ");
-  return named ? `No posts match these filters: ${named}.` : "No posts match these filters.";
+  const clauses = filterClauses({ range, author });
+  return clauses ? `No posts ${clauses}.` : "No posts match these filters.";
 }
 
 export function noMatchGuidance(total = 0) {
-  return `Social still holds ${total} ${total === 1 ? "post" : "posts"}. Clear the filters to read them.`;
+  return `Select ${CLEAR_FILTERS_LABEL} to see all ${total} ${total === 1 ? "post" : "posts"}.`;
 }
 
 export const CLEAR_FILTERS_LABEL = "Clear filters";

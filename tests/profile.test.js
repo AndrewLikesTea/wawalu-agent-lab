@@ -614,7 +614,10 @@ test("the empty profile says it once across the whole page", () => {
   assert.equal(onPage.filter((text) => text.includes(countLabel(0, "image post"))).length, 0);
   assert.equal(profileResultsHeading("Mina", 0), "Mina · 0 image posts");
   assert.equal(profileAnnouncement("Mina", 0), "Mina hasn’t posted an image yet. Images made in Paint and published on Social appear here.");
-  assert.equal(profileAnnouncement("Mina", 2), "Showing 2 image posts by Mina.");
+  // Social's settled sentence with this page's noun in it, closing clause and
+  // all: "Showing 12 posts, newest first." there, this here.
+  assert.equal(profileAnnouncement("Mina", 2), "Showing 2 image posts by Mina, newest first.");
+  assert.equal(profileAnnouncement("Mina", 1), "Showing 1 image post by Mina, newest first.");
 });
 
 test("the waiting line names image posts once without duplicating the selected display name", () => {

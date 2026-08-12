@@ -15,7 +15,6 @@ import {
   CLEAR_FILTERS_LABEL,
   feedHeading,
   DEFAULT_FEED_HEADING,
-  AUTHOR_TERM,
   MAX_POST_LENGTH,
   MAX_AUTHOR_LENGTH,
   MAX_IMAGE_ALT_LENGTH,
@@ -105,17 +104,18 @@ test("counterState reports remaining budget and warning thresholds", () => {
 
 // The feed's instructions are not keyboard instructions. social.js binds no key
 // over the list, so the paragraph that described Tab and the arrow keys
-// described the browser; what a reader entering the list needs is how it is
-// sorted, and that is what the list now points its description at — the same
-// direction People's grid uses for its own ordering line.
-test("the feed list is described by its ordering line, not by keyboard instructions", async (t) => {
+// described the browser; what a reader entering the list needs is how many posts
+// are below it and how they are sorted, and that is the summary sentence the
+// list now points its description at.
+test("the feed list is described by its summary sentence, not by keyboard instructions", async (t) => {
   const page = await loadPage(new URL("../src/social.html", import.meta.url), {});
   t.after(() => page.restore());
 
   const feed = page.document.querySelector("#post-feed");
-  assert.equal(feed.getAttribute("aria-describedby"), "feed-order");
-  // The exact accessible description, read off the element the list names.
-  assert.equal(textOf(page.document.querySelector("#feed-order")), "Post order: newest first");
+  assert.equal(feed.getAttribute("aria-describedby"), "feed-summary");
+  // The eyebrow that used to carry the order is gone: the sentence it described
+  // ends "newest first", and one screen states the order once.
+  assert.equal(page.document.querySelectorAll("#feed-order").length, 0);
 
   const markup = await readFile(new URL("../src/social.html", import.meta.url), "utf8");
   const rendered = markup.replace(/<!--[\s\S]*?-->/g, "");
@@ -644,8 +644,8 @@ test("the feed toolbar names what each control filters, in the site's own terms"
     "the poster filter reuses the composer's and People's term for a byline");
   assert.match(markup, /<option value="all">All display names<\/option>/,
     "the all-values option names the thing the menu holds, in the label's own term");
-  assert.match(markup, /class="eyebrow" id="feed-order">Post order: newest first</,
-    "the feed's order is a named fact, not a bare value floating above the heading");
+  assert.doesNotMatch(markup.replace(/<!--[\s\S]*?-->/g, ""), /Post order: newest first/,
+    "the ordering eyebrow survives above a summary sentence that already ends \"newest first\"");
   // "Show posts" named no field — it read as the button beside it rather than
   // as the label above a menu. The label is the fact the menu narrows on.
   assert.match(markup, /<label for="post-time-filter">Time posted<\/label>/,
@@ -682,38 +682,39 @@ test("the feed toolbar names what each control filters, in the site's own terms"
   assert.deepEqual(labels.map((label) => label.getAttribute("for")), ["post-name-filter", "post-time-filter"]);
 });
 
-// "Author" would be a second word for something this site already names: the
-// composer's field hint, People's picker, and this filter all say "display
-// name". The summary sentence and the Clear filters note say it too, so the
-// three places a reader meets the concept agree word for word.
+// The one sentence a settled feed owes a first-time visitor: how many posts,
+// which filters produced them, and what order they are in. The order clause is
+// part of it, because it is the page's only statement of the order now.
 test("feedSummarySentence composes only the filters that are set, with correct plurals", () => {
-  assert.equal(AUTHOR_TERM, "display name");
-
-  assert.equal(feedSummarySentence({ shown: 12 }), "Showing all 12 posts, newest first.");
+  assert.equal(feedSummarySentence({ shown: 12 }), "Showing 12 posts, newest first.");
   assert.equal(feedSummarySentence({ shown: 1 }), "Showing 1 post, newest first.");
   // An unfiltered feed with nothing in it is the never-posted state, which the
   // empty panel already says more usefully than a sentence counting to zero.
   assert.equal(feedSummarySentence({ shown: 0 }), "");
 
   // A narrowed feed says what it was narrowed from. Without the denominator,
-  // "Showing 2 posts" and "Showing all 2 posts" are the same sentence to a
-  // reader who cannot see the menus above it.
+  // "Showing 2 posts" says nothing to a reader who cannot see the menus above
+  // it. The filter reads "by Ari" — People's words for the same fact — and the
+  // time clause is the menu's own option text.
   assert.equal(feedSummarySentence({ shown: 3, total: 12, range: "from the past 24 hours", author: "Ari" }),
-    "Showing 3 of 12 posts from the past 24 hours under the display name Ari.");
+    "Showing 3 of 12 posts by Ari from the past 24 hours, newest first.");
   assert.equal(feedSummarySentence({ shown: 1, total: 4, range: "from the past hour" }),
-    "Showing 1 of 4 posts from the past hour.");
+    "Showing 1 of 4 posts from the past hour, newest first.");
   assert.equal(feedSummarySentence({ shown: 2, total: 5, author: "Mina" }),
-    "Showing 2 of 5 posts under the display name Mina.");
+    "Showing 2 of 5 posts by Mina, newest first.");
   // The plural follows the total, which is the noun being counted out of.
   assert.equal(feedSummarySentence({ shown: 1, total: 1, author: "Mina" }),
-    "Showing 1 of 1 post under the display name Mina.");
+    "Showing 1 of 1 post by Mina, newest first.");
 
-  // A filtered zero states its zero — the number is the news — and the recovery
-  // lives in the no-match panel below, which has a control that can act on it.
+  // A filtered zero orders nothing, so it does not claim an order: it names the
+  // filters that emptied the feed and the control that undoes them, in the same
+  // words the panel below the feed uses.
   assert.equal(feedSummarySentence({ shown: 0, total: 9, range: "from the past hour", author: "Ari" }),
-    "Showing 0 of 9 posts from the past hour under the display name Ari.");
+    "No posts by Ari from the past hour. Select Clear filters to see all 9 posts.");
   assert.equal(feedSummarySentence({ shown: 0, total: 9, author: "Ari" }),
-    "Showing 0 of 9 posts under the display name Ari.");
+    "No posts by Ari. Select Clear filters to see all 9 posts.");
+  assert.equal(feedSummarySentence({ shown: 0, total: 1, range: "from the past hour" }),
+    "No posts from the past hour. Select Clear filters to see all 1 post.");
 });
 
 // The filtered dead end used to render the never-posted panel, which told a
@@ -721,15 +722,18 @@ test("feedSummarySentence composes only the filters that are set, with correct p
 // were hiding it. These two lines are the opposite claim, and they are checked
 // against the never-posted copy so the two can never read as the same screen.
 test("the no-match copy names the filters and cannot be confused with the never-posted state", () => {
+  // Plain sentences. "No posts match these filters: Ari · from the past hour."
+  // made a reader parse a labelled list before they could read the news.
   assert.equal(noMatchMessage({ author: "Ari", range: "from the past 24 hours" }),
-    "No posts match these filters: Ari · from the past 24 hours.");
-  // The colon is what keeps the sentence grammatical when only one menu is set.
-  assert.equal(noMatchMessage({ author: "Ari" }), "No posts match these filters: Ari.");
-  assert.equal(noMatchMessage({ range: "from the past hour" }),
-    "No posts match these filters: from the past hour.");
+    "No posts by Ari from the past 24 hours.");
+  assert.equal(noMatchMessage({ author: "Ari" }), "No posts by Ari.");
+  assert.equal(noMatchMessage({ range: "from the past hour" }), "No posts from the past hour.");
 
-  assert.equal(noMatchGuidance(12), "Social still holds 12 posts. Clear the filters to read them.");
-  assert.equal(noMatchGuidance(1), "Social still holds 1 post. Clear the filters to read them.");
+  // The way out names the control by the exact words printed on it, so a reader
+  // can go looking for the thing they were just told to press.
+  assert.equal(noMatchGuidance(12), "Select Clear filters to see all 12 posts.");
+  assert.equal(noMatchGuidance(1), "Select Clear filters to see all 1 post.");
+  assert.match(noMatchGuidance(4), new RegExp(`Select ${CLEAR_FILTERS_LABEL} `));
 
   for (const text of [noMatchMessage({ author: "Ari" }), noMatchGuidance(3)]) {
     assert.doesNotMatch(text, /No posts on Social yet/);
@@ -740,24 +744,24 @@ test("the no-match copy names the filters and cannot be confused with the never-
 
 // The heading said "All posts" whatever the filters held, so a feed narrowed to
 // one display name still announced itself as every post on Social. It names what
-// is on screen now, in the same words the two menus use.
+// is on screen now, in the same words the two menus and the sentence below use.
 test("feedHeading names the set on screen and counts it, in the menus' own words", () => {
-  assert.equal(DEFAULT_FEED_HEADING, "All posts");
+  // No count before a fetch has answered, and no "All" claim beside a sentence
+  // that already says how many of how many posts are showing.
+  assert.equal(DEFAULT_FEED_HEADING, "Posts");
 
-  assert.equal(feedHeading({ shown: 12 }), "All 12 posts");
-  // Nothing to be "all" of: one post is the whole feed, and "All 1 post" is not
-  // a sentence anyone writes.
+  assert.equal(feedHeading({ shown: 12 }), "12 posts");
   assert.equal(feedHeading({ shown: 1 }), "1 post");
   // An answered, unfiltered, empty feed. Same two words the empty panel opens
   // with ("No posts on Social yet."), so the heading cannot contradict it.
   assert.equal(feedHeading({ shown: 0 }), "No posts");
 
-  assert.equal(feedHeading({ shown: 2, author: "Ari" }), `2 posts under the ${AUTHOR_TERM} Ari`);
+  assert.equal(feedHeading({ shown: 2, author: "Ari" }), "2 posts by Ari");
   assert.equal(feedHeading({ shown: 1, range: "from the past hour" }), "1 post from the past hour");
   assert.equal(feedHeading({ shown: 3, range: "from the past 24 hours", author: "Ari" }),
-    "3 posts from the past 24 hours under the display name Ari");
+    "3 posts by Ari from the past 24 hours");
   assert.equal(feedHeading({ shown: 0, range: "from the past 7 days", author: "Mina" }),
-    "No posts from the past 7 days under the display name Mina");
+    "No posts by Mina from the past 7 days");
 
   // A heading, not a second copy of the sentence below it, and no arrow glyphs.
   for (const shown of [0, 1, 5]) {
@@ -796,11 +800,11 @@ test("the feed heading tracks the filters and the cards actually rendered", asyn
     control.dispatchEvent({ type: "change", bubbles: true });
   };
 
-  assert.equal(textOf(heading), "All 3 posts");
+  assert.equal(textOf(heading), "3 posts");
   assert.equal(shown(), 3);
 
   choose(nameFilter, "Ari");
-  assert.equal(textOf(heading), "2 posts under the display name Ari");
+  assert.equal(textOf(heading), "2 posts by Ari");
   assert.equal(shown(), 2, "the heading's count is the number of cards rendered");
 
   choose(nameFilter, "all");
@@ -809,18 +813,18 @@ test("the feed heading tracks the filters and the cards actually rendered", asyn
   assert.equal(shown(), 1);
 
   choose(nameFilter, "Ari");
-  assert.equal(textOf(heading), "1 post from the past hour under the display name Ari",
+  assert.equal(textOf(heading), "1 post by Ari from the past hour",
     "both filters are named, and the pair carries one count");
   assert.equal(shown(), 1);
 
   choose(nameFilter, "Mina");
-  assert.equal(textOf(heading), "No posts from the past hour under the display name Mina");
+  assert.equal(textOf(heading), "No posts by Mina from the past hour");
   assert.equal(shown(), 0);
   assert.doesNotMatch(textOf(heading), /No posts on Social yet/,
     "the heading takes over the never-posted empty state's words");
 
   page.document.querySelector("#post-filter-clear").click();
-  assert.equal(textOf(heading), "All 3 posts", "Clear filters restores the unfiltered heading and count");
+  assert.equal(textOf(heading), "3 posts", "Clear filters restores the unfiltered heading and count");
   assert.equal(shown(), 3);
 
   // Still the panel's accessible name, and still out in the open: a heading
@@ -842,9 +846,9 @@ test("the feed heading makes no claim about the feed before a fetch has answered
   const heading = page.document.querySelector("#feed-title");
   const feed = mountSocialFeed(page.document, { posts: [], state: "loading" });
 
-  assert.equal(textOf(heading), "All posts", "an open fetch is not a count of zero");
+  assert.equal(textOf(heading), "Posts", "an open fetch is not a count of zero");
   feed.setState("error");
-  assert.equal(textOf(heading), "All posts", "a failed fetch is not a count of zero");
+  assert.equal(textOf(heading), "Posts", "a failed fetch is not a count of zero");
 
   feed.seed([]);
   assert.equal(textOf(heading), "No posts", "an answered fetch with nothing in it is a real zero");
@@ -879,7 +883,7 @@ test("the summary sentence stays true as the filters change", async (t) => {
     control.dispatchEvent({ type: "change", bubbles: true });
   };
 
-  assert.equal(textOf(summary), "Showing all 3 posts, newest first.");
+  assert.equal(textOf(summary), "Showing 3 posts, newest first.");
   assert.equal(shown(), 3);
   // The sentence is the announced region, and it is in normal flow rather than
   // folded away or hidden — a live region a reader cannot see is one they are
@@ -890,25 +894,29 @@ test("the summary sentence stays true as the filters change", async (t) => {
   assert.equal(summary.querySelectorAll("[aria-live]").length, 0, "a nested live region announces twice");
 
   choose(nameFilter, "Ari");
-  assert.equal(textOf(summary), "Showing 2 of 3 posts under the display name Ari.");
+  assert.equal(textOf(summary), "Showing 2 of 3 posts by Ari, newest first.");
   assert.equal(shown(), 2, "the stated count is the number of cards rendered");
 
   choose(timeFilter, "hour");
-  assert.equal(textOf(summary), "Showing 1 of 3 posts from the past hour under the display name Ari.");
+  assert.equal(textOf(summary), "Showing 1 of 3 posts by Ari from the past hour, newest first.");
   assert.equal(shown(), 1);
 
   choose(nameFilter, "all");
-  assert.equal(textOf(summary), "Showing 1 of 3 posts from the past hour.",
+  assert.equal(textOf(summary), "Showing 1 of 3 posts from the past hour, newest first.",
     "an unset filter contributes no clause");
 
   choose(nameFilter, "Mina");
   assert.equal(shown(), 0);
-  assert.equal(textOf(summary), "Showing 0 of 3 posts from the past hour under the display name Mina.");
+  // Nothing matched, so the sentence stops counting and starts helping: it names
+  // the filters in effect and the control that undoes them, by its exact label.
+  assert.equal(textOf(summary), "No posts by Mina from the past hour. Select Clear filters to see all 3 posts.");
+  assert.equal(textOf(page.document.querySelector("#post-filter-clear")), "Clear filters",
+    "the sentence points at a label the button does not render");
   // Distinct from the never-posted empty state, which this change leaves alone.
   assert.doesNotMatch(textOf(summary), /No posts on Social yet/);
 
   page.document.querySelector("#post-filter-clear").click();
-  assert.equal(textOf(summary), "Showing all 3 posts, newest first.");
+  assert.equal(textOf(summary), "Showing 3 posts, newest first.");
   assert.equal(shown(), 3);
 });
 
@@ -952,8 +960,8 @@ test("a filter combination matching nothing reads as a dead end with its own rec
   assert.equal(shown(), 0);
 
   const panel = page.document.querySelector(".empty-state");
-  assert.match(textOf(panel), /No posts match these filters: Mina · from the past hour\./);
-  assert.match(textOf(panel), /Social still holds 3 posts\. Clear the filters to read them\./);
+  assert.match(textOf(panel), /No posts by Mina from the past hour\./);
+  assert.match(textOf(panel), /Select Clear filters to see all 3 posts\./);
   // Not the never-posted screen, in either of its halves.
   assert.doesNotMatch(textOf(panel), /No posts on Social yet/);
   assert.doesNotMatch(textOf(panel), /create an image in Paint/);
@@ -977,7 +985,7 @@ test("a filter combination matching nothing reads as a dead end with its own rec
   assert.equal(shown(), 3, "recovery restores every post");
   assert.equal(nameFilter.value, "all");
   assert.equal(timeFilter.value, "all");
-  assert.equal(textOf(page.document.querySelector("#feed-summary")), "Showing all 3 posts, newest first.");
+  assert.equal(textOf(page.document.querySelector("#feed-summary")), "Showing 3 posts, newest first.");
   assert.equal(page.document.querySelectorAll(".empty-state").length, 0);
   assert.equal(stateRegion.hidden, true, "matching posts hide the no-match status");
   assert.equal(textOf(stateRegion), "", "no-match copy cannot survive beside matching posts");
@@ -1032,6 +1040,38 @@ test("the summary makes no claim about the feed before a fetch has answered", as
   feed.seed([]);
   assert.equal(textOf(summary), "");
   assert.match(textOf(page.document.querySelector(".empty-state")), /No posts on Social yet\./);
+});
+
+// The reported defect: a settled feed told a visitor how it was sorted in an
+// eyebrow, how many posts there were in a chip, and what set was on screen in a
+// heading — three fragments, no sentence. One sentence carries all of it now,
+// and the fragments that restated the order are gone with it.
+test("a settled feed says how many posts it holds and how they are ordered, once", async (t) => {
+  const page = await loadPage(new URL("../src/social.html", import.meta.url), {});
+  t.after(() => page.restore());
+
+  const posts = [0, 1, 2, 3].map((i) => ({
+    id: `p${i}`, author: "Ari", body: `body ${i}`, createdAt: `2026-07-0${i + 1}T00:00:00.000Z`,
+  }));
+  const feed = mountSocialFeed(page.document, { posts, state: "ready" });
+
+  const panel = page.document.querySelector(".list-panel");
+  const summary = page.document.querySelector("#feed-summary");
+  assert.equal(textOf(summary), "Showing 4 posts, newest first.");
+  assert.equal(page.document.querySelectorAll(".post-card").length, 4,
+    "the stated count is the number of cards rendered");
+
+  // Exactly one statement of the order in the whole feed panel. The eyebrow that
+  // used to say "Post order: newest first" above the heading is what this
+  // replaced, so a second match here means the fragment came back.
+  assert.equal((textOf(panel).match(/newest first/gi) ?? []).length, 1);
+  assert.doesNotMatch(textOf(panel), /Post order/);
+  // And no heading claiming to hold every post beside a sentence that counts.
+  assert.doesNotMatch(textOf(panel), /All posts/);
+
+  // Singular is a real sentence, not "1 posts".
+  feed.seed([posts[0]]);
+  assert.equal(textOf(summary), "Showing 1 post, newest first.");
 });
 
 // The shipped markup only pins the count a visitor sees before the feed mounts.

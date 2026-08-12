@@ -878,12 +878,36 @@ test("choosing a name by keyboard moves the page and announces it once, from one
     assert.equal(tileCount(document), 1);
     // Once, in one voice. Two code paths writing the same news, or a second
     // live region rendering it, is what a screen reader hears twice.
-    assert.deepEqual(writes, ["Showing 1 image post by Bea."]);
+    // Social's settled sentence with this page's noun in it: same verb, same
+    // word order, same closing clause, so a reader of one feed can read the
+    // other without learning a second sentence.
+    assert.deepEqual(writes, ["Showing 1 image post by Bea, newest first."]);
     const live = document.getElementById("main-content").querySelectorAll("[aria-live]");
     assert.deepEqual(live.map((node) => node.getAttribute("id")), ["profile-announcer"],
       "the main content holds more than one live region");
     // A selection is a choice, so the preselection claim is gone with it.
     assert.equal(pickerNote(document), "Showing Bea’s image posts. Pick another name below to switch.");
+  } finally {
+    page.restore();
+  }
+});
+
+// The same sentence Social settles on, in this page's noun. Social says
+// "Showing 12 posts, newest first."; People says how many image posts are under
+// the selected display name, in the same verb and the same word order, so the
+// two feeds do not teach a visitor two ways to read the same fact.
+test("a settled People feed says how many image posts it holds and how they are ordered", async () => {
+  const page = await people({ seed: { posts: [seedPost("p-21", "Ari"), seedPost("p-22", "Ari"), seedPost("p-23", "Ari")] } });
+  try {
+    const { document } = page;
+    const announced = textOf(document.querySelector("#profile-announcer"));
+    assert.equal(announced, "Showing 3 image posts by Ari, newest first.");
+    assert.equal(tileCount(document), 3, "the stated count is the number of tiles on screen");
+    // The page's existing noun, not a second word for the same thing.
+    assert.match(announced, /image posts/);
+    // Social's opening verb and closing clause, word for word.
+    assert.match(announced, /^Showing /);
+    assert.match(announced, /, newest first\.$/);
   } finally {
     page.restore();
   }
