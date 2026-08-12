@@ -264,16 +264,13 @@ import { renderAnalysisReadiness } from "/finops-analysis-readiness-view.js";
 // benchmark, the stated percentage and the readiness state, and withholds a
 // figure entirely rather than publishing one a leader could not trace.
 import {
-  finopsAnswerSignals, getRecoverableSpend, getSpendShape, recoverableAttestation,
+  finopsAnswerSignals, getRecoverableSpend, recoverableAttestation,
   resolveFinopsAnswer,
 } from "/finops-answer-contract.js";
 import {
   renderFinopsAnswer, renderRecoverableAttestation, renderRecoverableSpend,
 } from "/finops-answer-contract-view.js";
-// …and the picture of what that figure is a slice of (#1512). Geometry only: it
-// is handed the record above and derives no money of its own.
-import { mountSpendShape } from "/finops-spend-shape-view.js";
-// Whether the letter may be shown at all is decided before it is drawn: the
+/// Whether the letter may be shown at all is decided before it is drawn: the
 // score card is a roll-up of only the departments the rubric actually scored.
 import { CLAMPED_REASON, gradeEligibility } from "/grade-eligibility.js";
 // The four slots below the letter — coverage, confidence, band, and the drivers
@@ -5140,11 +5137,6 @@ async function init() {
   const exampleDataset = loadExampleDataset();
   const exampleRecoverable = getRecoverableSpend(exampleDataset);
   renderRecoverableSpend(document, exampleRecoverable);
-  // AND WHAT IT IS A SLICE OF (#1512). The same record again, so the bar beside
-  // the headline cannot draw a figure the headline is not stating. The text
-  // alternative is written before anything is drawn, and the resize redraw is
-  // coalesced into one animation frame — there is no loop here.
-  mountSpendShape(document, getSpendShape(exampleDataset, exampleRecoverable));
   // AND WHAT IT ATTESTS TO (#1499). The same record again, read once — the four
   // dimensions the fixture pins are stated in the supporting layer rather than
   // computed a second time for it.

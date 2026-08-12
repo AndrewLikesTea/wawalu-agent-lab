@@ -207,8 +207,10 @@ test("the answer region states the figure, the benchmark, the action and the sou
   assert.match(textOf(figure), /20% of the \$216,000/);
   assert.match(textOf(document.getElementById("finops-canonical-answer-benchmark")),
     /Bundled demo materiality floor at \$1,000/);
-  assert.match(textOf(document.getElementById("finops-canonical-answer-action")),
-    /Pilot standard-model routing/);
+  // #1667: this region no longer carries an action link of its own. The first
+  // screen states ONE next action, #finops-recoverable-action, and this one
+  // pointed at the same destination at the same weight.
+  assert.equal(document.querySelectorAll("#finops-canonical-answer-action").length, 0);
   assert.match(textOf(document.getElementById("finops-canonical-answer-sources")),
     /readiness\.recommendation\.figure\.value/);
   assert.equal(textOf(document.getElementById("finops-canonical-answer-reason")), "");
@@ -218,7 +220,8 @@ test("the answer region states the figure, the benchmark, the action and the sou
   // reader cannot act on is a report rather than a decision.
   assert.equal(region.querySelectorAll("details").length, 0);
   assert.equal(region.querySelectorAll("button").length, 0);
-  assert.equal(region.querySelectorAll("a").length, 1);
+  // #1667: and no anchor either. One action on the first screen, above.
+  assert.equal(region.querySelectorAll("a").length, 0);
 });
 
 test("a withheld scenario renders the reason and no answer at all", async () => {
@@ -234,8 +237,6 @@ test("a withheld scenario renders the reason and no answer at all", async () => 
   // under a figure reads as a benchmark somebody forgot, not one that is absent.
   assert.match(textOf(document.getElementById("finops-canonical-answer-benchmark")),
     /nothing for a benchmark to support/);
-  assert.equal(textOf(document.getElementById("finops-canonical-answer-action")), "",
-    "no prioritized action");
   const reason = textOf(document.getElementById("finops-canonical-answer-reason"));
   assert.match(reason, /no prioritized action to imply/);
   // Nothing anywhere in the region may read as a savings figure or a share.

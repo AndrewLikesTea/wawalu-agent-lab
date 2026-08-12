@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { parseHtml, textOf } from "./support/browser.js";
 import { loadExampleDataset } from "../src/example-dataset.js";
-import { getRecoverableSpend, getSpendShape } from "../src/finops-answer-contract.js";
+import { getRecoverableSpend } from "../src/finops-answer-contract.js";
 import { renderRecoverableSpend } from "../src/finops-answer-contract-view.js";
 import {
   QUERY_CATEGORIES, categorySpendUsd, explainLiteracyScore, formatUsd, letterGrade, literacyScore,
@@ -389,8 +389,10 @@ test("both recoverable figures on the page trace to the one accessor", async () 
     recoverable.monthlyDisplay);
   assert.equal(textOf(document.getElementById("finops-recoverable-basis")).trim(),
     recoverable.basisSentence);
-  assert.equal(textOf(document.getElementById("finops-recoverable-basis-detail")).trim(),
-    recoverable.basisSentence);
+  // #1667: the sentence is stated ONCE. The disclosure below carried a
+  // byte-identical copy of it, so the reader met the same scope twice — once as
+  // the claim and once as its own evidence.
+  assert.equal(document.querySelectorAll("#finops-recoverable-basis-detail").length, 0);
 
   // Move the scored data and BOTH rendered figures move, consistently.
   const dataset = loadExampleDataset();
@@ -453,26 +455,15 @@ test("no recoverable-dollar figure in the answer region is undeclared", async ()
 
   const region = document.getElementById("finops-recoverable-answer");
   const derived = new Set([recoverable.monthlyDisplay, recoverable.annualisedDisplay]);
-  // THE SPEND SHAPE IS COUNTED SEPARATELY, AND HELD TO THE SAME RULE (#1512).
-  // Its figures are declared — `getSpendShape` reads this same accessor and
-  // subtracts the rest out of the export's own analyzed total — but they are the
-  // accessible equivalent of a picture, in a visually-hidden sentence beside an
-  // aria-hidden canvas, not a second money string in the region's prose. So the
-  // one-headline-one-projection count below is taken over the READING, and every
-  // dollar inside the chart is checked against the shape record instead.
-  const shape = getSpendShape(loadExampleDataset(), recoverable);
-  const declaredByShape = new Set([shape.annualSpendDisplay,
-    ...shape.segments.map((segment) => segment.display)]);
-  const drawn = dollarsUnder(document.getElementById("finops-spend-shape"));
-  assert.ok(drawn.length > 0, "the chart states its three parts in the DOM, not only in pixels");
-  for (const amount of drawn) {
-    assert.ok(declaredByShape.has(amount),
-      `${amount} in the spend shape is not a part the shape record declares`);
-  }
-  assert.ok(declaredByShape.has(recoverable.annualisedDisplay),
-    "the recoverable part of the chart IS the one accessor's annual projection");
+  // #1667: THE SPEND SHAPE IS GONE. It stated three further totals — analyzed
+  // annual spend, the not-recoverable remainder, the unscored remainder — all on
+  // an ANNUAL basis, between a MONTHLY headline and the move it implies. Three
+  // dollar totals in one glance is no headline, so the bar came out rather than
+  // being demoted: a chart folded into a shut disclosure is a chart nobody sees.
+  assert.equal(document.querySelectorAll("#finops-spend-shape").length, 0);
+  assert.equal(document.querySelectorAll("#finops-spend-shape-text").length, 0);
 
-  const rendered = dollarsUnder(region, "finops-spend-shape");
+  const rendered = dollarsUnder(region);
   assert.ok(rendered.length > 0, "the region states a figure at all");
   for (const amount of rendered) {
     assert.ok(derived.has(amount),
@@ -481,8 +472,59 @@ test("no recoverable-dollar figure in the answer region is undeclared", async ()
   // The headline is stated once and the projection once: three or more money
   // strings would mean a figure competing with the answer again.
   assert.equal(rendered.filter((amount) => amount === recoverable.monthlyDisplay).length, 1);
-  assert.equal(rendered.filter((amount) => amount === recoverable.annualisedDisplay).length, 2,
-    "the projection is stated beside the figure and inside its working, nowhere else");
+  assert.equal(rendered.filter((amount) => amount === recoverable.annualisedDisplay).length, 1,
+    "the projection is stated beside the figure and nowhere else");
+});
+
+test("the first screen states one question, one figure, one action", async () => {
+  const document = parseHtml(await read("src/evolution.html"));
+  const region = document.getElementById("finops-recoverable-answer");
+
+  // ONE LEAD QUESTION, and it is the leading statement of the answer region.
+  const question = document.getElementById("finops-recoverable-question");
+  assert.equal(question.tagName, "H2");
+  assert.match(textOf(question), /How much of our AI spend can we recover\?/);
+
+  // ONE HEADLINE METRIC, with its unit, its window and its scope beside it.
+  assert.equal(region.querySelectorAll(".stand-figure-value").length, 1);
+  assert.match(textOf(document.getElementById("finops-recoverable-label")), /per month/);
+  const basis = textOf(document.getElementById("finops-recoverable-basis"));
+  assert.match(basis, /2026-06-01 to 2026-07-01/, "the window the figure covers");
+  assert.match(basis, /5 of 5 departments/, "what it is summed over");
+  assert.match(textOf(document.getElementById("finops-recoverable-trust")), /Illustrative/);
+
+  // ONE NEXT ACTION, named as the move rather than as the destination.
+  assert.equal(region.querySelectorAll(".stand-action").length, 1);
+  const action = document.getElementById("finops-recoverable-action");
+  assert.equal(action.getAttribute("href"), "/savings-action-center.html");
+  assert.match(textOf(action), /^Move /, "the link text names the move, not the page");
+
+  // AND THE MERGED WIDGETS ARE GONE FROM IT.
+  for (const id of ["finops-spend-shape", "finops-spend-shape-canvas",
+    "finops-spend-shape-text", "finops-recoverable-basis-detail",
+    "finops-canonical-answer-action"]) {
+    assert.equal(document.querySelectorAll(`#${id}`).length, 0, `${id} still ships`);
+  }
+});
+
+test("the demoted readiness basis is reachable inside the disclosure that already existed", async () => {
+  const document = parseHtml(await read("src/evolution.html"));
+  const details = document.getElementById("analysis-readiness-detail");
+  // Shut, so it costs the first screen nothing: a closed details reports
+  // `open === undefined` in this harness, never false.
+  assert.ok(!details.open);
+  assert.equal(details.dataset.disclosure, "collapsed");
+
+  // The line that ranked the actions moved in here rather than being deleted.
+  const basis = document.getElementById("finops-canonical-answer-action-basis");
+  assert.ok(basis, "the action basis survived the cut");
+  let node = basis.parentNode;
+  let inside = false;
+  while (node) {
+    if (node === details) { inside = true; break; }
+    node = node.parentNode;
+  }
+  assert.equal(inside, true, "the demoted line is not inside the existing disclosure");
 });
 
 test("the action center points at the answer instead of restating it", async () => {
