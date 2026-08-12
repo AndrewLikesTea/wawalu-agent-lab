@@ -336,7 +336,153 @@ test("a failed bundled analysis leaves the answer whole, with its one figure and
   }
 });
 
-/* --------------- 4. what stays behind the disclosure on load ---------------- */
+/* ------- 4. the answer reads as one finding, and nothing rivals it ---------- */
+
+test("the canonical answer owns the only question at its rank on the first screen", async () => {
+  const page = await coldOpen();
+  try {
+    const { document } = page;
+    const main = byId(document, "main-content");
+    const blocks = (main.children ?? []).filter((child) => child?.nodeType === 1);
+    const answer = byId(document, FIRST_RUN_IDS.region);
+
+    // The block a cold visitor meets under the hero, and the block the reorder
+    // parks directly beneath it. Read off the moved page, because in authored
+    // order the header is a CHILD of the hero and inherits the hero's own
+    // subordinate rung — the rank it paints at once it is a sibling is a
+    // different question, and it is the one a reader actually meets.
+    assert.equal(blocks[1].id, FIRST_RUN_IDS.region);
+    assert.equal(blocks[2].id, TRACK_RECORD_IDS.region);
+
+    // ONE HEADING AT THE ANSWER'S RANK, from the top of `<main>` down to the end
+    // of the block that follows it. `renderTrackRecord` used to paint an h2 here
+    // on load; the authored markup had demoted the same question to a paragraph
+    // for exactly this reason, so the painter is what the count catches.
+    const first = [blocks[0], blocks[1], blocks[2]];
+    const rank2 = document.querySelectorAll("h2")
+      .filter((heading) => first.some((block) => inside(heading, block)));
+    assert.deepEqual(rank2.map((heading) => heading.id), [FIRST_RUN_IDS.question],
+      "a second h2 asks its own question above or beside the canonical answer");
+    assert.equal(byId(document, TRACK_RECORD_IDS.question).tagName, "P",
+      "the track-record question is back in the heading outline as a rival");
+
+    // And the answer's own evidence is subordinate BY LEVEL, not by tint: every
+    // heading inside the region other than its question is h3 or lower.
+    const within = headingsWithin(document, answer)
+      .filter((heading) => heading.id !== FIRST_RUN_IDS.question);
+    assert.ok(within.length >= 5, `only ${within.length} evidence headings found in the answer`);
+    for (const heading of within) {
+      assert.ok(["H3", "H4", "H5", "H6"].includes(heading.tagName),
+        `${heading.id || textOf(heading)} opens at the answer's own rank inside it`);
+    }
+  } finally {
+    page.restore();
+  }
+});
+
+test("the answer sentence is the dominant value in its own block, in both rungs", () => {
+  // The harness computes no styles, so the assertion is on the rules that
+  // produce the hierarchy: the answer's step must be the larger of the pair at
+  // its floor and at its ceiling, in the full-weight rule AND in the demoted one
+  // the region actually ships with. Five evidence figures used to outrank it.
+  // Anchored to the start of a line: `.first-run-value {` is a substring of the
+  // demoted rule above it, so an unanchored match would read the same rung twice
+  // and the inverted pair would pass by comparing itself.
+  const step = (selector) => {
+    const rule = new RegExp(`^${selector} \\{([^}]*)\\}`, "m").exec(STYLES);
+    assert.ok(rule, `${selector} is gone, so the answer has no rung at all`);
+    const clamp = /font-size:clamp\((\d+(?:\.\d+)?)px,[^,]+,(\d+(?:\.\d+)?)px\)/.exec(rule[1]);
+    assert.ok(clamp, `${selector} no longer sizes itself with a clamp step`);
+    return { floor: Number(clamp[1]), ceiling: Number(clamp[2]) };
+  };
+
+  for (const [answerSelector, valueSelector] of [
+    ["\\.first-run-answer", "\\.first-run-value"],
+    ["\\.first-run\\[data-subordinate=\"true\"\\] \\.first-run-answer",
+      "\\.first-run\\[data-subordinate=\"true\"\\] \\.first-run-value"],
+  ]) {
+    const sentence = step(answerSelector);
+    const figure = step(valueSelector);
+    assert.ok(sentence.floor > figure.floor,
+      `${answerSelector}: the evidence figures outrank the answer at the narrow floor`);
+    assert.ok(sentence.ceiling > figure.ceiling,
+      `${answerSelector}: the evidence figures outrank the answer at the wide ceiling`);
+  }
+
+  // And the heading above the sentence still outranks it, so the block descends
+  // question → answer → evidence rather than peaking in the middle.
+  const heading = step("\\.first-run-head h2");
+  const sentence = step("\\.first-run-answer");
+  assert.ok(heading.floor > sentence.floor && heading.ceiling > sentence.ceiling,
+    "the answer sentence has grown past the question it answers");
+});
+
+test("the journey's live region announces from outside the disclosure that folds it", async () => {
+  const page = await coldOpen();
+  try {
+    const { document } = page;
+    const live = byId(document, "finops-journey-live");
+    assert.equal(live.getAttribute("role"), "status");
+
+    // The structure IS the assertion: `textOf` reads straight through a shut
+    // disclosure, so a live region inside one looks announced to this harness
+    // and announces to nobody in a browser. Walk the ancestors instead.
+    for (let walk = live.parentNode; walk; walk = walk.parentNode) {
+      assert.notEqual(walk.tagName, "DETAILS",
+        `the journey's announcement is folded inside #${walk.id || "an unnamed disclosure"}`);
+    }
+    // The disclosure it was folded into is still shut, so the fix is a move and
+    // not an accidental unfolding of the evidence layer.
+    const disclosure = byId(document, "disclosure-journey");
+    assert.ok(!disclosure.open, "the evidence layer opened itself on load");
+    assert.equal(inside(byId(document, "finops-journey"), disclosure), true,
+      "the region the live line speaks for left its disclosure too");
+    // And the announcer that carries this content's voice for the answer block
+    // is outside every disclosure too: the echo was silenced, not the message.
+    const announcer = byId(document, "finops-stand-live");
+    for (let walk = announcer.parentNode; walk; walk = walk.parentNode) {
+      assert.notEqual(walk.tagName, "DETAILS",
+        "the page's one announcer is folded inside a disclosure");
+    }
+  } finally {
+    page.restore();
+  }
+});
+
+test("every evidence disclosure on the first screen opens on one press", async () => {
+  const page = await coldOpen();
+  try {
+    const { document } = page;
+    const ids = ["disclosure-next-step", "disclosure-journey",
+      "finops-first-run-how-we-know", "finops-first-run-method"];
+
+    for (const id of ids) {
+      const details = byId(document, id);
+      assert.equal(details.tagName, "DETAILS", `#${id} is not a native disclosure`);
+      assert.ok(!details.open, `#${id} is already open, so it costs nothing to reach`);
+      const summary = (details.children ?? [])
+        .find((child) => child?.tagName === "SUMMARY");
+      assert.ok(summary, `#${id} has no summary, so it has no control`);
+
+      // One press on the focused summary. A native summary is the control, so
+      // Enter is the browser's — the harness models the same contract.
+      summary.focus();
+      assert.equal(document.activeElement, summary, `#${id}'s summary is not focusable`);
+      // The harness reflects no properties to attributes, so the state is read
+      // through the attribute the toggle actually writes.
+      pressEnter(document);
+      assert.equal(details.hasAttribute("open"), true,
+        `#${id} needed more than one press to open`);
+      pressEnter(document);
+      assert.equal(details.hasAttribute("open"), false,
+        `#${id} would not shut again on the same press`);
+    }
+  } finally {
+    page.restore();
+  }
+});
+
+/* --------------- 5. what stays behind the disclosure on load ---------------- */
 
 test("the demoted readiness detail is still shut after the page has run", async () => {
   const page = await coldOpen();

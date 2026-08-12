@@ -1568,8 +1568,8 @@
 
 /* The demoted first-run block. It keeps every word; it stops competing for the
    eye with the headline above it. */
-.first-run[data-subordinate="true"] .first-run-answer { font-size:clamp(15px,1.6vw,17px); }
-.first-run[data-subordinate="true"] .first-run-value { font-size:clamp(16px,1.8vw,19px); }
+.first-run[data-subordinate="true"] .first-run-answer { font-size:clamp(16px,1.8vw,19px); }
+.first-run[data-subordinate="true"] .first-run-value { font-size:clamp(15px,1.6vw,17px); }
 
 /* The first-run synthetic result: the populated answer a visitor with no export
    meets above the fold. It reads as one block — label, sample marker, three
@@ -1589,10 +1589,14 @@
 .first-run-shape { flex:none; font-size:13px; font-weight:750; }
 .first-run-head h2 { max-width:26ch; margin:0; font-size:clamp(22px,3.2vw,31px); line-height:1.18; }
 .first-run-sample { margin:0; }
-/* The answer: the one sentence a reader who stops here has still read. Sized
-   between the heading above it and the slot figures below, so the type scale
-   itself says which of the three is the conclusion. */
-.first-run-answer { margin:0; max-width:44ch; color:var(--ink); font-size:clamp(17px,2.1vw,21px); font-weight:700; line-height:1.35; overflow-wrap:anywhere; }
+/* THE ANSWER OUTRANKS ITS OWN EVIDENCE (#1678). The sentence sat a rung below
+   every figure qualifying it — the share, the ceiling, the peer band, the
+   department gap, the literacy grade — so a reader scanning for the biggest
+   thing on the block found evidence, at every width, and the demoted pair above
+   repeated the inversion. The two rungs are SWAPPED, not invented: both already
+   shipped in this file. It is the type-scale role from claude-design's
+   foundations — the conclusion leads, what qualifies it reads a rung down. */
+.first-run-answer { margin:0; max-width:44ch; color:var(--ink); font-size:clamp(19px,2.4vw,25px); font-weight:750; line-height:1.35; overflow-wrap:anywhere; }
 .first-run-answer[data-available="false"] { max-width:60ch; color:var(--state-warn-ink); font-size:16px; }
 .first-run-answer-detail { margin:-8px 0 0; max-width:70ch; color:var(--ink-muted); font-size:13px; line-height:1.55; overflow-wrap:anywhere; }
 /* Three slots, and the whole grid is one print/column unit: the share, the
@@ -1600,7 +1604,7 @@
 .first-run-slots { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px 22px; break-inside:avoid; }
 .first-run-slot { display:grid; align-content:start; gap:5px; border-top:2px solid var(--import-accent); padding-top:10px; }
 .first-run-slot-label { margin:0; color:var(--import-ink); font:700 10px/1.5 ui-monospace,monospace; letter-spacing:.07em; text-transform:uppercase; }
-.first-run-value { margin:0; color:var(--ink); font-size:clamp(19px,2.4vw,25px); font-weight:750; line-height:1.2; overflow-wrap:anywhere; }
+.first-run-value { margin:0; color:var(--ink); font-size:clamp(17px,2.1vw,21px); font-weight:700; line-height:1.2; overflow-wrap:anywhere; }
 /* An unavailable value is never only a tint or a dash: it says the word, in the
    slot, at a weight that reads as a state rather than as a measurement. */
 .first-run-value[data-available="false"] { color:var(--state-warn-ink); font-size:17px; font-weight:700; }

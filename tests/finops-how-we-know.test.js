@@ -251,7 +251,6 @@ test("the brief's disclosure is in the region's pinned focus order", () => {
 const ALREADY_FOLDED = [
   "department-detail inside disclosure-department-priority",
   "LI inside disclosure-savings-portfolio",
-  "finops-journey-live inside disclosure-journey",
   "org-query-source-status inside org-query-source-help",
   "portfolio-count inside disclosure-savings-portfolio",
 ];

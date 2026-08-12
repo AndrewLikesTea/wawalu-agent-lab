@@ -1090,10 +1090,15 @@
                      checkpoint are derived, never authored here. -->
                 <p class="fjc-headline">This step and its checkpoint are composed from what this browser holds, and from the bundled synthetic example when it holds nothing.</p>
               </div>
-              <p class="visually-hidden" id="finops-journey-live" role="status" aria-live="polite" aria-atomic="true"></p>
             </section>
           </details>
         </div>
+        <!-- #1678: outside the disclosure element it speaks for. A live region
+             inside a shut disclosure element is not rendered, so its
+             announcements reach nobody until a reader opens the very thing they
+             exist to describe. It keeps its id, so the view writes to it
+             unchanged, beside the answer's own announcer below. -->
+        <p class="visually-hidden" id="finops-journey-live" role="status" aria-live="polite" aria-atomic="true"></p>
         <p class="visually-hidden" id="finops-stand-live" role="status" aria-live="polite" aria-atomic="true"></p>
       </section>
 
