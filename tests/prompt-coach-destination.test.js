@@ -22,6 +22,7 @@ import { importPageModule } from "./support/page-module.js";
 import { SITE_NAV } from "../src/site-nav.js";
 import { COACHING_INPUT_SOURCE } from "../src/prompt-coaching-contract.js";
 import { COACHING_ENTRY_EXAMPLE } from "../src/prompt-coaching-entry.js";
+import { COPY_LABEL } from "../src/coaching-summary-view.js";
 
 const PAGE = fileURLToPath(new URL("../src/coach.html", import.meta.url));
 const read = (file) => readFile(new URL(`../src/${file}`, import.meta.url), "utf8");
@@ -274,9 +275,9 @@ test("the destination reads as one page about one thing", async () => {
   assert.doesNotMatch(lead, /leaves this tab|uploaded|no sign-in/i,
     "the purpose statement is not a second copy of the privacy statement");
   // Nor a second copy of the instructions: what to do, in what order, is said
-  // once in the Start here block that sits immediately before the field.
+  // once in the block that sits immediately before the field.
   assert.doesNotMatch(lead, /grade it again|bundled/i,
-    "the purpose statement is not a second copy of the Start here block");
+    "the purpose statement is not a second copy of the block before the field");
 
   // The copy a visitor reads before any script runs describes what they get,
   // not how this page is built. Contracts, fixtures, and script loading are
@@ -287,6 +288,86 @@ test("the destination reads as one page about one thing", async () => {
     assert.doesNotMatch(text, /contract|fixture|scripts load|rendered here/i,
       `first-screen copy in ${selector} describes the implementation, not the reader's result`);
   }
+});
+
+/* --------------------- one question, said once ---------------------------- */
+
+// The claim, in both of the shapes the page states it in: "Your pasted text
+// stays in this browser. It is not sent to a model or stored." above the field,
+// and "Your text stays in this browser: it is not sent to a model or stored."
+// inside the disclosure that says what the coach reads and keeps.
+const PRIVACY_CLAIM = /stays in this browser[.:]\s*(?:It|it) is not sent to a model or stored/g;
+
+/** Every heading rendered above the prompt field, in reading order. */
+function headingsAboveTheField(document) {
+  const above = [];
+  for (const node of document.querySelectorAll("h1,h2,h3,h4,h5,h6,textarea")) {
+    if (node.id === "prompt-coaching-input") break;
+    if (node.tagName !== "TEXTAREA") above.push(textOf(node).trim());
+  }
+  return above;
+}
+
+test("one question is asked above the field, and it is the workflow's own", async () => {
+  const { document } = await openCoach();
+
+  // Two headings asking whether a prompt is worth sending, thirty lines apart,
+  // is one question a reader answers twice. The one that survives is the one
+  // the grading workflow itself publishes and the section is named by.
+  const asked = headingsAboveTheField(document).filter((text) => text.endsWith("?"));
+  assert.deepEqual(asked, ["Would a model answer this prompt well?"],
+    "exactly one question-form heading may sit above the prompt field");
+  assert.equal(
+    byId(document, "prompt-coaching").getAttribute("aria-labelledby"),
+    "prompt-coaching-question",
+  );
+  // The page names the action instead of asking the question a second time.
+  assert.equal(textOf(byId(document, "page-title")), "Grade a prompt.");
+});
+
+test("“Start here” names the region for a screen reader and no longer heads it", async () => {
+  const { document } = await openCoach();
+
+  const entry = byId(document, "prompt-coaching-entry");
+  assert.equal(entry.getAttribute("aria-label"), "Start here",
+    "the region keeps the accessible name it had as a heading");
+  assert.equal(entry.getAttribute("aria-labelledby"), null,
+    "a region named by aria-label must not also point at a heading id");
+  for (const heading of headingsAboveTheField(document)) {
+    assert.notEqual(heading, "Start here",
+      "“Start here” must not compete with the section heading above it");
+  }
+});
+
+test("the privacy promise is made twice: before the field, and where it is checkable", async () => {
+  const { document } = await openCoach();
+
+  // Twice is a promise a reader meets where they need it. Three times is a
+  // promise they learn to skip, so the count is pinned rather than trusted.
+  const rendered = textOf(document.querySelector("main"));
+  assert.equal(rendered.match(PRIVACY_CLAIM)?.length, 2,
+    "the privacy claim is stated exactly twice on the rendered page");
+
+  const beforeTheField = textOf(document.querySelector(".prompt-coaching-entry-static"));
+  assert.match(beforeTheField, /Your pasted text stays in this browser\. It is not sent to a model or stored\./);
+  assert.equal(textOf(byId(document, "prompt-coaching-preview-summary")),
+    "What the coach reads and keeps");
+  assert.match(textOf(document.querySelector(".prompt-coaching-preview-static")),
+    /Your text stays in this browser: it is not sent to a model or stored\./);
+});
+
+test("one name for what a reader leaves with: the coaching summary", async () => {
+  const { document } = await openCoach();
+
+  const copy = byId(document, "prompt-coaching-copy");
+  assert.equal(textOf(copy.querySelector("h3")), "Coaching summary");
+  assert.match(textOf(byId(document, "prompt-coaching-copy-button")), /coaching summary/i);
+  assert.match(textOf(copy.querySelector("label")), /Coaching summary/);
+  // The button the module writes and the button in the markup are the same
+  // control, so the name in the module carries the same noun phrase.
+  assert.match(COPY_LABEL, /coaching summary/i);
+  // And the artifact has no second name anywhere on the page.
+  assert.doesNotMatch(textOf(document.querySelector("main")), /Take this with you/);
 });
 
 test("the first screen names the result and the next action, before any script runs", async () => {
@@ -305,7 +386,8 @@ test("the first screen names the result and the next action, before any script r
   // so the instruction and the button cannot be read as two different things.
   const grade = textOf(byId(document, "prompt-coaching-grade"));
   assert.equal(grade, "Grade this prompt");
-  assert.ok(start.includes(grade), `"Start here" must name the ${grade} button it points at`);
+  assert.ok(start.includes(grade),
+    `the block before the field must name the ${grade} button it points at`);
 
   // And it points only at controls that exist without scripts: the bundled
   // synthetic example is offered by the block the entry module paints, beside the button
