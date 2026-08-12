@@ -16,7 +16,7 @@
 .sac-evidence button:disabled { border-color:#c9c7c0; color:#8b8b85; cursor:not-allowed; }
 .sac-evidence-status:empty { display:none; }
 .sac-evidence-status { margin-top:14px; color:#285d59; font-size:14px; font-weight:700; }
-.sac-evidence input:focus-visible,.sac-evidence button:focus-visible,.sac-details summary:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.sac-evidence input:focus-visible,.sac-evidence button:focus-visible,.sac-details summary:focus-visible,.sac-disclosure-trigger:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
 
 #savings-action-center { padding-bottom:80px; }
 .sac-focus,.sac-state,.sac-rejections { overflow:hidden; border:1px solid #cfcdc5; border-radius:20px; background:#fff; box-shadow:0 18px 50px rgba(27,50,48,.08); }
@@ -100,7 +100,6 @@
 .sac-disclosure { border-top:1px solid #dedcd5; }
 .sac-disclosure:last-of-type { border-bottom:1px solid #dedcd5; }
 .sac-disclosure-trigger { display:flex; align-items:center; flex-wrap:wrap; gap:10px; width:100%; min-height:48px; border:0; padding:12px 0; background:none; color:var(--sac-ink); font-size:16px; font-weight:800; text-align:left; cursor:pointer; }
-.sac-disclosure-trigger:focus-visible { outline:3px solid var(--focus-ring); outline-offset:2px; }
 .sac-disclosure-shape { flex:none; font:800 14px/1 ui-monospace,monospace; }
 .sac-disclosure-label { min-width:0; overflow-wrap:anywhere; }
 .sac-disclosure-state { margin-left:auto; color:#55554f; font:750 10px/1.4 ui-monospace,monospace; letter-spacing:.07em; text-transform:uppercase; }
