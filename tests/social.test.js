@@ -282,8 +282,10 @@ test("social page is wired, labeled, and linked from the other pages", async () 
   assert.doesNotMatch(page, /nothing is published\.<\/span>/);
   assert.match(page, /id="post-counter"[^>]*aria-live="polite"/);
   assert.match(page, /id="post-count">Counting posts…<\/span>/);
-  // The feed itself ships one short retrieval status.
-  assert.match(page, /id="feed-status">Connecting to live updates…<\/span>/);
+  // The feed itself ships one short retrieval status, and the connection line
+  // beside it is not a second one: it says what the connection gives the reader.
+  // tests/live-connection-copy.test.js owns the three sentences.
+  assert.match(page, /id="feed-status">New posts will appear here on their own\.<\/span>/);
   assert.equal((page.match(/Loading the Social feed…/g) ?? []).length, 1);
   assert.doesNotMatch(page, /id="post-count"[^>]*>0 posts<\/span>/);
   // One announced region for a filter change, and it is the summary: the count

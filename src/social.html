@@ -211,7 +211,14 @@
           </div>
           <div class="feed-connection">
             <span class="live-dot" aria-hidden="true"></span>
-            <span id="feed-status">Connecting to live updates…</span>
+            <!-- The connecting sentence, for the frame before hydration. It is
+                 the promise, not a second report of the load: the line below
+                 already says the feed is loading, and this one used to say
+                 "Connecting to live updates…" beside it — two in-progress
+                 claims, and a mechanism the reader had no way to price.
+                 src/social.js owns all three states (connectionStatusLine);
+                 src/social-page.js writes the settled one over this. -->
+            <span id="feed-status">New posts will appear here on their own.</span>
           </div>
           <!-- No keyboard sentence. The feed is a plain list of ordinary links:
                social.js binds no key over it — the roving handler that sentence

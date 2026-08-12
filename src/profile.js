@@ -22,10 +22,15 @@
 //      rings landed everywhere" is a usable name; the alt text is still exposed
 //      on the image inside the link when the tile is read rather than listed.
 
-import { normalizeImage } from "./social.js";
+import { connectionStatusLine, normalizeImage } from "./social.js";
 import { postDetailHref, profileHref } from "./social-links.js";
 import { imageDescription, renderDescriptionNote, renderImageUnavailable } from "./image-description.js";
 import { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH } from "./social-identity.js";
+
+// Social's three connection sentences with the noun this page shows, so the two
+// pages differ in one word and nowhere else. Exported because profile-page.js
+// writes the settled and the failed line over the one mountProfile renders.
+export const profileConnectionLine = (state) => connectionStatusLine(state, "image posts");
 
 export const MAX_CAPTION_LENGTH = 280;
 
@@ -703,13 +708,14 @@ export function mountProfile(root, options = {}) {
       const counted = state === "ready" || (state === "error" && mine.length > 0);
       elements.heading.textContent = profileResultsHeading(author, counted ? mine.length : null);
     }
-    // The connection line is a placeholder until the first fetch answers and
-    // profile-page.js writes the real one over it. While that is in flight it
-    // names the wait the same way the counts line ships it in markup, and names
+    // The connection line until the first fetch answers and profile-page.js
+    // writes the settled one over it. It states what the connection will give
+    // the reader and leaves the wait to the line over the grid, which is the
+    // page's one statement that the image posts are still loading. It names
     // nobody: the heading above states whose posts are being counted, so a
     // reader who switches names mid-load reads one moved heading rather than a
     // display name repeated down the region.
-    if (elements.status && state === "loading") elements.status.textContent = "Connecting to live updates…";
+    if (elements.status && state === "loading") elements.status.textContent = profileConnectionLine("connecting");
     // The line above the picker, written from the same name the heading states,
     // so the page never says one name is showing while another is filtering.
     if (elements.pickerNote) {

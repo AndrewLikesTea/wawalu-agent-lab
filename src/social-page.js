@@ -6,7 +6,7 @@
 // Demo only (PRODUCT.md): the seed is static, hand-authored sample content and
 // no customer or production data is read here.
 
-import { mountSocialFeed, normalizeSocialApiPosts } from "/social.js";
+import { connectionStatusLine, mountSocialFeed, normalizeSocialApiPosts } from "/social.js";
 import {
   MAX_PUBLISH_IMAGE_BYTES,
   PUBLISH_IMAGE_TYPES,
@@ -300,12 +300,16 @@ async function init() {
       const added = live.filter((post) => !knownIds.has(post.id)).length;
       feed.seed(live);
       knownIds = nextIds;
-      if (status) status.textContent = `Live · updated ${new Intl.DateTimeFormat(undefined, { timeStyle: "short" }).format(new Date())}`;
+      if (status) status.textContent = connectionStatusLine("live");
       if (connection) connection.dataset.state = "live";
       if (hasConnected && added && announcer) announcer.textContent = `${added} new ${added === 1 ? "post" : "posts"} added to the feed.`;
       hasConnected = true;
     } catch {
-      if (status) status.textContent = hasConnected ? "Live updates paused · retrying" : "Demo posts · live service unavailable";
+      // One sentence for a first failure and for a dropped connection alike: the
+      // reader's situation is the same either way — nothing new will arrive on
+      // its own — and reloading is the same answer, so the page states it once
+      // rather than in two dialects of the same bad news.
+      if (status) status.textContent = connectionStatusLine("degraded");
       if (connection) connection.dataset.state = "degraded";
       // Posts already on screen stay on screen; the error state is only for the
       // case where a reader would otherwise be staring at a skeleton forever.

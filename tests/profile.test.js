@@ -639,7 +639,10 @@ test("the profile page's static copy does not drift from the module's", async ()
   // People's one retrieval status names the content type; the heading already
   // names the selected display name.
   assert.equal(loadingSummaryText("Ari"), "Loading image posts…");
-  assert.match(html, /id="profile-status">Connecting to live updates…</);
+  // And the connection line says what the connection is for rather than
+  // reporting the same wait a second time. tests/live-connection-copy.test.js
+  // owns the three sentences; this pins that the shipped markup is one of them.
+  assert.match(html, /id="profile-status">New image posts will appear here on their own\.</);
   assert.equal((html.match(new RegExp(loadingSummaryText("Ari"), "g")) ?? []).length, 1,
     "People renders one authoritative loading message");
   assert.doesNotMatch(html, new RegExp(FEED_LOADING_LINE), "People is announcing Social's feed again");

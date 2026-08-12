@@ -43,6 +43,10 @@ import { readFile } from "node:fs/promises";
 import { loadPage, tabSequence, textOf } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
 import { profileHref } from "../src/social-links.js";
+// The settled connection sentence is the wait signal on both pages, taken from
+// the module that writes it so a reworded status cannot leave this file hanging.
+import { connectionStatusLine } from "../src/social.js";
+import { profileConnectionLine } from "../src/profile.js";
 
 const SOCIAL_PAGE = new URL("../src/social.html", import.meta.url);
 const PEOPLE_PAGE = new URL("../src/profile.html", import.meta.url);
@@ -152,7 +156,7 @@ async function openSocial(t) {
   await importPageModule("/social-page.js");
   const { document } = page;
   await waitFor(() => document.documentElement.dataset.shiplogSocial === "ready", "the Social page finished its first load");
-  await waitFor(() => textOf(document.querySelector("#feed-status")).startsWith("Live · updated"), "the live feed answered");
+  await waitFor(() => textOf(document.querySelector("#feed-status")) === connectionStatusLine("live"), "the live feed answered");
   await waitFor(() => textOf(document.querySelector("#feed-summary")).startsWith("Showing"), "the feed settled on a count");
   globalThis.setInterval = realSetInterval;
   return page;
@@ -187,7 +191,7 @@ async function openPeople(t, { search, storage = {} } = {}) {
   await importPageModule("/profile-page.js");
   const { document } = page;
   await waitFor(() => document.documentElement.dataset.shiplogProfile === "ready", "the People page finished its first load");
-  await waitFor(() => textOf(document.querySelector("#profile-status")).startsWith("Live · updated"), "the live feed answered");
+  await waitFor(() => textOf(document.querySelector("#profile-status")) === profileConnectionLine("live"), "the live feed answered");
   await waitFor(() => textOf(document.querySelector("#profile-announcer")).length > 0, "People announced the view it settled on");
   globalThis.setInterval = realSetInterval;
   return page;

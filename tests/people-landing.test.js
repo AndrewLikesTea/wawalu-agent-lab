@@ -191,7 +191,7 @@ test("no placeholder is still announcing a load once the posts are on screen", a
     }
     // Replaced by what the reader was waiting for, not merely emptied.
     assert.match(textOf(document.querySelector("#profile-summary")), /^2 image posts/);
-    assert.match(textOf(document.querySelector("#profile-status")), /^Live · updated /);
+    assert.equal(textOf(document.querySelector("#profile-status")), "New image posts appear here without reloading the page.");
 
     // And a name switch re-renders those regions rather than dropping back to a
     // placeholder — the state the old copy was wrong in twice over.
