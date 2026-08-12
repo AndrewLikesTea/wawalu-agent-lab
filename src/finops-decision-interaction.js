@@ -165,6 +165,17 @@ export const DECISION_SPINE = Object.freeze(
  * specification that only describes the states its own region reaches is how a
  * surface ends up with an undrawn one.
  */
+/**
+ * The one thing to do when the example could not be composed (#1669).
+ *
+ * Nothing on this page is fetched from a service a reader could retry against:
+ * the example is built in this tab out of bytes the document already carries.
+ * So reloading is the entire recovery, it is the same recovery on every surface
+ * that composes the example, and it is written once here rather than pasted
+ * beside each failure it applies to.
+ */
+export const RELOAD_ACTION = "Reload the page to build it again.";
+
 export const DECISION_STATE = Object.freeze({
   loading: Object.freeze({
     state: "loading", word: "Composing the example result", shape: "◷", tone: "neutral",
@@ -189,7 +200,8 @@ export const DECISION_STATE = Object.freeze({
   error: Object.freeze({
     state: "unavailable", word: "Example result unavailable", shape: "▲", tone: "error",
     owner: DECISION_REGION_ID,
-    statement: "The Bundled synthetic example could not be analyzed in this browser, so no figure is shown here.",
+    statement: "The Bundled synthetic example could not be analyzed in this browser, "
+      + `so no figure is shown here. ${RELOAD_ACTION}`,
   }),
 });
 

@@ -400,7 +400,10 @@ export function renderSavingsActionCenterError() {
  * document never loses the outline level the review occupied.
  */
 export function renderSavingsActionCenterLoading(
-  message = "Checking the action, measurement, and adjudication records…",
+  // #1669: the same sentence the document's own first paint carries, in reader
+  // words rather than the contract's — one wording for one wait.
+  message = "Reading this month's records in this tab: what was committed to, "
+    + "what was measured, and how the difference was settled…",
 ) {
   const loading = el("section", "sac-state");
   loading.setAttribute("role", "status");

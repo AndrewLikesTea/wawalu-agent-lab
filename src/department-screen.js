@@ -319,7 +319,10 @@ export function departmentScreenModel({
     // what scored this in reader vocabulary — no file, module, fixture or test
     // identifier reaches a rendered sentence on this screen.
     verdict: Object.freeze({
-      label: "Intervention verdict",
+      // #1669: "Intervention verdict" was the one label on this screen a reader
+      // had to translate. The values it takes are changes — down-routing, a
+      // template rewrite — so the label says that.
+      label: "Recommended change",
       value: verdict.verdict,
       confidence: verdict.confidence,
       confidenceDetail: `Confidence: ${verdict.confidenceDetail}`,
