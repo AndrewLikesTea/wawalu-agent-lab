@@ -14,6 +14,7 @@ import {
   mountProfile,
   normalizeProfileApiPosts,
   normalizeSeedPosts,
+  profileConnectionLine,
   profileHref,
   resolveProfileAuthor,
   selectProfilePosts,
@@ -90,12 +91,10 @@ async function init() {
   updateTitle(author);
 
   let live = [];
-  let connected = false;
 
   async function refresh() {
     try {
       live = await fetchLivePosts();
-      connected = true;
       // Live posts shadow same-id seeds; the seed stays visible underneath so an
       // empty database does not read as an empty profile.
       profile.seed(mergePostsById(live, seeds));
@@ -111,9 +110,12 @@ async function init() {
           profile.setAuthor(landing);
         }
       }
-      profile.setStatus(`Live · updated ${new Intl.DateTimeFormat(undefined, { timeStyle: "short" }).format(new Date())}`);
+      profile.setStatus(profileConnectionLine("live"));
     } catch {
-      profile.setStatus(connected ? "Live updates paused · retrying" : "Demo posts · live service unavailable");
+      // One sentence whether this is the first failed load or a connection that
+      // dropped later: either way nothing new arrives on its own, and reloading
+      // is the answer, so the page says it once.
+      profile.setStatus(profileConnectionLine("degraded"));
       // The error panel is only for a reader who would otherwise stare at a
       // skeleton forever. With the seed loaded there is something to show — the
       // profile leaves "loading" either way, because a spinner that never ends

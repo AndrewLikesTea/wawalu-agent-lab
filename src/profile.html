@@ -242,13 +242,15 @@
 
           <div class="feed-connection">
             <span class="live-dot" aria-hidden="true"></span>
-            <!-- The same waiting sentence the counts line above ships, because
-                 it is the same wait; profile-page.js replaces it once the fetch
-                 answers. This region is polite and announces, so what it must
-                 not do is print the display name a fourth time: the heading and
-                 the active-filter chip carry it, and this line says what is
-                 happening to the posts under it. -->
-            <span id="profile-status">Connecting to live updates…</span>
+            <!-- What a reader gets from the connection, in Social's words with
+                 People's noun (connectionStatusLine, src/social.js);
+                 profile-page.js replaces it once the fetch answers. It no
+                 longer names the wait — the line over the grid already says the
+                 image posts are loading, and this said so a second time while
+                 calling the mechanism "live updates". It must not print the
+                 display name either: the heading and the active-filter chip
+                 carry it. -->
+            <span id="profile-status">New image posts will appear here on their own.</span>
           </div>
           <p class="visually-hidden" id="profile-announcer" aria-live="polite" aria-atomic="true"></p>
 

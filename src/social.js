@@ -524,6 +524,32 @@ const NO_POSTS_GUIDANCE = "Publish a post, or create an image in Paint first.";
 // src/profile.js); this sentence stays Social's.
 export const FEED_LOADING_LINE = "Loading the Social feed…";
 
+// The connection line under the filters, on Social and on People, from one
+// source so the same fact never gets two phrasings. `noun` is the only
+// difference between the pages: Social shows posts, People shows one display
+// name's image posts.
+//
+// What each state says is what the reader gets, or what to do about not getting
+// it. "Live updates" is gone from all three: it named a mechanism and left a
+// first-time visitor to guess what the mechanism did for them, and while the
+// first fetch was open "Connecting to live updates…" ran as a second in-progress
+// line beside the one that already said the feed was loading
+// (FEED_LOADING_LINE here, loadingSummaryText in src/profile.js). So the
+// connecting sentence states the promise instead and says nothing about the
+// load; "live" is settled and takes no ellipsis; "degraded" is one sentence
+// carrying both the consequence and the action, for a first failure and a
+// dropped connection alike, because a reader who cannot get new posts needs the
+// same thing either way.
+//
+// The two pages carry the connecting sentence in their static markup for the
+// frame before hydration (src/social.html, src/profile.html), so a change here
+// is a change in three files.
+export function connectionStatusLine(state, noun = "posts") {
+  if (state === "live") return `New ${noun} appear here without reloading the page.`;
+  if (state === "degraded") return `New ${noun} will not appear here, so reload the page to see the latest.`;
+  return `New ${noun} will appear here on their own.`;
+}
+
 // `state` separates "we have nothing yet because we are still fetching" from
 // "we have nothing because there is nothing" and from "we have nothing because
 // the fetch failed" — three situations that must not share one empty state.
