@@ -939,6 +939,12 @@ export function renderDemoDataState(root = document, state = "loading") {
     block.hidden = ready;
     block.dataset.state = name;
     if (ready) {
+      // Emptied, not merely hidden. The block is a live region, and a recovered
+      // panel that still holds "could not be loaded" is a sentence about a
+      // failure that no longer exists, one stylesheet or one screen-reader
+      // region read away from being announced over the data that replaced it.
+      block.setAttribute("role", "status");
+      block.replaceChildren();
       painted.push(block);
       continue;
     }
