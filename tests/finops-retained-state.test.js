@@ -315,10 +315,20 @@ test("a visitor with nothing retained meets the first screen this page shipped",
   // region mentions retention at all, so a visitor with an empty browser reads
   // the page #1481 and #1482 left behind and not a word more.
   const firstScreen = firstScreenText(page.document);
-  for (const vocabulary of ["Retained", "retained", "this browser"]) {
+  for (const vocabulary of ["Retained", "retained"]) {
     assert.equal(firstScreen.includes(vocabulary), false,
       `an unretained first screen must not say "${vocabulary}"`);
   }
+  // "this browser" in the RETENTION sense. #1670 moved the worked decision below
+  // the canonical answer, which brought the answer's own synthetic-data label —
+  // "modelled in this browser from invented provider-export records" — above the
+  // first-run region. That sentence is about where the arithmetic runs, not
+  // about anything kept, and it shipped long before retention existed. What may
+  // still not appear here is a claim that this browser is holding, keeping or
+  // has retained something, which is the sentence a visitor with an empty
+  // browser must not be handed.
+  assert.doesNotMatch(firstScreen, /this browser (is keeping|keeps|has retained|already keeps|holds)/,
+    "an unretained first screen states what this browser is keeping");
 });
 
 test("applying rates is what retains them, and the first screen says so", async () => {

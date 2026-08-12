@@ -418,6 +418,18 @@ export function renderTrackRecord(document, model_) {
 /** The bundled worked decision this page already ships, and the region with the h1. */
 const WORKED_DECISION_ID = "finops-first-run";
 const HERO_ID = "finops-hero";
+/**
+ * The one canonical answer, which did not exist when this move was written.
+ *
+ * #1112 moved the worked decision under the hero because the block that
+ * followed the hero was this header's EMPTY state. Since #1183 the block that
+ * follows the hero is the page's answer — one question, one figure, one move —
+ * so landing in front of it costs a reader the page's single prioritized next
+ * action (#1670: it became the 38th tab stop into the content). The move now
+ * anchors here instead: the empty header still does not lead, and the answer
+ * and its one action still come first.
+ */
+const ANSWER_ID = "finops-recoverable-answer";
 
 /** The authored slot of a block that moves — parent AND position — kept per node. */
 const authoredHome = new WeakMap();
@@ -472,7 +484,10 @@ export function leadWithWorkedDecision(document, model_) {
     sendHome(region);
     return region;
   }
-  hero.parentNode.insertBefore(worked, slotAfter(hero));
+  // After the answer where there is one, after the hero on a page without it.
+  const lead = document.getElementById(ANSWER_ID)?.parentNode === hero.parentNode
+    ? document.getElementById(ANSWER_ID) : hero;
+  hero.parentNode.insertBefore(worked, slotAfter(lead));
   hero.parentNode.insertBefore(region, slotAfter(worked));
   return worked;
 }
