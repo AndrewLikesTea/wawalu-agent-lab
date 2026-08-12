@@ -48,10 +48,14 @@
            thing rather than as a panel that wandered off another surface. -->
       <section class="coach-hero" aria-labelledby="page-title">
         <p class="eyebrow">Prompt coach · browser only</p>
-        <h1 id="page-title">Find out if your prompt<br />is worth sending.</h1>
+        <!-- The page names the action; the workflow below asks the question the
+             grade answers. One question above the field, not two: a hero that
+             asked it here as well left a reader reading the same question twice
+             before they had anywhere to type. -->
+        <h1 id="page-title">Grade a prompt.</h1>
         <!-- What this page is for, in one statement. Everything a visitor has to
-             do is said once in the Start here block before the prompt field,
-             where they read it before deciding whether to paste anything. -->
+             do is said once in the block before the prompt field, where they
+             read it before deciding whether to paste anything. -->
         <p class="coach-hero-lead">Paste a prompt and get a score with the first change to make.</p>
         <!-- The companion surface, linked from the page that owns it rather than
              added to the site nav: it is a view of the same rubric across a
@@ -76,7 +80,6 @@
            workflow runs on, so the claim can be checked rather than believed. -->
       <section class="prompt-coaching finops-panel" id="prompt-coaching" data-state="idle" data-expanded="false" aria-labelledby="prompt-coaching-question">
         <div class="section-heading">
-          <p class="eyebrow">Grade a prompt</p>
           <h2 id="prompt-coaching-question">Would a model answer this prompt well?</h2>
           <p>Your text is graded against the prompt rubric bundled with this page.</p>
         </div>
@@ -86,8 +89,10 @@
              so the result and action do not depend on JavaScript. The privacy
              promise is stated once, before the prompt field where it matters. The
              module paints the detailed, checkable boundary in a disclosure. -->
-        <section class="prompt-coaching-entry" id="prompt-coaching-entry" data-entry-state="empty" aria-labelledby="prompt-coaching-entry-title">
-          <h3 class="eyebrow" id="prompt-coaching-entry-title">Start here</h3>
+        <!-- "Start here" is the region's name for a screen reader moving by
+             landmark, and no longer a visible heading: it sat directly under the
+             section heading above and competed with it for the same job. -->
+        <section class="prompt-coaching-entry" id="prompt-coaching-entry" data-entry-state="empty" aria-label="Start here">
           <p class="prompt-coaching-entry-static"><strong>Your pasted text stays in this browser. It is not sent to a model or stored.</strong> Paste a prompt or short conversation, then select “Grade this prompt” to get a score out of 100 and the first change to make. Revise it and grade it again to compare the results.</p>
           <div class="prompt-coaching-entry-body" id="prompt-coaching-entry-body">
             <p class="prompt-coaching-entry-lead">See what the grade includes and what to do first.</p>
@@ -160,7 +165,9 @@
              holds figures, grades, and the rubric's own words — never pasted
              prompt text — and nothing here is saved, sent, or downloaded. -->
         <div class="prompt-coaching-copy" id="prompt-coaching-copy" hidden>
-          <h3 class="eyebrow">Take this with you</h3>
+          <!-- One name for the thing a reader leaves with: the heading, the
+               button and the box below all call it a coaching summary. -->
+          <h3 class="eyebrow">Coaching summary</h3>
           <p class="prompt-coaching-copy-lead" id="prompt-coaching-copy-lead">A short summary of both grades, what moved, and the next step — figures and rubric wording only, never your prompt text.</p>
           <button type="button" id="prompt-coaching-copy-button" aria-describedby="prompt-coaching-copy-lead prompt-coaching-copy-status">Copy this coaching summary</button>
           <p class="prompt-coaching-copy-status" id="prompt-coaching-copy-status" role="status" aria-live="polite" aria-atomic="true"></p>

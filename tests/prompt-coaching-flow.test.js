@@ -71,9 +71,13 @@ test("the workflow is discoverable and idle before anything is pasted", async ()
     assert.equal(textOf(byId(document, "prompt-coaching-question")),
       "Would a model answer this prompt well?");
     // The guidance says what the grade is measured against and names that
-    // rubric as this page's own. What may be pasted is said once, in the Start
-    // here block immediately before the field, rather than a second time here.
-    const guidance = textOf(section.querySelector(".section-heading").querySelectorAll("p")[1]);
+    // rubric as this page's own. What may be pasted is said once, in the block
+    // immediately before the field, rather than a second time here. It is the
+    // only paragraph in the heading block: an eyebrow repeating the page's own
+    // h1 above the section heading was a second name for one thing.
+    const paragraphs = section.querySelector(".section-heading").querySelectorAll("p");
+    assert.equal(paragraphs.length, 1, "the section heading carries one line of guidance");
+    const guidance = textOf(paragraphs[0]);
     assert.match(guidance, /^Your text is graded against/, guidance);
     assert.match(guidance, /prompt rubric bundled with this page/, guidance);
     assert.doesNotMatch(guidance, /Paste a prompt/, guidance);
