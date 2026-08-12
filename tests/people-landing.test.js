@@ -225,13 +225,19 @@ test("People states the images-only rule once and offers each route once", async
     // a tail on the end of it.
     assert.equal(textOf(main.querySelector(".list-heading").querySelectorAll(".eyebrow")[0]), "Newest first");
 
-    // One route to Social, and it is the sentence that states the rule — so the
-    // reader who has just been told what this view leaves out can act on it
-    // without hunting for a second link.
+    // Two routes to Social, and they answer different questions: the intro's
+    // link is the way to the whole feed for a reader told what this view leaves
+    // out, and the helper's is the way to publish for a reader holding a PNG
+    // Paint just made. Neither may be duplicated, and neither leaves the reader
+    // hunting the nav.
     const toSocial = anchors.filter((anchor) => anchor.getAttribute("href") === "/social.html");
-    assert.equal(toSocial.length, 1, "the main content offers Social more than once");
+    assert.equal(toSocial.length, 2, "the main content offers Social more than twice");
     assert.equal(toSocial[0].parentNode?.classList?.contains("profile-lede"), true,
-      "the link to Social is not in the sentence that states the rule");
+      "the link to the whole feed is not in the sentence that states the rule");
+    assert.equal(textOf(toSocial[0]), "Social");
+    assert.equal(toSocial[1].parentNode?.classList?.contains("feed-create"), true,
+      "the route to the composer is not in the sentence beside the pictures");
+    assert.equal(textOf(toSocial[1]), "publish a post on Social");
 
     // One route into Paint, beside the pictures that prompt it, still saying
     // what the tab does in its own text.
@@ -768,14 +774,17 @@ test("tabbing from the top reaches the picker, then the posts under the header",
     // the page harness that boots the shipped markup with the shipped module.
     document.querySelector(".profile-lede").querySelectorAll("a")[0].focus();
     const walked = [];
-    for (let step = 0; step < 5; step += 1) walked.push(pressTab(document));
+    for (let step = 0; step < 6; step += 1) walked.push(pressTab(document));
     assert.deepEqual(walked.slice(0, 3).map((node) => node.dataset?.author), ["Ari", "Bea", "Zed"],
       "the display-name picker is not the first thing a keyboard reaches in main");
-    // Then the panel's own route into Paint, then the first post. The ordering
-    // label sits between the picker and these, and takes no stop of its own —
-    // nothing focusable was added above the results to carry it.
+    // Then the panel's own sentence, in the order it reads — the route into
+    // Paint, the route to the composer that publishes what Paint makes — then
+    // the first post. The ordering label sits between the picker and these, and
+    // takes no stop of its own: nothing focusable was added above the results
+    // to carry it.
     assert.equal(walked[3].getAttribute("id"), "profile-paint-route");
-    assert.equal(walked[4].classList.contains("profile-tile"), true, "the fifth stop is not the first post");
+    assert.equal(walked[4].getAttribute("id"), "profile-social-route");
+    assert.equal(walked[5].classList.contains("profile-tile"), true, "the sixth stop is not the first post");
 
     // And the visual order the tab order is supposed to match: every one of
     // those stops comes after the heading, and the posts come after the label.
@@ -783,7 +792,7 @@ test("tabbing from the top reaches the picker, then the posts under the header",
     const at = (node) => order.indexOf(node);
     assert.ok(at(document.querySelector("#profile-author")) < at(document.querySelector("#grid-title")));
     assert.ok(at(document.querySelector("#grid-title")) < at(document.querySelector("#profile-order")));
-    assert.ok(at(document.querySelector("#profile-order")) < at(walked[4]));
+    assert.ok(at(document.querySelector("#profile-order")) < at(walked[5]));
     // No new focusable above the results region: the intro's link to Social and
     // the picker are still the whole of it.
     const inMain = tabSequence(document).filter((element) => element.closest("#main-content"));

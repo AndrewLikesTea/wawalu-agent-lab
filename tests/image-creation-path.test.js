@@ -94,15 +94,17 @@ for (const [name, document] of Object.entries(NEARBY_INVITATION)) {
     assert.ok(sentence.indexOf("Paint") < sentence.indexOf("Social"),
       `${name}'s helper names the two steps out of order`);
 
-    // The composer's own sequence, in the composer's words: make the image,
-    // return to this tab, publish it. The middle step is the one a reader who
-    // has just been sent to another tab actually needs, and People used to skip
-    // it — the same round trip told two different ways on two pages.
-    assert.match(sentence, /return to this tab/,
+    // The middle step is the one a reader who has just been sent to another tab
+    // actually needs, and People used to skip it. It used to read "return to
+    // this tab", which sent the reader back to a page with no Publish control:
+    // the coming back is real, the publishing happens on Social.
+    assert.match(sentence, /come back/,
       `${name}'s helper never says to come back from the tab it opens`);
-    assert.ok(sentence.indexOf("Paint") < sentence.indexOf("return to this tab"),
+    assert.doesNotMatch(sentence, /return to this tab/,
+      `${name}'s helper still asks the reader to publish on the page they came back to`);
+    assert.ok(sentence.indexOf("Paint") < sentence.indexOf("come back"),
       `${name}'s helper asks the reader to return before it sends them anywhere`);
-    assert.ok(sentence.indexOf("return to this tab") < sentence.indexOf("Social"),
+    assert.ok(sentence.indexOf("come back") < sentence.indexOf("Social"),
       `${name}'s helper publishes before it comes back`);
   });
 
@@ -125,7 +127,23 @@ for (const [name, document] of Object.entries(NEARBY_INVITATION)) {
 test("People's nearby helper links to the editor without repeating the empty-state choices", () => {
   const invitation = documents.People.querySelector(".feed-create");
   const hrefs = invitation.querySelectorAll("a").map((anchor) => anchor.href);
-  assert.deepEqual(hrefs, ["/paint/?from=profile"]);
+  assert.deepEqual(hrefs, ["/paint/?from=profile", SOCIAL_COMPOSER_PATH]);
+});
+
+// The last step is a destination, not a word. People has no Publish control, so
+// naming Social in plain text left a reader with a finished PNG on the one page
+// that cannot take it — the only way on was the site nav.
+test("People's helper hands the reader the composer it names", () => {
+  const invitation = documents.People.querySelector(".feed-create");
+  const social = invitation.querySelectorAll("a")
+    .filter((anchor) => anchor.getAttribute("href") === SOCIAL_COMPOSER_PATH);
+  assert.equal(social.length, 1, "People's helper names Social without linking to it");
+  // The label says the act and the place, so the accessible name stands alone:
+  // "Social" by itself repeats the nav item and promises only a feed.
+  assert.match(textOf(social[0]), /publish a post on Social/);
+  // An ordinary in-site link, like the intro's route to the whole feed: the new
+  // tab belongs to Paint alone, and only the Paint link says so.
+  assert.equal(social[0].getAttribute("target"), null, "the Social step opens a second tab");
 });
 
 /* ---------------------------- the primary route ---------------------------- */

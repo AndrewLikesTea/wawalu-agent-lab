@@ -519,9 +519,11 @@ test("the People picker and the page's own description use one term for what is 
       assert.doesNotMatch(copy, rival, `the ${surface} must not name the same thing a second way`);
   }
 
-  // The two lines about publishing keep the term too: an empty page tells a
-  // reader how to fill it, and it has to be the same word they just picked by.
-  assert.match(html, /publish it on Social under a display name/);
+  // The line about publishing keeps the term too: the page tells a reader how
+  // to fill it, and it has to be the same word they just picked by. The act is
+  // a link now, so the term sits outside it — matched around the tag rather
+  // than inside one string.
+  assert.match(html, /publish a post on Social<\/a> under a display name/);
   const social = await readFile(new URL("../src/social.html", import.meta.url), "utf8");
   assert.match(social, /<label for="post-author">Display name <span class="label-optional">\(optional\)<\/span><\/label>/,
     "the composer names the same thing the picker selects");
