@@ -313,16 +313,18 @@
               </div>
               <!-- The round trip, in the page as served: Paint uploads nothing,
                    so the visitor is the transport and has to know that before
-                   leaving. It was a three-item ordered list — export, return,
-                   upload — which spent three lines on a sequence the two
-                   controls beside it already imply; one sentence names the same
-                   three steps in the same order. It is named by the file input's
-                   own aria-describedby, so focusing Choose image reads it, and
-                   nothing folds it away — no disclosure widget, no hover, no
-                   script — because a reader who needs it needs it first. -->
+                   leaving. Three plain sentences, one fact each — the way in,
+                   the rule, the fix — because they arrived as one clause welded
+                   to the Paint link by a semicolon, followed by a second line
+                   repeating the formats and the size. The rule is stated once,
+                   here, and the refusals below restate it only when a file has
+                   actually been chosen. Both lines are named by the file input's
+                   own aria-describedby, so focusing Choose image reads them, and
+                   nothing folds them away — no disclosure widget, no hover, no
+                   script — because a reader who needs them needs them first. -->
               <p class="media-status" id="post-media-status" role="status" aria-live="polite" aria-atomic="true"></p>
-              <p class="hint" id="post-image-steps"><a class="secondary-button paint-link" href="/paint/" target="_blank" rel="noopener">Create an image in Paint <span class="new-tab-note">(opens in a new tab)</span> <span aria-hidden="true">↗</span></a>; Social accepts PNG, JPEG, GIF, or WebP up to 512 KB, so reduce or re-export an oversized image before you return to this tab and select Choose image.</p>
-              <p class="hint" id="post-image-hint">PNG, JPEG, GIF, or WebP · 512 KB maximum.</p>
+              <p class="hint" id="post-image-steps"><a class="secondary-button paint-link" href="/paint/" target="_blank" rel="noopener">Create an image in Paint <span class="new-tab-note">(opens in a new tab)</span> <span aria-hidden="true">↗</span></a>.</p>
+              <p class="hint" id="post-image-hint">Social accepts PNG, JPEG, GIF, or WebP up to 512 KB. Reduce or re-export a larger image, then select Choose image.</p>
               <div class="compose-media" id="compose-media" hidden>
                 <div class="compose-media-head">
                   <p><span class="source-shape" aria-hidden="true"></span><strong id="compose-media-source">Image to publish</strong></p>

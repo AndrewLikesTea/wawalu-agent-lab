@@ -290,7 +290,9 @@ test("the button-shaped routes into Paint carry one arrow, and it is the leaves-
 
 /* ---------------- the round trip, named where it is taken ---------------- */
 // Paint uploads nothing: the visitor exports a PNG and carries it back. The
-// composer is where that has to be said, in order, in the page as served.
+// feed's invitation names that round trip in order; the composer, where the
+// file is actually chosen, names the way into Paint and the rule the file has
+// to meet — in the page as served, one fact per sentence.
 
 test("the image control and chosen-image state name the action and pending result", () => {
   const control = documents.Social.querySelector('label[for="post-image"]');
@@ -300,24 +302,26 @@ test("the image control and chosen-image state name the action and pending resul
   assert.equal(textOf(documents.Social.getElementById("compose-preview-caption")), "Preview before posting");
 });
 
-test("the composer names the whole round trip in one sentence, in order", () => {
+test("the composer names the way in, the rule, and the fix as separate sentences", () => {
   const steps = documents.Social.getElementById("post-image-steps");
+  const hint = documents.Social.getElementById("post-image-hint");
   assert.ok(steps, "the composer names no steps at all");
 
-  // Three steps, one sentence. It was a three-item ordered list, which spent
-  // three lines telling a reader what the two controls beside it already imply;
-  // what has to survive is the order and the export, because Paint uploads
-  // nothing and the visitor is the transport.
-  const sentence = textOf(steps);
-  assert.match(sentence, /PNG/, "the sentence never says what to export");
-  assert.ok(sentence.indexOf("Paint") < sentence.indexOf("return to this tab"),
-    "the sentence asks the reader to return before it sends them anywhere");
-  assert.ok(sentence.indexOf("return to this tab") < sentence.indexOf("Choose image"),
-    "the sentence uploads before it comes back");
+  // One fact per sentence, in the order a reader meets them: make the image,
+  // what the field takes, what to do about a file it will not take. All three
+  // used to be a single clause hung off the Paint link by a semicolon, with the
+  // formats and the size then repeated on the line below it.
+  assert.equal(textOf(steps), "Create an image in Paint (opens in a new tab) ↗.");
+  assert.equal(
+    textOf(hint),
+    "Social accepts PNG, JPEG, GIF, or WebP up to 512 KB. Reduce or re-export a larger image, then select Choose image.",
+  );
+  const sentence = `${textOf(steps)} ${textOf(hint)}`;
+  assert.doesNotMatch(sentence, /;/, "two of the sentences are welded together again");
+  assert.match(sentence, /PNG/, "the field never says what to export");
   // The control is named exactly as it is labelled, not described.
-  assert.match(sentence, /Choose image/);
-  assert.ok(sentence.split(".").filter((part) => part.trim()).length === 1,
-    `the round trip is told in more than one sentence: ${sentence}`);
+  assert.match(textOf(hint), /select Choose image\.$/);
+  assert.equal(textOf(documents.Social.querySelector('label[for="post-image"]')), "Choose image");
 
   // In the page as served, not folded behind a disclosure widget and not
   // written in by a script after load: a curl has to contain it. (The harness
