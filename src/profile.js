@@ -403,8 +403,15 @@ export function profileResultsHeading(author, count = null) {
 
 // What the live region announces after a refresh settles. It mirrors what the
 // grid now shows rather than composing a fourth variant of the same news.
+//
+// It is Social's settled sentence with this page's noun in it: same verb, same
+// word order, same closing clause — "Showing 12 posts, newest first." there,
+// "Showing 3 image posts by Ari, newest first." here. A reader who has read one
+// feed can read the other without learning a second sentence, and the ordering
+// travels with the count instead of being a fact only the sighted eyebrow above
+// the grid carries.
 export function profileAnnouncement(author, visibleCount) {
-  if (visibleCount > 0) return `Showing ${countLabel(visibleCount, "image post")} by ${author}.`;
+  if (visibleCount > 0) return `Showing ${countLabel(visibleCount, "image post")} by ${author}, newest first.`;
   return `${emptySummaryText(author)} ${PROFILE_EMPTY_COPY.guidance}`;
 }
 
