@@ -360,9 +360,17 @@ export function renderTrackRecord(document, model_) {
   if (!region) return null;
   region.dataset.state = model_.state;
 
-  const heading = el(document, "h2", "track-record-question", model_.question);
-  heading.id = TRACK_RECORD_IDS.question;
-  const nodes = [heading];
+  // A PARAGRAPH, THE WAY THE DOCUMENT AUTHORS IT (#1678). The markup demoted
+  // this question out of the heading outline on purpose — two headings at one
+  // rank asking variants of "are we wasting money?" is two answers — and this
+  // painter put the h2 straight back on load. On a cold open it is worse than a
+  // draw: `leadWithWorkedDecision` below moves this block out of the hero and
+  // directly under the worked decision, so the rival heading lands against the
+  // answer's own h2 with nothing between them. The id, the class, the words and
+  // the region's `aria-labelledby` name are unchanged; only the rank is.
+  const question = el(document, "p", "track-record-question", model_.question);
+  question.id = TRACK_RECORD_IDS.question;
+  const nodes = [question];
 
   if (model_.figure) {
     const figure = el(document, "p", "local-lead-metric", model_.figure.text);

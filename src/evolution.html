@@ -1090,10 +1090,18 @@
                      checkpoint are derived, never authored here. -->
                 <p class="fjc-headline">This step and its checkpoint are composed from what this browser holds, and from the bundled synthetic example when it holds nothing.</p>
               </div>
-              <p class="visually-hidden" id="finops-journey-live" role="status" aria-live="polite" aria-atomic="true"></p>
             </section>
           </details>
         </div>
+        <!-- #1678: OUTSIDE the disclosure it speaks for, and outside the group
+             of disclosures too — that group holds nothing but disclosures. A
+             live region inside a shut disclosure element is not rendered, so its
+             announcements reach nobody until a reader opens the very thing the
+             announcement exists to tell them about. The harness reads text
+             through a shut disclosure, so no test noticed. It keeps its id, so
+             the view still writes to it unchanged, and it now sits beside the
+             answer's own announcer below. -->
+        <p class="visually-hidden" id="finops-journey-live" role="status" aria-live="polite" aria-atomic="true"></p>
         <p class="visually-hidden" id="finops-stand-live" role="status" aria-live="polite" aria-atomic="true"></p>
       </section>
 
