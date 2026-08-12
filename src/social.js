@@ -221,6 +221,13 @@ export const REVEAL_CONTROL_LABEL = "Clear filters and show this post";
 export const NO_IMAGE_NOTE = "This post carries no image, so it appears on Social only.";
 export const PUBLISH_FAILED_NOTE = "Your caption, image, and image description are still in the composer, exactly as you left them.";
 
+// …and the sentence that says what to do with them. Said only where it is true:
+// a publish the server refused can be sent again unchanged, so this names the
+// control that sends it. The composer's own refusals — an empty caption, a
+// missing image description — do not get it, because pressing the same button
+// again without fixing the field would fail the same way.
+export const PUBLISH_RETRY_NOTE = "Select Publish post to send the same post again.";
+
 // The label said "(required with an image)" and nothing said what the
 // requirement does, so the one refusal that is entirely this page's own — the
 // browser has no opinion about this field — happened without being announced.
@@ -922,17 +929,36 @@ export function mountSocialFeed(root, options = {}) {
     if (focus) notice.focus();
   };
 
-  const showFailure = (message) => {
+  const showFailure = (message, { retry = false } = {}) => {
     if (!notice) return;
     notice.classList.remove("is-success");
     notice.replaceChildren(
       stateChip(PUBLISH_STATE_WORDS.failed, "detail-state-chip-error"),
-      document.createTextNode(` ${message} ${PUBLISH_FAILED_NOTE}`),
+      document.createTextNode(` ${message} ${PUBLISH_FAILED_NOTE}${retry ? ` ${PUBLISH_RETRY_NOTE}` : ""}`),
     );
     notice.hidden = false;
   };
 
+  // The outcome of the *last* press is not the state of this one. Cleared as a
+  // publish starts, so the only thing describing the attempt in flight is the
+  // button that started it — otherwise a retry runs under a region still
+  // reading "Not published", and the reader is told two states at once.
+  const clearNotice = () => {
+    if (!notice) return;
+    notice.replaceChildren();
+    notice.classList.remove("is-success");
+    notice.hidden = true;
+  };
+
+  // True from the moment a request leaves until it comes back. `disabled` on the
+  // submit button is the visible half and it is not the whole guard: Enter in a
+  // single-line field, and the caption's Cmd/Ctrl+Enter shortcut, both submit the
+  // form without going through that button. This is what makes a second press
+  // impossible rather than merely inconvenient.
+  let publishing = false;
+
   const setSubmitting = (submitting) => {
+    publishing = submitting;
     if (!submit) return;
     submit.disabled = submitting;
     submit.setAttribute("aria-busy", String(submitting));
@@ -955,6 +981,10 @@ export function mountSocialFeed(root, options = {}) {
   if (form) {
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
+      // One press, one post. A submit that arrives while one is already in
+      // flight is dropped here rather than queued: the composer still holds the
+      // same draft, so queuing it would publish the same post twice.
+      if (publishing) return;
       if (!form.reportValidity()) return;
 
       let post;
@@ -988,6 +1018,7 @@ export function mountSocialFeed(root, options = {}) {
       }
 
       try {
+        clearNotice();
         setSubmitting(true);
         const saved = options.create ? await options.create(post, media) : post;
         // The byline is what the profile view treats as "you" (src/
@@ -1001,7 +1032,11 @@ export function mountSocialFeed(root, options = {}) {
         render();
         showConfirmation(saved, { hasImage: Boolean(media) });
       } catch (error) {
-        showFailure(error?.message || "This post could not be saved. Check the live connection and try again.");
+        // The failure arrives here as a value the composer can draw, never as an
+        // exception that escapes into the console: the draft is untouched above
+        // this line, so the same post can be sent again from where the reader
+        // is standing.
+        showFailure(error?.message || "This post could not be saved. Check the live connection.", { retry: true });
         return;
       } finally {
         setSubmitting(false);
