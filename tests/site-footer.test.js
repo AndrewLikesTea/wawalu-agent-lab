@@ -273,9 +273,18 @@ test("the footer is a site map: every destination the navigation offers, each on
     // the destination its own link had just named — and it is a fragment like
     // the rest now. Its words and the home page's are deliberately the same
     // words, which the test below pins; here it only has to be a fragment.
+    // People is the second deliberate exception: its card used to add "The
+    // picker is on the page", which describes the page's furniture rather than
+    // what a visitor does there, so the card now says exactly what this band
+    // says. Two surfaces, one description.
+    const SHARED = ["Social", "People"];
     for (const demo of DEMOS) {
       assert.doesNotMatch(demo.purpose, /[.!?]$/, `"${demo.label}" is written as a sentence`);
-      if (demo.label === "Social") continue;
+      if (SHARED.includes(demo.label)) {
+        assert.equal(asFragment(guideSentence(demo)), demo.purpose,
+          `${demo.label}'s home page card and this band describe it in different words`);
+        continue;
+      }
       const repeats = textOf(items.find((row) => textOf(row).startsWith(demo.label))).includes(guideSentence(demo));
       assert.ok(!repeats, `${demo.label} repeats the home page's sentence in the footer`);
     }
