@@ -128,18 +128,61 @@ test("the help text and the refusals state the limit and the formats identically
     readFile(new URL("../src/publishing-media.js", import.meta.url), "utf8"),
   ]);
 
-  assert.ok(markup.includes('<p class="hint" id="post-image-hint">PNG, JPEG, GIF, or WebP · 512 KB maximum.</p>'));
+  assert.ok(markup.includes('<p class="hint" id="post-image-hint">Social accepts PNG, JPEG, GIF, or WebP up to 512 KB. Reduce or re-export a larger image, then select Choose image.</p>'));
   assert.match(OVER_LIMIT, /maximum is 512 KB/);
   assert.ok(UNSUPPORTED_TYPE.includes("PNG, JPEG, GIF, or WebP"));
   // Every mention of the figure across the field, its wiring, and the refusals
   // is the same mention, so no second phrasing of the limit can drift in beside
   // it. The same for the format list, which the composer states three times.
   const source = `${markup}\n${wiring}\n${copy}`;
-  assert.match(markup, /Social accepts PNG, JPEG, GIF, or WebP up to 512 KB/);
-  assert.match(markup, /reduce or re-export an oversized image before you return to this tab/);
   const formats = source.match(/PNG,[^.·]*WebP/g) ?? [];
   assert.ok(formats.length >= 3, "the format list is stated beside the field and in both refusals");
   for (const mention of formats) assert.equal(mention, "PNG, JPEG, GIF, or WebP");
+});
+
+// One statement of the rule, in the field the reader is standing in. The
+// formats and the size were stated twice a line apart — once in a clause hung
+// off the Paint link by a semicolon, once as a summary line under it — so the
+// field answered "what does this take?" twice, in two different shapes, before
+// anyone had chosen a file. The refusals above still restate it, because they
+// speak after a file has been chosen and have a different job.
+test("the image field states the formats and the size exactly once, in plain sentences", async (t) => {
+  const { document } = await openComposer(t);
+  const steps = document.querySelector("#post-image-steps");
+  const hint = document.querySelector("#post-image-hint");
+  const help = `${textOf(steps)} ${textOf(hint)}`;
+
+  assert.equal(help.split("512 KB").length - 1, 1, `the size is stated more than once: ${help}`);
+  assert.equal(help.split("PNG, JPEG, GIF, or WebP").length - 1, 1,
+    `the format list is stated more than once: ${help}`);
+  // And nowhere else in the field either, including the summary line that used
+  // to sit under the help text.
+  assert.equal(textOf(document.querySelector(".media-picker")).split("512 KB").length - 1, 1);
+
+  // The rule in one sentence, the fix in the next, and the fix names the
+  // control by the label the control actually carries.
+  assert.equal(textOf(hint),
+    "Social accepts PNG, JPEG, GIF, or WebP up to 512 KB. Reduce or re-export a larger image, then select Choose image.");
+  assert.equal(textOf(document.querySelector('label[for="post-image"]')), "Choose image");
+  // No second phrasing of the same rule beside it, and no clause welding.
+  assert.doesNotMatch(help, /\b(maximum|max|limit)\b/i);
+  assert.doesNotMatch(help, /;/);
+
+  // The Paint link is its own sentence and is otherwise untouched: same
+  // destination, same new tab, still declared in the link's own text.
+  assert.equal(textOf(steps), "Create an image in Paint (opens in a new tab) ↗.");
+  const paint = steps.querySelector("a");
+  assert.equal(paint.getAttribute("href"), "/paint/");
+  assert.equal(paint.getAttribute("target"), "_blank");
+  assert.equal(paint.getAttribute("rel"), "noopener");
+  assert.match(textOf(paint), /\(opens in a new tab\)/);
+
+  // Both lines are still there and still described, so nothing the file input
+  // names has been left pointing at a node that no longer exists.
+  assert.equal(document.querySelector("#post-image").getAttribute("aria-describedby"),
+    "post-image-steps post-image-hint post-media-status");
+  assert.equal(document.querySelectorAll("#post-image-hint").length, 1);
+  assert.equal(document.querySelectorAll("#post-image-steps").length, 1);
 });
 
 // The rule behind the wording, stated once so no single label has to carry it:
