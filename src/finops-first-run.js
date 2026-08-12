@@ -61,7 +61,7 @@ import {
 } from "./internal-cost-gap.js";
 import { DECISION_QUESTION, loadCanonicalDecision } from "./finops-decision-contract.js";
 import {
-  auditDecisionFigures, DECISION_STATE, noticeFor, OUT_OF_RANGE_VALUE,
+  auditDecisionFigures, DECISION_STATE, noticeFor, OUT_OF_RANGE_VALUE, RELOAD_ACTION,
 } from "./finops-decision-interaction.js";
 import {
   composeFirstRunLiteracy, LITERACY_SLOT_LABEL, LITERACY_UNAVAILABLE, literacyMethodEntry,
@@ -193,8 +193,9 @@ export const FIRST_RUN_INSTRUCTION =
  * What a slot says before anything has been analyzed, in one shape.
  *
  * Three names for three slots, one wording for all of them: a reader learns
- * "Not read yet" once and recognizes it in whichever slot is empty. The keys
- * stay distinct because the callers name the slot they are filling.
+ * "Not available yet" once and recognizes it in whichever slot is empty — the
+ * same words departments.html and finops-stand.js put in an unfilled slot. The
+ * keys stay distinct because the callers name the slot they are filling.
  */
 export const FIRST_RUN_NOT_YET = Object.freeze({
   measured: "Not available yet",
@@ -218,14 +219,24 @@ export const SAMPLE_LABEL = Object.freeze({
 /** What a slot says when the analysis produced no value for it. */
 export const UNAVAILABLE_VALUE = "Unavailable";
 
-/** The reasons this region can be unavailable as a whole, in the words it uses. */
+/**
+ * The reasons this region can be unavailable as a whole, in the words it uses.
+ *
+ * Each one names what failed and ends on the ONE thing the reader can do about
+ * it, in the same words every time (#1669): the example is composed in this tab
+ * from bytes this page already carries, so reloading is the whole recovery, and
+ * a reader who is told what broke without being told that has been told half.
+ * `pending` and `failed` are not re-authored here — they are the states
+ * `DECISION_STATE` already names for the region below, read from it so one
+ * wording cannot become two.
+ */
 export const FIRST_RUN_UNAVAILABLE = Object.freeze({
-  pending: "The Bundled synthetic example has not been composed on this page yet.",
-  notComposed: "No Bundled synthetic example analysis was produced, so no figure is shown here.",
-  invalidBriefing: "The Bundled synthetic example did not satisfy the briefing contract, so no figure is shown here.",
-  failed: "The Bundled synthetic example could not be analyzed in this browser, so no figure is shown here.",
+  pending: DECISION_STATE.pending.statement,
+  notComposed: `No Bundled synthetic example analysis was produced, so no figure is shown here. ${RELOAD_ACTION}`,
+  invalidBriefing: `The Bundled synthetic example came back missing figures this region states, so no figure is shown here. ${RELOAD_ACTION}`,
+  failed: DECISION_STATE.error.statement,
   empty: DECISION_STATE.empty.statement,
-  outOfRange: "A figure in the Bundled synthetic example was outside the range it can take, so it is not shown.",
+  outOfRange: `A figure in the Bundled synthetic example was outside the range it can take, so it is not shown. ${RELOAD_ACTION}`,
 });
 
 /**
@@ -690,8 +701,8 @@ export function composeFirstRunResult({
   // Checked before the briefing contract, deliberately. An analysis that read
   // nothing may well produce a briefing with no metric in it — that is the
   // contract working, not a contract failure — and reporting it as "the example
-  // did not satisfy the briefing contract" would tell a reader to retry
-  // something that ran correctly and found an empty window.
+  // came back missing figures" would tell a reader to reload something that ran
+  // correctly and found an empty window.
   if (isEmptyAnalysis(analysis)) return emptyResult();
   let validation;
   try {

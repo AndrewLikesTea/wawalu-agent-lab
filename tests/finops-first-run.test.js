@@ -26,6 +26,7 @@ import {
 import {
   applyFirstRunResult, applyFirstRunSupersession, bindFirstRunActions,
 } from "../src/finops-first-run-view.js";
+import { DECISION_STATE } from "../src/finops-decision-interaction.js";
 import { EXAMPLE_DEPARTMENT_NAME_SET, loadExampleDataset } from "../src/example-dataset.js";
 import { buildFinopsBriefing } from "../src/finops-briefing-contract.js";
 
@@ -150,8 +151,17 @@ test("the sample label and both next steps survive every unavailable state", () 
     assert.equal(result.actions.import.targetId, "local-finops-files", name);
   }
   assert.equal(FIRST_RUN_UNAVAILABLE.notComposed,
-    "No Bundled synthetic example analysis was produced, so no figure is shown here.");
+    "No Bundled synthetic example analysis was produced, so no figure is shown here. "
+    + "Reload the page to build it again.");
   assert.equal(buildFirstRunResult(() => { throw new Error("x"); }).reason, FIRST_RUN_UNAVAILABLE.failed);
+  // #1669: every reason names what failed AND the one thing to do about it, and
+  // the two that the region below already names are read from it, not re-typed.
+  for (const [name, reason] of Object.entries(FIRST_RUN_UNAVAILABLE)) {
+    if (name === "pending" || name === "empty") continue;
+    assert.match(reason, /Reload the page to build it again\.$/, name);
+  }
+  assert.equal(FIRST_RUN_UNAVAILABLE.pending, DECISION_STATE.pending.statement);
+  assert.equal(FIRST_RUN_UNAVAILABLE.failed, DECISION_STATE.error.statement);
 });
 
 test("a share of nothing is unknown, never zero", () => {

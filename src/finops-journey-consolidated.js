@@ -390,7 +390,11 @@ function degraded(reason, surface, marker = null) {
     provenance: marker,
     sample: marker ? provenanceSample(marker) : null,
     question: JOURNEY_QUESTION,
-    headline: "This journey's records could not be read, so no step is recommended from them.",
+    // #1669: names what failed in the reader's words — "journey" is this
+    // module's name for the thing, "this month's saved records" is theirs — and
+    // ends on the action slot below rather than inventing a rival to it.
+    headline: "This month's saved records could not be read, so no step is recommended. "
+      + "Importing a provider export again rebuilds them.",
     metric: freeze({
       known: false,
       label: "Material figure",

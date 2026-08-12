@@ -70,7 +70,7 @@ export function applyDepartmentScreen(doc, model) {
   // one department's verdict, confidence or evidence count can never survive
   // into the next department's screen — including the states where the block
   // is hidden rather than repainted.
-  write(doc, "department-verdict-label", model.verdict?.label ?? "Intervention verdict");
+  write(doc, "department-verdict-label", model.verdict?.label ?? "Recommended change");
   write(doc, "department-verdict-value", model.verdict?.value ?? "");
   write(doc, "department-verdict-confidence", model.verdict?.confidenceDetail ?? "");
   write(doc, "department-verdict-evidence", model.verdict?.evidence ?? "");
