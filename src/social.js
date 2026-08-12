@@ -215,11 +215,38 @@ export function publishedPostLabel({ body = "", author = "" } = {}) {
 // other things. The chips are the shipped detail-state chips — a filled wash, as
 // the design system requires of a state that is happening now, and no new custom
 // property or palette entry.
-export const PUBLISH_STATE_WORDS = Object.freeze({ filtered: "Hidden by filters", failed: "Not published" });
+export const PUBLISH_STATE_WORDS = Object.freeze({
+  filtered: "Hidden by filters",
+  failed: "Not published",
+  // A write that answered without the id and name the confirmation is built
+  // from. Distinct from "Not published" because it is a different thing to do
+  // next: publishing again could duplicate a post that did land.
+  unconfirmed: "Not confirmed",
+});
 export const FILTERED_OUT_NOTE = "Your current filters hide this post from the feed below.";
 export const REVEAL_CONTROL_LABEL = "Clear filters and show this post";
 export const NO_IMAGE_NOTE = "This post carries no image, so it appears on Social only.";
 export const PUBLISH_FAILED_NOTE = "Your caption, image, and image description are still in the composer, exactly as you left them.";
+export const UNCONFIRMED_PUBLISH_NOTE = "Social answered without the post’s identifier, so there is no link to open and we cannot say the post landed. Reload Social to check before publishing again.";
+
+// What the submit control says while a publish is in flight. The resting label
+// is read off the shipped markup rather than repeated here, so social.html stays
+// the one place "Publish post" is written.
+export const PUBLISH_IN_FLIGHT_LABEL = "Publishing…";
+
+// The publish response's half of the contract. The confirmation promises two
+// destinations — the post's own page and the display name on People — so it can
+// only be written from a response that carries both an id and a name to build
+// them from. Checked at the call site and returned as null, rather than letting
+// showConfirmation render /post.html?id=undefined: a missing field is how a
+// broken write path looks, not something to interpolate. Pure, so the contract
+// is tested without a browser.
+export function publishedPostLinks(saved) {
+  const id = typeof saved?.id === "string" ? saved.id.trim() : "";
+  const author = typeof saved?.author === "string" ? saved.author.trim() : "";
+  if (!id || !author) return null;
+  return { post: postDetailHref(id, author), profile: profileHref(author) };
+}
 
 // The label said "(required with an image)" and nothing said what the
 // requirement does, so the one refusal that is entirely this page's own — the
@@ -753,6 +780,8 @@ export function mountSocialFeed(root, options = {}) {
 
   let posts = options.posts ?? [];
   let state = options.state ?? "ready";
+  let publishing = false;
+  const restingSubmitLabel = submitLabel?.textContent?.trim() || "Publish post";
   const postLabel = (n) => `${n} ${n === 1 ? "post" : "posts"}`;
 
   // The words a filter is currently showing, read back off the control itself
@@ -876,11 +905,13 @@ export function mountSocialFeed(root, options = {}) {
   // live region behind a closed disclosure is silent.
   const showConfirmation = (saved, { hasImage, focus = true }) => {
     if (!notice) return;
+    const links = publishedPostLinks(saved);
+    if (!links) return;
     const hiddenByFilters = !postMatchesFilters(saved, { author: nameFilter?.value, range: timeFilter?.value });
 
     notice.replaceChildren(document.createTextNode(`${publishedPostLabel(saved)} `));
     const permalink = document.createElement("a");
-    permalink.href = postDetailHref(saved.id, saved.author);
+    permalink.href = links.post;
     permalink.textContent = "Open the post’s permalink";
     notice.append(permalink, document.createTextNode(". "));
 
@@ -888,7 +919,7 @@ export function mountSocialFeed(root, options = {}) {
       // An image post is the only kind People shows, so that link is offered
       // exactly when there is something at the other end of it.
       const people = document.createElement("a");
-      people.href = profileHref(saved.author);
+      people.href = links.profile;
       people.textContent = `See ${saved.author}’s image posts on People`;
       notice.append(people, document.createTextNode("."));
     } else {
@@ -922,21 +953,33 @@ export function mountSocialFeed(root, options = {}) {
     if (focus) notice.focus();
   };
 
-  const showFailure = (message) => {
+  // Both outcomes that leave the composer holding the post: a refused write, and
+  // one whose answer could not be trusted. Same region, same rendering, same
+  // closing sentence about what is still on the page — only the state word
+  // differs, because only the next step differs.
+  const showFailure = (message, word = PUBLISH_STATE_WORDS.failed) => {
     if (!notice) return;
     notice.classList.remove("is-success");
     notice.replaceChildren(
-      stateChip(PUBLISH_STATE_WORDS.failed, "detail-state-chip-error"),
+      stateChip(word, "detail-state-chip-error"),
       document.createTextNode(` ${message} ${PUBLISH_FAILED_NOTE}`),
     );
     notice.hidden = false;
   };
 
+  // The one place this page knows a publish is happening. The label carries the
+  // state in words on the control that started it — not a fourth progress
+  // sentence stacked beside the feed's own — and `publishing` is what makes a
+  // second submit a no-op: `disabled` stops a pointer, but requestSubmit() (the
+  // caption's Cmd/Ctrl+Enter shortcut) submits a form whose submit button is
+  // disabled, and that second pass would be a second write of the same post.
+  // Same guard shape as the follow-up form's `sent`.
   const setSubmitting = (submitting) => {
+    publishing = submitting;
     if (!submit) return;
     submit.disabled = submitting;
     submit.setAttribute("aria-busy", String(submitting));
-    if (submitLabel) submitLabel.textContent = submitting ? "Publishing…" : "Publish post";
+    if (submitLabel) submitLabel.textContent = submitting ? PUBLISH_IN_FLIGHT_LABEL : restingSubmitLabel;
   };
 
   if (bodyInput) {
@@ -955,6 +998,11 @@ export function mountSocialFeed(root, options = {}) {
   if (form) {
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
+      // A second submit while the first is still in flight is nothing at all —
+      // not a second post, and not a second notice overwriting the one being
+      // read. Checked before validation so a resubmitted form cannot even reach
+      // the write path. See setSubmitting.
+      if (publishing) return;
       if (!form.reportValidity()) return;
 
       let post;
@@ -990,6 +1038,16 @@ export function mountSocialFeed(root, options = {}) {
       try {
         setSubmitting(true);
         const saved = options.create ? await options.create(post, media) : post;
+        // The write path's answer is checked before anything is said about it.
+        // A response that cannot address both destinations the confirmation
+        // promises is not a success this page can draw, and it is not the same
+        // news as a refused write either — so it gets its own words, and the
+        // composer keeps everything, because publishing again might duplicate a
+        // post that did land.
+        if (!publishedPostLinks(saved)) {
+          showFailure(UNCONFIRMED_PUBLISH_NOTE, PUBLISH_STATE_WORDS.unconfirmed);
+          return;
+        }
         // The byline is what the profile view treats as "you" (src/
         // social-identity.js). Remembered only after a post actually lands, so a
         // failed submit cannot rewrite who this browser thinks it is.

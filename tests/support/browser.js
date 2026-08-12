@@ -339,6 +339,14 @@ class Element {
       .filter((control) => control.name && !control.disabled);
   }
 
+  // Programmatic submission, modelled the way the platform behaves in the one
+  // respect a test of a submit guard depends on: it submits the form, and a
+  // disabled submit *button* does not stop it. A page that relies on `disabled`
+  // alone to prevent a double write is therefore not protected here either.
+  requestSubmit() {
+    this.dispatchEvent(new DomEvent("submit", { bubbles: true }));
+  }
+
   reportValidity() {
     return this.formControls.every((control) => {
       if (control.type === "radio" || control.type === "checkbox") return true;
@@ -359,6 +367,10 @@ export class DomEvent {
     this.type = type;
     this.bubbles = init.bubbles ?? true;
     this.key = init.key;
+    // The two modifiers this site binds anything to: Social's composer submits
+    // on Cmd/Ctrl+Enter, where a bare Enter has to stay a newline.
+    this.metaKey = init.metaKey ?? false;
+    this.ctrlKey = init.ctrlKey ?? false;
     this.target = init.target ?? null;
     this.defaultPrevented = false;
     this.propagationStopped = false;
