@@ -5,12 +5,25 @@
 // what their browser already holds — has exactly one thing they might want that
 // the page cannot give them: a person. This module is that, and nothing more.
 //
-// It drives two surfaces now, so every id it touches is derived from a `prefix`
-// rather than written out: `finops-contact` on the AI FinOps result and
-// `briefing-contact` on the executive briefing. The markup stays with each page
-// — the copy beside a briefing is not the copy beside an import — but the
-// behaviour, the transport, and the promise made once an address lands are one
-// implementation, so the two surfaces cannot drift apart.
+// It drives three surfaces now, so every id it touches is derived from a
+// `prefix` rather than written out: `finops-contact` on the AI FinOps result,
+// `briefing-contact` on the executive briefing, and `homepage-followup` under
+// the home page's executive takeaway (src/homepage-follow-up.js). The markup
+// stays with each page — the copy beside a briefing is not the copy beside an
+// import — but the behaviour, the transport, and the promise made once an
+// address lands are one implementation, so the surfaces cannot drift apart.
+//
+// Two things a surface may vary, because they are the two things that are
+// genuinely not the same errand on every page:
+//
+//   * `copy` — the sentence the live region carries once an address lands. The
+//     default is this file's, which commits to two business days because
+//     someone watches the FinOps queue. A surface that cannot honestly make
+//     that promise passes its own instead of inventing a second panel.
+//   * `<prefix>-retry` — an optional second submit control that stands where
+//     the send control was while a failure is on screen. A surface that ships
+//     one gets the site footer's recovery shape; one that does not retries by
+//     pressing the same button again, exactly as before.
 //
 // Four rules hold it together:
 //
@@ -69,14 +82,15 @@ const SUBMITTING = "Requesting a follow-up — sending your email address…";
  * Wire one contact panel.
  *
  * `prefix` names the family of ids the surface ships: `<prefix>-form`, `-open`,
- * `-panel`, `-email`, `-error`, `-status`, `-recovery`, `-dismiss`, `-next`. A
- * page that ships none of them gets `null` and no listeners.
+ * `-panel`, `-email`, `-error`, `-status`, `-recovery`, `-dismiss`, `-next`,
+ * `-retry`. A page that ships none of them gets `null` and no listeners.
  */
 export function initFinopsContact(
   root = document,
   request = (...args) => globalThis.fetch(...args),
-  { prefix = "finops-contact" } = {},
+  { prefix = "finops-contact", copy = {} } = {},
 ) {
+  const { captured = CAPTURED, alreadyCaptured = ALREADY_CAPTURED } = copy;
   const ERROR_ID = `${prefix}-error`;
   const RECOVERY_ID = `${prefix}-recovery`;
   const form = root.querySelector(`#${prefix}-form`);
@@ -94,6 +108,8 @@ export function initFinopsContact(
   // works. It is never named by aria-describedby — it is a place to go, not a
   // description of the field.
   const nextStep = root.querySelector(`#${prefix}-next`);
+  // Optional too: the control that sends the same request again, in place.
+  const retry = root.querySelector(`#${prefix}-retry`);
 
   function setFieldError(message) {
     fieldError.textContent = message ?? "";
@@ -105,6 +121,12 @@ export function initFinopsContact(
 
   function setRecoveryVisible(visible) {
     recovery.hidden = !visible;
+    // Where a surface ships one, the retry stands where the send control was:
+    // a failure is recovered on the page it happened on, with what was typed.
+    if (retry) {
+      retry.hidden = !visible;
+      submit.hidden = visible;
+    }
     describeWith(email, RECOVERY_ID, visible);
   }
 
@@ -217,7 +239,7 @@ export function initFinopsContact(
       const address = email.value.trim();
       const body = await postLeadEmail(request, email.value, "follow_up", CONTACT_COPY);
       form.dataset.state = "success";
-      status.textContent = body.created ? CAPTURED : ALREADY_CAPTURED;
+      status.textContent = body.created ? captured : alreadyCaptured;
       // Waiting two business days is not a next action, so the surface offers
       // one: somewhere to go now, in this tab, that does not depend on the reply.
       // It survives the swap below: the form goes, this stays.
