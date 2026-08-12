@@ -68,6 +68,9 @@ async function init() {
   const profile = mountProfile(document, {
     posts: seeds,
     author,
+    // Nobody asked for this name, so the page says so above the picker rather
+    // than presenting its own suggestion as the visitor's decision.
+    preselected: !chosen,
     // "loading" even with seeds in hand: seeded tiles still render (posts always
     // outrank a pending refresh), and an author the seed does not cover gets a
     // skeleton rather than an "empty profile" that the next second contradicts.

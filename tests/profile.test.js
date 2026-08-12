@@ -13,7 +13,8 @@ const { FEED_LOADING_LINE } = await import("../src/social.js");
 const {
   EMPTY_SUMMARY_LINE, PROFILE_EMPTY_COPY, authorChipLabel, authorInitials, captionFor, countLabel, defaultProfileAuthor,
   distinctAuthors, emptySummaryText, hasExplicitAuthor, imagePostCounts, loadingSummaryText,
-  mergePostsById, normalizeProfileApiPosts, normalizeSeedPosts, pickerEntries, postDetailHref,
+  mergePostsById, normalizeProfileApiPosts, normalizeSeedPosts, pickerEntries, pickerNoteText, postDetailHref,
+  singleNameNotice,
   profileAnnouncement, profileHref, profilePaintHref, profileResultsHeading, profileSummary, profileSummaryText,
   renderAuthorPicker, renderProfileGrid, renderProfileHeader, resolveProfileAuthor, selectProfilePosts,
 } = await import("../src/profile.js");
@@ -209,6 +210,40 @@ test("each picker entry is a button that names itself, its count, and its state"
 
   container.children[0].dispatch("click");
   assert.deepEqual(chosen, ["Kai"]);
+});
+
+test("the line over the picker says who is showing, and who chose them", () => {
+  // A name nobody asked for is reported as the page's own suggestion, with the
+  // control that undoes it named where it is.
+  assert.equal(pickerNoteText("Mina", { preselected: true }),
+    "Showing Mina’s image posts. We preselected this name for you; pick another below to switch.");
+  // A shared link or a remembered name is a choice, and saying otherwise would
+  // tell a reader they had not made the decision they had.
+  assert.equal(pickerNoteText("Mina"), "Showing Mina’s image posts. Pick another name below to switch.");
+  assert.doesNotMatch(pickerNoteText("Mina", { preselected: false }), /preselect/i);
+  // With one entry there is nothing below to pick, so the sentence stops.
+  assert.equal(pickerNoteText("Mina", { preselected: true, choices: 1 }), "Showing Mina’s image posts.");
+});
+
+test("a picker with one entry states the fact instead of drawing a choice", () => {
+  assert.equal(singleNameNotice([{ name: "Ari", images: 3 }]), "Only one display name has image posts: Ari.");
+  // A single name with nothing under it is a different sentence: the count is
+  // zero, so claiming image posts for it would be wrong.
+  assert.equal(singleNameNotice([{ name: "Ari", images: 0 }]), "Only one display name is in this feed: Ari.");
+  // And an unanswered store claims no count at all, the way the chips say
+  // "Counting…" rather than "0".
+  assert.equal(singleNameNotice([{ name: "Ari", images: 3 }], { counted: false }),
+    "Only one display name is in this feed: Ari.");
+  // Two names are a choice, and a choice is drawn as controls.
+  assert.equal(singleNameNotice([{ name: "Ari", images: 1 }, { name: "Bea", images: 1 }]), null);
+  assert.equal(singleNameNotice([]), null);
+});
+
+test("a one-name picker renders the sentence and no button", () => {
+  const container = createElement("div");
+  renderAuthorPicker(container, pickerEntries([imagePost, olderImagePost], "Mina"), { author: "Mina" });
+  assert.deepEqual(container.children.map((node) => node.tagName), ["P"]);
+  assert.equal(container.textContent, "Only one display name has image posts: Mina.");
 });
 
 test("an uncounted picker says it is counting rather than claiming a zero", () => {

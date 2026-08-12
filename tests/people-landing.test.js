@@ -58,11 +58,11 @@ function documentOrder(document) {
   return order;
 }
 
-async function people({ search = "", storage = {}, live = { posts: [] } } = {}) {
+async function people({ search = "", storage = {}, live = { posts: [] }, seed = SEED_FEED } = {}) {
   const page = await loadPage(PAGE_URL, {
     storage,
     location: { search },
-    routes: { [SEED_ROUTE]: SEED_FEED, [LIVE_ROUTE]: live },
+    routes: { [SEED_ROUTE]: seed, [LIVE_ROUTE]: live },
   });
   const savedInterval = globalThis.setInterval;
   globalThis.setInterval = () => 0; // The page's 30-second refresh must not outlive the test.
@@ -588,9 +588,13 @@ test("a feed with no image posts at all still lands on the empty state", async (
     const { document } = page;
     await waitFor(() => document.documentElement.dataset.shiplogProfile === "ready", "the first load settles");
     // Nothing to prefer, so the old fallback stands and the page says so once.
+    // One display name means no choice to make, so the picker says which name
+    // the feed holds instead of drawing a single chip that reads as a choice
+    // nobody made — and the name is still text on the page either way.
     const picker = document.querySelector("#profile-author");
-    const pressed = picker.children.filter((chip) => chip.getAttribute("aria-pressed") === "true");
-    assert.deepEqual(pressed.map((chip) => chip.dataset.author), ["Ari"]);
+    assert.equal(picker.children.filter((node) => node.tagName === "BUTTON").length, 0,
+      "a one-name feed still drew a lone chip");
+    assert.equal(textOf(picker), "Only one display name is in this feed: Ari.");
     assert.equal(document.querySelectorAll(".empty-state").length, 1);
     assert.match(textOf(document.querySelector("#profile-summary")), /^0 image posts · 1 post in total · last posted /);
   } finally {
@@ -786,6 +790,165 @@ test("tabbing from the top reaches the picker, then the posts under the header",
     const beforePanel = inMain.filter((element) => !element.closest(".list-panel"));
     assert.deepEqual(beforePanel.map((element) => element.dataset?.author ?? element.getAttribute("href")),
       ["/social.html", "Ari", "Bea", "Zed"]);
+  } finally {
+    page.restore();
+  }
+});
+
+/* ------------------- the name nobody chose, said in words ------------------ */
+
+// The reported defect: People opened on one name, with a verdict about it, and
+// nothing on the page said whether the visitor had asked for that name or the
+// page had picked it for them. A roster with counts answers "what else is
+// there"; this sentence answers "why this one".
+
+const pickerNote = (document) => textOf(document.querySelector("#profile-picker-note"));
+
+// Every write to the polite region, in order. The page has one live region and
+// one code path into it, and "exactly once" is a claim about the writes rather
+// than about the text that survives them — a second announcement of the same
+// words leaves no trace in textContent but is heard twice.
+function recordAnnouncements(document) {
+  const announcer = document.querySelector("#profile-announcer");
+  const descriptor = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(announcer), "textContent");
+  const writes = [];
+  Object.defineProperty(announcer, "textContent", {
+    configurable: true,
+    get: () => descriptor.get.call(announcer),
+    set: (value) => { writes.push(String(value)); descriptor.set.call(announcer, value); },
+  });
+  return writes;
+}
+
+test("arriving with no name asked for lists every display name with its count and says the name was preselected", async () => {
+  const page = await people();
+  try {
+    const { document } = page;
+    // The whole set on arrival, each entry carrying its count as words rather
+    // than a bare figure beside a name.
+    assert.deepEqual(chipTexts(page), [
+      "Ari · 0 image posts",
+      "Bea · 1 image post",
+      "✓ Showing Zed · 2 image posts",
+    ]);
+    for (const text of chipTexts(page))
+      assert.match(text, /· \d+ image posts?$/, `an entry states a number without saying what it counts: ${text}`);
+    // Every display name that has an image post is on the roster, derived from
+    // the same feed the grid draws from rather than from a list kept beside it.
+    for (const name of ["Bea", "Zed"]) assert.ok(chipFor(page, name), `${name} has image posts and no picker entry`);
+
+    // And the sentence that says the visitor did not pick this one.
+    assert.equal(pickerNote(document),
+      "Showing Zed’s image posts. We preselected this name for you; pick another below to switch.");
+    // Nothing was written on their behalf to make the preselection stick.
+    assert.equal(page.storage.getItem("shiplog.social.author"), null);
+    assert.equal(page.replaced.length, 0);
+  } finally {
+    page.restore();
+  }
+});
+
+test("a name that was asked for is never claimed as a preselection", async () => {
+  for (const [how, options] of [
+    ["a shared link", { search: "?author=Bea" }],
+    ["the remembered name", { storage: { "shiplog.social.author": "Bea" } }],
+  ]) {
+    const page = await people(options);
+    try {
+      const note = pickerNote(page.document);
+      assert.equal(note, "Showing Bea’s image posts. Pick another name below to switch.", how);
+      assert.doesNotMatch(note, /preselect/i, `${how} was reported back as the page's own choice`);
+    } finally {
+      page.restore();
+    }
+  }
+});
+
+test("choosing a name by keyboard moves the page and announces it once, from one region", async () => {
+  const page = await people();
+  try {
+    const { document } = page;
+    const writes = recordAnnouncements(document);
+    chipFor(page, "Bea").focus();
+    pressKey(document, "Enter");
+
+    // The three things a reader watches, moved together by the one selection.
+    assert.equal(resultsHeading(document), "Bea · 1 image post");
+    assert.equal(textOf(document.querySelector("#profile-name")), "Active display-name filter: Bea");
+    assert.equal(tileCount(document), 1);
+    // Once, in one voice. Two code paths writing the same news, or a second
+    // live region rendering it, is what a screen reader hears twice.
+    assert.deepEqual(writes, ["Showing 1 image post by Bea."]);
+    const live = document.getElementById("main-content").querySelectorAll("[aria-live]");
+    assert.deepEqual(live.map((node) => node.getAttribute("id")), ["profile-announcer"],
+      "the main content holds more than one live region");
+    // A selection is a choice, so the preselection claim is gone with it.
+    assert.equal(pickerNote(document), "Showing Bea’s image posts. Pick another name below to switch.");
+  } finally {
+    page.restore();
+  }
+});
+
+test("a keyboard selection leaves focus on the name that was chosen, not at the top of the document", async () => {
+  const page = await people();
+  try {
+    const { document } = page;
+    chipFor(page, "Ari").focus();
+    pressKey(document, " ");
+    // The chips are rebuilt by the selection, so this is a focus move the page
+    // had to make: without it the reader is dropped back to the document.
+    assert.equal(document.activeElement?.dataset.author, "Ari");
+    assert.equal(document.activeElement?.getAttribute("aria-pressed"), "true");
+    assert.equal(document.activeElement?.parentNode?.getAttribute("id"), "profile-author");
+    // And the next name is one Tab away, so a reader comparing two names does
+    // not have to walk back up the page between them.
+    assert.equal(pressTab(document)?.dataset?.author, "Bea");
+  } finally {
+    page.restore();
+  }
+});
+
+test("a selected name with no image posts says so once, and offers the way onward", async () => {
+  const page = await people({ search: "?author=Nova" });
+  try {
+    const { document } = page;
+    assert.equal(tileCount(document), 0);
+    // One region, not two, and not an empty list.
+    assert.equal(document.querySelectorAll(".empty-state").length, 1);
+    const empty = document.querySelector(".empty-state");
+    assert.match(textOf(empty), /Images made in Paint and published on Social appear here\./);
+    assert.equal(document.querySelector("#profile-grid").querySelectorAll(".profile-grid").length, 0,
+      "the grid drew an empty list beside the region that explains it");
+    // The route onward, named the way the rest of the site names those places.
+    const routes = empty.querySelectorAll("a").map((anchor) => anchor.getAttribute("href"));
+    assert.equal(routes.filter((href) => href.startsWith("/paint/")).length, 1);
+    assert.equal(routes.filter((href) => href === "/social.html").length, 1);
+    assert.equal(textOf(empty.querySelectorAll("a")[0]), "Create an image in Paint (opens in a new tab)");
+    assert.equal(textOf(empty.querySelectorAll("a")[1]), "See every post on Social");
+    // The panel the guidance lands in speaks as content: the polite region is
+    // the page's one voice, so this is not announced a second time from here.
+    const status = document.querySelector("#profile-feed-status");
+    assert.equal(status.getAttribute("aria-live"), null);
+    assert.equal(status.getAttribute("role"), null);
+    assert.match(textOf(document.querySelector("#profile-announcer")), /^Nova hasn’t posted an image yet\./);
+  } finally {
+    page.restore();
+  }
+});
+
+test("a feed with one display name says so in words instead of drawing a lone chip", async () => {
+  const page = await people({ seed: { posts: [seedPost("p-30", "Ari"), seedPost("p-31", "Ari")] } });
+  try {
+    const { document } = page;
+    const picker = document.querySelector("#profile-author");
+    assert.equal(picker.children.filter((node) => node.tagName === "BUTTON").length, 0,
+      "a one-name feed drew a chip that reads as an unmade choice");
+    assert.equal(textOf(picker), "Only one display name has image posts: Ari.");
+    // The results are still the same results, and the sentence over the picker
+    // does not point at a control that is not there.
+    assert.equal(resultsHeading(document), "Ari · 2 image posts");
+    assert.equal(pickerNote(document), "Showing Ari’s image posts.");
+    assert.equal(tileCount(document), 2);
   } finally {
     page.restore();
   }

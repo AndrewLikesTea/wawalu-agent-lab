@@ -103,6 +103,12 @@
             <p class="hint profile-toolbar-hint" id="profile-author-hint">
               The display name is the name shown on each post. Pick one to see only the image posts published under it.
             </p>
+            <!-- Written by profile.js on every render: which display name is
+                 showing, and whether the page preselected it or the visitor
+                 picked it. It ships empty on purpose — the name is not known
+                 until the feed answers, and a guess here is the defect the
+                 heading over the grid already had. -->
+            <p class="hint profile-toolbar-hint" id="profile-picker-note"></p>
             <div class="filter-options" id="profile-author"></div>
           </fieldset>
         </div>
@@ -251,7 +257,12 @@
                label rather than a control, so the list carries the reference and
                a reader entering it hears "Newest first" against the posts it
                describes. No new tab stop is added above the results for it. -->
-          <div id="profile-feed-status" role="status" aria-live="polite" aria-atomic="true">Loading image posts…</div>
+          <!-- The panel that stands in for the grid when there are no tiles:
+               loading, failed, or an empty display name. It is rendered content
+               and not an announcement — the polite region above is the page's
+               one voice, and while this element was also live a name with no
+               image posts spoke the same guidance twice, from two regions. -->
+          <div id="profile-feed-status">Loading image posts…</div>
           <div id="profile-grid" aria-describedby="profile-order"></div>
         </div>
       </section>
