@@ -69,13 +69,18 @@ const SUBMITTING = "Requesting a follow-up — sending your email address…";
  * Wire one contact panel.
  *
  * `prefix` names the family of ids the surface ships: `<prefix>-form`, `-open`,
- * `-panel`, `-email`, `-error`, `-status`, `-recovery`, `-dismiss`, `-next`. A
- * page that ships none of them gets `null` and no listeners.
+ * `-panel`, `-email`, `-error`, `-status`, `-recovery`, `-dismiss`, `-next`,
+ * `-retry`. A page that ships none of them gets `null` and no listeners.
+ *
+ * `captured` and `alreadyCaptured` are the two sentences a landed request
+ * announces. They are the promise a surface makes once an address is stored,
+ * which each surface owns — the home page's hand-raise makes the footer's,
+ * because it is the footer's situation and not this result's.
  */
 export function initFinopsContact(
   root = document,
   request = (...args) => globalThis.fetch(...args),
-  { prefix = "finops-contact" } = {},
+  { prefix = "finops-contact", captured = CAPTURED, alreadyCaptured = ALREADY_CAPTURED } = {},
 ) {
   const ERROR_ID = `${prefix}-error`;
   const RECOVERY_ID = `${prefix}-recovery`;
@@ -94,6 +99,10 @@ export function initFinopsContact(
   // works. It is never named by aria-describedby — it is a place to go, not a
   // description of the field.
   const nextStep = root.querySelector(`#${prefix}-next`);
+  // Also optional: a surface may recover a failure with a control of its own,
+  // the way the site footer's panel does, and one that does not still retries
+  // through the send control it never took away.
+  const retry = root.querySelector(`#${prefix}-retry`);
 
   function setFieldError(message) {
     fieldError.textContent = message ?? "";
@@ -105,6 +114,13 @@ export function initFinopsContact(
 
   function setRecoveryVisible(visible) {
     recovery.hidden = !visible;
+    // A failure is recovered on the page it happened on: where a surface ships
+    // a retry, it stands where the send control was and submits this form
+    // again, value and all.
+    if (retry) {
+      retry.hidden = !visible;
+      submit.hidden = visible;
+    }
     describeWith(email, RECOVERY_ID, visible);
   }
 
@@ -217,7 +233,7 @@ export function initFinopsContact(
       const address = email.value.trim();
       const body = await postLeadEmail(request, email.value, "follow_up", CONTACT_COPY);
       form.dataset.state = "success";
-      status.textContent = body.created ? CAPTURED : ALREADY_CAPTURED;
+      status.textContent = body.created ? captured : alreadyCaptured;
       // Waiting two business days is not a next action, so the surface offers
       // one: somewhere to go now, in this tab, that does not depend on the reply.
       // It survives the swap below: the form goes, this stays.

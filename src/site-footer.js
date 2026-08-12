@@ -128,9 +128,9 @@ export const INVITATION = "Questions about Shiplog? Ask the Wawalu team that ope
 // says what is actually true — the address is recorded, a person is the one who
 // reads it, and no machine is about to reply — rather than a response time this
 // demo would break.
-const CAPTURED = "Follow-up requested — we sent your email address, and nothing else. It is recorded "
+export const CAPTURED = "Follow-up requested — we sent your email address, and nothing else. It is recorded "
   + "for the Wawalu team, and a person replies by email; nothing here answers automatically.";
-const ALREADY_CAPTURED = "Follow-up requested — that address is already on our list, so nothing new "
+export const ALREADY_CAPTURED = "Follow-up requested — that address is already on our list, so nothing new "
   + "was recorded. The Wawalu team can reach you there.";
 
 const SUBMITTING = "Requesting a follow-up — sending your email address…";

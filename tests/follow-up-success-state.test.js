@@ -5,8 +5,9 @@
 // visitor who missed the sentence pressed the button again; a visitor who read
 // it had no receipt naming the address they had typed.
 //
-// What is pinned here, on both surfaces that ship the form — the About Shiplog
-// panel in the footer and the executive briefing's own copy of it:
+// What is pinned here, on every surface that ships the form — the About Shiplog
+// panel in the footer, the executive briefing's own copy of it, and the home
+// page's hand-raise under the executive takeaway:
 //
 //   1. The receipt names the address that was submitted, as text.
 //   2. Success is terminal. The form is gone, the submit control is disabled and
@@ -92,12 +93,22 @@ async function openBriefingPage() {
   return page;
 }
 
-// The two surfaces, driven identically. The panels ship different copy and
+async function openHomepageTakeaway() {
+  const page = await loadPage(new URL("../src/index.html", import.meta.url));
+  await importPageModule("/homepage-follow-up.js");
+  return page;
+}
+
+// The three surfaces, driven identically. The panels ship different copy and
 // different class families; the state model behind them is one implementation,
-// and this table is what says so.
+// and this table is what says so. The home page's hand-raise under the
+// executive takeaway (#1650) is the third, and it is here rather than only in
+// tests/homepage-follow-up.test.js because "the same confirmation as the
+// footer's" is a claim about all of them at once.
 const SURFACES = [
   { name: "the About Shiplog footer", open: openFooterPage, prefix: "site-footer" },
   { name: "the executive briefing", open: openBriefingPage, prefix: "briefing-contact" },
+  { name: "the home page's executive takeaway", open: openHomepageTakeaway, prefix: "homepage-follow-up" },
 ];
 
 test("Coach, Releases, Social, People, and Agents send one bounded request and show durable success", async () => {

@@ -92,9 +92,60 @@
         <aside class="executive-takeaway" aria-labelledby="executive-takeaway-title">
           <p class="eyebrow" id="executive-takeaway-title">Executive takeaway</p>
           <p id="executive-takeaway-text">$51,254 of $154,500 in analyzed AI spend is recoverable (33%) — a modelled ceiling on what re-routing this work could save, not money already saved. First recommended action: Pilot lower-cost routing in Atlas Platform. Accountable role: Platform Engineering Lead. Figures are from a bundled synthetic example and are not visitor data.</p>
+          <!-- THE THIRD CONTROL IN THIS BLOCK ASKS A PERSON.
+               The other two hand a reader the example: one copies it, one opens
+               the page that computed it. Both leave a visitor whose own bill is
+               the reason they are here with nowhere to say so, and the only
+               place on this page that asked for a work email was the About
+               Shiplog band at the very foot of it.
+               THE FORM IS THE ONE THE FOOTER SHIPS, not a second design. The
+               behaviour is src/finops-contact.js — the panel already driving the
+               AI FinOps result and the executive briefing — wired by
+               src/homepage-follow-up.js to this id family; the sentence between
+               the field and the send control is FOLLOW_UP_PRIVACY from
+               src/lead-capture.js, the same string every follow-up form on the
+               site renders; the receipt a landed request leaves is
+               src/follow-up-confirmation.js, the same named confirmation the
+               footer leaves; and the two sentences it announces are the
+               footer's, imported rather than written again. The panel carries
+               the briefing's class family because this page already loads that
+               stylesheet for the decision summary below, so the disclosure adds
+               no rule to any sheet.
+               EVERY ID IS ITS OWN. The footer's form is still on this page,
+               below, unchanged: the two panels share no id, no label target and
+               no live region, so opening or sending one cannot touch the other.
+               The control that OPENS this one names the errand rather than
+               reading "Request a follow-up" — see the note in
+               src/homepage-follow-up.js. The control that SENDS it carries that
+               label, as every send control on the site does. -->
+          <p id="homepage-follow-up-invitation">Those figures are the bundled example, not yours. Ask the Wawalu team that operates Shiplog about your own spend, and a person replies by email.</p>
           <div class="executive-takeaway-actions">
             <button id="copy-executive-takeaway" type="button">Copy executive takeaway</button>
+            <button id="homepage-follow-up-open" type="button" aria-expanded="false" aria-controls="homepage-follow-up-panel" aria-describedby="homepage-follow-up-invitation">Ask the team about your own spend</button>
             <p id="executive-takeaway-status" class="executive-takeaway-status" role="status" aria-live="polite"></p>
+          </div>
+          <div class="brief-contact-panel" id="homepage-follow-up-panel" hidden>
+            <form id="homepage-follow-up-form" class="brief-contact-form" novalidate>
+              <div class="brief-contact-field">
+                <label for="homepage-follow-up-email">Work email</label>
+                <!-- Only the note is named here. The inline error and the
+                     recovery paragraph are added to this description by
+                     finops-contact.js when they exist, because a hidden node
+                     referenced by aria-describedby is still part of the
+                     accessible description and would otherwise be read on
+                     first focus. -->
+                <input id="homepage-follow-up-email" name="email" type="email" maxlength="254" inputmode="email" autocomplete="email" placeholder="you@company.com" required aria-describedby="homepage-follow-up-note" />
+              </div>
+              <p class="brief-contact-error" id="homepage-follow-up-error" hidden></p>
+              <p class="brief-contact-note" id="homepage-follow-up-note">The work email address you type here goes to the Wawalu team that operates Shiplog; nothing else on this page is sent.</p>
+              <p class="brief-contact-recovery" id="homepage-follow-up-recovery" hidden>We could not send your follow-up request. Your email address is still in the field above, and nothing else on this page changed. Retry sends the same request again from this page; if it keeps failing, wait a few minutes and retry.</p>
+              <div class="brief-contact-actions">
+                <button type="submit">Request a follow-up</button>
+                <button id="homepage-follow-up-retry" type="submit" hidden>Retry sending this request</button>
+                <button id="homepage-follow-up-dismiss" type="button">Close</button>
+              </div>
+            </form>
+            <p class="brief-contact-status" id="homepage-follow-up-status" role="status" aria-live="polite"></p>
           </div>
         </aside>
         <div class="hero-actions" data-conversion-slot="hero">
@@ -770,6 +821,7 @@
     </footer>
     <script type="module" src="/landing-decision-page.js"></script>
     <script type="module" src="/homepage-executive-takeaway.js"></script>
+    <script type="module" src="/homepage-follow-up.js"></script>
     <script type="module" src="/app.js"></script>
     <script type="module" src="/shiplog-export-page.js"></script>
     <script type="module" src="/shiplog-import-page.js"></script>
