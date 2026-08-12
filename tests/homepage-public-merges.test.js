@@ -245,7 +245,7 @@ test("the document a visitor is served authors no figure and no link of its own"
   // words, but the paragraph it opens was folded into one sentence when the
   // hero stopped stating the recoverable figure twice (#1544).
   assert.match(html, /is a bundled synthetic example, computed from invented data for an invented company/);
-  assert.match(html, /<strong>Representative synthetic records<\/strong>/);
+  assert.match(html, /<strong>Example records<\/strong>/);
 });
 
 test("the destination list says the observatory is not entirely invented", async () => {

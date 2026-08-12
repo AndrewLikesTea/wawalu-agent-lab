@@ -207,9 +207,9 @@ test("the log entry's proof point ties a recorded decision to the release that s
 
   // Said in the same words the record list uses, in the same block as the
   // records themselves.
-  assert.match(proof, /Representative synthetic records/);
+  assert.match(proof, /Example records/);
   assert.match(proof, /invented records demonstrate Shiplog/);
-  assert.match(proof, /not customer or internal operational data/);
+  assert.match(proof, /use no customer or production data/);
 
   // Money is authored into the hero now, and only on these terms. The hero may
   // state the bundled example's headline result so a first-screen visitor
