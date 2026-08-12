@@ -17,9 +17,12 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import {
   FILTERED_OUT_NOTE,
   NO_IMAGE_NOTE,
+  PUBLISH_FAILED_NOTE,
+  PUBLISH_RETRY_NOTE,
   PUBLISH_STATE_WORDS,
   REVEAL_CONTROL_LABEL,
   mountSocialFeed,
@@ -43,11 +46,21 @@ const EXISTING = {
 // A composer on the shipped markup, with the media half and the API replaced by
 // values the test controls. `create` is the publish response: it returns the row
 // the server made, id and all, which is where the permalink comes from.
-async function composer(t, { hasImage = false, fail = null } = {}) {
+//
+// The request is controllable in two ways the outcome tests need: `fail` can be
+// cleared between presses (a retry that lands), and `hold` parks the request
+// mid-flight so the in-flight state can be read while it is actually true.
+async function composer(t, { hasImage = false, fail = null, hold = false } = {}) {
   const page = await loadPage(new URL("../src/social.html", import.meta.url), {});
   t.after(() => page.restore());
   const document = page.document;
   const published = [];
+  // Every payload the composer handed the API, in order — the evidence for "one
+  // press, one request" and for "the retry sent the same post".
+  const requests = [];
+  let failure = fail;
+  let holding = hold;
+  let resume = null;
   let media = hasImage
     ? { content_type: "image/png", data: "iVBORw0KGgo=", width: 32, height: 32, preview: "data:image/png;base64,carried" }
     : null;
@@ -58,8 +71,10 @@ async function composer(t, { hasImage = false, fail = null } = {}) {
     storage: page.storage,
     getMedia: () => (media ? { ...media, alt: document.querySelector("#post-image-alt").value.trim() } : null),
     clearMedia: () => { media = null; },
-    create: async (post) => {
-      if (fail) throw new Error(fail);
+    create: async (post, image) => {
+      requests.push({ post, image });
+      if (holding) await new Promise((release) => { resume = release; });
+      if (failure) throw new Error(failure);
       published.push(post);
       return { ...post, id: SAVED_ID, createdAt: new Date(NOW).toISOString() };
     },
@@ -78,11 +93,37 @@ async function composer(t, { hasImage = false, fail = null } = {}) {
     if (author !== undefined) document.querySelector("#post-author").value = author;
     if (description !== undefined) document.querySelector("#post-image-alt").value = description;
   };
+  const settle = () => new Promise((resolve) => setImmediate(resolve));
   const publish = async () => {
     document.querySelector("#post-submit").click();
-    await new Promise((resolve) => setImmediate(resolve));
+    await settle();
   };
-  return { page, document, feed, published, fill, publish, get media() { return media; } };
+  return {
+    page,
+    document,
+    feed,
+    published,
+    requests,
+    fill,
+    publish,
+    settle,
+    // Enter in the display name field: implicit submission, which is a second
+    // route into the same handler that never touches the submit button.
+    async submitFromField() {
+      document.querySelector("#post-author").focus();
+      pressEnter(document);
+      await settle();
+    },
+    setFailure(next) { failure = next; },
+    hold(next) { holding = next; },
+    async releaseRequest() {
+      const release = resume;
+      resume = null;
+      release?.();
+      await settle();
+    },
+    get media() { return media; },
+  };
 }
 
 const notice = (document) => document.querySelector("#social-notice");
@@ -232,6 +273,12 @@ test("a failed publish keeps every field and says something different from the c
   assert.equal(region.hidden, false);
   assert.match(textOf(region), new RegExp(PUBLISH_STATE_WORDS.failed));
   assert.match(textOf(region), /Posts API returned 503/);
+  // What happened, that nothing was lost, and what to do about it — the last of
+  // which is the only instruction, and it is the button already on screen.
+  assert.match(textOf(region), new RegExp(PUBLISH_FAILED_NOTE));
+  assert.match(textOf(region), new RegExp(PUBLISH_RETRY_NOTE));
+  assert.equal(harness.document.querySelector("#post-submit").disabled, false,
+    "and the control that sends it again is usable, so the instruction is followable");
   assert.doesNotMatch(textOf(region), /^Published/, "the failure does not borrow the confirmation's opening");
   assert.equal(noticeLinks(harness.document).length, 0, "no permalink, because there is no post");
   assert.equal(region.classList.contains("is-success"), false);
@@ -251,6 +298,128 @@ test("the confirmation and the feed answer 'is this post visible' with one predi
     postMatchesFilters({ ...post, createdAt: new Date(NOW - 90 * 60_000).toISOString() }, { author: "all", range: "hour", now: NOW }),
     false,
   );
+});
+
+test("a retry after a failure sends the same post again, without re-entering any of it", async (t) => {
+  const harness = await composer(t, { hasImage: true, fail: "Posts API returned 503" });
+  const description = "A card wrapped in a blue focus ring.";
+  harness.fill({ body: "This one lands on the second try.", author: "Remy", description });
+
+  await harness.publish();
+  assert.equal(harness.requests.length, 1);
+
+  // The page the reader is standing on has not changed: the composer is still
+  // open, the preview is still on screen, and the button is live again. Nothing
+  // to reopen, reselect, or retype before pressing it a second time.
+  assert.equal(harness.document.querySelector("#post-compose-panel").hidden, false);
+  assert.equal(harness.document.querySelector("#compose-media").hidden, false);
+  assert.equal(harness.document.querySelector("#post-submit").disabled, false);
+
+  harness.setFailure(null);
+  await harness.publish();
+
+  assert.equal(harness.requests.length, 2, "the second press is a second request, not a queued repeat");
+  const [first, second] = harness.requests;
+  // Byte for byte the same post. The id differs because createPost mints one per
+  // attempt; the three fields the reader typed do not.
+  assert.equal(second.post.body, first.post.body);
+  assert.equal(second.post.author, first.post.author);
+  assert.equal(second.image?.data, first.image?.data, "the same encoded image, never reselected");
+  assert.equal(second.image?.alt, description, "the same description, never retyped");
+
+  const region = notice(harness.document);
+  assert.equal(region.classList.contains("is-success"), true, "and the retry is confirmed like any publish");
+  assert.match(textOf(region), /^Published “This one lands on the second try\.” as Remy\./);
+  assert.equal(harness.document.querySelector("#post-body").value, "", "only now is the draft spent");
+  assert.equal(harness.media, null);
+});
+
+test("while a publish is in flight the button carries the state alone, and a second submit cannot leave", async (t) => {
+  const harness = await composer(t, { fail: "Posts API returned 503" });
+  harness.fill({ body: "Only one of these is sent.", author: "Remy" });
+
+  await harness.publish();
+  assert.match(textOf(notice(harness.document)), new RegExp(PUBLISH_STATE_WORDS.failed));
+
+  harness.setFailure(null);
+  harness.hold(true);
+  await harness.publish();
+  assert.equal(harness.requests.length, 2, "the retry is on the wire");
+
+  // Exactly one thing on the page describes the attempt. The failed outcome of
+  // the previous press is gone rather than sitting under a request in flight,
+  // which would state two contradictory states at once.
+  const region = notice(harness.document);
+  assert.equal(region.hidden, true);
+  assert.equal(textOf(region), "");
+
+  const submit = harness.document.querySelector("#post-submit");
+  assert.match(textOf(submit), /Publishing…/, "the control names what it is doing");
+  assert.doesNotMatch(textOf(submit), /Publish post/);
+  assert.equal(submit.getAttribute("aria-busy"), "true");
+  assert.equal(submit.disabled, true);
+
+  // Two more ways to press Publish, neither of which reaches the API: the button
+  // itself, and implicit submission from a single-line field, which in a browser
+  // does not care that the button is disabled.
+  submit.click();
+  await harness.settle();
+  await harness.submitFromField();
+  assert.equal(harness.requests.length, 2, "one press, one request");
+
+  await harness.releaseRequest();
+  assert.equal(harness.requests.length, 2);
+  assert.equal(notice(harness.document).classList.contains("is-success"), true);
+  assert.equal(harness.published.length, 1, "and exactly one post was created");
+  assert.equal(submit.disabled, false);
+  assert.match(textOf(submit), /Publish post/, "the control is back to naming what it will do");
+  assert.equal(submit.getAttribute("aria-busy"), "false");
+});
+
+// Both outcomes are drawn with rules that already ship, so this reads the
+// stylesheet rather than restating it: the pairings below are the ones the
+// confirmation and the failure actually render, and each has to clear 4.5:1
+// without a new colour being added to pay for it.
+test("the confirmation and the failure clear 4.5:1 on colours already in the palette", async () => {
+  const css = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
+
+  const declared = (selector, property) => {
+    const rule = css.match(new RegExp(`${selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} \\{([^}]*)\\}`));
+    assert.ok(rule, `no rule for ${selector}`);
+    const found = rule[1].match(new RegExp(`(?:^|;)\\s*${property}\\s*:\\s*(#[0-9a-f]{6})`, "i"));
+    assert.ok(found, `${selector} declares no ${property}`);
+    return found[1];
+  };
+
+  const channel = (pair) => {
+    const value = parseInt(pair, 16) / 255;
+    return value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+  };
+  const luminance = (hex) => 0.2126 * channel(hex.slice(1, 3))
+    + 0.7152 * channel(hex.slice(3, 5)) + 0.0722 * channel(hex.slice(5, 7));
+  const ratio = (foreground, background) => {
+    const [light, dark] = [luminance(foreground), luminance(background)].sort((a, b) => b - a);
+    return (light + 0.05) / (dark + 0.05);
+  };
+
+  const pairings = [
+    // The failure sentence, on the notice's own surface.
+    ".notice",
+    // The confirmation sentence, on the success surface.
+    ".notice.is-success",
+    // The two state chips: "Not published", and "Hidden by filters".
+    ".detail-state-chip-error",
+    ".detail-state-chip-missing",
+  ];
+  for (const selector of pairings) {
+    const text = ratio(declared(selector, "color"), declared(selector, "background"));
+    assert.ok(text >= 4.5, `${selector}: text ${text.toFixed(2)}:1 is under 4.5:1`);
+  }
+
+  // Links inside the confirmation inherit the sentence's colour rather than
+  // introducing a second one, so the permalink and the People link are covered
+  // by the pairing above.
+  assert.match(css, /\.notice a \{[^}]*color:inherit/);
 });
 
 test("a long caption is shortened in the confirmation rather than repeated whole", () => {
