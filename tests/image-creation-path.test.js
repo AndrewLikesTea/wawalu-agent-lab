@@ -94,16 +94,16 @@ for (const [name, document] of Object.entries(NEARBY_INVITATION)) {
     assert.ok(sentence.indexOf("Paint") < sentence.indexOf("Social"),
       `${name}'s helper names the two steps out of order`);
 
-    // The composer's own sequence, in the composer's words: make the image,
-    // return to this tab, publish it. The middle step is the one a reader who
-    // has just been sent to another tab actually needs, and People used to skip
-    // it — the same round trip told two different ways on two pages.
-    assert.match(sentence, /return to this tab/,
-      `${name}'s helper never says to come back from the tab it opens`);
-    assert.ok(sentence.indexOf("Paint") < sentence.indexOf("return to this tab"),
-      `${name}'s helper asks the reader to return before it sends them anywhere`);
-    assert.ok(sentence.indexOf("return to this tab") < sentence.indexOf("Social"),
-      `${name}'s helper publishes before it comes back`);
+    // Both steps are moves the reader makes, so both are offered rather than
+    // described. The sentence used to end "return to this tab, then publish it
+    // on Social", which pointed the reader back at People — the one page here
+    // with no Publish control — and named Social without linking it.
+    assert.doesNotMatch(sentence, /return to this tab/,
+      `${name}'s helper sends the reader back to a page that publishes nothing`);
+    const toSocial = invitation.querySelectorAll("a")
+      .filter((anchor) => anchor.getAttribute("href") === "/social.html");
+    assert.equal(toSocial.length, 1, `${name}'s helper names Social without offering a route to it`);
+    assert.equal(textOf(toSocial[0]), "publish a post on Social");
   });
 
   test(`${name} keeps the Paint route in the keyboard sequence, before the browsing panel`, () => {
@@ -125,7 +125,10 @@ for (const [name, document] of Object.entries(NEARBY_INVITATION)) {
 test("People's nearby helper links to the editor without repeating the empty-state choices", () => {
   const invitation = documents.People.querySelector(".feed-create");
   const hrefs = invitation.querySelectorAll("a").map((anchor) => anchor.href);
-  assert.deepEqual(hrefs, ["/paint/?from=profile"]);
+  // The two steps of the round trip, in the order they are taken, and nothing
+  // else: the empty state's third offer ("See every post on Social") is a
+  // different sentence for a different situation and does not grow back here.
+  assert.deepEqual(hrefs, ["/paint/?from=profile", "/social.html"]);
 });
 
 /* ---------------------------- the primary route ---------------------------- */

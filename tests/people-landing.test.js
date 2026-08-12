@@ -225,13 +225,17 @@ test("People states the images-only rule once and offers each route once", async
     // a tail on the end of it.
     assert.equal(textOf(main.querySelector(".list-heading").querySelectorAll(".eyebrow")[0]), "Newest first");
 
-    // One route to Social, and it is the sentence that states the rule — so the
-    // reader who has just been told what this view leaves out can act on it
-    // without hunting for a second link.
+    // Two routes to Social, and they are two different errands: reading the
+    // whole feed, and publishing to it. Each sits in the sentence that raises
+    // it — the rule, and the invitation beside the grid — so neither reader has
+    // to hunt, and neither sentence carries a link the other one meant.
     const toSocial = anchors.filter((anchor) => anchor.getAttribute("href") === "/social.html");
-    assert.equal(toSocial.length, 1, "the main content offers Social more than once");
+    assert.deepEqual(toSocial.map((anchor) => textOf(anchor)), ["Social", "publish a post on Social"],
+      "the main content's routes to Social are not the reading one and the publishing one");
     assert.equal(toSocial[0].parentNode?.classList?.contains("profile-lede"), true,
       "the link to Social is not in the sentence that states the rule");
+    assert.equal(toSocial[1].parentNode?.classList?.contains("feed-create"), true,
+      "the publishing route is not in the invitation beside the grid");
 
     // One route into Paint, beside the pictures that prompt it, still saying
     // what the tab does in its own text.
@@ -241,6 +245,42 @@ test("People states the images-only rule once and offers each route once", async
     assert.equal(toPaint[0].getAttribute("target"), "_blank");
     assert.equal(toPaint[0].getAttribute("rel"), "noopener");
     assert.equal(toPaint[0].getAttribute("id"), "profile-paint-route");
+  } finally {
+    page.restore();
+  }
+});
+
+// The reported defect: the invitation beside the grid told a reader to "return
+// to this tab, then publish it on Social" — back to People, which has no Publish
+// control, and Social named in words a reader could not follow. Both steps
+// happen somewhere else, so both are links, in the order they are taken.
+test("the invitation beside the grid ends on Social, and Social is a link a reader can follow", async () => {
+  const page = await people();
+  try {
+    const { document } = page;
+    const invitation = document.querySelector(".feed-create");
+    assert.equal(
+      textOf(invitation),
+      "Want a picture of your own here? Create an image in Paint (opens in a new tab), then publish a post on Social under a display name.",
+    );
+    // Nothing sends the reader back here to publish: People shows posts, Social
+    // takes them.
+    assert.doesNotMatch(textOf(invitation), /return to this tab|publish (it|a post) on People/i);
+
+    // The visible text names the act and the destination, so the accessible name
+    // does too — the reader reaches the composer without touching the site nav.
+    const publish = document.querySelector("#profile-publish-route");
+    assert.equal(publish.tagName, "A", "the publishing step is not an anchor");
+    assert.equal(textOf(publish), "publish a post on Social");
+    // The path the rest of this page's links use — root-relative, same tab.
+    assert.equal(publish.getAttribute("href"), "/social.html");
+    assert.equal(publish.href, "/social.html");
+    assert.equal(publish.getAttribute("target"), null, "the publishing step opens a second tab");
+    // Said once: the Paint step keeps the wording Social's composer uses for the
+    // same handoff, and this sentence does not restate it.
+    assert.equal(textOf(invitation).split("Create an image in Paint").length - 1, 1);
+    assert.ok(textOf(invitation).indexOf("Paint") < textOf(invitation).indexOf("publish a post on Social"),
+      "the invitation publishes before it makes the image");
   } finally {
     page.restore();
   }
@@ -768,14 +808,16 @@ test("tabbing from the top reaches the picker, then the posts under the header",
     // the page harness that boots the shipped markup with the shipped module.
     document.querySelector(".profile-lede").querySelectorAll("a")[0].focus();
     const walked = [];
-    for (let step = 0; step < 5; step += 1) walked.push(pressTab(document));
+    for (let step = 0; step < 6; step += 1) walked.push(pressTab(document));
     assert.deepEqual(walked.slice(0, 3).map((node) => node.dataset?.author), ["Ari", "Bea", "Zed"],
       "the display-name picker is not the first thing a keyboard reaches in main");
-    // Then the panel's own route into Paint, then the first post. The ordering
-    // label sits between the picker and these, and takes no stop of its own —
-    // nothing focusable was added above the results to carry it.
+    // Then the invitation's two steps in the order it states them — make the
+    // image, publish the post — and then the first post. The ordering label sits
+    // between the picker and these, and takes no stop of its own: nothing
+    // focusable was added above the results to carry it.
     assert.equal(walked[3].getAttribute("id"), "profile-paint-route");
-    assert.equal(walked[4].classList.contains("profile-tile"), true, "the fifth stop is not the first post");
+    assert.equal(walked[4].getAttribute("id"), "profile-publish-route");
+    assert.equal(walked[5].classList.contains("profile-tile"), true, "the sixth stop is not the first post");
 
     // And the visual order the tab order is supposed to match: every one of
     // those stops comes after the heading, and the posts come after the label.
@@ -783,7 +825,7 @@ test("tabbing from the top reaches the picker, then the posts under the header",
     const at = (node) => order.indexOf(node);
     assert.ok(at(document.querySelector("#profile-author")) < at(document.querySelector("#grid-title")));
     assert.ok(at(document.querySelector("#grid-title")) < at(document.querySelector("#profile-order")));
-    assert.ok(at(document.querySelector("#profile-order")) < at(walked[4]));
+    assert.ok(at(document.querySelector("#profile-order")) < at(walked[5]));
     // No new focusable above the results region: the intro's link to Social and
     // the picker are still the whole of it.
     const inMain = tabSequence(document).filter((element) => element.closest("#main-content"));

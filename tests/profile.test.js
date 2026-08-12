@@ -521,7 +521,14 @@ test("the People picker and the page's own description use one term for what is 
 
   // The two lines about publishing keep the term too: an empty page tells a
   // reader how to fill it, and it has to be the same word they just picked by.
-  assert.match(html, /publish it on Social under a display name/);
+  // Pinned the same way as the surfaces above — the term inside the paragraph,
+  // not the sentence around it. It used to hold the whole clause "publish it on
+  // Social under a display name", which made rewriting the invitation a test
+  // edit in a file that is only meant to guard the vocabulary.
+  const invitation = between(/<p class="feed-create hint">([\s\S]*?)<\/p>/);
+  assert.notEqual(invitation, "", "the invitation beside the grid must still be on the page");
+  assert.ok(invitation.includes(TERM), `the invitation must say "${TERM}": ${invitation.trim()}`);
+  assert.match(invitation, /publish/i, "the invitation must still name the publishing step");
   const social = await readFile(new URL("../src/social.html", import.meta.url), "utf8");
   assert.match(social, /<label for="post-author">Display name <span class="label-optional">\(optional\)<\/span><\/label>/,
     "the composer names the same thing the picker selects");
