@@ -1,164 +1,79 @@
-/* The consolidated FinOps journey region.
- *
- * One stylesheet, linked from both surfaces that ship the region, because the
- * journey is one thing and two copies of these rules is how one surface's
- * disclosure ends up a different control from the other's.
- *
- * DOM order is the reading order at every width: this is a single column that
- * narrows, never a grid that reorders. Nothing here sets `order` or a `-reverse`
- * direction, so the tab sequence and the visual sequence cannot come apart. */
+/* The consolidated FinOps journey region, on both surfaces that ship it. Every
+   value is one the FinOps family already ships next door, and no token, step
+   or hue is declared here: var(--line), var(--surface) and var(--muted), which
+   this file used to name, are defined in no stylesheet either page loads. DOM
+   order is the reading order at every width; nothing sets `order`. */
+.finops-journey { margin:24px 0; padding:24px; border:1px solid #cfcdc5; border-radius:16px; background:#fff; color:#172a2b; overflow-wrap:anywhere; }
+/* h2 on the action center, h3 in evolution's answer region (#832). */
+.fjc-head h2,.fjc-head h3 { margin:4px 0 8px; letter-spacing:-.02em; }
+.fjc-headline,.fjc-metric,.fjc-decision,.fjc-checkpoint { margin:0 0 16px; }
 
-.finops-journey {
-  border: 1px solid var(--line, #d8dde5);
-  border-radius: 14px;
-  padding: 24px;
-  margin: 24px 0;
-  background: var(--surface, #fff);
-}
+/* One status voice for every label, kicker and state word; it also drops the
+   metric label below the decision title that shared its h3 rule. */
+.fjc-kicker,.fjc-phase-word,.fjc-disclosure-state,.fjc-chip-label,.fjc-slot-label,.fjc-support-title,.fjc-examples-label,.fjc-term { margin:0 0 6px; color:#55554f; font:750 10px/1.4 ui-monospace,monospace; letter-spacing:.07em; text-transform:uppercase; }
+/* One secondary-prose voice wherever the region explains. */
+.fjc-phase-copy,.fjc-metric-comparison,.fjc-rationale,.fjc-checkpoint-note,.fjc-checkpoint-source,.fjc-notice,.fjc-support-note,.fjc-empty,.fjc-detail { margin:6px 0 0; color:#55554f; font-size:14px; line-height:1.55; }
+.fjc-notice,.fjc-support-note,.fjc-detail { margin:0 0 12px; }
+.fjc-phase-word,.fjc-phase-copy,.fjc-disclosure-state,.fjc-chip-label,.fjc-empty { margin:0; }
+.fjc-phase-shape,.fjc-chip-shape,.fjc-disclosure-shape { flex:none; font:800 14px/1 ui-monospace,monospace; }
 
-.finops-journey .fjc-kicker,
-.finops-journey .fjc-phase-word {
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  font-size: 0.75rem;
-  font-weight: 700;
-}
+/* Phase is a shape and a word before any tint, in the inks the chips give the
+   same meanings. */
+.fjc-phase { display:flex; flex-wrap:wrap; gap:8px; align-items:baseline; margin:0 0 8px; }
+.fjc-phase-copy { flex:1 1 16rem; }
+.finops-journey[data-phase="verification_ready"] { border-left:4px solid #22634f; }
+.finops-journey[data-phase="resumed_review"] { border-left:4px solid #765616; }
+.finops-journey[data-phase="new_review"] { border-left:4px solid #55554f; }
+.finops-journey[data-phase="degraded"] { border-left:4px solid #8a2d24; }
 
-/* h3 alongside h2: this region keeps an h2 in the Savings Action Center and is
-   an h3 inside /evolution.html's answer region (#832). Spacing is the region's. */
-.finops-journey h2,
-.finops-journey h3 { margin: 4px 0 8px; }
-.finops-journey h3 { margin: 0 0 4px; font-size: 1rem; }
+.fjc-examples { margin:0 0 12px; }
+.fjc-examples-controls { display:flex; flex-wrap:wrap; gap:8px; }
+.fjc-example { padding:6px 14px; border:1px solid #cfcdc5; border-radius:99px; background:#fff; color:#172a2b; font:inherit; font-size:14px; cursor:pointer; }
 
-/* State is a shape and a word first. The tint is the third channel and carries
- * nothing on its own, so a greyscale print and a colour-blind reading are the
- * same reading. */
-.fjc-phase { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; margin: 0 0 8px; }
-.fjc-phase-shape { font-size: 1rem; }
-.fjc-phase-copy { flex: 1 1 16rem; font-weight: 400; text-transform: none; letter-spacing: 0; }
-.finops-journey[data-phase="verification_ready"] { border-left: 4px solid #2f6f4f; }
-.finops-journey[data-phase="resumed_review"] { border-left: 4px solid #8a6d1f; }
-.finops-journey[data-phase="new_review"] { border-left: 4px solid #4a5568; }
-.finops-journey[data-phase="degraded"] { border-left: 4px solid #8a2f2f; }
+.fjc-headline { font-size:16px; font-weight:700; line-height:1.5; }
+.fjc-metric-value { display:block; font-size:clamp(23px,3.4vw,30px); font-weight:800; line-height:1.2; letter-spacing:-.03em; }
+.fjc-decision-title,.fjc-checkpoint-date { margin:0 0 4px; font-size:16px; font-weight:800; }
+/* An anchor, sized as a touch target, on the family teal every sibling view
+   gives its primary button. White on it is 4.87:1, 7.67:1 on hover. */
+.fjc-action { display:inline-flex; align-items:center; min-height:48px; margin-top:8px; padding:0 22px; border-radius:10px; background:#087f76; color:#fff; font-weight:800; text-decoration:none; }
 
-/* The bundled-example picker. Pressed state is a border and a weight as well as
- * a fill, and the sample line below it says in words which records are loaded,
- * so nothing about "this is an example" is carried by colour. */
-.fjc-examples { margin: 0 0 12px; }
-.fjc-examples-label {
-  margin: 0 0 6px;
-  font-size: 0.8rem;
-  color: var(--muted, #4a5568);
-}
-.fjc-examples-controls { display: flex; flex-wrap: wrap; gap: 8px; }
-.fjc-example {
-  border: 1px solid var(--line, #d8dde5);
-  border-radius: 999px;
-  padding: 4px 12px;
-  font: inherit;
-  font-size: 0.8rem;
-  background: var(--surface, #fff);
-  cursor: pointer;
-}
-.fjc-example[aria-pressed="true"] {
-  border: 2px solid #1f3b6f;
-  font-weight: 700;
-  background: #eef2fa;
-}
+.fjc-checkpoint { padding:16px; border:1px solid #cfcdc5; border-radius:10px; }
+.fjc-support { margin-top:16px; border-top:1px solid #dedcd5; padding-top:16px; }
+.fjc-signals { display:flex; flex-wrap:wrap; gap:8px; margin:0 0 12px; padding:0; list-style:none; }
+.fjc-signal { min-width:0; }
+.fjc-chip { display:inline-flex; align-items:baseline; flex-wrap:wrap; gap:4px 8px; max-width:100%; padding:8px 12px; border:1px solid transparent; border-radius:8px; background:#eeede7; }
+.fjc-chip-value { min-width:0; font-size:14px; font-weight:700; line-height:1.4; }
+.fjc-chip[data-tone="good"] { background:#dff4ee; color:#22634f; }
+.fjc-chip[data-tone="caution"] { background:#fff7e8; color:#765616; }
+.fjc-chip[data-tone="adverse"] { background:#fdeceb; color:#8a2d24; }
+/* Not measured is its own silhouette, not a paler measured: one dashed edge
+   wherever it occurs, and an unknown signal drops the wash. */
+.fjc-chip[data-known="false"],.fjc-checkpoint[data-known="false"] { border-color:#8b8b85; border-style:dashed; }
+.fjc-chip[data-known="false"] { background:#fff; color:#55554f; }
 
-.fjc-headline { font-size: 1.15rem; line-height: 1.45; margin: 0 0 16px; overflow-wrap: anywhere; }
+.fjc-disclosure { border-top:1px solid #dedcd5; }
+.fjc-disclosure-trigger { display:flex; align-items:center; flex-wrap:wrap; gap:10px; width:100%; min-height:48px; padding:12px 0; border:0; background:none; color:#172a2b; font:inherit; font-size:16px; font-weight:800; text-align:left; cursor:pointer; }
+.fjc-disclosure-label { flex:1 1 auto; min-width:0; }
+.fjc-disclosure-panel { padding-bottom:12px; }
+.fjc-facts { margin:0; }
 
-.fjc-metric { margin: 0 0 16px; }
-.fjc-metric-value { display: block; font-size: 1.6rem; line-height: 1.2; overflow-wrap: anywhere; }
-.fjc-metric-comparison { margin: 4px 0 0; font-size: 0.9rem; overflow-wrap: anywhere; }
+/* One ring, one hover, one active for every control. The ring is the shipped
+   --focus-ring, 6.72:1 on the white it lands on, not the navy this file named
+   before — which was the action button's own fill. */
+.fjc-action:focus-visible,.fjc-disclosure-trigger:focus-visible,.fjc-example:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.fjc-example:hover,.fjc-disclosure-trigger:hover { background:#eeede7; }
+.fjc-action:hover { background:#0a5f52; }
+.fjc-action:active,.fjc-disclosure-trigger:active,.fjc-example:active { filter:brightness(.94); }
+/* Pressed is a weight, a wash and a border hue at once (6.17:1), stated last
+   so hover cannot wash it out. The hue changes, not the width. */
+.fjc-example[aria-pressed="true"] { border-color:#087f76; background:#dff4ee; color:#22634f; font-weight:800; }
 
-.fjc-decision { margin: 0 0 16px; }
-.fjc-decision-title { overflow-wrap: anywhere; }
-.fjc-rationale { margin: 8px 0 0; font-size: 0.9rem; overflow-wrap: anywhere; }
-
-/* The prioritized action. A real anchor, sized as a touch target, and it keeps a
- * ring the keyboard can see rather than borrowing the hover treatment. */
-.fjc-action {
-  display: inline-flex;
-  align-items: center;
-  min-height: 48px;
-  padding: 0 18px;
-  margin-top: 8px;
-  border-radius: 10px;
-  background: #16324f;
-  color: #fff;
-  font-weight: 600;
-  text-decoration: none;
-  overflow-wrap: anywhere;
-}
-.fjc-action:focus-visible,
-.fjc-disclosure-trigger:focus-visible {
-  outline: 3px solid #16324f;
-  outline-offset: 2px;
-}
-
-.fjc-checkpoint {
-  border: 1px dashed var(--line, #d8dde5);
-  border-radius: 10px;
-  padding: 16px;
-  margin: 0 0 16px;
-}
-.fjc-checkpoint-date { font-size: 1.1rem; font-weight: 700; margin: 0; }
-.fjc-checkpoint-note,
-.fjc-checkpoint-source { margin: 4px 0 0; font-size: 0.9rem; overflow-wrap: anywhere; }
-
-.fjc-notice { font-size: 0.9rem; margin: 0 0 16px; overflow-wrap: anywhere; }
-
-.fjc-support { border-top: 1px solid var(--line, #d8dde5); padding-top: 16px; }
-.fjc-support-note { margin: 0 0 12px; font-size: 0.9rem; }
-
-.fjc-signals { list-style: none; margin: 0 0 12px; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
-.fjc-chip {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 6px;
-  padding: 6px 10px;
-  border: 1px solid var(--line, #d8dde5);
-  border-radius: 999px;
-  font-size: 0.85rem;
-}
-.fjc-chip-label { font-weight: 700; }
-.fjc-chip-value { overflow-wrap: anywhere; }
-.fjc-chip[data-tone="good"] { background: #eaf4ee; }
-.fjc-chip[data-tone="adverse"] { background: #f7ecec; }
-.fjc-chip[data-tone="caution"] { background: #f8f2e3; }
-.fjc-chip[data-known="false"] { border-style: dashed; }
-
-.fjc-disclosure { border-top: 1px solid var(--line, #d8dde5); }
-.fjc-disclosure-trigger {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  min-height: 48px;
-  padding: 8px 0;
-  background: none;
-  border: 0;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-.fjc-disclosure-label { flex: 1 1 auto; overflow-wrap: anywhere; }
-.fjc-disclosure-state { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; }
-.fjc-disclosure-panel { padding: 0 0 12px; }
-.fjc-facts { margin: 0; }
-.fjc-term { font-weight: 700; font-size: 0.85rem; }
-.fjc-detail { margin: 0 0 8px; overflow-wrap: anywhere; }
-.fjc-empty { margin: 0; font-size: 0.9rem; }
-
-/* At a narrow viewport the card keeps its inset, every chip takes the full
- * measure instead of being squeezed under an ellipsis, and long values wrap
- * rather than scrolling the page sideways. */
-@media (max-width: 760px) {
-  .finops-journey { padding: 16px; }
-  .fjc-signals { display: block; }
-  .fjc-signal { margin-bottom: 8px; }
-  .fjc-chip { display: flex; width: 100%; }
-  .fjc-metric-value { font-size: 1.3rem; }
-  .fjc-action { width: 100%; justify-content: center; }
+/* Narrow: each chip takes the full measure rather than an ellipsis, and the
+   metric clamps, so nothing restates its size. */
+@media (max-width:760px) {
+  .finops-journey { padding:16px; }
+  .fjc-signals { display:block; }
+  .fjc-signal { margin-bottom:8px; }
+  .fjc-chip { display:flex; width:100%; }
+  .fjc-action { width:100%; justify-content:center; }
 }
