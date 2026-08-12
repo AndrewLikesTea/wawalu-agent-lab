@@ -185,7 +185,8 @@ export const DECISION_STATE = Object.freeze({
   pending: Object.freeze({
     state: "pending", word: "Example result pending", shape: "◇", tone: "neutral",
     owner: DECISION_REGION_ID,
-    statement: "The Bundled synthetic example has not been composed on this page yet.",
+    statement: "The Bundled synthetic example has not been composed on this page yet, "
+      + `so no figure is shown here. ${RELOAD_ACTION}`,
   }),
   ready: Object.freeze({
     state: "ready", word: "Example result", shape: "▣", tone: "resolved",
@@ -195,7 +196,8 @@ export const DECISION_STATE = Object.freeze({
   empty: Object.freeze({
     state: "empty", word: "Example result has no records", shape: "◻", tone: "neutral",
     owner: DECISION_REGION_ID,
-    statement: "The Bundled synthetic example carried no spend records in the window, so there is nothing to rank.",
+    statement: "The Bundled synthetic example carried no spend records in the reporting period, "
+      + "so there is nothing to rank here. Analyze your own export to rank real departments.",
   }),
   error: Object.freeze({
     state: "unavailable", word: "Example result unavailable", shape: "▲", tone: "error",
