@@ -208,7 +208,14 @@ test("the invented-sample sentence is true before any script runs", async () => 
   assert.match(authored, /Bundled synthetic example/);
   assert.match(authored, /invented data/);
   assert.match(authored, /not your spend/i);
-  assert.match(authored, /No file is needed/);
+  // ONE PROVENANCE WORDING ON THE SURFACE (#1679). This marker and
+  // #finops-stand-sample now say the invented-data claim in the same sentence,
+  // so a reader who meets both does not have to work out whether two different
+  // qualifiers mean two different things. "No file is needed" moved off it: it
+  // describes what a control costs, not whose data these figures are, and it is
+  // still on the demo button's own note where it applies.
+  assert.match(authored, /not your spend, customer data, or realized savings\./);
+  assert.doesNotMatch(authored, /No file is needed/);
   assert.match(authored, /not your spend/);
   assert.match(authored, /not .*realized savings/);
   // It sits above the figures, not under them: a reader decides what kind of

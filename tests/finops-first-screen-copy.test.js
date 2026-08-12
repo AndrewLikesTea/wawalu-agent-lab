@@ -197,8 +197,23 @@ test("the first screen authors complete figures, confidence, and one recommendat
     assert.equal(node.closest("[hidden]"), null, `${id} is hidden on first render`);
   }
   assert.match(textOf(byId(document, FIRST_RUN_IDS.sample)), /invented data/);
-  assert.match(textOf(byId(document, FIRST_RUN_IDS.answerDetail)), /not realized customer savings/);
-  assert.match(textOf(byId(document, FIRST_RUN_IDS.confidenceDetail)), /bundled synthetic data/);
+  // ONE PROVENANCE SENTENCE ON THIS ANSWER, AND IT SURVIVES THE PAINT (#1679).
+  // Three authored detail lines used to end on a further invented-data clause of
+  // their own — "a synthetic scenario, not realized customer savings",
+  // "Synthetic figures, not realized customer savings", "Computed locally from
+  // bundled synthetic data in this browser tab" — three wordings of one claim,
+  // and none of them survived the first paint, because the view writes every
+  // detail from the module. The marker above states it once. Each authored
+  // detail is now the byte the module composes, so the served page and the
+  // painted one read the same sentence and neither can drift from the other.
+  for (const [id, expected] of [
+    [FIRST_RUN_IDS.answerDetail, result.answer.detail],
+    [FIRST_RUN_IDS.benchmarkDetail, result.benchmark.detail],
+    [FIRST_RUN_IDS.confidenceDetail, result.confidence.detail],
+  ]) {
+    assert.equal(textOf(byId(document, id)), expected,
+      `${id} is authored with words the first paint replaces`);
+  }
   assert.equal(document.querySelectorAll("#finops-first-run-action").length, 1);
 });
 
