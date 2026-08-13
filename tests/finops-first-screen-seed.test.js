@@ -231,7 +231,7 @@ test("the page booting onto the served document changes nothing on it", async ()
   // …and the withheld path, which has nothing to resolve, stays out of it.
   assert.equal(painted.getElementById("finops-stand-withheld").hidden, true);
   // One sentence in the announcer, not two: the boot paint left it alone.
-  assert.equal(textOf(painted.getElementById(ANSWER_ANNOUNCER_ID)).match(/Where do we stand/g).length,
+  assert.equal(textOf(painted.getElementById(ANSWER_ANNOUNCER_ID)).match(/Evidence behind the recoverable AI spend answer/g).length,
     1);
 });
 

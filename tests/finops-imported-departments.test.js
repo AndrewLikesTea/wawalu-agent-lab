@@ -212,7 +212,7 @@ test("the example path retires the region exactly as it did before", async () =>
   const region = byId(document, FIRST_RUN_IDS.region);
   assert.equal(region.hidden, true);
   assert.equal(region.dataset.superseded, "true");
-  assert.equal(textOf(byId(document, FIRST_RUN_IDS.question)), "Are we wasting money?");
+  assert.equal(textOf(byId(document, FIRST_RUN_IDS.question)), "How much of our analyzed AI spend is recoverable?");
 });
 
 test("clearing an import puts the example's own words and figures back", async () => {
@@ -225,7 +225,7 @@ test("clearing an import puts the example's own words and figures back", async (
   assert.equal(region.hidden, false);
   assert.equal(region.dataset.superseded, "false");
   assert.notEqual(question, textOf(byId(document, FIRST_RUN_IDS.question)));
-  assert.equal(textOf(byId(document, FIRST_RUN_IDS.question)), "Are we wasting money?");
+  assert.equal(textOf(byId(document, FIRST_RUN_IDS.question)), "How much of our analyzed AI spend is recoverable?");
   assert.match(textOf(byId(document, FIRST_RUN_IDS.sample)), /Bundled synthetic example/);
   assert.equal(byId(document, FIRST_RUN_IDS.slots).hidden, false);
   assert.equal(byId(document, FIRST_RUN_IDS.confidence).hidden, false);

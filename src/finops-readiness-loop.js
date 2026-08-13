@@ -37,8 +37,7 @@ import { FLOOR_PUBLISH_BAR, gradedRecoverableFloor } from "./finops-stand.js";
 export const READINESS_LOOP_VERSION = "finops-readiness-loop/1.0.0";
 
 /** The one question the top of this loop is held to. */
-export const LOOP_QUESTION =
-  "What still stands between this figure and a claim we could defend?";
+export const LOOP_QUESTION = "What checks support the recoverable AI spend answer?";
 
 /** The label the declared-rate contract uses for a fully covered card. */
 const DECLARED = PROVENANCE_LABELS[2];

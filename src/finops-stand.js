@@ -99,7 +99,7 @@ import {
 export const STAND_VERSION = "finops-stand-headline/1.0.0";
 
 /** The lead's own question, in the lead's own words. It is the region's heading. */
-export const STAND_QUESTION = "Where do we stand on AI spend?";
+export const STAND_QUESTION = "Evidence behind the recoverable AI spend answer";
 
 /** The element ids the view owns. Nothing else writes them. */
 export const STAND_IDS = Object.freeze({

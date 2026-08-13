@@ -180,30 +180,30 @@ export const DECISION_STATE = Object.freeze({
   loading: Object.freeze({
     state: "loading", word: "Composing the example result", shape: "◷", tone: "neutral",
     owner: "finops-load-state",
-    statement: "The page is still reading the Bundled synthetic example. No figure is claimed yet.",
+    statement: "The page is calculating the recoverable share of analyzed AI spend from the Bundled synthetic example.",
   }),
   pending: Object.freeze({
     state: "pending", word: "Example result pending", shape: "◇", tone: "neutral",
     owner: DECISION_REGION_ID,
-    statement: "The Bundled synthetic example has not been composed on this page yet, "
-      + `so no figure is shown here. ${RELOAD_ACTION}`,
+    statement: "The recoverable share of analyzed AI spend has not been calculated from the Bundled synthetic example. "
+      + RELOAD_ACTION,
   }),
   ready: Object.freeze({
     state: "ready", word: "Example result", shape: "▣", tone: "resolved",
     owner: DECISION_REGION_ID,
-    statement: "Every figure below was composed from the Bundled synthetic example.",
+    statement: "The recoverable share of analyzed AI spend below was calculated from the Bundled synthetic example.",
   }),
   empty: Object.freeze({
     state: "empty", word: "Example result has no records", shape: "◻", tone: "neutral",
     owner: DECISION_REGION_ID,
-    statement: "The Bundled synthetic example carried no spend records in the reporting period, "
-      + "so there is nothing to rank here. Analyze your own export to rank real departments.",
+    statement: "The Bundled synthetic example has no analyzed AI spend in this reporting period, "
+      + "so it has no recoverable share. Analyze your own export to see its recoverable share.",
   }),
   error: Object.freeze({
     state: "unavailable", word: "Example result unavailable", shape: "▲", tone: "error",
     owner: DECISION_REGION_ID,
-    statement: "The Bundled synthetic example could not be analyzed in this browser, "
-      + `so no figure is shown here. ${RELOAD_ACTION}`,
+    statement: "The recoverable share of analyzed AI spend could not be calculated from the Bundled synthetic example. "
+      + RELOAD_ACTION,
   }),
 });
 

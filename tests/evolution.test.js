@@ -530,7 +530,7 @@ test("the demoted readiness basis is reachable inside the disclosure that alread
 test("the action center points at the answer instead of restating it", async () => {
   const document = parseHtml(await read("src/savings-action-center.html"));
   const link = document.getElementById("finops-journey-owner-link");
-  assert.equal(link.getAttribute("href"), `/evolution.html#${ANSWER_REGION_ID}`);
+  assert.equal(link.getAttribute("href"), "/evolution.html#workspace-answer");
   assert.match(textOf(document.getElementById("finops-journey-owner")),
     /stated once/, "the action center defers rather than issuing a second telling");
 });

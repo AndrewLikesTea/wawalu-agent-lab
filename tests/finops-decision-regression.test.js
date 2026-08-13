@@ -97,7 +97,7 @@ const EXPECTED_BENCHMARK = Object.freeze({
   observedUsd: 51254,
   currency: "USD",
   comparisonShare: 0.3317,
-  headline: "33% of analyzed AI spend is recoverable",
+  headline: "33% of analyzed AI spend is recoverable AI spend",
 });
 
 /**
@@ -135,7 +135,7 @@ const EXPECTED_IMPACT = Object.freeze({
   value: 51254,
   currency: "USD",
   realized: false,
-  headline: "Up to $51,254 estimated cost reduction in the month",
+  headline: "$51,254 in recoverable AI spend for the reporting period",
 });
 
 /**
@@ -185,7 +185,7 @@ const EXPECTED_PROVENANCE = Object.freeze({
 test("regression: the shipped fixture is valid and asks the canonical question", () => {
   assert.deepEqual(canonical.errors, [], "the shipped canonical decision failed its own contract");
   assert.equal(canonical.valid, true);
-  assert.equal(canonical.decision.question, "Are we wasting money?");
+  assert.equal(canonical.decision.question, "How much of our analyzed AI spend is recoverable?");
   assert.equal(canonical.decision.contractVersion, "finops-decision/1.0.0");
 });
 
@@ -209,7 +209,7 @@ test("regression: the disclosed benchmark is the labelled one, to the cent and t
   );
   // And the headline is the same quotient at display precision.
   assert.equal(
-    `${Math.round((benchmark.observedUsd / benchmark.baselineUsd) * 100)}% of analyzed AI spend is recoverable`,
+    `${Math.round((benchmark.observedUsd / benchmark.baselineUsd) * 100)}% of analyzed AI spend is recoverable AI spend`,
     EXPECTED_BENCHMARK.headline,
     "the headline percentage and the disclosed share disagree",
   );

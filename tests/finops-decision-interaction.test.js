@@ -302,7 +302,7 @@ test("an analysis that read nothing is empty, not an error", () => {
   });
   assert.equal(result.presentation.state, "empty");
   assert.equal(result.presentation.tone, "neutral", "an empty dataset is not drawn as a failure");
-  assert.match(result.answer.value, /No spend was recorded/);
+  assert.match(result.answer.value, /No analyzed AI spend was recorded/);
   // The two next steps survive it, which is the whole reason it is not blank.
   assert.equal(result.actions.demo.label.length > 0, true);
 });

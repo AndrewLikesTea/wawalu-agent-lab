@@ -291,7 +291,7 @@ export const FINOPS_SPINE = Object.freeze({
    * a page whose visible heading and whose declared question have drifted apart
    * is answering one question and claiming another.
    */
-  question: "Where do we stand on AI spend?",
+  question: "Evidence behind the recoverable AI spend answer",
 
   /** The region that carries the spine, and what it may delegate. */
   answerRegion: Object.freeze({

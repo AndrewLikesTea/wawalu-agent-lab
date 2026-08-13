@@ -175,7 +175,7 @@ test("an undeclared section with a duplicate-question heading fails the audit", 
   // manifest would never look at it.
   const document = parseHtml(pageWith(
     '<section id="finops-shadow-answer" aria-labelledby="finops-shadow-answer-title">'
-    + '<h2 id="finops-shadow-answer-title">Where do we stand on AI spend?</h2>'
+    + '<h2 id="finops-shadow-answer-title">Evidence behind the recoverable AI spend answer</h2>'
     + "<p>A second answer, added to the markup and to nothing else.</p></section>"));
 
   const problems = auditPageStructure(document);
@@ -183,7 +183,7 @@ test("an undeclared section with a duplicate-question heading fails the audit", 
     && problem.includes("no role")),
   `expected an undeclared-region problem, got: ${problems.join(" | ")}`);
   assert.ok(problems.some((problem) => problem.includes("same question")
-    && problem.includes("Where do we stand on AI spend?")),
+    && problem.includes("Evidence behind the recoverable AI spend answer")),
   `expected a duplicate-question problem, got: ${problems.join(" | ")}`);
 });
 
@@ -235,7 +235,7 @@ test("no two top-level regions of the shipped page ask the same visible question
 test("two manifest entries asking one question fail before the second heading is authored", () => {
   const problems = validateAnswerSpine(
     // #742 folded this region into a disclosure; the census declares the wrapper.
-    withEntry("disclosure-next-step", { question: "Where do we stand on AI spend?" }));
+    withEntry("disclosure-next-step", { question: "Evidence behind the recoverable AI spend answer" }));
   assert.ok(problems.some((problem) => problem.includes("same question")),
     `expected a duplicate-question problem, got: ${problems.join(" | ")}`);
 });

@@ -162,7 +162,7 @@ export function firstScreenEdits(bundled) {
         headline.finding?.confidence?.level ?? "unavailable")}"`),
     // ---- The one sentence the region is described by.
     authoredText("stand claim", "finops-stand-claim",
-      "Where do we stand on AI spend? The Bundled synthetic example uses invented data."
+      "Evidence behind the recoverable AI spend answer. The Bundled synthetic example uses invented data."
       + " Results will appear when preparation is complete.",
       standClaimSentence(headline)),
 

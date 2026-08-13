@@ -687,7 +687,7 @@ test("the named team and every figure are readable as text", async () => {
   assert.equal(byId(document, STAND_IDS.positionValue).dataset.available, "true");
   assert.equal(byId(document, STAND_IDS.team).dataset.available, "true");
   // One live announcement, and it is the answer rather than the machinery.
-  assert.match(shownText(document, STAND_IDS.live), /Where do we stand|most expensive quarter/);
+  assert.match(shownText(document, STAND_IDS.live), /Evidence behind the recoverable AI spend answer|most expensive quarter/);
 });
 
 test("the provenance label changes in place when the reader's own export is read", () => {
