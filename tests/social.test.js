@@ -19,6 +19,7 @@ import {
   MAX_AUTHOR_LENGTH,
   MAX_IMAGE_ALT_LENGTH,
   DEFAULT_AUTHOR,
+  PUBLISH_FAILED_NOTE,
   mountSocialFeed,
   mountComposerDisclosure,
 } from "../src/social.js";
@@ -69,7 +70,13 @@ test("author is optional and falls back to the default byline", () => {
 });
 
 test("rejects an empty or over-budget body", () => {
-  assert.throws(() => createPost({ author: "Kai", body: "   " }), TypeError);
+  // Whitespace is the only body that reaches this refusal — the textarea's own
+  // `required` accepts three spaces — so the sentence a reader meets in the
+  // composer's notice has to describe that, not a field they failed to fill in.
+  assert.throws(() => createPost({ author: "Kai", body: "   " }), {
+    name: "TypeError",
+    message: "A post cannot be blank.",
+  });
   assert.throws(() => createPost({ body: "x".repeat(MAX_POST_LENGTH + 1) }), TypeError);
   // Exactly at the limit is allowed.
   assert.doesNotThrow(() => createPost({ body: "x".repeat(MAX_POST_LENGTH) }, { id: "p", createdAt: "2026-07-14T00:00:00.000Z" }));
@@ -269,10 +276,10 @@ test("social page is wired, labeled, and linked from the other pages", async () 
   assert.match(page, /src="\/social-page\.js"/);
   // Compose inputs carry explicit labels + describedby wiring.
   assert.match(page, /<label for="post-author">/);
-  // The caption is the one field a post cannot exist without, so its label says
-  // so in the same parenthetical the other three fields use, and its hint — the
-  // refusal an empty caption actually meets — is named by the textarea itself.
-  assert.match(page, /<label for="post-body">Caption <span class="label-optional label-required">\(required\)<\/span><\/label>/);
+  // The post text is the one field a post cannot exist without, so its label
+  // says so in the same parenthetical the other three fields use, and its hint —
+  // the refusal an empty post actually meets — is named by the textarea itself.
+  assert.match(page, /<label for="post-body">Post <span class="label-optional label-required">\(required\)<\/span><\/label>/);
   assert.match(page, /aria-describedby="post-body-hint post-counter-label post-counter"/);
   // The rule and the budget, and nothing about what the browser will do to an
   // empty field: the hint used to narrate a refusal before the reader had typed
@@ -328,7 +335,7 @@ test("social page is wired, labeled, and linked from the other pages", async () 
 });
 
 // The composer used to explain three things that had not happened: what the
-// browser would do to an empty caption, that an image preview had failed, and
+// browser would do to an empty post, that an image preview had failed, and
 // how to recover from that failure. All three shipped in the markup, so a
 // first-time visitor read them before touching a control. What is pinned here is
 // the page as a reader meets it on arrival.
@@ -355,7 +362,7 @@ test("the composer describes no failure that has not happened yet", async (t) =>
   assert.equal(page.document.querySelectorAll("#compose-preview-error").length, 1);
   assert.equal(textOf(page.document.querySelector("#compose-preview-error")), "");
 
-  // What the caption hint says instead: the rule, and the budget the counter
+  // What the post hint says instead: the rule, and the budget the counter
   // beside it counts down from.
   assert.equal(textOf(page.document.querySelector("#post-body-hint")), "Required. Up to 280 characters.");
   assert.equal(page.document.querySelector("#post-body").getAttribute("maxlength"), "280");
@@ -445,6 +452,30 @@ test("the composer opener, heading and submit control name one action", async (t
   const beyondTheUrl = markup.replace(/class="nav-profile"|href="\/profile\.html"/g, "");
   assert.doesNotMatch(beyondTheUrl.replace(/<!--[\s\S]*?-->/g, ""), /profile/i,
     "the word survives outside the People page's own URL and nav class");
+});
+
+test("the composer calls its required 280-character text a post throughout", async (t) => {
+  const page = await loadPage(new URL("../src/social.html", import.meta.url), {});
+  t.after(() => page.restore());
+
+  const composer = page.document.querySelector("#post-compose-panel");
+  assert.equal(textOf(composer.querySelector("#post-form-hint")),
+    "Write your post. Add an image if you want one — a post with an image also appears on People, under the display name you publish it with.");
+  assert.equal(textOf(composer.querySelector('label[for="post-body"]')), "Post (required)");
+  assert.equal(textOf(composer.querySelector("#post-body-hint")), "Required. Up to 280 characters.");
+  assert.equal(textOf(composer.querySelector("#post-submit")), "Publish post →");
+  assert.equal(PUBLISH_FAILED_NOTE,
+    "Your post, image, and image description are still in the composer, exactly as you left them.");
+  // The two sentences the composer's notice can carry from createPost. They are
+  // the "validation text" half of one name everywhere, and they never render
+  // into the page, so the rendered sweep below cannot see them.
+  for (const [refusal, message] of [
+    [() => createPost({ body: "   " }), "A post cannot be blank."],
+    [() => createPost({ body: "x".repeat(281) }), "A post must be 280 characters or fewer."],
+  ]) {
+    assert.throws(refusal, { name: "TypeError", message });
+  }
+  assert.doesNotMatch(textOf(composer), /\bcaption\b/i);
 });
 
 // The page never said who wrote the posts, so the bundled names read as other
@@ -1246,21 +1277,21 @@ test("the feed is what a first-time visitor reads first, and the composer follow
   assert.ok(stops.findIndex((node) => node.id === "post-name-filter") + 1 <= 3);
 });
 
-test("the trigger reveals the composer and puts focus in the caption field", async (t) => {
+test("the trigger reveals the composer and puts focus in the post field", async (t) => {
   const { document, id } = await socialDisclosure(t);
   const trigger = id("post-compose-open");
   const panel = id("post-compose-panel");
 
   assert.equal(panel.hidden, true, "the composer ships open");
   assert.equal(trigger.getAttribute("aria-expanded"), "false");
-  assert.equal(foldedAway(id("post-body")), true, "the caption is reachable before it is revealed");
+  assert.equal(foldedAway(id("post-body")), true, "the post field is reachable before it is revealed");
 
   trigger.click();
 
   assert.equal(panel.hidden, false, "activating the trigger did not reveal the composer");
   assert.equal(trigger.getAttribute("aria-expanded"), "true");
   assert.equal(document.activeElement?.id, "post-body",
-    "focus did not land in the caption field the trigger promised");
+    "focus did not land in the post field the trigger promised");
   // And the fields a keyboard reader now walks are the composer's, in order.
   const revealed = tabSequence(document).map((node) => node.id);
   assert.ok(revealed.indexOf("post-body") > revealed.indexOf("post-compose-open"));
