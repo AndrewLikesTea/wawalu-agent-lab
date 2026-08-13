@@ -217,6 +217,18 @@ test("empty, loading, and error states are three distinct renders", () => {
   assert.equal(failed.getAttribute("aria-busy"), "false");
   assert.match(first(failed, "empty-state").textContent, /could not be loaded/);
   assert.equal(first(failed, "post-grid-skeleton"), null);
+  assert.equal(byClass(failed, "state-action").length, 0,
+    "a Retry control only enters the tab order when a retry exists");
+
+  let retries = 0;
+  renderPosts(failed, [], { state: "error", onRetry: () => { retries += 1; } });
+  const retry = first(failed, "state-action");
+  assert.equal(retry.tagName, "BUTTON");
+  assert.equal(retry.type, "button");
+  assert.equal(retry.textContent, "Retry");
+  assert.match(failed.textContent, /filters and unpublished post are unchanged/i);
+  retry.dispatch("click");
+  assert.equal(retries, 1);
 });
 
 test("posts already on screen outrank a pending or failed refresh", () => {

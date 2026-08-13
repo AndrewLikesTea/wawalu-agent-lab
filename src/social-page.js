@@ -276,6 +276,7 @@ async function init() {
     // so the description field exists before a Paint handoff can fill it.
     getMedia: () => media.get(),
     clearMedia: () => media.clear(),
+    onRetry: () => refresh(),
   });
   // The composer ships collapsed, so the two arrivals that name it in the URL
   // have to open it or they land on a fragment that is not being rendered: the

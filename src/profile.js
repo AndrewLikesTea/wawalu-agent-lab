@@ -26,6 +26,7 @@ import { connectionStatusLine, normalizeImage } from "./social.js";
 import { postDetailHref, profileHref } from "./social-links.js";
 import { imageDescription, renderDescriptionNote, renderImageUnavailable } from "./image-description.js";
 import { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH } from "./social-identity.js";
+import { renderState } from "./state-ui.js";
 
 // Social's three connection sentences with the noun this page shows, so the two
 // pages differ in one word and nowhere else. Exported because profile-page.js
@@ -531,31 +532,27 @@ function renderSkeleton(container, author, count = 6) {
 // sentence in the hero. The secondary is outlined as well as second, so weight
 // is not the only thing saying which is which.
 function renderEmpty(container, author) {
-  const empty = el("div", "empty-state");
-  empty.append(el("p", "empty-title", PROFILE_EMPTY_COPY.guidance));
-  const link = el("a", "empty-action", PROFILE_EMPTY_COPY.actionLabel);
-  link.href = profilePaintHref(author);
-  link.target = "_blank";
-  link.rel = "noopener";
-  link.append(el("span", "new-tab-note", ` ${PROFILE_EMPTY_COPY.newTabNote}`));
-  const postLink = el("a", "empty-action empty-action-secondary",
-    PROFILE_EMPTY_COPY.postActionLabel);
-  postLink.href = "/social.html";
-  const actions = el("div", "empty-actions");
-  actions.append(link, postLink);
-  empty.append(actions);
-  container.append(empty);
+  const panel = renderState(container, {
+    state: "empty",
+    label: "People filter result",
+    value: PROFILE_EMPTY_COPY.guidance,
+    action: { label: PROFILE_EMPTY_COPY.actionLabel, href: profilePaintHref(author), newTab: true },
+    secondaryAction: { label: PROFILE_EMPTY_COPY.postActionLabel, href: "/social.html" },
+  });
+  panel.querySelector(".state-value")?.classList.add("empty-title");
+  panel.classList.add("empty-state");
 }
 
 function renderError(container, onRetry) {
-  const failed = el("div", "empty-state empty-state-error");
-  failed.append(el("p", "empty-title", "Image posts could not be loaded."));
-  failed.append(el("p", undefined, "The connection to the Social feed behind People failed. Nothing was lost — try again."));
-  const retry = el("button", "empty-action", "Try again");
-  retry.type = "button";
-  if (onRetry) retry.addEventListener("click", onRetry);
-  failed.append(retry);
-  container.append(failed);
+  const panel = renderState(container, {
+    state: "error",
+    label: "People feed error",
+    value: "Image posts could not be loaded.",
+    description: "The active display-name filter is unchanged. Try again to load image posts.",
+    action: onRetry ? { label: "Retry", onClick: onRetry } : null,
+  });
+  panel.querySelector(".state-value")?.classList.add("empty-title");
+  panel.classList.add("empty-state", "empty-state-error");
 }
 
 // `state` keeps three situations apart that must never share one empty state:
@@ -574,7 +571,7 @@ export function renderProfileGrid(container, posts, options = {}) {
 
   if (ordered.length === 0) {
     if (state === "loading") {
-      statusRegion.textContent = loadingSummaryText(author);
+      renderState(statusRegion, { state: "loading", title: loadingSummaryText(author) });
       renderSkeleton(container, author);
     } else if (state === "error") renderError(statusRegion, onRetry);
     else renderEmpty(statusRegion, author);

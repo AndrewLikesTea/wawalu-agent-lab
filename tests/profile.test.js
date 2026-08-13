@@ -381,7 +381,7 @@ test("the first load reserves a skeleton grid instead of a blank panel", () => {
   assert.equal(container.getAttribute("aria-busy"), "true");
   const skeleton = first(container, "profile-grid-skeleton");
   assert.equal(skeleton.getAttribute("aria-hidden"), "true", "placeholders announce nothing");
-  assert.equal(status.textContent, "Loading image posts…");
+  assert.equal(status.textContent.trim(), "Loading image posts…");
   assert.ok(byClass(skeleton, "profile-tile-skeleton").length > 0);
   assert.equal(byClass(container, "empty-state").length, 0);
 });
@@ -443,6 +443,8 @@ test("a failed load is offered a retry, not a false empty state", () => {
   assert.equal(retry.type, "button");
   retry.dispatch("click");
   assert.equal(retried, 1);
+  assert.match(container.textContent, /active display-name filter is unchanged/i);
+  assert.equal(first(container, "state-action").textContent, "Retry");
 });
 
 test("re-rendering replaces the previous grid rather than appending to it", () => {

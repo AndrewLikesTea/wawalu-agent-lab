@@ -16,6 +16,7 @@ export function renderState(container, options) {
     label = state === "error" ? "Error" : "Status",
     value = title,
     action,
+    secondaryAction,
     item = false,
   } = options;
 
@@ -35,8 +36,9 @@ export function renderState(container, options) {
     );
     panel.append(summary);
     if (description) panel.append(element("p", "state-guidance", description));
-    if (action) {
-      const control = element(action.href ? "a" : "button", "state-action", action.label);
+    const appendAction = (action, secondary = false) => {
+      const control = element(action.href ? "a" : "button", "state-action empty-action", action.label);
+      if (secondary) control.classList.add("state-action-secondary", "empty-action-secondary");
       if (action.href) {
         control.href = action.href;
         // A state action that leaves the tab discloses it in its own text, the
@@ -52,7 +54,9 @@ export function renderState(container, options) {
         control.addEventListener("click", action.onClick);
       }
       panel.append(control);
-    }
+    };
+    if (action) appendAction(action);
+    if (secondaryAction) appendAction(secondaryAction, true);
   }
 
   container.replaceChildren(panel);

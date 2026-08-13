@@ -556,7 +556,7 @@ export function connectionStatusLine(state, noun = "posts") {
 // Posts always win over a pending or failed refresh: stale content beats a
 // spinner over content the reader could already see.
 export function renderPosts(container, posts, options = {}) {
-  const { noMatch = null, state = "ready", statusRegion = container } = options;
+  const { noMatch = null, state = "ready", statusRegion = container, onRetry = null } = options;
   const ordered = sortPostsNewestFirst(posts);
   container.replaceChildren();
   container.setAttribute("aria-busy", state === "loading" && ordered.length === 0 ? "true" : "false");
@@ -578,7 +578,8 @@ export function renderPosts(container, posts, options = {}) {
         state: "error",
         label: "Social feed error",
         value: "Social posts could not be loaded.",
-        description: "The feed keeps retrying. Check the connection status above.",
+        description: "Your filters and unpublished post are unchanged. Retry loading the Social feed.",
+        action: onRetry ? { label: "Retry", onClick: onRetry } : null,
       });
       panel.classList.add("empty-state", "empty-state-error");
     } else if (noMatch) {
@@ -821,7 +822,7 @@ export function mountSocialFeed(root, options = {}) {
     const noMatch = filtering && visible.length === 0 && posts.length > 0
       ? { ...named, total: posts.length, onClear: recoverFromNoMatch }
       : null;
-    renderPosts(feed, visible, { state, noMatch, statusRegion: feedState ?? feed });
+    renderPosts(feed, visible, { state, noMatch, statusRegion: feedState ?? feed, onRetry: options.onRetry });
     // The count answers "how many posts are there", which this page can only
     // answer once a fetch has come back. Until one has, it names which of
     // "still loading" and "could not load" is true instead of printing a zero
