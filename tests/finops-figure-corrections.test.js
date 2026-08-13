@@ -7,15 +7,14 @@
 //     asserted as a count of zero and never as `assert.equal(node, null)`;
 //   * descendant selectors throw, so containment is answered by walking
 //     `parentNode`;
-//   * `textOf` reads through a shut details element, so nothing this feature
-//     announces or attributes may live inside one — which the structural test
-//     below pins by walking up from each of the three regions.
+//   * `textOf` reads through a shut details element, so progressive disclosure
+//     is asserted structurally rather than inferred from extracted text.
 
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-import { loadPage, pressKey, textOf, typeText } from "./support/browser.js";
+import { loadPage, pressEnter, pressKey, textOf, typeText } from "./support/browser.js";
 import {
   applyCorrection, confidenceText, CORRECTION_IDS, correctionControlId,
   correctionCounts, createCorrectionState, headlineText, mountFigureCorrections,
@@ -126,21 +125,58 @@ test("the authored sentences are the ones the module paints", async () => {
   }
 });
 
-test("the announcement, the markers and the confidence sentence are not folded away", async () => {
+test("correction detail is folded into one keyboard-operable native disclosure", async () => {
   const { page, document } = await mounted();
   try {
-    for (const id of [CORRECTION_IDS.headline, CORRECTION_IDS.confidence, CORRECTION_IDS.live]) {
-      assert.equal(insideDetails(document.getElementById(id)), false,
-        `${id} is inside a details element, where a real browser hides it`);
+    const details = document.getElementById(CORRECTION_IDS.region);
+    const summary = document.getElementById("finops-figure-corrections-lead");
+    assert.equal(details.tagName, "DETAILS");
+    assert.equal(summary.tagName, "SUMMARY");
+    assert.equal(summary.parentNode, details);
+    assert.ok(!details.hasAttribute("open"));
+    assert.equal(summary.getAttribute("aria-expanded"), "false");
+    assert.match(textOf(summary), /Correct a derived name or figure/);
+    for (const id of [CORRECTION_IDS.headline, CORRECTION_IDS.confidence]) {
+      assert.equal(insideDetails(document.getElementById(id)), true,
+        `${id} escaped the correction disclosure`);
     }
     const rows = document.getElementById(CORRECTION_IDS.rows);
-    assert.equal(insideDetails(rows), false);
+    assert.equal(insideDetails(rows), true);
     assert.equal(walk(rows).filter((node) => node.classList?.contains?.("brief-provenance")).length,
       correctionCounts(createCorrectionState()).total,
       "every value in the table carries its own provenance marker");
+    summary.focus();
+    pressEnter(document);
+    assert.ok(details.hasAttribute("open"), "Enter did not expose correction controls");
+    assert.equal(summary.getAttribute("aria-expanded"), "true");
+    assert.equal(details.dataset.disclosure, "expanded");
+    assert.equal(document.activeElement, summary, "opening corrections moved focus");
+    assert.equal(insideDetails(document.getElementById(CORRECTION_IDS.live)), false,
+      "the shared announcement must remain available when corrections close");
   } finally {
     page.restore();
   }
+});
+
+// The harness models no layout, so the pixels this control is drawn with are
+// asserted where they are declared: on the class it wears and on the one rule
+// that already styles every disclosure on this page. Without `.figure-source`
+// the summary keeps the user agent's own triangle beside the authored one, has
+// no pointer, and loses the 3px focus ring the acceptance criteria ask for —
+// none of which any text or attribute assertion here can see.
+test("the correction control reuses the page's one summary treatment", async () => {
+  const [markup, css] = await Promise.all([
+    readFile(PAGE, "utf8"),
+    readFile(new URL("../src/evolution.css", import.meta.url), "utf8"),
+  ]);
+  assert.match(markup, /<details class="figure-source figure-corrections" id="finops-figure-corrections"/,
+    "the corrections disclosure is unstyled: no marker reset, no focus ring, no pointer");
+  assert.match(css, /\.figure-source>summary::-webkit-details-marker \{ display:none/,
+    "the shared rule no longer hides the native marker, so this summary paints two triangles");
+  assert.match(css, /\.figure-source>summary:focus-visible \{[^}]*outline:3px/,
+    "the correction control has no visible focus ring");
+  assert.doesNotMatch(css, /\.figure-corrections(\[[^\]]*\])?\s*>?\s*summary/,
+    "the corrections block grew its own summary rule instead of reusing .figure-source");
 });
 
 test("correcting a derived name moves the headline, the table cell, and the derived share", async () => {

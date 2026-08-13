@@ -1231,7 +1231,13 @@
         <!-- CORRECTING ONE OF THOSE INFERRED VALUES, ON THE LINE IT IS READ (#1026).
              A marker that says "we worked this out" and offers nothing to do
              about a value the reader knows is wrong leaves them holding it. The
-             control is here, beside the marker, and never behind a disclosure.
+             control is one native disclosure away from the worked example, so
+             sixteen edit controls stay off the default reading and keyboard
+             paths. It wears .figure-source for that: the one summary rule on
+             this page hides the user agent's own triangle beside the authored
+             one, gives the label a pointer and a hit area its own width, and
+             rings it on focus. A rule of its own here would be a second
+             treatment that can drift from the twelve disclosures above.
 
              THE HEADLINE, THE TABLE AND THE CONFIDENCE SENTENCE ARE ONE STATE.
              src/finops-figure-corrections.js owns it: a commit writes the value
@@ -1250,8 +1256,8 @@
              Nothing announced here needs a live region of its own. The polite
              region at the foot of this section is the one this block speaks
              through. -->
-        <div class="figure-corrections" id="finops-figure-corrections" role="group" aria-labelledby="finops-figure-corrections-lead" data-corrected="0" data-editing="">
-          <p class="eyebrow" id="finops-figure-corrections-lead">Correct a derived name or figure</p>
+        <details class="figure-source figure-corrections" id="finops-figure-corrections" data-corrected="0" data-disclosure="collapsed" data-editing="">
+          <summary class="figure-source-summary" id="finops-figure-corrections-lead" aria-expanded="false"><span class="figure-source-state" data-disclosure="collapsed"><span class="figure-source-shape" aria-hidden="true">▸</span> Correct a derived name or figure</span></summary>
           <p class="figure-corrections-headline" id="finops-figure-corrections-headline">The answer: 33% of analyzed AI spend is recoverable AI spend. 14 of the 16 names and figures below were derived on this page rather than read from the example's export files.</p>
           <table class="figure-corrections-table" id="finops-figure-corrections-table" hidden>
             <caption class="figure-corrections-caption">Every name and figure in this brief, with the control that corrects the ones this page inferred. A correction stays in this browser tab and is never uploaded.</caption>
@@ -1259,7 +1265,7 @@
             <tbody id="finops-figure-corrections-rows"></tbody>
           </table>
           <p class="figure-corrections-confidence" id="finops-figure-corrections-confidence" data-derived-share="88" data-derived="14" data-corrected="0">Confidence in this brief is bounded by how much of it was derived: 88% of it still is (14 of 16). Nothing below has been corrected by a reader yet.</p>
-        </div>
+        </details>
         <!-- The three example-only containers below carry an id for one reason:
              an imported export withholds each of them whole, so a synthetic
              peer band, routing scenario, or confidence score never stands

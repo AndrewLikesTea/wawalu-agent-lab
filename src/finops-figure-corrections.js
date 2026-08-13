@@ -481,6 +481,16 @@ export function renderFigureCorrections(doc, state, handlers = NO_HANDLERS) {
 export function mountFigureCorrections(doc, { entries = EXAMPLE_FIGURE_SOURCES } = {}) {
   const region = byId(doc, CORRECTION_IDS.region);
   if (!region) return null;
+  const summary = byId(doc, "finops-figure-corrections-lead");
+  const syncDisclosure = () => {
+    const expanded = region.hasAttribute("open");
+    region.dataset.disclosure = expanded ? "expanded" : "collapsed";
+    summary?.setAttribute("aria-expanded", String(expanded));
+    const state = summary?.querySelector?.(".figure-source-state");
+    if (state) state.dataset.disclosure = expanded ? "expanded" : "collapsed";
+  };
+  region.addEventListener?.("toggle", syncDisclosure);
+  syncDisclosure();
   let state = createCorrectionState(entries);
   let focusId = null;
 

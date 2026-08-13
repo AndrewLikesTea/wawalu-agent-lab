@@ -316,6 +316,9 @@ export const FOCUS_SPEC = Object.freeze({
   order: Object.freeze([
     "finops-first-run-how-we-know-summary",
     "finops-first-run-answer-source-summary",
+    // Corrections are supporting detail too: one native summary replaces the
+    // edit controls that previously crowded the default keyboard path.
+    "finops-figure-corrections-lead",
     "finops-first-run-benchmark-source-summary",
     "finops-first-run-impact-source-summary",
     "finops-first-run-peer-source-summary",
