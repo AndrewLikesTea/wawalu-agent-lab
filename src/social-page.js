@@ -276,6 +276,7 @@ async function init() {
     // so the description field exists before a Paint handoff can fill it.
     getMedia: () => media.get(),
     clearMedia: () => media.clear(),
+    onRetry: () => refresh(),
   });
   // The composer ships collapsed, so the two arrivals that name it in the URL
   // have to open it or they land on a fragment that is not being rendered: the
@@ -311,9 +312,9 @@ async function init() {
       // rather than in two dialects of the same bad news.
       if (status) status.textContent = connectionStatusLine("degraded");
       if (connection) connection.dataset.state = "degraded";
-      // Posts already on screen stay on screen; the error state is only for the
-      // case where a reader would otherwise be staring at a skeleton forever.
-      if (feed.getPosts().length === 0) feed.setState("error");
+      // Posts already on screen stay on screen. The error state adds recovery
+      // beside them, or replaces a first-load skeleton when there are none.
+      feed.setState("error");
     }
   };
 

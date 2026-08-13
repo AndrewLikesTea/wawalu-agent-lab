@@ -25,6 +25,7 @@
 import { connectionStatusLine, normalizeImage } from "./social.js";
 import { postDetailHref, profileHref } from "./social-links.js";
 import { imageDescription, renderDescriptionNote, renderImageUnavailable } from "./image-description.js";
+import { renderFeedStatus } from "./feed-status.js";
 import { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH } from "./social-identity.js";
 
 // Social's three connection sentences with the noun this page shows, so the two
@@ -548,14 +549,14 @@ function renderEmpty(container, author) {
 }
 
 function renderError(container, onRetry) {
-  const failed = el("div", "empty-state empty-state-error");
-  failed.append(el("p", "empty-title", "Image posts could not be loaded."));
-  failed.append(el("p", undefined, "The connection to the Social feed behind People failed. Nothing was lost — try again."));
-  const retry = el("button", "empty-action", "Try again");
-  retry.type = "button";
-  if (onRetry) retry.addEventListener("click", onRetry);
-  failed.append(retry);
-  container.append(failed);
+  const failed = renderFeedStatus(container, {
+    state: "error", label: "People feed error", text: "Image posts could not be loaded.",
+    detail: "The selected display-name filter is unchanged. Retry loading image posts.",
+    actionLabel: "Try again", onAction: onRetry,
+  });
+  failed.classList.add("empty-state", "empty-state-error");
+  failed.querySelector?.(".feed-status-value")?.classList.add("empty-title");
+  failed.querySelector?.(".feed-status-action")?.classList.add("empty-action");
 }
 
 // `state` keeps three situations apart that must never share one empty state:
@@ -567,14 +568,24 @@ export function renderProfileGrid(container, posts, options = {}) {
   const ordered = sortNewestFirst(posts ?? []);
   container.replaceChildren();
   container.setAttribute("aria-busy", state === "loading" && ordered.length === 0 ? "true" : "false");
-  if (statusRegion !== container) {
+  if (statusRegion !== container && state === "error") {
+    renderFeedStatus(statusRegion, {
+      state: "error", label: "People feed update failed",
+      text: "Showing the image posts already loaded.",
+      detail: "The selected display-name filter is unchanged. Retry loading newer image posts.",
+      actionLabel: "Try again", onAction: onRetry,
+    });
+  } else if (statusRegion !== container) {
     statusRegion.replaceChildren();
     statusRegion.hidden = false;
   }
 
   if (ordered.length === 0) {
     if (state === "loading") {
-      statusRegion.textContent = loadingSummaryText(author);
+      renderFeedStatus(statusRegion, {
+        state: "loading", label: "People feed loading", text: loadingSummaryText(author),
+        append: statusRegion === container,
+      });
       renderSkeleton(container, author);
     } else if (state === "error") renderError(statusRegion, onRetry);
     else renderEmpty(statusRegion, author);

@@ -116,11 +116,9 @@ async function init() {
       // dropped later: either way nothing new arrives on its own, and reloading
       // is the answer, so the page says it once.
       profile.setStatus(profileConnectionLine("degraded"));
-      // The error panel is only for a reader who would otherwise stare at a
-      // skeleton forever. With the seed loaded there is something to show — the
-      // profile leaves "loading" either way, because a spinner that never ends
-      // is the one state worse than bad news.
-      profile.setState(profile.getPosts().length === 0 ? "error" : "ready");
+      // Existing tiles remain readable; the error treatment sits beside them
+      // with retry. With no tiles it replaces the first-load skeleton instead.
+      profile.setState("error");
     }
   }
 
