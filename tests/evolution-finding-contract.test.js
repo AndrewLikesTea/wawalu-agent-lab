@@ -6,7 +6,9 @@ import { loadExampleDataset } from "../src/example-dataset.js";
 import {
   BENCHMARK_ID, CTO_QUESTION, DISCLOSURE_ONLY_IDS, buildEvolutionFinding,
 } from "../src/evolution-finding-contract.js";
-import { renderEvolutionFinding } from "../src/evolution-finding-view.js";
+import {
+  bindEvolutionFindingDisclosure, renderEvolutionFinding,
+} from "../src/evolution-finding-view.js";
 import { FRONT_DOOR_QUESTION, prioritizedDestination } from "../src/finops-destinations.js";
 import { parseHtml, textOf } from "./support/browser.js";
 
@@ -110,4 +112,18 @@ test("an unstatable benchmark withdraws its scope rather than keeping the served
   assert.equal(figure.dataset.totalDepartments, "0");
   assert.equal(textOf(document.getElementById("finops-recoverable-value")), "Not stated");
   assert.doesNotMatch(textOf(document.getElementById("finops-recoverable-basis")), /5 of 5/);
+});
+
+test("the finding disclosure exposes its target and tracks expanded state", () => {
+  const document = parseHtml(html);
+  const details = bindEvolutionFindingDisclosure(document);
+  const summary = document.getElementById("finops-recoverable-how-we-know-summary");
+  assert.equal(summary.getAttribute("aria-controls"), "finops-recoverable-how-we-know-detail");
+  assert.equal(summary.getAttribute("aria-expanded"), "false");
+
+  details.open = true;
+  details.dispatchEvent({ type: "toggle" });
+  assert.equal(details.dataset.disclosure, "expanded");
+  assert.equal(summary.getAttribute("aria-expanded"), "true");
+  assert.equal(textOf(summary).includes("▾"), true);
 });

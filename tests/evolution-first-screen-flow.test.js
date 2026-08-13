@@ -46,8 +46,6 @@ const STYLES = await readFile(new URL("../src/evolution.css", import.meta.url), 
 const BASE_STYLES = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
 const PAGE_SOURCE = await readFile(PAGE, "utf8");
 const PAGE_MODULE = await readFile(new URL("../src/evolution-page.js", import.meta.url), "utf8");
-const RETIRED_VIEW = await readFile(
-  new URL("../src/finops-answer-contract-view.js", import.meta.url), "utf8");
 const DEMO_DATA = JSON.parse(await readFile(
   new URL("../src/evolution-demo-data.json", import.meta.url), "utf8"));
 const EVALUATION_FIXTURES = JSON.parse(await readFile(
@@ -358,46 +356,20 @@ test("a failed bundled analysis leaves the answer whole, with its one figure and
 
 /* --------------- 4. what stays behind the disclosure on load ---------------- */
 
-test("the demoted readiness detail is still shut after the page has run", async () => {
+test("the canonical finding keeps one closed supporting disclosure after load", async () => {
   const page = await coldOpen();
   try {
     const { document } = page;
-    const details = byId(document, "analysis-readiness-detail");
-
     // A closed details reports `open === undefined` in this harness, never false.
-    assert.ok(!details.open, "the demoted detail opened itself on load");
-    assert.equal(details.dataset.disclosure, "collapsed");
-    assert.equal(details.tagName, "DETAILS");
-
-    // The line that ranked the actions is INSIDE it — the structure is the
-    // assertion, because `textOf` reads straight through a shut disclosure and
-    // would report the text either way.
-    assert.equal(inside(byId(document, "finops-canonical-answer-action-basis"), details), true,
-      "the demoted line is no longer inside the disclosure that holds it");
-
-    // Its summary is the control, and it still says what opening it gives you.
-    const summary = byId(document, "analysis-readiness-detail-summary");
-    assert.equal(summary.tagName, "SUMMARY");
-    assert.equal(summary.parentNode, details);
-    // The shipped wording, after the glyph that is `aria-hidden` and before the
-    // score the readiness view paints into the summary's own slot on load.
-    assert.match(textOf(summary),
-      /Readiness verdict, evidence, and limits — the figure behind them, and what later evidence would enable/);
-    assert.match(textOf(byId(document, "analysis-readiness-detail-score")), /readiness \d+\/100$/,
-      "the summary's score slot is still sitting on its authored placeholder");
-    assert.equal(summary.getAttribute("aria-expanded"), "false");
-
     // The answer's own working is shut on load too, so the first screen a reader
     // meets is the question, the figure and the move — not three open panels.
     const howWeKnow = byId(document, "finops-recoverable-how-we-know");
     assert.ok(!howWeKnow.open);
-    assert.match(textOf(byId(document, "finops-recoverable-how-we-know-summary")),
-      /How we know this$/);
-    // And no disclosure inside the answer region opened itself: the count is of
-    // those with the attribute set, so one springing open fails by number.
-    const opened = byId(document, ANSWER_REGION_ID).querySelectorAll("details")
-      .filter((node) => node.hasAttribute("open"));
-    assert.deepEqual(opened.map((node) => node.id), []);
+    const summary = byId(document, "finops-recoverable-how-we-know-summary");
+    assert.equal(summary.getAttribute("aria-expanded"), "false");
+    assert.match(textOf(summary), /How we know this$/);
+    assert.deepEqual(byId(document, ANSWER_REGION_ID).querySelectorAll("details")
+      .map((node) => node.id), ["finops-recoverable-how-we-know"]);
   } finally {
     page.restore();
   }
@@ -487,6 +459,4 @@ test("retired answer wording, duplicate cards, and the obsolete renderer stay ab
   }
   assert.doesNotMatch(PAGE_MODULE, /\brenderRecoverableSpend\b/,
     "the live page imported the retired second renderer");
-  assert.doesNotMatch(RETIRED_VIEW, /export function renderRecoverableSpend\b/,
-    "the obsolete rendering hook is callable again");
 });

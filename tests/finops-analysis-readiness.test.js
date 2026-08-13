@@ -2,15 +2,12 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-import { parseHtml, textOf } from "./support/browser.js";
 import {
   CONFIDENCE_RULE, EVIDENCE_CATEGORIES, analysisReadinessForDataset, evidenceConfidence, evidenceHeld,
   readinessScore,
 } from "../src/finops-analysis-readiness.js";
 import { bundledFirstAction } from "../src/finops-bundled-next-step.js";
-import { renderAnalysisReadiness } from "../src/finops-analysis-readiness-view.js";
 
-const PAGE = new URL("../src/evolution.html", import.meta.url);
 const DATA = JSON.parse(await readFile(
   new URL("../src/evolution-demo-data.json", import.meta.url), "utf8"));
 
@@ -61,31 +58,4 @@ test("the readiness answer quotes the page's one derived next-step record", () =
   assert.deepEqual(result.upgrades.map((item) => item.category), [
     "Organization-applicable contracted pricing", "Observed post-change usage and cost",
   ]);
-});
-
-test("the active analysis surface answers readiness and makes the one action inspectable", async () => {
-  const document = parseHtml(await readFile(PAGE, "utf8"));
-  const result = analysisReadinessForDataset(DATA);
-  renderAnalysisReadiness(document, result);
-  const region = document.getElementById("finops-analysis-readiness");
-  assert.equal(region.dataset.level, "illustrative_only");
-  assert.equal(region.querySelectorAll("#analysis-readiness-action").length, 1);
-  assert.match(textOf(document.getElementById("analysis-readiness-benchmark")), /50\/100 · 2 of 4/);
-  assert.match(textOf(document.getElementById("analysis-readiness-action")),
-    new RegExp(result.recommendation.department));
-  assert.match(textOf(document.getElementById("analysis-readiness-value")),
-    new RegExp(result.recommendation.figure.text.replace("$", "\\$")));
-  assert.match(textOf(document.getElementById("analysis-readiness-action-confidence")), /74\/100/);
-  assert.match(textOf(document.getElementById("analysis-readiness-provenance")),
-    new RegExp(result.recommendation.id));
-  const upgrades = document.getElementById("analysis-readiness-upgrades").querySelectorAll("li");
-  assert.equal(upgrades.length, 2);
-  for (const row of upgrades) {
-    assert.match(textOf(row), /reduces/);
-    assert.match(textOf(row), /enables/);
-  }
-  // Counts, not identity: asserting an element is null makes a failing run hang
-  // on inspecting the parsed page instead of reporting the regression.
-  assert.equal(region.querySelectorAll("input").length, 0);
-  assert.equal(region.querySelectorAll("button").length, 0);
 });

@@ -96,49 +96,13 @@ test("a retired region is not stamped, numbered, or counted as missing", () => {
 // still named — and the capabilities the page offers are still reachable.
 // ---------------------------------------------------------------------------
 
-/** True when `node` sits inside the answer's supporting-detail group. */
-const inSupportLayer = (node) => {
-  for (let up = node; up; up = up.parentNode) if (up.id === "finops-answer-support") return true;
-  return false;
-};
-
-test("the readiness region is inside the canonical answer, not deleted from the page", () => {
+test("the canonical answer no longer contains the duplicate readiness surface", () => {
   const document = parseHtml(html);
-  const region = document.getElementById("finops-analysis-readiness");
-  assert.ok(region, "the folded region left the page instead of moving into the answer");
-  assert.equal(inSupportLayer(region), true,
-    "the readiness region is neither top-level nor in the answer's supporting layer");
-
-  // It is still addressed by the census, so a later change cannot drop it
-  // silently: `renderedRegionIds` finds it through `data-spine-region`.
-  assert.equal(region.hasAttribute("data-spine-region"), true);
-  assert.ok(renderedRegionIds(parseHtml(html)).includes("finops-analysis-readiness"));
-
-  // The group is a labelled group and NOT a disclosure. Nothing was folded away
-  // by this change, and the region's own status paragraph is a sibling of every
-  // details element in it rather than a child of one — a live region behind a
-  // shut disclosure still reads to this harness and is silent in a browser.
-  const group = document.getElementById("finops-answer-support");
-  assert.equal(group.tagName, "DIV");
-  assert.equal(group.getAttribute("role"), "group");
-  assert.ok(String(group.getAttribute("aria-label") ?? "").length > 0,
-    "the supporting-detail layer has no accessible name");
-  const live = document.getElementById("finops-canonical-answer-live");
-  assert.equal(live.getAttribute("role"), "status");
-  for (let up = live.parentNode; up; up = up.parentNode) {
-    assert.notEqual(up.tagName, "DETAILS", "the answer's announcement was folded into a disclosure");
+  for (const id of ["finops-answer-support", "finops-analysis-readiness",
+    "finops-canonical-answer", "analysis-readiness-detail"]) {
+    assert.ok(!document.getElementById(id), `#${id} still ships`);
   }
-});
-
-test("the fold left one question at h2 and hung the moved one off it at h3", () => {
-  const document = parseHtml(html);
   assert.equal(document.getElementById("finops-recoverable-question").tagName, "H2");
-  assert.equal(document.getElementById("analysis-readiness-question").tagName, "H3");
-  assert.equal(document.getElementById("finops-canonical-answer-heading").tagName, "H4");
-  // The moved region keeps its accessible name: it is still a named region
-  // landmark, reachable by landmark navigation, at whatever depth it sits.
-  const region = document.getElementById("finops-analysis-readiness");
-  assert.equal(region.getAttribute("aria-labelledby"), "analysis-readiness-question");
 });
 
 test("every capability the page offers is still reachable after the fold", () => {

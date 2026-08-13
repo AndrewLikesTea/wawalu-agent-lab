@@ -44,3 +44,23 @@ export function renderEvolutionFinding(doc, finding) {
   }
   return figure;
 }
+
+/** Keep the native disclosure's visible and programmatic state in agreement. */
+export function bindEvolutionFindingDisclosure(doc) {
+  const details = doc.getElementById("finops-recoverable-how-we-know");
+  const summary = doc.getElementById("finops-recoverable-how-we-know-summary");
+  if (!details || !summary || details.dataset.bound === "true") return details;
+  const sync = () => {
+    const expanded = Boolean(details.open);
+    details.dataset.disclosure = expanded ? "expanded" : "collapsed";
+    summary.setAttribute("aria-expanded", String(expanded));
+    const state = summary.querySelector(".figure-source-state");
+    if (state) state.dataset.disclosure = expanded ? "expanded" : "collapsed";
+    const shape = summary.querySelector(".figure-source-shape");
+    if (shape) shape.textContent = expanded ? "▾" : "▸";
+  };
+  details.dataset.bound = "true";
+  details.addEventListener("toggle", sync);
+  sync();
+  return details;
+}

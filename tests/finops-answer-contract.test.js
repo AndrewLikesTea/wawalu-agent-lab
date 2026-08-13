@@ -1,15 +1,10 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-import { parseHtml, textOf } from "./support/browser.js";
 import { analysisReadiness } from "../src/finops-bundled-scenarios.js";
 import {
   CONFIDENCE_THRESHOLD, WITHHELD, finopsAnswerSignals, resolveFinopsAnswer,
 } from "../src/finops-answer-contract.js";
-import { renderFinopsAnswer } from "../src/finops-answer-contract-view.js";
-
-const PAGE = new URL("../src/evolution.html", import.meta.url);
 
 /** A clean, answerable signal set. Every test below deviates from this in one
  *  way, so a failure names the rule it broke rather than the fixture. */
@@ -192,70 +187,4 @@ test("the page's own bundled analysis resolves to one traceable answer", () => {
   assert.equal(answer.primaryAction.id, analysis.readiness.recommendation.id);
   assert.equal(answer.confidence.value, analysis.readiness.confidence.value);
   assert.equal(finopsAnswerSignals({ ok: false }), null);
-});
-
-test("the answer region states the figure, the benchmark, the action and the sources", async () => {
-  const document = parseHtml(await readFile(PAGE, "utf8"));
-  const analysis = analysisReadiness({ scenarioId: "aws-bedrock-cur-v1" });
-  renderFinopsAnswer(document, resolveFinopsAnswer(finopsAnswerSignals(analysis)));
-  const region = document.getElementById("finops-canonical-answer");
-  assert.equal(region.dataset.status, "answered");
-  assert.equal(region.dataset.reason, "none");
-  const figure = document.getElementById("finops-canonical-answer-figure");
-  assert.equal(figure.dataset.available, "true");
-  assert.match(textOf(figure), /\$43,200 a year/);
-  assert.match(textOf(figure), /20% of the \$216,000/);
-  assert.match(textOf(document.getElementById("finops-canonical-answer-benchmark")),
-    /Bundled demo materiality floor at \$1,000/);
-  // #1667: this region no longer carries an action link of its own. The first
-  // screen states ONE next action, #finops-recoverable-action, and this one
-  // pointed at the same destination at the same weight.
-  assert.equal(document.querySelectorAll("#finops-canonical-answer-action").length, 0);
-  assert.match(textOf(document.getElementById("finops-canonical-answer-sources")),
-    /readiness\.recommendation\.figure\.value/);
-  assert.equal(textOf(document.getElementById("finops-canonical-answer-reason")), "");
-  // The answer itself is never behind a control — no disclosure and no button
-  // stands between a reader and the figure. #1465 added exactly one operable
-  // element, the action the figure implies, because an answer whose next step a
-  // reader cannot act on is a report rather than a decision.
-  assert.equal(region.querySelectorAll("details").length, 0);
-  assert.equal(region.querySelectorAll("button").length, 0);
-  // #1667: and no anchor either. One action on the first screen, above.
-  assert.equal(region.querySelectorAll("a").length, 0);
-});
-
-test("a withheld scenario renders the reason and no answer at all", async () => {
-  const document = parseHtml(await readFile(PAGE, "utf8"));
-  renderFinopsAnswer(document, resolveFinopsAnswer(signals({ recommendedActions: [] })));
-  const region = document.getElementById("finops-canonical-answer");
-  assert.equal(region.dataset.status, "withheld");
-  assert.equal(region.dataset.reason, WITHHELD.noRecommendedAction);
-  const figure = document.getElementById("finops-canonical-answer-figure");
-  assert.equal(figure.dataset.available, "false");
-  assert.equal(textOf(figure), "", "no annual figure");
-  // #1465: the slot says why it is empty rather than being empty. A blank line
-  // under a figure reads as a benchmark somebody forgot, not one that is absent.
-  assert.match(textOf(document.getElementById("finops-canonical-answer-benchmark")),
-    /nothing for a benchmark to support/);
-  const reason = textOf(document.getElementById("finops-canonical-answer-reason"));
-  assert.match(reason, /no prioritized action to imply/);
-  // Nothing anywhere in the region may read as a savings figure or a share.
-  assert.equal(/\$[\d,]/.test(textOf(region)), false, "no money survives a withheld answer");
-  assert.equal(/\d+(\.\d+)?%/.test(textOf(region)), false, "no percentage either");
-  assert.match(textOf(document.getElementById("finops-canonical-answer-sources")),
-    /Signals still trusted/);
-});
-
-test("an analysis that failed to load withholds rather than painting a stale answer", async () => {
-  const document = parseHtml(await readFile(PAGE, "utf8"));
-  renderFinopsAnswer(document, resolveFinopsAnswer(finopsAnswerSignals(analysisReadiness({
-    scenarioId: "aws-bedrock-cur-v1",
-  }))));
-  renderFinopsAnswer(document, null);
-  const region = document.getElementById("finops-canonical-answer");
-  assert.equal(region.dataset.status, "withheld");
-  assert.equal(region.dataset.reason, WITHHELD.missingInput);
-  assert.equal(textOf(document.getElementById("finops-canonical-answer-figure")), "",
-    "the previously painted figure is cleared, not left behind");
-  assert.match(textOf(document.getElementById("finops-canonical-answer-reason")), /did not load/);
 });

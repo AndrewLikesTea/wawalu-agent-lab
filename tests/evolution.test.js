@@ -510,24 +510,15 @@ test("the first screen states one question, one figure, one action", async () =>
   }
 });
 
-test("the demoted readiness basis is reachable inside the disclosure that already existed", async () => {
+test("the duplicate canonical readiness card and evidence control are removed", async () => {
   const document = parseHtml(await read("src/evolution.html"));
-  const details = document.getElementById("analysis-readiness-detail");
-  // Shut, so it costs the first screen nothing: a closed details reports
-  // `open === undefined` in this harness, never false.
-  assert.ok(!details.open);
-  assert.equal(details.dataset.disclosure, "collapsed");
-
-  // The line that ranked the actions moved in here rather than being deleted.
-  const basis = document.getElementById("finops-canonical-answer-action-basis");
-  assert.ok(basis, "the action basis survived the cut");
-  let node = basis.parentNode;
-  let inside = false;
-  while (node) {
-    if (node === details) { inside = true; break; }
-    node = node.parentNode;
+  for (const id of ["finops-answer-support", "finops-analysis-readiness",
+    "finops-canonical-answer", "analysis-readiness-detail",
+    "finops-recoverable-attestation"]) {
+    assert.ok(!document.getElementById(id), `#${id} still duplicates the finding`);
   }
-  assert.equal(inside, true, "the demoted line is not inside the existing disclosure");
+  assert.equal(document.getElementById("finops-recoverable-answer").querySelectorAll("details").length, 1,
+    "the concise finding should expose one supporting disclosure");
 });
 
 test("the action center points at the answer instead of restating it", async () => {
