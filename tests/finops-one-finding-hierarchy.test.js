@@ -260,3 +260,152 @@ test("a far longer figure, question and missing provenance still wrap rather tha
   assert.ok(textOf(byId(document, "finops-recoverable-provenance-reason")).trim().length > 0,
     "the reason slot ships empty, so an unscored figure states no reason at all");
 });
+
+// ---------------------------------------------------------------------------
+// 5. The first screen a cold visitor is actually given (#1687).
+//
+// #1685 made the answer read as one finding. It did not decide what a reader
+// meets BEFORE it, and the answer to that was: two other findings. On a cold
+// open `leadWithWorkedDecision` hoisted the worked example and the empty track
+// record to just under the page name, so the reading order ran hero, worked
+// example, empty record, answer — three questions at heading rank, two figures
+// and two actions ahead of the one the page is for.
+//
+// Nothing here can assert "fits in one screen": the harness models no layout.
+// What it can hold is everything the screen claim rests on — which block is
+// first, which type role each question and figure is drawn at, and the order the
+// tab key visits them in.
+// ---------------------------------------------------------------------------
+
+/**
+ * The element children of a node, in order, as ids.
+ *
+ * `children` in this harness carries text nodes too, and their `tagName` is the
+ * truthy string "#text" — so the filter is on `nodeType`, not on having a tag.
+ */
+const childIds = (node) => [...(node?.children ?? [])]
+  .filter((child) => child?.nodeType === 1).map((child) => child.id);
+
+/** True when `node` sits inside a region the page has declared subordinate. */
+function underSubordinate(node) {
+  for (let walk = node; walk; walk = walk.parentNode) {
+    if (walk.dataset?.subordinate === "true") return true;
+  }
+  return false;
+}
+
+test("a cold visitor meets the answer under the page name, before any illustration", async () => {
+  const page = await coldOpen();
+  try {
+    const { document } = page;
+    const blocks = childIds(byId(document, "main-content"));
+    assert.equal(blocks[0], "finops-hero", "the page's own name no longer opens the page");
+    assert.equal(blocks[1], ANSWER,
+      `a block a reader did not come for leads the page: ${blocks.slice(0, 3).join(", ")}`);
+
+    // The two blocks that move are the worked example and the empty record, and
+    // they land in that order directly under the answer. Asserted as adjacency
+    // rather than as "somewhere below", because the defect this replaces was a
+    // block sliding into a gap nobody had claimed.
+    assert.equal(blocks[2], "finops-first-run");
+    assert.equal(blocks[3], "finops-track-record");
+
+    // And every other region that asks a question of its own is below all four.
+    for (const id of ["finops-stand", "finops-readiness-loop", "finops-destinations"]) {
+      assert.ok(blocks.indexOf(id) > blocks.indexOf(ANSWER),
+        `#${id} still reads above the answer it supports`);
+    }
+  } finally {
+    page.restore();
+  }
+});
+
+test("the answer's question owns the headline rung and every rival is stepped off it", async () => {
+  const css = await readFile(new URL("../src/evolution.css", import.meta.url), "utf8");
+  const document = parseHtml(html);
+
+  // COMPOSED, NOT INVENTED. `.answer-question` is the rung this page already
+  // ships for a region's own question; the canonical question wore no class at
+  // all and fell to the browser default, which is a fixed 24px — smaller at a
+  // laptop width than three rival questions below it.
+  assert.equal(byId(document, QUESTION).className, "answer-question");
+  assert.match(css, /\.answer-question \{[^}]*font-size:clamp\(24px,3\.6vw,34px\)/,
+    "the headline rung moved, so the answer is no longer drawn at the page's largest question size");
+
+  // …and a demoted region cannot keep drawing at it. The rung a subordinate
+  // region gets is the one every other subordinate heading already uses, so no
+  // size is introduced here either.
+  assert.match(css, /\[data-subordinate="true"\] \.answer-question \{[^}]*font-size:clamp\(18px,2\.2vw,22px\)/,
+    "a region demoted by rank can still out-draw the answer by size");
+
+  // The regions #1676 demoted are on that rung by rank AND by size now, because
+  // either on its own is a half-demotion. `finops-stand` is deliberately absent:
+  // src/finops/answer-spine-view.js still declares it the spine's `headline`, and
+  // its `.stand-head h2` rung of clamp(26px,4vw,38px) is still the largest
+  // question on this page. That is a product contradiction between the spine and
+  // #1676, not a CSS defect, and it is left standing rather than settled here.
+  for (const id of ["finops-first-run", "finops-readiness-loop"]) {
+    assert.equal(byId(document, id).dataset.subordinate, "true",
+      `#${id} still draws at the answer's weight`);
+  }
+  assert.equal(byId(document, ANSWER).dataset.subordinate, undefined,
+    "the answer demoted itself along with its evidence");
+});
+
+test("no region below the answer states a figure at the answer's largest-number role", () => {
+  const document = parseHtml(html);
+  const answer = byId(document, ANSWER);
+  // `.stand-figure-value` is this page's one largest-number role. Outside the
+  // answer it may still be USED — the same role in a subordinate region is how a
+  // supporting figure stays legible — but it may not be drawn at full size, and
+  // the rule that steps it down keys off the region rather than off each id.
+  //
+  // The exception is named rather than filtered out: `finops-stand` is still the
+  // answer spine's declared `headline`, so its figures still draw at the full
+  // role. Listing them by id is what makes a FOURTH region growing a headline
+  // figure fail here instead of joining a silent allowance.
+  const strays = document.querySelectorAll(".stand-figure-value")
+    .filter((node) => !inside(node, answer))
+    .filter((node) => !underSubordinate(node));
+  assert.deepEqual(strays.map((node) => node.id),
+    ["finops-stand-recoverable-value", "finops-stand-floor-value", "finops-peer-answer",
+      "finops-glance-lead"],
+    "a figure below the answer is drawn at the answer's own emphasis");
+  for (const node of strays) {
+    assert.ok(node.closest("#finops-stand"),
+      `${node.id} states a headline figure outside both the answer and the declared headline`);
+  }
+});
+
+test("the focus order runs answer, action, evidence before the illustration's controls", async () => {
+  const page = await coldOpen();
+  try {
+    const { document } = page;
+    const order = tabSequence(document);
+    const positionOf = (id) => order.findIndex((node) => node.id === id);
+
+    // Question and figure carry no control — they are read, not tabbed to — so
+    // the keyboard claim is about what comes after them: the answer's own move,
+    // then its evidence, then anything belonging to the worked example.
+    const action = positionOf(ACTION);
+    const evidence = positionOf(`${EVIDENCE}-summary`);
+    assert.ok(action >= 0 && evidence > action, "the answer's evidence no longer follows its action");
+
+    const worked = byId(document, "finops-first-run");
+    const firstIllustrationStop = order.findIndex((node) => inside(node, worked));
+    assert.ok(firstIllustrationStop > evidence,
+      "a control of the worked example is reached before the answer's own action and evidence");
+
+    // NO NEW TAB STOP. The first screen's budget is full, so this change adds no
+    // focusable of its own: everything a keyboard reader reaches inside <main>
+    // before the illustration belongs to the answer.
+    const main = byId(document, "main-content");
+    const leading = order.slice(0, firstIllustrationStop).filter((node) => inside(node, main));
+    for (const node of leading) {
+      assert.ok(inside(node, byId(document, ANSWER)),
+        `${node.id || node.tagName} is neither the answer's nor the illustration's, and it leads the page`);
+    }
+  } finally {
+    page.restore();
+  }
+});

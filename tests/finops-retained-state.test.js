@@ -279,7 +279,18 @@ const boot = async (storage = {}) => {
 const byId = (page, id) => page.document.getElementById(id);
 const provenance = (page) => textOf(byId(page, PRICING_PROVENANCE_IDS.score));
 
-/** Everything in `<main>` before the first-run region: the first screen's words. */
+/**
+ * Everything in `<main>` before the first-run region: the first screen's words.
+ *
+ * ONE SENTENCE IS SKIPPED, and it is named rather than pattern-matched. #1687
+ * moved the canonical answer above the worked example, which brought the
+ * answer's synthetic-data marker inside this slice; that marker says the figures
+ * are "modelled in this browser", which is a claim about where the arithmetic
+ * ran and not about anything being kept. Every other word of the answer region
+ * is still read, so a retention claim growing anywhere else up here still fails.
+ */
+const PROVENANCE_MARKER = "finops-canonical-answer-synthetic";
+
 function firstScreenText(document) {
   const parts = [];
   const visit = (node) => {
@@ -289,6 +300,7 @@ function firstScreenText(document) {
         continue;
       }
       if (child?.nodeType !== 1) continue;
+      if (child.id === PROVENANCE_MARKER) continue;
       if (child.id === FIRST_RUN_IDS.region) return true;
       if (visit(child)) return true;
     }

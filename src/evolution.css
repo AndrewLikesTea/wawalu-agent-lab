@@ -1539,8 +1539,16 @@
    change: this is the same clamp the rule above gives every subordinate heading,
    named for those two headings rather than for `h3`, so no other h3 on the page
    moves a pixel. */
+/* AND THE ONE ROLE CLASS THAT OUTRANKED THE ANSWER (#1687). `.answer-question`
+   is this page's headline-question rung — clamp(24px,3.6vw,34px) — and a demoted
+   region wearing it kept drawing at 34px while the canonical answer's own h2 sat
+   at the browser default 24px, so heading rank said "subordinate" and type size
+   said "headline". The rule above only reaches h1 and h2; this reaches the role
+   wherever it is used, at any rank, inside anything already declared
+   subordinate. No new size: it is the same rung as every line above. */
 .next-step[data-subordinate="true"] .next-step-head h3,
-.finops-journey[data-subordinate="true"] .fjc-head h3 { font-size:clamp(18px,2.2vw,22px); line-height:1.2; }
+.finops-journey[data-subordinate="true"] .fjc-head h3,
+[data-subordinate="true"] .answer-question { font-size:clamp(18px,2.2vw,22px); line-height:1.2; }
 .first-run[data-subordinate="true"],
 .next-step[data-subordinate="true"] { border-left-width:3px; border-left-color:var(--ink-muted); background:#fff; }
 /* THE HERO'S LEADING SPACE, BUDGETED IN THE PIXELS IT COSTS THE ANSWER.
@@ -1569,7 +1577,15 @@
 /* The demoted first-run block. It keeps every word; it stops competing for the
    eye with the headline above it. */
 .first-run[data-subordinate="true"] .first-run-answer { font-size:clamp(15px,1.6vw,17px); }
-.first-run[data-subordinate="true"] .first-run-value { font-size:clamp(16px,1.8vw,19px); }
+/* `.stand-figure-value` joins the same rung for the same reason (#1687): it is
+   the page's ONE largest-number role, and three regions below the answer were
+   drawing a figure of their own at its full clamp(22px,3vw,30px) — the same
+   emphasis as the $51,254 the page exists to state. Demoted here rather than
+   restyled per region, so the role stays exclusive to whatever is not
+   subordinate, which on this page is the answer. The unavailable state keeps its
+   warn ink, its 700 weight and its dashed rail; only the ramp moves. */
+.first-run[data-subordinate="true"] .first-run-value,
+[data-subordinate="true"] .stand-figure-value { font-size:clamp(16px,1.8vw,19px); }
 
 /* The first-run synthetic result: the populated answer a visitor with no export
    meets above the fold. It reads as one block — label, sample marker, three

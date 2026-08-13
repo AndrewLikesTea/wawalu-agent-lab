@@ -129,12 +129,22 @@ test("a cold open states one question, one headline metric, and one next action"
 
     // THE PAGE AS IT STANDS AFTER LOADING, not as it is authored. While this
     // browser keeps no period, `leadWithWorkedDecision` moves the worked example
-    // and the track-record header under the hero, so an authored-order assertion
+    // and the track-record header up the page, so an authored-order assertion
     // describes a page no cold visitor sees.
+    //
+    // #1687 moved the anchor of that hoist from the hero to the answer. The pair
+    // used to land between the page name and the canonical answer, which put a
+    // second worked finding — its own question at heading rank, its own figure,
+    // its own confidence and its own action — ahead of the one the page is for.
+    // The first three blocks are asserted by position, not by relative order,
+    // because "the answer is somewhere above the supporting sections" is the
+    // weaker claim that let the rival sit above it in the first place.
     const blocks = childIds(byId(document, "main-content"));
     assert.equal(blocks[0], "finops-hero", "the page's own name no longer comes first");
-    assert.equal(blocks[1], FIRST_RUN_IDS.region,
-      "the worked example no longer leads a browser that is keeping nothing");
+    assert.equal(blocks[1], ANSWER_REGION_ID,
+      "a block a cold visitor did not come for sits between the page name and the answer");
+    assert.equal(blocks[2], FIRST_RUN_IDS.region,
+      "the worked example no longer reads directly under the answer it illustrates");
     assert.ok(blocks.indexOf(ANSWER_REGION_ID) < blocks.indexOf("finops-stand"),
       "the answer moved below a section that supports it");
     const region = byId(document, ANSWER_REGION_ID);
@@ -187,19 +197,22 @@ test("the next action is reached by tab from the lead finding and carries the re
     const { document } = page;
     const order = tabSequence(document).map((node) => node.id);
 
-    // The lead finding a cold visitor meets is the worked example; the answer's
-    // action is downstream of it in the one tab sequence, so a reader who tabs
-    // out of the finding arrives at the move rather than at a supporting panel.
+    // The lead finding a cold visitor meets is the ANSWER (#1687), so its action
+    // is the first move offered and the worked example's own next step is
+    // downstream of it. Before this the order ran the other way: a reader tabbing
+    // out of the page name reached the illustration's step first and the move the
+    // page recommends second.
     const finding = order.indexOf(FIRST_RUN_IDS.import);
     const target = order.indexOf(ACTION_ID);
     assert.ok(finding >= 0, "the lead finding's own next step is not keyboard reachable");
-    assert.ok(target > finding,
-      `the recommended action is reached before the finding it follows: ${order.slice(0, 6).join(", ")}`);
+    assert.ok(target >= 0 && target < finding,
+      `the worked example's step is reached before the move the answer recommends: ${order.slice(0, 6).join(", ")}`);
 
     // Every stop between the two is inside the content region: nothing sends a
-    // keyboard reader out through the header or the footer to reach the move.
+    // keyboard reader out through the header or the footer between the move and
+    // the illustration that supports it.
     const main = byId(document, "main-content");
-    const between = tabSequence(document).slice(finding, target + 1);
+    const between = tabSequence(document).slice(target, finding + 1);
     for (const stop of between) {
       assert.ok(inside(stop, main),
         `${stop.id || stop.tagName} sits outside <main> on the path to the action`);

@@ -438,11 +438,16 @@ test("with no period on file, the worked decision leads and the header reads und
       TRACK_RECORD_STATE.none);
 
     // The page's own name first, then the answer this page promises before any
-    // file is chosen — not the empty state of a record nobody started.
+    // file is chosen — not the empty state of a record nobody started, and since
+    // #1687 not the worked example either. The example illustrates the answer, so
+    // it reads under it; hoisting it above put a second question at heading rank,
+    // a second figure and a second action between the page name and the finding.
     const blocks = childIds(document.getElementById("main-content"));
     assert.equal(blocks[0], "finops-hero", "the page's own name no longer comes first");
-    assert.equal(blocks[1], FIRST_RUN_IDS.region,
-      "the first block under the page's name is not the worked decision");
+    assert.equal(blocks[1], "finops-recoverable-answer",
+      "the first block under the page's name is not the canonical answer");
+    assert.equal(blocks[2], FIRST_RUN_IDS.region,
+      "the worked decision no longer reads directly under the answer it works through");
 
     // It is the whole worked decision that moved, not a summary of it: the
     // per-successful-task position and the named first action came with it.
@@ -538,15 +543,20 @@ test("leading with the worked decision spends no tab stop and reorders no contro
     const worked = order.findIndex((node) => node.id === FIRST_RUN_IDS.region);
     const above = reachable(order.slice(0, worked));
 
-    // Read off the page as it stands, not chosen. Everything above the worked
-    // decision is now the hero, and the hero carries no control at all — so the
-    // move spent nothing: the first control a keyboard reader reaches after the
-    // skip link's destination is still the first control of an answer. The count
-    // is EXACT so that a control added up here — where the first screen's tab
-    // budget is already spent — turns this red rather than quietly landing
-    // between that destination and the answer a reader came for.
-    assert.equal(above.length, 0,
+    // Read off the page as it stands, not chosen. Above the worked decision are
+    // the hero, which carries no control at all, and the canonical answer, which
+    // #1687 put back in front of it. So the move still spends nothing of its own:
+    // every stop up there belongs to the answer a reader came for. The list is
+    // EXACT, and it is a list of ids rather than a count, so a control added up
+    // here — where the first screen's tab budget is already spent — turns this
+    // red rather than quietly landing between the skip link's destination and
+    // that answer.
+    assert.deepEqual(above.map((node) => node.id), ["finops-recoverable-action"],
       `${above.map((node) => node.id || node.tagName).join(", ")} sits above the worked decision`);
+    for (const node of above) {
+      assert.ok(node.closest("#finops-recoverable-answer"),
+        `${node.id || node.tagName} is neither the hero's nor the answer's, and it leads the page`);
+    }
 
     // Tab order follows visual order because the block that moved BELOW the
     // worked decision brought no control with it: this state names its step in

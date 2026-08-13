@@ -418,6 +418,15 @@ export function renderTrackRecord(document, model_) {
 /** The bundled worked decision this page already ships, and the region with the h1. */
 const WORKED_DECISION_ID = "finops-first-run";
 const HERO_ID = "finops-hero";
+/**
+ * The canonical answer, and the block both movers land BELOW (#1687).
+ *
+ * This is the region the page exists to state — the question, the money, how far
+ * to trust it, one move — and the authored markup already puts it directly under
+ * the hero. Naming it here is what keeps the moved pair from being inserted
+ * above it; see `leadWithWorkedDecision`.
+ */
+const ANSWER_ID = "finops-recoverable-answer";
 
 /** The authored slot of a block that moves — parent AND position — kept per node. */
 const authoredHome = new WeakMap();
@@ -448,9 +457,24 @@ const sendHome = (node) => {
  * A reader arriving on the homepage's claim that a worked decision is already
  * computed here met this header's EMPTIEST state first: an answer about a file
  * nobody had asked them to bring. So while this browser keeps no period, both
- * blocks move under the region holding the page's h1 — the worked decision, then
- * this header directly below it, reading as an invitation under a result rather
- * than in place of one. Both move back the moment a period is on file.
+ * blocks move up the page — the worked decision, then this header directly below
+ * it, reading as an invitation under a result rather than in place of one. Both
+ * move back the moment a period is on file.
+ *
+ * THEY LAND UNDER THE ANSWER, NOT UNDER THE h1 (#1687). The first version of
+ * this move anchored on the hero, which put a whole second worked answer — its
+ * own question at heading rank, its own figure, its own confidence line and its
+ * own action — between the page name and the one answer the page is for. A CTO
+ * opening this cold read two findings before the canonical one and spent the
+ * glance deciding which was the answer. Anchoring on the canonical answer costs
+ * nothing the #1112 fix bought: the empty record still arrives under a result
+ * rather than in place of one, and it is now under the RIGHT result. The
+ * authored order already reads hero, answer, so the two anchors differ by
+ * exactly one block, and `tests/evolution.test.js` pins that authored slot.
+ *
+ * The hero is still the fallback anchor. A document that shipped without the
+ * answer region has no canonical answer to sit under, and hoisting the worked
+ * decision under the page name is a better failure than not hoisting at all.
  *
  * THE STATE IS NOT RECOMPUTED HERE: it is the model's own `none`, the predicate
  * that wrote the sentence in the region. One storage read, no second opinion.
@@ -463,8 +487,8 @@ const sendHome = (node) => {
 export function leadWithWorkedDecision(document, model_) {
   const region = document.getElementById(TRACK_RECORD_IDS.region);
   const worked = document.getElementById(WORKED_DECISION_ID);
-  const hero = document.getElementById(HERO_ID);
-  if (!region || !worked || !hero?.parentNode) return null;
+  const anchor = document.getElementById(ANSWER_ID) ?? document.getElementById(HERO_ID);
+  if (!region || !worked || !anchor?.parentNode) return null;
   rememberHome(worked);
   rememberHome(region);
   if (model_.state !== TRACK_RECORD_STATE.none) {
@@ -472,7 +496,7 @@ export function leadWithWorkedDecision(document, model_) {
     sendHome(region);
     return region;
   }
-  hero.parentNode.insertBefore(worked, slotAfter(hero));
-  hero.parentNode.insertBefore(region, slotAfter(worked));
+  anchor.parentNode.insertBefore(worked, slotAfter(anchor));
+  anchor.parentNode.insertBefore(region, slotAfter(worked));
   return worked;
 }
