@@ -47,10 +47,10 @@ const TEXT_POST = {
 // The headline each state puts on screen. Whichever one is active, the other
 // three of these must not appear anywhere in the page's text.
 const STATE_HEADLINES = {
-  loading: "Fetching it from the feed…",
+  loading: "Shiplog is opening a single shared post from Social…",
   loaded: "Post by ",
   "not-found": "Post unavailable",
-  error: "Post could not be loaded",
+  error: "Post could not be opened",
 };
 
 const seedResponse = (posts) => ({ ok: true, status: 200, json: async () => ({ posts }) });
@@ -195,7 +195,7 @@ test("an answered feed with no matching id is not-found, not an error", async ()
   const refused = await openPostPage("?id=p-gone", () => ({ ok: false, status: 503, json: async () => ({}) }));
   try {
     assertOneState(refused, "error", "the feed returned 503");
-    assert.match(textOf(refused.panel), /We couldn’t reach the Social feed to load this post\./);
+    assert.match(textOf(refused.panel), /The Social feed did not respond\./);
     // The status code is the page's business, not the reader's.
     assert.equal(textOf(refused.panel).includes("503"), false);
   } finally {
@@ -311,8 +311,9 @@ test("an unreachable feed is named as such, with a keyboard-reachable retry afte
     // It names what failed. "Unavailable" would be a verdict about the post; a
     // reader needs to know the feed is the thing that did not answer, because
     // that is what tells them trying again is worth anything.
-    assert.match(textOf(page.panel), /We couldn’t reach the Social feed to load this post\./);
-    assert.equal(textOf(page.panel.querySelector(".empty-title")), "Post could not be loaded");
+    assert.match(textOf(page.panel), /The Social feed did not respond\./);
+    assert.equal(textOf(page.panel.querySelector(".empty-title")), "Post could not be opened");
+    assert.equal(textOf(page.panel.querySelector(".detail-state-feed")), "Open the full Social feed");
     // A word, not just a wash: the state reads with the stylesheet gone.
     assert.equal(textOf(page.panel.querySelector(".detail-state-chip")), "Unreachable");
 
@@ -747,7 +748,7 @@ test("every state the page can reach puts exactly one of the four on screen", as
     assert.equal(panel.getAttribute("aria-busy"), "true");
     // The wait carries visible words, not a bare spinner: the dot is aria-hidden
     // decoration and the sentence is the state.
-    assert.equal(textOf(panel.querySelector(".detail-loading-text")), "Fetching it from the feed…");
+    assert.equal(textOf(panel.querySelector(".detail-loading-text")), "Shiplog is opening a single shared post from Social…");
     assert.equal(panel.querySelector(".detail-loading-dot").getAttribute("aria-hidden"), "true");
 
     release();
@@ -780,10 +781,10 @@ test("every state the page can reach puts exactly one of the four on screen", as
 // an icon to be understood. Asserted on text with every class name ignored.
 test("all four states carry a visible text label, not colour alone", async () => {
   const labels = {
-    loading: /Fetching it from the feed…/,
+    loading: /Shiplog is opening a single shared post from Social…/,
     loaded: /Rowan Diaz/,
     "not-found": /Post unavailable/,
-    error: /Post could not be loaded/,
+    error: /Post could not be opened/,
   };
 
   const settledCases = [
