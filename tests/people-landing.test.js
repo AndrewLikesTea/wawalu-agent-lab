@@ -148,7 +148,7 @@ test("a first-time visitor lands on a display name that has image posts", async 
     // Zed has the most image posts; Ari sorts first and has none. Landing on Ari
     // is the reported defect — a verdict about an empty name nobody chose.
     assert.equal(selectedChip(page)?.dataset.author, "Zed");
-    assert.equal(textOf(document.querySelector("#profile-name")), "Active display-name filter: Zed",
+    assert.equal(textOf(document.querySelector("#profile-name")), "People is filtered to Zed’s image posts.",
       "the header names someone other than the picker's own value");
     assert.match(textOf(document.querySelector(".profile-role")),
       /^A display name in the Social feed is not a signed-in user[\s\S]*anyone can publish under any name\.$/,
@@ -262,7 +262,7 @@ test("an explicit name wins even when it has no image posts", async () => {
     try {
       const { document } = page;
       assert.equal(selectedChip(page)?.dataset.author, "Ari", `${how} did not survive the landing default`);
-      assert.equal(textOf(document.querySelector("#profile-name")), "Active display-name filter: Ari");
+      assert.equal(textOf(document.querySelector("#profile-name")), "People is filtered to Ari’s image posts.");
       assert.equal(document.querySelectorAll(".profile-tile").length, 0);
       assert.equal(document.querySelectorAll(".empty-state").length, 1);
       const status = document.querySelector("#profile-feed-status");
@@ -315,9 +315,9 @@ test("every entry says how many image posts that display name has, and which one
     // Singular for exactly one; a bare zero only for a name the feed answered
     // zero for. Zed is selected, and says so in words rather than in colour.
     assert.deepEqual(chipTexts(page), [
-      "Ari · 0 image posts",
-      "Bea · 1 image post",
-      "✓ Showing Zed · 2 image posts",
+      "Filter People to Ari’s image posts · 0 image posts",
+      "Filter People to Bea’s image posts · 1 image post",
+      "✓ Selected: Filter People to Zed’s image posts · 2 image posts",
     ]);
     // The value stays the bare display name: the label is for the reader, the
     // data attribute is what the page filters and links by.
@@ -325,7 +325,7 @@ test("every entry says how many image posts that display name has, and which one
     // Present on every entry, not only the pressed one.
     assert.deepEqual(chips(page).map((chip) => chip.getAttribute("aria-pressed")), ["false", "false", "true"]);
     // The mark is a character and a word, so the distinction survives greyscale.
-    assert.equal(chipTexts(page).filter((text) => text.includes("✓ Showing")).length, 1);
+    assert.equal(chipTexts(page).filter((text) => text.includes("✓ Selected:")).length, 1);
     // A name with nothing to show is still selectable — its count is the thing
     // that tells the reader it is empty.
     assert.equal(chips(page)[0].hasAttribute("disabled"), false);
@@ -342,7 +342,7 @@ test("the counts on the picker are the rows the grid draws, name by name", async
   try {
     const { document } = page;
     const claimed = new Map(chipTexts(page).map((text) => {
-      const [, name, count] = text.match(/(?:✓ Showing )?(.+) · (\d+) image posts?$/);
+      const [, name, count] = text.match(/(?:✓ Selected: )?Filter People to (.+)’s image posts · (\d+) image posts?$/);
       return [name, Number(count)];
     }));
     assert.deepEqual([...claimed], [["Ari", 0], ["Bea", 1], ["Zed", 2]]);
@@ -351,7 +351,7 @@ test("the counts on the picker are the rows the grid draws, name by name", async
       chipFor(page, name).click();
       assert.equal(document.querySelectorAll(".profile-tile").length, count,
         `the picker promised ${count} image posts for ${name} and the grid drew something else`);
-      assert.equal(textOf(document.querySelector("#profile-name")), `Active display-name filter: ${name}`);
+      assert.equal(textOf(document.querySelector("#profile-name")), `People is filtered to ${name}’s image posts.`);
     }
   } finally {
     page.restore();
@@ -398,7 +398,7 @@ test("a name whose posts are all gone says zero and offers the way to fill it", 
   });
   try {
     const { document } = page;
-    assert.equal(chipTexts(page).includes("Bea · 0 image posts"), true, chipTexts(page).join(" / "));
+    assert.equal(chipTexts(page).includes("Filter People to Bea’s image posts · 0 image posts"), true, chipTexts(page).join(" / "));
     chipFor(page, "Bea").click();
     assert.equal(document.querySelectorAll(".profile-tile").length, 0);
     // The existing invitation, not a new one and not a blank region.
@@ -470,7 +470,7 @@ test("a display name that is markup is rendered as text and forges no second rou
     // of the places the name still lands as text. Parsed markup would have left
     // only the anchor's own text behind.
     assert.equal(resultsHeading(document), `${DECOY_NAME} · 0 image posts`);
-    assert.equal(textOf(document.querySelector("#profile-name")), `Active display-name filter: ${DECOY_NAME}`);
+    assert.equal(textOf(document.querySelector("#profile-name")), `People is filtered to ${DECOY_NAME}’s image posts.`);
     // The header block the name is written into holds no link at all, so a
     // forged one would be the only anchor in it. The page's one route to Social
     // is the intro's, above it, and the name never reaches that sentence.
@@ -507,7 +507,7 @@ test("choosing another name updates the page in place and keeps the URL and stor
       // Focus stays on the display name that was just chosen, even though the
       // chips were rebuilt around it.
       assert.equal(document.activeElement?.dataset.author, "Bea");
-      assert.equal(textOf(document.querySelector("#profile-name")), "Active display-name filter: Bea");
+      assert.equal(textOf(document.querySelector("#profile-name")), "People is filtered to Bea’s image posts.");
       assert.equal(textOf(document.querySelector(".profile-role")).includes("Bea"), false);
       assert.match(textOf(document.querySelector("#profile-summary")), /^1 image post /);
       assert.equal(document.querySelectorAll(".profile-tile").length, 1);
@@ -528,7 +528,7 @@ test("selecting with the pointer moves the heading, the list, the URL, and the s
     chipFor(page, "Bea").click();
 
     assert.equal(selectedChip(page)?.dataset.author, "Bea");
-    assert.equal(textOf(document.querySelector("#profile-name")), "Active display-name filter: Bea");
+    assert.equal(textOf(document.querySelector("#profile-name")), "People is filtered to Bea’s image posts.");
     assert.match(textOf(document.querySelector("#profile-summary")), /^1 image post /);
     assert.equal(document.querySelectorAll(".profile-tile").length, 1);
     // In place: no navigation, and the selection is carried in the URL and in
@@ -562,9 +562,9 @@ test("a page whose posts have not landed says it is counting, and the heading st
       "the picker renders its first entries",
     );
     const texts = picker.children.map((chip) => textOf(chip));
-    assert.deepEqual(texts, ["Ari · Counting…", "Bea · Counting…", "✓ Showing Zed · Counting…"]);
+    assert.deepEqual(texts, ["Filter People to Ari’s image posts · Counting…", "Filter People to Bea’s image posts · Counting…", "✓ Selected: Filter People to Zed’s image posts · Counting…"]);
     // Not one number anywhere, and above all not a zero.
-    assert.equal(texts.filter((text) => /image posts?/.test(text)).length, 0);
+    assert.equal(texts.filter((text) => /· \d+ image posts?$/.test(text)).length, 0);
     // The names and the pressed state are already right — only the counts wait.
     assert.deepEqual(picker.children.map((chip) => chip.getAttribute("aria-pressed")), ["false", "false", "true"]);
     // The results heading waits with them. It names the display name that is
@@ -737,7 +737,7 @@ test("the display name is visible twice in the results region, and no more", asy
     // The two that are left say different things about the same name: what the
     // results are, and which picker entry chose them.
     assert.equal(resultsHeading(document), "Ari · 0 image posts");
-    assert.equal(textOf(document.querySelector("#profile-name")), "Active display-name filter: Ari");
+    assert.equal(textOf(document.querySelector("#profile-name")), "People is filtered to Ari’s image posts.");
     // The lines that gave up their copy still say their own thing: Ari has
     // posted, just never a picture, and the counts carry that without a name.
     assert.match(textOf(document.querySelector("#profile-summary")), /^0 image posts · 1 post in total · last posted /);
@@ -836,9 +836,9 @@ test("arriving with no name asked for lists every display name with its count an
     // The whole set on arrival, each entry carrying its count as words rather
     // than a bare figure beside a name.
     assert.deepEqual(chipTexts(page), [
-      "Ari · 0 image posts",
-      "Bea · 1 image post",
-      "✓ Showing Zed · 2 image posts",
+      "Filter People to Ari’s image posts · 0 image posts",
+      "Filter People to Bea’s image posts · 1 image post",
+      "✓ Selected: Filter People to Zed’s image posts · 2 image posts",
     ]);
     for (const text of chipTexts(page))
       assert.match(text, /· \d+ image posts?$/, `an entry states a number without saying what it counts: ${text}`);
@@ -883,7 +883,7 @@ test("choosing a name by keyboard moves the page and announces it once, from one
 
     // The three things a reader watches, moved together by the one selection.
     assert.equal(resultsHeading(document), "Bea · 1 image post");
-    assert.equal(textOf(document.querySelector("#profile-name")), "Active display-name filter: Bea");
+    assert.equal(textOf(document.querySelector("#profile-name")), "People is filtered to Bea’s image posts.");
     assert.equal(tileCount(document), 1);
     // Once, in one voice. Two code paths writing the same news, or a second
     // live region rendering it, is what a screen reader hears twice.

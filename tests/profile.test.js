@@ -159,18 +159,18 @@ test("the landing name is the fullest profile, ties broken by the picker's own o
 });
 
 test("a picker entry carries its image-post count in the button's own text", () => {
-  assert.equal(authorChipLabel("Mina", 2), "Mina · 2 image posts");
-  assert.equal(authorChipLabel("Ari", 1), "Ari · 1 image post");
+  assert.equal(authorChipLabel("Mina", 2), "Filter People to Mina’s image posts · 2 image posts");
+  assert.equal(authorChipLabel("Ari", 1), "Filter People to Ari’s image posts · 1 image post");
   // A name with nothing to show stays in the picker; the count is what says so.
-  assert.equal(authorChipLabel("Kai", 0), "Kai · 0 image posts");
+  assert.equal(authorChipLabel("Kai", 0), "Filter People to Kai’s image posts · 0 image posts");
   // Three states, not two. A store that has not answered says so; only an
   // answered store is allowed to say zero.
-  assert.equal(authorChipLabel("Kai", null), "Kai · Counting…");
-  assert.equal(authorChipLabel("Kai", undefined), "Kai · Counting…");
+  assert.equal(authorChipLabel("Kai", null), "Filter People to Kai’s image posts · Counting…");
+  assert.equal(authorChipLabel("Kai", undefined), "Filter People to Kai’s image posts · Counting…");
   // The selected entry carries a word and a glyph, so which one is showing is
   // not told by colour. The count survives the mark.
-  assert.equal(authorChipLabel("Mina", 2, { selected: true }), "✓ Showing Mina · 2 image posts");
-  assert.equal(authorChipLabel("Kai", null, { selected: true }), "✓ Showing Kai · Counting…");
+  assert.equal(authorChipLabel("Mina", 2, { selected: true }), "✓ Selected: Filter People to Mina’s image posts · 2 image posts");
+  assert.equal(authorChipLabel("Kai", null, { selected: true }), "✓ Selected: Filter People to Kai’s image posts · Counting…");
 });
 
 test("the picker lists every name the posts carry, and the selected one either way", () => {
@@ -198,12 +198,12 @@ test("each picker entry is a button that names itself, its count, and its state"
   // the render layer set, not as an attribute.
   assert.deepEqual(container.children.map((chip) => chip.type), ["button", "button"]);
   assert.deepEqual(container.children.map((chip) => chip.textContent),
-    ["Kai · 1 image post", "✓ Showing Mina · 2 image posts"]);
+    ["Filter People to Kai’s image posts · 1 image post", "✓ Selected: Filter People to Mina’s image posts · 2 image posts"]);
   // Present on both, not omitted on the unpressed one: a toggle that only
   // marks the pressed chip reads as a plain button that happens to be pressed.
   assert.deepEqual(container.children.map((chip) => chip.getAttribute("aria-pressed")), ["false", "true"]);
   // The mark is text, so the selected chip is legible with colour off.
-  assert.equal(container.children.filter((chip) => chip.textContent.includes("✓ Showing")).length, 1);
+  assert.equal(container.children.filter((chip) => chip.textContent.includes("✓ Selected:")).length, 1);
   // One silhouette for every entry: a display name is a static classification,
   // so nothing here is signalled by a changed chip treatment.
   assert.deepEqual(container.children.map((chip) => chip.className), ["profile-filter-option", "profile-filter-option"]);
@@ -250,8 +250,8 @@ test("an uncounted picker says it is counting rather than claiming a zero", () =
   const container = createElement("div");
   renderAuthorPicker(container, pickerEntries([imagePost, otherPost], "Mina"), { author: "Mina", counted: false });
   assert.deepEqual(container.children.map((chip) => chip.textContent),
-    ["Kai · Counting…", "✓ Showing Mina · Counting…"]);
-  assert.equal(container.children.filter((chip) => chip.textContent.includes("image post")).length, 0);
+    ["Filter People to Kai’s image posts · Counting…", "✓ Selected: Filter People to Mina’s image posts · Counting…"]);
+  assert.equal(container.children.filter((chip) => /· \d+ image posts?$/.test(chip.textContent)).length, 0);
 });
 
 test("the grid selects this author's image posts, newest first", () => {
@@ -472,7 +472,7 @@ test("the profile and post pages are wired, labelled, and reachable", async () =
   // the term the composer, the feed filter, and this page's own description all
   // use. "Show posts by" alone left the menu's contents unnamed, so the page
   // described them as one thing and every other surface as another.
-  assert.match(profile, /<legend id="profile-author-label">Show posts by display name<\/legend>/);
+  assert.match(profile, /<legend id="profile-author-label">Choose a display name<\/legend>/);
   // The group is what the hint describes, and the container profile.js fills is
   // inside it, so the instruction is attached to the controls rather than to one
   // of them.
@@ -539,7 +539,7 @@ test("the header shows who this is and what the counts mean", () => {
   renderProfileHeader(elements, "Mina Okafor", { total: 3, withImages: 2, likes: 6, latest: "2026-07-15T09:00:00.000Z" });
   assert.equal(elements.avatar.textContent, "MO");
   assert.equal(elements.avatar.getAttribute("aria-hidden"), "true", "the avatar is decoration beside the name");
-  assert.equal(elements.name.textContent, "Active display-name filter: Mina Okafor");
+  assert.equal(elements.name.textContent, "People is filtered to Mina Okafor’s image posts.");
   assert.match(elements.summary.textContent, /^2 image posts · 3 posts in total · last posted /);
   // The header writes the display name into exactly one of the elements it
   // touches. The heading beside them carries it a second time and that is the
