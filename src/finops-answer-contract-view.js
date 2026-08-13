@@ -76,9 +76,9 @@ const CHIP_STATUS = Object.freeze({
 /** The one sentence each state puts beside its chip. */
 const STATE_SUMMARY = Object.freeze({
   [ANSWER_STATE.loading]:
-    "Resolving one annual figure, the benchmark behind it, and the action it implies.",
+    "Resolving this scenario's annual figure, the benchmark behind it, and the action it implies.",
   [ANSWER_STATE.answered]:
-    "One annual figure, the benchmark it is measured against, and the action it implies.",
+    "This scenario's annual figure, the benchmark it is measured against, and the action it implies.",
   [ANSWER_STATE.empty]: "No answer is stated, because an input it is defined from is absent.",
   [ANSWER_STATE.withheld]: "No answer is stated, because a rule this figure must pass refused it.",
   [ANSWER_STATE.error]: "The bundled analysis did not load, so nothing here was computed.",
@@ -157,9 +157,14 @@ export function renderRecoverableSpend(doc, recoverable) {
   set(doc, RECOVERABLE_SPEND_IDS.label, RECOVERABLE_SPEND_LABEL);
   set(doc, RECOVERABLE_SPEND_IDS.value,
     stated ? recoverable.monthlyDisplay : "Not stated");
+  // WHAT TO DO WHEN THERE IS NO FIGURE. The unavailable sentence used to restate
+  // the absence twice and stop there, which leaves a reader with no move. It
+  // names the same next step the region's own error state names, in the voice of
+  // the headline sentence above it: what did not happen, then what to press.
   const basis = recoverable
     ? recoverable.basisSentence
-    : `${ERROR_SENTENCE} No recoverable figure is stated for it.`;
+    : "The bundled analysis did not load, so no recoverable figure is stated."
+      + ` ${STATE_NEXT[ANSWER_STATE.error]}`;
   // #1667: stated once. The disclosure carried the identical sentence.
   set(doc, RECOVERABLE_SPEND_IDS.basis, basis);
   return figure;
@@ -364,7 +369,7 @@ export function renderFinopsAnswer(doc, answer, options = {}) {
   paintAction(doc, answer, answered);
 
   set(doc, `${ID}-reason`, answered ? "" : (loading
-    ? "The answer is resolved locally, from the analysis this page already loaded."
+    ? "This scenario figure is resolved locally, from the analysis this page already loaded."
     : `${state === ANSWER_STATE.error ? ERROR_SENTENCE
       : (answer?.withheldReason?.sentence ?? ERROR_SENTENCE)} ${STATE_NEXT[state] ?? ""}`.trim()));
 
@@ -393,7 +398,8 @@ export function renderFinopsAnswer(doc, answer, options = {}) {
   // region folded inside a shut details element still reads to a test harness
   // and is silent in a browser, which is the worst of both.
   set(doc, `${ID}-live`, loading ? "" : (answered
-    ? `Answer resolved: ${USD.format(answer.annualSavingsUsd)} a year, ${answer.savingsPercent}%`
+    ? `Scenario figure resolved: ${USD.format(answer.annualSavingsUsd)} a year,`
+      + ` ${answer.savingsPercent}%`
       + ` of the analyzed baseline. ${plausibility.caveat ?? ""}`.trim()
     : `${panelStatusPresentation(CHIP_STATUS[state]).word}: ${STATE_SUMMARY[state]}`));
   return region;

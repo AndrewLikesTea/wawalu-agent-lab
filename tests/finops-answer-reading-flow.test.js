@@ -332,7 +332,7 @@ test("choosing another bundled export restates the briefing on the live page", a
     // The qualifiers on that figure move with it, rather than being left over
     // from the analysis before.
     assert.match(slot(document, "sources"), /readiness/);
-    assert.match(textOf(byId(document, `${ANSWER}-live`)), /Answer resolved/);
+    assert.match(textOf(byId(document, `${ANSWER}-live`)), /Scenario figure resolved/);
   } finally {
     page.restore();
   }
@@ -603,7 +603,7 @@ test("the answer's live region is outside every disclosure in the region", () =>
   assert.equal(insideDisclosure(live), false,
     "a live region folded into a disclosure passes here and is silent in a browser");
   renderFinopsAnswer(document, answered());
-  assert.match(textOf(live), /Answer resolved/);
+  assert.match(textOf(live), /Scenario figure resolved/);
   renderFinopsAnswer(document, null);
   assert.match(textOf(live), /Could not compute/, "the failure is announced, not only drawn");
 });
