@@ -23,7 +23,7 @@ import { readFile, readdir } from "node:fs/promises";
 import { DEMOS, FOLLOW_UP_REDIRECT, IDENTITY, INVITATION, siteFooterMarkup } from "../src/site-footer.js";
 import { FOLLOW_UP_PRIVACY } from "../src/lead-capture.js";
 import { SITE_NAV } from "../src/site-nav.js";
-import { loadPage, parseHtml, pressEnter, pressKey, pressTab, tabSequence, textOf, typeText } from "./support/browser.js";
+import { loadPage, parseHtml, pressEnter, tabSequence, textOf, typeText } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
 
 // Every page of the site. Kept in the same order and to the same rule as
@@ -498,7 +498,9 @@ test("the footer form says what submitting asks for, on the page that carries bo
 
     // The control the visitor presses says the same thing the note does.
     const submit = byId(document, "site-footer-panel").querySelector('button[type="submit"]');
-    assert.equal(textOf(submit), "Request a follow-up");
+    assert.equal(textOf(submit), "Send work email to request a follow-up");
+    assert.equal(textOf(byId(document, "site-footer-email").labels?.[0]
+      ?? document.querySelector('label[for="site-footer-email"]')), "Work email to send to the Wawalu team");
 
     // The button carries no page-specific qualification, so the line outside the
     // panel is what says a follow-up about what — and it is readable before the
@@ -547,17 +549,7 @@ const jsonReply = (body, status = 201) => new Response(JSON.stringify(body), {
   status, headers: { "content-type": "application/json" },
 });
 
-/** Tab from wherever focus is until a control is reached; no mouse involved. */
-function tabTo(document, id) {
-  const stops = tabSequence(document).length;
-  for (let step = 0; step <= stops; step += 1) {
-    const focused = pressTab(document);
-    if (focused?.id === id) return focused;
-  }
-  assert.fail(`"${id}" is not reachable by Tab; a keyboard user cannot use the footer.`);
-}
-
-/** Type an address into the disclosed form and submit it from the keyboard. */
+/** Type an address into the form and submit it from the keyboard. */
 function submitEmail(document, value) {
   const field = byId(document, "site-footer-email");
   field.value = "";
@@ -570,19 +562,19 @@ const settled = (document) => waitFor(
   () => ["success", "error"].includes(byId(document, "site-footer-form").dataset.state),
   "the footer submission to settle");
 
-test("the footer's contact action is collapsed at first paint and says nothing about failure", async () => {
+test("the footer initially renders one email field and one request action, with no outcome UI", async () => {
   const page = await openFooterPage("index.html");
   const { document } = page;
   try {
-    const trigger = byId(document, "site-footer-open");
-    assert.equal(trigger.tagName, "BUTTON", "the action must be a real button, not a clickable div");
-    assert.equal(trigger.getAttribute("type"), "button");
-    assert.equal(textOf(trigger), "Request a follow-up");
-    assert.equal(trigger.getAttribute("aria-expanded"), "false");
-    assert.equal(trigger.getAttribute("aria-controls"), "site-footer-panel");
-    assert.equal(byId(document, "site-footer-panel").hidden, true);
-    assert.ok(!tabSequence(document).includes(byId(document, "site-footer-email")),
-      "a collapsed form must contribute no tab stops");
+    assert.equal(byId(document, "site-footer-panel").hidden, false);
+    // `== null` rather than assert.equal: see tests/follow-up-cta-label.test.js.
+    assert.ok(byId(document, "site-footer-open") == null);
+    assert.equal(byId(document, "site-footer-form").querySelectorAll('input[type="email"]').length, 1);
+    const visibleSubmits = [...byId(document, "site-footer-form").querySelectorAll('button[type="submit"]')]
+      .filter((button) => !button.hidden);
+    assert.equal(visibleSubmits.length, 1);
+    assert.equal(textOf(visibleSubmits[0]), "Send work email to request a follow-up");
+    assert.ok(tabSequence(document).includes(byId(document, "site-footer-email")));
 
     assert.equal(byId(document, "site-footer-error").hidden, true);
     assert.equal(byId(document, "site-footer-recovery").hidden, true);
@@ -595,59 +587,11 @@ test("the footer's contact action is collapsed at first paint and says nothing a
   }
 });
 
-test("the button toggles the form on the keyboard, takes focus, and hands it back", async () => {
-  // Driven on a detail page, where the reveal has the least room and the most to
-  // get wrong: the page's own content is short and the footer is close behind it.
-  const page = await openFooterPage("post.html");
-  const { document } = page;
-  try {
-    const trigger = tabTo(document, "site-footer-open");
-    pressEnter(document);
-    assert.equal(byId(document, "site-footer-panel").hidden, false);
-    assert.equal(trigger.getAttribute("aria-expanded"), "true");
-    assert.equal(document.activeElement?.id, "site-footer-email",
-      "opening a disclosed form must move focus into it, not leave it on the trigger");
-
-    // The form's own controls follow the trigger in the sequence.
-    const ids = tabSequence(document).map((node) => node.id);
-    const order = ["site-footer-open", "site-footer-email", "site-footer-dismiss"];
-    const positions = order.map((id) => ids.indexOf(id));
-    for (const [index, position] of positions.entries())
-      assert.ok(position >= 0, `${order[index]} must be keyboard reachable while the form is open`);
-    assert.deepEqual([...positions].sort((left, right) => left - right), positions,
-      "the disclosed form must follow its trigger in the tab order");
-
-    // Toggling closed is the button's own job, and focus comes back to it.
-    trigger.focus();
-    pressEnter(document);
-    assert.equal(byId(document, "site-footer-panel").hidden, true);
-    assert.equal(trigger.getAttribute("aria-expanded"), "false");
-    assert.equal(document.activeElement, trigger);
-
-    // Escape and the explicit Close button are the same contract.
-    pressEnter(document);
-    assert.equal(byId(document, "site-footer-panel").hidden, false);
-    pressKey(document, "Escape");
-    assert.equal(byId(document, "site-footer-panel").hidden, true);
-    assert.equal(trigger.getAttribute("aria-expanded"), "false");
-    assert.equal(document.activeElement, trigger);
-
-    pressEnter(document);
-    tabTo(document, "site-footer-dismiss");
-    pressEnter(document);
-    assert.equal(byId(document, "site-footer-panel").hidden, true);
-    assert.equal(document.activeElement, trigger);
-  } finally {
-    page.restore();
-  }
-});
-
 test("a submission goes through the shared capture path, and the confirmation says what happens next", async () => {
   const page = await openFooterPage("index.html");
   const { document } = page;
   const calls = interceptLeads((call) => jsonReply({ captured: true, created: call === 1, purpose: "follow_up" }, call === 1 ? 201 : 200));
   try {
-    byId(document, "site-footer-open").click();
     submitEmail(document, TYPED_EMAIL);
     await settled(document);
 
@@ -694,7 +638,6 @@ test("the privacy sentence beside the field is what the request body actually do
   try {
     assert.equal(shownText(document, "site-footer-note"), FOLLOW_UP_PRIVACY);
 
-    byId(document, "site-footer-open").click();
     submitEmail(document, TYPED_EMAIL);
     await settled(document);
 
@@ -715,7 +658,6 @@ test("an obviously invalid address is diagnosed at the field and never reaches t
   const { document } = page;
   const calls = interceptLeads(() => jsonReply({ captured: true, created: true, purpose: "follow_up" }));
   try {
-    byId(document, "site-footer-open").click();
     const field = byId(document, "site-footer-email");
 
     submitEmail(document, "");
@@ -753,7 +695,6 @@ test("a failed submission keeps the typed address, says it can be retried, and t
     ? jsonReply({ error: { code: "storage_unavailable", message: "unreviewed upstream text" } }, 503)
     : jsonReply({ captured: true, created: true, purpose: "follow_up" })));
   try {
-    byId(document, "site-footer-open").click();
     const field = byId(document, "site-footer-email");
     const submit = byId(document, "site-footer-panel").querySelector('button[type="submit"]');
     assert.equal(byId(document, "site-footer-recovery").hidden, true, "recovery copy must not exist before an attempt");
@@ -801,7 +742,7 @@ const IN_SCOPE = ["social.html", "profile.html", "post.html", "coach.html", "rel
 test("every in-scope page ships the same in-place recovery, and none of them points at another page's form", async () => {
   const shared = siteFooterMarkup("    ");
   assert.ok(shared.includes(RECOVERY_COPY), "the shared footer must carry the recovery copy");
-  assert.ok(shared.includes('<button id="site-footer-retry" type="submit" hidden>Retry sending this request</button>'),
+  assert.ok(shared.includes('<button id="site-footer-retry" type="submit" hidden>Retry sending work email to the Wawalu team</button>'),
     "the shared footer must carry the retry control");
 
   for (const file of IN_SCOPE) {
@@ -847,7 +788,6 @@ test("a failed request offers its retry in place: named, keyboard-reachable, ann
   }
 
   try {
-    byId(document, "site-footer-open").click();
     const field = byId(document, "site-footer-email");
     const submit = byId(document, "site-footer-form").querySelector('button[type="submit"]');
 
@@ -870,7 +810,7 @@ test("a failed request offers its retry in place: named, keyboard-reachable, ann
     //    the row — it stands where the send control was rather than beside it.
     const retry = byId(document, "site-footer-retry");
     assert.equal(retry.hidden, false);
-    assert.equal(textOf(retry), "Retry sending this request");
+    assert.equal(textOf(retry), "Retry sending work email to the Wawalu team");
     assert.equal(submit.hidden, true, "two primary controls that do the same thing is not a hierarchy");
     assert.equal(retry.disabled, false);
 
@@ -880,7 +820,7 @@ test("a failed request offers its retry in place: named, keyboard-reachable, ann
     assert.equal(document.activeElement, field);
     assert.equal(retry.getAttribute("autofocus"), null);
     const ids = tabSequence(document).map((node) => node.id);
-    for (const [before, after] of [["site-footer-email", "site-footer-retry"], ["site-footer-retry", "site-footer-dismiss"]])
+    for (const [before, after] of [["site-footer-email", "site-footer-retry"]])
       assert.ok(ids.indexOf(before) >= 0 && ids.indexOf(before) < ids.indexOf(after),
         `${before} must come before ${after} in the tab order`);
 
@@ -899,6 +839,52 @@ test("a failed request offers its retry in place: named, keyboard-reachable, ann
   }
 });
 
+test("the send/retry swap never hides the control a reader is standing on", async () => {
+  // The swap is the one moment this form removes a focused element from the
+  // page, and a browser answers that by dropping focus to the top of the
+  // document — out of the footer, silently. This harness models no layout, so it
+  // would go on reporting the hidden control as focused and show nothing; both
+  // directions are pinned here as an explicit move onto the field, which is the
+  // one control present on both sides of the swap.
+  //
+  // The test presses the buttons rather than submitting from the field, because
+  // submitting from the field is the path where focus is already safe.
+  const page = await openFooterPage("coach.html");
+  const { document } = page;
+  let failNext = true;
+  interceptLeads(() => (failNext
+    ? jsonReply({ error: { code: "storage_error", message: "unreviewed upstream text" } }, 500)
+    : jsonReply({ captured: true, created: true, purpose: "follow_up_coach" })));
+  try {
+    const field = byId(document, "site-footer-email");
+    const submit = byId(document, "site-footer-form").querySelector('button[type="submit"]');
+    const retry = byId(document, "site-footer-retry");
+
+    field.focus();
+    typeText(document, TYPED_EMAIL);
+    submit.focus();
+    pressEnter(document);
+    await settled(document);
+    assert.equal(submit.hidden, true, "the failure hides the control that was pressed");
+    assert.equal(document.activeElement?.id, "site-footer-email",
+      "hiding the pressed control must hand focus to the field, not to the document");
+
+    // And back the other way: sending again puts the send control up and takes
+    // the retry down, while the reader is standing on the retry.
+    failNext = false;
+    retry.focus();
+    pressEnter(document);
+    assert.equal(retry.hidden, true, "the send control stands back up while a retry is in flight");
+    assert.equal(document.activeElement?.id, "site-footer-email");
+
+    await waitFor(() => byId(document, "site-footer-form").dataset.state === "success", "the retry to land");
+    // Success moves focus on purpose, and it is the receipt that takes it.
+    assert.equal(document.activeElement?.id, "site-footer-confirmation");
+  } finally {
+    page.restore();
+  }
+});
+
 // The paragraph ships in the markup of every page, so this checks it where a
 // visitor actually meets it: two pages, driven to failure through the shipped
 // entry rather than read out of the source string.
@@ -908,7 +894,6 @@ for (const file of ["agents.html", "decision.html"]) {
     const { document } = page;
     interceptLeads(() => { throw new TypeError("network error"); });
     try {
-      byId(document, "site-footer-open").click();
       submitEmail(document, TYPED_EMAIL);
       await settled(document);
 
@@ -928,9 +913,8 @@ test("the pending state is announced, not merely spun", async () => {
   const { document } = page;
   let release;
   const pending = new Promise((resolve) => { release = resolve; });
-  interceptLeads(async () => { await pending; return jsonReply({ captured: true, created: true, purpose: "follow_up" }); });
+  const calls = interceptLeads(async () => { await pending; return jsonReply({ captured: true, created: true, purpose: "follow_up" }); });
   try {
-    byId(document, "site-footer-open").click();
     submitEmail(document, TYPED_EMAIL);
     await waitFor(() => byId(document, "site-footer-form").dataset.state === "submitting", "the pending state");
 
@@ -939,6 +923,13 @@ test("the pending state is announced, not merely spun", async () => {
     assert.equal(submit.getAttribute("aria-disabled"), "true");
     assert.equal(shownText(document, "site-footer-status"), "Requesting a follow-up — sending your email address…",
       "the pending state must be in the live region, not only in the button");
+
+    // One address, one request. The form has two submit controls and a field
+    // that submits on Enter, so the guard has to be the form's state and not
+    // whichever control is currently reachable.
+    byId(document, "site-footer-email").focus();
+    pressEnter(document);
+    assert.equal(calls.length, 1, "a submission while one is in flight must not reach the transport twice");
 
     release();
     await settled(document);

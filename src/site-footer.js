@@ -16,10 +16,9 @@
 //      document order. That is what makes it a contentinfo landmark, and it is
 //      why the skip link still skips something: "skip to main content" moves a
 //      reader past the header, and the footer is behind them, not in front.
-//   2. The email affordance is progressive disclosure, not a dialog. A visitor
-//      who wants to ask about Shiplog gets a button, and the button reveals a
-//      form in place. There is no focus trap to escape and nothing overlays the
-//      page they were reading.
+//   2. The email affordance is an inline form, not a dialog or disclosure. A
+//      visitor sees the one field and its action on first paint. There is no
+//      focus trap to escape and nothing overlays the page they were reading.
 //
 // The submission itself is not new work. It is the same transport and the same
 // validation the home page's field-note form and the AI FinOps contact form
@@ -105,13 +104,12 @@ export const DEMOS = Object.freeze([
 ]);
 
 /**
- * The context the button no longer carries.
+ * The context the controls do not carry.
  *
- * Every form on this site that asks a person to get back to you is opened and
- * submitted by a control reading exactly "Request a follow-up" — one label, no
- * page-specific qualification — so the sentence beside it is what says a
- * follow-up about what, from whom. It sits outside the panel because a visitor
- * reads it before deciding whether to open anything.
+ * The button beside it names what it sends — a work email — but not what the
+ * follow-up would be about, or who is on the other end. That is this sentence's
+ * job, and it stands above the form because a visitor reads it before deciding
+ * whether to type an address into anything.
  */
 export const INVITATION = "Questions about Shiplog? Ask the Wawalu team that operates it, and a "
   + "person replies by email.";
@@ -160,14 +158,14 @@ export const FOLLOW_UP_REDIRECT = Object.freeze({
  * of the <footer> element itself; every page places it at body level, so the
  * default is the four spaces the pages already use there.
  *
- * `redirect` replaces the disclosure and its form with a pointer to a page's own
- * follow-up form — see FOLLOW_UP_REDIRECT. The identity paragraph never varies:
- * every page says who runs Shiplog and where.
+ * `redirect` replaces the inline form with a pointer to a page's own follow-up
+ * form — see FOLLOW_UP_REDIRECT. The identity paragraph never varies: every
+ * page says who runs Shiplog and where.
  */
 export function siteFooterMarkup(indent = "    ", { redirect = null, followUpType = null } = {}) {
   const contact = redirect ? [
     `    <a class="site-footer-redirect-link" href="${redirect.href}">${redirect.label}</a>`,
-  ] : contactDisclosureLines(followUpType);
+  ] : contactFormLines(followUpType);
   const lines = [
     '<footer class="site-footer" id="site-footer" aria-labelledby="site-footer-title">',
     '  <div class="site-footer-inner">',
@@ -197,16 +195,13 @@ function demoListLines() {
   ];
 }
 
-function contactDisclosureLines(followUpType) {
+function contactFormLines(followUpType) {
   return [
     `    <p class="site-footer-invitation">${INVITATION}</p>`,
-    '    <button class="site-footer-trigger" id="site-footer-open" type="button" aria-expanded="false" aria-controls="site-footer-panel">',
-    "      Request a follow-up",
-    "    </button>",
-    '    <div class="site-footer-panel" id="site-footer-panel" hidden>',
+    '    <div class="site-footer-panel" id="site-footer-panel">',
     `      <form id="site-footer-form" class="site-footer-form"${followUpType ? ` data-follow-up-type="${followUpType}"` : ""} novalidate>`,
     '        <div class="site-footer-field">',
-    '          <label for="site-footer-email">Work email</label>',
+    '          <label for="site-footer-email">Work email to send to the Wawalu team</label>',
     "          <!-- Only the note is named here. The inline error and the recovery",
     "               paragraph are added to this description by site-footer.js when",
     "               they exist, because a hidden element referenced by",
@@ -218,9 +213,8 @@ function contactDisclosureLines(followUpType) {
     `        <p class="site-footer-note" id="site-footer-note">${FOLLOW_UP_PRIVACY}</p>`,
     '        <p class="site-footer-recovery" id="site-footer-recovery" hidden>We could not send your follow-up request. Your email address is still in the field above, and nothing else on this page changed. Retry sends the same request again from this page; if it keeps failing, wait a few minutes and retry.</p>',
     '        <div class="site-footer-actions">',
-    '          <button type="submit">Request a follow-up</button>',
-    `          <button id="${RETRY_ID}" type="submit" hidden>Retry sending this request</button>`,
-    '          <button id="site-footer-dismiss" type="button">Close</button>',
+    '          <button type="submit">Send work email to request a follow-up</button>',
+    `          <button id="${RETRY_ID}" type="submit" hidden>Retry sending work email to the Wawalu team</button>`,
     "        </div>",
     "      </form>",
     '      <p class="site-footer-status" id="site-footer-status" role="status" aria-live="polite"></p>',
@@ -229,10 +223,10 @@ function contactDisclosureLines(followUpType) {
 }
 
 /**
- * Bring the disclosure and the submission to life. Every page ships the markup,
- * so a page where this never runs still names who operates Shiplog — it just
- * shows a button that does nothing, which is why the button is the only control
- * outside the panel and the panel starts hidden.
+ * Bring the submission to life. Every page ships the markup, so a page where
+ * this never runs still names who operates Shiplog — but nothing intercepts the
+ * submit there, and no request reaches the transport below. It is this listener,
+ * not the markup, that makes the field mean anything.
  *
  * `request` is deferred to call time for the same reason the AI FinOps form
  * defers it: a test that takes over `globalThis.fetch` after the page mounts
@@ -240,13 +234,11 @@ function contactDisclosureLines(followUpType) {
  */
 export function initSiteFooter(root = document, request = (...args) => globalThis.fetch(...args)) {
   const form = root.querySelector("#site-footer-form");
-  const trigger = root.querySelector("#site-footer-open");
   const panel = root.querySelector("#site-footer-panel");
-  if (!form || !trigger || !panel) return null;
+  if (!form || !panel) return null;
 
   const email = form.elements.email;
   const submit = form.querySelector('button[type="submit"]');
-  const dismiss = root.querySelector("#site-footer-dismiss");
   const fieldError = root.querySelector(`#${ERROR_ID}`);
   const status = root.querySelector("#site-footer-status");
   const recovery = root.querySelector(`#${RECOVERY_ID}`);
@@ -262,11 +254,20 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
 
   // A failure is recovered here, on the page it happened on: the retry stands
   // where the send control was and submits this form again, value and all.
+  //
+  // The swap is the one moment this form can hide the control a reader is
+  // standing on, and a browser answers that by dropping focus to the top of the
+  // document — out of the footer, above everything they read, with no
+  // announcement. So the control being hidden hands focus to the field, which is
+  // present on both sides of the swap and is the thing they may want to correct.
+  // Not the control replacing it: the submit path disables that a line later.
   function setRecoveryVisible(visible) {
     recovery.hidden = !visible;
     if (retry) {
+      const stranded = form.ownerDocument.activeElement === (visible ? submit : retry);
       retry.hidden = !visible;
       submit.hidden = visible;
+      if (stranded) email.focus();
     }
     describeWith(email, RECOVERY_ID, visible);
   }
@@ -293,34 +294,6 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
     onReopen: () => { status.textContent = ""; delete form.dataset.state; setOutcomeDescribed(false); },
   });
 
-  function open() {
-    if (!panel.hidden) return;
-    panel.hidden = false;
-    trigger.setAttribute("aria-expanded", "true");
-    // Revealing a form and leaving focus on the trigger above it strands a
-    // keyboard user at the very moment they asked for the form. After a request
-    // has landed there is no form to land in, so the receipt takes the focus.
-    if (confirmation.sent) confirmation.region.focus();
-    else email.focus();
-  }
-
-  function close() {
-    if (panel.hidden) return;
-    panel.hidden = true;
-    trigger.setAttribute("aria-expanded", "false");
-    // Focus returns to the control that opened the panel. Losing it here would
-    // drop the reader at the top of the document, above everything they read.
-    trigger.focus();
-  }
-
-  trigger.addEventListener("click", () => (panel.hidden ? open() : close()));
-  dismiss?.addEventListener("click", close);
-  panel.addEventListener("keydown", (event) => {
-    if (event.key !== "Escape") return;
-    event.preventDefault();
-    close();
-  });
-
   // Editing the field retracts the diagnostic about it. The submission outcome
   // in the live region stays: it reports something that happened, not something
   // about the current value.
@@ -338,7 +311,12 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
 
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
-    if (confirmation.sent) return;
+    // One request in flight, one request per receipt. The disabled control and
+    // the hidden retry make a second submission hard to reach by hand, but this
+    // form now carries two submit buttons and an implicit submission from the
+    // field, so what stops a duplicate POST is stated here rather than left to
+    // emerge from which control happens to be visible.
+    if (confirmation.sent || form.dataset.state === "submitting") return;
     const invalid = emailFieldError(email.value, looksLikeEmail(email.value), CONTACT_COPY);
     if (invalid) {
       // Whatever was typed stays; the field is never cleared to "help".

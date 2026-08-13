@@ -68,7 +68,6 @@ async function mountFooter(file, request) {
 }
 
 function openAndSubmit(document, value = TYPED_EMAIL) {
-  byId(document, "site-footer-open").click();
   const field = byId(document, "site-footer-email");
   field.value = "";
   field.focus();
@@ -147,7 +146,7 @@ test("a valid work email and a successful transport reach the success state, whi
     assert.ok(receipt.includes(CONFIRMATION_LEAD.trim()), "the receipt must name what was sent");
     assert.ok(receipt.includes(TYPED_EMAIL), "the receipt must name the address itself");
     // 2. Who replies, and roughly when.
-    assert.match(receipt, /Someone here replies to that address by email, usually within two business days/);
+    assert.match(receipt, /A person from the Wawalu team will reply to that address by email, usually within two business days/);
     // 3. What did not go with it.
     assert.match(receipt, /no page content, prompt text, uploaded file, or browsing data went with it/);
     assert.ok(receipt.includes(CONFIRMATION_DETAIL));
@@ -225,7 +224,7 @@ for (const [name, transport] of [
       assert.doesNotMatch(textOf(recovery), /briefing/i);
       const retry = byId(document, "site-footer-retry");
       assert.equal(retry.hidden, false, "a failure must offer a retry where it happened");
-      assert.equal(textOf(retry), "Retry sending this request");
+      assert.equal(textOf(retry), "Retry sending work email to the Wawalu team");
 
       // The outcome is wired to the field a reader has to come back to.
       assert.equal(field.getAttribute("aria-invalid"), "true");
@@ -266,12 +265,10 @@ test("the whole panel is operable from the keyboard, including the retry after a
       : jsonReply({ captured: true, created: true, purpose: "follow_up_coach" });
   });
   try {
-    // Tab to the trigger and open it with Enter.
+    // The form is present at first paint; Tab reaches its field directly.
     let guard = 0;
-    while (document.activeElement?.id !== "site-footer-open" && guard < 200) { pressTab(document); guard += 1; }
-    assert.equal(document.activeElement?.id, "site-footer-open");
-    pressEnter(document);
-    assert.equal(document.activeElement?.id, "site-footer-email", "opening must land focus in the field");
+    while (document.activeElement?.id !== "site-footer-email" && guard < 200) { pressTab(document); guard += 1; }
+    assert.equal(document.activeElement?.id, "site-footer-email");
 
     typeText(document, TYPED_EMAIL);
     pressEnter(document);
@@ -282,10 +279,8 @@ test("the whole panel is operable from the keyboard, including the retry after a
     // the form rather than as a link off the page.
     const ids = tabSequence(document).map((node) => node.id);
     assert.ok(ids.includes("site-footer-email"), "the field stays in the tab order after a failure");
-    assert.ok(ids.includes("site-footer-dismiss"));
     assert.ok(ids.indexOf("site-footer-email") < ids.indexOf("site-footer-retry"),
       "the retry follows the field a reader may want to correct first");
-    assert.ok(ids.indexOf("site-footer-retry") < ids.indexOf("site-footer-dismiss"));
 
     byId(document, "site-footer-email").focus();
     pressEnter(document);

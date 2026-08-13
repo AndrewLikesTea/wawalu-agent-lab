@@ -26,6 +26,7 @@ import { INVITATION } from "../src/site-footer.js";
 
 /** The one label. Written out here so a rename has to be a decision, not a diff. */
 const CTA = "Request a follow-up";
+const FOOTER_CTA = "Send work email to request a follow-up";
 
 const pageUrl = (file) => new URL(`../src/${file}`, import.meta.url);
 
@@ -59,13 +60,6 @@ const SURFACES = [
     buttons: ["briefing-contact-open"],
     forms: ["briefing-contact-form"],
     context: ["briefing-contact"],
-  },
-  {
-    page: "agents.html",
-    what: "agent observatory footer",
-    buttons: ["site-footer-open"],
-    forms: ["site-footer-form"],
-    context: ["site-footer"],
   },
 ];
 
@@ -108,13 +102,17 @@ test("every control that opens or submits a follow-up form reads exactly the one
   // tests/follow-up-conversion.test.js pins its rendered label.
 });
 
-test("the footer's follow-up control reads the same on every page that carries it", async () => {
+test("the footer's visible request control names what it sends on every page", async () => {
   for (const file of FOOTER_PAGES) {
     const page = await loadPage(pageUrl(file));
     try {
       const { document } = page;
-      assert.equal(textOf(byId(document, "site-footer-open")), CTA, `${file}: footer trigger`);
-      assert.equal(textOf(submitOf(document, "site-footer-form")), CTA, `${file}: footer submit`);
+      // `assert.ok(x == null)` rather than `assert.equal(x, null)`: a failing
+      // equal() deep-inspects the whole parsed page to build its diff and never
+      // returns, so the regression this guards would hang CI instead of naming
+      // itself. Same reason at the matching assertion in tests/site-footer.test.js.
+      assert.ok(byId(document, "site-footer-open") == null, `${file}: footer must not gate the form behind a trigger`);
+      assert.equal(textOf(submitOf(document, "site-footer-form")), FOOTER_CTA, `${file}: footer submit`);
     } finally {
       page.restore();
     }

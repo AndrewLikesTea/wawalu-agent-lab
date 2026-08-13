@@ -359,7 +359,7 @@ test("the post page's loading tab order reaches Social without a placeholder Peo
   assert.deepEqual(walked, sequence.slice(0, FRAME_STOPS).map((stop) => textOf(stop)));
 
   // After the exit, the next stops a keyboard reader reaches are the footer's:
-  // its site map, in the band's own order, and then the contact trigger.
+  // its site map, in the band's own order, and then the contact field and action.
   // Nothing the shipped post markup contains sits between them — the image and
   // the caption are rendered by post-detail.js and carry no links of their own
   // (a caption is text, never markup — PRODUCT.md), so the order the review
@@ -370,8 +370,8 @@ test("the post page's loading tab order reaches Social without a placeholder Peo
   const bandStops = DEMOS.flatMap((demo) => (demo.also ? [demo.label, demo.also.label] : [demo.label]));
   const afterExit = sequence.slice(FRAME_STOPS).map((stop) => textOf(stop));
   assert.deepEqual(
-    afterExit.slice(0, bandStops.length + 1),
-    [...bandStops, "Request a follow-up"],
+    afterExit.slice(0, bandStops.length + 2),
+    [...bandStops, "", "Send work email to request a follow-up"],
   );
   assert.ok(
     sequence.slice(FRAME_STOPS).every((stop) => stop.closest("#site-footer")),
