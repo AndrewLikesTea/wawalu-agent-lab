@@ -64,22 +64,24 @@ const NAMED_PAGES = [
   "executive-briefing.html",
 ];
 
-test("the shared sentence is one sentence, under 25 words, and names all three things", () => {
+test("the shared sentence is concise and names what is and is not sent", () => {
   const words = FOLLOW_UP_PRIVACY.split(/\s+/).filter(Boolean);
-  assert.ok(words.length <= 25, `the sentence is ${words.length} words; the budget is 25`);
+  // The budget was 25 while the sentence only had to say that nothing else is
+  // sent. Naming the four things that stay behind costs six words, so it is 31 —
+  // exactly what the sentence spends, because the failure this pins is the
+  // sentence growing back into the ninety-word paragraph it replaced.
+  assert.ok(words.length <= 31, `the privacy copy is ${words.length} words; the budget is 31`);
 
-  // One sentence: one terminator, at the end. A second sentence is how ninety
-  // words grew out of the last one.
+  // One sentence keeps the promise readable before the submit control.
   assert.equal(FOLLOW_UP_PRIVACY.at(-1), ".");
   assert.equal((FOLLOW_UP_PRIVACY.match(/[.!?]/g) ?? []).length, 1,
     "one sentence, not two joined by a full stop");
 
-  // What is sent, who receives it, and that nothing else goes with it. A reader
-  // deciding whether to type an address is deciding on exactly these three.
-  assert.match(FOLLOW_UP_PRIVACY, /work email address you type here/, "it must name what is sent");
+  assert.match(FOLLOW_UP_PRIVACY, /work email address you type here and the follow-up request are sent/,
+    "it must name what is sent");
   assert.match(FOLLOW_UP_PRIVACY, /Wawalu team that operates Shiplog/, "it must name who receives it");
-  assert.match(FOLLOW_UP_PRIVACY, /nothing else on this page is sent/,
-    "it must say that nothing else on the page is sent");
+  for (const excluded of ["page content", "prompts", "exports", "other visitor data"])
+    assert.ok(FOLLOW_UP_PRIVACY.includes(excluded), `it must exclude ${excluded}`);
 
   // No hedge, no marketing, and no promise the transport does not keep.
   for (const filler of [/\bwe (?:will )?never\b/i, /\brest assured\b/i, /\bsecurely\b/i, /\bof course\b/i,

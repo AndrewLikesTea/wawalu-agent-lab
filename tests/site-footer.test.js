@@ -494,7 +494,8 @@ test("the footer form says what submitting asks for, on the page that carries bo
     // It names what is sent, who receives it, and that nothing else goes.
     assert.match(note, /work email address you type here/);
     assert.match(note, /Wawalu team that operates Shiplog/);
-    assert.match(note, /nothing else on this page is sent/);
+    for (const excluded of ["page content", "prompts", "exports", "other visitor data"])
+      assert.ok(note.includes(excluded), `the privacy note must exclude ${excluded}`);
 
     // The control the visitor presses says the same thing the note does.
     const submit = byId(document, "site-footer-panel").querySelector('button[type="submit"]');

@@ -147,9 +147,10 @@ test("a valid work email and a successful transport reach the success state, whi
     assert.ok(receipt.includes(CONFIRMATION_LEAD.trim()), "the receipt must name what was sent");
     assert.ok(receipt.includes(TYPED_EMAIL), "the receipt must name the address itself");
     // 2. Who replies, and roughly when.
-    assert.match(receipt, /Someone here replies to that address by email, usually within two business days/);
+    assert.match(receipt, /The Wawalu team will reply to that address by email, usually within two business days/);
     // 3. What did not go with it.
-    assert.match(receipt, /no page content, prompt text, uploaded file, or browsing data went with it/);
+    for (const excluded of ["Page content", "prompts", "exports", "other visitor data"])
+      assert.ok(receipt.includes(excluded), `the receipt must exclude ${excluded}`);
     assert.ok(receipt.includes(CONFIRMATION_DETAIL));
   } finally {
     page.restore();

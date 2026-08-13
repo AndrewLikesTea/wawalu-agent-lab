@@ -182,11 +182,12 @@ for (const { name, open, prefix } of SURFACES) {
       // Who answers, and roughly when — the response time the FinOps form
       // already states, hedged, because someone reads this queue and nobody has
       // promised the hour.
-      assert.match(textOf(receipt), /Someone here replies to that address by email, usually within two business days/);
+      assert.match(textOf(receipt), /The Wawalu team will reply to that address by email, usually within two business days/);
       assert.match(textOf(receipt), /requested follow-up type is the only other information sent/);
       // And what stayed behind, named rather than left to be assumed: the
       // request carried one field, so the receipt says so out loud.
-      assert.match(textOf(receipt), /no page content, prompt text, uploaded file, or browsing data went with it/);
+      for (const excluded of ["Page content", "prompts", "exports", "other visitor data"])
+        assert.ok(textOf(receipt).includes(excluded), `the receipt must exclude ${excluded}`);
       // The categories may be named; a value from the page may not. The address
       // line is the only place a page could leak into, so it is checked alone.
       const addressLine = textOf(receipt.querySelector(`.${receipt.className}-lead`));
