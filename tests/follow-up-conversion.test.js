@@ -426,7 +426,6 @@ test("the briefing flow offers one work-email form, and the footer points at it 
     assert.equal(document.querySelectorAll("form").length, 1, "two forms is a choice with no right answer");
     assert.equal(document.querySelectorAll('input[type="email"]').length, 1);
     assert.equal(byId(document, "site-footer-form"), null, "the generic footer form must not repeat this ask");
-    assert.equal(byId(document, "site-footer-open"), null);
 
     // The footer still routes a reader to a person — as a link to the form this
     // page owns, which works whether or not any script ran.

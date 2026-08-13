@@ -32,6 +32,7 @@ const read = (file) => readFile(new URL(file, SRC), "utf8");
 
 /** The one label, the same one tests/follow-up-cta-label.test.js pins. */
 const CTA = "Request a follow-up";
+const CTAS = new Set([CTA, "Send work email to request a follow-up"]);
 
 /**
  * Every follow-up form the site ships, found rather than listed.
@@ -48,7 +49,7 @@ async function followUpForms() {
     const document = parseHtml(await read(file));
     for (const form of document.querySelectorAll("form")) {
       const submit = form.querySelector('button[type="submit"]');
-      if (!submit || textOf(submit) !== CTA) continue;
+      if (!submit || !CTAS.has(textOf(submit))) continue;
       found.push({ file, form, submit, document, field: form.querySelector('input[type="email"]') });
     }
   }

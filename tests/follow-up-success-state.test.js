@@ -95,10 +95,24 @@ async function openBriefingPage() {
 // The two surfaces, driven identically. The panels ship different copy and
 // different class families; the state model behind them is one implementation,
 // and this table is what says so.
+//
+// `gated` is the one place they differ, and it is stated rather than probed: the
+// briefing still keeps its form behind a trigger, the footer renders the form on
+// first paint. Probing for the trigger instead would let either surface quietly
+// change shape — this harness models no layout, so a form left inside an
+// unopened panel still takes a value and still submits.
 const SURFACES = [
-  { name: "the About Shiplog footer", open: openFooterPage, prefix: "site-footer" },
-  { name: "the executive briefing", open: openBriefingPage, prefix: "briefing-contact" },
+  { name: "the About Shiplog footer", open: openFooterPage, prefix: "site-footer", gated: false },
+  { name: "the executive briefing", open: openBriefingPage, prefix: "briefing-contact", gated: true },
 ];
+
+/** Get to a usable form, holding each surface to the shape it claims above. */
+function reveal(document, { prefix, gated }) {
+  const trigger = byId(document, `${prefix}-open`);
+  if (!gated) return assert.ok(trigger == null, `${prefix}: the form must not be gated behind a trigger`);
+  assert.ok(trigger, `${prefix}: the gated form must ship the trigger that opens it`);
+  trigger.click();
+}
 
 test("Coach, Releases, Social, People, and Agents send one bounded request and show durable success", async () => {
   const pages = [
@@ -112,7 +126,6 @@ test("Coach, Releases, Social, People, and Agents send one bounded request and s
     const page = await openNamedFooterPage(file);
     const calls = interceptLeads(() => jsonReply({ captured: true, created: true, purpose: requestType }, 201));
     try {
-      byId(page.document, "site-footer-open").click();
       submitEmail(page.document, "site-footer", LONG_EMAIL);
       await settled(page.document, "site-footer");
 
@@ -125,7 +138,7 @@ test("Coach, Releases, Social, People, and Agents send one bounded request and s
       const confirmation = byId(page.document, "site-footer-confirmation");
       assert.ok(confirmation, `${file}: visible confirmation`);
       assert.equal(page.document.activeElement?.id, "site-footer-confirmation", `${file}: focus reaches confirmation`);
-      assert.match(textOf(confirmation), /Wawalu team received this work email/, `${file}: receipt names recipient`);
+      assert.match(textOf(confirmation), /Your work email was sent to the Wawalu team/, `${file}: receipt names recipient`);
       assert.match(textOf(confirmation), /requested follow-up type is the only other information sent/, `${file}: receipt states disclosure`);
       assert.doesNotMatch(textOf(confirmation), new RegExp(pageContent, "i"), `${file}: receipt does not render page content`);
       assert.match(shownText(page.document, "site-footer-status"), /person replies by email/,
@@ -141,7 +154,6 @@ test("each reviewed page keeps empty and invalid email inline and sends nothing"
     const page = await openNamedFooterPage(file);
     const calls = interceptLeads(() => jsonReply({ captured: true, created: true }, 201));
     try {
-      byId(page.document, "site-footer-open").click();
       const field = byId(page.document, "site-footer-email");
       for (const [value, copy] of [
         ["", /Enter your work email/],
@@ -160,13 +172,13 @@ test("each reviewed page keeps empty and invalid email inline and sends nothing"
   }
 });
 
-for (const { name, open, prefix } of SURFACES) {
+for (const { name, open, prefix, gated } of SURFACES) {
   test(`${name} answers a landed request with a receipt naming the address`, async () => {
     const page = await open();
     const { document } = page;
     interceptLeads(() => jsonReply({ captured: true, created: true, purpose: "follow_up" }));
     try {
-      byId(document, `${prefix}-open`).click();
+      reveal(document, { prefix, gated });
       assert.equal(byId(document, `${prefix}-confirmation`), null,
         "a receipt must not exist before a request lands");
 
@@ -182,7 +194,7 @@ for (const { name, open, prefix } of SURFACES) {
       // Who answers, and roughly when — the response time the FinOps form
       // already states, hedged, because someone reads this queue and nobody has
       // promised the hour.
-      assert.match(textOf(receipt), /Someone here replies to that address by email, usually within two business days/);
+      assert.match(textOf(receipt), /A person from the Wawalu team will reply to that address by email, usually within two business days/);
       assert.match(textOf(receipt), /requested follow-up type is the only other information sent/);
       // And what stayed behind, named rather than left to be assumed: the
       // request carried one field, so the receipt says so out loud.
@@ -202,7 +214,7 @@ for (const { name, open, prefix } of SURFACES) {
     const { document } = page;
     const calls = interceptLeads(() => jsonReply({ captured: true, created: true, purpose: "follow_up" }));
     try {
-      byId(document, `${prefix}-open`).click();
+      reveal(document, { prefix, gated });
       const submit = byId(document, `${prefix}-form`).querySelector('button[type="submit"]');
       submitEmail(document, prefix, LONG_EMAIL);
       await settled(document, prefix);
@@ -246,7 +258,7 @@ for (const { name, open, prefix } of SURFACES) {
     const { document } = page;
     interceptLeads(() => jsonReply({ captured: true, created: true, purpose: "follow_up" }));
     try {
-      byId(document, `${prefix}-open`).click();
+      reveal(document, { prefix, gated });
       submitEmail(document, prefix, LONG_EMAIL);
       await settled(document, prefix);
 
@@ -284,7 +296,7 @@ for (const { name, open, prefix } of SURFACES) {
     const { document } = page;
     interceptLeads(failureReply);
     try {
-      byId(document, `${prefix}-open`).click();
+      reveal(document, { prefix, gated });
       submitEmail(document, prefix, LONG_EMAIL);
       await settled(document, prefix);
 
@@ -302,7 +314,7 @@ for (const { name, open, prefix } of SURFACES) {
       assert.equal(recovery.hidden, false);
       assert.match(textOf(recovery), /Your email address is still in the field/);
       assert.doesNotMatch(textOf(recovery), new RegExp(CONFIRMATION_DETAIL.slice(0, 40)));
-      assert.doesNotMatch(shownText(document, `${prefix}-status`), /Wawalu team received this work email/);
+      assert.doesNotMatch(shownText(document, `${prefix}-status`), /Your work email was sent to the Wawalu team/);
     } finally {
       page.restore();
     }
@@ -313,7 +325,7 @@ for (const { name, open, prefix } of SURFACES) {
     const { document } = page;
     interceptLeads(() => jsonReply({ captured: true, created: true, purpose: "follow_up" }));
     try {
-      byId(document, `${prefix}-open`).click();
+      reveal(document, { prefix, gated });
       submitEmail(document, prefix, MARKUP_EMAIL);
       await settled(document, prefix);
 

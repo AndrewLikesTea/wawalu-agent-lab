@@ -27,9 +27,9 @@
  * naming what stayed behind is the point of it. The response time is the one the
  * FinOps form states, hedged: someone reads this queue, nobody promised an hour.
  */
-export const CONFIRMATION_LEAD = "The Wawalu team received this work email: ";
+export const CONFIRMATION_LEAD = "Your work email was sent to the Wawalu team: ";
 export const CONFIRMATION_DETAIL = "The requested follow-up type is the only other information sent: no page "
-  + "content, prompt text, uploaded file, or browsing data went with it. Someone here replies to that "
+  + "content, prompt text, uploaded file, or browsing data went with it. A person from the Wawalu team will reply to that "
   + "address by email, usually within two business days.";
 export const REOPEN_LABEL = "Request another follow-up";
 
