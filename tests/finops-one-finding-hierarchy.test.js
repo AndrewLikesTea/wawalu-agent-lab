@@ -92,10 +92,10 @@ test("the answer's five elements are one block, in the order a reader needs them
   // Question, money, confidence-and-provenance, next action. Source position
   // rather than child index, because the supporting-detail group #1498 folded
   // under the action is a sibling of none of them.
-  const order = [QUESTION, FIGURE, VALUE, TRUST, ACTION].map(at);
+  const order = [QUESTION, FIGURE, VALUE, ACTION, TRUST].map(at);
   for (const position of order) assert.ok(position > 0, "an element of the answer is not authored");
   assert.deepEqual([...order].sort((a, b) => a - b), order,
-    "the answer no longer reads question, money, confidence, action");
+    "the answer no longer reads question, money, action, then disclosed support");
 
   // Every one of them is in the ONE block, not scattered across the region.
   for (const id of [QUESTION, VALUE, TRUST, ACTION]) {
@@ -105,7 +105,8 @@ test("the answer's five elements are one block, in the order a reader needs them
   // the money and its label are the same paragraph, so a screen reader speaks
   // the number with what it means.
   assert.equal(byId(document, VALUE).parentNode.id, FIGURE);
-  assert.equal(byId(document, TRUST).parentNode.id, FIGURE);
+  assert.ok(inside(byId(document, TRUST), byId(document, EVIDENCE)),
+    "confidence and provenance must be disclosure-only support");
 });
 
 test("the money carries the largest type role and the metadata the smallest", () => {

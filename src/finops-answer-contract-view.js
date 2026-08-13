@@ -125,45 +125,12 @@ export const RECOVERABLE_SPEND_IDS = Object.freeze({
   basis: "finops-recoverable-basis",
 });
 
-export const RECOVERABLE_SPEND_LABEL = "Recoverable AI spend per month";
-
-/**
- * Paint the page's one recoverable-spend figure (#1496).
- *
- * ONE HEADLINE, ONE BASIS. The headline slot takes the MEASURED figure — the
- * monthly sum over scored departments — and the annual projection is stated in
- * the sentence under it, as a relationship to that headline rather than as a
- * second number competing with it. Both come out of one `getRecoverableSpend`
- * record, so the page cannot state two recoverable figures again.
- *
- * NO SECOND CONFIDENCE SCALE. The region's existing grade chip and hedge
- * sentence still own "how sure are we?"; the scored-department counts here are
- * scope, and they ride the figure as text and as attributes rather than as
- * another graded claim.
- *
- * @param doc the document holding the answer region.
- * @param recoverable a `finops-recoverable-spend/1.0.0` record, or null when
- *   the bundled analysis did not load.
- * @returns the figure paragraph, or null when the page carries no such region.
- */
-export function renderRecoverableSpend(doc, recoverable) {
-  const figure = doc.getElementById(RECOVERABLE_SPEND_IDS.figure);
-  if (!figure) return null;
-  const stated = Number.isFinite(recoverable?.monthly);
-  figure.dataset.available = stated ? "true" : "false";
-  figure.dataset.basis = recoverable?.basis ?? "none";
-  figure.dataset.scoredDepartments = String(recoverable?.scoredDepartments ?? 0);
-  figure.dataset.totalDepartments = String(recoverable?.totalDepartments ?? 0);
-  set(doc, RECOVERABLE_SPEND_IDS.label, RECOVERABLE_SPEND_LABEL);
-  set(doc, RECOVERABLE_SPEND_IDS.value,
-    stated ? recoverable.monthlyDisplay : "Not stated");
-  const basis = recoverable
-    ? recoverable.basisSentence
-    : `${ERROR_SENTENCE} No recoverable figure is stated for it.`;
-  // #1667: stated once. The disclosure carried the identical sentence.
-  set(doc, RECOVERABLE_SPEND_IDS.basis, basis);
-  return figure;
-}
+// #1699 retired `renderRecoverableSpend` from here. It painted these four slots
+// off `basisSentence`, which closes with the annual projection, and
+// src/evolution-finding-view.js now paints them off the page-level finding
+// instead. Two renderers for one figure is how the annual rival would return:
+// the only surviving caller would be whichever one a future edit reached for.
+// The ids stay because the coverage and provenance views address the same slots.
 
 /** The one slot the attestation is stated in (#1499). */
 export const RECOVERABLE_ATTESTATION_ID = "finops-recoverable-attestation";

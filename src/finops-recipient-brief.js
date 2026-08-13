@@ -254,6 +254,12 @@ export function renderRecipientDisclosure(doc, envelope, { localRateCard = null 
     const body = doc.createElement("dd");
     body.textContent = sections[part];
     if (part === "Limits") {
+      for (const id of [RECIPIENT_BRIEF_IDS.marker, RECIPIENT_BRIEF_IDS.grade,
+        RECIPIENT_BRIEF_IDS.destination]) {
+        const support = doc.createElement("span");
+        support.setAttribute("id", id);
+        body.append(support);
+      }
       const meaning = doc.createElement("span");
       meaning.setAttribute("id", RECIPIENT_BRIEF_IDS.confidenceDetail);
       meaning.textContent = ` ${envelope?.confidence?.meaning ?? NOT_INCLUDED}`;
@@ -494,6 +500,11 @@ export function renderRecipientBrief(
   if (!region || !envelope) return null;
   region.dataset.sharedBrief = "true";
 
+  // Rebuild first: the ordinary page's supporting signals live in this
+  // disclosure, and replacing its bundled rows must recreate the slots before
+  // the shared values are written.
+  renderRecipientDisclosure(doc, envelope, { localRateCard });
+
   setText(doc, RECIPIENT_BRIEF_IDS.label, envelope.figure?.label ?? NOT_INCLUDED);
   setText(doc, RECIPIENT_BRIEF_IDS.value, sharedFigureText(envelope.figure));
   setText(doc, RECIPIENT_BRIEF_IDS.marker, SHARED_MARKER);
@@ -517,7 +528,6 @@ export function renderRecipientBrief(
   // nothing, which is a brief written before this block existed and every brief
   // shared by a lead who has moved no lever (#1291).
   renderSharedPlan(doc, envelope, { planNotice });
-  renderRecipientDisclosure(doc, envelope, { localRateCard });
   return region;
 }
 

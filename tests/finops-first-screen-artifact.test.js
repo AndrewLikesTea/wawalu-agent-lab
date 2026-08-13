@@ -142,8 +142,8 @@ const CASES = [
   {
     name: "an action pointed somewhere else",
     mutate: (html) => replaceOnce(html, `<a class="stand-action" `
-      + `id="finops-recoverable-action" href="${expected.action.href}">`,
-      '<a class="stand-action" id="finops-recoverable-action" href="/index.html">'),
+      + `id="finops-recoverable-action" data-next-action="true" href="${expected.action.href}">`,
+      '<a class="stand-action" id="finops-recoverable-action" data-next-action="true" href="/index.html">'),
     element: "action",
     slot: "#finops-recoverable-action[href]",
     actual: "/index.html",

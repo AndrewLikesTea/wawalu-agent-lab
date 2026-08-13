@@ -139,7 +139,7 @@
            `getRecoverableSpend` is the single accessor both regions read; no
            second export recomputes any part of it. -->
       <section class="finops-recoverable-answer" id="finops-recoverable-answer" data-workspace-frame="true" aria-labelledby="finops-recoverable-question">
-        <h2 class="answer-question" id="finops-recoverable-question">How much of our AI spend can we recover?</h2>
+        <h2 class="answer-question" id="finops-recoverable-question">Where should we cut AI spend first, and how much monthly spend is recoverable?</h2>
         <!-- ONE NUMBER, ONE EVIDENCE LINE (#1556, superseding the row #1497 built).
              #1497 got the three trust signals onto one row and stopped there: three
              peers split by middots — Illustrative · Confidence: High · Pricing
@@ -174,20 +174,18 @@
              the arithmetic, the limits — which is where it already was. A grade
              inside a shut disclosure is a grade nobody is told, which is what
              tests/finops-recoverable-confidence.test.js pins by name. -->
-        <p class="stand-figure" id="finops-recoverable-figure" data-available="true" data-basis="monthly" data-scored-departments="5" data-total-departments="5"><span class="stand-figure-label" id="finops-recoverable-label">Recoverable AI spend per month</span> <span class="stand-figure-value" id="finops-recoverable-value">$51,254</span> <span class="stand-figure-basis" id="finops-recoverable-trust">How far to trust this figure: <span class="figure-source-state" id="finops-recoverable-marker">Illustrative</span> — <span class="figure-source-state" id="finops-recoverable-provenance" data-band="unscored">Pricing provenance: not scored</span> on the prices, <span class="figure-source-state" id="finops-recoverable-grade" data-grade="ungraded">Confidence: not graded</span> on the spend coverage. <span id="finops-recoverable-provenance-reason">Whose prices this figure uses has not been scored for this document.</span> <span id="finops-recoverable-confidence">A ceiling at list prices until 2 destination models state contracted rates and committed-use.</span> Both grades, the arithmetic behind them and the limits are under How we know this, below.</span></p>
-        <!-- #1667: the annualised spend bar came out. It answered a second
-             question on a second basis between the headline and the move. -->
-        <!-- OVER WHAT PERIOD, ACROSS WHICH DEPARTMENTS, AND WHAT IT COMES TO IN
-             A YEAR (#1496). The second question a leader asks about a recovery
-             figure, answered in one sentence directly under it: the scope it
-             holds over, and the annual projection stated as a multiple of the
-             headline rather than as a rival to it. Written by
-             `renderRecoverableSpend` from the same record the figure above is,
-             so the two cannot drift; authored here with that function's own
-             output so the served bytes and the render agree. It reuses
-             `.stand-answer`, the class the two sentences below it already use,
-             adds no rule to either stylesheet, and is not focusable. -->
-        <p class="stand-answer" id="finops-recoverable-basis">Summed over the 5 of 5 departments carrying a completed FinOps score for 2026-06-01 to 2026-07-01. Unscored departments contribute zero and are never extrapolated to. About $615,048 a year if this month holds — the monthly figure multiplied by 12, with no seasonality or growth adjustment.</p>
+        <p class="stand-figure" id="finops-recoverable-figure" data-primary-benchmark="true" data-metric-id="modelled_recoverable_spend_usd_per_month" data-currency="USD" data-unit="USD/month" data-available="true" data-basis="monthly" data-scored-departments="5" data-total-departments="5"><span class="stand-figure-label" id="finops-recoverable-label">Modelled recoverable AI spend · USD per month</span> <span class="stand-figure-value" id="finops-recoverable-value">$51,254</span></p>
+        <!-- OVER WHAT PERIOD, ACROSS WHICH DEPARTMENTS, AND ON WHAT FOOTING
+             (#1496, #1699). The scope the figure holds over, then the one
+             sentence separating a modelled estimate from a saving already
+             taken. The annual projection that used to close this line is gone:
+             it answered a second question on a second basis between the
+             headline and the move. Written by `renderEvolutionFinding` off the
+             same record as the figure above, and authored here with that
+             function's own output so the served bytes and the render agree. It
+             reuses `.stand-answer`, adds no rule to either stylesheet, and is
+             not focusable. -->
+        <p class="stand-answer" id="finops-recoverable-basis">Summed over the 5 of 5 departments carrying a completed FinOps score for 2026-06-01 to 2026-07-01. Unscored departments contribute zero and are never extrapolated to. Modelled potential, not realized savings.</p>
         <!-- WHO WRITES THE FIVE SLOTS IN THE LINE ABOVE. None is authored by hand
              and none is derived twice; #1556 moved the last two out of paragraphs
              of their own into that line, which is all that changed about them.
@@ -238,7 +236,7 @@
              and forget the entry are beside the form that fills it, further down
              this page, because this screen has no spare tab stop. -->
         <p class="stand-answer" id="finops-retained-state" data-state="unretained" hidden></p>
-        <a class="stand-action" id="finops-recoverable-action" href="/savings-action-center.html">Move Atlas Platform's short, low-context requests to the standard model</a>
+        <a class="stand-action" id="finops-recoverable-action" data-next-action="true" href="/savings-action-center.html">Move Atlas Platform's short, low-context requests to the standard model</a>
         <!-- HOW WE KNOW THIS — the one disclosure pattern this page reuses
              (#1185). The figure and the move are read first; everything that
              qualifies them is one press away, in three labelled parts and in the
@@ -264,8 +262,8 @@
           <summary class="figure-source-summary how-we-know-summary" id="finops-recoverable-how-we-know-summary"><span class="figure-source-state" data-disclosure="collapsed"><span class="figure-source-shape" aria-hidden="true">▸</span> How we know this</span></summary>
           <dl class="figure-source-detail how-we-know-detail">
             <div><dt>Provenance</dt><dd>The bundled synthetic example: invented usage records for an invented company, shipped with this page. Not your spend, not customer data, and not a realized saving. No file of yours is read, uploaded, or stored to produce it.</dd></div>
-            <div><dt>Basis</dt><dd>The monthly figure is the measurement: each department's identified recoverable spend for the most recent complete month, summed. The annual figure is that figure multiplied by 12 and is stated nowhere on its own.</dd></div>
-            <div><dt>Limits</dt><dd><span id="finops-recoverable-contract-next">State contracted input and output rates for the premium text tier and the standard text tier — that moves this figure to Declared · Medium. Until then it stays illustrative: a list-price ceiling, not a saving.</span> Measured throughput is left out of the arithmetic too. It is stated as of the bundled synthetic example and moves the moment a provider export of your own is analyzed. <span id="finops-recoverable-confidence-detail">The confidence grade beside the figure has not been computed for this document.</span> <span id="finops-recoverable-provenance-detail">The pricing-provenance sub-score beside the figure has not been computed for this document.</span><section id="recoverable-spend-coverage" aria-label="Recovery-class coverage">Coverage detail is computed locally when the analysis loads.</section></dd></div>
+            <div><dt>Basis</dt><dd>The monthly figure is modelled recoverable spend: each scored department's recoverableUsd for the reporting month, summed and rounded once to whole USD. Unscored departments contribute zero. No annual figure is presented.</dd></div>
+            <div><dt>Limits</dt><dd><span class="stand-figure-basis" id="finops-recoverable-trust">Supporting context only: <span class="figure-source-state" id="finops-recoverable-marker">Illustrative</span> — <span class="figure-source-state" id="finops-recoverable-provenance" data-band="unscored">Pricing provenance: not scored</span> on the prices, <span class="figure-source-state" id="finops-recoverable-grade" data-grade="ungraded">Confidence: not graded</span> on spend coverage. <span id="finops-recoverable-provenance-reason">Whose prices this figure uses has not been scored for this document.</span> <span id="finops-recoverable-confidence">A ceiling at list prices until 2 destination models state contracted rates and committed-use.</span></span> <span id="finops-recoverable-contract-next">State contracted input and output rates for the premium text tier and the standard text tier — that moves this figure to Declared · Medium. Until then it stays illustrative: a list-price ceiling, not a saving.</span> Measured throughput is left out of the arithmetic too. It is stated as of the bundled synthetic example and moves the moment a provider export of your own is analyzed. <span id="finops-recoverable-confidence-detail">The confidence grade beside the figure has not been computed for this document.</span> <span id="finops-recoverable-provenance-detail">The pricing-provenance sub-score beside the figure has not been computed for this document.</span><section id="recoverable-spend-coverage" aria-label="Recovery-class coverage">Coverage detail is computed locally when the analysis loads.</section></dd></div>
           </dl>
         </details>
         <!-- THE ONE SUPPORTING-DETAIL LAYER (#1498). The recoverable-spend

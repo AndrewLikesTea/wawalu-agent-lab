@@ -96,19 +96,19 @@ import { applyDestinationProvenance, destinationProvenanceText } from "./finops-
 import { FINOPS_WORKSPACE_INDEX, indexRowText } from "./finops-workspace-index.js";
 
 // The one interrogative sentence at the top of the page, and the id of the
-// heading that carries it. #1325 asked for "How much of our AI spend can we
-// recover this quarter?" and the window is deliberately NOT in the question:
-// the figure the page states directly beside this heading is the MONTHLY
-// recoverable total over scored departments (#1496), contracted by the answer
-// block, the seed and half a dozen tests, with its annual form stated only as a
-// projection of it. A question about the quarter answered by a figure over
-// another window is the
-// defect the front door exists to remove, so the window lives on the figure it
-// qualifies — see the quarter figure below — and the question stays the one the
-// page can honestly answer where it is asked. It also lost its second clause:
-// "and where do we start?" is now answered by the destinations below rather
-// than by a heading that asked two things at once.
-export const FRONT_DOOR_QUESTION = "How much of our AI spend can we recover?";
+// heading that carries it. The window is deliberately NOT in the question: the
+// figure stated beside this heading is the MONTHLY recoverable total over
+// scored departments (#1496), so a question about the quarter answered by a
+// figure over another window — the defect the front door exists to remove —
+// cannot arise. The window lives on the figure it qualifies.
+//
+// Both clauses are answerable here (#1699). "Where first" is the prioritized
+// destination below; "how much" is the monthly benchmark. They are one question
+// rather than two headings because the page states one finding, and
+// src/evolution-finding-contract.js reads this constant to build it. That module
+// imports this one and never the reverse, which is why the sentence lives here.
+export const FRONT_DOOR_QUESTION =
+  "Where should we cut AI spend first, and how much monthly spend is recoverable?";
 
 /** The heading in src/evolution.html that carries that question. */
 export const FRONT_DOOR_QUESTION_ID = "finops-recoverable-question";
