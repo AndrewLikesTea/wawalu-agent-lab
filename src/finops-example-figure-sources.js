@@ -158,7 +158,7 @@ export const EXAMPLE_FIGURE_SOURCES = Object.freeze([
     id: "answer",
     host: "finops-first-run-answer-source",
     qualifies: "The answer",
-    value: "33% of analyzed AI spend is recoverable",
+    value: "33% of analyzed AI spend is recoverable AI spend",
     source: EXAMPLE_SOURCE.derived,
     origin: "A ratio this page computes: $51,254 of recoverable spend over"
       + " $154,500 of analyzed spend, both summed from the 15 invented usage"

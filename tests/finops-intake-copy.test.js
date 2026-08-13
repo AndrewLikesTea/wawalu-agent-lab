@@ -29,7 +29,7 @@ const read = (name) => readFile(new URL(`../src/${name}`, import.meta.url), "utf
 const FORMAT_SENTENCE = "AI FinOps reads a provider export from OpenAI, Anthropic, "
   + "Azure OpenAI, Google Vertex AI, or AWS Bedrock, as CSV, TSV, JSON, or JSONL.";
 const NO_FILE_SENTENCE = "No export to hand? The "
-  + '<a href="/evolution.html#finops-recoverable-answer">bundled synthetic example</a> '
+  + '<a href="/evolution.html#workspace-answer">bundled synthetic example</a> '
   + "opens on a finished result, so you can read the whole analysis before you find a file.";
 const PAIR = `${FORMAT_SENTENCE} ${NO_FILE_SENTENCE}`;
 

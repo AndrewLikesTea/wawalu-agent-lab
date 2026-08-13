@@ -275,7 +275,7 @@ export const ANSWER_SPINE = Object.freeze([
   {
     id: "finops-first-run",
     role: ROLE.step,
-    question: "Are we wasting money?",
+    question: "How much of our analyzed AI spend is recoverable?",
     headingId: "finops-first-run-title",
     entitledToAssert:
       "The canonical complete decision summary of src/finops-decision-contract.js: "
@@ -288,7 +288,7 @@ export const ANSWER_SPINE = Object.freeze([
     // before the answer it qualifies is a gate rather than a next step.
     id: "finops-readiness-loop",
     role: ROLE.step,
-    question: "What still stands between this figure and a claim we could defend?",
+    question: "What checks support the recoverable AI spend answer?",
     headingId: "readiness-loop-question",
     entitledToAssert:
       "One ordered pass over the readiness contract's own evidence categories, "

@@ -232,11 +232,11 @@ export const UNAVAILABLE_VALUE = "Unavailable";
  */
 export const FIRST_RUN_UNAVAILABLE = Object.freeze({
   pending: DECISION_STATE.pending.statement,
-  notComposed: `No Bundled synthetic example analysis was produced, so no figure is shown here. ${RELOAD_ACTION}`,
-  invalidBriefing: `The Bundled synthetic example came back missing figures this region states, so no figure is shown here. ${RELOAD_ACTION}`,
+  notComposed: `The recoverable share of analyzed AI spend was not calculated from the Bundled synthetic example. ${RELOAD_ACTION}`,
+  invalidBriefing: `The Bundled synthetic example is missing inputs needed to calculate the recoverable share of analyzed AI spend. ${RELOAD_ACTION}`,
   failed: DECISION_STATE.error.statement,
   empty: DECISION_STATE.empty.statement,
-  outOfRange: `A figure in the Bundled synthetic example was outside the range it can take, so it is not shown. ${RELOAD_ACTION}`,
+  outOfRange: `The recoverable share of analyzed AI spend fell outside its supported range. ${RELOAD_ACTION}`,
 });
 
 /**
@@ -626,7 +626,7 @@ function answerSlot(decision, benchmark, impact) {
       typeof sized === "string" && sized.trim() ? sized.trim() : (impact?.detail ?? ""));
   }
   if (benchmark?.available) {
-    return slot(true, `${benchmark.value} is recoverable in this example.`, benchmark.detail ?? "");
+    return slot(true, `${benchmark.value} is recoverable AI spend in this example.`, benchmark.detail ?? "");
   }
   return slot(false, "No answer is claimed from this example.",
     benchmark?.detail ?? FIRST_RUN_UNAVAILABLE.notComposed);
@@ -840,7 +840,7 @@ function unavailableResult(reason) {
  */
 function emptyResult() {
   return degradedResult(FIRST_RUN_STATE.empty, FIRST_RUN_UNAVAILABLE.empty,
-    "No spend was recorded in this window, so nothing is recoverable from it.");
+    "No analyzed AI spend was recorded in this reporting period, so there is no recoverable share. Analyze your own export to see its recoverable share.");
 }
 
 /**

@@ -151,7 +151,7 @@ test("the sample label and both next steps survive every unavailable state", () 
     assert.equal(result.actions.import.targetId, "local-finops-files", name);
   }
   assert.equal(FIRST_RUN_UNAVAILABLE.notComposed,
-    "No Bundled synthetic example analysis was produced, so no figure is shown here. "
+    "The recoverable share of analyzed AI spend was not calculated from the Bundled synthetic example. "
     + "Reload the page to build it again.");
   assert.equal(buildFirstRunResult(() => { throw new Error("x"); }).reason, FIRST_RUN_UNAVAILABLE.failed);
   // #1669: every reason names what failed AND the one thing to do about it, and
@@ -562,7 +562,7 @@ test("the view paints an unavailable composition without blanking the block", as
   assert.match(textOf(byId(document, FIRST_RUN_IDS.sample)), /Bundled synthetic example/);
   // Not hidden, not empty: the reason and both next steps are still readable.
   assert.equal(region.hidden, false);
-  assert.match(textOf(byId(document, FIRST_RUN_IDS.benchmarkDetail)), /no figure is shown/);
+  assert.match(textOf(byId(document, FIRST_RUN_IDS.benchmarkDetail)), /recoverable share/);
 });
 
 test("hostile result strings stay literal text in the promoted first viewport", async () => {

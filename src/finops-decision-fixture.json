@@ -1,6 +1,6 @@
 {
   "contractVersion": "finops-decision/1.0.0",
-  "question": "Are we wasting money?",
+  "question": "How much of our analyzed AI spend is recoverable?",
   "benchmark": {
     "baselineName": "Analyzed AI spend in the measurement window",
     "baselineUsd": 154500,
@@ -13,7 +13,7 @@
       "endExclusive": true
     },
     "basis": "Modelled recoverable spend divided by analyzed AI spend, both in USD over the same window. The window is half-open: 2026-06-01 inclusive to 2026-07-01 exclusive. The baseline is every invented provider record the bundled dataset ships for that window, not a subset chosen after the fact.",
-    "headline": "33% of analyzed AI spend is recoverable"
+    "headline": "33% of analyzed AI spend is recoverable AI spend"
   },
   "prioritizedAction": {
     "rank": 1,
@@ -32,7 +32,7 @@
     },
     "realized": false,
     "calculationBasis": "Sum of the per-department routing scenarios over the five ranked invented departments, under rule version down-routing-candidate/1.0.0: premium-tier token spend repriced at the standard-tier reference rate. A ceiling on what re-routing could recover in one month, not a realized, invoiced, or promised saving.",
-    "headline": "Up to $51,254 estimated cost reduction in the month"
+    "headline": "$51,254 in recoverable AI spend for the reporting period"
   },
   "confidence": {
     "score": 0.85,

@@ -109,7 +109,7 @@ export const DECISION_CONTRACT_VERSION = "finops-decision/1.0.0";
  * Authored here and nowhere else. A surface that wants to ask a different
  * question is a different surface and needs its own contract.
  */
-export const DECISION_QUESTION = "Are we wasting money?";
+export const DECISION_QUESTION = "How much of our analyzed AI spend is recoverable?";
 
 /** The seven fields a complete decision record must carry. */
 export const REQUIRED_FIELDS = Object.freeze([

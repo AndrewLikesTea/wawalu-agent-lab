@@ -228,5 +228,5 @@ test("the example headline's own nodes are untouched by this block", () => {
   applyImportedHeadline(document, richImport());
   assert.equal(document.getElementById("finops-stand-answer").textContent, before);
   assert.equal(document.getElementById("finops-stand-question").textContent,
-    "Where do we stand on AI spend?");
+    "Evidence behind the recoverable AI spend answer");
 });

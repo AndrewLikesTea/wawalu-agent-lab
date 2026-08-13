@@ -140,7 +140,7 @@ const DOOR_PLUMBING = Object.freeze({
   [WORKSPACE_DESTINATION.answer]: Object.freeze({
     role: null,
     fallbackHref: "#finops-first-run",
-    answers: "Are we wasting money, how much of the spend is recoverable, and what is the one ranked action?",
+    answers: "How much analyzed AI spend is recoverable, and what is the one ranked action?",
     doesNotAnswer: "It does not show the workings behind the figure, and it commits to nothing.",
   }),
   [WORKSPACE_DESTINATION.evidence]: Object.freeze({

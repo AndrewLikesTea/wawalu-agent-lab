@@ -55,7 +55,7 @@ test("the shipped fixture satisfies its own contract", () => {
 });
 
 test("the question is the canonical one, and a record cannot ask a different one", () => {
-  assert.equal(canonical.decision.question, "Are we wasting money?");
+  assert.equal(canonical.decision.question, "How much of our analyzed AI spend is recoverable?");
   const drifted = clone(canonical.decision);
   drifted.question = "How is our AI spend trending?";
   const result = validateDecisionRecord(drifted);
