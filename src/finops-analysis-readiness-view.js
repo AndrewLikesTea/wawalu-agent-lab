@@ -5,14 +5,13 @@
 const set = (doc, id, value) => { const node = doc.getElementById(id); if (node) node.textContent = value; };
 
 export function renderAnalysisReadiness(doc, model) {
-  const region = doc.getElementById("finops-analysis-readiness");
+  const region = doc.getElementById("finops-recoverable-how-we-know");
   if (!region || !model) return null;
   region.dataset.level = model.level;
   set(doc, "analysis-readiness-verdict", model.supportedConclusion);
   set(doc, "analysis-readiness-benchmark", `Readiness ${model.score.value}/100 · ${model.score.numerator} of ${model.score.denominator} required evidence categories sufficient.`);
   // The demoted detail's summary carries the score it holds, so a reader who
   // never opens it still knows whether opening it is worth their time (#1465).
-  set(doc, "analysis-readiness-detail-score", `— readiness ${model.score.value}/100`);
   set(doc, "analysis-readiness-evidence", model.currentEvidence);
   set(doc, "analysis-readiness-limit", model.limitation);
   const action = model.recommendation;

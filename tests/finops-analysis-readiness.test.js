@@ -67,8 +67,8 @@ test("the active analysis surface answers readiness and makes the one action ins
   const document = parseHtml(await readFile(PAGE, "utf8"));
   const result = analysisReadinessForDataset(DATA);
   renderAnalysisReadiness(document, result);
-  const region = document.getElementById("finops-analysis-readiness");
-  assert.equal(region.dataset.level, "illustrative_only");
+  const region = document.getElementById("finops-recoverable-how-we-know");
+  assert.equal(region.tagName, "DETAILS");
   assert.equal(region.querySelectorAll("#analysis-readiness-action").length, 1);
   assert.match(textOf(document.getElementById("analysis-readiness-benchmark")), /50\/100 · 2 of 4/);
   assert.match(textOf(document.getElementById("analysis-readiness-action")),

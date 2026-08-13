@@ -510,26 +510,6 @@ test("the first screen states one question, one figure, one action", async () =>
   }
 });
 
-test("the demoted readiness basis is reachable inside the disclosure that already existed", async () => {
-  const document = parseHtml(await read("src/evolution.html"));
-  const details = document.getElementById("analysis-readiness-detail");
-  // Shut, so it costs the first screen nothing: a closed details reports
-  // `open === undefined` in this harness, never false.
-  assert.ok(!details.open);
-  assert.equal(details.dataset.disclosure, "collapsed");
-
-  // The line that ranked the actions moved in here rather than being deleted.
-  const basis = document.getElementById("finops-canonical-answer-action-basis");
-  assert.ok(basis, "the action basis survived the cut");
-  let node = basis.parentNode;
-  let inside = false;
-  while (node) {
-    if (node === details) { inside = true; break; }
-    node = node.parentNode;
-  }
-  assert.equal(inside, true, "the demoted line is not inside the existing disclosure");
-});
-
 test("the action center points at the answer instead of restating it", async () => {
   const document = parseHtml(await read("src/savings-action-center.html"));
   const link = document.getElementById("finops-journey-owner-link");

@@ -1338,12 +1338,6 @@
    so the hidden slot is excluded and the visible briefing states its own case. */
 .stand-figure:has(>.stand-figure-value[data-available="false"]:not([hidden])),.stand-figure:has(>.peer-brief[data-state="unavailable"]) { border-top-style:dashed; border-top-color:var(--state-warn-line); }
 .stand-figure-basis { margin:0; max-width:60ch; color:var(--ink-muted); font-size:13px; line-height:1.55; overflow-wrap:anywhere; }
-/* --ink-muted is 4.48:1 on this page's #f3f1eb — the file already records that
-   at the trust-ladder note above, and 13px body text at 4.48:1 misses AA by two
-   hundredths. The canonical answer states its provenance and its demoted
-   readiness detail in that role, so both are darkened one step here rather than
-   page-wide: no new token, same hue family, 5.27:1 on #f3f1eb. (#1465) */
-#finops-analysis-readiness .stand-figure-basis,#finops-analysis-readiness .figure-source-legend { color:#64645e; }
 .peer-brief { display:grid; gap:8px; }
 .peer-brief-status { width:fit-content; margin:0; border-radius:99px; padding:3px 9px; background:var(--import-wash); color:var(--import-ink); font:700 10px/1.5 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; }
 .peer-brief[data-state="low-confidence"] .peer-brief-status,.peer-brief[data-state="unavailable"] .peer-brief-status { background:var(--state-warn-wash); color:var(--state-warn-ink); }
@@ -1658,6 +1652,17 @@
 .figure-source-detail dd { margin:2px 0 0; color:var(--ink-muted); font-size:12.5px; line-height:1.55; overflow-wrap:anywhere; }
 /* The legend, and it is what makes an unmarked figure a claim rather than a gap. */
 .figure-source-legend { margin:0; max-width:70ch; color:var(--ink-muted); font-size:12.5px; line-height:1.55; overflow-wrap:anywhere; }
+/* A second detail box continues the first one's column rather than starting a
+   column of its own, so the pair abuts and the 6px rhythm is paid as padding —
+   a margin would break the 2px rule down their shared left edge for 6px. */
+.figure-source-detail+.figure-source-detail { margin-top:0; padding-top:6px; }
+/* --ink-muted is 4.48:1 on this page's #f3f1eb — the trust-ladder note above
+   records it — so 12.5px prose in that role misses AA by two hundredths. The
+   canonical answer states its provenance and its demoted readiness detail in
+   that role, on the bare page with no card behind them, so both are darkened
+   one step here rather than page-wide: no new token, same hue family, 5.27:1
+   on #f3f1eb. (#1465) */
+#finops-recoverable-answer .figure-source-detail dd,#finops-recoverable-answer .figure-source-legend,#finops-recoverable-answer .stand-figure-basis { color:#64645e; }
 /* CORRECTING A DERIVED VALUE (#1026). No new hue, silhouette or type step: the
    chip beside every value is the .brief-provenance the markers above already
    ship, and the cells only need room to hold a value, its chip and its controls

@@ -219,23 +219,6 @@ export const ANSWER_SPINE = Object.freeze([
       + "first. A modelled ceiling at list price, never a realized saving.",
   },
   {
-    // #1391. A step, not a headline: it names no figure the answer above it does
-    // not already carry, it says how far that figure can be trusted and why.
-    // #1498 moved it INSIDE that answer, into the region's one supporting-detail
-    // group, so it is declared here — document order — rather than after the
-    // headline. It is addressed through `data-spine-region`, the same marker
-    // #832 used for the two follow-on questions.
-    id: "finops-analysis-readiness",
-    role: ROLE.step,
-    question: "Can I get a trustworthy savings recommendation now?",
-    headingId: "analysis-readiness-question",
-    entitledToAssert:
-      "Which required evidence categories the bundled scenario actually carries, "
-      + "the one action already derived from it, and what a later category would "
-      + "upgrade. It ranks nothing itself and asks for no credential, export or "
-      + "prompt.",
-  },
-  {
     id: HEADLINE_REGION_ID,
     role: ROLE.headline,
     question: STAND_QUESTION,

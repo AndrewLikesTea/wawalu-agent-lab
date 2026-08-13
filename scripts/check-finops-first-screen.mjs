@@ -49,8 +49,6 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
 import { loadExampleDataset } from "../src/example-dataset.js";
-import { recoverableAttestation } from "../src/finops-answer-contract.js";
-import { RECOVERABLE_ATTESTATION_ID } from "../src/finops-answer-contract-view.js";
 import { FRONT_DOOR_QUESTION_ID } from "../src/finops-destinations.js";
 import { buildEvolutionFinding } from "../src/evolution-finding-contract.js";
 import {
@@ -75,12 +73,11 @@ export const FIRST_SCREEN_ELEMENTS = Object.freeze([
  */
 export const FIRST_SCREEN_IDS = Object.freeze({
   region: "finops-recoverable-answer",
-  supporting: "finops-analysis-readiness",
+  followingRegion: "finops-stand",
   question: FRONT_DOOR_QUESTION_ID,
   value: "finops-recoverable-value",
   grade: "finops-recoverable-grade",
   provenance: "finops-recoverable-provenance",
-  attestation: RECOVERABLE_ATTESTATION_ID,
   action: "finops-recoverable-action",
 });
 
@@ -127,7 +124,7 @@ function element(html, id) {
 function firstScreen(html) {
   if (occurrences(html, `id="${FIRST_SCREEN_IDS.region}"`) !== 1) return null;
   const open = html.indexOf(`id="${FIRST_SCREEN_IDS.region}"`);
-  const close = html.indexOf(`id="${FIRST_SCREEN_IDS.supporting}"`);
+  const close = html.indexOf(`id="${FIRST_SCREEN_IDS.followingRegion}"`);
   return close > open ? html.slice(open, close) : null;
 }
 
@@ -140,12 +137,10 @@ function firstScreen(html) {
  */
 export function finopsFirstScreenExpectations() {
   const dataset = loadExampleDataset();
-  const attested = recoverableAttestation(dataset).dimensions;
   const finding = buildEvolutionFinding(dataset);
   return Object.freeze({
     question: finding.question,
-    headline: attested.headline,
-    confidenceBand: attested.confidence,
+    headline: finding.primaryBenchmark.display,
     grade: Object.freeze({
       text: confidenceChip(BUNDLED_RECOVERABLE_CONFIDENCE),
       grade: BUNDLED_RECOVERABLE_CONFIDENCE.grade,
@@ -201,15 +196,6 @@ export function checkFinopsFirstScreen(html, expected = finopsFirstScreenExpecta
   if (value?.text !== expected.headline) {
     add("number", `#${FIRST_SCREEN_IDS.value}`, expected.headline, value?.text ?? null);
   }
-  // The attestation carries the figure it attested as an attribute rather than
-  // as a third dollar string. A headline the region no longer states is a
-  // headline the attestation no longer covers, so the two are compared.
-  const attestation = element(screen, FIRST_SCREEN_IDS.attestation);
-  if (attestation?.attributes["data-headline"] !== expected.headline) {
-    add("number", `#${FIRST_SCREEN_IDS.attestation}[data-headline]`, expected.headline,
-      attestation?.attributes["data-headline"] ?? null);
-  }
-
   // ---- One grade, and the provenance label beside it. Both are seeded at build
   // time, so both are exactly what a stale or half-applied seed loses first.
   for (const [id, want, attribute, actualAttribute] of [
@@ -228,11 +214,6 @@ export function checkFinopsFirstScreen(html, expected = finopsFirstScreenExpecta
         chip?.attributes[attribute] ?? null);
     }
   }
-  if (attestation?.attributes["data-confidence"] !== expected.confidenceBand) {
-    add("provenance", `#${FIRST_SCREEN_IDS.attestation}[data-confidence]`, expected.confidenceBand,
-      attestation?.attributes["data-confidence"] ?? null);
-  }
-
   // ---- One primary next action, and it goes where the registry sends it.
   const actions = occurrences(screen, `class="${ACTION_CLASS}"`);
   if (actions !== 1) {

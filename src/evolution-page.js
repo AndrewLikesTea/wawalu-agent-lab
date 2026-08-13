@@ -258,18 +258,7 @@ import { renderBundledNextStep } from "/finops-bundled-next-step-view.js";
 import { analysisReadiness } from "/finops-bundled-scenarios.js";
 import { installGuidedFirstAnalysis } from "/finops-guided-first-analysis-view.js";
 import { renderAnalysisReadiness } from "/finops-analysis-readiness-view.js";
-// …and the one canonical answer that analysis implies (#1463). The annual
-// savings figure is derived here and nowhere else: the contract sums the
-// recommended actions' monthly savings, annualises them, checks them against the
-// benchmark, the stated percentage and the readiness state, and withholds a
-// figure entirely rather than publishing one a leader could not trace.
-import {
-  finopsAnswerSignals, getRecoverableSpend, recoverableAttestation,
-  resolveFinopsAnswer,
-} from "/finops-answer-contract.js";
-import {
-  renderFinopsAnswer, renderRecoverableAttestation,
-} from "/finops-answer-contract-view.js";
+import { getRecoverableSpend } from "/finops-answer-contract.js";
 import { buildEvolutionFinding } from "/evolution-finding-contract.js";
 import { renderEvolutionFinding } from "/evolution-finding-view.js";
 /// Whether the letter may be shown at all is decided before it is drawn: the
@@ -5137,13 +5126,7 @@ async function init() {
   // corrections table is: the figure below is on screen before the one that
   // summarises it moves.
   const exampleDataset = loadExampleDataset();
-  const exampleRecoverable = getRecoverableSpend(exampleDataset);
   renderEvolutionFinding(document, buildEvolutionFinding(exampleDataset));
-  // AND WHAT IT ATTESTS TO (#1499). The same record again, read once — the four
-  // dimensions the fixture pins are stated in the supporting layer rather than
-  // computed a second time for it.
-  renderRecoverableAttestation(document,
-    recoverableAttestation(exampleDataset, exampleRecoverable));
   // After the result, so the correction table is built over the same figures the
   // reader has just been shown rather than over a half-painted region.
   mountFigureCorrections(document);
@@ -5483,12 +5466,7 @@ renderOwnDataEvidencePreflight(document, assessOwnDataEvidence(BUNDLED_OWN_DATA_
 // A checked, explicitly synthetic worked verdict in Trends. It is an example of
 // the return-decision rubric, never a claim about the reader's imported data.
 renderTwoPeriodCommitmentExample(document);
-// THE ONE BRIEFING, AND IT FOLLOWS THE ANALYSIS (#1466). The canonical answer
-// used to be resolved once, for a hard-coded scenario id, while the chooser
-// below moved the analysis underneath it — so a reader on Azure read an AWS
-// answer stated as the page's single answer. It is now painted from whichever
-// bundled export the flow settled on, along with the readiness lines that
-// qualify it, and it names that export so the two can never disagree silently.
+// Readiness qualifies the dominant finding inside its existing disclosure.
 let loopScenarioId = null;
 // AND THE ONE ORDERED LOOP OVER WHAT IS LEFT (#1483). Painted LAST in this pass,
 // because it quotes the slots the two paints above have just written: the loop
@@ -5507,8 +5485,6 @@ const paintCanonicalAnswer = (scenarioId) => {
   const ok = analysis?.ok === true;
   loopScenarioId = scenarioId ?? loopScenarioId;
   renderAnalysisReadiness(document, ok ? analysis.readiness : null);
-  renderFinopsAnswer(document, ok ? resolveFinopsAnswer(finopsAnswerSignals(analysis)) : null,
-    { scenarioLabel: ok ? analysis.label : null });
   paintReadinessLoop(ok ? analysis.readiness : null);
 };
 // The recheck control runs the page's OWN paint path again rather than a second

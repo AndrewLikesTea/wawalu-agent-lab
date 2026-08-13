@@ -209,7 +209,7 @@ test("the explanation is inside the one disclosure the region already ships", ()
   const chain = ancestors(detail);
   assert.equal(chain.filter((node) => node.id === DISCLOSURE_ID).length, 1,
     "the explanation is not inside the how-we-know disclosure");
-  // The three labelled parts are untouched: no fourth term, no fourth definition.
+  // Trust and correction information share the one native disclosure.
   const disclosure = document.getElementById(DISCLOSURE_ID);
   assert.deepEqual(disclosure.querySelectorAll("dt").map((node) => textOf(node).trim()),
     ["Provenance", "Basis", "Limits"]);

@@ -423,12 +423,6 @@ test("every top-level section that existed before the answer block is still on t
     assert.equal(byId(document, id)?.parentNode?.id, "finops-stand-disclosures",
       `${id} left the top level without arriving in the answer's disclosure group`);
   }
-  // #1498's relocation, held to the same bar: the readiness region is inside the
-  // recoverable answer's one supporting-detail group, not deleted from the page.
-  assert.equal(byId(document, "finops-analysis-readiness")?.parentNode?.id,
-    "finops-answer-support",
-    "the readiness region left the top level without arriving in the answer's support group");
-  relocated.push("finops-analysis-readiness");
   for (const id of [...existing, ...relocated]) {
     const region = byId(document, id);
     assert.ok(region.children.filter((node) => node.nodeType === 1).length > 0,

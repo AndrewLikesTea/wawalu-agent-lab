@@ -101,12 +101,6 @@
         </section>
       </section>
 
-      <!-- #1676 DECISION — the one answer above the fold is finops-first-run: it
-           carries the complete decision summary, the recoverable figure, the peer
-           band and the next action. Retire, region then painter:
-           finops-recoverable-answer / finops-answer-contract-view.js; finops-stand
-           / finops-stand-view.js; finops-readiness-loop / finops-readiness-loop-view.js. -->
-
       <!-- THE ONE ANSWER, ABOVE EVERY SECTION THAT SUPPORTS IT (#1183). Four
            things and no more: the question, the money, how far to trust the
            money, one move. One hedge and one control, because a second of either
@@ -265,6 +259,18 @@
             <div><dt>Basis</dt><dd>The monthly figure is modelled recoverable spend: each scored department's recoverableUsd for the reporting month, summed and rounded once to whole USD. Unscored departments contribute zero. No annual figure is presented.</dd></div>
             <div><dt>Limits</dt><dd><span class="stand-figure-basis" id="finops-recoverable-trust">Supporting context only: <span class="figure-source-state" id="finops-recoverable-marker">Illustrative</span> — <span class="figure-source-state" id="finops-recoverable-provenance" data-band="unscored">Pricing provenance: not scored</span> on the prices, <span class="figure-source-state" id="finops-recoverable-grade" data-grade="ungraded">Confidence: not graded</span> on spend coverage. <span id="finops-recoverable-provenance-reason">Whose prices this figure uses has not been scored for this document.</span> <span id="finops-recoverable-confidence">A ceiling at list prices until 2 destination models state contracted rates and committed-use.</span></span> <span id="finops-recoverable-contract-next">State contracted input and output rates for the premium text tier and the standard text tier — that moves this figure to Declared · Medium. Until then it stays illustrative: a list-price ceiling, not a saving.</span> Measured throughput is left out of the arithmetic too. It is stated as of the bundled synthetic example and moves the moment a provider export of your own is analyzed. <span id="finops-recoverable-confidence-detail">The confidence grade beside the figure has not been computed for this document.</span> <span id="finops-recoverable-provenance-detail">The pricing-provenance sub-score beside the figure has not been computed for this document.</span><section id="recoverable-spend-coverage" aria-label="Recovery-class coverage">Coverage detail is computed locally when the analysis loads.</section></dd></div>
           </dl>
+          <!-- The readiness lines continue the same detail column, but AFTER the
+               list closes rather than inside it. "How we know this" states three
+               terms in three regions of this page (tests/finops-how-we-know.js),
+               and a definition list takes definitions — not loose spans — so a
+               fourth term here would have cost either the shared pattern or
+               valid markup. This block pays neither. -->
+          <div class="figure-source-detail">
+            <p class="figure-source-legend"><strong>Readiness and derivation boundary:</strong> <span id="analysis-readiness-verdict">Yes for an illustrative scenario recommendation; no for an organization-specific savings commitment.</span> <span id="analysis-readiness-benchmark">Readiness is calculated from four required evidence categories.</span> <span id="analysis-readiness-evidence">Current evidence is limited to bundled synthetic scenarios.</span> <span id="analysis-readiness-limit">No conclusion about your organization is supported.</span> <span id="analysis-readiness-value">The modelled line is read from the bundled scenario's own next-step record.</span> <span id="analysis-readiness-reason">The action is read from the page's one derived next-step record.</span></p>
+            <p class="figure-source-legend"><strong>Confidence:</strong> <span id="analysis-readiness-confidence">Computed from the evidence categories the bundled scenario carries.</span> <span id="analysis-readiness-action-confidence">Action confidence is read from the quoted fixture action.</span></p>
+            <p class="figure-source-legend"><strong>Corrections:</strong> <span id="analysis-readiness-action">The prioritized illustrative action is read from the bundled scenario's own next-step record.</span> Correct declared rates or source mappings in the import controls; the finding is recalculated locally from the corrected inputs. <span id="analysis-readiness-provenance">Bundled synthetic fixture.</span></p>
+            <ul class="action-list" id="analysis-readiness-upgrades"></ul>
+          </div>
         </details>
         <!-- THE ONE SUPPORTING-DETAIL LAYER (#1498). The recoverable-spend
              question was answered by more than one top-level region: this one,
@@ -289,92 +295,6 @@
              `data-spine-region` is how src/finops/answer-spine-view.js still
              addresses a region that is no longer a child of the main element,
              the marker #832 used for the same move. -->
-        <div class="stand-disclosures" id="finops-answer-support" role="group" aria-label="Supporting detail for this answer">
-          <!-- DID THE ANSWER SURVIVE THE CONSOLIDATION? (#1499) Written by
-               `recoverableAttestation` from the same record the figure above is,
-               and pinned value-for-value with the assumption behind each in
-               tests/fixtures/finops-consolidated-answer-attestation.json. A
-               drift in the headline, the confidence band, the provenance split
-               or the coverage fails by naming which of the four moved. It is a
-               sibling of every disclosure in this group and not a child of one,
-               reuses `.stand-answer`, adds no rule to either stylesheet, and is
-               not focusable. THE HEADLINE IT ATTESTS IS AN ATTRIBUTE, NOT PROSE:
-               this region states its one recoverable figure once and its
-               projection once, so a third money string in it would be the
-               competing figure #1496 and #1502 removed. -->
-          <p class="stand-answer" id="finops-recoverable-attestation" data-attested="true" data-version="finops-recoverable-attestation/1.0.0" data-headline="$51,254" data-confidence="medium" data-declared="5" data-derived="2" data-scored="5" data-in-scope="5">Attested finops-recoverable-attestation/1.0.0 — the headline above is the one figure this region states, on the monthly basis of record · confidence medium · provenance 5 of 7 operands declared by the export, 2 derived here · coverage 5 of 5 departments scored. Each carries its assumption in tests/fixtures/finops-consolidated-answer-attestation.json, and a drift in any of the four fails by naming it.</p>
-          <section id="finops-analysis-readiness" data-spine-region data-level="illustrative_only" data-subordinate="true" data-workspace-frame="true" aria-labelledby="analysis-readiness-question">
-            <p class="eyebrow">Analysis readiness</p>
-            <h3 id="analysis-readiness-question">Can I get a trustworthy savings recommendation now?</h3>
-            <!-- ONE DOMINANT ANSWER, READ FIRST (#1465). Every slot is written by
-                 src/finops-answer-contract-view.js from the single record
-                 src/finops-answer-contract.js resolved; no number is authored
-                 here. The authored state is `loading`, the state the document is
-                 genuinely in before the module runs, and every slot carries a
-                 placeholder so the block holds its height on first paint. The
-                 status chip is the page's shared five-state vocabulary — word,
-                 glyph, silhouette, tone — so no state is told by colour.
-
-                 THE FIGURE IS `.stand-figure-basis`, NOT `.stand-figure-value`
-                 (#1498). It answers a narrower question than the number at the
-                 top of this region — what the one bundled scenario chosen in the
-                 guided chooser projects over a year — and drawn in the same 30px
-                 role it left a reader with two large money figures and no way to
-                 tell which the page stood behind. One largest-role figure per
-                 answer region; this is the supporting one. No id and no painted
-                 string changed with the class. -->
-            <div class="stand-figure" id="finops-canonical-answer" data-status="withheld" data-reason="missing-input" data-state="loading">
-              <h4 class="eyebrow" id="finops-canonical-answer-heading">Why this is the answer</h4>
-              <div class="panel-status" id="finops-canonical-answer-state" data-status="loading" data-tone="neutral">
-                <p class="panel-status-line" id="finops-canonical-answer-state-line" role="note"><span class="panel-status-chip" id="finops-canonical-answer-chip" data-silhouette="filled"><span class="panel-status-shape" id="finops-canonical-answer-shape" aria-hidden="true">◌</span><span class="panel-status-word" id="finops-canonical-answer-word">Reading</span></span> <span class="panel-status-summary" id="finops-canonical-answer-state-summary">Resolving one annual figure, the benchmark behind it, and the action it implies.</span></p>
-              </div>
-              <p class="stand-figure-basis" id="finops-canonical-answer-figure" data-available="false">Resolving the annual figure from the analyzed scenario…</p>
-              <!-- THE SYNTHETIC QUALIFIER, NEVER BEHIND A CONTROL (#1466):
-                   authored, never repainted, so it survives all five states. -->
-              <p class="sample-marker" id="finops-canonical-answer-synthetic"><span class="sample-marker-shape" aria-hidden="true">◇</span><strong>Bundled synthetic example</strong> Every figure in this briefing is modelled in this browser from invented provider-export records — not your spend, not a realized saving.</p>
-              <p class="stand-figure-basis" id="finops-canonical-answer-scenario">Analyzing the bundled provider export selected in the chooser below.</p>
-              <p class="stand-answer" id="finops-canonical-answer-benchmark">Checking that figure against the analysis benchmark…</p>
-              <!-- #1667: the second action link came out; the region's one move
-                   is the anchor above, to the same destination. -->
-              <p class="stand-answer" id="finops-canonical-answer-reason">The answer is resolved locally, from the analysis this page already loaded.</p>
-              <p class="panel-status-caveat" id="finops-canonical-answer-caveat" hidden></p>
-              <p class="stand-figure-basis" id="finops-canonical-answer-sources">Provenance is stated with the figure, from the analysis's own signal names.</p>
-            </div>
-            <!-- The answer's announcement, and it is a sibling of every disclosure
-                 in this region rather than a child of one. A status region folded
-                 inside a shut disclosure still reads to a test harness and is
-                 silent in a browser. -->
-            <p class="visually-hidden" id="finops-canonical-answer-live" role="status" aria-live="polite" aria-atomic="true"></p>
-            <!-- ONE DISCLOSURE WHERE THERE WERE THREE (#1498). The verdict, the
-                 figure's working, and what later evidence would enable shipped as
-                 three sibling details elements: three controls and three first-
-                 screen tab stops for one question — how far does the held
-                 evidence carry. One control now, in the order a reader needs.
-                 Every line is still painted by
-                 src/finops-analysis-readiness-view.js into the same ids, and the
-                 summary still carries the readiness score so it is informative
-                 shut. Nothing that announces went into it. -->
-            <details class="figure-source" id="analysis-readiness-detail" data-disclosure="collapsed">
-              <summary class="figure-source-summary" id="analysis-readiness-detail-summary" aria-expanded="false"><span class="figure-source-state"><span class="figure-source-shape" aria-hidden="true">▸</span> Readiness verdict, evidence, and limits — the figure behind them, and what later evidence would enable <span id="analysis-readiness-detail-score">— score pending</span></span></summary>
-              <div class="figure-source-detail">
-                <p class="figure-source-legend" id="analysis-readiness-verdict">Yes for an illustrative scenario recommendation; no for an organization-specific savings commitment.</p>
-                <p class="figure-source-legend" id="analysis-readiness-benchmark">Readiness is calculated from four required evidence categories.</p>
-                <p class="figure-source-legend" id="analysis-readiness-evidence">Current evidence is limited to bundled synthetic scenarios.</p>
-                <p class="figure-source-legend" id="analysis-readiness-limit">No conclusion about your organization is supported.</p>
-                <p class="figure-source-legend" id="analysis-readiness-action">The prioritized illustrative action is read from the bundled scenario's own next-step record.</p>
-                <p class="stand-action-basis" id="finops-canonical-answer-action-basis">Ranking the recommended actions…</p>
-                <dl class="figure-source-detail">
-                  <div><dt>Modelled recoverable line</dt><dd id="analysis-readiness-value">Read from the bundled scenario's own next-step record.</dd></div>
-                  <div><dt>Action confidence</dt><dd id="analysis-readiness-action-confidence">Read from the quoted fixture action.</dd></div>
-                  <div><dt>Why this one</dt><dd id="analysis-readiness-reason">Read from the page's one derived next-step record.</dd></div>
-                  <div><dt>Provenance</dt><dd id="analysis-readiness-provenance">Bundled synthetic fixture.</dd></div>
-                  <div><dt>Evidence confidence</dt><dd id="analysis-readiness-confidence">Computed from the evidence categories the bundled scenario carries.</dd></div>
-                  <div><dt>What later evidence would enable</dt><dd><ul class="action-list" id="analysis-readiness-upgrades"></ul></dd></div>
-                </dl>
-              </div>
-            </details>
-          </section>
-        </div>
       </section>
 
 
@@ -2008,9 +1928,9 @@
 
       <!-- THE GUIDED FIRST ANALYSIS (#1393). Three shells, authored empty
            because the point is that what they hold changes with the chosen
-           scenario: the chooser CHANGES the one answer above rather than
-           restating it (#1466 — it repaints #finops-canonical-answer), and the
-           two panels under it ARE the evidence and department destinations,
+           scenario: the chooser updates the disclosed readiness evidence above
+           rather than restating the finding, and the two panels under it are
+           the evidence and department destinations,
            painted from
            src/finops-guided-first-analysis.js for the one selected id. The
            status region is authored here and outside every disclosure — one
