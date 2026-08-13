@@ -129,8 +129,8 @@ const POST_STATE_COPY = {
     className: "empty-state-error detail-state-unavailable",
     tone: "error",
     label: "Unreachable",
-    title: "Post could not be loaded",
-    description: "We couldn’t reach the Social feed to load this post.",
+    title: "Post could not be opened",
+    description: "The Social feed did not respond.",
   },
 };
 
@@ -157,8 +157,8 @@ function labelledState(key, actions = []) {
 // Every unavailable requested-post panel links to the feed itself. Keeping the
 // action with the state makes the next step explicit even when the standing
 // exit above leads to the same place.
-function feedAction() {
-  const link = el("a", "empty-action empty-action-secondary detail-state-feed", "Go to the Social feed");
+function feedAction(label = "Go to the Social feed") {
+  const link = el("a", "empty-action empty-action-secondary detail-state-feed", label);
   link.href = POST_EXITS.social.href;
   return link;
 }
@@ -300,20 +300,16 @@ function renderFailed(container, onRetry) {
   const retry = el("button", "empty-action detail-retry", "Retry");
   retry.type = "button";
   if (onRetry) retry.addEventListener("click", onRetry);
-  container.append(labelledState("error", [feedAction(), retry]));
+  container.append(labelledState("error", [feedAction(POST_EXITS.social.label), retry]));
 }
 
 // The wait, in one place, because src/post.html ships this same line in its
 // markup so the region is never blank before this module runs. Two spellings of
 // one sentence would flash a rewrite at the reader on every visit; one exported
-// string cannot. It reports the wait and nothing more. It used to name the
-// surface as well — "from Social's shared demo feed" — because the sentence
-// standing below this region was then the generic definition of the feed. That
-// sentence now names this page as one post from that feed, two lines under this
-// one, so repeating the description here was the page stuttering at a reader
-// who is already waiting. The heading above the line still says which post.
-export const POST_LOADING_LINE = "Fetching it from the feed…";
-export const POST_LOADING_TITLE = "Loading shared Social post";
+// string cannot. It names the product, the action, and the single shared post
+// being opened. A second heading used to repeat the same wait in different
+// words, so the status now carries one complete sentence instead.
+export const POST_LOADING_STATUS = "Shiplog is opening a single shared post from Social…";
 
 // Waiting is not one of the states above, and it does not get their furniture.
 //
@@ -328,15 +324,12 @@ export const POST_LOADING_TITLE = "Loading shared Social post";
 function renderLoading(container) {
   const status = el("div", "detail-loading detail-state-panel");
   status.setAttribute("role", "status");
-  status.setAttribute("aria-labelledby", "post-state-loading-title");
   status.setAttribute("data-post-state-panel", "loading");
-  const heading = el("h2", "detail-loading-title", POST_LOADING_TITLE);
-  heading.id = "post-state-loading-title";
   const line = el("p", "detail-loading-line");
   const dot = el("span", "detail-loading-dot");
   dot.setAttribute("aria-hidden", "true");
-  line.append(dot, el("span", "detail-loading-text", POST_LOADING_LINE));
-  status.append(heading, line);
+  line.append(dot, el("span", "detail-loading-text", POST_LOADING_STATUS));
+  status.append(line);
   container.append(status);
 }
 

@@ -228,8 +228,9 @@ test("a failed lookup names the feed it could not reach, and retry can recover",
     return seedOnly([SEED_POST])(url);
   });
   try {
-    assert.match(textOf(page.panel), /Post could not be loaded/);
-    assert.match(textOf(page.panel), /We couldn’t reach the Social feed to load this post\./);
+    assert.match(textOf(page.panel), /Post could not be opened/);
+    assert.match(textOf(page.panel), /The Social feed did not respond\./);
+    assert.equal(textOf(page.panel.querySelector(".detail-state-feed")), "Open the full Social feed");
     assert.doesNotMatch(textOf(page.panel), /private|signed-in|your post/i);
     assertExits(page, null, "failed");
 
@@ -288,16 +289,15 @@ test("the loading state is one announced line in the post's region, and takes no
     assert.equal(panel.getAttribute("aria-busy"), "true");
     assert.equal(state.getAttribute("role"), "status", "the state is announced without stealing focus");
     assert.equal(page.document.activeElement, null, "nothing may take focus on load");
-    assert.equal(textOf(state.querySelector(".detail-loading-text")), "Fetching it from the feed…");
+    assert.equal(textOf(state.querySelector(".detail-loading-text")), "Shiplog is opening a single shared post from Social…");
     assert.doesNotMatch(textOf(panel), /A display name is not a signed-in user/);
     // Nothing is named yet, so the h1 names the page — the same words a reader
     // sees in the shipped markup before any script runs.
     assert.equal(textOf(page.document.querySelector("#page-title")), "Post from Social");
-    // The compact state still has a semantic heading and explanatory status
-    // text, without guessing at an image-shaped placeholder.
+    // The compact state says the wait once, without guessing at an image-shaped placeholder.
     assert.equal(panel.querySelectorAll(".detail-state-message").length, 0);
-    assert.equal(textOf(panel.querySelector("h2")), "Loading shared Social post");
-    assert.equal(state.getAttribute("aria-labelledby"), panel.querySelector("h2").id);
+    assert.equal(panel.querySelectorAll("h2").length, 0);
+    assert.equal(state.getAttribute("aria-labelledby"), null);
     assert.equal(panel.querySelectorAll(".skeleton-media").length, 0);
     // The frame around it still says what the page is, so the region is never
     // an unexplained blank.
@@ -331,7 +331,7 @@ test("the page opens already saying it is loading, and the post replaces that li
     assert.equal(panel.dataset.postState, "loading");
     assert.equal(panel.getAttribute("aria-busy"), "true");
     assert.equal(panel.querySelectorAll(".detail-loading").length, 1);
-    assert.equal(textOf(panel.querySelector(".detail-loading-text")), "Fetching it from the feed…");
+    assert.equal(textOf(panel.querySelector(".detail-loading-text")), "Shiplog is opening a single shared post from Social…");
     assert.equal(panel.querySelector(".detail-loading").getAttribute("role"), "status");
     // The states that explain an absent post are not in the markup at all, so
     // the wait and an unavailable panel cannot be read together at any point.
@@ -349,7 +349,7 @@ test("the page opens already saying it is loading, and the post replaces that li
 
     assert.equal(panel.dataset.postState, "loading", "the script agrees with the markup it replaced");
     assert.equal(panel.querySelectorAll(".detail-loading").length, 1, "one wait line, not the shipped one plus a second");
-    assert.equal(textOf(panel.querySelector(".detail-loading-text")), "Fetching it from the feed…");
+    assert.equal(textOf(panel.querySelector(".detail-loading-text")), "Shiplog is opening a single shared post from Social…");
     assert.equal(panel.querySelectorAll(".detail-state-message").length, 0);
 
     release();
@@ -403,7 +403,7 @@ test("the failed state reads the post's region and its retry, then the back link
     // The panel offers both a return to the feed and a retry.
     assert.equal(page.panel.querySelectorAll("button").length, 1);
     assert.equal(page.panel.querySelectorAll("a").length, 1);
-    assert.equal(textOf(page.panel.querySelector("a")), "Go to the Social feed");
+    assert.equal(textOf(page.panel.querySelector("a")), "Open the full Social feed");
   } finally {
     page.restore();
   }
