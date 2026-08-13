@@ -911,14 +911,13 @@ function focusToggle(toggles, index) {
 
 export function handleReleaseListKeydown(event, container) {
   const toggle = event.target.closest?.(".release-toggle");
+  // Enter is native button activation, just like Space: let its click toggle
+  // the disclosure. The detail link inside the expanded row is the way out.
+  if (event.key === "Enter") return false;
   if (!toggle || event.target !== toggle || !NAV_KEYS.has(event.key)) return false;
   const toggles = [...container.querySelectorAll(".release-toggle")];
   event.preventDefault();
-  if (event.key === "Enter") {
-    toggle.closest?.(".release-item")?.querySelector?.(".release-detail-link")?.click();
-  } else {
-    focusToggle(toggles, nextIndex(toggles.indexOf(toggle), event.key, toggles.length));
-  }
+  focusToggle(toggles, nextIndex(toggles.indexOf(toggle), event.key, toggles.length));
   return true;
 }
 
@@ -959,8 +958,7 @@ export function mountReleaseList(container, data = {}) {
     handleReleaseListKeydown(event, container);
   });
 
-  // Toggle the disclosure. Pointer clicks and Space activation on the native
-  // button arrive here; Enter is intercepted above to open the detail view.
+  // Native pointer, Enter, and Space activation all arrive here.
   container.addEventListener("click", (event) => {
     const toggle = event.target.closest?.(".release-toggle");
     if (!toggle) return;

@@ -126,7 +126,7 @@ test("Coach, Releases, Social, People, and Agents send one bounded request and s
       assert.ok(confirmation, `${file}: visible confirmation`);
       assert.equal(page.document.activeElement?.id, "site-footer-confirmation", `${file}: focus reaches confirmation`);
       assert.match(textOf(confirmation), /Wawalu team received this work email/, `${file}: receipt names recipient`);
-      assert.match(textOf(confirmation), /requested follow-up type is the only other information sent/, `${file}: receipt states disclosure`);
+      assert.match(textOf(confirmation), /requested follow-up type were sent to the Wawalu team/, `${file}: receipt states disclosure`);
       assert.doesNotMatch(textOf(confirmation), new RegExp(pageContent, "i"), `${file}: receipt does not render page content`);
       assert.match(shownText(page.document, "site-footer-status"), /person replies by email/,
         `${file}: confirmation states the next step`);
@@ -182,11 +182,11 @@ for (const { name, open, prefix } of SURFACES) {
       // Who answers, and roughly when — the response time the FinOps form
       // already states, hedged, because someone reads this queue and nobody has
       // promised the hour.
-      assert.match(textOf(receipt), /Someone here replies to that address by email, usually within two business days/);
-      assert.match(textOf(receipt), /requested follow-up type is the only other information sent/);
+      assert.match(textOf(receipt), /Wawalu team replies to that address by email, usually within two business days/);
+      assert.match(textOf(receipt), /requested follow-up type were sent to the Wawalu team/);
       // And what stayed behind, named rather than left to be assumed: the
       // request carried one field, so the receipt says so out loud.
-      assert.match(textOf(receipt), /no page content, prompt text, uploaded file, or browsing data went with it/);
+      assert.match(textOf(receipt), /Page content, prompts, exports, and other visitor data were not sent/);
       // The categories may be named; a value from the page may not. The address
       // line is the only place a page could leak into, so it is checked alone.
       const addressLine = textOf(receipt.querySelector(`.${receipt.className}-lead`));

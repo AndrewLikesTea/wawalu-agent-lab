@@ -321,7 +321,12 @@ test("a release's decisions are reachable from the history with the keyboard alo
   }
   assert.equal(focused, toggles[0], "the first release is tabbable");
 
-  // Enter opens that release's decisions; Space still expands them in place.
+  // Enter expands the disclosure, then its detail link is the explicit route.
+  pressEnter(page.document);
+  assert.equal(toggles[0].getAttribute("aria-expanded"), "true");
+  const detailLink = page.document.getElementById(toggles[0].getAttribute("aria-controls"))
+    .querySelector(".release-detail-link");
+  detailLink.focus();
   pressEnter(page.document);
   assert.deepEqual(page.navigations, ["/release.html?id=r-mixed"]);
 });

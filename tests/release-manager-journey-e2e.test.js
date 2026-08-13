@@ -552,23 +552,8 @@ test("a reload between the steps loses nothing the manager recorded", async (t) 
 });
 
 // --------------------------------------------------------------------------
-// Found while walking the journey with the keyboard: the release row's
-// disclosure button answers Enter and Space with two different actions.
-//
-// User impact: the row is a <button> carrying aria-expanded="false", so a
-// keyboard or screen reader user is told it is a collapsed disclosure. Space
-// expands it as announced; Enter leaves the page for the release detail view
-// instead. A release manager tabbing the list to skim what each release
-// carried is navigated away from the list on the first Enter, and the row
-// state they were told about never changes. Enter and Space on the same button
-// are meant to do the same thing (ARIA's disclosure pattern), and every other
-// row in this product — the history rows on the decisions page — opens on
-// Enter without also claiming to expand.
-//
-// The behaviour is deliberate (src/releases.js: handleReleaseListKeydown) and
-// unit-tested, so it is reported here rather than patched: the fix is a product
-// decision — either the row stops announcing itself as a disclosure, or Enter
-// toggles it like Space does and the detail link stays the way out.
+// Enter and Space both activate the disclosure button. The detail link inside
+// the expanded row remains the explicit way to leave the list.
 // --------------------------------------------------------------------------
 
 test("the release row expands on Space, and the detail link inside it is what leaves the page", async (t) => {
@@ -583,7 +568,7 @@ test("the release row expands on Space, and the detail link inside it is what le
   assert.equal(toggle.getAttribute("aria-expanded"), "false", "Space did not collapse the release row again");
 });
 
-test("the release row expands when its button is activated with Enter", { todo: true }, async (t) => {
+test("the release row expands when its button is activated with Enter", async (t) => {
   const { releasesPage } = await shipTheDecision(t);
 
   const toggle = tabTo(releasesPage, ".release-toggle", "the release row");

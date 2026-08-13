@@ -66,7 +66,7 @@ function focusedRelease(page) {
   return active?.className?.includes("release-toggle") ? textOf(active.querySelector(".release-version")) : null;
 }
 
-const HINT = "Use ↑ and ↓ to move between releases, Home and End to jump to the first and last release, Space to expand a release in place, and Enter to open its details page.";
+const HINT = "Use ↑ and ↓ to move between releases, Home and End to jump to the first and last release, and Enter or Space to expand a release. Use its detail link to open the page.";
 
 test("the release list answers ↑ ↓ Home and End by moving focus between rows", async (t) => {
   const page = await bootedReleases(t);
@@ -93,7 +93,7 @@ test("the release list answers ↑ ↓ Home and End by moving focus between rows
   assert.deepEqual(page.navigations, [], "moving between rows navigated away from the list");
 });
 
-test("Space expands the focused release in place and Enter opens its details page", async (t) => {
+test("Space and Enter expand the focused release in place", async (t) => {
   const page = await bootedReleases(t);
   const toggle = tabTo(page, ".release-toggle");
   assert.equal(toggle.getAttribute("aria-expanded"), "false", "the release row did not start collapsed");
@@ -108,11 +108,10 @@ test("Space expands the focused release in place and Enter opens its details pag
   pressKey(page.document, " ");
   assert.equal(toggle.getAttribute("aria-expanded"), "false", "Space did not collapse the release row again");
 
-  // Enter: a different result, in the words the line uses for it — the
-  // release's own details page, not this row opening.
+  // Enter follows the same native disclosure-button contract as Space.
   pressKey(page.document, "Enter");
-  assert.deepEqual(page.navigations, ["/release.html?id=r-flags"], "Enter did not open the release's details page");
-  assert.equal(toggle.getAttribute("aria-expanded"), "false", "Enter also expanded the row it was meant to leave");
+  assert.deepEqual(page.navigations, [], "Enter navigated away from the list");
+  assert.equal(toggle.getAttribute("aria-expanded"), "true", "Enter did not expand the release row");
 });
 
 test("the keyboard line names one action per key, and only keys the list answers", async (t) => {
@@ -137,5 +136,5 @@ test("the keyboard line names one action per key, and only keys the list answers
   // from the shipped markup rather than reached by a descendant selector.
   const markup = await readFile(RELEASES_PAGE, "utf8");
   assert.match(markup, /Expand a release to review each linked decision and its status\./);
-  assert.match(hint, /Space to expand a release in place/);
+  assert.match(hint, /Enter or Space to expand a release/);
 });

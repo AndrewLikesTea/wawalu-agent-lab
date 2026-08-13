@@ -23,11 +23,13 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { loadPage, pressEnter, pressTab, tabSequence, textOf, typeText } from "./support/browser.js";
+import { readdir, readFile } from "node:fs/promises";
+import { loadPage, parseHtml, pressEnter, pressTab, tabSequence, textOf, typeText } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
 import { MIGRATIONS, createTestD1 } from "./support/d1-sqlite.js";
 import { initSiteFooter } from "../src/site-footer.js";
 import { CONFIRMATION_DETAIL, CONFIRMATION_LEAD } from "../src/follow-up-confirmation.js";
+import { FOLLOW_UP_REQUEST_TYPES, LEAD_PURPOSES } from "../src/leads.js";
 import { onRequest } from "../functions/api/leads.js";
 
 // The six pages the follow-up request was reviewed on, with the request type
@@ -44,6 +46,44 @@ const REVIEWED = [
 
 const TYPED_EMAIL = "director@example.com";
 const pageUrl = (file) => new URL(`../src/${file}`, import.meta.url);
+
+// The routing label is the second and last field on the wire, and the only one
+// the visitor does not type. It is authored by hand in each page's markup and
+// read straight off the form — `form.dataset.followUpType || "follow_up"` in
+// src/site-footer.js — while the set the endpoint accepts is declared in
+// src/leads.js and enforced by `LEAD_PURPOSES`. Two hand-kept lists, one wire
+// contract, and until now nothing held them together.
+//
+// A page shipping a label outside the enum is answered 422 `invalid_purpose`,
+// which src/lead-capture.js maps to the unreadable-request copy: "Reload the
+// page and try again". Reloading changes nothing, because the markup is what is
+// wrong — a permanent dead end on the one surface that reaches a person, which
+// is the failure issue #1694 exists to remove. The REVIEWED table above cannot
+// catch it: it asserts about its own six pages, so a seventh surface, or a typo
+// in a value, ships green. This reads whatever src/ actually ships instead.
+test("every routing label the site ships is one the endpoint accepts, and every declared type ships", async () => {
+  const files = (await readdir(new URL("../src/", import.meta.url))).filter((name) => name.endsWith(".html"));
+  const shipped = new Map();
+  for (const file of files.sort()) {
+    for (const form of parseHtml(await readFile(pageUrl(file), "utf8")).querySelectorAll("form")) {
+      const label = form.getAttribute("data-follow-up-type");
+      // No attribute is the legacy `follow_up` fallback, which every deployment
+      // accepts; only a stated label is a claim this contract has to honour.
+      if (label === null) continue;
+      assert.ok(LEAD_PURPOSES.includes(label),
+        `${file} sends purpose "${label}", which POST /api/leads answers 422 invalid_purpose`);
+      assert.ok(!shipped.has(label),
+        `${file} and ${shipped.get(label)} both send "${label}"; one label names one surface`);
+      shipped.set(label, file);
+    }
+  }
+
+  // And the reverse direction, which is the quieter failure: a bounded type
+  // nobody sends means a surface lost its attribute and silently fell back to
+  // the legacy label, so the team cannot tell which page a request came from.
+  assert.deepEqual([...shipped.keys()].sort(), [...FOLLOW_UP_REQUEST_TYPES].sort(),
+    "the labels src/ ships and the types src/leads.js declares have drifted apart");
+});
 const byId = (document, id) => document.getElementById(id);
 const shownText = (document, id) => textOf(byId(document, id));
 
@@ -147,9 +187,9 @@ test("a valid work email and a successful transport reach the success state, whi
     assert.ok(receipt.includes(CONFIRMATION_LEAD.trim()), "the receipt must name what was sent");
     assert.ok(receipt.includes(TYPED_EMAIL), "the receipt must name the address itself");
     // 2. Who replies, and roughly when.
-    assert.match(receipt, /Someone here replies to that address by email, usually within two business days/);
+    assert.match(receipt, /Wawalu team replies to that address by email, usually within two business days/);
     // 3. What did not go with it.
-    assert.match(receipt, /no page content, prompt text, uploaded file, or browsing data went with it/);
+    assert.match(receipt, /Page content, prompts, exports, and other visitor data were not sent/);
     assert.ok(receipt.includes(CONFIRMATION_DETAIL));
   } finally {
     page.restore();

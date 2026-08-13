@@ -217,14 +217,14 @@ function keyboardFixture() {
   return { calls, items, container, event };
 }
 
-test("release Enter activates details and arrows move focus", () => {
+test("release Enter falls through to native disclosure activation and arrows move focus", () => {
   const { calls, container, event } = keyboardFixture();
-  assert.equal(handleReleaseListKeydown(event("Enter"), container), true);
-  assert.equal(calls.selected, 1);
+  assert.equal(handleReleaseListKeydown(event("Enter"), container), false);
+  assert.equal(calls.selected, 0);
   assert.deepEqual(calls.focused, []);
   assert.equal(handleReleaseListKeydown(event("ArrowDown"), container), true);
   assert.deepEqual(calls.focused, [2]);
-  assert.equal(calls.prevented, 2);
+  assert.equal(calls.prevented, 1);
 });
 
 test("Space and unhandled keys fall through so the disclosure still expands", () => {

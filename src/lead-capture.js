@@ -94,8 +94,8 @@ export const CONTACT_COPY = Object.freeze({
  * embeds the rendered text; tests/follow-up-privacy.test.js reads this constant
  * and requires every form to render it exactly.
  */
-export const FOLLOW_UP_PRIVACY = "The work email address you type here goes to the Wawalu team that "
-  + "operates Shiplog; nothing else on this page is sent.";
+export const FOLLOW_UP_PRIVACY = "Only your work email and follow-up type go to the Wawalu team; page content, "
+  + "prompts, exports, and other visitor data do not.";
 
 // This form's own pending and success states: the contact forms promise
 // something else, so each set owns that sentence. Both repeat src/index.html's

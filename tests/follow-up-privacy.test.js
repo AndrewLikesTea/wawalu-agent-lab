@@ -76,10 +76,10 @@ test("the shared sentence is one sentence, under 25 words, and names all three t
 
   // What is sent, who receives it, and that nothing else goes with it. A reader
   // deciding whether to type an address is deciding on exactly these three.
-  assert.match(FOLLOW_UP_PRIVACY, /work email address you type here/, "it must name what is sent");
-  assert.match(FOLLOW_UP_PRIVACY, /Wawalu team that operates Shiplog/, "it must name who receives it");
-  assert.match(FOLLOW_UP_PRIVACY, /nothing else on this page is sent/,
-    "it must say that nothing else on the page is sent");
+  assert.match(FOLLOW_UP_PRIVACY, /work email and follow-up type/, "it must name exactly what is sent");
+  assert.match(FOLLOW_UP_PRIVACY, /Wawalu team/, "it must name who receives it");
+  assert.match(FOLLOW_UP_PRIVACY, /page content, prompts, exports, and other visitor data do not/,
+    "it must name what is excluded");
 
   // No hedge, no marketing, and no promise the transport does not keep.
   for (const filler of [/\bwe (?:will )?never\b/i, /\brest assured\b/i, /\bsecurely\b/i, /\bof course\b/i,

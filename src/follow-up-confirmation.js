@@ -21,16 +21,13 @@
  * not go with it, and who replies and roughly when. `LEAD` is deliberately split
  * around the address so the address arrives as a text node of its own.
  *
- * The exclusion list is not decoration. `postLeadEmail` builds the whole request
- * body from the typed address and a fixed routing label, so no page state has a
- * route to the wire on any surface — the sentence is true by construction, and
- * naming what stayed behind is the point of it. The response time is the one the
- * FinOps form states, hedged: someone reads this queue, nobody promised an hour.
+ * `postLeadEmail` sends the typed address and fixed routing label only. The
+ * response time is hedged: someone reads this queue, nobody promised an hour.
  */
 export const CONFIRMATION_LEAD = "The Wawalu team received this work email: ";
-export const CONFIRMATION_DETAIL = "The requested follow-up type is the only other information sent: no page "
-  + "content, prompt text, uploaded file, or browsing data went with it. Someone here replies to that "
-  + "address by email, usually within two business days.";
+export const CONFIRMATION_DETAIL = "Only that work email and the requested follow-up type were sent to the Wawalu "
+  + "team. Page content, prompts, exports, and other visitor data were not sent. The Wawalu team replies to "
+  + "that address by email, usually within two business days.";
 export const REOPEN_LABEL = "Request another follow-up";
 
 /**
