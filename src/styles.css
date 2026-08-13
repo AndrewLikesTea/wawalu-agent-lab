@@ -621,6 +621,14 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
    distinguishes the degraded connection even when colour is unavailable; the
    adjacent status text names the state in words. */
 .feed-connection[data-state="degraded"] .live-dot { border:2px solid #8a6d0a; border-radius:1px; background:#fff; box-shadow:none; transform:rotate(45deg); }
+.feed-status { display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin:0 0 12px; color:#74746e; font:650 11px/1.5 ui-monospace,monospace; }
+.feed-status-summary,.feed-status-detail { margin:0; }
+.feed-status-label { margin-right:6px; color:#74746e; }
+.feed-status-value { color:#62625d; }
+.feed-status-detail { flex-basis:100%; color:#62625d; }
+.feed-status-action { width:auto; min-height:40px; border:1px solid #7a7a74; border-radius:7px; padding:8px 12px; background:#fff; color:#171713; font:700 12px/1.2 ui-monospace,monospace; cursor:pointer; }
+.feed-status-action:hover { background:#e9f1f8; }
+.feed-status-action:focus-visible { outline:3px solid var(--focus-ring); outline-offset:2px; }
 .visually-hidden { position:absolute!important; width:1px!important; height:1px!important; padding:0!important; margin:-1px!important; overflow:hidden!important; clip:rect(0,0,0,0)!important; white-space:nowrap!important; border:0!important; }
 /* Responsive post grid: one column when the panel is narrow, filling to more
    columns as space allows (mobile → tablet → desktop) without media queries.

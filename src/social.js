@@ -24,7 +24,7 @@
 import { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH, readStoredAuthor, rememberAuthor } from "./social-identity.js";
 import { imageDescription, renderDescriptionNote, renderImageUnavailable } from "./image-description.js";
 import { postDetailHref, profileHref } from "./social-links.js";
-import { renderState } from "./state-ui.js";
+import { renderFeedStatus } from "./feed-status.js";
 
 export { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH };
 
@@ -556,11 +556,18 @@ export function connectionStatusLine(state, noun = "posts") {
 // Posts always win over a pending or failed refresh: stale content beats a
 // spinner over content the reader could already see.
 export function renderPosts(container, posts, options = {}) {
-  const { noMatch = null, state = "ready", statusRegion = container } = options;
+  const { noMatch = null, state = "ready", statusRegion = container, onRetry = null } = options;
   const ordered = sortPostsNewestFirst(posts);
   container.replaceChildren();
   container.setAttribute("aria-busy", state === "loading" && ordered.length === 0 ? "true" : "false");
-  if (statusRegion !== container) {
+  if (statusRegion !== container && state === "error") {
+    renderFeedStatus(statusRegion, {
+      state: "error", label: "Social feed update failed",
+      text: "Showing the posts already loaded.",
+      detail: "Your filters and anything in the composer are unchanged. Retry loading newer posts.",
+      actionLabel: "Retry loading Social posts", onAction: onRetry,
+    });
+  } else if (statusRegion !== container) {
     statusRegion.replaceChildren();
     statusRegion.hidden = false;
   }
@@ -568,39 +575,46 @@ export function renderPosts(container, posts, options = {}) {
   if (ordered.length === 0) {
     if (state === "loading") {
       renderSkeleton(container);
-      const loading = document.createElement("div");
-      renderState(loading, { state: "loading", title: FEED_LOADING_LINE });
-      statusRegion.append(...loading.children);
+      renderFeedStatus(statusRegion, {
+        state: "loading", label: "Social feed loading", text: FEED_LOADING_LINE,
+        append: statusRegion === container,
+      });
       return;
     }
     if (state === "error") {
-      const panel = renderState(statusRegion, {
+      const panel = renderFeedStatus(statusRegion, {
         state: "error",
         label: "Social feed error",
-        value: "Social posts could not be loaded.",
-        description: "The feed keeps retrying. Check the connection status above.",
+        text: "Social posts could not be loaded.",
+        detail: "Your filters and anything in the composer are unchanged. Retry loading the feed.",
+        actionLabel: "Retry loading Social posts",
+        onAction: onRetry,
+        append: statusRegion === container,
       });
       panel.classList.add("empty-state", "empty-state-error");
     } else if (noMatch) {
       // The filtered dead end. Its own words, its own label, and — unlike every
       // other state on this page — its own control, because this is the one
       // empty screen the reader can undo from where they are standing. A real
-      // <button> (renderState builds one whenever an action carries no href),
+      // <button> (the shared status builds one whenever an action can run),
       // after the message in DOM order, so Tab from the message reaches it.
-      const panel = renderState(statusRegion, {
-        state: "empty",
+      const panel = renderFeedStatus(statusRegion, {
+        state: "filtered",
         label: "Social filter result",
-        value: noMatchMessage(noMatch),
-        description: noMatchGuidance(noMatch.total),
-        action: { label: CLEAR_FILTERS_LABEL, onClick: noMatch.onClear },
+        text: noMatchMessage(noMatch),
+        detail: noMatchGuidance(noMatch.total),
+        actionLabel: CLEAR_FILTERS_LABEL,
+        onAction: noMatch.onClear,
+        append: statusRegion === container,
       });
       panel.classList.add("empty-state", "empty-state-filtered");
     } else {
-      const panel = renderState(statusRegion, {
+      const panel = renderFeedStatus(statusRegion, {
         state: "empty",
         label: "Social feed status",
-        value: "No posts on Social yet.",
-        description: NO_POSTS_GUIDANCE,
+        text: "No posts on Social yet.",
+        detail: NO_POSTS_GUIDANCE,
+        append: statusRegion === container,
       });
       panel.classList.add("empty-state");
     }
@@ -821,7 +835,9 @@ export function mountSocialFeed(root, options = {}) {
     const noMatch = filtering && visible.length === 0 && posts.length > 0
       ? { ...named, total: posts.length, onClear: recoverFromNoMatch }
       : null;
-    renderPosts(feed, visible, { state, noMatch, statusRegion: feedState ?? feed });
+    renderPosts(feed, visible, {
+      state, noMatch, statusRegion: feedState ?? feed, onRetry: options.onRetry,
+    });
     // The count answers "how many posts are there", which this page can only
     // answer once a fetch has come back. Until one has, it names which of
     // "still loading" and "could not load" is true instead of printing a zero
