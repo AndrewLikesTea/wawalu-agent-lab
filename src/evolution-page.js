@@ -257,21 +257,14 @@ import {
 import { renderBundledNextStep } from "/finops-bundled-next-step-view.js";
 import { analysisReadiness } from "/finops-bundled-scenarios.js";
 import { installGuidedFirstAnalysis } from "/finops-guided-first-analysis-view.js";
-import { renderAnalysisReadiness } from "/finops-analysis-readiness-view.js";
 // …and the one canonical answer that analysis implies (#1463). The annual
 // savings figure is derived here and nowhere else: the contract sums the
 // recommended actions' monthly savings, annualises them, checks them against the
 // benchmark, the stated percentage and the readiness state, and withholds a
 // figure entirely rather than publishing one a leader could not trace.
-import {
-  finopsAnswerSignals, getRecoverableSpend, recoverableAttestation,
-  resolveFinopsAnswer,
-} from "/finops-answer-contract.js";
-import {
-  renderFinopsAnswer, renderRecoverableAttestation,
-} from "/finops-answer-contract-view.js";
+import { getRecoverableSpend } from "/finops-answer-contract.js";
 import { buildEvolutionFinding } from "/evolution-finding-contract.js";
-import { renderEvolutionFinding } from "/evolution-finding-view.js";
+import { bindEvolutionFindingDisclosure, renderEvolutionFinding } from "/evolution-finding-view.js";
 /// Whether the letter may be shown at all is decided before it is drawn: the
 // score card is a roll-up of only the departments the rubric actually scored.
 import { CLAMPED_REASON, gradeEligibility } from "/grade-eligibility.js";
@@ -5137,13 +5130,8 @@ async function init() {
   // corrections table is: the figure below is on screen before the one that
   // summarises it moves.
   const exampleDataset = loadExampleDataset();
-  const exampleRecoverable = getRecoverableSpend(exampleDataset);
   renderEvolutionFinding(document, buildEvolutionFinding(exampleDataset));
-  // AND WHAT IT ATTESTS TO (#1499). The same record again, read once — the four
-  // dimensions the fixture pins are stated in the supporting layer rather than
-  // computed a second time for it.
-  renderRecoverableAttestation(document,
-    recoverableAttestation(exampleDataset, exampleRecoverable));
+  bindEvolutionFindingDisclosure(document);
   // After the result, so the correction table is built over the same figures the
   // reader has just been shown rather than over a half-painted region.
   mountFigureCorrections(document);
@@ -5506,9 +5494,6 @@ const paintCanonicalAnswer = (scenarioId) => {
   const analysis = scenarioId ? analysisReadiness({ scenarioId }) : null;
   const ok = analysis?.ok === true;
   loopScenarioId = scenarioId ?? loopScenarioId;
-  renderAnalysisReadiness(document, ok ? analysis.readiness : null);
-  renderFinopsAnswer(document, ok ? resolveFinopsAnswer(finopsAnswerSignals(analysis)) : null,
-    { scenarioLabel: ok ? analysis.label : null });
   paintReadinessLoop(ok ? analysis.readiness : null);
 };
 // The recheck control runs the page's OWN paint path again rather than a second
