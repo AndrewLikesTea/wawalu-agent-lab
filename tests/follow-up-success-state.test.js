@@ -186,7 +186,7 @@ for (const { name, open, prefix } of SURFACES) {
       assert.match(textOf(receipt), /requested follow-up type is the only other information sent/);
       // And what stayed behind, named rather than left to be assumed: the
       // request carried one field, so the receipt says so out loud.
-      assert.match(textOf(receipt), /no page content, prompt text, uploaded file, or browsing data went with it/);
+      assert.match(textOf(receipt), /no page content, prompts, exports, or other visitor data went with it/);
       // The categories may be named; a value from the page may not. The address
       // line is the only place a page could leak into, so it is checked alone.
       const addressLine = textOf(receipt.querySelector(`.${receipt.className}-lead`));

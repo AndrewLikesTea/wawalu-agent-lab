@@ -149,7 +149,7 @@ test("a valid work email and a successful transport reach the success state, whi
     // 2. Who replies, and roughly when.
     assert.match(receipt, /Someone here replies to that address by email, usually within two business days/);
     // 3. What did not go with it.
-    assert.match(receipt, /no page content, prompt text, uploaded file, or browsing data went with it/);
+    assert.match(receipt, /no page content, prompts, exports, or other visitor data went with it/);
     assert.ok(receipt.includes(CONFIRMATION_DETAIL));
   } finally {
     page.restore();

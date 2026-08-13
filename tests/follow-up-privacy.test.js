@@ -76,10 +76,12 @@ test("the shared sentence is one sentence, under 25 words, and names all three t
 
   // What is sent, who receives it, and that nothing else goes with it. A reader
   // deciding whether to type an address is deciding on exactly these three.
-  assert.match(FOLLOW_UP_PRIVACY, /work email address you type here/, "it must name what is sent");
+  assert.match(FOLLOW_UP_PRIVACY, /work email and follow-up request/, "it must name what is sent");
   assert.match(FOLLOW_UP_PRIVACY, /Wawalu team that operates Shiplog/, "it must name who receives it");
-  assert.match(FOLLOW_UP_PRIVACY, /nothing else on this page is sent/,
-    "it must say that nothing else on the page is sent");
+  // The four categories have to sit inside the negation, not merely appear: a
+  // sentence claiming it sends them would satisfy four presence checks alone.
+  assert.match(FOLLOW_UP_PRIVACY, /not page content, prompts, exports, or other visitor data/,
+    "it must name the visitor data that does not go with it");
 
   // No hedge, no marketing, and no promise the transport does not keep.
   for (const filler of [/\bwe (?:will )?never\b/i, /\brest assured\b/i, /\bsecurely\b/i, /\bof course\b/i,

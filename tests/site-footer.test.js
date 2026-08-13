@@ -492,9 +492,9 @@ test("the footer form says what submitting asks for, on the page that carries bo
     const note = textOf(byId(document, "site-footer-note"));
     assert.equal(note, FOLLOW_UP_PRIVACY);
     // It names what is sent, who receives it, and that nothing else goes.
-    assert.match(note, /work email address you type here/);
+    assert.match(note, /work email and follow-up request/);
     assert.match(note, /Wawalu team that operates Shiplog/);
-    assert.match(note, /nothing else on this page is sent/);
+    assert.match(note, /not page content, prompts, exports, or other visitor data/);
 
     // The control the visitor presses says the same thing the note does.
     const submit = byId(document, "site-footer-panel").querySelector('button[type="submit"]');

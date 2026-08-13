@@ -29,7 +29,7 @@
  */
 export const CONFIRMATION_LEAD = "The Wawalu team received this work email: ";
 export const CONFIRMATION_DETAIL = "The requested follow-up type is the only other information sent: no page "
-  + "content, prompt text, uploaded file, or browsing data went with it. Someone here replies to that "
+  + "content, prompts, exports, or other visitor data went with it. Someone here replies to that "
   + "address by email, usually within two business days.";
 export const REOPEN_LABEL = "Request another follow-up";
 
