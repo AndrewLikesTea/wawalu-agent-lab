@@ -42,8 +42,13 @@ export function createPost(values, options = {}) {
 
   if (!body) {
     // Surfaced in the composer's notice, so it names the field the way the
-    // field's own label does: "Caption", not a second word for it.
-    throw new TypeError("A post requires a caption.");
+    // field's own label does: "Post", not a second word for it. "Blank" and not
+    // "required", because the browser's own required check has already passed by
+    // the time this fires — the only body that reaches here is whitespace, and a
+    // reader who typed spaces is not missing a field, they are holding an empty
+    // one. Shaped like the over-budget refusal below, the way the two composer
+    // refusals downpage are shaped like each other.
+    throw new TypeError("A post cannot be blank.");
   }
   if (body.length > MAX_POST_LENGTH) {
     throw new TypeError(`A post must be ${MAX_POST_LENGTH} characters or fewer.`);
@@ -206,8 +211,8 @@ export const CLEAR_FILTERS_LABEL = "Clear filters";
 //
 // The confirmation names the post rather than saying "post published": a reader
 // who publishes twice in a row, or who publishes while a filter is on, needs to
-// know WHICH post landed. The caption is the only name a post has, so it is the
-// name, quoted and shortened to a scannable opening rather than repeated whole.
+// know WHICH post landed. Its own words are the only name a post has, so they
+// are the name, quoted and shortened to a scannable opening, not repeated whole.
 // ---------------------------------------------------------------------------
 const MAX_CONFIRMED_CAPTION = 60;
 
@@ -229,11 +234,11 @@ export const PUBLISH_STATE_WORDS = Object.freeze({ filtered: "Hidden by filters"
 export const FILTERED_OUT_NOTE = "Your current filters hide this post from the feed below.";
 export const REVEAL_CONTROL_LABEL = "Clear filters and show this post";
 export const NO_IMAGE_NOTE = "This post carries no image, so it appears on Social only.";
-export const PUBLISH_FAILED_NOTE = "Your caption, image, and image description are still in the composer, exactly as you left them.";
+export const PUBLISH_FAILED_NOTE = "Your post, image, and image description are still in the composer, exactly as you left them.";
 
 // …and the sentence that says what to do with them. Said only where it is true:
 // a publish the server refused can be sent again unchanged, so this names the
-// control that sends it. The composer's own refusals — an empty caption, a
+// control that sends it. The composer's own refusals — a blank post, a
 // missing image description — do not get it, because pressing the same button
 // again without fixing the field would fail the same way.
 export const PUBLISH_RETRY_NOTE = "Select Publish post to send the same post again.";
@@ -241,7 +246,7 @@ export const PUBLISH_RETRY_NOTE = "Select Publish post to send the same post aga
 // The label said "(required with an image)" and nothing said what the
 // requirement does, so the one refusal that is entirely this page's own — the
 // browser has no opinion about this field — happened without being announced.
-// Written in the caption hint's sentence, clause for clause: what stops, what is
+// Written in the post hint's sentence, clause for clause: what stops, what is
 // asked of you, and that nothing is published. The two now read alike, so a
 // reader who has met one already knows the shape of the other.
 //
@@ -641,7 +646,7 @@ export function renderPosts(container, posts, options = {}) {
 // page wiring because the refusal is what decides whether a post is created,
 // and that decision is testable without a file picker or a FileReader.
 //
-// The counter is the caption's counter — same counterState math, same
+// The counter is the post field's counter — same counterState math, same
 // "Characters remaining:" wording, same near/over classes — pointed at a
 // different budget. There is deliberately no second mechanism.
 export function mountImageDescription(root) {
@@ -741,7 +746,7 @@ export function mountImageDescription(root) {
 // composer fields out of the tab sequence until somebody asks for them.
 //
 // Focus is the half that makes it usable, so it is stated once here and holds
-// for every route: open puts the caret in the caption field, because revealing a
+// for every route: open puts the caret in the post field, because revealing a
 // form and leaving focus on the trigger above it strands the reader at the exact
 // moment they asked for the form; close puts it back on the trigger, because
 // anything else drops them at the top of the document, above everything they
@@ -1004,8 +1009,8 @@ export function mountSocialFeed(root, options = {}) {
 
   // True from the moment a request leaves until it comes back. `disabled` on the
   // submit button is the visible half and it is not the whole guard: Enter in a
-  // single-line field, and the caption's Cmd/Ctrl+Enter shortcut, both submit the
-  // form without going through that button. This is what makes a second press
+  // single-line field, and the post field's Cmd/Ctrl+Enter shortcut, both submit
+  // the form without going through that button. This is what makes a second press
   // impossible rather than merely inconvenient.
   let publishing = false;
 
@@ -1045,14 +1050,16 @@ export function mountSocialFeed(root, options = {}) {
         post = createPost({ author: authorInput?.value, body: bodyInput?.value });
         media = options.getMedia?.() ?? null;
       } catch (error) {
-        // Should be unreachable behind reportValidity()/maxlength, but keeps the
-        // submit flow resilient rather than throwing into the console.
-        showFailure(error?.message || "That post could not be published. Add a caption within the limit.");
+        // reportValidity()/maxlength catch the empty and the over-long body, but
+        // not a body of spaces — `required` is satisfied by whitespace — so the
+        // blank refusal reaches this notice for real. The fallback is the belt:
+        // an error that arrives with no message still says what happened.
+        showFailure(error?.message || "That post could not be published. Write a post within the limit.");
         return;
       }
 
       // The one field the composer will not publish an image without. Refusing
-      // here means no post is created and nothing else is touched: the caption,
+      // here means no post is created and nothing else is touched: the post,
       // the byline, and the encoded image all stay exactly where the poster left
       // them, the image in the same composer store the success path reads from.
       //

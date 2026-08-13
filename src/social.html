@@ -72,7 +72,7 @@
         <!-- One route out of the hero, and now the control that reveals the
              composer rather than a link that jumps to it. The composer used to
              be the first thing under this heading, so a first-time visitor met
-             a caption box, a file picker and a name field before a single post.
+             a post box, a file picker and a name field before a single post.
              The feed is read first now and the composer sits below it, opened
              from here. This is the site's own disclosure pattern, the one the
              footer's follow-up panel already uses: a button carrying
@@ -80,7 +80,7 @@
              focus that comes back to this control on every close.
              It used to read "Write a post without an image", which contradicted
              the form it opens: that form's own image field is labelled
-             "(optional)", so the composer takes a caption with an image or
+             "(optional)", so the composer takes a post with an image or
              without one and the control that opens it may not promise
              otherwise. It claims nothing about images in either direction now.
              It names the publishing action in the same words as the heading it
@@ -91,7 +91,7 @@
              name went too — an eyebrow read "New post" above the heading.
              A second button stood here carrying the composer's own Paint label
              word for word, which offered the in-flow control a screen early: one
-             action, offered twice, before the reader had a caption to attach an
+             action, offered twice, before the reader had a post to attach an
              image to. Paint is offered once now, beside Choose image, where the
              image is attached. -->
         <div class="hero-actions">
@@ -278,15 +278,15 @@
           <div class="paint-arrival" id="paint-arrival" role="status" tabindex="-1" hidden></div>
 
           <form id="post-form" aria-describedby="post-form-hint">
-            <p class="hint" id="post-form-hint">Write the caption. Add an image if you want one — a post with an image also appears on People, under the display name you publish it with.</p>
+            <p class="hint" id="post-form-hint">Write your post. Add an image if you want one — a post with an image also appears on People, under the display name you publish it with.</p>
 
             <div class="field field-wide">
-              <!-- First, because the hint above says "Write the caption. Add an
+              <!-- First, because the hint above says "Write your post. Add an
                    image if you want one." and the form used to open with the
                    image field, so the sentence and the fields disagreed about
                    which one a post cannot exist without. Source order, not a CSS
                    reordering: the tab sequence has to agree too, so a keyboard
-                   reader meets the caption before the file picker.
+                   reader meets the post before the file picker.
                    Until now this was also the only field in this form whose
                    label said nothing about whether it had to be filled in.
                    Image, Image description and Display name all carry a
@@ -296,13 +296,13 @@
                    description marker, so both required answers are told the same
                    way.
                    The hint states the rule, not the refusal. It used to narrate
-                   what the browser would do to an empty caption — a failure that
+                   what the browser would do to an empty post — a failure that
                    has not happened, explained before the reader has typed
                    anything — and left out the one number they cannot see, which
                    is the limit the counter below counts down from.
                    Named by the textarea's own aria-describedby, ahead of the
                    counter, the way Display name names its own hint. -->
-              <label for="post-body">Caption <span class="label-optional label-required">(required)</span></label>
+              <label for="post-body">Post <span class="label-optional label-required">(required)</span></label>
               <textarea id="post-body" name="body" rows="4" maxlength="280" required
                 aria-describedby="post-body-hint post-counter-label post-counter"></textarea>
               <span class="hint" id="post-body-hint">Required. Up to 280 characters.</span>
@@ -363,12 +363,12 @@
                      contradiction. The condition is the rule social.js actually
                      enforces: imageDescriptionProblem refuses a blank
                      description only when an image is attached, so a
-                     caption-only post publishes with this field empty.
+                     post without an image publishes with this field empty.
                      social.js still owns the live marker, and hides it if the
                      image is removed.
-                     The counter is the caption's counter pointed at this field's
-                     budget: same wording, same live region, same math. The hint
-                     closes on the caption hint's own limit clause, so two
+                     The counter is the post field's counter pointed at this
+                     field's budget: same wording, same live region, same math.
+                     The hint closes on the post hint's own limit clause, so two
                      adjacent required fields stop stating one rule two ways;
                      the clause before it is the guidance only this field needs,
                      because only this field is written for someone else. -->
