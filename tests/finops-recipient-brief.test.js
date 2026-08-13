@@ -86,10 +86,8 @@ test("the confidence grade beside the figure is the one in the shared payload", 
   assert.equal(textOf(grade), `Confidence: ${SHARED.envelope.confidence.level}`);
   assert.equal(grade.dataset.grade, SHARED.envelope.confidence.level);
 
-  // Beside the money, not folded away with the evidence: a grade inside a shut
-  // disclosure is a grade nobody is told, and this harness reads through one.
-  assert.equal(within(grade, byId(document, RECIPIENT_BRIEF_IDS.disclosure)), false,
-    "the shared grade must not be inside the disclosure");
+  assert.equal(within(grade, byId(document, RECIPIENT_BRIEF_IDS.disclosure)), true,
+    "confidence must remain disclosure-only support");
 });
 
 test("the lead states the shared figure, its label and the one destination", () => {

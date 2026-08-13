@@ -4,7 +4,8 @@ import test from "node:test";
 import { parseHtml, textOf } from "./support/browser.js";
 import { loadExampleDataset } from "../src/example-dataset.js";
 import { getRecoverableSpend } from "../src/finops-answer-contract.js";
-import { renderRecoverableSpend } from "../src/finops-answer-contract-view.js";
+import { buildEvolutionFinding } from "../src/evolution-finding-contract.js";
+import { renderEvolutionFinding } from "../src/evolution-finding-view.js";
 import {
   QUERY_CATEGORIES, categorySpendUsd, explainLiteracyScore, formatUsd, letterGrade, literacyScore,
   normalizeMix, quartileLabel, rankDepartments, recommendationFor,
@@ -325,7 +326,7 @@ test("the answer region asks one question, states one figure, and names one move
   // ONE MONEY METRIC, labelled, and a currency figure rather than a share.
   const label = document.getElementById("finops-recoverable-label");
   const value = document.getElementById("finops-recoverable-value");
-  assert.match(textOf(label), /Recoverable AI spend per month/);
+  assert.match(textOf(label), /Modelled recoverable AI spend · USD per month/);
   assert.match(textOf(value), /^\$[\d,]+$/, "the figure is whole dollars, rounded for display");
 
   // ONE CONFIDENCE SENTENCE — what the estimate rests on and its one limit.
@@ -369,33 +370,36 @@ const dollarsUnder = (node, skipId = null) => {
   return found;
 };
 
-test("both recoverable figures on the page trace to the one accessor", async () => {
+test("the recoverable benchmark traces to the one accessor without an annual rival", async () => {
   const document = parseHtml(await read("src/evolution.html"));
   const recoverable = getRecoverableSpend(loadExampleDataset());
 
-  // The MEASURED figure is the headline; the annual figure is stated only as a
-  // multiple of it, in the sentence underneath.
+  // The modelled monthly figure is the headline; annualization is deliberately
+  // absent from the first-screen answer.
   assert.equal(recoverable.annualised, recoverable.monthly * 12);
   assert.equal(textOf(document.getElementById("finops-recoverable-value")).trim(),
     recoverable.monthlyDisplay);
   const basis = textOf(document.getElementById("finops-recoverable-basis"));
-  assert.ok(basis.includes(recoverable.annualisedDisplay),
-    "the annual figure is stated as a projection of the headline");
+  assert.ok(!basis.includes(recoverable.annualisedDisplay),
+    "an annualized figure still competes with the monthly benchmark");
   assert.ok(!basis.includes("$62,400"), "the deleted annual constant is gone");
 
-  // Rendering moves both figures together, off the same record.
-  renderRecoverableSpend(document, recoverable);
+  // The render agrees with the served bytes, and states the scope without the
+  // projection that `basisSentence` still closes with.
+  const dataset = loadExampleDataset();
+  renderEvolutionFinding(document, buildEvolutionFinding(dataset));
   assert.equal(textOf(document.getElementById("finops-recoverable-value")).trim(),
     recoverable.monthlyDisplay);
-  assert.equal(textOf(document.getElementById("finops-recoverable-basis")).trim(),
-    recoverable.basisSentence);
+  const rendered = textOf(document.getElementById("finops-recoverable-basis"));
+  assert.ok(rendered.startsWith(recoverable.scopeSentence));
+  assert.ok(!rendered.includes(recoverable.annualisedDisplay),
+    "the render restates the annual figure the served markup dropped");
   // #1667: the sentence is stated ONCE. The disclosure below carried a
   // byte-identical copy of it, so the reader met the same scope twice — once as
   // the claim and once as its own evidence.
   assert.equal(document.querySelectorAll("#finops-recoverable-basis-detail").length, 0);
 
-  // Move the scored data and BOTH rendered figures move, consistently.
-  const dataset = loadExampleDataset();
+  // Move the scored data and the one rendered figure moves with it.
   const doubled = {
     ...dataset,
     rankedDepartments: dataset.rankedDepartments.map((row) => ({
@@ -404,13 +408,12 @@ test("both recoverable figures on the page trace to the one accessor", async () 
   };
   const moved = getRecoverableSpend(doubled);
   assert.equal(moved.monthly, recoverable.monthly * 2);
-  renderRecoverableSpend(document, moved);
+  renderEvolutionFinding(document, buildEvolutionFinding(doubled));
   assert.equal(textOf(document.getElementById("finops-recoverable-value")).trim(),
     moved.monthlyDisplay);
   const movedBasis = textOf(document.getElementById("finops-recoverable-basis"));
-  assert.ok(movedBasis.includes(moved.annualisedDisplay));
-  assert.ok(!movedBasis.includes(recoverable.annualisedDisplay),
-    "the annual figure followed the monthly one rather than staying put");
+  assert.ok(!movedBasis.includes(moved.annualisedDisplay),
+    "a doubled dataset reintroduced an annual rival to the benchmark");
 });
 
 test("partial scoring is stated as scope and never extrapolated from", async () => {
@@ -435,7 +438,7 @@ test("partial scoring is stated as scope and never extrapolated from", async () 
   assert.equal(answer.confidence.partialCoverage, true);
   assert.match(answer.confidence.sentence, /2 of 5 departments/);
 
-  renderRecoverableSpend(document, answer);
+  renderEvolutionFinding(document, buildEvolutionFinding(partial));
   const figure = document.getElementById("finops-recoverable-figure");
   assert.equal(figure.dataset.scoredDepartments, "2");
   assert.equal(figure.dataset.totalDepartments, "5");
@@ -444,17 +447,17 @@ test("partial scoring is stated as scope and never extrapolated from", async () 
   const basis = textOf(document.getElementById("finops-recoverable-basis"));
   assert.match(basis, /2 of 5 departments/, "the scope says how much is scored");
   assert.match(basis, /floor for the organization/, "partial coverage is not silent");
-  assert.ok(basis.includes(answer.annualisedDisplay),
-    "the projection is off the scored-only headline, not the whole organization");
+  assert.ok(!basis.includes(answer.annualisedDisplay),
+    "partial coverage annualized itself into a rival to the benchmark");
 });
 
 test("no recoverable-dollar figure in the answer region is undeclared", async () => {
   const document = parseHtml(await read("src/evolution.html"));
   const recoverable = getRecoverableSpend(loadExampleDataset());
-  renderRecoverableSpend(document, recoverable);
+  renderEvolutionFinding(document, buildEvolutionFinding(loadExampleDataset()));
 
   const region = document.getElementById("finops-recoverable-answer");
-  const derived = new Set([recoverable.monthlyDisplay, recoverable.annualisedDisplay]);
+  const derived = new Set([recoverable.monthlyDisplay]);
   // #1667: THE SPEND SHAPE IS GONE. It stated three further totals — analyzed
   // annual spend, the not-recoverable remainder, the unscored remainder — all on
   // an ANNUAL basis, between a MONTHLY headline and the move it implies. Three
@@ -469,11 +472,11 @@ test("no recoverable-dollar figure in the answer region is undeclared", async ()
     assert.ok(derived.has(amount),
       `${amount} in the answer region is not derived from the one accessor`);
   }
-  // The headline is stated once and the projection once: three or more money
-  // strings would mean a figure competing with the answer again.
+  // #1699: the headline is stated once and the annual projection not at all.
+  // A second money string in this region is a second answer to the question.
   assert.equal(rendered.filter((amount) => amount === recoverable.monthlyDisplay).length, 1);
-  assert.equal(rendered.filter((amount) => amount === recoverable.annualisedDisplay).length, 1,
-    "the projection is stated beside the figure and nowhere else");
+  assert.equal(rendered.filter((amount) => amount === recoverable.annualisedDisplay).length, 0,
+    "the annual projection is a rival benchmark on a second time basis");
 });
 
 test("the first screen states one question, one figure, one action", async () => {
@@ -483,7 +486,7 @@ test("the first screen states one question, one figure, one action", async () =>
   // ONE LEAD QUESTION, and it is the leading statement of the answer region.
   const question = document.getElementById("finops-recoverable-question");
   assert.equal(question.tagName, "H2");
-  assert.match(textOf(question), /How much of our AI spend can we recover\?/);
+  assert.match(textOf(question), /Where should we cut AI spend first/);
 
   // ONE HEADLINE METRIC, with its unit, its window and its scope beside it.
   assert.equal(region.querySelectorAll(".stand-figure-value").length, 1);

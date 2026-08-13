@@ -51,9 +51,8 @@ import { resolve } from "node:path";
 import { loadExampleDataset } from "../src/example-dataset.js";
 import { recoverableAttestation } from "../src/finops-answer-contract.js";
 import { RECOVERABLE_ATTESTATION_ID } from "../src/finops-answer-contract-view.js";
-import {
-  FRONT_DOOR_QUESTION, FRONT_DOOR_QUESTION_ID, prioritizedDestination,
-} from "../src/finops-destinations.js";
+import { FRONT_DOOR_QUESTION_ID } from "../src/finops-destinations.js";
+import { buildEvolutionFinding } from "../src/evolution-finding-contract.js";
 import {
   BUNDLED_PRICING_PROVENANCE, pricingProvenanceChip,
 } from "../src/finops-pricing-provenance.js";
@@ -140,10 +139,11 @@ function firstScreen(html) {
  * and the #1507 fixture cannot pin two different figures.
  */
 export function finopsFirstScreenExpectations() {
-  const attested = recoverableAttestation(loadExampleDataset()).dimensions;
-  const action = prioritizedDestination();
+  const dataset = loadExampleDataset();
+  const attested = recoverableAttestation(dataset).dimensions;
+  const finding = buildEvolutionFinding(dataset);
   return Object.freeze({
-    question: FRONT_DOOR_QUESTION,
+    question: finding.question,
     headline: attested.headline,
     confidenceBand: attested.confidence,
     grade: Object.freeze({
@@ -154,7 +154,7 @@ export function finopsFirstScreenExpectations() {
       text: pricingProvenanceChip(BUNDLED_PRICING_PROVENANCE),
       band: BUNDLED_PRICING_PROVENANCE.confidence.key,
     }),
-    action: Object.freeze({ label: action.nextAction, href: action.href }),
+    action: Object.freeze({ label: finding.nextAction.statement, href: finding.nextAction.href }),
   });
 }
 

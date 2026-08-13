@@ -65,8 +65,8 @@ test("the answer region states its figure before any sentence qualifying it", ()
     "the marker is authored before the figure it marks");
   assert.ok(at("finops-recoverable-marker") < at("finops-recoverable-confidence"),
     "the qualifying sentence is authored before the marker");
-  assert.ok(at("finops-recoverable-confidence") < at("finops-recoverable-how-we-know"),
-    "the full qualification is not below the short one");
+  assert.ok(at("finops-recoverable-confidence") > at("finops-recoverable-how-we-know"),
+    "confidence is no longer disclosure-only support");
 
   // THE MARKER CARRIES ITS MEANING AS TEXT. Not a colour, not a glyph alone:
   // a word a reader can read and a screen reader can speak.
@@ -126,12 +126,12 @@ test("the trust signals under the headline figure are one evidence line", () => 
   // one verdict contradicting itself unless the line names their subjects.
   const spoken = textOf(line);
   assert.match(spoken, /on the prices/, "the pricing grade does not say what it grades");
-  assert.match(spoken, /on the spend coverage/, "the coverage grade does not say what it grades");
+  assert.match(spoken, /on (the )?spend coverage/, "the coverage grade does not say what it grades");
 
-  // THE FIGURE, THE LINE, THEN THE MOVE — in source order, which is reading
-  // order on this page and the order assistive technology walks.
+  // THE FIGURE, THE MOVE, THEN THE DISCLOSED LINE — supporting context cannot
+  // interrupt the leader's answer.
   assert.ok(at("finops-recoverable-value") < at("finops-recoverable-trust"));
-  assert.ok(at("finops-recoverable-trust") < at("finops-recoverable-action"));
+  assert.ok(at("finops-recoverable-action") < at("finops-recoverable-trust"));
 
   // NOTHING IN IT IS OPERABLE. The one control under the money is the action
   // anchor; a focusable inside the evidence line would be a second one.

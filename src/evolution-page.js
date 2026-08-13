@@ -268,8 +268,10 @@ import {
   resolveFinopsAnswer,
 } from "/finops-answer-contract.js";
 import {
-  renderFinopsAnswer, renderRecoverableAttestation, renderRecoverableSpend,
+  renderFinopsAnswer, renderRecoverableAttestation,
 } from "/finops-answer-contract-view.js";
+import { buildEvolutionFinding } from "/evolution-finding-contract.js";
+import { renderEvolutionFinding } from "/evolution-finding-view.js";
 /// Whether the letter may be shown at all is decided before it is drawn: the
 // score card is a roll-up of only the departments the rubric actually scored.
 import { CLAMPED_REASON, gradeEligibility } from "/grade-eligibility.js";
@@ -5136,7 +5138,7 @@ async function init() {
   // summarises it moves.
   const exampleDataset = loadExampleDataset();
   const exampleRecoverable = getRecoverableSpend(exampleDataset);
-  renderRecoverableSpend(document, exampleRecoverable);
+  renderEvolutionFinding(document, buildEvolutionFinding(exampleDataset));
   // AND WHAT IT ATTESTS TO (#1499). The same record again, read once — the four
   // dimensions the fixture pins are stated in the supporting layer rather than
   // computed a second time for it.

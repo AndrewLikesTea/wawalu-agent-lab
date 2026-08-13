@@ -158,7 +158,7 @@ test("the one AI FinOps door opens on the answer destination, not on a menu", as
   const region = html.match(/<section class="finops-recoverable-answer" id="finops-recoverable-answer"[\s\S]*?<\/section>/);
   assert.ok(region, "evolution.html must carry the region the answer destination is for");
   assert.match(region[0], /id="finops-recoverable-value">\$[\d,]+</, "the door must land on the figure");
-  assert.match(region[0], /How much of our AI spend can we recover/, "and on the question it answers");
+  assert.match(region[0], /Where should we cut AI spend first/, "and on the question it answers");
 
   // Collapsing the nav must not orphan the pages it used to be able to grow an
   // entry for. Each one is linked from the body of the page the door opens.
