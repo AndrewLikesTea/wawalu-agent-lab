@@ -69,8 +69,10 @@ test("author is optional and falls back to the default byline", () => {
 });
 
 test("rejects an empty or over-budget body", () => {
-  assert.throws(() => createPost({ author: "Kai", body: "   " }), TypeError);
-  assert.throws(() => createPost({ body: "x".repeat(MAX_POST_LENGTH + 1) }), TypeError);
+  assert.throws(() => createPost({ author: "Kai", body: "   " }), { name: "TypeError", message: "A post cannot be empty." });
+  assert.throws(() => createPost({ body: "x".repeat(MAX_POST_LENGTH + 1) }), {
+    name: "TypeError", message: "A post must be 280 characters or fewer.",
+  });
   // Exactly at the limit is allowed.
   assert.doesNotThrow(() => createPost({ body: "x".repeat(MAX_POST_LENGTH) }, { id: "p", createdAt: "2026-07-14T00:00:00.000Z" }));
 });
@@ -269,10 +271,10 @@ test("social page is wired, labeled, and linked from the other pages", async () 
   assert.match(page, /src="\/social-page\.js"/);
   // Compose inputs carry explicit labels + describedby wiring.
   assert.match(page, /<label for="post-author">/);
-  // The caption is the one field a post cannot exist without, so its label says
-  // so in the same parenthetical the other three fields use, and its hint — the
-  // refusal an empty caption actually meets — is named by the textarea itself.
-  assert.match(page, /<label for="post-body">Caption <span class="label-optional label-required">\(required\)<\/span><\/label>/);
+  // The post text is the one field a post cannot exist without, so its label
+  // says so in the same parenthetical the other three fields use, and its hint —
+  // the refusal an empty post actually meets — is named by the textarea itself.
+  assert.match(page, /<label for="post-body">Post <span class="label-optional label-required">\(required\)<\/span><\/label>/);
   assert.match(page, /aria-describedby="post-body-hint post-counter-label post-counter"/);
   // The rule and the budget, and nothing about what the browser will do to an
   // empty field: the hint used to narrate a refusal before the reader had typed
@@ -328,7 +330,7 @@ test("social page is wired, labeled, and linked from the other pages", async () 
 });
 
 // The composer used to explain three things that had not happened: what the
-// browser would do to an empty caption, that an image preview had failed, and
+// browser would do to an empty post, that an image preview had failed, and
 // how to recover from that failure. All three shipped in the markup, so a
 // first-time visitor read them before touching a control. What is pinned here is
 // the page as a reader meets it on arrival.
@@ -355,7 +357,7 @@ test("the composer describes no failure that has not happened yet", async (t) =>
   assert.equal(page.document.querySelectorAll("#compose-preview-error").length, 1);
   assert.equal(textOf(page.document.querySelector("#compose-preview-error")), "");
 
-  // What the caption hint says instead: the rule, and the budget the counter
+  // What the post hint says instead: the rule, and the budget the counter
   // beside it counts down from.
   assert.equal(textOf(page.document.querySelector("#post-body-hint")), "Required. Up to 280 characters.");
   assert.equal(page.document.querySelector("#post-body").getAttribute("maxlength"), "280");
@@ -424,7 +426,14 @@ test("the composer opener, heading and submit control name one action", async (t
   // The composer's own words, unchanged: the intro offers the image, the field
   // label is the term everything else defers to.
   const hint = textOf(page.document.querySelector("#post-form-hint"));
-  assert.match(hint, /Add an image if you want one/);
+  assert.match(hint, /^Write your post\. Add an image if you want one/);
+  assert.equal(textOf(page.document.querySelector('label[for="post-body"]')), "Post (required)");
+  assert.equal(textOf(page.document.querySelector("#post-submit")), "Publish post →");
+  // And the word it replaced is gone from the whole panel, not only from the
+  // three strings above: "caption" is the composer's other name for this text,
+  // and one composer saying both is the confusion this pins shut.
+  assert.doesNotMatch(textOf(page.document.querySelector("#post-compose-panel")), /caption/i,
+    "the composer still calls the post text a caption somewhere");
   assert.equal(textOf(page.document.querySelector(".media-picker").querySelector("legend")), "Image (optional)");
 
   // The byline field is named after the concept every other surface reads it
@@ -1176,7 +1185,7 @@ test("every global social destination link uses the Social label", async () => {
 // ---------------------------------------------------------------------------
 // The composer as a disclosure (#1514).
 //
-// A first-time visitor used to land on Social and meet a caption box, a file
+// A first-time visitor used to land on Social and meet a post box, a file
 // picker, a name field and a Publish button before a single post — the page
 // asked them to write before it let them read. The feed comes first now and the
 // composer is one keystroke away behind the hero's Publish a post control.
@@ -1246,21 +1255,21 @@ test("the feed is what a first-time visitor reads first, and the composer follow
   assert.ok(stops.findIndex((node) => node.id === "post-name-filter") + 1 <= 3);
 });
 
-test("the trigger reveals the composer and puts focus in the caption field", async (t) => {
+test("the trigger reveals the composer and puts focus in the post field", async (t) => {
   const { document, id } = await socialDisclosure(t);
   const trigger = id("post-compose-open");
   const panel = id("post-compose-panel");
 
   assert.equal(panel.hidden, true, "the composer ships open");
   assert.equal(trigger.getAttribute("aria-expanded"), "false");
-  assert.equal(foldedAway(id("post-body")), true, "the caption is reachable before it is revealed");
+  assert.equal(foldedAway(id("post-body")), true, "the post field is reachable before it is revealed");
 
   trigger.click();
 
   assert.equal(panel.hidden, false, "activating the trigger did not reveal the composer");
   assert.equal(trigger.getAttribute("aria-expanded"), "true");
   assert.equal(document.activeElement?.id, "post-body",
-    "focus did not land in the caption field the trigger promised");
+    "focus did not land in the post field the trigger promised");
   // And the fields a keyboard reader now walks are the composer's, in order.
   const revealed = tabSequence(document).map((node) => node.id);
   assert.ok(revealed.indexOf("post-body") > revealed.indexOf("post-compose-open"));

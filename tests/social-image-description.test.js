@@ -99,14 +99,14 @@ const insideForm = (node) => {
   return false;
 };
 
-test("the caption is the composer's first field, in source order and in the tab sequence", async (t) => {
+test("the post is the composer's first field, in source order and in the tab sequence", async (t) => {
   const html = await import("node:fs/promises")
     .then(({ readFile }) => readFile(new URL("../src/social.html", import.meta.url), "utf8"));
-  // The hint above the fields has always read "Write the caption. Add an image
+  // The hint above the fields has always read "Write your post. Add an image
   // if you want one." The fields now say it in the same order: the one a post
   // cannot exist without, then the optional one, then what the image needs.
   assert.ok(html.indexOf('id="post-body"') < html.indexOf('id="post-image"'),
-    "the form authors the optional image field ahead of the caption it requires");
+    "the form authors the optional image field ahead of the post it requires");
   assert.ok(html.indexOf('id="post-image"') < html.indexOf('id="remove-image"'));
   assert.ok(html.indexOf('id="remove-image"') < html.indexOf('id="post-image-alt"'));
   assert.ok(html.indexOf('id="post-image-alt"') < html.indexOf('id="post-author"'));
@@ -118,8 +118,8 @@ test("the caption is the composer's first field, in source order and in the tab 
   assert.equal(harness.document.querySelector("#post-image").getAttribute("tabindex"), null);
 
   const stops = tabSequence(harness.document).filter(insideForm).map((node) => node.id);
-  assert.equal(stops[0], "post-body", "the composer's first tab stop is not the caption");
-  assert.equal(stops[1], "post-image", "something focusable sits between the caption and Choose image");
+  assert.equal(stops[0], "post-body", "the composer's first tab stop is not the post");
+  assert.equal(stops[1], "post-image", "something focusable sits between the post and Choose image");
   assert.ok(stops.indexOf("post-image-alt") > stops.indexOf("post-image"));
   assert.ok(stops.indexOf("post-author") > stops.indexOf("post-image-alt"));
 });
@@ -141,7 +141,7 @@ test("the description requirement is stated only once there is an image to descr
   assert.equal(
     harness.document.querySelectorAll(".label-optional").length,
     4,
-    "Image, Image description, Display name, and Caption each carry exactly one marker — none is left unmarked",
+    "Image, Image description, Display name, and Post each carry exactly one marker — none is left unmarked",
   );
 
   harness.feed.description.setAttached(true);
@@ -222,22 +222,22 @@ test("the missing-description refusal is announced where every other publish out
 
   // The shape of a refusal on this page: what stopped, what is asked of you, and
   // that nothing was published. It is said when the refusal happens and nowhere
-  // else — the caption's hint used to carry the same three clauses in the page as
+  // else — the post's hint used to carry the same three clauses in the page as
   // served, describing a failure the reader had not met yet, and now states only
   // the rule and the budget.
   assert.match(IMAGE_DESCRIPTION_REFUSAL_NOTE, /^Publish post stops on an /);
   assert.match(IMAGE_DESCRIPTION_REFUSAL_NOTE, /—/);
   assert.match(IMAGE_DESCRIPTION_REFUSAL_NOTE, /, and nothing is published\.$/);
-  const captionHint = textOf(harness.document.querySelector("#post-body-hint"));
-  assert.equal(captionHint, "Required. Up to 280 characters.");
+  const bodyHint = textOf(harness.document.querySelector("#post-body-hint"));
+  assert.equal(bodyHint, "Required. Up to 280 characters.");
 
   // Announced, and then the reader is put where the fix is.
   assert.equal(harness.document.activeElement?.id, "post-image-alt");
 });
 
-// Two refusals, one at a time. The caption is `required`, so the browser answers
+// Two refusals, one at a time. The post is `required`, so the browser answers
 // first and the submit handler returns before the description is consulted.
-test("an empty caption and a described-nothing image are not both reported", async (t) => {
+test("an empty post and a described-nothing image are not both reported", async (t) => {
   const harness = await composer(t);
   harness.fill({ body: "   ", author: "Mina", description: "" });
 
@@ -245,7 +245,7 @@ test("an empty caption and a described-nothing image are not both reported", asy
 
   assert.equal(harness.published.length, 0);
   assert.equal(harness.document.querySelector("#social-notice").hidden, true,
-    "the description refusal spoke over the caption's native one");
+    "the description refusal spoke over the post field's native one");
   assert.equal(harness.document.querySelector(`#${IMAGE_DESCRIPTION_ERROR_ID}`).hidden, true);
   assert.equal(harness.document.querySelector("#post-image-alt").getAttribute("aria-invalid"), null);
 });
@@ -297,7 +297,7 @@ test("a described image publishes, and the refusal state does not survive the fi
 // "with an image" clause; this is the "required" clause having a limit — a post
 // with no image publishes with the description field empty, through the same
 // submit the refusal goes through.
-test("a caption-only post publishes with an empty description", async (t) => {
+test("a post with no image publishes with an empty description", async (t) => {
   const harness = await composer(t, { attached: false });
   harness.fill({ body: "No picture, just words.", author: "Mina", description: "" });
 
@@ -305,17 +305,17 @@ test("a caption-only post publishes with an empty description", async (t) => {
   await new Promise((resolve) => setImmediate(resolve));
 
   assert.equal(harness.published.length, 1, "a post with nothing to describe was refused anyway");
-  assert.equal(harness.published[0].image, undefined, "no image rode along with the caption");
+  assert.equal(harness.published[0].image, undefined, "no image rode along with the post");
   const input = harness.document.querySelector("#post-image-alt");
   assert.equal(input.getAttribute("aria-invalid"), null, "an empty description was marked invalid with no image");
   assert.equal(harness.document.querySelector(`#${IMAGE_DESCRIPTION_ERROR_ID}`).hidden, true);
   const notice = harness.document.querySelector("#social-notice");
-  assert.equal(notice.classList.contains("is-success"), true, "a published caption was not confirmed");
+  assert.equal(notice.classList.contains("is-success"), true, "a published post was not confirmed");
   assert.ok(!textOf(notice).includes(IMAGE_DESCRIPTION_REFUSAL_NOTE),
     "a post with nothing to describe was told to describe something");
 });
 
-test("the description counter is the caption's counter, pointed at this field's budget", async (t) => {
+test("the description counter is the post field's counter, pointed at this field's budget", async (t) => {
   const harness = await composer(t);
   const counter = harness.document.querySelector("#post-image-alt-counter");
   const input = harness.document.querySelector("#post-image-alt");
@@ -329,7 +329,7 @@ test("the description counter is the caption's counter, pointed at this field's 
   assert.equal(textOf(counter), String(MAX_IMAGE_ALT_LENGTH - 7));
 
   type(input, "n".repeat(MAX_IMAGE_ALT_LENGTH - 3));
-  assert.equal(counter.classList.contains("near"), true, "the counter escalates before the wall, as the caption's does");
+  assert.equal(counter.classList.contains("near"), true, "the counter escalates before the wall, as the post field's does");
 
   type(input, "n".repeat(MAX_IMAGE_ALT_LENGTH + 5));
   assert.equal(textOf(counter), "-5");
@@ -338,16 +338,16 @@ test("the description counter is the caption's counter, pointed at this field's 
 
 // Two adjacent required fields, one way of stating a limit. The assertion is on
 // the shared closing clause as well as on each field's whole hint, so rewording
-// the caption's hint without rewording this one fails here rather than passing
+// the post's hint without rewording this one fails here rather than passing
 // against a copy of itself.
-test("the description help states its limit in the caption hint's own form", async (t) => {
+test("the description help states its limit in the post hint's own form", async (t) => {
   const harness = await composer(t);
   const description = textOf(harness.document.querySelector("#post-image-alt-hint"));
-  const caption = textOf(harness.document.querySelector("#post-body-hint"));
+  const post = textOf(harness.document.querySelector("#post-body-hint"));
 
   assert.equal(description, "Describe what matters in the image for people who cannot see it. Up to 200 characters.");
-  assert.equal(caption, "Required. Up to 280 characters.");
-  assert.match(caption, /Up to \d+ characters\.$/);
+  assert.equal(post, "Required. Up to 280 characters.");
+  assert.match(post, /Up to \d+ characters\.$/);
   assert.match(description, /Up to \d+ characters\.$/);
   // Each field's number is its own maxlength, and the counter still opens on it.
   assert.equal(harness.document.querySelector("#post-image-alt").getAttribute("maxlength"), "200");
