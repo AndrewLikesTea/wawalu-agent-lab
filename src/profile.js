@@ -198,10 +198,9 @@ export function defaultProfileAuthor(posts) {
 export const COUNTING_LABEL = "Counting…";
 // The mark on the chip that is currently showing. A word and a glyph, not a
 // colour: it is the one difference between selected and unselected that
-// survives greyscale, inversion, and forced colours. "Showing" is the verb the
-// live region already uses for the same fact ("Showing 2 image posts by Zed"),
-// so the picker and the announcement say it the same way.
-export const SELECTED_MARK = "✓ Showing";
+// survives greyscale, inversion, and forced colours. "Selected" distinguishes
+// the current option while its action still says exactly what the filter does.
+export const SELECTED_MARK = "✓ Selected:";
 
 // What one entry in the picker reads. The count is part of the button's text —
 // a button's accessible name is its text — so the picker says which names have
@@ -210,7 +209,7 @@ export const SELECTED_MARK = "✓ Showing";
 // phrasing and the same separator the rest of this page uses.
 export function authorChipLabel(name, images, { selected = false } = {}) {
   const count = images === null || images === undefined ? COUNTING_LABEL : countLabel(images, "image post");
-  return `${selected ? `${SELECTED_MARK} ` : ""}${name} · ${count}`;
+  return `${selected ? `${SELECTED_MARK} ` : ""}Filter People to ${name}’s image posts · ${count}`;
 }
 
 // The rows the picker draws: every display name the loaded posts carry, plus
@@ -659,7 +658,7 @@ export function renderProfileHeader(elements, author, summary) {
     elements.avatar.textContent = authorInitials(author);
     elements.avatar.setAttribute("aria-hidden", "true");
   }
-  if (elements.name) elements.name.textContent = `Active display-name filter: ${author}`;
+  if (elements.name) elements.name.textContent = `People is filtered to ${author}’s image posts.`;
   if (elements.summary) elements.summary.textContent = profileSummaryText(summary);
 }
 
