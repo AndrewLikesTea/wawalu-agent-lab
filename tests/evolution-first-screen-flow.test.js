@@ -26,7 +26,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-import { loadPage, pressEnter, tabSequence, textOf } from "./support/browser.js";
+import {
+  loadPage, parseHtml, pressEnter, pressSpace, tabSequence, textOf,
+} from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
 import { BUNDLED_LOAD_STATE } from "../src/briefing-strings.js";
 import {
@@ -41,6 +43,11 @@ import { loadExampleDataset } from "../src/example-dataset.js";
 
 const PAGE = new URL("../src/evolution.html", import.meta.url);
 const STYLES = await readFile(new URL("../src/evolution.css", import.meta.url), "utf8");
+const BASE_STYLES = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
+const PAGE_SOURCE = await readFile(PAGE, "utf8");
+const PAGE_MODULE = await readFile(new URL("../src/evolution-page.js", import.meta.url), "utf8");
+const RETIRED_VIEW = await readFile(
+  new URL("../src/finops-answer-contract-view.js", import.meta.url), "utf8");
 const DEMO_DATA = JSON.parse(await readFile(
   new URL("../src/evolution-demo-data.json", import.meta.url), "utf8"));
 const EVALUATION_FIXTURES = JSON.parse(await readFile(
@@ -394,4 +401,92 @@ test("the demoted readiness detail is still shut after the page has run", async 
   } finally {
     page.restore();
   }
+});
+
+test("keyboard-opening provenance, confidence, and calculation detail preserves one finding", async () => {
+  const page = await coldOpen();
+  try {
+    const { document } = page;
+    const answer = byId(document, ANSWER_REGION_ID);
+    const details = byId(document, "finops-recoverable-how-we-know");
+    const summary = byId(document, "finops-recoverable-how-we-know-summary");
+    const visibleCompleteAnswers = () => document
+      .querySelectorAll('[data-decision-summary="complete"]').filter((node) => !node.hidden).length;
+    const completeAnswersBefore = visibleCompleteAnswers();
+
+    assert.ok(!details.open, "supporting evidence is exposed on a cold load");
+    assert.deepEqual(details.querySelectorAll("dt").map(textOf).slice(0, 3),
+      ["Provenance", "Basis", "Limits"],
+      "the disclosure no longer names the three checks a reader opens it for");
+    for (const id of ["finops-recoverable-trust", "finops-recoverable-confidence-detail",
+      "finops-recoverable-provenance-detail"]) {
+      assert.ok(inside(byId(document, id), details), `${id} escaped progressive disclosure`);
+    }
+
+    const order = tabSequence(document);
+    assert.equal(order.indexOf(summary), order.indexOf(byId(document, ACTION_ID)) + 1,
+      "the disclosure is not the next logical stop after the recommended action");
+    summary.focus();
+    pressEnter(document);
+    assert.ok(details.hasAttribute("open"), "Enter did not open the native disclosure");
+    assert.equal(document.activeElement, summary, "opening evidence moved focus unexpectedly");
+
+    assert.equal(answer.querySelectorAll('[data-primary-benchmark="true"]').length, 1,
+      "opening evidence created a second headline benchmark");
+    assert.equal(answer.querySelectorAll('[data-next-action="true"]').length, 1,
+      "opening evidence created a second prioritized action");
+    assert.equal(visibleCompleteAnswers(), completeAnswersBefore,
+      "opening evidence exposed a duplicate complete-answer region");
+
+    pressSpace(document);
+    assert.ok(!details.hasAttribute("open"), "Space did not close the native disclosure");
+  } finally {
+    page.restore();
+  }
+});
+
+test("at a narrow viewport the action and its disclosure remain reachable without answer duplication", async () => {
+  const page = await coldOpen();
+  try {
+    const { document } = page;
+    const answer = byId(document, ANSWER_REGION_ID);
+    const action = byId(document, ACTION_ID);
+    const summary = byId(document, "finops-recoverable-how-we-know-summary");
+    const order = tabSequence(document);
+
+    // This harness has no layout engine, so the viewport failure is pinned at
+    // both seams: the shipped wrapping rules and the live, post-boot tab order.
+    assert.match(BASE_STYLES,
+      /@media\(max-width:520px\) \{ main,\.page\{width:calc\(100% - 24px\)/,
+      "the page column does not fit a phone-width viewport");
+    assert.match(STYLES, /\.stand-action\s*\{[^}]*display:inline-block/,
+      "the recommended action lost its wrapping inline-block layout");
+    assert.ok(order.includes(action), "the action fell out of the narrow flow's tab order");
+    assert.equal(order.indexOf(summary), order.indexOf(action) + 1,
+      "narrow layout inserted a control between the action and its evidence");
+
+    summary.focus();
+    pressEnter(document);
+    assert.ok(byId(document, "finops-recoverable-how-we-know").hasAttribute("open"));
+    assert.equal(answer.querySelectorAll('[data-primary-benchmark="true"]').length, 1);
+    assert.equal(answer.querySelectorAll('[data-next-action="true"]').length, 1);
+  } finally {
+    page.restore();
+  }
+});
+
+test("retired answer wording, duplicate cards, and the obsolete renderer stay absent", () => {
+  const document = parseHtml(PAGE_SOURCE);
+  for (const id of ["finops-recoverable-annual", "finops-recoverable-card",
+    "finops-recoverable-confidence-card", "finops-recoverable-provenance-card"]) {
+    assert.equal(byId(document, id), null, `retired duplicate #${id} returned`);
+  }
+  for (const rival of ["How much of our AI spend can we recover?",
+    "How much AI spend is recoverable?", "What should we do about AI spend?"]) {
+    assert.equal(PAGE_SOURCE.includes(rival), false, `retired rival heading returned: ${rival}`);
+  }
+  assert.doesNotMatch(PAGE_MODULE, /\brenderRecoverableSpend\b/,
+    "the live page imported the retired second renderer");
+  assert.doesNotMatch(RETIRED_VIEW, /export function renderRecoverableSpend\b/,
+    "the obsolete rendering hook is callable again");
 });
