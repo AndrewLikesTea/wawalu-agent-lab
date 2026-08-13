@@ -278,6 +278,7 @@ test("releases page is wired and linked from the decisions page", async () => {
   assert.ok(page.includes(provenance), "the releases intro dropped the provenance sentence");
   assert.doesNotMatch(page, /shipping history of this Shiplog demo/);
   assert.match(page, /<title>Releases · Shiplog<\/title>/);
+  assert.match(page, /<p class="eyebrow">Record a release<\/p>\s*<h2 id="release-form-title">Record a release<\/h2>/);
   assert.match(page, /id="release-list"/);
   assert.match(page, /id="release-search"/);
   assert.match(page, /id="release-status"/);
