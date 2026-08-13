@@ -18,6 +18,12 @@ export const TAKEAWAY_COPY_FEEDBACK = Object.freeze({
   failed: "Could not copy the executive takeaway. Select the text above and copy it manually.",
 });
 
+import {
+  CONTACT_COPY, emailFieldError, looksLikeEmail, postLeadEmail, SubmissionError,
+} from "./lead-capture.js";
+
+export const FINOPS_EXAMPLE_FOLLOW_UP_PURPOSE = "follow_up_finops_example";
+
 /** Wire the native copy button. The clipboard is injectable for focused tests. */
 export function bindExecutiveTakeaway(doc = globalThis.document, clipboard = globalThis.navigator?.clipboard) {
   const button = doc?.getElementById("copy-executive-takeaway");
@@ -37,4 +43,63 @@ export function bindExecutiveTakeaway(doc = globalThis.document, clipboard = glo
   return true;
 }
 
-if (globalThis.document) bindExecutiveTakeaway();
+/** Wire the contextual request without sending the visible topic as visitor-authored data. */
+export function bindFinopsExampleFollowUp(doc = globalThis.document, request = (...args) => globalThis.fetch(...args)) {
+  const open = doc?.getElementById("finops-example-follow-up-open");
+  const panel = doc?.getElementById("finops-example-follow-up-panel");
+  const form = doc?.getElementById("finops-example-follow-up-form");
+  const status = doc?.getElementById("finops-example-follow-up-status");
+  const error = doc?.getElementById("finops-example-follow-up-error");
+  if (!open || !panel || !form || !status || !error) return null;
+  const email = form.elements.email;
+  const submit = form.querySelector('button[type="submit"]');
+
+  open.addEventListener("click", () => {
+    panel.hidden = false;
+    open.setAttribute("aria-expanded", "true");
+    email.focus();
+  });
+  email.addEventListener("input", () => {
+    error.hidden = true;
+    error.textContent = "";
+    email.removeAttribute("aria-invalid");
+  });
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (form.dataset.state === "submitting" || form.dataset.state === "success") return;
+    const invalid = emailFieldError(email.value, looksLikeEmail(email.value), CONTACT_COPY);
+    if (invalid) {
+      form.dataset.state = "invalid";
+      error.textContent = invalid;
+      error.hidden = false;
+      email.setAttribute("aria-invalid", "true");
+      status.textContent = "";
+      email.focus();
+      return;
+    }
+    form.dataset.state = "submitting";
+    error.hidden = true;
+    email.removeAttribute("aria-invalid");
+    submit.disabled = true;
+    submit.setAttribute("aria-disabled", "true");
+    status.textContent = "Sending your follow-up request…";
+    try {
+      await postLeadEmail(request, email.value, FINOPS_EXAMPLE_FOLLOW_UP_PURPOSE, CONTACT_COPY);
+      form.dataset.state = "success";
+      for (const control of [form.elements.topic, email, submit]) control.disabled = true;
+      status.textContent = "Follow-up requested. Someone from Wawalu will reply by email.";
+    } catch (caught) {
+      form.dataset.state = "error";
+      status.textContent = caught instanceof SubmissionError ? caught.message : CONTACT_COPY.unconfirmed;
+      email.setAttribute("aria-invalid", "true");
+      submit.disabled = false;
+      submit.removeAttribute("aria-disabled");
+    }
+  });
+  return form;
+}
+
+if (globalThis.document) {
+  bindExecutiveTakeaway();
+  bindFinopsExampleFollowUp();
+}

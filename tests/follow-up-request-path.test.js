@@ -338,7 +338,7 @@ for (const [file, purpose] of REVIEWED) {
 test("a write the live schema refuses fails out loud instead of reporting a duplicate", async (t) => {
   // The database as it stands before an operator applies migration 0008: the
   // purpose CHECK still knows only field_notes and follow_up.
-  const beforeTheirMigration = MIGRATIONS.filter((name) => !name.startsWith("0008"));
+  const beforeTheirMigration = MIGRATIONS.filter((name) => !name.startsWith("0008") && !name.startsWith("0009"));
   const db = await createTestD1({ migrations: beforeTheirMigration });
   t.after(() => db.close());
 

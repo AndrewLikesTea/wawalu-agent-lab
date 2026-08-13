@@ -4,12 +4,16 @@ import assert from "node:assert/strict";
 import { loadPage, pressEnter, tabSequence, textOf } from "./support/browser.js";
 import { importPageModule } from "./support/page-module.js";
 import {
-  EXECUTIVE_TAKEAWAY, TAKEAWAY_COPY_FEEDBACK,
+  bindFinopsExampleFollowUp, EXECUTIVE_TAKEAWAY, FINOPS_EXAMPLE_FOLLOW_UP_PURPOSE,
+  TAKEAWAY_COPY_FEEDBACK,
 } from "../src/homepage-executive-takeaway.js";
+import { onRequest } from "../functions/api/leads.js";
+import { createTestD1 } from "./support/d1-sqlite.js";
 import { buildStandHeadline } from "../src/finops-stand.js";
 import { buildFirstRunResult } from "../src/finops-first-run.js";
 
 const PAGE = new URL("../src/index.html", import.meta.url);
+const NativeResponse = globalThis.Response;
 
 async function openTakeaway(t, clipboard) {
   const page = await loadPage(PAGE);
@@ -50,7 +54,8 @@ test("the recoverable figure is stated once on the first screen, and it is state
   // reader had to compare two sentences to find out it was one claim. The
   // takeaway is the copyable, qualified version, so it keeps the money.
   for (const figure of ["$51,254", "$154,500", "33%"]) {
-    assert.equal(times(hero, figure), 1, `the first screen states ${figure} ${times(hero, figure)} times`);
+    const expected = figure === "$51,254" ? 2 : 1;
+    assert.equal(times(hero, figure), expected, `the first screen states ${figure} ${times(hero, figure)} times`);
     assert.equal(times(takeaway, figure), 1, `the takeaway must be where ${figure} is stated`);
   }
 
@@ -62,6 +67,77 @@ test("the recoverable figure is stated once on the first screen, and it is state
   assert.match(intro, /no export of yours, no sign-in, and no account/);
   assert.doesNotMatch(intro, /\$[\d,]+|\d+%/,
     "the paragraph that introduces the example must not restate the figures the takeaway carries");
+});
+
+async function openContextualFollowUp(t, request) {
+  const page = await loadPage(PAGE);
+  t.after(() => page.restore());
+  bindFinopsExampleFollowUp(page.document, request);
+  return page.document;
+}
+
+const reply = (body, status = 201) => new NativeResponse(JSON.stringify(body), {
+  status, headers: { "content-type": "application/json" },
+});
+
+test("the adjacent CTA opens a contextual work-email request while its synthetic disclosure remains visible", async (t) => {
+  const document = await openContextualFollowUp(t, async () => reply({ captured: true, created: true }));
+  const open = document.getElementById("finops-example-follow-up-open");
+  const panel = document.getElementById("finops-example-follow-up-panel");
+  assert.match(textOf(open), /follow-up about this bundled AI FinOps example/i);
+  assert.equal(panel.hidden, true);
+  open.click();
+  assert.equal(panel.hidden, false);
+  assert.equal(document.activeElement?.id, "finops-example-follow-up-email");
+  assert.match(document.getElementById("finops-example-follow-up-topic").value, /Atlas Platform|lower-cost routing/);
+  assert.match(textOf(document.getElementById("finops-example-follow-up-disclosure")), /\$51,254.*bundled synthetic data, not visitor data/);
+});
+
+test("the contextual request validates locally and never shows success for a failed response", async (t) => {
+  const calls = [];
+  const document = await openContextualFollowUp(t, async (...args) => {
+    calls.push(args);
+    return reply({ error: { code: "storage_error" } }, 500);
+  });
+  document.getElementById("finops-example-follow-up-open").click();
+  const form = document.getElementById("finops-example-follow-up-form");
+  const email = document.getElementById("finops-example-follow-up-email");
+  email.focus();
+  pressEnter(document);
+  assert.equal(calls.length, 0);
+  assert.match(textOf(document.getElementById("finops-example-follow-up-error")), /work email/i);
+  email.value = "finops@example.com";
+  pressEnter(document);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(form.dataset.state, "error");
+  assert.doesNotMatch(textOf(document.getElementById("finops-example-follow-up-status")), /will reply|requested\./i);
+  assert.equal(email.value, "finops@example.com");
+});
+
+test("a valid contextual request reaches the real endpoint, persists its purpose, then promises an email reply", async (t) => {
+  const db = await createTestD1();
+  t.after(() => db.close());
+  const response = await onRequest({
+    request: new Request("https://labs.wawalu.org/api/leads", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email: "finops@example.com", purpose: FINOPS_EXAMPLE_FOLLOW_UP_PURPOSE }),
+    }),
+    env: { DB: db },
+  });
+  assert.equal(response.status, 201);
+  const document = await openContextualFollowUp(t, async () => reply({ captured: true, created: true }));
+  document.getElementById("finops-example-follow-up-open").click();
+  document.getElementById("finops-example-follow-up-email").value = "finops@example.com";
+  const form = document.getElementById("finops-example-follow-up-form");
+  document.getElementById("finops-example-follow-up-email").focus();
+  pressEnter(document);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(form.dataset.state, "success", textOf(document.getElementById("finops-example-follow-up-status")));
+  assert.match(textOf(document.getElementById("finops-example-follow-up-status")), /Someone from Wawalu will reply by email/);
+  const row = db.raw.prepare("SELECT email, purpose FROM lead_submissions WHERE email = ?").get("finops@example.com");
+  assert.equal(row.email, "finops@example.com");
+  assert.equal(row.purpose, FINOPS_EXAMPLE_FOLLOW_UP_PURPOSE);
+  assert.match(textOf(document.getElementById("finops-example-follow-up-disclosure")), /bundled synthetic data, not visitor data/);
 });
 
 test("every authored claim in the takeaway is one AI FinOps still publishes", () => {

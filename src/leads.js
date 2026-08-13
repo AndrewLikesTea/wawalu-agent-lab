@@ -1,5 +1,6 @@
 export const MAX_EMAIL_LENGTH = 254;
 export const FOLLOW_UP_REQUEST_TYPES = Object.freeze([
+  "follow_up_finops_example",
   "follow_up_coach",
   "follow_up_releases",
   "follow_up_social",
