@@ -2381,7 +2381,7 @@
             <button id="return-to-bundled-example" type="button" hidden>Return to bundled example</button>
           </div>
         </div>
-        <section class="own-data-preflight" id="own-data-evidence-preflight" data-outcome="loading" aria-labelledby="own-data-preflight-question" aria-describedby="own-data-preflight-status" aria-busy="true">
+        <section class="own-data-preflight" id="own-data-evidence-preflight" data-outcome="loading" aria-labelledby="own-data-preflight-question" aria-describedby="own-data-preflight-status" aria-busy="true" hidden>
           <p class="eyebrow">Evidence preflight · bundled local example</p>
           <h3 id="own-data-preflight-question">Can this export support a trustworthy department-spend decision?</h3>
           <p class="own-data-preflight-status" id="own-data-preflight-status"><span class="status-shape" aria-hidden="true">○</span> Not yet classified · No evidence has been validated. Processing stays local to this tab; no file is uploaded or retained.</p>
@@ -2392,23 +2392,14 @@
           </dl>
           <p class="own-data-preflight-action"><strong>Prioritized next action</strong><span id="own-data-preflight-action">Waiting for the evidence check.</span></p>
           <div class="own-data-preflight-sources" id="own-data-preflight-downgraded" hidden>
-            <h4>Computed from spend alone</h4>
-            <ul id="own-data-preflight-computed"></ul>
-            <h4>Withheld · figure, missing field, and the export that supplies it</h4>
-            <ul id="own-data-preflight-withheld"></ul>
+            <h4>Computed from spend alone</h4><ul id="own-data-preflight-computed"></ul>
+            <h4>Withheld · figure, missing field, and the export that supplies it</h4><ul id="own-data-preflight-withheld"></ul>
           </div>
           <details class="own-data-preflight-disclosure" id="own-data-preflight-disclosure">
             <summary id="own-data-preflight-disclosure-summary" aria-expanded="false" aria-controls="own-data-preflight-disclosure-body">Provenance and limitations <span id="own-data-preflight-disclosure-state">Show</span></summary>
             <div id="own-data-preflight-disclosure-body">
-              <div class="own-data-preflight-sources">
-                <h4>Evidence provenance</h4>
-                <ul id="own-data-preflight-provenance"></ul>
-              </div>
-              <div class="own-data-preflight-boundary">
-                <h4>Local-processing limits</h4>
-                <p>Evidence is processed locally in this tab. Incomplete query evidence limits classification confidence.</p>
-                <ul id="own-data-preflight-boundary"></ul>
-              </div>
+              <div class="own-data-preflight-sources"><h4>Evidence provenance</h4><ul id="own-data-preflight-provenance"></ul></div>
+              <div class="own-data-preflight-boundary"><h4>Local-processing limits</h4><p>Evidence is processed locally in this tab. Incomplete query evidence limits classification confidence.</p><ul id="own-data-preflight-boundary"></ul></div>
             </div>
           </details>
         </section>
@@ -2973,6 +2964,16 @@
               <p class="eyebrow">From your imported files</p>
               <h3 id="local-results-title" tabindex="-1">FinOps briefing</h3>
             </div>
+            <details class="local-trust-evidence" id="local-trust-evidence" data-state="partial" hidden>
+              <summary id="local-trust-evidence-summary" aria-expanded="false" aria-controls="local-trust-evidence-body">How far to trust this result <span id="local-trust-evidence-state">Show</span></summary>
+              <div id="local-trust-evidence-body">
+                <p><strong id="local-trust-evidence-verdict"></strong></p>
+                <dl><div><dt>Intake and result evidence</dt><dd><ul id="local-trust-evidence-facts"></ul></dd></div></dl>
+                <p><strong>Limits</strong></p>
+                <ul id="local-trust-evidence-limitations"></ul>
+                <p><strong>Next action</strong> <span id="local-trust-evidence-action"></span></p>
+              </div>
+            </details>
             <div class="local-export-actions" id="local-export-actions" aria-label="Export this FinOps briefing">
               <button id="export-local-json" type="button">Export briefing (JSON)</button>
               <button id="export-local-summary" type="button">Meeting summary</button>

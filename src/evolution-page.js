@@ -1152,17 +1152,20 @@ function mountLocalFinopsImport() {
   // the already-validated in-memory document; this opens no network data path.
   // Returns whether the projection painted, so a caller that would otherwise
   // report success cannot paint "ready" over the error state set below.
-  const paintProviderProjection = async (providerDocument) => {
+  const paintProviderProjection = async (providerDocument, parsed = null) => {
     renderOwnDataEvidenceState(document, OWN_DATA_VIEW_STATE.LOADING);
     const [
       { projectProviderExport, projectModelOverspendFinding },
       { renderProviderExportProjection, renderImportedModelOverspendProjection },
       { determineImportedExportEligibility }, { renderImportedExportEligibility },
+      trustModel, trustView,
     ] = await Promise.all([
       import("/provider-export-projection.js"),
       import("/provider-export-projection-view.js"),
       import("/imported-export-eligibility.js"),
       import("/imported-export-eligibility-view.js"),
+      import("/import-trust-evidence.js"),
+      import("/import-trust-evidence-view.js"),
     ]);
     const projection = projectProviderExport(providerDocument);
     importedOverspend = projectModelOverspendFinding(providerDocument);
@@ -1174,6 +1177,13 @@ function mountLocalFinopsImport() {
     }
     renderImportedExportEligibility(document,
       determineImportedExportEligibility(providerDocument));
+    const confidence = scoreIntakeConfidence({ document: providerDocument,
+      importEvidence: parsed?.importEvidence ?? null, origin: "locally_selected_file" });
+    pendingTrustEvidence = trustModel.importTrustEvidence({
+      projection, intakeConfidence: confidence, mapping: review?.state ?? null,
+    });
+    associateTrustEvidence = trustModel.resultWithTrustEvidence;
+    renderTrustEvidence = trustView.renderImportTrustEvidence;
     renderLocalExportActivation(document, LOCAL_EXPORT_ACTIVATION_STATE.READY);
     return true;
   };
@@ -1214,6 +1224,11 @@ function mountLocalFinopsImport() {
   let queue = [];
   let review = null;
   let result = null;
+  // Built only after a provider projection succeeds. Rejected selections keep
+  // their actionable field diagnostic and never manufacture evidence for a result.
+  let pendingTrustEvidence = null;
+  let renderTrustEvidence = null;
+  let associateTrustEvidence = null;
   // The reader's own names for their own org units — "Platform Engineering"
   // over `psn_…atlas0`. Never put in an export and never sent anywhere; it
   // reaches storage only inside the retained record of the import it names, and
@@ -2024,6 +2039,9 @@ function mountLocalFinopsImport() {
     return applyGradedSample(document, model);
   };
   const renderResult = (next, { example = false, inputs = loaded } = {}) => {
+    if (!example && pendingTrustEvidence && associateTrustEvidence) {
+      next = associateTrustEvidence(next, pendingTrustEvidence);
+    }
     result = next;
     exampleActive = example;
     // The activation says which dataset the finding below it came from, so it
@@ -2046,6 +2064,7 @@ function mountLocalFinopsImport() {
       importedDeliveryHistory = outcome.usable ? outcome : null;
     }
     resultsNode.setAttribute("aria-busy", "false");
+    if (renderTrustEvidence) renderTrustEvidence(document, example ? null : next.trustEvidence);
     // Which providers are inside this number, and what the intake contract held
     // out of it. Painted from the plan the analysis carries rather than from a
     // second read of the selection, so the panel and the total cannot disagree.
@@ -2508,6 +2527,7 @@ function mountLocalFinopsImport() {
     importedOverspend = null;
     delete loaded.hris;
     clearIntakeConfidence(document);
+    renderOwnDataEvidencePreflight(document, assessOwnDataEvidence(BUNDLED_OWN_DATA_EVIDENCE));
     // Abandoning is total: the queued files, the retained delimited text, and
     // the mapping choices go with the result. Nothing was written down, so a
     // fresh import afterwards starts from the file picker with no residue.
@@ -2545,6 +2565,8 @@ function mountLocalFinopsImport() {
     readerWorkloadChoices.clear();
     clearReaderClassification(document);
     result = null;
+    pendingTrustEvidence = null;
+    if (renderTrustEvidence) renderTrustEvidence(document, null);
     // The corrections go with the file they were corrections about. A label
     // outliving its corpus would attach a human's judgement to a row that is no
     // longer loaded, which is the mislabelling this whole seam exists to end.
@@ -2670,7 +2692,6 @@ function mountLocalFinopsImport() {
     // has no partial evidence, and a synthetic answer to "what do my exports
     // support" would be the one claim this region exists to refuse.
     clearPartialEvidence(document);
-    renderOwnDataEvidencePreflight(document, assessOwnDataEvidence(BUNDLED_OWN_DATA_EVIDENCE));
     repaintBundledAnalysis();
     // The two slots hand their states back with the files they were about, and
     // the literacy card's missing-input sentence goes with them: the letter the
@@ -2714,9 +2735,12 @@ function mountLocalFinopsImport() {
   // is passed, never inferred: a bundled synthetic export and a reader's own
   // file produce the same shaped finding, and only this argument keeps the
   // panel from labelling invented spend as the reader's own.
-  const paintIntakeConfidence = (parsed, origin = "locally_selected_file") =>
-    renderIntakeConfidence(document, scoreIntakeConfidence({ document: parsed.document,
-      importEvidence: parsed.importEvidence, origin }));
+  const paintIntakeConfidence = (parsed, origin = "locally_selected_file") => {
+    const confidence = scoreIntakeConfidence({ document: parsed.document,
+      importEvidence: parsed.importEvidence, origin });
+    renderIntakeConfidence(document, confidence);
+    return confidence;
+  };
 
   // The diagnostic belongs to the control that produced it: the input goes
   // aria-invalid, the message is described-by it, and the recovery sits beside
@@ -2851,7 +2875,6 @@ function mountLocalFinopsImport() {
       // A cancel is the reader's own decision, already announced where they made
       // it. It is not a file defect on this path either.
       if (error?.code === CANCELLED_CODE) return "refused";
-      renderOwnDataEvidenceState(document, OWN_DATA_VIEW_STATE.VALIDATION_ERROR);
       failFile(error, file);
       return "refused";
     }
@@ -2859,7 +2882,8 @@ function mountLocalFinopsImport() {
     // say the bytes behind it are a provider export this page can read. A claim
     // neither of them upheld is a refusal with a recovery sentence, never a
     // "ready" state and an "adapter active" announcement painted over an error.
-    if (parsed.type !== "provider" || !await paintProviderProjection(parsed.document)) {
+    if (parsed.type !== "provider" || !await paintProviderProjection(parsed.document, parsed)) {
+      renderOwnDataEvidenceState(document, OWN_DATA_VIEW_STATE.VALIDATION_ERROR);
       failFile({
         code: "contract_rejected",
         message: `${activation.providerLabel} matched adapter v${activation.adapterVersion}, `
@@ -3030,7 +3054,7 @@ function mountLocalFinopsImport() {
       parsed = await runImport(file, options,
         () => parseLocalImportFile(file.text, file.fileName, file.mediaType, options));
       if (parsed.type === "provider") {
-        await paintProviderProjection(parsed.document);
+        await paintProviderProjection(parsed.document, parsed);
         paintIntakeConfidence(parsed);
       }
     } catch (error) {
@@ -3524,7 +3548,7 @@ function mountLocalFinopsImport() {
         `${result.message} ${sentence} ${result.action}`);
       return "refused";
     }
-    if (!await paintProviderProjection(result.document)) {
+    if (!await paintProviderProjection(result.document, result.parsed)) {
       failFile({ code: "contract_rejected", message: `${result.displayName} adapted locally, `
         + "but its rows did not project. No analysis was run." }, file);
       return "refused";
@@ -3629,7 +3653,7 @@ function mountLocalFinopsImport() {
         const parsed = await runImport(file, undefined,
           () => parseLocalImportFile(file.text, file.fileName, file.mediaType));
         if (parsed.type === "provider") {
-          await paintProviderProjection(parsed.document);
+          await paintProviderProjection(parsed.document, parsed);
           paintIntakeConfidence(parsed);
         }
         imports.push({
