@@ -13,10 +13,10 @@ export const LOCAL_EXPORT_ACTIVATION_STATE = Object.freeze({
 // detection reason (#957) leads the error line — quotes this file rather than
 // restating it, and the panel cannot end up with two wordings of one state.
 export const LOCAL_EXPORT_ACTIVATION_COPY = Object.freeze({
-  idle: "Bundled example is active. Choose one provider period export to answer this question with your data.",
-  reading: "Reading and validating in this browser tab. Nothing is being uploaded or retained.",
-  ready: "Your provider export is active. The finding below was computed locally from its accepted rows.",
-  error: "The bundled example is still active. Correct the file issue below, then choose the export again.",
+  idle: "The Bundled synthetic example is active. Choose your provider export to answer this question with your own spend.",
+  reading: "Reading and validating your provider export.",
+  ready: "Your provider export is active. The result below was computed from its accepted rows, not from the Bundled synthetic example.",
+  error: "Nothing was analyzed, so the Bundled synthetic example is still active. Correct the file issue below, then choose your provider export again.",
 });
 
 export function renderLocalExportActivation(document, state, detail = null) {

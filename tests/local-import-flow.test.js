@@ -18,6 +18,7 @@ import {
   EXAMPLE_DATASET_PROVENANCE, focusStageHeading, IMPORT_STAGES, importStage, mappingRequirements, metricBasis,
   redactDiagnostic, stageProgress,
 } from "../src/local-import-flow.js";
+import { LOCAL_EXPORT_ACTIVATION_COPY } from "../src/local-export-activation.js";
 import { BRIEFING_FIXTURE } from "../src/finops-briefing-contract.js";
 import { trustVerdict } from "../src/finops-trust-verdict.js";
 
@@ -202,9 +203,36 @@ test("every non-real headline condition is stated in words beside the number", (
   assert.equal(metricBasis({ mode: "local", plausible: false }).label, "Needs review");
   assert.equal(metricBasis({ mode: "local", departments: 0 }).label, "No rows matched");
   const real = metricBasis({ mode: "local", departments: 3, joinedRecords: 12 });
-  assert.equal(real.label, "Local import");
+  assert.equal(real.label, "Your provider export");
   assert.equal(real.real, true);
   assert.match(real.detail, /12 joined records/);
+  // The reader's own result and the bundled example sit in the same slot, so
+  // the real one says which of the two it is rather than leaving the contrast
+  // to a tint.
+  assert.match(real.detail, /not from the Bundled synthetic example/);
+  // A failed import names the fix, not only the failure.
+  assert.match(metricBasis({ mode: "failed" }).detail, /choose your provider export again/);
+});
+
+// One name per concept across the import-first flow: "Bundled synthetic
+// example" for the bundled dataset, "your provider export" for the file the
+// reader chooses and the result computed from it. The outliers this pins are
+// the ones that used to read "Local import", "Bundled example", and "bundled
+// example" in the same three sentences.
+test("the import states and the metric basis use one name per concept", () => {
+  const states = Object.values(LOCAL_EXPORT_ACTIVATION_COPY);
+  for (const line of states) {
+    assert.doesNotMatch(line, /\bBundled example\b|\bbundled example\b/,
+      `"${line}" must name the bundled dataset "Bundled synthetic example"`);
+    assert.doesNotMatch(line, /provider period export/,
+      `"${line}" must call the chosen file a provider export`);
+  }
+  assert.match(LOCAL_EXPORT_ACTIVATION_COPY.idle, /Bundled synthetic example/);
+  assert.match(LOCAL_EXPORT_ACTIVATION_COPY.ready, /Your provider export/);
+  assert.match(LOCAL_EXPORT_ACTIVATION_COPY.error, /Bundled synthetic example/);
+  // Browser-local handling is stated beside the file action, not repeated in
+  // every state the flow passes through.
+  assert.doesNotMatch(LOCAL_EXPORT_ACTIVATION_COPY.reading, /upload|browser tab|retained/i);
 });
 
 test("the example-data case labels the headline metric on a cold load", async () => {
@@ -216,7 +244,7 @@ test("the example-data case labels the headline metric on a cold load", async ()
   assert.equal(doc.getElementById("analysis-mode").dataset.mode, "example");
 
   applyMetricBasis(doc, metricBasis({ mode: "local", departments: 4, joinedRecords: 9 }));
-  assert.equal(doc.getElementById("local-metric-label").textContent, "Local import");
+  assert.equal(doc.getElementById("local-metric-label").textContent, "Your provider export");
   assert.equal(doc.getElementById("local-metric-label").dataset.real, "true");
   assert.equal(doc.getElementById("local-recoverable").dataset.real, "true");
 
