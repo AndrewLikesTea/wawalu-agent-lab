@@ -25,7 +25,7 @@
 import { connectionStatusLine, normalizeImage } from "./social.js";
 import { postDetailHref, profileHref } from "./social-links.js";
 import { imageDescription, renderDescriptionNote, renderImageUnavailable } from "./image-description.js";
-import { renderFeedStatus } from "./feed-status.js";
+import { renderFeedStatus, feedPhase, feedPresence, setFeedControlsDisabled } from "./feed-status.js";
 import { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH } from "./social-identity.js";
 
 // Social's three connection sentences with the noun this page shows, so the two
@@ -547,15 +547,41 @@ function renderEmpty(container, author) {
   container.append(empty);
 }
 
+// The retry control's whole job has to be in its own text: a button reading
+// "Try again" is announced as two words with no object, and this page carries a
+// second control ("Create an image in Paint") that also acts on the grid. What
+// it retries is what the message above it just failed at.
+export const PROFILE_RETRY_LABEL = "Retry loading image posts";
+
+// The filtered dead end, and the reason it is not the empty state. People is a
+// filtered view of Social, and the display-name picker is the filter: a name
+// with no pictures under it while other names have plenty is a full feed you
+// have narrowed to nothing, not a site with nothing on it. It says so in its
+// own words, and hands over the same reset Social's no-match panel does.
+export const PROFILE_NO_MATCH_LINE = "No image posts match the selected display name.";
+export const PROFILE_NO_MATCH_GUIDANCE = "Other display names in this feed have image posts. Clear filters to show them.";
+export const PROFILE_CLEAR_FILTERS_LABEL = "Clear filters";
+
 function renderError(container, onRetry) {
   const failed = renderFeedStatus(container, {
     state: "error", label: "People feed error", text: "Image posts could not be loaded.",
     detail: "The selected display-name filter is unchanged. Retry loading image posts.",
-    actionLabel: "Try again", onAction: onRetry,
+    actionLabel: PROFILE_RETRY_LABEL, onAction: onRetry,
   });
   failed.classList.add("empty-state", "empty-state-error");
   failed.querySelector?.(".feed-status-value")?.classList.add("empty-title");
   failed.querySelector?.(".feed-status-action")?.classList.add("empty-action");
+}
+
+function renderNoMatch(container, onClearFilters) {
+  const panel = renderFeedStatus(container, {
+    state: "filtered", label: "People filter result",
+    text: PROFILE_NO_MATCH_LINE, detail: PROFILE_NO_MATCH_GUIDANCE,
+    actionLabel: PROFILE_CLEAR_FILTERS_LABEL, onAction: onClearFilters,
+  });
+  panel.classList.add("empty-state", "empty-state-filtered");
+  panel.querySelector?.(".feed-status-value")?.classList.add("empty-title");
+  panel.querySelector?.(".feed-status-action")?.classList.add("empty-action");
 }
 
 // `state` keeps three situations apart that must never share one empty state:
@@ -563,7 +589,10 @@ function renderError(container, onRetry) {
 // always win over a pending or failed refresh — stale content beats a spinner
 // over content the reader could already see.
 export function renderProfileGrid(container, posts, options = {}) {
-  const { state = "ready", onRetry = null, author = DEFAULT_AUTHOR, statusRegion = container } = options;
+  const {
+    state = "ready", onRetry = null, author = DEFAULT_AUTHOR, statusRegion = container,
+    total = null, onClearFilters = null,
+  } = options;
   const ordered = sortNewestFirst(posts ?? []);
   container.replaceChildren();
   container.setAttribute("aria-busy", state === "loading" && ordered.length === 0 ? "true" : "false");
@@ -572,21 +601,30 @@ export function renderProfileGrid(container, posts, options = {}) {
       state: "error", label: "People feed update failed",
       text: "Showing the image posts already loaded.",
       detail: "The selected display-name filter is unchanged. Retry loading newer image posts.",
-      actionLabel: "Try again", onAction: onRetry,
+      actionLabel: PROFILE_RETRY_LABEL, onAction: onRetry,
     });
   } else if (statusRegion !== container) {
     statusRegion.replaceChildren();
     statusRegion.hidden = false;
   }
 
+  // `total` is the whole feed behind the display-name filter, and a clear
+  // handler is what makes the filtered dead end recoverable. A caller that
+  // passes neither — the render-layer tests, and any surface with no picker —
+  // gets the old three states, because with no filter there is nothing to have
+  // been filtered out.
+  const filtering = Boolean(onClearFilters) && total !== null && total > 0;
+  const phase = feedPhase({ state, total: total ?? ordered.length, visible: ordered.length, filtering });
+
   if (ordered.length === 0) {
-    if (state === "loading") {
+    if (phase === "loading") {
       renderFeedStatus(statusRegion, {
         state: "loading", label: "People feed loading", text: loadingSummaryText(author),
         append: statusRegion === container,
       });
       renderSkeleton(container, author);
-    } else if (state === "error") renderError(statusRegion, onRetry);
+    } else if (phase === "failed") renderError(statusRegion, onRetry);
+    else if (phase === "filtered-empty") renderNoMatch(statusRegion, onClearFilters);
     else renderEmpty(statusRegion, author);
     return;
   }
@@ -624,13 +662,19 @@ export function renderProfileGrid(container, posts, options = {}) {
 // One entry is the exception: a feed carrying a single display name has no
 // choice in it, so the sentence replaces the button rather than drawing a
 // control whose only value is already selected.
-export function renderAuthorPicker(container, entries, { author, counted = true, onSelect = null } = {}) {
+//
+// `disabled` is the state where there is nothing to filter: a fetch still open,
+// a feed that came back empty, or one that failed. The chips carry the real
+// attribute then, so they leave the tab order instead of standing there as
+// controls that silently do nothing. No focus is trapped by that — a disabled
+// button simply stops being a stop — and they come back the moment posts exist.
+export function renderAuthorPicker(container, entries, { author, counted = true, onSelect = null, disabled = false } = {}) {
   const alone = singleNameNotice(entries, { counted });
   if (alone) {
     container.replaceChildren(el("p", "hint", alone));
     return;
   }
-  container.replaceChildren(...entries.map((entry) => {
+  const chips = entries.map((entry) => {
     const selected = entry.name === author;
     const chip = el("button", "profile-filter-option", authorChipLabel(entry.name, counted ? entry.images : null, { selected }));
     chip.type = "button";
@@ -638,7 +682,9 @@ export function renderAuthorPicker(container, entries, { author, counted = true,
     chip.setAttribute("aria-pressed", selected ? "true" : "false");
     if (onSelect) chip.addEventListener("click", () => onSelect(entry.name));
     return chip;
-  }));
+  });
+  setFeedControlsDisabled(chips, disabled);
+  container.replaceChildren(...chips);
 }
 
 // The profile header that opens the results region — avatar, heading,
@@ -690,6 +736,18 @@ export function mountProfile(root, options = {}) {
     paintRoutes: [root.querySelector("#profile-paint-route")].filter(Boolean),
   };
 
+  // The three lines this page may only say once a fetch has answered: the count,
+  // the promise about image posts arriving on their own, and the invitation to
+  // put a picture in a grid nobody has seen yet. All three used to sit on screen
+  // beside "Loading image posts…", so one wait was narrated four times. They
+  // leave the document while the feed is loading — absent, not hidden, because a
+  // hidden line is still text a screen reader can be walked through.
+  const waiting = [
+    feedPresence(elements.summary),
+    feedPresence(root.querySelector(".feed-connection")),
+    feedPresence(root.querySelector(".feed-create")),
+  ];
+
   let posts = options.posts ?? [];
   let state = options.state ?? "ready";
   let author = options.author ?? DEFAULT_AUTHOR;
@@ -732,14 +790,35 @@ export function mountProfile(root, options = {}) {
       elements.pickerNote.textContent = pickerNoteText(author, { preselected, choices: pickerEntries(posts, author).length });
     }
     for (const route of elements.paintRoutes) route.href = profilePaintHref(author);
+    // The one case where an empty grid is a filtered feed rather than an empty
+    // one: some other display name in this feed does have image posts, so the
+    // reader has narrowed a full feed to nothing and there is somewhere to
+    // clear back to. With no such name, nothing was filtered out and the empty
+    // state is the honest answer.
+    const elsewhere = defaultProfileAuthor(posts);
+    const recoverable = Boolean(elsewhere) && elsewhere !== author;
     renderProfileGrid(grid, mine, {
       state,
       onRetry: options.onRetry,
       author,
       statusRegion: elements.feedStatus ?? grid,
+      total: recoverable ? posts.length : 0,
+      onClearFilters: recoverable ? () => clearFilters(elsewhere) : null,
     });
+    const phase = feedPhase({
+      state, total: recoverable ? posts.length : mine.length, visible: mine.length, filtering: recoverable,
+    });
+    for (const line of waiting) line.present(phase !== "loading");
+    // The page's one voice says what the panel below it says. An empty grid with
+    // pictures under other display names is a filtered dead end, so the
+    // announcement carries that guidance rather than the invitation into Paint
+    // that the visible region no longer offers here. It keeps naming the display
+    // name, because an announcement has no page around it to borrow a subject
+    // from.
     if (elements.announcer && state === "ready") {
-      elements.announcer.textContent = profileAnnouncement(author, mine.length);
+      elements.announcer.textContent = phase === "filtered-empty"
+        ? `${emptySummaryText(author)} ${PROFILE_NO_MATCH_GUIDANCE}`
+        : profileAnnouncement(author, mine.length);
     }
     if (options.onRender) options.onRender({ author, posts: mine, summary });
   };
@@ -752,6 +831,10 @@ export function mountProfile(root, options = {}) {
       // fact from its answer being zero. Seeded posts are already on screen in
       // that state, so the chips must not turn a partial feed into a count.
       counted: state !== "loading",
+      // Nothing to filter until the feed holds something: a chooser offered over
+      // a pending, empty, or failed feed is a row of controls that cannot change
+      // what is on screen.
+      disabled: state !== "ready" || posts.length === 0,
       onSelect: choose,
     });
     // Selecting rebuilds the chips, so the button that was just pressed is
@@ -759,6 +842,19 @@ export function mountProfile(root, options = {}) {
     // top of the document after every choice.
     if (refocus) elements.picker.querySelector('[aria-pressed="true"]')?.focus();
   };
+
+  // The reset behind the filtered dead end's Clear filters control: it puts the
+  // picker back on the display name this feed actually opens on — the one a
+  // visitor who chose nobody would have landed on — which restores the full grid
+  // and returns the page to its loaded state. Focus moves with it, because the
+  // button that ran this sits inside the panel the restored tiles replace, and
+  // leaving focus on a removed node drops a keyboard reader to the top of the
+  // document. It lands on the first restored tile, or on the chip choose()
+  // already focused when there is no tile to land on.
+  function clearFilters(next) {
+    choose(next);
+    grid.querySelector(".profile-tile")?.focus();
+  }
 
   function choose(next) {
     if (next === author) return;

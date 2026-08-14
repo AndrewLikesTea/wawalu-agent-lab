@@ -223,12 +223,20 @@ test("People's connecting frame says Social's sentence with People's noun", asyn
   const sentences = STATES.map((state) => profileConnectionLine(state));
   assert.equal(connectionLineCount(document, sentences), 1, "the connecting frame renders more than one connection status line");
 
-  // And the module writes the same sentence the markup ships, so hydration in a
-  // still-loading state does not reintroduce a second wording. Emptied first,
-  // or this would pass on the markup alone.
-  status.textContent = "";
-  mountProfile(document, { posts: [], author: "Ari", state: "loading" });
-  assert.equal(textOf(status), "New image posts will appear here on their own.");
+  // And once the module runs, the connection line is not on the page at all
+  // while the fetch is open: it promises image posts nobody has seen yet, beside
+  // a status region already saying they are loading. Absent, not hidden — the
+  // element leaves the document and comes back with the answer.
+  const profile = mountProfile(document, { posts: [], author: "Ari", state: "loading" });
+  assert.equal(document.querySelectorAll(".feed-connection").length, 0);
+  assert.equal(connectionLineCount(document, sentences), 0);
+  assert.doesNotMatch(textOf(document.body), /New image posts will appear here on their own/);
+
+  // It returns, in one wording and in its authored slot, the moment the feed
+  // answers.
+  profile.seed([POST]);
+  profile.setAuthor(POST.author);
+  assert.equal(document.querySelectorAll(".feed-connection").length, 1);
   assert.equal(connectionLineCount(document, sentences), 1);
 });
 

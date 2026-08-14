@@ -634,7 +634,12 @@ test("the profile page's static copy does not drift from the module's", async ()
   // state — a verdict about a name nobody had chosen, and a false one for the
   // seeded feed — so it now says only that the counting has not happened yet.
   const html = await readFile(new URL("../src/profile.html", import.meta.url), "utf8");
-  assert.match(html, /id="profile-summary">Counting image posts…</);
+  // The counts line ships with nothing in it. It used to wait as "Counting
+  // image posts…" beside a status region that already said the image posts were
+  // loading, which is one wait described twice; profile.js takes the element out
+  // of the document entirely while a fetch is open, and the placeholder wording
+  // is gone from the page.
+  assert.match(html, /id="profile-summary"><\/p>/);
   assert.doesNotMatch(html, new RegExp(emptySummaryText("Ari")));
   // People's one retrieval status names the content type; the heading already
   // names the selected display name.

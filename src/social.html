@@ -141,7 +141,13 @@
                  which filters produced that — and that is the region announced
                  now, so leaving aria-live here would read every filter change
                  out twice. -->
-            <span class="count" id="post-count">Counting posts…</span>
+            <!-- Ships with nothing in it, and social.js takes the element out of
+                 the document entirely while a fetch is open. It used to wait as
+                 "Counting posts…" beside a status region already saying the feed
+                 was loading and a connection line promising posts, so one wait
+                 was described three times. A count is a number or it is not on
+                 the page. -->
+            <span class="count" id="post-count"></span>
           </div>
           <!-- Who wrote what a reader is about to scroll through, said once and
                said here, because here is where the names are. A reader meets

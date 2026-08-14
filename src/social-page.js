@@ -276,7 +276,14 @@ async function init() {
     // so the description field exists before a Paint handoff can fill it.
     getMedia: () => media.get(),
     clearMedia: () => media.clear(),
-    onRetry: () => refresh(),
+    // Retry is a re-request, so the page goes back to saying it is loading
+    // before it says anything else. Without this the failed panel sat there
+    // unchanged until the second attempt settled, and a second failure looked
+    // like a button that had done nothing.
+    onRetry: () => {
+      feed.setState("loading");
+      return refresh();
+    },
   });
   // The composer ships collapsed, so the two arrivals that name it in the URL
   // have to open it or they land on a fragment that is not being rendered: the
