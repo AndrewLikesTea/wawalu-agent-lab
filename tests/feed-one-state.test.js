@@ -234,7 +234,7 @@ test("Social's count is the number of cards under the filters actually set", asy
   // unfiltered total, and it is a literal number rather than a placeholder.
   const rendered = document.querySelectorAll(".post-card").length;
   assert.equal(rendered, 2);
-  assert.equal(textOf(count), `${rendered} posts of 3`);
+  assert.equal(textOf(count), `${rendered} of 3 posts`);
   assert.doesNotMatch(textOf(count), /Counting/);
 });
 

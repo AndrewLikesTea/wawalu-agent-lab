@@ -175,8 +175,24 @@ export function feedSummarySentence({ shown = 0, total = shown, range = "", auth
   const clauses = filterClauses({ range, author });
 
   if (shown === 0) return "";
-  if (!clauses) return `Showing ${shown} ${shown === 1 ? "post" : "posts"}, newest first.`;
-  return `Showing ${shown} of ${total} ${total === 1 ? "post" : "posts"} ${clauses}, newest first.`;
+  if (!clauses) return `Showing ${shownPostsCount({ shown })}, newest first.`;
+  return `Showing ${shownPostsCount({ shown, total, filtering: true })} ${clauses}, newest first.`;
+}
+
+// How many posts are showing, in the one shape this page states it in — and the
+// only place that shape is decided. Unfiltered there is nothing to be shown out
+// of, so it is the single total; with either filter set it is "3 of 12 posts",
+// the number on screen first and what it was narrowed from behind it.
+//
+// The noun is written once and agrees with the figure it follows: the total when
+// there is a denominator ("1 of 1 post", "1 of 12 posts"), the shown count when
+// there is not ("1 post"). It used to read "1 posts of 12" beside the heading —
+// the same fact in a second word order, with the plural fixed — because the
+// heading's count and this sentence's count were spelled in two different files'
+// worth of string building. Both call sites now spell it here.
+export function shownPostsCount({ shown = 0, total = shown, filtering = false } = {}) {
+  const noun = (count) => (count === 1 ? "post" : "posts");
+  return filtering ? `${shown} of ${total} ${noun(total)}` : `${shown} ${noun(shown)}`;
 }
 
 // The two sentences of the no-match dead end, and the only place they are said:
@@ -833,7 +849,6 @@ export function mountSocialFeed(root, options = {}) {
 
   let posts = options.posts ?? [];
   let state = options.state ?? "ready";
-  const postLabel = (n) => `${n} ${n === 1 ? "post" : "posts"}`;
 
   // The words a filter is currently showing, read back off the control itself
   // rather than kept as a second copy in this file. "From the past hour" is
@@ -885,10 +900,12 @@ export function mountSocialFeed(root, options = {}) {
     // failed load names itself rather than printing a zero that reads as an
     // empty feed. Every other state resolves to a literal number, and it is the
     // length of the array the cards were just rendered from, so the figure is
-    // the count of posts on screen under whatever filters are set.
+    // the count of posts on screen under whatever filters are set — and it is
+    // spelled by the same function the summary sentence below spells its count
+    // with, so the two lines on this screen cannot state one count in two shapes.
     if (count && phase !== "loading") {
       if (phase === "failed") count.textContent = "Unavailable";
-      else count.textContent = filtering ? `${postLabel(visible.length)} of ${posts.length}` : postLabel(visible.length);
+      else count.textContent = shownPostsCount({ shown: visible.length, total: posts.length, filtering });
     }
 
     // The same `visible` array the cards were just rendered from, so the count
