@@ -504,6 +504,32 @@ function declareCohort(document) {
 /** The record this browser is holding, parsed. */
 const heldRecord = (page) => JSON.parse(page.storage.getItem(BRIEFING_RETENTION_KEY));
 
+// The defect behind the sibling assertion below, pinned directly rather than
+// left to a same-millisecond coin toss: every retention write took a fresh clock
+// read, so annotating a brief re-dated the import it was about. An operator who
+// imported at 09:00 and declared their cohort at 17:00 was shown "Captured
+// 17:00" — the provenance of the file quietly replaced by the time of an edit
+// that had nothing to do with reading it.
+test("annotating a kept brief leaves the time its file was read alone", async () => {
+  const page = await openFinopsTab();
+  try {
+    await importExport(page.document, SPRING);
+    keepBriefing(page);
+    const capturedAt = heldRecord(page).capturedAt;
+    assert.ok(Number.isFinite(Date.parse(capturedAt)), "the import must date itself");
+
+    declareCohort(page.document);
+
+    const record = heldRecord(page);
+    assert.equal(record.capturedAt, capturedAt,
+      "declaring a cohort must not re-date when the file was read");
+    assert.ok(Date.parse(record.context.editedAt) >= Date.parse(capturedAt),
+      "the edit is the later of the two events, and is dated as its own");
+  } finally {
+    page.restore();
+  }
+});
+
 test("the context an operator supplied comes back with the brief, dated as theirs", async () => {
   let page = await openFinopsTab();
   try {
