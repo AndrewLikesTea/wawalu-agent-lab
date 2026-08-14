@@ -634,6 +634,14 @@ const ALLOWED_MODULES = Object.freeze([
   // one. It is the module the two reference rates now live in, so the path
   // reaching it is the path reaching its own prices.
   "finops-rate-card-contract.js",
+  // Reviewed on with #1745, which put the analyzed window on the homepage
+  // takeaway. `analyzed-period.js` is where the bundled example's months and
+  // the half-open window they make now live, so `example-dataset.js` imports
+  // its own period list rather than owning a second copy of it. It imports
+  // nothing, opens no request, reads no storage, and — the property that
+  // matters most for a module on this path — reads no clock: every window it
+  // names is a function of the month list it is handed, never of today.
+  "analyzed-period.js",
 ]);
 
 /**
