@@ -742,15 +742,15 @@ test("feedSummarySentence composes only the filters that are set, with correct p
   assert.equal(feedSummarySentence({ shown: 1, total: 1, author: "Mina" }),
     "Showing 1 of 1 post by Mina, newest first.");
 
-  // A filtered zero orders nothing, so it does not claim an order: it names the
-  // filters that emptied the feed and the control that undoes them, in the same
-  // words the panel below the feed uses.
-  assert.equal(feedSummarySentence({ shown: 0, total: 9, range: "from the past hour", author: "Ari" }),
-    "No posts by Ari from the past hour. Select Clear filters to see all 9 posts.");
-  assert.equal(feedSummarySentence({ shown: 0, total: 9, author: "Ari" }),
-    "No posts by Ari. Select Clear filters to see all 9 posts.");
-  assert.equal(feedSummarySentence({ shown: 0, total: 1, range: "from the past hour" }),
-    "No posts from the past hour. Select Clear filters to see all 1 post.");
+  // A filtered zero orders nothing and counts nothing, so this sentence says
+  // nothing: the no-match panel is the region that states the dead end, and it
+  // is the one holding the control that undoes it. Composing the panel's two
+  // sentences here as well put them on the page twice and announced them from
+  // two polite regions — the defect this sentence exists to prevent, in its own
+  // voice.
+  assert.equal(feedSummarySentence({ shown: 0, total: 9, range: "from the past hour", author: "Ari" }), "");
+  assert.equal(feedSummarySentence({ shown: 0, total: 9, author: "Ari" }), "");
+  assert.equal(feedSummarySentence({ shown: 0, total: 1, range: "from the past hour" }), "");
 });
 
 // The filtered dead end used to render the never-posted panel, which told a
@@ -943,13 +943,21 @@ test("the summary sentence stays true as the filters change", async (t) => {
 
   choose(nameFilter, "Mina");
   assert.equal(shown(), 0);
-  // Nothing matched, so the sentence stops counting and starts helping: it names
-  // the filters in effect and the control that undoes them, by its exact label.
-  assert.equal(textOf(summary), "No posts by Mina from the past hour. Select Clear filters to see all 3 posts.");
+  // Nothing matched, so this sentence stops: the dead end is the panel's news,
+  // and the panel is the live region that carries the way out of it. Saying it
+  // here as well printed the same two sentences twice, a few pixels apart, and
+  // announced them from two polite regions at once.
+  assert.equal(textOf(summary), "", "the dead end is stated by the panel that recovers from it, once");
+  const deadEnd = page.document.querySelector(".empty-state-filtered");
+  assert.match(textOf(deadEnd), /No posts by Mina from the past hour\./);
+  assert.match(textOf(deadEnd), /Select Clear filters to see all 3 posts\./);
+  // Once on the whole page, not once per region.
+  const body = textOf(page.document.body);
+  assert.equal((body.match(/Select Clear filters to see all 3 posts\./g) ?? []).length, 1);
   assert.equal(textOf(page.document.querySelector("#post-filter-clear")), "Clear filters",
     "the sentence points at a label the button does not render");
   // Distinct from the never-posted empty state, which this change leaves alone.
-  assert.doesNotMatch(textOf(summary), /No posts on Social yet/);
+  assert.doesNotMatch(textOf(deadEnd), /No posts on Social yet/);
 
   page.document.querySelector("#post-filter-clear").click();
   assert.equal(textOf(summary), "Showing 3 posts, newest first.");
@@ -1002,6 +1010,16 @@ test("a filter combination matching nothing reads as a dead end with its own rec
   assert.doesNotMatch(textOf(panel), /No posts on Social yet/);
   assert.doesNotMatch(textOf(panel), /create an image in Paint/);
 
+  // And nothing else on the page offers a second reason for the empty feed. The
+  // connection promise is the one that reads as one — "New posts will appear
+  // here on their own." tells a reader to wait for posts that are already here,
+  // behind their own two menus — so it leaves the document in this state, the
+  // way it already leaves it while the first fetch is open.
+  assert.doesNotMatch(textOf(page.document.body), /New posts will appear here on their own/);
+  assert.equal(page.document.querySelectorAll(".feed-connection").length, 0);
+  assert.equal(textOf(page.document.querySelector("#feed-summary")), "",
+    "the summary repeats the panel's two sentences a second time");
+
   // A real button, after the message in DOM order, and in the tab sequence.
   const stateRegion = page.document.querySelector("#feed-state");
   const buttons = stateRegion.querySelectorAll("button");
@@ -1022,6 +1040,8 @@ test("a filter combination matching nothing reads as a dead end with its own rec
   assert.equal(nameFilter.value, "all");
   assert.equal(timeFilter.value, "all");
   assert.equal(textOf(page.document.querySelector("#feed-summary")), "Showing 3 posts, newest first.");
+  // The connection line comes back with the posts, in its authored slot.
+  assert.equal(page.document.querySelectorAll(".feed-connection").length, 1);
   assert.equal(page.document.querySelectorAll(".empty-state").length, 0);
   assert.equal(stateRegion.hidden, true, "matching posts hide the no-match status");
   assert.equal(textOf(stateRegion), "", "no-match copy cannot survive beside matching posts");

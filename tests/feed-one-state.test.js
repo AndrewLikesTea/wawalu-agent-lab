@@ -337,7 +337,21 @@ test("People separates a feed with no pictures from a display name with none", a
   const filtered = document.querySelector(".empty-state-filtered");
   assert.equal(document.querySelectorAll(".empty-state").length, 1);
   assert.match(textOf(filtered), /No image posts match the selected display name\./);
+  // The way out names the control by the words printed on it and says what
+  // pressing it will show: this page's reset lands on one display name rather
+  // than restoring every image post.
+  assert.match(textOf(filtered), /Select Clear filters to see Zed’s image posts\./);
   assert.doesNotMatch(textOf(document.body), /Images made in Paint and published on Social appear here\./);
+  // And the promise about image posts arriving on their own is not standing over
+  // a grid the picker emptied: it would answer "why is this empty?" with the
+  // wrong reason.
+  assert.equal(document.querySelectorAll(".feed-connection").length, 0);
+  assert.doesNotMatch(textOf(document.body), /New image posts will appear here on their own/);
+  // The panel is rendered content and the announcer is the page's one voice, so
+  // the voice carries the same way out, with both names spelled: it is heard
+  // away from the heading and the chips that carry them on screen.
+  assert.equal(textOf(document.querySelector("#profile-announcer")),
+    "Ari hasn’t posted an image yet. Select Clear filters to see Zed’s image posts.");
 
   // Clear filters restores the full feed and the loaded state.
   const clear = filtered.querySelector(".feed-status-action");

@@ -14,7 +14,7 @@ const {
   EMPTY_SUMMARY_LINE, PROFILE_EMPTY_COPY, authorChipLabel, authorInitials, captionFor, countLabel, defaultProfileAuthor,
   distinctAuthors, emptySummaryText, hasExplicitAuthor, imagePostCounts, loadingSummaryText,
   mergePostsById, normalizeProfileApiPosts, normalizeSeedPosts, pickerEntries, pickerNoteText, postDetailHref,
-  singleNameNotice,
+  singleNameNotice, PROFILE_CLEAR_FILTERS_LABEL, PROFILE_NO_MATCH_LINE, profileNoMatchGuidance,
   profileAnnouncement, profileHref, profilePaintHref, profileResultsHeading, profileSummary, profileSummaryText,
   renderAuthorPicker, renderProfileGrid, renderProfileHeader, resolveProfileAuthor, selectProfilePosts,
 } = await import("../src/profile.js");
@@ -621,6 +621,57 @@ test("the empty profile says it once across the whole page", () => {
   // all: "Showing 12 posts, newest first." there, this here.
   assert.equal(profileAnnouncement("Mina", 2), "Showing 2 image posts by Mina, newest first.");
   assert.equal(profileAnnouncement("Mina", 1), "Showing 1 image post by Mina, newest first.");
+});
+
+// A display name with no pictures under it, while other names have plenty, is a
+// full feed narrowed to nothing — not a site with nothing on it. The two empty
+// grids must never read the same, and the filtered one must say which name
+// emptied it and what pressing its control will show.
+test("People's filtered dead end names the display name, the control, and what clearing shows", () => {
+  // Social's shape with this page's noun in it: "Select Clear filters to see all
+  // 9 posts." there, this here. It names where the reset lands, because People's
+  // reset does not restore every image post — it moves to one display name.
+  assert.equal(PROFILE_NO_MATCH_LINE, "No image posts match the selected display name.");
+  assert.equal(profileNoMatchGuidance("Zed"), "Select Clear filters to see Zed’s image posts.");
+  assert.equal(profileNoMatchGuidance(""), "Select Clear filters to see the image posts under another display name.");
+  // The control is named by the exact words printed on it, so a reader can go
+  // looking for the thing they were just told to press.
+  assert.equal(PROFILE_CLEAR_FILTERS_LABEL, "Clear filters");
+  assert.match(profileNoMatchGuidance("Zed"), new RegExp(`Select ${PROFILE_CLEAR_FILTERS_LABEL} `));
+  // "image posts" and "Clear filters" are the words Social uses for the same two
+  // things, and neither sentence borrows the never-posted state's.
+  for (const text of [PROFILE_NO_MATCH_LINE, profileNoMatchGuidance("Zed")]) {
+    assert.doesNotMatch(text, new RegExp(PROFILE_EMPTY_COPY.guidance));
+    assert.doesNotMatch(text, /Paint/);
+    assert.match(text, /image posts/);
+  }
+
+  // The rendered panel: both sentences, one real control, and none of the
+  // never-posted invitation beside them.
+  const grid = createElement("div");
+  let cleared = 0;
+  renderProfileGrid(grid, [], {
+    state: "ready", author: "Ari", total: 3, clearTo: "Zed", onClearFilters: () => { cleared += 1; },
+  });
+  const panel = first(grid, "empty-state-filtered");
+  assert.equal(first(panel, "empty-title").textContent, PROFILE_NO_MATCH_LINE);
+  assert.equal(first(panel, "feed-status-detail").textContent, profileNoMatchGuidance("Zed"));
+  const clear = first(panel, "feed-status-action");
+  assert.equal(clear.tagName, "BUTTON");
+  assert.equal(clear.type, "button");
+  assert.equal(clear.textContent, PROFILE_CLEAR_FILTERS_LABEL);
+  for (const handler of clear.listeners.click ?? []) handler({ type: "click" });
+  assert.equal(cleared, 1, "the panel's control runs the reset it names");
+  assert.equal(byClass(grid, "empty-action").filter((node) => node.tagName === "A").length, 0,
+    "the never-posted state's two links answered a question nobody asked here");
+
+  // The same empty grid with nothing behind the filter is the other state, and
+  // it says the other thing.
+  const emptyGrid = createElement("div");
+  renderProfileGrid(emptyGrid, [], { state: "ready", author: "Ari" });
+  assert.equal(byClass(emptyGrid, "empty-state-filtered").length, 0);
+  assert.equal(first(emptyGrid, "empty-title").textContent, PROFILE_EMPTY_COPY.guidance);
+  assert.notEqual(first(emptyGrid, "empty-title").textContent, PROFILE_NO_MATCH_LINE);
 });
 
 test("the waiting line names image posts once without duplicating the selected display name", () => {

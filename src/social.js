@@ -162,25 +162,25 @@ export function feedHeading({ shown = 0, range = "", author = "" } = {}) {
 // once, in the sentence that already states the count, and the feed list points
 // its aria-describedby here.
 //
-// An unfiltered, genuinely empty feed returns "": that is the never-posted
-// state, which the empty panel already owns and says more usefully than a
-// sentence counting to zero would. A filtered feed that matched nothing says so
-// in the no-match wording below, naming the filters and the control that undoes
-// them, because "Showing 0 of 24 posts by Ari, newest first" orders nothing and
-// offers nothing.
+// An empty feed returns "", filtered or not, because neither empty screen is
+// this sentence's to state. A never-posted feed is the empty panel's news, and a
+// feed the filters emptied is the no-match panel's — and that panel is #feed-state,
+// which is `role="status"`, so it is announced where it stands. This element is
+// polite too, so composing the same two sentences here printed the dead end twice
+// and read it out twice: "No posts by Ari from the past hour. Select Clear
+// filters to see all 9 posts." above the panel saying exactly that, with the
+// heading making it three. One state, one telling, and it is the telling that
+// carries the control back out.
 export function feedSummarySentence({ shown = 0, total = shown, range = "", author = "" } = {}) {
   const clauses = filterClauses({ range, author });
 
-  if (!clauses) {
-    if (shown === 0) return "";
-    return `Showing ${shown} ${shown === 1 ? "post" : "posts"}, newest first.`;
-  }
-  if (shown === 0) return `${noMatchMessage({ range, author })} ${noMatchGuidance(total)}`;
+  if (shown === 0) return "";
+  if (!clauses) return `Showing ${shown} ${shown === 1 ? "post" : "posts"}, newest first.`;
   return `Showing ${shown} of ${total} ${total === 1 ? "post" : "posts"} ${clauses}, newest first.`;
 }
 
-// The two sentences of the no-match dead end, rendered in the panel below the
-// feed and composed into the summary above it. A filter combination that matches
+// The two sentences of the no-match dead end, and the only place they are said:
+// the panel below the feed. A filter combination that matches
 // nothing used to render the never-posted panel — "No posts on Social yet." —
 // which told a reader the feed was empty when in fact it was full and their own
 // two menus were hiding it. These say the opposite, in the menus' own words:
@@ -868,7 +868,11 @@ export function mountSocialFeed(root, options = {}) {
     // accessibility tree, and the point is that a page with no answer yet makes
     // no claim at all.
     countPresence.present(phase !== "loading");
-    connectionPresence.present(phase !== "loading");
+    // The promise goes with it, and it also goes when the filters have emptied
+    // the feed: "New posts will appear here on their own." standing over a panel
+    // saying nothing matches answers a reader's "why is this empty?" with the
+    // wrong reason, and tells them to wait when the fix is one control away.
+    connectionPresence.present(phase !== "loading" && phase !== "filtered-empty");
     // Nothing to filter yet, so the menus and their reset say so with the one
     // attribute that also takes them out of the tab order. No focus is trapped:
     // a disabled control simply stops being a stop.
