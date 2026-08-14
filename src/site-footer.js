@@ -57,6 +57,11 @@ export const IDENTITY = "On this site you can analyze your own AI spend, check a
   + "it, and read the decisions and releases behind it. Shiplog is a demonstration product, built and "
   + "operated by Wawalu at labs.wawalu.org.";
 
+// Who Shiplog is for, and the page that shows it working; the tests say why.
+export const PITCH = "Shiplog is for engineering teams that answer for an AI bill and a release history.";
+export const PITCH_LINK = "the worked decision in AI FinOps";
+export const PITCH_HREF = "/evolution.html#workspace-answer";
+
 /**
  * Every door the navigation offers, and what each one is for.
  *
@@ -171,6 +176,7 @@ export function siteFooterMarkup(indent = "    ", { redirect = null, followUpTyp
     '  <div class="site-footer-inner">',
     '    <h2 class="site-footer-title" id="site-footer-title">About Shiplog</h2>',
     `    <p class="site-footer-identity">${IDENTITY}</p>`,
+    `    <p class="site-footer-identity site-footer-pitch">${PITCH} See <a href="${PITCH_HREF}">${PITCH_LINK}</a>.</p>`,
     ...demoListLines(),
     ...contact,
     "  </div>",

@@ -17,7 +17,7 @@ import assert from "node:assert/strict";
 import { readdir, readFile } from "node:fs/promises";
 import { relative } from "node:path";
 import { fileURLToPath } from "node:url";
-import { DEMOS } from "../src/site-footer.js";
+import { DEMOS, PITCH_LINK } from "../src/site-footer.js";
 import { SITE_NAV } from "../src/site-nav.js";
 import { parseHtml, pressEnter, pressTab, tabSequence, textOf } from "./support/browser.js";
 
@@ -369,9 +369,11 @@ test("the post page's loading tab order reaches Social without a placeholder Peo
   // after the destination's own link — see `also` in src/site-footer.js.
   const bandStops = DEMOS.flatMap((demo) => (demo.also ? [demo.label, demo.also.label] : [demo.label]));
   const afterExit = sequence.slice(FRAME_STOPS).map((stop) => textOf(stop));
+  // The band opens on the sentence that says who Shiplog is for, so its pointer
+  // at the worked decision is the first footer stop, ahead of the site map.
   assert.deepEqual(
-    afterExit.slice(0, bandStops.length + 2),
-    [...bandStops, "", "Send work email to request a follow-up"],
+    afterExit.slice(0, bandStops.length + 3),
+    [PITCH_LINK, ...bandStops, "", "Send work email to request a follow-up"],
   );
   assert.ok(
     sequence.slice(FRAME_STOPS).every((stop) => stop.closest("#site-footer")),

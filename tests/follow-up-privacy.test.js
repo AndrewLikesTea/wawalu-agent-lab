@@ -160,8 +160,15 @@ test("the briefing's About block points at the form with a link, not a paragraph
   assert.equal(link.tagName, "A");
   assert.equal(textOf(link), CTA);
   assert.equal(link.getAttribute("href"), "#briefing-contact");
-  assert.equal(footer.querySelectorAll("p").length, 1,
-    "the About block keeps the identity paragraph and no explanation of the link");
+  // Two paragraphs, both shared with every other page: who runs Shiplog, and
+  // who it is for. Neither one explains this link — a clear label does that.
+  const paragraphs = footer.querySelectorAll("p");
+  assert.equal(paragraphs.length, 2,
+    "the About block keeps the shared paragraphs and no explanation of the link");
+  for (const paragraph of paragraphs) {
+    assert.doesNotMatch(textOf(paragraph), /follow-up form|form below|which form|carries its own/i,
+      "the About block must explain the link with the link, not with a paragraph");
+  }
 
   // Focus has to move, not just the scroll position — the same rule
   // tests/page-skip-link.test.js holds the skip link to, and the same mechanism:

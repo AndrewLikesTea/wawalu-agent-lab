@@ -20,7 +20,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
-import { DEMOS, FOLLOW_UP_REDIRECT, IDENTITY, INVITATION, siteFooterMarkup } from "../src/site-footer.js";
+import {
+  DEMOS, FOLLOW_UP_REDIRECT, IDENTITY, INVITATION, PITCH, PITCH_HREF, PITCH_LINK, siteFooterMarkup,
+} from "../src/site-footer.js";
 import { FOLLOW_UP_PRIVACY } from "../src/lead-capture.js";
 import { SITE_NAV } from "../src/site-nav.js";
 import { loadPage, parseHtml, pressEnter, tabSequence, textOf, typeText } from "./support/browser.js";
@@ -194,6 +196,87 @@ test("the footer says what a visitor can do here before it says what Shiplog is"
   }
 });
 
+// A reader who arrives on a deep link — a release, a post, a profile — reads the
+// page they asked for and then this band. Before #1734 the band told them what
+// they could do here and who runs it, but never whose problem Shiplog solves,
+// and the one page that shows it working was a row in the list like any other.
+test("the About block says who Shiplog is for, and reaches the worked decision in one click", async () => {
+  // The five surfaces #1734 names, plus the home page, which ships the same
+  // string from the same source rather than a variant of its own.
+  for (const file of ["releases.html", "social.html", "profile.html", "coach.html", "agents.html", "index.html"]) {
+    const html = await read(file);
+    const page = await loadPage(pageUrl(file));
+    const { document } = page;
+    try {
+      const pitches = document.querySelectorAll(".site-footer-pitch");
+      assert.equal(pitches.length, 1, `${file}: one pitch, not two`);
+      const [pitch] = pitches;
+      assert.equal(pitch.tagName, "P");
+      assert.equal(textOf(pitch), `${PITCH} See ${PITCH_LINK}.`, `${file} sells Shiplog in its own words`);
+
+      // It names the audience and it points. It does not re-answer the question
+      // the home page answers: no amount, no percentage, no recommended action.
+      assert.match(PITCH, /engineering teams/, "the pitch must say who Shiplog is for");
+      for (const restated of [/\d/, /%/, /\$/, /recoverable/i, /Pilot lower-cost routing/i, /Atlas Platform/i]) {
+        assert.doesNotMatch(textOf(pitch), restated, `${file}: the pitch restates the answer it should point at`);
+      }
+      // And no claim the site cannot show — the same bar the identity keeps.
+      for (const claim of [/customers?\b/i, /\bclients?\b/i, /trusted by/i, /uptime/i, /\brevenue\b/i, /teams like yours/i]) {
+        assert.doesNotMatch(textOf(pitch), claim, `${file}: the pitch claims ${claim}`);
+      }
+
+      // One click to the worked decision, by the name the home page's own call
+      // to action uses for it, at the address the site forwards for that figure.
+      const link = pitch.querySelectorAll("a")[0];
+      assert.ok(Boolean(link), `${file}: the pitch must link the worked decision`);
+      assert.equal(link.tagName, "A");
+      assert.equal(textOf(link), PITCH_LINK);
+      assert.equal(link.getAttribute("href"), PITCH_HREF);
+      assert.equal(pitch.querySelectorAll("a").length, 1, `${file}: one pointer, not a second site map`);
+      assert.ok(tabSequence(document).includes(link), `${file}: the pointer must be keyboard reachable`);
+      assert.ok(html.includes(`<a href="${PITCH_HREF}">`), `${file}: the pointer must carry the answer's fragment`);
+
+      // After the heading, before the list: it sells, then it directs. Asserted
+      // on the document's own order, which is what a reader and a screen reader
+      // both receive.
+      const at = (needle) => html.indexOf(needle);
+      assert.ok(at('class="site-footer-title"') < at("site-footer-pitch"), `${file}: the pitch precedes the About heading`);
+      assert.ok(at('class="site-footer-identity"') < at("site-footer-pitch"), `${file}: the pitch displaces the identity paragraph`);
+      assert.ok(at("site-footer-pitch") < at("site-footer-demos"), `${file}: the pitch follows the destination list`);
+      // It is a paragraph of the band, not a row of the map.
+      assert.equal(pitch.parentNode.getAttribute("class"), "site-footer-inner", `${file}: the pitch is nested somewhere new`);
+
+      // The list is untouched: eight destinations, the same links, in the same
+      // order, and the provenance sentence still renders word for word.
+      const items = document.querySelector(".site-footer-demos").querySelectorAll("li");
+      assert.equal(items.length, DEMOS.length, `${file}: the destination list changed length`);
+      for (const [index, demo] of DEMOS.entries()) {
+        assert.equal(textOf(items[index].querySelectorAll("a")[0]), demo.label, `${file}: destination ${index} changed`);
+      }
+      assert.equal(textOf(document.querySelector(".site-footer-identity")), IDENTITY, `${file}: the identity paragraph changed`);
+      assert.match(textOf(document.querySelector(".site-footer-identity")),
+        /Shiplog is a demonstration product, built and operated by Wawalu/,
+        `${file}: the provenance sentence must survive`);
+    } finally {
+      page.restore();
+    }
+  }
+});
+
+test("the pitch is one sentence and a pointer, in the words the site already uses", async () => {
+  // Two sentences at most, and the first is the home page's framing said
+  // shorter: the footer points, the home page explains. A footer that repeated
+  // the hero would print the same sentence twice on the page that carries both.
+  assert.equal(PITCH.split(/(?<=\.)\s+/).length, 1, "the pitch is one sentence");
+  assert.ok(PITCH.split(/\s+/).length <= 20, `the pitch runs to ${PITCH.split(/\s+/).length} words`);
+  assert.doesNotMatch(PITCH, /powerful|seamless|unlock|leverage|central hub|best-in-class|simply/i, "the pitch uses filler");
+
+  const hero = textOf(parseHtml(await read("index.html")).querySelector(".hero-finops"));
+  assert.ok(hero.includes(PITCH_LINK), "the pitch must name the worked decision the way the home page names it");
+  assert.ok(!hero.includes(PITCH), "the pitch must not be the home page's hero sentence pasted into the footer");
+  assert.ok(PITCH.split(/\s+/).length < hero.split(/\s+/).length, "the footer points, the home page explains");
+});
+
 test("the footer is a site map: every destination the navigation offers, each one a link", async () => {
   const page = await loadPage(pageUrl("index.html"));
   const { document } = page;
@@ -332,6 +415,7 @@ test("the About Shiplog band reads the same on every page of the site", async ()
     const document = parseHtml(await read(file));
     rendered.push([file, [
       textOf(document.querySelector(".site-footer-identity")),
+      textOf(document.querySelector(".site-footer-pitch")),
       textOf(document.querySelector(".site-footer-demos")),
     ].join(" ")]);
   }
@@ -341,6 +425,7 @@ test("the About Shiplog band reads the same on every page of the site", async ()
   }
   // And it is the band, not an empty one that trivially matches everywhere.
   for (const demo of DEMOS) assert.ok(expected.includes(demo.purpose), `the band lost "${demo.label}"`);
+  assert.ok(expected.includes(PITCH), "the band lost the sentence that says who Shiplog is for");
 });
 
 // The description a fragment and a card may differ in, and nothing else: the
