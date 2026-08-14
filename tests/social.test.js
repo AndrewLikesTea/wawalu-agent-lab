@@ -288,7 +288,10 @@ test("social page is wired, labeled, and linked from the other pages", async () 
   assert.doesNotMatch(page, /your browser asks you to fill this in/);
   assert.doesNotMatch(page, /nothing is published\.<\/span>/);
   assert.match(page, /id="post-counter"[^>]*aria-live="polite"/);
-  assert.match(page, /id="post-count">Counting posts…<\/span>/);
+  // The count ships empty and social.js removes the element outright while a
+  // fetch is open: "Counting posts…" was a third description of the one wait the
+  // status region and the connection line were already reporting.
+  assert.match(page, /id="post-count"><\/span>/);
   // The feed itself ships one short retrieval status, and the connection line
   // beside it is not a second one: it says what the connection gives the reader.
   // tests/live-connection-copy.test.js owns the three sentences.
@@ -1117,11 +1120,17 @@ test("the post count never claims zero posts before the feed has any answer", as
   const count = page.document.querySelector("#post-count");
   const feed = mountSocialFeed(page.document, { posts: [], state: "loading" });
 
-  assert.equal(textOf(count), "Counting posts…", "the first fetch is open, so there is no count to give");
+  // One wait, one sentence. The count and the connection line are waiting on the
+  // same fetch as the status region, so while it is open they are not on the
+  // page at all — absent, not hidden, because a hidden line is still text a
+  // screen reader can be walked through.
+  assert.equal(page.document.querySelectorAll("#post-count").length, 0,
+    "the first fetch is open, so there is no count line to read");
+  assert.equal(page.document.querySelectorAll(".feed-connection").length, 0,
+    "a promise about posts nobody has seen is a second description of the wait");
+  assert.doesNotMatch(textOf(page.document.body), /Counting posts/);
+  assert.doesNotMatch(textOf(page.document.body), /New posts will appear here on their own/);
   assert.equal(page.document.querySelectorAll(".empty-state").length, 0, "loading copy never shares the page with empty-state guidance");
-  // One wait, one sentence. The count, the panel over the empty grid, and the
-  // connection line are all waiting on the same fetch, so a reader gets one
-  // description of it and a screen reader hears one, not three.
   const status = page.document.querySelector("#feed-state");
   assert.equal(status.querySelectorAll(".state-title").length, 1);
   assert.equal(textOf(status.querySelector(".state-title")), "Loading the Social feed…");

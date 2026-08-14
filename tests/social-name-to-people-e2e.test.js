@@ -323,13 +323,17 @@ test("a forwarded name with no image posts is named, and offered the whole feed"
   assert.equal(document.querySelectorAll(".profile-grid").length, 0, "an empty list was drawn beside the region explaining it");
   assert.equal(document.querySelectorAll(".empty-state").length, 1);
   const empty = document.querySelector(".empty-state");
-  assert.match(textOf(empty), /Images made in Paint and published on Social appear here\./);
+  // This feed has image posts, under other display names, so the region says
+  // the filter emptied the view rather than that there is nothing to see. The
+  // genuinely-empty invitation belongs to a feed with no images at all.
+  assert.match(textOf(empty), /No image posts match the selected display name\./);
+  assert.doesNotMatch(textOf(empty), /Images made in Paint and published on Social appear here\./);
 
-  // The way back to the whole feed, in the same words the rest of the site uses
-  // for it, and pointing at Social itself rather than back at this filter.
-  const back = empty.querySelectorAll("a").filter((anchor) => anchor.getAttribute("href") === "/social.html");
-  assert.equal(back.length, 1, "the empty view offers the whole feed no times, or twice");
-  assert.equal(textOf(back[0]), "See every post on Social");
+  // The way back to the whole feed is the reset that undoes the filter, in the
+  // one label this site uses for it.
+  const back = empty.querySelectorAll("button");
+  assert.equal(back.length, 1, "the filtered view offers recovery no times, or twice");
+  assert.equal(textOf(back[0]), "Clear filters");
 
   // And the name is spoken as well as shown, so a reader who arrived by link is
   // told whose posts are missing rather than that some feature is empty.

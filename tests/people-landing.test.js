@@ -295,7 +295,14 @@ test("People uses one status node for loading, error, and recovery to live posts
   await waitFor(() => page.document.documentElement.dataset.shiplogProfile === "ready", "the failed first load settles");
   assert.equal(status.querySelectorAll(".empty-state-error").length, 1);
   assert.match(textOf(status), /Image posts could not be loaded/);
-  assert.match(textOf(status), /try again/i);
+  // The retry control says what it retries. "Try again" is announced as two
+  // words with no object, on a page that carries a second control acting on the
+  // same grid.
+  assert.match(textOf(status), /Retry loading image posts/);
+  const retry = status.querySelector(".feed-status-action");
+  assert.equal(retry.tagName, "BUTTON");
+  assert.equal(textOf(retry), "Retry loading image posts");
+  assert.equal(retry.disabled, false, "the one control that can act here is out of the tab order");
 
   routes[LIVE_ROUTE] = { posts: [{
     id: "live-image", author: "Mina", content: "Recovered.", timestamp: "2026-07-18T12:00:00.000Z",
@@ -389,7 +396,7 @@ test("the results heading names the display name and counts the tiles under it",
   }
 });
 
-test("a name whose posts are all gone says zero and offers the way to fill it", async () => {
+test("a name whose posts are all gone is a filtered dead end, not an empty site", async () => {
   // Bea's one image post is removed from the live feed and shadowed out of the
   // seed by an id-matching text post, so this is a real, answered zero rather
   // than a name the store has never heard of.
@@ -401,9 +408,23 @@ test("a name whose posts are all gone says zero and offers the way to fill it", 
     assert.equal(chipTexts(page).includes("Filter People to Bea’s image posts · 0 image posts"), true, chipTexts(page).join(" / "));
     chipFor(page, "Bea").click();
     assert.equal(document.querySelectorAll(".profile-tile").length, 0);
-    // The existing invitation, not a new one and not a blank region.
+    // One region, and it is the filtered one: other display names in this feed
+    // do have image posts, so the reader has narrowed a full feed to nothing
+    // rather than arrived at a site with nothing on it. Different news, so
+    // different words and a different recovery — the reset, not Paint.
     assert.equal(document.querySelectorAll(".empty-state").length, 1);
-    assert.match(textOf(document.querySelector(".empty-state")), /Paint/);
+    const panel = document.querySelector(".empty-state");
+    assert.equal(document.querySelectorAll(".empty-state-filtered").length, 1);
+    assert.match(textOf(panel), /No image posts match the selected display name\./);
+    assert.doesNotMatch(textOf(panel), /Images made in Paint and published on Social appear here\./);
+    // Clear filters restores the full feed and puts the page back into its
+    // loaded state.
+    const clear = panel.querySelector(".feed-status-action");
+    assert.equal(clear.tagName, "BUTTON");
+    assert.equal(textOf(clear), "Clear filters");
+    clear.click();
+    assert.equal(document.querySelectorAll(".empty-state").length, 0);
+    assert.ok(document.querySelectorAll(".profile-tile").length > 0, "Clear filters left the grid empty");
   } finally {
     page.restore();
   }
@@ -434,10 +455,11 @@ test("an empty display name is named in prose once and counted once", async () =
     // Deleted, not hidden: no count chip survives anywhere in the panel.
     assert.equal(document.querySelectorAll("#profile-count").length, 0);
     assert.equal(document.querySelectorAll(".count").length, 0);
-    // The empty state still says what would fill the grid, which is guidance
-    // rather than a second telling of the count.
+    // One region explaining the empty grid, and it is the filtered one: this
+    // feed holds image posts under other display names, so it is the filter that
+    // emptied the view. Guidance rather than a second telling of the count.
     assert.equal(document.querySelectorAll(".empty-state").length, 1);
-    assert.match(textOf(document.querySelector(".empty-state")), /Paint/);
+    assert.match(textOf(document.querySelector(".empty-state")), /No image posts match the selected display name\./);
   } finally {
     page.restore();
   }
@@ -942,6 +964,10 @@ test("a keyboard selection leaves focus on the name that was chosen, not at the 
 });
 
 test("a selected name with no image posts says so once, and offers the way onward", async () => {
+  // Nova has nothing, but this feed does: that is the filtered dead end, whose
+  // recovery is the reset rather than the editor. The genuinely-empty
+  // invitation — Paint and the whole feed — is covered on a feed with no image
+  // posts at all, in tests/feed-one-state.test.js.
   const page = await people({ search: "?author=Nova" });
   try {
     const { document } = page;
@@ -949,15 +975,11 @@ test("a selected name with no image posts says so once, and offers the way onwar
     // One region, not two, and not an empty list.
     assert.equal(document.querySelectorAll(".empty-state").length, 1);
     const empty = document.querySelector(".empty-state");
-    assert.match(textOf(empty), /Images made in Paint and published on Social appear here\./);
+    assert.match(textOf(empty), /No image posts match the selected display name\./);
     assert.equal(document.querySelector("#profile-grid").querySelectorAll(".profile-grid").length, 0,
       "the grid drew an empty list beside the region that explains it");
-    // The route onward, named the way the rest of the site names those places.
-    const routes = empty.querySelectorAll("a").map((anchor) => anchor.getAttribute("href"));
-    assert.equal(routes.filter((href) => href.startsWith("/paint/")).length, 1);
-    assert.equal(routes.filter((href) => href === "/social.html").length, 1);
-    assert.equal(textOf(empty.querySelectorAll("a")[0]), "Create an image in Paint (opens in a new tab)");
-    assert.equal(textOf(empty.querySelectorAll("a")[1]), "See every post on Social");
+    // The route onward is the one that undoes what emptied the view.
+    assert.equal(textOf(empty.querySelector(".feed-status-action")), "Clear filters");
     // The panel the guidance lands in speaks as content: the polite region is
     // the page's one voice, so this is not announced a second time from here.
     const status = document.querySelector("#profile-feed-status");

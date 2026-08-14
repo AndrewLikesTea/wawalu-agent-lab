@@ -76,7 +76,13 @@ async function init() {
     // outrank a pending refresh), and an author the seed does not cover gets a
     // skeleton rather than an "empty profile" that the next second contradicts.
     state: "loading",
-    onRetry: () => refresh(),
+    // A re-request, said out loud: the page returns to the loading state first,
+    // so a second failure is visibly a second attempt rather than a button that
+    // appeared to do nothing.
+    onRetry: () => {
+      profile.setState("loading");
+      return refresh();
+    },
     onAuthorChange(next) {
       author = next;
       chosen = true;

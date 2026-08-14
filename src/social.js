@@ -24,7 +24,7 @@
 import { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH, readStoredAuthor, rememberAuthor } from "./social-identity.js";
 import { imageDescription, renderDescriptionNote, renderImageUnavailable } from "./image-description.js";
 import { postDetailHref, profileHref } from "./social-links.js";
-import { renderFeedStatus } from "./feed-status.js";
+import { renderFeedStatus, feedPhase, feedPresence, setFeedControlsDisabled } from "./feed-status.js";
 
 export { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH };
 
@@ -577,8 +577,18 @@ export function renderPosts(container, posts, options = {}) {
     statusRegion.hidden = false;
   }
 
+  // One decision, taken by the shared machine, so the status region below and
+  // the count, filters, and connection line in mountSocialFeed cannot disagree
+  // about which of the five states this render is in.
+  const phase = feedPhase({
+    state,
+    total: noMatch ? noMatch.total : ordered.length,
+    visible: ordered.length,
+    filtering: Boolean(noMatch),
+  });
+
   if (ordered.length === 0) {
-    if (state === "loading") {
+    if (phase === "loading") {
       renderSkeleton(container);
       renderFeedStatus(statusRegion, {
         state: "loading", label: "Social feed loading", text: FEED_LOADING_LINE,
@@ -586,7 +596,7 @@ export function renderPosts(container, posts, options = {}) {
       });
       return;
     }
-    if (state === "error") {
+    if (phase === "failed") {
       const panel = renderFeedStatus(statusRegion, {
         state: "error",
         label: "Social feed error",
@@ -597,7 +607,7 @@ export function renderPosts(container, posts, options = {}) {
         append: statusRegion === container,
       });
       panel.classList.add("empty-state", "empty-state-error");
-    } else if (noMatch) {
+    } else if (phase === "filtered-empty") {
       // The filtered dead end. Its own words, its own label, and — unlike every
       // other state on this page — its own control, because this is the one
       // empty screen the reader can undo from where they are standing. A real
@@ -813,6 +823,14 @@ export function mountSocialFeed(root, options = {}) {
   const description = options.description ?? mountImageDescription(root);
   const composer = mountComposerDisclosure(root);
 
+  // The two lines that may only speak once a fetch has answered. The count is a
+  // number the page has not got yet, and the connection line is a promise about
+  // posts nobody has seen; both used to sit on screen beside "Loading the Social
+  // feed…", so a waiting reader met three sentences about one wait. They leave
+  // the document while the feed is loading and come back with the answer.
+  const countPresence = feedPresence(count);
+  const connectionPresence = feedPresence(root.querySelector(".feed-connection"));
+
   let posts = options.posts ?? [];
   let state = options.state ?? "ready";
   const postLabel = (n) => `${n} ${n === 1 ? "post" : "posts"}`;
@@ -843,16 +861,29 @@ export function mountSocialFeed(root, options = {}) {
     renderPosts(feed, visible, {
       state, noMatch, statusRegion: feedState ?? feed, onRetry: options.onRetry,
     });
+    // The same machine renderPosts just branched on, so the count, the filters
+    // and the connection line are describing the state the status region drew.
+    const phase = feedPhase({ state, total: posts.length, visible: visible.length, filtering });
+    // Absent, not hidden: a `hidden` placeholder is still text in the
+    // accessibility tree, and the point is that a page with no answer yet makes
+    // no claim at all.
+    countPresence.present(phase !== "loading");
+    connectionPresence.present(phase !== "loading");
+    // Nothing to filter yet, so the menus and their reset say so with the one
+    // attribute that also takes them out of the tab order. No focus is trapped:
+    // a disabled control simply stops being a stop.
+    setFeedControlsDisabled([nameFilter, timeFilter, clearFilters],
+      phase === "loading" || phase === "empty" || phase === "failed");
     // The count answers "how many posts are there", which this page can only
-    // answer once a fetch has come back. Until one has, it names which of
-    // "still loading" and "could not load" is true instead of printing a zero
-    // that reads as an empty feed — the same contradiction the three separate
-    // renders above exist to avoid. The waiting case says it in the feed's one
-    // wording, so the count, the panel over the empty grid, and the connection
-    // line are not three descriptions of one wait.
-    if (count) {
-      if (posts.length === 0 && state === "loading") count.textContent = "Counting posts…";
-      else if (posts.length === 0 && state === "error") count.textContent = "Unavailable";
+    // answer once a fetch has come back. While one is open there is no count
+    // line at all — it used to wait out the fetch as "Counting posts…", a third
+    // description of the one wait the status region was already reporting. A
+    // failed load names itself rather than printing a zero that reads as an
+    // empty feed. Every other state resolves to a literal number, and it is the
+    // length of the array the cards were just rendered from, so the figure is
+    // the count of posts on screen under whatever filters are set.
+    if (count && phase !== "loading") {
+      if (phase === "failed") count.textContent = "Unavailable";
       else count.textContent = filtering ? `${postLabel(visible.length)} of ${posts.length}` : postLabel(visible.length);
     }
 

@@ -209,7 +209,12 @@
                page's only statement of the image-post total. -->
           <div class="section-heading list-heading">
             <p class="eyebrow" id="profile-order">Newest first</p>
-            <p class="profile-summary" id="profile-summary">Counting image posts…</p>
+            <!-- Ships with nothing in it, and profile.js takes the element out of
+                 the document entirely while a fetch is open. It used to wait as
+                 "Counting image posts…" beside a status region already saying
+                 the image posts were loading, so one wait was narrated twice. A
+                 count is a number or it is not on the page. -->
+            <p class="profile-summary" id="profile-summary"></p>
           </div>
           <!-- People is where a visitor browses images, so the route into the
                editor stays beside them. The sentence names every step in the
