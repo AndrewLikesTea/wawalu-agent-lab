@@ -470,7 +470,8 @@ test("Social's directories share one description, while a permalink explains the
   // Social's own intro is not a directory row and keeps its own sentences: a
   // first-time visitor still learns the feed is shared, the posts are short,
   // the images are optional, and when to open People instead.
-  const intro = textOf(parseHtml(await read("social.html")).querySelector(".hero-social").querySelectorAll("p")[1]);
+  // Third paragraph in the hero: eyebrow, then the one-line tagline, then this.
+  const intro = textOf(parseHtml(await read("social.html")).querySelector(".hero-social").querySelectorAll("p")[2]);
   for (const fact of ["shared demo feed", "short posts", "images optional", "People"]) {
     assert.ok(intro.includes(fact), `Social's intro no longer tells a first-time visitor about ${fact}`);
   }

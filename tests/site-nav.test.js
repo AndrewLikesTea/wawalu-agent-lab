@@ -301,12 +301,13 @@ test("the profile page defines the selected name as a display name", async () =>
   // times before the reader saw a picture. The intro tells it once.
   assert.doesNotMatch(role[1], /This view shows image posts only/);
   assert.doesNotMatch(role[1], /including the ones published without an image/);
-  // One sentence, and it is the intro's: the rule and the way to the rest of
-  // the feed in a single clause, with Social as the link. A link that reads
-  // "see posts without images on Social" would make Social sound like the other
-  // half of a split feed, so the sentence says what Social holds instead.
-  assert.match(html, /<p class="profile-lede">People shows the image posts published under one display name — open <a class="text-link" href="\/social\.html">Social<\/a> when you want the whole feed, including posts with no image\./,
-    "the intro no longer states the rule the paragraph below stopped repeating");
+  // Once, and it is the tagline under the heading that states it. A link that
+  // read "see posts without images on Social" would make Social sound like the
+  // other half of a split feed, so the intro says what Social holds instead.
+  assert.match(html, /<p class="profile-lede" id="page-tagline">See the image posts published under one display name\.<\/p>/,
+    "the tagline no longer states the rule the paragraph below stopped repeating");
+  assert.match(html, /<p class="profile-lede">Open <a class="text-link" href="\/social\.html">Social<\/a> when you want the whole feed, including posts with no image\./,
+    "the intro no longer opens the whole feed in the sentence that names it");
   // And it is the page's only route to Social outside the nav and the footer:
   // this paragraph used to end on a second one, three lines under the first.
   assert.equal(role[1].match(/href="\/social\.html"/g), null,
@@ -327,11 +328,13 @@ test("the profile page defines the selected name as a display name", async () =>
 // nav's two adjacent labels are the only thing telling them apart.
 test("Social and People each disambiguate the other in the sentence under the heading", async () => {
   const pages = [
-    { file: "social.html", heading: "Social", other: "People", lede: /<h1 id="page-title">Social<\/h1>\s*<p>([^<]*)<\/p>/ },
+    // The heading is followed by the one-line tagline, and the description is
+    // the paragraph under that.
+    { file: "social.html", heading: "Social", other: "People", lede: /<h1 id="page-title">Social<\/h1>\s*<p id="page-tagline">[^<]*<\/p>\s*<p>([^<]*)<\/p>/ },
     // People's description carries the link to Social inside itself, so the
     // capture takes markup: the sentence that names the other surface is the
     // sentence that opens it.
-    { file: "profile.html", heading: "People", other: "Social", lede: /<h1 id="page-title">People<\/h1>\s*<p class="profile-lede">([\s\S]*?)<\/p>/ },
+    { file: "profile.html", heading: "People", other: "Social", lede: /<h1 id="page-title">People<\/h1>\s*<p class="profile-lede" id="page-tagline">[^<]*<\/p>\s*<p class="profile-lede">([\s\S]*?)<\/p>/ },
   ];
 
   const descriptions = [];
@@ -349,13 +352,57 @@ test("Social and People each disambiguate the other in the sentence under the he
 
     const mentions = description.split(other).length - 1;
     assert.equal(mentions, 1, `${file}: the description must name ${other} exactly once, not ${mentions} times`);
-    // Sentence-initial on Social, mid-sentence on People, where the clause is
-    // joined to the rule it qualifies rather than left standing alone.
+    // Sentence-initial on both, now that the tagline above carries the rule the
+    // People clause used to be joined to.
     assert.match(description, new RegExp(`[Oo]pen (<[^>]+>)?${other}`), `${file}: it must name ${other} as somewhere to open`);
     assert.match(description, new RegExp(`${other}(</a>)? when`), `${file}: it must say when to open ${other} instead`);
   }
 
   assert.notEqual(descriptions[0], descriptions[1], "the two descriptions must not be the same sentence");
+});
+
+// Releases leads on "See what shipped, and why." and Prompt coach on "Paste a
+// prompt and get a score with the first change to make." — one line, one verb
+// first, what you do here. Social and People opened on a definition of
+// themselves instead, so the two pages a visitor is most likely to arrive at
+// cold were the two that made them read a paragraph to place the page.
+test("Social and People lead with the same one-line, verb-first tagline the rest of the site does", async () => {
+  // The register they join, pinned so a rewrite of either source moves both.
+  assert.match(await readFile(pageUrl("releases.html"), "utf8"),
+    /<h1 id="page-title">See what shipped,<br \/>and why\.<\/h1>/,
+    "Releases no longer leads with the line these two copy");
+  assert.match(await readFile(pageUrl("coach.html"), "utf8"),
+    /<p class="coach-hero-lead">Paste a prompt and get a score with the first change to make\.<\/p>/,
+    "Prompt coach no longer leads with the line these two copy");
+
+  const taglines = [
+    // Both halves of what a visitor does on Social, in the feed's own words.
+    ["social.html", "Read every post, and publish your own."],
+    // What People shows, in the words the picker below it selects by.
+    ["profile.html", "See the image posts published under one display name."],
+  ];
+
+  for (const [file, tagline] of taglines) {
+    const html = (await readFile(pageUrl(file), "utf8")).replace(/<!--[\s\S]*?-->/g, "");
+    // Directly under the heading, above the paragraph that used to carry it.
+    const match = html.match(/<h1 id="page-title">[^<]*<\/h1>\s*<p([^>]*)>([^<]*)<\/p>/);
+    assert.ok(match, `${file}: the heading must be followed by a one-line tagline`);
+    assert.match(match[1], /id="page-tagline"/, `${file}: the tagline must be the element under the heading`);
+    assert.equal(match[2], tagline);
+    // One sentence, opening on the verb rather than on the page's own name.
+    assert.equal(match[2].match(/\./g).length, 1, `${file}: the tagline must be one sentence`);
+    assert.doesNotMatch(match[2], /^(Social|People)\b/, `${file}: the tagline must not open by naming the page`);
+    // And said once: the intro dropped the clause this line now carries.
+    assert.equal(html.split(tagline).length - 1, 1, `${file}: the tagline is repeated elsewhere on the page`);
+  }
+
+  // The exact clauses the two intros gave up, gone from the rendered copy
+  // rather than reworded. The rationale comments still name them.
+  const rendered = async (file) => (await readFile(pageUrl(file), "utf8")).replace(/<!--[\s\S]*?-->/g, "");
+  assert.doesNotMatch(await rendered("social.html"), /Read every post as it lands/,
+    "Social's intro still makes the tagline's point a second time");
+  assert.doesNotMatch(await rendered("profile.html"), /People shows the image posts/,
+    "People's intro still makes the tagline's point a second time");
 });
 
 /* --------------------------- the item you are on --------------------------- */
