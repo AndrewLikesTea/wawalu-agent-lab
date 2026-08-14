@@ -151,7 +151,7 @@ test("a first-time visitor lands on a display name that has image posts", async 
     assert.equal(textOf(document.querySelector("#profile-name")), "People is filtered to Zed’s image posts.",
       "the header names someone other than the picker's own value");
     assert.match(textOf(document.querySelector(".profile-role")),
-      /^A display name in the Social feed is not a signed-in user[\s\S]*anyone can publish under any name\.$/,
+      /^Display names are invented for this demo[\s\S]*anyone can publish under any name\.$/,
       "the display-name caveat is not the general one");
     assert.equal(textOf(document.querySelector(".profile-role")).includes("Zed"), false,
       "the caveat spends a third visible copy of the display name");
@@ -763,7 +763,7 @@ test("the display name is visible twice in the results region, and no more", asy
     // The lines that gave up their copy still say their own thing: Ari has
     // posted, just never a picture, and the counts carry that without a name.
     assert.match(textOf(document.querySelector("#profile-summary")), /^0 image posts · 1 post in total · last posted /);
-    assert.match(textOf(document.querySelector(".profile-role")), /^A display name in the Social feed/);
+    assert.match(textOf(document.querySelector(".profile-role")), /^Display names are invented for this demo/);
     // The announcement keeps the name, because it is heard away from the page.
     assert.match(textOf(document.querySelector("#profile-announcer")), /Ari/);
   } finally {

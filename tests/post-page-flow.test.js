@@ -78,12 +78,13 @@ function assertExits(page, peopleHref, where) {
   );
 }
 
-// What a display name is, in the bytes Social's composer and People's role line
+// What a display name is, in the bytes Social's feed note and People's role line
 // already ship. Written out here so the permalink's own sentence is readable in
 // the test that asserts it, and pinned against those two pages below so none of
 // the three can drift — a claim that agrees in substance and differs in a comma
-// reads as two claims to anyone who meets both.
-const IDENTITY = "A display name is not a signed-in user — nobody owns or verifies one, and anyone can publish under any name.";
+// reads as two claims to anyone who meets both. It carries both halves of the
+// definition: where the names come from, and that nobody owns one.
+const IDENTITY = "Display names are invented for this demo or chosen by whoever published the post — nobody owns or verifies one, and anyone can publish under any name.";
 
 const SOCIAL = { label: "Open the full Social feed", href: "/social.html" };
 const PEOPLE = { label: "Open People to see Mina Okafor’s other image posts", href: "/profile.html" };
@@ -121,22 +122,21 @@ test("a post that loads is headed by its author and reads description, image, ca
   }
 });
 
-// Read out of the two pages that already ship the claim rather than typed again
-// here, so this fails the moment any of the three surfaces rewords it. Compared
-// on the clause the three genuinely share: Social attaches it to the composer's
-// field and People attaches it to a named person ("Ari is a display name…"), so
-// only the permalink can carry the whole sentence, and the sentence it carries
-// has to end in exactly their bytes.
+// Read out of the two pages that already ship the sentence rather than typed
+// again here, so this fails the moment any of the three surfaces rewords it. All
+// three carry the whole sentence now: it used to be split, with the feed saying
+// where the names came from and the other two saying nobody owned one, which
+// left a reader assembling one definition out of three partial ones.
 test("the permalink says what a display name is in Social's and People's own bytes", async () => {
   const shipped = [];
   for (const file of ["social.html", "profile.html"]) {
     const html = (await readFile(new URL(`../src/${file}`, import.meta.url), "utf8")).replace(/<!--[\s\S]*?-->/g, "");
-    const clause = html.match(/not a signed-in user[^.<]*\./)?.[0];
-    assert.ok(clause, `${file} no longer tells a reader a display name is not an account`);
+    const clause = html.match(/Display names are invented[^.<]*\./)?.[0];
+    assert.ok(clause, `${file} no longer tells a reader what a display name is`);
     shipped.push(clause);
   }
   assert.equal(new Set(shipped).size, 1, "Social and People drifted into two ways of saying it");
-  assert.ok(IDENTITY.endsWith(shipped[0]), `the permalink does not end in the clause the other two ship: ${shipped[0]}`);
+  assert.equal(IDENTITY, shipped[0], `the permalink does not ship the other two's sentence: ${shipped[0]}`);
 
   const page = await openPostPage("?id=p-image", seedOnly([SEED_POST]));
   try {
@@ -170,7 +170,7 @@ test("an unknown id is named as a missing post, with the feed still the way out"
     assert.match(textOf(page.panel), /Post unavailable/);
     assert.match(textOf(page.panel), /This post can’t be shown\./);
     assert.doesNotMatch(textOf(page.panel), /removed|private|signed-in|your post/i);
-    assert.doesNotMatch(textOf(page.panel), /A display name is not a signed-in user/);
+    assert.doesNotMatch(textOf(page.panel), /Display names are invented for this demo/);
     // No post, no author: the h1 names the page rather than standing as "Post".
     assert.equal(textOf(page.document.querySelector("#page-title")), "Post from Social");
     assert.doesNotMatch(textOf(page.panel), /Try again/);
@@ -290,7 +290,7 @@ test("the loading state is one announced line in the post's region, and takes no
     assert.equal(state.getAttribute("role"), "status", "the state is announced without stealing focus");
     assert.equal(page.document.activeElement, null, "nothing may take focus on load");
     assert.equal(textOf(state.querySelector(".detail-loading-text")), "Shiplog is opening a single shared post from Social…");
-    assert.doesNotMatch(textOf(panel), /A display name is not a signed-in user/);
+    assert.doesNotMatch(textOf(panel), /Display names are invented for this demo/);
     // Nothing is named yet, so the h1 names the page — the same words a reader
     // sees in the shipped markup before any script runs.
     assert.equal(textOf(page.document.querySelector("#page-title")), "Post from Social");

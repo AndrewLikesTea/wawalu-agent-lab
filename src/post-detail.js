@@ -457,7 +457,7 @@ export function renderPostDetail(container, post, options = {}) {
   if (caption) article.setAttribute("aria-labelledby", "detail-caption");
   container.append(
     article,
-    el("p", "hint detail-identity", "A display name is not a signed-in user — nobody owns or verifies one, and anyone can publish under any name."),
+    el("p", "hint detail-identity", "Display names are invented for this demo or chosen by whoever published the post — nobody owns or verifies one, and anyone can publish under any name."),
   );
 }
 

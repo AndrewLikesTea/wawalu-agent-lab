@@ -33,6 +33,14 @@ const sample = [
 
 const ids = (posts) => posts.map((post) => post.id);
 
+// The site's one definition of a display name. It carries both facts that used
+// to be split — where the names come from, and that nobody owns one — and
+// Social and People render it in the same bytes.
+const DISPLAY_NAME_SENTENCE = "Display names are invented for this demo or chosen by whoever published the post — nobody owns or verifies one, and anyone can publish under any name.";
+// The wording the feed list carried before, kept here so the test that forbids
+// it names what it is forbidding.
+const RETIRED_FEED_VARIANT = "Every display name below is invented for this demo or a name a visitor published under.";
+
 // Tag-balance check for the hand-authored SVG assets. A mismatched or unclosed
 // tag makes a browser drop the image, which would silently demote every seeded
 // card to its "Image unavailable" state — a failure unit tests would otherwise
@@ -495,8 +503,7 @@ test("the feed says who wrote the posts, where the posts are", async (t) => {
   const note = page.document.querySelector("#feed-source-note");
   assert.equal(page.document.querySelectorAll("#feed-source-note").length, 1,
     "the feed states who wrote the posts exactly once");
-  assert.equal(textOf(note),
-    "Every display name below is invented for this demo or a name a visitor published under.",
+  assert.equal(textOf(note), DISPLAY_NAME_SENTENCE,
     "the feed stopped disclosing who wrote the posts");
   assert.match(textOf(note), /invented for this demo/,
     "the bundled names keep the site's one phrase for what it made up");
@@ -544,7 +551,7 @@ test("who wrote the posts survives loading, populated, empty, and no-match", asy
   const page = await loadPage(new URL("../src/social.html", import.meta.url), {});
   t.after(() => page.restore());
 
-  const sentence = "Every display name below is invented for this demo or a name a visitor published under.";
+  const sentence = DISPLAY_NAME_SENTENCE;
   const stillThere = (state) => {
     assert.equal(page.document.querySelectorAll("#feed-source-note").length, 1,
       `the sentence disappears in the ${state} state`);
@@ -601,14 +608,51 @@ test("Social, People, and a post permalink say the demo-data fact in the same by
   assert.equal(new Set(found).size, 1, "the three pages no longer share one wording");
 });
 
-// The display name field said what it defaulted to and nothing about what the
-// name means. Two facts belong where the name is chosen: it is the key People
-// groups image posts by, and it is not an account — nobody owns or verifies one.
-// People already says the second half ("is not a signed-in user"), so the
-// composer borrows that clause word for word instead of inventing a third
-// phrasing. Help text only: no heading, no link, no disclosure, nothing
-// focusable, and the publish consequence at the button is left alone.
-test("the display name field says what the name does and does not mean", async (t) => {
+// What a display name is used to be explained three ways in three places: the
+// feed list said where the names came from, the composer said nobody owns one,
+// and People repeated the composer. Each dropped a fact the others carried, so a
+// visitor learned the concept and then met a different version of it on the next
+// screen. One sentence carries both facts now, and it is the same bytes on both
+// pages — compared as rendered text, because that is what a reader receives.
+test("Social and People define a display name once, in the same words", async (t) => {
+  const rendered = [];
+  for (const file of ["social.html", "profile.html"]) {
+    const page = await loadPage(new URL(`../src/${file}`, import.meta.url), {});
+    t.after(() => page.restore());
+    const text = textOf(page.document.querySelector("#main-content"));
+    assert.equal(text.split(DISPLAY_NAME_SENTENCE).length - 1, 1,
+      `${file} renders the display-name definition ${text.split(DISPLAY_NAME_SENTENCE).length - 1} times, not once`);
+    // No earlier wording of the same idea survives beside it. The composer's
+    // publish consequence is the one other place "display name" appears with a
+    // claim attached, and it claims something else entirely.
+    assert.doesNotMatch(text, /not a signed-in user/,
+      `${file} still explains a display name a second way`);
+    assert.equal(text.includes(RETIRED_FEED_VARIANT), false,
+      `${file} still carries the retired feed-list wording`);
+    // Both halves, not one: this is the whole point of merging the three.
+    assert.match(text, /invented for this demo/, `${file} dropped where the names come from`);
+    assert.match(text, /nobody owns or verifies one/, `${file} dropped that nobody owns a name`);
+    rendered.push(text.match(/Display names are[^.]*\./)?.[0]);
+  }
+  assert.equal(new Set(rendered).size, 1,
+    `Social and People drifted apart: ${rendered.join(" / ")}`);
+  assert.equal(rendered[0], DISPLAY_NAME_SENTENCE);
+
+  // The composer's publish consequence is out of this change and unchanged.
+  const social = await loadPage(new URL("../src/social.html", import.meta.url), {});
+  t.after(() => social.restore());
+  assert.equal(textOf(social.document.querySelector("#post-consequence")),
+    "Anyone who visits Shiplog can read your post, its image, and the display name you publish it with. You cannot delete it afterwards, so post nothing you would not put on a public page.");
+});
+
+// The display name field says the one thing the label and the “Guest” default
+// cannot: the name is the key People groups image posts by. It used to carry
+// what a display name is not as well, which made this the third wording of that
+// idea on the site and put it behind a disclosure a reader has to open. The
+// definition is now the feed note's, once per page, in the open. Help text only:
+// no heading, no link, nothing focusable, and the publish consequence at the
+// button is left alone.
+test("the display name field says what the name is used for", async (t) => {
   const page = await loadPage(new URL("../src/social.html", import.meta.url), {});
   t.after(() => page.restore());
   // The composer ships collapsed now, so this asks the question about the state
@@ -633,12 +677,13 @@ test("the display name field says what the name does and does not mean", async (
     "the input names its hints in reading order: the default, then what the name means");
 
   const text = textOf(identity[0]);
-  assert.match(text, /People groups image posts by display name/,
+  assert.equal(text, "People groups image posts by display name, so this is the name yours appear under.",
     "the field stops saying that the name is how People groups a post");
-  assert.match(text, /not a signed-in user/,
-    "the field stops saying that a display name is not an account");
-  assert.match(text, /anyone can publish under any name/,
-    "the field stops saying that names are not reserved to anyone");
+  // What a display name is not is the feed note's sentence, said once on the
+  // page. Repeating it here would put the definition in two wordings again, and
+  // the second copy would sit behind a panel a reader has to open.
+  assert.doesNotMatch(text, /not a signed-in user|owns or verifies|invented for this demo/,
+    "the field states the display-name definition a second time");
 
   // The “Guest” default survives the addition, in its own sentence.
   assert.equal(textOf(page.document.querySelector("#post-author-hint")), "Defaults to “Guest”.");
@@ -654,12 +699,6 @@ test("the display name field says what the name does and does not mean", async (
     if (node.tagName === "DETAILS" || node.getAttribute?.("hidden") !== null) folded.push(node.tagName);
   }
   assert.deepEqual(folded, [], "the help text sits inside something hidden or collapsed");
-
-  // One phrasing across the two pages: People's sentence is what this matched.
-  const people = await loadPage(new URL("../src/profile.html", import.meta.url), {});
-  t.after(() => people.restore());
-  assert.match(textOf(people.document.querySelector(".profile-role")), /not a signed-in user/,
-    "People and Social drifted into two ways of saying a display name is not an account");
 
   // The consequence at the Publish button is the one place that claim is made.
   assert.match(textOf(page.document.querySelector("#post-consequence")),
@@ -1390,7 +1429,7 @@ test("the composer's three cautions still read word for word once it is open", a
 
   const cautions = {
     "post-image-alt-hint": "Describe what matters in the image for people who cannot see it. Up to 200 characters.",
-    "post-author-identity": "People groups image posts by display name, so this is the name yours appear under. A display name is not a signed-in user — nobody owns or verifies one, and anyone can publish under any name.",
+    "post-author-identity": "People groups image posts by display name, so this is the name yours appear under.",
     "post-consequence": "Anyone who visits Shiplog can read your post, its image, and the display name you publish it with. You cannot delete it afterwards, so post nothing you would not put on a public page.",
   };
   for (const [id_, wording] of Object.entries(cautions)) {
