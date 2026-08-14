@@ -153,12 +153,15 @@
                said here, because here is where the names are. A reader meets
                "Ari" on a card and reads an account unless the page tells them
                otherwise; "invented" is the word this site already uses for what
-               it made up — the homepage and AI FinOps both say it — and
-               "display name" is the one term the composer's field, this panel's
-               filter, and People's picker all use for the name a post carries.
-               Neither word is new. It replaced a phrase built on "persona",
-               which named the same thing a fourth way and asked a first-time
-               visitor to know that noun before they could read the sentence.
+               it made up, and "display name" is the one term the composer's
+               field, this panel's filter, and People's picker all use for the
+               name a post carries.
+               It is the whole definition: where the names come from, and that
+               nobody owns one. Those halves used to sit in three paragraphs in
+               three wordings, so a visitor learned the concept and then met a
+               second version of it. People and the permalink render these exact
+               bytes; the composer's field hint keeps only what neither says,
+               which is what the name is used for.
                It is the feed panel's own markup, outside every branch social.js
                swaps — loading, ready, empty, and no-match all render it — so the
                claim about who wrote the posts does not depend on a fetch having
@@ -168,7 +171,7 @@
                heading and the count beside it are one line that reads as a pair,
                and a second paragraph between them would drop the count away
                from the words it counts. -->
-          <p class="hint" id="feed-source-note">Every display name below is invented for this demo or a name a visitor published under.</p>
+          <p class="hint" id="feed-source-note">Display names are invented for this demo or chosen by whoever published the post — nobody owns or verifies one, and anyone can publish under any name.</p>
           <!-- Social offers Paint twice, and only twice: the hero's standing
                invitation and the composer's in-flow control. A third invitation
                beside the feed, reading "Open Paint", used to sit here; it named
@@ -405,18 +408,16 @@
                    here, where the visitor is actually typing a name, and
                    nowhere else. -->
               <span class="hint" id="post-author-hint">Defaults to “Guest”.</span>
-              <!-- The two things the label and the “Guest” default cannot say,
+              <!-- The one thing the label and the “Guest” default cannot say,
                    said where the name is actually chosen: what the name does —
-                   it is the key People groups image posts by — and what it does
-                   not mean. The second sentence reuses People's own clause, "is
-                   not a signed-in user", word for word, so the site makes that
-                   claim in one phrasing rather than two. Plain help text in the
-                   field group, named by the input's own aria-describedby: no
-                   heading, no link, no disclosure, nothing focusable, because a
-                   caveat a reader has to open is a caveat they meet afterwards.
-                   The publish consequence at the button stays the one place the
-                   page says the post is public and permanent. -->
-              <p class="hint" id="post-author-identity">People groups image posts by display name, so this is the name yours appear under. A display name is not a signed-in user — nobody owns or verifies one, and anyone can publish under any name.</p>
+                   it is the key People groups image posts by. It carried what a
+                   display name is not as well; the feed note above says that
+                   once per page, and every visitor reads it without opening this
+                   panel. Plain help text in the field group, named by the
+                   input's own aria-describedby: nothing focusable. The publish
+                   consequence at the button stays the one place the page says
+                   the post is public and permanent. -->
+              <p class="hint" id="post-author-identity">People groups image posts by display name, so this is the name yours appear under.</p>
             </div>
 
             <!-- The one place this sentence is said, at the moment it costs
