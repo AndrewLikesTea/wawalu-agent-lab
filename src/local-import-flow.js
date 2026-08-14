@@ -193,7 +193,8 @@ export function metricBasis({
   if (mode === "failed") {
     return Object.freeze({
       label: "Import failed", real: false,
-      detail: "No number was produced from the selected files.",
+      detail: "No result was computed. Fix the problem named beside the file chooser, "
+        + "then choose your provider export again.",
     });
   }
   if (mode === "example") {
@@ -229,9 +230,9 @@ export function metricBasis({
     });
   }
   return Object.freeze({
-    label: "Local import", real: true,
-    detail: `${joinedRecords} joined record${joinedRecords === 1 ? "" : "s"} from the files `
-      + "selected in this tab. Source rows stay in the browser.",
+    label: "Your provider export", real: true,
+    detail: `${joinedRecords} joined record${joinedRecords === 1 ? "" : "s"} from your provider `
+      + "export, not from the Bundled synthetic example.",
   });
 }
 

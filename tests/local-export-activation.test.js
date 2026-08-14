@@ -43,10 +43,12 @@ test("activation states give local feedback and a no-reload return", async () =>
   renderLocalExportActivation(document, LOCAL_EXPORT_ACTIVATION_STATE.READING);
   assert.equal(region.getAttribute("aria-busy"), "true");
   assert.equal(choose.disabled, true);
-  assert.match(textOf(status), /in this browser tab.*Nothing is being uploaded/i);
+  // Browser-local handling is stated once, beside the file action; the loading
+  // line says what is happening, not where the bytes are.
+  assert.match(textOf(status), /Reading and validating your provider export/i);
 
   renderLocalExportActivation(document, LOCAL_EXPORT_ACTIVATION_STATE.ERROR);
-  assert.match(textOf(status), /bundled example is still active/i);
+  assert.match(textOf(status), /Bundled synthetic example is still active/i);
   assert.match(textOf(choose), /corrected export/i);
 
   renderLocalExportActivation(document, LOCAL_EXPORT_ACTIVATION_STATE.READY);

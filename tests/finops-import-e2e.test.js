@@ -536,7 +536,7 @@ test("a leader imports the example provider export and reaches a decision they c
       // and no readable name survives the import. The number is right; the row
       // it is on is unreadable. Change this expectation only with the fix.
       assert.match(shownText(document, "local-department"), /^Department …[0-9a-f]{6}$/);
-      assert.equal(shownText(document, "local-metric-label"), "Local import",
+      assert.equal(shownText(document, "local-metric-label"), "Your provider export",
         "the leader's own number must not still be captioned as example data");
       assert.equal(byId(document, "local-recoverable").dataset.real, "true");
       assert.match(shownText(document, "dataset-provenance-results"),

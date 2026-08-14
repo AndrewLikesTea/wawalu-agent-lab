@@ -2374,11 +2374,11 @@
           <div>
             <p class="eyebrow">Start with one file</p>
             <p class="local-export-activation-lead"><strong>Use your provider export for this decision.</strong> One provider period export — CSV, TSV, or a v1 JSON envelope — is validated and analyzed in this tab. You do not name the provider: which console the file came from is read from its own columns, and if it cannot be read the panel below says which importer it is nearest to and what was missing.</p>
-            <p id="local-export-activation-status">Bundled example is active. Choose one provider period export to answer this question with your data.</p>
+            <p id="local-export-activation-status">The Bundled synthetic example is active. Choose your provider export to answer this question with your own spend.</p>
           </div>
           <div class="local-export-activation-actions">
             <button class="local-export-primary" id="activate-local-export" type="button">Choose a provider export</button>
-            <button id="return-to-bundled-example" type="button" hidden>Return to bundled example</button>
+            <button id="return-to-bundled-example" type="button" hidden>Return to the Bundled synthetic example</button>
           </div>
         </div>
         <section class="own-data-preflight" id="own-data-evidence-preflight" data-outcome="loading" aria-labelledby="own-data-preflight-question" aria-describedby="own-data-preflight-status" aria-busy="true" hidden>
@@ -2961,7 +2961,7 @@
         <section class="local-results" id="local-results" data-analysis-surface data-dataset="user" data-decision-summary="evidence" aria-labelledby="local-results-title" aria-busy="false" hidden>
           <div class="local-result-heading">
             <div>
-              <p class="eyebrow">From your imported files</p>
+              <p class="eyebrow">From your provider export</p>
               <h3 id="local-results-title" tabindex="-1">FinOps briefing</h3>
             </div>
             <details class="local-trust-evidence" id="local-trust-evidence" data-state="partial" hidden>
@@ -2986,7 +2986,7 @@
                never unmounted while the new file is read. -->
           <div class="local-result-upgrade" id="local-result-upgrade">
             <button class="local-result-add" id="add-optional-file" type="button" aria-describedby="add-optional-file-note">Add an org mapping or query sample</button>
-            <p class="local-result-add-note" id="add-optional-file-note">Optional. Your provider export is not re-requested and this result stays on screen while the file is read — it is parsed in this tab and never uploaded.</p>
+            <p class="local-result-add-note" id="add-optional-file-note">Optional. Your provider export is not re-requested, and this result stays on screen while the new file is read.</p>
           </div>
           <!-- What moved on the last recalculation, kept until the next one
                replaces it. Deliberately not a live region: the polite

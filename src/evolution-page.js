@@ -2162,7 +2162,7 @@ function mountLocalFinopsImport() {
     // place among real organizations' peers.
     syncCohortPosition(next);
     if (remap) remap.hidden = example || !imports.some((entry) => entry.source === "delimited");
-    setMode(example ? "example-dataset" : "local", example ? "Bundled synthetic example" : "Local import");
+    setMode(example ? "example-dataset" : "local", example ? "Bundled synthetic example" : "Your provider export");
     setText("finops-intro", example
       ? `${EXAMPLE_DATASET_PROVENANCE.detail} It walks the same translator and analysis an `
         + `imported file walks, so the finding below is computed, not written. `
