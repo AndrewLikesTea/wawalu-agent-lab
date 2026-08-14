@@ -161,9 +161,12 @@ test("Social names its failure, retries it by keyboard, and comes back", async (
 
   // Activating it re-requests and returns the page to loading, so a second
   // failure is visibly a second attempt rather than a button that did nothing.
+  // `source` is required by normalizeSocialApiPosts. Without it every post is
+  // dropped and the "recovery" below is a feed that came back empty, which the
+  // count assertion then reports as "0 posts" and passes.
   routes[LIVE_ROUTE] = { posts: [
-    { id: "back-1", author: "Zed", content: "Recovered.", timestamp: "2026-07-18T12:00:00.000Z" },
-    { id: "back-2", author: "Ari", content: "Also here.", timestamp: "2026-07-17T12:00:00.000Z" },
+    { id: "back-1", author: "Zed", content: "Recovered.", timestamp: "2026-07-18T12:00:00.000Z", source: "human" },
+    { id: "back-2", author: "Ari", content: "Also here.", timestamp: "2026-07-17T12:00:00.000Z", source: "human" },
   ] };
   retry.click();
   assert.equal(textOf(status.querySelector(".state-title")), "Loading the Social feed…",
@@ -174,6 +177,7 @@ test("Social names its failure, retries it by keyboard, and comes back", async (
   // The retry settled: the failure panel is gone, the count is back, and it is
   // the number of cards the retried request actually drew.
   const cards = document.querySelectorAll(".post-card").length;
+  assert.equal(cards, 2, "the retry settled on an empty feed, so it recovered nothing");
   assert.equal(document.querySelectorAll(".empty-state-error").length, 0);
   assert.equal(textOf(document.querySelector("#post-count")), `${cards} ${cards === 1 ? "post" : "posts"}`);
   assert.doesNotMatch(textOf(document.querySelector("#post-count")), /Unavailable|Counting/);
@@ -368,13 +372,25 @@ test("People's chooser is inoperable until there is something to choose between"
   const page = await loadPage(PEOPLE_PAGE, {});
   t.after(() => page.restore());
   const { document } = page;
-  const profile = mountProfile(document, { posts: MIXED, author: "Zed", state: "loading" });
+  const profile = mountProfile(document, { posts: [], author: "Zed", state: "loading" });
 
   const disabledChips = () => document.querySelectorAll(".profile-filter-option").map((chip) => chip.disabled);
-  assert.deepEqual(disabledChips(), [true, true], "a chooser over a pending feed can change nothing");
+  // Nothing has arrived, so there is no second display name to switch to and the
+  // picker draws the sentence rather than a row of controls that can do nothing.
+  assert.deepEqual(disabledChips(), [], "a chooser over a feed with no posts is not a row of controls");
+
+  // Posts on screen is the condition, not a settled fetch. Zed's tiles are
+  // rendered right now and selecting Ari changes what the reader sees, so the
+  // chips stay live through a refresh that is still open and through one that
+  // failed — greying them out there strands a reader on one display name while
+  // the panel beside them says the rest of the page still works (#1743).
+  profile.seed(MIXED);
+  assert.deepEqual(disabledChips(), [false, false]);
+  profile.setState("loading");
+  assert.deepEqual(disabledChips(), [false, false], "a pending refresh disabled a chooser over posts already on screen");
 
   profile.setState("error");
-  assert.deepEqual(disabledChips(), [true, true], "a chooser over a failed feed can change nothing");
+  assert.deepEqual(disabledChips(), [false, false], "a failed refresh left the reader no way to move between display names");
 
   profile.seed(MIXED);
   assert.deepEqual(disabledChips(), [false, false]);

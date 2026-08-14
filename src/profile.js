@@ -859,10 +859,15 @@ export function mountProfile(root, options = {}) {
       // fact from its answer being zero. Seeded posts are already on screen in
       // that state, so the chips must not turn a partial feed into a count.
       counted: state !== "loading",
-      // Nothing to filter until the feed holds something: a chooser offered over
-      // a pending, empty, or failed feed is a row of controls that cannot change
-      // what is on screen.
-      disabled: state !== "ready" || posts.length === 0,
+      // Nothing to filter until the feed holds something, and that is the whole
+      // test: a chooser with no posts behind it cannot change what is on screen,
+      // so it carries the real attribute and leaves the tab order. A pending or
+      // failed refresh over posts that are already rendered is not that state.
+      // Keying this on `state` instead stranded a reader on one display name at
+      // exactly the moment they most needed to move: the failure panel says the
+      // rest of the page still works and the tiles are still readable, so the one
+      // control that navigates them has to still work too.
+      disabled: posts.length === 0,
       onSelect: choose,
     });
     // Selecting rebuilds the chips, so the button that was just pressed is

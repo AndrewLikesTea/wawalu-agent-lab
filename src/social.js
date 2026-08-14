@@ -876,8 +876,13 @@ export function mountSocialFeed(root, options = {}) {
     // Nothing to filter yet, so the menus and their reset say so with the one
     // attribute that also takes them out of the tab order. No focus is trapped:
     // a disabled control simply stops being a stop.
-    setFeedControlsDisabled([nameFilter, timeFilter, clearFilters],
-      phase === "loading" || phase === "empty" || phase === "failed");
+    //
+    // The test is what is behind the controls, not which phase drew the panel.
+    // Keyed on the phase, a failed refresh disabled Clear filters at the one
+    // moment it was the way out: filters narrowed to nothing, the refresh fell
+    // over, and the reset that would have brought the posts back was dead while
+    // the panel above it said the filters were unchanged (#1743).
+    setFeedControlsDisabled([nameFilter, timeFilter, clearFilters], posts.length === 0);
     // The count answers "how many posts are there", which this page can only
     // answer once a fetch has come back. While one is open there is no count
     // line at all — it used to wait out the fetch as "Counting posts…", a third
