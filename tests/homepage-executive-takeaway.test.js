@@ -4,9 +4,11 @@ import assert from "node:assert/strict";
 import { loadPage, pressEnter, tabSequence, textOf } from "./support/browser.js";
 import { importPageModule } from "./support/page-module.js";
 import {
-  bindFinopsExampleFollowUp, EXECUTIVE_TAKEAWAY, FINOPS_EXAMPLE_FOLLOW_UP_PURPOSE,
-  TAKEAWAY_COPY_FEEDBACK,
+  ANALYZED_PERIOD, bindFinopsExampleFollowUp, EXECUTIVE_TAKEAWAY,
+  FINOPS_EXAMPLE_FOLLOW_UP_PURPOSE, TAKEAWAY_COPY_FEEDBACK, takeawayText,
 } from "../src/homepage-executive-takeaway.js";
+import { analyzedPeriodPhrase, EXAMPLE_MONTHS, reportingWindow } from "../src/analyzed-period.js";
+import { loadExampleDataset } from "../src/example-dataset.js";
 import { onRequest } from "../functions/api/leads.js";
 import { createTestD1 } from "./support/d1-sqlite.js";
 import { buildStandHeadline } from "../src/finops-stand.js";
@@ -40,6 +42,61 @@ test("the homepage visibly labels a concise, qualified executive takeaway", asyn
   // the limit on this figure: read alone, "$51,254 is recoverable" is a saving
   // somebody can be held to. It travels with the ceiling or it does not travel.
   assert.match(text, /modelled ceiling on what re-routing this work could save, not money already saved/);
+});
+
+test("the rendered figure sentence says which months it is true over", async (t) => {
+  const document = await openTakeaway(t, { writeText: async () => {} });
+  const text = textOf(document.getElementById("executive-takeaway-text"));
+
+  // #1745: forwarded on its own, the figure line drew one reply — "over what
+  // period?" — and neither the line nor the person who sent it could answer.
+  assert.equal(ANALYZED_PERIOD, "June 2026");
+  assert.ok(text.includes(`is recoverable (33%) across ${ANALYZED_PERIOD} —`),
+    `the rendered takeaway does not carry the derived period: ${text}`);
+  // The span rides on the figure sentence, so it cannot be read as a claim of
+  // its own and cannot displace anything above the fold.
+  assert.doesNotMatch(text, /across\s+—|across\s*$|undefined/);
+  assert.match(text, /Figures are from a bundled synthetic example and are not visitor data\.$/);
+});
+
+test("the analyzed period is derived from the bundled months, not written down", () => {
+  // THE ANTI-FAKE TEST. The period the takeaway prints is the window the
+  // $154,500 was summed over, which is the last month `example-dataset.js` cuts
+  // its provider exports into. Held here against the envelope the analysis
+  // actually publishes, so an authored "June 2026" that stopped being true
+  // fails rather than forwarding a stale window to somebody's boss.
+  assert.equal(reportingWindow(EXAMPLE_MONTHS), loadExampleDataset().period);
+  assert.equal(ANALYZED_PERIOD, analyzedPeriodPhrase(loadExampleDataset().period));
+
+  // And it MOVES. Different bundled months, different sentence — same code path,
+  // no fixture file, nothing about "June" anywhere in the derivation.
+  assert.equal(analyzedPeriodPhrase(reportingWindow(["2027-02", "2027-03"])), "March 2027");
+  assert.ok(takeawayText(analyzedPeriodPhrase(reportingWindow(["2027-02", "2027-03"])))
+    .includes("is recoverable (33%) across March 2027 —"));
+  // Whole-month spans and year boundaries are named in calendar words too: a
+  // window this cannot say in English must not reach a reader as an ISO string.
+  assert.equal(analyzedPeriodPhrase("2026-01-01 to 2026-07-01"), "January–June 2026");
+  assert.equal(analyzedPeriodPhrase("2025-11-01 to 2026-02-01"), "November 2025–January 2026");
+  for (const unusable of [null, "", "P3M", "2026-06", "2026-06-15 to 2026-07-04", "not a window"]) {
+    assert.equal(analyzedPeriodPhrase(unusable), null, `named a window it cannot read: ${unusable}`);
+  }
+  assert.equal(reportingWindow([]), null);
+  assert.equal(reportingWindow(["nope"]), null);
+});
+
+test("with no nameable period the takeaway degrades to its wording rather than a stray clause", () => {
+  // The first entry is the whole chain a monthless bundled example would take:
+  // no usable month, so no window, so no phrase, so no clause.
+  for (const empty of [analyzedPeriodPhrase(reportingWindow([])), null, "", "   "]) {
+    const degraded = takeawayText(empty);
+    assert.ok(degraded.includes("is recoverable (33%) — a modelled ceiling"),
+      `the degraded takeaway is not the unqualified sentence: ${degraded}`);
+    assert.doesNotMatch(degraded, /across|undefined|null/);
+    // Everything else the takeaway owes a reader survives the missing period.
+    assert.match(degraded, /First recommended action: Pilot lower-cost routing in Atlas Platform\./);
+    assert.match(degraded, /Accountable role: Platform Engineering Lead\./);
+    assert.match(degraded, /bundled synthetic example and are not visitor data\./);
+  }
 });
 
 test("the recoverable figure is stated once on the first screen, and it is stated here", async (t) => {
@@ -182,6 +239,23 @@ test("the keyboard-operable control copies only the takeaway and confirms succes
 
   assert.deepEqual(copied, [EXECUTIVE_TAKEAWAY]);
   assert.equal(textOf(document.getElementById("executive-takeaway-status")), TAKEAWAY_COPY_FEEDBACK.copied);
+
+  // The pasted plain text is the whole answer or it is not worth pasting: the
+  // period, the pair, the rate, the first action, the role, and the disclosure
+  // that keeps a synthetic figure from being read as a bill — in one payload.
+  const [payload] = copied;
+  assert.ok(payload.includes(`across ${ANALYZED_PERIOD}`), "the copied text drops the period");
+  for (const claim of [
+    "$51,254 of $154,500", "(33%)",
+    "First recommended action: Pilot lower-cost routing in Atlas Platform.",
+    "Accountable role: Platform Engineering Lead.",
+    "Figures are from a bundled synthetic example and are not visitor data.",
+    "a modelled ceiling on what re-routing this work could save, not money already saved",
+  ]) {
+    assert.ok(payload.includes(claim), `the copied text drops "${claim}"`);
+  }
+  // A ceiling, still. Nothing here may read as money the reader has banked.
+  assert.doesNotMatch(payload, /realized savings|we recovered|we saved|has saved/i);
 });
 
 test("clipboard refusal leaves visible recovery guidance", async (t) => {

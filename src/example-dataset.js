@@ -26,10 +26,11 @@ import {
 } from "./peer-cost-position.js";
 import { RUBRIC_VERSION_ID } from "./prompt-literacy-scoring.js";
 
-/** Six consecutive complete calendar months; the last one is the reporting period. */
-const MONTHS = Object.freeze([
-  "2026-01", "2026-02", "2026-03", "2026-04", "2026-05", "2026-06",
-]);
+// Six consecutive complete calendar months, and the arithmetic that turns one
+// into a half-open window. Both moved to `analyzed-period.js` so the homepage
+// takeaway can name the span these figures cover without loading this file's
+// import graph, and so there is one list rather than two that drift.
+import { EXAMPLE_MONTHS as MONTHS, nextMonth } from "./analyzed-period.js";
 
 const PROVIDER_SOURCE = "psn_example_provider_00001";
 const HRIS_SOURCE = "psn_example_hris_00000001";
@@ -388,13 +389,6 @@ const USAGE_PER_MINOR = Object.freeze({
 
 /** The day of the month each row in a department's mix is billed on. */
 const BILLING_DAYS = Object.freeze(["05", "12", "19"]);
-
-function nextMonth(yearMonth) {
-  const [year, month] = yearMonth.split("-").map(Number);
-  return month === 12
-    ? `${year + 1}-01`
-    : `${year}-${String(month + 1).padStart(2, "0")}`;
-}
 
 function unitTail(unitId) {
   return unitId.slice(-6);

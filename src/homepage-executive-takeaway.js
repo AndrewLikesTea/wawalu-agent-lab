@@ -1,17 +1,43 @@
 // The homepage's short, forwardable reading of the bundled worked decision.
 // Keep this byte-identical to #executive-takeaway-text: the visible paragraph
 // lets a reader verify the clipboard payload before activating the control.
-// Every claim here is authored rather than composed, because the composer that
+// Every claim here EXCEPT THE PERIOD is authored rather than composed, because the composer that
 // publishes it on AI FinOps carries an import graph this first screen must not
 // pay for. Authored, then, but not unpinned: the test file holds all four
 // claims against `buildStandHeadline()` and `buildFirstRunResult()`, so a
 // rename or a re-rank in the example data fails the build here rather than
 // quietly forwarding a stale number to somebody's boss.
-export const EXECUTIVE_TAKEAWAY = "$51,254 of $154,500 in analyzed AI spend is recoverable (33%) "
-  + "— a modelled ceiling on what re-routing this work could save, not money already saved. "
-  + "First recommended action: Pilot lower-cost routing in Atlas Platform. "
-  + "Accountable role: Platform Engineering Lead. Figures are from a bundled synthetic example "
-  + "and are not visitor data.";
+// The one claim here that is NOT authored. Everything else in the sentence is
+// pinned prose, but a period is cheap to derive — `analyzed-period.js` imports
+// nothing — and a forwarded figure with no window on it is the reply the
+// takeaway was getting most.
+import { analyzedPeriodPhrase, reportingWindow } from "./analyzed-period.js";
+
+/**
+ * The window the figures above cover, in words: "June 2026" for the bundled
+ * example, whatever the bundled months become for anything else. Null when no
+ * window can be named, which is a state the sentence below has a shape for.
+ */
+export const ANALYZED_PERIOD = analyzedPeriodPhrase(reportingWindow());
+
+/**
+ * The takeaway, with the span appended to the figure sentence rather than added
+ * as a block of its own: the first screen has no room above the fold and no
+ * spare tab stops, and a period belongs to the figure it qualifies anyway.
+ *
+ * The clause is dropped whole when no period can be named. There is no state in
+ * which this prints "across " with nothing after it.
+ */
+export function takeawayText(period = ANALYZED_PERIOD) {
+  const span = typeof period === "string" && period.trim() ? ` across ${period.trim()}` : "";
+  return `$51,254 of $154,500 in analyzed AI spend is recoverable (33%)${span} `
+    + "— a modelled ceiling on what re-routing this work could save, not money already saved. "
+    + "First recommended action: Pilot lower-cost routing in Atlas Platform. "
+    + "Accountable role: Platform Engineering Lead. Figures are from a bundled synthetic example "
+    + "and are not visitor data.";
+}
+
+export const EXECUTIVE_TAKEAWAY = takeawayText();
 
 export const TAKEAWAY_COPY_FEEDBACK = Object.freeze({
   copied: "Executive takeaway copied.",
