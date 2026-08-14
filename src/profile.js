@@ -155,10 +155,15 @@ export function selectProfilePosts(posts, author, { imagesOnly = true } = {}) {
 // only thing that explains an empty grid belonging to an author who has posted.
 export function profileSummary(posts, author) {
   const mine = selectProfilePosts(posts, author, { imagesOnly: false });
-  const withImages = mine.filter((post) => Boolean(post.image));
+  // The image-post figure is the picker's figure: the same selector, asked the
+  // same question, rather than a second `post.image` test written out here. Two
+  // rules for "is this an image post?" is how the number beside "Newest first"
+  // and the number printed on the chip that promised it drift apart, and the
+  // chip is a promise about the grid this line is counting.
+  const withImages = selectProfilePosts(posts, author).length;
   return {
     total: mine.length,
-    withImages: withImages.length,
+    withImages,
     likes: mine.reduce((sum, post) => sum + post.likes, 0),
     latest: mine[0]?.createdAt ?? null,
   };
