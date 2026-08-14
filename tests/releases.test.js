@@ -299,6 +299,37 @@ test("releases page is wired and linked from the decisions page", async () => {
   assert.doesNotMatch(`${component}\n${wiring}`, /innerHTML/);
 });
 
+// One name per concept, in two directions. The order is "newest first"
+// everywhere else on the site — the home page card, the About block, People —
+// so this page says it that way too instead of "in reverse chronological
+// order". And the destination is "Releases" in the nav item, the title and the
+// h1, so the log inside it is named after what it holds: a reader scanning
+// headings used to meet "Releases" a fourth time with nothing to tell the list
+// apart from the page it sits on. Read from the shipped markup, because that is
+// where these strings live.
+test("the releases page states its order in the site's words and repeats no heading", async () => {
+  const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
+  const [page, home] = await Promise.all([read("src/releases.html"), read("src/index.html")]);
+
+  const ordering = "Every release, newest first, with the decisions it carried.";
+  assert.ok(home.includes(ordering), "the home page card's wording moved");
+  assert.ok(page.includes(ordering), "the releases intro no longer says newest first in the card's words");
+  assert.doesNotMatch(page, /reverse chronological/i, "the page invented a second phrase for newest first");
+
+  // The destination keeps one name in all three places it names itself.
+  assert.match(page, /<title>Releases · Shiplog<\/title>/);
+  assert.match(page, /<a aria-current="page" href="\/releases\.html">Releases<\/a>/);
+  assert.match(page, /<h1 id="page-title">See what shipped,<br \/>and why\.<\/h1>/);
+  assert.match(page, /<h2 id="releases-title">Release log, newest first<\/h2>/);
+
+  // Every heading on the page, h1 through h6, whatever region it sits in.
+  const headings = [...page.matchAll(/<h([1-6])\b[^>]*>([\s\S]*?)<\/h\1>/g)]
+    .map((match) => match[2].replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim());
+  assert.ok(headings.length >= 6, `only ${headings.length} headings found; the markup shape changed`);
+  const repeated = [...new Set(headings.filter((text, index) => headings.indexOf(text) !== index))];
+  assert.deepEqual(repeated, [], `two headings read the same: ${repeated.join(" · ")}`);
+});
+
 // The demo seed is hand-authored data that ships to production and renders the
 // list/detail views in review. It is edited by hand (this task renamed release
 // `author` -> `owner` and added `alternatives`), so guard it the same way the
