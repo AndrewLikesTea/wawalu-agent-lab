@@ -299,7 +299,8 @@ test("the live workspace wires JSON and mapped provider exports into the project
   assert.match(entry, /importedOverspend = projectModelOverspendFinding\(providerDocument\)/);
   assert.match(entry, /importedOverspendRenderer\(document, importedOverspend/);
   assert.match(entry, /renderProviderExportProjection\(document, projection\)/);
-  assert.equal((entry.match(/await paintProviderProjection\(parsed\.document\)/g) ?? []).length, 3);
+  assert.equal((entry.match(/await paintProviderProjection\(parsed\.document, parsed\)/g) ?? []).length, 3);
+  assert.match(entry, /pendingTrustEvidence = trustModel\.importTrustEvidence/);
 });
 
 test("an eligible imported model finding keeps projection provenance at a glance", async () => {
