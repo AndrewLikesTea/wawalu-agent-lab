@@ -155,11 +155,13 @@ test("a first-time visitor lands on a display name that has image posts", async 
       "the display-name caveat is not the general one");
     assert.equal(textOf(document.querySelector(".profile-role")).includes("Zed"), false,
       "the caveat spends a third visible copy of the display name");
-    // The scope is the intro's to state, once, and it is the intro that carries
+    // The scope is the tagline's to state, once, and the intro under it carries
     // the link. This paragraph and the eyebrow over the grid both used to
     // restate the rule in their own words.
-    assert.match(textOf(document.querySelector(".profile-lede")),
-      /^People shows the image posts published under one display name — open Social when you want the whole feed, including posts with no image\./);
+    assert.equal(textOf(document.querySelector("#page-tagline")),
+      "See the image posts published under one display name.");
+    assert.match(textOf(document.querySelectorAll(".profile-lede")[1]),
+      /^Open Social when you want the whole feed, including posts with no image\./);
     // What a reader who scrolled straight to the grid meets: the heading counts
     // image posts, the eyebrow above it orders them. Neither repeats the other.
     const panelHeading = document.querySelector(".list-heading");
@@ -498,7 +500,7 @@ test("a display name that is markup is rendered as text and forges no second rou
     // is the intro's, above it, and the name never reaches that sentence.
     assert.equal(document.querySelector(".profile-identity").querySelectorAll("a").length, 0);
     assert.equal(document.querySelector(".profile-role").querySelectorAll("a").length, 0);
-    const routes = document.querySelector(".profile-lede").querySelectorAll("a");
+    const routes = document.querySelectorAll(".profile-lede")[1].querySelectorAll("a");
     assert.equal(routes.length, 1);
     assert.equal(routes[0].getAttribute("href"), "/social.html");
     assert.equal(textOf(routes[0]), "Social");
@@ -795,7 +797,7 @@ test("tabbing from the top reaches the picker, then the posts under the header",
     const { document } = page;
     // Walked, not read off the markup: every stop is a real focus move made by
     // the page harness that boots the shipped markup with the shipped module.
-    document.querySelector(".profile-lede").querySelectorAll("a")[0].focus();
+    document.querySelectorAll(".profile-lede")[1].querySelectorAll("a")[0].focus();
     const walked = [];
     for (let step = 0; step < 6; step += 1) walked.push(pressTab(document));
     assert.deepEqual(walked.slice(0, 3).map((node) => node.dataset?.author), ["Ari", "Bea", "Zed"],

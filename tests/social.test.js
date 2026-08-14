@@ -536,7 +536,11 @@ test("the feed says who wrote the posts, where the posts are", async (t) => {
 
   // Said once on the page. The intro says what the feed is and where to go
   // next, and its last words stay the ones the permalink quotes.
-  const intro = textOf(page.document.querySelector(".hero-social").querySelectorAll("p")[1]);
+  // Eyebrow, tagline, intro: the intro is the third paragraph in the hero, and
+  // the line above it says what a visitor does here in one sentence.
+  assert.equal(textOf(page.document.querySelector("#page-tagline")),
+    "Read every post, and publish your own.");
+  const intro = textOf(page.document.querySelector(".hero-social").querySelectorAll("p")[2]);
   assert.doesNotMatch(intro, /invented for this demo/,
     "the intro says who wrote the posts a second time, four screens from a card");
   assert.match(intro, /Posts use no customer or production data\.$/,

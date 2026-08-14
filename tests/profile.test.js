@@ -507,7 +507,10 @@ test("the People picker and the page's own description use one term for what is 
   const RIVALS = [/demo persona/i, /\bpersona\b/i, /\bprofile\b/i, /\baccount\b/i, /\bauthor\b/i];
   const between = (pattern) => html.match(pattern)?.[1] ?? "";
   const surfaces = [
-    ["page intro", between(/<p class="profile-lede">([\s\S]*?)<\/p>/)],
+    // The line under the heading is where the page states what it shows now, so
+    // it is the copy that has to use the picker's own term. The intro below it
+    // used to open on that rule and no longer repeats it.
+    ["page tagline", between(/<p class="profile-lede" id="page-tagline">([\s\S]*?)<\/p>/)],
     ["picker label", between(/<legend id="profile-author-label">([\s\S]*?)<\/legend>/)],
     ["picker hint", between(/<p class="hint profile-toolbar-hint" id="profile-author-hint">([\s\S]*?)<\/p>/)],
   ];
@@ -518,6 +521,13 @@ test("the People picker and the page's own description use one term for what is 
     for (const rival of RIVALS)
       assert.doesNotMatch(copy, rival, `the ${surface} must not name the same thing a second way`);
   }
+
+  // The intro is still there, and it may not reintroduce a second word for what
+  // the picker selects just because it stopped stating the rule itself.
+  const intro = between(/<p class="profile-lede">([\s\S]*?)<\/p>/);
+  assert.notEqual(intro, "", "the page intro must still be on the page");
+  for (const rival of RIVALS)
+    assert.doesNotMatch(intro, rival, "the page intro must not name the selected thing a second way");
 
   // The line about publishing keeps the term too: a reader is told how to put a
   // picture here, and it has to be the same word they just picked by. Pinned to
