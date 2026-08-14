@@ -3840,10 +3840,20 @@ function mountLocalFinopsImport() {
     if (retentionAnalysis) syncRetention(retentionAnalysis);
   };
 
+  // When THIS analysis was captured, held for as long as it is the analysis
+  // being kept. Every write went through a fresh clock read, so typing a name or
+  // a cohort re-dated the import: a brief captured at 09:00 and annotated at
+  // 17:00 read "Captured 17:00", and the two stamps could even land in the same
+  // millisecond. Reading the file is one event and is dated once.
+  let capturedAnalysis = null;
+  let capturedAtStamp = null;
+
   const captureNow = (analysis) => retainedBriefingPayload({
     analysis,
     provider: detectedProviderFor(),
-    capturedAt: new Date().toISOString(),
+    capturedAt: capturedAnalysis === analysis && capturedAtStamp
+      ? capturedAtStamp
+      : (capturedAnalysis = analysis, capturedAtStamp = new Date().toISOString()),
     // What the reader said about this import, in the record the import is in
     // (#1010), so one restore brings back one complete brief and one forget
     // takes all of it.
