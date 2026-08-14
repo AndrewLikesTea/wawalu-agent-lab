@@ -191,7 +191,13 @@ async function openPeople(t, { search, storage = {} } = {}) {
   await importPageModule("/profile-page.js");
   const { document } = page;
   await waitFor(() => document.documentElement.dataset.shiplogProfile === "ready", "the People page finished its first load");
-  await waitFor(() => textOf(document.querySelector("#profile-status")) === profileConnectionLine("live"), "the live feed answered");
+  // The connection line leaves the document when the picker has emptied the
+  // grid, so this asks for the settled sentence where there is one and takes its
+  // absence otherwise; the announcement below settles either way.
+  await waitFor(() => {
+    const line = document.querySelectorAll("#profile-status");
+    return line.length === 0 || textOf(line[0]) === profileConnectionLine("live");
+  }, "the live feed answered");
   await waitFor(() => textOf(document.querySelector("#profile-announcer")).length > 0, "People announced the view it settled on");
   globalThis.setInterval = realSetInterval;
   return page;

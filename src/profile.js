@@ -558,9 +558,29 @@ export const PROFILE_RETRY_LABEL = "Retry loading image posts";
 // with no pictures under it while other names have plenty is a full feed you
 // have narrowed to nothing, not a site with nothing on it. It says so in its
 // own words, and hands over the same reset Social's no-match panel does.
-export const PROFILE_NO_MATCH_LINE = "No image posts match the selected display name.";
-export const PROFILE_NO_MATCH_GUIDANCE = "Other display names in this feed have image posts. Clear filters to show them.";
+//
+// The way out is Social's sentence with this page's noun in it: "Select Clear
+// filters to see all 9 posts." there (noMatchGuidance, src/social.js), the same
+// shape here. It names the control by the exact words printed on it — a reader
+// told to "clear filters" on a page whose filter is a row of display-name chips
+// has to go looking for a control that word does not obviously belong to — and
+// it says what pressing it will show, because People's reset does not restore
+// "everything": it lands on the display name this feed opens on. "Clear filters
+// to show them" claimed neither.
+//
+// It names that destination and not the display name showing: this page keeps
+// the selected name to two visible elements in the results region (the heading
+// and the identity line), so the sentence above it states the situation without
+// a name, exactly as the counts line does.
 export const PROFILE_CLEAR_FILTERS_LABEL = "Clear filters";
+export const PROFILE_NO_MATCH_LINE = "No image posts match the selected display name.";
+
+export function profileNoMatchGuidance(clearTo) {
+  const name = String(clearTo ?? "").trim();
+  return name
+    ? `Select ${PROFILE_CLEAR_FILTERS_LABEL} to see ${name}’s image posts.`
+    : `Select ${PROFILE_CLEAR_FILTERS_LABEL} to see the image posts under another display name.`;
+}
 
 function renderError(container, onRetry) {
   const failed = renderFeedStatus(container, {
@@ -573,10 +593,10 @@ function renderError(container, onRetry) {
   failed.querySelector?.(".feed-status-action")?.classList.add("empty-action");
 }
 
-function renderNoMatch(container, onClearFilters) {
+function renderNoMatch(container, { onClearFilters, clearTo }) {
   const panel = renderFeedStatus(container, {
     state: "filtered", label: "People filter result",
-    text: PROFILE_NO_MATCH_LINE, detail: PROFILE_NO_MATCH_GUIDANCE,
+    text: PROFILE_NO_MATCH_LINE, detail: profileNoMatchGuidance(clearTo),
     actionLabel: PROFILE_CLEAR_FILTERS_LABEL, onAction: onClearFilters,
   });
   panel.classList.add("empty-state", "empty-state-filtered");
@@ -591,7 +611,7 @@ function renderNoMatch(container, onClearFilters) {
 export function renderProfileGrid(container, posts, options = {}) {
   const {
     state = "ready", onRetry = null, author = DEFAULT_AUTHOR, statusRegion = container,
-    total = null, onClearFilters = null,
+    total = null, onClearFilters = null, clearTo = "",
   } = options;
   const ordered = sortNewestFirst(posts ?? []);
   container.replaceChildren();
@@ -624,7 +644,7 @@ export function renderProfileGrid(container, posts, options = {}) {
       });
       renderSkeleton(container, author);
     } else if (phase === "failed") renderError(statusRegion, onRetry);
-    else if (phase === "filtered-empty") renderNoMatch(statusRegion, onClearFilters);
+    else if (phase === "filtered-empty") renderNoMatch(statusRegion, { onClearFilters, clearTo });
     else renderEmpty(statusRegion, author);
     return;
   }
@@ -744,9 +764,9 @@ export function mountProfile(root, options = {}) {
   // hidden line is still text a screen reader can be walked through.
   const waiting = [
     feedPresence(elements.summary),
-    feedPresence(root.querySelector(".feed-connection")),
     feedPresence(root.querySelector(".feed-create")),
   ];
+  const connectionLine = feedPresence(root.querySelector(".feed-connection"));
 
   let posts = options.posts ?? [];
   let state = options.state ?? "ready";
@@ -804,20 +824,28 @@ export function mountProfile(root, options = {}) {
       statusRegion: elements.feedStatus ?? grid,
       total: recoverable ? posts.length : 0,
       onClearFilters: recoverable ? () => clearFilters(elsewhere) : null,
+      // The name the reset lands on, so the panel can say what pressing its
+      // control will show rather than promising a feed it does not restore.
+      clearTo: recoverable ? elsewhere : "",
     });
     const phase = feedPhase({
       state, total: recoverable ? posts.length : mine.length, visible: mine.length, filtering: recoverable,
     });
     for (const line of waiting) line.present(phase !== "loading");
-    // The page's one voice says what the panel below it says. An empty grid with
+    // The promise leaves in one more state than the other two. "New image posts
+    // will appear here on their own." over a grid the picker has emptied gives
+    // the wrong reason for the empty screen and asks the reader to wait, when
+    // what they need is the one control the panel below is holding out.
+    connectionLine.present(phase !== "loading" && phase !== "filtered-empty");
+    // The page's one voice carries the panel's way out. An empty grid with
     // pictures under other display names is a filtered dead end, so the
-    // announcement carries that guidance rather than the invitation into Paint
-    // that the visible region no longer offers here. It keeps naming the display
-    // name, because an announcement has no page around it to borrow a subject
-    // from.
+    // announcement offers the reset rather than the invitation into Paint that
+    // the visible region no longer offers here — and it names both display names
+    // the reader is standing between, because an announcement has no page around
+    // it to borrow a subject from.
     if (elements.announcer && state === "ready") {
       elements.announcer.textContent = phase === "filtered-empty"
-        ? `${emptySummaryText(author)} ${PROFILE_NO_MATCH_GUIDANCE}`
+        ? `${emptySummaryText(author)} ${profileNoMatchGuidance(elsewhere)}`
         : profileAnnouncement(author, mine.length);
     }
     if (options.onRender) options.onRender({ author, posts: mine, summary });
