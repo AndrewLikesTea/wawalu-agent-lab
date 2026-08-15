@@ -241,12 +241,13 @@ test("a settled Social post carries its display name as a link to People, in the
     `the control's accessible name does not contain the display name: ${link.getAttribute("aria-label")}`);
   assert.equal(textOf(link), IRIS, "the visible text is not the display name it links to");
 
-  // Tabbable, and the card's only stop: the caption and the image description
-  // stay ordinary prose, so nothing was inserted into the reading order to carry
-  // this control.
+  // Tabbable, and the first of the card's two stops: the display name, then the
+  // card's one route into the post itself. The caption and the image description
+  // stay ordinary prose, so nothing else was inserted into the reading order to
+  // carry either control.
   const stops = tabSequence(document).filter((element) => within(element, card));
-  assert.deepEqual(stops.map((element) => element.className), ["post-author"],
-    "the post grew a tab stop of its own, or lost the one it had");
+  assert.deepEqual(stops.map((element) => element.className), ["post-author", "release-detail-link"],
+    "the post grew a tab stop of its own, or lost one it had");
   assert.equal(link.getAttribute("tabindex"), null, "the stop is markup order, not a tabindex trick");
 
   // And it sits where the name already sat: behind the caption and the image
@@ -258,6 +259,16 @@ test("a settled Social post carries its display name as a link to People, in the
   assert.equal(textOf(caption), "p-06 from Iris Vale");
   assert.ok(at(caption) < at(description), "the image description was reordered ahead of the caption");
   assert.ok(at(description) < at(link), "the display name jumped ahead of the post it belongs to");
+
+  // The card's second stop, on the real page rather than in a render stub: one
+  // named anchor per card, last in the card, opening that card's own post.
+  const open = stops[1];
+  assert.equal(open.tagName, "A");
+  assert.equal(textOf(open), "Open post");
+  assert.equal(open.getAttribute("href"), "/post.html?id=p-06&author=Iris+Vale");
+  assert.ok(at(link) < at(open), "the action was offered before the post it acts on");
+  assert.equal(card.querySelectorAll(".release-detail-link").length, 1,
+    "the card names its way into the post more than once");
 
   // Affordance without colour alone: the site's existing link treatment — an
   // underline on the class itself — and the shared focus ring the global anchor

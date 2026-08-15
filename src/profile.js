@@ -23,7 +23,7 @@
 //      on the image inside the link when the tile is read rather than listed.
 
 import { connectionStatusLine, normalizeImage } from "./social.js";
-import { postDetailHref, profileHref } from "./social-links.js";
+import { OPEN_POST_LABEL, postDetailHref, profileHref } from "./social-links.js";
 import { imageDescription, renderDescriptionNote, renderImageUnavailable } from "./image-description.js";
 import { renderFeedStatus, feedPhase, feedPresence, setFeedControlsDisabled } from "./feed-status.js";
 import { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH } from "./social-identity.js";
@@ -497,7 +497,13 @@ function renderTile(post, index) {
   // Beside the caption, not inside it: the tile is named by its caption alone,
   // and flagging a missing description must not rename the link.
   if (post.image && description.missing) figure.append(renderDescriptionNote());
-  const destination = el("span", "profile-tile-link-label", "View full post on Social");
+  // The tile is the control, and this is the word printed on it — the same two
+  // words Social's cards print (src/social-links.js owns them) and the same two
+  // the lead sentence on both pages tells a reader to look for. It used to say
+  // "View full post on Social", which named a destination rather than an action
+  // and named a different one from the feed's, so the two pages offered the same
+  // step under two labels and neither matched the sentence above the grid.
+  const destination = el("span", "profile-tile-link-label", OPEN_POST_LABEL);
   link.append(figure);
 
   const meta = el("p", "profile-tile-meta");
@@ -507,7 +513,9 @@ function renderTile(post, index) {
   meta.append(el("span", "profile-tile-stat", `${countLabel(post.likes, "like")} · ${countLabel(post.comments, "comment")}`));
   link.append(meta, destination);
 
-  link.setAttribute("aria-label", `${captionFor(post)} — view full post on Social`);
+  // Which post first, then what the tile does, quoting the words printed on it
+  // so a reader who hears the name can find the control by sight.
+  link.setAttribute("aria-label", `${captionFor(post)} — ${OPEN_POST_LABEL}`);
   item.append(link);
   return item;
 }

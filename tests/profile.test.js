@@ -322,8 +322,8 @@ test("a tile visibly links to the full Social post", () => {
   const caption = first(tile, "profile-tile-caption");
   assert.equal(caption.tagName, "FIGCAPTION");
   assert.equal(caption.textContent, "Focus rings landed everywhere.");
-  assert.equal(tile.getAttribute("aria-label"), "Focus rings landed everywhere. — view full post on Social");
-  assert.equal(first(tile, "profile-tile-link-label").textContent, "View full post on Social");
+  assert.equal(tile.getAttribute("aria-label"), "Focus rings landed everywhere. — Open post");
+  assert.equal(first(tile, "profile-tile-link-label").textContent, "Open post");
 
   const img = tags(tile, "IMG")[0];
   assert.equal(img.src, "/media/focus-ring.svg");
@@ -346,6 +346,35 @@ test("tiles render newest first, and each gets its own caption id", () => {
   assert.deepEqual(tiles.map((tile) => tile.dataset.postId), ["p-image", "p-older"]);
   const captionIds = byClass(container, "profile-tile-caption").map((caption) => caption.id);
   assert.equal(new Set(captionIds).size, 2, "ids are unique per tile");
+});
+
+// Every tile offers the same named step into the post, and offers it once. The
+// tile itself is that control here — the whole picture is the hit target — so
+// what is counted is the label printed on it, and what is checked is that the
+// label is last in the tile: the action reads after the picture and the words
+// it acts on, and is the last stop a reader tabs through before the next tile.
+test("every tile carries one control named Open post, pointing at that post", () => {
+  const container = createElement("div");
+  renderProfileGrid(container, [olderImagePost, imagePost], { author: "Mina" });
+
+  // Placeholders wear .profile-tile too, so a count that included them would
+  // pass against a grid holding no posts at all.
+  const tiles = byClass(container, "profile-tile").filter((tile) => !tile.classes.includes("profile-tile-skeleton"));
+  assert.equal(tiles.length, 2, "the per-tile assertions below need real tiles");
+
+  for (const tile of tiles) {
+    const labels = byClass(tile, "profile-tile-link-label");
+    assert.equal(labels.length, 1, "a tile names its way into the post exactly once");
+    assert.equal(labels[0].textContent, "Open post");
+    assert.equal(tile.tagName, "A");
+    assert.equal(tile.href, `/post.html?id=${tile.dataset.postId}&author=Mina&from=profile`,
+      "the tile opens its own post, not the grid's first one");
+    assert.equal(tile.getAttribute("aria-label"), "Focus rings landed everywhere. — Open post");
+    // Last child, by index rather than by node identity: a failed identity
+    // comparison would print the whole parsed tile.
+    assert.equal(tile.children.indexOf(labels[0]), tile.children.length - 1,
+      "the action is offered before the reader has the post it acts on");
+  }
 });
 
 test("a dead image leaves the caption and the link intact", () => {

@@ -545,6 +545,11 @@ test("the feed says who wrote the posts, where the posts are", async (t) => {
     "the intro says who wrote the posts a second time, four screens from a card");
   assert.match(intro, /Posts use no customer or production data\.$/,
     "the demo-data sentence must stay the intro's last words");
+  // One sentence, word for word People's, naming the control both feeds print
+  // on every card. Social had no such control and said nothing about opening a
+  // post; People told a reader to "select a post" and named nothing.
+  assert.match(intro, /Select Open post to read a post in full\./,
+    "the intro never tells a reader a post can be opened in full");
 });
 
 // The sentence is a claim about the feed's authors, not about a fetch, so it

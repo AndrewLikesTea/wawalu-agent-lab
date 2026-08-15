@@ -23,7 +23,7 @@
 // profile remembers cannot drift apart.
 import { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH, readStoredAuthor, rememberAuthor } from "./social-identity.js";
 import { imageDescription, renderDescriptionNote, renderImageUnavailable } from "./image-description.js";
-import { postDetailHref, profileHref } from "./social-links.js";
+import { OPEN_POST_LABEL, postDetailHref, profileHref } from "./social-links.js";
 import { renderFeedStatus, feedPhase, feedPresence, setFeedControlsDisabled } from "./feed-status.js";
 
 export { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH };
@@ -493,6 +493,21 @@ function renderPostCard(post, { index }) {
     body.id = textId;
     article.append(body);
   }
+  // The card's own way into the post, last in the card so the action follows the
+  // picture and the words it acts on. A plain anchor in the link shape the
+  // Releases index already uses for the same job — a row that summarises a
+  // record, and one named link out of it to that record's own page.
+  //
+  // Named by the action, not by the post: every card prints the same two words,
+  // and the sentence in the hero prints them too, so a reader who is told to
+  // "Select Open post" is looking for the words that are actually on screen.
+  // The post it opens is said by aria-describedby rather than by folding the
+  // body into the link's name — the card's text is already on the page and
+  // reading it twice into one accessible name is how a name stops being one.
+  const open = el("a", "release-detail-link", OPEN_POST_LABEL);
+  open.href = postDetailHref(post.id, post.author);
+  open.setAttribute("aria-describedby", textId);
+  article.append(open);
   item.append(article);
   return item;
 }

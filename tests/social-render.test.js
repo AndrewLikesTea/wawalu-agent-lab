@@ -170,6 +170,38 @@ test("the grid keeps list semantics and leaves focus on native links", () => {
   assert.deepEqual(cards.map((card) => card.dataset.postId), ["p-image", "p-text"]);
 });
 
+// The feed used to have no way into a post at all: a reader could see a card
+// and had nowhere to go from it. Every card now ends on one named anchor to that
+// post's own page, in the same words People's tiles print and the same words the
+// hero sentence tells a reader to look for.
+test("every card carries one control named Open post, pointing at that post", () => {
+  const container = createElement("div");
+  renderPosts(container, [imagePost, textPost]);
+
+  // Placeholders wear .post-card too, so a count that included them would pass
+  // against a feed holding no posts at all.
+  const cards = byClass(container, "post-card").filter((card) => !card.classes.includes("post-card-skeleton"));
+  assert.equal(cards.length, 2, "the per-card assertions below need real cards");
+
+  for (const [index, post] of [imagePost, textPost].entries()) {
+    const card = cards[index];
+    const opens = byClass(card, "release-detail-link");
+    assert.equal(opens.length, 1, "a card names its way into the post exactly once");
+    const open = opens[0];
+    assert.equal(open.tagName, "A", "a route to another page is an anchor, not a scripted click target");
+    assert.equal(open.textContent, "Open post");
+    assert.equal(open.href, `/post.html?id=${post.id}&author=${post.author}`,
+      "the card opens its own post, not the feed's first one");
+    // Named by the action; the post it opens is the description, so the two are
+    // announced together without the body being read into the link's name.
+    assert.equal(open.getAttribute("aria-describedby"), first(card, post.image ? "post-caption" : "post-body").id);
+    // Last child, by index rather than by node identity: a failed identity
+    // comparison would print the whole parsed card.
+    assert.equal(card.children.indexOf(open), card.children.length - 1,
+      "the action is offered before the reader has the post it acts on");
+  }
+});
+
 test("empty, loading, and error states are three distinct renders", () => {
   // Nothing published yet and nothing matching the filters are different news.
   // The first is the only one that has to name Paint: an image is the part of a
