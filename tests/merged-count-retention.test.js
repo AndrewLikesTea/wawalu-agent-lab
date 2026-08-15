@@ -21,7 +21,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { loadActivity } from "../src/agents.js";
-import { EVENTS_URLS } from "../src/public-merges.js";
+import { EVENTS_URLS, UNAVAILABLE_REASONS, unavailableSentences } from "../src/public-merges.js";
 import {
   RETAINED_COUNT_KEY,
   RETAINED_COUNT_SCHEMA,
@@ -301,7 +301,10 @@ test("the observatory with an unusable stored value states that nothing was ever
   const figure = page.document.querySelector("#merged-figure");
   const readout = page.document.querySelector("#merged-figure-readout");
   assert.equal(figure.dataset.state, "unavailable");
-  assert.match(textOf(readout), /no count has been recorded from it yet\.$/);
+  // The same two sentences the home page shows for the same outcome, from the
+  // one module that holds them.
+  assert.deepEqual(readout.querySelectorAll("p").map(textOf),
+    unavailableSentences(UNAVAILABLE_REASONS.rateLimited));
   assert.doesNotMatch(textOf(readout), /\d/, "an unreadable store became a number on the page");
   assert.deepEqual(figure.querySelectorAll("a").map((link) => link.href), EVENTS_URLS);
 });

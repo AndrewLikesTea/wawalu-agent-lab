@@ -14,10 +14,13 @@ import { renderState } from "./state-ui.js";
 import {
   EVENTS_URLS,
   SOURCE_REPOSITORIES,
+  UNAVAILABLE_REASONS,
   countMergedPullRequests as countMerged,
   liveGithubEvents as liveEvents,
   mergedCountUnit,
   readPublicEvents,
+  unavailableReason,
+  unavailableSentences,
 } from "./public-merges.js";
 // What a browser remembers of that number between visits, shared with the home
 // page so one response cannot be remembered two ways.
@@ -584,19 +587,27 @@ export async function readRecordedCount(fetcher = fetch) {
   }
 }
 
+/**
+ * The never-counted state's two sentences, for the reason this request actually
+ * failed for. Not written here: `unavailableSentences` in ./public-merges.js is
+ * the only place either sentence exists, and the home page's counted-figure
+ * block renders the same list — so the two surfaces cannot describe one outcome
+ * in two sets of words, and neither can be reworded without the other.
+ */
+const unavailableCopy = (reason) => {
+  const [value, source] = unavailableSentences(reason);
+  return { value, source };
+};
+
 export const MERGED_FIGURE_COPY = Object.freeze({
   loading: Object.freeze({
     value: "Loading…",
     source: "Counted from public GitHub activity, once GitHub answers.",
   }),
-  // One plain sentence, and deliberately no second one: this is the state where
-  // there is nothing to qualify. It renders alone, so the slot holds a sentence
-  // and the verification links, and no dash, blank, or zero standing in for a
-  // number that does not exist.
-  unavailable: Object.freeze({
-    value: "Public GitHub activity did not answer, and no count has been recorded from it yet.",
-    source: "",
-  }),
+  // The default reading of the empty state, for a render that was told nothing
+  // about why the request produced no count. A load that does know says so
+  // instead, in the same two sentences with a truer first clause.
+  unavailable: Object.freeze(unavailableCopy(UNAVAILABLE_REASONS.unreachable)),
 });
 
 /** The count and unit, the two of them always rendered together. */
@@ -621,7 +632,7 @@ function appendCount(value, count) {
  * fallbacks, where a reader most needs to check the source by hand.
  */
 export function renderMergedFigure(root = document, state = "loading",
-  { count = 0, total = 0, asOf = null, takenAt = null } = {}) {
+  { count = 0, total = 0, asOf = null, takenAt = null, reason = null } = {}) {
   // A count with no response time behind it cannot be sourced, and an unsourced
   // number is not one this slot may show — so it falls to the empty state rather
   // than rendering a figure the line beneath it could not account for. A record
@@ -660,12 +671,19 @@ export function renderMergedFigure(root = document, state = "loading",
     // which is which without opening anything.
     appendText(source, "span", "", ` at ${formatRetainedClock(takenAt)}.`);
   } else {
-    value.textContent = MERGED_FIGURE_COPY[name].value;
-    source.textContent = MERGED_FIGURE_COPY[name].source;
+    const copy = name === "unavailable" && reason ? unavailableCopy(reason) : MERGED_FIGURE_COPY[name];
+    value.textContent = copy.value;
+    source.textContent = copy.source;
   }
+  // The readout is the live region, so a repaint that would say exactly what is
+  // already on screen is not made at all: the resolved wording is announced
+  // once, rather than again for every intermediate render that happens to land
+  // on the same sentences. A render that changes the text still replaces it.
+  const painted = source.textContent ? [value, source] : [value];
+  if (painted.map((node) => node.textContent).join("") === readout.textContent) return section;
   // The empty state's sentence stands alone rather than trailing an empty
   // paragraph, so what is on screen is one sentence and not a sentence and a gap.
-  readout.replaceChildren(...(source.textContent ? [value, source] : [value]));
+  readout.replaceChildren(...painted);
   return section;
 }
 
@@ -674,10 +692,10 @@ export function renderMergedFigure(root = document, state = "loading",
  * otherwise the one sentence saying none does. Both keep the verification links
  * beside them, and neither of them is a spinner.
  */
-function renderFallbackFigure(root, recorded) {
+function renderFallbackFigure(root, recorded, reason = null) {
   return recorded
     ? renderMergedFigure(root, "recorded", recorded)
-    : renderMergedFigure(root, "unavailable");
+    : renderMergedFigure(root, "unavailable", { reason });
 }
 
 /**
@@ -696,7 +714,15 @@ function paintRecordedFigure(root, record) {
   return renderMergedFigure(root, "recorded", record);
 }
 
-export async function loadActivity(root = document, fetcher = fetch, storage = browserCountStorage()) {
+// How long the headline figure will sit on "Loading…" before it says something
+// true instead. The request behind it is unauthenticated and cross-origin, so
+// "slow" and "never" look identical from here, and neither is a state a reader
+// may be parked in indefinitely — that is the whole of issue #1774. Overridable
+// so a test can hold a response open without holding the suite open with it.
+export const MERGED_FIGURE_SETTLE_MS = 8_000;
+
+export async function loadActivity(root = document, fetcher = fetch, storage = browserCountStorage(),
+  { settleAfterMs = MERGED_FIGURE_SETTLE_MS } = {}) {
   const list = root.querySelector("#activity-list");
   const signal = root.querySelector(".signal-card");
   const label = root.querySelector("#connection-label");
@@ -733,6 +759,21 @@ export async function loadActivity(root = document, fetcher = fetch, storage = b
     recorded = mostRecentRecord(recorded, record);
     paintRecordedFigure(root, recorded);
   });
+  // A request that is merely slow is indistinguishable from one that will never
+  // answer, and both used to leave this slot reading "Loading…" for as long as a
+  // reader was willing to look at it. So the figure keeps its own deadline: once
+  // it passes, the slot settles onto the dated count this browser already has,
+  // or onto the sentence saying there is none. It touches nothing else on the
+  // page — the panels below keep their own loading states and their own retries
+  // — and a response that lands afterwards still replaces whatever it left.
+  const deadline = setTimeout(() => {
+    // Only a slot that is still waiting, so a count that did arrive is never
+    // taken back off the page by a clock.
+    if (root.querySelector("#merged-figure")?.dataset.state !== "loading") return;
+    renderFallbackFigure(root, recorded, UNAVAILABLE_REASONS.pending);
+  }, settleAfterMs);
+  // Never the reason a Node process or a test run stays alive.
+  deadline?.unref?.();
   try {
     // The same request, ordering, and arrival time the home page's count is
     // read through: one path, so two surfaces cannot count one response twice.
@@ -750,7 +791,7 @@ export async function loadActivity(root = document, fetcher = fetch, storage = b
     } else {
       // A response that carried nothing countable is not a live count, so the
       // slot falls back rather than showing a zero this response did not say.
-      renderFallbackFigure(root, recorded);
+      renderFallbackFigure(root, recorded, UNAVAILABLE_REASONS.empty);
     }
     const count = renderEvents(list, events);
     if (count) {
@@ -766,13 +807,21 @@ export async function loadActivity(root = document, fetcher = fetch, storage = b
     // The card and the figure below it report the same response, so they read
     // the same arrival time in the same format rather than two clocks.
     updated.textContent = `Updated ${formatClockTime(asOf)}`;
-  } catch {
+  } catch (error) {
     renderActivityState(root, "error", { keptEvents: hasLiveEvents });
-    renderFallbackFigure(root, recorded);
+    // Why there is no count, in the reader's terms rather than the transport's,
+    // read off what actually failed — the same clause on the same failure the
+    // home page's block would show, because it is the same function reading the
+    // same error from the same request.
+    renderFallbackFigure(root, recorded, unavailableReason(error));
     signal.dataset.connected = "false";
     label.textContent = CONNECTION_LABELS.error;
     updated.textContent = "Not updated";
     if (!hasLiveEvents) renderRepresentativeActivity(list, { reason: "unavailable" });
+  } finally {
+    // The figure has settled one way or the other by here, so the deadline has
+    // nothing left to say.
+    clearTimeout(deadline);
   }
 }
 

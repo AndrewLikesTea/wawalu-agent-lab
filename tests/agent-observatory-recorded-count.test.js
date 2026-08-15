@@ -25,6 +25,7 @@ import {
   parseRecordedCount,
   renderMergedFigure,
 } from "../src/agents.js";
+import { UNAVAILABLE_REASONS, unavailableSentences } from "../src/public-merges.js";
 import { recordMergedCount } from "../scripts/record-merged-count.mjs";
 import { createElement, first, installDocument } from "./support/dom.js";
 import { loadPage, textOf } from "./support/browser.js";
@@ -176,7 +177,7 @@ test("the recorded count keeps the GitHub feed links beside it on the shipped pa
     "a reader can still check the count at the source it came from");
 });
 
-test("no record and no answer is one sentence, no figure, and the links stay", async (t) => {
+test("no record and no answer is the home page's two sentences, no figure, and the links stay", async (t) => {
   const page = await loadPage(PAGE_URL);
   t.after(() => page.restore());
   const { document } = page;
@@ -191,8 +192,10 @@ test("no record and no answer is one sentence, no figure, and the links stay", a
   assert.equal(figure.dataset.state, "unavailable");
   assert.doesNotMatch(textOf(readout), /\d/, "no digit stands in for a count that was never recorded");
   assert.doesNotMatch(textOf(readout), /Counting|—|--/, "no spinner, no dash");
-  assert.match(textOf(readout), /no count has been recorded from it yet\.$/);
-  assert.equal(readout.querySelectorAll("p").length, 1, "exactly one sentence");
+  // The words are the home page's, out of the shared module: the absence and
+  // what was being counted, in that order, for the clause this failure earned.
+  assert.deepEqual(readout.querySelectorAll("p").map(textOf),
+    unavailableSentences(UNAVAILABLE_REASONS.rateLimited));
   assert.deepEqual(figure.querySelectorAll("a").map((link) => link.href), EVENTS_URLS);
 });
 
