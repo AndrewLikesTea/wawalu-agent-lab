@@ -397,6 +397,14 @@
             <h2 id="decision-form-title">Record a decision</h2>
           </div>
 
+          <!-- Where it goes and who reads it, before the first field, in the
+               words Social's publish consequence uses — and with the opposite
+               answer, because this record never leaves the browser it was typed
+               in. Same string on the release recorder. Visible without opening
+               anything: a consequence a reader has to expand is one they meet
+               afterwards. -->
+          <p class="hint record-consequence" id="decision-consequence">Shiplog saves this record in this browser only, so no one else who visits Shiplog can read it. You cannot delete a single record afterwards — only erase every record this browser is keeping.</p>
+
           <!-- novalidate, and validated by decision-entry.js instead. A native
                bubble reports one empty field at a time, in the browser's words,
                and takes it away again on the next keystroke; the inline errors

@@ -362,6 +362,35 @@ test("a release whose decision is gone says so instead of dropping it", async (t
   assert.match(textOf(missing), /archived-decision is not in this log/);
 });
 
+// The recorder states its consequence before the first field, and still states
+// it once the page has booted — release-form.js rebuilds the decision picker
+// inside this panel on every render, so the line has to survive that.
+// tests/decision-entry-flow.test.js owns the wording and pins it to the
+// decision recorder's copy of the same string; this asserts the release form
+// carries it, on load and after.
+test("the release recorder says where the record goes, before the first field", async (t) => {
+  const page = await openReleases(t, { decisions: [QUEUE_DECISION] });
+
+  const line = page.document.querySelectorAll("#release-consequence");
+  assert.equal(line.length, 1, "the release recorder lost its consequence line when the page booted");
+  assert.equal(textOf(line[0]),
+    "Shiplog saves this record in this browser only, so no one else who visits Shiplog can read it. You cannot delete a single record afterwards — only erase every record this browser is keeping.");
+
+  // Visible without opening anything: the harness reads through a closed details
+  // element, so the placement is what proves it, not the text.
+  const folded = [];
+  for (let node = line[0]; node; node = node.parentNode) {
+    if (node.tagName === "DETAILS" || node.getAttribute?.("hidden") !== null) folded.push(node.tagName);
+  }
+  assert.deepEqual(folded, [], "the release consequence sits inside something hidden or collapsed");
+
+  // Ahead of the form, so ahead of every field in it.
+  const panel = page.document.querySelector("#release-form").parentNode;
+  const order = panel.childElements.map((child) => child.id);
+  assert.ok(order.indexOf("release-consequence") < order.indexOf("release-form"),
+    "the consequence was moved below the fields it warns about");
+});
+
 test("a release with nothing linked says so on its detail page", async (t) => {
   const page = await loadPage(RELEASE_DETAIL_PAGE, {
     storage: {

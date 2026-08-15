@@ -92,6 +92,75 @@ function shownErrors(page) {
     .map((field) => ({ field, message: textOf(fieldError(page, field)) }));
 }
 
+// What a visitor gives up by recording, said before they type. Social answers
+// the two questions a recording form raises — who reads this, and can I take it
+// back — at its Publish button; neither recorder answered either one. The answer
+// here is the opposite one, because a record is written to this browser's local
+// storage and nowhere else (src/app.js saveDecisions, src/releases.js
+// saveReleases — no fetch, no server copy) and the product has no per-record
+// delete: the only removal is Erase local records on /workspace.html, which
+// takes them all.
+//
+// Both recorders are asserted from here, in one test, so the two cannot drift.
+const RECORD_CONSEQUENCE = "Shiplog saves this record in this browser only, so no one else who visits Shiplog can read it. You cannot delete a single record afterwards — only erase every record this browser is keeping.";
+const RELEASES_PAGE = new URL("../src/releases.html", import.meta.url);
+
+// Nothing collapses or hides it. The harness models no layout and reads through
+// a closed details element, so a textOf assertion alone proves nothing about
+// visibility — walk the ancestors instead.
+function foldedAncestors(node) {
+  const folded = [];
+  for (let current = node; current; current = current.parentNode) {
+    if (current.tagName === "DETAILS" || current.getAttribute?.("hidden") !== null) folded.push(current.tagName);
+  }
+  return folded;
+}
+
+// The line precedes every field: it and the form are siblings in the panel, so
+// standing before the form stands before the first input inside it.
+function precedesTheFields(panel, lineId, formId) {
+  const order = panel.childElements.map((child) => child.id);
+  const line = order.indexOf(lineId);
+  const form = order.indexOf(formId);
+  return line !== -1 && form !== -1 && line < form;
+}
+
+test("both recorders say where the record goes and who can read it, in one wording", async (t) => {
+  const surfaces = [
+    { page: await loadPage(DECISIONS_PAGE, {}), form: "decision-form", line: "decision-consequence", name: "the decision recorder" },
+    { page: await loadPage(RELEASES_PAGE, {}), form: "release-form", line: "release-consequence", name: "the release recorder" },
+  ];
+  for (const { page } of surfaces) t.after(() => page.restore());
+
+  const rendered = [];
+  for (const { page, form, line, name } of surfaces) {
+    // On initial load, before anything boots: this is shipped markup, not a render.
+    const found = page.document.querySelectorAll(`#${line}`);
+    assert.equal(found.length, 1, `${name} does not carry exactly one consequence line`);
+    assert.equal(found[0].tagName, "P");
+    assert.ok(found[0].classList.contains("hint"),
+      `${name}'s consequence line left the help-text pattern the form already uses`);
+
+    assert.deepEqual(foldedAncestors(found[0]), [],
+      `${name} put the consequence inside something hidden or collapsed`);
+    assert.ok(precedesTheFields(page.document.querySelector(`#${form}`).parentNode, line, form),
+      `${name} put the consequence after the fields it is meant to warn about`);
+    // Prose, not a control: neither form gains a tab stop.
+    assert.equal(found[0].querySelectorAll("a,button,input,select,textarea,summary").length, 0,
+      `${name}'s consequence line grew something focusable`);
+
+    rendered.push(textOf(found[0]));
+  }
+
+  assert.equal(rendered[0], RECORD_CONSEQUENCE);
+  assert.equal(new Set(rendered).size, 1,
+    `the two recorders drifted apart: ${rendered.join(" / ")}`);
+  // The claim is local storage, not publication: Social's answer is the other
+  // one, and borrowing its sentence here would be false.
+  assert.equal(rendered[0].includes("Anyone who visits Shiplog can read"), false,
+    "the recorders claim a record every visitor can read");
+});
+
 test("a complete entry is recorded, listed immediately, and reported once", async (t) => {
   const page = await openHistory(t);
 
