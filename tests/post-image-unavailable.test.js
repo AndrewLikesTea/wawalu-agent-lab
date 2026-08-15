@@ -234,15 +234,17 @@ test("a post written before descriptions were required still gets a described pl
 test("the placeholder introduces no focusable element on any surface", () => {
   // Counted rather than assumed: an extra tab stop here would land in the middle
   // of the feed's roving-tabindex grid and inside a People tile's own link.
+  // The counts are the card's own shipped stops, not a round number: a feed card
+  // offers the display name and then Open post, and a People tile is one link.
   for (const [name, render, expected] of [
-    ["feed", (container) => renderPosts(container, [post]), 1],
+    ["feed", (container) => renderPosts(container, [post]), 2],
     ["people", (container) => renderProfileGrid(container, [post], { author: "Mina Okafor" }), 1],
   ]) {
     const container = createElement("div");
     render(container);
-    assert.equal(tabStops(container), expected, `${name}: one stop while the image loads`);
+    assert.equal(tabStops(container), expected, `${name}: the card's own stops while the image loads`);
     tags(container, "IMG")[0].dispatch("error");
-    assert.equal(tabStops(container), expected, `${name}: still one stop once it fails`);
+    assert.equal(tabStops(container), expected, `${name}: the failure added or removed a stop`);
     assert.equal(byClass(container, "empty-action").length, 0, `${name}: the placeholder offers no action`);
   }
 });
