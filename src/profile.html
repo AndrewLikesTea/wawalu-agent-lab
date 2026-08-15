@@ -248,17 +248,20 @@
             Want a picture of your own here? <a class="text-link paint-link" id="profile-paint-route" href="/paint/?from=profile" target="_blank" rel="noopener">Create an image in Paint <span class="new-tab-note">(opens in a new tab)</span></a>, export the PNG, then <a class="text-link" id="profile-publish-route" href="/social.html#post-form">Publish a post on Social</a> under a display name.
           </p>
 
-          <div class="feed-connection">
+          <div class="feed-connection" hidden>
             <span class="live-dot" aria-hidden="true"></span>
-            <!-- What a reader gets from the connection, in Social's words with
-                 People's noun (connectionStatusLine, src/social.js);
-                 profile-page.js replaces it once the fetch answers. It no
-                 longer names the wait — the line over the grid already says the
-                 image posts are loading, and this said so a second time while
-                 calling the mechanism "live updates". It must not print the
-                 display name either: the heading and the active-filter chip
-                 carry it. -->
-            <span id="profile-status">New image posts will appear here on their own.</span>
+            <!-- Ships with no sentence in it, for the same reason Social's does
+                 (src/social.html): authored, this line promised image posts
+                 directly above the status that says they are still loading, so
+                 the frame that has nothing yet opened with a promise about it.
+                 src/profile.js writes the connecting sentence — Social's words
+                 with People's noun, profileConnectionLine — when the line goes
+                 back on a rendered grid, and profile-page.js writes the settled
+                 one once the fetch answers. It must not print the display name
+                 either: the heading and the active-filter chip carry it.
+                 `hidden` covers the decorative dot that is left once the
+                 sentence is gone; src/profile.js drops it on mount. -->
+            <span id="profile-status"></span>
           </div>
           <p class="visually-hidden" id="profile-announcer" aria-live="polite" aria-atomic="true"></p>
 

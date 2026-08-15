@@ -300,10 +300,14 @@ test("social page is wired, labeled, and linked from the other pages", async () 
   // fetch is open: "Counting posts…" was a third description of the one wait the
   // status region and the connection line were already reporting.
   assert.match(page, /id="post-count"><\/span>/);
-  // The feed itself ships one short retrieval status, and the connection line
-  // beside it is not a second one: it says what the connection gives the reader.
-  // tests/live-connection-copy.test.js owns the three sentences.
-  assert.match(page, /id="feed-status">New posts will appear here on their own\.<\/span>/);
+  // The feed ships one short retrieval status and nothing beside it. The
+  // connection line ships wordless: authored, its promise stood directly above
+  // "Loading the Social feed…", so the shipped frame made a promise about posts
+  // nobody had seen and then said it had none yet. src/social.js writes the
+  // sentence when it puts the line back on a rendered feed;
+  // tests/live-connection-copy.test.js owns the three states it can be in.
+  assert.match(page, /id="feed-status"><\/span>/);
+  assert.doesNotMatch(page, /will appear here on their own/);
   assert.equal((page.match(/Loading the Social feed…/g) ?? []).length, 1);
   assert.doesNotMatch(page, /id="post-count"[^>]*>0 posts<\/span>/);
   // One announced region for a filter change, and it is the summary: the count
