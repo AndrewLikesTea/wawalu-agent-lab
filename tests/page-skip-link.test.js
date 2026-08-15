@@ -393,8 +393,8 @@ test("the post page's exit reads after the site header, in the document, not in 
   // post is what follows the heading that names it; the ways onward come after
   // it rather than in front of it. Social still comes before People, the order
   // the site nav names them in.
-  const order = landmark.querySelectorAll("#post-back,#post-people,#page-title,#post-detail").map((node) => node.id);
-  assert.deepEqual(order, ["page-title", "post-detail", "post-back", "post-people"]);
+  const order = landmark.querySelectorAll("#post-back,#post-people,#post-publish,#page-title,#post-detail").map((node) => node.id);
+  assert.deepEqual(order, ["page-title", "post-detail", "post-back", "post-people", "post-publish"]);
 
   // No CSS trick may stand in for that order — reading order is the point.
   const css = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
@@ -407,15 +407,20 @@ test("the post page's exit reads after the site header, in the document, not in 
 test("the post page withholds People until it can name the loaded display name", async () => {
   const document = await load("post.html");
   const exits = document.querySelector("#main-content").querySelectorAll(".detail-back");
-  assert.equal(exits.length, 2, "the permalink's two destinations, and no third");
+  assert.equal(exits.length, 3, "the permalink's three destinations, and no fourth");
   assert.deepEqual(
     exits.map((link) => [link.href, textOf(link)]),
     [
       ["/social.html", "Open the full Social feed"],
       ["/profile.html", ""],
+      ["/social.html#post-form", "Open Social to publish a post of your own"],
     ],
   );
+  // Both withheld in the shipped markup, which is the loading state: People has
+  // no display name yet, and the page offers one route out until it has an
+  // answer. Publish ships its words, so it is never rewritten under a reader.
   assert.equal(exits[1].hidden, true);
+  assert.equal(exits[2].hidden, true);
 
   // The visible text carries the destination, so no aria-label may hold a word
   // the eye cannot read.

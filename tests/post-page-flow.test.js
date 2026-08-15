@@ -52,13 +52,15 @@ const seedOnly = (posts) => (url) => {
 // document rather than from known ids: a third one appearing anywhere — in the
 // markup, in a state panel — fails here, and so does a stray "back".
 function exits(document) {
-  return document.querySelectorAll("a").filter((link) =>
+  // A withheld route is not a route: this harness models no layout, so a hidden
+  // link still carries its words and would otherwise read as offered here.
+  return document.querySelectorAll("a").filter((link) => !link.hidden && (
     /^Open (Social|People) to |←|Back to/.test(link.textContent)
     // …and any chrome link that is on the page with no words in it. The People
     // label is now written from the loaded display name, so a name the page
     // cannot put in a label leaves a focusable link holding nothing — the one
     // failure a text-only match cannot see, because there is no text to match.
-    || (link.classList.contains("detail-back") && !link.hidden));
+    || link.classList.contains("detail-back")));
 }
 
 // Social in every state, People wherever there is a post to belong to one.
@@ -67,10 +69,15 @@ function exits(document) {
 // and a state with no post withdraws the link rather than softening its words.
 // `peopleHref` of null asserts that withdrawal — counted through the list, so
 // no node is ever compared against null.
-function assertExits(page, peopleHref, where) {
+//
+// Publish is the third, and it belongs to the reader rather than to the post:
+// every settled state offers it, and only a lookup still in flight does not, so
+// `publish: false` is the loading state's business alone.
+function assertExits(page, peopleHref, where, { publish = true } = {}) {
   const links = exits(page.document);
   const expected = [[SOCIAL.label, SOCIAL.href]];
   if (peopleHref) expected.push([PEOPLE.label, peopleHref]);
+  if (publish) expected.push([PUBLISH.label, PUBLISH.href]);
   assert.deepEqual(
     links.map((link) => [textOf(link), link.href]),
     expected,
@@ -88,6 +95,7 @@ const IDENTITY = "Display names are invented for this demo or chosen by whoever 
 
 const SOCIAL = { label: "Open the full Social feed", href: "/social.html" };
 const PEOPLE = { label: "Open People to see Mina Okafor’s other image posts", href: "/profile.html" };
+const PUBLISH = { label: "Open Social to publish a post of your own", href: "/social.html#post-form" };
 const MINA = "/profile.html?author=Mina%20Okafor";
 
 test("a post that loads is headed by its author and reads description, image, caption, name, time", async () => {
@@ -303,7 +311,7 @@ test("the loading state is one announced line in the post's region, and takes no
     // an unexplained blank.
     assert.match(textOf(page.document.querySelector(".hero-post")),
       /Shared links like this one open a single post from Social’s shared demo feed\./);
-    assertExits(page, null, "loading");
+    assertExits(page, null, "loading", { publish: false });
     assert.equal(textOf(page.document.querySelector("#post-people")), "", "loading must not expose an empty or placeholder display name");
     assert.equal(page.document.querySelector("#post-people").hidden, true);
     // Nothing inside the waiting region is tabbable, so the exit stays the
@@ -338,7 +346,7 @@ test("the page opens already saying it is loading, and the post replaces that li
     assert.equal(panel.querySelectorAll(".detail-state-message").length, 0);
     assert.equal(panel.querySelectorAll(".detail-post").length, 0);
     // And it takes nothing away from the exit above it.
-    assertExits(page, null, "before the script runs");
+    assertExits(page, null, "before the script runs", { publish: false });
     assert.equal(tabSequence(page.document).filter((node) => node.closest("#post-detail")).length, 0);
 
     // Held open, so the script's own render of the same line can be read.

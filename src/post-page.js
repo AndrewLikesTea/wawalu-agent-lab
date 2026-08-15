@@ -73,6 +73,16 @@ async function init() {
     people.hidden = true;
   };
   aimPeople("");
+  // The publish route is not about this post, so nothing narrows it and nothing
+  // rewrites it — only whether it is standing. It is withheld while the lookup
+  // runs, where the page has one honest route out and no answer yet, and it is
+  // offered by all three settled states: a reader whose link found nothing can
+  // still have something of their own to say. A reader cannot be standing on it
+  // when it goes, because the only way back into loading is the retry button.
+  const publish = document.querySelector("#post-publish");
+  const offerPublish = (offered) => {
+    if (publish) publish.hidden = !offered;
+  };
 
   const heading = document.querySelector("#page-title");
   const nameHeading = (post) => {
@@ -87,6 +97,7 @@ async function init() {
     document.documentElement.dataset.shiplogPostDetail = "loading";
     nameHeading(null);
     offerPeople(false);
+    offerPublish(false);
     renderPostDetail(container, null, { state: "loading", id, author: requestedAuthor, returnHref: POST_EXITS.social.href });
     let post = null;
     let failed = false;
@@ -124,6 +135,7 @@ async function init() {
     nameHeading(post);
     aimPeople(post?.author ?? "");
     offerPeople(Boolean(post));
+    offerPublish(true);
     document.title = postDetailTitle(post, state);
     document.documentElement.dataset.shiplogPostDetail = "ready";
 
