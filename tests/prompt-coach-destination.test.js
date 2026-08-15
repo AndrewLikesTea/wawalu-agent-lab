@@ -295,10 +295,10 @@ test("the destination reads as one page about one thing", async () => {
 
 /* --------------------- one question, said once ---------------------------- */
 
-// The claim, in both of the shapes the page states it in: "Your pasted text
-// stays in this browser. It is not sent to a model or stored." above the field,
-// and "Your text stays in this browser: it is not sent to a model or stored."
-// inside the disclosure that says what the coach reads and keeps.
+// The claim the page states once, above the field: "Your pasted text stays in
+// this browser. It is not sent to a model or stored." The punctuation is left
+// loose so a near-duplicate that differs only in a colon still counts here and
+// pushes the total past one.
 const PRIVACY_CLAIM = /stays in this browser[.:]\s*(?:It|it) is not sent to a model or stored/g;
 
 /** Every heading rendered above the prompt field, in reading order. */
@@ -342,21 +342,29 @@ test("“Start here” names the region for a screen reader and no longer heads 
   }
 });
 
-test("the privacy promise is made twice: before the field, and where it is checkable", async () => {
+test("the privacy promise is made once, in one wording, before the field", async () => {
   const { document } = await openCoach();
 
-  // Twice is a promise a reader meets where they need it. Three times is a
-  // promise they learn to skip, so the count is pinned rather than trusted.
+  // Once, where a reader meets it before pasting. A second copy in the
+  // disclosure below said the same thing with different punctuation, which
+  // reads as two promises to compare rather than one to rely on, so the count
+  // is pinned rather than trusted.
   const rendered = textOf(document.querySelector("main"));
-  assert.equal(rendered.match(PRIVACY_CLAIM)?.length, 2,
-    "the privacy claim is stated exactly twice on the rendered page");
+  assert.equal(rendered.match(PRIVACY_CLAIM)?.length, 1,
+    "the privacy claim is stated exactly once on the rendered page");
 
   const beforeTheField = textOf(document.querySelector(".prompt-coaching-entry-static"));
   assert.match(beforeTheField, /Your pasted text stays in this browser\. It is not sent to a model or stored\./);
+
+  // The disclosure keeps the facts that statement does not carry: what the
+  // coach reads, and what it never reaches.
   assert.equal(textOf(byId(document, "prompt-coaching-preview-summary")),
     "What the coach reads and keeps");
-  assert.match(textOf(document.querySelector(".prompt-coaching-preview-static")),
-    /Your text stays in this browser: it is not sent to a model or stored\./);
+  const reads = textOf(document.querySelector(".prompt-coaching-preview-static"));
+  assert.match(reads, /reads only the text you paste and the optional model choice/);
+  assert.match(reads, /does not access your accounts, files, or customer data/);
+  assert.doesNotMatch(reads, /stays in this browser/,
+    "the disclosure must not restate where the text stays");
 });
 
 test("one name for what a reader leaves with: the coaching summary", async () => {
