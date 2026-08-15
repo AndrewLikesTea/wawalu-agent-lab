@@ -22,8 +22,9 @@ import {
   feedLinkText,
   unavailableSentence,
 } from "../src/public-merges.js";
+import { RETAINED_COUNT_KEY, RETAINED_COUNT_SCHEMA } from "../src/merged-count-retention.js";
 import { loadPublicMerges, renderPublicMergeSources } from "../src/public-merges-view.js";
-import { loadPage, parseHtml, textOf } from "./support/browser.js";
+import { loadPage, parseHtml, tabSequence, textOf } from "./support/browser.js";
 import { createElement, first, installDocument } from "./support/dom.js";
 
 installDocument();
@@ -196,6 +197,71 @@ for (const [what, fetcher, reason] of FAILURES) {
     assert.doesNotMatch(textOf(section), /\d/, `${what} left something a reader could read as a count`);
   });
 }
+
+// The retained state pins its figure and its hrefs in
+// tests/merged-count-retention.test.js. What it did not pin is the half this
+// block exists for: that the links a reader checks the number against are still
+// there, still named by repository, when the number beside them is the earlier
+// one rather than a live one. A repository name dropped from a link's text
+// there would leave two indistinguishable destinations beside a stale figure.
+test("a previously taken count keeps both feed links, each still naming its repository", async (t) => {
+  const page = await loadPage(HOME_URL, {
+    storage: { [RETAINED_COUNT_KEY]: JSON.stringify({
+      schemaVersion: RETAINED_COUNT_SCHEMA, count: 412, takenAt: "2026-07-14T09:05:00.000Z",
+    }) },
+  });
+  t.after(() => page.restore());
+  const result = await loadPublicMerges(page.document, async () => ({ ok: false, status: 403 }), page.storage);
+
+  assert.equal(result.ok, false, "nothing in this run reached a live count");
+  const section = page.document.querySelector("#public-merges");
+  assert.equal(section.dataset.state, "retained");
+  // The number is the remembered one, and it is dated and named as such.
+  const readout = page.document.querySelector("#public-merges-readout");
+  assert.match(textOf(readout), /^412 merged pull requests/);
+  assert.match(textOf(readout), /did not answer just now/);
+
+  const links = anchorsIn(page.document.querySelector("#public-merges-sources"));
+  assert.deepEqual(links.map((link) => link.getAttribute("href")), EVENTS_URLS,
+    "a stale count kept the figure and lost the way to check it");
+  assert.deepEqual(links.map(textOf), SOURCE_REPOSITORIES.map(feedLinkText));
+  for (const [index, link] of links.entries()) {
+    assert.ok(textOf(link).includes(SOURCE_REPOSITORIES[index]),
+      "the link beside a stale count does not say whose merges it goes to");
+  }
+});
+
+test("the feed links are real anchors a keyboard reaches, after the sentence that sends a reader to them", async (t) => {
+  const page = await loadPage(HOME_URL, {});
+  t.after(() => page.restore());
+  await loadPublicMerges(page.document, async () => ({ ok: false, status: 403 }));
+
+  const links = anchorsIn(page.document.querySelector("#public-merges-sources"));
+  assert.equal(links.length, EVENTS_URLS.length);
+  for (const link of links) {
+    // An anchor with an href, not a span a script listens to: the destination
+    // is in the markup, so it survives with no JavaScript running on it.
+    assert.equal(link.tagName, "A");
+    assert.match(link.getAttribute("href"), /^https:\/\/api\.github\.com\/repos\//);
+    // Nothing borrows tab order from the document: no tabindex at all, so the
+    // focus order here is the reading order.
+    assert.equal(link.getAttribute("tabindex"), null);
+  }
+
+  // And they are genuinely in the page's tab sequence, in the order the block
+  // reads them out — not merely present in the DOM.
+  const tabbed = tabSequence(page.document)
+    .filter((node) => EVENTS_URLS.includes(node.getAttribute("href")));
+  assert.deepEqual(tabbed.map((node) => node.getAttribute("href")), EVENTS_URLS,
+    "a reader tabbing the page does not arrive at both feeds in order");
+
+  // The links follow the readout, so a reader meets the absence and then what
+  // to do about it, rather than the other way round. Text nodes sit in
+  // `children` here and carry no id, hence the guard.
+  const order = [...page.document.querySelector("#public-merges").children].map((node) => node?.id);
+  assert.ok(order.indexOf("public-merges-sources") > order.indexOf("public-merges-readout"),
+    "the way to count it yourself comes before the sentence explaining it");
+});
 
 test("a response still in flight shows the reason, never a placeholder digit", async (t) => {
   const page = await loadPage(HOME_URL, {});
