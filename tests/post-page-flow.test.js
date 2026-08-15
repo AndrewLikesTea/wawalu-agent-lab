@@ -4,8 +4,9 @@
 //
 // The render layer is covered structurally in tests/post-detail.test.js. What is
 // only true end to end is here: which state the page lands in for a given
-// answer, that the retry button re-runs the real fetch and can recover, and that
-// the page's two routes out read the same words in every one of those states.
+// answer, that the retry button re-runs the real fetch and can recover, and
+// which of the page's routes onward are offered, in which order, in each of
+// those states.
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -61,21 +62,35 @@ function exits(document) {
     || (link.classList.contains("detail-back") && !link.hidden));
 }
 
-// Social in every state, People wherever there is a post to belong to one.
-// Nothing rewrites either label; the People link's destination may narrow to a
-// display name the page can actually name, which is what the label promises,
-// and a state with no post withdraws the link rather than softening its words.
-// `peopleHref` of null asserts that withdrawal — counted through the list, so
-// no node is ever compared against null.
+// The feed and the composer in every state, the display name's own view
+// wherever there is a post to belong to one — and that one first, because it is
+// the narrowest of the three. Nothing rewrites a label; the People link's
+// destination narrows to a display name the page can actually name, which is
+// what its label promises, and a state with no post withdraws the link rather
+// than softening its words. `peopleHref` of null asserts that withdrawal —
+// counted through the list, so no node is ever compared against null.
 function assertExits(page, peopleHref, where) {
   const links = exits(page.document);
-  const expected = [[SOCIAL.label, SOCIAL.href]];
-  if (peopleHref) expected.push([PEOPLE.label, peopleHref]);
+  const expected = peopleHref ? [[PEOPLE.label, peopleHref]] : [];
+  expected.push([SOCIAL.label, SOCIAL.href], [PUBLISH.label, PUBLISH.href]);
   assert.deepEqual(
     links.map((link) => [textOf(link), link.href]),
     expected,
-    `${where}: the page's routes out`,
+    `${where}: the page's routes onward`,
   );
+  // Every one of them is a real anchor with words of its own: nothing in this
+  // row is told apart by colour, and nothing is a handler on a non-control.
+  for (const link of links) {
+    assert.equal(link.tagName, "A", `${where}: a route onward must be a link`);
+    assert.ok(textOf(link).trim(), `${where}: a route onward with no words`);
+    assert.equal(link.getAttribute("aria-label"), null, `${where}: a label the eye cannot read`);
+  }
+  // Reading order is tab order: the row is real links in the document, not a
+  // visual reordering of one.
+  const sequence = tabSequence(page.document);
+  const stops = links.map((link) => sequence.indexOf(link));
+  assert.deepEqual(stops.slice().sort((a, b) => a - b), stops, `${where}: the row's tab order left its reading order`);
+  assert.equal(stops.filter((stop) => stop < 0).length, 0, `${where}: a route onward is not reachable by Tab`);
 }
 
 // What a display name is, in the bytes Social's feed note and People's role line
@@ -88,6 +103,7 @@ const IDENTITY = "Display names are invented for this demo or chosen by whoever 
 
 const SOCIAL = { label: "Open the full Social feed", href: "/social.html" };
 const PEOPLE = { label: "Open People to see Mina Okafor’s other image posts", href: "/profile.html" };
+const PUBLISH = { label: "Publish a post on Social", href: "/social.html#post-form" };
 const MINA = "/profile.html?author=Mina%20Okafor";
 
 test("a post that loads is headed by its author and reads description, image, caption, name, time", async () => {
@@ -304,8 +320,10 @@ test("the loading state is one announced line in the post's region, and takes no
     assert.match(textOf(page.document.querySelector(".hero-post")),
       /Shared links like this one open a single post from Social’s shared demo feed\./);
     assertExits(page, null, "loading");
-    assert.equal(textOf(page.document.querySelector("#post-people")), "", "loading must not expose an empty or placeholder display name");
-    assert.equal(page.document.querySelector("#post-people").hidden, true);
+    // Not empty, not hidden: not there. Counted rather than compared against
+    // null, which walks the whole parsed page.
+    assert.equal(page.document.querySelectorAll("#post-people").length, 0,
+      "loading must not expose an empty or placeholder display name");
     // Nothing inside the waiting region is tabbable, so the exit stays the
     // first thing on the page a keyboard reader reaches after the site frame.
     assert.equal(tabSequence(page.document).filter((node) => node.closest("#post-detail")).length, 0);

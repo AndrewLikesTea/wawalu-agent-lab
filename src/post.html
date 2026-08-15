@@ -70,7 +70,7 @@
              region below is focusable until post-detail.js renders a state that
              owns an action, and when it does — the error state's retry, an
              unresolved state's link to the feed — that control now precedes the
-             two standing routes out, which is the same promise in tab order. -->
+             standing routes onward, which is the same promise in tab order. -->
         <section class="workspace workspace-single" aria-label="Post">
           <div class="list-panel">
             <!-- The initial state ships in the markup, the way src/releases.html
@@ -129,47 +129,44 @@
              place where it costs something — attached to Social's Publish post
              button as that button's accessible description, so it is announced
              at the moment of the act rather than skimmed twice beforehand. -->
-        <!-- The routes out close the page: eyebrow, heading, the post, what
-             Social is, then the links. They are the last thing a reader meets
+        <!-- The routes onward close the page: eyebrow, heading, the post, what
+             Social is, then the ways on. They are the last thing a reader meets
              rather than the first, because a way off a page is only useful once
-             the page has given what it promised. They used to sit above the
-             post, which offered two ways to leave before the thing the link was
-             shared for had been read at all. Social names People after its
-             intro and People names Social after its intro; this page names both
-             after its own content, in the same spirit.
+             the page has given what it promised. Social names People after its
+             intro and People names Social after its intro; this page names its
+             own destinations after its own content, in the same spirit.
 
-             Two links, both forward. This page is the one surface a visitor
-             reaches cold, from a link pasted into a chat window: they have no
-             "back" to undo, because they were never on Social or People to begin
-             with. So neither link says "Back", and neither carries an arrow — an
-             arrow reads as a return. Each one names its destination and says what
-             is there, in the verb Social and People already use for each other:
-             those two pages point at one another with "Open Social…" and "Open
-             People…", and this page joins that pattern rather than inventing a
-             third phrasing for the same job.
+             Three routes, all forward, narrowest first: this post's display
+             name, then the whole feed, then publishing a post of your own. This
+             page is the one surface a visitor reaches cold, from a link pasted
+             into a chat window — they have no "back" to undo, because they were
+             never on Social or People to begin with. So none of them says
+             "Back" and none carries an arrow; an arrow reads as a return. Each
+             names its destination in its own visible text, so nothing here is
+             told apart by colour and no aria-label holds a word the eye cannot
+             read, and each is a real anchor carrying .detail-back — which is
+             where the site's own focus ring and this row's spacing come from,
+             with no new rule in styles.css.
 
-             The People link says "display name" because that is the term Social's
-             composer, Social's feed filter and the People picker all use for the
-             thing being chosen. It goes to People plainly until the page knows
-             whose post this is; post-page.js narrows the destination to that one
-             display name's view once the URL or the loaded post names them. Only
-             the destination narrows — the words never change under a reader.
+             Two of the three are true whatever the lookup did, so they ship
+             here and no script rewrites them: the feed exists whether or not
+             this one post does, and so does Social's composer, which is why the
+             publish route points at the same #post-form entry People's own
+             "Publish a post on Social" link points at rather than a second
+             address for one panel.
 
-             Both links ship in the markup and no script rewrites their text, so
-             the words never change under a reader: they read the same while the
-             post is loading and once it has loaded. Their visible text carries
-             the destination — no aria-label holding a word the eye cannot read.
-
-             What can change is whether the People link is offered. Its words
-             promise one display name's other posts, and a lookup that ends in
-             not-found or error has no post and so no display name to stand
-             behind them; post-page.js removes it from the document in those two
-             states and restores it here, in this position, on the next attempt.
-             The Social link is offered in all four states — the feed is true
-             whether or not this one post is. -->
+             The third is one display name's own view, and its words promise
+             that person's other posts — so it cannot ship in the markup. Until
+             a post loads there is no name to put in it, and an ?author= on the
+             arriving URL is what the link claimed, not a name this page
+             resolved. post-page.js builds it when a post loads and puts it
+             first in this row, and it is absent from the document in the three
+             states that have no post. Absent, not emptied and not hidden: a
+             link on the page is a promise the page can keep, and that one it
+             cannot. -->
         <p class="detail-page-exits">
           <a class="detail-back detail-page-back" id="post-back" href="/social.html">Open the full Social feed</a>
-          <a class="detail-back detail-page-back" id="post-people" href="/profile.html" hidden></a>
+          <a class="detail-back detail-page-back" id="post-publish" href="/social.html#post-form">Publish a post on Social</a>
         </p>
       </section>
       </main>

@@ -23,24 +23,31 @@ import { renderImageUnavailable } from "./image-description.js";
 import { pageTitle, recordTitle } from "./page-title.js";
 import { normalizeImage } from "./social.js";
 
-// The two routes out of a permalink, named once and shipped in src/post.html.
+// The three routes onward from a permalink, named once and pinned against
+// src/post.html, which ships two of them.
 //
-// Neither is a "back". A permalink is the one page in this product a visitor can
+// None is a "back". A permalink is the one page in this product a visitor can
 // meet cold — pasted into a chat window, opened by someone who has never seen
-// Social — and there is nothing behind them to return to. So both links point
+// Social — and there is nothing behind them to return to. So all three point
 // forward, name their destination, and say what is there, in the verb the two
 // feed pages already use for each other ("Open People when you want…", "Open
 // Social when you want…"). The label says People, not Profile: this site has a
 // People page and no page called Profile.
 //
-// The labels are constants because nothing may rewrite them mid-visit. They are
-// pinned against src/post.html, which ships both links. Social stands in all
-// four states. People is withdrawn by post-page.js in not-found and error,
-// where there is no post and so no display name its words can be about — the
+// `publish` is the composer, at the anchor Social itself opens on — the same
+// /social.html#post-form that People's own publish route and the Paint handoff
+// use, so all three enter the panel the one way it can be entered by URL. Its
+// label is People's, word for word: one act, one name for it.
+//
+// The labels are constants because nothing may rewrite them mid-visit. Social
+// and the composer stand in all four states — the feed and the composer are
+// there whether or not this one post is. People is offered only where a post
+// loaded, because there alone is a display name its words can be about; the
 // label is never softened to fit a state, it is simply not offered in one.
 export const POST_EXITS = {
   social: { href: "/social.html", label: "Open the full Social feed" },
   people: { href: "/profile.html" },
+  publish: { href: "/social.html#post-form", label: "Publish a post on Social" },
 };
 const MAX_RETURN_AUTHOR_LENGTH = 60;
 

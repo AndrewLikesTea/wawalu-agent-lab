@@ -30,49 +30,56 @@ async function init() {
   const params = new URLSearchParams(window.location.search);
   const id = params.get("id") ?? "";
   const requestedAuthor = (params.get("author") ?? "").trim();
-  // Both routes out ship as words in src/post.html and nothing here rewrites
-  // them, so a label never changes under a reader mid-visit: whatever a link
-  // says when it is on the page is what it said a moment ago. The Social link
-  // is complete as shipped. Only the People link's destination is refined, and
-  // only ever narrowed to the display name the words already promise — first
-  // from the ?author= the arriving link carried, then from the post itself once
-  // one loads. A name that never resolves leaves it on People plainly.
-  const people = document.querySelector("#post-people");
-  const exits = people?.parentNode ?? null;
-  const aimPeople = (author) => {
-    if (!people) return;
-    people.href = postPeopleHref(window.location.search, author);
-    people.textContent = postPeopleLabel(author);
+  // Two of the three routes onward ship as words in src/post.html and nothing
+  // here rewrites them, so a label never changes under a reader mid-visit:
+  // whatever a link says when it is on the page is what it said a moment ago.
+  // The feed link and the composer link are complete as shipped, and they are
+  // right in all four states — the feed and the composer exist whether or not
+  // this one post does.
+  //
+  // The third is this post's display name, and it is built here because it
+  // cannot be shipped: its words promise one person's other image posts, and
+  // until a post loads there is no person to name. An ?author= on the arriving
+  // URL is what the link claimed, not a name this page resolved, so it does not
+  // qualify either — the label and the destination are both taken from the
+  // loaded post and from nothing else.
+  //
+  // It goes first in the row, ahead of the feed and the composer: narrowest
+  // route first, then the whole feed, then publishing your own. It is a plain
+  // anchor carrying the same classes as its two neighbours, which is where its
+  // focus ring, its spacing and its type come from — no new rule, and a real
+  // link rather than a handler on something that is not one.
+  const exits = document.querySelector(".detail-page-exits");
+  const back = document.querySelector("#post-back");
+  let people = null;
+  // Absent, not hidden and not emptied, in every state that has no post. A
+  // hidden link is still a node in the document, and a link with no words in it
+  // is a stop a screen reader announces with nothing to say; the page offers
+  // this one only where it can keep the promise its words make.
+  //
+  // A reader can be standing on it when it goes — so if it holds focus, focus
+  // moves first to the route beside it rather than falling to the document and
+  // costing them their place.
+  const withdrawPeople = () => {
+    if (!people?.parentNode) return;
+    if (document.activeElement === people) back?.focus?.();
+    people.remove();
   };
-  // …and whether it is offered at all. Its words promise "this display name's
-  // other image posts", which only means something while there is a post, or
-  // while one may still arrive. When the lookup settles on not-found or error
-  // there is no post and therefore no display name this page can point at — an
-  // ?author= in the URL is what the arriving link claimed, not a name the page
-  // resolved — so the link is removed from the document rather than left
-  // pointing at People-in-general under words that promise one person. Removed,
-  // not dimmed and not left in place: a link that is on the page is a promise
-  // the page can keep, and this one it cannot.
-  //
-  // It comes back on the next attempt. A retry re-enters the loading state,
-  // where a post may yet arrive, so the link is restored to the exits paragraph
-  // in its shipped position — Social first, People second — before every load.
-  //
-  // A reader can be standing on that link at the moment it goes — they tabbed
-  // to it while the lookup was still running, and the lookup then failed.
-  // Removing the focused element would drop focus to the document and cost them
-  // their place, so focus moves one stop back first, to the exit that is still
-  // there and sits beside it in the same paragraph.
-  const offerPeople = (offered) => {
-    if (!people || !exits) return;
-    if (offered) {
-      people.hidden = false;
+  const offerPeople = (author) => {
+    const label = postPeopleLabel(author);
+    if (!label || !exits || !back) {
+      withdrawPeople();
       return;
     }
-    if (document.activeElement === people) document.querySelector("#post-back")?.focus?.();
-    people.hidden = true;
+    if (!people) {
+      people = document.createElement("a");
+      people.className = "detail-back detail-page-back";
+      people.id = "post-people";
+    }
+    people.href = postPeopleHref(window.location.search, author);
+    people.textContent = label;
+    if (!people.parentNode) exits.insertBefore(people, back);
   };
-  aimPeople("");
 
   const heading = document.querySelector("#page-title");
   const nameHeading = (post) => {
@@ -86,7 +93,7 @@ async function init() {
     // page (a test, a smoke check) sees the second fetch as its own load.
     document.documentElement.dataset.shiplogPostDetail = "loading";
     nameHeading(null);
-    offerPeople(false);
+    withdrawPeople();
     renderPostDetail(container, null, { state: "loading", id, author: requestedAuthor, returnHref: POST_EXITS.social.href });
     let post = null;
     let failed = false;
@@ -122,8 +129,10 @@ async function init() {
       onRetry: () => load({ fromRetry: true }),
     });
     nameHeading(post);
-    aimPeople(post?.author ?? "");
-    offerPeople(Boolean(post));
+    // The loaded post's own author, or nothing: a state with no post withdraws
+    // the link rather than pointing it at People-in-general under words that
+    // promise one person.
+    offerPeople(post?.author ?? "");
     document.title = postDetailTitle(post, state);
     document.documentElement.dataset.shiplogPostDetail = "ready";
 
