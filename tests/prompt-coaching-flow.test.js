@@ -402,8 +402,13 @@ test("the boundary is stated in the markup, before any script runs", async () =>
     assert.ok(preview, "the preview must ship in the page markup");
     const claim = textOf(preview.querySelector(".prompt-coaching-preview-static"));
     assert.match(claim, /reads only the text you paste and the optional model choice/);
-    assert.match(claim, /not sent to a model or stored/);
     assert.match(claim, /does not access your accounts, files, or customer data/);
+    // Where the text stays is promised once, above the field, and this block
+    // does not say it a second time in different punctuation. That statement is
+    // static too, so the fact is still readable before any script runs.
+    assert.doesNotMatch(claim, /stays in this browser/);
+    assert.match(textOf(document.querySelector(".prompt-coaching-entry-static")),
+      /Your pasted text stays in this browser\. It is not sent to a model or stored\./);
     // A privacy claim a reader can only see once JavaScript succeeds is a claim
     // they cannot rely on, so this one does not wait for the entry module. And
     // it says how the analysis runs rather than how many files a build emits:
