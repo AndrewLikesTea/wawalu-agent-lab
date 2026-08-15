@@ -23,7 +23,7 @@ import { renderImageUnavailable } from "./image-description.js";
 import { pageTitle, recordTitle } from "./page-title.js";
 import { normalizeImage } from "./social.js";
 
-// The two routes out of a permalink, named once and shipped in src/post.html.
+// The three routes out of a permalink, named once and shipped in src/post.html.
 //
 // Neither is a "back". A permalink is the one page in this product a visitor can
 // meet cold — pasted into a chat window, opened by someone who has never seen
@@ -38,9 +38,16 @@ import { normalizeImage } from "./social.js";
 // four states. People is withdrawn by post-page.js in not-found and error,
 // where there is no post and so no display name its words can be about — the
 // label is never softened to fit a state, it is simply not offered in one.
+//
+// `publish` is the third, and the one act this page cannot perform: it goes to
+// the fragment src/social-page.js already opens the composer on, so a reader who
+// wants to write their own post lands in that form rather than beside a
+// collapsed panel. Its words are about the reader, not about this post, so it
+// stands in every state that has settled — loaded, not-found and error alike.
 export const POST_EXITS = {
   social: { href: "/social.html", label: "Open the full Social feed" },
   people: { href: "/profile.html" },
+  publish: { href: "/social.html#post-form", label: "Open Social to publish a post of your own" },
 };
 const MAX_RETURN_AUTHOR_LENGTH = 60;
 
