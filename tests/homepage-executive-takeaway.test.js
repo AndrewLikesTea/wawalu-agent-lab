@@ -116,14 +116,51 @@ test("the recoverable figure is stated once on the first screen, and it is state
     assert.equal(times(takeaway, figure), 1, `the takeaway must be where ${figure} is stated`);
   }
 
-  // The paragraph still does its own job: it says a worked decision is already
-  // computed, whose it is, and what reading it costs. It just does not do the
-  // takeaway's job as well.
-  assert.match(intro, /A worked decision is already computed on the AI FinOps page/);
+  // The paragraph still does its own job: it names where the decision lives,
+  // says what the example is, and says what reading it costs. It just does not
+  // do the takeaway's job as well.
+  assert.match(intro, /AI FinOps publishes a worked decision/);
   assert.match(intro, /bundled synthetic example/);
   assert.match(intro, /no export of yours, no sign-in, and no account/);
   assert.doesNotMatch(intro, /\$[\d,]+|\d+%/,
     "the paragraph that introduces the example must not restate the figures the takeaway carries");
+});
+
+/** Everything a visitor reads above the "Executive takeaway" heading. */
+function leadOf(document) {
+  const read = [];
+  for (const child of document.getElementById("top").childElements) {
+    if (child.classList.contains("executive-takeaway")) break;
+    read.push(textOf(child));
+  }
+  return read.join(" ");
+}
+
+test("the lead above the takeaway states the question, once, with no figure in it", async (t) => {
+  const document = await openTakeaway(t, { writeText: async () => {} });
+  const lead = leadOf(document);
+  const sentences = lead.split(/(?<=[.?])\s+/).filter(Boolean);
+
+  // #1767: the lead used to refer a first-time visitor to an increase this
+  // page had never described. It states the question the worked decision
+  // answers instead, and it names the page that answers it.
+  assert.doesNotMatch(lead, /driving the increase/);
+  assert.doesNotMatch(lead, /the (?:rise|growth|spike|trend|increase)\b/i,
+    "no sentence in the lead may refer to a change this page has not described");
+  const question = sentences.find((sentence) => sentence.includes("AI FinOps"));
+  assert.ok(question, "one sentence in the lead must name the page the decision lives on");
+  assert.ok(question.split(/\s+/).length <= 30,
+    `the question runs to ${question.split(/\s+/).length} words`);
+  assert.match(question, /where do we stand on AI spend, and what should we do first\?/);
+
+  // Said once and said plainly: the caveat is one sentence here, not the three
+  // restatements this block used to carry, and it is not a trailing clause.
+  assert.equal(lead.split("bundled synthetic example").length - 1, 1,
+    "the lead must name the sample data exactly once");
+  assert.ok(sentences.includes("Reading it takes no export of yours, no sign-in, and no account."),
+    "what reading the example costs must be its own sentence");
+  assert.doesNotMatch(lead, /\$[\d,]+|\d/,
+    "no figure may read above the Executive takeaway heading");
 });
 
 async function openContextualFollowUp(t, request) {
