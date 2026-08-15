@@ -158,6 +158,20 @@ export function unavailableReason(error) {
 export const unavailableSentence = (reason) => `${reason}, so there is no count to show.`;
 
 /**
+ * The whole of what a surface says when a settled request left no count.
+ *
+ * Two sentences, in this order, because one of them is not enough to leave a
+ * reader with: the honest absence, and then what was being counted, where, and
+ * that the feeds to count it in are linked right beside it. Both surfaces render
+ * this list rather than composing their own — the home page's counted-figure
+ * block and the Agent observatory's headline figure are the same claim about the
+ * same response, so they may not describe one outcome in two sets of words.
+ * NEITHER SENTENCE CONTAINS A DIGIT, for the reason the reasons do not.
+ */
+export const unavailableSentences = (reason = UNAVAILABLE_REASONS.unreachable) =>
+  [unavailableSentence(reason), COUNTED_SUBJECT_SENTENCE];
+
+/**
  * The count, or the reason there is none. Never throws and never rejects.
  *
  * A response with nothing countable in it is not a zero — a zero is an answer

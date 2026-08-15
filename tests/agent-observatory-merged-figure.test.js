@@ -18,6 +18,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { UNAVAILABLE_REASONS, unavailableSentences } from "../src/public-merges.js";
 import {
   EVENTS_URLS,
   MERGED_FIGURE_COPY,
@@ -174,15 +175,20 @@ test("the synthetic rows the page falls back to never reach the headline slot", 
 });
 
 test("no number survives a GitHub failure, whatever the failure is", async () => {
+  // Each failure gets the clause it actually earned, from the shared module the
+  // home page reads its own empty state out of — so a reader is told what went
+  // wrong rather than one sentence covering five different things, and the two
+  // surfaces cannot describe one outcome differently. A payload that is not a
+  // list of events carries nothing to count, which is the empty answer.
   const failures = {
-    "a network failure": async () => { throw new Error("offline"); },
-    "a non-OK status": async () => ({ ok: false, status: 503 }),
-    "rate limiting": async () => ({ ok: false, status: 403 }),
-    "a malformed payload": async () => okResponse({ message: "Not Found" }),
-    "an empty payload": async () => okResponse([]),
+    "a network failure": [async () => { throw new Error("offline"); }, UNAVAILABLE_REASONS.unreachable],
+    "a non-OK status": [async () => ({ ok: false, status: 503 }), UNAVAILABLE_REASONS.errorStatus],
+    "rate limiting": [async () => ({ ok: false, status: 403 }), UNAVAILABLE_REASONS.rateLimited],
+    "a malformed payload": [async () => okResponse({ message: "Not Found" }), UNAVAILABLE_REASONS.empty],
+    "an empty payload": [async () => okResponse([]), UNAVAILABLE_REASONS.empty],
   };
 
-  for (const [name, fetcher] of Object.entries(failures)) {
+  for (const [name, [fetcher, reason]] of Object.entries(failures)) {
     const root = observatoryRoot();
     await loadActivity(root, fetcher);
     const readout = root.nodes["#merged-figure-readout"];
@@ -190,8 +196,8 @@ test("no number survives a GitHub failure, whatever the failure is", async () =>
     assert.equal(root.nodes["#merged-figure"].dataset.state, "unavailable", name);
     assert.equal(first(readout, "merged-figure-count"), null, `${name}: no figure element`);
     assert.doesNotMatch(readout.textContent, /\d/, `${name}: no digit may stand in the headline slot`);
-    assert.match(readout.textContent, /no count has been recorded/i,
-      `${name}: it says GitHub did not answer and nothing was recorded before`);
+    assert.deepEqual(tags(readout, "P").map((node) => node.textContent), unavailableSentences(reason),
+      `${name}: it says what happened, and then what was being counted`);
     assert.doesNotMatch(readout.textContent, /Loading/, `${name}: a failure is not still loading`);
   }
 });

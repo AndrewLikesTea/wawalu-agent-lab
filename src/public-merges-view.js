@@ -25,14 +25,13 @@
 // below survive every state, because the state with no live number is the one
 // where a reader most needs to go and count it themselves.
 import {
-  COUNTED_SUBJECT_SENTENCE,
   EVENTS_URLS,
   SOURCE_REPOSITORIES,
   UNAVAILABLE_REASONS,
   feedLinkText,
   loadMergedCount,
   mergedCountUnit,
-  unavailableSentence,
+  unavailableSentences,
 } from "./public-merges.js";
 import {
   RETAINED_LEAD,
@@ -113,10 +112,13 @@ export function renderPublicMerges(root = document, result = {}) {
     // is the honest absence; the second says what was being counted and where a
     // reader may go and count it, which is what the feed links below are for.
     // The live region announces both, so a reader who arrives after the failure
-    // hears the same thing a reader who was waiting hears.
-    value.textContent = unavailableSentence(result?.reason ?? UNAVAILABLE_REASONS.unreachable);
+    // hears the same thing a reader who was waiting hears. They are the shared
+    // module's sentences, so the observatory's empty state reads word for word
+    // the same as this one.
+    const [absence, subject] = unavailableSentences(result?.reason ?? UNAVAILABLE_REASONS.unreachable);
+    value.textContent = absence;
     readout.replaceChildren(value);
-    appendText(readout, "p", COUNTED_SUBJECT_SENTENCE);
+    appendText(readout, "p", subject);
   }
   return section;
 }
