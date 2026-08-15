@@ -18,6 +18,16 @@
 // element, so these assertions count nodes rather than reading a `hidden` flag,
 // which is exactly the difference a screen reader notices.
 //
+// WHAT #1772 ADDED. The connection line was a separate string that kept riding
+// along: it left the document once the modules ran, but both pages still
+// AUTHORED the promise into their markup, so the frame before hydration read
+// "New posts will appear here on their own. Loading the Social feed…" — the
+// promise first, then the admission there was nothing yet. And a failed load
+// still carried it, where "reload the page to see the latest" stood beside the
+// panel's Retry as a second instruction for one failure. The two tests at the
+// end of each page's section below walk one page through loading, failed and
+// loaded and count the promise in the rendered text: zero, zero, exactly one.
+//
 // HARNESS NOTES. The double reflects no properties, so a button's type is read
 // off the property and never off getAttribute; it rejects the universal and
 // descendant selectors, so ancestor walks go through parentNode by hand; and
@@ -71,6 +81,19 @@ function collapsibleAncestor(node) {
 }
 
 const classesOf = (node) => (node?.getAttribute("class") ?? "").split(" ").filter(Boolean);
+
+/**
+ * Cards a reader can actually read. The loading placeholders carry the same
+ * class as the real thing, so counting the class alone reports a full grid to a
+ * test that is standing in the middle of a load.
+ */
+const rendered = (document, selector) => document.querySelectorAll(selector)
+  .filter((node) => !classesOf(node).some((name) => name.endsWith("-skeleton")))
+  .length;
+
+/** How many times the page says the promise, in the text a reader is given. */
+const promiseCount = (document, sentence) =>
+  (textOf(document.body).split(sentence).length - 1);
 
 /* --------------------------------- the machine ---------------------------- */
 
@@ -238,6 +261,46 @@ test("Social's count is the number of cards under the filters actually set", asy
   assert.doesNotMatch(textOf(count), /Counting/);
 });
 
+test("Social's promise about new posts is said only where there is a feed for them", async (t) => {
+  const page = await loadPage(SOCIAL_PAGE, {});
+  t.after(() => page.restore());
+  const { document } = page;
+  const promise = "New posts will appear here on their own.";
+
+  // The shipped frame, before any module runs. It used to carry the promise
+  // authored directly above "Loading the Social feed…", which is the whole of
+  // #1772: two statuses at once, and the one that could not be true yet first.
+  assert.equal(promiseCount(document, promise), 0);
+  assert.equal((textOf(document.body).match(/Loading the Social feed…/g) ?? []).length, 1);
+
+  // Loading: still one statement, and it is the wait.
+  // A retry the panel can offer, so the failed state below is the one a reader
+  // gets: the shared status only builds a control when there is something for it
+  // to run.
+  const feed = mountSocialFeed(document, { posts: [], state: "loading", onRetry: () => {} });
+  assert.equal(promiseCount(document, promise), 0);
+  assert.equal(document.querySelectorAll(".feed-connection").length, 0);
+  assert.equal(textOf(document.querySelector("#feed-state").querySelector(".state-title")), "Loading the Social feed…");
+
+  // Failed: the panel's message and its Retry are the page's whole status. A
+  // connection line here would be a second instruction — reload the page —
+  // beside a button that says press this.
+  feed.setState("error");
+  const failure = document.querySelector(".empty-state-error");
+  assert.match(textOf(failure), /Social posts could not be loaded\./);
+  assert.equal(failure.querySelectorAll(".feed-status-action").length, 1);
+  assert.equal(promiseCount(document, promise), 0);
+  assert.equal(document.querySelectorAll(".feed-connection").length, 0);
+  assert.doesNotMatch(textOf(document.body), /will not appear here/);
+
+  // Loaded: there is a feed for new posts to arrive in, so the promise is said,
+  // once, in its authored slot.
+  feed.seed(MIXED);
+  assert.equal(rendered(document, ".post-card"), 3);
+  assert.equal(promiseCount(document, promise), 1);
+  assert.equal(document.querySelectorAll(".feed-connection").length, 1);
+});
+
 /* ---------------------------------- People -------------------------------- */
 
 test("People says one thing while it loads, and the other three lines are not on the page", async (t) => {
@@ -384,4 +447,37 @@ test("People's chooser is inoperable until there is something to choose between"
   assert.match(textOf(document.querySelector("#profile-summary")), /^2 image posts · 2 posts in total/);
   assert.equal(document.querySelectorAll(".feed-connection").length, 1);
   assert.equal(document.querySelectorAll(".feed-create").length, 1);
+});
+
+test("People's promise about new image posts is said only where there is a grid for them", async (t) => {
+  const page = await loadPage(PEOPLE_PAGE, {});
+  t.after(() => page.restore());
+  const { document } = page;
+  const promise = "New image posts will appear here on their own.";
+
+  // The shipped frame: one statement, and it is the one over the grid.
+  assert.equal(promiseCount(document, promise), 0);
+  assert.equal((textOf(document.body).match(/Loading image posts…/g) ?? []).length, 1);
+
+  // With a retry to run, so the failed panel below builds the control a reader
+  // is actually given.
+  const profile = mountProfile(document, { posts: [], author: "Zed", state: "loading", onRetry: () => {} });
+  assert.equal(promiseCount(document, promise), 0);
+  assert.equal(document.querySelectorAll(".feed-connection").length, 0);
+  assert.equal(textOf(document.querySelector("#profile-feed-status")), "Loading image posts…");
+
+  // Failed: the panel names it and holds the one control that retries it.
+  profile.setState("error");
+  const failure = document.querySelector("#profile-feed-status");
+  assert.match(textOf(failure), /Image posts could not be loaded\./);
+  assert.equal(failure.querySelectorAll(".feed-status-action").length, 1);
+  assert.equal(promiseCount(document, promise), 0);
+  assert.equal(document.querySelectorAll(".feed-connection").length, 0);
+  assert.doesNotMatch(textOf(document.body), /will not appear here/);
+
+  // Loaded: the promise is said once, beside the tiles it is about.
+  profile.seed(MIXED);
+  assert.equal(rendered(document, ".profile-tile"), 2);
+  assert.equal(promiseCount(document, promise), 1);
+  assert.equal(document.querySelectorAll(".feed-connection").length, 1);
 });

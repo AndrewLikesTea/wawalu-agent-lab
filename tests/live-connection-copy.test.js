@@ -10,11 +10,23 @@
 // wait, on screen and in the announcement order.
 //
 // WHAT IS PINNED HERE. For each page and each of the three states: the sentence
-// a reader actually sees, that the connecting frame carries exactly one
+// a reader actually sees, that a page showing a feed carries exactly one
 // connection status line, and the two negatives the rewrite exists for — the
 // line never says "live updates" and never says the feed is loading. The
 // sentences come from src/social.js for both pages, so a reworded state cannot
 // drift between Social and People without reddening this file.
+//
+// WHERE THE LINE IS ALLOWED TO SPEAK (#1772). The rewrite above stopped the line
+// reporting the wait; it did not stop it running BESIDE the report. Both pages
+// authored the connecting sentence straight into the markup, so the frame before
+// hydration read "New posts will appear here on their own. Loading the Social
+// feed…" — a promise in front of the admission that there was nothing yet, and
+// in that order for a screen reader. The markup now ships the line wordless
+// (src/social.html, src/profile.html) and the modules write the sentence when
+// they put the line back, so the states below are asserted on the frame a reader
+// actually gets: loading says one thing, a rendered feed carries the promise
+// once, and a failed load leaves its panel to say the one thing and offer the
+// one action.
 //
 // HARNESS NOTES. The DOM double models no layout and reads text straight
 // through a closed disclosure, so a green textOf() is not on its own proof a
@@ -28,7 +40,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { loadPage, textOf } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
-import { FEED_LOADING_LINE, connectionStatusLine } from "../src/social.js";
+import { FEED_LOADING_LINE, connectionStatusLine, mountSocialFeed } from "../src/social.js";
 import { loadingSummaryText, mountProfile, profileConnectionLine } from "../src/profile.js";
 
 const SOCIAL_PAGE = new URL("../src/social.html", import.meta.url);
@@ -147,23 +159,34 @@ test("each connection state is one plain sentence, in one wording for both pages
 
 /* -------------------------------- Social -------------------------------- */
 
-test("Social's connecting frame carries one connection line, and it is not a second loading message", async (t) => {
+test("Social's loading frame says one thing, and the connection line arrives with the feed", async (t) => {
   const page = await loadPage(SOCIAL_PAGE, { routes: {} });
   t.after(() => page.restore());
   const { document } = page;
 
+  // The shipped frame, before any module runs. One statement: the feed's own.
+  const sentences = STATES.map((state) => connectionStatusLine(state));
+  assert.equal(textOf(document.querySelector("#feed-state")), FEED_LOADING_LINE);
+  assert.equal(textOf(document.querySelector("#feed-status")), "");
+  assert.equal(connectionLineCount(document, sentences), 0, "the loading frame promises posts it has not got yet");
+  assert.doesNotMatch(textOf(document.body), /New posts will appear here on their own/);
+
+  // Mounted and still fetching: the line is not on the page at all — absent, not
+  // hidden, because a hidden line is still text a screen reader is walked
+  // through.
+  const feed = mountSocialFeed(document, { posts: [], state: "loading" });
+  assert.equal(document.querySelectorAll(".feed-connection").length, 0);
+  assert.equal(connectionLineCount(document, sentences), 0);
+
+  // And it arrives with the posts, saying what the connection is for, in its
+  // authored slot and outside any disclosure a reader may not have opened.
+  feed.seed([POST]);
   const status = document.querySelector("#feed-status");
   assert.equal(textOf(status), connectionStatusLine("connecting"));
   assert.equal(foldedAway(status), false, "the connection line ships inside a disclosure a reader may not have opened");
-
-  // The page's one statement that the feed is loading is the feed's own line;
-  // the connection line beside it says what the connection is for instead.
-  assert.equal(textOf(document.querySelector("#feed-state")), FEED_LOADING_LINE);
   assert.doesNotMatch(textOf(status), /live updates/i);
   assert.doesNotMatch(textOf(status), /loading|connecting/i, "two lines are reporting the same wait");
-
-  const sentences = STATES.map((state) => connectionStatusLine(state));
-  assert.equal(connectionLineCount(document, sentences), 1, "the connecting frame renders more than one connection status line");
+  assert.equal(connectionLineCount(document, sentences), 1, "the rendered feed carries more than one connection status line");
 });
 
 test("Social's settled feed states what the connection gives the reader", async (t) => {
@@ -189,7 +212,7 @@ test("Social's settled feed states what the connection gives the reader", async 
   assert.equal(textOf(status), "New posts will not appear here, so reload the page to see the latest.");
 });
 
-test("Social's failed first load names the consequence and the action", async (t) => {
+test("Social's failed first load leaves the panel to name the consequence and the action", async (t) => {
   captureInterval(t);
   // No live route: the harness refuses the request, which is the failure the
   // page's own catch handles.
@@ -200,28 +223,32 @@ test("Social's failed first load names the consequence and the action", async (t
   await importPageModule("/social-page.js");
   await waitFor(() => document.documentElement.dataset.shiplogSocial === "ready", "the failed first load settled");
 
-  const status = document.querySelector("#feed-status");
-  assert.equal(textOf(status), "New posts will not appear here, so reload the page to see the latest.");
-  assert.doesNotMatch(textOf(status), /live updates/i);
-  assert.equal(connectionLineCount(document, STATES.map((state) => connectionStatusLine(state))), 1);
+  // One status, and it is the panel: what happened, and the control that undoes
+  // it. The connection line's own bad news — reload the page to see the latest —
+  // would stand beside that Retry as a second, different instruction for one
+  // failure, so in this state the line is not on the page at all.
+  const panel = document.querySelector("#feed-state");
+  assert.match(textOf(panel), /Social posts could not be loaded\./);
+  assert.match(textOf(panel), /Retry loading the feed\./);
+  assert.equal(textOf(panel.querySelector(".feed-status-action")), "Retry loading Social posts");
+  assert.equal(document.querySelectorAll(".feed-connection").length, 0);
+  assert.equal(connectionLineCount(document, STATES.map((state) => connectionStatusLine(state))), 0);
+  assert.doesNotMatch(textOf(document.body), /reload the page to see the latest/);
 });
 
 /* -------------------------------- People -------------------------------- */
 
-test("People's connecting frame says Social's sentence with People's noun", async (t) => {
+test("People's loading frame says one thing, and the connection line arrives with the grid", async (t) => {
   const page = await loadPage(PEOPLE_PAGE, { routes: {} });
   t.after(() => page.restore());
   const { document } = page;
 
-  const status = document.querySelector("#profile-status");
-  assert.equal(textOf(status), "New image posts will appear here on their own.");
-  assert.equal(foldedAway(status), false, "the connection line ships inside a disclosure a reader may not have opened");
-  assert.equal(textOf(document.querySelector("#profile-feed-status")), loadingSummaryText("Ari"));
-  assert.doesNotMatch(textOf(status), /live updates/i);
-  assert.doesNotMatch(textOf(status), /loading|connecting/i, "two lines are reporting the same wait");
-
+  // The shipped frame: the line over the grid, and no promise in front of it.
   const sentences = STATES.map((state) => profileConnectionLine(state));
-  assert.equal(connectionLineCount(document, sentences), 1, "the connecting frame renders more than one connection status line");
+  assert.equal(textOf(document.querySelector("#profile-feed-status")), loadingSummaryText("Ari"));
+  assert.equal(textOf(document.querySelector("#profile-status")), "");
+  assert.equal(connectionLineCount(document, sentences), 0, "the loading frame promises image posts it has not got yet");
+  assert.doesNotMatch(textOf(document.body), /New image posts will appear here on their own/);
 
   // And once the module runs, the connection line is not on the page at all
   // while the fetch is open: it promises image posts nobody has seen yet, beside
@@ -232,10 +259,16 @@ test("People's connecting frame says Social's sentence with People's noun", asyn
   assert.equal(connectionLineCount(document, sentences), 0);
   assert.doesNotMatch(textOf(document.body), /New image posts will appear here on their own/);
 
-  // It returns, in one wording and in its authored slot, the moment the feed
-  // answers.
+  // It arrives, in one wording and in its authored slot, the moment the feed
+  // answers — Social's sentence with People's noun, and not a second report of
+  // the wait it just replaced.
   profile.seed([POST]);
   profile.setAuthor(POST.author);
+  const status = document.querySelector("#profile-status");
+  assert.equal(textOf(status), "New image posts will appear here on their own.");
+  assert.equal(foldedAway(status), false, "the connection line ships inside a disclosure a reader may not have opened");
+  assert.doesNotMatch(textOf(status), /live updates/i);
+  assert.doesNotMatch(textOf(status), /loading|connecting/i, "two lines are reporting the same wait");
   assert.equal(document.querySelectorAll(".feed-connection").length, 1);
   assert.equal(connectionLineCount(document, sentences), 1);
 });

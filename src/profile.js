@@ -779,7 +779,12 @@ export function mountProfile(root, options = {}) {
     feedPresence(elements.summary),
     feedPresence(root.querySelector(".feed-create")),
   ];
-  const connectionLine = feedPresence(root.querySelector(".feed-connection"));
+  // The connection line ships empty and `hidden` (src/profile.html) so the frame
+  // before this module runs says one thing: that the image posts are loading.
+  // The attribute is dropped once, here, and presence decides the rest.
+  const connection = root.querySelector(".feed-connection");
+  connection?.removeAttribute("hidden");
+  const connectionLine = feedPresence(connection);
 
   let posts = options.posts ?? [];
   let state = options.state ?? "ready";
@@ -810,13 +815,19 @@ export function mountProfile(root, options = {}) {
       elements.heading.textContent = profileResultsHeading(author, counted ? mine.length : null);
     }
     // The connection line until the first fetch answers and profile-page.js
-    // writes the settled one over it. It states what the connection will give
-    // the reader and leaves the wait to the line over the grid, which is the
-    // page's one statement that the image posts are still loading. It names
-    // nobody: the heading above states whose posts are being counted, so a
+    // writes the settled one over it. The markup ships it wordless, so this is
+    // also where a page whose data layer never answers gets its one sentence:
+    // while the first fetch is open, and whenever the line comes back blank. It
+    // states what the connection will give the reader and leaves the wait to the
+    // line over the grid, which is the page's one statement that the image posts
+    // are still loading — and presence below keeps the two apart, because a
+    // sentence written into a line that is off the page is not read out. It
+    // names nobody: the heading above states whose posts are being counted, so a
     // reader who switches names mid-load reads one moved heading rather than a
     // display name repeated down the region.
-    if (elements.status && state === "loading") elements.status.textContent = profileConnectionLine("connecting");
+    if (elements.status && (state === "loading" || !elements.status.textContent)) {
+      elements.status.textContent = profileConnectionLine("connecting");
+    }
     // The line above the picker, written from the same name the heading states,
     // so the page never says one name is showing while another is filtering.
     if (elements.pickerNote) {
@@ -845,11 +856,15 @@ export function mountProfile(root, options = {}) {
       state, total: recoverable ? posts.length : mine.length, visible: mine.length, filtering: recoverable,
     });
     for (const line of waiting) line.present(phase !== "loading");
-    // The promise leaves in one more state than the other two. "New image posts
+    // The promise speaks only where there is a grid for new image posts to
+    // arrive in: one with tiles, and one waiting for its first. "New image posts
     // will appear here on their own." over a grid the picker has emptied gives
     // the wrong reason for the empty screen and asks the reader to wait, when
-    // what they need is the one control the panel below is holding out.
-    connectionLine.present(phase !== "loading" && phase !== "filtered-empty");
+    // what they need is the one control the panel below is holding out; over a
+    // failed load it is a second instruction beside the panel's Retry; and over
+    // an open fetch it is a promise standing on the line that is already saying
+    // the image posts are still loading.
+    connectionLine.present(phase === "loaded" || phase === "empty");
     // The page's one voice carries the panel's way out. An empty grid with
     // pictures under other display names is a filtered dead end, so the
     // announcement offers the reset rather than the invitation into Paint that

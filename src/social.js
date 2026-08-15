@@ -860,7 +860,14 @@ export function mountSocialFeed(root, options = {}) {
   // feed…", so a waiting reader met three sentences about one wait. They leave
   // the document while the feed is loading and come back with the answer.
   const countPresence = feedPresence(count);
-  const connectionPresence = feedPresence(root.querySelector(".feed-connection"));
+  // The connection line ships empty and `hidden` (src/social.html) so that the
+  // frame before this module runs states one thing — that the feed is loading.
+  // Everything about the line from here is decided in code: this drops the
+  // attribute once, and presence below decides which states carry it at all.
+  const connection = root.querySelector(".feed-connection");
+  connection?.removeAttribute("hidden");
+  const connectionPresence = feedPresence(connection);
+  const connectionText = root.querySelector("#feed-status");
 
   let posts = options.posts ?? [];
   let state = options.state ?? "ready";
@@ -898,11 +905,25 @@ export function mountSocialFeed(root, options = {}) {
     // accessibility tree, and the point is that a page with no answer yet makes
     // no claim at all.
     countPresence.present(phase !== "loading");
-    // The promise goes with it, and it also goes when the filters have emptied
-    // the feed: "New posts will appear here on their own." standing over a panel
-    // saying nothing matches answers a reader's "why is this empty?" with the
-    // wrong reason, and tells them to wait when the fix is one control away.
-    connectionPresence.present(phase !== "loading" && phase !== "filtered-empty");
+    // The promise goes with it, and it speaks only in the two states that have
+    // a feed for new posts to arrive in: one with posts, and one waiting for its
+    // first. It leaves while a fetch is open, because the status region is
+    // already reporting that wait and a promise beside it is a second thing to
+    // read. It leaves when the filters have emptied the feed, because "New posts
+    // will appear here on their own." over a panel saying nothing matches
+    // answers "why is this empty?" with the wrong reason and tells a reader to
+    // wait when the fix is one control away. And it leaves when the load failed,
+    // where the panel below is the one message and its Retry is the one action:
+    // a second line saying to reload the page instead is a rival instruction.
+    const connected = phase === "loaded" || phase === "empty";
+    connectionPresence.present(connected);
+    // The connecting sentence, written here rather than authored in the markup,
+    // because the markup frame is the loading frame. Only into a line that has
+    // no words yet, so the settled sentence social-page.js writes over it
+    // survives the next filter change.
+    if (connected && connectionText && !connectionText.textContent) {
+      connectionText.textContent = connectionStatusLine("connecting");
+    }
     // Nothing to filter yet, so the menus and their reset say so with the one
     // attribute that also takes them out of the tab order. No focus is trapped:
     // a disabled control simply stops being a stop.

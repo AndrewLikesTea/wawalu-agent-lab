@@ -222,16 +222,23 @@
                  are showing, and which menus narrowed them. -->
             <button class="clear-filters social-clear" id="post-filter-clear" type="button">Clear filters</button>
           </div>
-          <div class="feed-connection">
+          <div class="feed-connection" hidden>
             <span class="live-dot" aria-hidden="true"></span>
-            <!-- The connecting sentence, for the frame before hydration. It is
-                 the promise, not a second report of the load: the line below
-                 already says the feed is loading, and this one used to say
-                 "Connecting to live updates…" beside it — two in-progress
-                 claims, and a mechanism the reader had no way to price.
-                 src/social.js owns all three states (connectionStatusLine);
-                 src/social-page.js writes the settled one over this. -->
-            <span id="feed-status">New posts will appear here on their own.</span>
+            <!-- Ships with no sentence in it. The frame before hydration is the
+                 loading frame, and the promise is not true of it: the connecting
+                 sentence used to be authored here, directly above the retrieval
+                 status below, so the page promised posts nobody had seen and
+                 then admitted it had none yet — in that order, so a screen
+                 reader met the promise first. src/social.js writes the
+                 connecting sentence when it puts the line back for a feed that
+                 has rendered, and src/social-page.js writes the settled one over
+                 that; all three states come from connectionStatusLine.
+                 `hidden` is on the wrapper and not on the sentence: with the
+                 sentence gone this element is one decorative dot, and a dot
+                 alone above the loading line is the second status in another
+                 shape. src/social.js drops the attribute the moment it takes
+                 over, and from there presence — not visibility — decides. -->
+            <span id="feed-status"></span>
           </div>
           <!-- No keyboard sentence. The feed is a plain list of ordinary links:
                social.js binds no key over it — the roving handler that sentence
