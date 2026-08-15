@@ -96,6 +96,27 @@ test("homepage explains the decision-to-release value and links to live examples
   assert.match(html, /records decisions, tracks the releases they shape/);
   assert.match(html, /id="decision-to-release"/);
   assert.match(html, /Keep reasoning with the work/);
+
+  // The promise is made once, in the site's own plain voice. It used to be
+  // restated a thousand words further down in an older marketing register that
+  // told a returning reader nothing the first statement had not.
+  assert.equal(
+    (html.match(/records decisions, tracks the releases they shape/g) ?? []).length,
+    1,
+    "the home page must state the decision-to-release promise exactly once",
+  );
+  for (const restatement of ["preserves what the team knew", "without archaeology", "instead of memory"]) {
+    assert.ok(!html.includes(restatement),
+      `the home page must not restate the promise: "${restatement}"`);
+  }
+
+  // The worked example's heading says what the reader is about to be shown
+  // rather than repeating the pitch above it.
+  assert.match(html, /<h2 id="product-story-title">Follow one decision from record to release\.<\/h2>/);
+
+  // One em-dash style across the site: spaced, as every other page writes it.
+  assert.doesNotMatch(html, /\S—|—\S/,
+    "the home page must space its em dashes, the way the rest of the site does");
   assert.match(html, /data-proof-point="decision-to-release"/);
   assert.match(html, /data-conversion-slot="hero"/);
   assert.match(html, /href="\/decision\.html\?id=demo-queue"/);
@@ -165,7 +186,7 @@ test("the hero names the product before any surface, and keeps the log as a name
   // own labelled section, its own heading, and the same call to action landing
   // on the same populated record list.
   const entry = logEntryOf(html);
-  assert.match(entry, /Also on this site · the decision and release log/);
+  assert.match(entry, /The decision and release log · further down this page/);
   assert.match(entry, /records decisions, tracks the releases they shape/);
   assert.match(entry, /<a class="button-link" href="#record-history">Explore the decision and release log/);
   assert.match(html, /<section class="workspace" id="record-history"/);

@@ -93,6 +93,9 @@ test("the home page offers the coach twice: in the destination list and as a thi
 
   const entry = document.querySelector(".coach-entry");
   assert.ok(entry, "the home page must carry a prompt-coach entry point");
+  // The eyebrow names what the section is about. "Also part of Shiplog" named
+  // the site instead, so a reader skimming the eyebrows learned nothing.
+  assert.equal(textOf(entry.querySelector(".eyebrow")), "Prompt coach · nothing to install, nothing to upload");
   const control = entry.querySelector('a[href="/coach.html"]');
   assert.ok(control, "the entry point must link to the coach");
   // Named by destination rather than by gesture: "Open the prompt coach" reads
