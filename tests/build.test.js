@@ -106,6 +106,11 @@ test("homepage explains the decision-to-release value and links to live examples
 const heroOf = (html) =>
   html.slice(html.indexOf('<section class="hero'), html.indexOf('<section class="landing-decision"'));
 
+// The lead: the hero down to the takeaway card, which is everything a visitor
+// reads above the "Executive takeaway" heading.
+const heroLeadOf = (html) =>
+  heroOf(html).split('<aside class="executive-takeaway"')[0];
+
 // The log's own entry: from its heading down to the destination list.
 const logEntryOf = (html) =>
   html.slice(html.indexOf('<section class="shiplog-entry"'), html.indexOf('<section class="site-guide"'));
@@ -126,11 +131,10 @@ test("the hero names the product before any surface, and keeps the log as a name
 
   // The checkable fact, stated as a fact rather than as a benefit: what the
   // worked decision contains, and what it costs to read.
-  assert.match(hero, /A worked decision is already computed on the AI FinOps page/);
+  assert.match(hero, /AI FinOps publishes a worked decision that answers one question/);
   assert.match(hero, /no export of yours, no sign-in, and no account/);
   // One name per concept: the marker AI FinOps publishes the example under.
   assert.match(hero, /bundled synthetic example/);
-  assert.match(hero, /invented data for an invented company/);
   assert.match(hero, /Your files do not leave this tab\./);
   assert.doesNotMatch(html, /cost analyzer|spend tool/i);
   assert.ok(
@@ -239,12 +243,17 @@ test("the log entry's proof point ties a recorded decision to the release that s
     "the paragraph that introduces the example must still say it is synthetic");
   assert.doesNotMatch(hero, /realized savings|saved \$|per month/i);
 
-  // The department is composed rather than authored on AI FinOps, so it is
-  // pinned against the composer that paints it there instead of against that
-  // page's markup. A rename in the example data fails the build here.
+  // #1767: the department was the last thing the lead borrowed from AI FinOps,
+  // and it arrived as "driving the increase" — a change this page had never
+  // described, so a first-time visitor was referred to a fact they were never
+  // given. The lead states the question the decision answers instead, and the
+  // department stays where the numbers that explain it are.
   const headline = buildStandHeadline();
-  assert.ok(hero.includes(`${headline.team.name} is driving the increase`),
-    "the hero must name the department AI FinOps names as driving the increase");
+  const lead = heroLeadOf(html);
+  assert.doesNotMatch(lead, /driving the increase|the (?:rise|growth|spike|trend|increase)\b/i,
+    "the lead must not refer to a change this page has not described");
+  assert.ok(!lead.includes(headline.team.name),
+    `the lead must not name ${headline.team.name} before the takeaway explains it`);
   for (const figure of ["$51,254", "$154,500"]) {
     assert.ok(headline.recoverable.basis.includes(figure),
       `the hero repeats ${figure}, which the composed headline no longer states`);

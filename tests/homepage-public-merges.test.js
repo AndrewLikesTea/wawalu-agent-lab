@@ -307,10 +307,10 @@ test("the document a visitor is served authors no figure and no link of its own"
   const boundary = textOf(section);
   assert.match(boundary, /counted from public GitHub activity/i);
   assert.match(boundary, /bundled synthetic example/);
-  // Matched from "is a" rather than from "It is": the sentence keeps these
-  // words, but the paragraph it opens was folded into one sentence when the
-  // hero stopped stating the recoverable figure twice (#1544).
-  assert.match(html, /is a bundled synthetic example, computed from invented data for an invented company/);
+  // Read off this block rather than off the hero: the hero's lead now says the
+  // example is synthetic in three words and once (#1767), so the full sentence
+  // is pinned where the counted figure needs the contrast drawn.
+  assert.match(boundary, /belongs to a bundled synthetic example, computed from invented data for an invented company/);
   assert.match(html, /<strong>Example records<\/strong>/);
 });
 
