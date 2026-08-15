@@ -23,24 +23,35 @@ import { renderImageUnavailable } from "./image-description.js";
 import { pageTitle, recordTitle } from "./page-title.js";
 import { normalizeImage } from "./social.js";
 
-// The two routes out of a permalink, named once and shipped in src/post.html.
+// The three routes onward from a permalink, named once and drawn as one row in
+// src/post.html.
 //
-// Neither is a "back". A permalink is the one page in this product a visitor can
+// None is a "back". A permalink is the one page in this product a visitor can
 // meet cold — pasted into a chat window, opened by someone who has never seen
-// Social — and there is nothing behind them to return to. So both links point
-// forward, name their destination, and say what is there, in the verb the two
+// Social — and there is nothing behind them to return to. So every link points
+// forward, names its destination, and says what is there, in the verb the two
 // feed pages already use for each other ("Open People when you want…", "Open
 // Social when you want…"). The label says People, not Profile: this site has a
 // People page and no page called Profile.
 //
-// The labels are constants because nothing may rewrite them mid-visit. They are
-// pinned against src/post.html, which ships both links. Social stands in all
-// four states. People is withdrawn by post-page.js in not-found and error,
-// where there is no post and so no display name its words can be about — the
-// label is never softened to fit a state, it is simply not offered in one.
+// `publish` is the third, and the one this page could not offer before: a reader
+// who has just read somebody's post and wants to write one had nowhere to go. It
+// points at Social's composer fragment rather than at Social — src/social-page.js
+// opens the collapsed panel for #post-form — and it is the same route People's
+// own "Publish a post on Social" uses, so the two agree about where publishing
+// happens.
+//
+// The labels are constants because nothing may rewrite them mid-visit. Social
+// and publish ship in src/post.html and stand in all four states: the feed and
+// the composer are true whether or not this one post is. People has no shipped
+// label at all — postPeopleLabel() writes it out of the display name — and
+// post-page.js offers the link only where a post resolved, because there is no
+// name its words can be about otherwise. A label is never softened to fit a
+// state; a link is simply not offered in one.
 export const POST_EXITS = {
   social: { href: "/social.html", label: "Open the full Social feed" },
   people: { href: "/profile.html" },
+  publish: { href: "/social.html#post-form", label: "Publish a post of your own" },
 };
 const MAX_RETURN_AUTHOR_LENGTH = 60;
 

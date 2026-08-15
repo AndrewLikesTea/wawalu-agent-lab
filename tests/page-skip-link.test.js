@@ -337,7 +337,10 @@ test("the main landmark rings for keyboard focus only, never for a mouse click",
 
 /* --------------------------- the post page's order ------------------------ */
 
-const FRAME_STOPS = SITE_NAV.length + 3;
+// The frame, plus the two routes onward that ship in the markup: the feed and
+// Social's composer. Both are true before any lookup has run, so both are
+// tabbable on a page whose script has not started.
+const FRAME_STOPS = SITE_NAV.length + 4;
 
 test("the post page's loading tab order reaches Social without a placeholder People link", async () => {
   const document = await load("post.html");
@@ -350,6 +353,7 @@ test("the post page's loading tab order reaches Social without a placeholder Peo
       "Shiplog",
       ...SITE_NAV.map((link) => link.label),
       "Open the full Social feed",
+      "Publish a post of your own",
     ],
     "the post page's tab order changed",
   );
@@ -391,31 +395,34 @@ test("the post page's exit reads after the site header, in the document, not in 
   // Document order inside the landmark: the heading, then the post itself, then
   // the routes off the page. A permalink is opened to read one post, so the
   // post is what follows the heading that names it; the ways onward come after
-  // it rather than in front of it. Social still comes before People, the order
-  // the site nav names them in.
-  const order = landmark.querySelectorAll("#post-back,#post-people,#page-title,#post-detail").map((node) => node.id);
-  assert.deepEqual(order, ["page-title", "post-detail", "post-back", "post-people"]);
+  // it rather than in front of it. This is the shipped markup, before a script
+  // has run, so the row holds the two routes that need no display name — the
+  // feed, then Social's composer.
+  const order = landmark.querySelectorAll("#post-back,#post-publish,#page-title,#post-detail").map((node) => node.id);
+  assert.deepEqual(order, ["page-title", "post-detail", "post-back", "post-publish"]);
 
   // No CSS trick may stand in for that order — reading order is the point.
   const css = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
   const exitRule = css.match(/^\.detail-page-exits \{([^}]*)\}/m)[1];
   assert.doesNotMatch(exitRule, /row-reverse|order:\s*-?\d|position:\s*absolute/, "the exit must not be re-sequenced visually");
   const html = await read("post.html");
-  assert.doesNotMatch(html.match(/<p class="detail-page-exits">[\s\S]*?<\/p>/)[0], /style=/);
+  assert.doesNotMatch(html.match(/<p class="detail-page-exits"[^>]*>[\s\S]*?<\/p>/)[0], /style=/);
 });
 
 test("the post page withholds People until it can name the loaded display name", async () => {
   const document = await load("post.html");
   const exits = document.querySelector("#main-content").querySelectorAll(".detail-back");
-  assert.equal(exits.length, 2, "the permalink's two destinations, and no third");
+  assert.equal(exits.length, 2, "the two routes that need no display name, and no third");
   assert.deepEqual(
     exits.map((link) => [link.href, textOf(link)]),
     [
       ["/social.html", "Open the full Social feed"],
-      ["/profile.html", ""],
+      ["/social.html#post-form", "Publish a post of your own"],
     ],
   );
-  assert.equal(exits[1].hidden, true);
+  // Not shipped hidden and empty: not shipped at all. Counted, so the absence is
+  // a number rather than a node compared against null.
+  assert.equal(document.querySelectorAll("#post-people").length, 0);
 
   // The visible text carries the destination, so no aria-label may hold a word
   // the eye cannot read.

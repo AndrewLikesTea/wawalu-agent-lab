@@ -350,12 +350,15 @@ test("the post page's two routes out sit after the site frame, and name where th
   // the routes onward are what a reader wants after it, not instead of it.
   assert.ok(content < exit, "the post content precedes the exits");
 
-  // Social ships in visible text. People waits for the loaded display name, so
-  // loading cannot expose an empty or placeholder name.
+  // The feed and Social's composer ship in visible text: both are true before
+  // any lookup has run. People waits for the loaded display name — its words are
+  // built out of one — so it is not in the markup at all, and loading cannot
+  // expose an empty or placeholder name.
   assert.match(html, /<a class="detail-back detail-page-back" id="post-back" href="\/social\.html">Open the full Social feed<\/a>/);
-  assert.match(html, /<a class="detail-back detail-page-back" id="post-people" href="\/profile\.html" hidden><\/a>/);
+  assert.match(html, /<a class="detail-back detail-page-back" id="post-publish" href="\/social\.html#post-form">Publish a post of your own<\/a>/);
+  assert.equal(html.includes('id="post-people"'), false, "the People link may not ship with no name to put in it");
   assert.equal(html.includes("post-back-feed"), false, "the old stacked exit is gone");
-  const exits = html.match(/<p class="detail-page-exits">[\s\S]*?<\/p>/)[0];
+  const exits = html.match(/<p class="detail-page-exits"[^>]*>[\s\S]*?<\/p>/)[0];
   assert.doesNotMatch(exits, /aria-label/, "an exit must not depend on aria-label to name its destination");
 
   // No "Back", and no arrow standing in for one. A permalink opened from a
@@ -384,7 +387,12 @@ test("both destinations ship as constants, and only the People link's target nar
   assert.deepEqual(POST_EXITS, {
     social: { href: "/social.html", label: "Open the full Social feed" },
     people: { href: "/profile.html" },
+    publish: { href: "/social.html#post-form", label: "Publish a post of your own" },
   });
+  // Publishing points at the composer's own fragment, which is what opens the
+  // collapsed panel on Social — and it is the route People already uses for the
+  // same job, not a path invented for this page.
+  assert.equal(POST_EXITS.publish.href, "/social.html#post-form");
   // Both name a destination the nav offers: this site has a People page and no
   // page called Profile, so a link here cannot promise one.
   assert.equal(POST_EXITS.social.label, "Open the full Social feed");
@@ -590,8 +598,10 @@ test("the post region holds exactly one state, and names it on one attribute", (
 test("the standing exits remain while unavailable states add a clear feed action", async () => {
   const html = await postPageHtml();
   assert.equal([...html.matchAll(/id="post-back"/g)].length, 1, "one Social exit in the markup");
-  assert.equal([...html.matchAll(/id="post-people"/g)].length, 1, "one People exit in the markup");
-  assert.equal([...html.matchAll(/class="detail-back detail-page-back"/g)].length, 2, "the pair, and only the pair");
+  assert.equal([...html.matchAll(/id="post-publish"/g)].length, 1, "one composer route in the markup");
+  assert.equal([...html.matchAll(/id="post-people"/g)].length, 0, "People is built from a resolved name, never shipped");
+  assert.equal([...html.matchAll(/class="detail-back detail-page-back"/g)].length, 2,
+    "the two routes that need no display name, and only those");
   assert.equal([...html.matchAll(/<a [^>]*>Open the full Social feed<\/a>/g)].length, 1, "the standing Social label appears once");
 
   for (const [name, value, options] of PANEL_STATES) {

@@ -257,11 +257,12 @@ test("the states with no post withdraw the People link and keep the one to Socia
     const page = await openPostPage(search, answer);
     try {
       const exits = page.document.querySelectorAll(".detail-back").filter((link) => !link.hidden);
-      assert.deepEqual(exits.map(textOf), [SOCIAL_LINK], `${where}: the routes out`);
+      assert.deepEqual(exits.map(textOf), [SOCIAL_LINK, PUBLISH_LINK], `${where}: the routes onward`);
       assert.equal(exits[0].getAttribute("href"), "/social.html");
       // Withdrawn from the document, not hidden: a hidden link still reads to a
-      // screen reader in this harness, which models no layout at all.
-      assert.equal(page.document.querySelector("#post-people").hidden, true, `${where}: the People link is rendered`);
+      // screen reader in this harness, which models no layout at all. Counted,
+      // so the absence is a number and no node is compared against null.
+      assert.equal(page.document.querySelectorAll("#post-people").length, 0, `${where}: the People link is rendered`);
       assert.equal(textOf(page.document.querySelector("main")).includes(PEOPLE_LINK), false, `${where}: its words are still on the page`);
       // And it is not merely out of the tab order while still being read.
       assert.equal(tabSequence(page.document).filter((stop) => textOf(stop) === PEOPLE_LINK).length, 0);
@@ -271,11 +272,13 @@ test("the states with no post withdraw the People link and keep the one to Socia
   }
 });
 
-// Withdrawing a link is fine. Withdrawing the link a reader is standing on,
-// and saying nothing about where they now are, is not: focus would fall to the
-// document and a keyboard reader would restart from the top of the page.
-test("a reader standing on the People link keeps their place when it is withdrawn", async () => {
-  const page = await loadPage(new URL("../src/post.html", import.meta.url), { location: { search: "?id=p-gone" } });
+// The People link arrives at the head of a row a reader may already be standing
+// in: they tabbed to the feed link while the lookup was running, and the lookup
+// then resolved a display name. Inserting a link in front of them must not move
+// them — a keyboard reader who is put back at the top of the document, or on a
+// link they did not choose, has lost their place to a fetch they never saw.
+test("a reader standing in the row keeps their place when the People link arrives", async () => {
+  const page = await loadPage(new URL("../src/post.html", import.meta.url), { location: { search: "?id=p-image" } });
   try {
     let release;
     globalThis.fetch = () => new Promise((resolve) => { release = () => resolve(seedResponse([IMAGE_POST])); });
@@ -283,19 +286,22 @@ test("a reader standing on the People link keeps their place when it is withdraw
     const panel = page.document.querySelector("#post-detail");
     await waitFor(() => panel.querySelectorAll(".detail-loading").length === 1, "the loading state rendered");
 
-    // Standing on it while the lookup is still open, which is when it is still
-    // offered — a post may yet arrive.
-    const people = page.document.querySelector("#post-people");
-    people.focus();
-    assert.equal(page.document.activeElement, people);
+    // Standing on the first route the row offers while the lookup is open, which
+    // is the feed: the People link cannot be here, because no name is known yet.
+    assert.equal(page.document.querySelectorAll("#post-people").length, 0);
+    const feed = page.document.querySelector("#post-back");
+    feed.focus();
+    assert.equal(page.document.activeElement, feed);
 
     release();
     await waitFor(() => page.document.documentElement.dataset.shiplogPostDetail === "ready", "the lookup settled");
 
-    // The post was not there, so the link is gone — and focus is on the exit
-    // beside it rather than nowhere.
-    assert.equal(page.document.querySelector("#post-people").hidden, true);
-    assert.equal(page.document.activeElement, page.document.querySelector("#post-back"));
+    // The name resolved, so the link is now in front of them — and they are
+    // still on the link they chose, not on the one that appeared.
+    assert.equal(page.document.querySelectorAll("#post-people").length, 1);
+    assert.equal(page.document.activeElement, feed);
+    const row = page.document.querySelector("#post-onward").children.filter((node) => node.nodeType === 1);
+    assert.deepEqual(row.map((node) => node.id), ["post-people", "post-back", "post-publish"]);
   } finally {
     page.restore();
   }
@@ -607,16 +613,19 @@ test("a post with no image renders no image element and no empty frame to hold o
 // one, not just in the state that happens to work.
 const SOCIAL_LINK = "Open the full Social feed";
 const PEOPLE_LINK = "Open People to see Mina Okafor’s other image posts";
-const CHROME_LINKS = [SOCIAL_LINK, PEOPLE_LINK];
-// What each state offers. Social is true whatever the lookup did — the feed
-// exists either way — so it stands in all four. People is offered only where
-// there is a post, because its words are about that post's display name and a
-// state with no post has no name to put behind them.
+const PUBLISH_LINK = "Publish a post of your own";
+// The row in full, in its own order: the display name this post was published
+// under, the feed it came out of, then writing one.
+const CHROME_LINKS = [PEOPLE_LINK, SOCIAL_LINK, PUBLISH_LINK];
+// What each state offers. The feed and the composer are true whatever the lookup
+// did — both exist either way — so they stand in all four, including the wait.
+// People is offered only where there is a post, because its words are about that
+// post's display name and a state with no post has no name to put behind them.
 const EXITS_BY_STATE = {
-  loading: [SOCIAL_LINK],
+  loading: [SOCIAL_LINK, PUBLISH_LINK],
   loaded: CHROME_LINKS,
-  "not-found": [SOCIAL_LINK],
-  error: [SOCIAL_LINK],
+  "not-found": [SOCIAL_LINK, PUBLISH_LINK],
+  error: [SOCIAL_LINK, PUBLISH_LINK],
 };
 // Word for word the last sentence of Social's own intro, because a visitor who
 // lands here may never open /social.html.
@@ -824,9 +833,14 @@ test("all four states carry a visible text label, not colour alone", async () =>
 function assertLeadsWithThePost(document, where) {
   const main = document.querySelector("#main-content");
 
-  const order = main.querySelectorAll("#page-title,#post-detail,#post-back,#post-people").map((node) => node.id);
-  assert.deepEqual(order, ["page-title", "post-detail", "post-back", "post-people"],
-    `${where}: the permalink must name the post, then show it, then offer a way onward`);
+  // The row's own order is People, the feed, then publishing — and People is in
+  // the document only where a display name resolved, so what is expected here
+  // depends on whether it is.
+  const row = ["post-people", "post-back", "post-publish"]
+    .filter((id) => main.querySelectorAll(`#${id}`).length === 1);
+  const order = main.querySelectorAll("#page-title,#post-detail,#post-people,#post-back,#post-publish").map((node) => node.id);
+  assert.deepEqual(order, ["page-title", "post-detail", ...row],
+    `${where}: the permalink must name the post, then show it, then offer the ways onward`);
 
   // The whole page sequence: eyebrow, heading, the post's own region, what
   // Social is, then the links. The context paragraph is the standing sentence
@@ -847,31 +861,32 @@ function assertLeadsWithThePost(document, where) {
   // They live in the standing block that carries the eyebrow and the heading —
   // not inside #post-detail, which every render empties. The post's own slot
   // sits in that same block, above them.
-  for (const id of ["#post-back", "#post-people", "#post-detail"]) {
-    assert.ok(main.querySelector(id).closest(".hero-post"), `${where}: ${id} must sit in the standing block`);
+  for (const id of [...row, "post-detail"]) {
+    assert.ok(main.querySelector(`#${id}`).closest(".hero-post"), `${where}: #${id} must sit in the standing block`);
   }
   // Asserted as a boolean, never as a node compared against null: a failing
   // node comparison serialises the whole parsed page and outlives the timeout.
-  for (const id of ["#post-back", "#post-people"]) {
-    assert.equal(Boolean(main.querySelector(id).closest("#post-detail")), false, `${where}: ${id} must survive a re-render`);
+  for (const id of row) {
+    assert.equal(Boolean(main.querySelector(`#${id}`).closest("#post-detail")), false, `${where}: #${id} must survive a re-render`);
   }
 
   // Only links valid for this state are offered and reachable.
   const sequence = tabSequence(document);
   const offered = main.querySelectorAll(".detail-back").filter((link) => !link.hidden);
-  const expected = main.querySelector("#post-people").hidden ? [SOCIAL_LINK] : CHROME_LINKS;
-  assert.deepEqual(offered.map(textOf), expected, `${where}: a route out changed`);
+  const expected = row.includes("post-people") ? CHROME_LINKS : [SOCIAL_LINK, PUBLISH_LINK];
+  assert.deepEqual(offered.map(textOf), expected, `${where}: a route onward changed`);
   for (const id of offered.map((link) => `#${link.id}`)) {
     assert.ok(sequence.includes(main.querySelector(id)), `${where}: ${id} must stay reachable by keyboard`);
   }
 
   // Following the skip link lands on the region that holds the heading, and the
-  // first of the two routes out a reader tabs to is Social, never People.
+  // first route a reader tabs to is the row's first: the display name they came
+  // from where the page resolved one, and the feed where it did not.
   const skip = document.querySelector(".skip-link");
   assert.equal(skip.getAttribute("href"), "#main-content");
   assert.equal(main.querySelectorAll("#page-title").length, 1, `${where}: the skip target must contain the heading`);
   const reached = sequence.slice(sequence.indexOf(skip) + 1).filter((stop) => stop.classList.contains("detail-back"));
-  assert.equal(textOf(reached[0]), SOCIAL_LINK, `${where}: the first route out reached after the skip link`);
+  assert.equal(textOf(reached[0]), expected[0], `${where}: the first route reached after the skip link`);
 }
 
 test("the permalink leads with the post and puts the feed context under it, loading and loaded", async () => {
@@ -902,8 +917,12 @@ test("the permalink leads with the post and puts the feed context under it, load
   assert.ok(at('<h1 id="page-title">') < at('id="post-detail"'), "the heading precedes the post's own region");
   assert.ok(at('id="post-detail"') < at(`<p>${CONTEXT_SENTENCE}</p>`), "the post precedes what the page says about Social");
   assert.ok(at(`<p>${CONTEXT_SENTENCE}</p>`) < at(`<p>${DEMO_SENTENCE}</p>`), "the two standing sentences keep their order");
-  assert.ok(at(`<p>${DEMO_SENTENCE}</p>`) < at(`>${SOCIAL_LINK}</a>`), "the intro precedes the Social route out");
-  assert.ok(at(`>${SOCIAL_LINK}</a>`) < at('id="post-people"'), "Social precedes People, the order the nav names them in");
+  assert.ok(at(`<p>${DEMO_SENTENCE}</p>`) < at(`>${SOCIAL_LINK}</a>`), "the intro precedes the Social route onward");
+  // Two of the three ship here, in the row's order. People is absent from the
+  // markup entirely: its words name a display name, and the markup paints before
+  // anything has looked one up.
+  assert.ok(at(`>${SOCIAL_LINK}</a>`) < at(`>${PUBLISH_LINK}</a>`), "the feed precedes the composer, the row's own order");
+  assert.equal(html.includes('id="post-people"'), false, "the People link may not ship with no display name to name");
   // Moved in the markup, not turned around in CSS: a stylesheet reorder would
   // leave reading order and tab order in the order this change exists to end.
   const css = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
@@ -927,9 +946,9 @@ test("a loaded post's caption, name, time and image all read before the feed con
     const main = page.document.querySelector("#main-content");
     // One combined query, which comes back in document order. Everything the
     // post is made of, then the context sentence, then the two routes out.
-    const flow = main.querySelectorAll(".detail-author-link,.detail-date,.detail-image,figcaption,#post-back,#post-people");
+    const flow = main.querySelectorAll(".detail-author-link,.detail-date,.detail-image,figcaption,#post-people,#post-back,#post-publish");
     const names = flow.map((node) => node.id || node.className);
-    assert.deepEqual(names, ["detail-image", "detail-caption", "detail-author-link", "post-date detail-date", "post-back", "post-people"],
+    assert.deepEqual(names, ["detail-image", "detail-caption", "detail-author-link", "post-date detail-date", "post-people", "post-back", "post-publish"],
       "the post's parts must all precede the routes off the page");
 
     // The image is announced by the description the poster stored, in the post

@@ -48,9 +48,9 @@ const seedOnly = (posts) => (url) => {
   throw new Error(`Unexpected request: ${url}`);
 };
 
-// The page's own routes out, wherever it is in its life. Read from the whole
-// document rather than from known ids: a third one appearing anywhere — in the
-// markup, in a state panel — fails here, and so does a stray "back".
+// The page's own routes onward, wherever it is in its life. Read from the whole
+// document rather than from known ids: one appearing anywhere it should not —
+// in the markup, in a state panel — fails here, and so does a stray "back".
 function exits(document) {
   return document.querySelectorAll("a").filter((link) =>
     /^Open (Social|People) to |←|Back to/.test(link.textContent)
@@ -61,20 +61,23 @@ function exits(document) {
     || (link.classList.contains("detail-back") && !link.hidden));
 }
 
-// Social in every state, People wherever there is a post to belong to one.
-// Nothing rewrites either label; the People link's destination may narrow to a
-// display name the page can actually name, which is what the label promises,
-// and a state with no post withdraws the link rather than softening its words.
-// `peopleHref` of null asserts that withdrawal — counted through the list, so
-// no node is ever compared against null.
+// The feed and the composer in every state, People wherever there is a post to
+// belong to one. Nothing rewrites any label; the People link's destination may
+// narrow to a display name the page can actually name, which is what the label
+// promises, and a state with no post withdraws the link rather than softening
+// its words. `peopleHref` of null asserts that withdrawal — counted through the
+// list, so no node is ever compared against null.
+//
+// The order is the row's order, because `exits()` reads the document: the name
+// this post was published under, the feed it came out of, then writing one.
 function assertExits(page, peopleHref, where) {
   const links = exits(page.document);
-  const expected = [[SOCIAL.label, SOCIAL.href]];
-  if (peopleHref) expected.push([PEOPLE.label, peopleHref]);
+  const expected = peopleHref ? [[PEOPLE.label, peopleHref]] : [];
+  expected.push([SOCIAL.label, SOCIAL.href], [PUBLISH.label, PUBLISH.href]);
   assert.deepEqual(
     links.map((link) => [textOf(link), link.href]),
     expected,
-    `${where}: the page's routes out`,
+    `${where}: the page's routes onward`,
   );
 }
 
@@ -88,7 +91,20 @@ const IDENTITY = "Display names are invented for this demo or chosen by whoever 
 
 const SOCIAL = { label: "Open the full Social feed", href: "/social.html" };
 const PEOPLE = { label: "Open People to see Mina Okafor’s other image posts", href: "/profile.html" };
+// Social's composer, at the fragment src/social-page.js opens the collapsed
+// panel for. Same route People offers for the same job.
+const PUBLISH = { label: "Publish a post of your own", href: "/social.html#post-form" };
 const MINA = "/profile.html?author=Mina%20Okafor";
+
+// The onward row's controls, as elements, in document order. `children` holds
+// the whitespace between the tags as text nodes, so the walk keeps elements
+// only; it is a walk rather than a selector because the harness rejects a
+// descendant selector, and because "which control is third" is a question about
+// the row's own children, not about where a match happens to fall in the page.
+function onwardRow(document) {
+  const row = document.querySelector("#post-onward");
+  return row.children.filter((node) => node.nodeType === 1);
+}
 
 test("a post that loads is headed by its author and reads description, image, caption, name, time", async () => {
   const page = await openPostPage("?id=p-image", seedOnly([SEED_POST]));
@@ -304,8 +320,10 @@ test("the loading state is one announced line in the post's region, and takes no
     assert.match(textOf(page.document.querySelector(".hero-post")),
       /Shared links like this one open a single post from Social’s shared demo feed\./);
     assertExits(page, null, "loading");
-    assert.equal(textOf(page.document.querySelector("#post-people")), "", "loading must not expose an empty or placeholder display name");
-    assert.equal(page.document.querySelector("#post-people").hidden, true);
+    // Not hidden, not empty: not in the document at all. Counted, never compared
+    // against null.
+    assert.equal(page.document.querySelectorAll("#post-people").length, 0,
+      "loading must not expose an empty or placeholder display name");
     // Nothing inside the waiting region is tabbable, so the exit stays the
     // first thing on the page a keyboard reader reaches after the site frame.
     assert.equal(tabSequence(page.document).filter((node) => node.closest("#post-detail")).length, 0);
@@ -437,6 +455,127 @@ test("a retry that succeeds puts the reader on the post, not back at the top", a
     assert.equal(page.document.activeElement, article);
     assert.equal(article.getAttribute("tabindex"), "-1");
     assert.equal(tabSequence(page.document).includes(article), false);
+  } finally {
+    page.restore();
+  }
+});
+
+/* ---------------------------- the onward row ------------------------------ */
+
+// A forwarded post used to end in a dead end for anyone who wanted more than the
+// one post: the page offered the feed and, once it knew a name, that person's
+// People view — and nothing at all for the reader who had just decided to write
+// a post of their own. The row now carries up to three routes, and which of them
+// a state may offer is the whole of what these tests are about.
+//
+// Every control is a link with its own visible words, so each is one tab stop
+// with the site's own ring and nothing here adds a tabindex. What changes
+// between states is the set, never a label.
+const ROW_LABELS = { people: PEOPLE.label, feed: SOCIAL.label, publish: PUBLISH.label };
+const rowLabels = (document) => onwardRow(document).map(textOf);
+
+// The two questions asked in every state, both as counts: what the row offers,
+// and whether a People link exists anywhere in the document. The second is a
+// count and not a node comparison — a People link that survived into a state
+// with no display name is a link promising a person the page never resolved.
+function assertRow(page, expected, where) {
+  assert.deepEqual(rowLabels(page.document), expected.map((key) => ROW_LABELS[key]), `${where}: the onward row`);
+  assert.equal(page.document.querySelectorAll("#post-people").length, expected.includes("people") ? 1 : 0,
+    `${where}: the People link`);
+  // Reachable, in the row's own order, with no tabindex anywhere in it.
+  const sequence = tabSequence(page.document);
+  const stops = onwardRow(page.document).map((control) => sequence.indexOf(control));
+  assert.equal(stops.filter((index) => index >= 0).length, expected.length, `${where}: every control is keyboard-reachable`);
+  assert.deepEqual(stops.slice().sort((a, b) => a - b), stops, `${where}: tab order follows the row`);
+  for (const control of onwardRow(page.document)) {
+    assert.equal(control.getAttribute("tabindex"), null, `${where}: ${textOf(control)} must not carry a tabindex`);
+  }
+}
+
+test("the loading state offers the feed and the composer, and no People link at all", async () => {
+  // Held open, so the wait is read as its own state rather than inferred from
+  // the state that follows it.
+  const page = await loadPage(new URL("../src/post.html", import.meta.url), { location: { search: "?id=p-image&author=Mina%20Okafor" } });
+  try {
+    let release;
+    globalThis.fetch = () => new Promise((resolve) => { release = () => resolve(seedResponse([SEED_POST])); });
+    await importPageModule("/post-page.js");
+    await waitFor(() => page.document.documentElement.dataset.shiplogPostDetail === "loading", "the script took the region");
+
+    // Two, and the publish route is one of them on purpose: a reader is not held
+    // at a dead end while a fetch runs, and Social's composer is true whatever
+    // this lookup returns. The People link is the one that cannot be here — even
+    // though the arriving URL claimed a display name, which is a claim and not a
+    // name this page resolved.
+    assertRow(page, ["feed", "publish"], "loading");
+    assert.equal(textOf(page.document.querySelector("main")).includes("Mina Okafor"), false,
+      "loading must not print a display name the page has not resolved");
+
+    // Settled all the way through before the page is torn down, so a fetch left
+    // in flight cannot surface as an unhandled rejection in CI.
+    release();
+    await waitFor(() => page.document.documentElement.dataset.shiplogPostDetail === "ready", "the post arrived");
+    assertRow(page, ["people", "feed", "publish"], "after loading");
+  } finally {
+    page.restore();
+  }
+});
+
+test("a loaded post offers all three, in reading order: the name, the feed, then publishing", async () => {
+  const page = await openPostPage("?id=p-image", seedOnly([SEED_POST]));
+  try {
+    assertRow(page, ["people", "feed", "publish"], "loaded");
+
+    // Walked as the row's own children, so this is DOM order — what a screen
+    // reader and the Tab key follow — and not the order a selector happened to
+    // match in. The narrowest route first: the display name this post was
+    // published under, the feed it came out of, then writing one.
+    const [people, feed, publish] = onwardRow(page.document);
+    assert.deepEqual([people.id, feed.id, publish.id], ["post-people", "post-back", "post-publish"]);
+
+    // The People link names the person in words a reader can see, and goes to
+    // People filtered to that same name — the ?author= parameter profile.js
+    // reads on load, not a route invented here.
+    assert.ok(textOf(people).includes("Mina Okafor"), "the People link must name the display name it filters to");
+    assert.equal(people.getAttribute("href"), MINA);
+    assert.equal(people.getAttribute("aria-label"), null, "the visible words carry the destination");
+
+    // And publishing goes to the composer's own fragment, which is what opens
+    // the collapsed panel on Social.
+    assert.equal(publish.getAttribute("href"), "/social.html#post-form");
+    assert.equal(textOf(publish), PUBLISH.label);
+
+    // One row, one of each: nothing is duplicated into the panel above it.
+    assert.equal(page.panel.querySelectorAll(".detail-back").length, 0, "the row lives in the page frame, not the panel");
+    assert.equal(page.document.querySelectorAll("#post-publish").length, 1);
+  } finally {
+    page.restore();
+  }
+});
+
+test("a failed lookup keeps the feed and the composer reachable, and withdraws People", async () => {
+  const page = await openPostPage("?id=p-image&author=Mina%20Okafor", () => { throw new TypeError("Failed to fetch"); });
+  try {
+    assert.equal(page.panel.dataset.postState, "error");
+    assertRow(page, ["feed", "publish"], "error");
+    // The state owns a retry of its own, and it still reads before the row —
+    // the control that can still produce the post precedes the ones that leave
+    // without it.
+    const sequence = tabSequence(page.document);
+    assert.ok(sequence.indexOf(page.panel.querySelector(".detail-retry")) < sequence.indexOf(page.document.querySelector("#post-back")));
+  } finally {
+    page.restore();
+  }
+});
+
+test("a post that is not there keeps the feed and the composer reachable, and withdraws People", async () => {
+  const page = await openPostPage("?id=p-gone&author=Mina%20Okafor", seedOnly([SEED_POST]));
+  try {
+    assert.equal(page.panel.dataset.postState, "not-found");
+    assertRow(page, ["feed", "publish"], "not found");
+    // The link that was never resolved is not merely withdrawn from the row: its
+    // words are off the page, so nothing promises this reader a person.
+    assert.equal(textOf(page.document.querySelector("main")).includes(PEOPLE.label), false);
   } finally {
     page.restore();
   }
