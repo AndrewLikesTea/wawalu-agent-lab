@@ -23,6 +23,7 @@ import { releaseBuildMatchLine, releaseBuildStatus } from "./release-build-match
 import { initDeploymentStatus } from "./deployment-status-view.js";
 import { RELEASE_FORM_ERRORS, createRelease, mountDecisionPicker, recordedSummaryText } from "./release-form.js";
 import { copyRecordUrl } from "./share-link.js";
+import { initReleaseExport } from "./release-export.js";
 
 const SAVE_FAILED = "This release could not be saved in this browser. Your entries are still here; free some browser storage and try again.";
 
@@ -237,6 +238,11 @@ export function initReleasesPage(root = document, storage = localStorage, option
   };
 
   const view = mountReleaseList(container, { releases, decisions, exampleIds: exampleReleaseIds });
+  // The one selection this page holds: whatever the last render actually drew.
+  // The export reads it rather than filtering a second time, so the file a
+  // visitor downloads is the list they are looking at by construction and not
+  // by two implementations agreeing.
+  let shown = [];
   const update = () => {
     const filters = {
       query: search?.value ?? "",
@@ -244,7 +250,7 @@ export function initReleasesPage(root = document, storage = localStorage, option
       decisionStatus: decisionStatusInputs.find((input) => input.checked)?.value ?? "all",
       decisionId: decisionFilter?.value ?? ALL_DECISIONS_FILTER,
     };
-    const shown = view.render({ releases, decisions, exampleIds: exampleReleaseIds }, filters);
+    shown = view.render({ releases, decisions, exampleIds: exampleReleaseIds }, filters);
     // One count, from the same computation that rendered the rows, and one
     // follow-up derived from exactly those rows — so the callout can never
     // point at a release the active filter has hidden.
@@ -254,6 +260,14 @@ export function initReleasesPage(root = document, storage = localStorage, option
     // record is newest, and therefore what the verdict is about.
     renderBuildMatch();
   };
+  // Reads the selection above at press time, not a copy taken at boot, so the
+  // file follows every filter change without a subscription to maintain.
+  initReleaseExport(root, {
+    shown: () => shown,
+    exampleIds: exampleReleaseIds,
+    now: options.now,
+    download: options.download,
+  });
   search?.addEventListener("input", update);
   statusFilter?.addEventListener("change", update);
   for (const input of decisionStatusInputs) input.addEventListener("change", update);

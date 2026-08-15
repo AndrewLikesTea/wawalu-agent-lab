@@ -262,6 +262,20 @@
             </div>
           </fieldset>
         </div>
+        <!-- Export what the filters are showing. Outside the search landmark
+             above, because this writes a file rather than narrowing the list.
+             A button element, not a link: there is no address to open, and the
+             platform then gives keyboard operation and the role for free. The
+             scope sentence is static because it is true on every render — with
+             no filters set, "the releases shown" is the whole log — so it can
+             never disagree with the file that was just written. Classes are the
+             detail page's share control, reused rather than extended: styles.css
+             is at its measured size budget. -->
+        <div class="share-control">
+          <button class="share-button" id="release-export" type="button" aria-describedby="release-export-scope">Export releases as JSON</button>
+          <span class="hint" id="release-export-scope">This exports the releases shown by the search and filters above, not the whole log, and each one carries the decisions it is linked to.</span>
+          <span class="share-status" id="release-export-status" role="status" aria-live="polite" aria-atomic="true"></span>
+        </div>
         <!-- One action per key, and only the keys the list answers. Space
              expands the row in place — the same verb the paragraph above the
              list uses — while Enter leaves for the release's own page, so a
