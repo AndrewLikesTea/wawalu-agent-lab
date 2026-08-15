@@ -336,20 +336,24 @@ test("the composer names the way in, the rule, and the fix as separate sentences
   const hint = documents.Social.getElementById("post-image-hint");
   assert.ok(steps, "the composer names no steps at all");
 
-  // One fact per sentence, in the order a reader meets them: make the image,
-  // what the field takes, what to do about a file it will not take. All three
-  // used to be a single clause hung off the Paint link by a semicolon, with the
-  // formats and the size then repeated on the line below it.
-  assert.equal(textOf(steps), "Create an image in Paint (opens in a new tab) ↗.");
+  // In the order a reader takes them: make the image, carry it back, and only
+  // then what the field takes and what to do about a file it will not take. The
+  // first line used to stop at the Paint link, which left the reader in a second
+  // tab with a drawing and nothing telling them how to get it into this one.
+  assert.equal(textOf(steps),
+    "Create an image in Paint (opens in a new tab) ↗. Export the PNG, return to this tab, then select Choose image.");
   assert.equal(
     textOf(hint),
-    "Social accepts PNG, JPEG, GIF, or WebP up to 512 KB. Reduce or re-export a larger image, then select Choose image.",
+    "Social accepts PNG, JPEG, GIF, or WebP up to 512 KB. Reduce or re-export a larger image before you choose it.",
   );
   const sentence = `${textOf(steps)} ${textOf(hint)}`;
   assert.doesNotMatch(sentence, /;/, "two of the sentences are welded together again");
   assert.match(sentence, /PNG/, "the field never says what to export");
-  // The control is named exactly as it is labelled, not described.
-  assert.match(textOf(hint), /select Choose image\.$/);
+  // The control is named exactly as it is labelled, not described — and once,
+  // on the line that walks the round trip, not again on the line below it.
+  assert.match(textOf(steps), /select Choose image\.$/);
+  assert.equal(sentence.split("select Choose image").length - 1, 1,
+    `the field names the control twice: ${sentence}`);
   assert.equal(textOf(documents.Social.querySelector('label[for="post-image"]')), "Choose image");
 
   // In the page as served, not folded behind a disclosure widget and not
@@ -360,6 +364,54 @@ test("the composer names the way in, the rule, and the fix as separate sentences
   assert.equal(documents.Social.querySelectorAll("details").length, 0,
     "Social folded content behind a disclosure widget");
   assert.ok(!steps.getAttribute("hidden"), "the steps ship hidden");
+});
+
+// #1758: Paint opened in a second tab and the composer stopped talking. A
+// first-time visitor finished a drawing and had nothing on either page telling
+// them the file has to be exported and carried back by hand.
+test("the composer names the round trip in the order it is taken, once", () => {
+  const steps = textOf(documents.Social.getElementById("post-image-steps"));
+
+  // Each step in the sentence, and each one after the step it depends on.
+  const at = (fragment) => {
+    const index = steps.indexOf(fragment);
+    assert.ok(index >= 0, `the composer never says "${fragment}": ${steps}`);
+    return index;
+  };
+  assert.ok(at("Create an image in Paint") < at("Export the PNG"),
+    "the composer asks for the export before the drawing");
+  assert.ok(at("Export the PNG") < at("return to this tab"),
+    "the composer sends the visitor back before they have a file");
+  assert.ok(at("return to this tab") < at("select Choose image"),
+    "the composer names the control before the visitor is back in this tab");
+  // The last step names the control by the label the control actually carries.
+  assert.equal(textOf(documents.Social.querySelector('label[for="post-image"]')), "Choose image");
+
+  // Once, in the field where the file is chosen — not restated by the warning,
+  // the refusals, or anything else on the page.
+  const page = textOf(documents.Social.querySelector("main"));
+  assert.equal(page.split("return to this tab").length - 1, 1,
+    "the round trip is described in more than one place on Social");
+  assert.equal(page.split("Export the PNG").length - 1, 1,
+    "the export step is stated more than once on Social");
+});
+
+test("People names the same steps in the same words as the composer", () => {
+  const invitation = textOf(documents.People.querySelector(".feed-create")).trim();
+  assert.equal(invitation,
+    "Want a picture of your own here? Create an image in Paint (opens in a new tab), "
+    + "export the PNG, then Publish a post on Social under a display name.");
+
+  // One name per concept across the two pages: the same tool, the same export,
+  // the same file. People stops at the composer rather than naming Choose image,
+  // because the composer is a page away and names it itself.
+  const composer = textOf(documents.Social.getElementById("post-image-steps"));
+  for (const step of ["Create an image in Paint", "PNG"]) {
+    assert.match(invitation, new RegExp(step, "i"), `People does not name "${step}"`);
+    assert.match(composer, new RegExp(step, "i"), `the composer does not name "${step}"`);
+  }
+  assert.doesNotMatch(invitation, /save|download|upload/i,
+    "People invents a second verb for the export the composer already names");
 });
 
 test("the steps are the image field's own description, so focusing it reads them", () => {

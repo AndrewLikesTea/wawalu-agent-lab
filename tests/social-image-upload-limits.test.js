@@ -128,7 +128,7 @@ test("the help text and the refusals state the limit and the formats identically
     readFile(new URL("../src/publishing-media.js", import.meta.url), "utf8"),
   ]);
 
-  assert.ok(markup.includes('<p class="hint" id="post-image-hint">Social accepts PNG, JPEG, GIF, or WebP up to 512 KB. Reduce or re-export a larger image, then select Choose image.</p>'));
+  assert.ok(markup.includes('<p class="hint" id="post-image-hint">Social accepts PNG, JPEG, GIF, or WebP up to 512 KB. Reduce or re-export a larger image before you choose it.</p>'));
   assert.match(OVER_LIMIT, /maximum is 512 KB/);
   assert.ok(UNSUPPORTED_TYPE.includes("PNG, JPEG, GIF, or WebP"));
   // Every mention of the figure across the field, its wiring, and the refusals
@@ -159,18 +159,22 @@ test("the image field states the formats and the size exactly once, in plain sen
   // to sit under the help text.
   assert.equal(textOf(document.querySelector(".media-picker")).split("512 KB").length - 1, 1);
 
-  // The rule in one sentence, the fix in the next, and the fix names the
-  // control by the label the control actually carries.
+  // The rule in one sentence, the fix in the next. The fix stops at the file:
+  // the steps line above it is where the control is named, so "select Choose
+  // image" is not said twice a line apart.
   assert.equal(textOf(hint),
-    "Social accepts PNG, JPEG, GIF, or WebP up to 512 KB. Reduce or re-export a larger image, then select Choose image.");
+    "Social accepts PNG, JPEG, GIF, or WebP up to 512 KB. Reduce or re-export a larger image before you choose it.");
   assert.equal(textOf(document.querySelector('label[for="post-image"]')), "Choose image");
+  assert.equal(help.split("select Choose image").length - 1, 1,
+    `the field names the control twice: ${help}`);
   // No second phrasing of the same rule beside it, and no clause welding.
   assert.doesNotMatch(help, /\b(maximum|max|limit)\b/i);
   assert.doesNotMatch(help, /;/);
 
-  // The Paint link is its own sentence and is otherwise untouched: same
-  // destination, same new tab, still declared in the link's own text.
-  assert.equal(textOf(steps), "Create an image in Paint (opens in a new tab) ↗.");
+  // The way in and the way back, in one sentence: same destination, same new
+  // tab, still declared in the link's own text.
+  assert.equal(textOf(steps),
+    "Create an image in Paint (opens in a new tab) ↗. Export the PNG, return to this tab, then select Choose image.");
   const paint = steps.querySelector("a");
   assert.equal(paint.getAttribute("href"), "/paint/");
   assert.equal(paint.getAttribute("target"), "_blank");
