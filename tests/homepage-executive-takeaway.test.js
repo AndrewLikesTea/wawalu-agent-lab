@@ -110,9 +110,10 @@ test("the recoverable figure is stated once on the first screen, and it is state
   // same rate a line before it, so the first screen made one claim twice and a
   // reader had to compare two sentences to find out it was one claim. The
   // takeaway is the copyable, qualified version, so it keeps the money.
+  // #1768: the follow-up form under the takeaway restated $51,254 to caveat it a
+  // second time. Each figure now reads once on the first screen, in the takeaway.
   for (const figure of ["$51,254", "$154,500", "33%"]) {
-    const expected = figure === "$51,254" ? 2 : 1;
-    assert.equal(times(hero, figure), expected, `the first screen states ${figure} ${times(hero, figure)} times`);
+    assert.equal(times(hero, figure), 1, `the first screen states ${figure} ${times(hero, figure)} times`);
     assert.equal(times(takeaway, figure), 1, `the takeaway must be where ${figure} is stated`);
   }
 
@@ -163,6 +164,26 @@ test("the lead above the takeaway states the question, once, with no figure in i
     "no figure may read above the Executive takeaway heading");
 });
 
+test("the homepage names the sample data one way and caveats each block once", async (t) => {
+  const document = await openTakeaway(t, { writeText: async () => {} });
+  const page = textOf(document.body);
+  const times = (phrase) => page.split(phrase).length - 1;
+
+  // #1768: one phrase for one thing, everywhere the front door names it.
+  assert.equal(times("bundled synthetic data"), 0,
+    "the homepage calls its sample data a bundled synthetic example, not bundled synthetic data");
+  // The long form belongs to the block that has to draw a contrast: this figure
+  // is counted, those are not. Said anywhere else it is a second explanation of
+  // something already explained.
+  assert.equal(times("computed from invented data for an invented company"), 1,
+    "only the counted-figure block spells out what the sample data is made of");
+  assert.match(textOf(document.getElementById("public-merges")),
+    /belongs to a bundled synthetic example, computed from invented data for an invented company\. This one is counted from public GitHub activity/);
+  // The log's proof point keeps its own words: it is describing records, not
+  // figures, and it is the one block allowed to say so in its own vocabulary.
+  assert.equal(times("These invented records demonstrate Shiplog. They use no customer or production data."), 1);
+});
+
 async function openContextualFollowUp(t, request) {
   const page = await loadPage(PAGE);
   t.after(() => page.restore());
@@ -174,7 +195,7 @@ const reply = (body, status = 201) => new NativeResponse(JSON.stringify(body), {
   status, headers: { "content-type": "application/json" },
 });
 
-test("the adjacent CTA opens a contextual work-email request while its synthetic disclosure remains visible", async (t) => {
+test("the adjacent CTA opens a contextual work-email request that says what is sent", async (t) => {
   const document = await openContextualFollowUp(t, async () => reply({ captured: true, created: true }));
   const open = document.getElementById("finops-example-follow-up-open");
   const panel = document.getElementById("finops-example-follow-up-panel");
@@ -184,7 +205,29 @@ test("the adjacent CTA opens a contextual work-email request while its synthetic
   assert.equal(panel.hidden, false);
   assert.equal(document.activeElement?.id, "finops-example-follow-up-email");
   assert.match(document.getElementById("finops-example-follow-up-topic").value, /Atlas Platform|lower-cost routing/);
-  assert.match(textOf(document.getElementById("finops-example-follow-up-disclosure")), /\$51,254.*bundled synthetic data, not visitor data/);
+  // #1768: this form used to caveat $51,254 a second time, in a second
+  // vocabulary, a line under the paragraph that already caveats it. It states
+  // the one thing only a form can state now.
+  assert.equal(textOf(document.getElementById("finops-example-follow-up-disclosure")),
+    "Only your work email and this fixed follow-up topic are sent.");
+});
+
+test("the takeaway and the form under it state the sample-data fact once between them", async (t) => {
+  const document = await openContextualFollowUp(t, async () => reply({ captured: true, created: true }));
+  document.getElementById("finops-example-follow-up-open").click();
+  const card = textOf(document.querySelector(".executive-takeaway"));
+  const times = (text, phrase) => text.split(phrase).length - 1;
+
+  // Once, in the paragraph the figure is written in, so it travels with the
+  // number a reader copies. The open panel is counted too: the caveat may not
+  // reappear behind the control that reveals the form.
+  assert.equal(times(card, "not visitor data"), 1,
+    `the takeaway card and its form state the sample-data fact ${times(card, "not visitor data")} times`);
+  assert.match(textOf(document.getElementById("executive-takeaway-text")),
+    /Figures are from a bundled synthetic example and are not visitor data\./);
+  // One name for one thing: "bundled synthetic data" was the fourth vocabulary.
+  assert.equal(times(card, "bundled synthetic data"), 0,
+    "the sample data is named a bundled synthetic example wherever it is named");
 });
 
 test("the contextual request validates locally and never shows success for a failed response", async (t) => {
@@ -231,7 +274,8 @@ test("a valid contextual request reaches the real endpoint, persists its purpose
   const row = db.raw.prepare("SELECT email, purpose FROM lead_submissions WHERE email = ?").get("finops@example.com");
   assert.equal(row.email, "finops@example.com");
   assert.equal(row.purpose, FINOPS_EXAMPLE_FOLLOW_UP_PURPOSE);
-  assert.match(textOf(document.getElementById("finops-example-follow-up-disclosure")), /bundled synthetic data, not visitor data/);
+  assert.equal(textOf(document.getElementById("finops-example-follow-up-disclosure")),
+    "Only your work email and this fixed follow-up topic are sent.");
 });
 
 test("every authored claim in the takeaway is one AI FinOps still publishes", () => {

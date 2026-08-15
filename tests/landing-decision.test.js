@@ -112,14 +112,15 @@ test("no summary figure on the front door is authored in its markup", async () =
   assert.ok(!html.includes(String(composed.briefing.recoverable.valueMinor / 100)));
   assert.ok(!html.includes(composed.briefing.nextAction.statement));
 
-  // The authored pair is the deliberate exception; the recoverable figure is
-  // repeated only in the contextual form's persistent provenance disclosure.
-  // the labelled, copyable takeaway states the AI FinOps example's headline
-  // result, and the paragraph that introduces the example no longer repeats it.
-  // The takeaway carries the synthetic qualifier, and build.test.js pins the
-  // figures against the composer that paints them on AI FinOps.
+  // The authored pair is the deliberate exception, and it is authored once: the
+  // labelled, copyable takeaway states the AI FinOps example's headline result,
+  // the paragraph that introduces the example does not repeat it, and #1768 took
+  // the third copy off the follow-up form, which restated $51,254 only to
+  // caveat it a second time. The takeaway carries the synthetic qualifier, and
+  // build.test.js pins the figures against the composer that paints them on AI
+  // FinOps.
   const beforeLog = html.slice(0, html.indexOf("record-history"));
-  assert.deepEqual(beforeLog.match(/\$[\d,]+/g), ["$51,254", "$154,500", "$51,254"]);
+  assert.deepEqual(beforeLog.match(/\$[\d,]+/g), ["$51,254", "$154,500"]);
   const start = beforeLog.indexOf('<p class="hero-proof-point">');
   const proofPoint = beforeLog.slice(start, beforeLog.indexOf("</p>", start));
   assert.doesNotMatch(proofPoint, /\$[\d,]+|33%/,
