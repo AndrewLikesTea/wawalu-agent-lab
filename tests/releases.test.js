@@ -268,14 +268,17 @@ test("releases page is wired and linked from the decisions page", async () => {
   assert.match(home, /Representative release/);
   assert.match(home, /use no customer or production data/);
   // One description of what these records are, in the same words on both
-  // surfaces. The release list is the same composed log the home page's record
-  // list shows — stored records plus the seeded examples — so the intro states
-  // provenance with the home page's sentence instead of calling the log this
-  // demo's shipping history, which reads as real history beside it.
-  const provenance = "Includes example records to demonstrate Shiplog. "
-    + "They use no customer or production data.";
-  assert.ok(home.includes(provenance), "the home page's provenance sentence moved");
-  assert.ok(page.includes(provenance), "the releases intro dropped the provenance sentence");
+  // surfaces, and said once per page. The Releases page says it beside the
+  // worked example it describes, so a visitor reads it where the example
+  // records are; the intro no longer says the same thing a second way.
+  const provenance = "These invented records demonstrate Shiplog. "
+    + "They use no customer or production data";
+  assert.ok(home.includes(`${provenance}.`), "the home page's provenance sentence moved");
+  assert.ok(
+    page.includes(`${provenance}, and no such decision or release shipped.`),
+    "the releases example dropped the provenance sentence",
+  );
+  assert.doesNotMatch(page, /Includes example records to demonstrate Shiplog/);
   assert.doesNotMatch(page, /shipping history of this Shiplog demo/);
   assert.match(page, /<title>Releases · Shiplog<\/title>/);
   assert.match(page, /<p class="eyebrow">Record a release<\/p>\s*<h2 id="release-form-title">Record a release<\/h2>/);

@@ -31,6 +31,7 @@ import { initReleasesPage } from "../src/releases-page.js";
 import { loadPage, textOf, typeText } from "./support/browser.js";
 
 const RELEASES_PAGE = new URL("../src/releases.html", import.meta.url);
+const HOME_PAGE = new URL("../src/index.html", import.meta.url);
 const NO_SEED = { decisions: [], releases: [] };
 const AT = "2026-08-15T18:30:00.000Z";
 
@@ -93,8 +94,12 @@ test("the envelope labels the data as example records, in the page's own words",
   assert.equal(payload.release_count, payload.releases.length);
 });
 
-test("the notice is the sentence the Releases page already prints", async () => {
-  const html = await readFile(RELEASES_PAGE, "utf8");
+// The exported file mixes the visitor's own releases with the seeded examples,
+// so the notice stays the "Includes example records" phrasing the home page
+// prints over that same composed log. The Releases page states the narrower
+// fact about its one worked example instead, and no longer carries this one.
+test("the notice is the sentence the record log already prints", async () => {
+  const html = await readFile(HOME_PAGE, "utf8");
   assert.ok(
     html.includes(EXAMPLE_RECORDS_NOTICE),
     "the file's disclaimer is a second phrasing of the page's, which is how the two drift apart",

@@ -34,7 +34,7 @@ export const RELEASE_EXPORT_SCHEMA = "shiplog-releases";
 export const RELEASE_EXPORT_VERSION = 1;
 
 // The site's own sentence about its sample data, character for character, taken
-// from the paragraph under the Releases heading and pinned to it by a test.
+// from the record log's disclosure on the home page and pinned to it by a test.
 // Reused rather than reworded: a file opened a year from now has to carry the
 // same disclaimer as the page it came from, and two phrasings of one promise is
 // how they drift. It rides on the payload as `notice`, before the records, so
