@@ -124,6 +124,13 @@
           <p class="notice" id="release-storage-notice" role="alert" hidden></p>
 
           <form id="release-form">
+            <!-- The same sentence the decision form opens with, word for word:
+                 one name per concept, and a visitor who reads it once on either
+                 page has read it everywhere. saveReleases() writes localStorage
+                 like saveDecisions() does, so both forms can make the same
+                 claim. -->
+            <p class="hint record-consequence" id="record-consequence">This record stays in this browser, where no other visitor can read it, and it disappears when you erase every record on Local workspace or clear your browser data.</p>
+
             <div class="field">
               <label for="release-version">Version <span class="label-optional label-required">(required)</span></label>
               <input id="release-version" name="version" type="text" maxlength="40" required autocomplete="off" aria-describedby="release-version-hint" />

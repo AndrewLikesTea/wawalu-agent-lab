@@ -409,6 +409,16 @@
                live region under the button says what is blocking the save, and
                each message is read with the control it belongs to. -->
           <form id="decision-form" novalidate>
+            <!-- Where the record goes and who reads it, before the first field
+                 rather than after the save. Same sentence, word for word, above
+                 the release form. It says storage because storage is the honest
+                 answer here: saveDecisions() writes localStorage and nothing
+                 leaves the tab, so the Social composer's "anyone who visits
+                 Shiplog can read your post" would be a false claim. Visible
+                 without opening anything — a consequence a reader has to
+                 uncover is one they meet afterwards. -->
+            <p class="hint record-consequence" id="record-consequence">This record stays in this browser, where no other visitor can read it, and it disappears when you erase every record on Local workspace or clear your browser data.</p>
+
             <div class="field field-wide">
               <label for="title">Title</label>
               <input id="title" name="title" type="text" maxlength="120" required autocomplete="off" aria-describedby="title-hint" />

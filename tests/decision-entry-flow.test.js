@@ -460,3 +460,47 @@ test("a record the active filters hide is reported as hidden, not as listed", as
   );
   assert.equal(stored(page).length, 1, "the record was not written");
 });
+
+// Before the first field, the form says where the record goes and who reads it.
+// The claim is checked against the write path, not against the wording: the form
+// hands its values to createDecision(), and saveDecisions() writes them to this
+// browser's local storage under STORAGE_KEY (src/app.js), so nothing about the
+// record reaches a server or another visitor. That is why the sentence is not
+// the Social composer's — "anyone who visits Shiplog can read your post" is true
+// there and false here. The same sentence, word for word, opens the release form
+// on releases.html; tests/release-recorder-flow.test.js pins that copy.
+const RECORD_CONSEQUENCE = "This record stays in this browser, where no other "
+  + "visitor can read it, and it disappears when you erase every record on Local "
+  + "workspace or clear your browser data.";
+
+test("the decision form says where the record goes before the first field", async (t) => {
+  const page = await openHistory(t);
+
+  const said = page.document.querySelectorAll("#record-consequence");
+  assert.equal(said.length, 1, "the form says what happens to a record once, or not at all");
+  assert.equal(said[0].tagName, "P");
+  assert.ok(said[0].classList.contains("hint"), "the sentence left the form's own help-text pattern");
+  assert.equal(textOf(said[0]), RECORD_CONSEQUENCE);
+
+  // Read before anything is typed: inside the form, ahead of every field.
+  const form = page.document.querySelector("#decision-form");
+  assert.ok(said[0].parentNode === form, "the sentence left the form");
+  const fields = form.childElements.filter((child) => child.classList.contains("field"));
+  assert.ok(fields.length > 0, "the form lost its fields");
+  assert.ok(form.childElements.indexOf(said[0]) < form.childElements.indexOf(fields[0]),
+    "the sentence sits after a field, so a visitor types before reading it");
+
+  // Nothing folds it away. The harness models no layout and reads straight
+  // through a closed disclosure, so walk the ancestors rather than trust the text.
+  const folded = [];
+  for (let node = said[0]; node; node = node.parentNode) {
+    if (node.tagName === "DETAILS" || node.getAttribute?.("hidden") !== null) folded.push(node.tagName);
+  }
+  assert.deepEqual(folded, [], "the sentence sits inside something hidden or collapsed");
+  assert.equal(said[0].querySelectorAll("summary,button,a").length, 0,
+    "the sentence grew a control a visitor has to operate before they can read it");
+
+  // The claim it must not make: a recorded decision is not published to anyone.
+  assert.doesNotMatch(textOf(said[0]), /Anyone who visits Shiplog/,
+    "the decision form borrowed the Social composer's claim, which is false here");
+});

@@ -383,3 +383,45 @@ test("a release with nothing linked says so on its detail page", async (t) => {
   assert.equal(textOf(detail.querySelector(".release-empty")), "No decisions linked to this release.");
   assert.equal(detail.querySelectorAll(".detail-decision").length, 0);
 });
+
+// The release form opens with the same sentence the decision form opens with,
+// word for word: one wording per concept, so a visitor who read it on one page
+// has read it on both. It is true of this form for the same reason — the page
+// hands the values to createRelease(), and saveReleases() writes them to this
+// browser's local storage under RELEASE_STORAGE_KEY (src/releases.js:100). The
+// literal below is duplicated from tests/decision-entry-flow.test.js on purpose:
+// if either page's copy drifts, that page's own test reds.
+const RECORD_CONSEQUENCE = "This record stays in this browser, where no other "
+  + "visitor can read it, and it disappears when you erase every record on Local "
+  + "workspace or clear your browser data.";
+
+test("the release form says where the record goes before the first field", async (t) => {
+  const page = await openReleases(t);
+
+  const said = page.document.querySelectorAll("#record-consequence");
+  assert.equal(said.length, 1, "the form says what happens to a record once, or not at all");
+  assert.equal(said[0].tagName, "P");
+  assert.ok(said[0].classList.contains("hint"), "the sentence left the form's own help-text pattern");
+  assert.equal(textOf(said[0]), RECORD_CONSEQUENCE);
+
+  // Read before anything is typed: inside the form, ahead of every field.
+  const form = page.document.querySelector("#release-form");
+  assert.ok(said[0].parentNode === form, "the sentence left the form");
+  const fields = form.childElements.filter((child) => child.classList.contains("field"));
+  assert.ok(fields.length > 0, "the form lost its fields");
+  assert.ok(form.childElements.indexOf(said[0]) < form.childElements.indexOf(fields[0]),
+    "the sentence sits after a field, so a visitor types before reading it");
+
+  // Nothing folds it away: the harness reads straight through a closed
+  // disclosure, so the ancestors are walked rather than the text trusted.
+  const folded = [];
+  for (let node = said[0]; node; node = node.parentNode) {
+    if (node.tagName === "DETAILS" || node.getAttribute?.("hidden") !== null) folded.push(node.tagName);
+  }
+  assert.deepEqual(folded, [], "the sentence sits inside something hidden or collapsed");
+  assert.equal(said[0].querySelectorAll("summary,button,a").length, 0,
+    "the sentence grew a control a visitor has to operate before they can read it");
+
+  assert.doesNotMatch(textOf(said[0]), /Anyone who visits Shiplog/,
+    "the release form borrowed the Social composer's claim, which is false here");
+});
