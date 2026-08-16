@@ -108,15 +108,34 @@ export function mergePostsById(...lists) {
   return merged;
 }
 
+// The name a forwarded link asked for. Any non-empty one counts, including a
+// name longer than the limit every post on this site is written under
+// (MAX_AUTHOR_LENGTH): no post can carry such a name, which makes it a display
+// name with zero image posts — a state this page already draws, under the name
+// that was asked for — rather than a reason to answer under somebody else's.
+// It used to be dropped at the door, and the page then landed on whichever name
+// had the most pictures, or on "Guest" when nothing had any, with nothing on it
+// saying the name in the link had gone. Trimmed, never truncated: a shortened
+// name is a different name, and this one is repeated back verbatim.
+const requestedName = (param) => String(param ?? "").trim();
+
+// The name this browser last posted under. The limit stays here, because this
+// one is a name the visitor may still publish with, and rememberAuthor
+// (src/social-identity.js) refuses to store one over the limit anyway.
+function rememberedName(stored) {
+  const name = String(stored ?? "").trim();
+  return name && name.length <= MAX_AUTHOR_LENGTH ? name : "";
+}
+
 // Whose profile this is. An explicit ?author= wins so a profile is linkable and
 // shareable; otherwise it falls back to the name this browser posts under, and
 // finally to the landing name this feed suggests (defaultProfileAuthor below).
 // `authors` is the last resort, for a feed that holds posts but no images.
 export function resolveProfileAuthor({ param, stored, authors = [], preferred = null } = {}) {
-  const requested = String(param ?? "").trim();
-  if (requested && requested.length <= MAX_AUTHOR_LENGTH) return requested;
-  const remembered = String(stored ?? "").trim();
-  if (remembered && remembered.length <= MAX_AUTHOR_LENGTH) return remembered;
+  const requested = requestedName(param);
+  if (requested) return requested;
+  const remembered = rememberedName(stored);
+  if (remembered) return remembered;
   // With no hint at all, a name that actually has image posts beats an empty
   // grid: this page is a wall of images, and landing on a blank one leaves a
   // first-time visitor unable to tell an empty feature from a wrong name.
@@ -130,10 +149,7 @@ export function resolveProfileAuthor({ param, stored, authors = [], preferred = 
 // re-picks a default for a visitor who never chose — and deriving it twice from
 // the same two inputs is how the two would drift apart.
 export function hasExplicitAuthor({ param, stored } = {}) {
-  return [param, stored].some((value) => {
-    const name = String(value ?? "").trim();
-    return Boolean(name) && name.length <= MAX_AUTHOR_LENGTH;
-  });
+  return Boolean(requestedName(param) || rememberedName(stored));
 }
 
 export function sortNewestFirst(posts) {

@@ -118,8 +118,15 @@ test("the profile subject is the query param, then the remembered name, then a d
   assert.equal(resolveProfileAuthor({ param: "  ", stored: "Kai" }), "Kai");
   assert.equal(resolveProfileAuthor({ authors: ["Ari", "Kai"] }), "Ari");
   assert.equal(resolveProfileAuthor({}), "Guest");
-  // An over-long name is ignored rather than truncated into someone else's.
-  assert.equal(resolveProfileAuthor({ param: "x".repeat(61), stored: "Kai" }), "Kai");
+  // A forwarded name past the author limit is answered under, not discarded: no
+  // post can carry it, so it is a display name with no image posts, and this
+  // page draws that. Ignoring it used to hand the reader Kai's pictures — or
+  // "Guest" — under a name nobody had asked for. Whole, never truncated into
+  // somebody else's name.
+  assert.equal(resolveProfileAuthor({ param: "x".repeat(61), stored: "Kai" }), "x".repeat(61));
+  // The remembered name keeps the limit: it is a name this browser may still
+  // publish under, and storage refuses to hold an over-long one anyway.
+  assert.equal(resolveProfileAuthor({ stored: "x".repeat(61), authors: ["Ari"] }), "Ari");
 });
 
 test("with nothing asked for, the landing name beats the first name alphabetically", () => {
@@ -140,8 +147,11 @@ test("an explicit name is told apart from a first-time landing", () => {
   assert.equal(hasExplicitAuthor({ stored: "Kai" }), true);
   assert.equal(hasExplicitAuthor({ param: "  ", stored: null }), false);
   assert.equal(hasExplicitAuthor({}), false);
-  // An over-long name never wins, so it is not a choice the page has to honour.
-  assert.equal(hasExplicitAuthor({ param: "x".repeat(61) }), false);
+  // A link that asked for an over-long name still asked for somebody, so the
+  // page must not report that name back as a preselection of its own, and must
+  // not move off it when the live feed lands.
+  assert.equal(hasExplicitAuthor({ param: "x".repeat(61) }), true);
+  assert.equal(hasExplicitAuthor({ stored: "x".repeat(61) }), false);
 });
 
 test("the landing name is the fullest profile, ties broken by the picker's own order", () => {
