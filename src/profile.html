@@ -97,13 +97,14 @@
                named a surface this site does not have. The “Guest” default
                belongs to the composer, where a name is typed, so it is not
                repeated here.
-               The hint sits inside the group and ahead of the buttons: it is
-               the instruction for the controls under it, so a reader meets it
-               before the first one rather than after the last. -->
+               The hint sits inside the group and ahead of the buttons: it says
+               what the entries under it are, so a reader meets it before the
+               first one rather than after the last. It used to close on what
+               picking one does, which was the tagline again in other words. -->
           <fieldset class="filter-group" aria-describedby="profile-author-hint">
             <legend id="profile-author-label">Choose a display name</legend>
             <p class="hint profile-toolbar-hint" id="profile-author-hint">
-              The display name is the name shown on each post. Pick one to see only the image posts published under it.
+              The display name is the name shown on each post.
             </p>
             <!-- Written by profile.js on every render: which display name is
                  showing, and whether the page preselected it or the visitor
@@ -165,14 +166,17 @@
               <!-- The second and last visible copy of the display name in this
                    region, and the only one that says what the name is doing:
                    it is the picker's current value, echoed where the results
-                   are, for a reader who scrolled past the control. "Ari" is the
-                   pre-hydration render; the picker replaces it on every change.
+                   are, for a reader who scrolled past the control. It names the
+                   name and stops — it used to spell out the filter as well,
+                   which was the heading beside it plus the tagline above it.
+                   "Ari" is the pre-hydration render; the picker replaces it on
+                   every change.
                    A filled wash rather than an outline, because it reports a
                    state that changes (design-system/claude-design,
                    review-08-foundations: filled wash = dynamic signal, outline =
                    static classification), in the same two colours the avatar
                    beside it already uses. -->
-              <p class="profile-active-filter" id="profile-name">People is filtered to Ari’s image posts.</p>
+              <p class="profile-active-filter" id="profile-name">People is filtered to Ari.</p>
             </div>
           </div>
           <!-- The ordering line, and the counts beside it: a label on the list

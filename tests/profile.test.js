@@ -212,17 +212,23 @@ test("each picker entry is a button that names itself, its count, and its state"
   assert.deepEqual(chosen, ["Kai"]);
 });
 
-test("the line over the picker says who is showing, and who chose them", () => {
+test("the line over the picker says how to switch, and who chose the name showing", () => {
   // A name nobody asked for is reported as the page's own suggestion, with the
   // control that undoes it named where it is.
   assert.equal(pickerNoteText("Mina", { preselected: true }),
-    "Showing Mina’s image posts. We preselected this name for you; pick another below to switch.");
+    "We preselected a name for you; pick another below to switch.");
   // A shared link or a remembered name is a choice, and saying otherwise would
   // tell a reader they had not made the decision they had.
-  assert.equal(pickerNoteText("Mina"), "Showing Mina’s image posts. Pick another name below to switch.");
+  assert.equal(pickerNoteText("Mina"), "Pick another name below to switch.");
   assert.doesNotMatch(pickerNoteText("Mina", { preselected: false }), /preselect/i);
-  // With one entry there is nothing below to pick, so the sentence stops.
-  assert.equal(pickerNoteText("Mina", { preselected: true, choices: 1 }), "Showing Mina’s image posts.");
+  // It states no name of its own. The selected chip below it is marked
+  // "✓ Selected:" and the results region names the display name twice, so this
+  // line telling it a fourth time is what made the page's answer unfindable.
+  assert.doesNotMatch(pickerNoteText("Mina", { preselected: true }), /Mina/);
+  assert.doesNotMatch(pickerNoteText("Mina"), /image posts/);
+  // With one entry there is nothing below to pick, so there is no instruction
+  // to give and singleNameNotice() carries the fact instead.
+  assert.equal(pickerNoteText("Mina", { preselected: true, choices: 1 }), "");
 });
 
 test("a picker with one entry states the fact instead of drawing a choice", () => {
@@ -578,7 +584,9 @@ test("the header shows who this is and what the counts mean", () => {
   renderProfileHeader(elements, "Mina Okafor", { total: 3, withImages: 2, likes: 6, latest: "2026-07-15T09:00:00.000Z" });
   assert.equal(elements.avatar.textContent, "MO");
   assert.equal(elements.avatar.getAttribute("aria-hidden"), "true", "the avatar is decoration beside the name");
-  assert.equal(elements.name.textContent, "People is filtered to Mina Okafor’s image posts.");
+  // The chip names the picker entry that is filtering and stops: the heading
+  // beside it counts the image posts, and the tagline above states the rule.
+  assert.equal(elements.name.textContent, "People is filtered to Mina Okafor.");
   assert.match(elements.summary.textContent, /^2 image posts · 3 posts in total · last posted /);
   // The header writes the display name into exactly one of the elements it
   // touches. The heading beside them carries it a second time and that is the
