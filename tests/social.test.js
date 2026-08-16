@@ -615,6 +615,70 @@ test("who wrote the posts survives loading, populated, empty, and no-match", asy
   stillThere("filtered");
 });
 
+// The intro's last sentence read as a promise about the whole page: a
+// first-time visitor took "no customer or production data" to mean nothing
+// here is real, including the post they were about to write, and then met the
+// composer's warning that a published post cannot be deleted. Two true
+// statements about two different sets of posts. The intro now says which set
+// it means — the ones already in the feed, which the site invented — and hands
+// the visitor's own post to the consequence at the Publish post button, which
+// stays the one and only place that cost is stated.
+const PROVENANCE_SENTENCE = "The posts already here are invented to demonstrate Shiplog; a post you publish is real.";
+const PUBLISH_CONSEQUENCE = "Anyone who visits Shiplog can read your post, its image, and the display name you publish it with. You cannot delete it afterwards, so post nothing you would not put on a public page.";
+
+test("the intro scopes the demo promise to the seeded posts, and the composer states the cost once", async (t) => {
+  const { document, id } = await socialDisclosure(t);
+  // Opened through the page's own control: the state a reader is in when they
+  // are actually deciding whether to publish.
+  id("post-compose-open").click();
+
+  const intro = textOf(document.querySelector(".hero-social").querySelectorAll("p")[2]);
+  assert.match(intro, /The posts already here are invented to demonstrate Shiplog; a post you publish is real\. Posts use no customer or production data\.$/,
+    "the intro stopped saying which posts its demo promise covers, or stopped ending on the demo-data sentence");
+  // The word the eyebrow owns is still said once in the hero: "demonstrate" is
+  // the site's verb on the homepage and Releases, and it is not a fourth badge.
+  const hero = textOf(document.querySelector(".hero-social"));
+  assert.equal(hero.match(/\bdemo\b/gi)?.length, 1, "the hero says \"demo\" more than once again");
+
+  const main = textOf(document.querySelector("#main-content"));
+  // Once each, on the whole page. Both sentences are the kind a later change
+  // re-adds beside a card or in the composer "to be safe", and a promise made
+  // twice in two wordings is what filed this.
+  assert.equal(main.split("no customer or production data").length - 1, 1,
+    "the demo-data phrase is stated more than once on Social");
+  assert.equal(main.split(PROVENANCE_SENTENCE).length - 1, 1,
+    "the sentence saying which posts are invented is not on the page exactly once");
+  assert.equal(main.split(PUBLISH_CONSEQUENCE).length - 1, 1,
+    "the publish consequence is not on the page exactly once");
+
+  // And it is where the decision is made: in the composer, read before the
+  // control that acts on it, and named by that control.
+  const consequence = id("post-consequence");
+  assert.equal(textOf(consequence), PUBLISH_CONSEQUENCE, "the publish consequence was rewritten");
+  assert.equal(document.querySelectorAll(".publish-consequence").length, 1);
+  assert.equal(foldedAway(consequence), false, "the consequence only renders inside something collapsed");
+  const order = documentOrder(document);
+  const submit = id("post-submit");
+  assert.ok(order.indexOf(consequence) < order.indexOf(submit),
+    "the consequence is read after the button it is about");
+  assert.ok((submit.getAttribute("aria-describedby") ?? "").split(" ").includes("post-consequence"),
+    "the publish control stopped naming the consequence");
+
+  // No second wording of either idea anywhere else on the page. Checked against
+  // the text with the consequence itself removed, so the sentence cannot vouch
+  // for its own paraphrase.
+  const elsewhere = main.split(PUBLISH_CONSEQUENCE).join(" ");
+  for (const rival of [/cannot delete/i, /can’t delete/i, /delete it afterwards/i, /permanently/i, /public page/i, /anyone who visits/i]) {
+    assert.doesNotMatch(elsewhere, rival,
+      `Social states that a published post is public and permanent a second way (${rival})`);
+  }
+  // The intro says what a post is made of, and stops there: what publishing
+  // costs belongs at the button, four screens down, not in a paragraph a reader
+  // skims on the way to the feed.
+  assert.doesNotMatch(intro, /delete|public|permanent/i,
+    "the intro carries the publish consequence a second time");
+});
+
 /* ------------------- the feed before the provenance (#1789) ------------------ */
 
 // Document order, the same pre-order walk a browser reads the page in. The
