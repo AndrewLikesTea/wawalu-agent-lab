@@ -340,7 +340,7 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .detail-notes { margin:0; padding-top:20px; border-top:1px solid #ebe9e3; color:#555550; font-size:16px; line-height:1.6; white-space:pre-wrap; overflow-wrap:anywhere; }
 .detail-decisions { display:grid; gap:14px; }
 .detail-decisions-heading { margin:0; font-size:20px; letter-spacing:-.02em; }
-.detail-summary { margin:0; color:#5f5f59; font:600 12px/1.4 ui-monospace,monospace; }
+.detail-summary { margin:0; color:#5f5f59; font:600 12px/1.4 ui-monospace,monospace; overflow-wrap:anywhere; }
 .detail-decision-list { display:grid; gap:10px; margin:0; padding:0; list-style:none; }
 .detail-decision { display:flex; align-items:center; gap:14px; flex-wrap:wrap; padding:15px 16px; border:1px solid #d9d7d0; border-radius:11px; background:#fff; color:inherit; text-decoration:none; }
 .detail-decision:hover { border-color:#1f70c1; background:#fafcff; }

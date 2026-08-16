@@ -28,6 +28,7 @@ import {
 import { copyHistoryLink, renderHistoryFilterChips, renderHistorySummary } from "./history-filter-view.js";
 import { renderHistoryTrend } from "./history-trend-view.js";
 import { publishHistoryScope } from "./history-scope.js";
+import { initDeploymentStatus } from "./deployment-status-view.js";
 import { initLeadCapture } from "./lead-capture.js";
 import { retentionDeclined, retentionRefusal } from "./local-retention.js";
 import { recordsChanged } from "./shiplog-records.js";
@@ -1725,6 +1726,24 @@ export async function initDecisionLog(root = document, storage = localStorage, o
     form.reset();
     form.elements.title.focus();
   });
+
+  // The live deployment self-check (#1791), which is the releases page's band
+  // and not a second one: same module, same reading, same sentence. It is booted
+  // from the composed log so both surfaces compare the running deployment
+  // against the same newest record, and it is deliberately NOT awaited — it
+  // reads the health endpoint, and the history above it must not wait on a
+  // network read to be correct. A boot that throws leaves the authored waiting
+  // line rather than a blank block.
+  //
+  // A surface that mounts this recorder without the block gets nothing:
+  // initDeploymentStatus returns on a missing panel. `deploymentNow` is its own
+  // option because `options.now` here is a millisecond number and the check
+  // reads an ISO string.
+  initDeploymentStatus(root, {
+    releases,
+    readHealth: options.readHealth,
+    now: options.deploymentNow,
+  }).catch(() => {});
 
   document.documentElement.dataset.shiplog = "ready";
 }
