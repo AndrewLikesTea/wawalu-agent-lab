@@ -108,7 +108,7 @@ function assertSettledShape(document, what) {
   assert.doesNotMatch(textOf(figure), /Loading/,
     `${what}: the settled block still reads "Loading"`);
 
-  const links = figure.querySelectorAll("a");
+  const links = figure.querySelector(".merged-figure-sources").querySelectorAll("a");
   assert.equal(links.length, EVENTS_URLS.length, `${what}: a feed link went missing`);
   assert.deepEqual(links.map((link) => link.getAttribute("href")), EVENTS_URLS,
     `${what}: the links no longer go to the responses the count came from`);
