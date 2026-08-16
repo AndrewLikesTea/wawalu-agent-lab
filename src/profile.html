@@ -128,12 +128,12 @@
                times and met the heading that names the results last, after the
                ordering label that sorts them. Reading order is the fix, not a
                reposition: picker, then this header, then the ordering label,
-               then the posts.
+               then the posts, and the display-name caveat under all of them.
                Two visible elements inside this region carry the display name and
                no more. The heading, which names the results and counts them, and
                the active-filter chip, which says which entry of the picker above
-               is doing the filtering. The counts line and the paragraph below
-               stopped repeating it; the polite live region further down still
+               is doing the filtering. The counts line and the caveat below the
+               grid do not repeat it; the polite live region further down still
                announces it, because an announcement has no page around it to
                borrow context from.
                The avatar is decoration and is hidden from assistive technology,
@@ -173,26 +173,6 @@
                    static classification), in the same two colours the avatar
                    beside it already uses. -->
               <p class="profile-active-filter" id="profile-name">People is filtered to Ari’s image posts.</p>
-              <!-- People is a filtered view of Social, and the nav says so by
-                   nesting them. This is where People defines the thing its
-                   picker selects, in the bytes Social's feed note and the
-                   permalink both render. It is the whole definition — where the
-                   names come from, and that nobody owns one — which the site
-                   used to split across three paragraphs in three wordings.
-                   It states the caveat about display names in general and names
-                   nobody: it used to open on the selected name, which made it
-                   the third visible copy of a name the heading two lines above
-                   had already established. The heading is the subject this
-                   sentence is read against.
-                   What this paragraph does not do is point at Social. It carried
-                   "This view shows image posts only. See every post on Social,
-                   including the ones published without an image" — the intro
-                   sentence above it in different words — and then, once that was
-                   cut, the bare link on its own, which put a second route to
-                   Social three lines under the first. The intro states the rule
-                   and carries the link; this paragraph stays on the display name
-                   it defines. -->
-              <p class="profile-role">Display names are invented for this demo or chosen by whoever published the post — nobody owns or verifies one, and anyone can publish under any name.</p>
             </div>
           </div>
           <!-- The ordering line, and the counts beside it: a label on the list
@@ -280,6 +260,30 @@
                image posts spoke the same guidance twice, from two regions. -->
           <div id="profile-feed-status">Loading image posts…</div>
           <div id="profile-grid" aria-describedby="profile-order"></div>
+          <!-- People is a filtered view of Social, and the nav says so by
+               nesting them. This is where People defines the thing its picker
+               selects, in the bytes Social's feed note and the permalink both
+               render. It is the whole definition — where the names come from,
+               and that nobody owns one — which the site used to split across
+               three paragraphs in three wordings.
+               It used to close the profile header at the top of this panel,
+               above the ordering line, above the status region and above the
+               grid, so the first screen of a page that is nothing but pictures
+               was provenance. It sits under the pictures it explains now: same
+               bytes, same class, same panel, and no disclosure widget over it,
+               because a sentence a reader has to open is a sentence they meet
+               too late. It is authored markup outside every branch profile.js
+               swaps, so a load, an empty name, a filtered grid and a failed
+               fetch all render it.
+               It states the caveat about display names in general and names
+               nobody: it used to open on the selected name, which made it a
+               third visible copy of a name the heading above had already
+               established. The heading is the subject this sentence is read
+               against.
+               What this paragraph does not do is point at Social. The intro
+               states the rule and carries the link; this paragraph stays on the
+               display name it defines. -->
+          <p class="profile-role">Display names are invented for this demo or chosen by whoever published the post — nobody owns or verifies one, and anyone can publish under any name.</p>
         </div>
       </section>
       </main>

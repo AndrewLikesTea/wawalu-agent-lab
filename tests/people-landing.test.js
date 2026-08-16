@@ -700,21 +700,29 @@ test("one profile header opens the results, above the line that orders them", as
     const at = (selector) => order.indexOf(document.querySelector(selector));
 
     // Reading order, top to bottom: intro, picker, profile header, ordering
-    // label, posts. The heading used to be the last of those.
+    // label, posts, and the display-name caveat under all of them. The heading
+    // used to be the last of those and the caveat the fourth.
     assert.ok(at(".profile-lede") < at("#profile-author"), "the intro no longer opens the page");
     assert.ok(at("#profile-author") < at("#grid-title"), "the heading is read before the picker that fills it");
     assert.ok(at("#grid-title") < at("#profile-order"), "the ordering label still precedes the heading it orders under");
     assert.ok(at("#profile-order") < order.indexOf(document.querySelectorAll(".profile-tile")[0]),
       "the ordering label is read after the posts it orders");
 
-    // One block, not four fragments: the initials, the heading, and the caveat
-    // are children of the same container, and that container opens the panel.
+    // One block, not four fragments: the initials and the heading are children
+    // of the same container, and that container opens the panel.
     const header = document.querySelector(".profile-identity");
     const panel = document.querySelector(".list-panel");
     assert.equal(panel.childElements[0], header, "something else opens the results region");
     assert.equal(document.querySelector("#profile-avatar").parentNode, header);
     assert.equal(document.querySelector("#grid-title").parentNode.parentNode, header);
-    assert.equal(document.querySelector(".profile-role").parentNode.parentNode, header);
+    // The caveat is no longer one of them (issue #1789). It closes the panel
+    // instead, under the grid it explains, so a first-time visitor reaches the
+    // pictures without scrolling a screen of provenance first. It is still one
+    // paragraph in this panel, and still not in the hero.
+    assert.ok(at(".profile-role") > at("#profile-grid"),
+      "the display-name caveat is still read before the posts");
+    assert.equal(panel.childElements.at(-1).className, "profile-role",
+      "something other than the caveat closes the results region");
     // And the hero it came from keeps no piece of it behind.
     const hero = document.querySelector(".hero-profile");
     assert.equal(hero.querySelectorAll(".profile-identity").length, 0);
@@ -995,6 +1003,134 @@ test("a selected name with no image posts says so once, and offers the way onwar
     assert.match(textOf(document.querySelector("#profile-announcer")), /^Nova hasn’t posted an image yet\./);
   } finally {
     page.restore();
+  }
+});
+
+/* ------------------ the pictures before the provenance (#1789) ----------------- */
+
+// Tiles the grid actually drew. The loading skeleton carries .profile-tile too,
+// so counting it would let an ordering assertion pass against a grid holding no
+// posts at all.
+const drawnTiles = (document) =>
+  [...document.querySelectorAll(".profile-tile")].filter((tile) => !tile.classList.contains("profile-tile-skeleton"));
+
+// Is anything above this node a disclosure? The harness rejects descendant
+// selectors, so the ancestry is walked. A status inside a closed one is silent,
+// and a sentence inside one is a sentence the reader has to ask for.
+function insideDisclosure(node) {
+  for (let at = node.parentNode; at; at = at.parentNode) if (at.tagName === "DETAILS") return true;
+  return false;
+}
+
+// The site's one definition of a display name, in the bytes Social's feed note
+// and the post permalink render.
+const CAVEAT = "Display names are invented for this demo or chosen by whoever published the post — nobody owns or verifies one, and anyone can publish under any name.";
+
+// The reported defect (issue #1789): the display-name caveat closed the profile
+// header at the top of this panel, above the ordering line, above the status
+// region and above the grid, so the first screen of a page that is nothing but
+// pictures was provenance. It is unchanged and still said once; it is read
+// after the pictures it explains now.
+//
+// The invariant is asserted in the pre-order walk a browser reads the page in,
+// never against a stylesheet — and in the states a reader waits longest in,
+// because a load, a failure and a filter that empties the grid are exactly
+// where an ordering rule rots unnoticed.
+function assertPicturesBeforeProvenance(document, state, { tiles = null, status = null } = {}) {
+  const order = documentOrder(document);
+  const at = (node) => order.indexOf(node);
+  const caveat = document.querySelector(".profile-role");
+  const region = document.querySelector("#profile-feed-status");
+  const grid = document.querySelector("#profile-grid");
+
+  assert.equal(document.querySelectorAll(".profile-role").length, 1,
+    `${state}: the page does not state the display-name caveat exactly once`);
+  assert.equal(textOf(caveat), CAVEAT, `${state}: the caveat was rewritten`);
+
+  assert.ok(at(region) < at(caveat), `${state}: the feed status is read after the caveat`);
+  assert.ok(at(grid) < at(caveat), `${state}: the grid is read after the caveat`);
+  assert.ok(at(document.querySelector("#profile-author")) < at(grid),
+    `${state}: the display-name chooser no longer sits above the posts it chooses`);
+
+  // The two regions that speak did not move and did not change contract: the
+  // status panel is rendered content, the polite announcer is the page's one
+  // voice, and neither is behind something a reader has to open.
+  assert.equal(document.querySelectorAll("#profile-feed-status").length, 1, `${state}: the status region was replaced`);
+  assert.equal(region.getAttribute("aria-live"), null, `${state}: the status panel started announcing`);
+  assert.equal(region.getAttribute("role"), null, `${state}: the status panel started claiming a role`);
+  assert.equal(insideDisclosure(region), false, `${state}: the status sits inside a disclosure`);
+  const announcer = document.querySelector("#profile-announcer");
+  assert.equal(announcer.getAttribute("aria-live"), "polite", `${state}: the announcer stopped announcing`);
+  assert.equal(insideDisclosure(announcer), false, `${state}: the announcer announces from inside a disclosure`);
+
+  // And the caveat is read without being asked for, by a keyboard and by a
+  // screen reader alike: no disclosure over it, no tab stop, not hidden.
+  assert.equal(insideDisclosure(caveat), false, `${state}: the caveat has to be opened before it can be read`);
+  assert.equal(caveat.getAttribute("tabindex"), null, `${state}: the caveat grew a tab stop`);
+  assert.equal(caveat.hasAttribute("hidden"), false, `${state}: the caveat ships hidden`);
+
+  if (status !== null) assert.match(textOf(region), status, `${state}: the always-visible region lost its status`);
+  if (tiles !== null) {
+    const drawn = drawnTiles(document);
+    assert.equal(drawn.length, tiles, `${state}: the grid drew ${drawn.length} tiles rather than ${tiles}`);
+    if (tiles > 0) assert.ok(at(drawn[0]) < at(caveat), `${state}: the first tile is read after the caveat`);
+  }
+}
+
+test("the grid and the status region are read before the demo disclaimer", async () => {
+  const page = await people();
+  try {
+    assertPicturesBeforeProvenance(page.document, "populated", { tiles: 2 });
+    // A name with no pictures empties the grid through the picker, which is the
+    // state the caveat is most likely to be the only thing on screen.
+    chipFor(page, "Ari").click();
+    assertPicturesBeforeProvenance(page.document, "filtered-empty", {
+      tiles: 0, status: /No image posts match the selected display name\./,
+    });
+  } finally {
+    page.restore();
+  }
+});
+
+test("the demo disclaimer stays below the grid while the posts load and when they fail", async () => {
+  // A first load that never answers, in both frames a waiting reader gets: the
+  // page as served, whose status panel is the authored waiting line, and the
+  // hydrated page with the live fetch still open.
+  const pending = await loadPage(PAGE_URL, { routes: { [SEED_ROUTE]: SEED_FEED, [LIVE_ROUTE]: { posts: [] } } });
+  const savedInterval = globalThis.setInterval;
+  globalThis.setInterval = () => 0;
+  globalThis.window.history = { replaceState() {} };
+  const routed = globalThis.fetch;
+  globalThis.fetch = (url, init) => (url === LIVE_ROUTE ? new Promise(() => {}) : routed(url, init));
+  try {
+    assertPicturesBeforeProvenance(pending.document, "as served", {
+      tiles: 0, status: /^Loading image posts…$/,
+    });
+    await importPageModule("/profile-page.js");
+    await waitFor(
+      () => (pending.document.querySelector("#profile-author").children.length > 0 ? true : null),
+      "the picker renders its first entries",
+    );
+    assertPicturesBeforeProvenance(pending.document, "loading");
+  } finally {
+    globalThis.fetch = routed;
+    globalThis.setInterval = savedInterval;
+    pending.restore();
+  }
+
+  // And a first load that fails outright: the live route is undeclared, so the
+  // harness refuses it the way an offline browser would.
+  const failed = await loadPage(PAGE_URL, { routes: { [SEED_ROUTE]: { posts: [] } } });
+  globalThis.setInterval = () => 0;
+  try {
+    await importPageModule("/profile-page.js");
+    await waitFor(() => failed.document.documentElement.dataset.shiplogProfile === "ready", "the failed first load settles");
+    assertPicturesBeforeProvenance(failed.document, "error", {
+      tiles: 0, status: /Image posts could not be loaded/,
+    });
+  } finally {
+    globalThis.setInterval = savedInterval;
+    failed.restore();
   }
 });
 
