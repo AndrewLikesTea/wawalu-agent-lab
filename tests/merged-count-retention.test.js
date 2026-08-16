@@ -289,7 +289,8 @@ test("the observatory writes the live count and reads it back when GitHub stops 
   assert.equal(figure.querySelectorAll("details").length, 0);
   assert.equal(readout.getAttribute("aria-live"), "polite");
   // The feeds a reader checks it against are still beside it.
-  assert.deepEqual(figure.querySelectorAll("a").map((link) => link.href), EVENTS_URLS);
+  assert.deepEqual(figure.querySelector(".merged-figure-sources").querySelectorAll("a")
+    .map((link) => link.href), EVENTS_URLS);
 });
 
 test("the observatory with an unusable stored value states that nothing was ever counted", async (t) => {
@@ -306,7 +307,8 @@ test("the observatory with an unusable stored value states that nothing was ever
   assert.deepEqual(readout.querySelectorAll("p").map(textOf),
     unavailableSentences(UNAVAILABLE_REASONS.rateLimited));
   assert.doesNotMatch(textOf(readout), /\d/, "an unreadable store became a number on the page");
-  assert.deepEqual(figure.querySelectorAll("a").map((link) => link.href), EVENTS_URLS);
+  assert.deepEqual(figure.querySelector(".merged-figure-sources").querySelectorAll("a")
+    .map((link) => link.href), EVENTS_URLS);
 });
 
 test("the retained figure is on screen before GitHub has answered at all", async (t) => {

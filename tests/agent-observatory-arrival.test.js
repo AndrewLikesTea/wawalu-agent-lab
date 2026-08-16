@@ -204,7 +204,7 @@ test("the two feeds a reader can count the merges in are usable when GitHub has 
 
   // The links live beside the readout, not inside it, so the state the failed
   // request paints cannot take them away.
-  const links = figure.querySelectorAll("a");
+  const links = figure.querySelector(".merged-figure-sources").querySelectorAll("a");
   assert.deepEqual(links.map((link) => link.href), EVENTS_URLS);
   for (const link of links) {
     assert.deepEqual(ancestorIds(link).filter((id) => REPLACEABLE.includes(id)), [],

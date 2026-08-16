@@ -19,6 +19,10 @@
 /* A recorded count is a real count, so it is set like one. The date beside it,
    not a muted colour, is what says it is not today's. */
 .merged-figure[data-state="recorded"] .merged-figure-source { color:#5f5f58; }
+/* Static, so it reads the same whether or not a number arrived. It sits outside
+   the readout for that reason, and is set like the source line beside it. */
+.merged-figure-note { margin:0; color:#71716b; font-size:12px; line-height:1.5; }
+.merged-figure-note a { color:#285f8f; }
 .merged-figure-sources { display:grid; gap:4px; margin:0; padding:0; list-style:none; }
 .merged-figure-sources a { color:#285f8f; font-size:12px; line-height:1.45; }
 .observatory-grid { display:grid; grid-template-columns:330px minmax(0,1fr); align-items:start; gap:24px; }

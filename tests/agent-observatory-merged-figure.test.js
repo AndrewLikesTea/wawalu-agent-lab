@@ -18,7 +18,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { UNAVAILABLE_REASONS, unavailableSentences } from "../src/public-merges.js";
+import { UNAVAILABLE_REASONS, feedLinkText, unavailableSentences } from "../src/public-merges.js";
 import {
   EVENTS_URLS,
   MERGED_FIGURE_COPY,
@@ -250,6 +250,61 @@ test("a failed refresh clears the previous count instead of keeping a stale one"
     "a previous response's count must not outlive the response");
 });
 
+// What the counted merges are, and where to read what they shipped. The claim is
+// about what the two repositories hold, never about the digit beside it, so it is
+// authored in agents.html rather than rendered — the readout is the only thing a
+// response replaces, and a reader who never gets a number needs this sentence most.
+const NOTE_PHRASE = /built and changed the pages of this site/;
+const RELEASES_LABEL = "Read the releases these pull requests shipped";
+
+test("the block says the merges are the work that built this site, and links the releases they shipped", async (t) => {
+  const page = await loadPage(PAGE_URL);
+  t.after(() => page.restore());
+  const { document } = page;
+  const note = document.querySelector("#merged-figure-note");
+
+  // Beside the live region, never inside it: that is what makes it survivable.
+  assert.equal(note.parentNode.id, "merged-figure");
+  assert.equal(document.querySelector("#merged-figure-readout").querySelectorAll("#merged-figure-note").length, 0);
+
+  // It names both repositories the way the page already names them, and holds no
+  // digit, so nothing in it depends on a count having arrived.
+  for (const repository of SOURCE_REPOSITORIES) {
+    assert.ok(textOf(note).includes(repository), `${repository} is not named`);
+  }
+  assert.doesNotMatch(textOf(note), /\d/, "the sentence must read the same with no count behind it");
+
+  // One link out, to Releases, saying what is at the other end of it.
+  const releases = note.querySelectorAll("a");
+  assert.equal(releases.length, 1, "one pointer, not a second source list");
+  assert.equal(releases[0].getAttribute("href"), "/releases.html");
+  assert.equal(textOf(releases[0]), RELEASES_LABEL);
+  assert.ok(tabSequence(document).includes(releases[0]), "the releases link is keyboard-reachable");
+
+  // Both settled paths carry it: a counted response, and a request GitHub never
+  // answered. The served loading state above is the third.
+  assert.match(textOf(note), NOTE_PHRASE);
+  await loadActivity(document, githubFetcher(LIVE_EVENTS));
+  assert.equal(document.querySelector("#merged-figure").dataset.state, "live");
+  assert.match(textOf(document.querySelector("#merged-figure-note")), NOTE_PHRASE);
+
+  // A browser that has never held a count, and a request that never answered:
+  // the state with nothing to show is the one this sentence is written for.
+  const offline = await loadPage(PAGE_URL, { storage: {} });
+  t.after(() => offline.restore());
+  await loadActivity(offline.document, async () => { throw new Error("offline"); });
+  const settled = offline.document.querySelector("#merged-figure-note");
+  assert.equal(offline.document.querySelector("#merged-figure").dataset.state, "unavailable");
+  assert.match(textOf(settled), NOTE_PHRASE);
+  assert.equal(textOf(settled.querySelectorAll("a")[0]), RELEASES_LABEL);
+
+  // And it took nothing from the feed links: still their own list, still the
+  // words the shared module spells them with.
+  const feeds = offline.document.querySelector(".merged-figure-sources").querySelectorAll("a");
+  assert.deepEqual(feeds.map((link) => link.getAttribute("href")), EVENTS_URLS);
+  assert.deepEqual(feeds.map(textOf), SOURCE_REPOSITORIES.map(feedLinkText));
+});
+
 test("the figure leads the shipped observatory and is reachable by keyboard", async (t) => {
   const page = await loadPage(PAGE_URL);
   t.after(() => page.restore());
@@ -274,7 +329,7 @@ test("the figure leads the shipped observatory and is reachable by keyboard", as
 
   // Verification: real anchors, to the exact responses the count is computed
   // from, before the activity panel's control in the tab order.
-  const links = figure.querySelectorAll("a");
+  const links = figure.querySelector(".merged-figure-sources").querySelectorAll("a");
   const sequence = tabSequence(document);
   const refresh = document.querySelector("#refresh-activity");
   assert.deepEqual(links.map((link) => link.href), EVENTS_URLS);
@@ -293,7 +348,7 @@ test("a live response paints the figure on the shipped page without disturbing i
   const page = await loadPage(PAGE_URL);
   t.after(() => page.restore());
   const { document } = page;
-  const links = document.querySelector("#merged-figure").querySelectorAll("a");
+  const links = document.querySelector(".merged-figure-sources").querySelectorAll("a");
 
   await loadActivity(document, githubFetcher(LIVE_EVENTS));
 

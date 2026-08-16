@@ -173,8 +173,8 @@ test("the recorded count keeps the GitHub feed links beside it on the shipped pa
   assert.equal(textOf(document.querySelector(".merged-figure-count")), "412");
   assert.equal(textOf(document.querySelector(".merged-figure-unit")), "merged pull requests");
   assert.match(textOf(figure), /as of 2026-07-14/);
-  assert.deepEqual(figure.querySelectorAll("a").map((link) => link.href), EVENTS_URLS,
-    "a reader can still check the count at the source it came from");
+  assert.deepEqual(figure.querySelector(".merged-figure-sources").querySelectorAll("a").map((link) => link.href),
+    EVENTS_URLS, "a reader can still check the count at the source it came from");
 });
 
 test("no record and no answer is the home page's two sentences, no figure, and the links stay", async (t) => {
@@ -196,7 +196,8 @@ test("no record and no answer is the home page's two sentences, no figure, and t
   // what was being counted, in that order, for the clause this failure earned.
   assert.deepEqual(readout.querySelectorAll("p").map(textOf),
     unavailableSentences(UNAVAILABLE_REASONS.rateLimited));
-  assert.deepEqual(figure.querySelectorAll("a").map((link) => link.href), EVENTS_URLS);
+  assert.deepEqual(figure.querySelector(".merged-figure-sources").querySelectorAll("a").map((link) => link.href),
+    EVENTS_URLS);
 });
 
 test("an unreadable or half-written record is no record at all", async () => {
