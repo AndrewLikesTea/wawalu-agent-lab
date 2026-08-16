@@ -281,7 +281,10 @@ test("releases page is wired and linked from the decisions page", async () => {
   assert.doesNotMatch(page, /Includes example records to demonstrate Shiplog/);
   assert.doesNotMatch(page, /shipping history of this Shiplog demo/);
   assert.match(page, /<title>Releases · Shiplog<\/title>/);
-  assert.match(page, /<p class="eyebrow">Record a release<\/p>\s*<h2 id="release-form-title">Record a release<\/h2>/);
+  // The form's name is the heading, once. It used to be printed twice in a row,
+  // as an eyebrow and then as the heading it labelled.
+  assert.match(page, /<div class="section-heading">\s*<h2 id="release-form-title">Record a release<\/h2>\s*<\/div>/);
+  assert.doesNotMatch(page, /<p class="eyebrow">Record a release<\/p>/);
   assert.match(page, /id="release-list"/);
   assert.match(page, /id="release-search"/);
   assert.match(page, /id="release-status"/);
