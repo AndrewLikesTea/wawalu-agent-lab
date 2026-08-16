@@ -361,9 +361,9 @@ test("Social and People each disambiguate the other in the sentence under the he
   assert.notEqual(descriptions[0], descriptions[1], "the two descriptions must not be the same sentence");
 });
 
-// Releases leads on "See what shipped, and why." and Prompt coach on "Paste a
-// prompt and get a score with the first change to make." — one line, one verb
-// first, what you do here. Social and People opened on a definition of
+// Releases leads on "See what shipped, and why." and Prompt coach on "Grade one
+// prompt before you send it." — one line, one verb first, what you do here.
+// Social and People opened on a definition of
 // themselves instead, so the two pages a visitor is most likely to arrive at
 // cold were the two that made them read a paragraph to place the page.
 test("Social and People lead with the same one-line, verb-first tagline the rest of the site does", async () => {
@@ -372,7 +372,7 @@ test("Social and People lead with the same one-line, verb-first tagline the rest
     /<h1 id="page-title">See what shipped,<br \/>and why\.<\/h1>/,
     "Releases no longer leads with the line these two copy");
   assert.match(await readFile(pageUrl("coach.html"), "utf8"),
-    /<p class="coach-hero-lead">Paste a prompt and get a score with the first change to make\.<\/p>/,
+    /<p class="coach-hero-lead">Grade one prompt before you send it\.<\/p>/,
     "Prompt coach no longer leads with the line these two copy");
 
   const taglines = [
