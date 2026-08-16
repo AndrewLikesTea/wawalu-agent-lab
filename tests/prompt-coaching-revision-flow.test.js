@@ -82,8 +82,11 @@ test("before a second grade the cue offers re-grading and nothing claims a chang
     assert.match(words, /Compare a revision/i);
     // Privacy and storage are stated once before the field, so this cue stays
     // focused on the revision workflow instead of repeating that disclosure.
-    assert.match(words, /Grade your prompt, edit it, then grade it again/i);
-    assert.match(words, /both scores and what changed/i);
+    // The steps are stated once there too — paste, grade, revise, grade again —
+    // so this cue says only what the second grade will show.
+    assert.match(words, /A second grade shows both scores and what changed\./);
+    assert.doesNotMatch(words, /paste|revise|edit it|grade it again/i,
+      "the steps belong to the block before the field, not to this cue");
     assert.doesNotMatch(words, /model|memory|text you pasted|saved|stored|history|account|upload/i);
 
     assert.equal(changeRegion(document).hidden, true);

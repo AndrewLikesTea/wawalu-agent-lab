@@ -271,16 +271,20 @@ test("the destination reads as one page about one thing", async () => {
   assert.match(sample, /not your prompt/);
   assert.match(sample, /real prompt/);
 
-  // One purpose statement, at the top: what a visitor does here and what comes
-  // back. It does not spend its second sentence on the promise the form makes.
+  // One purpose statement, at the top: what this page is for and when to use
+  // it. It does not spend its second clause on the promise the form makes.
   const lead = textOf(document.querySelector(".coach-hero-lead"));
-  assert.match(lead, /Paste a prompt/);
+  assert.equal(lead, "Grade one prompt before you send it.");
   assert.doesNotMatch(lead, /leaves this tab|uploaded|no sign-in/i,
     "the purpose statement is not a second copy of the privacy statement");
   // Nor a second copy of the instructions: what to do, in what order, is said
   // once in the block that sits immediately before the field.
   assert.doesNotMatch(lead, /grade it again|bundled/i,
     "the purpose statement is not a second copy of the block before the field");
+  // Nor a second copy of what a grade returns: the score and the first change
+  // are promised in that same block, once.
+  assert.doesNotMatch(lead, /score|first change/i,
+    "what a grade returns is promised once, in the block before the field");
 
   // The copy a visitor reads before any script runs describes what they get,
   // not how this page is built. Contracts, fixtures, and script loading are
