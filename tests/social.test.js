@@ -596,6 +596,112 @@ test("who wrote the posts survives loading, populated, empty, and no-match", asy
   stillThere("filtered");
 });
 
+/* ------------------- the feed before the provenance (#1789) ------------------ */
+
+// Document order, the same pre-order walk a browser reads the page in. The
+// criterion is reading order and tab order, so this is asserted by position in
+// the walk and never by a stylesheet, which the harness does not model anyway.
+function documentOrder(document) {
+  const order = [];
+  const visit = (node) => {
+    for (const child of node.children) {
+      if (child.nodeType !== 1) continue;
+      order.push(child);
+      visit(child);
+    }
+  };
+  visit(document);
+  return order;
+}
+
+// Cards the feed actually drew. The loading skeleton carries .post-card too, so
+// counting it would let an ordering assertion pass against a feed holding no
+// posts at all.
+const drawnCards = (document) =>
+  [...document.querySelectorAll(".post-card")].filter((card) => !card.classList.contains("post-card-skeleton"));
+
+// Is anything above this node a disclosure? The harness rejects descendant
+// selectors, so the ancestry is walked. A live region inside a closed one is
+// silent, and a sentence inside one is a sentence the reader has to ask for.
+function insideDisclosure(node) {
+  for (let at = node.parentNode; at; at = at.parentNode) if (at.tagName === "DETAILS") return true;
+  return false;
+}
+
+// The reported defect: the display-name sentence opened the feed panel, above
+// the filters, above the status region and above the first card, so the first
+// screen of Social was provenance and the feed a reader came for was below it.
+// The sentence is unchanged and still said once; it is read after the posts it
+// explains now. It has to hold in every state the feed swaps between, because
+// the states a reader waits longest in — an open fetch, a failed one, a feed
+// the filters emptied — are exactly the ones where the ordering would rot
+// unnoticed.
+test("the status region and the posts are read before the demo disclaimer, in every feed state", async (t) => {
+  const page = await loadPage(new URL("../src/social.html", import.meta.url), {});
+  t.after(() => page.restore());
+  const { document } = page;
+
+  const invariant = (state, { cards = 0, status = null } = {}) => {
+    const order = documentOrder(document);
+    const at = (node) => order.indexOf(node);
+    const note = document.querySelector("#feed-source-note");
+    const region = document.querySelector("#feed-state");
+    const list = document.querySelector("#post-feed");
+
+    // Said once, in the bytes it has always had.
+    assert.equal(document.querySelectorAll("#feed-source-note").length, 1,
+      `${state}: the page does not state the display-name caveat exactly once`);
+    assert.equal(textOf(note), DISPLAY_NAME_SENTENCE, `${state}: the caveat was rewritten`);
+
+    // The ordering criterion itself.
+    assert.ok(at(region) < at(note), `${state}: the feed status is read after the caveat`);
+    assert.ok(at(list) < at(note), `${state}: the posts list is read after the caveat`);
+    assert.ok(at(document.querySelector(".social-toolbar")) < at(list),
+      `${state}: the filters no longer sit above the posts they narrow`);
+
+    // The live region did not move: same element, same id, same announcement
+    // contract, and nothing foldable above it.
+    assert.equal(region.getAttribute("role"), "status", `${state}: the status region stopped being a status`);
+    assert.equal(region.getAttribute("aria-live"), "polite", `${state}: the status region stopped announcing`);
+    assert.equal(insideDisclosure(region), false, `${state}: the status announces from inside a disclosure`);
+    // And neither did the caveat go behind one: it is read without being asked
+    // for, by a keyboard and by a screen reader alike.
+    assert.equal(insideDisclosure(note), false, `${state}: the caveat has to be opened before it can be read`);
+    assert.equal(note.getAttribute("tabindex"), null, `${state}: the caveat grew a tab stop`);
+    assert.equal(note.hasAttribute("hidden"), false, `${state}: the caveat ships hidden`);
+
+    // The state's own words, in the region that has always carried them.
+    if (status !== null) assert.match(textOf(region), status, `${state}: the always-visible region lost its status`);
+
+    const drawn = drawnCards(document);
+    assert.equal(drawn.length, cards, `${state}: the feed drew ${drawn.length} cards rather than ${cards}`);
+    if (cards > 0) assert.ok(at(drawn[0]) < at(note), `${state}: the first post card is read after the caveat`);
+  };
+
+  const feed = mountSocialFeed(document, { posts: [], state: "loading" });
+  invariant("loading", { status: /Loading the Social feed/ });
+
+  feed.setState("error");
+  invariant("error", { status: /Social posts could not be loaded\./ });
+
+  feed.seed([]);
+  invariant("empty", { status: /No posts on Social yet\./ });
+
+  // Three days old, so the time filter below can genuinely empty the feed.
+  feed.seed([
+    { id: "ari", author: "Ari", body: "just shipped", createdAt: new Date(Date.now() - 3 * 86400000).toISOString() },
+  ]);
+  invariant("populated", { cards: 1 });
+
+  // Filter the one post out: the no-match branch replaces the list, and the
+  // caveat is below the part that gets replaced.
+  const nameFilter = document.querySelector("#post-name-filter");
+  nameFilter.value = "Ari";
+  document.querySelector("#post-time-filter").value = "hour";
+  nameFilter.dispatchEvent({ type: "change", bubbles: true });
+  invariant("filtered-empty", { status: /No posts by Ari from the past hour\./ });
+});
+
 // One fact, one wording, on all three pages that show a published post. Social
 // and the permalink already agreed; People — the page a reader can land on
 // straight from the nav, and the only one that is nothing but pictures — said

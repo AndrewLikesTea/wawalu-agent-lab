@@ -153,29 +153,6 @@
                  the page. -->
             <span class="count" id="post-count"></span>
           </div>
-          <!-- Who wrote what a reader is about to scroll through, said once and
-               said here, because here is where the names are. A reader meets
-               "Ari" on a card and reads an account unless the page tells them
-               otherwise; "invented" is the word this site already uses for what
-               it made up, and "display name" is the one term the composer's
-               field, this panel's filter, and People's picker all use for the
-               name a post carries.
-               It is the whole definition: where the names come from, and that
-               nobody owns one. Those halves used to sit in three paragraphs in
-               three wordings, so a visitor learned the concept and then met a
-               second version of it. People and the permalink render these exact
-               bytes; the composer's field hint keeps only what neither says,
-               which is what the name is used for.
-               It is the feed panel's own markup, outside every branch social.js
-               swaps — loading, ready, empty, and no-match all render it — so the
-               claim about who wrote the posts does not depend on a fetch having
-               answered. It is plain prose: no heading, nothing focusable, no
-               live region, and no rule of its own in the stylesheet.
-               It sits under the heading row rather than inside it, because the
-               heading and the count beside it are one line that reads as a pair,
-               and a second paragraph between them would drop the count away
-               from the words it counts. -->
-          <p class="hint" id="feed-source-note">Display names are invented for this demo or chosen by whoever published the post — nobody owns or verifies one, and anyone can publish under any name.</p>
           <!-- Social offers Paint twice, and only twice: the hero's standing
                invitation and the composer's in-flow control. A third invitation
                beside the feed, reading "Open Paint", used to sit here; it named
@@ -272,6 +249,29 @@
           <p class="feed-summary" id="feed-summary" aria-live="polite"></p>
           <div id="feed-state" role="status" aria-live="polite" aria-atomic="true">Loading the Social feed…</div>
           <div id="post-feed" aria-describedby="feed-summary"></div>
+          <!-- Who wrote what a reader has just scrolled through, said once and
+               said here, because here is where the names are. A reader meets
+               "Ari" on a card and reads an account unless the page tells them
+               otherwise; "invented" is the word this site already uses for what
+               it made up, and "display name" is the one term the composer's
+               field, this panel's filter, and People's picker all use for the
+               name a post carries.
+               It used to open this panel, above the filters, above the status
+               region and above the first card, so a first-time visitor read a
+               screen of provenance before a single post. Same bytes, same
+               class, same panel: only its place in the document moved, and it
+               moved below the posts it explains rather than behind a disclosure
+               widget, because a sentence a reader has to open is a sentence
+               they meet too late.
+               It is still the feed panel's own markup, outside every branch
+               social.js swaps — loading, ready, empty, error, and no-match all
+               render it — so the claim about who wrote the posts does not
+               depend on a fetch having answered. Plain prose: no heading,
+               nothing focusable, no live region, and no rule of its own in the
+               stylesheet. People and the permalink render these exact bytes;
+               the composer's field hint keeps only what neither says, which is
+               what the name is used for. -->
+          <p class="hint" id="feed-source-note">Display names are invented for this demo or chosen by whoever published the post — nobody owns or verifies one, and anyone can publish under any name.</p>
         </div>
 
         <!-- Ships collapsed, and is revealed by the hero's Publish a post
