@@ -118,7 +118,7 @@ test("Coach, Releases, Social, People, and Agents send one bounded request and s
   const pages = [
     ["coach.html", "follow_up_coach", "Paste a prompt"],
     ["releases.html", "follow_up_releases", "Deployment status"],
-    ["social.html", "follow_up_social", "shared demo feed"],
+    ["social.html", "follow_up_social", "images optional"],
     ["profile.html", "follow_up_people", "image posts"],
     ["agents.html", "follow_up_agents", "Agent Observatory"],
   ];
