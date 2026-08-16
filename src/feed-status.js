@@ -52,14 +52,105 @@ export function feedPresence(node) {
   };
 }
 
+// The two states a feed has something to filter in: tiles on screen, or a set
+// of filters that emptied a feed which does have posts behind it. Every other
+// phase — an open fetch, a failed one, a feed with nothing in it — is a screen
+// where the menus cannot change what is showing.
+export function filtersAvailable(phase) {
+  return phase === "loaded" || phase === "filtered-empty";
+}
+
+// The one sentence the filter region says while its controls cannot do
+// anything. Caption weight, not content weight: it describes the controls
+// beside it rather than the feed, which the status region is already reporting.
+export const FILTERS_UNAVAILABLE_HINT = "Filters become available when posts load.";
+
+/** Is `node` inside `host`? Ancestor walk: no descendant selectors here. */
+function within(node, host) {
+  for (let walker = node; host && walker; walker = walker.parentNode) {
+    if (walker === host) return true;
+  }
+  return false;
+}
+
+/** The hint this call owns, if a previous call already wrote it. */
+function existingHint(host, id) {
+  return [...(host?.children ?? [])].find((child) => child.getAttribute?.("id") === id) ?? null;
+}
+
 // A filter with nothing behind it is a control that cannot do anything, so it
 // says so with the attribute the platform already has for it: `disabled` drops
 // it out of the tab order and out of the pointer path in one move, with no
-// tabindex bookkeeping and no trap to escape from.
-export function setFeedControlsDisabled(controls, disabled) {
-  for (const control of controls) {
-    if (control) control.disabled = Boolean(disabled);
+// tabindex bookkeeping and no trap to escape from. On a failed feed that is
+// also what makes the panel's Retry the next stop after the status text — the
+// filters stop being stops, so nothing had to be moved in the markup to put the
+// one working control in the reader's path.
+//
+// One entry point for all of it, called from every render path on both pages
+// including the error and retry paths, so a state added later cannot leave a
+// dead menu operable by forgetting a setAttribute at its own call site.
+//
+// THREE THINGS BEYOND THE PROPERTY.
+//
+// `aria-disabled` alongside it, because `disabled` alone is announced by the
+// platform but leaves nothing in the markup a reader of the page — or a test —
+// can point at, and the fill change the browser draws is the one signal a
+// low-vision reader is least likely to get.
+//
+// The hint sentence, written into the filter region and named by every control
+// through `aria-describedby`, so the reason is in words next to the controls
+// rather than only in a greyed-out fill. It is removed, not hidden, the moment
+// the filters work again: a description that has stopped being true is worse
+// standing there than absent.
+//
+// And focus. Disabling the control a keyboard reader is standing on drops focus
+// to <body>, which sends the next Tab back to the top of the document. So the
+// active element is checked BEFORE the attribute lands, and if it is one of
+// these controls, focus moves to the status region — the line that just changed
+// under them, and the one that says what happened — which takes `tabindex="-1"`
+// only if the markup did not already give it a stop.
+export function setFilterAvailability(available, options = {}) {
+  const {
+    controls = [], statusRegion = null, focusHost = null,
+    hintHost = null, hintId = "", hintBefore = null, hintText = FILTERS_UNAVAILABLE_HINT,
+    hintClass = "hint",
+  } = options;
+  const off = !available;
+  const list = controls.filter(Boolean);
+
+  if (off && statusRegion) {
+    const active = document.activeElement ?? null;
+    if (active && (list.includes(active) || within(active, focusHost))) {
+      if (statusRegion.getAttribute("tabindex") === null) statusRegion.setAttribute("tabindex", "-1");
+      statusRegion.focus();
+    }
   }
+
+  for (const control of list) {
+    control.disabled = off;
+    if (off) control.setAttribute("aria-disabled", "true");
+    else control.removeAttribute("aria-disabled");
+    // Only the description this function wrote is added and taken away again,
+    // so a control that already describes itself keeps its own words.
+    if (!hintId) continue;
+    if (off && control.getAttribute("aria-describedby") === null) control.setAttribute("aria-describedby", hintId);
+    else if (!off && control.getAttribute("aria-describedby") === hintId) control.removeAttribute("aria-describedby");
+  }
+
+  if (!hintHost || !hintId) return;
+  const written = existingHint(hintHost, hintId);
+  if (!off) {
+    written?.remove();
+    return;
+  }
+  if (written) {
+    written.textContent = hintText;
+    return;
+  }
+  const hint = element("p", hintClass, hintText);
+  hint.setAttribute("id", hintId);
+  if (hintBefore && within(hintBefore, hintHost)) hintHost.insertBefore(hint, hintBefore);
+  else hintHost.append(hint);
 }
 
 function element(tag, className, text) {
