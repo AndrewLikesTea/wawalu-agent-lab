@@ -224,7 +224,7 @@ for (const [name, transport] of [
       assert.doesNotMatch(textOf(recovery), /briefing/i);
       const retry = byId(document, "site-footer-retry");
       assert.equal(retry.hidden, false, "a failure must offer a retry where it happened");
-      assert.equal(textOf(retry), "Retry sending work email to the Wawalu team");
+      assert.equal(textOf(retry), "Retry your follow-up request");
 
       // The outcome is wired to the field a reader has to come back to.
       assert.equal(field.getAttribute("aria-invalid"), "true");
