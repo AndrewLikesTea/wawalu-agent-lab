@@ -14,6 +14,11 @@
 // which is what this file pins alongside the label: an unqualified CTA is only
 // an improvement when the sentence next to it still answers the question.
 //
+// The footer's own submit was the last holdout: it read "Send work email to
+// request a follow-up" while the home page's lead-capture note told a visitor to
+// use "Request a follow-up" in the footer of that very page (#1809). It reads
+// the one label now, and its invitation is what says a follow-up about what.
+//
 // The rendered pages are the subject. Reading the shipped HTML rather than the
 // constants is the point: a constant nothing renders is not a label a visitor
 // sees, and this suite exists because five of them had drifted apart in markup.
@@ -26,7 +31,6 @@ import { INVITATION } from "../src/site-footer.js";
 
 /** The one label. Written out here so a rename has to be a decision, not a diff. */
 const CTA = "Request a follow-up";
-const FOOTER_CTA = "Send work email to request a follow-up";
 
 const pageUrl = (file) => new URL(`../src/${file}`, import.meta.url);
 
@@ -102,7 +106,7 @@ test("every control that opens or submits a follow-up form reads exactly the one
   // tests/follow-up-conversion.test.js pins its rendered label.
 });
 
-test("the footer's visible request control names what it sends on every page", async () => {
+test("the footer's visible request control reads the one CTA label on every page", async () => {
   for (const file of FOOTER_PAGES) {
     const page = await loadPage(pageUrl(file));
     try {
@@ -112,7 +116,7 @@ test("the footer's visible request control names what it sends on every page", a
       // returns, so the regression this guards would hang CI instead of naming
       // itself. Same reason at the matching assertion in tests/site-footer.test.js.
       assert.ok(byId(document, "site-footer-open") == null, `${file}: footer must not gate the form behind a trigger`);
-      assert.equal(textOf(submitOf(document, "site-footer-form")), FOOTER_CTA, `${file}: footer submit`);
+      assert.equal(textOf(submitOf(document, "site-footer-form")), CTA, `${file}: footer submit`);
     } finally {
       page.restore();
     }

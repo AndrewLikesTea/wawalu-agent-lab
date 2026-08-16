@@ -373,7 +373,7 @@ test("the post page's loading tab order reaches Social without a placeholder Peo
   // at the worked decision is the first footer stop, ahead of the site map.
   assert.deepEqual(
     afterExit.slice(0, bandStops.length + 3),
-    [PITCH_LINK, ...bandStops, "", "Send work email to request a follow-up"],
+    [PITCH_LINK, ...bandStops, "", "Request a follow-up"],
   );
   assert.ok(
     sequence.slice(FRAME_STOPS).every((stop) => stop.closest("#site-footer")),

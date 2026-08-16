@@ -111,7 +111,7 @@ export const DEMOS = Object.freeze([
 /**
  * The context the controls do not carry.
  *
- * The button beside it names what it sends — a work email — but not what the
+ * The button beside it names the errand — a follow-up — but not what the
  * follow-up would be about, or who is on the other end. That is this sentence's
  * job, and it stands above the form because a visitor reads it before deciding
  * whether to type an address into anything.
@@ -207,7 +207,7 @@ function contactFormLines(followUpType) {
     '    <div class="site-footer-panel" id="site-footer-panel">',
     `      <form id="site-footer-form" class="site-footer-form"${followUpType ? ` data-follow-up-type="${followUpType}"` : ""} novalidate>`,
     '        <div class="site-footer-field">',
-    '          <label for="site-footer-email">Work email to send to the Wawalu team</label>',
+    '          <label for="site-footer-email">Work email for your follow-up</label>',
     "          <!-- Only the note is named here. The inline error and the recovery",
     "               paragraph are added to this description by site-footer.js when",
     "               they exist, because a hidden element referenced by",
@@ -219,8 +219,8 @@ function contactFormLines(followUpType) {
     `        <p class="site-footer-note" id="site-footer-note">${FOLLOW_UP_PRIVACY}</p>`,
     '        <p class="site-footer-recovery" id="site-footer-recovery" hidden>We could not send your follow-up request. Your email address is still in the field above, and nothing else on this page changed. Retry sends the same request again from this page; if it keeps failing, wait a few minutes and retry.</p>',
     '        <div class="site-footer-actions">',
-    '          <button type="submit">Send work email to request a follow-up</button>',
-    `          <button id="${RETRY_ID}" type="submit" hidden>Retry sending work email to the Wawalu team</button>`,
+    '          <button type="submit">Request a follow-up</button>',
+    `          <button id="${RETRY_ID}" type="submit" hidden>Retry your follow-up request</button>`,
     "        </div>",
     "      </form>",
     '      <p class="site-footer-status" id="site-footer-status" role="status" aria-live="polite"></p>',

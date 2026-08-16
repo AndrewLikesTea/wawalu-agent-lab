@@ -586,9 +586,9 @@ test("the footer form says what submitting asks for, on the page that carries bo
 
     // The control the visitor presses says the same thing the note does.
     const submit = byId(document, "site-footer-panel").querySelector('button[type="submit"]');
-    assert.equal(textOf(submit), "Send work email to request a follow-up");
+    assert.equal(textOf(submit), "Request a follow-up");
     assert.equal(textOf(byId(document, "site-footer-email").labels?.[0]
-      ?? document.querySelector('label[for="site-footer-email"]')), "Work email to send to the Wawalu team");
+      ?? document.querySelector('label[for="site-footer-email"]')), "Work email for your follow-up");
 
     // The button carries no page-specific qualification, so the line outside the
     // panel is what says a follow-up about what — and it is readable before the
@@ -661,7 +661,7 @@ test("the footer initially renders one email field and one request action, with 
     const visibleSubmits = [...byId(document, "site-footer-form").querySelectorAll('button[type="submit"]')]
       .filter((button) => !button.hidden);
     assert.equal(visibleSubmits.length, 1);
-    assert.equal(textOf(visibleSubmits[0]), "Send work email to request a follow-up");
+    assert.equal(textOf(visibleSubmits[0]), "Request a follow-up");
     assert.ok(tabSequence(document).includes(byId(document, "site-footer-email")));
 
     assert.equal(byId(document, "site-footer-error").hidden, true);
@@ -830,7 +830,7 @@ const IN_SCOPE = ["social.html", "profile.html", "post.html", "coach.html", "rel
 test("every in-scope page ships the same in-place recovery, and none of them points at another page's form", async () => {
   const shared = siteFooterMarkup("    ");
   assert.ok(shared.includes(RECOVERY_COPY), "the shared footer must carry the recovery copy");
-  assert.ok(shared.includes('<button id="site-footer-retry" type="submit" hidden>Retry sending work email to the Wawalu team</button>'),
+  assert.ok(shared.includes('<button id="site-footer-retry" type="submit" hidden>Retry your follow-up request</button>'),
     "the shared footer must carry the retry control");
 
   for (const file of IN_SCOPE) {
@@ -898,7 +898,7 @@ test("a failed request offers its retry in place: named, keyboard-reachable, ann
     //    the row — it stands where the send control was rather than beside it.
     const retry = byId(document, "site-footer-retry");
     assert.equal(retry.hidden, false);
-    assert.equal(textOf(retry), "Retry sending work email to the Wawalu team");
+    assert.equal(textOf(retry), "Retry your follow-up request");
     assert.equal(submit.hidden, true, "two primary controls that do the same thing is not a hierarchy");
     assert.equal(retry.disabled, false);
 

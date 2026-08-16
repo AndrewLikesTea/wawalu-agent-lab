@@ -32,7 +32,7 @@ const read = (file) => readFile(new URL(file, SRC), "utf8");
 
 /** The one label, the same one tests/follow-up-cta-label.test.js pins. */
 const CTA = "Request a follow-up";
-const CTAS = new Set([CTA, "Send work email to request a follow-up"]);
+const CTAS = new Set([CTA]);
 
 /**
  * Every follow-up form the site ships, found rather than listed.
