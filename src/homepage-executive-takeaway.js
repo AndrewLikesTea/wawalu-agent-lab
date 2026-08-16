@@ -39,9 +39,75 @@ export function takeawayText(period = ANALYZED_PERIOD) {
 
 export const EXECUTIVE_TAKEAWAY = takeawayText();
 
+/** The homepage region a forwarded takeaway should land its reader in. */
+export const TAKEAWAY_SECTION_ID = "executive-takeaway";
+
+// Where the takeaway says it came from when the page cannot say for itself: a
+// file:// preview, a test with no location, an origin that is not the web. The
+// copied text is read by somebody who was not here, so a link that cannot be
+// clicked is worse than the published address of the thing being quoted.
+const PUBLISHED_HOST = "labs.wawalu.org";
+
+/**
+ * The host of a location, but only if that location is the web.
+ * @returns {string|null} null for file://, for a missing origin, and for
+ *   anything the URL parser refuses — each of which falls back to the published
+ *   host rather than pasting a local path into somebody's inbox.
+ */
+function webHost(origin) {
+  try {
+    const parsed = new URL(String(origin));
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return null;
+    return parsed.host || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The absolute link the copied takeaway carries.
+ *
+ * ONLY `origin` AND `pathname` ARE READ. A fragment or a query string on this
+ * page is visitor-influenceable — anyone can hand out a link to this homepage
+ * with anything after the `?` — and this text is pasted into email, so nothing
+ * that reaches it may come from the URL bar. The section fragment is a constant
+ * in this module, not something read back off the document.
+ *
+ * The scheme is forced to https rather than copied from the location: a local
+ * preview on http, or a test on none, must still hand a reader an address that
+ * works from where they open it.
+ *
+ * @param {{origin?: string, pathname?: string}} location read at call time.
+ * @returns {string} an absolute https URL ending in the takeaway's fragment.
+ */
+export function takeawayShareUrl(location = globalThis.location ?? globalThis.window?.location) {
+  const host = webHost(location?.origin);
+  const raw = host && typeof location?.pathname === "string" ? location.pathname : "/";
+  // Defensive even though a real `pathname` carries neither: this is the one
+  // value here that comes from outside the module, so it is cut at the first
+  // character that could start a query or a fragment.
+  const [path] = raw.split(/[?#]/);
+  return `https://${host ?? PUBLISHED_HOST}${path.startsWith("/") ? path : "/"}#${TAKEAWAY_SECTION_ID}`;
+}
+
+/**
+ * What the control puts on the clipboard: the takeaway, verbatim, and then the
+ * link on a line of its own.
+ *
+ * Bare, on its own line, with no markdown and no angle brackets, because the
+ * destination that matters is a plain-text email body — every mail client
+ * linkifies a naked URL at a line break, and none of them linkify `[x](y)`. The
+ * takeaway text above it is unchanged: what a reader verified on screen before
+ * pressing the button is what leaves the page.
+ */
+export function shareTakeawayText(takeaway = EXECUTIVE_TAKEAWAY, url = takeawayShareUrl()) {
+  return `${takeaway}\n${url}`;
+}
+
 export const TAKEAWAY_COPY_FEEDBACK = Object.freeze({
-  copied: "Executive takeaway copied.",
-  failed: "Could not copy the executive takeaway. Select the text above and copy it manually.",
+  copied: "Executive takeaway copied, with a link back to this page.",
+  failed: "Could not copy automatically. The executive takeaway and its link are in the box below, "
+    + "selected and ready — press Ctrl+C, or Cmd+C on a Mac.",
 });
 
 import {
@@ -50,20 +116,40 @@ import {
 
 export const FINOPS_EXAMPLE_FOLLOW_UP_PURPOSE = "follow_up_finops_example";
 
-/** Wire the native copy button. The clipboard is injectable for focused tests. */
+/**
+ * Wire the native copy button. The clipboard is injectable for focused tests.
+ *
+ * The manual rung follows the Prompt coach's fallback (`coaching-summary-view.js`)
+ * rather than inventing a second shape for the same failure: a permanent hidden
+ * field in the page that this module fills and reveals, focused and selected, so
+ * the keystroke the status line just named has something to copy. The field is
+ * written by assigning `value` — never by building markup — and it stays inside
+ * the `hidden` wrapper until it is needed, so it costs the first screen no tab
+ * stop and shifts nothing above it.
+ */
 export function bindExecutiveTakeaway(doc = globalThis.document, clipboard = globalThis.navigator?.clipboard) {
   const button = doc?.getElementById("copy-executive-takeaway");
   const text = doc?.getElementById("executive-takeaway-text");
   const status = doc?.getElementById("executive-takeaway-status");
+  const fallback = doc?.getElementById("executive-takeaway-fallback");
+  const box = doc?.getElementById("executive-takeaway-fallback-text");
   if (!button || !text || !status) return false;
 
   button.addEventListener("click", async () => {
+    // Built at the press, not at load: the address a visitor is standing on is
+    // what the link should point at, and a page entry runs before that is final.
+    const payload = shareTakeawayText();
     try {
       if (typeof clipboard?.writeText !== "function") throw new Error("Clipboard unavailable");
-      await clipboard.writeText(EXECUTIVE_TAKEAWAY);
+      await clipboard.writeText(payload);
       status.textContent = TAKEAWAY_COPY_FEEDBACK.copied;
+      if (fallback) fallback.hidden = true;
     } catch {
       status.textContent = TAKEAWAY_COPY_FEEDBACK.failed;
+      if (box) box.value = payload;
+      if (fallback) fallback.hidden = false;
+      box?.focus?.();
+      box?.select?.();
     }
   });
   return true;

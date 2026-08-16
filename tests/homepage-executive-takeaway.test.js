@@ -5,7 +5,8 @@ import { loadPage, pressEnter, tabSequence, textOf } from "./support/browser.js"
 import { importPageModule } from "./support/page-module.js";
 import {
   ANALYZED_PERIOD, bindFinopsExampleFollowUp, EXECUTIVE_TAKEAWAY,
-  FINOPS_EXAMPLE_FOLLOW_UP_PURPOSE, TAKEAWAY_COPY_FEEDBACK, takeawayText,
+  FINOPS_EXAMPLE_FOLLOW_UP_PURPOSE, shareTakeawayText, TAKEAWAY_COPY_FEEDBACK,
+  TAKEAWAY_SECTION_ID, takeawayShareUrl, takeawayText,
 } from "../src/homepage-executive-takeaway.js";
 import { analyzedPeriodPhrase, EXAMPLE_MONTHS, reportingWindow } from "../src/analyzed-period.js";
 import { loadExampleDataset } from "../src/example-dataset.js";
@@ -318,8 +319,12 @@ test("the keyboard-operable control copies only the takeaway and confirms succes
   pressEnter(document);
   await new Promise((resolve) => setImmediate(resolve));
 
-  assert.deepEqual(copied, [EXECUTIVE_TAKEAWAY]);
+  assert.deepEqual(copied, [shareTakeawayText()]);
   assert.equal(textOf(document.getElementById("executive-takeaway-status")), TAKEAWAY_COPY_FEEDBACK.copied);
+  // #1792: the confirmation has to name both halves of what left the page, or a
+  // reader pastes into an email without knowing the link went with it.
+  assert.match(TAKEAWAY_COPY_FEEDBACK.copied, /Executive takeaway copied/);
+  assert.match(TAKEAWAY_COPY_FEEDBACK.copied, /link back to this page/);
 
   // The pasted plain text is the whole answer or it is not worth pasting: the
   // period, the pair, the rate, the first action, the role, and the disclosure
@@ -348,4 +353,92 @@ test("clipboard refusal leaves visible recovery guidance", async (t) => {
   assert.equal(status.getAttribute("role"), "status");
   assert.equal(status.getAttribute("aria-live"), "polite");
   assert.equal(textOf(status), TAKEAWAY_COPY_FEEDBACK.failed);
+});
+
+test("the copied text carries an absolute https link to the takeaway's own section", () => {
+  // #1792: the takeaway is written to be forwarded, and a forwarded paragraph
+  // with no address on it is a claim nobody can check. The link is built here,
+  // in the text builder, so what a reader pastes is what a test can read.
+  const url = takeawayShareUrl({ origin: "https://labs.wawalu.org", pathname: "/" });
+  assert.equal(url, `https://labs.wawalu.org/#${TAKEAWAY_SECTION_ID}`);
+  assert.equal(TAKEAWAY_SECTION_ID, "executive-takeaway");
+
+  const share = shareTakeawayText(EXECUTIVE_TAKEAWAY, url);
+  const lines = share.split("\n");
+  // Bare, last, and alone on its line: that is the only shape a plain-text mail
+  // client turns back into something clickable. Markup syntax would paste as
+  // literal punctuation into the middle of a sentence somebody forwards.
+  assert.equal(lines.at(-1), url);
+  assert.match(lines.at(-1), /^https:\/\/\S+#executive-takeaway$/);
+  assert.doesNotMatch(share, /\[.*\]\(.*\)|<https?:/);
+
+  // Everything the takeaway already owed a reader still travels with it.
+  for (const claim of [
+    "$51,254 of $154,500", "(33%)", `across ${ANALYZED_PERIOD}`,
+    "First recommended action: Pilot lower-cost routing in Atlas Platform.",
+    "Accountable role: Platform Engineering Lead.",
+    "Figures are from a bundled synthetic example and are not visitor data.",
+  ]) {
+    assert.ok(share.includes(claim), `the share text drops "${claim}"`);
+  }
+  assert.ok(share.startsWith(EXECUTIVE_TAKEAWAY),
+    "the link is appended to the takeaway; not one word of it is rewritten to make room");
+});
+
+test("the share link is built from a trusted origin and forced onto https", () => {
+  // The URL is the one part of this text assembled at runtime, so it is the one
+  // part an attacker would aim at. Nothing after the ? or the # on this page may
+  // reach a pasted email, and a local preview may not paste a local path.
+  const hostile = {
+    origin: "https://labs.wawalu.org",
+    pathname: "/",
+    hash: "#<script>alert(1)</script>",
+    search: "?utm=evil&next=https://phish.example",
+  };
+  assert.equal(takeawayShareUrl(hostile), `https://labs.wawalu.org/#${TAKEAWAY_SECTION_ID}`);
+  assert.doesNotMatch(shareTakeawayText(EXECUTIVE_TAKEAWAY, takeawayShareUrl(hostile)), /utm|phish|script/);
+
+  // A pathname is read, but only as a path, and only from a web origin.
+  assert.equal(takeawayShareUrl({ origin: "https://labs.wawalu.org", pathname: "/index.html" }),
+    `https://labs.wawalu.org/index.html#${TAKEAWAY_SECTION_ID}`);
+  assert.equal(takeawayShareUrl({ origin: "http://localhost:8788", pathname: "/" }),
+    `https://localhost:8788/#${TAKEAWAY_SECTION_ID}`);
+  for (const unusable of [
+    { origin: "null", pathname: "/Users/someone/site/src/index.html" },
+    { origin: "file://", pathname: "/Users/someone/site/src/index.html" },
+    { origin: undefined, pathname: undefined },
+    null,
+  ]) {
+    const url = takeawayShareUrl(unusable);
+    assert.equal(url, `https://labs.wawalu.org/#${TAKEAWAY_SECTION_ID}`,
+      `an unusable location produced ${url}`);
+  }
+  // Whatever the location was, the copied scheme is never one that fails for
+  // the person who receives it.
+  assert.doesNotMatch(takeawayShareUrl({ origin: "http://localhost:8788", pathname: "/" }), /^http:|file:/);
+});
+
+test("a refused clipboard hands the same text, link and all, to a selectable field", async (t) => {
+  const document = await openTakeaway(t, { writeText: async () => { throw new Error("denied"); } });
+  const fallback = document.getElementById("executive-takeaway-fallback");
+  const box = document.getElementById("executive-takeaway-fallback-text");
+
+  // Empty and out of the tab order until it is needed: the first screen pays no
+  // tab stop for a recovery path most readers never reach.
+  assert.equal(fallback.hidden, true);
+  assert.equal(box.value, "");
+  assert.equal(tabSequence(document).includes(box), false);
+
+  document.getElementById("copy-executive-takeaway").click();
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.equal(fallback.hidden, false);
+  assert.equal(box.value, shareTakeawayText());
+  assert.ok(box.value.endsWith(`#${TAKEAWAY_SECTION_ID}`),
+    `the manual field drops the link: ${box.value}`);
+  assert.notEqual(box.getAttribute("readonly"), null);
+  // Focus follows the instruction the status line just gave, exactly as the
+  // Prompt coach's fallback does: Ctrl+C has to have something selected.
+  assert.equal(document.activeElement?.id, "executive-takeaway-fallback-text");
+  assert.ok(tabSequence(document).includes(box));
 });

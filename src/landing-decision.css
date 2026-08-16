@@ -27,6 +27,9 @@
 }
 .executive-takeaway-actions button { flex:0 1 auto; }
 .executive-takeaway-status { min-width:0; margin:0; color:#245643; font-size:13px; font-weight:700; }
+.executive-takeaway-fallback { display:grid; gap:6px; margin-top:12px; font-size:13px; }
+.executive-takeaway-fallback[hidden] { display:none; }
+.executive-takeaway-fallback textarea { width:100%; box-sizing:border-box; font:inherit; }
 .finops-example-follow-up { margin-top:14px; padding-top:14px; border-top:1px solid #c8d7d0; }
 .finops-example-follow-up form { display:grid; gap:10px; }
 .finops-example-follow-up input { width:100%; box-sizing:border-box; }
