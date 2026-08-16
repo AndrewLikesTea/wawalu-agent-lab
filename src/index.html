@@ -205,6 +205,42 @@
           </dl>
           <p class="hero-proof-boundary"><strong>Example records</strong> <span>These invented records demonstrate Shiplog. They use no customer or production data.</span></p>
         </div>
+
+        <!-- THE ONE CLAIM IN THIS SECTION THAT IS NOT AN EXAMPLE.
+             The records above are invented; this block reads the deployment
+             that is serving this page and compares what it reports against the
+             newest release record in the log. It is the SAME check the releases
+             page runs, not a second opinion about the same question: the ids
+             below are the ones src/deployment-status-view.js fills, the
+             sentence is written by verdictSentence() in src/deployment-status.js,
+             and the metric under it by verdictMetricText(), so the two pages
+             given one reading cannot word one answer two ways. src/app.js boots
+             it from the composed log, so both pages also compare against the
+             same newest record. No second network read: the check reads the
+             same health endpoint it already reads on releases.html, and nothing
+             on this page waits for it.
+             THE WAITING LINE IS AUTHORED AND THE ANSWER IS NOT. The document
+             ships one waiting sentence and no verdict, because a verdict in
+             these bytes would be a comparison nobody ran. Every settled state,
+             including a check that could not complete, replaces that sentence
+             with a full sentence naming both versions.
+             THE CAVEAT IS SAID ONCE IN THIS SECTION. The panel above states
+             that the records are invented; this one states only the contrast
+             the check needs, so a reader is not told the same thing twice in
+             two sets of words.
+             Every class here already ships and NO RULE was added: styles.css is
+             at its measured size budget. The one stylesheet change is a single
+             declaration on the metric line's existing class, so a long build
+             identifier wraps instead of running off a 360px screen. -->
+        <section class="hero-proof" id="deployment-status" aria-labelledby="deployment-status-title">
+          <p class="eyebrow">Live self-check</p>
+          <h3 id="deployment-status-title">Is this log tracking the running deployment?</h3>
+          <p class="release-followup-lead" id="deployment-verdict" role="status">Checking the running deployment now…</p>
+          <p class="detail-summary" id="deployment-metric"></p>
+          <p class="hero-proof-boundary"><strong>Not an example</strong> <span>The decision and release above are examples; this check is not — it reads the running deployment when this page loads.</span></p>
+          <p><a class="text-link" href="/releases.html#deployment-status">See the deployment check on Releases</a></p>
+        </section>
+
         <div class="hero-actions">
           <a class="button-link" href="#record-history">Explore the decision and release log <span aria-hidden="true">→</span></a>
           <a class="text-link" href="#decision-to-release">See how a decision reaches a release</a>

@@ -11,7 +11,8 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { STORAGE_KEY } from "../src/app.js";
+import { readFile } from "node:fs/promises";
+import { STORAGE_KEY, initDecisionLog } from "../src/app.js";
 import { RELEASE_STORAGE_KEY } from "../src/releases.js";
 import { initReleasesPage } from "../src/releases-page.js";
 import {
@@ -19,6 +20,7 @@ import {
   deploymentVerdict,
   durationText,
   verdictMetricText,
+  verdictSentence,
 } from "../src/deployment-status.js";
 import {
   DEPLOYMENT_IDS,
@@ -30,6 +32,7 @@ import { loadPage, pressEnter, pressTab, textOf } from "./support/browser.js";
 import { waitFor } from "./support/page-module.js";
 
 const RELEASES_PAGE = new URL("../src/releases.html", import.meta.url);
+const HOME_PAGE = new URL("../src/index.html", import.meta.url);
 const NO_SEED = { decisions: [], releases: [] };
 
 const NOW = "2026-08-06T12:00:00.000Z";
@@ -348,4 +351,193 @@ test("the probe recognises both shipped health bodies and refuses anything else"
   assert.deepEqual(await probeHealth(answers({ status: "ok" }), NOW), { health: { status: "ok" }, checkedAt: NOW });
   assert.deepEqual(await probeHealth(fails("TypeError"), NOW), { failure: "unreachable", checkedAt: NOW });
   assert.deepEqual(await probeHealth(fails("AbortError"), NOW), { failure: "timeout", checkedAt: NOW });
+});
+
+/* ------------------- the same check, on the front door (#1791) ------------- */
+//
+// The homepage's decision-and-release section runs the SAME check, not a second
+// one: src/index.html carries the ids deployment-status-view.js fills, and
+// src/app.js boots it from the log it has already composed. So these tests boot
+// src/index.html the way the browser boots it and assert the block's answer,
+// and the wording tests below assert against verdictSentence() — the one
+// function both pages render through — rather than against a copy of its
+// output, because a copy is exactly what would drift.
+
+const WAITING_LINE = "Checking the running deployment now…";
+
+async function openHome(t, { releases = [OLDER, NEWEST], readHealth } = {}) {
+  const page = await loadPage(HOME_PAGE, {
+    storage: {
+      [STORAGE_KEY]: JSON.stringify([]),
+      [RELEASE_STORAGE_KEY]: JSON.stringify(releases),
+    },
+  });
+  t.after(() => page.restore());
+  await initDecisionLog(page.document, page.storage, {
+    seed: NO_SEED,
+    readHealth,
+    deploymentNow: () => NOW,
+  });
+  await waitFor(
+    () => page.document.documentElement.dataset.shiplogDeployment === "ready",
+    "the front door's deployment check never finished its comparison",
+  );
+  return page;
+}
+
+// The three readings the block has to answer, in the order the wording tests
+// compare them: a match, a drift, and a check that could not complete.
+const READINGS = [
+  { health: { status: "ok", build: "v2.1.0" } },
+  { health: { status: "ok", build: "v2.0.0" } },
+  { failure: "unreachable" },
+];
+
+// Paint one reading into a page that is already booted and read the sentence
+// back, so what is compared is the text a reader would see rather than a
+// return value.
+const paintedSentences = (page) => READINGS.map((reading) => {
+  renderDeploymentStatus(page.document, deploymentVerdict(reading, NEWEST, NOW), { reading, release: NEWEST });
+  return verdictText(page);
+});
+
+// The ids of every ancestor of a node, walked: the harness rejects a descendant
+// selector, so "inside the block" and "inside the section" are read off the
+// chain rather than selected.
+function ancestorIds(node) {
+  const ids = [];
+  for (let current = node; current; current = current.parentNode) ids.push(current.id ?? null);
+  return ids;
+}
+
+test("the front door's log section carries the check, its question, and the way to the evidence", async (t) => {
+  const page = await openHome(t, { readHealth: answers({ status: "ok", build: "v2.1.0" }) });
+
+  assert.equal(
+    page.document.querySelectorAll(`#${DEPLOYMENT_IDS.panel}`).length,
+    1,
+    "the front door must mount the deployment check exactly once",
+  );
+  const panel = page.document.querySelector(`#${DEPLOYMENT_IDS.panel}`);
+  assert.equal(
+    textOf(page.document.querySelector("#deployment-status-title")),
+    "Is this log tracking the running deployment?",
+  );
+  assert.equal(panel.getAttribute("aria-labelledby"), "deployment-status-title");
+  assert.ok(
+    ancestorIds(panel).includes("shiplog-entry"),
+    "the block is not inside the decision and release section",
+  );
+
+  // The link names its destination, and the destination is a block that exists:
+  // the releases page's deployment band carries that id and the evidence
+  // disclosure inside it.
+  const link = page.document.querySelectorAll("a")
+    .find((node) => node.getAttribute("href") === "/releases.html#deployment-status");
+  assert.ok(link, "the block must link to the deployment check on Releases");
+  assert.equal(textOf(link), "See the deployment check on Releases");
+  assert.ok(ancestorIds(link).includes(DEPLOYMENT_IDS.panel), "the link sits outside the block it belongs to");
+
+  // Reachable by Tab, and in reading order: after the example records the block
+  // draws its contrast with, before the section's own call to action.
+  let reachedLink = -1;
+  let reachedAction = -1;
+  for (let step = 0; step < 400; step += 1) {
+    const focused = pressTab(page.document);
+    if (reachedLink === -1 && focused === link) reachedLink = step;
+    if (reachedAction === -1 && focused?.getAttribute?.("href") === "#record-history") reachedAction = step;
+    if (reachedLink !== -1 && reachedAction !== -1) break;
+  }
+  assert.notEqual(reachedLink, -1, "the block's link is not reachable by keyboard");
+  assert.notEqual(reachedAction, -1, "the section's call to action is not reachable by keyboard");
+  assert.ok(reachedLink < reachedAction, "the block is out of reading order with the section around it");
+});
+
+test("the front door ships one waiting line, and no settled state stays on it", async (t) => {
+  const html = await readFile(HOME_PAGE, "utf8");
+  assert.equal(
+    (html.match(/Checking the running deployment now…/g) ?? []).length,
+    1,
+    "the cold document must carry exactly one waiting line",
+  );
+  // And no verdict at all: a sentence in these bytes would be a comparison
+  // nobody ran.
+  assert.doesNotMatch(html, /Confirmed: this site is running|Not a match: this site is running|The check did not complete/);
+
+  const page = await openHome(t, { readHealth: fails("TypeError") });
+  // The state a visitor most often meets in production — the endpoint names no
+  // build, or does not answer — still resolves to a sentence.
+  const settled = verdictText(page);
+  assert.notEqual(settled, WAITING_LINE, "the block stayed on its waiting line after the check settled");
+  assert.match(settled, /\.$/, "the settled block does not read as a full sentence");
+
+  for (const sentence of paintedSentences(page)) {
+    assert.notEqual(sentence, WAITING_LINE);
+    assert.doesNotMatch(sentence, /^\s*$|^[-–—]$|^Loading/, "a settled state read as a placeholder");
+    assert.match(sentence, /\.$/);
+  }
+});
+
+test("each outcome names both the running version and the recorded one", async (t) => {
+  const page = await openHome(t, { readHealth: answers({ status: "ok", build: "v2.1.0" }) });
+  const read = (reading) => {
+    renderDeploymentStatus(page.document, deploymentVerdict(reading, NEWEST, NOW), { reading, release: NEWEST });
+    return { verdict: verdictText(page), metric: metricText(page) };
+  };
+  const matched = read(READINGS[0]);
+  const drifted = read(READINGS[1]);
+  const stalled = read(READINGS[2]);
+
+  assert.equal(
+    new Set([matched.verdict, drifted.verdict, stalled.verdict]).size,
+    3,
+    "two outcomes told a reader the same thing",
+  );
+  // Both sides of the comparison are named in every outcome, including the one
+  // where the running side could not be read: "not reported" is an answer.
+  assert.equal(matched.metric, "Running v2.1.0 · Newest record v2.1.0 · recorded 2 days ago");
+  assert.equal(drifted.metric, "Running v2.0.0 · Newest record v2.1.0 · recorded 2 days ago");
+  assert.equal(stalled.metric, "Running not reported · Newest record v2.1.0 · recorded 2 days ago");
+  assert.match(matched.verdict, /v2\.1\.0/);
+  assert.match(drifted.verdict, /v2\.0\.0[\s\S]*v2\.1\.0/);
+  assert.match(stalled.verdict, /The check did not complete/);
+});
+
+test("the front door's section states the example-records caveat once", async (t) => {
+  const page = await openHome(t, { readHealth: answers({ status: "ok", build: "v2.1.0" }) });
+  const section = textOf(page.document.querySelector("#shiplog-entry"));
+
+  // The records' own caveat keeps its words, and the block does not repeat
+  // them: it states the one thing that caveat cannot say, which is that this
+  // answer is not an example.
+  assert.equal((section.match(/These invented records demonstrate Shiplog\./g) ?? []).length, 1);
+  assert.equal((section.match(/no customer or production data/g) ?? []).length, 1);
+  assert.match(
+    section,
+    /The decision and release above are examples; this check is not — it reads the running deployment when this page loads\./,
+  );
+  assert.equal((section.match(/this check is not/g) ?? []).length, 1);
+});
+
+test("the front door words each outcome with the shared sentence, byte for byte", async (t) => {
+  const page = await openHome(t, { readHealth: answers({ status: "ok", build: "v2.1.0" }) });
+  // The criterion that protects against drift: the painted sentence IS the one
+  // verdictSentence() returns, not a copy of what it returned once.
+  assert.deepEqual(
+    paintedSentences(page),
+    READINGS.map((reading) => verdictSentence(deploymentVerdict(reading, NEWEST, NOW))),
+    "the front door has its own vocabulary for a deployment verdict",
+  );
+});
+
+test("the releases page words those same outcomes from that same sentence", async (t) => {
+  const page = await openReleases(t, { readHealth: answers({ status: "ok", build: "v2.1.0" }) });
+  // The other half of the parity: both pages equal the shared source, so they
+  // equal each other, and neither can be edited alone.
+  assert.deepEqual(
+    paintedSentences(page),
+    READINGS.map((reading) => verdictSentence(deploymentVerdict(reading, NEWEST, NOW))),
+  );
+  // The id the front door's link points at is on this page.
+  assert.equal(page.document.querySelectorAll("#deployment-status").length, 1);
 });
