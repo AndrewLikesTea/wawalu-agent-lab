@@ -131,7 +131,7 @@ test("no summary figure on the front door is authored in its markup", async () =
 /**
  * A block that asserts the privacy promise: that reading happens in this tab or
  * browser, or that nothing is uploaded, fetched, or stored. Naming where the
- * retained periods live ("the periods this browser keeps") is not the promise
+ * retained months live ("the months you kept on this device") is not the promise
  * and is not counted.
  */
 const PROMISE =
@@ -182,7 +182,16 @@ test("the first screen makes its privacy promise at most twice, beside the link 
   assert.match(boundary, /do not leave this tab/);
   assert.match(boundary, /read and analyzed in this browser/);
   assert.match(boundary, /No upload/);
-  assert.match(boundary, /nothing of yours is stored/);
+  // #1799: the storage claim says what is true rather than the shortest thing.
+  // "nothing of yours is stored" read as a promise the page next door breaks —
+  // the invitation below it offers a briefing built from months this browser
+  // already holds. Both facts are kept in one sentence: the export is never
+  // written down, and what survives it is the reader's own choice, on their own
+  // device. A copy that drops the second half is the contradiction again.
+  assert.match(boundary, /The file itself is never saved/);
+  assert.match(boundary, /stay on this device only if you choose to keep them/);
+  assert.doesNotMatch(boundary, /nothing of yours is stored/,
+    "the boundary must not promise a blanket no-storage the retained months break");
 
   // And it is made where the file is: in the hero's own block, immediately
   // after the AI FinOps link a reader is deciding to click — not in a banner
@@ -193,6 +202,27 @@ test("the first screen makes its privacy promise at most twice, beside the link 
   assert.ok(actions >= 0 && promise === actions + 1,
     "the promise must read in the same block as the AI FinOps entry point, directly after it");
   assert.match(textOf(blocks[actions]), /Read the worked decision in AI FinOps/);
+});
+
+test("the front door counts in months, and never in an undefined 'period'", async () => {
+  // Authored copy only: comments are stripped because the note above the summary
+  // names the module constant `SAMPLE_RETAINED_PERIODS` is built from, and a
+  // reader never sees it.
+  const html = (await readFile(PAGE, "utf8")).replace(/<!--[\s\S]*?-->/g, "");
+
+  // #1799: "period" was this page's own word for a unit it never defined, in two
+  // places a first-time visitor reads before anything else. The takeaway beside
+  // them already states its window as a calendar month, so the month is the unit
+  // the page had all along.
+  assert.match(html, /across June 2026/);
+  assert.doesNotMatch(html, /\bperiods?\b/i,
+    "the front door must name the synthetic unit in months a visitor already knows");
+  assert.match(html, /three synthetic months/);
+
+  // And the invitation says where the reader's own months are without reopening
+  // the storage promise above it.
+  assert.doesNotMatch(html, /periods this browser keeps/);
+  assert.match(html, /built from the months you kept on this device/);
 });
 
 test("the front-door answer reproduces Noor's labelled canonical fixture exactly", async () => {
