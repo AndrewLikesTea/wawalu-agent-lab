@@ -148,7 +148,7 @@ test("a first-time visitor lands on a display name that has image posts", async 
     // Zed has the most image posts; Ari sorts first and has none. Landing on Ari
     // is the reported defect — a verdict about an empty name nobody chose.
     assert.equal(selectedChip(page)?.dataset.author, "Zed");
-    assert.equal(textOf(document.querySelector("#profile-name")), "People is filtered to Zed’s image posts.",
+    assert.equal(textOf(document.querySelector("#profile-name")), "People is filtered to Zed.",
       "the header names someone other than the picker's own value");
     assert.match(textOf(document.querySelector(".profile-role")),
       /^Display names are invented for this demo[\s\S]*anyone can publish under any name\.$/,
@@ -269,7 +269,7 @@ test("an explicit name wins even when it has no image posts", async () => {
     try {
       const { document } = page;
       assert.equal(selectedChip(page)?.dataset.author, "Ari", `${how} did not survive the landing default`);
-      assert.equal(textOf(document.querySelector("#profile-name")), "People is filtered to Ari’s image posts.");
+      assert.equal(textOf(document.querySelector("#profile-name")), "People is filtered to Ari.");
       assert.equal(document.querySelectorAll(".profile-tile").length, 0);
       assert.equal(document.querySelectorAll(".empty-state").length, 1);
       const status = document.querySelector("#profile-feed-status");
@@ -365,7 +365,7 @@ test("the counts on the picker are the rows the grid draws, name by name", async
       chipFor(page, name).click();
       assert.equal(document.querySelectorAll(".profile-tile").length, count,
         `the picker promised ${count} image posts for ${name} and the grid drew something else`);
-      assert.equal(textOf(document.querySelector("#profile-name")), `People is filtered to ${name}’s image posts.`);
+      assert.equal(textOf(document.querySelector("#profile-name")), `People is filtered to ${name}.`);
     }
   } finally {
     page.restore();
@@ -499,7 +499,7 @@ test("a display name that is markup is rendered as text and forges no second rou
     // of the places the name still lands as text. Parsed markup would have left
     // only the anchor's own text behind.
     assert.equal(resultsHeading(document), `${DECOY_NAME} · 0 image posts`);
-    assert.equal(textOf(document.querySelector("#profile-name")), `People is filtered to ${DECOY_NAME}’s image posts.`);
+    assert.equal(textOf(document.querySelector("#profile-name")), `People is filtered to ${DECOY_NAME}.`);
     // The header block the name is written into holds no link at all, so a
     // forged one would be the only anchor in it. The page's one route to Social
     // is the intro's, above it, and the name never reaches that sentence.
@@ -536,7 +536,7 @@ test("choosing another name updates the page in place and keeps the URL and stor
       // Focus stays on the display name that was just chosen, even though the
       // chips were rebuilt around it.
       assert.equal(document.activeElement?.dataset.author, "Bea");
-      assert.equal(textOf(document.querySelector("#profile-name")), "People is filtered to Bea’s image posts.");
+      assert.equal(textOf(document.querySelector("#profile-name")), "People is filtered to Bea.");
       assert.equal(textOf(document.querySelector(".profile-role")).includes("Bea"), false);
       assert.match(textOf(document.querySelector("#profile-summary")), /^1 image post /);
       assert.equal(document.querySelectorAll(".profile-tile").length, 1);
@@ -557,7 +557,7 @@ test("selecting with the pointer moves the heading, the list, the URL, and the s
     chipFor(page, "Bea").click();
 
     assert.equal(selectedChip(page)?.dataset.author, "Bea");
-    assert.equal(textOf(document.querySelector("#profile-name")), "People is filtered to Bea’s image posts.");
+    assert.equal(textOf(document.querySelector("#profile-name")), "People is filtered to Bea.");
     assert.match(textOf(document.querySelector("#profile-summary")), /^1 image post /);
     assert.equal(document.querySelectorAll(".profile-tile").length, 1);
     // In place: no navigation, and the selection is carried in the URL and in
@@ -774,7 +774,7 @@ test("the display name is visible twice in the results region, and no more", asy
     // The two that are left say different things about the same name: what the
     // results are, and which picker entry chose them.
     assert.equal(resultsHeading(document), "Ari · 0 image posts");
-    assert.equal(textOf(document.querySelector("#profile-name")), "People is filtered to Ari’s image posts.");
+    assert.equal(textOf(document.querySelector("#profile-name")), "People is filtered to Ari.");
     // The lines that gave up their copy still say their own thing: Ari has
     // posted, just never a picture, and the counts carry that without a name.
     assert.match(textOf(document.querySelector("#profile-summary")), /^0 image posts · 1 post in total · last posted /);
@@ -883,9 +883,10 @@ test("arriving with no name asked for lists every display name with its count an
     // the same feed the grid draws from rather than from a list kept beside it.
     for (const name of ["Bea", "Zed"]) assert.ok(chipFor(page, name), `${name} has image posts and no picker entry`);
 
-    // And the sentence that says the visitor did not pick this one.
-    assert.equal(pickerNote(document),
-      "Showing Zed’s image posts. We preselected this name for you; pick another below to switch.");
+    // And the sentence that says the visitor did not pick this one. It names
+    // nobody: the marked chip above it is the page's statement of which name is
+    // showing, and the results region below states it again.
+    assert.equal(pickerNote(document), "We preselected a name for you; pick another below to switch.");
     // Nothing was written on their behalf to make the preselection stick.
     assert.equal(page.storage.getItem("shiplog.social.author"), null);
     assert.equal(page.replaced.length, 0);
@@ -902,7 +903,7 @@ test("a name that was asked for is never claimed as a preselection", async () =>
     const page = await people(options);
     try {
       const note = pickerNote(page.document);
-      assert.equal(note, "Showing Bea’s image posts. Pick another name below to switch.", how);
+      assert.equal(note, "Pick another name below to switch.", how);
       assert.doesNotMatch(note, /preselect/i, `${how} was reported back as the page's own choice`);
     } finally {
       page.restore();
@@ -920,7 +921,7 @@ test("choosing a name by keyboard moves the page and announces it once, from one
 
     // The three things a reader watches, moved together by the one selection.
     assert.equal(resultsHeading(document), "Bea · 1 image post");
-    assert.equal(textOf(document.querySelector("#profile-name")), "People is filtered to Bea’s image posts.");
+    assert.equal(textOf(document.querySelector("#profile-name")), "People is filtered to Bea.");
     assert.equal(tileCount(document), 1);
     // Once, in one voice. Two code paths writing the same news, or a second
     // live region rendering it, is what a screen reader hears twice.
@@ -932,7 +933,7 @@ test("choosing a name by keyboard moves the page and announces it once, from one
     assert.deepEqual(live.map((node) => node.getAttribute("id")), ["profile-announcer"],
       "the main content holds more than one live region");
     // A selection is a choice, so the preselection claim is gone with it.
-    assert.equal(pickerNote(document), "Showing Bea’s image posts. Pick another name below to switch.");
+    assert.equal(pickerNote(document), "Pick another name below to switch.");
   } finally {
     page.restore();
   }
@@ -1142,10 +1143,11 @@ test("a feed with one display name says so in words instead of drawing a lone ch
     assert.equal(picker.children.filter((node) => node.tagName === "BUTTON").length, 0,
       "a one-name feed drew a chip that reads as an unmade choice");
     assert.equal(textOf(picker), "Only one display name has image posts: Ari.");
-    // The results are still the same results, and the sentence over the picker
-    // does not point at a control that is not there.
+    // The results are still the same results, and the line over the picker does
+    // not point at a control that is not there: with nothing to switch to there
+    // is no instruction to give, and the sentence in the picker carries the fact.
     assert.equal(resultsHeading(document), "Ari · 2 image posts");
-    assert.equal(pickerNote(document), "Showing Ari’s image posts.");
+    assert.equal(pickerNote(document), "");
     assert.equal(tileCount(document), 2);
   } finally {
     page.restore();

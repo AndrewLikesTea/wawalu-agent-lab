@@ -231,22 +231,27 @@ export function pickerEntries(posts, author) {
   return name && !counts.some((entry) => entry.name === name) ? [{ name, images: 0 }, ...counts] : counts;
 }
 
-// The sentence over the picker: which display name is showing, and whether the
-// page chose it or the visitor did. Landing with no ?author= used to state a
-// verdict about a name nobody had picked, so this says the preselection out loud
-// and points at the control that undoes it. A shared link or a remembered name
-// is a choice, and claiming to have preselected one would be untrue, so that
-// clause is only ever written for a visitor who asked for nobody.
+// The line over the picker: how to change what is showing, and whether the page
+// chose the current name or the visitor did. Landing with no ?author= used to
+// state a verdict about a name nobody had picked, so this says the preselection
+// out loud and points at the control that undoes it. A shared link or a
+// remembered name is a choice, and claiming to have preselected one would be
+// untrue, so that clause is only ever written for a visitor who asked for
+// nobody.
+//
+// It no longer opens on "Showing <name>'s image posts." The selected chip below
+// carries that name with a "✓ Selected:" mark on it, and the results region
+// states it twice more, so this line was the fourth telling of one fact and the
+// second full sentence claiming to be the page's answer. The author is still
+// taken, and ignored, because every caller renders this beside a name.
 //
 // `choices` is how many entries the picker offers. With one there is nothing to
-// switch to, so the sentence stops after the fact and singleNameNotice() below
-// carries the rest.
+// switch to, so there is no instruction to give and singleNameNotice() below
+// carries the fact instead.
 export function pickerNoteText(author, { preselected = false, choices = 2 } = {}) {
-  const name = String(author ?? "").trim() || DEFAULT_AUTHOR;
-  const showing = `Showing ${name}’s image posts.`;
-  if (choices < 2) return showing;
-  if (preselected) return `${showing} We preselected this name for you; pick another below to switch.`;
-  return `${showing} Pick another name below to switch.`;
+  if (choices < 2) return "";
+  if (preselected) return "We preselected a name for you; pick another below to switch.";
+  return "Pick another name below to switch.";
 }
 
 // A picker holding one entry is not a choice, and a lone chip drawn as one reads
@@ -747,7 +752,9 @@ export function renderAuthorPicker(container, entries, { author, counted = true,
 //
 // The heading (profileResultsHeading, written in mountProfile from the same list
 // the tiles come from) states the selected name and the number of tiles; the
-// chip states which picker entry is filtering. Those two are the whole visible
+// chip names the picker entry that is filtering, and stops there — it used to
+// end on "'s image posts", which restated the heading beside it and the tagline
+// at the top of the page in a third wording. Those two are the whole visible
 // budget for the display name in this region, so nothing else written here
 // carries it: the avatar is initials and is hidden from assistive technology, so
 // the name is announced once and never as the word "AR", and the counts line
@@ -758,7 +765,7 @@ export function renderProfileHeader(elements, author, summary) {
     elements.avatar.textContent = authorInitials(author);
     elements.avatar.setAttribute("aria-hidden", "true");
   }
-  if (elements.name) elements.name.textContent = `People is filtered to ${author}’s image posts.`;
+  if (elements.name) elements.name.textContent = `People is filtered to ${author}.`;
   if (elements.summary) elements.summary.textContent = profileSummaryText(summary);
 }
 
