@@ -24,7 +24,7 @@
 import { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH, readStoredAuthor, rememberAuthor } from "./social-identity.js";
 import { imageDescription, renderDescriptionNote, renderImageUnavailable } from "./image-description.js";
 import { OPEN_POST_LABEL, postDetailHref, profileHref } from "./social-links.js";
-import { renderFeedStatus, feedPhase, feedPresence, setFeedControlsDisabled } from "./feed-status.js";
+import { renderFeedStatus, feedPhase, feedPresence, filtersAvailable, setFilterAvailability } from "./feed-status.js";
 
 export { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH };
 
@@ -925,10 +925,18 @@ export function mountSocialFeed(root, options = {}) {
       connectionText.textContent = connectionStatusLine("connecting");
     }
     // Nothing to filter yet, so the menus and their reset say so with the one
-    // attribute that also takes them out of the tab order. No focus is trapped:
-    // a disabled control simply stops being a stop.
-    setFeedControlsDisabled([nameFilter, timeFilter, clearFilters],
-      phase === "loading" || phase === "empty" || phase === "failed");
+    // attribute that also takes them out of the tab order — plus the words for
+    // why, next to the controls, since a greyed fill is not a signal every
+    // reader gets. Focus is not dropped either: the shared helper moves a reader
+    // standing on a menu to the status region that just changed under them. On
+    // the failed feed this is also what puts Retry next in the tab order after
+    // the message, with nothing moved in the markup to do it.
+    setFilterAvailability(filtersAvailable(phase), {
+      controls: [nameFilter, timeFilter, clearFilters],
+      statusRegion: feedState ?? feed,
+      hintHost: root.querySelector(".social-toolbar"),
+      hintId: "post-filter-hint",
+    });
     // The count answers "how many posts are there", which this page can only
     // answer once a fetch has come back. While one is open there is no count
     // line at all — it used to wait out the fetch as "Counting posts…", a third

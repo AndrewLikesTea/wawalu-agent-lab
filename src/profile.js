@@ -25,7 +25,7 @@
 import { connectionStatusLine, normalizeImage } from "./social.js";
 import { OPEN_POST_LABEL, postDetailHref, profileHref } from "./social-links.js";
 import { imageDescription, renderDescriptionNote, renderImageUnavailable } from "./image-description.js";
-import { renderFeedStatus, feedPhase, feedPresence, setFeedControlsDisabled } from "./feed-status.js";
+import { renderFeedStatus, feedPhase, feedPresence, setFilterAvailability } from "./feed-status.js";
 import { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH } from "./social-identity.js";
 
 // Social's three connection sentences with the noun this page shows, so the two
@@ -699,15 +699,20 @@ export function renderProfileGrid(container, posts, options = {}) {
 // `disabled` is the state where there is nothing to filter: a fetch still open,
 // a feed that came back empty, or one that failed. The chips carry the real
 // attribute then, so they leave the tab order instead of standing there as
-// controls that silently do nothing. No focus is trapped by that — a disabled
-// button simply stops being a stop — and they come back the moment posts exist.
-export function renderAuthorPicker(container, entries, { author, counted = true, onSelect = null, disabled = false } = {}) {
+// controls that silently do nothing — and on a failed feed that is what leaves
+// the panel's Retry as the next stop after the message. They come back the
+// moment posts exist.
+//
+// Everything about that state goes through the shared helper Social's menus use
+// (src/feed-status.js): the property, `aria-disabled`, the one sentence saying
+// why, and the focus rescue — a reader standing on a chip when the feed goes
+// back to loading is moved to the status region rather than dropped to <body>,
+// which is a real path here because selecting a name rebuilds every chip.
+export const PROFILE_FILTERS_UNAVAILABLE_HINT = "Display names become available when image posts load.";
+
+export function renderAuthorPicker(container, entries, { author, counted = true, onSelect = null, disabled = false, statusRegion = null } = {}) {
   const alone = singleNameNotice(entries, { counted });
-  if (alone) {
-    container.replaceChildren(el("p", "hint", alone));
-    return;
-  }
-  const chips = entries.map((entry) => {
+  const chips = alone ? [] : entries.map((entry) => {
     const selected = entry.name === author;
     const chip = el("button", "profile-filter-option", authorChipLabel(entry.name, counted ? entry.images : null, { selected }));
     chip.type = "button";
@@ -716,7 +721,23 @@ export function renderAuthorPicker(container, entries, { author, counted = true,
     if (onSelect) chip.addEventListener("click", () => onSelect(entry.name));
     return chip;
   });
-  setFeedControlsDisabled(chips, disabled);
+  // Before replaceChildren, so the focus check still sees the chip the reader
+  // is standing on; the hint goes above the row, where this group already puts
+  // the words that describe the controls under them.
+  setFilterAvailability(!disabled || alone, {
+    controls: chips,
+    statusRegion,
+    focusHost: container,
+    hintHost: container.parentNode,
+    hintBefore: container,
+    hintId: "profile-filter-hint",
+    hintText: PROFILE_FILTERS_UNAVAILABLE_HINT,
+    hintClass: "hint profile-toolbar-hint",
+  });
+  if (alone) {
+    container.replaceChildren(el("p", "hint", alone));
+    return;
+  }
   container.replaceChildren(...chips);
 }
 
@@ -891,6 +912,9 @@ export function mountProfile(root, options = {}) {
       // a pending, empty, or failed feed is a row of controls that cannot change
       // what is on screen.
       disabled: state !== "ready" || posts.length === 0,
+      // Where focus lands if the reader was standing on a chip when it went
+      // away: the line that just changed under them, over the grid.
+      statusRegion: elements.feedStatus ?? grid,
       onSelect: choose,
     });
     // Selecting rebuilds the chips, so the button that was just pressed is
