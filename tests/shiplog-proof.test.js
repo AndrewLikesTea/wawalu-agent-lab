@@ -28,7 +28,7 @@ test("renders one clearly disclosed synthetic proof connecting decision, owner, 
   // the home page has no reason to state, so a reader moving between pages
   // meets one wording for it.
   assert.match(textOf(proof), /These invented records demonstrate Shiplog\. They use no customer or production data, and no such decision or release shipped\./);
-  assert.match(textOf(proof), /Open each link below to follow the trail/);
+  assert.match(textOf(proof), /Open either link below to read the full record/);
   assert.doesNotMatch(textOf(proof), /[Rr]epresentative/);
   assert.match(textOf(proof), /Adopt a durable job queue/);
   assert.equal(textOf(proof.querySelectorAll("dd")[1]), "Kai");
@@ -63,6 +63,55 @@ test("the example-records caveat is stated once above the record form", async (t
   assert.equal((above.match(/These invented records demonstrate Shiplog\./g) ?? []).length, 1);
   // Said where the example records are, not in the page intro above it.
   assert.doesNotMatch(textOf(page.document.querySelector(".hero")), /example records/i);
+});
+
+// The panel used to name the trail twice before the reader reached a record —
+// an eyebrow reading "From decision to release" and, directly under it, a
+// heading reading "A decision carried through to release". One heading names
+// it now, and the sentence beside the records says what following a link gets
+// you rather than restating the heading.
+test("the decision-to-release trail is named once above the first example record", async (t) => {
+  const page = await open(t);
+  const proof = page.document.querySelector("#shiplog-proof");
+  let intro = "";
+  for (const block of page.document.getElementById("main-content").children) {
+    if (block.getAttribute?.("id") === "shiplog-proof") {
+      for (const part of block.children) {
+        if (part.classList?.contains?.("shiplog-proof-facts")) break;
+        intro += ` ${part.textContent ?? ""}`;
+      }
+      break;
+    }
+    intro += ` ${block.textContent ?? ""}`;
+  }
+  intro = intro.replace(/\s+/g, " ");
+  assert.equal((intro.match(/From decision to release/g) ?? []).length, 1,
+    "the trail is named twice, or not at all, before the example record");
+  assert.doesNotMatch(textOf(page.document.querySelector("body")), /A decision carried through to release/,
+    "the second heading for the same idea is still rendered");
+  // Counted, not compared against null: a surviving heading would send
+  // assert.equal through the whole parsed page instead of failing.
+  const headings = proof.querySelectorAll("h2");
+  assert.equal(headings.length, 1, "the example panel carries a second heading");
+  assert.equal(textOf(headings[0]), "From decision to release");
+  // One instruction, and it names what the linked record shows.
+  assert.equal((intro.match(/Open either link below to read the full record/g) ?? []).length, 1);
+  assert.match(intro, /the decision’s context, or the release and the decisions it carried/);
+});
+
+// "Record a release" printed twice in a row above the first field: an eyebrow,
+// then the heading it duplicated. The eyebrow was not a control, so it is gone
+// rather than relabelled.
+test("the record form is named once above its first field", async (t) => {
+  const page = await open(t);
+  const panel = page.document.querySelector(".form-panel");
+  assert.equal(panel.querySelectorAll(".eyebrow").length, 0,
+    "the form carries a second name above its heading again");
+  const headings = panel.querySelectorAll("h2");
+  assert.equal(headings.length, 1);
+  assert.equal(textOf(headings[0]), "Record a release");
+  assert.equal((textOf(panel).match(/Record a release/g) ?? []).length, 1,
+    "the form's name is printed more than once above its fields");
 });
 
 test("deep link identifies and expands the same release so its linked decision is visible", async (t) => {
