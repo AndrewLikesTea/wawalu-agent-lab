@@ -451,7 +451,7 @@ test("the page identifies one post from the shared demo feed, written once outsi
   // this rule is about is the page repeating it once per panel state.
   const content = html.slice(0, html.indexOf('<footer class="site-footer"'));
   assert.equal(content.split(STANDING_SENTENCE).length - 1, 1, "it is written once, not repeated per state");
-  assert.equal(content.includes("Social is a shared demo feed of short posts"), false,
+  assert.equal(content.includes("Social is a shared feed of short posts"), false,
     "the post-specific explanation must not sit beside a generic feed description");
 
   // Short enough to read at a glance, and one sentence rather than a paragraph.

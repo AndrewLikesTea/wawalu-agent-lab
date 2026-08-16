@@ -469,16 +469,18 @@ test("Social's directories share one description, while a permalink explains the
 
   // Social's own intro is not a directory row and keeps its own sentences: a
   // first-time visitor still learns the feed is shared, the posts are short,
-  // the images are optional, and when to open People instead.
+  // the images are optional, and when to open People instead. It no longer
+  // calls the feed a "demo" one — the eyebrow and the demo-data sentence carry
+  // that, and this paragraph sat between them saying it a third time.
   // Third paragraph in the hero: eyebrow, then the one-line tagline, then this.
   const intro = textOf(parseHtml(await read("social.html")).querySelector(".hero-social").querySelectorAll("p")[2]);
-  for (const fact of ["shared demo feed", "short posts", "images optional", "People"]) {
+  for (const fact of ["shared feed", "short posts", "images optional", "People"]) {
     assert.ok(intro.includes(fact), `Social's intro no longer tells a first-time visitor about ${fact}`);
   }
 
   // But it says it once per page. The band used to carry that intro sentence
   // byte for byte, so Social's own page printed it twice, one screen apart.
-  const PASTED = "is a shared demo feed of short posts about what the team ships";
+  const PASTED = "is a shared feed of short posts about what the team ships";
   for (const file of PAGES) {
     const times = (await read(file)).split(PASTED).length - 1;
     assert.ok(times <= 1, `${file} carries the same Social sentence ${times} times`);

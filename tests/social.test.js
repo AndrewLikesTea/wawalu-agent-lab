@@ -554,6 +554,25 @@ test("the feed says who wrote the posts, where the posts are", async (t) => {
   // post; People told a reader to "select a post" and named nothing.
   assert.match(intro, /Select Open post to read a post in full\./,
     "the intro never tells a reader a post can be opened in full");
+
+  // And the demo status is stated once above the feed. The hero used to say it
+  // twice within one paragraph break — an eyebrow reading "Social · demo", then
+  // "a shared demo feed", then the demo-data sentence — so a reader met the
+  // same fact three times before a post. The eyebrow keeps the word; the
+  // sentence keeps the meaning; the intro stops repeating either.
+  const hero = textOf(page.document.querySelector(".hero-social"));
+  assert.equal(textOf(page.document.querySelector(".hero-social").querySelector(".eyebrow")),
+    "Social · demo", "the page eyebrow stopped naming this a demo");
+  assert.equal(hero.match(/\bdemo\b/gi)?.length, 1,
+    `the hero says "demo" ${hero.match(/\bdemo\b/gi)?.length} times, not once`);
+  assert.equal(hero.split("Posts use no customer or production data.").length - 1, 1,
+    "the hero states the demo-data fact more than once");
+  assert.doesNotMatch(intro, /demo feed/,
+    "the intro calls the feed a demo one, a line under an eyebrow that already does");
+  // Removing the word did not cost the sentence what it was for: the feed is
+  // still shared, the posts short, the images optional.
+  assert.match(intro, /^Social is a shared feed of short posts about what the team ships, images optional\./,
+    "the intro stopped saying what the feed holds");
 });
 
 // The sentence is a claim about the feed's authors, not about a fetch, so it
@@ -700,6 +719,48 @@ test("the status region and the posts are read before the demo disclaimer, in ev
   document.querySelector("#post-time-filter").value = "hour";
   nameFilter.dispatchEvent({ type: "change", bubbles: true });
   invariant("filtered-empty", { status: /No posts by Ari from the past hour\./ });
+});
+
+// The other half of the same complaint: not just that the caveat is late, but
+// that the panel's *first* words are the feed's own. They used to be a caveat
+// about who owns a display name, which is the least useful thing a list region
+// can open on. The first text a reader meets inside the panel is the heading
+// social.js writes the count into — the bare noun while a fetch is open,
+// because a count is a claim the page cannot make yet, and the number once it
+// can. Source order, not a stylesheet: the harness models no layout, and the
+// criterion is what a screen reader reads first anyway.
+test("the Posts panel opens on the feed's own heading, not on the display-name caveat", async (t) => {
+  const page = await loadPage(new URL("../src/social.html", import.meta.url), {});
+  t.after(() => page.restore());
+  const { document } = page;
+  const panel = document.querySelector(".list-panel");
+
+  const opensOn = (state, expected) => {
+    const text = textOf(panel);
+    assert.ok(text.startsWith(expected),
+      `${state}: the panel opens on "${text.slice(0, 60)}…" rather than "${expected}"`);
+    // And the caveat is somewhere below, said once on the whole page.
+    assert.equal(document.querySelectorAll("#feed-source-note").length, 1,
+      `${state}: the display-name caveat is not on the page exactly once`);
+    assert.equal(text.split(DISPLAY_NAME_SENTENCE).length - 1, 1,
+      `${state}: the panel renders the display-name caveat more than once`);
+    assert.ok(text.indexOf(DISPLAY_NAME_SENTENCE) > text.indexOf(expected),
+      `${state}: the caveat is back above the panel's own heading`);
+  };
+
+  // The frame before any script runs: the heading is authored into the markup.
+  opensOn("first paint", DEFAULT_FEED_HEADING);
+
+  const feed = mountSocialFeed(document, { posts: [], state: "loading" });
+  opensOn("loading", DEFAULT_FEED_HEADING);
+  feed.setState("error");
+  opensOn("error", DEFAULT_FEED_HEADING);
+  feed.seed([]);
+  opensOn("empty", feedHeading({ shown: 0 }));
+  feed.seed([
+    { id: "ari", author: "Ari", body: "just shipped", createdAt: new Date(Date.now() - 60000).toISOString() },
+  ]);
+  opensOn("populated", feedHeading({ shown: 1 }));
 });
 
 // One fact, one wording, on all three pages that show a published post. Social
