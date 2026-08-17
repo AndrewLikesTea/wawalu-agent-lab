@@ -4,13 +4,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { byClass, createElement, first, ids, installDocument, tags } from "./support/dom.js";
+import { byClass, createElement, first, ids, installDocument, tags, walk } from "./support/dom.js";
 
 installDocument();
 
 const {
   POST_EXITS,
   POST_LOADING_STATUS,
+  POST_SKELETON_SLOTS,
   POST_STATES,
   findPostById,
   resolvePostState,
@@ -275,13 +276,20 @@ test("an id-less visit is headed by the same not-found words, and offers the fee
   assert.equal(tags(container, "BUTTON").length, 0);
 });
 
-test("the loading state has one clear status sentence", () => {
+// Every placeholder in the wait, in document order, read off the slot it names
+// rather than off a class: the claim is that the post's shape is reserved, not
+// that some number of shimmer blocks exist.
+const slotsOf = (node) => walk(node, (candidate) => Boolean(candidate.dataset?.postSkeletonSlot))
+  .map((candidate) => candidate.dataset.postSkeletonSlot);
+
+test("the loading state says the wait in words and reserves the post's four slots", () => {
   const container = createElement("div");
   renderPostDetail(container, null, { state: "loading", id: "p-image", author: "Mina" });
 
   assert.equal(container.getAttribute("aria-busy"), "true");
-  // One node, announced politely, naming what is being waited for.
-  assert.equal(container.children.length, 1, "the wait is a single line, not a stack of furniture");
+  // One panel, announced politely, naming what is being waited for. The sentence
+  // and the placeholder under it are one state, not two things on screen.
+  assert.equal(container.children.length, 1, "the wait is one panel, not a stack of furniture");
   const status = first(container, "detail-loading");
   assert.equal(status.getAttribute("role"), "status");
   assert.equal(first(status, "detail-loading-text").textContent, POST_LOADING_STATUS);
@@ -290,12 +298,30 @@ test("the loading state has one clear status sentence", () => {
   // spell it, not three periods pretending to be one.
   assert.ok(POST_LOADING_STATUS.endsWith("…") && !POST_LOADING_STATUS.includes("..."));
 
-  // Concise: one status sentence, no oversized state banner, and no placeholder
-  // block pretending to be an image the post may not even have.
+  // The four slots a post fills, in the order the loaded article fills them.
+  // A line of text used to be the whole wait, so every post that arrived pushed
+  // the page down under the reader; the placeholder holds the box instead.
+  assert.deepEqual(slotsOf(container), POST_SKELETON_SLOTS);
+  assert.deepEqual(POST_SKELETON_SLOTS, ["image", "body", "display-name", "timestamp"]);
+
+  // Built from the blocks Social's feed and People's grid already draw while
+  // they wait, in this page's own containers — one placeholder treatment across
+  // the three surfaces, and no new stylesheet rule per surface.
+  assert.equal(byClass(container, "skeleton-media").length, 1);
+  assert.equal(byClass(container, "skeleton-line").length, 3);
+  for (const name of ["detail-figure", "detail-caption", "detail-byline", "detail-date"]) {
+    assert.equal(byClass(container, name).length, 1, `the wait reserves the loaded post's ${name}`);
+  }
+
+  // Decoration, all of it: the sentence is what is announced. Four empty boxes
+  // read aloud would describe the shape of a post that is not here yet.
+  assert.equal(first(container, "detail-skeleton").getAttribute("aria-hidden"), "true");
+  assert.equal(first(container, "detail-skeleton").textContent.trim(), "", "the placeholder says nothing in words");
+
+  // Still no state banner and no heading: the wait does not announce itself as
+  // a second page on top of the one already drawn.
   assert.equal(tags(container, "H2").length, 0, "the wait must not repeat its status in a heading");
   assert.equal(byClass(container, "empty-state").length, 0);
-  assert.equal(byClass(container, "detail-skeleton").length, 0);
-  assert.equal(byClass(container, "skeleton-media").length, 0);
   // Nor is the region left blank, which is the other way to say nothing.
   assert.ok(status.textContent.trim().length > 0, "the region must not be empty while it waits");
 
@@ -303,6 +329,21 @@ test("the loading state has one clear status sentence", () => {
   assert.equal(first(container, "detail-loading-dot").getAttribute("aria-hidden"), "true");
   assert.equal(first(container, "detail-loading-dot").textContent, "");
   assert.equal(byClass(container, "empty-action-secondary").length, 0, "the standing back link is not repeated here");
+  // And nothing in it is a control, so the wait adds no stop to the tab order.
+  assert.equal(tags(container, "BUTTON").length + tags(container, "A").length, 0);
+});
+
+// The placeholder stands in for the post, so a resolved state must not keep any
+// part of it: a shimmer block under a rendered post, or beside the sentence
+// explaining that there is none, is a page still claiming to be working.
+test("no slot of the placeholder survives into a state that resolved", () => {
+  for (const [name, value, options] of PANEL_STATES) {
+    const container = createElement("div");
+    renderPostDetail(container, value, options);
+    assert.deepEqual(slotsOf(container), name === "loading" ? POST_SKELETON_SLOTS : [],
+      `the ${name} state's placeholder slots`);
+    assert.equal(byClass(container, "detail-skeleton").length, name === "loading" ? 1 : 0);
+  }
 });
 
 // A permalink is the one page a visitor can land on with no context, so its h1
@@ -499,7 +540,11 @@ test("the standing sentence outlives every state the panel renders", () => {
 // the page, in the words the script would have written anyway.
 test("the shipped markup opens in the loading state, saying so in words", async () => {
   const html = await postPageHtml();
-  const region = html.match(/<div id="post-detail"[\s\S]*?<\/div>/)[0];
+  // The whole region, not the first closing tag in it: the shipped wait nests a
+  // placeholder now, so a non-greedy match to the first closing div would read
+  // a prefix of the region and pass on everything it never looked at.
+  const opens = html.indexOf('<div id="post-detail"');
+  const region = html.slice(opens, html.indexOf("</section>", opens));
 
   assert.match(region, /data-post-state="loading"/, "the region names the state it opens in");
   assert.match(region, /aria-busy="true"/, "and reports that it is still working");
@@ -514,7 +559,18 @@ test("the shipped markup opens in the loading state, saying so in words", async 
   // One spelling of one sentence. Two would flash a rewrite when the script ran.
   assert.equal(html.split(POST_LOADING_STATUS).length - 1, 1);
   assert.doesNotMatch(region, /detail-loading-title|post-state-loading-title|aria-labelledby/);
-  assert.doesNotMatch(region, /detail-state-chip|skeleton-media|empty-state/);
+  assert.doesNotMatch(region, /detail-state-chip|empty-state/);
+
+  // The placeholder ships too, because a cold visitor meets the markup before
+  // this page's script has been fetched: the four slots, once each, in the order
+  // the loaded article fills them, hidden from assistive technology.
+  assert.deepEqual([...region.matchAll(/data-post-skeleton-slot="([a-z-]+)"/g)].map(([, slot]) => slot),
+    ["image", "body", "display-name", "timestamp"]);
+  assert.equal((region.match(/class="detail-skeleton" aria-hidden="true"/g) ?? []).length, 1);
+  // Drawn with the feed's blocks, so the shipped wait and the rendered one are
+  // the same treatment a reader has already met on Social and on People.
+  assert.equal((region.match(/class="skeleton-media"/g) ?? []).length, 1);
+  assert.equal((region.match(/class="skeleton-line/g) ?? []).length, 3);
   // And it carries nothing to tab to, so the standing exit stays the first stop
   // a keyboard reader reaches after the site frame.
   assert.doesNotMatch(region, /<a |<button|tabindex/);

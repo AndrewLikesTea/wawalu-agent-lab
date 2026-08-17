@@ -765,9 +765,9 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .detail-body { margin:14px 0 0; color:#42423d; font-size:15px; line-height:1.6; white-space:pre-wrap; overflow-wrap:anywhere; }
 .detail-stats { display:flex; gap:18px; margin:20px 0 0; padding-top:16px; border-top:1px solid #dedcd5; color:#62625d; font:650 12px/1.4 ui-monospace,monospace; }
 .detail-state-message { max-width:720px; margin:auto; }
-/* Compact wait state; min-height avoids collapse without guessing at media. */
-.detail-loading { display:grid; justify-items:center; gap:6px; min-height:96px; margin:0; padding:20px 0; color:#4a4a44; }
-.detail-loading-title { margin:0; color:#282824; font:700 18px/1.3 system-ui,sans-serif; }
+/* The wait keeps the post's own column, so the answer lands where it waited. */
+.detail-loading { display:grid; gap:14px; min-height:96px; max-width:720px; margin:auto; padding:20px 0; color:#4a4a44; }
+.detail-skeleton { display:flex; flex-direction:column; min-width:0; }
 .detail-loading-line { display:flex; align-items:center; gap:10px; margin:0; font:650 14px/1.5 system-ui,sans-serif; }
 .detail-loading-dot { flex:none; width:12px; height:12px; border:2px solid #a8c2da; border-top-color:#155f9e; border-radius:50%; animation:shiplog-spin .8s linear infinite; }
 /* Status chips. Text first — the word is the signal and survives colour being

@@ -42,6 +42,12 @@ async function openPostPage(search, answer) {
   return { ...page, requests, settled, panel: page.document.querySelector("#post-detail") };
 }
 
+// The slots the wait reserves, in document order, read off the attribute that
+// names each one. The shape is the claim — not how many shimmer blocks there
+// are, which is a fact about the stylesheet rather than about the reader.
+const skeletonSlots = (node) => node.querySelectorAll("[data-post-skeleton-slot]")
+  .map((slot) => slot.getAttribute("data-post-skeleton-slot"));
+
 const seedResponse = (posts) => ({ ok: true, status: 200, json: async () => ({ posts }) });
 const seedOnly = (posts) => (url) => {
   if (url === SEED_URL) return seedResponse(posts);
@@ -265,6 +271,48 @@ test("a failed lookup names the feed it could not reach, and retry can recover",
   }
 });
 
+// The retry does not just re-run a fetch: it takes the page back through the
+// wait. Held open on the second attempt, because the state between "the reader
+// pressed Retry" and "the post arrived" is the one a failing network makes the
+// reader sit in, and it has to be the same wait the page opened with.
+test("a retry re-enters the wait in the post's shape, then lands the post in it", async () => {
+  let failing = true;
+  let release = null;
+  const page = await openPostPage("?id=p-image", () => {
+    if (failing) throw new TypeError("Failed to fetch");
+    return new Promise((resolve) => { release = () => resolve(seedResponse([SEED_POST])); });
+  });
+  try {
+    const panel = page.panel;
+    assert.equal(panel.dataset.postState, "error");
+    assert.deepEqual(skeletonSlots(panel), [], "a failed lookup is an answer, not a wait");
+
+    failing = false;
+    panel.querySelector(".detail-retry").click();
+    await waitFor(() => panel.querySelectorAll(".detail-loading").length === 1, "the retry re-entered the wait");
+
+    // One state again: the failure is gone from the document rather than sitting
+    // under the placeholder, and the placeholder holds the same four slots.
+    assert.equal(panel.dataset.postState, "loading");
+    assert.equal(panel.getAttribute("aria-busy"), "true");
+    assert.equal(panel.querySelectorAll(".detail-state-message").length, 0);
+    assert.equal(panel.querySelectorAll("button").length, 0);
+    assert.deepEqual(skeletonSlots(panel), ["image", "body", "display-name", "timestamp"]);
+    assert.equal(textOf(panel.querySelector(".detail-loading-text")), "Shiplog is opening a single shared post from Social…");
+
+    await waitFor(() => release, "the retry issued its request");
+    release();
+    await waitFor(page.settled, "the retry recovered");
+
+    assert.equal(panel.dataset.postState, "loaded");
+    assert.deepEqual(skeletonSlots(panel), []);
+    assert.equal(panel.querySelectorAll(".detail-post").length, 1);
+    assert.equal(textOf(panel.querySelector("figcaption")), "The middle card, ringed.");
+  } finally {
+    page.restore();
+  }
+});
+
 test("a visit with no id is told what the page needs, and still has one way out", async () => {
   const page = await openPostPage("", () => { throw new Error("a page with no id must not ask the network"); });
   try {
@@ -302,11 +350,16 @@ test("the loading state is one announced line in the post's region, and takes no
     // Nothing is named yet, so the h1 names the page — the same words a reader
     // sees in the shipped markup before any script runs.
     assert.equal(textOf(page.document.querySelector("#page-title")), "Post from Social");
-    // The compact state says the wait once, without guessing at an image-shaped placeholder.
+    // The state says the wait once, in words, and holds the post's shape under
+    // it: no chip, no heading, no second explanation.
     assert.equal(panel.querySelectorAll(".detail-state-message").length, 0);
     assert.equal(panel.querySelectorAll("h2").length, 0);
     assert.equal(state.getAttribute("aria-labelledby"), null);
-    assert.equal(panel.querySelectorAll(".skeleton-media").length, 0);
+    assert.deepEqual(skeletonSlots(panel), ["image", "body", "display-name", "timestamp"]);
+    assert.equal(panel.querySelectorAll(".detail-skeleton")[0].getAttribute("aria-hidden"), "true");
+    // The placeholder is shape only: it must not put words on the page that a
+    // reader would try to read, or that the announcement would read out.
+    assert.equal(textOf(panel.querySelector(".detail-skeleton")).trim(), "");
     // The frame around it still says what the page is, so the region is never
     // an unexplained blank.
     assert.match(textOf(page.document.querySelector(".hero-post")),
@@ -341,6 +394,9 @@ test("the page opens already saying it is loading, and the post replaces that li
     assert.equal(panel.querySelectorAll(".detail-loading").length, 1);
     assert.equal(textOf(panel.querySelector(".detail-loading-text")), "Shiplog is opening a single shared post from Social…");
     assert.equal(panel.querySelector(".detail-loading").getAttribute("role"), "status");
+    // The placeholder is in the markup too — the wait a cold visitor meets is
+    // the shape of the post, not a line of text the post then pushes down.
+    assert.deepEqual(skeletonSlots(panel), ["image", "body", "display-name", "timestamp"]);
     // The states that explain an absent post are not in the markup at all, so
     // the wait and an unavailable panel cannot be read together at any point.
     assert.equal(panel.querySelectorAll(".detail-state-message").length, 0);
@@ -359,6 +415,10 @@ test("the page opens already saying it is loading, and the post replaces that li
     assert.equal(panel.querySelectorAll(".detail-loading").length, 1, "one wait line, not the shipped one plus a second");
     assert.equal(textOf(panel.querySelector(".detail-loading-text")), "Shiplog is opening a single shared post from Social…");
     assert.equal(panel.querySelectorAll(".detail-state-message").length, 0);
+    // And one placeholder: the script redraws the wait the markup shipped, it
+    // does not stack a second set of slots under the first.
+    assert.deepEqual(skeletonSlots(panel), ["image", "body", "display-name", "timestamp"]);
+    assert.equal(panel.querySelectorAll(".detail-skeleton").length, 1);
 
     release();
     await waitFor(() => page.document.documentElement.dataset.shiplogPostDetail === "ready", "the post arrived");
@@ -366,6 +426,9 @@ test("the page opens already saying it is loading, and the post replaces that li
     // Resolved: one state, and the wait is gone rather than pushed off screen.
     assert.equal(panel.dataset.postState, "loaded");
     assert.equal(panel.querySelectorAll(".detail-loading").length, 0);
+    // The placeholder goes with it. A shimmer block left under a rendered post
+    // is a page still telling the reader it is working.
+    assert.deepEqual(skeletonSlots(panel), []);
     assert.equal(panel.querySelectorAll(".detail-post").length, 1);
     assert.equal(panel.getAttribute("aria-busy"), "false");
     assert.doesNotMatch(textOf(panel), /Loading this post/);

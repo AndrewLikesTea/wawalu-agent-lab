@@ -87,9 +87,20 @@
                  of exactly four values — loading, loaded, not-found, error — so
                  the wait and a resolved answer can never stand on screen
                  together. The wording here is the one post-detail.js renders,
-                 character for character; a test pins them to each other. -->
+                 character for character; a test pins them to each other.
+
+                 The placeholder under the sentence is the same shape: the four
+                 slots a post fills — image, words, display name, posting time —
+                 in the loaded article's own containers, drawn with the shimmer
+                 blocks Social's feed and People's grid already use while they
+                 wait. It ships here for the same reason the sentence does: it
+                 is what a cold visitor meets before this page's script has been
+                 fetched, and it means the post lands in a box the page was
+                 already holding instead of pushing the reader's page down. It
+                 is hidden from assistive technology, which is told the sentence
+                 rather than the shape of a post that has not arrived. -->
             <div id="post-detail" data-post-state="loading" aria-busy="true">
-              <div class="detail-loading detail-state-panel" data-post-state-panel="loading" role="status"><p class="detail-loading-line"><span class="detail-loading-dot" aria-hidden="true"></span><span class="detail-loading-text">Shiplog is opening a single shared post from Social…</span></p></div>
+              <div class="detail-loading detail-state-panel" data-post-state-panel="loading" role="status"><p class="detail-loading-line"><span class="detail-loading-dot" aria-hidden="true"></span><span class="detail-loading-text">Shiplog is opening a single shared post from Social…</span></p><div class="detail-skeleton" aria-hidden="true"><div class="detail-figure"><div class="skeleton-media" data-post-skeleton-slot="image"></div><div class="detail-caption"><div class="skeleton-line" data-post-skeleton-slot="body"></div></div></div><div class="detail-byline"><div class="skeleton-line skeleton-line-short" data-post-skeleton-slot="display-name"></div></div><div class="detail-date"><div class="skeleton-line skeleton-line-short" data-post-skeleton-slot="timestamp"></div></div></div></div>
             </div>
           </div>
         </section>
