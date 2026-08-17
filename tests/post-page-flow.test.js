@@ -99,9 +99,9 @@ function assertExits(page, peopleHref, where, { publish = true } = {}) {
 // definition: where the names come from, and that nobody owns one.
 const IDENTITY = "Display names are invented for this demo or chosen by whoever published the post — nobody owns or verifies one, and anyone can publish under any name.";
 
-const SOCIAL = { label: "Open the full Social feed", href: "/social.html" };
+const SOCIAL = { label: "Read the full Social feed", href: "/social.html" };
 const PEOPLE = { label: "Open People to see Mina Okafor’s other image posts", href: "/profile.html" };
-const PUBLISH = { label: "Open Social to publish a post of your own", href: "/social.html#post-form" };
+const PUBLISH = { label: "Publish a post of your own on Social", href: "/social.html#post-form" };
 const MINA = "/profile.html?author=Mina%20Okafor";
 
 test("a post that loads is headed by its author and reads description, image, caption, name, time", async () => {
@@ -225,7 +225,7 @@ test("a missing post reached from a profile still offers the feed it belonged to
         && !link.closest(".site-nav") && !link.closest("#site-footer"));
     // The panel's own action reads first, because the panel is where the post
     // would have been and now stands above the page's standing routes out.
-    assert.deepEqual(toFeed.map(textOf), ["Go to the Social feed", "Open the full Social feed"]);
+    assert.deepEqual(toFeed.map(textOf), ["Go to the Social feed", "Read the full Social feed"]);
 
     // Tab order agrees: the state's own next step, then the standing exit.
     const sequence = tabSequence(page.document);
@@ -244,7 +244,7 @@ test("a failed lookup names the feed it could not reach, and retry can recover",
   try {
     assert.match(textOf(page.panel), /Post could not be opened/);
     assert.match(textOf(page.panel), /The Social feed did not respond\./);
-    assert.equal(textOf(page.panel.querySelector(".detail-state-feed")), "Open the full Social feed");
+    assert.equal(textOf(page.panel.querySelector(".detail-state-feed")), "Read the full Social feed");
     assert.doesNotMatch(textOf(page.panel), /private|signed-in|your post/i);
     assertExits(page, null, "failed");
 
@@ -474,7 +474,7 @@ test("the failed state reads the post's region and its retry, then the back link
     // The panel offers both a return to the feed and a retry.
     assert.equal(page.panel.querySelectorAll("button").length, 1);
     assert.equal(page.panel.querySelectorAll("a").length, 1);
-    assert.equal(textOf(page.panel.querySelector("a")), "Open the full Social feed");
+    assert.equal(textOf(page.panel.querySelector("a")), "Read the full Social feed");
   } finally {
     page.restore();
   }

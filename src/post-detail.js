@@ -21,17 +21,24 @@
 import { captionFor, countLabel, profileHref } from "./profile.js";
 import { renderImageUnavailable } from "./image-description.js";
 import { pageTitle, recordTitle } from "./page-title.js";
-import { normalizeImage } from "./social.js";
+import { DEFAULT_AUTHOR, normalizeImage } from "./social.js";
 
 // The three routes out of a permalink, named once and shipped in src/post.html.
 //
-// Neither is a "back". A permalink is the one page in this product a visitor can
+// None is a "back". A permalink is the one page in this product a visitor can
 // meet cold — pasted into a chat window, opened by someone who has never seen
-// Social — and there is nothing behind them to return to. So both links point
-// forward, name their destination, and say what is there, in the verb the two
-// feed pages already use for each other ("Open People when you want…", "Open
-// Social when you want…"). The label says People, not Profile: this site has a
-// People page and no page called Profile.
+// Social — and there is nothing behind them to return to. So every link points
+// forward, names its destination, and says what is there. The label says
+// People, not Profile: this site has a People page and no page called Profile.
+//
+// Two of the three land on Social, and they used to open on the same word:
+// "Open the full Social feed" and "Open Social to publish a post of your own"
+// read as one label typed twice, so a reader scanning the row had to reach the
+// end of each line to find out that only one of them was about writing. Each
+// now opens on the verb that is the whole difference between them — you go to
+// one to read and to the other to publish — which is the fact the row exists to
+// offer and the first word is the only place a scanning reader reliably reads.
+// Nothing else about them moved: same destinations, same behaviour, same states.
 //
 // The labels are constants because nothing may rewrite them mid-visit. They are
 // pinned against src/post.html, which ships both links. Social stands in all
@@ -45,9 +52,9 @@ import { normalizeImage } from "./social.js";
 // collapsed panel. Its words are about the reader, not about this post, so it
 // stands in every state that has settled — loaded, not-found and error alike.
 export const POST_EXITS = {
-  social: { href: "/social.html", label: "Open the full Social feed" },
+  social: { href: "/social.html", label: "Read the full Social feed" },
   people: { href: "/profile.html" },
-  publish: { href: "/social.html#post-form", label: "Open Social to publish a post of your own" },
+  publish: { href: "/social.html#post-form", label: "Publish a post of your own on Social" },
 };
 const MAX_RETURN_AUTHOR_LENGTH = 60;
 
@@ -66,6 +73,20 @@ export function postPeopleHref(search = "", author = "") {
   const params = new URLSearchParams(String(search).replace(/^\?/, ""));
   const name = String(author || params.get("author") || "").trim();
   return name && name.length <= MAX_RETURN_AUTHOR_LENGTH ? profileHref(name) : POST_EXITS.people.href;
+}
+
+// The display name a loaded post is published under, resolved the one way this
+// product resolves it: src/social.js writes `String(values.author ?? "").trim()
+// || DEFAULT_AUTHOR` into every draft, so a post with an empty, missing or
+// whitespace-only name is a post by Guest — a real bucket on People, not an
+// absence. Same trim, same fallback, so the byline names whoever the feed and
+// the composer would name and the People link it builds lands on that name.
+//
+// Only ever called with a post in hand. A page with no post has no display name
+// to resolve, and inventing Guest for one would put a name on a state that has
+// none (see postPageHeading below, which names the page instead).
+export function postAuthorName(post) {
+  return String(post?.author ?? "").trim() || DEFAULT_AUTHOR;
 }
 
 export function findPostById(posts, id) {
@@ -486,14 +507,29 @@ export function renderPostDetail(container, post, options = {}) {
   // The name is a link to that person's People view, and its text is the name
   // itself — not a generic "profile" label. It follows the post content so the
   // permalink leads with the material the reader opened.
-  const author = String(post.author ?? "").trim();
-  if (author) {
-    const byline = el("p", "detail-byline");
-    const link = el("a", "detail-author-link", author);
-    link.href = profileHref(author);
-    byline.append(link);
-    article.append(byline);
-  }
+  //
+  // It is the one place a forwarded post leads anywhere but back to the feed, so
+  // the destination is built by People's own function (profileHref) with the
+  // name People's own reader would match: `?author=`, percent-encoded, trimmed —
+  // which is the whole of the normalisation requestedName() applies in
+  // src/profile.js. Nothing narrower is safe to emit, and nothing wider is
+  // needed: People holds any non-empty name it is handed, drawing the empty grid
+  // under it rather than falling back to somebody else, so every name a post can
+  // carry resolves to a page that names it. There is therefore no name this
+  // renderer has to degrade to plain text.
+  //
+  // Except one, and it is not a name: a post published with no display name at
+  // all. src/social.js resolves that at the moment of publishing — an empty,
+  // missing or whitespace-only name is stored as DEFAULT_AUTHOR — so the byline
+  // resolves it the same way rather than dropping the line. A post rendered
+  // without a byline said nothing about who wrote it and led nowhere; "Guest" is
+  // both what the feed calls that poster and a bucket People can actually show.
+  const author = postAuthorName(post);
+  const byline = el("p", "detail-byline");
+  const link = el("a", "detail-author-link", author);
+  link.href = profileHref(author);
+  byline.append(link);
+  article.append(byline);
 
   const time = el("time", "post-date detail-date", formatDateTime(post.createdAt));
   time.dateTime = post.createdAt;
