@@ -107,7 +107,7 @@
         </div>
       </section>
 
-      <!-- Deployment status: does what is running match the real record of this
+      <!-- Deployment check: does what is running match the real record of this
            deployment above? Read only — it probes /healthz, compares, and
            links; it never deploys, rolls back, or writes a record.
 
@@ -134,8 +134,8 @@
            mirrored from the element's own open state. -->
       <section class="release-followup-slot" id="deployment-status" aria-labelledby="deployment-status-title">
         <div class="release-followup" id="deployment-status-callout">
-          <h2 class="release-followup-title" id="deployment-status-title">Deployment status</h2>
-          <p class="release-followup-lead" id="deployment-status-proof">This check answers one question: does the real record of this deployment, at the top of this page, name the version this site is running right now? It reads the running deployment when the page loads. The example decision and release above are invented; that record and this answer are not.</p>
+          <h2 class="release-followup-title" id="deployment-status-title">Deployment check</h2>
+          <p class="release-followup-lead" id="deployment-status-proof">Does the real record of this deployment name the version this site is running right now? It reads the running deployment when the page loads. The example decision and release above are invented; that record and this answer are not.</p>
           <p class="release-followup-lead" id="deployment-verdict" role="status">Checking the running deployment now…</p>
           <p class="detail-summary" id="deployment-metric"></p>
           <!-- The commit-sha half of the same question, written by
