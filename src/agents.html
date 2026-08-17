@@ -90,6 +90,25 @@
                  commit these merges produced and links it where anyone can
                  open it. -->
 
+            <!-- The figure as plain text, for a reader who has to forward it.
+                 It sits beside the readout rather than inside it, so it survives
+                 every repaint, and it ships hidden: nothing copyable may assert
+                 a figure before one has arrived. merged-count-copy.js reveals it,
+                 and keeps the payload on this block so a press copies exactly
+                 what the render resolved to — the count, what those merges are,
+                 whether the figure is this response's or the last one taken
+                 here, and this page's own absolute address.
+
+                 The status line carries role="status" and no aria-live
+                 attribute, deliberately. The readout above is this section's one
+                 region that speaks on load; this one speaks only when a reader
+                 presses the button, so it is a second announcement in time
+                 rather than a second voice on the same paint. -->
+            <div class="merged-figure-copy" id="merged-figure-copy" data-reason="loading" hidden>
+              <button class="merged-figure-copy-button" id="merged-figure-copy-button" type="button">Copy this count and its sources</button>
+              <p class="merged-figure-copy-status" id="merged-figure-copy-status" role="status"></p>
+            </div>
+
             <!-- Verification, by hand: these are the exact responses the count is
                  computed from, so a reader can open one and count the merges
                  themselves. A tests/agent-observatory-merged-figure.test.js case

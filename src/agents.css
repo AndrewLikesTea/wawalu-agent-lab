@@ -23,6 +23,10 @@
    the readout for that reason, and is set like the source line beside it. */
 .merged-figure-note { margin:0; color:#71716b; font-size:12px; line-height:1.5; }
 .merged-figure-note a { color:#285f8f; }
+.merged-figure-copy { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+.merged-figure-copy-button { min-height:32px; border:1px solid #a9bccd; border-radius:9px; padding:0 12px; background:#fff; color:#2c2c28; font:650 12px/1.4 inherit; cursor:pointer; }
+.merged-figure-copy-status { margin:0; color:#3f6a3c; font-size:12px; line-height:1.5; }
+.merged-figure-copy-status:empty { display:none; }
 .merged-figure-sources { display:grid; gap:4px; margin:0; padding:0; list-style:none; }
 .merged-figure-sources a { color:#285f8f; font-size:12px; line-height:1.45; }
 .observatory-grid { display:grid; grid-template-columns:330px minmax(0,1fr); align-items:start; gap:24px; }

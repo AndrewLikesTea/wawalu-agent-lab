@@ -34,6 +34,9 @@ import {
   readRetainedCount,
   writeRetainedCount,
 } from "./merged-count-retention.js";
+// The figure as plain text, for a reader who has to forward it. It composes
+// nothing of its own: the state and the values below are what it reads.
+import { applyMergedCountCopy, bindMergedCountCopy } from "./merged-count-copy.js";
 
 export { EVENTS_URLS, SOURCE_REPOSITORIES, responseTimestamp } from "./public-merges.js";
 const REFRESH_MS = 90_000;
@@ -649,6 +652,10 @@ export function renderMergedFigure(root = document, state = "loading",
   const readout = root.querySelector("#merged-figure-readout");
   if (!section || !readout) return null;
   section.dataset.state = name;
+  // The copyable summary is rebuilt from this paint, before the no-op guard
+  // below can return: whatever a reader can put on a clipboard is whatever this
+  // render resolved to, and a state with no figure leaves nothing to press.
+  applyMergedCountCopy(root, name, { count, asOf, takenAt });
 
   const value = document.createElement("p");
   value.className = "merged-figure-value";
@@ -1070,6 +1077,7 @@ export function wireDemoDataControls(root = document, fetcher) {
 if (typeof document !== "undefined" && document.querySelector("#activity-list")) {
   const refresh = wireActivityControls();
   const readDemoData = wireDemoDataControls();
+  bindMergedCountCopy();
   refresh();
   readDemoData();
   setInterval(refresh, REFRESH_MS);
