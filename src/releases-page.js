@@ -19,7 +19,9 @@ import {
 } from "./releases.js";
 import { loadReleaseData } from "./releases-data.js";
 import { BUILD_STAMP } from "./build-stamp.js";
-import { releaseBuildMatchLine, releaseBuildStatus } from "./release-build-match.js";
+import { releaseBuildMatch, releaseBuildMatchLine } from "./release-build-match.js";
+import { deployedReleaseRecord } from "./deployed-release.js";
+import { renderShippedBuild } from "./deployed-release-view.js";
 import { initDeploymentStatus } from "./deployment-status-view.js";
 import { RELEASE_FORM_ERRORS, createRelease, mountDecisionPicker, recordedSummaryText } from "./release-form.js";
 import { copyRecordUrl } from "./share-link.js";
@@ -165,6 +167,18 @@ export function initReleasesPage(root = document, storage = localStorage, option
   if (!container) return;
   initShiplogProof(root, options);
 
+  // The real record of this deployment, painted before anything else on the
+  // page: the observatory's "read the releases these pull requests shipped"
+  // link lands here, and what it lands on has to be a record a visitor can
+  // check rather than the invented-example panel below it. Derived from the
+  // stamp this artifact shipped with, and null when that stamp names no commit —
+  // in which case the block says so and no record is manufactured.
+  const buildStamp = options.buildStamp ?? BUILD_STAMP;
+  const deployedRelease = options.deployedRelease !== undefined
+    ? options.deployedRelease
+    : deployedReleaseRecord(buildStamp);
+  renderShippedBuild(root, deployedRelease);
+
   // Every early return below leaves the page in a stated end state: the list
   // shows why it is empty, the count says so, and no stale follow-up survives
   // pointing at releases this page never managed to load.
@@ -225,16 +239,16 @@ export function initReleasesPage(root = document, storage = localStorage, option
     if (target) historyRef?.replaceState?.(null, "", target);
   };
 
-  // The build-versus-log verdict, from the same function `/healthz` answers
-  // with (src/release-build-match.js) over the same generated stamp
-  // (src/build-stamp.js) that shipped inside this artifact. The probe reads the
-  // shipped records; this reads the log as this browser holds it, which is the
-  // log the reader is looking at. Deliberately not filtered: hiding the newest
-  // release behind a search box must not change what the page says is running.
-  const buildStamp = options.buildStamp ?? BUILD_STAMP;
+  // The commit-sha half of the same question, from the same function `/healthz`
+  // answers with (src/release-build-match.js) over the same generated stamp
+  // (src/build-stamp.js) that shipped inside this artifact. Compared against the
+  // real record of this deployment, not against the newest record in the log:
+  // the log's newest record is an invented demonstration that shipped no commit,
+  // so comparing a running build against it was never a true statement about
+  // what is running.
   const renderBuildMatch = () => {
     if (!buildMatchSlot) return;
-    buildMatchSlot.textContent = releaseBuildMatchLine(releaseBuildStatus(buildStamp, releases));
+    buildMatchSlot.textContent = releaseBuildMatchLine(releaseBuildMatch(buildStamp, deployedRelease));
   };
 
   const view = mountReleaseList(container, { releases, decisions, exampleIds: exampleReleaseIds });
@@ -313,10 +327,10 @@ export function initReleasesPage(root = document, storage = localStorage, option
   // threw leaves the authored "Comparing…" line rather than a blank panel.
   //
   // Not re-run when a release is recorded. The band answers a question about the
-  // running deployment, and recording a record does not change what is running —
-  // the next load compares against the new newest record.
+  // running deployment against the real record of it, and neither of those
+  // changes because a visitor wrote a record of their own.
   initDeploymentStatus(root, {
-    releases,
+    release: deployedRelease,
     readHealth: options.readHealth,
     now: options.now,
   }).catch(() => {});

@@ -13,13 +13,16 @@
 // is the existing form on this same page. Least privilege: a status view that
 // could also act is a status view that can be wrong twice.
 //
-// WHERE LAST-KNOWN-GOOD COMES FROM. The newest release record already in the
-// log, and nothing else. It is the log's own statement of what should be
-// running, it is already loaded on this page, and reading it needs no new
-// persisted state. Recording "the last time the comparison agreed" would need a
-// write path, and this view is not allowed one — so the degraded path reports
-// the comparison it can still make (the recorded build, its record, and when it
-// was written) rather than inventing a checkpoint.
+// WHICH RECORD IT COMPARES AGAINST. The real record of this deployment
+// (src/deployed-release.js), and nothing else. It used to be the newest record
+// in the log, which on the shipped page was an invented demonstration record —
+// so the band said it had checked the running deployment against something that
+// never shipped. The record is supplied by the caller, and the verdict names it
+// in the same words the page marks it with, so "what was this compared against?"
+// has a visible answer. Recording "the last time the comparison agreed" would
+// need a write path, and this view is not allowed one — so the degraded path
+// reports the comparison it can still make (the recorded build, its record, and
+// when it was written) rather than inventing a checkpoint.
 //
 // WHAT THE DURATION MEASURES. Time since the newest release record was written,
 // because that is the only timestamp either side of the comparison carries. It
@@ -27,6 +30,7 @@
 // N ago"), not a claim about when a drift began — which nothing on this page
 // could know without persisting past verdicts.
 
+import { REAL_RECORD_NAME } from "./deployed-release.js";
 import { releaseDetailHref } from "./releases.js";
 
 // The fields a health response may name its build in, in order. `/healthz`
@@ -45,7 +49,7 @@ export const UNKNOWN_REASONS = Object.freeze({
   timeout: "The health check did not answer in time.",
   "unexpected-shape": "The health check answered in a shape this page does not recognise.",
   "no-build": "The health check answered, but it named no build identifier.",
-  "no-record": "The release log holds no record to compare the running deployment against.",
+  "no-record": "There is no real record of this deployment to compare the running deployment against.",
 });
 
 const FALLBACK_REASON = UNKNOWN_REASONS.unreachable;
@@ -100,20 +104,28 @@ function elapsed(fromIso, nowIso) {
 // The one action a non-matching verdict offers, tied to a specific record. Both
 // branches are links to a page a person then operates: this view never submits
 // anything itself.
+//
+// A record may carry its own words for that action. The real record of this
+// deployment (src/deployed-release.js) does: it does not live in the visitor's
+// log, so the detail route would resolve to nothing, and "reconcile a release"
+// is not what a reader should do when the page in front of them and the
+// deployment answering the probe name different builds. Every other record
+// falls back to the recorder's own wording, unchanged.
 function nextActionFor(release) {
   if (!release?.id) {
     return {
       label: "Record the release that is running",
       href: "/releases.html#record-release",
-      target: "The log holds no release record, so there is nothing to compare against yet.",
+      target: "There is no real record of this deployment, so there is nothing to compare against yet.",
       releaseId: null,
     };
   }
   const name = text(release.version) ?? release.id;
   return {
-    label: `Reconcile release ${name}`,
-    href: releaseDetailHref(release.id),
-    target: `Open ${name} and re-record it if what is running is correct, or ship the recorded build if it is not.`,
+    label: text(release.actionLabel) ?? `Reconcile release ${name}`,
+    href: text(release.detailHref) ?? releaseDetailHref(release.id),
+    target: text(release.actionTarget)
+      ?? `Open ${name} and re-record it if what is running is correct, or ship the recorded build if it is not.`,
     releaseId: release.id,
   };
 }
@@ -174,10 +186,10 @@ export function verdictSentence(verdict) {
   const deployed = verdict.deployedBuild ?? "an unreported build";
   const recorded = verdict.recordedBuild ?? "no recorded build";
   if (verdict.state === "match") {
-    return `Confirmed: this site is running ${deployed}, the version the newest release record names.`;
+    return `Confirmed: this site is running ${deployed}, the version ${REAL_RECORD_NAME} names.`;
   }
   if (verdict.state === "drift") {
-    return `Not a match: this site is running ${deployed}, but the newest release record names ${recorded}.`;
+    return `Not a match: this site is running ${deployed}, but ${REAL_RECORD_NAME} names ${recorded}.`;
   }
   return `The check did not complete, so nothing here says which version this site is running. ${verdict.reason}`;
 }
@@ -187,8 +199,8 @@ export function verdictMetricText(verdict) {
   const deployed = verdict.deployedBuild ?? "not reported";
   const recorded = verdict.recordedBuild ?? "none recorded";
   const held = verdict.recordedAt ? `recorded ${verdict.heldFor} ago` : "never recorded";
-  return `Running ${deployed} · Newest record ${recorded} · ${held}`;
+  return `Running ${deployed} · Real record ${recorded} · ${held}`;
 }
 
 // What a matching verdict says instead of offering an action.
-export const NO_ACTION_TEXT = "No action is needed: the version running is the newest release on record.";
+export const NO_ACTION_TEXT = `No action is needed: the version running is the one ${REAL_RECORD_NAME} names.`;

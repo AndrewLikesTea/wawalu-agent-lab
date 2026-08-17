@@ -1728,9 +1728,10 @@ export async function initDecisionLog(root = document, storage = localStorage, o
   });
 
   // The live deployment self-check (#1791), which is the releases page's band
-  // and not a second one: same module, same reading, same sentence. It is booted
-  // from the composed log so both surfaces compare the running deployment
-  // against the same newest record, and it is deliberately NOT awaited — it
+  // and not a second one: same module, same reading, same sentence. Both
+  // surfaces compare the running deployment against the same real record of it,
+  // derived by initDeploymentStatus from the build stamp inside this artifact
+  // when no record is passed. It is deliberately NOT awaited — it
   // reads the health endpoint, and the history above it must not wait on a
   // network read to be correct. A boot that throws leaves the authored waiting
   // line rather than a blank block.
@@ -1740,7 +1741,7 @@ export async function initDecisionLog(root = document, storage = localStorage, o
   // option because `options.now` here is a millisecond number and the check
   // reads an ISO string.
   initDeploymentStatus(root, {
-    releases,
+    release: options.deployedRelease,
     readHealth: options.readHealth,
     now: options.deploymentNow,
   }).catch(() => {});

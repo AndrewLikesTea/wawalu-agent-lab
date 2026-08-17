@@ -46,6 +46,42 @@
         <p>Every release, newest first, with the decisions it carried. Expand a release to review each linked decision and its status.</p>
       </section>
 
+      <!-- THE ONE RECORD ON THIS PAGE THAT IS NOT INVENTED, and the reason it
+           is first. The Agent observatory links here saying the merged pull
+           requests it counts shipped the releases at the other end; it lands on
+           this block, above the invented example, so what a visitor sees on
+           arrival is a record they can check rather than a disclaimer.
+
+           Filled by deployed-release-view.js from src/build-stamp.js, which the
+           build rewrites with the commit the artifact was built from. The
+           document ships no sha and no commit link: a value in these bytes
+           would be a claim about a build nobody made. The marking and the
+           heading ARE authored, because they are what makes the block legible
+           before any module runs, and neither names a commit.
+
+           The link's authored href is the public repository, which is true
+           whatever the stamp says; the module narrows it to the exact commit.
+           An unstamped build replaces the marking and the note and withdraws
+           the link rather than showing a record it cannot back. -->
+      <section class="shiplog-proof shiplog-real" id="shipped-build" aria-labelledby="shipped-build-title" tabindex="-1">
+        <div class="shiplog-proof-heading">
+          <div>
+            <h2 id="shipped-build-title">The build this site is running</h2>
+          </div>
+          <span class="badge badge-real" id="shipped-build-marking">Real record of this deployment</span>
+        </div>
+        <p class="shiplog-proof-note" id="shipped-build-note">This record is not an example. The build that produced the page you are reading wrote it, from the commit that build was made from. Open that commit below and check it against the public repository.</p>
+        <dl class="shiplog-proof-facts" id="shipped-build-facts"></dl>
+        <div class="shiplog-proof-share">
+          <!-- Its own class, deliberately not .shiplog-proof-link: that class is
+               how releases-page.js finds the invented example's "Open this
+               example" control, and a second element wearing it would take the
+               copy button's URL away from the record it names. Same look, one
+               owner each. -->
+          <a class="shiplog-real-link" id="shipped-build-source" href="https://github.com/AndrewLikesTea/wawalu-agent-lab">Open the public repository this site is built from</a>
+        </div>
+      </section>
+
       <section class="shiplog-proof" id="shiplog-proof" aria-labelledby="shiplog-proof-title" tabindex="-1">
         <div class="shiplog-proof-heading">
           <div>
@@ -71,9 +107,15 @@
         </div>
       </section>
 
-      <!-- Deployment status: does what is running match the newest record in
-           this log? Read only — it probes /healthz, compares, and links; it
-           never deploys, rolls back, or writes a record.
+      <!-- Deployment status: does what is running match the real record of this
+           deployment above? Read only — it probes /healthz, compares, and
+           links; it never deploys, rolls back, or writes a record.
+
+           It used to compare against "the newest release record below", which
+           was an invented demonstration record — so the band named a record it
+           should never have been checked against. It is pointed at the one
+           record on this page marked as real, and the verdict names that record
+           in the same words its marking uses.
 
            The lead sentence is static markup, not a slot: what this check
            proves is true before the probe answers and stays true if it never
@@ -93,7 +135,7 @@
       <section class="release-followup-slot" id="deployment-status" aria-labelledby="deployment-status-title">
         <div class="release-followup" id="deployment-status-callout">
           <h2 class="release-followup-title" id="deployment-status-title">Deployment status</h2>
-          <p class="release-followup-lead" id="deployment-status-proof">This check answers one question: does the newest release record below name the version this site is running right now? It reads the running deployment when the page loads. The example decision and release above are invented; this answer is not.</p>
+          <p class="release-followup-lead" id="deployment-status-proof">This check answers one question: does the real record of this deployment, at the top of this page, name the version this site is running right now? It reads the running deployment when the page loads. The example decision and release above are invented; that record and this answer are not.</p>
           <p class="release-followup-lead" id="deployment-verdict" role="status">Checking the running deployment now…</p>
           <p class="detail-summary" id="deployment-metric"></p>
           <!-- The commit-sha half of the same question, written by

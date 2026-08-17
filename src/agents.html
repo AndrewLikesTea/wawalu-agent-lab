@@ -82,7 +82,14 @@
               <p class="merged-figure-value">Loading…</p>
               <p class="merged-figure-source">Counted from public GitHub activity, once GitHub answers.</p>
             </div>
-            <p class="merged-figure-note" id="merged-figure-note">AndrewLikesTea/paint-lab and AndrewLikesTea/wawalu-agent-lab hold the merged pull requests that built and changed the pages of this site. <a href="/releases.html">Read the releases these pull requests shipped</a></p>
+            <p class="merged-figure-note" id="merged-figure-note">AndrewLikesTea/paint-lab and AndrewLikesTea/wawalu-agent-lab hold the merged pull requests that built and changed the pages of this site. <a href="/releases.html#shipped-build">Read the releases these pull requests shipped</a></p>
+            <!-- The fragment is the point. The Releases log opens on invented
+                 demonstration records, so a link to the top of it promised real
+                 shipped releases and delivered a disclaimer; #shipped-build is
+                 the real record of the running deployment, which names the
+                 commit these merges produced and links it where anyone can
+                 open it. -->
+
             <!-- Verification, by hand: these are the exact responses the count is
                  computed from, so a reader can open one and count the merges
                  themselves. A tests/agent-observatory-merged-figure.test.js case

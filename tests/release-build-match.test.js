@@ -63,7 +63,12 @@ async function probe({ stamp: injectedStamp, releases }) {
 }
 
 /** The releases page, booted the way the browser boots it, with no network. */
-async function openReleases(t, releases) {
+// `compared` is the record the page's line is about. It used to be whichever
+// record in the log was newest; since #1819 the band compares against the real
+// record of this deployment, so the caller names it here for the same reason it
+// names the stamp — these cases are about the comparison, not about which
+// record production derives (tests/deployed-release.test.js pins that).
+async function openReleases(t, releases, compared = releases.at(-1)) {
   const page = await loadPage(RELEASES_PAGE, {
     storage: { [STORAGE_KEY]: JSON.stringify([]), [RELEASE_STORAGE_KEY]: JSON.stringify(releases) },
   });
@@ -71,6 +76,7 @@ async function openReleases(t, releases) {
   initReleasesPage(page.document, page.storage, {
     seed: NO_SEED,
     buildStamp: stamp,
+    deployedRelease: compared,
     readHealth: async () => ({ status: "ok" }),
     now: () => NOW,
   });
