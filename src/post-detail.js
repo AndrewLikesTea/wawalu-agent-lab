@@ -313,10 +313,11 @@ function renderFailed(container, onRetry) {
 // The wait, in one place, because src/post.html ships this same line in its
 // markup so the region is never blank before this module runs. Two spellings of
 // one sentence would flash a rewrite at the reader on every visit; one exported
-// string cannot. It names the product, the action, and the single shared post
-// being opened. A second heading used to repeat the same wait in different
-// words, so the status now carries one complete sentence instead.
-export const POST_LOADING_STATUS = "Shiplog is opening a single shared post from Social…";
+// string cannot. It names what is being loaded, in the site's own loading voice:
+// "Loading the Social feed…" on the feed, "Loading image posts…" on People. It
+// used to be a full sentence narrating the product in the third person, which
+// restated the eyebrow, the heading and the sentence below the post at once.
+export const POST_LOADING_STATUS = "Loading the shared post…";
 
 // The four parts of a post the wait stands in for, in the order the loaded
 // article renders them: the image, the words under it, who wrote them, and when.

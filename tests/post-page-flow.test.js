@@ -298,7 +298,7 @@ test("a retry re-enters the wait in the post's shape, then lands the post in it"
     assert.equal(panel.querySelectorAll(".detail-state-message").length, 0);
     assert.equal(panel.querySelectorAll("button").length, 0);
     assert.deepEqual(skeletonSlots(panel), ["image", "body", "display-name", "timestamp"]);
-    assert.equal(textOf(panel.querySelector(".detail-loading-text")), "Shiplog is opening a single shared post from Social…");
+    assert.equal(textOf(panel.querySelector(".detail-loading-text")), "Loading the shared post…");
 
     await waitFor(() => release, "the retry issued its request");
     release();
@@ -345,7 +345,7 @@ test("the loading state is one announced line in the post's region, and takes no
     assert.equal(panel.getAttribute("aria-busy"), "true");
     assert.equal(state.getAttribute("role"), "status", "the state is announced without stealing focus");
     assert.equal(page.document.activeElement, null, "nothing may take focus on load");
-    assert.equal(textOf(state.querySelector(".detail-loading-text")), "Shiplog is opening a single shared post from Social…");
+    assert.equal(textOf(state.querySelector(".detail-loading-text")), "Loading the shared post…");
     assert.doesNotMatch(textOf(panel), /Display names are invented for this demo/);
     // Nothing is named yet, so the h1 names the page — the same words a reader
     // sees in the shipped markup before any script runs.
@@ -392,7 +392,7 @@ test("the page opens already saying it is loading, and the post replaces that li
     assert.equal(panel.dataset.postState, "loading");
     assert.equal(panel.getAttribute("aria-busy"), "true");
     assert.equal(panel.querySelectorAll(".detail-loading").length, 1);
-    assert.equal(textOf(panel.querySelector(".detail-loading-text")), "Shiplog is opening a single shared post from Social…");
+    assert.equal(textOf(panel.querySelector(".detail-loading-text")), "Loading the shared post…");
     assert.equal(panel.querySelector(".detail-loading").getAttribute("role"), "status");
     // The placeholder is in the markup too — the wait a cold visitor meets is
     // the shape of the post, not a line of text the post then pushes down.
@@ -413,7 +413,7 @@ test("the page opens already saying it is loading, and the post replaces that li
 
     assert.equal(panel.dataset.postState, "loading", "the script agrees with the markup it replaced");
     assert.equal(panel.querySelectorAll(".detail-loading").length, 1, "one wait line, not the shipped one plus a second");
-    assert.equal(textOf(panel.querySelector(".detail-loading-text")), "Shiplog is opening a single shared post from Social…");
+    assert.equal(textOf(panel.querySelector(".detail-loading-text")), "Loading the shared post…");
     assert.equal(panel.querySelectorAll(".detail-state-message").length, 0);
     // And one placeholder: the script redraws the wait the markup shipped, it
     // does not stack a second set of slots under the first.
