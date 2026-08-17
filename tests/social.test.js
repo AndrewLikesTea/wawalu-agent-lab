@@ -24,6 +24,8 @@ import {
   mountComposerDisclosure,
 } from "../src/social.js";
 import { loadPage, pressKey, tabSequence, textOf, typeText } from "./support/browser.js";
+import { importPageModule, waitFor } from "./support/page-module.js";
+import { PAINT_HANDOFF_KEY } from "../src/publishing-media.js";
 
 const sample = [
   { id: "p-old", author: "Kai",  body: "first",  createdAt: "2026-07-10T00:00:00.000Z" },
@@ -1697,4 +1699,315 @@ test("the composer's three cautions still read word for word once it is open", a
   // The requirement marker beside the image description, in its own words.
   assert.equal(textOf(id("post-image-alt-required")), "(required with an image)");
   assert.equal(id("post-compose-panel").hidden, false);
+});
+
+// ---------------------------------------------------------------------------
+// The draft the composer is holding (#1832).
+//
+// The composer's own first step sends a visitor to Paint in a second tab, and
+// the Close control and Escape both take the panel away. What a half-written
+// post survives was never pinned by a test: the disclosure keeps it because it
+// reveals and hides one panel and never rebuilds it, which is a property of
+// the implementation that nothing was holding in place. These are the
+// assertions that make it a promise — and the same assertions are what the
+// sentence beside the Paint steps now says out loud.
+//
+// Every one of them reads a field's value and its counter together: a counter
+// left at its empty-form maximum over a field that still holds text is the
+// visible half of the same bug, and it is what a reader would see first.
+// ---------------------------------------------------------------------------
+
+const DRAFT = "Shipped the retention pass, and drew the diagram next door.";
+const ALT_TEXT = "A whiteboard diagram of the composer keeping its draft.";
+
+/** The shipped markup with the feed wired, the way a reader meets the page. */
+async function draftComposer(t, { create } = {}) {
+  const page = await loadPage(new URL("../src/social.html", import.meta.url), {});
+  t.after(() => page.restore());
+  const document = page.document;
+  const feed = mountSocialFeed(document, {
+    posts: [], state: "ready", storage: page.storage, create,
+  });
+  const id = (name) => document.querySelector(`#${name}`);
+  const settle = () => new Promise((resolve) => setImmediate(resolve));
+  // Typed the way a visitor types it — focused control, one keystroke at a
+  // time — because the counters this file asserts on only move on `input`.
+  const typeInto = (field, text) => {
+    id(field).focus();
+    typeText(document, text);
+  };
+  return { page, document, feed, id, settle, typeInto };
+}
+
+test("the composer keeps the post and the display name across a close and a reopen", async (t) => {
+  const { page, document, id, typeInto } = await draftComposer(t);
+  const trigger = id("post-compose-open");
+  const panel = id("post-compose-panel");
+
+  trigger.click();
+  assert.equal(document.activeElement?.id, "post-body");
+  typeInto("post-body", DRAFT);
+  typeInto("post-author", "Mina");
+
+  // (a) Closed with the Close control, which is the "by mistake" exit.
+  id("post-compose-cancel").click();
+  assert.equal(panel.hidden, true, "Close left the composer open");
+  assert.equal(document.activeElement?.id, "post-compose-open",
+    "Close dropped focus somewhere other than the control that opened the panel");
+
+  trigger.click();
+  assert.equal(id("post-body").value, DRAFT, "the post a visitor had written was thrown away by a close");
+  assert.equal(id("post-author").value, "Mina", "the display name was thrown away by a close");
+  assert.equal(textOf(id("post-counter")), String(MAX_POST_LENGTH - DRAFT.length),
+    "the counter went back to its empty-form maximum over a field that still holds a post");
+  assert.equal(document.activeElement?.id, "post-body",
+    "reopening did not put the caret in the first field");
+
+  // (b) Closed with Escape from inside the panel, which is the keyboard exit —
+  // and the one a visitor is most likely to hit by accident.
+  id("post-body").focus();
+  pressKey(document, "Escape");
+  assert.equal(panel.hidden, true, "Escape left the composer open");
+  assert.equal(document.activeElement?.id, "post-compose-open",
+    "Escape dropped focus somewhere other than the trigger");
+
+  trigger.click();
+  assert.equal(id("post-body").value, DRAFT, "the post was thrown away by Escape");
+  assert.equal(id("post-author").value, "Mina", "the display name was thrown away by Escape");
+  assert.equal(textOf(id("post-counter")), String(MAX_POST_LENGTH - DRAFT.length));
+  assert.equal(document.activeElement?.id, "post-body");
+
+  // Nothing left this tab to hold it. The draft is kept by the panel that is
+  // still standing, not by anything written down: browser storage is untouched
+  // by the whole round trip, so the site's storage promises have nothing new to
+  // answer for and a reload starts a fresh post.
+  assert.equal(page.storage.length, 0,
+    "the composer started writing the draft to browser storage");
+});
+
+test("a publish that fails keeps the draft, and closing the composer afterwards does not cost it either", async (t) => {
+  const { document, id, settle, typeInto } = await draftComposer(t, {
+    create: async () => { throw new Error("The posts service is unreachable."); },
+  });
+  const trigger = id("post-compose-open");
+
+  trigger.click();
+  typeInto("post-body", DRAFT);
+  typeInto("post-author", "Mina");
+  id("post-submit").click();
+  await settle();
+
+  // The composer said so, and it still holds every field: the reset below is
+  // the success path's, and only the success path's.
+  assert.equal(id("social-notice").hidden, false, "a failed publish said nothing at all");
+  assert.equal(id("post-body").value, DRAFT, "a failed publish emptied the post field");
+  assert.equal(id("post-author").value, "Mina");
+  assert.equal(textOf(id("post-counter")), String(MAX_POST_LENGTH - DRAFT.length));
+
+  id("post-compose-cancel").click();
+  trigger.click();
+  assert.equal(id("post-body").value, DRAFT,
+    "the post survived the failure and was then lost to the close");
+  assert.equal(id("post-author").value, "Mina");
+  assert.equal(textOf(id("post-counter")), String(MAX_POST_LENGTH - DRAFT.length));
+});
+
+test("a publish that lands empties the draft, and reopening the composer shows an empty form", async (t) => {
+  const { document, id, settle, typeInto } = await draftComposer(t, {
+    create: async (post) => ({ ...post, id: "saved-1832", createdAt: "2026-08-17T09:00:00.000Z" }),
+  });
+  const trigger = id("post-compose-open");
+
+  trigger.click();
+  typeInto("post-body", DRAFT);
+  typeInto("post-author", "Mina");
+  id("post-submit").click();
+  await settle();
+
+  assert.equal(id("social-notice").classList.contains("is-success"), true,
+    `the publish did not land: ${textOf(id("social-notice"))}`);
+  assert.equal(id("post-body").value, "", "the published post was left in the field");
+  assert.equal(textOf(id("post-counter")), String(MAX_POST_LENGTH));
+
+  id("post-compose-cancel").click();
+  trigger.click();
+  assert.equal(id("post-body").value, "", "a published post came back on the next open");
+  assert.equal(textOf(id("post-counter")), String(MAX_POST_LENGTH),
+    "the counter reopened counting down from a post that was already published");
+  assert.equal(textOf(id("post-image-alt-counter")), String(MAX_IMAGE_ALT_LENGTH));
+  // The display name is deliberately not one of the emptied fields: it is who
+  // this browser is (src/social.js remembers it on a landed publish), so it is
+  // there for the next post rather than asked for again.
+  assert.equal(id("post-author").value, "Mina",
+    "the byline was cleared with the post, so the next post asks who you are again");
+});
+
+// The image half of the same round trip, on the page as it is served: the whole
+// wiring, the real media composer, and a drawing arriving from Paint the way the
+// second tab hands one over. Nothing here fakes the preview state — a test that
+// sets `#compose-media` visible itself can only prove that a hidden panel stays
+// hidden.
+const PAINT_DRAWING = {
+  content_type: "image/png",
+  data: "iVBORw0KGgo=",
+  preview: "data:image/png;base64,iVBORw0KGgo=",
+  size: 12,
+  width: 1,
+  height: 1,
+  source: "paint",
+};
+
+async function socialPageFromPaint(t) {
+  const page = await loadPage(new URL("../src/social.html", import.meta.url), {
+    routes: {
+      "/social-demo-data.json": { posts: [] },
+      "/api/social-posts?limit=100": { posts: [] },
+      // `source` or the row is dropped as invalid and the publish is reported as
+      // a failure that never happened.
+      "/api/social-posts": {
+        post: {
+          id: "saved-1832", author: "Mina", content: DRAFT,
+          timestamp: "2026-08-17T09:00:00.000Z", source: "human",
+        },
+      },
+    },
+  });
+  // The drawing Paint left in this tab. src/social-page.js reads it off
+  // sessionStorage, which this runtime does not ship as a global.
+  const handed = new Map([[PAINT_HANDOFF_KEY, JSON.stringify(PAINT_DRAWING)]]);
+  const savedSession = Object.getOwnPropertyDescriptor(globalThis, "sessionStorage");
+  Object.defineProperty(globalThis, "sessionStorage", {
+    value: {
+      getItem: (key) => handed.get(key) ?? null,
+      setItem: (key, value) => handed.set(key, String(value)),
+      removeItem: (key) => handed.delete(key),
+    },
+    configurable: true,
+    writable: true,
+  });
+  // The feed polls on a timer; nothing here waits on a refresh and a live
+  // interval would outlast the test.
+  const timers = [];
+  const realSetInterval = globalThis.setInterval;
+  globalThis.setInterval = (...args) => {
+    const handle = realSetInterval(...args);
+    timers.push(handle);
+    return handle;
+  };
+  await importPageModule("/social-page.js");
+  await waitFor(() => page.document.documentElement.dataset.shiplogSocial === "ready",
+    "the social page finished its first load");
+  globalThis.setInterval = realSetInterval;
+  t.after(() => {
+    for (const handle of timers) clearInterval(handle);
+    if (savedSession) Object.defineProperty(globalThis, "sessionStorage", savedSession);
+    else delete globalThis.sessionStorage;
+    page.restore();
+  });
+  const id = (name) => page.document.querySelector(`#${name}`);
+  return { page, document: page.document, id };
+}
+
+test("the image, its description, and both counters survive a close and a reopen", async (t) => {
+  const { document, id } = await socialPageFromPaint(t);
+  const trigger = id("post-compose-open");
+
+  trigger.click();
+  assert.equal(id("compose-media").hidden, false, "the drawing from Paint never reached the composer");
+  // The property, not the attribute: this harness reflects neither onto the
+  // other, and `src` is set as a property by the page.
+  assert.equal(id("compose-preview-image").src, PAINT_DRAWING.preview);
+
+  id("post-body").focus();
+  typeText(document, DRAFT);
+  id("post-image-alt").focus();
+  typeText(document, ALT_TEXT);
+
+  // Escape, from inside the panel — the composer's keyboard exit.
+  pressKey(document, "Escape");
+  assert.equal(id("post-compose-panel").hidden, true, "Escape left the composer open");
+  assert.equal(document.activeElement?.id, "post-compose-open",
+    "Escape dropped focus somewhere other than the control that opened the panel");
+
+  trigger.click();
+  assert.equal(document.activeElement?.id, "post-body", "reopening skipped the first field");
+  assert.equal(id("post-body").value, DRAFT);
+  assert.equal(id("post-image-alt").value, ALT_TEXT, "the image description was thrown away by the close");
+  // The preview still renders, and the control that takes the image back out is
+  // still offered — both of them actually on screen, not merely present in a
+  // panel nobody can see.
+  assert.equal(id("compose-media").hidden, false, "the preview was gone on reopen");
+  assert.equal(id("compose-preview-image").src, PAINT_DRAWING.preview);
+  assert.equal(textOf(id("remove-image")), "Remove image");
+  assert.equal(foldedAway(id("remove-image")), false, "Remove image is no longer offered");
+  // And both counters describe the text that is there, not an empty form.
+  assert.equal(textOf(id("post-counter")), String(MAX_POST_LENGTH - DRAFT.length));
+  assert.equal(textOf(id("post-image-alt-counter")), String(MAX_IMAGE_ALT_LENGTH - ALT_TEXT.length));
+});
+
+test("publishing the drawing empties the composer, and reopening it offers no leftover image", async (t) => {
+  const { document, id } = await socialPageFromPaint(t);
+  const trigger = id("post-compose-open");
+
+  trigger.click();
+  id("post-body").focus();
+  typeText(document, DRAFT);
+  id("post-image-alt").focus();
+  typeText(document, ALT_TEXT);
+  id("post-submit").click();
+  await waitFor(() => !id("social-notice").hidden, "the composer answered the publish");
+
+  assert.equal(id("social-notice").classList.contains("is-success"), true,
+    `the publish did not land: ${textOf(id("social-notice"))}`);
+
+  id("post-compose-cancel").click();
+  trigger.click();
+  assert.equal(id("post-body").value, "", "the published post came back on the next open");
+  assert.equal(id("post-image-alt").value, "", "the published image description came back on the next open");
+  assert.equal(textOf(id("post-counter")), String(MAX_POST_LENGTH));
+  assert.equal(textOf(id("post-image-alt-counter")), String(MAX_IMAGE_ALT_LENGTH));
+  // No preview and nothing to remove: the media panel is away and the file
+  // input is empty. Asserted on the panel rather than on the image's `src`,
+  // because this harness keeps a property the page removed as an attribute.
+  assert.equal(id("compose-media").hidden, true, "the published image was still on offer");
+  assert.equal(foldedAway(id("remove-image")), true, "Remove image is offered with no image attached");
+  assert.equal(id("post-image").value, "");
+});
+
+test("the composer tells the visitor its draft is kept, in the help style, beside the step that sends them away", async (t) => {
+  const { document, id } = await socialDisclosure(t);
+  id("post-compose-open").click();
+  const note = id("post-draft-note");
+
+  assert.equal(textOf(note),
+    "Anything you have already typed is kept here while you are in the other tab, and while this panel is closed.");
+  assert.equal(document.querySelectorAll("#post-draft-note").length, 1);
+  // The shipped help style, not a new one: the same class every other line in
+  // this form wears, which is what keeps this off styles.css.
+  assert.equal(note.getAttribute("class"), "hint");
+  assert.equal(note.tagName, "P");
+  assert.equal(foldedAway(note), false, "the sentence only renders inside something collapsed");
+
+  // Beside the numbered steps it answers for, after them, and inside the same
+  // field: a reader meets it as they are deciding whether to leave for Paint.
+  const order = documentOrder(document);
+  assert.ok(order.indexOf(id("post-image-steps")) < order.indexOf(note),
+    "the sentence is read before the steps it answers for");
+  assert.ok(order.indexOf(note) < order.indexOf(id("post-image-alt")),
+    "the sentence has drifted past the image description field");
+  for (let cursor = note; ; cursor = cursor.parentNode) {
+    assert.ok(cursor, "the sentence is not inside the image field it belongs to");
+    if (cursor.getAttribute?.("class")?.includes("media-picker")) break;
+  }
+
+  // It adds no tab stop and no rival instruction: the steps stay the sequence,
+  // this is the reassurance beside them.
+  assert.equal(note.querySelectorAll("a,button,input").length, 0,
+    "the sentence grew a focusable element");
+  assert.doesNotMatch(textOf(note), /return to this tab/i,
+    "the sentence restates a numbered step instead of answering it");
+  // And it promises no more than the composer does: nothing is written to
+  // storage, so it must not tell a reader their post is saved.
+  assert.doesNotMatch(textOf(note), /\bsaved?\b|\bstored?\b|\bdraft is safe\b/i,
+    "the sentence promises storage the composer does not have");
 });
