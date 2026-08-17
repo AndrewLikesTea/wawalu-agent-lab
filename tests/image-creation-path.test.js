@@ -331,39 +331,118 @@ test("the image control and chosen-image state name the action and pending resul
   assert.equal(textOf(documents.Social.getElementById("compose-preview-caption")), "Preview before posting");
 });
 
-test("the composer names the way in, the rule, and the fix as separate sentences", () => {
+// #1818: the four steps were one run-on sentence, and it carried the file rule
+// besides — so the sequence was unscannable and the constraint a visitor
+// actually trips over was the last thing on the screen. The steps are a numbered
+// list now, and the rule stands beside the control that takes the file.
+test("the composer numbers the round trip and puts the rule beside the control", () => {
   const steps = documents.Social.getElementById("post-image-steps");
   const hint = documents.Social.getElementById("post-image-hint");
   assert.ok(steps, "the composer names no steps at all");
 
-  // In the order a reader takes them: make the image, carry it back, and only
-  // then what the field takes and what to do about a file it will not take. The
-  // first line used to stop at the Paint link, which left the reader in a second
-  // tab with a drawing and nothing telling them how to get it into this one.
-  assert.equal(textOf(steps),
-    "Create an image in Paint (opens in a new tab) ↗. Export the PNG, return to this tab, then select Choose image.");
-  assert.equal(
-    textOf(hint),
-    "Social accepts PNG, JPEG, GIF, or WebP up to 512 KB. Reduce or re-export a larger image before you choose it.",
-  );
-  const sentence = `${textOf(steps)} ${textOf(hint)}`;
-  assert.doesNotMatch(sentence, /;/, "two of the sentences are welded together again");
-  assert.match(sentence, /PNG/, "the field never says what to export");
-  // The control is named exactly as it is labelled, not described — and once,
-  // on the line that walks the round trip, not again on the line below it.
-  assert.match(textOf(steps), /select Choose image\.$/);
-  assert.equal(sentence.split("select Choose image").length - 1, 1,
-    `the field names the control twice: ${sentence}`);
+  // (a) Four discrete steps, in the order a reader takes them, marked up as an
+  // ordered list so the count and the position come from the markup rather than
+  // from a reader parsing commas. The list used to stop at the Paint link, which
+  // left the reader in a second tab with a drawing and nothing telling them how
+  // to get it into this one.
+  assert.equal(steps.tagName, "OL", "the steps are not an ordered list");
+  const items = steps.querySelectorAll("li");
+  assert.deepEqual(items.map(textOf), [
+    "Create an image in Paint (opens in a new tab) ↗",
+    "Export the PNG",
+    "Return to this tab",
+    "Select Choose image",
+  ]);
+
+  // (b) The rule is out of the step list and adjacent to the file control: the
+  // element immediately after the one holding Choose image, and never inside the
+  // steps. Structure, not pixels — the harness models no layout.
+  assert.equal(textOf(hint),
+    "PNG, JPEG, GIF, or WebP up to 512 KB Reduce or re-export a larger image before you choose it.");
+  const input = documents.Social.getElementById("post-image");
+  const control = input.parentNode;
+  assert.equal(control.getAttribute("for"), "post-image", "Choose image no longer wraps its own input");
+  const field = control.parentNode.parentNode;
+  const blocks = field.children.filter((node) => node.dataset);
+  assert.equal(blocks.indexOf(hint), blocks.indexOf(control.parentNode) + 1,
+    "the format and size rule is not the element next to Choose image");
+  assert.ok(blocks.indexOf(hint) < blocks.indexOf(steps), "the rule reads after the steps again");
+  assert.equal(items.filter((item) => /512 KB|WebP/.test(textOf(item))).length, 0,
+    "the rule is back inside the step list");
+
   assert.equal(textOf(documents.Social.querySelector('label[for="post-image"]')), "Choose image");
+  // The rule is a standing classification of what this field takes, so it wears
+  // the site's outline chip and never a filled live-state wash.
+  const chip = hint.querySelectorAll("span")[0];
+  assert.equal(textOf(chip), "PNG, JPEG, GIF, or WebP up to 512 KB");
+  assert.equal(chip.getAttribute("class"), "detail-state-chip",
+    "the rule is drawn as something other than the outline chip");
 
   // In the page as served, not folded behind a disclosure widget and not
   // written in by a script after load: a curl has to contain it. (The harness
   // reads text straight through a closed disclosure, so the count below is what
   // actually rules one out.)
-  assert.match(sources.Social, /<p class="hint" id="post-image-steps">/);
+  assert.match(sources.Social, /<ol class="hint" id="post-image-steps">/);
+  assert.match(sources.Social, /<p class="hint" id="post-image-hint">/);
   assert.equal(documents.Social.querySelectorAll("details").length, 0,
     "Social folded content behind a disclosure widget");
   assert.ok(!steps.getAttribute("hidden"), "the steps ship hidden");
+  assert.ok(!hint.getAttribute("hidden"), "the rule ships hidden");
+});
+
+// (c) The Paint step is still the link it was: same words, same new tab, same
+// declaration of it, same arrow. Splitting the sentence must not have quietly
+// turned the first step into plain text.
+test("the numbered Paint step keeps its new-tab words and its external indication", () => {
+  const first = documents.Social.getElementById("post-image-steps").querySelectorAll("li")[0];
+  const link = first.querySelector("a");
+  assert.equal(link.tagName, "A");
+  assert.equal(link.getAttribute("href"), PAINT_PATH);
+  assert.equal(link.getAttribute("target"), "_blank");
+  assert.match(link.getAttribute("rel") ?? "", /noopener/);
+  assert.equal(textOf(link), "Create an image in Paint (opens in a new tab) ↗");
+  assert.match(textOf(link), /\(opens in a new tab\)/);
+  const glyphs = link.querySelectorAll("span").filter((span) => /[↗→]/.test(textOf(span)));
+  assert.equal(glyphs.length, 1);
+  assert.equal(glyphs[0].getAttribute("aria-hidden"), "true");
+  // The step item adds nothing around it, so the list contributes one tab stop
+  // here and none anywhere else in it.
+  assert.equal(textOf(first), textOf(link));
+});
+
+// (d) The numbered list and the relocated rule are text, so the keyboard walks
+// the composer in exactly the order it did before #1818.
+test("the composer's focusable sequence is unchanged by the numbered steps", async () => {
+  const page = await loadPage(PAGES.Social);
+  try {
+    page.document.getElementById("post-compose-panel").hidden = false;
+    page.document.getElementById("compose-media").hidden = false;
+    const inForm = (node) => {
+      for (let cursor = node; cursor; cursor = cursor.parentNode) if (cursor.id === "post-form") return true;
+      return false;
+    };
+    const stops = tabSequence(page.document).filter(inForm);
+    const named = stops.map((node) => node.getAttribute("id") ?? textOf(node));
+    assert.deepEqual(named, [
+      "post-body",
+      "post-image",
+      "Create an image in Paint (opens in a new tab) ↗",
+      "remove-image",
+      "post-image-alt",
+      "post-author",
+      "post-submit",
+      "post-compose-cancel",
+    ]);
+    // Nothing in the list or the rule fakes its position with a tabindex.
+    for (const id of ["post-image-steps", "post-image-hint"]) {
+      const node = page.document.getElementById(id);
+      assert.equal(node.getAttribute("tabindex"), null, `${id} declares a tabindex`);
+    }
+    assert.equal(page.document.getElementById("post-image-hint").querySelectorAll("a,button,input").length, 0,
+      "the rule beside Choose image grew a focusable element");
+  } finally {
+    page.restore();
+  }
 });
 
 // #1758: Paint opened in a second tab and the composer stopped talking. A
@@ -380,9 +459,9 @@ test("the composer names the round trip in the order it is taken, once", () => {
   };
   assert.ok(at("Create an image in Paint") < at("Export the PNG"),
     "the composer asks for the export before the drawing");
-  assert.ok(at("Export the PNG") < at("return to this tab"),
+  assert.ok(at("Export the PNG") < at("Return to this tab"),
     "the composer sends the visitor back before they have a file");
-  assert.ok(at("return to this tab") < at("select Choose image"),
+  assert.ok(at("Return to this tab") < at("Select Choose image"),
     "the composer names the control before the visitor is back in this tab");
   // The last step names the control by the label the control actually carries.
   assert.equal(textOf(documents.Social.querySelector('label[for="post-image"]')), "Choose image");
@@ -390,7 +469,9 @@ test("the composer names the round trip in the order it is taken, once", () => {
   // Once, in the field where the file is chosen — not restated by the warning,
   // the refusals, or anything else on the page.
   const page = textOf(documents.Social.querySelector("main"));
-  assert.equal(page.split("return to this tab").length - 1, 1,
+  // Case-insensitive: the step is its own numbered item now, so it is sentence
+  // case rather than a clause hanging off a comma.
+  assert.equal(page.split(/return to this tab/i).length - 1, 1,
     "the round trip is described in more than one place on Social");
   assert.equal(page.split("Export the PNG").length - 1, 1,
     "the export step is stated more than once on Social");
@@ -418,9 +499,10 @@ test("the steps are the image field's own description, so focusing it reads them
   const input = documents.Social.getElementById("post-image");
   const described = (input.getAttribute("aria-describedby") ?? "").split(/\s+/);
   assert.ok(described.includes("post-image-steps"), "Choose image is not described by the steps");
-  // The mechanism the other fields already use, and the order it is read in:
-  // the round trip, then the file constraint, then the live status.
-  assert.deepEqual(described, ["post-image-steps", "post-image-hint", "post-media-status"]);
+  // The mechanism the other fields already use, and the order it is read in —
+  // the same order the eye meets it in since #1818: the file constraint standing
+  // beside the control, then the round trip, then the live status.
+  assert.deepEqual(described, ["post-image-hint", "post-image-steps", "post-media-status"]);
 });
 
 test("the composer's Paint link sits between Choose image and Image description", async () => {

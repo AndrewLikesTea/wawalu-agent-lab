@@ -128,7 +128,7 @@ test("the help text and the refusals state the limit and the formats identically
     readFile(new URL("../src/publishing-media.js", import.meta.url), "utf8"),
   ]);
 
-  assert.ok(markup.includes('<p class="hint" id="post-image-hint">Social accepts PNG, JPEG, GIF, or WebP up to 512 KB. Reduce or re-export a larger image before you choose it.</p>'));
+  assert.ok(markup.includes('<p class="hint" id="post-image-hint"><span class="detail-state-chip">PNG, JPEG, GIF, or WebP up to 512 KB</span> Reduce or re-export a larger image before you choose it.</p>'));
   assert.match(OVER_LIMIT, /maximum is 512 KB/);
   assert.ok(UNSUPPORTED_TYPE.includes("PNG, JPEG, GIF, or WebP"));
   // Every mention of the figure across the field, its wiring, and the refusals
@@ -159,22 +159,22 @@ test("the image field states the formats and the size exactly once, in plain sen
   // to sit under the help text.
   assert.equal(textOf(document.querySelector(".media-picker")).split("512 KB").length - 1, 1);
 
-  // The rule in one sentence, the fix in the next. The fix stops at the file:
-  // the steps line above it is where the control is named, so "select Choose
-  // image" is not said twice a line apart.
+  // The rule as a chip beside the control, the fix in the sentence after it. The
+  // fix stops at the file: the numbered steps are where the control is named, so
+  // "Choose image" is not said twice a line apart.
   assert.equal(textOf(hint),
-    "Social accepts PNG, JPEG, GIF, or WebP up to 512 KB. Reduce or re-export a larger image before you choose it.");
+    "PNG, JPEG, GIF, or WebP up to 512 KB Reduce or re-export a larger image before you choose it.");
   assert.equal(textOf(document.querySelector('label[for="post-image"]')), "Choose image");
-  assert.equal(help.split("select Choose image").length - 1, 1,
+  assert.equal(help.split("Select Choose image").length - 1, 1,
     `the field names the control twice: ${help}`);
   // No second phrasing of the same rule beside it, and no clause welding.
   assert.doesNotMatch(help, /\b(maximum|max|limit)\b/i);
   assert.doesNotMatch(help, /;/);
 
-  // The way in and the way back, in one sentence: same destination, same new
-  // tab, still declared in the link's own text.
+  // The way in and the way back, one numbered step each: same destination, same
+  // new tab, still declared in the link's own text.
   assert.equal(textOf(steps),
-    "Create an image in Paint (opens in a new tab) ↗. Export the PNG, return to this tab, then select Choose image.");
+    "Create an image in Paint (opens in a new tab) ↗ Export the PNG Return to this tab Select Choose image");
   const paint = steps.querySelector("a");
   assert.equal(paint.getAttribute("href"), "/paint/");
   assert.equal(paint.getAttribute("target"), "_blank");
@@ -184,7 +184,7 @@ test("the image field states the formats and the size exactly once, in plain sen
   // Both lines are still there and still described, so nothing the file input
   // names has been left pointing at a node that no longer exists.
   assert.equal(document.querySelector("#post-image").getAttribute("aria-describedby"),
-    "post-image-steps post-image-hint post-media-status");
+    "post-image-hint post-image-steps post-media-status");
   assert.equal(document.querySelectorAll("#post-image-hint").length, 1);
   assert.equal(document.querySelectorAll("#post-image-steps").length, 1);
 });
