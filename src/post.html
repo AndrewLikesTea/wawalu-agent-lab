@@ -40,13 +40,16 @@
 
       <main id="main-content" tabindex="-1">
       <section class="hero hero-post" id="top" aria-labelledby="page-title">
-        <!-- The feed pages' eyebrow pattern, with this page's record slotted in
-             the middle: /social.html reads "Social · demo" and /profile.html
-             reads "People · demo", so the surface comes first and "demo" comes
-             last. A permalink is the one page a visitor can reach without
-             passing either of them, so it is the page that most needs the demo
-             marker — and it is the page that used to omit it. -->
-        <p class="eyebrow">Social · post · demo</p>
+        <!-- The feed pages' eyebrow, word for word: /social.html reads
+             "Social · demo" and /profile.html reads "People · demo", so the
+             surface comes first and "demo" comes last. A permalink is the one
+             page a visitor can reach without passing either of them, so it is
+             the page that most needs the demo marker.
+             It used to read "Social · post · demo". The record in the middle
+             was the page saying "post" before the h1 says it and before the
+             sentence under the post says it again — four openings for one
+             fact. The marker stays; the restatement went. -->
+        <p class="eyebrow">Social · demo</p>
         <!-- What ships is what post-page.js writes while the lookup runs, and
              what it leaves standing when there is no display name to name: the
              page, not the bare word "Post". A loaded post renames it after the
@@ -100,7 +103,7 @@
                  is hidden from assistive technology, which is told the sentence
                  rather than the shape of a post that has not arrived. -->
             <div id="post-detail" data-post-state="loading" aria-busy="true">
-              <div class="detail-loading detail-state-panel" data-post-state-panel="loading" role="status"><p class="detail-loading-line"><span class="detail-loading-dot" aria-hidden="true"></span><span class="detail-loading-text">Shiplog is opening a single shared post from Social…</span></p><div class="detail-skeleton" aria-hidden="true"><div class="detail-figure"><div class="skeleton-media" data-post-skeleton-slot="image"></div><div class="detail-caption"><div class="skeleton-line" data-post-skeleton-slot="body"></div></div></div><div class="detail-byline"><div class="skeleton-line skeleton-line-short" data-post-skeleton-slot="display-name"></div></div><div class="detail-date"><div class="skeleton-line skeleton-line-short" data-post-skeleton-slot="timestamp"></div></div></div></div>
+              <div class="detail-loading detail-state-panel" data-post-state-panel="loading" role="status"><p class="detail-loading-line"><span class="detail-loading-dot" aria-hidden="true"></span><span class="detail-loading-text">Loading the shared post…</span></p><div class="detail-skeleton" aria-hidden="true"><div class="detail-figure"><div class="skeleton-media" data-post-skeleton-slot="image"></div><div class="detail-caption"><div class="skeleton-line" data-post-skeleton-slot="body"></div></div></div><div class="detail-byline"><div class="skeleton-line skeleton-line-short" data-post-skeleton-slot="display-name"></div></div><div class="detail-date"><div class="skeleton-line skeleton-line-short" data-post-skeleton-slot="timestamp"></div></div></div></div>
             </div>
           </div>
         </section>

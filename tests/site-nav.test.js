@@ -715,10 +715,11 @@ test("the nav is reached by keyboard in the order it is displayed", async () => 
 test("the feed has one name: no page still says Team feed in its nav, eyebrow, or title", async () => {
   for (const file of ["social.html", "post.html"]) {
     const html = await readFile(pageUrl(file), "utf8");
-    // The feed's name comes first on both pages. The permalink adds its record
-    // between the surface and the "demo" marker every feed page ends on, so the
-    // two eyebrows read "Social · demo" and "Social · post · demo".
-    assert.match(html, /<p class="eyebrow">Social · (post · )?demo<\/p>/, `${file} eyebrow must name the feed "Social"`);
+    // The feed's name comes first on both pages, and both end on the "demo"
+    // marker every feed page ends on, so the two eyebrows read alike:
+    // "Social · demo". The permalink used to slot "post" in the middle, which
+    // its own h1 and its own standing sentence already say.
+    assert.match(html, /<p class="eyebrow">Social · demo<\/p>/, `${file} eyebrow must name the feed "Social"`);
     assert.doesNotMatch(html.match(/<head>[\s\S]*?<\/head>/)[0], /Team feed/i, `${file} title block must not say "Team feed"`);
   }
 });

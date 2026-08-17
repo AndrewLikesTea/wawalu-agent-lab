@@ -17,7 +17,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import { DomEvent, loadPage, parseHtml, pressEnter, pressTab, tabSequence, textOf } from "./support/browser.js";
 import { postDetailHref } from "../src/social-links.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
@@ -47,7 +47,7 @@ const TEXT_POST = {
 // The headline each state puts on screen. Whichever one is active, the other
 // three of these must not appear anywhere in the page's text.
 const STATE_HEADLINES = {
-  loading: "Shiplog is opening a single shared post from Social…",
+  loading: "Loading the shared post…",
   loaded: "Post by ",
   "not-found": "Post unavailable",
   error: "Post could not be opened",
@@ -676,9 +676,11 @@ test("the words of a route out never change, and the demo sentence survives ever
   const html = await readFile(new URL("../src/post.html", import.meta.url), "utf8");
   assert.ok(html.includes(`>${SOCIAL_LINK}</a>`), `${SOCIAL_LINK} must ship in the markup`);
   assert.ok(html.includes(`<p>${DEMO_SENTENCE}</p>`), "the demo sentence must ship in the markup");
-  // The eyebrow ends on the marker the feed pages end on, so a permalink is
-  // stamped as a demo the same way /social.html and /profile.html are.
-  assert.match(html, /<p class="eyebrow">Social · post · demo<\/p>/);
+  // The eyebrow is the feed pages' eyebrow, word for word, so a permalink is
+  // stamped as a demo the same way /social.html and /profile.html are — and it
+  // no longer says "post" a line above the h1 that says it and two lines above
+  // the sentence that says it again.
+  assert.match(html, /<p class="eyebrow">Social · demo<\/p>/);
 });
 
 // The row a visitor lands next to when a shared link is all they have.
@@ -857,7 +859,7 @@ test("every state the page can reach puts exactly one of the four on screen", as
     assert.equal(panel.getAttribute("aria-busy"), "true");
     // The wait carries visible words, not a bare spinner: the dot is aria-hidden
     // decoration and the sentence is the state.
-    assert.equal(textOf(panel.querySelector(".detail-loading-text")), "Shiplog is opening a single shared post from Social…");
+    assert.equal(textOf(panel.querySelector(".detail-loading-text")), "Loading the shared post…");
     assert.equal(panel.querySelector(".detail-loading-dot").getAttribute("aria-hidden"), "true");
 
     release();
@@ -890,7 +892,7 @@ test("every state the page can reach puts exactly one of the four on screen", as
 // an icon to be understood. Asserted on text with every class name ignored.
 test("all four states carry a visible text label, not colour alone", async () => {
   const labels = {
-    loading: /Shiplog is opening a single shared post from Social…/,
+    loading: /Loading the shared post…/,
     loaded: /Rowan Diaz/,
     "not-found": /Post unavailable/,
     error: /Post could not be opened/,
@@ -1009,7 +1011,7 @@ test("the permalink leads with the post and puts the feed context under it, load
   // script has run — including a reader whose script never runs at all.
   const html = await readFile(new URL("../src/post.html", import.meta.url), "utf8");
   const at = (needle) => html.indexOf(needle);
-  assert.ok(at('<p class="eyebrow">Social · post · demo</p>') < at('<h1 id="page-title">'), "the eyebrow precedes the heading");
+  assert.ok(at('<p class="eyebrow">Social · demo</p>') < at('<h1 id="page-title">'), "the eyebrow precedes the heading");
   assert.ok(at('<h1 id="page-title">') < at('id="post-detail"'), "the heading precedes the post's own region");
   assert.ok(at('id="post-detail"') < at(`<p>${CONTEXT_SENTENCE}</p>`), "the post precedes what the page says about Social");
   assert.ok(at(`<p>${CONTEXT_SENTENCE}</p>`) < at(`<p>${DEMO_SENTENCE}</p>`), "the two standing sentences keep their order");
@@ -1089,3 +1091,86 @@ test("a permalink built the old way still resolves to the same post", async () =
     }
   }
 });
+
+/* ------------------ what the page is, said exactly once ------------------- */
+
+// Someone opening a forwarded link has never seen Social, so the page has to say
+// what it is — once. It used to say it four times over before the post: the
+// eyebrow read "Social · post · demo", the h1 reads "Post from Social", the wait
+// was a whole sentence about the product opening a single shared post from
+// Social, and the standing sentence under the post says it again. The eyebrow
+// now carries the surface and the demo marker the feed pages carry, the wait
+// joins the loading voice used on Social and People, and the one sentence that
+// explains what a shared link opens is left to do the explaining alone.
+//
+// Assembled from parts so this file can name the retired line without becoming
+// the place it survives.
+const RETIRED_WAIT = ["Shiplog is opening a single", "shared post from Social…"].join(" ");
+const times = (haystack, needle) => haystack.split(needle).length - 1;
+
+// Every file the site ships, not just the two that carried the old wait: a
+// string retired from a page and left standing in a module is still a string a
+// reader can meet.
+async function shippedSources() {
+  const root = new URL("../src/", import.meta.url);
+  const names = await readdir(root, { recursive: true });
+  const wanted = names.filter((name) => /\.(html|js)$/.test(name));
+  return Promise.all(wanted.map(async (name) => [`src/${name}`, await readFile(new URL(name, root), "utf8")]));
+}
+
+test("the shared-post page introduces itself once, in the site's loading voice", async () => {
+  for (const [name, source] of await shippedSources()) {
+    assert.equal(times(source, RETIRED_WAIT), 0, `${name} still ships the retired wait`);
+  }
+
+  // The wait a cold visitor meets, held open. Read off the rendered page rather
+  // than the markup, because this is the state the module redraws.
+  const waiting = await loadPage(new URL("../src/post.html", import.meta.url), { location: { search: "?id=p-image" } });
+  try {
+    let release;
+    globalThis.fetch = () => new Promise((resolve) => { release = () => resolve(seedResponse([IMAGE_POST])); });
+    await importPageModule("/post-page.js");
+    const panel = waiting.document.querySelector("#post-detail");
+    await waitFor(() => panel.querySelectorAll(".detail-loading").length === 1, "the loading state rendered");
+
+    const wait = textOf(panel.querySelector(".detail-loading-text"));
+    assert.equal(wait, "Loading the shared post…");
+    assert.match(wait, /^Loading /, "the wait opens the way every other wait on this site opens");
+    assert.doesNotMatch(wait, /Shiplog/, "the wait must not narrate the product in the third person");
+    assertSaidOnce(waiting.document, "while the lookup runs");
+
+    release();
+    await waitFor(() => waiting.document.documentElement.dataset.shiplogPostDetail === "ready", "the post arrived");
+    assertSaidOnce(waiting.document, "once the post arrived");
+  } finally {
+    waiting.restore();
+  }
+
+  // And in the two states where the lookup found nothing, which is where the
+  // standing copy is doing the most work.
+  for (const [state, search, answer] of [
+    ["not-found", "?id=p-gone", seedOnly([IMAGE_POST])],
+    ["error", "?id=p-image", () => { throw new TypeError("Failed to fetch"); }],
+  ]) {
+    const page = await openPostPage(search, answer);
+    try {
+      assertSaidOnce(page.document, `the ${state} state`);
+    } finally {
+      page.restore();
+    }
+  }
+});
+
+// One explanation of what this page is, and one statement that the feed is a
+// demo. Counted over the rendered page's own content — the About Shiplog band
+// below it is the site's directory and is not this page introducing itself.
+function assertSaidOnce(document, where) {
+  const main = textOf(document.querySelector("#main-content"));
+  assert.equal(times(main, RETIRED_WAIT), 0, `${where}: the retired wait is back on the page`);
+  assert.equal(times(main, CONTEXT_SENTENCE), 1, `${where}: what a shared link opens is said ${times(main, CONTEXT_SENTENCE)} times`);
+  assert.equal(times(main, DEMO_SENTENCE), 1, `${where}: the demo sentence is said ${times(main, DEMO_SENTENCE)} times`);
+  // And no second wording of the same fact anywhere in the page's content: one
+  // mention of a post coming from Social, the one in the sentence above.
+  assert.equal(times(main, "post from Social’s shared demo feed"), 1, `${where}: a second wording of the same fact`);
+  assert.doesNotMatch(main, /single shared post|Social · post/, `${where}: the page restates itself`);
+}

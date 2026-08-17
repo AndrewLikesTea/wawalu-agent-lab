@@ -293,7 +293,12 @@ test("the loading state says the wait in words and reserves the post's four slot
   const status = first(container, "detail-loading");
   assert.equal(status.getAttribute("role"), "status");
   assert.equal(first(status, "detail-loading-text").textContent, POST_LOADING_STATUS);
-  assert.equal(POST_LOADING_STATUS, "Shiplog is opening a single shared post from Social…");
+  assert.equal(POST_LOADING_STATUS, "Loading the shared post…");
+  // The site's loading voice, not a sentence about the product: "Loading the
+  // Social feed…" on the feed and "Loading image posts…" on People open the
+  // same way, and none of the three narrates Shiplog in the third person.
+  assert.match(POST_LOADING_STATUS, /^Loading /);
+  assert.doesNotMatch(POST_LOADING_STATUS, /Shiplog/);
   // A real ellipsis, the way "Loading the Social feed…" and "Loading releases…"
   // spell it, not three periods pretending to be one.
   assert.ok(POST_LOADING_STATUS.endsWith("…") && !POST_LOADING_STATUS.includes("..."));
