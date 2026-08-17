@@ -305,11 +305,35 @@ export function releaseFiltersActive(filters = {}) {
     || normalized.query !== "";
 }
 
-// The one material count for the active filter, derived once and rendered in
-// exactly one place. Nothing else on the page states how many releases matched,
-// so a reader never has to reconcile two numbers answering the same question.
-export function releaseCountText(visible, total) {
-  return `${visible} of ${total} ${total === 1 ? "release" : "releases"}`;
+// The log's one summary line: how many releases are on screen, what they were
+// narrowed from when a filter is set, and the order they are in. Derived once
+// and rendered in exactly one place, so a reader never has to reconcile two
+// numbers answering the same question.
+//
+// It is Social's feedSummarySentence in this page's nouns, deliberately: both
+// logs answer "how many of these am I looking at, and in what order" and both
+// answer it in one sentence above the records. The order rides here rather than
+// in the panel heading for the reason the ordering eyebrow left Social — a
+// heading reading "newest first" above a sentence ending "newest first" states
+// the same fact twice on one screen, and the sentence is the line that has to
+// carry the count anyway.
+//
+// `visible` is the length of the array the rows are rendered from, never a
+// second filter pass, which is what keeps the stated number and the rendered
+// records the same number. Unfiltered there is nothing to be shown out of, so
+// it is the single total; narrowed it is "1 of 4 releases", the number on
+// screen first and what it was narrowed from behind it.
+//
+// Nothing on screen returns "" — an empty view is not this sentence's to state.
+// A log with no records is the first-run panel's news and a view the filters
+// emptied is the no-match panel's, and that panel is `role="status"` where it
+// stands, so composing either here would print the dead end twice and announce
+// it twice. The panel names the state and carries the way back out of it.
+export function releaseSummarySentence(visible, total) {
+  const noun = (count) => (count === 1 ? "release" : "releases");
+  if (visible === 0) return "";
+  if (visible === total) return `Showing ${visible} ${noun(visible)}, newest first.`;
+  return `Showing ${visible} of ${total} ${noun(total)}, newest first.`;
 }
 
 // ---------------------------------------------------------------------------

@@ -302,7 +302,7 @@ test("a narrowed view exports only what it is showing, and counts it the same", 
   page.document.querySelector("#release-search").focus();
   typeText(page.document, "caching");
   assert.deepEqual(rowIds(page), ["r-read"], "the search really did narrow the list");
-  assert.equal(textOf(page.document.querySelector("#release-count")), "1 of 4 releases");
+  assert.equal(textOf(page.document.querySelector("#release-count")), "Showing 1 of 4 releases, newest first.");
 
   exportButton(page).click();
   const payload = JSON.parse(page.downloads.at(-1).text);
@@ -333,7 +333,7 @@ test("filters matching nothing write the empty envelope and say zero, not the lo
   page.document.querySelector("#release-search").focus();
   typeText(page.document, "zzz no release says this");
   assert.deepEqual(rowIds(page), []);
-  assert.equal(textOf(page.document.querySelector("#release-count")), "0 of 4 releases");
+  assert.equal(textOf(page.document.querySelector("#release-count")), "");
 
   // Enabled, and the press is not silent: it writes the empty record set with
   // the same envelope and states the zero.
