@@ -318,16 +318,62 @@ function renderFailed(container, onRetry) {
 // words, so the status now carries one complete sentence instead.
 export const POST_LOADING_STATUS = "Shiplog is opening a single shared post from Social…";
 
-// Waiting is not one of the states above, and it does not get their furniture.
+// The four parts of a post the wait stands in for, in the order the loaded
+// article renders them: the image, the words under it, who wrote them, and when.
+// Each placeholder names its slot on itself, so this list is the one place the
+// shape is written down and a test asks for slots rather than counting anonymous
+// shimmer blocks.
+export const POST_SKELETON_SLOTS = ["image", "body", "display-name", "timestamp"];
+
+function skeletonSlot(name, className) {
+  const slot = el("div", className);
+  slot.dataset.postSkeletonSlot = name;
+  return slot;
+}
+
+// The placeholder, built out of the classes that already exist rather than a
+// second set of them: .skeleton-media and .skeleton-line are the blocks Social's
+// feed and People's grid draw while they wait, and .detail-figure,
+// .detail-caption, .detail-byline and .detail-date are the loaded article's own
+// containers. So the wait is the same treatment a reader has met on the other
+// two surfaces, laid out in this page's own geometry — which is the point: the
+// post lands in the box the wait was holding instead of shoving a line of text
+// down the page.
 //
-// It used to: a full banner with its own heading, its own sentence, and a 4:3
-// shimmer block standing in for the image. On a page whose frame, heading and
-// standing sentence are already drawn, that is a second page announcing itself
-// on top of the first — and the placeholder was a guess at a shape (an image
-// this post may not even have) that then shoved the real post down when it
-// landed. One short labelled line in the post's own region says the same thing:
-// something is coming, here, and it is this post. The dot is decorative and
-// stops moving under prefers-reduced-motion; the sentence carries the state.
+// It is aria-hidden. A screen reader walked through four empty boxes would be
+// told the shape of a post that is not here yet; the sentence above carries the
+// state, and it is the sentence that is announced.
+function renderSkeleton() {
+  const skeleton = el("div", "detail-skeleton");
+  skeleton.setAttribute("aria-hidden", "true");
+  const figure = el("div", "detail-figure");
+  const caption = el("div", "detail-caption");
+  caption.append(skeletonSlot("body", "skeleton-line"));
+  figure.append(skeletonSlot("image", "skeleton-media"), caption);
+  const byline = el("div", "detail-byline");
+  byline.append(skeletonSlot("display-name", "skeleton-line skeleton-line-short"));
+  const date = el("div", "detail-date");
+  date.append(skeletonSlot("timestamp", "skeleton-line skeleton-line-short"));
+  skeleton.append(figure, byline, date);
+  return skeleton;
+}
+
+// Waiting is not one of the resolved states above, and it does not get their
+// furniture: no chip, no heading of its own, no second page announcing itself on
+// top of the one already drawn. What it gets is the sentence and the shape.
+//
+// The sentence alone used to be the whole of it, on the reasoning that a
+// placeholder is a guess at a layout. It is — but a line of text is a guess too,
+// and a worse one: it reserves a single row, so every post that arrives shoves
+// the page down under the reader. The placeholder guesses at the post's
+// containers instead, which are the same for every post this page can show, and
+// the one thing it cannot know is whether there is an image. A post without one
+// resolves shorter than the wait; a post with one lands about where the wait
+// stood. Reflowing shorter is the better half of that trade, because nothing the
+// reader is already reading moves out from under them.
+//
+// The dot is decorative, and both it and the shimmer stop under
+// prefers-reduced-motion (see the media query at the end of styles.css).
 function renderLoading(container) {
   const status = el("div", "detail-loading detail-state-panel");
   status.setAttribute("role", "status");
@@ -336,7 +382,7 @@ function renderLoading(container) {
   const dot = el("span", "detail-loading-dot");
   dot.setAttribute("aria-hidden", "true");
   line.append(dot, el("span", "detail-loading-text", POST_LOADING_STATUS));
-  status.append(line);
+  status.append(line, renderSkeleton());
   container.append(status);
 }
 
