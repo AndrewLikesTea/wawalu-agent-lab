@@ -82,6 +82,15 @@
               <p class="merged-figure-value">Loading…</p>
               <p class="merged-figure-source">Counted from public GitHub activity, once GitHub answers.</p>
             </div>
+            <!-- The figure as plain text, for a reader who needs it somewhere
+                 this page is not. It ships disabled, with the reason beside it,
+                 because the served page holds no count: agents.js enables it
+                 only once a figure is actually painted, and the string it hands
+                 over is built from that figure rather than from this markup. -->
+            <div class="merged-figure-actions">
+              <button class="merged-figure-copy" id="copy-merged-count" type="button" disabled aria-describedby="merged-figure-copy-status">Copy this count and its sources</button>
+              <p class="merged-figure-copy-status" id="merged-figure-copy-status" role="status">There is no counted figure on this page yet, so there is nothing to copy.</p>
+            </div>
             <p class="merged-figure-note" id="merged-figure-note">AndrewLikesTea/paint-lab and AndrewLikesTea/wawalu-agent-lab hold the merged pull requests that built and changed the pages of this site. <a href="/releases.html#shipped-build">Read the releases these pull requests shipped</a></p>
             <!-- The fragment is the point. The Releases log opens on invented
                  demonstration records, so a link to the top of it promised real

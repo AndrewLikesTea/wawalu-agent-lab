@@ -34,6 +34,10 @@ import {
   readRetainedCount,
   writeRetainedCount,
 } from "./merged-count-retention.js";
+// The same figure as plain text, for a reader who needs it somewhere this page
+// is not. It states only what the readout states, and it is built from the
+// values the readout was painted from rather than from the words beside them.
+import { MERGED_COUNT_COPY, buildMergedCountCopy } from "./merged-count-copy.js";
 
 export { EVENTS_URLS, SOURCE_REPOSITORIES, responseTimestamp } from "./public-merges.js";
 const REFRESH_MS = 90_000;
@@ -610,6 +614,62 @@ export const MERGED_FIGURE_COPY = Object.freeze({
   unavailable: Object.freeze(unavailableCopy(UNAVAILABLE_REASONS.unreachable)),
 });
 
+// What the readout is asserting right now, held per control rather than per
+// module: a page and a test hold two different figures, and neither may be able
+// to answer for the other one's clipboard.
+const copyableFigure = new WeakMap();
+
+/**
+ * Offer the rendered figure for copying, or withdraw the offer.
+ *
+ * The control can only ever hand over the figure this function was given, which
+ * is the figure the readout was painted from — so a state with no number to
+ * show has no number to copy, and the button is disabled with the reason in the
+ * status beside it rather than left actionable over nothing. A repaint that
+ * lands on the same figure changes nothing at all, so the page's own refresh
+ * timer cannot wipe a confirmation the reader is still reading.
+ */
+function offerCountCopy(root, figure) {
+  const button = root.querySelector("#copy-merged-count");
+  const status = root.querySelector("#merged-figure-copy-status");
+  if (!button || !status) return null;
+  const text = buildMergedCountCopy(figure);
+  if (copyableFigure.get(button) === text) return text;
+  copyableFigure.set(button, text);
+  button.disabled = !text;
+  status.textContent = text ? "" : MERGED_COUNT_COPY.nothing;
+  return text;
+}
+
+/**
+ * Wire the copy control. The clipboard is injectable for focused tests, the way
+ * the home page's takeaway control takes it.
+ *
+ * A control with nothing to offer writes nothing anywhere: the guard is on the
+ * text this browser actually has, not on how the button is styled, so a disabled
+ * button that is somehow activated still reaches the clipboard with nothing.
+ */
+export function bindMergedCountCopy(root = document, clipboard = globalThis.navigator?.clipboard) {
+  const button = root.querySelector("#copy-merged-count");
+  const status = root.querySelector("#merged-figure-copy-status");
+  if (!button || !status) return null;
+  button.addEventListener("click", async () => {
+    const text = copyableFigure.get(button);
+    if (!text) {
+      status.textContent = MERGED_COUNT_COPY.nothing;
+      return;
+    }
+    try {
+      if (typeof clipboard?.writeText !== "function") throw new Error("Clipboard unavailable");
+      await clipboard.writeText(text);
+      status.textContent = MERGED_COUNT_COPY.copied;
+    } catch {
+      status.textContent = MERGED_COUNT_COPY.failed;
+    }
+  });
+  return button;
+}
+
 /** The count and unit, the two of them always rendered together. */
 function appendCount(value, count) {
   appendText(value, "strong", "merged-figure-count", String(count));
@@ -649,6 +709,11 @@ export function renderMergedFigure(root = document, state = "loading",
   const readout = root.querySelector("#merged-figure-readout");
   if (!section || !readout) return null;
   section.dataset.state = name;
+  // Whatever this render is about to put on screen is what the control may hand
+  // over, and the two are decided here together: a state that shows no figure
+  // offers none, and the number that is copied is the number that is painted.
+  offerCountCopy(root, name === "live" ? { state: "live", count, takenAt: asOf }
+    : name === "recorded" ? { state: "recorded", count, takenAt } : null);
 
   const value = document.createElement("p");
   value.className = "merged-figure-value";
@@ -1070,6 +1135,7 @@ export function wireDemoDataControls(root = document, fetcher) {
 if (typeof document !== "undefined" && document.querySelector("#activity-list")) {
   const refresh = wireActivityControls();
   const readDemoData = wireDemoDataControls();
+  bindMergedCountCopy();
   refresh();
   readDemoData();
   setInterval(refresh, REFRESH_MS);

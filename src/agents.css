@@ -44,8 +44,11 @@
 .privacy-note strong { display:block; margin-bottom:3px; color:#283b4a; }
 .activity-heading { padding-bottom:20px; border-bottom:1px solid #dedcd5; }
 .activity-heading h2 { margin:7px 0 0; font-size:26px; letter-spacing:-.03em; }
-.observatory-refresh { display:block; grid-column:auto; width:auto; min-height:40px; margin:0; border:1px solid #8f8d86; border-radius:9px; padding:0 15px; background:#fff; color:#292925; font-size:13px; font-weight:700; }
-.observatory-refresh:hover { border-color:#1f70c1; background:#e9f1f8; color:#194f82; }
+.observatory-refresh,.merged-figure-copy { display:block; grid-column:auto; width:auto; min-height:40px; margin:0; border:1px solid #8f8d86; border-radius:9px; padding:0 15px; background:#fff; color:#292925; font-size:13px; font-weight:700; }
+.observatory-refresh:hover,.merged-figure-copy:hover { border-color:#1f70c1; background:#e9f1f8; color:#194f82; }
+.merged-figure-copy[disabled] { border-color:#c4c2bb; background:#f2f1ec; color:#71716b; }
+.merged-figure-actions { display:flex; flex-wrap:wrap; align-items:center; gap:8px 10px; }
+.merged-figure-copy-status { margin:0; color:#4a4a44; font-size:12px; font-weight:700; line-height:1.5; }
 .activity-actions { display:flex; flex-wrap:wrap; gap:10px; margin:14px 0 4px; }
 /* Loading, no activity, and a failed request are told apart three ways before
    colour is considered: the chip word, the heading sentence, and the geometry
