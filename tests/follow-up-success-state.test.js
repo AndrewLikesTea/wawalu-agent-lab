@@ -117,7 +117,7 @@ function reveal(document, { prefix, gated }) {
 test("Coach, Releases, Social, People, and Agents send one bounded request and show durable success", async () => {
   const pages = [
     ["coach.html", "follow_up_coach", "Paste a prompt"],
-    ["releases.html", "follow_up_releases", "Deployment status"],
+    ["releases.html", "follow_up_releases", "Deployment check"],
     ["social.html", "follow_up_social", "images optional"],
     ["profile.html", "follow_up_people", "image posts"],
     ["agents.html", "follow_up_agents", "Agent Observatory"],

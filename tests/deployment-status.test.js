@@ -118,8 +118,13 @@ test("the band opens with what the check proves, ahead of the answer and outside
   const proof = page.document.querySelector("#deployment-status-proof");
   const sentence = textOf(proof);
 
-  // What the check proves, in the page's own words, before any evidence.
-  assert.match(sentence, /does the real record of this deployment, at the top of this page, name the version this site is running right now\?/);
+  // One name for the check, and it is the name the front door's link uses.
+  assert.equal(textOf(page.document.querySelector("#deployment-status-title")), "Deployment check");
+
+  // What the check proves, in the page's own words, before any evidence. The
+  // question is one sentence and the front door renders the same one, so a
+  // reader who follows the link from there meets the words they arrived on.
+  assert.match(sentence, /^Does the real record of this deployment name the version this site is running right now\?/);
   // And the line the rest of the page draws, kept here: the worked example
   // above is invented, the record this check names and this answer are not.
   assert.match(sentence, /The example decision and release above are invented; that record and this answer are not\./);
@@ -432,7 +437,18 @@ test("the front door's log section carries the check, its question, and the way 
   const panel = page.document.querySelector(`#${DEPLOYMENT_IDS.panel}`);
   assert.equal(
     textOf(page.document.querySelector("#deployment-status-title")),
-    "Is this log tracking the running deployment?",
+    "Deployment check",
+  );
+  // The name the releases page's band heads itself with, so the link below and
+  // its destination are one thing with one name.
+  assert.equal(
+    textOf(page.document.querySelector("#deployment-status-proof")),
+    "Does the real record of this deployment name the version this site is running right now?",
+  );
+  assert.equal(
+    (textOf(panel).match(/name the version this site is running right now\?/g) ?? []).length,
+    1,
+    "the question the check answers is asked more than once",
   );
   assert.equal(panel.getAttribute("aria-labelledby"), "deployment-status-title");
   assert.ok(
@@ -523,11 +539,13 @@ test("the front door's section states the example-records caveat once", async (t
   // answer is not an example.
   assert.equal((section.match(/These invented records demonstrate Shiplog\./g) ?? []).length, 1);
   assert.equal((section.match(/no customer or production data/g) ?? []).length, 1);
+  // Said in the words the releases page says it in, so the two pages do not
+  // draw the same line two ways.
   assert.match(
     section,
-    /The decision and release above are examples; this check is not — it reads the running deployment when this page loads\./,
+    /It reads the running deployment when the page loads\. The example decision and release above are invented; this answer is not\./,
   );
-  assert.equal((section.match(/this check is not/g) ?? []).length, 1);
+  assert.equal((section.match(/this answer is not/g) ?? []).length, 1);
 });
 
 test("the front door words each outcome with the shared sentence, byte for byte", async (t) => {
