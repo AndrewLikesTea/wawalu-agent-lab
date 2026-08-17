@@ -610,6 +610,126 @@ export const MERGED_FIGURE_COPY = Object.freeze({
   unavailable: Object.freeze(unavailableCopy(UNAVAILABLE_REASONS.unreachable)),
 });
 
+/* ---------------------- the figure, as text a reader can paste --------------- */
+
+// THE ONE RULE THIS CONTROL IS HELD TO: the clipboard may not say anything the
+// block is not saying. So there is no second composer here reading the DOM back,
+// and no literal anywhere in it — `renderMergedFigure` hands the copy the same
+// object it just painted from, and the digit, the provenance clause and its time
+// are the strings it painted. Change the response and both change together, or
+// neither does. A state with no figure produces no text at all, and the control
+// is taken off the page rather than left pressable over an empty payload.
+
+/** The observatory's own path, so a pasted count says where it can be checked. */
+export const OBSERVATORY_PATH = "/agents.html";
+
+/** What the control says it does, in what it copies rather than "Copy". */
+export const MERGED_COUNT_COPY_LABEL = "Copy this count and its sources";
+
+export const MERGED_COUNT_COPY_FEEDBACK = Object.freeze({
+  copied: "Count and sources copied.",
+  failed: "Could not copy the count. The count and its sources are on this page, above.",
+});
+
+/**
+ * What these merged pull requests are, named from the same list the verification
+ * links are built from — so a pasted line cannot name a repository this page has
+ * stopped counting. Word for word the note beside the figure, which is where a
+ * reader will have read it before pressing anything.
+ */
+export const MERGED_COUNT_SUBJECT = `${SOURCE_REPOSITORIES.join(" and ")} hold the merged pull `
+  + "requests that built and changed the pages of this site.";
+
+/** This page, absolutely, from the origin serving it. Empty when there is none. */
+export function observatoryUrl(origin = globalThis.window?.location?.origin) {
+  try {
+    return new URL(OBSERVATORY_PATH, origin).href;
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * The painted figure as plain text, or nothing to copy.
+ *
+ * @param {{count: number, source: string}|null} figure exactly what was painted:
+ *   the count in the readout, and the provenance clause under it — which already
+ *   carries its own time, and already says whether it is this response's count or
+ *   the last one this browser took.
+ * @returns {{available: boolean, text: string}} frozen. `available` is false for
+ *   a state with no figure AND for a page that cannot name its own address,
+ *   because a count pasted with no way back to the block it came from is the
+ *   unverifiable figure this whole block exists to not produce.
+ *
+ * Plain text, one claim per line: no markup, no markers, and nothing derived —
+ * no rate, no trend, no per-day figure. The page does not state those, so the
+ * clipboard does not either.
+ */
+export function buildMergedCountCopy(figure = null, origin) {
+  const url = observatoryUrl(origin);
+  if (!figure || !url) return Object.freeze({ available: false, text: "" });
+  return Object.freeze({
+    available: true,
+    text: [
+      `${figure.count} ${mergedCountUnit(figure.count)}.`,
+      figure.source,
+      MERGED_COUNT_SUBJECT,
+      url,
+    ].join("\n"),
+  });
+}
+
+// The text the control would copy right now: written by the paint, read by the
+// press. Held here rather than in an attribute so the press reads the state the
+// module rendered from, never a string parsed back off the screen.
+let mergedCountCopy = buildMergedCountCopy(null);
+
+/**
+ * Offer, or withdraw, the copy for the figure just painted.
+ *
+ * A figure that changed retires the confirmation with it: "Copied." sitting over
+ * a number that has since been replaced is the one way this control could lie
+ * about what is on somebody's clipboard.
+ */
+export function applyMergedCountCopy(root = document, figure = null) {
+  const block = root.querySelector("#merged-figure-copy");
+  const status = root.querySelector("#merged-figure-copy-status");
+  const copy = buildMergedCountCopy(figure);
+  if (copy.text !== mergedCountCopy.text && status) status.textContent = "";
+  mergedCountCopy = copy;
+  if (!block) return copy;
+  block.hidden = !copy.available;
+  return copy;
+}
+
+/**
+ * Wire the control, once.
+ *
+ * The clipboard is resolved at the press rather than at wiring time: this module
+ * runs as the page entry, before a reader has granted anything. A press with no
+ * figure behind it writes nothing and claims nothing — the button is off the
+ * page in that state, and this is the second half of the same guarantee.
+ */
+export function bindMergedCountCopy(root = document, clipboard = null) {
+  const button = root.querySelector("#merged-figure-copy-button");
+  const status = root.querySelector("#merged-figure-copy-status");
+  if (!button || button.dataset.wired === "true") return null;
+  button.dataset.wired = "true";
+  button.addEventListener("click", async () => {
+    const { available, text } = mergedCountCopy;
+    if (!available) return;
+    try {
+      const board = clipboard ?? globalThis.navigator?.clipboard;
+      if (typeof board?.writeText !== "function") throw new Error("Clipboard unavailable");
+      await board.writeText(text);
+      if (status) status.textContent = MERGED_COUNT_COPY_FEEDBACK.copied;
+    } catch {
+      if (status) status.textContent = MERGED_COUNT_COPY_FEEDBACK.failed;
+    }
+  });
+  return button;
+}
+
 /** The count and unit, the two of them always rendered together. */
 function appendCount(value, count) {
   appendText(value, "strong", "merged-figure-count", String(count));
@@ -655,12 +775,20 @@ export function renderMergedFigure(root = document, state = "loading",
   const source = document.createElement("p");
   source.className = "merged-figure-source";
 
+  // The clause under the digit, composed once and then both painted and offered
+  // to the clipboard. A live one names the response and the clock it arrived on;
+  // a recorded one says in words that it is the last count taken, and dates it.
+  // Neither is ever undated, so neither can be pasted undated.
+  let figure = null;
   if (name === "live") {
     appendCount(value, count);
-    appendText(source, "span", "", `Counted from ${total} public GitHub ${total === 1 ? "event" : "events"} in `
-      + `${SOURCE_REPOSITORIES.join(" and ")}, as of `);
-    const time = appendText(source, "time", "merged-figure-time", formatClockTime(asOf));
+    const lead = `Counted from ${total} public GitHub ${total === 1 ? "event" : "events"} in `
+      + `${SOURCE_REPOSITORIES.join(" and ")}, as of `;
+    const stamp = formatClockTime(asOf);
+    appendText(source, "span", "", lead);
+    const time = appendText(source, "time", "merged-figure-time", stamp);
     time.dateTime = asOf.toISOString();
+    figure = { count, source: `${lead}${stamp}.` };
   } else if (name === "recorded") {
     appendCount(value, count);
     appendText(source, "span", "", RETAINED_LEAD);
@@ -669,12 +797,17 @@ export function renderMergedFigure(root = document, state = "loading",
     // The clock as well as the calendar day: a count retained ten minutes ago
     // and one recorded three weeks ago are both dated, and a reader can tell
     // which is which without opening anything.
-    appendText(source, "span", "", ` at ${formatRetainedClock(takenAt)}.`);
+    const clock = ` at ${formatRetainedClock(takenAt)}.`;
+    appendText(source, "span", "", clock);
+    figure = { count, source: `${RETAINED_LEAD}${formatRecordedDate(takenAt)}${clock}` };
   } else {
     const copy = name === "unavailable" && reason ? unavailableCopy(reason) : MERGED_FIGURE_COPY[name];
     value.textContent = copy.value;
     source.textContent = copy.source;
   }
+  // Before the repaint is short-circuited below, so the control tracks the state
+  // this call settled on even when the words on screen did not have to change.
+  applyMergedCountCopy(root, figure);
   // The readout is the live region, so a repaint that would say exactly what is
   // already on screen is not made at all: the resolved wording is announced
   // once, rather than again for every intermediate render that happens to land
@@ -1068,6 +1201,7 @@ export function wireDemoDataControls(root = document, fetcher) {
 }
 
 if (typeof document !== "undefined" && document.querySelector("#activity-list")) {
+  bindMergedCountCopy();
   const refresh = wireActivityControls();
   const readDemoData = wireDemoDataControls();
   refresh();

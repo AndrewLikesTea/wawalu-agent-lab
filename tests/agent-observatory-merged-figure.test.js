@@ -323,12 +323,17 @@ test("the figure leads the shipped observatory and is reachable by keyboard", as
   assert.deepEqual(headings.slice(0, 2), ["page-title", "merged-figure-title"]);
   assert.equal(figure.getAttribute("aria-labelledby"), "merged-figure-title");
 
-  // One live region, following the observatory's own convention, so a load makes
-  // one announcement rather than two.
+  // One region speaks on load, following the observatory's own convention, so a
+  // load makes one announcement rather than two. The copy control's outcome line
+  // is the block's only other polite region and it is empty on a served page —
+  // it says something for the first time when somebody presses the button, which
+  // is not a moment the readout is also speaking.
   const readout = document.querySelector("#merged-figure-readout");
   assert.equal(readout.getAttribute("role"), "status");
   assert.equal(readout.getAttribute("aria-live"), "polite");
-  assert.equal(figure.querySelectorAll("[aria-live]").length, 1);
+  assert.deepEqual(figure.querySelectorAll("[aria-live]").map((node) => node.id),
+    ["merged-figure-readout", "merged-figure-copy-status"]);
+  assert.equal(textOf(document.querySelector("#merged-figure-copy-status")), "");
   assert.doesNotMatch(textOf(readout), /\d/, "the served page holds no number before GitHub answers");
 
   // Verification: real anchors, to the exact responses the count is computed

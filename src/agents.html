@@ -101,6 +101,18 @@
               <li><a href="https://api.github.com/repos/AndrewLikesTea/paint-lab/events?per_page=30">Count the merged pull requests yourself in the AndrewLikesTea/paint-lab public GitHub event feed</a></li>
               <li><a href="https://api.github.com/repos/AndrewLikesTea/wawalu-agent-lab/events?per_page=30">Count the merged pull requests yourself in the AndrewLikesTea/wawalu-agent-lab public GitHub event feed</a></li>
             </ul>
+
+            <!-- Offered only once a figure is on screen. agents.js unhides this
+                 with the state it has just painted and builds the pasted text
+                 out of that same state, so the clipboard cannot assert a count
+                 this block is not showing, and a browser that has never had one
+                 is offered nothing to paste. The status line is empty until the
+                 control is pressed, so the readout above stays the only thing
+                 that speaks when the page loads. -->
+            <div class="merged-figure-copy" id="merged-figure-copy" hidden>
+              <button class="observatory-refresh" id="merged-figure-copy-button" type="button">Copy this count and its sources</button>
+              <p class="merged-figure-copy-status" id="merged-figure-copy-status" role="status" aria-live="polite"></p>
+            </div>
           </section>
         </div>
       </section>

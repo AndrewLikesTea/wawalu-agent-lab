@@ -25,6 +25,10 @@
 .merged-figure-note a { color:#285f8f; }
 .merged-figure-sources { display:grid; gap:4px; margin:0; padding:0; list-style:none; }
 .merged-figure-sources a { color:#285f8f; font-size:12px; line-height:1.45; }
+/* The outcome sits beside the control that produced it and wraps under it when
+   there is no room, so a confirmation is never off the edge of the block. */
+.merged-figure-copy { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+.merged-figure-copy-status { margin:0; color:#4a6a45; font-size:12px; line-height:1.5; }
 .observatory-grid { display:grid; grid-template-columns:330px minmax(0,1fr); align-items:start; gap:24px; }
 .team-panel,.activity-panel,.prompt-panel { border:1px solid #d1cfc7; border-radius:18px; background:rgba(255,255,255,.68); box-shadow:0 14px 40px rgba(38,38,31,.04); }
 .team-panel { padding:28px; }
@@ -99,7 +103,7 @@
    saying because the author `display` above would otherwise beat the browser's
    own rule, and the populated panels rely on the block being hidden. */
 .demo-state { margin:16px 0 0; }
-.activity-state[hidden],.activity-actions[hidden],.observatory-refresh[hidden] { display:none; }
+.activity-state[hidden],.activity-actions[hidden],.observatory-refresh[hidden],.merged-figure-copy[hidden] { display:none; }
 .activity-state:focus-visible { outline:3px solid #155f9e; outline-offset:3px; }
 .prompt-panel { margin-top:24px; padding:30px; }
 .section-heading h2 { margin:7px 0 0; font-size:26px; letter-spacing:-.03em; }
