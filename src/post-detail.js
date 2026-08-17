@@ -18,20 +18,29 @@
 
 // Relative, not root-absolute: this module is imported by `node --test` as well
 // as by the browser, and only a relative specifier resolves in both.
-import { captionFor, countLabel, profileHref } from "./profile.js";
+import { captionFor, countLabel, profileHref, resolveProfileAuthor } from "./profile.js";
 import { renderImageUnavailable } from "./image-description.js";
 import { pageTitle, recordTitle } from "./page-title.js";
-import { normalizeImage } from "./social.js";
+import { DEFAULT_AUTHOR, normalizeImage } from "./social.js";
 
 // The three routes out of a permalink, named once and shipped in src/post.html.
 //
 // Neither is a "back". A permalink is the one page in this product a visitor can
 // meet cold — pasted into a chat window, opened by someone who has never seen
 // Social — and there is nothing behind them to return to. So both links point
-// forward, name their destination, and say what is there, in the verb the two
-// feed pages already use for each other ("Open People when you want…", "Open
-// Social when you want…"). The label says People, not Profile: this site has a
-// People page and no page called Profile.
+// forward, name their destination, and say what is there. The label says People,
+// not Profile: this site has a People page and no page called Profile.
+//
+// The two that stand in every settled state — the feed and the composer — used
+// to open on the same word and name the same page: "Open the full Social feed"
+// and "Open Social to publish a post of your own". Read down the row they were
+// one offer said twice, and a reader skimming the first word of each got "Open",
+// "Open", "Open" and no way to tell them apart without reading to the end of the
+// line. Each now opens on the act it performs — read, publish — which is the
+// verb this site already uses for the two of them: the footer lists Social as
+// "read short posts about what the team ships", and the composer's own button
+// says "Publish post". The destination still ends each label, so a link list
+// read aloud still says where it goes.
 //
 // The labels are constants because nothing may rewrite them mid-visit. They are
 // pinned against src/post.html, which ships both links. Social stands in all
@@ -45,11 +54,65 @@ import { normalizeImage } from "./social.js";
 // collapsed panel. Its words are about the reader, not about this post, so it
 // stands in every state that has settled — loaded, not-found and error alike.
 export const POST_EXITS = {
-  social: { href: "/social.html", label: "Open the full Social feed" },
+  social: { href: "/social.html", label: "Read the full Social feed" },
   people: { href: "/profile.html" },
-  publish: { href: "/social.html#post-form", label: "Open Social to publish a post of your own" },
+  publish: { href: "/social.html#post-form", label: "Publish a post of your own on Social" },
 };
 const MAX_RETURN_AUTHOR_LENGTH = 60;
+
+// The display name a loaded post is shown under, and the one place this page
+// decides it. A post published with no name at all is shown under the name
+// Social itself publishes it with — createPost in src/social.js defaults an
+// empty display name to DEFAULT_AUTHOR — so the permalink names the post the
+// same way the feed that minted it does, rather than dropping the byline and
+// leaving a reader unable to tell an unnamed post from a page that forgot to
+// draw one.
+export function postDisplayName(post) {
+  return String(post?.author ?? "").trim() || DEFAULT_AUTHOR;
+}
+
+// Where a display name's People view is — and "" when this page must not offer
+// one, because a link that lands People on somebody else is worse than no link.
+//
+// Read off People rather than guessed at. People takes its filter out of
+// `?author=` and answers under that name verbatim: any non-empty trimmed value,
+// including a name longer than a post may carry and a name no post uses at all,
+// which it draws as a stated zero under the name that was asked for (see
+// requestedName/resolveProfileAuthor in src/profile.js, pinned by
+// tests/people-requested-name.test.js). So the question is never "does this name
+// exist" — it is whether the URL can carry this exact name across, and there are
+// three ways it cannot:
+//
+//   1. A name that trims to nothing. People has no filter to apply, so it falls
+//      back to whichever display name has the most pictures, or to "Guest", with
+//      nothing on the page saying the name in the link went missing. Unreachable
+//      from here in practice, because postDisplayName() has already substituted
+//      "Guest" — which is a name People does show — but the guard is what makes
+//      that substitution the only route to it.
+//   2. A name profileHref() cannot encode at all: encodeURIComponent throws
+//      URIError on a lone surrogate, so building the link would throw inside a
+//      render and take the whole post down with it.
+//   3. A name the query string would hand back changed. Nothing does today —
+//      encodeURIComponent leaves only characters that are inert in a query
+//      string — but the two halves of this journey are two functions in two
+//      modules, and this is the assertion that they still agree: the name is
+//      read back out of the URL that was just built and compared with the name
+//      that went in.
+//
+// The name is still on the page as text in all three; only the destination is
+// withheld.
+export function displayNamePeopleHref(name) {
+  const wanted = String(name ?? "").trim();
+  if (!wanted || resolveProfileAuthor({ param: wanted }) !== wanted) return "";
+  let href = "";
+  try {
+    href = profileHref(wanted);
+  } catch {
+    return "";
+  }
+  const carried = new URLSearchParams(href.slice(href.indexOf("?") + 1)).get("author");
+  return carried === wanted ? href : "";
+}
 
 export function postPeopleLabel(author = "") {
   const name = String(author).trim();
@@ -486,14 +549,34 @@ export function renderPostDetail(container, post, options = {}) {
   // The name is a link to that person's People view, and its text is the name
   // itself — not a generic "profile" label. It follows the post content so the
   // permalink leads with the material the reader opened.
-  const author = String(post.author ?? "").trim();
-  if (author) {
-    const byline = el("p", "detail-byline");
+  //
+  // Always drawn, and drawn in the loaded state alone: a forwarded post is the
+  // one page a visitor meets with no feed behind it, and the display name is the
+  // whole of the thread back to the rest of that person's pictures. A post with
+  // no name of its own is bylined "Guest", the name Social publishes an unnamed
+  // post under, rather than losing the byline altogether.
+  //
+  // The link is the name, and it is exactly one tab stop: an <a> with an href,
+  // no tabindex, carrying .detail-author-link — which this site already declares
+  // with an underline and picks up the shared `a:focus-visible` ring from, so
+  // the affordance is neither colour alone nor a new rule in a stylesheet with
+  // no room for one.
+  //
+  // Where People could not answer under this exact name the name is still here,
+  // as plain text in the same paragraph. A byline that is text tells the reader
+  // who published the post and promises nothing; a byline that is a link to the
+  // wrong person's page tells them something false.
+  const author = postDisplayName(post);
+  const byline = el("p", "detail-byline");
+  const peopleHref = displayNamePeopleHref(author);
+  if (peopleHref) {
     const link = el("a", "detail-author-link", author);
-    link.href = profileHref(author);
+    link.href = peopleHref;
     byline.append(link);
-    article.append(byline);
+  } else {
+    byline.textContent = author;
   }
+  article.append(byline);
 
   const time = el("time", "post-date detail-date", formatDateTime(post.createdAt));
   time.dateTime = post.createdAt;

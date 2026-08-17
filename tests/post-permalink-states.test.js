@@ -20,9 +20,14 @@ import assert from "node:assert/strict";
 import { readdir, readFile } from "node:fs/promises";
 import { DomEvent, loadPage, parseHtml, pressEnter, pressTab, tabSequence, textOf } from "./support/browser.js";
 import { postDetailHref } from "../src/social-links.js";
+// The settled connection sentence People writes, taken from the module that
+// writes it so a reworded status cannot leave the People half of the walk below
+// waiting forever.
+import { profileConnectionLine } from "../src/profile.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
 
 const SEED_URL = "/social-demo-data.json";
+const LIVE_URL = "/api/social-posts?limit=100";
 
 const IMAGE_POST = {
   id: "p-image",
@@ -317,7 +322,7 @@ test("an unreachable feed is named as such, with a keyboard-reachable retry afte
     // that is what tells them trying again is worth anything.
     assert.match(textOf(page.panel), /The Social feed did not respond\./);
     assert.equal(textOf(page.panel.querySelector(".empty-title")), "Post could not be opened");
-    assert.equal(textOf(page.panel.querySelector(".detail-state-feed")), "Open the full Social feed");
+    assert.equal(textOf(page.panel.querySelector(".detail-state-feed")), "Read the full Social feed");
     // A word, not just a wash: the state reads with the stylesheet gone.
     assert.equal(textOf(page.panel.querySelector(".detail-state-chip")), "Unreachable");
 
@@ -609,9 +614,9 @@ test("a post with no image renders no image element and no empty frame to hold o
 // can resolve to a post or to nothing at all, and the frame has to read the same
 // either way — so this is asserted in the missing state as well as the loaded
 // one, not just in the state that happens to work.
-const SOCIAL_LINK = "Open the full Social feed";
+const SOCIAL_LINK = "Read the full Social feed";
 const PEOPLE_LINK = "Open People to see Mina Okafor’s other image posts";
-const PUBLISH_LINK = "Open Social to publish a post of your own";
+const PUBLISH_LINK = "Publish a post of your own on Social";
 const CHROME_LINKS = [SOCIAL_LINK, PEOPLE_LINK, PUBLISH_LINK];
 // What each state offers. Social is true whatever the lookup did — the feed
 // exists either way — so it stands in all four. People is offered only where
@@ -1174,3 +1179,197 @@ function assertSaidOnce(document, where) {
   assert.equal(times(main, "post from Social’s shared demo feed"), 1, `${where}: a second wording of the same fact`);
   assert.doesNotMatch(main, /single shared post|Social · post/, `${where}: the page restates itself`);
 }
+
+/* ------------------ the byline, and where it leads (#1833) ---------------- */
+
+// A forwarded post is opened by someone who has never seen this site, and the
+// display name on it is the only thread they have to the rest of that person's
+// pictures. It has to be a real link, it has to be exactly one tab stop, it has
+// to appear only where there is a post to be about, and the URL it mints has to
+// land People already filtered — which is asserted here by opening People at it
+// rather than by reading the two functions and agreeing they look alike.
+
+/**
+ * The post card's own tab stops, walked off the sequence a keyboard reader
+ * actually travels. The harness rejects descendant selectors, so containment is
+ * a walk up `parentNode`.
+ */
+const cardStops = (document) => {
+  const panel = document.querySelector("#post-detail");
+  return tabSequence(document).filter((element) => {
+    for (let node = element; node; node = node.parentNode) if (node === panel) return true;
+    return false;
+  });
+};
+
+/**
+ * People, opened cold at a query string this permalink minted. Same three waits
+ * the other People walks in this repo use (tests/social-name-to-people-e2e.js):
+ * the entry's own flag, the connection line where the page still has one, and
+ * the polite region, which is written only once a grid has been painted for a
+ * name. Awaiting the flag alone leaves a render in flight that resolves after
+ * the globals are torn down — green here, an unhandled rejection on CI.
+ */
+async function openPeopleAt(search, posts) {
+  const page = await loadPage(new URL("../src/profile.html", import.meta.url), {
+    storage: {},
+    location: { search },
+    routes: { [SEED_URL]: { posts }, [LIVE_URL]: { posts: [] } },
+  });
+  const timers = [];
+  const realSetInterval = globalThis.setInterval;
+  globalThis.setInterval = (...args) => {
+    const handle = realSetInterval(...args);
+    timers.push(handle);
+    return handle;
+  };
+  await importPageModule("/profile-page.js");
+  const { document } = page;
+  await waitFor(() => document.documentElement.dataset.shiplogProfile === "ready", "People finished its first load");
+  await waitFor(() => {
+    const line = document.querySelectorAll("#profile-status");
+    return line.length === 0 || textOf(line[0]) === profileConnectionLine("live");
+  }, "People's feed answered");
+  await waitFor(() => textOf(document.querySelector("#profile-announcer")).length > 0, "People announced the view it settled on");
+  globalThis.setInterval = realSetInterval;
+  return {
+    document,
+    restore() {
+      for (const handle of timers) clearInterval(handle);
+      globalThis.setInterval = realSetInterval;
+      page.restore();
+    },
+  };
+}
+
+test("the display name is the post card's one tab stop, and only once a post has loaded", async () => {
+  const waiting = await loadPage(new URL("../src/post.html", import.meta.url), { location: { search: "?id=p-image" } });
+  try {
+    let release;
+    globalThis.fetch = () => new Promise((resolve) => { release = () => resolve(seedResponse([IMAGE_POST])); });
+    await importPageModule("/post-page.js");
+    const { document } = waiting;
+    await waitFor(() => document.querySelector("#post-detail").querySelectorAll(".detail-loading").length === 1, "the loading state rendered");
+
+    // While the lookup runs the card holds a sentence and a placeholder and
+    // nothing a Tab key can land on. There is no display name yet, so there is
+    // nothing honest to link — and a stub here would be a name to correct later.
+    assert.equal(cardStops(document).length, 0, "the wait offers a tab stop of its own");
+    assert.equal(document.querySelectorAll(".detail-author-link").length, 0, "the wait links a display name it does not have");
+    // The wait's byline is the shimmer block standing in for one, inside the
+    // aria-hidden placeholder — not a byline with a name or an empty link in it.
+    for (const byline of document.querySelectorAll(".detail-byline")) {
+      assert.equal(byline.querySelectorAll("[data-post-skeleton-slot]").length, 1, "the wait drew a byline that is not a placeholder");
+      assert.equal(textOf(byline), "", "the wait's placeholder byline carries text");
+    }
+    // And the route to the feed reads what it shipped with, untouched by the state.
+    assert.equal(textOf(document.querySelector("#post-back")), SOCIAL_LINK);
+
+    release();
+    await waitFor(() => document.documentElement.dataset.shiplogPostDetail === "ready", "the lookup settled");
+
+    // Exactly one new stop, and it is the name.
+    const stops = cardStops(document);
+    assert.equal(stops.length, 1, "a loaded post must add exactly one tab stop inside the card");
+    assert.equal(stops[0].className, "detail-author-link");
+    assert.equal(textOf(stops[0]), IMAGE_POST.author);
+    // Markup order, not a tabindex trick. The article around it stays out of the
+    // sequence: post-page.js focuses it after a retry, nobody ever tabs to it.
+    assert.equal(stops[0].getAttribute("tabindex"), null);
+    assert.equal(document.querySelector(".detail-post").getAttribute("tabindex"), "-1");
+    // Nothing distinguishing it is colour alone, and it needs no rule of its own:
+    // the class this site already declares carries the underline, and the global
+    // anchor rule carries the focus ring.
+    const css = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
+    assert.match(css, /\.detail-author-link \{[^}]*text-decoration:underline/);
+    assert.match(css, /button:focus-visible,a:focus-visible \{[^}]*outline:3px solid var\(--focus-ring\)/);
+  } finally {
+    waiting.restore();
+  }
+});
+
+test("no post means no display-name link, and the states that have none keep the words they shipped with", async () => {
+  for (const [state, search, answer] of [
+    ["not-found", "?id=p-never-existed", seedOnly([IMAGE_POST])],
+    ["error", "?id=p-image", () => { throw new TypeError("Failed to fetch"); }],
+  ]) {
+    const page = await openPostPage(search, answer);
+    try {
+      assertOneState(page, state, `the ${state} state`);
+      // Counted, never compared against null: a name this page never resolved
+      // must not be standing anywhere as a link to somebody's People view.
+      assert.equal(page.document.querySelectorAll(".detail-author-link").length, 0,
+        `${state}: a display-name link with no display name behind it`);
+      assert.equal(page.document.querySelectorAll(".detail-byline").length, 0,
+        `${state}: a byline with no post to be about`);
+      // The wording of this state is untouched by the byline work: its own
+      // sentence, its own in-panel route to the feed, and the standing one.
+      assert.equal(textOf(page.document.querySelector("#post-back")), SOCIAL_LINK, `${state}: the standing feed link was reworded`);
+      assert.equal(textOf(page.panel.querySelector(".detail-state-feed")).length > 0, true, `${state}: the state's own feed action went missing`);
+    } finally {
+      page.restore();
+    }
+  }
+});
+
+test("the routes out of a permalink do not open on the same word", async () => {
+  const opening = (label) => label.split(" ")[0];
+  // The reported defect: two links a reader skims by their first word, both
+  // opening on "Open" and both naming Social, with the difference at the end of
+  // the line where a skimming reader never reaches it.
+  assert.notEqual(opening(SOCIAL_LINK), opening(PUBLISH_LINK),
+    `both routes out still open on "${opening(SOCIAL_LINK)}"`);
+  assert.deepEqual([SOCIAL_LINK, PUBLISH_LINK].map(opening), ["Read", "Publish"],
+    "each route opens on the act it performs");
+  // Each still names where it goes, so a link list read aloud is still a map.
+  for (const label of [SOCIAL_LINK, PUBLISH_LINK]) assert.match(label, /Social/);
+
+  // Read off the rendered page as well as off the constants, because the words
+  // ship in src/post.html and nothing rewrites them at runtime.
+  const page = await openPostPage("?id=p-image", seedOnly([IMAGE_POST]));
+  try {
+    const row = page.document.querySelectorAll(".detail-back").filter((link) => !link.hidden);
+    const openings = row.map((link) => opening(textOf(link)));
+    assert.equal(new Set(openings).size, openings.length, `two routes out open on the same word: ${openings.join(", ")}`);
+  } finally {
+    page.restore();
+  }
+});
+
+test("the URL the byline mints lands People already filtered to that display name", async () => {
+  const permalink = await openPostPage("?id=p-image", seedOnly([IMAGE_POST, TEXT_POST]));
+  let href;
+  try {
+    const link = permalink.panel.querySelector(".detail-author-link");
+    assert.equal(textOf(link), IMAGE_POST.author);
+    // People's own URL shape, exactly: the parameter People parses, the name
+    // encoded the way People decodes it.
+    href = link.getAttribute("href");
+    assert.equal(href, `/profile.html?author=${encodeURIComponent(IMAGE_POST.author)}`);
+    assert.equal(href, "/profile.html?author=Mina%20Okafor");
+  } finally {
+    permalink.restore();
+  }
+
+  // Followed rather than reasoned about. People is opened cold — nothing
+  // remembered, nothing visited first — at the query string the permalink just
+  // wrote, so the seam between the two pages is what is under test.
+  const people = await openPeopleAt(href.slice(href.indexOf("?")), [IMAGE_POST, TEXT_POST]);
+  try {
+    const { document } = people;
+    assert.equal(textOf(document.querySelector("#profile-name")), `People is filtered to ${IMAGE_POST.author}.`);
+    // Not the landing default, and not the name People reaches for when it has
+    // run out of candidates.
+    const rendered = textOf(document.querySelector("#main-content"));
+    assert.doesNotMatch(rendered, /filtered to (Rowan Diaz|Guest)\./);
+    // And the filter is really applied: the picker is on that name and the grid
+    // drew that name's picture. Skeleton tiles carry .profile-tile too, so they
+    // are excluded or "the grid recovered" passes mid-load.
+    const picker = document.querySelector("#profile-author").children.filter((node) => node.tagName === "BUTTON");
+    assert.equal(picker.find((chip) => chip.getAttribute("aria-pressed") === "true")?.dataset?.author, IMAGE_POST.author);
+    const tiles = document.querySelectorAll(".profile-tile").filter((tile) => !tile.classList.contains("profile-tile-skeleton"));
+    assert.equal(tiles.length, 1, "the filtered grid did not draw this display name's one image post");
+  } finally {
+    people.restore();
+  }
+});

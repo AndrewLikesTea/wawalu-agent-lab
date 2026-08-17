@@ -13,7 +13,9 @@ const {
   POST_LOADING_STATUS,
   POST_SKELETON_SLOTS,
   POST_STATES,
+  displayNamePeopleHref,
   findPostById,
+  postDisplayName,
   resolvePostState,
   postDetailTitle,
   postImageAlt,
@@ -106,6 +108,75 @@ test("the post reads in one order: description, image, caption, name, then time"
   assert.equal(link.tagName, "A");
   assert.equal(link.textContent, "Mina Okafor");
   assert.equal(link.href, "/profile.html?author=Mina%20Okafor");
+});
+
+/* --------------------------- the byline's thread --------------------------- */
+
+// A forwarded post is the one page in this product a visitor reaches with no
+// feed behind it, so the byline is the only thread from this post to the rest of
+// that display name's pictures. Three things have to hold for it: it is always
+// drawn, its destination is the name it prints, and it is never a link to
+// somebody else.
+
+test("a post published with no display name is bylined Guest, and Guest is where it leads", () => {
+  // The name Social itself publishes an unnamed post under (createPost in
+  // src/social.js), so the permalink names the post the way the feed does.
+  assert.equal(postDisplayName({ ...post, author: "" }), "Guest");
+  assert.equal(postDisplayName({ ...post, author: "   " }), "Guest");
+  assert.equal(postDisplayName({}), "Guest");
+  assert.equal(postDisplayName({ ...post, author: "  Mina Okafor  " }), "Mina Okafor", "a padded name is the same name");
+
+  const container = createElement("div");
+  renderPostDetail(container, { ...post, author: "" });
+
+  // The byline is drawn rather than dropped: a post with no byline at all leaves
+  // a reader unable to tell an unnamed post from a page that failed to draw one.
+  const byline = first(container, "detail-byline");
+  assert.equal(byClass(container, "detail-byline").length, 1);
+  const link = first(byline, "detail-author-link");
+  assert.equal(link.tagName, "A");
+  assert.equal(link.textContent, "Guest");
+  // People answers under "Guest" like any other forwarded name — a stated zero
+  // under the name that was asked for — so this link is not a dead end.
+  assert.equal(link.href, "/profile.html?author=Guest");
+});
+
+// Which names People can actually answer under, asked of People's own resolver
+// rather than guessed at here. It repeats a forwarded `?author=` back verbatim,
+// including names no post carries and names longer than a post may carry
+// (tests/people-requested-name.test.js), so the only names this page must
+// withhold a link for are the ones the URL cannot carry across intact.
+test("a display name People could not answer under is bylined as text, never as a link", () => {
+  assert.equal(displayNamePeopleHref("Mina Okafor"), "/profile.html?author=Mina%20Okafor");
+  assert.equal(displayNamePeopleHref("  Mina Okafor  "), "/profile.html?author=Mina%20Okafor");
+  assert.equal(displayNamePeopleHref("Ada Ø’Neil & Co"), `/profile.html?author=${encodeURIComponent("Ada Ø’Neil & Co")}`);
+  // A name no post carries, and one longer than any post may carry: People draws
+  // both under the name it was asked for, so both keep their link.
+  assert.equal(displayNamePeopleHref("Nobody Here"), "/profile.html?author=Nobody%20Here");
+  assert.equal(displayNamePeopleHref("n".repeat(61)), `/profile.html?author=${"n".repeat(61)}`);
+  // A name whose every character has to be escaped still round-trips, so the
+  // refusals below are refusals and not an encoder this page is afraid of.
+  assert.equal(displayNamePeopleHref("Ada+Lovelace"), "/profile.html?author=Ada%2BLovelace");
+  assert.equal(displayNamePeopleHref("a?b&c=d#e"), `/profile.html?author=${encodeURIComponent("a?b&c=d#e")}`);
+
+  // And the names that are refused. One trims away, leaving People to fall back
+  // to another display name with nothing on the page saying so; the other is a
+  // lone surrogate, which encodeURIComponent cannot encode at all — building the
+  // link would throw inside the render and take the post down with it.
+  for (const refused of ["", "   ", null, undefined, "\uD800", "Mina \uDFFF"]) {
+    assert.equal(displayNamePeopleHref(refused), "", `${JSON.stringify(refused)} must not be linked`);
+  }
+
+  const container = createElement("div");
+  renderPostDetail(container, { ...post, author: "Mina \uDFFF" });
+  const byline = first(container, "detail-byline");
+  // The name is still on the page, whole and readable — only the destination is
+  // withheld. Counted rather than compared against null.
+  assert.equal(byline.textContent, "Mina \uDFFF");
+  assert.equal(byClass(byline, "detail-author-link").length, 0, "a name People cannot answer under must not be a link");
+  assert.equal(tags(byline, "A").length, 0, "and must not be an anchor by any other class");
+  // The rest of the post is untouched: the byline is the only thing that changed.
+  assert.equal(first(container, "detail-body").textContent, "Focus rings landed everywhere.");
 });
 
 /* --------------------- the image's accessible name ------------------------ */
@@ -248,7 +319,7 @@ test("a failed load says what happened once, offers a retry, and leaks no error 
   assert.doesNotMatch(failed.textContent, /p-gone|\b[45]\d\d\b|Error:|fetch|TypeError/);
   // The state offers both ways forward: leave for the feed or retry in place.
   assert.match(failed.textContent, /Retry/);
-  assert.equal(first(failed, "detail-state-feed").textContent, "Open the full Social feed");
+  assert.equal(first(failed, "detail-state-feed").textContent, "Read the full Social feed");
   tags(failed, "BUTTON")[0].dispatch("click");
   assert.equal(retried, 1, "a failed load offers a retry");
 });
@@ -398,11 +469,11 @@ test("the post page's two routes out sit after the site frame, and name where th
 
   // Social ships in visible text. People waits for the loaded display name, so
   // loading cannot expose an empty or placeholder name.
-  assert.match(html, /<a class="detail-back detail-page-back" id="post-back" href="\/social\.html">Open the full Social feed<\/a>/);
+  assert.match(html, /<a class="detail-back detail-page-back" id="post-back" href="\/social\.html">Read the full Social feed<\/a>/);
   assert.match(html, /<a class="detail-back detail-page-back" id="post-people" href="\/profile\.html" hidden><\/a>/);
   // The third route ships its words too. It is withheld until the lookup
   // settles, not until a post is found: publishing is the reader's own act.
-  assert.match(html, /<a class="detail-back detail-page-back" id="post-publish" href="\/social\.html#post-form" hidden>Open Social to publish a post of your own<\/a>/);
+  assert.match(html, /<a class="detail-back detail-page-back" id="post-publish" href="\/social\.html#post-form" hidden>Publish a post of your own on Social<\/a>/);
   assert.equal(html.includes("post-back-feed"), false, "the old stacked exit is gone");
   const exits = html.match(/<p class="detail-page-exits">[\s\S]*?<\/p>/)[0];
   assert.doesNotMatch(exits, /aria-label/, "an exit must not depend on aria-label to name its destination");
@@ -431,13 +502,13 @@ test("both destinations ship as constants, and only the People link's target nar
   // The words are fixed. Nothing about a lookup may rewrite them, because they
   // have to read the same before, during and after it.
   assert.deepEqual(POST_EXITS, {
-    social: { href: "/social.html", label: "Open the full Social feed" },
+    social: { href: "/social.html", label: "Read the full Social feed" },
     people: { href: "/profile.html" },
-    publish: { href: "/social.html#post-form", label: "Open Social to publish a post of your own" },
+    publish: { href: "/social.html#post-form", label: "Publish a post of your own on Social" },
   });
   // Both name a destination the nav offers: this site has a People page and no
   // page called Profile, so a link here cannot promise one.
-  assert.equal(POST_EXITS.social.label, "Open the full Social feed");
+  assert.equal(POST_EXITS.social.label, "Read the full Social feed");
 
   // The loaded post's own author wins, then the ?author= profile.js writes into
   // its tiles.
@@ -658,12 +729,12 @@ test("the standing exits remain while unavailable states add a clear feed action
   assert.equal([...html.matchAll(/id="post-people"/g)].length, 1, "one People exit in the markup");
   assert.equal([...html.matchAll(/id="post-publish"/g)].length, 1, "one publish entry point in the markup");
   assert.equal([...html.matchAll(/class="detail-back detail-page-back"/g)].length, 3, "the row, and only the row");
-  assert.equal([...html.matchAll(/<a [^>]*>Open the full Social feed<\/a>/g)].length, 1, "the standing Social label appears once");
+  assert.equal([...html.matchAll(/<a [^>]*>Read the full Social feed<\/a>/g)].length, 1, "the standing Social label appears once");
 
   for (const [name, value, options] of PANEL_STATES) {
     const container = createElement("div");
     renderPostDetail(container, value, options);
-    const backish = tags(container, "A").filter((link) => /Back to|Go to|Open the full/.test(link.textContent));
+    const backish = tags(container, "A").filter((link) => /Back to|Go to|Read the full/.test(link.textContent));
     // Every state that resolved without a post carries the feed action, the
     // id-less one included: it is as much a dead end as a stale id is.
     assert.equal(backish.length, ["missing", "error", "id-less"].includes(name) ? 1 : 0);
