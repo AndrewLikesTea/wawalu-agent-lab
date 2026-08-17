@@ -136,7 +136,7 @@ test("a release is recorded from the page with the decisions it carried", async 
   const rows = page.document.querySelectorAll(".release-toggle");
   assert.match(textOf(rows[0]), /Throughput work/);
   assert.match(textOf(rows[0]), /1 decision · 1 accepted/);
-  assert.equal(textOf(page.document.querySelector("#release-count")), "1 of 1 release");
+  assert.equal(textOf(page.document.querySelector("#release-count")), "Showing 1 release, newest first.");
   assert.equal(
     textOf(page.document.querySelector("#release-record-status")),
     "Recorded v1.4.0 with 1 linked decision.",

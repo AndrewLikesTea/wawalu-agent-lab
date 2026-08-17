@@ -25,7 +25,7 @@ import {
   filterReleases,
   matchesDecisionStatus,
   normalizeReleaseFilters,
-  releaseCountText,
+  releaseSummarySentence,
   releaseFiltersActive,
   releaseFollowUp,
   releaseAttentionKind,
@@ -35,7 +35,7 @@ import {
 } from "../src/releases.js";
 import { initReleasesPage } from "../src/releases-page.js";
 import { createElement, first, installDocument } from "./support/dom.js";
-import { loadPage, pressKey, pressTab, tabSequence, textOf } from "./support/browser.js";
+import { loadPage, pressKey, pressTab, tabSequence, textOf, typeText } from "./support/browser.js";
 
 const RELEASES_PAGE = new URL("../src/releases.html", import.meta.url);
 
@@ -160,12 +160,17 @@ test("releaseFiltersActive distinguishes a narrowed view from the default one", 
   assert.equal(releaseFiltersActive(null), false);
 });
 
-// --- the one count ---------------------------------------------------------
+// --- the one summary line --------------------------------------------------
 
-test("one count states the matching releases against the whole history", () => {
-  assert.equal(releaseCountText(1, 4), "1 of 4 releases");
-  assert.equal(releaseCountText(0, 4), "0 of 4 releases");
-  assert.equal(releaseCountText(1, 1), "1 of 1 release");
+test("one sentence states the matching releases, what they were narrowed from, and the order", () => {
+  assert.equal(releaseSummarySentence(1, 4), "Showing 1 of 4 releases, newest first.");
+  assert.equal(releaseSummarySentence(4, 4), "Showing 4 releases, newest first.");
+  assert.equal(releaseSummarySentence(1, 1), "Showing 1 release, newest first.");
+  // Nothing on screen is the list panel's state to name — it says which of the
+  // two empty views this is and carries the way out — so the sentence stands
+  // down rather than announcing the dead end a second time.
+  assert.equal(releaseSummarySentence(0, 4), "");
+  assert.equal(releaseSummarySentence(0, 0), "");
 });
 
 // --- the follow-up ---------------------------------------------------------
@@ -315,14 +320,50 @@ const statusRadio = (page, value) => page.document.querySelector(`#release-decis
 test("the page opens on the all-status view with every release and one count", async (t) => {
   const page = await bootedReleases(t);
   assert.deepEqual(rowTitles(page), ["Flag rollout", "Import repair", "Read path", "Queue work"]);
-  assert.equal(countText(page), "4 of 4 releases");
+  assert.equal(countText(page), "Showing 4 releases, newest first.");
   assert.equal(statusRadio(page, "all").checked, true, "the default option is the selected one");
 
   // Exactly one element on the page states how many releases matched.
   const counts = page.document.querySelectorAll("span,p,div,h1,h2,h3,li,a,button,legend,label")
-    .filter((node) => /^\d+ of \d+ releases?$/.test(textOf(node)));
+    .filter((node) => /^Showing \d+(?: of \d+)? releases?, newest first\.$/.test(textOf(node)));
   assert.equal(counts.length, 1, "a second matching-record count would compete with the first");
   assert.equal(counts[0].id, "release-count");
+});
+
+// The number in the summary is only worth stating if it is the number of
+// records a reader can count on screen. Asserted against the rendered rows in
+// three views — everything, a filter, and a search — so a second filter pass or
+// a stale count would show up as a disagreement rather than as prose.
+//
+// `.release-item` counts records and nothing else: the wait on this page is a
+// `.list-state-loading` panel with a heading, not a set of placeholder cards
+// wearing the record class, which the boot below pins directly.
+test("the summary line's number is the number of records on screen, before and after narrowing", async (t) => {
+  const waiting = await openReleases(t);
+  assert.equal(waiting.document.querySelectorAll(".list-state-loading").length, 1);
+  assert.equal(waiting.document.querySelectorAll(".release-item").length, 0,
+    "the wait renders placeholder records, so counting .release-item would count them");
+
+  const page = await bootedReleases(t);
+  const rendered = () => page.document.querySelectorAll(".release-item").length;
+  assert.equal(rendered(), 4);
+  assert.equal(countText(page), "Showing 4 releases, newest first.");
+
+  // A filter that narrows the list: the sentence names the narrowed number,
+  // what it was narrowed from, and still says which way the records run.
+  statusRadio(page, "proposed").click();
+  assert.equal(rendered(), 1);
+  assert.equal(countText(page), "Showing 1 of 4 releases, newest first.");
+
+  statusRadio(page, "all").click();
+  assert.equal(countText(page), "Showing 4 releases, newest first.");
+
+  // A search that narrows it, through the control a reader actually types in.
+  page.document.querySelector("#release-search").focus();
+  typeText(page.document, "Caching");
+  assert.equal(rendered(), 1);
+  assert.equal(countText(page), "Showing 1 of 4 releases, newest first.");
+  assert.equal(rowTitles(page).length, rendered());
 });
 
 test("the list state before the page boots is a loading state", async (t) => {
@@ -368,7 +409,7 @@ test("the filter group is one keyboard stop and the arrow keys change the view",
   assert.equal(statusRadio(page, "proposed").checked, true);
   assert.equal(page.document.activeElement.value, "proposed", "focus follows the selection");
   assert.deepEqual(rowTitles(page), ["Flag rollout"]);
-  assert.equal(countText(page), "1 of 4 releases");
+  assert.equal(countText(page), "Showing 1 of 4 releases, newest first.");
 });
 
 test("choosing a linked decision status narrows the list, the count, and the follow-up", async (t) => {
@@ -377,7 +418,7 @@ test("choosing a linked decision status narrows the list, the count, and the fol
   pending.click();
 
   assert.deepEqual(rowTitles(page), ["Read path"]);
-  assert.equal(countText(page), "1 of 4 releases");
+  assert.equal(countText(page), "Showing 1 of 4 releases, newest first.");
 
   const callout = followUp(page);
   assert.equal(callout.hidden, false);
@@ -389,7 +430,7 @@ test("choosing a linked decision status narrows the list, the count, and the fol
 
   // Back to the default view: the callout re-derives from what is on screen.
   statusRadio(page, "all").click();
-  assert.equal(countText(page), "4 of 4 releases");
+  assert.equal(countText(page), "Showing 4 releases, newest first.");
   assert.match(textOf(followUp(page)), /Import repair/);
 });
 
@@ -397,7 +438,7 @@ test("a filtered view with nothing outstanding hides the follow-up entirely", as
   const page = await bootedReleases(t, {
     releases: [{ id: "r-only", version: "v1.0.0", title: "Settled", status: "completed", owner: "Kai", createdAt: "2026-02-01T00:00:00.000Z", decisionIds: ["d-queue"] }],
   });
-  assert.equal(countText(page), "1 of 1 release");
+  assert.equal(countText(page), "Showing 1 release, newest first.");
   assert.equal(followUp(page).hidden, true);
   assert.equal(followUp(page).children.length, 0);
 });
@@ -433,7 +474,8 @@ test("a no-match view says so and offers a next step that clears the filters", a
   const page = await bootedReleases(t, { releases: [RELEASES[0]] });
   statusRadio(page, "superseded").click();
 
-  assert.equal(countText(page), "0 of 1 release");
+  // The summary stands down and the panel below says what happened, once.
+  assert.equal(countText(page), "");
   assert.equal(followUp(page).hidden, true, "nothing on screen means nothing to follow up");
   const state = page.document.querySelector(".list-state-empty");
   assert.equal(textOf(state.querySelector("h3")), "No matching releases");
@@ -445,14 +487,14 @@ test("a no-match view says so and offers a next step that clears the filters", a
   reset.click();
 
   assert.equal(statusRadio(page, "all").checked, true);
-  assert.equal(countText(page), "1 of 1 release");
+  assert.equal(countText(page), "Showing 1 release, newest first.");
   // Focus cannot be left on a button the reset removed from the page.
   assert.equal(page.document.activeElement, statusRadio(page, "all"));
 });
 
 test("an empty log offers a different next step from a no-match view", async (t) => {
   const page = await bootedReleases(t, { releases: [] });
-  assert.equal(countText(page), "0 of 0 releases");
+  assert.equal(countText(page), "");
   const state = page.document.querySelector(".list-state-empty");
   assert.equal(textOf(state.querySelector("h3")), "No releases have been recorded yet");
   assert.match(textOf(state), /Record a release, with or without linked decisions\./);
@@ -475,10 +517,10 @@ test("a release whose decisions are all missing is still listed and still filter
 
   statusRadio(page, "missing").click();
   assert.deepEqual(rowTitles(page), ["Imported"]);
-  assert.equal(countText(page), "1 of 1 release");
+  assert.equal(countText(page), "Showing 1 release, newest first.");
   assert.match(textOf(followUp(page)), /Imported/);
 
   statusRadio(page, "accepted").click();
-  assert.equal(countText(page), "0 of 1 release");
+  assert.equal(countText(page), "");
   assert.ok(page.document.querySelector(".release-reset-action"));
 });

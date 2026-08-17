@@ -534,7 +534,7 @@ test("a reload between the steps loses nothing the manager recorded", async (t) 
   const rows = reloaded.document.querySelectorAll(".release-toggle");
   assert.equal(rows.length, 1, "the recorded release did not survive a reload");
   assert.match(textOf(rows[0]), /1 decision · 1 accepted/, "the association did not survive a reload");
-  assert.equal(textOf(reloaded.document.querySelector("#release-count")), "1 of 1 release");
+  assert.equal(textOf(reloaded.document.querySelector("#release-count")), "Showing 1 release, newest first.");
   reloaded.restore();
 
   const history = await openDecisions(t, state);

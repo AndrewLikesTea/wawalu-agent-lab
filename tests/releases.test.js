@@ -289,10 +289,10 @@ test("releases page is wired and linked from the decisions page", async () => {
   assert.match(page, /id="release-search"/);
   assert.match(page, /id="release-status"/);
   assert.match(page, /id="release-list" aria-live="polite" aria-busy="true"/);
-  // One loading message on the page: the list states the wait, and the count
+  // One loading message on the page: the list states the wait, and the summary
   // ships empty rather than repeating it or claiming a number it cannot know.
-  assert.match(page, /id="release-count" aria-live="polite"><\/span>/);
-  assert.doesNotMatch(page, /id="release-count"[^>]*>0 releases<\/span>[\s\S]*?<h3>Loading releases…<\/h3>/);
+  assert.match(page, /id="release-count" aria-live="polite"><\/p>/);
+  assert.doesNotMatch(page, /id="release-count"[^>]*>[^<]*releases?[^<]*<\/p>[\s\S]*?<h3>Loading releases…<\/h3>/);
   assert.match(page, /<h3>Loading releases…<\/h3>/);
   assert.equal(page.match(/Loading releases/g).length, 1, "the wait is stated once");
   assert.match(page, /src="\/releases-page\.js"/);
@@ -326,7 +326,15 @@ test("the releases page states its order in the site's words and repeats no head
   assert.match(page, /<title>Releases · Shiplog<\/title>/);
   assert.match(page, /<a aria-current="page" href="\/releases\.html">Releases<\/a>/);
   assert.match(page, /<h1 id="page-title">See what shipped,<br \/>and why\.<\/h1>/);
-  assert.match(page, /<h2 id="releases-title">Release log, newest first<\/h2>/);
+  // The order moved off the heading and onto the log's summary sentence, which
+  // is the line that also carries the count — one line, both facts, the shape
+  // Social's feed summary already uses. The heading names the panel, once, and
+  // the eyebrow that named it a second time is gone.
+  assert.match(page, /<h2 id="releases-title">Release log<\/h2>/);
+  assert.doesNotMatch(page, /<p class="eyebrow">Release log<\/p>/);
+  const { releaseSummarySentence } = await import("../src/releases.js");
+  assert.equal(releaseSummarySentence(4, 4), "Showing 4 releases, newest first.");
+  assert.equal(releaseSummarySentence(1, 4), "Showing 1 of 4 releases, newest first.");
 
   // Every heading on the page, h1 through h6, whatever region it sits in.
   const headings = [...page.matchAll(/<h([1-6])\b[^>]*>([\s\S]*?)<\/h\1>/g)]

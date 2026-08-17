@@ -44,6 +44,18 @@
         <p class="eyebrow">Releases</p>
         <h1 id="page-title">See what shipped,<br />and why.</h1>
         <p>Every release, newest first, with the decisions it carried. Expand a release to review each linked decision and its status.</p>
+        <!-- The log stands above the recorder now, so a visitor who came here
+             to write a record would otherwise pass the whole history on the way
+             to a field. One control, one destination: it lands on the recorder
+             panel, which takes its name from the heading inside it, and the
+             panel carries tabindex="-1" so the landing is focus and not only a
+             scroll. Same anchor the deployment check's "Record the release that
+             is running" already points at, so both arrive in one place.
+             Reuses the home page hero's action classes rather than adding a
+             rule: styles.css is at its measured size budget. -->
+        <div class="hero-actions">
+          <a class="text-link" id="record-release-link" href="#record-release">Record a release</a>
+        </div>
       </section>
 
       <!-- THE ONE RECORD ON THIS PAGE THAT IS NOT INVENTED, and the reason it
@@ -156,89 +168,44 @@
         </div>
       </section>
 
-      <section class="workspace release-workspace" id="record-release" aria-label="Release log">
-        <div class="form-panel" aria-labelledby="release-form-title">
-          <div class="section-heading">
-            <h2 id="release-form-title">Record a release</h2>
-          </div>
-
-          <p class="notice" id="release-storage-notice" role="alert" hidden></p>
-
-          <form id="release-form">
-            <div class="field">
-              <label for="release-version">Version <span class="label-optional label-required">(required)</span></label>
-              <input id="release-version" name="version" type="text" maxlength="40" required autocomplete="off" aria-describedby="release-version-hint" />
-              <span class="hint" id="release-version-hint">The version or tag that shipped, such as v1.4.0.</span>
-            </div>
-
-            <div class="field">
-              <label for="release-released-on">Release date <span class="label-optional label-required">(required)</span></label>
-              <input id="release-released-on" name="releasedOn" type="date" required autocomplete="off" aria-describedby="release-released-on-hint" />
-              <span class="hint" id="release-released-on-hint">The calendar day this release shipped, as YYYY-MM-DD.</span>
-            </div>
-
-            <div class="field">
-              <label for="release-owner">Owner <span class="label-optional label-required">(required)</span></label>
-              <input id="release-owner" name="owner" type="text" maxlength="80" required autocomplete="name" aria-describedby="release-owner-hint" />
-              <span class="hint" id="release-owner-hint">The person accountable for this release.</span>
-            </div>
-
-            <div class="field">
-              <label for="release-title">Title <span class="label-optional">(optional)</span></label>
-              <input id="release-title" name="title" type="text" maxlength="120" autocomplete="off" aria-describedby="release-title-hint" />
-              <span class="hint" id="release-title-hint">A short name for the release. Defaults to the version.</span>
-            </div>
-
-            <div class="field">
-              <label for="release-form-status">Status <span class="label-optional label-required">(required)</span></label>
-              <select id="release-form-status" name="status" required aria-describedby="release-form-status-hint">
-                <option value="completed">Completed</option>
-                <option value="planned">Planned</option>
-                <option value="cancelled">Cancelled</option>
-              </select>
-              <span class="hint" id="release-form-status-hint">A release is planned, completed, or cancelled.</span>
-            </div>
-
-            <div class="field field-wide">
-              <label for="release-description">Summary <span class="label-optional label-required">(required)</span></label>
-              <textarea id="release-description" name="description" rows="4" maxlength="1000" required aria-describedby="release-description-hint"></textarea>
-              <span class="hint" id="release-description-hint">What shipped, in a sentence or two.</span>
-            </div>
-
-            <!-- The multi-select is a native checkbox group: every option is a
-                 real form control, so linking a decision needs no custom key
-                 handling and each option's name, state, and metadata are
-                 announced by the platform. The options are rendered by
-                 release-form.js from the decisions that exist right now. -->
-            <!-- Linking is optional. When a decision is selected, createRelease()
-                 verifies that it still exists before saving the association. -->
-            <fieldset class="field field-wide decision-picker-field" id="release-decisions-field" aria-describedby="release-decisions-hint release-decisions-summary">
-              <legend>Link decisions to this release <span class="label-optional">(optional)</span></legend>
-              <p class="hint" id="release-decisions-hint">Tick every decision this release carried, or leave all unchecked. The first decision you select is the release’s primary linked decision. Tab moves through the list; Space links or unlinks the decision in focus.</p>
-              <p class="decision-picker-summary" id="release-decisions-summary" role="status" aria-live="polite">No decisions linked yet.</p>
-              <div class="decision-picker" id="release-decisions"></div>
-            </fieldset>
-
-            <p class="field-error" id="release-form-error" role="alert" hidden></p>
-
-            <button type="submit">Record release</button>
-          </form>
-
-          <p class="hint release-record-status" id="release-record-status" role="status" aria-live="polite"></p>
-        </div>
-
+      <!-- The log first, the recorder under it. A prospect following "Explore
+           the decision and release log" from the home page reaches the count,
+           the search, the filters, the export and a real record before any
+           field to fill in; the hero's one link carries a visitor who came to
+           write straight past all of it. The markup moved rather than the
+           painted order, so reading order and tab order are the same order and
+           no rule has to keep them in step.
+           Single column, for the reason Social's composer stands below its
+           feed rather than beside it: in two columns the recorder is still the
+           first thing on the widest screens, whichever column it sits in. -->
+      <section class="workspace workspace-single release-workspace" aria-label="Release log and recorder">
       <div class="list-panel" aria-labelledby="releases-title">
         <div class="section-heading list-heading">
           <div>
-            <p class="eyebrow">Release log</p>
-            <h2 id="releases-title">Release log, newest first</h2>
+            <!-- No ordering eyebrow, and no ordering in the heading. Both used
+                 to read the panel's name, one of them with ", newest first"
+                 attached, directly above a sentence that ends "newest first" —
+                 the name twice and the order twice on one screen. The heading
+                 names the panel; the sentence below carries the order, because
+                 it is the line that also carries the count. -->
+            <h2 id="releases-title">Release log</h2>
           </div>
-          <!-- Empty until releases-page.js knows the number. The list below
-               states the wait, and it is stated once: repeating that line here
-               would print it twice on screen and announce it a second time from
-               this live region. -->
-          <span class="count" id="release-count" aria-live="polite"></span>
         </div>
+        <!-- How many releases are on screen and in what order, in one sentence.
+             Written by releases-page.js from the same array the rows are
+             rendered from, never a second filter pass, so the number here is
+             the number of rows in every state — including after a search or a
+             filter narrows the list.
+             Social's feed summary is this sentence in this class, and this page
+             follows it rather than inventing a second idiom; the class is
+             reused rather than extended because styles.css is at its measured
+             size budget.
+             Ships empty because a count is a claim the page cannot make until
+             the log has loaded: the list below states the wait, and states it
+             once. It stands outside every panel that can be folded away — a
+             live region behind a closed disclosure is silent — and a reader who
+             needs this sentence needs it before the records. -->
+        <p class="feed-summary" id="release-count" aria-live="polite"></p>
         <div class="release-filters" role="search" aria-label="Filter releases">
           <div class="filter release-search-filter">
             <label for="release-search">Search releases</label>
@@ -328,7 +295,7 @@
              it is not a live region, because #release-count already announces
              that the view changed. -->
         <div class="release-followup-slot" id="release-followup" hidden></div>
-        <div id="release-list" aria-live="polite" aria-busy="true">
+        <div id="release-list" aria-live="polite" aria-busy="true" aria-describedby="release-count">
           <!-- The one loading message on this page, and the wording
                renderReleaseListState draws in releases.js, character for
                character. -->
@@ -337,6 +304,82 @@
           </div>
         </div>
       </div>
+
+        <!-- The recorder, below the log it writes into. It keeps the id the
+             deployment check's "Record the release that is running" link has
+             always pointed at, moved off the section and onto the panel that
+             actually holds the form, and carries tabindex="-1" so following
+             that link — or the hero's — lands focus on a region named by the
+             heading inside it rather than only scrolling the page. -->
+        <div class="form-panel" id="record-release" tabindex="-1" aria-labelledby="release-form-title">
+          <div class="section-heading">
+            <h2 id="release-form-title">Record a release</h2>
+          </div>
+
+          <p class="notice" id="release-storage-notice" role="alert" hidden></p>
+
+          <form id="release-form">
+            <div class="field">
+              <label for="release-version">Version <span class="label-optional label-required">(required)</span></label>
+              <input id="release-version" name="version" type="text" maxlength="40" required autocomplete="off" aria-describedby="release-version-hint" />
+              <span class="hint" id="release-version-hint">The version or tag that shipped, such as v1.4.0.</span>
+            </div>
+
+            <div class="field">
+              <label for="release-released-on">Release date <span class="label-optional label-required">(required)</span></label>
+              <input id="release-released-on" name="releasedOn" type="date" required autocomplete="off" aria-describedby="release-released-on-hint" />
+              <span class="hint" id="release-released-on-hint">The calendar day this release shipped, as YYYY-MM-DD.</span>
+            </div>
+
+            <div class="field">
+              <label for="release-owner">Owner <span class="label-optional label-required">(required)</span></label>
+              <input id="release-owner" name="owner" type="text" maxlength="80" required autocomplete="name" aria-describedby="release-owner-hint" />
+              <span class="hint" id="release-owner-hint">The person accountable for this release.</span>
+            </div>
+
+            <div class="field">
+              <label for="release-title">Title <span class="label-optional">(optional)</span></label>
+              <input id="release-title" name="title" type="text" maxlength="120" autocomplete="off" aria-describedby="release-title-hint" />
+              <span class="hint" id="release-title-hint">A short name for the release. Defaults to the version.</span>
+            </div>
+
+            <div class="field">
+              <label for="release-form-status">Status <span class="label-optional label-required">(required)</span></label>
+              <select id="release-form-status" name="status" required aria-describedby="release-form-status-hint">
+                <option value="completed">Completed</option>
+                <option value="planned">Planned</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+              <span class="hint" id="release-form-status-hint">A release is planned, completed, or cancelled.</span>
+            </div>
+
+            <div class="field field-wide">
+              <label for="release-description">Summary <span class="label-optional label-required">(required)</span></label>
+              <textarea id="release-description" name="description" rows="4" maxlength="1000" required aria-describedby="release-description-hint"></textarea>
+              <span class="hint" id="release-description-hint">What shipped, in a sentence or two.</span>
+            </div>
+
+            <!-- The multi-select is a native checkbox group: every option is a
+                 real form control, so linking a decision needs no custom key
+                 handling and each option's name, state, and metadata are
+                 announced by the platform. The options are rendered by
+                 release-form.js from the decisions that exist right now. -->
+            <!-- Linking is optional. When a decision is selected, createRelease()
+                 verifies that it still exists before saving the association. -->
+            <fieldset class="field field-wide decision-picker-field" id="release-decisions-field" aria-describedby="release-decisions-hint release-decisions-summary">
+              <legend>Link decisions to this release <span class="label-optional">(optional)</span></legend>
+              <p class="hint" id="release-decisions-hint">Tick every decision this release carried, or leave all unchecked. The first decision you select is the release’s primary linked decision. Tab moves through the list; Space links or unlinks the decision in focus.</p>
+              <p class="decision-picker-summary" id="release-decisions-summary" role="status" aria-live="polite">No decisions linked yet.</p>
+              <div class="decision-picker" id="release-decisions"></div>
+            </fieldset>
+
+            <p class="field-error" id="release-form-error" role="alert" hidden></p>
+
+            <button type="submit">Record release</button>
+          </form>
+
+          <p class="hint release-record-status" id="release-record-status" role="status" aria-live="polite"></p>
+        </div>
       </section>
       </main>
     </div>

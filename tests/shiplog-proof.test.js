@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { initReleasesPage } from "../src/releases-page.js";
 import { SAMPLE_DECISION_ID, SAMPLE_RELEASE_ID } from "../src/seed-records.js";
-import { loadPage, textOf } from "./support/browser.js";
+import { loadPage, tabSequence, textOf } from "./support/browser.js";
 
 const PAGE = new URL("../src/releases.html", import.meta.url);
 
@@ -51,10 +51,22 @@ test("renders one clearly disclosed synthetic proof connecting decision, owner, 
 test("the example-records caveat is stated once above the record form", async (t) => {
   const page = await open(t);
   const main = page.document.getElementById("main-content");
+  const form = page.document.getElementById("record-release");
   let above = "";
   let reachedForm = false;
+  // The recorder is no longer a top-level block: the log stands above it inside
+  // the workspace, so the walk descends into whichever block holds the form and
+  // keeps counting the log's own text on the way down. A caveat reintroduced in
+  // the log is still a caveat above the form.
   for (const block of main.children) {
-    if (block.getAttribute?.("id") === "record-release") { reachedForm = true; break; }
+    if (block === form) { reachedForm = true; break; }
+    if ([...(block.children ?? [])].includes(form)) {
+      for (const part of block.children) {
+        if (part === form) { reachedForm = true; break; }
+        above += ` ${part.textContent ?? ""}`;
+      }
+      break;
+    }
     above += ` ${block.textContent ?? ""}`;
   }
   assert.equal(reachedForm, true, "the walk never reached the record form");
@@ -112,6 +124,96 @@ test("the record form is named once above its first field", async (t) => {
   assert.equal(textOf(headings[0]), "Record a release");
   assert.equal((textOf(panel).match(/Record a release/g) ?? []).length, 1,
     "the form's name is printed more than once above its fields");
+});
+
+// --- the log above the recorder --------------------------------------------
+
+// Walking up rather than selecting down: the harness rejects a descendant
+// selector, so containment is a parent chain.
+const isWithin = (node, ancestor) => {
+  for (let cursor = node; cursor; cursor = cursor.parentNode) if (cursor === ancestor) return true;
+  return false;
+};
+
+// A prospect follows "Explore the decision and release log" from the home page.
+// What they used to reach, in this order, was the pitch, the example record,
+// the deployment check and then nine fields to fill in, with the log itself at
+// the bottom of the page. The record of this deployment and the check against
+// it still lead — they are what the observatory's link lands on — and the log
+// now stands between them and the recorder.
+test("the log's heading, count, search, filters, records and export all come before the first form field", async (t) => {
+  const page = await open(t);
+  const order = page.document
+    .querySelectorAll("#shipped-build,#shiplog-proof,#deployment-status,#releases-title,#release-count,#release-search,#release-status,#release-decision,#release-decision-status-all,#release-export,#release-list,#record-release,#release-form-title,#release-version")
+    .map((node) => node.id);
+  assert.deepEqual(order, [
+    "shipped-build",
+    "shiplog-proof",
+    "deployment-status",
+    "releases-title",
+    "release-count",
+    "release-search",
+    "release-status",
+    "release-decision",
+    "release-decision-status-all",
+    "release-export",
+    "release-list",
+    "record-release",
+    "release-form-title",
+    "release-version",
+  ]);
+
+  // Scrolling from the top with the log loaded, a release record arrives before
+  // any field of the recorder does.
+  const records = page.document.querySelectorAll(".release-item,#release-version");
+  assert.ok(records.length > 1, "the log rendered no records to read before the form");
+  assert.ok(records[0].classList.contains("release-item"),
+    "the first thing reached below the log's controls is a form field, not a release");
+});
+
+// Tab order and reading order are the same order because the markup moved, not
+// because a rule reorders the paint. Asserted on the sequence a browser would
+// build, so a CSS-only reordering of these panels would fail here.
+test("tab order reaches the log's controls before the recorder's fields, and adds one stop", async (t) => {
+  const page = await open(t);
+  const sequence = tabSequence(page.document);
+  const at = (id) => sequence.findIndex((node) => node.id === id);
+
+  for (const id of ["release-search", "release-status", "release-decision", "release-decision-status-all", "release-export"]) {
+    assert.ok(at(id) >= 0, `${id} is not in the tab order at all`);
+    assert.ok(at(id) < at("release-version"), `${id} is tabbed to after the recorder's first field`);
+  }
+  // The rows are reached before the form too: one stop for the list, because
+  // the release toggles are the log's own roving widget.
+  const firstToggle = sequence.findIndex((node) => node.classList?.contains?.("release-toggle"));
+  assert.ok(firstToggle >= 0 && firstToggle < at("release-version"),
+    "a release row is not reachable before the recorder's first field");
+
+  // The one tab stop this change adds, and the only one in the hero.
+  const hero = page.document.querySelector(".hero");
+  const heroStops = sequence.filter((node) => isWithin(node, hero));
+  assert.equal(heroStops.length, 1, "the hero gained more than the one jump control");
+  assert.equal(heroStops[0].id, "record-release-link");
+  assert.equal(textOf(heroStops[0]), "Record a release");
+  assert.equal(heroStops[0].getAttribute("href"), "#record-release");
+  // The recorder panel is a focus target, not a stop: it carries tabindex="-1",
+  // so nothing else joined the sequence when it became focusable.
+  assert.equal(sequence.filter((node) => node.id === "record-release").length, 0);
+});
+
+test("the jump control puts focus on the record-a-release form", async (t) => {
+  const page = await open(t);
+  const panel = page.document.querySelector("#record-release");
+  assert.equal(panel.getAttribute("aria-labelledby"), "release-form-title",
+    "the landing region is not named by the form's heading");
+  assert.equal(panel.getAttribute("tabindex"), "-1");
+
+  page.document.querySelector("#record-release-link").click();
+  const focused = page.document.activeElement;
+  assert.ok(focused === panel || isWithin(focused, panel),
+    "activating the jump control left focus outside the recorder");
+  // Focus, not only a scroll: the next Tab is inside the form.
+  assert.ok(isWithin(page.document.querySelector("#release-version"), panel));
 });
 
 test("deep link identifies and expands the same release so its linked decision is visible", async (t) => {

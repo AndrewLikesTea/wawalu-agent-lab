@@ -10,7 +10,7 @@ import {
   focusRelease,
   loadReleases,
   mountReleaseList,
-  releaseCountText,
+  releaseSummarySentence,
   readDecisionFilter,
   releaseFollowUp,
   renderReleaseFollowUp,
@@ -48,6 +48,25 @@ export function initShiplogProof(root, options = {}) {
       ? "Example link copied to clipboard."
       : "Clipboard unavailable. Use the Open this example link to open or copy it.";
     button.disabled = false;
+  });
+}
+
+// The hero's one link to the recorder, which now sits below the whole log.
+//
+// The anchor already carries the address, and #record-release is focusable, so
+// a page with no JavaScript still arrives and still lands: this listener only
+// makes the landing explicit instead of leaving it to each browser's
+// fragment-focus behaviour. Nothing is prevented — the fragment still reaches
+// the URL, so the arrival stays shareable and the back button undoes it — and
+// the destination is the same anchor the deployment check's "Record the release
+// that is running" has always pointed at, so both arrive in one place.
+export function initRecordReleaseJump(root) {
+  const link = root.querySelector("#record-release-link");
+  const panel = root.querySelector("#record-release");
+  if (!link || !panel) return;
+  link.addEventListener("click", () => {
+    panel.focus?.({ preventScroll: true });
+    panel.scrollIntoView?.({ block: "start" });
   });
 }
 
@@ -166,6 +185,7 @@ export function initReleasesPage(root = document, storage = localStorage, option
   const historyRef = options.history ?? globalThis.window?.history;
   if (!container) return;
   initShiplogProof(root, options);
+  initRecordReleaseJump(root);
 
   // The real record of this deployment, painted before anything else on the
   // page: the observatory's "read the releases these pull requests shipped"
@@ -268,7 +288,7 @@ export function initReleasesPage(root = document, storage = localStorage, option
     // One count, from the same computation that rendered the rows, and one
     // follow-up derived from exactly those rows — so the callout can never
     // point at a release the active filter has hidden.
-    if (count) count.textContent = releaseCountText(shown.length, releases.length);
+    if (count) count.textContent = releaseSummarySentence(shown.length, releases.length);
     if (followUpSlot) renderReleaseFollowUp(followUpSlot, releaseFollowUp(shown));
     // Re-read after a record joins the log: recording a release changes which
     // record is newest, and therefore what the verdict is about.

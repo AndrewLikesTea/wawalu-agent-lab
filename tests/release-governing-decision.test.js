@@ -291,7 +291,7 @@ test("the history filter is a labelled select of this log's decisions, operable 
   pressKey(page.document, "ArrowDown");
   assert.equal(select.value, "d-queue", "the selection did not move with the keyboard");
   assert.deepEqual(versions(page), ["v2.0.0", "v1.8.0"]);
-  assert.equal(textOf(page.document.querySelector("#release-count")), "2 of 4 releases");
+  assert.equal(textOf(page.document.querySelector("#release-count")), "Showing 2 of 4 releases, newest first.");
 
   // ...and the narrowed view is addressable, so it can be shared or reloaded.
   assert.equal(replaced.at(-1), "/releases.html?decision=d-queue");
