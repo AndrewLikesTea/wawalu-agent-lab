@@ -317,7 +317,7 @@ test("an unreachable feed is named as such, with a keyboard-reachable retry afte
     // that is what tells them trying again is worth anything.
     assert.match(textOf(page.panel), /The Social feed did not respond\./);
     assert.equal(textOf(page.panel.querySelector(".empty-title")), "Post could not be opened");
-    assert.equal(textOf(page.panel.querySelector(".detail-state-feed")), "Open the full Social feed");
+    assert.equal(textOf(page.panel.querySelector(".detail-state-feed")), "Read the full Social feed");
     // A word, not just a wash: the state reads with the stylesheet gone.
     assert.equal(textOf(page.panel.querySelector(".detail-state-chip")), "Unreachable");
 
@@ -609,9 +609,9 @@ test("a post with no image renders no image element and no empty frame to hold o
 // can resolve to a post or to nothing at all, and the frame has to read the same
 // either way — so this is asserted in the missing state as well as the loaded
 // one, not just in the state that happens to work.
-const SOCIAL_LINK = "Open the full Social feed";
+const SOCIAL_LINK = "Read the full Social feed";
 const PEOPLE_LINK = "Open People to see Mina Okafor’s other image posts";
-const PUBLISH_LINK = "Open Social to publish a post of your own";
+const PUBLISH_LINK = "Publish a post of your own on Social";
 const CHROME_LINKS = [SOCIAL_LINK, PEOPLE_LINK, PUBLISH_LINK];
 // What each state offers. Social is true whatever the lookup did — the feed
 // exists either way — so it stands in all four. People is offered only where

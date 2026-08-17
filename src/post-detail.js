@@ -18,20 +18,26 @@
 
 // Relative, not root-absolute: this module is imported by `node --test` as well
 // as by the browser, and only a relative specifier resolves in both.
-import { captionFor, countLabel, profileHref } from "./profile.js";
+import { captionFor, countLabel, profileHref, resolveProfileAuthor } from "./profile.js";
 import { renderImageUnavailable } from "./image-description.js";
 import { pageTitle, recordTitle } from "./page-title.js";
-import { normalizeImage } from "./social.js";
+import { DEFAULT_AUTHOR, normalizeImage } from "./social.js";
 
 // The three routes out of a permalink, named once and shipped in src/post.html.
 //
-// Neither is a "back". A permalink is the one page in this product a visitor can
-// meet cold — pasted into a chat window, opened by someone who has never seen
-// Social — and there is nothing behind them to return to. So both links point
-// forward, name their destination, and say what is there, in the verb the two
-// feed pages already use for each other ("Open People when you want…", "Open
-// Social when you want…"). The label says People, not Profile: this site has a
-// People page and no page called Profile.
+// None of them is a "back". A permalink is the one page in this product a
+// visitor can meet cold — pasted into a chat window, opened by someone who has
+// never seen Social — and there is nothing behind them to return to. So every
+// link points forward, names its destination, and says what is there. The label
+// says People, not Profile: this site has a People page and no page called
+// Profile.
+//
+// They also have to be told apart at a glance, which is why the two that go to
+// Social no longer open the same way. Both used to begin "Open Social…"/"Open
+// the full Social feed", one verb for two different acts, so a reader scanning
+// the row read the same first word twice and had to finish both lines to learn
+// which was which. Each now leads with the act it performs — reading the feed,
+// or publishing — and the destinations are exactly the ones they always were.
 //
 // The labels are constants because nothing may rewrite them mid-visit. They are
 // pinned against src/post.html, which ships both links. Social stands in all
@@ -45,9 +51,9 @@ import { normalizeImage } from "./social.js";
 // collapsed panel. Its words are about the reader, not about this post, so it
 // stands in every state that has settled — loaded, not-found and error alike.
 export const POST_EXITS = {
-  social: { href: "/social.html", label: "Open the full Social feed" },
+  social: { href: "/social.html", label: "Read the full Social feed" },
   people: { href: "/profile.html" },
-  publish: { href: "/social.html#post-form", label: "Open Social to publish a post of your own" },
+  publish: { href: "/social.html#post-form", label: "Publish a post of your own on Social" },
 };
 const MAX_RETURN_AUTHOR_LENGTH = 60;
 
@@ -66,6 +72,41 @@ export function postPeopleHref(search = "", author = "") {
   const params = new URLSearchParams(String(search).replace(/^\?/, ""));
   const name = String(author || params.get("author") || "").trim();
   return name && name.length <= MAX_RETURN_AUTHOR_LENGTH ? profileHref(name) : POST_EXITS.people.href;
+}
+
+// The display name a loaded post is published under, as this page prints it.
+//
+// A post with no name is not anonymous: src/social.js resolves an empty display
+// name to DEFAULT_AUTHOR at publish time, so the post really was published as
+// "Guest" and that is the name to print. Naming it here rather than in the
+// renderer keeps the printed name and the filter below reading the same value.
+export function postAuthorName(author) {
+  return String(author ?? "").trim() || DEFAULT_AUTHOR;
+}
+
+// Where a loaded post's display name leads: People, filtered to that name — the
+// one step from a forwarded post to the rest of what its author published.
+//
+// The URL is not hand-written. It is built with People's own builder
+// (profileHref), read back the way src/profile-page.js reads its query string,
+// and resolved with People's own resolver, and the link is offered only when the
+// name that comes out the far end is the name that went in. So this page can
+// never emit a link that lands People on a name People would not show: a value
+// that cannot even be encoded into a URL, or one the resolver would answer under
+// somebody else's name, returns "" and the renderer prints the name as text.
+export function postAuthorPeopleHref(author) {
+  const name = postAuthorName(author);
+  let href = "";
+  try {
+    href = profileHref(name);
+  } catch {
+    // encodeURIComponent refuses a lone surrogate. A name this page cannot put
+    // in a URL at all is the clearest case of a round trip that cannot be made.
+    return "";
+  }
+  const echoed = String(new URLSearchParams(href.slice(href.indexOf("?") + 1)).get("author") ?? "");
+  if (!echoed.trim()) return "";
+  return resolveProfileAuthor({ param: echoed }) === name ? href : "";
 }
 
 export function findPostById(posts, id) {
@@ -485,15 +526,26 @@ export function renderPostDetail(container, post, options = {}) {
 
   // The name is a link to that person's People view, and its text is the name
   // itself — not a generic "profile" label. It follows the post content so the
-  // permalink leads with the material the reader opened.
-  const author = String(post.author ?? "").trim();
-  if (author) {
-    const byline = el("p", "detail-byline");
-    const link = el("a", "detail-author-link", author);
-    link.href = profileHref(author);
+  // permalink leads with the material the reader opened. It is the loaded
+  // state's own line: the wait, the not-found state and the failed load have no
+  // post and therefore no display name, and none of them draws a byline at all.
+  //
+  // It is drawn for every loaded post, including one published under no name.
+  // src/social.js stores such a post as DEFAULT_AUTHOR, so "Guest" is not a
+  // placeholder here — it is the name the post was published under, and it
+  // filters People the same way any other name does.
+  const name = postAuthorName(post.author);
+  const authorHref = postAuthorPeopleHref(post.author);
+  // No link when the round trip cannot be honoured (postAuthorPeopleHref).
+  // Plain text says the same true thing about who published this; a link that
+  // landed People on a different name would not.
+  const byline = authorHref ? el("p", "detail-byline") : el("p", "detail-byline", name);
+  if (authorHref) {
+    const link = el("a", "detail-author-link", name);
+    link.href = authorHref;
     byline.append(link);
-    article.append(byline);
   }
+  article.append(byline);
 
   const time = el("time", "post-date detail-date", formatDateTime(post.createdAt));
   time.dateTime = post.createdAt;

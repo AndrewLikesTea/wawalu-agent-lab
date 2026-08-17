@@ -14,6 +14,8 @@ const {
   POST_SKELETON_SLOTS,
   POST_STATES,
   findPostById,
+  postAuthorName,
+  postAuthorPeopleHref,
   resolvePostState,
   postDetailTitle,
   postImageAlt,
@@ -106,6 +108,70 @@ test("the post reads in one order: description, image, caption, name, then time"
   assert.equal(link.tagName, "A");
   assert.equal(link.textContent, "Mina Okafor");
   assert.equal(link.href, "/profile.html?author=Mina%20Okafor");
+});
+
+/* ------------------- the display name, and where it leads ----------------- */
+
+// A post published with no display name was published as "Guest": src/social.js
+// resolves an empty name field to DEFAULT_AUTHOR before the post is ever stored,
+// so "Guest" is the name the post carries rather than a placeholder this page
+// invents for a blank. It therefore reads as a name and links like one — People
+// filters to it the same way it filters to any other, which
+// tests/post-name-to-people-e2e.test.js walks on the People page itself.
+test("a post with no display name reads as Guest and links to People filtered to Guest", () => {
+  for (const author of [undefined, null, "", "   "]) {
+    assert.equal(postAuthorName(author), "Guest");
+    const container = createElement("div");
+    renderPostDetail(container, { ...post, author });
+    const link = first(first(container, "detail-byline"), "detail-author-link");
+    assert.equal(link.tagName, "A");
+    assert.equal(link.textContent, "Guest");
+    assert.equal(link.href, "/profile.html?author=Guest");
+    assert.equal(byClass(container, "detail-author-link").length, 1, "one display name, not a second one for the fallback");
+  }
+  // A name that is only padding is the same case as no name at all, and a real
+  // name is never displaced by the fallback.
+  assert.equal(postAuthorName("  Mina Okafor  "), "Mina Okafor");
+});
+
+// The one rule this link cannot break: it may never land People on a name People
+// would answer under somebody else's. So the destination is not hand-written —
+// it is built with People's builder, read back the way src/profile-page.js reads
+// its query string, and resolved with People's resolver, and it is only offered
+// when the name that comes out is the name that went in.
+test("a display name People could not be filtered to is printed as text, never as a link", () => {
+  // encodeURIComponent refuses a lone surrogate, so this name cannot be put into
+  // a URL at all — the clearest case of a round trip that cannot be made.
+  const author = "Ada \uD800";
+  assert.equal(postAuthorPeopleHref(author), "", "a name that cannot be encoded has no destination");
+
+  const container = createElement("div");
+  renderPostDetail(container, { ...post, author });
+  const byline = first(container, "detail-byline");
+  // The name still reads. Only the promise of somewhere to go is withheld.
+  assert.equal(byline.textContent, author);
+  assert.equal(byClass(container, "detail-author-link").length, 0, "no link may stand behind a name People cannot show");
+  assert.equal(tags(byline, "A").length, 0);
+
+  // Everything People does honour still links, including a name longer than the
+  // author limit: People repeats such a name back verbatim and shows its (empty)
+  // view under it — see tests/people-requested-name.test.js — so this page has no
+  // business refusing what the destination accepts.
+  for (const name of ["Mina Okafor", "Ada Ø’Neil & Co", "Guest", "n".repeat(61)]) {
+    assert.equal(postAuthorPeopleHref(name), `/profile.html?author=${encodeURIComponent(name)}`);
+  }
+});
+
+// Non-colour affordance, read off the shipped stylesheet rather than asserted
+// about a rule this change might have added: the name is underlined, so it is
+// distinguishable from the text around it with colour switched off, and it takes
+// the site's one shared link ring rather than a focus treatment of its own.
+test("the display-name link is underlined and takes the site's shared focus ring", async () => {
+  const css = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
+  const rule = css.match(/^\.detail-author-link \{([^}]*)\}/m)[1];
+  assert.match(rule, /text-decoration:underline/, "more than colour has to tell the name from the words around it");
+  assert.match(css, /,a:focus-visible \{ outline:3px solid var\(--focus-ring\)/, "the site declares one ring for links");
+  assert.doesNotMatch(css, /\.detail-author-link:focus-visible/, "the shared ring is the ring; this link declares no second one");
 });
 
 /* --------------------- the image's accessible name ------------------------ */
@@ -248,7 +314,7 @@ test("a failed load says what happened once, offers a retry, and leaks no error 
   assert.doesNotMatch(failed.textContent, /p-gone|\b[45]\d\d\b|Error:|fetch|TypeError/);
   // The state offers both ways forward: leave for the feed or retry in place.
   assert.match(failed.textContent, /Retry/);
-  assert.equal(first(failed, "detail-state-feed").textContent, "Open the full Social feed");
+  assert.equal(first(failed, "detail-state-feed").textContent, "Read the full Social feed");
   tags(failed, "BUTTON")[0].dispatch("click");
   assert.equal(retried, 1, "a failed load offers a retry");
 });
@@ -398,11 +464,11 @@ test("the post page's two routes out sit after the site frame, and name where th
 
   // Social ships in visible text. People waits for the loaded display name, so
   // loading cannot expose an empty or placeholder name.
-  assert.match(html, /<a class="detail-back detail-page-back" id="post-back" href="\/social\.html">Open the full Social feed<\/a>/);
+  assert.match(html, /<a class="detail-back detail-page-back" id="post-back" href="\/social\.html">Read the full Social feed<\/a>/);
   assert.match(html, /<a class="detail-back detail-page-back" id="post-people" href="\/profile\.html" hidden><\/a>/);
   // The third route ships its words too. It is withheld until the lookup
   // settles, not until a post is found: publishing is the reader's own act.
-  assert.match(html, /<a class="detail-back detail-page-back" id="post-publish" href="\/social\.html#post-form" hidden>Open Social to publish a post of your own<\/a>/);
+  assert.match(html, /<a class="detail-back detail-page-back" id="post-publish" href="\/social\.html#post-form" hidden>Publish a post of your own on Social<\/a>/);
   assert.equal(html.includes("post-back-feed"), false, "the old stacked exit is gone");
   const exits = html.match(/<p class="detail-page-exits">[\s\S]*?<\/p>/)[0];
   assert.doesNotMatch(exits, /aria-label/, "an exit must not depend on aria-label to name its destination");
@@ -431,13 +497,13 @@ test("both destinations ship as constants, and only the People link's target nar
   // The words are fixed. Nothing about a lookup may rewrite them, because they
   // have to read the same before, during and after it.
   assert.deepEqual(POST_EXITS, {
-    social: { href: "/social.html", label: "Open the full Social feed" },
+    social: { href: "/social.html", label: "Read the full Social feed" },
     people: { href: "/profile.html" },
-    publish: { href: "/social.html#post-form", label: "Open Social to publish a post of your own" },
+    publish: { href: "/social.html#post-form", label: "Publish a post of your own on Social" },
   });
   // Both name a destination the nav offers: this site has a People page and no
   // page called Profile, so a link here cannot promise one.
-  assert.equal(POST_EXITS.social.label, "Open the full Social feed");
+  assert.equal(POST_EXITS.social.label, "Read the full Social feed");
 
   // The loaded post's own author wins, then the ?author= profile.js writes into
   // its tiles.
@@ -466,6 +532,30 @@ test("both destinations ship as constants, and only the People link's target nar
   }
 });
 
+// The row a reader scans at the foot of a permalink. Both of these go to
+// Social, and they used to open with the same word — "Open the full Social
+// feed" and "Open Social to publish a post of your own" — so telling them apart
+// meant reading to the end of both lines. Each now leads with the act it
+// performs. The destinations are untouched: this was a label change.
+test("the two routes to Social are told apart by their first word", async () => {
+  const firstWord = (label) => label.split(" ")[0];
+  const feed = POST_EXITS.social.label;
+  const publish = POST_EXITS.publish.label;
+  assert.notEqual(firstWord(feed), firstWord(publish), "a reader scanning the row meets a different word on each line");
+  assert.equal(firstWord(feed), "Read", "one names reading the feed");
+  assert.equal(firstWord(publish), "Publish", "the other names publishing");
+  // Neither reads as a return: nobody arriving on a pasted link has a step to
+  // undo. And neither destination moved.
+  for (const label of [feed, publish]) assert.doesNotMatch(label, /←|Back|^Open/);
+  assert.equal(POST_EXITS.social.href, "/social.html");
+  assert.equal(POST_EXITS.publish.href, "/social.html#post-form");
+
+  // The words ship in the markup, so they are the words before any script runs.
+  const html = await readFile(new URL("../src/post.html", import.meta.url), "utf8");
+  assert.ok(html.includes(`>${feed}</a>`), "the feed label must ship in the markup");
+  assert.ok(html.includes(`>${publish}</a>`), "the publish label must ship in the markup");
+});
+
 /* ------------------------- the page's standing frame ---------------------- */
 
 // Word-for-word with the <p> in src/post.html's hero. It is pinned here because
@@ -487,6 +577,42 @@ const PANEL_STATES = [
 ];
 
 const postPageHtml = () => readFile(new URL("../src/post.html", import.meta.url), "utf8");
+
+// A display name belongs to a post, so only the state that has one may show it.
+// The wait, the missing post and the failed load have nothing to put behind such
+// a link, and each keeps exactly the words it already shipped with — a state does
+// not soften its wording to make room for a control it cannot offer.
+test("only a loaded post shows a display name; the other three states keep their words", () => {
+  const WORDS = {
+    loading: [POST_LOADING_STATUS],
+    missing: ["Post unavailable", "This post can’t be shown."],
+    error: ["Post could not be opened", "The Social feed did not respond."],
+    "id-less": ["Post unavailable", "This link does not point to a post we can show."],
+  };
+  for (const [name, value, options] of PANEL_STATES) {
+    const container = createElement("div");
+    renderPostDetail(container, value, options);
+
+    assert.equal(byClass(container, "detail-author-link").length, name === "loaded" ? 1 : 0,
+      `the ${name} state's display-name link`);
+    // The wait draws a byline too, but it is the placeholder's shape rather than
+    // a name: a <div> slot inside the aria-hidden skeleton, not the loaded
+    // article's <p>. Counting the class alone would let a real name back in.
+    const bylines = byClass(container, "detail-byline");
+    assert.equal(bylines.length, ["loading", "loaded"].includes(name) ? 1 : 0, `the ${name} state's byline`);
+    if (name === "loading") assert.equal(bylines[0].tagName, "DIV", "the wait's byline is a placeholder slot");
+    if (name === "loaded") assert.equal(bylines[0].tagName, "P");
+
+    for (const words of WORDS[name] ?? []) {
+      assert.ok(container.textContent.includes(words), `the ${name} state lost "${words}"`);
+    }
+    // Every state that resolved without a post still offers the feed, in the
+    // label this module owns; the wait offers the standing exit in the page
+    // frame, which tests/post-permalink-states.test.js walks.
+    assert.equal(byClass(container, "detail-state-feed").length, ["missing", "error", "id-less"].includes(name) ? 1 : 0,
+      `the ${name} state's feed action`);
+  }
+});
 
 test("the page identifies one post from the shared demo feed, written once outside the panel", async () => {
   const html = await postPageHtml();
@@ -658,12 +784,12 @@ test("the standing exits remain while unavailable states add a clear feed action
   assert.equal([...html.matchAll(/id="post-people"/g)].length, 1, "one People exit in the markup");
   assert.equal([...html.matchAll(/id="post-publish"/g)].length, 1, "one publish entry point in the markup");
   assert.equal([...html.matchAll(/class="detail-back detail-page-back"/g)].length, 3, "the row, and only the row");
-  assert.equal([...html.matchAll(/<a [^>]*>Open the full Social feed<\/a>/g)].length, 1, "the standing Social label appears once");
+  assert.equal([...html.matchAll(/<a [^>]*>Read the full Social feed<\/a>/g)].length, 1, "the standing Social label appears once");
 
   for (const [name, value, options] of PANEL_STATES) {
     const container = createElement("div");
     renderPostDetail(container, value, options);
-    const backish = tags(container, "A").filter((link) => /Back to|Go to|Open the full/.test(link.textContent));
+    const backish = tags(container, "A").filter((link) => /Back to|Go to|Read the full/.test(link.textContent));
     // Every state that resolved without a post carries the feed action, the
     // id-less one included: it is as much a dead end as a stale id is.
     assert.equal(backish.length, ["missing", "error", "id-less"].includes(name) ? 1 : 0);
