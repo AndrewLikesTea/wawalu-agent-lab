@@ -172,13 +172,13 @@ test("the homepage names the sample data one way and caveats each block once", a
   // #1768: one phrase for one thing, everywhere the front door names it.
   assert.equal(times("bundled synthetic data"), 0,
     "the homepage calls its sample data a bundled synthetic example, not bundled synthetic data");
-  // The long form belongs to the block that has to draw a contrast: this figure
-  // is counted, those are not. Said anywhere else it is a second explanation of
-  // something already explained.
-  assert.equal(times("computed from invented data for an invented company"), 1,
-    "only the counted-figure block spells out what the sample data is made of");
+  // #1836: the counted figure explained itself three times. Only the note in the
+  // readout survives, so the long spell-out of what the sample data is made of
+  // is off the page entirely.
+  assert.equal(times("computed from invented data for an invented company"), 0,
+    "no block spells out a second time what the sample data is made of");
   assert.match(textOf(document.getElementById("public-merges")),
-    /belongs to a bundled synthetic example, computed from invented data for an invented company\. This one is counted from public GitHub activity/);
+    /This block counts merged pull requests in .+, and links the public GitHub event feeds it counts them from\./);
   // The log's proof point keeps its own words: it is describing records, not
   // figures, and it is the one block allowed to say so in its own vocabulary.
   assert.equal(times("These invented records demonstrate Shiplog. They use no customer or production data."), 1);
