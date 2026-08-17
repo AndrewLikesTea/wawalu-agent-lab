@@ -97,6 +97,13 @@ function observatoryFetcher({ record, github }) {
 
 const feed = (payload) => (url) => okResponse(url.includes("paint-lab") ? payload : []);
 
+// The published record this file is about is older than the committed baseline
+// count both surfaces now ship, so the baseline is taken away throughout and
+// these cases stay about the record: what it is, what it is not, and when it may
+// stand in for a live count. The baseline itself is
+// tests/merged-count-baseline.test.js.
+const NO_BASELINE = { baseline: null };
+
 function observatoryRoot() {
   const nodes = {
     "#activity-list": createElement("ol"),
@@ -117,7 +124,7 @@ test("a live response shows the live count and no recorded date, even with a rec
   await loadActivity(root, observatoryFetcher({
     record: () => okResponse(RECORDED),
     github: feed(LIVE_EVENTS),
-  }));
+  }), null, NO_BASELINE);
   // A record that lands after the live count may not overwrite it.
   await flush();
   const readout = root.nodes["#merged-figure-readout"];
@@ -139,7 +146,7 @@ test("a rate-limited response shows the recorded count and the date it was taken
     "a response carrying nothing countable": () => okResponse([]),
   })) {
     const root = observatoryRoot();
-    await loadActivity(root, observatoryFetcher({ record: () => okResponse(RECORDED), github }));
+  await loadActivity(root, observatoryFetcher({ record: () => okResponse(RECORDED), github }), null, NO_BASELINE);
     await flush();
     const readout = root.nodes["#merged-figure-readout"];
 
@@ -165,7 +172,7 @@ test("the recorded count keeps the GitHub feed links beside it on the shipped pa
   await loadActivity(document, observatoryFetcher({
     record: () => okResponse(RECORDED),
     github: () => RATE_LIMITED,
-  }));
+  }), null, NO_BASELINE);
   await flush();
 
   const figure = document.querySelector("#merged-figure");
@@ -185,7 +192,7 @@ test("no record and no answer is the home page's two sentences, no figure, and t
   await loadActivity(document, observatoryFetcher({
     record: () => ({ ok: false, status: 404 }),
     github: () => RATE_LIMITED,
-  }));
+  }), null, NO_BASELINE);
 
   const figure = document.querySelector("#merged-figure");
   const readout = document.querySelector("#merged-figure-readout");
@@ -236,7 +243,7 @@ test("a garbled record file falls through to the sentence rather than throwing",
   await loadActivity(root, observatoryFetcher({
     record: () => ({ ok: true, status: 200, json: async () => { throw new SyntaxError("not JSON"); } }),
     github: () => RATE_LIMITED,
-  }));
+  }), null, NO_BASELINE);
 
   assert.equal(root.nodes["#merged-figure"].dataset.state, "unavailable");
   assert.doesNotMatch(root.nodes["#merged-figure-readout"].textContent, /\d/);
@@ -249,7 +256,7 @@ test("the record is read before the live request resolves, so a spinner is never
   const load = loadActivity(root, observatoryFetcher({
     record: () => okResponse(RECORDED),
     github: (url) => (url.includes("paint-lab") ? pending : okResponse([])),
-  }));
+  }), null, NO_BASELINE);
 
   // The record has answered and GitHub has not: the reader is already looking at
   // a dated number rather than "Counting…".

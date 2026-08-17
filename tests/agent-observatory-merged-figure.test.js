@@ -81,6 +81,12 @@ const okResponse = (payload) => ({
 // fixture, so a doubled payload cannot quietly double the count.
 const githubFetcher = (payload) => async (url) => okResponse(url.includes("paint-lab") ? payload : []);
 
+// The committed baseline count is taken away wherever this file asserts that a
+// failed request leaves NO digit: the shipped page carries one, so the state
+// with nothing at all is reachable here only by removing it. That the baseline
+// is what a real first visit gets instead is tests/merged-count-baseline.test.js.
+const NO_BASELINE = { baseline: null };
+
 function observatoryRoot() {
   const nodes = {
     "#activity-list": createElement("ol"),
@@ -165,9 +171,22 @@ test("the count reads live public events only — never bundled, demo, or person
   assert.equal(countMergedPullRequests("not a list"), 0);
 });
 
+test("a merge public GitHub reports as \"merged\" is a merge, and a close is still not one", () => {
+  // The feeds these repositories publish now send `action: "merged"` with the
+  // slim pull-request payload, which carries no `merged` flag at all — so a rule
+  // that read only that flag counted none of today's merges and the live figure
+  // was structurally zero. Both shapes are the API's own word for a merge and
+  // both count; a close that merged nothing still counts for nothing.
+  const merged = { ...pullRequestEvent({ number: 201, merged: undefined }), payload: { action: "merged", number: 201, pull_request: { number: 201 } } };
+  const closed = { ...pullRequestEvent({ number: 202, merged: false }) };
+  assert.equal(countMergedPullRequests([merged]), 1);
+  assert.equal(countMergedPullRequests([closed]), 0);
+  assert.equal(countMergedPullRequests([merged, closed, pullRequestEvent({ number: 203, merged: true })]), 2);
+});
+
 test("the synthetic rows the page falls back to never reach the headline slot", async () => {
   const root = observatoryRoot();
-  await loadActivity(root, async () => ({ ok: false, status: 503 }));
+  await loadActivity(root, async () => ({ ok: false, status: 503 }), null, NO_BASELINE);
 
   // The four representative rows are on screen — and the figure is still empty.
   assert.equal(root.nodes["#activity-list"].textContent.includes("Scope the observatory fallback"), true);
@@ -190,7 +209,7 @@ test("no number survives a GitHub failure, whatever the failure is", async () =>
 
   for (const [name, [fetcher, reason]] of Object.entries(failures)) {
     const root = observatoryRoot();
-    await loadActivity(root, fetcher);
+    await loadActivity(root, fetcher, null, NO_BASELINE);
     const readout = root.nodes["#merged-figure-readout"];
 
     assert.equal(root.nodes["#merged-figure"].dataset.state, "unavailable", name);
@@ -245,7 +264,7 @@ test("a failed refresh clears the previous count instead of keeping a stale one"
   await loadActivity(root, githubFetcher(LIVE_EVENTS));
   assert.equal(first(root.nodes["#merged-figure-readout"], "merged-figure-count").textContent, "3");
 
-  await loadActivity(root, async () => ({ ok: false, status: 500 }));
+  await loadActivity(root, async () => ({ ok: false, status: 500 }), null, NO_BASELINE);
   assert.doesNotMatch(root.nodes["#merged-figure-readout"].textContent, /\d/,
     "a previous response's count must not outlive the response");
 });
@@ -292,7 +311,7 @@ test("the block says the merges are the work that built this site, and links the
   // the state with nothing to show is the one this sentence is written for.
   const offline = await loadPage(PAGE_URL, { storage: {} });
   t.after(() => offline.restore());
-  await loadActivity(offline.document, async () => { throw new Error("offline"); });
+  await loadActivity(offline.document, async () => { throw new Error("offline"); }, null, NO_BASELINE);
   const settled = offline.document.querySelector("#merged-figure-note");
   assert.equal(offline.document.querySelector("#merged-figure").dataset.state, "unavailable");
   assert.match(textOf(settled), NOTE_PHRASE);

@@ -50,13 +50,31 @@ export function liveGithubEvents(records = [], excluded = NOTHING_EXCLUDED) {
   ));
 }
 
+/**
+ * One event, and whether it is a merge — merges only, and never a close.
+ *
+ * Public GitHub says a merge happened in two shapes, and both are the API's own
+ * word for it rather than an inference of ours:
+ *
+ *   action "merged"  — what the public events feed sends for these repositories
+ *                      now. Its `pull_request` is the slim form and carries no
+ *                      `merged` flag at all, so a rule that reads only that flag
+ *                      counts none of them.
+ *   action "closed" with `pull_request.merged === true` — the older shape, still
+ *                      accepted, and the reason a close that merged nothing is
+ *                      still not counted.
+ *
+ * They are alternatives, not stages: a merged pull request produces one terminal
+ * event, so a merge is counted once.
+ */
+export const isMergedPullRequest = (event) => event?.type === "PullRequestEvent" && (
+  event.payload?.action === "merged"
+  || (event.payload?.action === "closed" && event.payload?.pull_request?.merged === true)
+);
+
 /** Merged pull requests among live public GitHub events. Merges only. */
 export function countMergedPullRequests(records = [], excluded = NOTHING_EXCLUDED) {
-  return liveGithubEvents(records, excluded).filter((event) => (
-    event.type === "PullRequestEvent"
-    && event.payload?.action === "closed"
-    && event.payload?.pull_request?.merged === true
-  )).length;
+  return liveGithubEvents(records, excluded).filter(isMergedPullRequest).length;
 }
 
 /** The words that go beside the digit, so one count is never two labels. */

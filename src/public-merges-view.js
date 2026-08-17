@@ -41,6 +41,10 @@ import {
   readRetainedCount,
   writeRetainedCount,
 } from "./merged-count-retention.js";
+// The count a browser that has never been here still has: committed to the
+// repository and shipped in this module's own import graph, so it needs no
+// request and no store to be on screen in the first paint.
+import { BASELINE_RECORD, resolveMergedCount } from "./merged-count-baseline.js";
 
 function appendText(parent, tag, text) {
   const node = document.createElement(tag);
@@ -145,22 +149,35 @@ export function renderPublicMergeSources(root = document) {
 }
 
 /**
- * The links first, then whatever this browser already knows, then the count once
+ * The links first, then the best earlier count there is, then the count once
  * GitHub has answered either way.
  *
- * The retained figure is painted before the request resolves on purpose: a
+ * The earlier figure is painted before the request resolves on purpose: a
  * rate-limited reader gets a dated number to read while the live request is
  * still in flight, rather than a sentence that is about to be replaced by the
  * same sentence. A live response then overwrites it and is written back, so the
  * next visit starts from this response rather than an older one.
+ *
+ * "The best earlier count" is decided in one place, by `resolveMergedCount`: the
+ * later of this browser's retained count and the committed baseline. The
+ * baseline is why a first-time visitor whose request fails still gets a dated
+ * number instead of the sentence saying there is none. It is a static import, so
+ * it is here before the first paint — nothing is fetched and nothing is read
+ * from storage to have it. It stays overridable so a test can take it away and
+ * exercise the state where a page truly has nothing.
  */
-export async function loadPublicMerges(root = document, fetcher = fetch, storage = browserCountStorage()) {
+export async function loadPublicMerges(root = document, fetcher = fetch, storage = browserCountStorage(),
+  { baseline = BASELINE_RECORD } = {}) {
   renderPublicMergeSources(root);
-  const retained = readRetainedCount(storage);
-  if (retained) renderPublicMerges(root, { ok: false, reason: UNAVAILABLE_REASONS.pending, retained });
+  const cached = readRetainedCount(storage);
+  const earlier = resolveMergedCount({ cached, baseline });
+  if (earlier) renderPublicMerges(root, { ok: false, reason: UNAVAILABLE_REASONS.pending, retained: earlier });
   const result = await loadMergedCount(fetcher);
   if (result.ok) writeRetainedCount(storage, result);
-  renderPublicMerges(root, { ...result, retained });
+  // One number: the live one when there is one, and otherwise the single
+  // earlier record resolved above — never both, and never a second-best beside
+  // a best.
+  renderPublicMerges(root, { ...result, retained: earlier });
   return result;
 }
 

@@ -17,6 +17,14 @@
 //
 // Every fetch and every storage here is a stub. Nothing in this file reaches the
 // network or a real browser store.
+//
+// THE BASELINE IS TAKEN AWAY ON PURPOSE HERE. Both surfaces now also ship a
+// committed baseline count (src/merged-count-baseline.js), which is newer than
+// this file's fixtures and would win every comparison in it — so these cases
+// pass `baseline: null` and test the layer beneath it: what this browser
+// remembers, and what is left when it remembers nothing. The shipped behaviour
+// of a first visit, where the baseline is present, is
+// tests/merged-count-baseline.test.js.
 
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -94,6 +102,9 @@ const feedLinks = (document) => document.querySelector("#public-merges-sources")
 const readoutOf = (document) => document.querySelector("#public-merges-readout");
 const flush = () => new Promise((resolve) => setImmediate(resolve));
 
+/** No committed baseline, so these cases see exactly what this browser kept. */
+const NO_BASELINE = { baseline: null };
+
 // --- the home page ---------------------------------------------------------
 
 test("a live count is shown with the moment it was taken, and remembered", async (t) => {
@@ -124,7 +135,7 @@ test("a live count is shown with the moment it was taken, and remembered", async
 test("a failed request shows the retained count, says it is not live, and dates it", async (t) => {
   const page = await loadPage(HOME_URL, { storage: stored(retainedJson()) });
   t.after(() => page.restore());
-  const result = await loadPublicMerges(page.document, rateLimited, page.storage);
+  const result = await loadPublicMerges(page.document, rateLimited, page.storage, NO_BASELINE);
 
   assert.equal(result.ok, false, "nothing about this run reached a live count");
   const section = page.document.querySelector("#public-merges");
@@ -157,7 +168,7 @@ test("a failed request shows the retained count, says it is not live, and dates 
 test("a retained zero is a real answer and is shown like any other count", async (t) => {
   const page = await loadPage(HOME_URL, { storage: stored(retainedJson(0)) });
   t.after(() => page.restore());
-  await loadPublicMerges(page.document, rateLimited, page.storage);
+  await loadPublicMerges(page.document, rateLimited, page.storage, NO_BASELINE);
 
   assert.equal(page.document.querySelector("#public-merges").dataset.state, "retained");
   assert.match(textOf(readoutOf(page.document)), /^0 merged pull requests/);
@@ -166,7 +177,7 @@ test("a retained zero is a real answer and is shown like any other count", async
 test("a failed request with nothing stored keeps the honest empty wording", async (t) => {
   const page = await loadPage(HOME_URL, {});
   t.after(() => page.restore());
-  await loadPublicMerges(page.document, rateLimited, page.storage);
+  await loadPublicMerges(page.document, rateLimited, page.storage, NO_BASELINE);
 
   const section = page.document.querySelector("#public-merges");
   assert.equal(section.dataset.state, "unavailable");
@@ -202,7 +213,7 @@ for (const [what, value] of Object.entries(UNUSABLE)) {
 
     const page = await loadPage(HOME_URL, { storage: stored(value) });
     t.after(() => page.restore());
-    await loadPublicMerges(page.document, rateLimited, page.storage);
+    await loadPublicMerges(page.document, rateLimited, page.storage, NO_BASELINE);
 
     const section = page.document.querySelector("#public-merges");
     assert.equal(section.dataset.state, "unavailable", what);
@@ -265,7 +276,7 @@ test("of two dated counts, the later one is the one a reader is shown", () => {
 test("the observatory writes the live count and reads it back when GitHub stops answering", async (t) => {
   const first_ = await loadPage(OBSERVATORY_URL, {});
   t.after(() => first_.restore());
-  await loadActivity(first_.document, answering, first_.storage);
+  await loadActivity(first_.document, answering, first_.storage, NO_BASELINE);
   await flush();
 
   assert.equal(first_.document.querySelector("#merged-figure").dataset.state, "live");
@@ -275,7 +286,7 @@ test("the observatory writes the live count and reads it back when GitHub stops 
   // The next visit, with the same browser store and a GitHub that declines.
   const later = await loadPage(OBSERVATORY_URL, { storage: stored(JSON.stringify(kept)) });
   t.after(() => later.restore());
-  await loadActivity(later.document, rateLimited, later.storage);
+  await loadActivity(later.document, rateLimited, later.storage, NO_BASELINE);
   await flush();
 
   const figure = later.document.querySelector("#merged-figure");
@@ -296,7 +307,7 @@ test("the observatory writes the live count and reads it back when GitHub stops 
 test("the observatory with an unusable stored value states that nothing was ever counted", async (t) => {
   const page = await loadPage(OBSERVATORY_URL, { storage: stored("{ not json") });
   t.after(() => page.restore());
-  await loadActivity(page.document, rateLimited, page.storage);
+  await loadActivity(page.document, rateLimited, page.storage, NO_BASELINE);
   await flush();
 
   const figure = page.document.querySelector("#merged-figure");
@@ -319,7 +330,7 @@ test("the retained figure is on screen before GitHub has answered at all", async
   const load = loadActivity(page.document, async (url) => {
     if (url.includes("paint-lab")) return held;
     return url.includes("api.github.com") ? okResponse([]) : { ok: false, status: 404 };
-  }, page.storage);
+  }, page.storage, NO_BASELINE);
 
   // No request has resolved, and the block is already a dated number rather
   // than a spinner — which is the whole point of remembering.

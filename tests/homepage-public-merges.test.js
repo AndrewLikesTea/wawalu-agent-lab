@@ -157,6 +157,12 @@ test("the count's verification links are the observatory's, and the feeds it was
 
 // Every way GitHub can fail to answer, and the one thing they must all do:
 // state what happened, in words, and render nothing that looks like a figure.
+// The committed baseline count is taken away in every case below that asserts a
+// failed or in-flight request leaves NO digit: the shipped block carries one, so
+// "nothing at all" is reachable here only by removing it. What a real first
+// visit gets instead is tests/merged-count-baseline.test.js.
+const NO_BASELINE = { baseline: null };
+
 const FAILURES = [
   ["a rate limit", async () => ({ ok: false, status: 403 }), UNAVAILABLE_REASONS.rateLimited],
   ["a server error", async () => ({ ok: false, status: 500 }), UNAVAILABLE_REASONS.errorStatus],
@@ -172,7 +178,7 @@ for (const [what, fetcher, reason] of FAILURES) {
   test(`${what} leaves a plain reason and no digit at all`, async (t) => {
     const page = await loadPage(HOME_URL, {});
     t.after(() => page.restore());
-    const result = await loadPublicMerges(page.document, fetcher);
+    const result = await loadPublicMerges(page.document, fetcher, undefined, NO_BASELINE);
 
     assert.equal(result.ok, false);
     assert.equal(result.reason, reason);
@@ -211,7 +217,7 @@ test("a previously taken count keeps both feed links, each still naming its repo
     }) },
   });
   t.after(() => page.restore());
-  const result = await loadPublicMerges(page.document, async () => ({ ok: false, status: 403 }), page.storage);
+  const result = await loadPublicMerges(page.document, async () => ({ ok: false, status: 403 }), page.storage, NO_BASELINE);
 
   assert.equal(result.ok, false, "nothing in this run reached a live count");
   const section = page.document.querySelector("#public-merges");
@@ -234,7 +240,7 @@ test("a previously taken count keeps both feed links, each still naming its repo
 test("the feed links are real anchors a keyboard reaches, after the sentence that sends a reader to them", async (t) => {
   const page = await loadPage(HOME_URL, {});
   t.after(() => page.restore());
-  await loadPublicMerges(page.document, async () => ({ ok: false, status: 403 }));
+  await loadPublicMerges(page.document, async () => ({ ok: false, status: 403 }), undefined, NO_BASELINE);
 
   const links = anchorsIn(page.document.querySelector("#public-merges-sources"));
   assert.equal(links.length, EVENTS_URLS.length);
@@ -273,7 +279,7 @@ test("a response still in flight shows the reason, never a placeholder digit", a
     return okResponse(url.includes("paint-lab") ? LIVE_EVENTS : []);
   };
 
-  const loading = loadPublicMerges(page.document, slow);
+  const loading = loadPublicMerges(page.document, slow, undefined, NO_BASELINE);
   const section = page.document.querySelector("#public-merges");
   assert.equal(section.dataset.state ?? section.getAttribute("data-state"), "unavailable");
   assert.doesNotMatch(textOf(section), /\d/, "a slow response flashed a digit a reader could quote");

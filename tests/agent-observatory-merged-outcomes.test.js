@@ -103,6 +103,12 @@ const storedCount = (count = 412) => ({
  * the repository it goes to. The error branch replacing the block wholesale and
  * taking the links with it is the failure this guards.
  */
+// Every case in this file predates the committed baseline count and is about the
+// two sources beneath it — a live response, and what this browser kept — so the
+// baseline is taken away throughout. Its own outcome, on both surfaces, is
+// tests/merged-count-baseline.test.js.
+const NO_BASELINE = { baseline: null };
+
 function assertSettledShape(document, what) {
   const figure = document.querySelector("#merged-figure");
   assert.doesNotMatch(textOf(figure), /Loading/,
@@ -156,7 +162,7 @@ test("GitHub did not answer: the stored count, its time, and that it is not a li
   t.after(() => page.restore());
   const { document } = page;
 
-  await loadActivity(document, rateLimited, page.storage);
+  await loadActivity(document, rateLimited, page.storage, NO_BASELINE);
   await settle();
 
   assert.equal(document.querySelector("#merged-figure").dataset.state, "recorded");
@@ -180,7 +186,7 @@ test("GitHub did not answer and nothing was ever counted: the home page's wordin
   t.after(() => page.restore());
   const { document } = page;
 
-  await loadActivity(document, rateLimited, page.storage);
+  await loadActivity(document, rateLimited, page.storage, NO_BASELINE);
   await settle();
 
   const readout = document.querySelector("#merged-figure-readout");
@@ -213,7 +219,7 @@ for (const [what, storage, expected] of [
       return okResponse(url.includes("paint-lab") ? MERGES : []);
     });
 
-    const loading = loadActivity(document, silent, page.storage, { settleAfterMs: 1 });
+    const loading = loadActivity(document, silent, page.storage, { settleAfterMs: 1, ...NO_BASELINE });
     const settled = await waitForState(document, (state) => state !== "loading", "settled while GitHub was silent");
     assert.equal(settled, expected, `${what}: the block settled onto the wrong outcome`);
     assertSettledShape(document, `a silent GitHub with ${what}`);
@@ -238,7 +244,7 @@ for (const [what, storage, expected] of [
 async function observatoryReadout(storage) {
   const page = await loadPage(OBSERVATORY_URL, { storage });
   try {
-    await loadActivity(page.document, rateLimited, page.storage);
+    await loadActivity(page.document, rateLimited, page.storage, NO_BASELINE);
     await settle();
     const readout = page.document.querySelector("#merged-figure-readout");
     return { state: page.document.querySelector("#merged-figure").dataset.state, said: readout.querySelectorAll("p").map(textOf) };
@@ -250,7 +256,7 @@ async function observatoryReadout(storage) {
 async function homeReadout(storage) {
   const page = await loadPage(HOME_URL, { storage });
   try {
-    await loadPublicMerges(page.document, async () => ({ ok: false, status: 403 }), page.storage);
+    await loadPublicMerges(page.document, async () => ({ ok: false, status: 403 }), page.storage, NO_BASELINE);
     const readout = page.document.querySelector("#public-merges-readout");
     return { state: page.document.querySelector("#public-merges").dataset.state, said: readout.querySelectorAll("p").map(textOf) };
   } finally {

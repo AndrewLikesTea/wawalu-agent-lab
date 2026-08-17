@@ -34,6 +34,12 @@ import {
   readRetainedCount,
   writeRetainedCount,
 } from "./merged-count-retention.js";
+// The count that is already here on a first visit: committed to the repository
+// and shipped inside this module's own import graph, so a browser that has never
+// loaded this site and cannot reach GitHub still has a real, dated number. The
+// precedence between it, this browser's retained count, and a live response is
+// decided there and not here, so the home page cannot decide it differently.
+import { BASELINE_RECORD, resolveMergedCount } from "./merged-count-baseline.js";
 
 export { EVENTS_URLS, SOURCE_REPOSITORIES, responseTimestamp } from "./public-merges.js";
 const REFRESH_MS = 90_000;
@@ -516,15 +522,22 @@ export const CONNECTION_LABELS = Object.freeze({
 //                with the date and time it was taken shown as text beside the
 //                number, and the words saying it is not a live one.
 //   unavailable  GitHub did not answer and no count has ever been recorded. One
-//                sentence, no digit.
+//                sentence, no digit. A shipped baseline makes this state
+//                unreachable in the browser; it survives because a record can
+//                still be edited into nonsense, and a page with nothing true to
+//                show must still have words for that.
 //
-// A recorded count comes from one of two places, and is a response either way,
-// never a remembered render: the published record at RECORDED_COUNT_URL, which
-// only scripts/record-merged-count.mjs writes and only from a response GitHub
-// returned, and this browser's own retained count, which merged-count-retention
-// .js writes and only from a response this browser received. Whichever was taken
-// later is the one shown. A stale number is therefore always dated, and an
-// undated number can only ever be a live one.
+// A recorded count comes from one of three places, and is a count somebody took
+// from a real response in every one of them, never a remembered render: the
+// committed baseline in ./merged-count-baseline.js, which is a static import and
+// therefore on screen with no request and no store; the published record at
+// RECORDED_COUNT_URL, which only scripts/record-merged-count.mjs writes and only
+// from a response GitHub returned; and this browser's own retained count, which
+// merged-count-retention.js writes and only from a response this browser
+// received. Whichever was taken later is the one shown — by timestamp, not by
+// origin, so a browser holding a months-old answer does not outrank a baseline
+// committed last week. A stale number is therefore always dated, and an undated
+// number can only ever be a live one.
 //
 // It says "merged pull requests" because the response can actually tell a merge
 // apart: a PullRequestEvent closed with `pull_request.merged === true` is a
@@ -722,7 +735,7 @@ function paintRecordedFigure(root, record) {
 export const MERGED_FIGURE_SETTLE_MS = 8_000;
 
 export async function loadActivity(root = document, fetcher = fetch, storage = browserCountStorage(),
-  { settleAfterMs = MERGED_FIGURE_SETTLE_MS } = {}) {
+  { settleAfterMs = MERGED_FIGURE_SETTLE_MS, baseline = BASELINE_RECORD } = {}) {
   const list = root.querySelector("#activity-list");
   const signal = root.querySelector(".signal-card");
   const label = root.querySelector("#connection-label");
@@ -749,11 +762,13 @@ export async function loadActivity(root = document, fetcher = fetch, storage = b
   // rows, or the status card, however slowly it answers. `recorded` is therefore
   // read as "the record, if it is here yet", and the paint below catches up the
   // case where it was not.
-  // This browser's own retained count needs no request at all, so it is read
-  // first and painted first: a reader who has been here before meets a dated
-  // number immediately rather than a spinner. The published file may still beat
-  // it — whichever was taken later is the one a reader is shown.
-  let recorded = readRetainedCount(storage);
+  // Neither the committed baseline nor this browser's own retained count needs a
+  // request, so the later of the two is resolved first and painted first: EVERY
+  // reader — including one whose browser has never loaded this site, which is the
+  // arrival this whole slot kept failing — meets a dated number immediately
+  // rather than a spinner. The published file may still beat both, and whichever
+  // was taken latest is the one a reader is shown.
+  let recorded = resolveMergedCount({ cached: readRetainedCount(storage), baseline });
   paintRecordedFigure(root, recorded);
   readRecordedCount(fetcher).then((record) => {
     recorded = mostRecentRecord(recorded, record);

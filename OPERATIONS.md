@@ -89,6 +89,18 @@
   run at any time, needs no credential, and touches no deployment path; run it
   before a release if the published figure has gone stale. It is deliberately
   not part of `npm run build` — the build must not depend on a third-party API.
+- `src/merged-count-baseline.js` is the count a browser that has never loaded
+  this site still gets. It is a committed record — total, per-repository
+  breakdown, and the UTC moment it was counted — imported statically by both the
+  home page's counted-figure block and the observatory's headline, so it is on
+  screen in the first paint with no request and nothing read from storage. It is
+  refreshed by hand, not by the build and not by a script: take the count again
+  from the two feeds in `src/public-merges.js`, by the rule in
+  `isMergedPullRequest`, and commit the number you observed together with the
+  `Date` header of the response you observed it in. Never round it, never carry
+  it forward, and never edit the total without its breakdown — a test fails if
+  the two stop adding up. A live response always beats it, and this browser's own
+  retained count beats it only when that count was taken later.
 - Releases are immutable commit artifacts. To roll back, use the established
   protected release process to redeploy the last known-good commit artifact,
   verify its manifest, then smoke-test `/healthz`. Do not edit an artifact in
