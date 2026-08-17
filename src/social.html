@@ -341,12 +341,17 @@
                    has not happened, explained before the reader has typed
                    anything — and left out the one number they cannot see, which
                    is the limit the counter below counts down from.
+                   It opened "Required." as well, which is the marker in the
+                   label directly above it said a second time: the field is
+                   required once, in the parenthetical every other field in this
+                   form uses, and the hint carries only the number the label
+                   cannot.
                    Named by the textarea's own aria-describedby, ahead of the
                    counter, the way Display name names its own hint. -->
               <label for="post-body">Post <span class="label-optional label-required">(required)</span></label>
               <textarea id="post-body" name="body" rows="4" maxlength="280" required
                 aria-describedby="post-body-hint post-counter-label post-counter"></textarea>
-              <span class="hint" id="post-body-hint">Required. Up to 280 characters.</span>
+              <span class="hint" id="post-body-hint">Up to 280 characters.</span>
               <p class="counter-row">
                 <span id="post-counter-label">Characters remaining:</span>
                 <span id="post-counter" aria-live="polite" aria-atomic="true">280</span>
@@ -381,26 +386,45 @@
                    leaving. It was one run-on sentence carrying four steps and
                    the file rule besides, which is unscannable at the moment a
                    reader is trying to follow it; it is an ordered list element
-                   now, one step per item, in the order they are taken, ending on
-                   the control's own label, because it used to stop at the Paint
-                   link and leave a visitor standing in a second tab with a
-                   drawing and no next move. The rule above and these steps are
-                   both named by the file input's own aria-describedby, in the
-                   order they are met, so focusing Choose image reads them; and
-                   nothing folds either away — no disclosure widget, no hover, no
-                   script — because a reader who needs them needs them first. -->
+                   now, one step per item, in the order they are taken, because
+                   it used to be a single run-on that stopped at the Paint link
+                   and left a visitor standing in a second tab with a drawing and
+                   no next move. It ends on returning to this tab: a fourth step
+                   read "Select Choose image", whose entire content was the name
+                   of the button sitting directly above it, so the list spent its
+                   last line telling a reader to press a control already in front
+                   of them. The rule above and these steps are both named by the
+                   file input's own aria-describedby, in the order they are met,
+                   so focusing Choose image reads them; and nothing folds either
+                   away — no disclosure widget, no hover, no script — because a
+                   reader who needs them needs them first. -->
               <ol class="hint" id="post-image-steps">
                 <li><a class="secondary-button paint-link" href="/paint/" target="_blank" rel="noopener">Create an image in Paint <span class="new-tab-note">(opens in a new tab)</span> <span aria-hidden="true">↗</span></a></li>
                 <li>Export the PNG</li>
                 <li>Return to this tab</li>
-                <li>Select Choose image</li>
               </ol>
               <div class="compose-media" id="compose-media" hidden>
+                <!-- One name for the image the visitor chose. This region used to
+                     give it two, a caption below the picture reading "Preview
+                     before posting" under a heading reading "Image to publish",
+                     so a single file was announced twice in two different nouns
+                     — three, counting the "Image (optional)" legend above them
+                     both. The heading survives, because it is the one that
+                     echoes the field label and names the file rather than the
+                     act of looking at it, and src/social-page.js rewrites it on
+                     every selection. -->
                 <div class="compose-media-head">
                   <p><span class="source-shape" aria-hidden="true"></span><strong id="compose-media-source">Image to publish</strong></p>
                   <button class="text-button" id="remove-image" type="button">Remove image</button>
                 </div>
-                <figure class="compose-preview">
+                <!-- Named by the heading above it rather than by its own
+                     caption: a figure takes its accessible name from its
+                     figcaption, and that caption is where src/social-page.js
+                     writes the chosen file's dimensions and size, which is a
+                     measurement and not a name. aria-labelledby points the
+                     figure at the surviving noun, so the preview is announced in
+                     the same words the reader sees over it. -->
+                <figure class="compose-preview" aria-labelledby="compose-media-source">
                   <div class="compose-preview-frame" id="compose-preview-frame" data-state="loading">
                     <img id="compose-preview-image" alt="" />
                     <!-- Ships empty. It carried the failure sentence in the
@@ -413,7 +437,13 @@
                          same styling, and clears it when a preview succeeds. -->
                     <p id="compose-preview-error" hidden></p>
                   </div>
-                  <figcaption id="compose-preview-caption">Preview before posting</figcaption>
+                  <!-- Ships empty. Authored, it read "Preview before posting" —
+                       a second name for the image already named above it — and
+                       src/social-page.js overwrites it with the file's
+                       dimensions and size the moment one is chosen, so the
+                       authored words were never on screen beside a picture
+                       anyway. -->
+                  <figcaption id="compose-preview-caption"></figcaption>
                 </figure>
                 <!-- The requirement marker is the same span, in the same place,
                      with the same class as the "(optional)" markers on Display
