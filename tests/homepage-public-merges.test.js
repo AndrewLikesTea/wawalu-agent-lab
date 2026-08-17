@@ -302,15 +302,15 @@ test("the document a visitor is served authors no figure and no link of its own"
   assert.match(html, /<script type="module" src="\/public-merges-view\.js">/,
     "the home page must load the module that paints the count");
 
-  // The block says which kind of number this is, in the words this page already
-  // uses for the invented ones, and the invented ones keep their own labels.
-  const boundary = textOf(section);
-  assert.match(boundary, /counted from public GitHub activity/i);
-  assert.match(boundary, /bundled synthetic example/);
-  // Read off this block rather than off the hero: the hero's lead now says the
-  // example is synthetic in three words and once (#1767), so the full sentence
-  // is pinned where the counted figure needs the contrast drawn.
-  assert.match(boundary, /belongs to a bundled synthetic example, computed from invented data for an invented company/);
+  // #1836: the block explains itself once, in the note that sits with the
+  // figure. The eyebrow and the closing paragraph that said the same thing twice
+  // more are deleted, and no prose here narrates the states the status region
+  // announces for itself.
+  const block = textOf(section);
+  assert.match(block, /counts merged pull requests in AndrewLikesTea\/paint-lab and AndrewLikesTea\/wawalu-agent-lab/);
+  assert.match(block, /links the public GitHub event feeds it counts them from/);
+  assert.doesNotMatch(block, /Counted, not invented|bundled synthetic example/);
+  assert.doesNotMatch(block, /does not answer|has never been one|earlier count/i);
   assert.match(html, /<strong>Example records<\/strong>/);
 });
 

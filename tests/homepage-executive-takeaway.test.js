@@ -9,6 +9,7 @@ import {
 } from "../src/homepage-executive-takeaway.js";
 import { analyzedPeriodPhrase, EXAMPLE_MONTHS, reportingWindow } from "../src/analyzed-period.js";
 import { loadExampleDataset } from "../src/example-dataset.js";
+import { COUNTED_SUBJECT_SENTENCE } from "../src/public-merges.js";
 import { onRequest } from "../functions/api/leads.js";
 import { createTestD1 } from "./support/d1-sqlite.js";
 import { buildStandHeadline } from "../src/finops-stand.js";
@@ -172,16 +173,36 @@ test("the homepage names the sample data one way and caveats each block once", a
   // #1768: one phrase for one thing, everywhere the front door names it.
   assert.equal(times("bundled synthetic data"), 0,
     "the homepage calls its sample data a bundled synthetic example, not bundled synthetic data");
-  // The long form belongs to the block that has to draw a contrast: this figure
-  // is counted, those are not. Said anywhere else it is a second explanation of
-  // something already explained.
-  assert.equal(times("computed from invented data for an invented company"), 1,
-    "only the counted-figure block spells out what the sample data is made of");
+  // #1836: the counted figure explained itself three times. Only the note in the
+  // readout survives, so the long spell-out of what the sample data is made of
+  // is off the page entirely.
+  assert.equal(times("computed from invented data for an invented company"), 0,
+    "no block spells out a second time what the sample data is made of");
   assert.match(textOf(document.getElementById("public-merges")),
-    /belongs to a bundled synthetic example, computed from invented data for an invented company\. This one is counted from public GitHub activity/);
+    /This block counts merged pull requests in .+, and links the public GitHub event feeds it counts them from\./);
   // The log's proof point keeps its own words: it is describing records, not
   // figures, and it is the one block allowed to say so in its own vocabulary.
   assert.equal(times("These invented records demonstrate Shiplog. They use no customer or production data."), 1);
+
+  // #1836, the whole point: the counted figure is explained once on the rendered
+  // page, in the shared module's sentence, and nowhere else.
+  assert.equal(times(COUNTED_SUBJECT_SENTENCE), 1,
+    "the counted figure must be explained exactly once on the homepage");
+  assert.equal(times("Counted, not invented"), 0, "the eyebrow repeated the note above it");
+  assert.equal(times("The one counted figure on this page"), 0,
+    "the closing region repeated the note a third time");
+
+  // And the states the status line announces for itself are described nowhere
+  // but inside that status line: every page-wide occurrence must be one of its
+  // own. Prose that narrates them in advance is prose that goes stale.
+  const readout = textOf(document.getElementById("public-merges-readout"));
+  for (const phrase of [
+    "has not answered", "did not answer", "does not answer",
+    "never been one", "last count this browser took", "earlier count",
+  ]) {
+    assert.equal(times(phrase), readout.split(phrase).length - 1,
+      `"${phrase}" describes the counted figure's states outside its status line`);
+  }
 });
 
 async function openContextualFollowUp(t, request) {
