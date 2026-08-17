@@ -323,12 +323,35 @@ test("the button-shaped routes into Paint carry one arrow, and it is the leaves-
 // file is actually chosen, names the way into Paint and the rule the file has
 // to meet — in the page as served, one fact per sentence.
 
+// #1826: the chosen image answered to two names a line apart — "Image to
+// publish" over the picture and "Preview before posting" under it — beneath a
+// legend that had already called it an image. One name survives, and it is the
+// one that echoes the legend and names the file rather than the act of looking
+// at it. The caption element stays, because src/social-page.js writes the
+// file's dimensions and size into it, and it ships with nothing in it.
 test("the image control and chosen-image state name the action and pending result", () => {
   const control = documents.Social.querySelector('label[for="post-image"]');
   assert.equal(textOf(control), "Choose image");
   assert.equal(textOf(documents.Social.getElementById("compose-media-source")), "Image to publish");
   assert.equal(textOf(documents.Social.getElementById("remove-image")), "Remove image");
-  assert.equal(textOf(documents.Social.getElementById("compose-preview-caption")), "Preview before posting");
+  assert.equal(textOf(documents.Social.getElementById("compose-preview-caption")), "");
+
+  // The chosen image is named once in the region that holds it, and the second
+  // name is gone from the page entirely — attributes included, so it cannot
+  // survive as a stale aria-label.
+  const region = textOf(documents.Social.getElementById("compose-media"));
+  assert.equal(region.split("Image to publish").length - 1, 1,
+    `the chosen image is named more than once: ${region}`);
+  assert.equal(textOf(documents.Social.querySelector("body")).split("Preview before posting").length - 1, 0);
+  assert.doesNotMatch(sources.Social.replace(/<!--[\s\S]*?-->/g, ""), /Preview before posting/);
+
+  // The preview keeps an accessible name, and it is the surviving noun: a figure
+  // is named by its figcaption, and that caption is a measurement now, so the
+  // figure points at the heading above it instead.
+  const figure = documents.Social.querySelector(".compose-preview");
+  assert.equal(figure.getAttribute("aria-labelledby"), "compose-media-source");
+  assert.equal(textOf(documents.Social.getElementById(figure.getAttribute("aria-labelledby"))),
+    "Image to publish");
 });
 
 // #1818: the four steps were one run-on sentence, and it carried the file rule
@@ -340,19 +363,23 @@ test("the composer numbers the round trip and puts the rule beside the control",
   const hint = documents.Social.getElementById("post-image-hint");
   assert.ok(steps, "the composer names no steps at all");
 
-  // (a) Four discrete steps, in the order a reader takes them, marked up as an
+  // (a) The discrete steps, in the order a reader takes them, marked up as an
   // ordered list so the count and the position come from the markup rather than
   // from a reader parsing commas. The list used to stop at the Paint link, which
   // left the reader in a second tab with a drawing and nothing telling them how
   // to get it into this one.
+  // #1826: it no longer ends on "Select Choose image" either. That step's whole
+  // content was the label on the button beside it, so the list closed by telling
+  // a reader to press a control already in front of them.
   assert.equal(steps.tagName, "OL", "the steps are not an ordered list");
   const items = steps.querySelectorAll("li");
   assert.deepEqual(items.map(textOf), [
     "Create an image in Paint (opens in a new tab) ↗",
     "Export the PNG",
     "Return to this tab",
-    "Select Choose image",
   ]);
+  assert.equal(textOf(documents.Social.querySelector("body")).split("Select Choose image").length - 1, 0,
+    "the composer still instructs the reader to select the button beside the instruction");
 
   // (b) The rule is out of the step list and adjacent to the file control: the
   // element immediately after the one holding Choose image, and never inside the
@@ -461,9 +488,12 @@ test("the composer names the round trip in the order it is taken, once", () => {
     "the composer asks for the export before the drawing");
   assert.ok(at("Export the PNG") < at("Return to this tab"),
     "the composer sends the visitor back before they have a file");
-  assert.ok(at("Return to this tab") < at("Select Choose image"),
-    "the composer names the control before the visitor is back in this tab");
-  // The last step names the control by the label the control actually carries.
+  // The list ends there. A fourth step said "Select Choose image", which is the
+  // label on the control beside it and nothing else, so the reader's last
+  // instruction was to press a button they were already looking at. The control
+  // still carries that label; the list no longer repeats it.
+  assert.doesNotMatch(steps, /Select Choose image/,
+    "the steps end by naming the control standing beside them again");
   assert.equal(textOf(documents.Social.querySelector('label[for="post-image"]')), "Choose image");
 
   // Once, in the field where the file is chosen — not restated by the warning,

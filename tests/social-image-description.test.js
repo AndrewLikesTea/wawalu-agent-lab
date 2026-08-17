@@ -229,7 +229,7 @@ test("the missing-description refusal is announced where every other publish out
   assert.match(IMAGE_DESCRIPTION_REFUSAL_NOTE, /—/);
   assert.match(IMAGE_DESCRIPTION_REFUSAL_NOTE, /, and nothing is published\.$/);
   const captionHint = textOf(harness.document.querySelector("#post-body-hint"));
-  assert.equal(captionHint, "Required. Up to 280 characters.");
+  assert.equal(captionHint, "Up to 280 characters.");
 
   // Announced, and then the reader is put where the fix is.
   assert.equal(harness.document.activeElement?.id, "post-image-alt");
@@ -346,7 +346,9 @@ test("the description help states its limit in the caption hint's own form", asy
   const caption = textOf(harness.document.querySelector("#post-body-hint"));
 
   assert.equal(description, "Describe what matters in the image for people who cannot see it. Up to 200 characters.");
-  assert.equal(caption, "Required. Up to 280 characters.");
+  // The post hint is that closing clause and nothing else since #1826: the word
+  // it opened on was the label's own "(required)" marker said a second time.
+  assert.equal(caption, "Up to 280 characters.");
   assert.match(caption, /Up to \d+ characters\.$/);
   assert.match(description, /Up to \d+ characters\.$/);
   // Each field's number is its own maxlength, and the counter still opens on it.

@@ -289,10 +289,12 @@ test("social page is wired, labeled, and linked from the other pages", async () 
   // the refusal an empty post actually meets — is named by the textarea itself.
   assert.match(page, /<label for="post-body">Post <span class="label-optional label-required">\(required\)<\/span><\/label>/);
   assert.match(page, /aria-describedby="post-body-hint post-counter-label post-counter"/);
-  // The rule and the budget, and nothing about what the browser will do to an
-  // empty field: the hint used to narrate a refusal before the reader had typed
-  // anything. The number is the textarea's own maxlength.
-  assert.match(page, /id="post-body-hint">Required\. Up to 280 characters\.<\/span>/);
+  // The budget, and nothing about what the browser will do to an empty field:
+  // the hint used to narrate a refusal before the reader had typed anything. The
+  // number is the textarea's own maxlength. It opened "Required." as well, which
+  // is the label's own parenthetical said twice a line apart (#1826).
+  assert.match(page, /id="post-body-hint">Up to 280 characters\.<\/span>/);
+  assert.doesNotMatch(page, /id="post-body-hint">Required\./);
   assert.doesNotMatch(page, /your browser asks you to fill this in/);
   assert.doesNotMatch(page, /nothing is published\.<\/span>/);
   assert.match(page, /id="post-counter"[^>]*aria-live="polite"/);
@@ -377,9 +379,10 @@ test("the composer describes no failure that has not happened yet", async (t) =>
   assert.equal(page.document.querySelectorAll("#compose-preview-error").length, 1);
   assert.equal(textOf(page.document.querySelector("#compose-preview-error")), "");
 
-  // What the post hint says instead: the rule, and the budget the counter
-  // beside it counts down from.
-  assert.equal(textOf(page.document.querySelector("#post-body-hint")), "Required. Up to 280 characters.");
+  // What the post hint says instead: the budget the counter beside it counts
+  // down from, and only that — the label above it is where the field says it is
+  // required.
+  assert.equal(textOf(page.document.querySelector("#post-body-hint")), "Up to 280 characters.");
   assert.equal(page.document.querySelector("#post-body").getAttribute("maxlength"), "280");
 
   // One offer of Paint on the page, and it is the composer's. The hero carried a
@@ -477,7 +480,16 @@ test("the composer calls its required 280-character text a post throughout", asy
   assert.equal(textOf(composer.querySelector("#post-form-hint")),
     "Write your post. Add an image if you want one — a post with an image also appears on People, under the display name you publish it with.");
   assert.equal(textOf(composer.querySelector('label[for="post-body"]')), "Post (required)");
-  assert.equal(textOf(composer.querySelector("#post-body-hint")), "Required. Up to 280 characters.");
+  assert.equal(textOf(composer.querySelector("#post-body-hint")), "Up to 280 characters.");
+  // #1826: the field said it was required twice — once as the label's
+  // parenthetical, once as the word the hint below it opened on. The
+  // parenthetical is the survivor, because Image, Image description and Display
+  // name all answer "must I fill this in?" in that same span. Counted across the
+  // label and its hint together, so moving the word from one to the other still
+  // fails here.
+  const postField = composer.querySelector('label[for="post-body"]').parentNode;
+  assert.equal(textOf(postField).toLowerCase().split("required").length - 1, 1,
+    `the post field states that it is required more than once: ${textOf(postField)}`);
   assert.equal(textOf(composer.querySelector("#post-submit")), "Publish post →");
   assert.equal(PUBLISH_FAILED_NOTE,
     "Your post, image, and image description are still in the composer, exactly as you left them.");
