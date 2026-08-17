@@ -314,6 +314,35 @@ test("the document a visitor is served authors no figure and no link of its own"
   assert.match(html, /<strong>Example records<\/strong>/);
 });
 
+test("the counted-vs-invented contrast is drawn once, and the block narrates no state", async () => {
+  // #1836: the page said this three times — an eyebrow, the block's own
+  // sentence, and a closing paragraph that also recited what happens when
+  // GitHub does not answer. One explanation stays, next to the figure.
+  const html = await readFile(HOME_URL, "utf8");
+  const document = parseHtml(html);
+  const page = textOf(document.body);
+  const times = (phrase) => page.split(phrase).length - 1;
+
+  assert.equal(times("Every other number here belongs to a bundled synthetic example"), 1,
+    "the home page explains its one counted figure exactly once");
+  assert.equal(times("Counted, not invented"), 0,
+    "the eyebrow said the same thing the explanation says");
+
+  // The status line announces a stale or missing count in its own words, when
+  // it happens. Prose that recites those states ahead of time is a second
+  // explanation of something a reader is not looking at.
+  assert.doesNotMatch(page, /last count this browser took|nothing at all is shown|there has never been one/,
+    "the page must not narrate what happens when public GitHub does not answer");
+
+  // Two sentences, beside the number: what every other figure here is, and
+  // what this one is.
+  const explanation = textOf(document.querySelector("#public-merges")
+    .querySelector(".hero-proof-boundary").querySelectorAll("span")[0]);
+  assert.equal(explanation.split(/(?<=\.)\s+/).filter(Boolean).length, 2,
+    `the explanation runs longer than two sentences: ${explanation}`);
+  assert.match(explanation, /This one is counted from public GitHub activity when the page loads\.$/);
+});
+
 test("the destination list says the observatory is not entirely invented", async () => {
   const html = await readFile(HOME_URL, "utf8");
   const entry = [...parseHtml(html).querySelector(".site-guide").querySelectorAll("li")]
