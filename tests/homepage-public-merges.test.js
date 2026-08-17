@@ -23,7 +23,8 @@ import {
   unavailableSentence,
 } from "../src/public-merges.js";
 import { RETAINED_COUNT_KEY, RETAINED_COUNT_SCHEMA } from "../src/merged-count-retention.js";
-import { loadPublicMerges, renderPublicMergeSources } from "../src/public-merges-view.js";
+import { PR_COUNT_BASELINE } from "../src/pr-count-baseline.js";
+import { loadPublicMerges, renderPublicMergeSources, renderPublicMerges } from "../src/public-merges-view.js";
 import { loadPage, parseHtml, tabSequence, textOf } from "./support/browser.js";
 import { createElement, first, installDocument } from "./support/dom.js";
 
@@ -169,7 +170,13 @@ const FAILURES = [
 ];
 
 for (const [what, fetcher, reason] of FAILURES) {
-  test(`${what} leaves a plain reason and no digit at all`, async (t) => {
+  // Rewritten for #1820. This used to assert that the block held no numeral at
+  // all when GitHub did not answer, which meant a first-time visitor — the one
+  // with the least reason to believe the rest of the page — was shown a sentence
+  // where the site's one checkable figure belongs. The failure still has to name
+  // itself in `result.reason`, and the block now shows the committed baseline:
+  // dated, and saying in its own sentence that it is not live.
+  test(`${what} shows the committed baseline, dated and not claimed as live`, async (t) => {
     const page = await loadPage(HOME_URL, {});
     t.after(() => page.restore());
     const result = await loadPublicMerges(page.document, fetcher);
@@ -177,26 +184,49 @@ for (const [what, fetcher, reason] of FAILURES) {
     assert.equal(result.ok, false);
     assert.equal(result.reason, reason);
     const section = page.document.querySelector("#public-merges");
-    assert.equal(section.dataset.state, "unavailable");
-    // Two sentences, both announced by the live region: the absence, and then
-    // what was being counted. A reader must not be left with the absence alone.
-    const said = page.document.querySelector("#public-merges-readout").querySelectorAll("p").map(textOf);
-    assert.deepEqual(said, [unavailableSentence(reason), COUNTED_SUBJECT_SENTENCE]);
-    assert.match(said[1], /merged pull requests/, `${what} did not say what was being counted`);
+    assert.equal(section.dataset.state, "baseline");
+
+    const readout = page.document.querySelector("#public-merges-readout");
+    const said = readout.querySelectorAll("p").map(textOf);
+    assert.equal(said[0], `${PR_COUNT_BASELINE.total} merged pull requests`, what);
+    assert.match(said[1], /^This is not a live count/, `${what} did not say the figure is an earlier one`);
     for (const repository of SOURCE_REPOSITORIES) assert.ok(said[1].includes(repository));
+    // When it was counted, in the same element a machine reads it from.
+    const [stamp, ...extra] = readout.querySelectorAll("time");
+    assert.equal(extra.length, 0, "one figure, one timestamp");
+    assert.equal(stamp.dateTime, PR_COUNT_BASELINE.countedAt);
+    assert.equal(textOf(stamp), PR_COUNT_BASELINE.countedAt.slice(0, 10));
+    // No live claim anywhere near it.
+    assert.doesNotMatch(textOf(readout), /Counted from public GitHub activity in/, what);
 
     // And the way to check it yourself is still on the page, unchanged: same
-    // feeds, same words, whether or not a number ever arrived.
+    // feeds, same words, whether or not a live number ever arrived.
     const links = anchorsIn(page.document.querySelector("#public-merges-sources"));
     assert.deepEqual(links.map((link) => link.getAttribute("href")), EVENTS_URLS,
       `${what} took the verification links away with the count`);
     assert.deepEqual(links.map(textOf), SOURCE_REPOSITORIES.map(feedLinkText));
-
-    // No zero, no dash standing in for a digit, no remembered figure: the whole
-    // block, links and boundary included, holds no numeral.
-    assert.doesNotMatch(textOf(section), /\d/, `${what} left something a reader could read as a count`);
   });
 }
+
+// The sentences a settled failure used to leave behind are still the words for a
+// block with nothing to show — a render handed no live count, no retained count
+// and no baseline — so they are pinned here rather than deleted with the state.
+test("given no count of any kind, the block says so in two sentences and no digit", () => {
+  const nodes = {
+    "#public-merges": createElement("section"),
+    "#public-merges-readout": createElement("div"),
+  };
+  const root = { nodes, querySelector: (selector) => nodes[selector] ?? null };
+  for (const [, , reason] of FAILURES) {
+    renderPublicMerges(root, { ok: false, reason });
+    assert.equal(nodes["#public-merges"].dataset.state, "unavailable");
+    const said = nodes["#public-merges-readout"].querySelectorAll("p").map((node) => node.textContent);
+    assert.deepEqual(said, [unavailableSentence(reason), COUNTED_SUBJECT_SENTENCE]);
+    assert.match(said[1], /merged pull requests/, "it did not say what was being counted");
+    for (const repository of SOURCE_REPOSITORIES) assert.ok(said[1].includes(repository));
+    assert.doesNotMatch(said.join(" "), /\d/, "something a reader could read as a count was invented");
+  }
+});
 
 // The retained state pins its figure and its hrefs in
 // tests/merged-count-retention.test.js. What it did not pin is the half this
@@ -263,7 +293,7 @@ test("the feed links are real anchors a keyboard reaches, after the sentence tha
     "the way to count it yourself comes before the sentence explaining it");
 });
 
-test("a response still in flight shows the reason, never a placeholder digit", async (t) => {
+test("a response still in flight shows the baseline, and the live count replaces it whole", async (t) => {
   const page = await loadPage(HOME_URL, {});
   t.after(() => page.restore());
   let answer;
@@ -275,15 +305,25 @@ test("a response still in flight shows the reason, never a placeholder digit", a
 
   const loading = loadPublicMerges(page.document, slow);
   const section = page.document.querySelector("#public-merges");
-  assert.equal(section.dataset.state ?? section.getAttribute("data-state"), "unavailable");
-  assert.doesNotMatch(textOf(section), /\d/, "a slow response flashed a digit a reader could quote");
+  // Since #1820 a reader waiting on a slow request reads the committed baseline
+  // rather than a sentence that is about to be replaced. It is a real count with
+  // its own date on it, not a placeholder digit.
+  assert.equal(section.dataset.state ?? section.getAttribute("data-state"), "baseline");
+  assert.match(textOf(page.document.querySelector("#public-merges-readout")),
+    new RegExp(`^${PR_COUNT_BASELINE.total} merged pull requests`));
   // The links are already there, so a reader who gives up waiting can still go
   // and count it themselves.
   assert.equal(anchorsIn(page.document.querySelector("#public-merges-sources")).length, EVENTS_URLS.length);
 
   answer();
   await loading;
-  assert.match(textOf(page.document.querySelector("#public-merges-readout")), /^3 merged pull requests/);
+  const readout = page.document.querySelector("#public-merges-readout");
+  assert.match(textOf(readout), /^3 merged pull requests/);
+  // The live count replaces the earlier one rather than joining it: neither the
+  // baseline figure nor its date is left anywhere on the block.
+  assert.equal(section.dataset.state, "live");
+  assert.doesNotMatch(textOf(section), new RegExp(PR_COUNT_BASELINE.countedAt.slice(0, 10)));
+  assert.doesNotMatch(textOf(readout), /not a live count/);
 });
 
 test("the document a visitor is served authors no figure and no link of its own", async () => {

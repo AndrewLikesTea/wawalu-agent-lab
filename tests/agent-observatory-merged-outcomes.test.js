@@ -27,10 +27,9 @@ import { loadActivity } from "../src/agents.js";
 import {
   EVENTS_URLS,
   SOURCE_REPOSITORIES,
-  UNAVAILABLE_REASONS,
   feedLinkText,
-  unavailableSentences,
 } from "../src/public-merges.js";
+import { PR_COUNT_BASELINE } from "../src/pr-count-baseline.js";
 import {
   RETAINED_COUNT_KEY,
   RETAINED_COUNT_SCHEMA,
@@ -38,6 +37,10 @@ import {
 } from "../src/merged-count-retention.js";
 import { loadPublicMerges } from "../src/public-merges-view.js";
 import { loadPage, textOf } from "./support/browser.js";
+
+// Each page composes its figure to its own layout, so the words are compared
+// with runs of whitespace collapsed rather than character by character.
+const squash = (text) => text.replace(/\s+/g, " ").trim();
 
 const OBSERVATORY_URL = new URL("../src/agents.html", import.meta.url);
 const HOME_URL = new URL("../src/index.html", import.meta.url);
@@ -175,7 +178,10 @@ test("GitHub did not answer: the stored count, its time, and that it is not a li
 
 /* --------------- (c) no answer and nothing was ever counted --------------- */
 
-test("GitHub did not answer and nothing was ever counted: the home page's wording, no digit", async (t) => {
+// Rewritten for #1820. This browser has never counted and GitHub will not
+// answer, which is exactly the arrival this block used to meet with a sentence
+// and no figure. It now meets the count committed in src/pr-count-baseline.js.
+test("GitHub did not answer and this browser never counted: the committed baseline, dated", async (t) => {
   const page = await loadPage(OBSERVATORY_URL, { storage: {} });
   t.after(() => page.restore());
   const { document } = page;
@@ -184,19 +190,22 @@ test("GitHub did not answer and nothing was ever counted: the home page's wordin
   await settle();
 
   const readout = document.querySelector("#merged-figure-readout");
-  assert.equal(document.querySelector("#merged-figure").dataset.state, "unavailable");
-  assert.deepEqual(readout.querySelectorAll("p").map(textOf),
-    unavailableSentences(UNAVAILABLE_REASONS.rateLimited));
-  // No zero, no dash, no remembered figure standing in for a count nobody took.
-  assert.doesNotMatch(textOf(readout), /\d/, "something a reader could quote as a count was left behind");
+  assert.equal(document.querySelector("#merged-figure").dataset.state, "baseline");
+  assert.equal(textOf(document.querySelector(".merged-figure-count")), String(PR_COUNT_BASELINE.total));
+  // Not a live claim, and never undated: the sentence says which kind of number
+  // this is and the time element carries the instant it was taken.
+  assert.match(textOf(readout), /not a live count/);
+  const stamp = document.querySelector(".merged-figure-recorded-date");
+  assert.equal(textOf(stamp), PR_COUNT_BASELINE.countedAt.slice(0, 10));
+  assert.equal(stamp.dateTime, PR_COUNT_BASELINE.countedAt);
 
-  assertSettledShape(document, "a count that was never taken");
+  assertSettledShape(document, "a count that was never taken in this browser");
 });
 
 /* -------------------- a GitHub that never answers at all ------------------ */
 
 for (const [what, storage, expected] of [
-  ["nothing stored", {}, "unavailable"],
+  ["nothing stored", {}, "baseline"],
   ["a stored count", storedCount(), "recorded"],
 ]) {
   test(`a GitHub that never answers still settles the block, with ${what}`, async (t) => {
@@ -258,15 +267,24 @@ async function homeReadout(storage) {
   }
 }
 
-test("the never-counted outcome reads the same on the home page and in the observatory", async () => {
+test("the cold-visitor outcome reads the same on the home page and in the observatory", async () => {
   const observatory = await observatoryReadout({});
   const home = await homeReadout({});
 
-  assert.equal(observatory.state, "unavailable");
-  assert.equal(home.state, "unavailable");
-  assert.deepEqual(observatory.said, home.said,
-    "the two pages describe one outcome — a rate limit and nothing ever counted — in different words");
-  assert.deepEqual(observatory.said, unavailableSentences(UNAVAILABLE_REASONS.rateLimited));
+  // Since #1820 the outcome both pages land on here is the committed baseline
+  // rather than the never-counted sentences, and it has to read the same on both
+  // for the same reason it did before: one order and one set of words, from
+  // src/merged-count-resolution.js.
+  assert.equal(observatory.state, "baseline");
+  assert.equal(home.state, "baseline");
+  // Each page composes the figure to its own layout, so what is compared is the
+  // sentence that qualifies it — as the stored-count case below does.
+  assert.equal(squash(observatory.said[1]), squash(home.said[1]),
+    "the two pages describe one outcome — a rate limit and a cold browser — in different words");
+  assert.match(observatory.said[1], /not a live count/);
+  for (const said of [observatory.said[0], home.said[0]]) {
+    assert.match(squash(said), new RegExp(`^${PR_COUNT_BASELINE.total}\\s*merged pull requests$`));
+  }
 });
 
 test("the stored-count outcome reads the same on the home page and in the observatory", async () => {

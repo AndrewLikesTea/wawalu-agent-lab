@@ -18,7 +18,10 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { UNAVAILABLE_REASONS, feedLinkText, unavailableSentences } from "../src/public-merges.js";
+import {
+  UNAVAILABLE_REASONS, feedLinkText, loadMergedCount, unavailableSentences,
+} from "../src/public-merges.js";
+import { PR_COUNT_BASELINE } from "../src/pr-count-baseline.js";
 import {
   EVENTS_URLS,
   MERGED_FIGURE_COPY,
@@ -169,17 +172,23 @@ test("the synthetic rows the page falls back to never reach the headline slot", 
   const root = observatoryRoot();
   await loadActivity(root, async () => ({ ok: false, status: 503 }));
 
-  // The four representative rows are on screen — and the figure is still empty.
+  // The four representative rows are on screen — and the number beside them is
+  // the committed baseline, not anything counted off those rows. Since #1820 the
+  // slot is never blank, so what is pinned here is which number it holds: the
+  // one in src/pr-count-baseline.js, to the digit.
   assert.equal(root.nodes["#activity-list"].textContent.includes("Scope the observatory fallback"), true);
-  assert.equal(first(root.nodes["#merged-figure-readout"], "merged-figure-count"), null);
+  assert.equal(root.nodes["#merged-figure"].dataset.state, "baseline");
+  assert.equal(first(root.nodes["#merged-figure-readout"], "merged-figure-count").textContent,
+    String(PR_COUNT_BASELINE.total), "the headline counted the synthetic rows");
 });
 
-test("no number survives a GitHub failure, whatever the failure is", async () => {
-  // Each failure gets the clause it actually earned, from the shared module the
-  // home page reads its own empty state out of — so a reader is told what went
-  // wrong rather than one sentence covering five different things, and the two
-  // surfaces cannot describe one outcome differently. A payload that is not a
-  // list of events carries nothing to count, which is the empty answer.
+// Rewritten for #1820: a failure used to leave the slot with no number in it,
+// and the only visitor that reached is the one who has never had an answer from
+// GitHub. Every failure now settles on the committed baseline instead. The
+// clause each failure earns is still pinned — on the result the shared loader
+// returns, which is where the reason is actually decided — and the never-counted
+// sentences are still pinned on the render that has nothing at all to show.
+test("every GitHub failure settles on a dated count and still names what went wrong", async () => {
   const failures = {
     "a network failure": [async () => { throw new Error("offline"); }, UNAVAILABLE_REASONS.unreachable],
     "a non-OK status": [async () => ({ ok: false, status: 503 }), UNAVAILABLE_REASONS.errorStatus],
@@ -193,13 +202,26 @@ test("no number survives a GitHub failure, whatever the failure is", async () =>
     await loadActivity(root, fetcher);
     const readout = root.nodes["#merged-figure-readout"];
 
-    assert.equal(root.nodes["#merged-figure"].dataset.state, "unavailable", name);
-    assert.equal(first(readout, "merged-figure-count"), null, `${name}: no figure element`);
-    assert.doesNotMatch(readout.textContent, /\d/, `${name}: no digit may stand in the headline slot`);
-    assert.deepEqual(tags(readout, "P").map((node) => node.textContent), unavailableSentences(reason),
-      `${name}: it says what happened, and then what was being counted`);
+    assert.equal(root.nodes["#merged-figure"].dataset.state, "baseline", name);
+    assert.equal(first(readout, "merged-figure-count").textContent, String(PR_COUNT_BASELINE.total), name);
+    // Dated, and saying in the sentence itself that it is not a live figure.
+    assert.equal(first(readout, "merged-figure-recorded-date").textContent,
+      PR_COUNT_BASELINE.countedAt.slice(0, 10), name);
+    assert.match(readout.textContent, /not a live count/, `${name}: an earlier count is claimed as live`);
     assert.doesNotMatch(readout.textContent, /Loading/, `${name}: a failure is not still loading`);
+
+    // The clause this failure earned, from the shared module the home page reads
+    // its own empty state out of, so the two surfaces cannot describe one
+    // outcome differently. A payload that is not a list of events carries
+    // nothing to count, which is the empty answer.
+    assert.deepEqual(await loadMergedCount(fetcher), { ok: false, reason }, name);
   }
+
+  // And with nothing to show at all, the words are still the home page's two.
+  const empty = observatoryRoot();
+  renderMergedFigure(empty, "unavailable", { reason: UNAVAILABLE_REASONS.rateLimited });
+  assert.deepEqual(tags(empty.nodes["#merged-figure-readout"], "P").map((node) => node.textContent),
+    unavailableSentences(UNAVAILABLE_REASONS.rateLimited));
 });
 
 test("the figure names its source the way the rest of the observatory names it", () => {
@@ -246,8 +268,14 @@ test("a failed refresh clears the previous count instead of keeping a stale one"
   assert.equal(first(root.nodes["#merged-figure-readout"], "merged-figure-count").textContent, "3");
 
   await loadActivity(root, async () => ({ ok: false, status: 500 }));
-  assert.doesNotMatch(root.nodes["#merged-figure-readout"].textContent, /\d/,
+  const readout = root.nodes["#merged-figure-readout"];
+  // The rule is unchanged and the state it lands in is not: since #1820 a
+  // failure falls to the committed baseline rather than to no number at all.
+  // What may not happen is the previous response's undated count staying put.
+  assert.equal(root.nodes["#merged-figure"].dataset.state, "baseline");
+  assert.equal(first(readout, "merged-figure-count").textContent, String(PR_COUNT_BASELINE.total),
     "a previous response's count must not outlive the response");
+  assert.match(readout.textContent, /not a live count/);
 });
 
 // What the counted merges are, and where to read what they shipped. The claim is
@@ -294,7 +322,9 @@ test("the block says the merges are the work that built this site, and links the
   t.after(() => offline.restore());
   await loadActivity(offline.document, async () => { throw new Error("offline"); });
   const settled = offline.document.querySelector("#merged-figure-note");
-  assert.equal(offline.document.querySelector("#merged-figure").dataset.state, "unavailable");
+  // Since #1820 that browser is shown the committed baseline rather than a
+  // sentence; the note beside it is what does not depend on either.
+  assert.equal(offline.document.querySelector("#merged-figure").dataset.state, "baseline");
   assert.match(textOf(settled), NOTE_PHRASE);
   assert.equal(textOf(settled.querySelectorAll("a")[0]), RELEASES_LABEL);
 

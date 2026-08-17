@@ -21,7 +21,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { loadActivity } from "../src/agents.js";
-import { EVENTS_URLS, UNAVAILABLE_REASONS, unavailableSentences } from "../src/public-merges.js";
+import { EVENTS_URLS } from "../src/public-merges.js";
+import { PR_COUNT_BASELINE } from "../src/pr-count-baseline.js";
 import {
   RETAINED_COUNT_KEY,
   RETAINED_COUNT_SCHEMA,
@@ -163,17 +164,27 @@ test("a retained zero is a real answer and is shown like any other count", async
   assert.match(textOf(readoutOf(page.document)), /^0 merged pull requests/);
 });
 
-test("a failed request with nothing stored keeps the honest empty wording", async (t) => {
+// Rewritten for #1820: a rate-limited first-time reader used to get the empty
+// wording, which is the one visitor who has never been shown the site's one
+// checkable figure. They now get the committed baseline. What still holds is
+// that the number is a real count with the moment it was taken beside it.
+test("a failed request with nothing stored falls to the committed baseline, dated", async (t) => {
   const page = await loadPage(HOME_URL, {});
   t.after(() => page.restore());
   await loadPublicMerges(page.document, rateLimited, page.storage);
 
   const section = page.document.querySelector("#public-merges");
-  assert.equal(section.dataset.state, "unavailable");
-  assert.match(textOf(section), /rate limiting this page's unauthenticated requests, so there is no count to show\./);
-  // No zero, no dash, no seeded constant: the whole block holds no numeral.
-  assert.doesNotMatch(textOf(section), /\d/, "something a reader could read as a count was invented");
-  assert.equal(readoutOf(page.document).querySelectorAll("time").length, 0);
+  const readout = readoutOf(page.document);
+  assert.equal(section.dataset.state, "baseline");
+  const [figure, sentence] = readout.querySelectorAll("p").map(textOf);
+  assert.equal(figure, `${PR_COUNT_BASELINE.total} merged pull requests`);
+  assert.match(sentence, /^This is not a live count/);
+  const [stamp, ...extra] = readout.querySelectorAll("time");
+  assert.equal(extra.length, 0, "one figure, one timestamp");
+  assert.equal(stamp.dateTime, PR_COUNT_BASELINE.countedAt);
+  // Nothing about an earlier number is folded away or hover-only.
+  assert.equal(section.querySelectorAll("details").length, 0);
+  assert.equal(readout.getAttribute("aria-live"), "polite");
   assert.deepEqual(feedLinks(page.document).map((link) => link.getAttribute("href")), EVENTS_URLS);
 });
 
@@ -204,9 +215,14 @@ for (const [what, value] of Object.entries(UNUSABLE)) {
     t.after(() => page.restore());
     await loadPublicMerges(page.document, rateLimited, page.storage);
 
+    // An unusable stored value is nothing stored, so the block falls past it to
+    // the committed baseline (#1820) — never to the digits inside the value it
+    // just refused to read.
     const section = page.document.querySelector("#public-merges");
-    assert.equal(section.dataset.state, "unavailable", what);
-    assert.doesNotMatch(textOf(section), /\d/, `${what} became a number on the page`);
+    assert.equal(section.dataset.state, "baseline", what);
+    assert.equal(textOf(readoutOf(page.document).querySelectorAll("p")[0]),
+      `${PR_COUNT_BASELINE.total} merged pull requests`, `${what} became a number on the page`);
+    assert.doesNotMatch(textOf(section), /412/, `${what} became a number on the page`);
     assert.deepEqual(feedLinks(page.document).map((link) => link.getAttribute("href")), EVENTS_URLS, what);
   });
 }
@@ -293,7 +309,7 @@ test("the observatory writes the live count and reads it back when GitHub stops 
     .map((link) => link.href), EVENTS_URLS);
 });
 
-test("the observatory with an unusable stored value states that nothing was ever counted", async (t) => {
+test("the observatory with an unusable stored value falls to the baseline, not to the value", async (t) => {
   const page = await loadPage(OBSERVATORY_URL, { storage: stored("{ not json") });
   t.after(() => page.restore());
   await loadActivity(page.document, rateLimited, page.storage);
@@ -301,12 +317,14 @@ test("the observatory with an unusable stored value states that nothing was ever
 
   const figure = page.document.querySelector("#merged-figure");
   const readout = page.document.querySelector("#merged-figure-readout");
-  assert.equal(figure.dataset.state, "unavailable");
-  // The same two sentences the home page shows for the same outcome, from the
-  // one module that holds them.
-  assert.deepEqual(readout.querySelectorAll("p").map(textOf),
-    unavailableSentences(UNAVAILABLE_REASONS.rateLimited));
-  assert.doesNotMatch(textOf(readout), /\d/, "an unreadable store became a number on the page");
+  // Since #1820 the tier below an unreadable store is the committed baseline
+  // rather than the never-counted sentences, on this page and on the home page
+  // alike — one order, from src/merged-count-resolution.js.
+  assert.equal(figure.dataset.state, "baseline");
+  assert.equal(textOf(page.document.querySelector(".merged-figure-count")), String(PR_COUNT_BASELINE.total));
+  assert.match(textOf(readout), /not a live count/);
+  assert.equal(textOf(page.document.querySelector(".merged-figure-recorded-date")),
+    PR_COUNT_BASELINE.countedAt.slice(0, 10));
   assert.deepEqual(figure.querySelector(".merged-figure-sources").querySelectorAll("a")
     .map((link) => link.href), EVENTS_URLS);
 });

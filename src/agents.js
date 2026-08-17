@@ -34,6 +34,10 @@ import {
   readRetainedCount,
   writeRetainedCount,
 } from "./merged-count-retention.js";
+// Which of the counts this page holds is the one it shows, decided in one place
+// that the home page's block reads too.
+import { BASELINE_LEAD, MERGED_COUNT_SOURCES, resolveMergedCount } from "./merged-count-resolution.js";
+import { baselineCountRecord } from "./pr-count-baseline.js";
 
 export { EVENTS_URLS, SOURCE_REPOSITORIES, responseTimestamp } from "./public-merges.js";
 const REFRESH_MS = 90_000;
@@ -515,8 +519,11 @@ export const CONNECTION_LABELS = Object.freeze({
 //   recorded     GitHub did not answer. The last count that was taken from it,
 //                with the date and time it was taken shown as text beside the
 //                number, and the words saying it is not a live one.
-//   unavailable  GitHub did not answer and no count has ever been recorded. One
-//                sentence, no digit.
+//   baseline     GitHub did not answer and this browser has never had an answer
+//                either. The count committed in ./pr-count-baseline.js, dated,
+//                and saying in the sentence itself that it is not live.
+//   unavailable  None of the above carried a dated count. One sentence, no
+//                digit. It is what is left if the baseline is unpopulated.
 //
 // A recorded count comes from one of two places, and is a response either way,
 // never a remembered render: the published record at RECORDED_COUNT_URL, which
@@ -643,7 +650,7 @@ export function renderMergedFigure(root = document, state = "loading",
     && Number.isInteger(count) && count >= 0;
   const name = state === "loading" ? "loading"
     : state === "live" && sourced ? "live"
-      : state === "recorded" && dated ? "recorded"
+      : (state === "recorded" || state === "baseline") && dated ? state
         : "unavailable";
   const section = root.querySelector("#merged-figure");
   const readout = root.querySelector("#merged-figure-readout");
@@ -661,9 +668,11 @@ export function renderMergedFigure(root = document, state = "loading",
       + `${SOURCE_REPOSITORIES.join(" and ")}, as of `);
     const time = appendText(source, "time", "merged-figure-time", formatClockTime(asOf));
     time.dateTime = asOf.toISOString();
-  } else if (name === "recorded") {
+  } else if (name === "recorded" || name === "baseline") {
     appendCount(value, count);
-    appendText(source, "span", "", RETAINED_LEAD);
+    // Both are earlier counts and both are dated; they differ in whose count it
+    // is, which is a difference the sentence has to carry rather than a class.
+    appendText(source, "span", "", name === "baseline" ? BASELINE_LEAD : RETAINED_LEAD);
     const date = appendText(source, "time", "merged-figure-recorded-date", formatRecordedDate(takenAt));
     date.dateTime = takenAt.toISOString();
     // The clock as well as the calendar day: a count retained ten minutes ago
@@ -687,31 +696,58 @@ export function renderMergedFigure(root = document, state = "loading",
   return section;
 }
 
+// The baseline read once, at module load: it is compiled into this bundle, so
+// there is no request to make and nothing to re-parse per render.
+const BASELINE_RECORD = baselineCountRecord();
+
 /**
- * The figure when GitHub did not answer: the recorded count if one exists, and
- * otherwise the one sentence saying none does. Both keep the verification links
- * beside them, and neither of them is a spinner.
+ * The best dated figure this page can show without a live response, and the
+ * state that says whose count it is — or `null` when there is no such figure.
+ *
+ * The ordering is not decided here. `resolveMergedCount` is the one place a
+ * count from this browser, a count published with the site, and the committed
+ * baseline are ranked, and the home page's block ranks them through the same
+ * call — so one set of counts cannot come out in two orders on two pages.
+ */
+function fallbackFigure(recorded) {
+  const shown = resolveMergedCount({ retained: recorded, baseline: BASELINE_RECORD });
+  if (shown.source === MERGED_COUNT_SOURCES.earlier) return { state: "recorded", record: shown };
+  if (shown.source === MERGED_COUNT_SOURCES.baseline) return { state: "baseline", record: shown };
+  return null;
+}
+
+/**
+ * The figure when GitHub did not answer: the best earlier count there is, and
+ * otherwise the one sentence saying there is none. All of them keep the
+ * verification links beside them, and none of them is a spinner.
  */
 function renderFallbackFigure(root, recorded, reason = null) {
-  return recorded
-    ? renderMergedFigure(root, "recorded", recorded)
+  const fallback = fallbackFigure(recorded);
+  return fallback
+    ? renderMergedFigure(root, fallback.state, fallback.record)
     : renderMergedFigure(root, "unavailable", { reason });
 }
 
 /**
- * Paint a record that has just arrived, if it is still the best thing to show.
+ * Paint the best earlier count there is, if it is still the best thing to show.
  *
  * The two no-number states are what it may replace: `loading`, which is the
- * whole point — a rate-limited reader gets the dated count while the live
- * request is still in flight, instead of a spinner — and `unavailable`, which is
- * what a live request that failed before the record arrived leaves behind. It
- * never replaces a live count, and never replaces a record with itself.
+ * whole point — a reader gets a dated count while the live request is still in
+ * flight, instead of a spinner — and `unavailable`, which is what a live request
+ * that failed before a record arrived leaves behind. It never replaces a live
+ * count, and never replaces a figure with itself. With nothing retained and
+ * nothing published it lands on the committed baseline, which is why a browser
+ * that has never been here is not shown a spinner either.
  */
 function paintRecordedFigure(root, record) {
-  if (!record) return null;
+  const fallback = fallbackFigure(record);
+  if (!fallback) return null;
   const state = root.querySelector("#merged-figure")?.dataset.state;
-  if (state !== "loading" && state !== "unavailable") return null;
-  return renderMergedFigure(root, "recorded", record);
+  // `baseline` is replaceable for the same reason the other two are: a record
+  // that arrives late is a count GitHub actually returned, and it outranks the
+  // one committed to the repository. Only a live count is never replaced.
+  if (state !== "loading" && state !== "unavailable" && state !== "baseline") return null;
+  return renderMergedFigure(root, fallback.state, fallback.record);
 }
 
 // How long the headline figure will sit on "Loading…" before it says something

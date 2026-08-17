@@ -10,13 +10,19 @@
 // WHAT THIS BLOCK MAY NOT DO. It may not invent. The request is unauthenticated
 // and routinely rate-limited, so the block used to be blank exactly when a
 // reader arrived — the one figure the page offers as checkable, missing. It now
-// remembers, through ./merged-count-retention.js: a count public GitHub actually
-// returned is kept with the moment it was taken, and shown again, dated and
-// named as an earlier count, when the next request does not answer. That is the
-// only number this block can show without a live response. There is no seed, no
-// default, and no constant: a browser that has never had an answer from GitHub
-// still gets the honest empty sentence, and the document still ships in that
-// state so a slow response cannot flash a placeholder digit.
+// has three counts it can reach, in one order, decided in one place
+// (./merged-count-resolution.js): the live response, then this browser's
+// retained count from ./merged-count-retention.js, then the baseline committed
+// in ./pr-count-baseline.js. Exactly one of them renders, so an earlier figure
+// is never left standing beside a live one as a second number.
+//
+// THE BASELINE IS NOT A SEED. It is a count somebody took from the same two
+// public feeds, committed with the instant they took it, and it renders saying
+// so. What it replaced was a first-time visitor meeting a sentence where the
+// site's one checkable figure belongs — the visitor with the least reason to
+// believe the rest of the page, shown the least proof. The served document still
+// authors no digit: every figure here is painted by this module from a record
+// that carries its own date.
 //
 // NO FIGURE IS EVER UNDATED HERE. A live count carries the response time; a
 // retained one carries the sentence saying it is not live and the date it was
@@ -41,6 +47,8 @@ import {
   readRetainedCount,
   writeRetainedCount,
 } from "./merged-count-retention.js";
+import { BASELINE_LEAD, MERGED_COUNT_SOURCES, resolveMergedCount } from "./merged-count-resolution.js";
+import { baselineCountRecord } from "./pr-count-baseline.js";
 
 function appendText(parent, tag, text) {
   const node = document.createElement(tag);
@@ -69,42 +77,55 @@ function appendStamp(source, date) {
   return stamp;
 }
 
-/** A record is only a figure when it carries a whole count AND its moment. */
-const datedCount = (record) => (record
-  && Number.isInteger(record.count) && record.count >= 0
-  && record.takenAt instanceof Date && !Number.isNaN(record.takenAt.getTime())
-  ? record : null);
+// The state this block paints for each tier the shared resolver can land on,
+// and the clause in front of that state's date. The ordering itself is not here
+// — it is in ./merged-count-resolution.js, which the observatory reads too, so
+// the two surfaces cannot rank one set of counts two ways.
+const FIGURE_STATES = Object.freeze({
+  [MERGED_COUNT_SOURCES.live]: Object.freeze({
+    state: "live",
+    lead: `Counted from public GitHub activity in ${SOURCE_REPOSITORIES.join(" and ")}, as of `,
+  }),
+  [MERGED_COUNT_SOURCES.earlier]: Object.freeze({ state: "retained", lead: RETAINED_LEAD }),
+  [MERGED_COUNT_SOURCES.baseline]: Object.freeze({ state: "baseline", lead: BASELINE_LEAD }),
+});
 
 /**
  * Paint the figure, or the sentence that stands in for it.
  *
- * A result is only a live number when it says so, carries a whole non-negative
- * count, AND carries the time the response arrived: an undated figure is one a
- * reader cannot check, so it is not one this block shows. A failure falls to
- * `result.retained` — the last count this browser saw GitHub return — and to the
- * reason only when there is no such count. Anything else, including a shape this
- * function does not recognise, lands on the reason, because the one thing this
- * block must never do is render a digit nothing returned.
+ * Which count wins is not decided here: `resolveMergedCount` is given every
+ * candidate this load holds and returns exactly one, so this function paints one
+ * figure and never two. A live result counts as a candidate only when it says
+ * `ok`, carries a whole non-negative count, AND carries the time the response
+ * arrived — an undated figure is one a reader cannot check. Every state's words
+ * differ in the sentence itself rather than in styling, and only the live one is
+ * undated by nothing but its own response time.
+ *
+ * Given no candidate at all — which is what a render called by hand with a
+ * half-shaped result gets — it lands on the reason and paints no digit, because
+ * the one thing this block must never do is render a number nothing returned.
  */
 export function renderPublicMerges(root = document, result = {}) {
   const section = root.querySelector("#public-merges");
   const readout = root.querySelector("#public-merges-readout");
   if (!section || !readout) return null;
-  const live = result?.ok === true ? datedCount({ count: result.count, takenAt: result.asOf }) : null;
-  const retained = live ? null : datedCount(result?.retained);
-  section.dataset.state = live ? "live" : retained ? "retained" : "unavailable";
+  const shown = resolveMergedCount({
+    live: result?.ok === true ? { count: result.count, takenAt: result.asOf } : null,
+    retained: result?.retained,
+    baseline: result?.baseline,
+  });
+  const figure = FIGURE_STATES[shown.source] ?? null;
+  section.dataset.state = figure ? figure.state : "unavailable";
 
   const value = document.createElement("p");
-  if (live || retained) {
-    const shown = live ?? retained;
+  if (figure) {
     appendCount(value, shown.count);
     const source = document.createElement("p");
-    // Two sentences a reader can tell apart without a colour: a live count says
-    // where it was counted from, and a retained one says that GitHub did not
-    // answer and that this number is the earlier one. Each ends in its own date.
-    appendText(source, "span", live
-      ? `Counted from public GitHub activity in ${SOURCE_REPOSITORIES.join(" and ")}, as of `
-      : RETAINED_LEAD);
+    // Sentences a reader tells apart without a colour: a live count says where
+    // it was counted from, a retained one says GitHub did not answer and this is
+    // the last count this browser took, and the baseline says in so many words
+    // that it is not live. Each ends in its own date.
+    appendText(source, "span", figure.lead);
     appendStamp(source, shown.takenAt);
     readout.replaceChildren(value, source);
   } else {
@@ -145,22 +166,26 @@ export function renderPublicMergeSources(root = document) {
 }
 
 /**
- * The links first, then whatever this browser already knows, then the count once
- * GitHub has answered either way.
+ * The links first, then the best dated count this page load already holds, then
+ * the live count once GitHub has answered either way.
  *
- * The retained figure is painted before the request resolves on purpose: a
- * rate-limited reader gets a dated number to read while the live request is
+ * The earlier figure is painted before the request resolves on purpose: a
+ * rate-limited reader — and a first-time reader, who has nothing retained and
+ * gets the committed baseline — reads a dated number while the live request is
  * still in flight, rather than a sentence that is about to be replaced by the
  * same sentence. A live response then overwrites it and is written back, so the
- * next visit starts from this response rather than an older one.
+ * next visit starts from this response rather than an older one. Both paints go
+ * through the one resolver, so the second cannot rank the same counts
+ * differently from the first.
  */
 export async function loadPublicMerges(root = document, fetcher = fetch, storage = browserCountStorage()) {
   renderPublicMergeSources(root);
   const retained = readRetainedCount(storage);
-  if (retained) renderPublicMerges(root, { ok: false, reason: UNAVAILABLE_REASONS.pending, retained });
+  const baseline = baselineCountRecord();
+  renderPublicMerges(root, { ok: false, reason: UNAVAILABLE_REASONS.pending, retained, baseline });
   const result = await loadMergedCount(fetcher);
   if (result.ok) writeRetainedCount(storage, result);
-  renderPublicMerges(root, { ...result, retained });
+  renderPublicMerges(root, { ...result, retained, baseline });
   return result;
 }
 

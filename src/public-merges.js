@@ -50,13 +50,27 @@ export function liveGithubEvents(records = [], excluded = NOTHING_EXCLUDED) {
   ));
 }
 
+/**
+ * Whether one event is a merge GitHub reported, in either of the two shapes the
+ * public feeds actually use.
+ *
+ * The documented shape is a close carrying the merged flag. The unauthenticated
+ * repository events endpoint does not send it: its `pull_request` object is
+ * trimmed to url, id, number, head and base, and a merge arrives as its own
+ * `merged` action beside the plain `closed` ones. Reading only the documented
+ * shape therefore counted every real feed as zero merges. Both are accepted, and
+ * neither is a guess: each one is GitHub saying, in its own words, that this
+ * pull request was merged. A close with no merge, and an open that happens to
+ * carry a merged flag, are still not merges.
+ */
+export const isMergedPullRequestEvent = (event) => event?.type === "PullRequestEvent" && (
+  event.payload?.action === "merged"
+  || (event.payload?.action === "closed" && event.payload?.pull_request?.merged === true)
+);
+
 /** Merged pull requests among live public GitHub events. Merges only. */
 export function countMergedPullRequests(records = [], excluded = NOTHING_EXCLUDED) {
-  return liveGithubEvents(records, excluded).filter((event) => (
-    event.type === "PullRequestEvent"
-    && event.payload?.action === "closed"
-    && event.payload?.pull_request?.merged === true
-  )).length;
+  return liveGithubEvents(records, excluded).filter(isMergedPullRequestEvent).length;
 }
 
 /** The words that go beside the digit, so one count is never two labels. */
@@ -123,11 +137,19 @@ export async function readPublicEvents(fetcher = fetch, excluded = NOTHING_EXCLU
     throw failure;
   }
   const payloads = await Promise.all(responses.map((response) => (response.ok ? response.json() : [])));
-  const events = payloads
+  const returned = payloads
     .flatMap((payload) => (Array.isArray(payload) ? payload : []))
-    .sort((a, b) => new Date(b.created_at ?? 0) - new Date(a.created_at ?? 0))
-    .slice(0, 30);
-  return { events, countable: liveGithubEvents(events, excluded), asOf: responseTimestamp(responses, receivedAt) };
+    .sort((a, b) => new Date(b.created_at ?? 0) - new Date(a.created_at ?? 0));
+  // The activity list shows a screenful; the count counts everything both feeds
+  // returned. They used to share one slice, which silently dropped a whole
+  // repository's merges whenever the other repository had been busier lately —
+  // and made the live figure disagree with the committed baseline, which counts
+  // each feed's own response.
+  return {
+    events: returned.slice(0, 30),
+    countable: liveGithubEvents(returned, excluded),
+    asOf: responseTimestamp(responses, receivedAt),
+  };
 }
 
 // Why a request produced no count, in the reader's terms rather than the

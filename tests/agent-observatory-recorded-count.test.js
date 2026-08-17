@@ -26,6 +26,7 @@ import {
   renderMergedFigure,
 } from "../src/agents.js";
 import { UNAVAILABLE_REASONS, unavailableSentences } from "../src/public-merges.js";
+import { PR_COUNT_BASELINE } from "../src/pr-count-baseline.js";
 import { recordMergedCount } from "../scripts/record-merged-count.mjs";
 import { createElement, first, installDocument } from "./support/dom.js";
 import { loadPage, textOf } from "./support/browser.js";
@@ -177,7 +178,11 @@ test("the recorded count keeps the GitHub feed links beside it on the shipped pa
     EVENTS_URLS, "a reader can still check the count at the source it came from");
 });
 
-test("no record and no answer is the home page's two sentences, no figure, and the links stay", async (t) => {
+// Rewritten for #1820: with no published record and no answer there is still one
+// count left — the baseline compiled into the bundle, which needs no request at
+// all and so cannot be the thing that fails. The never-recorded sentences are
+// pinned below, on the render that genuinely has nothing.
+test("no record and no answer falls to the committed baseline, and the links stay", async (t) => {
   const page = await loadPage(PAGE_URL);
   t.after(() => page.restore());
   const { document } = page;
@@ -189,15 +194,27 @@ test("no record and no answer is the home page's two sentences, no figure, and t
 
   const figure = document.querySelector("#merged-figure");
   const readout = document.querySelector("#merged-figure-readout");
-  assert.equal(figure.dataset.state, "unavailable");
-  assert.doesNotMatch(textOf(readout), /\d/, "no digit stands in for a count that was never recorded");
+  assert.equal(figure.dataset.state, "baseline");
+  assert.equal(textOf(document.querySelector(".merged-figure-count")), String(PR_COUNT_BASELINE.total));
+  assert.match(textOf(readout), /not a live count/, "an earlier count is claimed as live");
+  assert.equal(textOf(document.querySelector(".merged-figure-recorded-date")),
+    PR_COUNT_BASELINE.countedAt.slice(0, 10));
   assert.doesNotMatch(textOf(readout), /Counting|—|--/, "no spinner, no dash");
-  // The words are the home page's, out of the shared module: the absence and
-  // what was being counted, in that order, for the clause this failure earned.
-  assert.deepEqual(readout.querySelectorAll("p").map(textOf),
-    unavailableSentences(UNAVAILABLE_REASONS.rateLimited));
   assert.deepEqual(figure.querySelector(".merged-figure-sources").querySelectorAll("a").map((link) => link.href),
     EVENTS_URLS);
+});
+
+test("with nothing to show at all, the words are still the home page's two sentences", () => {
+  const root = observatoryRoot();
+  renderMergedFigure(root, "unavailable", { reason: UNAVAILABLE_REASONS.rateLimited });
+  const readout = root.nodes["#merged-figure-readout"];
+
+  assert.equal(root.nodes["#merged-figure"].dataset.state, "unavailable");
+  assert.doesNotMatch(readout.textContent, /\d/, "no digit stands in for a count that was never taken");
+  // The absence and what was being counted, in that order, for the clause this
+  // failure earned — out of the shared module the home page reads too.
+  assert.deepEqual(readout.querySelectorAll("p").map((node) => node.textContent),
+    unavailableSentences(UNAVAILABLE_REASONS.rateLimited));
 });
 
 test("an unreadable or half-written record is no record at all", async () => {
@@ -231,15 +248,18 @@ test("an unreadable or half-written record is no record at all", async () => {
   assert.equal(first(root.nodes["#merged-figure-readout"], "merged-figure-count"), null);
 });
 
-test("a garbled record file falls through to the sentence rather than throwing", async () => {
+test("a garbled record file falls through to the baseline rather than throwing", async () => {
   const root = observatoryRoot();
   await loadActivity(root, observatoryFetcher({
     record: () => ({ ok: true, status: 200, json: async () => { throw new SyntaxError("not JSON"); } }),
     github: () => RATE_LIMITED,
   }));
 
-  assert.equal(root.nodes["#merged-figure"].dataset.state, "unavailable");
-  assert.doesNotMatch(root.nodes["#merged-figure-readout"].textContent, /\d/);
+  // An unreadable record is no record, and the tier below it is the baseline —
+  // never anything scraped out of the file that could not be read.
+  assert.equal(root.nodes["#merged-figure"].dataset.state, "baseline");
+  assert.equal(first(root.nodes["#merged-figure-readout"], "merged-figure-count").textContent,
+    String(PR_COUNT_BASELINE.total));
 });
 
 test("the record is read before the live request resolves, so a spinner is never the answer", async () => {
