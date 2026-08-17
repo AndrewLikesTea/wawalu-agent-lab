@@ -165,9 +165,19 @@ test("the count reads live public events only — never bundled, demo, or person
   assert.equal(countMergedPullRequests("not a list"), 0);
 });
 
+// A build whose recorder has never had a successful response ships no baseline,
+// and that is the only build in which the slot can be empty at all. The cases
+// below are about the empty slot, so they say `baseline: null` rather than
+// assuming it; tests/merged-count-cold-start.test.js covers the build that has
+// a recorded count, and pins it to the recorder's own output.
+const NEVER_RECORDED = Object.freeze({ baseline: null });
+// A stand-in for a build that HAS recorded one, with a count and a date no other
+// source in these cases uses, so it is unmistakable which source won.
+const BASELINE = Object.freeze({ count: 11, countedAt: "2026-03-04T05:06:00.000Z" });
+
 test("the synthetic rows the page falls back to never reach the headline slot", async () => {
   const root = observatoryRoot();
-  await loadActivity(root, async () => ({ ok: false, status: 503 }));
+  await loadActivity(root, async () => ({ ok: false, status: 503 }), undefined, NEVER_RECORDED);
 
   // The four representative rows are on screen — and the figure is still empty.
   assert.equal(root.nodes["#activity-list"].textContent.includes("Scope the observatory fallback"), true);
@@ -190,7 +200,7 @@ test("no number survives a GitHub failure, whatever the failure is", async () =>
 
   for (const [name, [fetcher, reason]] of Object.entries(failures)) {
     const root = observatoryRoot();
-    await loadActivity(root, fetcher);
+    await loadActivity(root, fetcher, undefined, NEVER_RECORDED);
     const readout = root.nodes["#merged-figure-readout"];
 
     assert.equal(root.nodes["#merged-figure"].dataset.state, "unavailable", name);
@@ -242,12 +252,25 @@ test("a count that cannot be sourced is not rendered as a number", () => {
 
 test("a failed refresh clears the previous count instead of keeping a stale one", async () => {
   const root = observatoryRoot();
-  await loadActivity(root, githubFetcher(LIVE_EVENTS));
+  await loadActivity(root, githubFetcher(LIVE_EVENTS), undefined, NEVER_RECORDED);
   assert.equal(first(root.nodes["#merged-figure-readout"], "merged-figure-count").textContent, "3");
 
-  await loadActivity(root, async () => ({ ok: false, status: 500 }));
+  await loadActivity(root, async () => ({ ok: false, status: 500 }), undefined, NEVER_RECORDED);
   assert.doesNotMatch(root.nodes["#merged-figure-readout"].textContent, /\d/,
     "a previous response's count must not outlive the response");
+
+  // With a recorded baseline the slot is not empty, so the rule is the sharper
+  // one: the stale live count is REPLACED by the dated recorded figure, rather
+  // than left standing as an undated number the failed response did not return.
+  const shipped = observatoryRoot();
+  await loadActivity(shipped, githubFetcher(LIVE_EVENTS), undefined, { baseline: BASELINE });
+  assert.equal(first(shipped.nodes["#merged-figure-readout"], "merged-figure-count").textContent, "3");
+
+  await loadActivity(shipped, async () => ({ ok: false, status: 500 }), undefined, { baseline: BASELINE });
+  assert.equal(shipped.nodes["#merged-figure"].dataset.state, "recorded");
+  assert.equal(first(shipped.nodes["#merged-figure-readout"], "merged-figure-count").textContent, "11");
+  assert.match(shipped.nodes["#merged-figure-readout"].textContent, /2026-03-04/,
+    "the figure that replaced the stale one is not dated");
 });
 
 // What the counted merges are, and where to read what they shipped. The claim is
@@ -296,7 +319,7 @@ test("the block says the merges are the work that built this site, and links the
   // the state with nothing to show is the one this sentence is written for.
   const offline = await loadPage(PAGE_URL, { storage: {} });
   t.after(() => offline.restore());
-  await loadActivity(offline.document, async () => { throw new Error("offline"); });
+  await loadActivity(offline.document, async () => { throw new Error("offline"); }, undefined, NEVER_RECORDED);
   const settled = offline.document.querySelector("#merged-figure-note");
   assert.equal(offline.document.querySelector("#merged-figure").dataset.state, "unavailable");
   assert.match(textOf(settled), NOTE_PHRASE);

@@ -163,10 +163,14 @@ test("a retained zero is a real answer and is shown like any other count", async
   assert.match(textOf(readoutOf(page.document)), /^0 merged pull requests/);
 });
 
+// "Nothing was ever counted" is a state of the whole build, not just of this
+// browser: a build whose recorder has never had a successful response ships no
+// baseline either. Saying `baseline: null` is how a case asks for that build —
+// it is the one main shipped until the recorder first answered, not a fixture.
 test("a failed request with nothing stored keeps the honest empty wording", async (t) => {
   const page = await loadPage(HOME_URL, {});
   t.after(() => page.restore());
-  await loadPublicMerges(page.document, rateLimited, page.storage);
+  await loadPublicMerges(page.document, rateLimited, page.storage, { baseline: null });
 
   const section = page.document.querySelector("#public-merges");
   assert.equal(section.dataset.state, "unavailable");
@@ -202,7 +206,7 @@ for (const [what, value] of Object.entries(UNUSABLE)) {
 
     const page = await loadPage(HOME_URL, { storage: stored(value) });
     t.after(() => page.restore());
-    await loadPublicMerges(page.document, rateLimited, page.storage);
+    await loadPublicMerges(page.document, rateLimited, page.storage, { baseline: null });
 
     const section = page.document.querySelector("#public-merges");
     assert.equal(section.dataset.state, "unavailable", what);
@@ -296,7 +300,7 @@ test("the observatory writes the live count and reads it back when GitHub stops 
 test("the observatory with an unusable stored value states that nothing was ever counted", async (t) => {
   const page = await loadPage(OBSERVATORY_URL, { storage: stored("{ not json") });
   t.after(() => page.restore());
-  await loadActivity(page.document, rateLimited, page.storage);
+  await loadActivity(page.document, rateLimited, page.storage, { baseline: null });
   await flush();
 
   const figure = page.document.querySelector("#merged-figure");

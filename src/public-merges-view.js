@@ -41,6 +41,9 @@ import {
   readRetainedCount,
   writeRetainedCount,
 } from "./merged-count-retention.js";
+// The source list and the precedence over it, shared with the Agent observatory
+// so the two surfaces cannot answer one question two ways.
+import { asDatedRecord, readRecordedCount, resolveCountedFigure } from "./merged-count-figure.js";
 
 function appendText(parent, tag, text) {
   const node = document.createElement(tag);
@@ -154,13 +157,28 @@ export function renderPublicMergeSources(root = document) {
  * same sentence. A live response then overwrites it and is written back, so the
  * next visit starts from this response rather than an older one.
  */
-export async function loadPublicMerges(root = document, fetcher = fetch, storage = browserCountStorage()) {
+export async function loadPublicMerges(root = document, fetcher = fetch, storage = browserCountStorage(),
+  { baseline } = {}) {
   renderPublicMergeSources(root);
-  const retained = readRetainedCount(storage);
-  if (retained) renderPublicMerges(root, { ok: false, reason: UNAVAILABLE_REASONS.pending, retained });
+  const cached = readRetainedCount(storage);
+  // Resolved and painted before anything is requested, because the baseline is
+  // compiled into the page: a cold visitor reads a real dated number instead of
+  // the sentence saying there is none. This is also the line that used to be
+  // missing — this block read only `cached`, while the observatory read the
+  // published record too, so one cold load could put two different answers about
+  // one number on two pages. Both now pass the same sources to the same resolver.
+  let earlier = asDatedRecord(resolveCountedFigure({ cached, baseline }));
+  if (earlier) renderPublicMerges(root, { ok: false, reason: UNAVAILABLE_REASONS.pending, retained: earlier });
+  const publishing = readRecordedCount(fetcher).then((published) => {
+    earlier = asDatedRecord(resolveCountedFigure({ cached, published, baseline }));
+  });
   const result = await loadMergedCount(fetcher);
   if (result.ok) writeRetainedCount(storage, result);
-  renderPublicMerges(root, { ...result, retained });
+  await publishing;
+  // A live count replaces the earlier one outright rather than joining it: the
+  // renderer shows `retained` only when there is no live figure, so two numbers
+  // about one thing are never on screen together.
+  renderPublicMerges(root, { ...result, retained: earlier });
   return result;
 }
 

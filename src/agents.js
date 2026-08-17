@@ -29,11 +29,13 @@ import {
   browserCountStorage,
   formatRetainedClock,
   formatRetainedDate,
-  mostRecentRecord,
   parseCountRecord,
   readRetainedCount,
   writeRetainedCount,
 } from "./merged-count-retention.js";
+// Which of the counts this page can reach is the one to show, decided in the
+// module the home page decides it in too. Neither surface ranks its own sources.
+import { asDatedRecord, readRecordedCount, resolveCountedFigure } from "./merged-count-figure.js";
 
 export { EVENTS_URLS, SOURCE_REPOSITORIES, responseTimestamp } from "./public-merges.js";
 const REFRESH_MS = 90_000;
@@ -42,8 +44,10 @@ const DEMO_DATA_URL = "/agent-demo-data.json";
 // with the page as a static same-origin file — the same way every other durable
 // value on this site is stored and read. Nothing writes it in the browser:
 // scripts/record-merged-count.mjs is the only writer, and it writes only after
-// GitHub has answered.
-export const RECORDED_COUNT_URL = "/merged-pull-request-count.json";
+// GitHub has answered. It is declared in ./merged-count-figure.js, beside the
+// other sources a figure can come from, and re-exported here because this page
+// is where it used to live.
+export { RECORDED_COUNT_URL } from "./merged-count-figure.js";
 // This small, code-owned example keeps the observatory useful when its
 // published JSON cannot be read. It deliberately contains no fetched activity,
 // customer material, private-repository content, or hidden instructions.
@@ -572,20 +576,9 @@ export const formatRecordedDate = formatRetainedDate;
  */
 export const parseRecordedCount = parseCountRecord;
 
-/**
- * Read the published record. Never throws and never rejects: this is the path
- * that exists because the other one failed, so its own failure is simply "no
- * record", which the page already knows how to say.
- */
-export async function readRecordedCount(fetcher = fetch) {
-  try {
-    const response = await fetcher(RECORDED_COUNT_URL);
-    if (!response?.ok) return null;
-    return parseRecordedCount(await response.json());
-  } catch {
-    return null;
-  }
-}
+// Reading the published record is the home page's job as well as this page's, so
+// it lives in ./merged-count-figure.js with the rest of the source list.
+export { readRecordedCount } from "./merged-count-figure.js";
 
 /**
  * The never-counted state's two sentences, for the reason this request actually
@@ -701,16 +694,20 @@ function renderFallbackFigure(root, recorded, reason = null) {
 /**
  * Paint a record that has just arrived, if it is still the best thing to show.
  *
- * The two no-number states are what it may replace: `loading`, which is the
- * whole point — a rate-limited reader gets the dated count while the live
- * request is still in flight, instead of a spinner — and `unavailable`, which is
- * what a live request that failed before the record arrived leaves behind. It
- * never replaces a live count, and never replaces a record with itself.
+ * `loading` is the whole point — a reader gets the dated count instead of a
+ * spinner — and `unavailable` is what a live request that failed before the
+ * record arrived leaves behind. `recorded` is repaintable too, so that a source
+ * the shared resolver ranks higher can actually take the slot rather than being
+ * resolved and then dropped; renderMergedFigure declines to repaint wording that
+ * is already on screen, so when the higher source agrees, nothing is re-rendered
+ * and the live region says nothing twice. THE ONE STATE IT MAY NOT REPLACE IS
+ * `live`: a count this page load got from GitHub is never rolled back to an
+ * earlier one.
  */
 function paintRecordedFigure(root, record) {
   if (!record) return null;
   const state = root.querySelector("#merged-figure")?.dataset.state;
-  if (state !== "loading" && state !== "unavailable") return null;
+  if (state === "live") return null;
   return renderMergedFigure(root, "recorded", record);
 }
 
@@ -722,7 +719,7 @@ function paintRecordedFigure(root, record) {
 export const MERGED_FIGURE_SETTLE_MS = 8_000;
 
 export async function loadActivity(root = document, fetcher = fetch, storage = browserCountStorage(),
-  { settleAfterMs = MERGED_FIGURE_SETTLE_MS } = {}) {
+  { settleAfterMs = MERGED_FIGURE_SETTLE_MS, baseline } = {}) {
   const list = root.querySelector("#activity-list");
   const signal = root.querySelector(".signal-card");
   const label = root.querySelector("#connection-label");
@@ -753,10 +750,17 @@ export async function loadActivity(root = document, fetcher = fetch, storage = b
   // first and painted first: a reader who has been here before meets a dated
   // number immediately rather than a spinner. The published file may still beat
   // it — whichever was taken later is the one a reader is shown.
-  let recorded = readRetainedCount(storage);
+  // The baseline needs no request at all — it is compiled into the page — so the
+  // figure below is resolved and painted synchronously, before anything is in
+  // flight. That is what makes a cold visitor's first paint a dated number
+  // rather than "Loading…". The published record is then folded in through the
+  // same resolver; it holds the same count the baseline does, written by the same
+  // recorder run, so this cannot make the slot flip from one number to another.
+  const cached = readRetainedCount(storage);
+  let recorded = asDatedRecord(resolveCountedFigure({ cached, baseline }));
   paintRecordedFigure(root, recorded);
-  readRecordedCount(fetcher).then((record) => {
-    recorded = mostRecentRecord(recorded, record);
+  readRecordedCount(fetcher).then((published) => {
+    recorded = asDatedRecord(resolveCountedFigure({ cached, published, baseline }));
     paintRecordedFigure(root, recorded);
   });
   // A request that is merely slow is indistinguishable from one that will never

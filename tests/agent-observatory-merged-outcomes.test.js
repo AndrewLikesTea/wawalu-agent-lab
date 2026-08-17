@@ -180,7 +180,7 @@ test("GitHub did not answer and nothing was ever counted: the home page's wordin
   t.after(() => page.restore());
   const { document } = page;
 
-  await loadActivity(document, rateLimited, page.storage);
+  await loadActivity(document, rateLimited, page.storage, { baseline: null });
   await settle();
 
   const readout = document.querySelector("#merged-figure-readout");
@@ -213,7 +213,9 @@ for (const [what, storage, expected] of [
       return okResponse(url.includes("paint-lab") ? MERGES : []);
     });
 
-    const loading = loadActivity(document, silent, page.storage, { settleAfterMs: 1 });
+    // A build whose recorder has never had an answer, so the "nothing stored"
+    // row still exercises the outcome with no number in it at all.
+    const loading = loadActivity(document, silent, page.storage, { settleAfterMs: 1, baseline: null });
     const settled = await waitForState(document, (state) => state !== "loading", "settled while GitHub was silent");
     assert.equal(settled, expected, `${what}: the block settled onto the wrong outcome`);
     assertSettledShape(document, `a silent GitHub with ${what}`);
@@ -238,7 +240,7 @@ for (const [what, storage, expected] of [
 async function observatoryReadout(storage) {
   const page = await loadPage(OBSERVATORY_URL, { storage });
   try {
-    await loadActivity(page.document, rateLimited, page.storage);
+    await loadActivity(page.document, rateLimited, page.storage, { baseline: null });
     await settle();
     const readout = page.document.querySelector("#merged-figure-readout");
     return { state: page.document.querySelector("#merged-figure").dataset.state, said: readout.querySelectorAll("p").map(textOf) };
@@ -250,7 +252,8 @@ async function observatoryReadout(storage) {
 async function homeReadout(storage) {
   const page = await loadPage(HOME_URL, { storage });
   try {
-    await loadPublicMerges(page.document, async () => ({ ok: false, status: 403 }), page.storage);
+    await loadPublicMerges(page.document, async () => ({ ok: false, status: 403 }), page.storage,
+      { baseline: null });
     const readout = page.document.querySelector("#public-merges-readout");
     return { state: page.document.querySelector("#public-merges").dataset.state, said: readout.querySelectorAll("p").map(textOf) };
   } finally {

@@ -182,10 +182,13 @@ test("no record and no answer is the home page's two sentences, no figure, and t
   t.after(() => page.restore());
   const { document } = page;
 
+  // No published record AND no compiled baseline: the build whose recorder has
+  // never had a successful response, which is the only one that can reach the
+  // never-counted state. `baseline: null` names it rather than assuming it.
   await loadActivity(document, observatoryFetcher({
     record: () => ({ ok: false, status: 404 }),
     github: () => RATE_LIMITED,
-  }));
+  }), undefined, { baseline: null });
 
   const figure = document.querySelector("#merged-figure");
   const readout = document.querySelector("#merged-figure-readout");
@@ -236,7 +239,7 @@ test("a garbled record file falls through to the sentence rather than throwing",
   await loadActivity(root, observatoryFetcher({
     record: () => ({ ok: true, status: 200, json: async () => { throw new SyntaxError("not JSON"); } }),
     github: () => RATE_LIMITED,
-  }));
+  }), undefined, { baseline: null });
 
   assert.equal(root.nodes["#merged-figure"].dataset.state, "unavailable");
   assert.doesNotMatch(root.nodes["#merged-figure-readout"].textContent, /\d/);

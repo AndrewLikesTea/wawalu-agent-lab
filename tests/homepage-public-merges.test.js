@@ -172,7 +172,11 @@ for (const [what, fetcher, reason] of FAILURES) {
   test(`${what} leaves a plain reason and no digit at all`, async (t) => {
     const page = await loadPage(HOME_URL, {});
     t.after(() => page.restore());
-    const result = await loadPublicMerges(page.document, fetcher);
+    // `baseline: null` is the build whose recorder has never had an answer, so
+    // these cases keep asserting the never-counted wording rather than the
+    // shipped baseline figure. See tests/merged-count-cold-start.test.js for
+    // what a build WITH a recorded baseline shows on the same failures.
+    const result = await loadPublicMerges(page.document, fetcher, undefined, { baseline: null });
 
     assert.equal(result.ok, false);
     assert.equal(result.reason, reason);
@@ -211,7 +215,8 @@ test("a previously taken count keeps both feed links, each still naming its repo
     }) },
   });
   t.after(() => page.restore());
-  const result = await loadPublicMerges(page.document, async () => ({ ok: false, status: 403 }), page.storage);
+  const result = await loadPublicMerges(page.document, async () => ({ ok: false, status: 403 }), page.storage,
+    { baseline: null });
 
   assert.equal(result.ok, false, "nothing in this run reached a live count");
   const section = page.document.querySelector("#public-merges");
@@ -273,7 +278,7 @@ test("a response still in flight shows the reason, never a placeholder digit", a
     return okResponse(url.includes("paint-lab") ? LIVE_EVENTS : []);
   };
 
-  const loading = loadPublicMerges(page.document, slow);
+  const loading = loadPublicMerges(page.document, slow, undefined, { baseline: null });
   const section = page.document.querySelector("#public-merges");
   assert.equal(section.dataset.state ?? section.getAttribute("data-state"), "unavailable");
   assert.doesNotMatch(textOf(section), /\d/, "a slow response flashed a digit a reader could quote");
