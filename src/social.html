@@ -358,24 +358,43 @@
               <div class="media-source-actions">
                 <label class="secondary-button file-button" for="post-image">Choose image
                   <input id="post-image" name="image" type="file"
-                    accept="image/png,image/jpeg,image/gif,image/webp" aria-describedby="post-image-steps post-image-hint post-media-status" />
+                    accept="image/png,image/jpeg,image/gif,image/webp" aria-describedby="post-image-hint post-image-steps post-media-status" />
                 </label>
               </div>
+              <!-- The rule the file has to meet, beside the control that takes
+                   the file. It used to sit two lines below the round trip and
+                   below the character counter, under the fold, so the one
+                   constraint a visitor actually trips over was the least visible
+                   thing on the screen. It is a standing classification of what
+                   this field accepts, not a reading of anything happening now,
+                   so per the chip rule in
+                   design-system/claude-design/review-08-foundations.html it
+                   takes the outline chip and never a filled wash: the same
+                   .detail-state-chip the image placeholders wear. Nothing in it
+                   is focusable, so moving it up the field changed no tab stop.
+                   Stated once, here; the refusals below restate it only after a
+                   file has actually been chosen. -->
+              <p class="hint" id="post-image-hint"><span class="detail-state-chip">PNG, JPEG, GIF, or WebP up to 512 KB</span> Reduce or re-export a larger image before you choose it.</p>
+              <p class="media-status" id="post-media-status" role="status" aria-live="polite" aria-atomic="true"></p>
               <!-- The round trip, in the page as served: Paint uploads nothing,
                    so the visitor is the transport and has to know that before
-                   leaving. The first line names every step in the order it is
-                   taken, ending on the control's own label, because it used to
-                   stop at the Paint link and leave a visitor standing in a
-                   second tab with a drawing and no next move. The rule and the
-                   fix follow it, one fact each. The rule is stated once,
-                   here, and the refusals below restate it only when a file has
-                   actually been chosen. Both lines are named by the file input's
-                   own aria-describedby, so focusing Choose image reads them, and
-                   nothing folds them away — no disclosure widget, no hover, no
+                   leaving. It was one run-on sentence carrying four steps and
+                   the file rule besides, which is unscannable at the moment a
+                   reader is trying to follow it; it is an ordered list element
+                   now, one step per item, in the order they are taken, ending on
+                   the control's own label, because it used to stop at the Paint
+                   link and leave a visitor standing in a second tab with a
+                   drawing and no next move. The rule above and these steps are
+                   both named by the file input's own aria-describedby, in the
+                   order they are met, so focusing Choose image reads them; and
+                   nothing folds either away — no disclosure widget, no hover, no
                    script — because a reader who needs them needs them first. -->
-              <p class="media-status" id="post-media-status" role="status" aria-live="polite" aria-atomic="true"></p>
-              <p class="hint" id="post-image-steps"><a class="secondary-button paint-link" href="/paint/" target="_blank" rel="noopener">Create an image in Paint <span class="new-tab-note">(opens in a new tab)</span> <span aria-hidden="true">↗</span></a>. Export the PNG, return to this tab, then select Choose image.</p>
-              <p class="hint" id="post-image-hint">Social accepts PNG, JPEG, GIF, or WebP up to 512 KB. Reduce or re-export a larger image before you choose it.</p>
+              <ol class="hint" id="post-image-steps">
+                <li><a class="secondary-button paint-link" href="/paint/" target="_blank" rel="noopener">Create an image in Paint <span class="new-tab-note">(opens in a new tab)</span> <span aria-hidden="true">↗</span></a></li>
+                <li>Export the PNG</li>
+                <li>Return to this tab</li>
+                <li>Select Choose image</li>
+              </ol>
               <div class="compose-media" id="compose-media" hidden>
                 <div class="compose-media-head">
                   <p><span class="source-shape" aria-hidden="true"></span><strong id="compose-media-source">Image to publish</strong></p>
