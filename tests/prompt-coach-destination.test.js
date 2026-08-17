@@ -272,24 +272,36 @@ test("the destination reads as one page about one thing", async () => {
   assert.match(sample, /real prompt/);
 
   // One purpose statement, at the top: what this page is for and when to use
-  // it. It does not spend its second clause on the promise the form makes.
-  const lead = textOf(document.querySelector(".coach-hero-lead"));
-  assert.equal(lead, "Grade one prompt before you send it.");
-  assert.doesNotMatch(lead, /leaves this tab|uploaded|no sign-in/i,
+  // it. The heading is that statement. An eyebrow above it and a tagline under
+  // it said the same thing again before a reader reached anywhere to type.
+  const hero = document.querySelector(".coach-hero");
+  assert.equal(textOf(byId(document, "page-title")), "Grade a prompt.");
+  assert.equal(document.querySelectorAll(".coach-hero-lead").length, 0,
+    "the tagline under the heading restated the heading");
+  assert.equal(hero.querySelectorAll(".eyebrow").length, 0,
+    "the eyebrow above the heading named the page the heading names");
+  // And the introduction does not spend a second clause on the promise the
+  // form makes.
+  const intro = textOf(hero);
+  assert.doesNotMatch(intro, /leaves this tab|uploaded|no sign-in/i,
     "the purpose statement is not a second copy of the privacy statement");
   // Nor a second copy of the instructions: what to do, in what order, is said
   // once in the block that sits immediately before the field.
-  assert.doesNotMatch(lead, /grade it again|bundled/i,
+  assert.doesNotMatch(intro, /grade it again|bundled/i,
     "the purpose statement is not a second copy of the block before the field");
   // Nor a second copy of what a grade returns: the score and the first change
   // are promised in that same block, once.
-  assert.doesNotMatch(lead, /score|first change/i,
+  assert.doesNotMatch(intro, /score|first change/i,
     "what a grade returns is promised once, in the block before the field");
+  // The companion surface stays: a reader with an export of their own is handed
+  // the view that reads all of it.
+  assert.equal(hero.querySelectorAll('a[href="/personal-history.html"]').length, 1,
+    "the hero must keep the handoff for a reader who has their own export");
 
   // The copy a visitor reads before any script runs describes what they get,
   // not how this page is built. Contracts, fixtures, and script loading are
   // implementation, and they belong in a disclosure or in the source.
-  for (const selector of [".coach-hero-lead", ".prompt-coaching-entry-static",
+  for (const selector of [".coach-hero", ".prompt-coaching-entry-static",
     ".prompt-coaching-entry-lead", ".prompt-coach-sample-static", ".prompt-coach-sample-lead"]) {
     const text = textOf(document.querySelector(selector));
     assert.doesNotMatch(text, /contract|fixture|scripts load|rendered here/i,
@@ -297,7 +309,7 @@ test("the destination reads as one page about one thing", async () => {
   }
 });
 
-/* --------------------- one question, said once ---------------------------- */
+/* --------------------- one promise, made once ------------------------------ */
 
 // The claim the page states once, above the field: "Your pasted text stays in
 // this browser. It is not sent to a model or stored." The punctuation is left
@@ -315,21 +327,61 @@ function headingsAboveTheField(document) {
   return above;
 }
 
-test("one question is asked above the field, and it is the workflow's own", async () => {
+/**
+ * Everything a visitor reads above the prompt field, once the modules have
+ * painted, in reading order. The site nav and the footer are outside <main>, so
+ * neither is in here, and neither is a control label: every button on this page
+ * sits below the field. Joined on newlines so no phrase can be assembled out of
+ * the end of one element and the start of the next.
+ */
+function copyAboveTheField(document) {
+  const parts = [];
+  const selector = "h1,h2,h3,h4,h5,h6,p,summary,label,li,dt,dd,textarea";
+  for (const node of document.querySelector("main").querySelectorAll(selector)) {
+    if (node.id === "prompt-coaching-input") break;
+    if (node.tagName !== "TEXTAREA") parts.push(textOf(node).trim());
+  }
+  return parts.join("\n");
+}
+
+// The promise this page makes, in every wording it made it in: "Grade a
+// prompt.", "Grade one prompt before you send it.". The control's own name,
+// "Grade this prompt", is deliberately not in this family — the instruction
+// names the button a visitor presses, which is not a second promise.
+const PROMISE = /grade (?:a|one|your) prompt/gi;
+
+test("the promise is made once above the field, and then the page says how", async () => {
   const { document } = await openCoach();
 
-  // Two headings asking whether a prompt is worth sending, thirty lines apart,
-  // is one question a reader answers twice. The one that survives is the one
-  // the grading workflow itself publishes and the section is named by.
-  const asked = headingsAboveTheField(document).filter((text) => text.endsWith("?"));
-  assert.deepEqual(asked, ["Would a model answer this prompt well?"],
-    "exactly one question-form heading may sit above the prompt field");
+  // Four introductions — an eyebrow, the heading, a tagline under it, and a
+  // question over the form — all promised the same grade before a reader
+  // reached anywhere to type, and the instruction that carried the facts came
+  // last. One promise now, and it is the page's own heading.
+  const above = copyAboveTheField(document);
+  const made = above.match(PROMISE) ?? [];
+  assert.equal(made.length, 1,
+    `the promise is made ${made.length} times above the prompt field: ${made.join(" / ")}`);
+  assert.equal(textOf(byId(document, "page-title")), "Grade a prompt.");
+
+  // No heading above the field asks the question the grade answers either. The
+  // workflow still publishes that question in the session it returns; a reader
+  // who has read the heading does not need it asked back at them.
+  assert.deepEqual(headingsAboveTheField(document).filter((text) => text.endsWith("?")), [],
+    "a heading above the field asks what the heading already promised an answer to");
+  assert.equal(byId(document, "prompt-coaching-question").tagName, "H2");
   assert.equal(
     byId(document, "prompt-coaching").getAttribute("aria-labelledby"),
     "prompt-coaching-question",
   );
-  // The page names the action instead of asking the question a second time.
-  assert.equal(textOf(byId(document, "page-title")), "Grade a prompt.");
+
+  // And the copy that survives the cut still carries every fact: what to paste,
+  // which control to press, and both halves of what comes back.
+  const start = textOf(document.querySelector(".prompt-coaching-entry-static"));
+  assert.match(start, /Paste a prompt or short conversation/);
+  assert.ok(start.includes(textOf(byId(document, "prompt-coaching-grade"))),
+    "the instruction must name the grading control by its own label");
+  assert.match(start, /score out of 100/);
+  assert.match(start, /first change to make/);
 });
 
 test("“Start here” names the region for a screen reader and no longer heads it", async () => {
