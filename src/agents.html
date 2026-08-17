@@ -101,6 +101,31 @@
               <li><a href="https://api.github.com/repos/AndrewLikesTea/paint-lab/events?per_page=30">Count the merged pull requests yourself in the AndrewLikesTea/paint-lab public GitHub event feed</a></li>
               <li><a href="https://api.github.com/repos/AndrewLikesTea/wawalu-agent-lab/events?per_page=30">Count the merged pull requests yourself in the AndrewLikesTea/wawalu-agent-lab public GitHub event feed</a></li>
             </ul>
+
+            <!-- The figure above, in a form a reader can take away: the count,
+                 what it is a count of, when it was counted, the two feeds it
+                 was counted from, and this page's own address.
+                 src/merged-figure-copy.js composes it from the values each
+                 paint of the readout was made with, in that paint, so the
+                 number on the clipboard is the number on the screen rather
+                 than a second reading of anything.
+
+                 It ships disabled with its reason beside it, because the
+                 served document has no count in it: a control offering to
+                 copy a figure nothing had counted would be the one way this
+                 block could hand over a number it does not have. agents.js
+                 turns it on when a count arrives, live or retained, and turns
+                 it off again if a later request leaves the block empty.
+
+                 The status line is the second announced region in this
+                 section, and the only one a reader triggers: it is empty on
+                 load and stays empty until the button is pressed, so a load
+                 still makes exactly one announcement. -->
+            <div class="merged-figure-copy" id="merged-figure-copy" data-state="no_count">
+              <button class="merged-figure-copy-button" id="merged-figure-copy-button" type="button" disabled>Copy this count and its sources</button>
+              <p class="merged-figure-copy-reason" id="merged-figure-copy-reason">There is no count to copy yet. This turns on as soon as public GitHub answers, or as soon as this browser has taken a count of its own.</p>
+              <p class="merged-figure-copy-status" id="merged-figure-copy-status" role="status" aria-live="polite"></p>
+            </div>
           </section>
         </div>
       </section>

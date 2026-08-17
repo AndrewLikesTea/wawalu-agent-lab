@@ -34,6 +34,10 @@ import {
   readRetainedCount,
   writeRetainedCount,
 } from "./merged-count-retention.js";
+// The copyable form of that number. It is composed from the values a paint was
+// given, in that paint, so the digit on screen and the digit on the clipboard
+// are one value read twice rather than two that have to be kept in step.
+import { applyMergedCountCopy, bindMergedCountCopy } from "./merged-figure-copy.js";
 
 export { EVENTS_URLS, SOURCE_REPOSITORIES, responseTimestamp } from "./public-merges.js";
 const REFRESH_MS = 90_000;
@@ -675,6 +679,10 @@ export function renderMergedFigure(root = document, state = "loading",
     value.textContent = copy.value;
     source.textContent = copy.source;
   }
+  // The copyable payload, from this paint's own state and this paint's own
+  // values — before the no-op return below, so a repaint that changes nothing
+  // on screen cannot leave the clipboard describing an earlier one either.
+  applyMergedCountCopy(root, name, { count, asOf, takenAt });
   // The readout is the live region, so a repaint that would say exactly what is
   // already on screen is not made at all: the resolved wording is announced
   // once, rather than again for every intermediate render that happens to land
@@ -1068,6 +1076,9 @@ export function wireDemoDataControls(root = document, fetcher) {
 }
 
 if (typeof document !== "undefined" && document.querySelector("#activity-list")) {
+  // Wired before the first read, so the control is live by the time the first
+  // count lands in it. It ships disabled and stays that way until one does.
+  bindMergedCountCopy(document);
   const refresh = wireActivityControls();
   const readDemoData = wireDemoDataControls();
   refresh();

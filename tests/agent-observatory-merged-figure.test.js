@@ -328,7 +328,14 @@ test("the figure leads the shipped observatory and is reachable by keyboard", as
   const readout = document.querySelector("#merged-figure-readout");
   assert.equal(readout.getAttribute("role"), "status");
   assert.equal(readout.getAttribute("aria-live"), "polite");
-  assert.equal(figure.querySelectorAll("[aria-live]").length, 1);
+  // The rule is one announcement per LOAD, not one live region per section. The
+  // readout is the only region a load paints; the copy control's status is the
+  // second, and it is empty on the served page and speaks only in answer to a
+  // press. Both are named here so a third one cannot arrive unnoticed.
+  assert.deepEqual(figure.querySelectorAll("[aria-live]").map((node) => node.id),
+    ["merged-figure-readout", "merged-figure-copy-status"]);
+  assert.equal(textOf(document.getElementById("merged-figure-copy-status")), "",
+    "the copy status must be silent until a reader presses the control");
   assert.doesNotMatch(textOf(readout), /\d/, "the served page holds no number before GitHub answers");
 
   // Verification: real anchors, to the exact responses the count is computed

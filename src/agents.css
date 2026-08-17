@@ -25,6 +25,15 @@
 .merged-figure-note a { color:#285f8f; }
 .merged-figure-sources { display:grid; gap:4px; margin:0; padding:0; list-style:none; }
 .merged-figure-sources a { color:#285f8f; font-size:12px; line-height:1.45; }
+/* Set like the source and note lines around it, because the reason and the
+   outcome are prose about the figure rather than a second reading of it. A
+   disabled control is dimmed and given the not-allowed cursor, so the sentence
+   beside it is read as the explanation it is. */
+.merged-figure-copy { display:grid; gap:6px; }
+.merged-figure-copy-button { justify-self:start; }
+.merged-figure-copy-button[disabled] { border-color:#b7b5ae; color:#6f6f69; cursor:not-allowed; }
+.merged-figure-copy-reason,.merged-figure-copy-status { margin:0; color:#71716b; font-size:12px; line-height:1.5; }
+.merged-figure-copy-status:empty { display:none; }
 .observatory-grid { display:grid; grid-template-columns:330px minmax(0,1fr); align-items:start; gap:24px; }
 .team-panel,.activity-panel,.prompt-panel { border:1px solid #d1cfc7; border-radius:18px; background:rgba(255,255,255,.68); box-shadow:0 14px 40px rgba(38,38,31,.04); }
 .team-panel { padding:28px; }
@@ -44,8 +53,8 @@
 .privacy-note strong { display:block; margin-bottom:3px; color:#283b4a; }
 .activity-heading { padding-bottom:20px; border-bottom:1px solid #dedcd5; }
 .activity-heading h2 { margin:7px 0 0; font-size:26px; letter-spacing:-.03em; }
-.observatory-refresh { display:block; grid-column:auto; width:auto; min-height:40px; margin:0; border:1px solid #8f8d86; border-radius:9px; padding:0 15px; background:#fff; color:#292925; font-size:13px; font-weight:700; }
-.observatory-refresh:hover { border-color:#1f70c1; background:#e9f1f8; color:#194f82; }
+.observatory-refresh,.merged-figure-copy-button { display:block; grid-column:auto; width:auto; min-height:40px; margin:0; border:1px solid #8f8d86; border-radius:9px; padding:0 15px; background:#fff; color:#292925; font-size:13px; font-weight:700; }
+.observatory-refresh:hover,.merged-figure-copy-button:enabled:hover { border-color:#1f70c1; background:#e9f1f8; color:#194f82; }
 .activity-actions { display:flex; flex-wrap:wrap; gap:10px; margin:14px 0 4px; }
 /* Loading, no activity, and a failed request are told apart three ways before
    colour is considered: the chip word, the heading sentence, and the geometry
