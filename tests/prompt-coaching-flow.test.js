@@ -68,8 +68,11 @@ test("the workflow is discoverable and idle before anything is pasted", async ()
     assert.ok(section, "the coaching section must ship in the page markup");
     assert.equal(section.dataset.state, "idle");
     assert.equal(section.getAttribute("aria-labelledby"), "prompt-coaching-question");
+    // The heading names what the region holds. It used to ask the question the
+    // grade answers, which the page's own h1 had already promised an answer to
+    // thirty lines above it.
     assert.equal(textOf(byId(document, "prompt-coaching-question")),
-      "Would a model answer this prompt well?");
+      "Your prompt and its grade");
     // The guidance says what the grade is measured against and names that
     // rubric as this page's own. What may be pasted is said once, in the block
     // immediately before the field, rather than a second time here. It is the

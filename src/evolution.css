@@ -3119,7 +3119,6 @@ section[data-workspace-current="true"] { box-shadow:-6px 0 0 0 var(--import-wash
    unit, so a 320px screen reflows instead of scrolling sideways. */
 .coach-hero { display:grid; gap:12px; max-width:70ch; margin:0 0 26px; }
 .coach-hero h1 { margin:0; font-size:clamp(32px,5.6vw,52px); line-height:1.04; letter-spacing:-.045em; }
-.coach-hero-lead { margin:0; font-size:16px; line-height:1.65; }
 /* The privacy statement. It reads beside the grading button rather than in the
    hero, so it keeps the accent rule it had there but sits in the form. */
 .prompt-coaching-privacy { display:grid; gap:4px; max-width:70ch; margin:0; border-left:5px solid var(--import-accent); padding:4px 0 4px 12px; font-size:13px; line-height:1.6; }
@@ -3148,7 +3147,6 @@ section[data-workspace-current="true"] { box-shadow:-6px 0 0 0 var(--import-wash
   /* One column at 390px: a two-column definition grid puts a 13px label and a
      monospace figure in ~40 characters each, which is the failure the mobile
      review filed as finding 01 on the dashboard. */
-  .coach-hero-lead { font-size:15px; }
   .coach-neighbour .secondary-button,.coach-handoff .secondary-button { width:100%; }
   .prompt-coach-sample { padding:12px; }
   .coaching-result-facts { grid-template-columns:minmax(0,1fr); gap:2px; }
