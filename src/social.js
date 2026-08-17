@@ -797,6 +797,19 @@ export function mountImageDescription(root) {
 // #social-notice, with the permalink and the People link — is inside it, and
 // src/social.js already moves focus there; collapsing the composer would hide
 // the announcement the reader was just sent to.
+//
+// What a close costs a half-written post is nothing, and that is a contract
+// rather than an accident of the implementation (#1832): the panel is revealed
+// and hidden, never re-created, so the post, the byline, the image and its
+// description are still in the fields — and the counters still count down from
+// them — when it comes back. close() must therefore never empty a field. The
+// only reset is the one the success path in mountSocialFeed performs, on a
+// publish that actually landed, and a failed publish leaves the draft where the
+// reader left it. Nothing is written down: this is memory for this tab, so the
+// panel's own state is the whole mechanism and there is no second store to keep
+// in step with it, no storage promise to answer for, and no draft waiting on a
+// shared machine after the visitor closes the tab. The sentence beside the
+// Paint steps in src/social.html is this paragraph, said to the visitor.
 export function mountComposerDisclosure(root) {
   const trigger = root.querySelector("#post-compose-open");
   const panel = root.querySelector("#post-compose-panel");
