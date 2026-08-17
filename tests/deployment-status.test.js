@@ -60,7 +60,17 @@ async function openReleases(t, { releases = [OLDER, NEWEST], readHealth } = {}) 
     },
   });
   t.after(() => page.restore());
-  initReleasesPage(page.document, page.storage, { seed: NO_SEED, readHealth, now: () => NOW });
+  // The record the check compares against is injected for the same reason the
+  // health reading and the clock are: these cases are about how each outcome
+  // reads, not about which record production picks. Which record production
+  // picks — the real record of this deployment, derived from the build stamp —
+  // is pinned in tests/deployed-release.test.js.
+  initReleasesPage(page.document, page.storage, {
+    seed: NO_SEED,
+    readHealth,
+    now: () => NOW,
+    deployedRelease: NEWEST,
+  });
   await waitFor(
     () => page.document.documentElement.dataset.shiplogDeployment === "ready",
     "the deployment status band never finished its comparison",
@@ -109,10 +119,10 @@ test("the band opens with what the check proves, ahead of the answer and outside
   const sentence = textOf(proof);
 
   // What the check proves, in the page's own words, before any evidence.
-  assert.match(sentence, /does the newest release record below name the version this site is running right now\?/);
+  assert.match(sentence, /does the real record of this deployment, at the top of this page, name the version this site is running right now\?/);
   // And the line the rest of the page draws, kept here: the worked example
-  // above is invented, this answer is not.
-  assert.match(sentence, /The example decision and release above are invented; this answer is not\./);
+  // above is invented, the record this check names and this answer are not.
+  assert.match(sentence, /The example decision and release above are invented; that record and this answer are not\./);
 
   // The harness reads text through a closed disclosure, so "a reader sees this
   // without expanding anything" is asserted on where the node sits: inside the
@@ -170,9 +180,9 @@ test("a running build that equals the newest record reads as a match and offers 
 
   assert.equal(
     verdictText(page),
-    "Confirmed: this site is running v2.1.0, the version the newest release record names.",
+    "Confirmed: this site is running v2.1.0, the version the real record of this deployment names.",
   );
-  assert.equal(metricText(page), "Running v2.1.0 · Newest record v2.1.0 · recorded 2 days ago");
+  assert.equal(metricText(page), "Running v2.1.0 · Real record v2.1.0 · recorded 2 days ago");
   // The match state's whole claim: there is nothing to do, and nothing to click.
   assert.equal(nextActions(page).length, 0, "a matching deployment offered a next action");
   assert.match(
@@ -187,9 +197,9 @@ test("a running build that differs from the newest record reads as drift and nam
 
   assert.equal(
     verdictText(page),
-    "Not a match: this site is running v2.0.0, but the newest release record names v2.1.0.",
+    "Not a match: this site is running v2.0.0, but the real record of this deployment names v2.1.0.",
   );
-  assert.equal(metricText(page), "Running v2.0.0 · Newest record v2.1.0 · recorded 2 days ago");
+  assert.equal(metricText(page), "Running v2.0.0 · Real record v2.1.0 · recorded 2 days ago");
 
   const actions = nextActions(page);
   assert.equal(actions.length, 1, "drift must name exactly one next action");
@@ -209,7 +219,7 @@ test("a health response in an unexpected shape reads as unknown, in plain langua
       + UNKNOWN_REASONS["unexpected-shape"],
   );
   // The comparison it can still make: the recorded build is last-known-good.
-  assert.equal(metricText(page), "Running not reported · Newest record v2.1.0 · recorded 2 days ago");
+  assert.equal(metricText(page), "Running not reported · Real record v2.1.0 · recorded 2 days ago");
   assert.equal(nextActions(page).length, 1, "unknown must name exactly one next action");
   assert.equal(nextActions(page)[0].href, "/release.html?id=r-2-1-0");
   assert.doesNotMatch(verdictText(page), /Error|error:|at .*\.js/, "a reader was shown an error object");
@@ -223,7 +233,7 @@ test("an unreachable health check reads as unknown and still reports the last-kn
     "The check did not complete, so nothing here says which version this site is running. "
       + UNKNOWN_REASONS.unreachable,
   );
-  assert.equal(metricText(page), "Running not reported · Newest record v2.1.0 · recorded 2 days ago");
+  assert.equal(metricText(page), "Running not reported · Real record v2.1.0 · recorded 2 days ago");
   assert.equal(nextActions(page).length, 1, "unknown must name exactly one next action");
   // The thrown message is not a thing a reader is shown.
   assert.doesNotMatch(verdictText(page), /must never reach the page/);
@@ -322,7 +332,7 @@ test("the comparison is a pure function of the reading, the record, and the cloc
   // With nothing recorded there is still exactly one next action, and it points
   // at the recorder rather than at a record that does not exist.
   assert.equal(noRecord.nextAction.href, "/releases.html#record-release");
-  assert.equal(verdictMetricText(noRecord), "Running v9 · Newest record none recorded · never recorded");
+  assert.equal(verdictMetricText(noRecord), "Running v9 · Real record none recorded · never recorded");
 
   const noBuild = deploymentVerdict({ health: { status: "ok", storage: "available" } }, NEWEST, NOW);
   assert.equal(noBuild.state, "unknown");
@@ -377,6 +387,7 @@ async function openHome(t, { releases = [OLDER, NEWEST], readHealth } = {}) {
     seed: NO_SEED,
     readHealth,
     deploymentNow: () => NOW,
+    deployedRelease: NEWEST,
   });
   await waitFor(
     () => page.document.documentElement.dataset.shiplogDeployment === "ready",
@@ -495,9 +506,9 @@ test("each outcome names both the running version and the recorded one", async (
   );
   // Both sides of the comparison are named in every outcome, including the one
   // where the running side could not be read: "not reported" is an answer.
-  assert.equal(matched.metric, "Running v2.1.0 · Newest record v2.1.0 · recorded 2 days ago");
-  assert.equal(drifted.metric, "Running v2.0.0 · Newest record v2.1.0 · recorded 2 days ago");
-  assert.equal(stalled.metric, "Running not reported · Newest record v2.1.0 · recorded 2 days ago");
+  assert.equal(matched.metric, "Running v2.1.0 · Real record v2.1.0 · recorded 2 days ago");
+  assert.equal(drifted.metric, "Running v2.0.0 · Real record v2.1.0 · recorded 2 days ago");
+  assert.equal(stalled.metric, "Running not reported · Real record v2.1.0 · recorded 2 days ago");
   assert.match(matched.verdict, /v2\.1\.0/);
   assert.match(drifted.verdict, /v2\.0\.0[\s\S]*v2\.1\.0/);
   assert.match(stalled.verdict, /The check did not complete/);

@@ -277,7 +277,11 @@ test("the block says the merges are the work that built this site, and links the
   // One link out, to Releases, saying what is at the other end of it.
   const releases = note.querySelectorAll("a");
   assert.equal(releases.length, 1, "one pointer, not a second source list");
-  assert.equal(releases[0].getAttribute("href"), "/releases.html");
+  // The fragment, not just the page: the Releases log opens on invented
+  // demonstration records, and this sentence promises real shipped releases.
+  // #shipped-build is the record of the running deployment, which the releases
+  // page marks as real and links to a public commit.
+  assert.equal(releases[0].getAttribute("href"), "/releases.html#shipped-build");
   assert.equal(textOf(releases[0]), RELEASES_LABEL);
   assert.ok(tabSequence(document).includes(releases[0]), "the releases link is keyboard-reachable");
 

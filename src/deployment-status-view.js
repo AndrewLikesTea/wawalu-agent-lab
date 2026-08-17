@@ -20,7 +20,8 @@ import {
   verdictMetricText,
   verdictSentence,
 } from "./deployment-status.js";
-import { sortReleasesNewestFirst } from "./releases.js";
+import { BUILD_STAMP } from "./build-stamp.js";
+import { deployedReleaseRecord } from "./deployed-release.js";
 
 export const HEALTH_URL = "/healthz";
 
@@ -210,8 +211,17 @@ export function bindDeploymentEvidence(root) {
 }
 
 /**
- * Boot the band: read the newest record, probe health, render once.
+ * Boot the band: take the real record of this deployment, probe health, render
+ * once.
  *
+ * @param options.release the record to compare against. Passing it explicitly —
+ *   including as `null` — is how a caller says which record this is about; left
+ *   out, the record is derived from the build stamp this artifact shipped with,
+ *   which is what both pages want in production. An unstamped build has no real
+ *   record, so `deployedReleaseRecord` returns null and the band says it has
+ *   nothing to compare against rather than falling back to an invented one.
+ * @param options.buildStamp injected stamp, so a test can drive both the
+ *   stamped and the unstamped path.
  * @param options.readHealth injected reader; tests pass a fixture, production
  *   leaves it out and gets `healthEndpointReader()`.
  * @param options.now injected clock, for the same reason.
@@ -220,7 +230,9 @@ export async function initDeploymentStatus(root, options = {}) {
   const panel = byId(root, DEPLOYMENT_IDS.panel);
   if (!panel) return null;
   bindDeploymentEvidence(root);
-  const release = sortReleasesNewestFirst(options.releases ?? [])[0] ?? null;
+  const release = options.release !== undefined
+    ? options.release
+    : deployedReleaseRecord(options.buildStamp ?? BUILD_STAMP);
   const checkedAt = (options.now ?? (() => new Date().toISOString()))();
   const reading = await probeHealth(options.readHealth ?? healthEndpointReader(), checkedAt);
   let verdict;
