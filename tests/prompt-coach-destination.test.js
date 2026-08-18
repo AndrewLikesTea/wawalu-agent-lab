@@ -278,8 +278,8 @@ test("the destination reads as one page about one thing", async () => {
   // reader reached anywhere to type.
   const hero = document.querySelector(".coach-hero");
   assert.equal(textOf(byId(document, "page-title")), "Prompt coach");
-  assert.equal(hero.querySelectorAll("p").length, 2,
-    "the hero carries one purpose sentence and the companion offer, and nothing else");
+  assert.equal(hero.querySelectorAll("p").length, 1,
+    "the hero carries one purpose sentence and nothing else");
   assert.equal(hero.querySelectorAll(".eyebrow").length, 0,
     "the eyebrow above the heading named the page the heading names");
   // And the introduction does not spend a second clause on the promise the
@@ -296,10 +296,11 @@ test("the destination reads as one page about one thing", async () => {
   // are promised in that same block, once.
   assert.doesNotMatch(intro, /score|first change/i,
     "what a grade returns is promised once, in the block before the field");
-  // The companion surface stays: a reader with an export of their own is handed
-  // the view that reads all of it.
-  assert.equal(hero.querySelectorAll('a[href="/personal-history.html"]').length, 1,
-    "the hero must keep the handoff for a reader who has their own export");
+  // Nor a pitch for the neighbouring surface. A reader with an export of their
+  // own is handed it once, in the card under the grade, not before they have
+  // used the page they came to.
+  assert.equal(hero.querySelectorAll('a[href="/personal-history.html"]').length, 0,
+    "the handoff to Personal AI history belongs in the card below the grade");
 
   // The copy a visitor reads before any script runs describes what they get,
   // not how this page is built. Contracts, fixtures, and script loading are
@@ -390,7 +391,7 @@ test("the promise is made once above the field, and then the page says how", asy
   assert.match(start, /first change to make/);
 });
 
-test("the page names itself, says what it does, and only then offers the other route", async () => {
+test("the page names itself and says what it does, and the introduction stops there", async () => {
   const { document } = await openCoach();
 
   // One name for this page: the nav link a visitor clicked, the browser tab,
@@ -402,31 +403,60 @@ test("the page names itself, says what it does, and only then offers the other r
   assert.match(await read("coach.html"), /<title>Prompt coach · Shiplog<\/title>/);
 
   // Reading order inside the introduction, asserted on the elements rather than
-  // on the markup: the page's name, one sentence saying what it does and where
-  // the text stays, then the offer of the surface that reads a whole history.
-  // Nothing sits above the name, and the offer is never the first thing read.
+  // on the markup: the page's name, then one sentence saying what it does and
+  // where the text stays. Nothing sits above the name, and nothing follows the
+  // purpose — the offer of the surface that reads a whole history is made once,
+  // in the card under the grade, where the reader has a use for it.
   const hero = document.querySelector(".coach-hero");
   const label = (node) => node.id || node.getAttribute("class") || node.tagName;
-  assert.deepEqual(hero.childElements.map(label),
-    ["page-title", "page-tagline", "coach-hero-companion"],
-    "the introduction must read name, then purpose, then the companion offer");
+  assert.deepEqual(hero.childElements.map(label), ["page-title", "page-tagline"],
+    "the introduction must read name, then purpose, and stop");
   assert.equal(hero.childElements[0].tagName, "H1");
 
   const purpose = textOf(byId(document, "page-tagline"));
   assert.match(purpose, /Grade a prompt/, "the sentence under the name must say what the page does");
   assert.match(purpose, /stays in this browser/, "…and where a visitor's pasted text stays");
 
-  // The offer keeps its destination's own name, the one the footer directory
-  // uses, so a reader who follows it recognises where they landed.
-  const companion = document.querySelector(".coach-hero-companion");
-  assert.equal(textOf(companion.querySelector('a[href="/personal-history.html"]')),
-    "Personal AI history");
-
   // And the page still introduces itself exactly once before the field: one
   // promise of what a grade is, one statement of where the text stays.
   const above = copyAboveTheField(document);
   assert.equal((above.match(PROMISE) ?? []).length, 1);
   assert.equal((above.match(PRIVACY_CLAIM) ?? []).length, 1);
+});
+
+/** How many times a phrase is written in a block of rendered copy. */
+const occurrences = (text, phrase) => text.split(phrase).length - 1;
+
+test("Personal AI history is pitched once, in the card under the grade", async () => {
+  const { document } = await openCoach();
+
+  // The hero pitched it in near-identical words to the card below the grade —
+  // the same rubric over a history, the same habit worth changing first, the
+  // same browser. Two pitches read as two destinations to compare before the
+  // reader has used the one they came for, so the page makes exactly one.
+  const body = textOf(document.querySelector("main"));
+  assert.equal(occurrences(body, "Personal AI history"), 1,
+    "Personal AI history is pitched more than once above the footer directory");
+  assert.equal(occurrences(textOf(document.querySelector(".coach-neighbour")), "Personal AI history"), 1,
+    "the one pitch must be the answer in the “Also on this site” card");
+  assert.equal(document.querySelector(".coach-hero").querySelectorAll("a").length, 0,
+    "the introduction sends a reader nowhere but the field below it");
+
+  // The surviving pitch carries every fact the deleted one had, so nothing a
+  // reader needed to choose the destination left with the duplicate.
+  const card = textOf(document.querySelector(".coach-neighbour"));
+  assert.match(card, /the same rubric across weeks of your prompts/);
+  assert.match(card, /names the single habit worth changing first/);
+  assert.match(card, /It is read in your browser too\./);
+
+  // The footer directory is the site's, not this page's: it keeps its own entry
+  // and is the only other place the destination is named.
+  const footer = textOf(byId(document, "site-footer"));
+  assert.equal(occurrences(footer, "Personal AI history"), 1);
+
+  // And the sentence both pitches ended on is written once on the whole page.
+  assert.ok(occurrences(`${body}\n${footer}`, "It is read in your browser too.") <= 1,
+    "“It is read in your browser too.” is written twice on the rendered page");
 });
 
 test("“Start here” names the region for a screen reader and no longer heads it", async () => {

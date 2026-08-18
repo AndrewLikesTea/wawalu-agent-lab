@@ -3126,11 +3126,6 @@ section[data-workspace-current="true"] { box-shadow:-6px 0 0 0 var(--import-wash
    hero, so it keeps the accent rule it had there but sits in the form. */
 .prompt-coaching-privacy { display:grid; gap:4px; max-width:70ch; margin:0; border-left:5px solid var(--import-accent); padding:4px 0 4px 12px; font-size:13px; line-height:1.6; }
 .prompt-coaching-privacy span { color:var(--ink-muted); }
-/* The companion destination. A sentence in the hero rather than a card: it is
-   an alternative for a reader who has a history to hand, not a second call to
-   action competing with the one this page exists for. */
-.coach-hero-companion { margin:14px 0 0; max-width:66ch; color:var(--ink-muted); font-size:14px; line-height:1.6; }
-.coach-hero-companion a { color:inherit; }
 /* The worked example: a full result a visitor did not ask for, so it reads as
    a demonstration — one step in from the workflow, and dimmed only in its
    attribution line, never in the figures themselves. */
