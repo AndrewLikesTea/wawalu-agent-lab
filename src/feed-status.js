@@ -103,6 +103,14 @@ function existingHint(host, id) {
 // the filters work again: a description that has stopped being true is worse
 // standing there than absent.
 //
+// Unless the caller has something true to say in every state. `hintPersists`
+// keeps the node and swaps only its text, which is what a surface needs when the
+// line is the filter row's own status — Social's says what the menus are
+// currently set to, not only why they are shut — and what a live region needs to
+// announce once: a region that arrives with its news is announced unreliably, if
+// at all. Such a line is authored in the markup, so this only ever rewrites it.
+// People passes nothing and keeps the removal behaviour.
+//
 // And focus. Disabling the control a keyboard reader is standing on drops focus
 // to <body>, which sends the next Tab back to the top of the document. So the
 // active element is checked BEFORE the attribute lands, and if it is one of
@@ -113,7 +121,7 @@ export function setFilterAvailability(available, options = {}) {
   const {
     controls = [], statusRegion = null, focusHost = null,
     hintHost = null, hintId = "", hintBefore = null, hintText = FILTERS_UNAVAILABLE_HINT,
-    hintClass = "hint",
+    hintClass = "hint", hintPersists = false,
   } = options;
   const off = !available;
   const list = controls.filter(Boolean);
@@ -139,7 +147,7 @@ export function setFilterAvailability(available, options = {}) {
 
   if (!hintHost || !hintId) return;
   const written = existingHint(hintHost, hintId);
-  if (!off) {
+  if (!off && !hintPersists) {
     written?.remove();
     return;
   }

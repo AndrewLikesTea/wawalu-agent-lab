@@ -182,7 +182,13 @@
                a reader met the same offer in a third voice within one scroll.
                People keeps its own version, because People has no composer and
                that link is the only route out of the grid. -->
-          <div class="social-toolbar" aria-label="Filter posts">
+          <!-- role="group" and not a bare div: the label below was already
+               authored here, and on a plain div a label is announced by nothing.
+               With the role it names the row, and the state line at the bottom
+               of the row is inside the thing it describes, so a reader who
+               enters the group meets the controls and what they are currently
+               set to without having to be pointed anywhere. -->
+          <div class="social-toolbar" role="group" aria-label="Filter posts">
             <div class="filter">
               <!-- "Display name" is the one term this site uses for the name a
                    post is published under: the composer's own field is labelled
@@ -219,6 +225,23 @@
                  the summary below already states it: how many of how many posts
                  are showing, and which menus narrowed them. -->
             <button class="clear-filters social-clear" id="post-filter-clear" type="button">Clear filters</button>
+            <!-- What this row is doing, in words, and the one line that says it.
+                 Three shapes and no more: the wait, "No filters applied.", and
+                 the set filters named in the option text read back off the menus
+                 themselves, so the sentence and a closed menu cannot drift.
+                 It ships carrying the waiting sentence because the frame before
+                 hydration is the loading frame and that is the true one; from
+                 there src/social.js replaces only its text, which is what makes
+                 an update announce once and is why the element is authored here
+                 rather than written in and taken away again.
+                 It is the state cue as well as the sentence: Clear filters goes
+                 `disabled` when there is nothing set to clear, and a fill change
+                 is the one signal a low-vision reader is least likely to get, so
+                 the reason is in words beside it either way.
+                 It states no count and no order. That is the summary sentence's
+                 job, one region down and inside the list panel, and this line is
+                 outside that panel on purpose. -->
+            <p class="hint" id="post-filter-hint" aria-live="polite">Filters become available when posts load.</p>
           </div>
           <div class="feed-connection" hidden>
             <span class="live-dot" aria-hidden="true"></span>
