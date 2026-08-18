@@ -214,7 +214,9 @@ test("the front door counts in months, and never in an undefined 'period'", asyn
   // places a first-time visitor reads before anything else. The takeaway beside
   // them already states its window as a calendar month, so the month is the unit
   // the page had all along.
-  assert.match(html, /across June 2026/);
+  // #1858: and it says which month, and that the money is that month's alone —
+  // the sentence three lines down ships "three synthetic months".
+  assert.match(html, /in June 2026 alone/);
   assert.doesNotMatch(html, /\bperiods?\b/i,
     "the front door must name the synthetic unit in months a visitor already knows");
   assert.match(html, /three synthetic months/);

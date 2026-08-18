@@ -50,12 +50,16 @@ test("the rendered figure sentence says which months it is true over", async (t)
 
   // #1745: forwarded on its own, the figure line drew one reply — "over what
   // period?" — and neither the line nor the person who sent it could answer.
+  // #1858: naming the month was not enough. The block below states that the
+  // example ships three synthetic months, so "across June 2026" beside a
+  // $154,500 total still left a reader unable to tell a month's money from a
+  // quarter's. "alone" is the word that settles it, and it is pinned here.
   assert.equal(ANALYZED_PERIOD, "June 2026");
-  assert.ok(text.includes(`is recoverable (33%) across ${ANALYZED_PERIOD} —`),
+  assert.ok(text.includes(`is recoverable (33%) in ${ANALYZED_PERIOD} alone —`),
     `the rendered takeaway does not carry the derived period: ${text}`);
   // The span rides on the figure sentence, so it cannot be read as a claim of
   // its own and cannot displace anything above the fold.
-  assert.doesNotMatch(text, /across\s+—|across\s*$|undefined/);
+  assert.doesNotMatch(text, /\(33%\) in\s+(?:alone|—)|undefined/);
   assert.match(text, /Figures are from a bundled synthetic example and are not visitor data\.$/);
 });
 
@@ -72,7 +76,7 @@ test("the analyzed period is derived from the bundled months, not written down",
   // no fixture file, nothing about "June" anywhere in the derivation.
   assert.equal(analyzedPeriodPhrase(reportingWindow(["2027-02", "2027-03"])), "March 2027");
   assert.ok(takeawayText(analyzedPeriodPhrase(reportingWindow(["2027-02", "2027-03"])))
-    .includes("is recoverable (33%) across March 2027 —"));
+    .includes("is recoverable (33%) in March 2027 alone —"));
   // Whole-month spans and year boundaries are named in calendar words too: a
   // window this cannot say in English must not reach a reader as an ISO string.
   assert.equal(analyzedPeriodPhrase("2026-01-01 to 2026-07-01"), "January–June 2026");
@@ -91,7 +95,7 @@ test("with no nameable period the takeaway degrades to its wording rather than a
     const degraded = takeawayText(empty);
     assert.ok(degraded.includes("is recoverable (33%) — a modelled ceiling"),
       `the degraded takeaway is not the unqualified sentence: ${degraded}`);
-    assert.doesNotMatch(degraded, /across|undefined|null/);
+    assert.doesNotMatch(degraded, /\balone\b|undefined|null/);
     // Everything else the takeaway owes a reader survives the missing period.
     assert.match(degraded, /First recommended action: Pilot lower-cost routing in Atlas Platform\./);
     assert.match(degraded, /Accountable role: Platform Engineering Lead\./);
@@ -325,7 +329,10 @@ test("the keyboard-operable control copies only the takeaway and confirms succes
   // period, the pair, the rate, the first action, the role, and the disclosure
   // that keeps a synthetic figure from being read as a bill — in one payload.
   const [payload] = copied;
-  assert.ok(payload.includes(`across ${ANALYZED_PERIOD}`), "the copied text drops the period");
+  // The pasted line states the period exactly as the page does, "alone" and all:
+  // a figure that loses the word on its way into Slack is a figure a reader
+  // there can multiply by three.
+  assert.ok(payload.includes(`in ${ANALYZED_PERIOD} alone`), "the copied text drops the period");
   for (const claim of [
     "$51,254 of $154,500", "(33%)",
     "First recommended action: Pilot lower-cost routing in Atlas Platform.",

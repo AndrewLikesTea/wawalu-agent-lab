@@ -66,7 +66,7 @@ const WINDOW = /^(\d{4})-(\d{2})-01 to (\d{4})-(\d{2})-01$/;
  *   "2025-11-01 to 2026-02-01" → "November 2025–January 2026"
  *
  * Null for anything it cannot name that way, and never a partial phrase: a
- * takeaway that reads "recoverable (33%) across " or "across undefined" is worse
+ * takeaway that reads "recoverable (33%) in  alone" or "in undefined" is worse
  * than one that says nothing about the period, so the caller drops the clause
  * instead of printing an ISO string or a gap. The window is END-EXCLUSIVE, so
  * the last month it covers is the one before its end.
