@@ -25,11 +25,19 @@ export const ANALYZED_PERIOD = analyzedPeriodPhrase(reportingWindow());
  * as a block of its own: the first screen has no room above the fold and no
  * spare tab stops, and a period belongs to the figure it qualifies anyway.
  *
+ * #1858: the clause reads "in June 2026 alone", not "across June 2026". The
+ * block below this one tells a reader the example ships three synthetic months,
+ * so "across" left the money readable as a quarter's — an order of magnitude on
+ * the one figure this page asks anyone to act on. The bundled export set is six
+ * months (see `EXAMPLE_MONTHS`) and $154,500 is the last of them, so the word
+ * that has to be on the sentence is the one that says this is a single month's
+ * figure and not the bundle's total.
+ *
  * The clause is dropped whole when no period can be named. There is no state in
- * which this prints "across " with nothing after it.
+ * which this prints "in " with nothing after it.
  */
 export function takeawayText(period = ANALYZED_PERIOD) {
-  const span = typeof period === "string" && period.trim() ? ` across ${period.trim()}` : "";
+  const span = typeof period === "string" && period.trim() ? ` in ${period.trim()} alone` : "";
   return `$51,254 of $154,500 in analyzed AI spend is recoverable (33%)${span} `
     + "— a modelled ceiling on what re-routing this work could save, not money already saved. "
     + "First recommended action: Pilot lower-cost routing in Atlas Platform. "
