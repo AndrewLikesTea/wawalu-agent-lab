@@ -804,7 +804,7 @@ export function mountProfile(root, options = {}) {
     announcer: root.querySelector("#profile-announcer"),
     picker: root.querySelector("#profile-author"),
     pickerNote: root.querySelector("#profile-picker-note"),
-    // The one route into Paint: the invitation above the grid. It is a real
+    // The one route into Paint: the invitation under the grid. It is a real
     // anchor in the markup and stays one whether or not this runs; all that is
     // added here is the display name, so Paint's back link returns to the
     // profile that was actually being read rather than the default display
@@ -818,7 +818,10 @@ export function mountProfile(root, options = {}) {
   // put a picture in a grid nobody has seen yet. All three used to sit on screen
   // beside "Loading image posts…", so one wait was narrated four times. They
   // leave the document while the feed is loading — absent, not hidden, because a
-  // hidden line is still text a screen reader can be walked through.
+  // hidden line is still text a screen reader can be walked through — and
+  // feedPresence puts each one back ahead of the node it shipped ahead of, which
+  // is what keeps the invitation between the grid and the caveat when the
+  // connection line above it left in the same frame.
   const waiting = [
     feedPresence(elements.summary),
     feedPresence(root.querySelector(".feed-create")),

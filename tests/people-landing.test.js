@@ -121,6 +121,10 @@ test("the picker is read and reached before the name, the count, and the results
     assert.ok(at("#profile-author") < at("#profile-name"));
     assert.ok(at("#profile-author") < at("#profile-summary"));
     assert.ok(at("#profile-author") < at("#profile-grid"));
+    // And the offer to go and make a picture comes after the pictures (#1854),
+    // between the grid and the display-name caveat that closes the panel.
+    assert.ok(at("#profile-grid") < at(".feed-create"));
+    assert.ok(at(".feed-create") < at(".profile-role"));
 
     // And the tab sequence agrees, without a tabindex propping it up: every
     // display name is its own tab stop, in reading order, and they are the first
@@ -812,24 +816,28 @@ test("tabbing from the top reaches the picker, then the posts under the header",
     // the page harness that boots the shipped markup with the shipped module.
     document.querySelectorAll(".profile-lede")[1].querySelectorAll("a")[0].focus();
     const walked = [];
-    for (let step = 0; step < 6; step += 1) walked.push(pressTab(document));
+    for (let step = 0; step < 7; step += 1) walked.push(pressTab(document));
     assert.deepEqual(walked.slice(0, 3).map((node) => node.dataset?.author), ["Ari", "Bea", "Zed"],
       "the display-name picker is not the first thing a keyboard reaches in main");
-    // Then the panel's own two-step helper — make the image, publish it — in the
-    // order the steps happen, then the first post. The ordering label sits
-    // between the picker and these, and takes no stop of its own: nothing
-    // focusable was added above the results to carry it.
-    assert.equal(walked[3].getAttribute("id"), "profile-paint-route");
-    assert.equal(walked[4].getAttribute("id"), "profile-publish-route");
-    assert.equal(walked[5].classList.contains("profile-tile"), true, "the sixth stop is not the first post");
+    // Then the posts themselves — Zed's two — and only after them the panel's
+    // two-step helper, make the image and publish it, in the order the steps
+    // happen (#1854). The ordering label sits between the picker and the posts,
+    // and takes no stop of its own: nothing focusable was added above the
+    // results to carry it.
+    assert.deepEqual(walked.slice(3, 5).map((node) => node.classList.contains("profile-tile")), [true, true],
+      "the fourth and fifth stops are not the posts");
+    assert.equal(walked[5].getAttribute("id"), "profile-paint-route");
+    assert.equal(walked[6].getAttribute("id"), "profile-publish-route");
 
     // And the visual order the tab order is supposed to match: every one of
-    // those stops comes after the heading, and the posts come after the label.
+    // those stops comes after the heading, the posts come after the label, and
+    // the helper comes after the posts.
     const order = documentOrder(document);
     const at = (node) => order.indexOf(node);
     assert.ok(at(document.querySelector("#profile-author")) < at(document.querySelector("#grid-title")));
     assert.ok(at(document.querySelector("#grid-title")) < at(document.querySelector("#profile-order")));
-    assert.ok(at(document.querySelector("#profile-order")) < at(walked[5]));
+    assert.ok(at(document.querySelector("#profile-order")) < at(walked[3]));
+    assert.ok(at(walked[3]) < at(document.querySelector(".feed-create")));
     // No new focusable above the results region: the intro's link to Social and
     // the picker are still the whole of it.
     const inMain = tabSequence(document).filter((element) => element.closest("#main-content"));

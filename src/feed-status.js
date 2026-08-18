@@ -30,22 +30,29 @@ export function feedPhase({ state = "ready", total = 0, visible = 0, filtering =
 // the whole complaint here is that a waiting page made claims it could not
 // support yet.
 //
-// The slot is remembered as the index the node shipped at, so restoring it puts
-// the line back where the author put it rather than at the end of its panel.
+// The slot is remembered as the nodes that followed this one in the authored
+// markup, so restoring it puts the line back where the author put it rather than
+// at the end of its panel. A remembered *index* cannot do that once a panel
+// takes two lines out at once: with an earlier one gone the index points past
+// the end and the restore appends, which is how People's invitation into Paint
+// landed under the display-name caveat that has to close its panel.
 // `[...parent.children]` because a real HTMLCollection has no indexOf.
 export function feedPresence(node) {
   const parent = node?.parentNode ?? null;
   if (!node || !parent) return { present() {} };
-  const slot = [...parent.children].indexOf(node);
+  const siblings = [...parent.children];
+  const following = siblings.slice(siblings.indexOf(node) + 1);
   return {
     present(show) {
-      const here = [...parent.children].includes(node);
-      if (Boolean(show) === here) return;
+      const here = [...parent.children];
+      if (Boolean(show) === here.includes(node)) return;
       if (!show) {
         node.remove();
         return;
       }
-      const after = parent.children[slot] ?? null;
+      // The first node this one shipped ahead of that is still in the document:
+      // whatever else left, the line comes back ahead of the same content.
+      const after = following.find((sibling) => here.includes(sibling)) ?? null;
       if (after) parent.insertBefore(node, after);
       else parent.append(node);
     },

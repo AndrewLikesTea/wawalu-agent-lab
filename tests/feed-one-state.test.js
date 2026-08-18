@@ -481,3 +481,67 @@ test("People's promise about new image posts is said only where there is a grid 
   assert.equal(promiseCount(document, promise), 1);
   assert.equal(document.querySelectorAll(".feed-connection").length, 1);
 });
+
+/**
+ * Where a line sits among the results panel's own children. Every line this
+ * test cares about is a direct child of .list-panel, so this is document order
+ * without a walk — and it is positions rather than cards on purpose: the
+ * loading placeholders carry the tile class, so "are the posts here yet" is not
+ * a question a count can answer. A line feedPresence has removed is not a child
+ * of anything, which reads as -1.
+ */
+const panelSlot = (document, selector) => {
+  const panel = document.querySelector(".list-panel");
+  const node = document.querySelector(selector);
+  return node ? [...panel.children].indexOf(node) : -1;
+};
+
+test("People's invitation into Paint reads after the grid, in every post state", async (t) => {
+  const page = await loadPage(PEOPLE_PAGE, {});
+  t.after(() => page.restore());
+  const { document } = page;
+  const at = (selector) => panelSlot(document, selector);
+  const invitations = () => (textOf(document.body).match(/Want a picture of your own here\?/g) ?? []).length;
+
+  // Authored (#1854): whose posts these are and how they are ordered, then the
+  // region the posts render into, then the offer to make one, then the caveat
+  // that closes the panel. The invitation used to stand between the ordering
+  // line and the grid, so the page introduced its own answer with an invitation
+  // to leave for another tab.
+  assert.ok(at(".profile-identity") < at(".section-heading"));
+  assert.ok(at(".section-heading") < at("#profile-feed-status"));
+  assert.ok(at("#profile-feed-status") < at("#profile-grid"));
+  assert.ok(at("#profile-grid") < at(".feed-create"), "the shipped markup puts the invitation above the grid");
+  assert.ok(at(".feed-create") < at(".profile-role"), "the invitation displaced the display-name caveat");
+  assert.equal(invitations(), 1);
+
+  // Loading: the invitation is off the page entirely, and so is the connection
+  // line above it — two lines out of one panel at once, which is the frame the
+  // restore below has to survive.
+  const profile = mountProfile(document, { posts: [], author: "Zed", state: "loading", onRetry: () => {} });
+  assert.equal(document.querySelectorAll(".feed-create").length, 0);
+  assert.equal(document.querySelectorAll(".feed-connection").length, 0);
+  assert.equal(invitations(), 0);
+  assert.ok(at(".section-heading") < at("#profile-grid"));
+
+  // No image posts under this name: the invitation is back, still under the
+  // grid and still above the caveat. Restoring it by remembered index would put
+  // it below the caveat here, because the connection line left from above it.
+  profile.seed([]);
+  assert.equal(rendered(document, ".profile-tile"), 0);
+  assert.match(textOf(document.querySelector("#profile-feed-status")),
+    /Images made in Paint and published on Social appear here\./);
+  assert.ok(at(".section-heading") < at("#profile-grid"));
+  assert.ok(at("#profile-grid") < at(".feed-create"), "the invitation came back above the grid");
+  assert.ok(at(".feed-create") < at(".profile-role"), "the invitation came back below the display-name caveat");
+  assert.equal(invitations(), 1);
+
+  // Posts on screen: same order, and the sentence is still said once.
+  profile.seed(MIXED);
+  assert.equal(rendered(document, ".profile-tile"), 2);
+  assert.ok(at(".profile-identity") < at(".section-heading"));
+  assert.ok(at(".section-heading") < at("#profile-grid"));
+  assert.ok(at("#profile-grid") < at(".feed-create"));
+  assert.ok(at(".feed-create") < at(".profile-role"));
+  assert.equal(invitations(), 1);
+});

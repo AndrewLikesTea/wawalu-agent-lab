@@ -53,6 +53,18 @@ export function createElement(tagName) {
       if (node.parent) node.parent.children = node.parent.children.filter((child) => child !== node);
       node.parent = null;
     },
+    // The one place this stub is deliberately stricter than the page harness:
+    // `children` here holds elements only, the way a real Element.children does,
+    // so code that puts a removed node back among its siblings is tested against
+    // the shifting list a browser actually gives it (tests/feed-status.test.js).
+    get parentNode() { return node.parent; },
+    insertBefore(child, reference) {
+      const index = node.children.indexOf(reference);
+      if (index === -1) throw new Error("insertBefore: the reference node is not a child of this node");
+      child.parent = node;
+      node.children.splice(index, 0, child);
+      return child;
+    },
     setAttribute(name, value) { node.attributes[name] = String(value); },
     getAttribute(name) { return node.attributes[name] ?? null; },
     removeAttribute(name) { delete node.attributes[name]; },

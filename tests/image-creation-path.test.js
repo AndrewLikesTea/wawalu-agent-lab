@@ -132,19 +132,21 @@ for (const [name, document] of Object.entries(NEARBY_INVITATION)) {
     assert.equal(order[1].getAttribute("id"), "profile-publish-route");
   });
 
-  test(`${name} keeps the Paint route in the keyboard sequence, before the browsing panel`, () => {
+  test(`${name} keeps the Paint route in the keyboard sequence, after the browsing panel`, () => {
     const sequence = tabSequence(document);
     const link = document.querySelector(".feed-create").querySelector("a");
     assert.ok(sequence.includes(link), `${name}'s Paint route is not keyboard reachable`);
 
-    // Ahead of the browsing region it introduces: a reader tabbing through the
-    // feed meets the invitation before the images, not after however many of
-    // them there happen to be.
+    // Under the browsing region it follows (#1854): a reader who came to look
+    // at pictures meets the pictures first, and the offer to go and make one
+    // after them. It used to stand between the line that orders the grid and
+    // the grid itself, so the answer the page exists to give was introduced by
+    // an invitation to leave for another tab.
     assert.ok(document.getElementById(BROWSING_PANEL[name]),
       `${name} has no ${BROWSING_PANEL[name]} region`);
-    assert.ok(sources[name].indexOf('class="feed-create')
-      < sources[name].indexOf(`id="${BROWSING_PANEL[name]}"`),
-    `${name} authors its Paint route after the images it is meant to introduce`);
+    assert.ok(sources[name].indexOf(`id="${BROWSING_PANEL[name]}"`)
+      < sources[name].indexOf('class="feed-create'),
+    `${name} authors its Paint route before the images it is meant to follow`);
   });
 }
 
