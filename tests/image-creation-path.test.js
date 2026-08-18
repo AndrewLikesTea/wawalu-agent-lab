@@ -115,7 +115,7 @@ for (const [name, document] of Object.entries(NEARBY_INVITATION)) {
     const toSocial = invitation.querySelectorAll("a")
       .filter((anchor) => (anchor.getAttribute("href") ?? "").startsWith("/social.html"));
     assert.equal(toSocial.length, 1, `${name}'s helper names Social without linking it, or links it twice`);
-    assert.equal(textOf(toSocial[0]), "Publish a post on Social");
+    assert.equal(textOf(toSocial[0]), "Write a post on Social");
     // The composer, not the top of the feed: src/social-page.js reveals the
     // collapsed panel for this hash, so the reader lands on the field.
     assert.equal(toSocial[0].getAttribute("href"), `${SOCIAL_COMPOSER_PATH}#post-form`);
@@ -173,7 +173,7 @@ test("Social's route into Paint is the composer's control, and there is no secon
   assert.match(textOf(composer), /^Create an image in Paint/);
   assert.doesNotMatch(textOf(composer), /then (publish|post)/i,
     "the composer's control restates the publishing path the empty state already gives");
-  // With the composer open: it ships collapsed behind the hero's Publish a post
+  // With the composer open: it ships collapsed behind the hero's Write a post
   // control, so a collapsed panel holding no tab stop is the point, not a bug.
   const panel = documents.Social.getElementById("post-compose-panel");
   panel.hidden = false;
@@ -617,7 +617,7 @@ test("People names the same steps in the same words as the composer", () => {
   const invitation = textOf(documents.People.querySelector(".feed-create")).trim();
   assert.equal(invitation,
     "Want a picture of your own here? Create an image in Paint (opens in a new tab), "
-    + "export the PNG, then Publish a post on Social under a display name.");
+    + "export the PNG, then Write a post on Social and publish it under a display name.");
 
   // One name per concept across the two pages: the same tool, the same export,
   // the same file. People stops at the composer rather than naming Choose image,

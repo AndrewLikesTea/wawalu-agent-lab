@@ -289,7 +289,7 @@ test("People states the images-only rule once and offers each route once", async
     assert.equal(toSocial[0].parentNode?.classList?.contains("profile-lede"), true,
       "the link to the whole feed is not in the sentence that states the rule");
     assert.equal(toSocial[1].getAttribute("href"), "/social.html#post-form");
-    assert.equal(textOf(toSocial[1]), "Publish a post on Social");
+    assert.equal(textOf(toSocial[1]), "Write a post on Social");
     assert.equal(toSocial[1].parentNode?.classList?.contains("feed-create"), true,
       "the route to the composer is not in the helper beside the grid");
 
