@@ -361,10 +361,10 @@ test("Social and People each disambiguate the other in the sentence under the he
   assert.notEqual(descriptions[0], descriptions[1], "the two descriptions must not be the same sentence");
 });
 
-// Releases leads on "See what shipped, and why." and Prompt coach on "Grade a
-// prompt." — one line, one verb first, what you do here. The coach used to say
-// it twice, in a heading and again in a tagline under it, and the tagline is
-// gone: its heading is the line these two copy.
+// Releases leads on "See what shipped, and why." — one line, one verb first,
+// what you do here. Prompt coach makes that line the tagline under a heading
+// that names the page, which is the shape this test asks of Social and People:
+// the name the visitor clicked, then one line saying what they do here.
 // Social and People opened on a definition of
 // themselves instead, so the two pages a visitor is most likely to arrive at
 // cold were the two that made them read a paragraph to place the page.
@@ -375,10 +375,10 @@ test("Social and People lead with the same one-line, verb-first tagline the rest
     "Releases no longer leads with the line these two copy");
   const coach = await readFile(pageUrl("coach.html"), "utf8");
   assert.match(coach,
-    /<h1 id="page-title">Grade a prompt\.<\/h1>/,
-    "Prompt coach no longer leads with the line these two copy");
+    /<h1 id="page-title">Prompt coach<\/h1>\s*<p id="page-tagline">Grade a prompt before you send it\./,
+    "Prompt coach no longer names itself and then says what you do here");
   assert.doesNotMatch(coach, /coach-hero-lead/,
-    "the coach's heading carries this line alone; a tagline under it said it twice");
+    "the coach's one line is the tagline under its heading, not a second class beside it");
 
   const taglines = [
     // Both halves of what a visitor does on Social, in the feed's own words.

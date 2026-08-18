@@ -406,11 +406,12 @@ test("the boundary is stated in the markup, before any script runs", async () =>
     const claim = textOf(preview.querySelector(".prompt-coaching-preview-static"));
     assert.match(claim, /reads only the text you paste and the optional model choice/);
     assert.match(claim, /does not access your accounts, files, or customer data/);
-    // Where the text stays is promised once, above the field, and this block
-    // does not say it a second time in different punctuation. That statement is
-    // static too, so the fact is still readable before any script runs.
+    // Where the text stays is promised once, in the sentence under the page's
+    // heading, and this block does not say it a second time in different
+    // punctuation. That statement is static too, so the fact is still readable
+    // before any script runs.
     assert.doesNotMatch(claim, /stays in this browser/);
-    assert.match(textOf(document.querySelector(".prompt-coaching-entry-static")),
+    assert.match(textOf(byId(document, "page-tagline")),
       /Your pasted text stays in this browser\. It is not sent to a model or stored\./);
     // A privacy claim a reader can only see once JavaScript succeeds is a claim
     // they cannot rely on, so this one does not wait for the entry module. And
@@ -510,8 +511,8 @@ test("the front door states what this is and what it never reaches, before any s
     // The systems this never reaches are not listed twice on the first screen:
     // the entry module paints them, each with how to check it, in the privacy
     // boundary disclosure. What has to survive a dead script is the promise a
-    // visitor needs before pasting, and it is immediately before the form.
-    const privacy = textOf(document.querySelector(".prompt-coaching-entry-static"));
+    // visitor needs before pasting, and it is the page's opening sentence.
+    const privacy = textOf(byId(document, "page-tagline"));
     assert.match(privacy, /pasted text stays in this browser/i);
     assert.match(privacy, /not sent to a model or stored/);
   } finally {
