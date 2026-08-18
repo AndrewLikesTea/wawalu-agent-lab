@@ -93,10 +93,26 @@ test("the workflow is discoverable and idle before anything is pasted", async ()
       assert.equal(/AI FinOps/.test(sentence) && /rubric/i.test(sentence), false, sentence);
     }
 
-    // The neighbouring product is described by the result its export analysis
-    // provides, without borrowing the Prompt coach's scoring dimensions. The
-    // privacy boundary and destination stay beside that description.
+    // The block asks about grading more than one prompt, and the surface that
+    // answers it is Personal AI history: the same rubric over a history, under
+    // the name the hero already gave it and linked to its own page. AI FinOps
+    // grades nothing a reader pastes, so it cannot be that answer.
     const neighbour = document.querySelector(".coach-neighbour");
+    assert.equal(textOf(byId(document, "coach-neighbour-title")),
+      "Grading more than one prompt?");
+    assert.match(textOf(neighbour),
+      /Personal AI history runs the same rubric across weeks of your prompts/);
+    const historyLink = [...neighbour.querySelectorAll("a")]
+      .find((link) => textOf(link) === "Personal AI history");
+    assert.equal(historyLink?.getAttribute("href"), "/personal-history.html",
+      "the answer to the question the block asks must link to Personal AI history");
+
+    // The neighbouring product is described by the result its export analysis
+    // provides, without borrowing the Prompt coach's scoring dimensions. It is
+    // introduced by the different question it answers, about AI spend, never as
+    // the answer to grading many prompts. The privacy boundary and destination
+    // stay beside that description.
+    assert.match(textOf(neighbour), /Asking where your AI spend goes instead\?/);
     assert.match(textOf(neighbour),
       /AI FinOps analyzes a provider export to find AI-spend savings opportunities\./);
     assert.match(textOf(neighbour), /Your files stay in that browser tab\./);
