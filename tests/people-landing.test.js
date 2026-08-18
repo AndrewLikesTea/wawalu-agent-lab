@@ -14,6 +14,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { loadPage, textOf, tabSequence, pressKey, pressTab } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
+import { mountProfile } from "../src/profile.js";
 
 const PAGE_URL = new URL("../src/profile.html", import.meta.url);
 const SEED_ROUTE = "/social-demo-data.json";
@@ -804,7 +805,7 @@ test("the line that orders the posts is tied to the list it orders", async () =>
   }
 });
 
-test("tabbing from the top reaches the picker, then the posts under the header", async () => {
+test("tabbing from the top reaches the picker, then the posts, then the helper under them", async () => {
   const page = await people();
   try {
     const { document } = page;
@@ -815,13 +816,16 @@ test("tabbing from the top reaches the picker, then the posts under the header",
     for (let step = 0; step < 6; step += 1) walked.push(pressTab(document));
     assert.deepEqual(walked.slice(0, 3).map((node) => node.dataset?.author), ["Ari", "Bea", "Zed"],
       "the display-name picker is not the first thing a keyboard reaches in main");
-    // Then the panel's own two-step helper — make the image, publish it — in the
-    // order the steps happen, then the first post. The ordering label sits
-    // between the picker and these, and takes no stop of its own: nothing
-    // focusable was added above the results to carry it.
-    assert.equal(walked[3].getAttribute("id"), "profile-paint-route");
-    assert.equal(walked[4].getAttribute("id"), "profile-publish-route");
-    assert.equal(walked[5].classList.contains("profile-tile"), true, "the sixth stop is not the first post");
+    // Then Zed's two posts, and only then the panel's own two-step helper — make
+    // the image, publish it — in the order the steps happen. The helper used to
+    // take the two stops after the picker, which put a production pitch between
+    // a reader and the pictures they followed a link to see (#1854). The
+    // ordering label sits between the picker and the posts and takes no stop of
+    // its own: nothing focusable was added above the results to carry it.
+    assert.deepEqual(walked.slice(3, 5).map((node) => node.classList.contains("profile-tile")), [true, true],
+      "the stops after the picker are not the posts");
+    assert.equal(walked[5].getAttribute("id"), "profile-paint-route");
+    assert.equal(pressTab(document).getAttribute("id"), "profile-publish-route");
 
     // And the visual order the tab order is supposed to match: every one of
     // those stops comes after the heading, and the posts come after the label.
@@ -829,7 +833,8 @@ test("tabbing from the top reaches the picker, then the posts under the header",
     const at = (node) => order.indexOf(node);
     assert.ok(at(document.querySelector("#profile-author")) < at(document.querySelector("#grid-title")));
     assert.ok(at(document.querySelector("#grid-title")) < at(document.querySelector("#profile-order")));
-    assert.ok(at(document.querySelector("#profile-order")) < at(walked[5]));
+    assert.ok(at(document.querySelector("#profile-order")) < at(walked[3]));
+    assert.ok(at(walked[3]) < at(walked[5]), "the helper is read before the posts it offers to add to");
     // No new focusable above the results region: the intro's link to Social and
     // the picker are still the whole of it.
     const inMain = tabSequence(document).filter((element) => element.closest("#main-content"));
@@ -1027,6 +1032,63 @@ function insideDisclosure(node) {
 // and the post permalink render.
 const CAVEAT = "Display names are invented for this demo or chosen by whoever published the post — nobody owns or verifies one, and anyone can publish under any name.";
 
+// The invitation into Paint, in the bytes tests/image-creation-path.test.js pins
+// against Social's composer. Reordering it must not reword it.
+const INVITATION = "Want a picture of your own here? Create an image in Paint (opens in a new tab), "
+  + "export the PNG, then Publish a post on Social under a display name.";
+
+// The reported defect (issue #1854): the invitation stood between the line
+// naming the filtered display name and the pictures that line describes, so a
+// visitor who followed a link to see one name's images read a three-step
+// production pitch before a single image. It is read after the grid now — the
+// same sentence, the same two links, the same classes, one position later.
+//
+// The one state it is absent in is a first load still in flight: it is a promise
+// about a grid nobody has seen, so src/profile.js takes it off the page rather
+// than hiding it (tests/feed-one-state.test.js pins that). Absent or present,
+// what it may never do is come back above the grid — which is exactly what an
+// index-restored slot did once two lines were out of the panel at once.
+function assertHelperAfterPictures(document, state, { present = null } = {}) {
+  const order = documentOrder(document);
+  const at = (node) => order.indexOf(node);
+  const helpers = document.querySelectorAll(".feed-create");
+
+  assert.ok(helpers.length <= 1, `${state}: the page offers Paint from ${helpers.length} places beside the grid`);
+  if (present !== null) {
+    assert.equal(helpers.length, present ? 1 : 0,
+      `${state}: the invitation is ${helpers.length ? "on" : "off"} the page when it should not be`);
+  }
+  if (helpers.length === 0) return;
+
+  const helper = helpers[0];
+  assert.equal(textOf(helper).trim(), INVITATION, `${state}: the invitation was reworded on its way down the panel`);
+  assert.ok(at(document.querySelector("#profile-grid")) < at(helper),
+    `${state}: the invitation is read before the grid it offers to fill`);
+  assert.ok(at(document.querySelector("#profile-feed-status")) < at(helper),
+    `${state}: the invitation is read before the region that says what the grid is doing`);
+  assert.ok(at(helper) < at(document.querySelector(".profile-role")),
+    `${state}: the invitation is read after the caveat that closes the panel`);
+  assert.ok(at(document.querySelector("#profile-author")) < at(helper),
+    `${state}: the chooser's controls no longer come before the Paint and Social links`);
+
+  // Two links, both still real anchors with their hrefs intact, and both still
+  // reachable by keyboard from wherever the paragraph now sits.
+  const links = helper.querySelectorAll("a");
+  assert.deepEqual(links.map((link) => link.getAttribute("id")),
+    ["profile-paint-route", "profile-publish-route"], `${state}: the helper's links changed or reordered`);
+  assert.equal(links[1].getAttribute("href"), "/social.html#post-form", `${state}: the composer link changed`);
+  assert.equal(new URL(links[0].getAttribute("href"), "https://shiplog.test").pathname, "/paint/",
+    `${state}: the Paint link changed`);
+  const sequence = tabSequence(document);
+  for (const link of links) {
+    assert.ok(sequence.includes(link), `${state}: ${link.getAttribute("id")} is not keyboard reachable`);
+    assert.equal(link.getAttribute("tabindex"), null, `${state}: ${link.getAttribute("id")} grew a tabindex`);
+  }
+  assert.equal(insideDisclosure(helper), false, `${state}: the invitation has to be opened before it can be read`);
+  assert.equal(helper.hasAttribute("hidden"), false, `${state}: the invitation ships hidden`);
+  assert.equal(helper.className, "feed-create hint", `${state}: the invitation changed its classes`);
+}
+
 // The reported defect (issue #1789): the display-name caveat closed the profile
 // header at the top of this panel, above the ordering line, above the status
 // region and above the grid, so the first screen of a page that is nothing but
@@ -1082,12 +1144,67 @@ test("the grid and the status region are read before the demo disclaimer", async
   const page = await people();
   try {
     assertPicturesBeforeProvenance(page.document, "populated", { tiles: 2 });
+    assertHelperAfterPictures(page.document, "populated", { present: true });
     // A name with no pictures empties the grid through the picker, which is the
     // state the caveat is most likely to be the only thing on screen.
     chipFor(page, "Ari").click();
     assertPicturesBeforeProvenance(page.document, "filtered-empty", {
       tiles: 0, status: /No image posts match the selected display name\./,
     });
+    assertHelperAfterPictures(page.document, "filtered-empty", { present: true });
+  } finally {
+    page.restore();
+  }
+});
+
+test("the invitation into Paint is read after the posts in every state the grid has", async () => {
+  // A feed with nothing in it at all, which is the state the invitation is the
+  // page's only offer in: no tiles to browse, and the empty panel's own words
+  // above it. Its copy is the panel's, not the invitation's, and stays where it
+  // is — what is pinned here is that the two do not swap places.
+  const empty = await people({ seed: { posts: [] } });
+  try {
+    assert.equal(drawnTiles(empty.document).length, 0);
+    assertHelperAfterPictures(empty.document, "no posts at all", { present: true });
+    assertPicturesBeforeProvenance(empty.document, "no posts at all", { tiles: 0 });
+  } finally {
+    empty.restore();
+  }
+
+  // And the round trip through a load: the invitation leaves the document while
+  // the first fetch is open and has to come back under the grid, not appended
+  // below the caveat. mountProfile is driven directly so the states are entered
+  // in the order a real page enters them, with no timing to wait on.
+  const page = await loadPage(PAGE_URL, {});
+  try {
+    const profile = mountProfile(page.document, { posts: [], author: "Zed", state: "loading" });
+    assertHelperAfterPictures(page.document, "loading", { present: false });
+    assert.equal(drawnTiles(page.document).length, 0, "a pending grid drew tiles");
+
+    profile.seed(SEED_FEED.posts);
+    assert.equal(drawnTiles(page.document).length, 2, "the settled grid did not draw Zed's posts");
+    assertHelperAfterPictures(page.document, "restored with posts", { present: true });
+    assertPicturesBeforeProvenance(page.document, "restored with posts", { tiles: 2 });
+
+    // A refresh over tiles that are already on screen keeps them, so the panel
+    // stays a loaded one and the invitation stays with it — under the grid.
+    profile.setState("loading");
+    assertHelperAfterPictures(page.document, "refreshing over posts", { present: true });
+
+    // Then a name with no pictures, and a load from that: an empty grid does
+    // take the invitation off the page, and restoring it a second time is what
+    // catches a slot that appends rather than remembering its neighbour.
+    profile.seed([seedPost("p-11", "Ari", { withImage: false })]);
+    assert.equal(drawnTiles(page.document).length, 0);
+    assertHelperAfterPictures(page.document, "no posts under this name", { present: true });
+    assertPicturesBeforeProvenance(page.document, "no posts under this name", { tiles: 0 });
+
+    profile.setState("loading");
+    assertHelperAfterPictures(page.document, "reloading an empty grid", { present: false });
+    profile.seed(SEED_FEED.posts);
+    assert.equal(drawnTiles(page.document).length, 2);
+    assertHelperAfterPictures(page.document, "restored a second time", { present: true });
+    assertPicturesBeforeProvenance(page.document, "restored a second time", { tiles: 2 });
   } finally {
     page.restore();
   }
@@ -1107,12 +1224,16 @@ test("the demo disclaimer stays below the grid while the posts load and when the
     assertPicturesBeforeProvenance(pending.document, "as served", {
       tiles: 0, status: /^Loading image posts…$/,
     });
+    // The frame before any module runs is the authored order, and the authored
+    // order is the one under test: the invitation ships below the grid.
+    assertHelperAfterPictures(pending.document, "as served", { present: true });
     await importPageModule("/profile-page.js");
     await waitFor(
       () => (pending.document.querySelector("#profile-author").children.length > 0 ? true : null),
       "the picker renders its first entries",
     );
     assertPicturesBeforeProvenance(pending.document, "loading");
+    assertHelperAfterPictures(pending.document, "loading");
   } finally {
     globalThis.fetch = routed;
     globalThis.setInterval = savedInterval;
@@ -1129,6 +1250,9 @@ test("the demo disclaimer stays below the grid while the posts load and when the
     assertPicturesBeforeProvenance(failed.document, "error", {
       tiles: 0, status: /Image posts could not be loaded/,
     });
+    // A failed load restores the invitation, so this is the state that catches a
+    // restore that appends rather than puts the line back where it shipped.
+    assertHelperAfterPictures(failed.document, "error", { present: true });
   } finally {
     globalThis.setInterval = savedInterval;
     failed.restore();

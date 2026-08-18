@@ -30,13 +30,25 @@ export function feedPhase({ state = "ready", total = 0, visible = 0, filtering =
 // the whole complaint here is that a waiting page made claims it could not
 // support yet.
 //
-// The slot is remembered as the index the node shipped at, so restoring it puts
-// the line back where the author put it rather than at the end of its panel.
-// `[...parent.children]` because a real HTMLCollection has no indexOf.
+// The slot is remembered as the siblings that shipped after the node, so
+// restoring it puts the line back where the author put it rather than at the end
+// of its panel. It goes in front of the first of those still in the document; if
+// every one of them is out too, it appends, and the ones that follow will find it
+// the same way when they come back.
+//
+// An index was enough while every line that leaves was authored above everything
+// that stays. It stopped being enough when People's invitation into Paint moved
+// under the grid (#1854): with two lines out of the panel, the index it shipped
+// at points past the end of what is left, and appending puts the invitation below
+// the caveat that has to close the panel. What is remembered here is the
+// neighbour, which does not move when the count of children does.
+//
+// `[...parent.children]` because a real HTMLCollection has no indexOf or slice.
 export function feedPresence(node) {
   const parent = node?.parentNode ?? null;
   if (!node || !parent) return { present() {} };
-  const slot = [...parent.children].indexOf(node);
+  const children = [...parent.children];
+  const following = children.slice(children.indexOf(node) + 1);
   return {
     present(show) {
       const here = [...parent.children].includes(node);
@@ -45,7 +57,8 @@ export function feedPresence(node) {
         node.remove();
         return;
       }
-      const after = parent.children[slot] ?? null;
+      const present = new Set(parent.children);
+      const after = following.find((sibling) => present.has(sibling)) ?? null;
       if (after) parent.insertBefore(node, after);
       else parent.append(node);
     },

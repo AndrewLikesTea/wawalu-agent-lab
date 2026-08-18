@@ -49,6 +49,19 @@ export function createElement(tagName) {
       node.ownText = "";
       node.append(...nodes);
     },
+    // A real element's `children` holds elements and nothing else, and that is
+    // the difference this stub is worth standing up for src/feed-status.js: the
+    // page harness (tests/support/browser.js) keeps text nodes in `children`, so
+    // the whitespace between two authored blocks silently holds a removed line's
+    // place there and an off-by-one in a restore never shows. Here it does.
+    get parentNode() { return node.parent; },
+    insertBefore(child, reference) {
+      const index = node.children.indexOf(reference);
+      if (index === -1) throw new Error("insertBefore: the reference node is not a child of this node");
+      child.parent = node;
+      node.children.splice(index, 0, child);
+      return child;
+    },
     remove() {
       if (node.parent) node.parent.children = node.parent.children.filter((child) => child !== node);
       node.parent = null;

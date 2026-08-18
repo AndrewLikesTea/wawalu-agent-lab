@@ -201,37 +201,6 @@
                  count is a number or it is not on the page. -->
             <p class="profile-summary" id="profile-summary"></p>
           </div>
-          <!-- People is where a visitor browses images, so the route into the
-               editor stays beside them. The sentence names every step in the
-               order they happen, because Paint publishes nothing: it used to
-               read "Want a picture of your own here? Open Paint", which made
-               opening the editor sound like the whole path and left the
-               publishing step to an empty state a reader with posts on screen
-               never sees.
-               Three steps, two links, and it ends where the work does. The
-               export step is unlinked because it happens in Paint, and it is
-               worded as Social's composer words it.
-               It used to end "return to this tab, then publish it on Social" in
-               plain text, which asked the reader to come back to the one page
-               on this site that has no composer, and then named the place that
-               does have one without offering a way to reach it. The second link
-               carries Social's own control label, "Publish a post", and its
-               href opens the composer rather than the top of the feed:
-               social-page.js reveals the collapsed panel for the #post-form
-               hash.
-               The Paint link opens a new tab, the way every route into Paint on
-               this site does, and its own text says so in the same five words
-               Social's composer uses: a disclosure that sits outside the link is
-               a disclosure the accessible name does not carry.
-               `from=profile` is provenance, not state: it is what lets Paint's
-               one back link say "Back to People" and mean it. profile.js adds
-               the selected display name to it so the return lands on the exact
-               profile that was being read; this static href is the
-               pre-hydration render and returns to People either way. -->
-          <p class="feed-create hint">
-            Want a picture of your own here? <a class="text-link paint-link" id="profile-paint-route" href="/paint/?from=profile" target="_blank" rel="noopener">Create an image in Paint <span class="new-tab-note">(opens in a new tab)</span></a>, export the PNG, then <a class="text-link" id="profile-publish-route" href="/social.html#post-form">Publish a post on Social</a> under a display name.
-          </p>
-
           <div class="feed-connection" hidden>
             <span class="live-dot" aria-hidden="true"></span>
             <!-- Ships with no sentence in it, for the same reason Social's does
@@ -264,6 +233,43 @@
                image posts spoke the same guidance twice, from two regions. -->
           <div id="profile-feed-status">Loading image posts…</div>
           <div id="profile-grid" aria-describedby="profile-order"></div>
+          <!-- People is where a visitor browses images, so the route into the
+               editor stays beside them — under them, since #1854. It used to
+               stand between the line naming the filtered display name and the
+               pictures that line describes, so a visitor who followed a link to
+               one name read a three-step production pitch before a single
+               image. Same bytes, same classes, same two links: only the
+               position moved, and it is read after the grid it offers to fill
+               and before the caveat that closes the panel.
+               The sentence names every step in the
+               order they happen, because Paint publishes nothing: it used to
+               read "Want a picture of your own here? Open Paint", which made
+               opening the editor sound like the whole path and left the
+               publishing step to an empty state a reader with posts on screen
+               never sees.
+               Three steps, two links, and it ends where the work does. The
+               export step is unlinked because it happens in Paint, and it is
+               worded as Social's composer words it.
+               It used to end "return to this tab, then publish it on Social" in
+               plain text, which asked the reader to come back to the one page
+               on this site that has no composer, and then named the place that
+               does have one without offering a way to reach it. The second link
+               carries Social's own control label, "Publish a post", and its
+               href opens the composer rather than the top of the feed:
+               social-page.js reveals the collapsed panel for the #post-form
+               hash.
+               The Paint link opens a new tab, the way every route into Paint on
+               this site does, and its own text says so in the same five words
+               Social's composer uses: a disclosure that sits outside the link is
+               a disclosure the accessible name does not carry.
+               `from=profile` is provenance, not state: it is what lets Paint's
+               one back link say "Back to People" and mean it. profile.js adds
+               the selected display name to it so the return lands on the exact
+               profile that was being read; this static href is the
+               pre-hydration render and returns to People either way. -->
+          <p class="feed-create hint">
+            Want a picture of your own here? <a class="text-link paint-link" id="profile-paint-route" href="/paint/?from=profile" target="_blank" rel="noopener">Create an image in Paint <span class="new-tab-note">(opens in a new tab)</span></a>, export the PNG, then <a class="text-link" id="profile-publish-route" href="/social.html#post-form">Publish a post on Social</a> under a display name.
+          </p>
           <!-- People is a filtered view of Social, and the nav says so by
                nesting them. This is where People defines the thing its picker
                selects, in the bytes Social's feed note and the permalink both
