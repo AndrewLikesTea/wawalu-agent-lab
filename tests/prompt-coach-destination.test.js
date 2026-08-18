@@ -111,7 +111,13 @@ test("the home page offers the coach twice: in the destination list and as a thi
   const document2 = parseHtml(html);
   const target = document2.querySelector(".coach-entry").querySelector('a[href="/coach.html"]');
   let reached = null;
-  for (let press = 0; press < 30 && reached !== target; press += 1) reached = pressTab(document2);
+  // Bounded by the page's own tab sequence rather than by a written-down number:
+  // the claim is that the entry point is reachable by Tab, and a stop added
+  // anywhere above it should not read as the coach becoming unreachable. A fixed
+  // budget of 30 turned exactly that into a 12-minute hang, because the
+  // assert.equal below deep-inspects two parsed pages to build its diff.
+  const presses = tabSequence(document2).length;
+  for (let press = 0; press < presses && reached !== target; press += 1) reached = pressTab(document2);
   assert.equal(reached, target, "the coach entry point must sit in the natural tab order");
   pressEnter(document2);
   assert.deepEqual(document2.navigations, ["/coach.html"]);

@@ -56,7 +56,36 @@ import {
   CONTACT_COPY, emailFieldError, looksLikeEmail, postLeadEmail, SubmissionError,
 } from "./lead-capture.js";
 
+/**
+ * The homepage carries two contextual follow-up forms, one per half of the hero
+ * promise: the executive takeaway's, about the bundled AI FinOps example, and
+ * the decision-and-release section's, about the log itself. Each ships a fixed
+ * topic the visitor can read before submitting, and each sends a request type of
+ * its own, so a lead arrives labelled with the thing that persuaded the person
+ * who raised their hand rather than with whichever form was built first.
+ *
+ * A fixed topic is the one thing these two forms send that the site's other
+ * follow-up panels do not, which is why they state what is sent in their own
+ * sentence rather than in `FOLLOW_UP_PRIVACY`. That sentence is written once
+ * here and rendered by both panels; the sibling test file holds the rendered
+ * markup to this constant byte for byte, the way tests/follow-up-privacy.test.js
+ * holds the site's other forms to theirs.
+ */
+export const FIXED_TOPIC_DISCLOSURE = "Only your work email and this fixed follow-up topic are sent.";
+
 export const FINOPS_EXAMPLE_FOLLOW_UP_PURPOSE = "follow_up_finops_example";
+
+/**
+ * The decision-and-release half. The request type is what carries the topic to
+ * storage: `postLeadEmail` sends `{ email, purpose }` and nothing else, so the
+ * readonly field a visitor reads is only honest if the type beside it names the
+ * same thing. `src/leads.js` accepts this type and migration 0010 widens the
+ * purpose CHECK to store it; until that migration is applied the write is
+ * refused out loud rather than reported as a duplicate.
+ */
+export const DECISION_LOG_FOLLOW_UP_PURPOSE = "follow_up_decision_log";
+export const DECISION_LOG_FOLLOW_UP_TOPIC =
+  "Shiplog decision and release log — recording decisions and linking them to releases";
 
 /** Wire the native copy button. The clipboard is injectable for focused tests. */
 export function bindExecutiveTakeaway(doc = globalThis.document, clipboard = globalThis.navigator?.clipboard) {
@@ -77,13 +106,29 @@ export function bindExecutiveTakeaway(doc = globalThis.document, clipboard = glo
   return true;
 }
 
-/** Wire the contextual request without sending the visible topic as visitor-authored data. */
-export function bindFinopsExampleFollowUp(doc = globalThis.document, request = (...args) => globalThis.fetch(...args)) {
-  const open = doc?.getElementById("finops-example-follow-up-open");
-  const panel = doc?.getElementById("finops-example-follow-up-panel");
-  const form = doc?.getElementById("finops-example-follow-up-form");
-  const status = doc?.getElementById("finops-example-follow-up-status");
-  const error = doc?.getElementById("finops-example-follow-up-error");
+/**
+ * Wire one contextual request without sending the visible topic as
+ * visitor-authored data.
+ *
+ * `prefix` names the family of ids the panel ships — `<prefix>-open`, `-panel`,
+ * `-form`, `-topic`, `-email`, `-error`, `-status` — so two panels on one page
+ * are two independent instances rather than one module-level singleton reaching
+ * through the document. Every node, every listener, and every piece of state
+ * this function touches is reached from that prefix or from the form it found,
+ * which is what makes typing in, submitting, succeeding, or failing in one panel
+ * invisible to the other.
+ *
+ * Nothing a visitor types is ever written as markup: the only sinks below are
+ * `textContent` and attributes, and every string that reaches the status line is
+ * copy this repository owns. The typed address goes into the request body and
+ * nowhere else — not into the URL, not into a status message, not into a log.
+ */
+export function bindTopicFollowUp(doc, request, { prefix, purpose }) {
+  const open = doc?.getElementById(`${prefix}-open`);
+  const panel = doc?.getElementById(`${prefix}-panel`);
+  const form = doc?.getElementById(`${prefix}-form`);
+  const status = doc?.getElementById(`${prefix}-status`);
+  const error = doc?.getElementById(`${prefix}-error`);
   if (!open || !panel || !form || !status || !error) return null;
   const email = form.elements.email;
   const submit = form.querySelector('button[type="submit"]');
@@ -118,7 +163,7 @@ export function bindFinopsExampleFollowUp(doc = globalThis.document, request = (
     submit.setAttribute("aria-disabled", "true");
     status.textContent = "Sending your follow-up request…";
     try {
-      await postLeadEmail(request, email.value, FINOPS_EXAMPLE_FOLLOW_UP_PURPOSE, CONTACT_COPY);
+      await postLeadEmail(request, email.value, purpose, CONTACT_COPY);
       form.dataset.state = "success";
       for (const control of [form.elements.topic, email, submit]) control.disabled = true;
       status.textContent = "Follow-up requested. Someone from Wawalu will reply by email.";
@@ -133,7 +178,22 @@ export function bindFinopsExampleFollowUp(doc = globalThis.document, request = (
   return form;
 }
 
+/** The executive takeaway's panel: a follow-up about the bundled AI FinOps example. */
+export function bindFinopsExampleFollowUp(doc = globalThis.document, request = (...args) => globalThis.fetch(...args)) {
+  return bindTopicFollowUp(doc, request, {
+    prefix: "finops-example-follow-up", purpose: FINOPS_EXAMPLE_FOLLOW_UP_PURPOSE,
+  });
+}
+
+/** The decision-and-release section's panel: a follow-up about the log itself. */
+export function bindDecisionLogFollowUp(doc = globalThis.document, request = (...args) => globalThis.fetch(...args)) {
+  return bindTopicFollowUp(doc, request, {
+    prefix: "decision-log-follow-up", purpose: DECISION_LOG_FOLLOW_UP_PURPOSE,
+  });
+}
+
 if (globalThis.document) {
   bindExecutiveTakeaway();
   bindFinopsExampleFollowUp();
+  bindDecisionLogFollowUp();
 }
