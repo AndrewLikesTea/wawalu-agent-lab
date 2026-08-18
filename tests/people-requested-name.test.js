@@ -171,10 +171,11 @@ test("a forwarded name this feed does not hold is repeated verbatim and never tr
     const { document } = page;
     assert.equal(selectedChip(page)?.dataset.author, "Nova");
     assertStatedZero(document, "Nova");
-    assert.equal(textOf(document.querySelector("#profile-name")), "People is filtered to Nova.");
+    assert.equal(textOf(document.querySelector("#profile-name")), "Nova has no image posts yet.");
     // Not Zed, who has the most pictures, and not the no-name default.
     const rendered = textOf(document.getElementById("main-content"));
-    assert.doesNotMatch(rendered, /filtered to (Zed|Guest)\./);
+    assert.doesNotMatch(rendered, /published as (Zed|Guest)\./);
+    assert.doesNotMatch(rendered, /(Zed|Guest) has no image posts yet\./);
     // A link that asked for somebody is not a name the page chose.
     assert.equal(textOf(document.querySelector("#profile-picker-note")), "Pick another name below to switch.");
   } finally {
@@ -194,12 +195,13 @@ test("a forwarded name the feed cannot hold is still the name the page answers",
     assertStatedZero(document, OVERLONG_NAME);
     // Whole and literal, in the two visible elements this region spends on the
     // display name. Written as text, never as markup, because it arrived in a URL.
-    assert.equal(textOf(document.querySelector("#profile-name")), `People is filtered to ${OVERLONG_NAME}.`);
+    assert.equal(textOf(document.querySelector("#profile-name")), `${OVERLONG_NAME} has no image posts yet.`);
     assert.equal(document.querySelector(".profile-identity").querySelectorAll("a").length, 0);
     // No other name is claimed as the answer, and "Guest" — the name the page
     // reached for when it had run out of candidates — is nowhere on it.
     const rendered = textOf(document.getElementById("main-content"));
-    assert.doesNotMatch(rendered, /filtered to (Zed|Guest)\./);
+    assert.doesNotMatch(rendered, /published as (Zed|Guest)\./);
+    assert.doesNotMatch(rendered, /(Zed|Guest) has no image posts yet\./);
     assert.doesNotMatch(rendered, /Guest/);
     // The count on its own chip is the drawn zero, not "Counting…" and not a
     // number borrowed from the name the page used to fall back to.

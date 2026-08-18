@@ -293,7 +293,7 @@ test("the forwarded People URL opens cold on that display name, filtered and new
   // her here would mean the URL lost to the default.
   assert.equal(pressedChip(document)?.dataset.author, REMY, "the cold open did not resolve to the forwarded name");
   assert.equal(chips(document).filter((chip) => chip.getAttribute("aria-pressed") === "true").length, 1);
-  assert.equal(textOf(document.querySelector("#profile-name")), `People is filtered to ${REMY}.`);
+  assert.equal(textOf(document.querySelector("#profile-name")), `Showing 2 image posts published as ${REMY}.`);
 
   // No second selection step: the grid is already Remy's, newest first, and the
   // expected ids are sorted out of the fixture rather than written down.
@@ -318,7 +318,7 @@ test("a stored name loses to the forwarded one on first paint", async (t) => {
   const { document } = page;
 
   assert.equal(pressedChip(document)?.dataset.author, REMY, "the remembered name overrode the forwarded one");
-  assert.equal(textOf(document.querySelector("#profile-name")), `People is filtered to ${REMY}.`);
+  assert.equal(textOf(document.querySelector("#profile-name")), `Showing 2 image posts published as ${REMY}.`);
   assert.deepEqual(document.querySelectorAll(".profile-tile").map((tile) => tile.dataset?.postId), newestFirstIds(REMY));
 });
 
@@ -332,7 +332,7 @@ test("a forwarded name with no image posts is named, and offered the whole feed"
   // Held, not swapped: Tess has posted twice and never a picture, and People
   // stays on her rather than falling back to the name with images.
   assert.equal(pressedChip(document)?.dataset.author, TESS, "the empty name was silently replaced");
-  assert.equal(textOf(document.querySelector("#profile-name")), `People is filtered to ${TESS}.`);
+  assert.equal(textOf(document.querySelector("#profile-name")), `${TESS} has no image posts yet.`);
   assert.equal(textOf(document.querySelector("#grid-title")), `${TESS} · 0 image posts`);
 
   // One explained region rather than a blank list.

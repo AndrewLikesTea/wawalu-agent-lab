@@ -432,6 +432,30 @@ export function profileResultsHeading(author, count = null) {
   return `${name} · ${counted}`;
 }
 
+// The identity line under the heading: what the page is showing, in the words a
+// visitor would use for it. It read "People is filtered to Ari." — the system's
+// account of its own state, naming a filter the reader had to already understand
+// and a surface rather than the pictures. It now says the result: how many image
+// posts are on screen and whose name they were published under.
+//
+// The count is the length of the array the tiles are drawn from, handed down by
+// the caller, so this sentence and the grid cannot disagree. It spells the count
+// with countLabel, the way the heading, the chips and the live region do, so "1
+// image post" never lands as "1 image posts".
+//
+// A null count is the page not having counted yet — the pre-hydration frame and
+// a load still in flight — so the line names the display name and stops rather
+// than claiming a number, and the same rule keeps it from printing an empty
+// verdict over a feed that has not answered. A settled zero is a different fact
+// and reads as one, in the same voice; the empty state below the grid still
+// carries what to do about it, unchanged.
+export function profileActiveFilterLine(author, count = null) {
+  const name = String(author ?? "").trim() || DEFAULT_AUTHOR;
+  if (count === null || count === undefined) return `Showing image posts published as ${name}.`;
+  if (count === 0) return `${name} has no image posts yet.`;
+  return `Showing ${countLabel(count, "image post")} published as ${name}.`;
+}
+
 // What the live region announces after a refresh settles. It mirrors what the
 // grid now shows rather than composing a fourth variant of the same news.
 //
@@ -768,20 +792,24 @@ export function renderAuthorPicker(container, entries, { author, counted = true,
 //
 // The heading (profileResultsHeading, written in mountProfile from the same list
 // the tiles come from) states the selected name and the number of tiles; the
-// chip names the picker entry that is filtering, and stops there — it used to
-// end on "'s image posts", which restated the heading beside it and the tagline
-// at the top of the page in a third wording. Those two are the whole visible
-// budget for the display name in this region, so nothing else written here
-// carries it: the avatar is initials and is hidden from assistive technology, so
-// the name is announced once and never as the word "AR", and the counts line
-// puts the image posts next to the posts in total and the last posting date
-// without naming anybody.
-export function renderProfileHeader(elements, author, summary) {
+// chip states in a sentence what the grid beside it is showing
+// (profileActiveFilterLine). Those two are the whole visible budget for the
+// display name in this region, so nothing else written here carries it: the
+// avatar is initials and is hidden from assistive technology, so the name is
+// announced once and never as the word "AR", and the counts line puts the image
+// posts next to the posts in total and the last posting date without naming
+// anybody.
+//
+// `count` is the number of tiles the caller is about to draw, or null while the
+// page has nothing settled to count. The header does not derive it: mountProfile
+// holds the one filtered array, and a second count taken here could drift from
+// the one on screen.
+export function renderProfileHeader(elements, author, summary, { count = null } = {}) {
   if (elements.avatar) {
     elements.avatar.textContent = authorInitials(author);
     elements.avatar.setAttribute("aria-hidden", "true");
   }
-  if (elements.name) elements.name.textContent = `People is filtered to ${author}.`;
+  if (elements.name) elements.name.textContent = profileActiveFilterLine(author, count);
   if (elements.summary) elements.summary.textContent = profileSummaryText(summary);
 }
 
@@ -842,20 +870,20 @@ export function mountProfile(root, options = {}) {
   const render = () => {
     const mine = selectProfilePosts(posts, author);
     const summary = profileSummary(posts, author);
-    renderProfileHeader(elements, author, summary);
-    // The heading is written from `mine`, the same array the tiles are rendered
-    // from three lines below, in this one update — so the name it states and the
-    // number it states are the name and the number on screen, and neither can
-    // move without the other.
+    // The heading and the identity line are both written from `mine`, the same
+    // array the tiles are rendered from further down, in this one update — so the
+    // name they state and the number they state are the name and the number on
+    // screen, and neither can move without the tiles.
     //
     // A number only where the page has a settled answer behind it: a finished
     // load, or, after a failed refresh, the tiles still on screen from the last
     // one. While the first load is in flight there is nothing to count — the
-    // picker says "Counting…" in that frame, and a heading claiming a number
-    // beside it would contradict it — and a failed load with an empty grid
-    // states no zero it cannot support.
+    // picker says "Counting…" in that frame, and a line claiming a number beside
+    // it would contradict it — and a failed load with an empty grid states no
+    // zero it cannot support.
+    const counted = state === "ready" || (state === "error" && mine.length > 0);
+    renderProfileHeader(elements, author, summary, { count: counted ? mine.length : null });
     if (elements.heading) {
-      const counted = state === "ready" || (state === "error" && mine.length > 0);
       elements.heading.textContent = profileResultsHeading(author, counted ? mine.length : null);
     }
     // The connection line until the first fetch answers and profile-page.js

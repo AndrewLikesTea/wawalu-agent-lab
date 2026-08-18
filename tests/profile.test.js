@@ -15,6 +15,7 @@ const {
   distinctAuthors, emptySummaryText, hasExplicitAuthor, imagePostCounts, loadingSummaryText,
   mergePostsById, normalizeProfileApiPosts, normalizeSeedPosts, pickerEntries, pickerNoteText, postDetailHref,
   singleNameNotice, PROFILE_CLEAR_FILTERS_LABEL, PROFILE_NO_MATCH_LINE, profileNoMatchGuidance,
+  profileActiveFilterLine,
   profileAnnouncement, profileHref, profilePaintHref, profileResultsHeading, profileSummary, profileSummaryText,
   renderAuthorPicker, renderProfileGrid, renderProfileHeader, resolveProfileAuthor, selectProfilePosts,
 } = await import("../src/profile.js");
@@ -522,6 +523,13 @@ test("the profile and post pages are wired, labelled, and reachable", async () =
   // inside it, so the instruction is attached to the controls rather than to one
   // of them.
   assert.match(profile, /<fieldset class="filter-group" aria-describedby="profile-author-hint">/);
+  // And the hint says what choosing an entry does. It used to define the term
+  // instead — "The display name is the name shown on each post." — which a
+  // reader could take in whole and still not know that pressing one narrows the
+  // grid below, so the one sentence attached to the control explained nothing
+  // about the control.
+  assert.match(profile, /<p class="hint profile-toolbar-hint" id="profile-author-hint">\s*Choose a display name to see only the image posts published under it\.\s*<\/p>/);
+  assert.doesNotMatch(profile, /The display name is the name shown on each post\./);
   assert.match(profile, /<div class="filter-options" id="profile-author"><\/div>/);
   // The picker is buttons, not a menu: an option list can hold the count but
   // cannot hold a pressed state a reader can see.
@@ -591,12 +599,14 @@ test("the header shows who this is and what the counts mean", () => {
     name: createElement("span"),
     summary: createElement("p"),
   };
-  renderProfileHeader(elements, "Mina Okafor", { total: 3, withImages: 2, likes: 6, latest: "2026-07-15T09:00:00.000Z" });
+  renderProfileHeader(elements, "Mina Okafor", { total: 3, withImages: 2, likes: 6, latest: "2026-07-15T09:00:00.000Z" },
+    { count: 2 });
   assert.equal(elements.avatar.textContent, "MO");
   assert.equal(elements.avatar.getAttribute("aria-hidden"), "true", "the avatar is decoration beside the name");
-  // The chip names the picker entry that is filtering and stops: the heading
-  // beside it counts the image posts, and the tagline above states the rule.
-  assert.equal(elements.name.textContent, "People is filtered to Mina Okafor.");
+  // The chip states what is on screen: how many image posts, published under
+  // which display name. The count is the caller's — the tiles it is about to
+  // draw — not a second figure derived here.
+  assert.equal(elements.name.textContent, "Showing 2 image posts published as Mina Okafor.");
   assert.match(elements.summary.textContent, /^2 image posts · 3 posts in total · last posted /);
   // The header writes the display name into exactly one of the elements it
   // touches. The heading beside them carries it a second time and that is the
@@ -608,9 +618,44 @@ test("the header shows who this is and what the counts mean", () => {
   assert.deepEqual(written, [elements.name], `${written.length} of the header's lines print the display name`);
 });
 
+// The reported defect: the line over the grid reported the page's internal state
+// — "People is filtered to Ari." — which names a mechanism rather than a result,
+// and left the reader to find the number somewhere else on the page.
+test("the identity line says how many image posts are showing and under which name", () => {
+  assert.equal(profileActiveFilterLine("Ari", 4), "Showing 4 image posts published as Ari.");
+  // Counted the way every other number on this page is counted, so one image
+  // post never lands as "1 image posts".
+  assert.equal(profileActiveFilterLine("Bea", 1), "Showing 1 image post published as Bea.");
+  assert.equal(profileActiveFilterLine("Bea", 1).includes(countLabel(1, "image post")), true);
+  // A settled zero is its own sentence in the same voice, under the same name.
+  // It is not the grid's empty state and does not borrow its words: that panel
+  // still says what fills the grid, one region below.
+  assert.equal(profileActiveFilterLine("Ari", 0), "Ari has no image posts yet.");
+  assert.notEqual(profileActiveFilterLine("Ari", 0), PROFILE_EMPTY_COPY.guidance);
+  assert.notEqual(profileActiveFilterLine("Ari", 0), EMPTY_SUMMARY_LINE);
+  // Nothing counted yet is not a zero: the pre-hydration frame and a first load
+  // in flight name the display name and claim no number, exactly as the results
+  // heading and the picker's "Counting…" do beside it.
+  assert.equal(profileActiveFilterLine("Ari"), "Showing image posts published as Ari.");
+  assert.equal(profileActiveFilterLine("Ari", null), profileActiveFilterLine("Ari"));
+  assert.doesNotMatch(profileActiveFilterLine("Ari", null), /\d/);
+  // The term the picker, the composer and Social's feed filter all use, and no
+  // second word for it anywhere in the sentence.
+  for (const rival of [/\bhandle\b/i, /\busername\b/i, /\bauthor\b/i, /\bposter\b/i, /\bprofile\b/i])
+    for (const count of [null, 0, 1, 4])
+      assert.doesNotMatch(profileActiveFilterLine("Ari", count), rival);
+  // A name that is markup is text like any other: this line is written through
+  // textContent, so it is carried whole rather than escaped or trimmed.
+  assert.equal(profileActiveFilterLine('<a href="#">Social</a>', 2),
+    'Showing 2 image posts published as <a href="#">Social</a>.');
+});
+
 test("an empty header states the situation once, in image-post terms", () => {
   const elements = { avatar: createElement("span"), name: createElement("span"), summary: createElement("p") };
-  renderProfileHeader(elements, "Mina Okafor", { total: 0, withImages: 0, likes: 0, latest: null });
+  renderProfileHeader(elements, "Mina Okafor", { total: 0, withImages: 0, likes: 0, latest: null }, { count: 0 });
+  // A settled zero is said plainly, under the name that was chosen, rather than
+  // reported as a filter the reader has to interpret.
+  assert.equal(elements.name.textContent, "Mina Okafor has no image posts yet.");
   // The empty line states the situation and names nobody: the heading above it
   // says "Mina Okafor · 0 image posts", so this line is read against a subject
   // the region has already given, and it used to open on that name as a third

@@ -320,7 +320,9 @@ test("the profile page defines the selected name as a display name", async () =>
   // a filter on it, not its name, so the name renders in the profile header that
   // opens the results — still present, still the pre-hydration default.
   assert.match(html, /<h1 id="page-title">People<\/h1>/);
-  assert.match(html, /<p class="profile-active-filter" id="profile-name">People is filtered to Ari\.<\/p>/);
+  // Nothing has been counted in the pre-hydration frame, so the line names the
+  // display name without a number, the way the heading beside it does.
+  assert.match(html, /<p class="profile-active-filter" id="profile-name">Showing image posts published as Ari\.<\/p>/);
 });
 
 // The two surfaces a visitor mixes up. Each page's first sentence has to say
