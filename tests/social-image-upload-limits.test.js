@@ -165,11 +165,15 @@ test("the image field states the formats and the size exactly once, in plain sen
   assert.equal(textOf(hint),
     "PNG, JPEG, GIF, or WebP up to 512 KB Reduce or re-export a larger image before you choose it.");
   assert.equal(textOf(document.querySelector('label[for="post-image"]')), "Choose image");
-  // #1826: the steps named the control at all. The last one read "Select Choose
-  // image" — the button's own label, offered as an instruction beside the
-  // button — so the field said "Choose image" twice within one block of help.
-  assert.equal(help.split("Choose image").length - 1, 0,
-    `the help beside the control repeats the control's label: ${help}`);
+  // #1826 removed a step whose entire content was the button's own label, so the
+  // field said "Choose image" twice within one block of help. #1869 puts the
+  // control back in the last step, once, and only because that step carries what
+  // the label cannot: which file to pick. The hint beside the button still does
+  // not name it, so the help says it exactly once.
+  assert.equal(help.split("Choose image").length - 1, 1,
+    `the help beside the control names it other than once: ${help}`);
+  assert.equal(textOf(hint).split("Choose image").length - 1, 0,
+    `the format and size rule repeats the control's label: ${textOf(hint)}`);
   // No second phrasing of the same rule beside it, and no clause welding.
   assert.doesNotMatch(help, /\b(maximum|max|limit)\b/i);
   assert.doesNotMatch(help, /;/);
@@ -177,7 +181,8 @@ test("the image field states the formats and the size exactly once, in plain sen
   // The way in and the way back, one numbered step each: same destination, same
   // new tab, still declared in the link's own text.
   assert.equal(textOf(steps),
-    "Create an image in Paint (opens in a new tab) ↗ Export the PNG Return to this tab");
+    "Create an image in Paint (opens in a new tab) ↗ Export the PNG Return to this tab"
+    + " Use Choose image above to pick the PNG you exported");
   const paint = steps.querySelector("a");
   assert.equal(paint.getAttribute("href"), "/paint/");
   assert.equal(paint.getAttribute("target"), "_blank");
