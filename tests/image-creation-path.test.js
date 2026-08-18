@@ -132,19 +132,24 @@ for (const [name, document] of Object.entries(NEARBY_INVITATION)) {
     assert.equal(order[1].getAttribute("id"), "profile-publish-route");
   });
 
-  test(`${name} keeps the Paint route in the keyboard sequence, before the browsing panel`, () => {
+  test(`${name} keeps the Paint route in the keyboard sequence, under the browsing panel`, () => {
     const sequence = tabSequence(document);
     const link = document.querySelector(".feed-create").querySelector("a");
     assert.ok(sequence.includes(link), `${name}'s Paint route is not keyboard reachable`);
 
-    // Ahead of the browsing region it introduces: a reader tabbing through the
-    // feed meets the invitation before the images, not after however many of
-    // them there happen to be.
+    // Under the browsing region rather than above it (issue #1854). It used to
+    // stand between the line naming the display name being shown and that name's
+    // pictures, so a reader who followed a link to see somebody's images read a
+    // three-step production pitch before the first one. The invitation is for
+    // the reader who has browsed; the browsing comes first.
     assert.ok(document.getElementById(BROWSING_PANEL[name]),
       `${name} has no ${BROWSING_PANEL[name]} region`);
-    assert.ok(sources[name].indexOf('class="feed-create')
-      < sources[name].indexOf(`id="${BROWSING_PANEL[name]}"`),
-    `${name} authors its Paint route after the images it is meant to introduce`);
+    assert.ok(sources[name].indexOf(`id="${BROWSING_PANEL[name]}"`)
+      < sources[name].indexOf('class="feed-create'),
+    `${name} authors its Paint route above the images it is meant to follow`);
+    // Source order is the whole mechanism: the reading order and the tab order
+    // are the same order, and neither is faked.
+    assert.equal(link.getAttribute("tabindex"), null, `${name}'s Paint route fakes its place in the sequence`);
   });
 }
 

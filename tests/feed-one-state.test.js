@@ -447,6 +447,65 @@ test("People's chooser is inoperable until there is something to choose between"
   assert.match(textOf(document.querySelector("#profile-summary")), /^2 image posts · 2 posts in total/);
   assert.equal(document.querySelectorAll(".feed-connection").length, 1);
   assert.equal(document.querySelectorAll(".feed-create").length, 1);
+  // And every line that left came back where its author put it, not at the end
+  // of the panel. The invitation into Paint is restored while the connection
+  // line above it is still out, so its slot is the sibling it shipped in front
+  // of rather than an index counted against a shorter panel: under the grid it
+  // invites the reader to join, above the caveat that closes the region
+  // (issue #1854).
+  assertPanelOrder(document, "restored");
+});
+
+// The panel's authored order, read off the elements that are actually in it. No
+// descendant selectors and no equality against an element: positions only.
+function assertPanelOrder(document, state) {
+  const panel = document.querySelector(".list-panel").childElements;
+  const slot = (matches) => panel.findIndex(matches);
+  const grid = slot((node) => node.getAttribute("id") === "profile-grid");
+  const invitation = slot((node) => node.classList?.contains("feed-create"));
+  const caveat = slot((node) => node.classList?.contains("profile-role"));
+
+  assert.ok(grid >= 0 && invitation >= 0 && caveat >= 0,
+    `${state}: the panel is missing the grid, the invitation, or the caveat`);
+  assert.ok(grid < invitation, `${state}: the invitation into Paint stands above the pictures`);
+  assert.ok(invitation < caveat, `${state}: the invitation was appended past the caveat that closes the panel`);
+}
+
+// Issue #1854: the invitation into Paint is read after the pictures it invites
+// the reader to join, in every state the grid has. Walked through all three in
+// one page, because the paragraph is authored once and moved by presence: a
+// placement that is right on the frame as served and wrong after a load is the
+// defect this pins.
+test("People keeps the invitation under the grid through loading, empty and loaded", async (t) => {
+  const page = await loadPage(PEOPLE_PAGE, {});
+  t.after(() => page.restore());
+  const { document } = page;
+
+  // Loading: placeholder tiles, and no invitation at all — the skeletons carry
+  // the tile class, so the grid is counted without them.
+  const profile = mountProfile(document, { posts: [], author: "Zed", state: "loading" });
+  const skeletons = document.querySelectorAll(".profile-tile-skeleton").length;
+  assert.ok(skeletons > 0, "the loading grid drew no placeholders");
+  assert.equal(document.querySelectorAll(".profile-tile").length - skeletons, 0, "the loading grid drew real tiles");
+  assert.equal(document.querySelectorAll(".feed-create").length, 0);
+
+  // Loaded: pictures on screen, and the invitation back under them.
+  profile.seed(MIXED);
+  assert.equal(document.querySelectorAll(".profile-tile-skeleton").length, 0);
+  assert.equal(document.querySelectorAll(".profile-tile").length, 2);
+  assert.equal(document.querySelectorAll(".feed-create").length, 1);
+  assertPanelOrder(document, "loaded");
+
+  // Empty: a picker that emptied a feed which does have pictures behind it, so
+  // the connection line above the invitation is gone for a different reason
+  // than the invitation's own. The invitation must not drift to the end of the
+  // panel as the lines around it come and go.
+  profile.setAuthor("Ari");
+  assert.equal(document.querySelectorAll(".empty-state-filtered").length, 1);
+  assert.equal(document.querySelectorAll(".profile-tile").length, 0);
+  assert.equal(document.querySelectorAll(".feed-connection").length, 0);
+  assert.equal(document.querySelectorAll(".feed-create").length, 1);
+  assertPanelOrder(document, "filtered-empty");
 });
 
 test("People's promise about new image posts is said only where there is a grid for them", async (t) => {

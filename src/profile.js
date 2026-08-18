@@ -804,7 +804,7 @@ export function mountProfile(root, options = {}) {
     announcer: root.querySelector("#profile-announcer"),
     picker: root.querySelector("#profile-author"),
     pickerNote: root.querySelector("#profile-picker-note"),
-    // The one route into Paint: the invitation above the grid. It is a real
+    // The one route into Paint: the invitation under the grid (#1854). It is a real
     // anchor in the markup and stays one whether or not this runs; all that is
     // added here is the display name, so Paint's back link returns to the
     // profile that was actually being read rather than the default display

@@ -30,13 +30,19 @@ export function feedPhase({ state = "ready", total = 0, visible = 0, filtering =
 // the whole complaint here is that a waiting page made claims it could not
 // support yet.
 //
-// The slot is remembered as the index the node shipped at, so restoring it puts
-// the line back where the author put it rather than at the end of its panel.
+// The slot is remembered as the siblings the node shipped in front of, so
+// restoring it puts the line back where the author put it rather than at the end
+// of its panel. Siblings rather than an index, because more than one line on a
+// panel leaves while a fetch is open: People restores its invitation into Paint
+// while the connection line above it is still out, and an index counted against
+// the shorter list that leaves would land the invitation past the end of the
+// panel, under the caveat that closes it.
 // `[...parent.children]` because a real HTMLCollection has no indexOf.
 export function feedPresence(node) {
   const parent = node?.parentNode ?? null;
   if (!node || !parent) return { present() {} };
-  const slot = [...parent.children].indexOf(node);
+  const shipped = [...parent.children];
+  const following = shipped.slice(shipped.indexOf(node) + 1);
   return {
     present(show) {
       const here = [...parent.children].includes(node);
@@ -45,7 +51,8 @@ export function feedPresence(node) {
         node.remove();
         return;
       }
-      const after = parent.children[slot] ?? null;
+      const present = [...parent.children];
+      const after = following.find((sibling) => present.includes(sibling)) ?? null;
       if (after) parent.insertBefore(node, after);
       else parent.append(node);
     },

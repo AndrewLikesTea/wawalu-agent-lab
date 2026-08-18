@@ -804,7 +804,7 @@ test("the line that orders the posts is tied to the list it orders", async () =>
   }
 });
 
-test("tabbing from the top reaches the picker, then the posts under the header", async () => {
+test("tabbing from the top reaches the picker, then the posts, then the helper under them", async () => {
   const page = await people();
   try {
     const { document } = page;
@@ -812,24 +812,29 @@ test("tabbing from the top reaches the picker, then the posts under the header",
     // the page harness that boots the shipped markup with the shipped module.
     document.querySelectorAll(".profile-lede")[1].querySelectorAll("a")[0].focus();
     const walked = [];
-    for (let step = 0; step < 6; step += 1) walked.push(pressTab(document));
+    for (let step = 0; step < 7; step += 1) walked.push(pressTab(document));
     assert.deepEqual(walked.slice(0, 3).map((node) => node.dataset?.author), ["Ari", "Bea", "Zed"],
       "the display-name picker is not the first thing a keyboard reaches in main");
-    // Then the panel's own two-step helper — make the image, publish it — in the
-    // order the steps happen, then the first post. The ordering label sits
-    // between the picker and these, and takes no stop of its own: nothing
+    // Then Zed's two pictures, which are what the reader came for — and only
+    // then the panel's two-step helper, make the image and publish it, in the
+    // order the steps happen. The helper used to take the fourth and fifth
+    // stops, ahead of every picture (issue #1854). The ordering label sits
+    // between the picker and the tiles, and takes no stop of its own: nothing
     // focusable was added above the results to carry it.
-    assert.equal(walked[3].getAttribute("id"), "profile-paint-route");
-    assert.equal(walked[4].getAttribute("id"), "profile-publish-route");
-    assert.equal(walked[5].classList.contains("profile-tile"), true, "the sixth stop is not the first post");
+    assert.deepEqual(walked.slice(3, 5).map((node) => node.classList.contains("profile-tile")), [true, true],
+      "the fourth and fifth stops are not the posts the reader came for");
+    assert.equal(walked[5].getAttribute("id"), "profile-paint-route");
+    assert.equal(walked[6].getAttribute("id"), "profile-publish-route");
 
     // And the visual order the tab order is supposed to match: every one of
-    // those stops comes after the heading, and the posts come after the label.
+    // those stops comes after the heading, the posts come after the label, and
+    // the helper comes after the posts.
     const order = documentOrder(document);
     const at = (node) => order.indexOf(node);
     assert.ok(at(document.querySelector("#profile-author")) < at(document.querySelector("#grid-title")));
     assert.ok(at(document.querySelector("#grid-title")) < at(document.querySelector("#profile-order")));
-    assert.ok(at(document.querySelector("#profile-order")) < at(walked[5]));
+    assert.ok(at(document.querySelector("#profile-order")) < at(walked[3]));
+    assert.ok(at(walked[3]) < at(walked[5]), "the helper is still read before the pictures");
     // No new focusable above the results region: the intro's link to Social and
     // the picker are still the whole of it.
     const inMain = tabSequence(document).filter((element) => element.closest("#main-content"));
@@ -1037,6 +1042,47 @@ const CAVEAT = "Display names are invented for this demo or chosen by whoever pu
 // never against a stylesheet — and in the states a reader waits longest in,
 // because a load, a failure and a filter that empties the grid are exactly
 // where an ordering rule rots unnoticed.
+// The route out of browsing and into making, word for word. The copy is not
+// this task's to change: issue #1854 moved the paragraph and nothing else.
+const INVITATION = "Want a picture of your own here? Create an image in Paint (opens in a new tab), "
+  + "export the PNG, then Publish a post on Social under a display name.";
+
+// The second reported defect on this panel (issue #1854), asserted in the same
+// walk and in the same states: the invitation into Paint stood between the line
+// naming the display name being shown and that name's pictures, so a visitor who
+// followed a link to see somebody's images read a three-step production pitch
+// before the first one. It is read after the grid now and before the caveat,
+// with the same sentence and the same two destinations — and it is still said
+// exactly once, wherever it sits.
+//
+// The one state left out here is a first fetch with nothing on screen behind it:
+// profile.js takes the paragraph off the page entirely rather than inviting a
+// reader into a grid nobody has seen yet, and tests/feed-one-state.test.js pins
+// both that absence and where it comes back to. Every state below has pictures
+// or an answer about them, so every state below carries the paragraph.
+function assertInvitationUnderPictures(document, state, order, { grid, caveat }) {
+  const at = (node) => order.indexOf(node);
+  const invitations = document.querySelectorAll(".feed-create");
+  const said = textOf(document.body).split("Want a picture of your own here?").length - 1;
+
+  assert.equal(invitations.length, 1, `${state}: the page carries ${invitations.length} invitations into Paint`);
+  assert.equal(said, 1, `${state}: the invitation's sentence is on the page ${said} times`);
+  assert.equal(textOf(invitations[0]).trim(), INVITATION, `${state}: the invitation was reworded`);
+
+  assert.ok(at(grid) < at(invitations[0]), `${state}: the invitation is read before the pictures`);
+  assert.ok(at(invitations[0]) < at(caveat), `${state}: the invitation is read after the caveat that closes the panel`);
+
+  // Both destinations, unchanged: the editor, carrying whatever provenance the
+  // module has written on it by now, and the composer on Social.
+  const routes = invitations[0].querySelectorAll("a").map((anchor) => anchor.getAttribute("href"));
+  assert.equal(routes.length, 2, `${state}: the invitation offers ${routes.length} routes`);
+  assert.ok(routes[0].startsWith("/paint/?from=profile"), `${state}: the Paint route now points at ${routes[0]}`);
+  assert.equal(routes[1], "/social.html#post-form", `${state}: the publishing step no longer opens the composer`);
+  for (const anchor of invitations[0].querySelectorAll("a")) {
+    assert.equal(anchor.getAttribute("tabindex"), null, `${state}: the invitation fakes its place in the tab order`);
+  }
+}
+
 function assertPicturesBeforeProvenance(document, state, { tiles = null, status = null } = {}) {
   const order = documentOrder(document);
   const at = (node) => order.indexOf(node);
@@ -1052,6 +1098,7 @@ function assertPicturesBeforeProvenance(document, state, { tiles = null, status 
   assert.ok(at(grid) < at(caveat), `${state}: the grid is read after the caveat`);
   assert.ok(at(document.querySelector("#profile-author")) < at(grid),
     `${state}: the display-name chooser no longer sits above the posts it chooses`);
+  assertInvitationUnderPictures(document, state, order, { grid, caveat });
 
   // The two regions that speak did not move and did not change contract: the
   // status panel is rendered content, the polite announcer is the page's one
@@ -1078,7 +1125,7 @@ function assertPicturesBeforeProvenance(document, state, { tiles = null, status 
   }
 }
 
-test("the grid and the status region are read before the demo disclaimer", async () => {
+test("the grid and the status region are read before the Paint helper and the demo disclaimer", async () => {
   const page = await people();
   try {
     assertPicturesBeforeProvenance(page.document, "populated", { tiles: 2 });
