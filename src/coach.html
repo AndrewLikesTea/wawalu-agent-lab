@@ -50,16 +50,24 @@
            The introduction is made once. An eyebrow naming the page, this
            heading, a tagline restating it, and a question over the form below
            all promised the same grade before a reader reached anywhere to type.
-           The heading names the action; what a visitor does and what comes back
-           is said once in the block immediately before the prompt field, where
-           they read it before deciding whether to paste anything. -->
+           The heading is the name a visitor clicked in the nav and reads on the
+           browser tab, so landing here costs nobody a moment spent matching two
+           names for one page. The sentence under it is the whole introduction:
+           what this page does, and where the text stays. That promise moved up
+           from the block before the field rather than being written a second
+           time. What to do, in what order, and what comes back stay in that
+           block, immediately before the prompt field, where they are read before
+           anyone decides whether to paste anything. -->
       <section class="coach-hero" aria-labelledby="page-title">
-        <h1 id="page-title">Grade a prompt.</h1>
-        <!-- The companion surface, linked from the page that owns it rather than
-             added to the site nav: it is a view of the same rubric across a
-             history instead of a peer destination, and it answers the question
-             one prompt cannot — which habit to change first. -->
-        <p class="coach-hero-companion">Already have an export of your own history? <a href="/personal-history.html">Read your whole history instead</a> — the same rubric across weeks of your prompts, naming the single habit worth changing first. It is read in your browser too.</p>
+        <h1 id="page-title">Prompt coach</h1>
+        <p id="page-tagline">Grade a prompt before you send it. Your pasted text stays in this browser. It is not sent to a model or stored.</p>
+        <!-- The companion surface, offered after the page has said what it is
+             and linked from the page that owns it rather than added to the site
+             nav: it is a view of the same rubric across a history instead of a
+             peer destination, and it answers the question one prompt cannot —
+             which habit to change first. The link carries the destination's own
+             name, the one the footer directory uses. -->
+        <p class="coach-hero-companion">Already have an export of your own history? Read it in <a href="/personal-history.html">Personal AI history</a> — the same rubric across weeks of your prompts, naming the single habit worth changing first. It is read in your browser too.</p>
       </section>
 
       <!-- Coach one prompt: the question a reader arrives with before they have
@@ -91,13 +99,14 @@
              against, and the one thing to do first.
              The static sentence below is readable before any script runs,
              so the result and action do not depend on JavaScript. The privacy
-             promise is stated once, before the prompt field where it matters. The
-             module paints the detailed, checkable boundary in a disclosure. -->
+             promise is not repeated here: it is the page's opening sentence,
+             read before this block and before the field. The module paints the
+             detailed, checkable boundary in a disclosure. -->
         <!-- "Start here" is the region's name for a screen reader moving by
              landmark, and no longer a visible heading: it sat directly under the
              section heading above and competed with it for the same job. -->
         <section class="prompt-coaching-entry" id="prompt-coaching-entry" data-entry-state="empty" aria-label="Start here">
-          <p class="prompt-coaching-entry-static"><strong>Your pasted text stays in this browser. It is not sent to a model or stored.</strong> Paste a prompt or short conversation, then select “Grade this prompt” to get a score out of 100 and the first change to make. Revise it and grade it again to compare the results.</p>
+          <p class="prompt-coaching-entry-static"><strong>Paste a prompt or short conversation, then select “Grade this prompt”</strong> to get a score out of 100 and the first change to make. Revise it and grade it again to compare the results.</p>
           <div class="prompt-coaching-entry-body" id="prompt-coaching-entry-body">
             <p class="prompt-coaching-entry-lead">See what the grade includes and what to do first.</p>
           </div>

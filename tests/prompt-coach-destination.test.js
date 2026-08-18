@@ -252,13 +252,14 @@ test("the destination reads as one page about one thing", async () => {
   assert.equal(sampleSection(document).getAttribute("aria-labelledby"), "prompt-coach-sample-title");
 
   // The boundary a visitor needs before pasting is readable with no script at
-  // all: it is in the shipped markup, not painted by a module. And it is read
-  // immediately before the form rather than in a hero the reader scrolled past.
-  const privacy = document.querySelector(".prompt-coaching-entry-static");
+  // all: it is in the shipped markup, not painted by a module. It is the
+  // sentence under the heading now — the first thing read on arrival, and still
+  // above the form rather than in a disclosure the reader has to open.
+  const privacy = byId(document, "page-tagline");
   assert.match(textOf(privacy), /pasted text stays in this browser/i);
   assert.match(textOf(privacy), /not sent to a model or stored/);
   const markup = await read("coach.html");
-  assert.ok(markup.indexOf('class="prompt-coaching-entry-static"') < markup.indexOf('id="prompt-coaching-input"'),
+  assert.ok(markup.indexOf('id="page-tagline"') < markup.indexOf('id="prompt-coaching-input"'),
     "the privacy statement must be read before the prompt field");
 
   // Said once. A page that repeats the same promise four times teaches a
@@ -271,20 +272,22 @@ test("the destination reads as one page about one thing", async () => {
   assert.match(sample, /not your prompt/);
   assert.match(sample, /real prompt/);
 
-  // One purpose statement, at the top: what this page is for and when to use
-  // it. The heading is that statement. An eyebrow above it and a tagline under
-  // it said the same thing again before a reader reached anywhere to type.
+  // The heading is the name the visitor clicked in the nav, and one sentence
+  // under it says what the page does. An eyebrow above the heading, and a
+  // tagline that restated the heading, said the same thing again before a
+  // reader reached anywhere to type.
   const hero = document.querySelector(".coach-hero");
-  assert.equal(textOf(byId(document, "page-title")), "Grade a prompt.");
-  assert.equal(document.querySelectorAll(".coach-hero-lead").length, 0,
-    "the tagline under the heading restated the heading");
+  assert.equal(textOf(byId(document, "page-title")), "Prompt coach");
+  assert.equal(hero.querySelectorAll("p").length, 2,
+    "the hero carries one purpose sentence and the companion offer, and nothing else");
   assert.equal(hero.querySelectorAll(".eyebrow").length, 0,
     "the eyebrow above the heading named the page the heading names");
   // And the introduction does not spend a second clause on the promise the
-  // form makes.
+  // form makes. The privacy claim has one wording on this page and the purpose
+  // sentence is where it lives, so the phrasings retired with it stay retired.
   const intro = textOf(hero);
   assert.doesNotMatch(intro, /leaves this tab|uploaded|no sign-in/i,
-    "the purpose statement is not a second copy of the privacy statement");
+    "the privacy statement has one wording on this page and these are not it");
   // Nor a second copy of the instructions: what to do, in what order, is said
   // once in the block that sits immediately before the field.
   assert.doesNotMatch(intro, /grade it again|bundled/i,
@@ -356,12 +359,15 @@ test("the promise is made once above the field, and then the page says how", asy
   // Four introductions — an eyebrow, the heading, a tagline under it, and a
   // question over the form — all promised the same grade before a reader
   // reached anywhere to type, and the instruction that carried the facts came
-  // last. One promise now, and it is the page's own heading.
+  // last. One promise now, in the sentence under the heading; the heading
+  // itself names the page rather than making the promise a second time.
   const above = copyAboveTheField(document);
   const made = above.match(PROMISE) ?? [];
   assert.equal(made.length, 1,
     `the promise is made ${made.length} times above the prompt field: ${made.join(" / ")}`);
-  assert.equal(textOf(byId(document, "page-title")), "Grade a prompt.");
+  assert.equal(textOf(byId(document, "page-title")), "Prompt coach");
+  assert.equal((textOf(byId(document, "page-tagline")).match(PROMISE) ?? []).length, 1,
+    "the one promise is made in the sentence directly under the heading");
 
   // No heading above the field asks the question the grade answers either. The
   // workflow still publishes that question in the session it returns; a reader
@@ -382,6 +388,45 @@ test("the promise is made once above the field, and then the page says how", asy
     "the instruction must name the grading control by its own label");
   assert.match(start, /score out of 100/);
   assert.match(start, /first change to make/);
+});
+
+test("the page names itself, says what it does, and only then offers the other route", async () => {
+  const { document } = await openCoach();
+
+  // One name for this page: the nav link a visitor clicked, the browser tab,
+  // and the first heading all say it. Arriving should not cost anyone a moment
+  // spent deciding whether they reached the destination they chose.
+  const navLabel = SITE_NAV.find((entry) => entry.href === "/coach.html").label;
+  assert.equal(textOf(byId(document, "page-title")), "Prompt coach");
+  assert.equal(textOf(byId(document, "page-title")), navLabel);
+  assert.match(await read("coach.html"), /<title>Prompt coach · Shiplog<\/title>/);
+
+  // Reading order inside the introduction, asserted on the elements rather than
+  // on the markup: the page's name, one sentence saying what it does and where
+  // the text stays, then the offer of the surface that reads a whole history.
+  // Nothing sits above the name, and the offer is never the first thing read.
+  const hero = document.querySelector(".coach-hero");
+  const label = (node) => node.id || node.getAttribute("class") || node.tagName;
+  assert.deepEqual(hero.childElements.map(label),
+    ["page-title", "page-tagline", "coach-hero-companion"],
+    "the introduction must read name, then purpose, then the companion offer");
+  assert.equal(hero.childElements[0].tagName, "H1");
+
+  const purpose = textOf(byId(document, "page-tagline"));
+  assert.match(purpose, /Grade a prompt/, "the sentence under the name must say what the page does");
+  assert.match(purpose, /stays in this browser/, "…and where a visitor's pasted text stays");
+
+  // The offer keeps its destination's own name, the one the footer directory
+  // uses, so a reader who follows it recognises where they landed.
+  const companion = document.querySelector(".coach-hero-companion");
+  assert.equal(textOf(companion.querySelector('a[href="/personal-history.html"]')),
+    "Personal AI history");
+
+  // And the page still introduces itself exactly once before the field: one
+  // promise of what a grade is, one statement of where the text stays.
+  const above = copyAboveTheField(document);
+  assert.equal((above.match(PROMISE) ?? []).length, 1);
+  assert.equal((above.match(PRIVACY_CLAIM) ?? []).length, 1);
 });
 
 test("“Start here” names the region for a screen reader and no longer heads it", async () => {
@@ -409,8 +454,13 @@ test("the privacy promise is made once, in one wording, before the field", async
   assert.equal(rendered.match(PRIVACY_CLAIM)?.length, 1,
     "the privacy claim is stated exactly once on the rendered page");
 
-  const beforeTheField = textOf(document.querySelector(".prompt-coaching-entry-static"));
+  const beforeTheField = textOf(byId(document, "page-tagline"));
   assert.match(beforeTheField, /Your pasted text stays in this browser\. It is not sent to a model or stored\./);
+  // And the block before the field, which used to carry it, does not carry it
+  // again: the statement moved up into the introduction rather than being
+  // copied into it.
+  assert.doesNotMatch(textOf(document.querySelector(".prompt-coaching-entry-static")),
+    /stays in this browser/, "the instruction block restates where the text stays");
 
   // The disclosure keeps the facts that statement does not carry: what the
   // coach reads, and what it never reaches.
@@ -445,9 +495,12 @@ test("the first screen names the result and the next action, before any script r
   const start = textOf(document.querySelector(".prompt-coaching-entry-static"));
   assert.match(start, /score out of 100/, "the first screen must say what a visitor receives");
   assert.match(start, /first change to make/);
-  assert.match(start, /pasted text stays in this browser/i);
-  assert.match(start, /not sent to a model or stored/);
   assert.match(start, /Paste a prompt or short conversation, then select “Grade this prompt”/);
+  // Where the text stays is static too, one block higher, so a dead script
+  // never costs a reader the promise they need before pasting.
+  const purpose = textOf(byId(document, "page-tagline"));
+  assert.match(purpose, /pasted text stays in this browser/i);
+  assert.match(purpose, /not sent to a model or stored/);
 
   // And the next action, named with the words on the controls a visitor presses,
   // so the instruction and the button cannot be read as two different things.
