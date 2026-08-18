@@ -255,6 +255,47 @@
           <a class="button-link" href="#record-history">Explore the decision and release log <span aria-hidden="true">→</span></a>
           <a class="text-link" href="#decision-to-release">See how a decision reaches a release</a>
         </div>
+
+        <!-- THE ASK THIS SECTION HAS EARNED, AND ITS OWN COPY OF NOTHING.
+             A reader convinced by the log had two ways on from here and both
+             were more reading. This is the third: reach a person about the log
+             itself. It is the same shape as the executive takeaway's request
+             one screen up — a trigger, a collapsed panel, a fixed topic to read
+             before typing, and one sentence naming what is sent — so a visitor
+             who has seen one already knows this one.
+             THE TOPIC IS THE LOG, NOT THE BUNDLED EXAMPLE. The takeaway's form
+             asks about the synthetic AI FinOps example; this one asks about
+             recording decisions and the releases they shape, and it invents no
+             customer, quote or figure to do it.
+             COLLAPSED IN THE SHIPPED MARKUP, deliberately. The first screen's
+             tab order is hand-kept and this section sits above the prompt-coach
+             entry, so the ask costs one tab stop here rather than three.
+             NOTHING IS SHARED WITH THE OTHER FORM. Every id, the form state,
+             the error paragraph and the live region belong to this panel alone,
+             and the module binds each panel over its own nodes with no
+             module-level state and no document-level submit listener, so
+             filling, sending, succeeding or failing in one cannot reach the
+             other. tests/homepage-decision-log-follow-up.test.js drives both at
+             once rather than trusting that. -->
+        <div class="executive-takeaway-actions">
+          <button id="decision-log-follow-up-open" type="button" aria-expanded="false" aria-controls="decision-log-follow-up-panel">Request a follow-up about the decision and release log</button>
+        </div>
+        <div id="decision-log-follow-up-panel" class="finops-example-follow-up" hidden>
+          <form id="decision-log-follow-up-form" novalidate>
+            <div class="site-footer-field">
+              <label for="decision-log-follow-up-topic">Follow-up topic</label>
+              <input id="decision-log-follow-up-topic" name="topic" type="text" value="Shiplog decision and release log — recording decisions and the releases they shape" readonly />
+            </div>
+            <div class="site-footer-field">
+              <label for="decision-log-follow-up-email">Work email</label>
+              <input id="decision-log-follow-up-email" name="email" type="email" maxlength="254" inputmode="email" autocomplete="email" placeholder="you@company.com" required aria-describedby="decision-log-follow-up-disclosure decision-log-follow-up-status" />
+            </div>
+            <p id="decision-log-follow-up-error" class="site-footer-error" hidden></p>
+            <button type="submit">Request a follow-up about this log</button>
+          </form>
+          <p id="decision-log-follow-up-disclosure" class="finops-example-follow-up-disclosure">Only your work email and this fixed follow-up topic are sent.</p>
+          <p id="decision-log-follow-up-status" class="finops-example-follow-up-status" role="status" aria-live="polite"></p>
+        </div>
       </section>
 
       <!-- The nav offers eight destinations and the hero can only describe two

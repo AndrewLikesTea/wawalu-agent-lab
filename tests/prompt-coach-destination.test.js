@@ -111,7 +111,18 @@ test("the home page offers the coach twice: in the destination list and as a thi
   const document2 = parseHtml(html);
   const target = document2.querySelector(".coach-entry").querySelector('a[href="/coach.html"]');
   let reached = null;
-  for (let press = 0; press < 30 && reached !== target; press += 1) reached = pressTab(document2);
+  // The bound is headroom, not a pinned position. It used to be 30, which was
+  // exactly where the coach link sat, so the next focusable added anywhere above
+  // it on the home page failed here — and failed by falling out of the loop into
+  // an assert.equal against a harness element, which deep-inspects the parsed
+  // page and takes about nine minutes to say so. #1870 adds one stop above it
+  // (the decision-and-release section's follow-up trigger; its field and submit
+  // are behind a collapsed panel and are not tab stops until it is opened). The
+  // property this test owns is that the entry point is reachable by Tab alone
+  // from the top of the page, not which press number reaches it, so the bound
+  // now carries room for the next one too.
+  const bound = tabSequence(document2).length;
+  for (let press = 0; press < bound && reached !== target; press += 1) reached = pressTab(document2);
   assert.equal(reached, target, "the coach entry point must sit in the natural tab order");
   pressEnter(document2);
   assert.deepEqual(document2.navigations, ["/coach.html"]);

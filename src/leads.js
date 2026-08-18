@@ -1,6 +1,12 @@
 export const MAX_EMAIL_LENGTH = 254;
 export const FOLLOW_UP_REQUEST_TYPES = Object.freeze([
   "follow_up_finops_example",
+  // The home page's second contextual ask: the decision and release log itself,
+  // not the bundled AI FinOps example above it. Accepted here AND widened into
+  // the stored table's purpose CHECK by migration 0010 — a label this list
+  // accepts and the schema refuses is a write that fails after the endpoint has
+  // already promised the visitor a reply.
+  "follow_up_decision_log",
   "follow_up_coach",
   "follow_up_releases",
   "follow_up_social",

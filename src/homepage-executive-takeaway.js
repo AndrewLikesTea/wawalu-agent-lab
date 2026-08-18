@@ -58,6 +58,21 @@ import {
 
 export const FINOPS_EXAMPLE_FOLLOW_UP_PURPOSE = "follow_up_finops_example";
 
+/**
+ * The second ask on this page, in the section that sells the decision and
+ * release log rather than the bundled AI FinOps example. It is a different
+ * errand and it is stored as one: a row written under this purpose says the
+ * visitor asked about the log, which is the only thing the reply has to know.
+ *
+ * The whole path is real end to end — `LEAD_PURPOSES` accepts it, migration
+ * 0010 widens the `lead_submissions` purpose CHECK to it, and
+ * tests/homepage-decision-log-follow-up.test.js drives the submit handler into
+ * the shipped Pages Function over a migrated database and reads the row back.
+ * Adding the constant without the migration would be a topic the storage layer
+ * refuses, answered to the visitor as a receipt.
+ */
+export const DECISION_LOG_FOLLOW_UP_PURPOSE = "follow_up_decision_log";
+
 /** Wire the native copy button. The clipboard is injectable for focused tests. */
 export function bindExecutiveTakeaway(doc = globalThis.document, clipboard = globalThis.navigator?.clipboard) {
   const button = doc?.getElementById("copy-executive-takeaway");
@@ -77,13 +92,25 @@ export function bindExecutiveTakeaway(doc = globalThis.document, clipboard = glo
   return true;
 }
 
-/** Wire the contextual request without sending the visible topic as visitor-authored data. */
-export function bindFinopsExampleFollowUp(doc = globalThis.document, request = (...args) => globalThis.fetch(...args)) {
-  const open = doc?.getElementById("finops-example-follow-up-open");
-  const panel = doc?.getElementById("finops-example-follow-up-panel");
-  const form = doc?.getElementById("finops-example-follow-up-form");
-  const status = doc?.getElementById("finops-example-follow-up-status");
-  const error = doc?.getElementById("finops-example-follow-up-error");
+/**
+ * Wire one contextual request without sending the visible topic as
+ * visitor-authored data.
+ *
+ * `prefix` names a panel's own five nodes and `purpose` the fixed routing label
+ * its submit sends. THE PAGE CARRIES TWO OF THESE and they must not be able to
+ * reach each other, so everything that could couple them is scoped here: the
+ * nodes are looked up once per call and closed over, the in-flight and settled
+ * state lives on that form's own `data-state`, the submit listener is on the
+ * form rather than on the document, and this module keeps no state of its own
+ * between calls. `postLeadEmail` builds the whole request body from the typed
+ * address and `purpose`, so neither panel has a route to the other's field.
+ */
+export function bindContextualFollowUp(doc, request, { prefix, purpose }) {
+  const open = doc?.getElementById(`${prefix}-open`);
+  const panel = doc?.getElementById(`${prefix}-panel`);
+  const form = doc?.getElementById(`${prefix}-form`);
+  const status = doc?.getElementById(`${prefix}-status`);
+  const error = doc?.getElementById(`${prefix}-error`);
   if (!open || !panel || !form || !status || !error) return null;
   const email = form.elements.email;
   const submit = form.querySelector('button[type="submit"]');
@@ -118,7 +145,7 @@ export function bindFinopsExampleFollowUp(doc = globalThis.document, request = (
     submit.setAttribute("aria-disabled", "true");
     status.textContent = "Sending your follow-up request…";
     try {
-      await postLeadEmail(request, email.value, FINOPS_EXAMPLE_FOLLOW_UP_PURPOSE, CONTACT_COPY);
+      await postLeadEmail(request, email.value, purpose, CONTACT_COPY);
       form.dataset.state = "success";
       for (const control of [form.elements.topic, email, submit]) control.disabled = true;
       status.textContent = "Follow-up requested. Someone from Wawalu will reply by email.";
@@ -133,7 +160,20 @@ export function bindFinopsExampleFollowUp(doc = globalThis.document, request = (
   return form;
 }
 
+/** The takeaway's own request: a follow-up about the bundled AI FinOps example. */
+export function bindFinopsExampleFollowUp(doc = globalThis.document, request = (...args) => globalThis.fetch(...args)) {
+  return bindContextualFollowUp(doc, request,
+    { prefix: "finops-example-follow-up", purpose: FINOPS_EXAMPLE_FOLLOW_UP_PURPOSE });
+}
+
+/** The decision and release log's request, in the section that describes it. */
+export function bindDecisionLogFollowUp(doc = globalThis.document, request = (...args) => globalThis.fetch(...args)) {
+  return bindContextualFollowUp(doc, request,
+    { prefix: "decision-log-follow-up", purpose: DECISION_LOG_FOLLOW_UP_PURPOSE });
+}
+
 if (globalThis.document) {
   bindExecutiveTakeaway();
   bindFinopsExampleFollowUp();
+  bindDecisionLogFollowUp();
 }

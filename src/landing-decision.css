@@ -31,7 +31,8 @@
 .finops-example-follow-up form { display:grid; gap:10px; }
 .finops-example-follow-up input { width:100%; box-sizing:border-box; }
 .finops-example-follow-up-disclosure { margin:12px 0 0; font-size:13px; }
-#finops-example-follow-up-status { margin:8px 0 0; color:#245643; font-weight:700; }
+#finops-example-follow-up-status, .finops-example-follow-up-status { margin:8px 0 0; color:#245643; font-weight:700; }
+#decision-log-follow-up-panel { max-width:640px; }
 
 @media (max-width:520px) {
   .executive-takeaway-actions { align-items:stretch; flex-direction:column; }
