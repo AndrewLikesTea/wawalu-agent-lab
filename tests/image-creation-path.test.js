@@ -368,15 +368,18 @@ test("the composer numbers the round trip and puts the rule beside the control",
   // from a reader parsing commas. The list used to stop at the Paint link, which
   // left the reader in a second tab with a drawing and nothing telling them how
   // to get it into this one.
-  // #1826: it no longer ends on "Select Choose image" either. That step's whole
-  // content was the label on the button beside it, so the list closed by telling
-  // a reader to press a control already in front of them.
+  // #1826 dropped a step reading "Select Choose image", whose whole content was
+  // the label on the button beside it. #1869 closes the sequence properly: the
+  // list stopped on returning to this tab, which left a reader holding a file
+  // with nothing saying it is theirs to attach. The last step names the control
+  // and the file, which is the part no label on screen carries.
   assert.equal(steps.tagName, "OL", "the steps are not an ordered list");
   const items = steps.querySelectorAll("li");
   assert.deepEqual(items.map(textOf), [
     "Create an image in Paint (opens in a new tab) ↗",
     "Export the PNG",
     "Return to this tab",
+    "Use Choose image above to pick the PNG you exported",
   ]);
   assert.equal(textOf(documents.Social.querySelector("body")).split("Select Choose image").length - 1, 0,
     "the composer still instructs the reader to select the button beside the instruction");
@@ -488,10 +491,12 @@ test("the composer names the round trip in the order it is taken, once", () => {
     "the composer asks for the export before the drawing");
   assert.ok(at("Export the PNG") < at("Return to this tab"),
     "the composer sends the visitor back before they have a file");
-  // The list ends there. A fourth step said "Select Choose image", which is the
-  // label on the control beside it and nothing else, so the reader's last
-  // instruction was to press a button they were already looking at. The control
-  // still carries that label; the list no longer repeats it.
+  assert.ok(at("Return to this tab") < at("Use Choose image above"),
+    "the composer asks for the file before the visitor is back in this tab");
+  // A fourth step once said "Select Choose image", which is the label on the
+  // control beside it and nothing else, so the reader's last instruction was to
+  // press a button they were already looking at. The step is back with the fact
+  // that was missing — which file — and never as the bare label again.
   assert.doesNotMatch(steps, /Select Choose image/,
     "the steps end by naming the control standing beside them again");
   assert.equal(textOf(documents.Social.querySelector('label[for="post-image"]')), "Choose image");
@@ -505,6 +510,107 @@ test("the composer names the round trip in the order it is taken, once", () => {
     "the round trip is described in more than one place on Social");
   assert.equal(page.split("Export the PNG").length - 1, 1,
     "the export step is stated more than once on Social");
+});
+
+/* --------------------- #1869: finishing the step list --------------------- */
+// The list walked a visitor out to Paint, through the export, and back — and
+// then stopped, one step short of the only thing that gets the file into the
+// post. What it left open is the inference a first-time visitor is most likely
+// to make: that Paint handed the file over on the way. It did not. These pin the
+// closing step, and the second price of attaching an image, in the words the
+// controls themselves use.
+
+/** The image section of the composer: the fieldset the file control lives in. */
+const inMediaPicker = (node) => {
+  for (let cursor = node; cursor; cursor = cursor.parentNode) {
+    if (cursor.getAttribute?.("class")?.includes("media-picker")) return true;
+  }
+  return false;
+};
+
+test("the image section holds exactly one step list, and it is the Paint one", () => {
+  // Counted by walking up from every list on the page rather than with a
+  // descendant selector, which this harness rejects. An older three-step list
+  // left behind beside the finished one would show up here as a second list.
+  const lists = [...documents.Social.querySelectorAll("ol"), ...documents.Social.querySelectorAll("ul")]
+    .filter(inMediaPicker);
+  assert.equal(lists.length, 1, `the image section offers ${lists.length} step lists`);
+  assert.equal(lists[0].getAttribute("id"), "post-image-steps");
+  assert.equal(documents.Social.querySelectorAll("#post-image-steps").length, 1);
+
+  // Four steps at most, one action each, and no step splits into two sentences.
+  const items = lists[0].querySelectorAll("li");
+  assert.ok(items.length <= 4, `the round trip is told in ${items.length} steps`);
+  for (const item of items) {
+    assert.doesNotMatch(textOf(item), /\.\s/, `a step carries more than one sentence: ${textOf(item)}`);
+  }
+});
+
+test("the last step names Choose image and the file it takes", () => {
+  const items = documents.Social.getElementById("post-image-steps").querySelectorAll("li");
+  const last = textOf(items[items.length - 1]);
+
+  // The control in its own words, not a paraphrase: the string in the step is
+  // the string on the label, so a reader matching one to the other cannot miss.
+  const label = textOf(documents.Social.querySelector('label[for="post-image"]'));
+  assert.equal(label, "Choose image");
+  assert.ok(last.includes(label), `the closing step does not name ${label}: ${last}`);
+  // And the file, identified as the one they just made — the step is useless if
+  // the reader has to guess which of their PNGs is meant.
+  assert.match(last, /PNG you exported/, `the closing step names no file: ${last}`);
+  assert.equal(last, "Use Choose image above to pick the PNG you exported");
+
+  // It is prose in the list, not a second route to the same control: the tab
+  // sequence through this field is unchanged.
+  const item = items[items.length - 1];
+  assert.equal(item.querySelectorAll("a,button,input").length, 0,
+    "the closing step grew a focusable element");
+});
+
+test("the image section says a picture also costs an Image description", () => {
+  const note = documents.Social.getElementById("post-image-alt-requirement");
+  assert.ok(note, "the image section never mentions the description requirement");
+  assert.equal(textOf(note),
+    "A post with an image will not publish until you fill in Image description, "
+    + "which appears below once you choose an image.");
+
+  // Named the way its own label names it. The label carries the condition marker
+  // after the name, so the name is what stands before the parenthetical.
+  const fieldLabel = textOf(documents.Social.querySelector('label[for="post-image-alt"]'));
+  assert.equal(fieldLabel.split(" (")[0], "Image description");
+  assert.ok(textOf(note).includes("Image description"),
+    "the requirement paraphrases the field instead of naming it");
+
+  // In the image section, and outside the media region — that region is hidden
+  // until a file is chosen, which is exactly when this sentence is too late.
+  assert.ok(inMediaPicker(note), "the requirement sits outside the image field");
+  for (let cursor = note; cursor; cursor = cursor.parentNode) {
+    assert.notEqual(cursor.getAttribute?.("id"), "compose-media",
+      "the requirement only appears once the reader has already met it");
+  }
+  assert.ok(!note.getAttribute("hidden"), "the requirement ships hidden");
+
+  // Help text in the shipped style, adding no tab stop and no fifth status
+  // marker — the four labels that carry one still carry all of them.
+  assert.equal(note.tagName, "P");
+  assert.equal(note.getAttribute("class"), "hint");
+  assert.equal(note.querySelectorAll("a,button,input").length, 0);
+  assert.equal(documents.Social.querySelectorAll(".label-optional").length, 4);
+  assert.match(sources.Social, /<p class="hint" id="post-image-alt-requirement">/);
+});
+
+test("nothing in the image section says Paint delivers the file", () => {
+  const section = textOf(documents.Social.querySelector(".media-picker"));
+  assert.doesNotMatch(section, /Paint\s+\w*\s*(sends|transfers|hands|attaches|uploads|adds)/i,
+    `the image section implies Paint moves the file itself: ${section}`);
+  // The visitor is the transport, so the steps stay in the second person and the
+  // section never says the file arrives, is attached, or is waiting.
+  assert.doesNotMatch(section, /\b(from Paint|your image) is (attached|ready|waiting)\b/i, section);
+
+  // The reassurance about the round trip is untouched: same promise, same words,
+  // still covering both the other tab and the closed panel.
+  assert.equal(textOf(documents.Social.getElementById("post-draft-note")),
+    "Anything you have already typed is kept here while you are in the other tab, and while this panel is closed.");
 });
 
 test("People names the same steps in the same words as the composer", () => {
