@@ -92,6 +92,21 @@ export function shortCommit(sha) {
 }
 
 /**
+ * How a link to that commit names itself, wherever it is offered.
+ *
+ * Two surfaces now carry the link — the releases page's real record and the
+ * front door's deployment check — and they go to the same commit, so they say
+ * the same words. It is a function here rather than a literal on each page so
+ * the two names cannot drift apart, and it names the commit rather than the act
+ * ("verify this") because the reader is the one who decides what opening it
+ * proves. Empty when the sha is not one: a link with no commit is not offered.
+ */
+export function commitLinkText(sha) {
+  const commit = shortCommit(sha);
+  return commit ? `Open commit ${commit} in the public repository` : "";
+}
+
+/**
  * The real record of this deployment, or null when the build is unstamped.
  *
  * Release-record shaped, so every surface that already knows how to read a

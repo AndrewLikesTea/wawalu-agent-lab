@@ -21,7 +21,7 @@ import {
   verdictSentence,
 } from "./deployment-status.js";
 import { BUILD_STAMP } from "./build-stamp.js";
-import { deployedReleaseRecord } from "./deployed-release.js";
+import { commitLinkText, deployedReleaseRecord } from "./deployed-release.js";
 
 export const HEALTH_URL = "/healthz";
 
@@ -35,6 +35,7 @@ export const DEPLOYMENT_IDS = Object.freeze({
   evidence: "deployment-evidence",
   evidenceSummary: "deployment-evidence-summary",
   evidenceBody: "deployment-evidence-body",
+  source: "deployment-commit",
 });
 
 // A response body, whatever the deployment answered with.
@@ -194,6 +195,39 @@ export function renderDeploymentStatus(root, verdict, { reading = null, release 
   return verdict;
 }
 
+/**
+ * Point the block's commit link at the commit this build was made from.
+ *
+ * WHY IT IS NOT PART OF `renderDeploymentStatus`. The commit a visitor opens to
+ * check the claim is the same commit whether the check is still running, agreed,
+ * disagreed, or never completed — so it is painted once, before the probe, by a
+ * function no verdict calls. That is what keeps it on the page in the state the
+ * reader most needs it: the one where the check could not answer. It also keeps
+ * the link's words out of the verdict's live region, so a state change
+ * announces the answer and not the link a second time.
+ *
+ * The record is the one derived from the build stamp, so this link and the
+ * releases page's own commit link are one derivation with one name.
+ *
+ * @param record the record from `deployedReleaseRecord`, or null for an
+ *   unstamped build — which names no commit, and so gets no link rather than a
+ *   link to something invented.
+ */
+export function renderDeploymentSource(root, record) {
+  const link = byId(root, DEPLOYMENT_IDS.source);
+  if (!link) return null;
+  const label = commitLinkText(record?.commitSha);
+  if (!record?.sourceUrl || !label) {
+    link.hidden = true;
+    return null;
+  }
+  link.hidden = false;
+  link.href = record.sourceUrl;
+  link.setAttribute("href", record.sourceUrl);
+  link.textContent = label;
+  return record.sourceUrl;
+}
+
 // Mirror the disclosure's own state onto the summary, the way every other
 // disclosure on this site does: the details element owns open/closed and the
 // keyboard handling, and this keeps `aria-expanded` telling the same story.
@@ -230,9 +264,13 @@ export async function initDeploymentStatus(root, options = {}) {
   const panel = byId(root, DEPLOYMENT_IDS.panel);
   if (!panel) return null;
   bindDeploymentEvidence(root);
-  const release = options.release !== undefined
-    ? options.release
-    : deployedReleaseRecord(options.buildStamp ?? BUILD_STAMP);
+  const stampedRecord = deployedReleaseRecord(options.buildStamp ?? BUILD_STAMP);
+  // Before the probe, so the link is on the page in the pending state too. It
+  // is the stamp's record even when a caller compares against a different one:
+  // the question this link answers is "which commit produced the page I am
+  // reading?", and only the stamp knows that.
+  renderDeploymentSource(root, stampedRecord);
+  const release = options.release !== undefined ? options.release : stampedRecord;
   const checkedAt = (options.now ?? (() => new Date().toISOString()))();
   const reading = await probeHealth(options.readHealth ?? healthEndpointReader(), checkedAt);
   let verdict;

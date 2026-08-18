@@ -28,6 +28,7 @@ import {
   probeHealth,
   renderDeploymentStatus,
 } from "../src/deployment-status-view.js";
+import { REPOSITORY_URL, commitLinkText, commitUrl } from "../src/deployed-release.js";
 import { loadPage, pressEnter, pressTab, textOf } from "./support/browser.js";
 import { waitFor } from "./support/page-module.js";
 
@@ -380,7 +381,17 @@ test("the probe recognises both shipped health bodies and refuses anything else"
 
 const WAITING_LINE = "Checking the running deployment now…";
 
-async function openHome(t, { releases = [OLDER, NEWEST], readHealth } = {}) {
+// The stamp both pages are driven from below. Injected for the same reason the
+// clock is: what is asserted is that the link is derived from the stamp, not
+// which commit this checkout happens to have been built from.
+const HOME_SHA = "0123456789abcdef0123456789abcdef01234567";
+const HOME_STAMP = Object.freeze({ schemaVersion: 1, commitSha: HOME_SHA, builtAt: "2026-08-04T12:00:00.000Z" });
+const UNSTAMPED_STAMP = Object.freeze({ schemaVersion: 1, commitSha: null, builtAt: null });
+
+async function openHome(
+  t,
+  { releases = [OLDER, NEWEST], readHealth, buildStamp = HOME_STAMP, settle = true } = {},
+) {
   const page = await loadPage(HOME_PAGE, {
     storage: {
       [STORAGE_KEY]: JSON.stringify([]),
@@ -391,15 +402,20 @@ async function openHome(t, { releases = [OLDER, NEWEST], readHealth } = {}) {
   await initDecisionLog(page.document, page.storage, {
     seed: NO_SEED,
     readHealth,
+    buildStamp,
     deploymentNow: () => NOW,
     deployedRelease: NEWEST,
   });
-  await waitFor(
-    () => page.document.documentElement.dataset.shiplogDeployment === "ready",
-    "the front door's deployment check never finished its comparison",
-  );
+  if (settle) {
+    await waitFor(
+      () => page.document.documentElement.dataset.shiplogDeployment === "ready",
+      "the front door's deployment check never finished its comparison",
+    );
+  }
   return page;
 }
+
+const commitLink = (page) => page.document.querySelector(`#${DEPLOYMENT_IDS.source}`);
 
 // The three readings the block has to answer, in the order the wording tests
 // compare them: a match, a drift, and a check that could not complete.
@@ -569,4 +585,152 @@ test("the releases page words those same outcomes from that same sentence", asyn
   );
   // The id the front door's link points at is on this page.
   assert.equal(page.document.querySelectorAll("#deployment-status").length, 1);
+});
+
+/* ------ checking the claim without leaving the front door (#1857) ---------- */
+//
+// The block states that its answer is not invented. Until now the only way to
+// check that statement was to leave for the releases page, which is where the
+// commit the running build was made from is linked. These tests pin that same
+// commit link onto the front door's block — one derivation, one name, and on
+// the page in every state the check can be in, including the state where the
+// check could not answer at all.
+
+// The releases page, booted with a stamp, so the two links can be compared as
+// rendered rather than as two literals somebody kept in step by hand.
+async function openReleasesWithStamp(t, buildStamp) {
+  const page = await loadPage(RELEASES_PAGE, {
+    storage: { [STORAGE_KEY]: JSON.stringify([]), [RELEASE_STORAGE_KEY]: JSON.stringify([]) },
+  });
+  t.after(() => page.restore());
+  initReleasesPage(page.document, page.storage, {
+    seed: NO_SEED,
+    buildStamp,
+    readHealth: answers({ status: "healthy", version: buildStamp.commitSha }),
+    now: () => NOW,
+  });
+  await waitFor(
+    () => page.document.documentElement.dataset.shiplogDeployment === "ready",
+    "the releases page's deployment check never finished its comparison",
+  );
+  return page;
+}
+
+test("the front door's check links the commit this build was made from", async (t) => {
+  const page = await openHome(t, { readHealth: answers({ status: "ok", build: "v2.1.0" }) });
+  const link = commitLink(page);
+
+  assert.equal(page.document.querySelectorAll(`#${DEPLOYMENT_IDS.source}`).length, 1);
+  // A real anchor with a real destination, derived from the stamp rather than
+  // written out: the sha in these bytes is the fixture's, and the href is
+  // whatever the shared derivation makes of it.
+  assert.equal(link.tagName, "A");
+  assert.equal(link.getAttribute("href"), commitUrl(HOME_SHA));
+  assert.equal(link.hidden, false);
+  assert.ok(ancestorIds(link).includes(DEPLOYMENT_IDS.panel), "the commit link sits outside the block it belongs to");
+  // Not announced with the answer: the verdict owns the live region, and the
+  // link is a sibling of it, so a state change does not read the link out again.
+  assert.equal(page.document.querySelector(`#${DEPLOYMENT_IDS.verdict}`).getAttribute("role"), "status");
+  assert.equal(link.getAttribute("role"), null);
+  assert.ok(!ancestorIds(link).includes(DEPLOYMENT_IDS.verdict));
+
+  // Reachable by Tab and in reading order: inside the block, ahead of the
+  // section's own call to action.
+  let reachedCommit = -1;
+  let reachedAction = -1;
+  for (let step = 0; step < 400; step += 1) {
+    const focused = pressTab(page.document);
+    if (reachedCommit === -1 && focused === link) reachedCommit = step;
+    if (reachedAction === -1 && focused?.getAttribute?.("href") === "#record-history") reachedAction = step;
+    if (reachedCommit !== -1 && reachedAction !== -1) break;
+  }
+  assert.notEqual(reachedCommit, -1, "the commit link is not reachable by keyboard");
+  assert.ok(reachedCommit < reachedAction, "the commit link is out of reading order with the section around it");
+});
+
+test("the front door and the releases page name that one commit the same way", async (t) => {
+  const home = await openHome(t, { readHealth: answers({ status: "ok", build: "v2.1.0" }) });
+  const releases = await openReleasesWithStamp(t, HOME_STAMP);
+  const homeLink = commitLink(home);
+  const releasesLink = releases.document.querySelector("#shipped-build-source");
+
+  // Same destination and same accessible name, byte for byte — and both equal
+  // the shared derivation, so neither page can be edited alone.
+  assert.equal(homeLink.getAttribute("href"), releasesLink.getAttribute("href"));
+  assert.equal(textOf(homeLink), textOf(releasesLink));
+  assert.equal(textOf(homeLink), commitLinkText(HOME_SHA));
+  assert.equal(homeLink.getAttribute("href"), `${REPOSITORY_URL}/commit/${HOME_SHA}`);
+});
+
+test("the front door's two links do different jobs and read as different things", async (t) => {
+  const page = await openHome(t, { readHealth: answers({ status: "ok", build: "v2.1.0" }) });
+  const links = page.document.querySelectorAll("a")
+    .filter((node) => ancestorIds(node).includes(DEPLOYMENT_IDS.panel));
+
+  // The link that was already there keeps its words and its destination.
+  const toReleases = links.find((node) => node.getAttribute("href") === "/releases.html#deployment-status");
+  assert.ok(toReleases, "the block no longer links to the deployment check on Releases");
+  assert.equal(textOf(toReleases), "See the deployment check on Releases");
+
+  // Read out of context, in a screen reader's link list, the two are not near
+  // synonyms of each other: different words, different destinations.
+  const names = links.map((node) => textOf(node));
+  assert.equal(new Set(names).size, names.length, "two links in the block read as the same thing");
+  const hrefs = links.map((node) => node.getAttribute("href"));
+  assert.equal(new Set(hrefs).size, hrefs.length, "two links in the block go to the same place");
+  assert.equal(links.length, 2, "the block offers a link it was not scoped to offer");
+});
+
+test("the commit link is on the page in every state the check can be in", async (t) => {
+  // A reading that has not arrived yet, so the block is asserted in the state
+  // it opens in rather than only in the state it settles into.
+  let answer;
+  const pending = new Promise((resolve) => { answer = resolve; });
+  const page = await openHome(t, { readHealth: () => pending, settle: false });
+
+  const href = commitUrl(HOME_SHA);
+  const name = commitLinkText(HOME_SHA);
+  const stillOffered = (state) => {
+    const link = commitLink(page);
+    assert.equal(link.getAttribute("href"), href, `the commit link lost its destination in the ${state} state`);
+    assert.equal(textOf(link), name, `the commit link lost its name in the ${state} state`);
+    assert.equal(link.hidden, false, `the commit link was withdrawn in the ${state} state`);
+  };
+
+  assert.equal(verdictText(page), WAITING_LINE, "the block had already answered");
+  stillOffered("pending");
+
+  answer({ status: "ok", build: "v2.0.0" });
+  await waitFor(
+    () => page.document.documentElement.dataset.shiplogDeployment === "ready",
+    "the front door's deployment check never finished its comparison",
+  );
+  assert.match(verdictText(page), /Not a match/);
+  stillOffered("mismatch");
+
+  // And through every repaint the block does, including the one where the
+  // check could not complete: the link is not rendered by the verdict, so no
+  // verdict can take it away.
+  for (const [index, reading] of READINGS.entries()) {
+    renderDeploymentStatus(page.document, deploymentVerdict(reading, NEWEST, NOW), { reading, release: NEWEST });
+    stillOffered(`repainted ${index}`);
+  }
+});
+
+test("a check that never reaches the endpoint still offers the commit", async (t) => {
+  const page = await openHome(t, { readHealth: fails("TypeError") });
+  assert.match(verdictText(page), /The check did not complete/);
+  assert.equal(commitLink(page).getAttribute("href"), commitUrl(HOME_SHA));
+  assert.equal(textOf(commitLink(page)), commitLinkText(HOME_SHA));
+  assert.equal(commitLink(page).hidden, false);
+});
+
+test("an unstamped build offers no commit rather than an invented one", async (t) => {
+  const page = await openHome(t, {
+    buildStamp: UNSTAMPED_STAMP,
+    readHealth: answers({ status: "ok", build: "v2.1.0" }),
+  });
+  const link = commitLink(page);
+  assert.equal(link.hidden, true, "an unstamped build linked a commit it cannot name");
+  assert.doesNotMatch(textOf(page.document.querySelector(`#${DEPLOYMENT_IDS.panel}`)), /Open commit/);
 });

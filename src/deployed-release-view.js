@@ -14,7 +14,7 @@
 //
 // The block writes nothing: no form, no submit, no storage.
 
-import { NO_RECORD_LABEL, REAL_LABEL, shortCommit } from "./deployed-release.js";
+import { NO_RECORD_LABEL, REAL_LABEL, commitLinkText } from "./deployed-release.js";
 
 export const SHIPPED_BUILD_IDS = Object.freeze({
   panel: "shipped-build",
@@ -85,7 +85,7 @@ export function renderShippedBuild(root, record) {
     source.hidden = false;
     source.href = record.sourceUrl;
     source.setAttribute("href", record.sourceUrl);
-    source.textContent = `Open commit ${shortCommit(record.commitSha)} in the public repository`;
+    source.textContent = commitLinkText(record.commitSha);
   }
   return record;
 }

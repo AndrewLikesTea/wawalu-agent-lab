@@ -1742,6 +1742,7 @@ export async function initDecisionLog(root = document, storage = localStorage, o
   // reads an ISO string.
   initDeploymentStatus(root, {
     release: options.deployedRelease,
+    buildStamp: options.buildStamp,
     readHealth: options.readHealth,
     now: options.deploymentNow,
   }).catch(() => {});
