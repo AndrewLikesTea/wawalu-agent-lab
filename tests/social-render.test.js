@@ -210,7 +210,7 @@ test("empty, loading, and error states are three distinct renders", () => {
   renderPosts(noPosts, []);
   const noPostsPanel = first(noPosts, "empty-state");
   assert.match(noPostsPanel.textContent, /No posts on Social yet\./);
-  assert.match(noPostsPanel.textContent, /Publish a post, or create an image in Paint first\./);
+  assert.match(noPostsPanel.textContent, /Write a post, or create an image in Paint first\./);
   // The sentence points at Paint; the button that used to repeat it under this
   // line is gone. Social offered one action in three places — the hero, the
   // composer, and here — and the composer's is the one beside the field an image

@@ -80,7 +80,7 @@ async function composer(t, { hasImage = false, fail = null, hold = false } = {})
     },
   });
   feed.description.setAttached(Boolean(media));
-  // The composer ships collapsed behind the hero's Publish a post control, and
+  // The composer ships collapsed behind the hero's Write a post control, and
   // the receipt this file is about lives inside it, so open it first.
   feed.composer.open();
   if (media) {

@@ -159,7 +159,7 @@ test("a feed with no pictures under any name offers the way to make one and the 
     // The page states the path from a blank grid to a picture on it, in the
     // order the steps happen, beside the state that needs it.
     assert.match(textOf(document.querySelector(".feed-create")),
-      /Create an image in Paint .*, export the PNG, then Publish a post on Social under a display name\./);
+      /Create an image in Paint .*, export the PNG, then Write a post on Social and publish it under a display name\./);
   } finally {
     page.restore();
   }

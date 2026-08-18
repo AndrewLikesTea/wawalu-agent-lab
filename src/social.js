@@ -575,7 +575,12 @@ function renderSkeleton(container, count = 3) {
 // Paint here; the button that used to repeat it under this line is gone, because
 // Social offered one action three times and the composer above is where the
 // image is actually attached.
-const NO_POSTS_GUIDANCE = "Publish a post, or create an image in Paint first.";
+//
+// It names the hero's control in that control's own words. The sentence used to
+// open "Publish a post", which was the opener's label at the time; the opener is
+// "Write a post" now, and an empty state that tells a reader to press a button
+// nothing on the page is called sends them looking for it.
+const NO_POSTS_GUIDANCE = "Write a post, or create an image in Paint first.";
 
 // One wait, one sentence — on this page. Social used to describe it twice at
 // once: a visible line ("Loading posts…") beside a live region that said
@@ -1218,7 +1223,12 @@ export function mountSocialFeed(root, options = {}) {
         // not a body of spaces — `required` is satisfied by whitespace — so the
         // blank refusal reaches this notice for real. The fallback is the belt:
         // an error that arrives with no message still says what happened.
-        showFailure(error?.message || "That post could not be published. Write a post within the limit.");
+        // Not "Write a post within the limit": "Write a post" is the label on
+        // the control that opens this composer, so that sentence read as an
+        // instruction to press a button the reader is already past. This one
+        // names the field and the number instead.
+        showFailure(error?.message
+          || `That post could not be published. Enter a post of ${MAX_POST_LENGTH} characters or fewer.`);
         return;
       }
 

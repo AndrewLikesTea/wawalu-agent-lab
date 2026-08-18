@@ -587,7 +587,7 @@ test("the People picker and the page's own description use one term for what is 
   // the term and its position rather than to the whole sentence — the sentence
   // is the helper beside the grid, and it names the publishing step with a link
   // now instead of in plain text.
-  assert.match(html, /Publish a post on Social<\/a> under a display name\./);
+  assert.match(html, /Write a post on Social<\/a> and publish it under a display name\./);
   const social = await readFile(new URL("../src/social.html", import.meta.url), "utf8");
   assert.match(social, /<label for="post-author">Display name <span class="label-optional">\(optional\)<\/span><\/label>/,
     "the composer names the same thing the picker selects");

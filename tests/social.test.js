@@ -399,14 +399,26 @@ test("the composer describes no failure that has not happened yet", async (t) =>
 // image" while the form it opens labels its image field "(optional)" — one page
 // telling a reader both that a post cannot carry an image and that it may. The
 // field label is the anchor term and is unchanged; the entry control names the
-// act and stops there. The heading it reveals now says the same word: it read
+// act and stops there. The heading it reveals says the same words: it read
 // "Create a Social post", so the panel named one act with two verbs, and the
 // second one is the verb this page keeps for images. "Create" on Social means
-// an image and nothing else. The same pass pins the destination for image
-// posts: this site has no page called Profile, so "profile" survives on Social
-// only as the People page's URL and the class that styles its nav item, never
-// as a word a reader sees.
-test("the composer opener, heading and submit control name one action", async (t) => {
+// an image and nothing else.
+//
+// #1872: the opener then spent a while reading "Publish a post", which made the
+// hero's button and the form's submit button two near-identical commands. A
+// first-time visitor met "Publish a post" at the top of the page and "Publish
+// post →" at the bottom of the form and had no way to tell which of the two
+// made a post public — and the one that does is the one there is no undo for.
+// Opening the form and publishing the post are two acts, so they get two verbs:
+// "Write a post" opens (opener and heading, word for word), "Publish post"
+// publishes, and nothing else on the page is labelled with either. The arrow
+// went with it: every other arrow on this site decorates a route, and this
+// button moves the reader nowhere.
+//
+// The same pass pins the destination for image posts: this site has no page
+// called Profile, so "profile" survives on Social only as the People page's URL
+// and the class that styles its nav item, never as a word a reader sees.
+test("the opener and heading name opening, and only the submit control names publishing", async (t) => {
   const markup = await readFile(new URL("../src/social.html", import.meta.url), "utf8");
   const page = await loadPage(new URL("../src/social.html", import.meta.url), {});
   t.after(() => page.restore());
@@ -414,8 +426,8 @@ test("the composer opener, heading and submit control name one action", async (t
   const entry = page.document.querySelector(".hero-actions")
     .querySelectorAll("#post-compose-open");
   assert.equal(entry.length, 1, "the hero offers exactly one route into the composer");
-  assert.equal(textOf(entry[0]), "Publish a post",
-    "the control that opens the composer no longer names the publishing action");
+  assert.equal(textOf(entry[0]), "Write a post",
+    "the control that opens the composer names publishing, which the submit button also names");
   // A disclosure, told the way this site's other one is told: the button owns
   // the state, the panel it names is the composer, and it starts collapsed.
   assert.equal(entry[0].tagName, "BUTTON");
@@ -423,12 +435,12 @@ test("the composer opener, heading and submit control name one action", async (t
   assert.equal(entry[0].getAttribute("aria-expanded"), "false");
   assert.equal(entry[0].getAttribute("aria-controls"), "post-compose-panel");
   assert.equal(page.document.querySelector("#post-compose-panel").hidden, true);
-  assert.equal(textOf(page.document.querySelector("#post-form-title")), "Publish a post",
-    "the composer heading names the act with a different verb from the control that opens it");
-  // One verb, end to end: opener, heading, submit. "Create" survives on this
-  // page for images only, at "Create an image in Paint".
-  assert.equal(textOf(page.document.querySelector("#post-submit")), "Publish post →",
-    "the submit control no longer ends the action the opener and heading name");
+  assert.equal(textOf(page.document.querySelector("#post-form-title")), "Write a post",
+    "the composer heading no longer repeats the words on the control that opens it");
+  // One verb for opening, a different one for publishing. "Create" survives on
+  // this page for images only, at "Create an image in Paint".
+  assert.equal(textOf(page.document.querySelector("#post-submit")), "Publish post",
+    "the submit control is named something other than the act it performs, or grew an arrow back");
   const panelWords = textOf(page.document.querySelector("#post-compose-panel"))
     .replaceAll("Create an image in Paint", "");
   assert.doesNotMatch(panelWords, /\bcreate\b/i,
@@ -438,9 +450,6 @@ test("the composer opener, heading and submit control name one action", async (t
   assert.equal(page.document.querySelector(".form-panel").querySelectorAll(".eyebrow").length, 0,
     "the composer carries a third name above its first field again");
   const rendered = textOf(page.document.querySelector("body"));
-  assert.doesNotMatch(rendered, /Write a post/,
-    "the old duplicate composer label is still rendered");
-
   assert.doesNotMatch(rendered, /without an image/i,
     "a rendered string on Social says a post cannot carry an image");
   // Attributes too: a stale aria-label or title would go unread by the check
@@ -492,7 +501,7 @@ test("the composer calls its required 280-character text a post throughout", asy
   const postField = composer.querySelector('label[for="post-body"]').parentNode;
   assert.equal(textOf(postField).toLowerCase().split("required").length - 1, 1,
     `the post field states that it is required more than once: ${textOf(postField)}`);
-  assert.equal(textOf(composer.querySelector("#post-submit")), "Publish post →");
+  assert.equal(textOf(composer.querySelector("#post-submit")), "Publish post");
   assert.equal(PUBLISH_FAILED_NOTE,
     "Your post, image, and image description are still in the composer, exactly as you left them.");
   // The two sentences the composer's notice can carry from createPost. They are
@@ -1460,7 +1469,7 @@ test("the post count never claims zero posts before the feed has any answer", as
   assert.equal(textOf(count), "0 posts", "an answered fetch with nothing in it is a real zero");
   const empty = page.document.querySelector(".empty-state");
   assert.match(textOf(empty), /No posts on Social yet\./);
-  assert.match(textOf(empty), /Publish a post, or create an image in Paint first\./);
+  assert.match(textOf(empty), /Write a post, or create an image in Paint first\./);
 
   feed.seed([{ id: "now-populated", author: "Mina", body: "Ready.", createdAt: new Date().toISOString() }]);
   assert.equal(status.hidden, true, "a populated feed hides the reused status region");
@@ -1536,7 +1545,7 @@ test("every global social destination link uses the Social label", async () => {
 // A first-time visitor used to land on Social and meet a caption box, a file
 // picker, a name field and a Publish button before a single post — the page
 // asked them to write before it let them read. The feed comes first now and the
-// composer is one keystroke away behind the hero's Publish a post control.
+// composer is one keystroke away behind the hero's Write a post control.
 //
 // Every assertion below reads the disclosure's own state alongside the text,
 // because this harness models no layout: textOf reads straight through a
@@ -1562,6 +1571,45 @@ const foldedAway = (node) => {
   }
   return false;
 };
+
+// #1872, and the assertion most likely to regress: "Publish" is the page's word
+// for the irreversible act, so it may appear on exactly one control — the button
+// that performs it. Read with the composer open, because that is the only state
+// in which both controls are on screen at once, and the state the old pair of
+// near-identical commands was ambiguous in. Every label a reader can press or
+// that names a field is counted: anchors, buttons, summaries, and field labels,
+// across the whole document rather than the composer alone, so the nav, the
+// feed's own controls and the footer cannot quietly take the word either.
+test("with the composer open, one control on Social says Publish and it is the submit button", async (t) => {
+  const { document, id } = await socialDisclosure(t);
+  id("post-compose-open").click();
+
+  const panel = id("post-compose-panel");
+  assert.equal(panel.hidden, false, "the composer did not open, so this proves nothing");
+  assert.equal(id("post-compose-open").getAttribute("aria-expanded"), "true");
+
+  const publishing = document.querySelectorAll("a,button,summary,label")
+    .filter((node) => /Publish/.test(textOf(node)));
+  assert.deepEqual(publishing.map((node) => textOf(node)), ["Publish post"],
+    "Social offers more than one control whose label says Publish");
+  assert.equal(publishing[0].getAttribute("id"), "post-submit");
+
+  // The other half of the pair: the control that opens the form and the heading
+  // it reveals are the same words, and they are not the publishing ones.
+  assert.equal(textOf(id("post-compose-open")), "Write a post");
+  assert.equal(textOf(id("post-form-title")), "Write a post");
+
+  // The consequence is untouched and still stands between the last field and the
+  // button, named by the button that costs it. Order by walk, because the
+  // harness rejects a descendant selector.
+  const siblings = document.querySelector("#post-form").childElements.map((node) => node.getAttribute("id"));
+  assert.ok(siblings.indexOf("post-consequence") >= 0 && siblings.indexOf("post-submit") >= 0,
+    `the composer no longer authors the consequence and the button as siblings: ${siblings}`);
+  assert.ok(siblings.indexOf("post-consequence") < siblings.indexOf("post-submit"),
+    "the consequence moved below the button that costs it");
+  assert.match(textOf(id("post-consequence")), /You cannot delete it afterwards/);
+  assert.ok(id("post-submit").getAttribute("aria-describedby").split(/\s+/).includes("post-consequence"));
+});
 
 test("the feed is what a first-time visitor reads first, and the composer follows it", async (t) => {
   const { document } = await socialDisclosure(t);

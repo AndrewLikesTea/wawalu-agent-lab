@@ -62,7 +62,7 @@ async function composer(t, { attached = true } = {}) {
     },
   });
   feed.description.setAttached(Boolean(media));
-  // The composer ships collapsed behind the hero's Publish a post control, so
+  // The composer ships collapsed behind the hero's Write a post control, so
   // every question here is asked of the state a reader reaches by opening it.
   feed.composer.open();
 

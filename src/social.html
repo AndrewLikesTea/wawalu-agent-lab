@@ -108,9 +108,14 @@
              "(optional)", so the composer takes a post with an image or
              without one and the control that opens it may not promise
              otherwise. It claims nothing about images in either direction now.
-             It names the publishing action in the same words as the heading it
-             reveals and the button that ends the act, so the panel is one verb
-             from open to publish. The composer heading used to read "Create a
+             It names opening the form, and only that. It read "Publish a post"
+             for a while — the words the button at the end of the form already
+             carries — so the page offered what looked like two publish
+             controls, and a first-time visitor could not tell which of them
+             would make a post public. Opening is "Write a post", here and on
+             the heading it reveals, word for word; publishing is "Publish
+             post", said once, at the button that does it. Nothing else on this
+             page may take either name. The composer heading used to read "Create a
              Social post", which named the act with a second verb — the one the
              page keeps for images, at "Create an image in Paint". The third
              name went too — an eyebrow read "New post" above the heading.
@@ -120,7 +125,7 @@
              image to. Paint is offered once now, beside Choose image, where the
              image is attached. -->
         <div class="hero-actions">
-          <button class="secondary-button" id="post-compose-open" type="button" aria-expanded="false" aria-controls="post-compose-panel">Publish a post</button>
+          <button class="secondary-button" id="post-compose-open" type="button" aria-expanded="false" aria-controls="post-compose-panel">Write a post</button>
         </div>
       </section>
 
@@ -318,7 +323,7 @@
           <p class="hint" id="feed-source-note">Display names are invented for this demo or chosen by whoever published the post — nobody owns or verifies one, and anyone can publish under any name.</p>
         </div>
 
-        <!-- Ships collapsed, and is revealed by the hero's Publish a post
+        <!-- Ships collapsed, and is revealed by the hero's Write a post
              control. `hidden` and not a CSS reordering: the acceptance
              criterion is rendered order and tab order, and a panel that is only
              visually moved still stands between the heading and the first post
@@ -331,7 +336,7 @@
              an announcement fires into a region the reader can already see. -->
         <div class="form-panel" id="post-compose-panel" aria-labelledby="post-form-title" hidden>
           <div class="section-heading">
-            <h2 id="post-form-title">Publish a post</h2>
+            <h2 id="post-form-title">Write a post</h2>
           </div>
 
           <!-- Filled by src/paint-handoff.js when the visitor arrives from the
@@ -577,12 +582,25 @@
                  there is, which is deciding before you publish. -->
             <p class="hint publish-consequence" id="post-consequence">Anyone who visits Shiplog can read your post, its image, and the display name you publish it with. You cannot delete it afterwards, so post nothing you would not put on a public page.</p>
             <p class="field-error compose-error" id="post-publish-blocker" hidden></p>
+            <!-- The only control on this page whose label says "Publish", and
+                 the only one that makes a post public. The hero's opener said
+                 the same word until now, so the page named one act twice and
+                 the reader had to guess which press was the irreversible one.
+                 No arrow after the words. Every other arrow on this site
+                 decorates a route — it means "this moves you somewhere" — and
+                 this button moves the reader nowhere: it publishes, in place,
+                 and the receipt appears below it. On the one control the
+                 consequence above is attached to, a glyph borrowed from
+                 navigation is the wrong promise. The label is also written by
+                 src/social.js while a publish is in flight, so the span stays
+                 and the arrow could never have been part of the word swapped
+                 in there. -->
             <button id="post-submit" type="submit" aria-describedby="post-consequence post-publish-blocker social-notice">
-              <span class="submit-label">Publish post</span> <span aria-hidden="true">→</span>
+              <span class="submit-label">Publish post</span>
             </button>
             <!-- The way out, in the word the footer's panel already uses for
                  the same act. It collapses the composer and puts focus back on
-                 Publish a post in the hero, which is the only place focus can
+                 Write a post in the hero, which is the only place focus can
                  go that does not drop a keyboard reader at the top of the
                  document. Escape from anywhere inside this panel does the same
                  thing. A publish that succeeds does NOT close the panel: the
