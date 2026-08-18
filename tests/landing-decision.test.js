@@ -329,6 +329,29 @@ test("printing the front door produces the summary alone, with every level open"
   assert.match(css, /#main-content > \*:not\(\.landing-decision\) \{ display:none !important; \}/);
 });
 
+// The sentence above the control has to point at the control. It used to read
+// "A saved PDF contains the whole briefing", which states a fact about a file
+// the reader is assumed to already hold and never says the button underneath
+// it is what makes one (#1878). The label is read off the module that draws the
+// button rather than retyped here, so the prose and the control cannot drift
+// into two names for one thing.
+test("the front door's print hint names the control it points at", async (t) => {
+  const { document } = await openFrontDoor(t);
+  const hint = textOf(document.querySelector(".brief-print-hint"));
+  const label = textOf(document.getElementById("brief-print")).trim();
+
+  assert.ok(label, "the control must be drawn before its label can be quoted");
+  assert.ok(hint.includes(label),
+    `the hint must quote the control's own label verbatim; it reads: ${hint}`);
+  assert.ok(!/saved PDF/.test(hint),
+    "the hint must not describe a PDF as something the reader already has");
+
+  // And what the sheet carries is still named, because that is the reason to
+  // press the button rather than screenshot the page.
+  assert.ok(hint.includes("the answer, the action, and the evidence behind them"),
+    "the hint must still say what the whole briefing contains");
+});
+
 /* --------------------------- the log is preserved ---------------------------- */
 
 test("every Shiplog workflow is still on the front door and still works", async (t) => {
