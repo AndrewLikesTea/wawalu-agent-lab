@@ -703,6 +703,34 @@
               <p>Loading all decisions…</p>
             </div>
           </div>
+          <!-- The log's own follow-up request, separate from the one beside the
+               executive takeaway. Both are wired by the same binder in
+               homepage-executive-takeaway.js and both send one work email and a
+               fixed routing label; the topic below is the log's, not the
+               example's, and a visitor can use either without touching the
+               other. It sits at the end of this section rather than the first
+               screen: the first screen's tab order has no room left. -->
+          <div id="decision-log-follow-up">
+            <h3 id="decision-log-follow-up-title">Ask about the decision and release log</h3>
+            <p class="site-footer-note">A person from the Wawalu team replies by email. The follow-up topic is fixed and shown in the form; you choose nothing but whether to send your work email.</p>
+            <button id="decision-log-follow-up-open" type="button" aria-expanded="false" aria-controls="decision-log-follow-up-panel">Request a follow-up about the decision and release log</button>
+            <div id="decision-log-follow-up-panel" hidden>
+              <form id="decision-log-follow-up-form" novalidate>
+                <div class="site-footer-field">
+                  <label for="decision-log-follow-up-topic">Follow-up topic</label>
+                  <input id="decision-log-follow-up-topic" name="topic" type="text" value="Shiplog's decision and release log — recording decisions and linking them to releases" readonly />
+                </div>
+                <div class="site-footer-field">
+                  <label for="decision-log-follow-up-email">Work email</label>
+                  <input id="decision-log-follow-up-email" name="email" type="email" maxlength="254" inputmode="email" autocomplete="email" placeholder="you@company.com" required aria-describedby="decision-log-follow-up-disclosure decision-log-follow-up-status" />
+                </div>
+                <p id="decision-log-follow-up-error" class="site-footer-error" hidden></p>
+                <button type="submit">Request a follow-up about this log</button>
+              </form>
+              <p id="decision-log-follow-up-disclosure" class="site-footer-note">Only your work email and this fixed follow-up topic are sent.</p>
+              <p id="decision-log-follow-up-status" class="site-footer-status" role="status" aria-live="polite"></p>
+            </div>
+          </div>
         </div>
       </section>
 

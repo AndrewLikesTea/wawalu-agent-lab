@@ -57,6 +57,38 @@ import {
 } from "./lead-capture.js";
 
 export const FINOPS_EXAMPLE_FOLLOW_UP_PURPOSE = "follow_up_finops_example";
+export const DECISION_LOG_FOLLOW_UP_PURPOSE = "follow_up_decision_log";
+
+/**
+ * The home page carries two of these now — one about the bundled AI FinOps
+ * example, one about the decision and release log further down — so nothing in
+ * here is looked up by a written-out id any more. Each instance owns its own
+ * nodes, its own pending state, and its own live region, keyed off `prefix`;
+ * two instances on one page cannot clear, submit, or re-focus each other
+ * because neither holds a reference to anything outside its own family.
+ *
+ * What they share is the one thing that must not fork: `postLeadEmail` builds
+ * the whole request body from the typed address and a fixed routing label, so
+ * the visible topic is never sent as visitor-authored data and no page state
+ * has a route to the wire. The topic a visitor reads is markup; the purpose a
+ * server stores is a constant in this file.
+ */
+const FOLLOW_UP_SURFACES = Object.freeze([
+  Object.freeze({
+    prefix: "finops-example-follow-up",
+    purpose: FINOPS_EXAMPLE_FOLLOW_UP_PURPOSE,
+    submitting: "Sending your follow-up request…",
+    captured: "Follow-up requested. Someone from Wawalu will reply by email.",
+  }),
+  Object.freeze({
+    prefix: "decision-log-follow-up",
+    purpose: DECISION_LOG_FOLLOW_UP_PURPOSE,
+    submitting: "Sending your follow-up request about the decision and release log…",
+    // The live region reads on its own, out of the context of the button that
+    // was pressed, so it has to name which of the page's two requests landed.
+    captured: "Follow-up requested about the decision and release log. Someone from Wawalu will reply by email.",
+  }),
+]);
 
 /** Wire the native copy button. The clipboard is injectable for focused tests. */
 export function bindExecutiveTakeaway(doc = globalThis.document, clipboard = globalThis.navigator?.clipboard) {
@@ -77,13 +109,17 @@ export function bindExecutiveTakeaway(doc = globalThis.document, clipboard = glo
   return true;
 }
 
-/** Wire the contextual request without sending the visible topic as visitor-authored data. */
-export function bindFinopsExampleFollowUp(doc = globalThis.document, request = (...args) => globalThis.fetch(...args)) {
-  const open = doc?.getElementById("finops-example-follow-up-open");
-  const panel = doc?.getElementById("finops-example-follow-up-panel");
-  const form = doc?.getElementById("finops-example-follow-up-form");
-  const status = doc?.getElementById("finops-example-follow-up-status");
-  const error = doc?.getElementById("finops-example-follow-up-error");
+/** Wire one contextual request without sending the visible topic as visitor-authored data. */
+export function bindFollowUpRequest(
+  doc = globalThis.document,
+  request = (...args) => globalThis.fetch(...args),
+  { prefix, purpose, submitting, captured } = FOLLOW_UP_SURFACES[0],
+) {
+  const open = doc?.getElementById(`${prefix}-open`);
+  const panel = doc?.getElementById(`${prefix}-panel`);
+  const form = doc?.getElementById(`${prefix}-form`);
+  const status = doc?.getElementById(`${prefix}-status`);
+  const error = doc?.getElementById(`${prefix}-error`);
   if (!open || !panel || !form || !status || !error) return null;
   const email = form.elements.email;
   const submit = form.querySelector('button[type="submit"]');
@@ -116,12 +152,12 @@ export function bindFinopsExampleFollowUp(doc = globalThis.document, request = (
     email.removeAttribute("aria-invalid");
     submit.disabled = true;
     submit.setAttribute("aria-disabled", "true");
-    status.textContent = "Sending your follow-up request…";
+    status.textContent = submitting;
     try {
-      await postLeadEmail(request, email.value, FINOPS_EXAMPLE_FOLLOW_UP_PURPOSE, CONTACT_COPY);
+      await postLeadEmail(request, email.value, purpose, CONTACT_COPY);
       form.dataset.state = "success";
       for (const control of [form.elements.topic, email, submit]) control.disabled = true;
-      status.textContent = "Follow-up requested. Someone from Wawalu will reply by email.";
+      status.textContent = captured;
     } catch (caught) {
       form.dataset.state = "error";
       status.textContent = caught instanceof SubmissionError ? caught.message : CONTACT_COPY.unconfirmed;
@@ -133,7 +169,20 @@ export function bindFinopsExampleFollowUp(doc = globalThis.document, request = (
   return form;
 }
 
+const surface = (prefix) => FOLLOW_UP_SURFACES.find((entry) => entry.prefix === prefix);
+
+/** The request beside the executive takeaway: the bundled AI FinOps example. */
+export function bindFinopsExampleFollowUp(doc = globalThis.document, request = (...args) => globalThis.fetch(...args)) {
+  return bindFollowUpRequest(doc, request, surface("finops-example-follow-up"));
+}
+
+/** The request beside the decision and release log, further down the same page. */
+export function bindDecisionLogFollowUp(doc = globalThis.document, request = (...args) => globalThis.fetch(...args)) {
+  return bindFollowUpRequest(doc, request, surface("decision-log-follow-up"));
+}
+
 if (globalThis.document) {
   bindExecutiveTakeaway();
   bindFinopsExampleFollowUp();
+  bindDecisionLogFollowUp();
 }

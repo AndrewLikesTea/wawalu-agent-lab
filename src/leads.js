@@ -6,6 +6,7 @@ export const FOLLOW_UP_REQUEST_TYPES = Object.freeze([
   "follow_up_social",
   "follow_up_people",
   "follow_up_agents",
+  "follow_up_decision_log",
 ]);
 export const LEAD_PURPOSES = Object.freeze(["field_notes", "follow_up", ...FOLLOW_UP_REQUEST_TYPES]);
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

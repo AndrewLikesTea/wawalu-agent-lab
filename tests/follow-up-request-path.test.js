@@ -337,8 +337,11 @@ for (const [file, purpose] of REVIEWED) {
 
 test("a write the live schema refuses fails out loud instead of reporting a duplicate", async (t) => {
   // The database as it stands before an operator applies migration 0008: the
-  // purpose CHECK still knows only field_notes and follow_up.
-  const beforeTheirMigration = MIGRATIONS.filter((name) => !name.startsWith("0008") && !name.startsWith("0009"));
+  // purpose CHECK still knows only field_notes and follow_up. Taken as a prefix
+  // of the list rather than by naming the migrations to skip — each widening
+  // since rebuilds the table and its index, so skipping one of them by name and
+  // keeping a later one is not a schema that ever existed.
+  const beforeTheirMigration = MIGRATIONS.slice(0, MIGRATIONS.indexOf("0007_lead_submissions.sql") + 1);
   const db = await createTestD1({ migrations: beforeTheirMigration });
   t.after(() => db.close());
 
