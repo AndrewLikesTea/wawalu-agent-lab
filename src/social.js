@@ -24,7 +24,7 @@
 import { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH, readStoredAuthor, rememberAuthor } from "./social-identity.js";
 import { imageDescription, renderDescriptionNote, renderImageUnavailable } from "./image-description.js";
 import { OPEN_POST_LABEL, postDetailHref, profileHref } from "./social-links.js";
-import { renderFeedStatus, feedPhase, feedPresence, filtersAvailable, setFilterAvailability } from "./feed-status.js";
+import { renderFeedStatus, feedPhase, feedPresence, filtersAvailable, setFilterAvailability, FILTERS_UNAVAILABLE_HINT } from "./feed-status.js";
 
 export { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH };
 
@@ -220,6 +220,36 @@ export function noMatchGuidance(total = 0) {
 }
 
 export const CLEAR_FILTERS_LABEL = "Clear filters";
+
+// The filter row's own line, and the only place its three shapes are decided.
+// The row used to state its condition twice in two vocabularies and leave a gap
+// between them: a sentence appeared while the menus were shut and vanished the
+// moment they worked, so a settled feed's controls said nothing at all about
+// what they were set to and a reader had to infer "nothing is filtered" from a
+// fill on a button. Dimming is the signal a low-vision reader is least likely to
+// get, and a menu is closed over its own answer.
+//
+// Three shapes, mutually exclusive:
+//   shut     — the wait, in the words the row has always used for it.
+//   open     — nothing set, said plainly, which is also exactly when Clear
+//              filters has nothing to do and is `disabled`.
+//   open     — the filters that are set, named in the menus' own option text.
+//
+// The clauses come from filterClauses, the same function the heading, the
+// summary and the no-match panel word a narrowed feed with, and the caller reads
+// them off the rendered options — so this line cannot name a display name or a
+// time range in words the control beside it does not use.
+//
+// No count and no ordering: the summary sentence below the toolbar owns both,
+// and this line is deliberately outside the list panel so that it can only ever
+// describe the controls it sits with.
+export const NO_FILTERS_APPLIED = "No filters applied.";
+
+export function filterStatusLine({ available = true, range = "", author = "" } = {}) {
+  if (!available) return FILTERS_UNAVAILABLE_HINT;
+  const clauses = filterClauses({ range, author });
+  return clauses ? `Filtered to posts ${clauses}.` : NO_FILTERS_APPLIED;
+}
 
 // ---------------------------------------------------------------------------
 // The publish confirmation's words. Pure, so the sentence a reader hears after
@@ -944,12 +974,37 @@ export function mountSocialFeed(root, options = {}) {
     // standing on a menu to the status region that just changed under them. On
     // the failed feed this is also what puts Retry next in the tab order after
     // the message, with nothing moved in the markup to do it.
-    setFilterAvailability(filtersAvailable(phase), {
+    //
+    // The sentence is the row's state in every phase now, not only in the shut
+    // ones: it is authored in the markup, it never leaves, and only its text
+    // changes, so the words are there to be read whether or not a reader can see
+    // which button is greyed. A failed load keeps the waiting sentence rather
+    // than falling back to "No filters applied." — no filters are applied, but
+    // saying so on a screen with no feed behind it reads as a working row, and
+    // the honest fact is the one the controls are actually in: they are shut,
+    // and they open when posts load, which is what Retry is there to do.
+    const filtersOpen = filtersAvailable(phase);
+    setFilterAvailability(filtersOpen, {
       controls: [nameFilter, timeFilter, clearFilters],
       statusRegion: feedState ?? feed,
       hintHost: root.querySelector(".social-toolbar"),
       hintId: "post-filter-hint",
+      hintText: filterStatusLine({ available: filtersOpen, ...named }),
+      hintPersists: true,
     });
+    // And the reset follows what that sentence says. With both menus on "all"
+    // there is nothing to clear, so the button is not a control a reader can
+    // spend a Tab and a press on to no effect; it stays in the document and in
+    // the accessibility tree as a named button either way, because a control
+    // that disappears when it is inapplicable is a row that changes shape under
+    // a reader. Focus is not dropped with it: pressing it is the one way to
+    // arrive here standing on it, and the next named control in the row — the
+    // display-name menu — is where that reader is put.
+    if (clearFilters && filtersOpen && !filtering) {
+      const standingOnIt = document.activeElement === clearFilters;
+      clearFilters.disabled = true;
+      if (standingOnIt) nameFilter?.focus();
+    }
     // The count answers "how many posts are there", which this page can only
     // answer once a fetch has come back. While one is open there is no count
     // line at all — it used to wait out the fetch as "Counting posts…", a third
