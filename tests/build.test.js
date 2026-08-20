@@ -156,7 +156,10 @@ test("the hero names the product before any surface, and keeps the log as a name
   assert.match(hero, /no export of yours, no sign-in, and no account/);
   // One name per concept: the marker AI FinOps publishes the example under.
   assert.match(hero, /bundled synthetic example/);
-  assert.match(hero, /Your files do not leave this tab\./);
+  // #1889: the built hero still carries the forwardable boundary passage, both
+  // halves of it. Its per-feature contract is pinned in landing-decision.test.js.
+  assert.match(hero, /read in this browser tab only/);
+  assert.match(hero, /Two things do leave your device\./);
   assert.doesNotMatch(html, /cost analyzer|spend tool/i);
   assert.ok(
     html.indexOf("AI FinOps") < html.indexOf("Know why it shipped."),

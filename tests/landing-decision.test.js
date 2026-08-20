@@ -176,19 +176,45 @@ test("the first screen makes its privacy promise at most twice, beside the link 
   assert.ok(found.length <= 2, `the first screen makes the promise ${found.length} times:\n${found.join("\n")}`);
   assert.ok(found.length >= 1, "the first screen must still make the promise once");
 
-  // Whichever copy survives keeps all three claims. A shorter promise that drops
-  // storage or upload is a weaker promise, not a tidier one.
-  const boundary = textOf(hero.querySelector(".hero-boundary"));
-  assert.match(boundary, /do not leave this tab/);
-  assert.match(boundary, /read and analyzed in this browser/);
-  assert.match(boundary, /No upload/);
+  // #1889: one uninterrupted passage a prospect can select in a single drag and
+  // forward to a security reviewer. It is pinned as a contract, not as a
+  // transcript: every feature that takes visitor input must be named, and named
+  // on the correct side of a single hinge sentence. Copy may be rewritten; a
+  // feature may not go missing, and none may quietly change sides.
+  const passage = hero.querySelector(".hero-boundary");
+  const boundary = textOf(passage);
+  const sentences = boundary.split(/(?<=\.)\s+/);
+  const at = (name) => sentences.findIndex((sentence) => name.test(sentence));
+  const READ_HERE = at(/read in this browser tab only/);
+  const HINGE = at(/\bdo leave your device\b/);
+  assert.ok(READ_HERE >= 0 && HINGE > READ_HERE,
+    `the passage must say what stays, then turn once to what leaves:\n${boundary}`);
+  for (const [feature, name, leaves] of [
+    ["the AI FinOps provider export", /provider export you score in AI FinOps/, false],
+    ["Prompt coach text", /paste into Prompt coach/, false],
+    ["a Paint image", /into Paint\b/, false],
+    ["a published Social post", /publish on Social/, true],
+    ["the follow-up email", /follow-up request/, true],
+  ]) {
+    const index = at(name);
+    assert.ok(index >= 0, `the passage never names ${feature}`);
+    assert.equal(index === READ_HERE, !leaves,
+      `the passage puts ${feature} on the wrong side of the boundary:\n${sentences[index]}`);
+    if (leaves) assert.ok(index > HINGE, `${feature} must be named after the turn`);
+  }
+  // Named, so a reader knows a Social post carries one and a Paint image does
+  // not: the two images sit on opposite sides of the same boundary.
+  assert.match(sentences[READ_HERE], /nothing is uploaded/);
+  assert.match(sentences[at(/publish on Social/)], /its image/);
+  assert.equal(passage.childElements.length, 0,
+    "the privacy passage must not interleave a heading, link, button, or other element");
   // #1799: the storage claim says what is true rather than the shortest thing.
   // "nothing of yours is stored" read as a promise the page next door breaks —
   // the invitation below it offers a briefing built from months this browser
   // already holds. Both facts are kept in one sentence: the export is never
   // written down, and what survives it is the reader's own choice, on their own
   // device. A copy that drops the second half is the contradiction again.
-  assert.match(boundary, /The file itself is never saved/);
+  assert.match(boundary, /The provider export is never saved/);
   assert.match(boundary, /stay on this device only if you choose to keep them/);
   assert.doesNotMatch(boundary, /nothing of yours is stored/,
     "the boundary must not promise a blanket no-storage the retained months break");
