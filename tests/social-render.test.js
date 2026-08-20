@@ -239,9 +239,15 @@ test("empty, loading, and error states are three distinct renders", () => {
   assert.equal(loading.getAttribute("aria-busy"), "true");
   const skeleton = first(loading, "post-grid-skeleton");
   assert.ok(skeleton, "a first load reserves the grid with placeholders");
-  // Placeholders are decoration; #feed-status announces the real state.
+  // Visible words on every reserved card, but still out of the accessibility
+  // tree: #feed-status announces the state once, and no card claims to be a
+  // post, because the count is what the open fetch has not answered yet.
   assert.equal(skeleton.getAttribute("aria-hidden"), "true");
   assert.equal(byClass(loading, "post-card-skeleton").length, 3);
+  const labels = byClass(loading, "skeleton-label");
+  assert.equal(labels.length, 3, "every reserved card says what it is holding open");
+  assert.ok(labels.every((node) => node.textContent === "Loading post"));
+  assert.equal(tags(skeleton, "A").length + tags(skeleton, "BUTTON").length, 0);
   assert.equal(first(loading, "empty-state"), null);
 
   const failed = createElement("div");

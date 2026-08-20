@@ -564,16 +564,28 @@ function renderTile(post, index) {
   return item;
 }
 
-// First-load placeholders. Hidden from assistive tech because the live region on
-// the page announces the real status; a shimmering box announces nothing.
-function renderSkeleton(container, author, count = 6) {
+// First-load placeholders. Each reserved cell says in visible text what it is
+// holding open, so a reader can see this is a grid of image posts arriving and
+// not a blank panel. The cells have no interaction and none of them stands for a
+// particular post: six is the shape of the grid, not a count of this display
+// name's posts, which is exactly what the open fetch has not answered yet.
+//
+// The label does not repeat the display name. The header above the grid already
+// names who is selected, and the waiting line beside it deliberately does not
+// say it a second time — six cells each saying it a third would bury the one
+// thing these shapes are for. Hidden from assistive tech for the same reason the
+// post permalink's skeleton is (src/post-detail.js): the live region carries the
+// state in one sentence, and it is that sentence that gets announced.
+function renderSkeleton(container, count = 6) {
   const list = el("ul", "profile-grid profile-grid-skeleton");
   list.setAttribute("role", "list");
   list.setAttribute("aria-hidden", "true");
   for (let index = 0; index < count; index += 1) {
     const item = el("li", "profile-cell");
     const tile = el("div", "profile-tile profile-tile-skeleton");
-    tile.append(el("div", "skeleton-media skeleton-media-square"), el("div", "skeleton-line"), el("div", "skeleton-line skeleton-line-short"));
+    tile.append(el("p", "eyebrow skeleton-label", "Loading image post"),
+      el("div", "skeleton-media skeleton-media-square"),
+      el("div", "skeleton-line"), el("div", "skeleton-line skeleton-line-short"));
     item.append(tile);
     list.append(item);
   }
@@ -702,7 +714,7 @@ export function renderProfileGrid(container, posts, options = {}) {
         state: "loading", label: "People feed loading", text: loadingSummaryText(author),
         append: statusRegion === container,
       });
-      renderSkeleton(container, author);
+      renderSkeleton(container);
     } else if (phase === "failed") renderError(statusRegion, onRetry);
     else if (phase === "filtered-empty") renderNoMatch(statusRegion, { author, onClearFilters, clearTo });
     else renderEmpty(statusRegion, author);
