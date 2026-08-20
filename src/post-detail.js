@@ -20,7 +20,7 @@
 // as by the browser, and only a relative specifier resolves in both.
 import { captionFor, countLabel, profileHref } from "./profile.js";
 import { renderImageUnavailable } from "./image-description.js";
-import { pageTitle, recordTitle } from "./page-title.js";
+import { pageTitle } from "./page-title.js";
 import { normalizeImage } from "./social.js";
 
 // The three routes out of a permalink, named once and shipped in src/post.html.
@@ -492,7 +492,7 @@ export function renderPostDetail(container, post, options = {}) {
   // The name is a link to that person's People view, and its text is the name
   // itself — not a generic "profile" label. It follows the post content so the
   // permalink leads with the material the reader opened.
-  const author = String(post.author ?? "").trim();
+  const author = postDisplayName(post);
   if (author) {
     const byline = el("p", "detail-byline");
     const link = el("a", "detail-author-link", author);
@@ -523,10 +523,8 @@ export function renderPostDetail(container, post, options = {}) {
 
 // The page heading names the post the way a reader would: by who wrote it. The
 // post record carries no title of its own, so the poster's display name is the
-// only durable name it has. It is written as "Post by <author>" rather than as
-// the bare name, because a permalink is the one place a visitor arrives with no
-// context: an h1 holding only a person's name reads as that person's profile,
-// which is a different page in this product. It is also the exact phrase
+// only durable name it has. The possessive phrase makes clear that this is a
+// post, not the display name's People page. It is also the exact phrase
 // postDetailTitle() puts in the tab, so the heading and the tab name the same
 // thing. The date and caption sit in the article underneath.
 //
@@ -535,19 +533,22 @@ export function renderPostDetail(container, post, options = {}) {
 // word "Post", which says only what a reader can already see. "Post from Social"
 // says which surface this one post came out of, which is the thing a visitor
 // arriving on a pasted link does not know yet.
+export function postDisplayName(post) {
+  return String(post?.author ?? "").trim();
+}
+
 export function postPageHeading(post) {
-  const author = post?.author?.trim();
-  return author ? `Post by ${author}` : "Post from Social";
+  const displayName = postDisplayName(post);
+  return displayName ? `${displayName}'s post` : "Post from Social";
 }
 
 // Same shape as the decision detail's title — the record, then the surface the
 // nav names, then the product. src/post.html ships titled "Post · Social ·
 // Shiplog", which is what a reader sees until this runs.
 //
-// The title says what the panel says, including which of the two unresolved
-// answers it is: a tab strip full of shared links should distinguish a post that
-// is gone from one the feed could not be asked for.
-export function postDetailTitle(post, state = "ready") {
-  if (post?.author) return recordTitle(`Post by ${post.author}`, { surface: "Social", fallback: "Post" });
-  return pageTitle(POST_STATE_COPY[resolvePostState(post, state)]?.title ?? POST_STATE_COPY["not-found"].title);
+// Until a post loads, every state keeps the shipped fallback title. Once it
+// loads, the same display-name value rendered in the byline names the tab.
+export function postDetailTitle(post) {
+  const displayName = postDisplayName(post);
+  return displayName ? pageTitle(`${displayName}'s post`, "Social") : pageTitle("Post", "Social");
 }

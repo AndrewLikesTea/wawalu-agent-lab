@@ -77,7 +77,7 @@ test("the post reads in one order: description, image, caption, name, then time"
   // The poster's name heads the page as its h1 (src/post-page.js writes it into
   // the hero above this panel) and opens the article as a link to that person's
   // People view — the page's one forward step out of a shared link.
-  assert.equal(postPageHeading(post), "Post by Mina Okafor");
+  assert.equal(postPageHeading(post), "Mina Okafor's post");
 
   const time = tags(article, "TIME")[0];
   assert.equal(time.textContent.length > 0, true, "the timestamp needs human-readable text");
@@ -363,11 +363,11 @@ test("no slot of the placeholder survives into a state that resolved", () => {
 // used to read as that person's profile, which is a different page here.
 // And with no author to name, it says which surface the page belongs to rather
 // than the bare word "Post", which tells a first-time visitor nothing.
-test("the loaded page is headed by the post and its author, not by the bare name", () => {
-  assert.equal(postPageHeading(post), "Post by Mina Okafor");
+test("the loaded page is headed by the display name on the post", () => {
+  assert.equal(postPageHeading(post), "Mina Okafor's post");
   assert.equal(postPageHeading(null), "Post from Social");
   assert.equal(postPageHeading({ ...post, author: "" }), "Post from Social");
-  assert.equal(postPageHeading({ ...post, author: "  Mina Okafor  " }), "Post by Mina Okafor");
+  assert.equal(postPageHeading({ ...post, author: "  Mina Okafor  " }), "Mina Okafor's post");
 });
 
 // The heading and the tab name the same thing, so a visitor scanning open tabs
@@ -378,14 +378,12 @@ test("the permalink heading matches the phrase in the document title", () => {
 });
 
 test("the document title names the post, the feed, and the product", () => {
-  assert.equal(postDetailTitle(post), "Post by Mina Okafor · Social · Shiplog");
-  // The tab distinguishes the two unresolved answers the panel distinguishes,
-  // so a strip of shared links does not read as one undifferentiated failure.
-  assert.equal(postDetailTitle(null), "Post unavailable · Shiplog");
-  assert.equal(postDetailTitle(null, "not-found"), "Post unavailable · Shiplog");
-  assert.equal(postDetailTitle(null, "error"), "Post could not be opened · Shiplog");
+  assert.equal(postDetailTitle(post), "Mina Okafor's post · Social · Shiplog");
+  assert.equal(postDetailTitle(null), "Post · Social · Shiplog");
+  assert.equal(postDetailTitle(null, "not-found"), "Post · Social · Shiplog");
+  assert.equal(postDetailTitle(null, "error"), "Post · Social · Shiplog");
   // A state name never overrides a post that actually loaded.
-  assert.equal(postDetailTitle(post, "error"), "Post by Mina Okafor · Social · Shiplog");
+  assert.equal(postDetailTitle(post, "error"), "Mina Okafor's post · Social · Shiplog");
 });
 
 test("the post page's two routes out sit after the site frame, and name where they go", async () => {
