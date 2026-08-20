@@ -34,10 +34,12 @@ import { REAL_RECORD_NAME } from "./deployed-release.js";
 import { releaseDetailHref } from "./releases.js";
 
 // The fields a health response may name its build in, in order. `/healthz`
-// answers `{ status, storage }` today and names no build at all, which is
+// answers `{ status, version }`, where `version` is the commit the artifact was
+// built from (src/health-contract.js). A deployment that answers otherwise —
+// the static sentinel `ok`, an older function — names no build, which is
 // exactly the `unknown` case below rather than a special one: this view reports
-// what the probe says, and adding a build stamp to the probe is a change to the
-// deployment pipeline, not to a read-only page.
+// what the probe says, and what the probe says is a deployment change, not a
+// change to a read-only page.
 export const HEALTH_BUILD_FIELDS = Object.freeze(["build", "version", "buildId"]);
 
 export const DEPLOYMENT_STATES = Object.freeze(["match", "drift", "unknown"]);

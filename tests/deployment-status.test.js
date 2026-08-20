@@ -28,7 +28,8 @@ import {
   probeHealth,
   renderDeploymentStatus,
 } from "../src/deployment-status-view.js";
-import { REPOSITORY_URL, commitLinkText, commitUrl } from "../src/deployed-release.js";
+import { REAL_RECORD_NAME, REPOSITORY_URL, commitLinkText, commitUrl } from "../src/deployed-release.js";
+import { healthContract } from "../src/health-contract.js";
 import { loadPage, pressEnter, pressTab, textOf } from "./support/browser.js";
 import { waitFor } from "./support/page-module.js";
 
@@ -93,6 +94,10 @@ const verdictText = (page) => textOf(page.document.querySelector("#deployment-ve
 const metricText = (page) => textOf(page.document.querySelector("#deployment-metric"));
 const nextActions = (page) => page.document.querySelectorAll("[data-deployment-action]");
 const evidenceText = (page) => textOf(page.document.querySelector("#deployment-evidence-body"));
+// The authored line the band ships cold, before any read has answered. It names
+// the identifier the probe is going for and what that identifier is compared
+// with, in the same words the settled sentences use for the record.
+const RELEASES_WAITING_LINE = "Retrieving the running build’s version or commit identifier, to compare with the real record of this deployment — not with the invented example records above.";
 
 // The evidence list as term/description pairs, read off the rendered nodes.
 function evidencePairs(page) {
@@ -113,6 +118,27 @@ function mutatingControls(node, found = []) {
 }
 
 /* --------------------------- what the check proves ------------------------ */
+
+test("the Releases check explains what it retrieves and compares while loading", async (t) => {
+  const page = await loadPage(RELEASES_PAGE, {
+    storage: { [STORAGE_KEY]: JSON.stringify([]), [RELEASE_STORAGE_KEY]: JSON.stringify([]) },
+  });
+  t.after(() => page.restore());
+  const pending = new Promise(() => {});
+
+  initReleasesPage(page.document, page.storage, {
+    seed: NO_SEED,
+    readHealth: () => pending,
+    now: () => NOW,
+    deployedRelease: NEWEST,
+  });
+
+  assert.equal(verdictText(page), RELEASES_WAITING_LINE);
+  assert.equal(page.document.querySelector("#deployment-verdict").getAttribute("role"), "status");
+  // The waiting line and the settled sentences must call the record the same
+  // thing, so read the name off the module both of them are named from.
+  assert.ok(RELEASES_WAITING_LINE.includes(REAL_RECORD_NAME));
+});
 
 test("the band opens with what the check proves, ahead of the answer and outside every disclosure", async (t) => {
   const page = await openReleases(t, { readHealth: answers({ status: "ok", build: "v2.1.0" }) });
@@ -606,7 +632,11 @@ async function openReleasesWithStamp(t, buildStamp) {
   initReleasesPage(page.document, page.storage, {
     seed: NO_SEED,
     buildStamp,
-    readHealth: answers({ status: "healthy", version: buildStamp.commitSha }),
+    // The body production answers with, built by the function that builds it —
+    // functions/healthz.js serialises healthContract(BUILD_STAMP) — rather than
+    // a literal shaped like it, because a literal is what drifts when the
+    // endpoint renames the field it names the build in.
+    readHealth: answers(healthContract(buildStamp)),
     now: () => NOW,
   });
   await waitFor(
@@ -615,6 +645,20 @@ async function openReleasesWithStamp(t, buildStamp) {
   );
   return page;
 }
+
+// The waiting line promises an identifier. Whether that promise can be kept is a
+// deployment question, not a wording one: the endpoint has to name the build in
+// a field this page reads. So this drives the real contract through the real
+// page and asserts the identifier arrives — a renamed field on either side
+// leaves the band saying "it named no build identifier" in production while
+// every fixture-driven test above stays green.
+test("the shipped /healthz contract answers the identifier the waiting line promises", async (t) => {
+  const page = await openReleasesWithStamp(t, HOME_STAMP);
+
+  assert.ok(metricText(page).includes(HOME_SHA), "the running build the probe reported never reached the page");
+  assert.doesNotMatch(verdictText(page), /named no build identifier/);
+  assert.notEqual(verdictText(page), RELEASES_WAITING_LINE, "the band stayed on its waiting line after the check settled");
+});
 
 test("the front door's check links the commit this build was made from", async (t) => {
   const page = await openHome(t, { readHealth: answers({ status: "ok", build: "v2.1.0" }) });
