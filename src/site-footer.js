@@ -26,8 +26,8 @@
 // though, so it reads its validation and failure wording from CONTACT_COPY
 // rather than the field-note set: the home page carries both forms, and a
 // visitor who mistypes an address has to be told which one they were using.
-// The promise it makes once an address lands is still its own — see the note on
-// CAPTURED about what it is willing to say.
+// What a landed address is told is not written here either: the receipt in
+// follow-up-confirmation.js says it, once, for every follow-up surface.
 
 import { createFollowUpConfirmation } from "./follow-up-confirmation.js";
 import {
@@ -116,25 +116,17 @@ export const DEMOS = Object.freeze([
  * job, and it stands above the form because a visitor reads it before deciding
  * whether to type an address into anything.
  */
-export const INVITATION = "Questions about Shiplog? Ask the Wawalu team that operates it, and a "
-  + "person replies by email.";
+export const INVITATION = "Questions about Shiplog? Send the Wawalu team that operates it a follow-up request.";
 
 // What the field sends is not this footer's sentence to write: all three
 // follow-up forms render FOLLOW_UP_PRIVACY from src/lead-capture.js, beside
 // the transport that makes it true.
 
-// What a visitor is told once the address is stored.
-//
-// Deliberately not an SLA. The AI FinOps form answers within two business days
-// because someone watches that queue; this footer sits on eight pages of a
-// demonstration product and nobody has promised to watch it that closely. So it
-// says what is actually true — the address is recorded, a person is the one who
-// reads it, and no machine is about to reply — rather than a response time this
-// demo would break.
-const CAPTURED = "Follow-up requested — we sent your email address, and nothing else. It is recorded "
-  + "for the Wawalu team, and a person replies by email; nothing here answers automatically.";
-const ALREADY_CAPTURED = "Follow-up requested — that address is already on our list, so nothing new "
-  + "was recorded. The Wawalu team can reach you there.";
+// What a landed request is told is the receipt's sentence, in
+// follow-up-confirmation.js, said once: this live region carries the pending
+// state and the failures, and success empties it. A duplicate address is not
+// told it is one — whether a row was new is this repository's bookkeeping, and
+// the request went either way.
 
 const SUBMITTING = "Requesting a follow-up — sending your email address…";
 
@@ -223,7 +215,7 @@ function contactFormLines(followUpType, followUpTopic) {
     "        </div>",
     `        <p class="site-footer-error" id="site-footer-error" hidden></p>`,
     `        <p class="site-footer-note" id="site-footer-note">${FOLLOW_UP_PRIVACY}</p>`,
-    '        <p class="site-footer-recovery" id="site-footer-recovery" hidden>We could not send your follow-up request. Your email address is still in the field above, and nothing else on this page changed. Retry sends the same request again from this page; if it keeps failing, wait a few minutes and retry.</p>',
+    '        <p class="site-footer-recovery" id="site-footer-recovery" hidden>We could not send your follow-up request. Your email address is still in the field above, and nothing else on this page changed. Retry sends the same request again from this page.</p>',
     '        <div class="site-footer-actions">',
     '          <button type="submit">Request a follow-up</button>',
     `          <button id="${RETRY_ID}" type="submit" hidden>Retry your follow-up request</button>`,
@@ -301,6 +293,7 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
     status,
     submit,
     email,
+    topic: form.elements.topic?.value ?? null,
     // Coming back to the form clears the outcome of the last request: it reports
     // something that happened, and the visitor has just said they are not done.
     onReopen: () => { status.textContent = ""; delete form.dataset.state; setOutcomeDescribed(false); },
@@ -353,10 +346,13 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
 
     try {
       const address = email.value.trim();
-      const body = await postLeadEmail(request, email.value, form.dataset.followUpType || "follow_up", CONTACT_COPY,
+      await postLeadEmail(request, email.value, form.dataset.followUpType || "follow_up", CONTACT_COPY,
         form.elements.topic?.value);
       form.dataset.state = "success";
-      status.textContent = body.created ? CAPTURED : ALREADY_CAPTURED;
+      // The pending sentence goes before the receipt arrives, so the page never
+      // holds two accounts of one request — and never a success beside the
+      // failure a retry has just cleared.
+      status.textContent = "";
       // The form is replaced from here, so the control that would send again is
       // gone before the `finally` below could bring it back.
       confirmation.show(address);

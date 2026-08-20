@@ -143,11 +143,12 @@ test("Coach, Releases, Social, People, and Agents send one bounded request and s
       const confirmation = byId(page.document, "site-footer-confirmation");
       assert.ok(confirmation, `${file}: visible confirmation`);
       assert.equal(page.document.activeElement?.id, "site-footer-confirmation", `${file}: focus reaches confirmation`);
-      assert.match(textOf(confirmation), /Your work email was sent to the Wawalu team/, `${file}: receipt names recipient`);
-      assert.match(textOf(confirmation), /requested follow-up type is the only other information sent/, `${file}: receipt states disclosure`);
+      assert.match(textOf(confirmation), /Request received\. Your work email address went to the Wawalu team/,
+        `${file}: receipt names what was sent`);
+      if (topic) assert.match(textOf(confirmation), new RegExp(topic), `${file}: receipt names its topic`);
       assert.doesNotMatch(textOf(confirmation), new RegExp(pageContent, "i"), `${file}: receipt does not render page content`);
-      assert.match(shownText(page.document, "site-footer-status"), /person replies by email/,
-        `${file}: confirmation states the next step`);
+      assert.equal(shownText(page.document, "site-footer-status"), "", `${file}: no duplicate success message`);
+      assert.doesNotMatch(textOf(confirmation), /reply|respond|business days?|within \d/i);
     } finally {
       page.restore();
     }
@@ -196,14 +197,14 @@ for (const { name, open, prefix, gated } of SURFACES) {
       // The address the visitor typed, in the receipt, as text.
       assert.match(textOf(receipt), new RegExp(LONG_EMAIL.replace(/[.]/g, "\\.")));
       assert.equal(textOf(receipt.querySelector(`.${receipt.className}-address`)), LONG_EMAIL);
-      // Who answers, and roughly when — the response time the FinOps form
-      // already states, hedged, because someone reads this queue and nobody has
-      // promised the hour.
-      assert.match(textOf(receipt), /A person from the Wawalu team will reply to that address by email, usually within two business days/);
-      assert.match(textOf(receipt), /requested follow-up type is the only other information sent/);
+      // That it landed and where it went — and no further. Nobody watches this
+      // queue to a schedule, so a response time, hedged or not, would be a
+      // commitment this demonstration has not made.
+      assert.match(textOf(receipt), /Request received\. Your work email address went to the Wawalu team/);
+      assert.doesNotMatch(textOf(receipt), /reply|respond|business days?|within \d/i);
       // And what stayed behind, named rather than left to be assumed: the
       // request carried one field, so the receipt says so out loud.
-      assert.match(textOf(receipt), /no page content, prompt text, uploaded file, or browsing data went with it/);
+      assert.match(textOf(receipt), /no page content, prompt text, uploaded file, or browsing data/);
       // The categories may be named; a value from the page may not. The address
       // line is the only place a page could leak into, so it is checked alone.
       const addressLine = textOf(receipt.querySelector(`.${receipt.className}-lead`));

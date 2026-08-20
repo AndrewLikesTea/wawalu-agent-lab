@@ -347,9 +347,10 @@ test("the bundled example brief is equally undisturbed, and the confirmation say
     // The first words name the request that succeeded, not merely that
     // something was sent: this sentence is announced on its own, out of the
     // context of the button that produced it.
-    const confirmation = shownText(document, "finops-contact-status");
-    assert.match(confirmation, /^Follow-up requested — we sent your email address, and nothing else\./);
-    assert.match(confirmation, /within two business days/, "the confirmation must say roughly when");
+    const confirmation = shownText(document, "finops-contact-confirmation");
+    assert.match(confirmation, /Request received\. Your work email address went to the Wawalu team/);
+    assert.doesNotMatch(confirmation, /reply|respond|business days?|within \d/i);
+    assert.equal(shownText(document, "finops-contact-status"), "", "success is visible once");
     assert.deepEqual(resultSnapshot(document), before,
       "the example brief must survive the submission exactly as the imported one does");
 
@@ -357,10 +358,9 @@ test("the bundled example brief is equally undisturbed, and the confirmation say
     // after the visitor asks for the form back, which is the only way to one.
     byId(document, "finops-contact-again").click();
     submitEmail(document, TYPED_EMAIL);
-    await waitFor(() => shownText(document, "finops-contact-status").includes("already on our list"),
+    await waitFor(() => document.getElementById("finops-contact-form").dataset.state === "success",
       "the already-captured confirmation");
-    assert.match(shownText(document, "finops-contact-status"), /^Follow-up requested — that address is already on our list/);
-    assert.match(shownText(document, "finops-contact-status"), /within two business days/);
+    assert.doesNotMatch(shownText(document, "finops-contact-confirmation"), /reply|respond|business days?|within \d/i);
     assert.deepEqual(resultSnapshot(document), before);
 
     // The example result's own labelling is exactly what it was.

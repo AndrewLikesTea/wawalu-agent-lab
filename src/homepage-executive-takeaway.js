@@ -55,6 +55,8 @@ export const TAKEAWAY_COPY_FEEDBACK = Object.freeze({
 import {
   CONTACT_COPY, emailFieldError, looksLikeEmail, postLeadEmail, SubmissionError,
 } from "./lead-capture.js";
+import { createFollowUpConfirmation } from "./follow-up-confirmation.js";
+import { FOLLOW_UP_TOPICS } from "./leads.js";
 
 export const FINOPS_EXAMPLE_FOLLOW_UP_PURPOSE = "follow_up_finops_example";
 
@@ -87,6 +89,36 @@ export function bindFinopsExampleFollowUp(doc = globalThis.document, request = (
   if (!open || !panel || !form || !status || !error) return null;
   const email = form.elements.email;
   const submit = form.querySelector('button[type="submit"]');
+  const retry = doc.getElementById("finops-example-follow-up-retry");
+  // The receipt names the string that goes on the wire, not the one in the
+  // read-only field beside it. They read the same today; sourcing the receipt
+  // from the field would let a markup edit produce a receipt naming a topic the
+  // request never carried, which is the one thing a receipt may not do.
+  const topic = FOLLOW_UP_TOPICS[FINOPS_EXAMPLE_FOLLOW_UP_PURPOSE];
+  const confirmation = createFollowUpConfirmation({
+    form,
+    status,
+    submit,
+    email,
+    // Asking for the form back has to give back a form that works. The guard in
+    // the submit handler below reads `dataset.state`, so leaving "success" on it
+    // would hand a visitor a live field and a button that silently does nothing.
+    onReopen: () => { status.textContent = ""; delete form.dataset.state; },
+    topic,
+  });
+
+  // The send/retry swap is the one moment this form hides the control a reader
+  // may be standing on, and a browser answers that by dropping focus to the top
+  // of the document — above the whole page, with no announcement. So the control
+  // being hidden hands focus to the field, which survives both sides of the swap
+  // and is what a reader may want to correct. The footer form does the same.
+  function showRetry(visible) {
+    if (!retry) return;
+    const stranded = doc.activeElement === (visible ? submit : retry);
+    retry.hidden = !visible;
+    submit.hidden = visible;
+    if (stranded) email.focus();
+  }
 
   open.addEventListener("click", () => {
     panel.hidden = false;
@@ -108,24 +140,29 @@ export function bindFinopsExampleFollowUp(doc = globalThis.document, request = (
       error.hidden = false;
       email.setAttribute("aria-invalid", "true");
       status.textContent = "";
+      showRetry(false);
       email.focus();
       return;
     }
     form.dataset.state = "submitting";
     error.hidden = true;
     email.removeAttribute("aria-invalid");
+    showRetry(false);
     submit.disabled = true;
     submit.setAttribute("aria-disabled", "true");
     status.textContent = "Sending your follow-up request…";
     try {
-      await postLeadEmail(request, email.value, FINOPS_EXAMPLE_FOLLOW_UP_PURPOSE, CONTACT_COPY);
+      await postLeadEmail(request, email.value, FINOPS_EXAMPLE_FOLLOW_UP_PURPOSE, CONTACT_COPY, topic);
       form.dataset.state = "success";
-      for (const control of [form.elements.topic, email, submit]) control.disabled = true;
-      status.textContent = "Follow-up requested. Someone from Wawalu will reply by email.";
+      // The pending sentence goes before the receipt arrives: one request, one
+      // account of it on screen.
+      status.textContent = "";
+      confirmation.show(email.value.trim());
     } catch (caught) {
       form.dataset.state = "error";
       status.textContent = caught instanceof SubmissionError ? caught.message : CONTACT_COPY.unconfirmed;
       email.setAttribute("aria-invalid", "true");
+      showRetry(true);
       submit.disabled = false;
       submit.removeAttribute("aria-disabled");
     }

@@ -54,7 +54,7 @@ const TYPED_EMAIL = "director@example.com";
 // and left a first-time visitor unable to tell whether anything had been sent.
 const RECOVERY_COPY = "We could not send your follow-up request. "
   + "Your email address is still in the field above, and nothing else on this page changed. "
-  + "Retry sends the same request again from this page; if it keeps failing, wait a few minutes and retry.";
+  + "Retry sends the same request again from this page.";
 
 const byId = (document, id) => document.getElementById(id);
 const shownText = (document, id) => textOf(byId(document, id));
@@ -676,7 +676,7 @@ test("the footer initially renders one email field and one request action, with 
   }
 });
 
-test("a submission goes through the shared capture path, and the confirmation says what happens next", async () => {
+test("a submission goes through the shared capture path, and the confirmation says what was sent", async () => {
   const page = await openFooterPage("index.html");
   const { document } = page;
   const calls = interceptLeads((call) => jsonReply({ captured: true, created: call === 1, purpose: "follow_up" }, call === 1 ? 201 : 200));
@@ -694,9 +694,8 @@ test("a submission goes through the shared capture path, and the confirmation sa
     assert.deepEqual(Object.keys(JSON.parse(options.body)), ["email", "purpose"]);
 
     assert.equal(byId(document, "site-footer-form").dataset.state, "success");
-    const confirmation = shownText(document, "site-footer-status");
-    assert.match(confirmation, /^Follow-up requested — we sent your email address, and nothing else\./);
-    assert.match(confirmation, /recorded for the Wawalu team/, "the confirmation must say what happens next");
+    const confirmation = shownText(document, "site-footer-confirmation");
+    assert.match(confirmation, /Request received\. Your work email address went to the Wawalu team/);
     // Nothing promised that this demo does not do.
     assert.doesNotMatch(confirmation, /business days?|within \d|hours?\b/i);
     // The live region announces it rather than leaving it to the eye alone.
@@ -711,8 +710,7 @@ test("a submission goes through the shared capture path, and the confirmation sa
     // region announces this sentence alone, out of the context of the button
     // that was pressed, so it has to name which request succeeded.
     await waitFor(
-      () => shownText(document, "site-footer-status")
-        .startsWith("Follow-up requested — that address is already on our list"),
+      () => byId(document, "site-footer-form").dataset.state === "success",
       "the already-recorded confirmation");
     assert.equal(calls.length, 2);
   } finally {
@@ -814,7 +812,7 @@ test("a failed submission keeps the typed address, says it can be retried, and t
       "the retry to succeed");
     assert.equal(calls.length, 2, "the retry must make its own request");
     assert.deepEqual(JSON.parse(calls[1].options.body), { email: TYPED_EMAIL, purpose: "follow_up" });
-    assert.match(shownText(document, "site-footer-status"), /^Follow-up requested — we sent your email address, and nothing else\./);
+    assert.match(shownText(document, "site-footer-confirmation"), /Request received\. Your work email address went to the Wawalu team/);
   } finally {
     page.restore();
   }

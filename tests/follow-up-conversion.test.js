@@ -44,9 +44,13 @@ const BRIEFING_FIXTURE = JSON.parse(
 
 const TYPED_EMAIL = "director@example.com";
 
-/** The exact opening this issue exists to settle, on every confirmation. */
-const CAPTURED_OPENING = /^Follow-up requested — we sent your email address, and nothing else\./;
-const ALREADY_CAPTURED_OPENING = /^Follow-up requested — that address is already on our list/;
+/**
+ * The receipt, and the promise it may never make. A confirmation says the
+ * request landed and what went with it; who answers and by when is nobody's to
+ * state here, so the second pattern is asserted against, not for.
+ */
+const RECEIPT_OPENING = /Request received\. Your work email address went to the Wawalu team/;
+const PROMISE = /reply|respond|business days?|within \d/i;
 
 const byId = (document, id) => document.getElementById(id);
 const shownText = (document, id) => textOf(byId(document, id));
@@ -191,7 +195,7 @@ test("the invitation states, before anything is typed, that only the address is 
 
 // --- the confirmation, and the string a prior regression got wrong ----------
 
-test("the AI FinOps confirmation begins with “Follow-up requested”, both times", async () => {
+test("the AI FinOps confirmation reports receipt and promises no answer, both times", async () => {
   const page = await openFinopsTab();
   const { document } = page;
   interceptLeads((call) => jsonReply({ captured: true, created: call === 1, purpose: "follow_up" }, call === 1 ? 201 : 200));
@@ -200,17 +204,17 @@ test("the AI FinOps confirmation begins with “Follow-up requested”, both tim
     submitEmail(document, "finops-contact", TYPED_EMAIL);
     await settled(document, "finops-contact");
 
-    const confirmation = shownText(document, "finops-contact-status");
-    assert.match(confirmation, CAPTURED_OPENING);
-    assert.match(confirmation, /within two business days/);
+    const confirmation = shownText(document, "finops-contact-confirmation");
+    assert.match(confirmation, RECEIPT_OPENING);
+    assert.doesNotMatch(confirmation, PROMISE);
 
     // The second one only after the form is asked for again: a landed request
     // takes the form away rather than leaving a button that sends twice.
     byId(document, "finops-contact-again").click();
     submitEmail(document, "finops-contact", TYPED_EMAIL);
-    await waitFor(() => shownText(document, "finops-contact-status").includes("already on our list"),
+    await waitFor(() => byId(document, "finops-contact-form").dataset.state === "success",
       "the already-captured confirmation");
-    assert.match(shownText(document, "finops-contact-status"), ALREADY_CAPTURED_OPENING);
+    assert.equal(shownText(document, "finops-contact-status"), "");
   } finally {
     page.restore();
   }
@@ -397,11 +401,11 @@ test("a confirmed request keeps the briefing on screen and its print action with
     submitEmail(document, "briefing-contact", TYPED_EMAIL);
     await settled(document, "briefing-contact");
 
-    // What happens next, said in words: who replies, by when, and what was sent.
-    const confirmation = shownText(document, "briefing-contact-status");
-    assert.match(confirmation, CAPTURED_OPENING);
-    assert.match(confirmation, /replies within two business days/);
-    assert.match(confirmation, /cannot see your analysis/);
+    // What actually happened, said in words: the request landed, and this is
+    // what went with it. Not what happens next — nobody has promised that.
+    const confirmation = shownText(document, "briefing-contact-confirmation");
+    assert.match(confirmation, RECEIPT_OPENING);
+    assert.doesNotMatch(confirmation, PROMISE);
 
     // The briefing is still the page, unchanged, with its sections intact.
     assert.equal(textOf(document.querySelector(".brief-figure")), figure);
@@ -474,7 +478,7 @@ test("the briefing form sends the typed address and nothing from the briefing, a
       assert.ok(!transmitted.includes(secret), `"${secret}" is on screen and must never be in the request`);
 
     // The confirmation, and the next action it leaves behind.
-    assert.match(shownText(document, "briefing-contact-status"), CAPTURED_OPENING);
+    assert.match(shownText(document, "briefing-contact-confirmation"), RECEIPT_OPENING);
     const next = byId(document, "briefing-contact-next");
     assert.equal(next.hidden, false);
     assert.equal(next.querySelector("a").getAttribute("href"), "/evolution.html");

@@ -150,13 +150,19 @@ test("a valid work email and a successful transport reach the success state, whi
     assert.equal(byId(document, "site-footer-form").dataset.state, "success");
 
     const receipt = shownText(document, "site-footer-confirmation");
-    // 1. What was sent: the address, and the fixed routing label beside it.
+    // 1. That it landed, and what was sent: the address, and the fixed routing
+    // label beside it — the same string the payload above carried, so a receipt
+    // cannot name a topic the request did not take.
+    assert.match(receipt, /Request received\. Your work email address went to the Wawalu team/);
     assert.ok(receipt.includes(CONFIRMATION_LEAD.trim()), "the receipt must name what was sent");
     assert.ok(receipt.includes(TYPED_EMAIL), "the receipt must name the address itself");
-    // 2. Who replies, and roughly when.
-    assert.match(receipt, /A person from the Wawalu team will reply to that address by email, usually within two business days/);
-    // 3. What did not go with it.
-    assert.match(receipt, /no page content, prompt text, uploaded file, or browsing data went with it/);
+    assert.match(receipt, new RegExp(FOLLOW_UP_TOPICS.follow_up_coach));
+    // 2. Not who replies, or when: nobody watches this queue to a schedule, so
+    // the receipt stops at the handover rather than hedging a commitment.
+    assert.doesNotMatch(receipt, /reply|respond|business days?|within \d/i);
+    // 3. What did not go with it, category by category — this page holds a
+    // prompt the visitor pasted, and "no page content" does not cover that.
+    assert.match(receipt, /no page content, prompt text, uploaded file, or browsing data/);
     assert.ok(receipt.includes(CONFIRMATION_DETAIL));
   } finally {
     page.restore();
@@ -174,7 +180,8 @@ test("the success state is reached only on a confirmed successful response", asy
     // migration test below); when it answers it for a genuine duplicate, the
     // panel still owns a receipt, and it does not claim a new row.
     assert.equal(byId(document, "site-footer-form").dataset.state, "success");
-    assert.match(shownText(document, "site-footer-status"), /already on our list, so nothing new was recorded/);
+    assert.equal(shownText(document, "site-footer-status"), "");
+    assert.match(shownText(document, "site-footer-confirmation"), /Request received/);
   } finally {
     page.restore();
   }

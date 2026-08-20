@@ -9,7 +9,7 @@
 // rather than written out: `finops-contact` on the AI FinOps result and
 // `briefing-contact` on the executive briefing. The markup stays with each page
 // — the copy beside a briefing is not the copy beside an import — but the
-// behaviour, the transport, and the promise made once an address lands are one
+// behaviour, the transport, and the receipt shown once an address lands are one
 // implementation, so the two surfaces cannot drift apart.
 //
 // Four rules hold it together:
@@ -38,30 +38,17 @@
 // The transport, the validation, and the failure-to-copy mapping are the home
 // page's. This form asks for the same thing the site footer's does — a person,
 // getting back to you — so it reads from the same CONTACT_COPY set rather than
-// wording a rejection its own way. What it does own is the promise it makes once
-// the address lands, which is more specific than the footer's.
+// wording a rejection its own way.
 
 import { createFollowUpConfirmation } from "./follow-up-confirmation.js";
 import {
   CONTACT_COPY, describeWith, emailFieldError, looksLikeEmail, postLeadEmail, SubmissionError,
 } from "./lead-capture.js";
 
-/**
- * What a visitor is told once the address is stored. It names what was asked
- * for, the one thing that travelled, who answers, and by when. Two business days
- * is the commitment this makes; nothing here claims a customer, a saving, or an
- * outcome.
- *
- * It opens on "Follow-up requested" for the same reason the site footer's does:
- * the live region announces this sentence on its own, out of the context of the
- * button that was pressed, so the first words have to say which request
- * succeeded rather than merely that something was sent.
- */
-export const CAPTURED = "Follow-up requested — we sent your email address, and nothing else. Someone here "
-  + "replies within two business days. We cannot see your analysis, so say in your reply what you would "
-  + "like to go through.";
-export const ALREADY_CAPTURED = "Follow-up requested — that address is already on our list, so nothing new "
-  + "was stored. Someone here replies within two business days.";
+// What a landed address is told is the receipt's sentence, written once in
+// src/follow-up-confirmation.js for every follow-up surface. This live region
+// carries the pending state and the failures; success empties it, so one
+// request is never accounted for twice on the same screen.
 
 const SUBMITTING = "Requesting a follow-up — sending your email address…";
 
@@ -215,12 +202,14 @@ export function initFinopsContact(
 
     try {
       const address = email.value.trim();
-      const body = await postLeadEmail(request, email.value, "follow_up", CONTACT_COPY);
+      await postLeadEmail(request, email.value, "follow_up", CONTACT_COPY);
       form.dataset.state = "success";
-      status.textContent = body.created ? CAPTURED : ALREADY_CAPTURED;
-      // Waiting two business days is not a next action, so the surface offers
-      // one: somewhere to go now, in this tab, that does not depend on the reply.
-      // It survives the swap below: the form goes, this stays.
+      // The pending sentence goes before the receipt arrives, so the page never
+      // holds two accounts of one request.
+      status.textContent = "";
+      // Nothing here tells the visitor to wait, so the surface offers a next
+      // action available now in this tab. It survives the swap below: the form
+      // goes, this stays.
       setNextStepVisible(true);
       confirmation.show(address);
     } catch (error) {

@@ -9,6 +9,7 @@ export const FOLLOW_UP_REQUEST_TYPES = Object.freeze([
 ]);
 export const LEAD_PURPOSES = Object.freeze(["field_notes", "follow_up", ...FOLLOW_UP_REQUEST_TYPES]);
 export const FOLLOW_UP_TOPICS = Object.freeze({
+  follow_up_finops_example: "Bundled AI FinOps example — lower-cost routing in Atlas Platform",
   follow_up_coach: "Prompt coach page — prompt grading and revision",
   follow_up_social: "Social page — team posts and published images",
   follow_up_people: "People page — display names and image posts",

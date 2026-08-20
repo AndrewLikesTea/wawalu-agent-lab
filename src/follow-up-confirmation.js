@@ -10,27 +10,28 @@
 //   2. The address is rendered as text. `textContent` is all this module writes,
 //      so nothing a visitor types can become a node.
 //
-// Announcement follows the panel rather than inventing a second pattern: the
-// surface's status paragraph carries the outcome sentence exactly as it does on
-// failure, and the receipt is a `role="status"` region too and takes focus. A
-// live region inserted already-populated is not reliably announced, so focus
-// landing on the receipt is what puts a reader inside it.
+// Announcement is the receipt's job alone. Failures stay in the surface's
+// status paragraph; a success does not go there as well, because one request
+// may not be accounted for twice on one screen. So the receipt is a
+// `role="status"` region that takes focus, and focus is what announces it.
 
 /**
- * The receipt answers three questions and nothing else: what was sent, what did
- * not go with it, and who replies and roughly when. `LEAD` is deliberately split
- * around the address so the address arrives as a text node of its own.
+ * The receipt answers three questions and nothing else: was it received, what
+ * was sent, and what stayed behind. `LEAD` is deliberately split around the
+ * address so the address arrives as a text node of its own.
  *
- * The exclusion list is not decoration. `postLeadEmail` builds the whole request
- * body from the typed address and a fixed routing label, so no page state has a
- * route to the wire on any surface — the sentence is true by construction, and
- * naming what stayed behind is the point of it. The response time is the one the
- * FinOps form states, hedged: someone reads this queue, nobody promised an hour.
+ * It does not answer who replies or when, because nobody has promised either,
+ * and a hedged response time reads as a commitment anyway.
+ *
+ * The exclusion list is named category by category rather than waved at.
+ * `postLeadEmail` builds the whole body from the typed address and a fixed
+ * routing label, so it is true by construction — and it is the reassurance the
+ * request turns on: this visitor is on a page holding a prompt they pasted or a
+ * file they analyzed, and "no page content" does not say their prompt stayed.
  */
-export const CONFIRMATION_LEAD = "Your work email was sent to the Wawalu team: ";
-export const CONFIRMATION_DETAIL = "The requested follow-up type is the only other information sent: no page "
-  + "content, prompt text, uploaded file, or browsing data went with it. A person from the Wawalu team will reply to that "
-  + "address by email, usually within two business days.";
+export const CONFIRMATION_LEAD = "Request received. Your work email address went to the Wawalu team: ";
+export const CONFIRMATION_DETAIL = "Nothing else on this page went with it: no page content, prompt text, "
+  + "uploaded file, or browsing data.";
 export const REOPEN_LABEL = "Request another follow-up";
 
 /**
@@ -54,7 +55,7 @@ function classBase(status) {
  * exists only after a request lands, so there is no hidden node for a screen
  * reader to find first.
  */
-export function createFollowUpConfirmation({ form, status, submit, email, onReopen = () => {} }) {
+export function createFollowUpConfirmation({ form, status, submit, email, topic = null, onReopen = () => {} }) {
   const document = form.ownerDocument;
   const base = classBase(status);
   const prefix = form.id.replace(/-form$/, "");
@@ -82,7 +83,11 @@ export function createFollowUpConfirmation({ form, status, submit, email, onReop
 
   const detail = document.createElement("p");
   detail.className = `${base}-confirmation-detail`;
-  detail.textContent = CONFIRMATION_DETAIL;
+  // A surface routing to a named topic says which one — that string is the
+  // second and last thing on the wire. One that sends none says nothing here.
+  detail.textContent = topic
+    ? `The follow-up topic “${topic}” went with it. ${CONFIRMATION_DETAIL}`
+    : CONFIRMATION_DETAIL;
 
   const again = document.createElement("button");
   again.className = `${base}-confirmation-again`;

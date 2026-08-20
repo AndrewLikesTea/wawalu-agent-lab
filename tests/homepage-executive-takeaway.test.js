@@ -198,6 +198,7 @@ async function openContextualFollowUp(t, request) {
 const reply = (body, status = 201) => new NativeResponse(JSON.stringify(body), {
   status, headers: { "content-type": "application/json" },
 });
+const documentTopic = "Bundled AI FinOps example — lower-cost routing in Atlas Platform";
 
 test("the adjacent CTA opens a contextual work-email request that says what is sent", async (t) => {
   const document = await openContextualFollowUp(t, async () => reply({ captured: true, created: true }));
@@ -253,15 +254,69 @@ test("the contextual request validates locally and never shows success for a fai
   assert.equal(form.dataset.state, "error");
   assert.doesNotMatch(textOf(document.getElementById("finops-example-follow-up-status")), /will reply|requested\./i);
   assert.equal(email.value, "finops@example.com");
+  const retry = document.getElementById("finops-example-follow-up-retry");
+  assert.equal(retry.hidden, false);
+  assert.equal(textOf(retry), "Retry follow-up request");
+  // One retry control, not two send controls: the swap replaces the button
+  // rather than adding beside it, so there is no reading of the panel where a
+  // visitor has to choose which of them re-sends.
+  const submits = [...document.getElementById("finops-example-follow-up-form").children]
+    .filter((node) => node.getAttribute?.("type") === "submit" && !node.hidden);
+  assert.equal(submits.length, 1, "a failed request leaves exactly one send control on screen");
+  // A failure has no receipt, and never both accounts of one request.
+  assert.equal(document.getElementById("finops-example-follow-up-confirmation"), null);
 });
 
-test("a valid contextual request reaches the real endpoint, persists its purpose, then promises an email reply", async (t) => {
+test("the contextual retry re-sends in place, and asking for the form back gives back a working one", async (t) => {
+  let failNext = true;
+  const calls = [];
+  const document = await openContextualFollowUp(t, async (...args) => {
+    calls.push(args);
+    if (failNext) return reply({ error: { code: "storage_error" } }, 500);
+    return reply({ captured: true, created: true }, 201);
+  });
+  document.getElementById("finops-example-follow-up-open").click();
+  const email = document.getElementById("finops-example-follow-up-email");
+  const form = document.getElementById("finops-example-follow-up-form");
+  email.value = "finops@example.com";
+  email.focus();
+  pressEnter(document);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(form.dataset.state, "error");
+
+  // The labelled control does the retry, on this page, with the value still in
+  // the field — not a reload, and not a second address to retype.
+  failNext = false;
+  document.getElementById("finops-example-follow-up-retry").click();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(calls.length, 2, "the retry must make its own request");
+  assert.equal(form.dataset.state, "success");
+  assert.equal(textOf(document.getElementById("finops-example-follow-up-status")), "",
+    "the failure must not survive beside the success that replaced it");
+  assert.match(textOf(document.getElementById("finops-example-follow-up-confirmation")),
+    /Request received\. Your work email address went to the Wawalu team/);
+
+  // #1902: the receipt ships a reopen control, so it has to hand back a form
+  // that submits. The success guard used to outlive the receipt and swallow
+  // every later attempt in silence.
+  document.getElementById("finops-example-follow-up-again").click();
+  assert.equal(form.hidden, false);
+  email.value = "second@example.com";
+  email.focus();
+  pressEnter(document);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(calls.length, 3, "a reopened form must be able to send again");
+  assert.equal(JSON.parse(calls[2][1].body).email, "second@example.com");
+});
+
+test("a valid contextual request persists its fixed topic and confirms only what was received", async (t) => {
   const db = await createTestD1();
   t.after(() => db.close());
   const response = await onRequest({
     request: new Request("https://labs.wawalu.org/api/leads", {
       method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ email: "finops@example.com", purpose: FINOPS_EXAMPLE_FOLLOW_UP_PURPOSE }),
+      body: JSON.stringify({ email: "finops@example.com", purpose: FINOPS_EXAMPLE_FOLLOW_UP_PURPOSE,
+        topic: documentTopic }),
     }),
     env: { DB: db },
   });
@@ -274,10 +329,15 @@ test("a valid contextual request reaches the real endpoint, persists its purpose
   pressEnter(document);
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(form.dataset.state, "success", textOf(document.getElementById("finops-example-follow-up-status")));
-  assert.match(textOf(document.getElementById("finops-example-follow-up-status")), /Someone from Wawalu will reply by email/);
-  const row = db.raw.prepare("SELECT email, purpose FROM lead_submissions WHERE email = ?").get("finops@example.com");
+  const receipt = textOf(document.getElementById("finops-example-follow-up-confirmation"));
+  assert.match(receipt, /Request received\. Your work email address went to the Wawalu team/);
+  assert.match(receipt, new RegExp(documentTopic));
+  assert.doesNotMatch(receipt, /reply|respond|business days?|within \d/i);
+  assert.equal(textOf(document.getElementById("finops-example-follow-up-status")), "");
+  const row = db.raw.prepare("SELECT email, purpose, topic FROM lead_submissions WHERE email = ?").get("finops@example.com");
   assert.equal(row.email, "finops@example.com");
   assert.equal(row.purpose, FINOPS_EXAMPLE_FOLLOW_UP_PURPOSE);
+  assert.equal(row.topic, documentTopic);
   assert.equal(textOf(document.getElementById("finops-example-follow-up-disclosure")),
     "Only your work email and this fixed follow-up topic are sent.");
 });
