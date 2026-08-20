@@ -355,13 +355,11 @@ test("the footer is a site map: every destination the navigation offers, each on
     // sentences twice and every other page carried an essay. Social used to be
     // the standing exception — it carried a whole sentence, opening by naming
     // the destination its own link had just named — and it is a fragment like
-    // the rest now. Its words and the home page's are deliberately the same
-    // words, which the test below pins; here it only has to be a fragment.
-    // People is the second deliberate exception: its card used to add "The
+    // the rest now. People is the deliberate exception: its card used to add "The
     // picker is on the page", which describes the page's furniture rather than
     // what a visitor does there, so the card now says exactly what this band
-    // says. Two surfaces, one description.
-    const SHARED = ["Social", "People"];
+    // says.
+    const SHARED = ["People"];
     for (const demo of DEMOS) {
       assert.doesNotMatch(demo.purpose, /[.!?]$/, `"${demo.label}" is written as a sentence`);
       if (SHARED.includes(demo.label)) {
@@ -433,14 +431,9 @@ test("the About Shiplog band reads the same on every page of the site", async ()
 // band lists fragments, the home page's directory lists sentences.
 const asFragment = (text) => text.replace(/\.$/, "").replace(/^./, (first) => first.toLowerCase());
 
-test("Social's directories share one description, while a permalink explains the specific post", async () => {
-  // Directory surfaces use one description, in the shape every other row uses.
-  // Social used to be described by its own intro sentence, pasted into the band
-  // and the home page's card: a whole sentence among fragments, opening by
-  // repeating the word the link beside it had already said, and never saying
-  // what a visitor does there. The permalink instead identifies the specific
-  // item a visitor opened, so the two explanations do not compete beside the
-  // post.
+test("Social's homepage directory explains publishing, while a permalink explains the specific post", async () => {
+  // The homepage explains publishing; the compact site-wide band points to the
+  // feed. The permalink identifies the specific item a visitor opened.
   const PURPOSE = DEMOS.find((demo) => demo.label === "Social").purpose;
 
   // A verb first, and never the destination's own name: the link says "Social"
@@ -453,9 +446,7 @@ test("Social's directories share one description, while a permalink explains the
   assert.ok(Boolean(card), "the home page's directory must name Social");
   const cardText = textOf(card).slice("Social".length).trim();
   assert.doesNotMatch(cardText, /^Social\b/, "the home page's card repeats the name of the link beside it");
-  // Word for word the band's, down to the punctuation the two lists differ in.
-  assert.equal(asFragment(cardText), PURPOSE,
-    "the home page's card and the About Shiplog band describe Social differently");
+  assert.equal(cardText, "Read posts and images, or publish your own post under a display name.");
 
   // The permalink's standing copy is post-specific and does not repeat the
   // generic feed description beside it.
