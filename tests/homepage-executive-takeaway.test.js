@@ -255,7 +255,57 @@ test("the contextual request validates locally and never shows success for a fai
   assert.equal(email.value, "finops@example.com");
 });
 
-test("a valid contextual request reaches the real endpoint, persists its purpose, then promises an email reply", async (t) => {
+// #1902, the two criteria the homepage panel is the only surface to answer on
+// its own: a genuine failure owes one clearly labelled retry, and the page must
+// never carry a receipt and a failure for the same request at once. The footer
+// swaps its controls for the same reason; this panel had the copy and not the
+// coverage, so the swap is read back off the rendered DOM here.
+test("a failed contextual request offers one retry in place, and a successful retry clears the failure", async (t) => {
+  let failNext = true;
+  const document = await openContextualFollowUp(t, async () => (failNext
+    ? reply({ error: { code: "storage_unavailable", message: "unreviewed upstream text" } }, 503)
+    : reply({ captured: true, created: true })));
+  document.getElementById("finops-example-follow-up-open").click();
+  const form = document.getElementById("finops-example-follow-up-form");
+  const email = document.getElementById("finops-example-follow-up-email");
+  const error = document.getElementById("finops-example-follow-up-error");
+  const status = document.getElementById("finops-example-follow-up-status");
+  const submit = form.querySelector('button[type="submit"]');
+  const retry = document.getElementById("finops-example-follow-up-retry");
+  assert.ok(retry.hidden, "nothing has failed yet, so there is nothing to retry");
+
+  email.value = "finops@example.com";
+  email.focus();
+  pressEnter(document);
+  await new Promise((resolve) => setImmediate(resolve));
+
+  // The address survives, and the panel says plainly that nothing was sent —
+  // in copy this repository owns, never the string the response supplied.
+  assert.equal(form.dataset.state, "error");
+  assert.equal(email.value, "finops@example.com", "a failure must not clear the typed address");
+  assert.ok(!error.hidden);
+  assert.match(textOf(error), /^No request was sent\./);
+  assert.doesNotMatch(textOf(status), /unreviewed upstream text/);
+  // One retry, named for what it retries, and the send control stands down: two
+  // primary controls that do the same thing is not a choice, it is a guess.
+  assert.ok(!retry.hidden, "a failure must offer a retry where it happened");
+  assert.equal(textOf(retry), "Retry follow-up request");
+  assert.ok(submit.hidden, "the send control must not stand beside its own retry");
+  assert.ok(tabSequence(document).includes(retry), "the retry must be reachable by keyboard");
+
+  // The retry lands, and the failure goes with it: a reader must never be able
+  // to read "no request was sent" beside a receipt for the same request.
+  failNext = false;
+  retry.click();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(form.dataset.state, "success", textOf(status));
+  assert.match(textOf(status), /^Request received\./);
+  assert.ok(error.hidden, "a landed request must leave no failure message on the page");
+  assert.ok(retry.hidden, "the retry goes when the request it retried lands");
+  assert.equal(email.getAttribute("aria-invalid"), null, "the field must stop reading as invalid");
+});
+
+test("a valid contextual request reaches the real endpoint, persists its purpose, and states what was sent", async (t) => {
   const db = await createTestD1();
   t.after(() => db.close());
   const response = await onRequest({
@@ -266,7 +316,11 @@ test("a valid contextual request reaches the real endpoint, persists its purpose
     env: { DB: db },
   });
   assert.equal(response.status, 201);
-  const document = await openContextualFollowUp(t, async () => reply({ captured: true, created: true }));
+  const sent = [];
+  const document = await openContextualFollowUp(t, async (...args) => {
+    sent.push(args);
+    return reply({ captured: true, created: true });
+  });
   document.getElementById("finops-example-follow-up-open").click();
   document.getElementById("finops-example-follow-up-email").value = "finops@example.com";
   const form = document.getElementById("finops-example-follow-up-form");
@@ -274,7 +328,16 @@ test("a valid contextual request reaches the real endpoint, persists its purpose
   pressEnter(document);
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(form.dataset.state, "success", textOf(document.getElementById("finops-example-follow-up-status")));
-  assert.match(textOf(document.getElementById("finops-example-follow-up-status")), /Someone from Wawalu will reply by email/);
+  const status = textOf(document.getElementById("finops-example-follow-up-status"));
+  // The receipt says what was sent, so what was sent is read back off the wire
+  // rather than taken on trust: this panel posts the address and the routing
+  // label that stands for its one fixed topic, and the sentence may not
+  // enumerate a field the body does not carry.
+  assert.deepEqual(Object.keys(JSON.parse(sent[0][1].body)), ["email", "purpose"],
+    "only the address and the fixed routing label may accompany a contextual request");
+  assert.match(status, /^Request received\. Your work email finops@example\.com was sent, tagged as a follow-up about: Bundled AI FinOps example — lower-cost routing in Atlas Platform\./);
+  assert.match(status, /Nothing else on this page was sent\./);
+  assert.doesNotMatch(status, /reply|business days|within \d/i);
   const row = db.raw.prepare("SELECT email, purpose FROM lead_submissions WHERE email = ?").get("finops@example.com");
   assert.equal(row.email, "finops@example.com");
   assert.equal(row.purpose, FINOPS_EXAMPLE_FOLLOW_UP_PURPOSE);

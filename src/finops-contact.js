@@ -48,20 +48,16 @@ import {
 
 /**
  * What a visitor is told once the address is stored. It names what was asked
- * for, the one thing that travelled, who answers, and by when. Two business days
- * is the commitment this makes; nothing here claims a customer, a saving, or an
- * outcome.
+ * for and the one thing that travelled. It promises no reply, response time,
+ * or action after receipt.
  *
  * It opens on "Follow-up requested" for the same reason the site footer's does:
  * the live region announces this sentence on its own, out of the context of the
  * button that was pressed, so the first words have to say which request
  * succeeded rather than merely that something was sent.
  */
-export const CAPTURED = "Follow-up requested — we sent your email address, and nothing else. Someone here "
-  + "replies within two business days. We cannot see your analysis, so say in your reply what you would "
-  + "like to go through.";
-export const ALREADY_CAPTURED = "Follow-up requested — that address is already on our list, so nothing new "
-  + "was stored. Someone here replies within two business days.";
+export const CAPTURED = "Request received.";
+export const ALREADY_CAPTURED = "Request received. This work email and follow-up type were already recorded.";
 
 const SUBMITTING = "Requesting a follow-up — sending your email address…";
 
@@ -218,8 +214,7 @@ export function initFinopsContact(
       const body = await postLeadEmail(request, email.value, "follow_up", CONTACT_COPY);
       form.dataset.state = "success";
       status.textContent = body.created ? CAPTURED : ALREADY_CAPTURED;
-      // Waiting two business days is not a next action, so the surface offers
-      // one: somewhere to go now, in this tab, that does not depend on the reply.
+      // The surface offers a next action available now, in this tab.
       // It survives the swap below: the form goes, this stays.
       setNextStepVisible(true);
       confirmation.show(address);

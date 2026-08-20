@@ -348,8 +348,8 @@ test("the bundled example brief is equally undisturbed, and the confirmation say
     // something was sent: this sentence is announced on its own, out of the
     // context of the button that produced it.
     const confirmation = shownText(document, "finops-contact-status");
-    assert.match(confirmation, /^Follow-up requested — we sent your email address, and nothing else\./);
-    assert.match(confirmation, /within two business days/, "the confirmation must say roughly when");
+    assert.match(confirmation, /^Request received\./);
+    assert.doesNotMatch(confirmation, /reply|business days|within \d/i);
     assert.deepEqual(resultSnapshot(document), before,
       "the example brief must survive the submission exactly as the imported one does");
 
@@ -357,10 +357,9 @@ test("the bundled example brief is equally undisturbed, and the confirmation say
     // after the visitor asks for the form back, which is the only way to one.
     byId(document, "finops-contact-again").click();
     submitEmail(document, TYPED_EMAIL);
-    await waitFor(() => shownText(document, "finops-contact-status").includes("already on our list"),
+    await waitFor(() => shownText(document, "finops-contact-status").includes("already recorded"),
       "the already-captured confirmation");
-    assert.match(shownText(document, "finops-contact-status"), /^Follow-up requested — that address is already on our list/);
-    assert.match(shownText(document, "finops-contact-status"), /within two business days/);
+    assert.match(shownText(document, "finops-contact-status"), /^Request received\. This work email and follow-up type were already recorded/);
     assert.deepEqual(resultSnapshot(document), before);
 
     // The example result's own labelling is exactly what it was.
@@ -427,7 +426,7 @@ test("a failed submission shows recovery copy for the first time and keeps the a
       "a failed submission must not clear the address the visitor typed");
     // Copy this repository owns — never the string the response supplied.
     assert.equal(shownText(document, "finops-contact-status"),
-      "We didn’t get your request because follow-up requests are temporarily offline.");
+      "No request was sent because follow-up requests are temporarily offline.");
     assert.doesNotMatch(shownText(document, "finops-contact-status"), /unreviewed upstream text/);
     // The control is usable again.
     assert.equal(byId(document, "finops-contact-panel").querySelector('button[type="submit"]').disabled, false);

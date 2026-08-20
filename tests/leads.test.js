@@ -52,10 +52,11 @@ test("the home page's field-note form says what submitting does, in the surface 
   // Nor to an audience, an archive, or a back catalogue: none of those exist.
   assert.doesNotMatch(section, /subscribers|readers|back issues|archive|past notes/i);
 
-  // This form subscribes; it does not reach anyone. A visitor who wants a reply
-  // is pointed at the footer surface by its own label and its own promise.
+  // This form subscribes; it does not reach anyone. A visitor who wants a
+  // follow-up request is pointed at the footer by its own label, without a
+  // promise of what happens after receipt.
   assert.match(section, /It is not a way to reach anyone/);
-  assert.match(section, /“Request a follow-up” in the footer of this page, where a person replies by email\./);
+  assert.match(section, /use “Request a follow-up” in the footer for that\./);
 });
 
 test("the field-note confirmation repeats the promise the page made before submitting", async () => {

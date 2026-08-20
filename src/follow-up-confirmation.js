@@ -17,20 +17,18 @@
 // landing on the receipt is what puts a reader inside it.
 
 /**
- * The receipt answers three questions and nothing else: what was sent, what did
- * not go with it, and who replies and roughly when. `LEAD` is deliberately split
+ * The receipt answers two questions and nothing else: what was sent and what did
+ * not go with it. `LEAD` is deliberately split
  * around the address so the address arrives as a text node of its own.
  *
  * The exclusion list is not decoration. `postLeadEmail` builds the whole request
  * body from the typed address and a fixed routing label, so no page state has a
  * route to the wire on any surface — the sentence is true by construction, and
- * naming what stayed behind is the point of it. The response time is the one the
- * FinOps form states, hedged: someone reads this queue, nobody promised an hour.
+ * naming what stayed behind is the point of it. No response or action is
+ * promised after receipt.
  */
-export const CONFIRMATION_LEAD = "Your work email was sent to the Wawalu team: ";
-export const CONFIRMATION_DETAIL = "The requested follow-up type is the only other information sent: no page "
-  + "content, prompt text, uploaded file, or browsing data went with it. A person from the Wawalu team will reply to that "
-  + "address by email, usually within two business days.";
+export const CONFIRMATION_LEAD = "Request received. Work email sent: ";
+export const CONFIRMATION_DETAIL = "Also sent: the follow-up request type. No page content, prompt text, uploaded file, or browsing data was sent.";
 export const REOPEN_LABEL = "Request another follow-up";
 
 /**
@@ -54,7 +52,7 @@ function classBase(status) {
  * exists only after a request lands, so there is no hidden node for a screen
  * reader to find first.
  */
-export function createFollowUpConfirmation({ form, status, submit, email, onReopen = () => {} }) {
+export function createFollowUpConfirmation({ form, status, submit, email, topic = null, onReopen = () => {} }) {
   const document = form.ownerDocument;
   const base = classBase(status);
   const prefix = form.id.replace(/-form$/, "");
@@ -84,6 +82,9 @@ export function createFollowUpConfirmation({ form, status, submit, email, onReop
   detail.className = `${base}-confirmation-detail`;
   detail.textContent = CONFIRMATION_DETAIL;
 
+  const topicDetail = document.createElement("p");
+  topicDetail.className = `${base}-confirmation-detail`;
+
   const again = document.createElement("button");
   again.className = `${base}-confirmation-again`;
   again.id = `${prefix}-again`;
@@ -104,6 +105,10 @@ export function createFollowUpConfirmation({ form, status, submit, email, onReop
   /** Put the panel into its terminal state, naming the address that was sent. */
   function show(value) {
     address.textContent = value;
+    if (topic) {
+      topicDetail.textContent = `Follow-up topic sent: ${topic}.`;
+      if (!topicDetail.parentNode) region.insertBefore(topicDetail, again);
+    }
     if (!region.parentNode) form.parentNode.insertBefore(region, form);
     // Hiding the form takes the field and both of its buttons out of the tab
     // order; disabling submit means even a stray click on it does nothing.

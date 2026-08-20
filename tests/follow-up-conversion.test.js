@@ -45,8 +45,8 @@ const BRIEFING_FIXTURE = JSON.parse(
 const TYPED_EMAIL = "director@example.com";
 
 /** The exact opening this issue exists to settle, on every confirmation. */
-const CAPTURED_OPENING = /^Follow-up requested — we sent your email address, and nothing else\./;
-const ALREADY_CAPTURED_OPENING = /^Follow-up requested — that address is already on our list/;
+const CAPTURED_OPENING = /^Request received\./;
+const ALREADY_CAPTURED_OPENING = /^Request received\. This work email and follow-up type were already recorded/;
 
 const byId = (document, id) => document.getElementById(id);
 const shownText = (document, id) => textOf(byId(document, id));
@@ -191,7 +191,7 @@ test("the invitation states, before anything is typed, that only the address is 
 
 // --- the confirmation, and the string a prior regression got wrong ----------
 
-test("the AI FinOps confirmation begins with “Follow-up requested”, both times", async () => {
+test("the AI FinOps confirmation confirms receipt without promising action, both times", async () => {
   const page = await openFinopsTab();
   const { document } = page;
   interceptLeads((call) => jsonReply({ captured: true, created: call === 1, purpose: "follow_up" }, call === 1 ? 201 : 200));
@@ -202,13 +202,13 @@ test("the AI FinOps confirmation begins with “Follow-up requested”, both tim
 
     const confirmation = shownText(document, "finops-contact-status");
     assert.match(confirmation, CAPTURED_OPENING);
-    assert.match(confirmation, /within two business days/);
+    assert.doesNotMatch(confirmation, /reply|business days|within \d/i);
 
     // The second one only after the form is asked for again: a landed request
     // takes the form away rather than leaving a button that sends twice.
     byId(document, "finops-contact-again").click();
     submitEmail(document, "finops-contact", TYPED_EMAIL);
-    await waitFor(() => shownText(document, "finops-contact-status").includes("already on our list"),
+    await waitFor(() => shownText(document, "finops-contact-status").includes("already recorded"),
       "the already-captured confirmation");
     assert.match(shownText(document, "finops-contact-status"), ALREADY_CAPTURED_OPENING);
   } finally {
@@ -400,8 +400,7 @@ test("a confirmed request keeps the briefing on screen and its print action with
     // What happens next, said in words: who replies, by when, and what was sent.
     const confirmation = shownText(document, "briefing-contact-status");
     assert.match(confirmation, CAPTURED_OPENING);
-    assert.match(confirmation, /replies within two business days/);
-    assert.match(confirmation, /cannot see your analysis/);
+    assert.doesNotMatch(confirmation, /reply|business days|within \d/i);
 
     // The briefing is still the page, unchanged, with its sections intact.
     assert.equal(textOf(document.querySelector(".brief-figure")), figure);

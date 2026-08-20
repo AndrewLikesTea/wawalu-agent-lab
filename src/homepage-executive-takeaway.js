@@ -84,7 +84,8 @@ export function bindFinopsExampleFollowUp(doc = globalThis.document, request = (
   const form = doc?.getElementById("finops-example-follow-up-form");
   const status = doc?.getElementById("finops-example-follow-up-status");
   const error = doc?.getElementById("finops-example-follow-up-error");
-  if (!open || !panel || !form || !status || !error) return null;
+  const retry = doc?.getElementById("finops-example-follow-up-retry");
+  if (!open || !panel || !form || !status || !error || !retry) return null;
   const email = form.elements.email;
   const submit = form.querySelector('button[type="submit"]');
 
@@ -113,6 +114,8 @@ export function bindFinopsExampleFollowUp(doc = globalThis.document, request = (
     }
     form.dataset.state = "submitting";
     error.hidden = true;
+    retry.hidden = true;
+    submit.hidden = false;
     email.removeAttribute("aria-invalid");
     submit.disabled = true;
     submit.setAttribute("aria-disabled", "true");
@@ -121,13 +124,23 @@ export function bindFinopsExampleFollowUp(doc = globalThis.document, request = (
       await postLeadEmail(request, email.value, FINOPS_EXAMPLE_FOLLOW_UP_PURPOSE, CONTACT_COPY);
       form.dataset.state = "success";
       for (const control of [form.elements.topic, email, submit]) control.disabled = true;
-      status.textContent = "Follow-up requested. Someone from Wawalu will reply by email.";
+      // Receipt and boundary, and nothing after them: no reply, no response
+      // time, no action this demo has not promised. "tagged as" is what the
+      // request body actually does — the address travels verbatim and the topic
+      // travels as the fixed routing label beside it, so the sentence does not
+      // enumerate a field the wire never carried.
+      status.textContent = `Request received. Your work email ${email.value.trim()} was sent, tagged as a `
+        + `follow-up about: ${form.elements.topic.value}. Nothing else on this page was sent.`;
     } catch (caught) {
       form.dataset.state = "error";
+      error.textContent = "No request was sent. Your work email remains in the field.";
+      error.hidden = false;
       status.textContent = caught instanceof SubmissionError ? caught.message : CONTACT_COPY.unconfirmed;
       email.setAttribute("aria-invalid", "true");
       submit.disabled = false;
       submit.removeAttribute("aria-disabled");
+      submit.hidden = true;
+      retry.hidden = false;
     }
   });
   return form;

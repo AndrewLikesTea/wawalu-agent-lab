@@ -52,9 +52,7 @@ const TYPED_EMAIL = "director@example.com";
 // It names no other page. A request that failed here is retried here: sending a
 // reader to the executive briefing's form abandoned the page they were reading
 // and left a first-time visitor unable to tell whether anything had been sent.
-const RECOVERY_COPY = "We could not send your follow-up request. "
-  + "Your email address is still in the field above, and nothing else on this page changed. "
-  + "Retry sends the same request again from this page; if it keeps failing, wait a few minutes and retry.";
+const RECOVERY_COPY = "No request was sent. Your email address is still in the field above, and nothing else on this page changed.";
 
 const byId = (document, id) => document.getElementById(id);
 const shownText = (document, id) => textOf(byId(document, id));
@@ -695,8 +693,7 @@ test("a submission goes through the shared capture path, and the confirmation sa
 
     assert.equal(byId(document, "site-footer-form").dataset.state, "success");
     const confirmation = shownText(document, "site-footer-status");
-    assert.match(confirmation, /^Follow-up requested — we sent your email address, and nothing else\./);
-    assert.match(confirmation, /recorded for the Wawalu team/, "the confirmation must say what happens next");
+    assert.match(confirmation, /^Request received\./);
     // Nothing promised that this demo does not do.
     assert.doesNotMatch(confirmation, /business days?|within \d|hours?\b/i);
     // The live region announces it rather than leaving it to the eye alone.
@@ -712,7 +709,7 @@ test("a submission goes through the shared capture path, and the confirmation sa
     // that was pressed, so it has to name which request succeeded.
     await waitFor(
       () => shownText(document, "site-footer-status")
-        .startsWith("Follow-up requested — that address is already on our list"),
+        .startsWith("Request received. This work email and follow-up type were already recorded"),
       "the already-recorded confirmation");
     assert.equal(calls.length, 2);
   } finally {
@@ -800,7 +797,7 @@ test("a failed submission keeps the typed address, says it can be retried, and t
     assert.equal(textOf(byId(document, "site-footer-recovery")), RECOVERY_COPY);
     // Copy this repository owns — never the string the response supplied.
     assert.equal(shownText(document, "site-footer-status"),
-      "We didn’t get your request because follow-up requests are temporarily offline.");
+      "No request was sent because follow-up requests are temporarily offline.");
     assert.doesNotMatch(shownText(document, "site-footer-status"), /unreviewed upstream text/);
     // The control is usable again, without a reload.
     assert.equal(submit.disabled, false);
@@ -814,7 +811,7 @@ test("a failed submission keeps the typed address, says it can be retried, and t
       "the retry to succeed");
     assert.equal(calls.length, 2, "the retry must make its own request");
     assert.deepEqual(JSON.parse(calls[1].options.body), { email: TYPED_EMAIL, purpose: "follow_up" });
-    assert.match(shownText(document, "site-footer-status"), /^Follow-up requested — we sent your email address, and nothing else\./);
+    assert.match(shownText(document, "site-footer-status"), /^Request received\./);
   } finally {
     page.restore();
   }
@@ -889,11 +886,11 @@ test("a failed request offers its retry in place: named, keyboard-reachable, ann
     const status = byId(document, "site-footer-status");
     assert.equal(status.getAttribute("role"), "status");
     assert.equal(status.getAttribute("aria-live"), "polite");
-    assert.equal(textOf(status), "We didn’t get your request — something went wrong at our end. Please try again.");
+    assert.equal(textOf(status), "No request was sent because something went wrong at our end. Please try again.");
     assert.doesNotMatch(textOf(status), /unreviewed upstream text/);
     // The meaning is in the words, not in a colour: the copy says what failed
     // even with every stylesheet thrown away.
-    assert.match(textOf(byId(document, "site-footer-recovery")), /^We could not send your follow-up request\./);
+    assert.match(textOf(byId(document, "site-footer-recovery")), /^No request was sent\./);
 
     // 2. The retry is visible, in this region, and it is the primary action of
     //    the row — it stands where the send control was rather than beside it.
@@ -991,7 +988,7 @@ for (const file of ["agents.html", "decision.html"]) {
       assert.equal(byId(document, "site-footer-form").dataset.state, "error");
       assert.equal(byId(document, "site-footer-recovery").hidden, false);
       assert.equal(shownText(document, "site-footer-recovery"), RECOVERY_COPY);
-      assert.ok(shownText(document, "site-footer-recovery").startsWith("We could not send your follow-up request."),
+      assert.ok(shownText(document, "site-footer-recovery").startsWith("No request was sent."),
         "the outcome sentence must be the first thing read");
     } finally {
       page.restore();

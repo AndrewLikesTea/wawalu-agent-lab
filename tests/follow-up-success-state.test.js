@@ -25,7 +25,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { CONFIRMATION_DETAIL, REOPEN_LABEL } from "../src/follow-up-confirmation.js";
+import { CONFIRMATION_DETAIL, CONFIRMATION_LEAD, REOPEN_LABEL } from "../src/follow-up-confirmation.js";
 import { FOLLOW_UP_TOPICS } from "../src/leads.js";
 import { loadPage, pressEnter, tabSequence, textOf, typeText } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
@@ -143,11 +143,11 @@ test("Coach, Releases, Social, People, and Agents send one bounded request and s
       const confirmation = byId(page.document, "site-footer-confirmation");
       assert.ok(confirmation, `${file}: visible confirmation`);
       assert.equal(page.document.activeElement?.id, "site-footer-confirmation", `${file}: focus reaches confirmation`);
-      assert.match(textOf(confirmation), /Your work email was sent to the Wawalu team/, `${file}: receipt names recipient`);
-      assert.match(textOf(confirmation), /requested follow-up type is the only other information sent/, `${file}: receipt states disclosure`);
+      assert.match(textOf(confirmation), /Request received\. Work email sent:/, `${file}: receipt names what was sent`);
+      assert.match(textOf(confirmation), /Also sent: the follow-up request type/, `${file}: receipt states disclosure`);
       assert.doesNotMatch(textOf(confirmation), new RegExp(pageContent, "i"), `${file}: receipt does not render page content`);
-      assert.match(shownText(page.document, "site-footer-status"), /person replies by email/,
-        `${file}: confirmation states the next step`);
+      if (topic) assert.match(textOf(confirmation), new RegExp(`Follow-up topic sent: ${topic}`), `${file}: receipt names topic`);
+      assert.doesNotMatch(textOf(confirmation), /reply|business days|within \d/i, `${file}: no action promise`);
     } finally {
       page.restore();
     }
@@ -196,14 +196,11 @@ for (const { name, open, prefix, gated } of SURFACES) {
       // The address the visitor typed, in the receipt, as text.
       assert.match(textOf(receipt), new RegExp(LONG_EMAIL.replace(/[.]/g, "\\.")));
       assert.equal(textOf(receipt.querySelector(`.${receipt.className}-address`)), LONG_EMAIL);
-      // Who answers, and roughly when — the response time the FinOps form
-      // already states, hedged, because someone reads this queue and nobody has
-      // promised the hour.
-      assert.match(textOf(receipt), /A person from the Wawalu team will reply to that address by email, usually within two business days/);
-      assert.match(textOf(receipt), /requested follow-up type is the only other information sent/);
+      assert.doesNotMatch(textOf(receipt), /reply|business days|within \d/i);
+      assert.match(textOf(receipt), /Also sent: the follow-up request type/);
       // And what stayed behind, named rather than left to be assumed: the
       // request carried one field, so the receipt says so out loud.
-      assert.match(textOf(receipt), /no page content, prompt text, uploaded file, or browsing data went with it/);
+      assert.match(textOf(receipt), /no page content, prompt text, uploaded file, or browsing data was sent/i);
       // The categories may be named; a value from the page may not. The address
       // line is the only place a page could leak into, so it is checked alone.
       const addressLine = textOf(receipt.querySelector(`.${receipt.className}-lead`));
@@ -319,7 +316,50 @@ for (const { name, open, prefix, gated } of SURFACES) {
       assert.equal(recovery.hidden, false);
       assert.match(textOf(recovery), /Your email address is still in the field/);
       assert.doesNotMatch(textOf(recovery), new RegExp(CONFIRMATION_DETAIL.slice(0, 40)));
-      assert.doesNotMatch(shownText(document, `${prefix}-status`), /Your work email was sent to the Wawalu team/);
+      assert.doesNotMatch(shownText(document, `${prefix}-status`), new RegExp(CONFIRMATION_LEAD.trim()));
+    } finally {
+      page.restore();
+    }
+  });
+
+  // #1902: a rendered page may never carry a receipt and a failure for the same
+  // request. The two are written by different code paths — the status line, the
+  // recovery paragraph and the receipt each survive on their own — so a retry
+  // that lands has to take the whole failure state with it, not just the
+  // sentence that happens to sit in the live region.
+  test(`${name} leaves nothing of the failure behind when the retry lands`, async () => {
+    const page = await open();
+    const { document } = page;
+    let failNext = true;
+    const calls = interceptLeads(() => (failNext
+      ? failureReply()
+      : jsonReply({ captured: true, created: true, purpose: "follow_up" })));
+    try {
+      reveal(document, { prefix, gated });
+      submitEmail(document, prefix, LONG_EMAIL);
+      await settled(document, prefix);
+      assert.equal(byId(document, `${prefix}-form`).dataset.state, "error");
+      const recovery = byId(document, `${prefix}-recovery`);
+      assert.ok(!recovery.hidden, "the failure state must be reached before the retry is worth reading");
+
+      // The same address, resubmitted from the field it was never cleared from.
+      failNext = false;
+      submitEmail(document, prefix, LONG_EMAIL);
+      await waitFor(() => byId(document, `${prefix}-form`).dataset.state === "success", "the retry to land");
+      assert.equal(calls.length, 2, "the retry must make its own request");
+
+      assert.ok(byId(document, `${prefix}-confirmation`), "a landed retry must leave a receipt");
+      assert.ok(recovery.hidden, "the recovery paragraph must not stand beside the receipt it contradicts");
+      const outcome = shownText(document, `${prefix}-status`);
+      assert.match(outcome, /^Request received\./, "the live region must carry the receipt, not the failure");
+      assert.doesNotMatch(outcome, /No request was sent/);
+      // aria-describedby is the other place the failure lived: a reader landing
+      // on the field must not be told the last attempt failed after it did not.
+      const described = byId(document, `${prefix}-email`).getAttribute("aria-describedby") ?? "";
+      assert.doesNotMatch(described, new RegExp(`${prefix}-recovery`),
+        "the field must stop being described by copy about a failure that was recovered");
+      assert.equal(byId(document, `${prefix}-email`).getAttribute("aria-invalid"), null,
+        "the field must stop reading as invalid once the request it belongs to lands");
     } finally {
       page.restore();
     }

@@ -71,11 +71,11 @@ export const CONTACT_COPY = Object.freeze({
   rejected: rejectedCopy({
     invalidEmail: "We didn’t get your request: that address wasn’t accepted. Check it and submit again.",
     unreadable: "We didn’t get your request because it couldn’t be read. Reload the page and try again.",
-    storageError: "We didn’t get your request — something went wrong at our end. Please try again.",
-    storageUnavailable: "We didn’t get your request because follow-up requests are temporarily offline.",
+    storageError: "No request was sent because something went wrong at our end. Please try again.",
+    storageUnavailable: "No request was sent because follow-up requests are temporarily offline.",
   }),
-  rateLimited: "We didn’t get your request — too many attempts. Please wait a moment and try again.",
-  unconfirmed: "We couldn’t send your request, so we can’t confirm it reached us. Please try again in a few minutes.",
+  rateLimited: "No request was sent because there were too many attempts. Please try again later.",
+  unconfirmed: "No request was sent because the submission could not be confirmed. Please try again.",
 });
 
 /**

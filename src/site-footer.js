@@ -116,8 +116,7 @@ export const DEMOS = Object.freeze([
  * job, and it stands above the form because a visitor reads it before deciding
  * whether to type an address into anything.
  */
-export const INVITATION = "Questions about Shiplog? Ask the Wawalu team that operates it, and a "
-  + "person replies by email.";
+export const INVITATION = "Questions about Shiplog? Send the Wawalu team that operates it a follow-up request.";
 
 // What the field sends is not this footer's sentence to write: all three
 // follow-up forms render FOLLOW_UP_PRIVACY from src/lead-capture.js, beside
@@ -125,16 +124,10 @@ export const INVITATION = "Questions about Shiplog? Ask the Wawalu team that ope
 
 // What a visitor is told once the address is stored.
 //
-// Deliberately not an SLA. The AI FinOps form answers within two business days
-// because someone watches that queue; this footer sits on eight pages of a
-// demonstration product and nobody has promised to watch it that closely. So it
-// says what is actually true — the address is recorded, a person is the one who
-// reads it, and no machine is about to reply — rather than a response time this
-// demo would break.
-const CAPTURED = "Follow-up requested — we sent your email address, and nothing else. It is recorded "
-  + "for the Wawalu team, and a person replies by email; nothing here answers automatically.";
-const ALREADY_CAPTURED = "Follow-up requested — that address is already on our list, so nothing new "
-  + "was recorded. The Wawalu team can reach you there.";
+// Deliberately not an SLA or a promise of action. It confirms only receipt and
+// the bounded fields the request carried.
+const CAPTURED = "Request received.";
+const ALREADY_CAPTURED = "Request received. This work email and follow-up type were already recorded.";
 
 const SUBMITTING = "Requesting a follow-up — sending your email address…";
 
@@ -223,7 +216,7 @@ function contactFormLines(followUpType, followUpTopic) {
     "        </div>",
     `        <p class="site-footer-error" id="site-footer-error" hidden></p>`,
     `        <p class="site-footer-note" id="site-footer-note">${FOLLOW_UP_PRIVACY}</p>`,
-    '        <p class="site-footer-recovery" id="site-footer-recovery" hidden>We could not send your follow-up request. Your email address is still in the field above, and nothing else on this page changed. Retry sends the same request again from this page; if it keeps failing, wait a few minutes and retry.</p>',
+    '        <p class="site-footer-recovery" id="site-footer-recovery" hidden>No request was sent. Your email address is still in the field above, and nothing else on this page changed.</p>',
     '        <div class="site-footer-actions">',
     '          <button type="submit">Request a follow-up</button>',
     `          <button id="${RETRY_ID}" type="submit" hidden>Retry your follow-up request</button>`,
@@ -301,6 +294,7 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
     status,
     submit,
     email,
+    topic: form.elements.topic?.value || null,
     // Coming back to the form clears the outcome of the last request: it reports
     // something that happened, and the visitor has just said they are not done.
     onReopen: () => { status.textContent = ""; delete form.dataset.state; setOutcomeDescribed(false); },

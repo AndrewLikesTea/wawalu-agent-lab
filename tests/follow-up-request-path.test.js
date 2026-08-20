@@ -153,10 +153,11 @@ test("a valid work email and a successful transport reach the success state, whi
     // 1. What was sent: the address, and the fixed routing label beside it.
     assert.ok(receipt.includes(CONFIRMATION_LEAD.trim()), "the receipt must name what was sent");
     assert.ok(receipt.includes(TYPED_EMAIL), "the receipt must name the address itself");
-    // 2. Who replies, and roughly when.
-    assert.match(receipt, /A person from the Wawalu team will reply to that address by email, usually within two business days/);
+    // 2. The page-supplied topic, without a promise of action.
+    assert.match(receipt, /Follow-up topic sent: Prompt coach page — prompt grading and revision\./);
+    assert.doesNotMatch(receipt, /reply|business days|within \d/i);
     // 3. What did not go with it.
-    assert.match(receipt, /no page content, prompt text, uploaded file, or browsing data went with it/);
+    assert.match(receipt, /no page content, prompt text, uploaded file, or browsing data was sent/i);
     assert.ok(receipt.includes(CONFIRMATION_DETAIL));
   } finally {
     page.restore();
@@ -174,7 +175,7 @@ test("the success state is reached only on a confirmed successful response", asy
     // migration test below); when it answers it for a genuine duplicate, the
     // panel still owns a receipt, and it does not claim a new row.
     assert.equal(byId(document, "site-footer-form").dataset.state, "success");
-    assert.match(shownText(document, "site-footer-status"), /already on our list, so nothing new was recorded/);
+    assert.match(shownText(document, "site-footer-status"), /already recorded/);
   } finally {
     page.restore();
   }
@@ -220,15 +221,14 @@ for (const [name, transport] of [
       assert.equal(field.disabled, false, "and stay editable");
 
       const message = shownText(document, "site-footer-status");
-      assert.doesNotMatch(message, RECEIPT_CLAIM, `a failure must not claim receipt: ${message}`);
-      assert.match(message, /^We (didn|couldn)['’]t/);
+      assert.match(message, /^No request was sent/);
 
       // The retry path: the control comes back, and the recovery it belongs to
       // keeps the reader on the page the request failed on.
       assert.equal(submitControl(document).disabled, false);
       const recovery = byId(document, "site-footer-recovery");
       assert.equal(recovery.hidden, false);
-      assert.match(textOf(recovery), /Retry sends the same request again from this page/);
+      assert.match(textOf(recovery), /^No request was sent\./);
       assert.doesNotMatch(textOf(recovery), /briefing/i);
       const retry = byId(document, "site-footer-retry");
       assert.equal(retry.hidden, false, "a failure must offer a retry where it happened");
@@ -365,7 +365,7 @@ test("a write the live schema refuses fails out loud instead of reporting a dupl
     // our list" to someone who had never submitted anything.
     assert.equal(byId(document, "site-footer-form").dataset.state, "error");
     const message = shownText(document, "site-footer-status");
-    assert.doesNotMatch(message, RECEIPT_CLAIM);
+    assert.match(message, /^No request was sent/);
     assert.match(message, /something went wrong at our end/);
     assert.equal(db.raw.prepare("SELECT count(*) AS count FROM lead_submissions").get().count, 0);
   } finally {
