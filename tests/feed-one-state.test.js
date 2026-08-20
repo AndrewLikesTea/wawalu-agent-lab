@@ -381,7 +381,7 @@ test("People names its failure, retries it by keyboard, and comes back", async (
   assert.equal(document.querySelectorAll(".empty-state").length, 0);
 });
 
-test("People separates a feed with no pictures from a display name with none", async (t) => {
+test("People gives every completed selected-name zero the publishing next step", async (t) => {
   const page = await loadPage(PEOPLE_PAGE, {});
   t.after(() => page.restore());
   const { document } = page;
@@ -390,21 +390,17 @@ test("People separates a feed with no pictures from a display name with none", a
   const profile = mountProfile(document, { posts: [post("p-11", "Ari", "11")], author: "Ari", state: "ready" });
 
   assert.equal(document.querySelectorAll(".empty-state").length, 1);
-  assert.match(textOf(document.querySelector(".empty-state")), /Images made in Paint and published on Social appear here\./);
+  assert.match(textOf(document.querySelector(".empty-state")), /The display name “Ari” has no image posts yet\.Publish post/);
   assert.equal(document.querySelectorAll(".empty-state-filtered").length, 0);
   assert.doesNotMatch(textOf(document.body), /No image posts match the selected display name/);
 
   // Now Zed's pictures exist and Ari is still selected: the same empty grid, a
   // different reason, and the invitation must not be the answer to it.
   profile.seed(MIXED);
-  const filtered = document.querySelector(".empty-state-filtered");
+  const filtered = document.querySelector(".empty-state");
   assert.equal(document.querySelectorAll(".empty-state").length, 1);
-  assert.match(textOf(filtered), /No image posts were published under Ari\./);
-  // The way out names the control by the words printed on it and says what
-  // pressing it will show: this page's reset lands on one display name rather
-  // than restoring every image post.
-  assert.match(textOf(filtered), /Select Clear filters to see Zed’s image posts\./);
-  assert.doesNotMatch(textOf(document.body), /Images made in Paint and published on Social appear here\./);
+  assert.match(textOf(filtered), /The display name “Ari” has no image posts yet\.Publish post/);
+  assert.equal(filtered.querySelector("a").getAttribute("href"), "/social.html#post-form");
   // And the promise about image posts arriving on their own is not standing over
   // a grid the picker emptied: it would answer "why is this empty?" with the
   // wrong reason.
@@ -414,17 +410,9 @@ test("People separates a feed with no pictures from a display name with none", a
   // the voice carries the same way out, with both names spelled: it is heard
   // away from the heading and the chips that carry them on screen.
   assert.equal(textOf(document.querySelector("#profile-announcer")),
-    "Ari hasn’t posted an image yet. Select Clear filters to see Zed’s image posts.");
-
-  // Clear filters restores the full feed and the loaded state.
-  const clear = filtered.querySelector(".feed-status-action");
-  assert.equal(clear.tagName, "BUTTON");
-  assert.equal(clear.type, "button");
-  assert.equal(textOf(clear), "Clear filters");
-  clear.click();
-  assert.equal(document.querySelectorAll(".empty-state").length, 0);
-  assert.equal(document.querySelectorAll(".profile-tile").length, 2);
-  assert.equal(profile.getAuthor(), "Zed");
+    "The display name “Ari” has no image posts yet.");
+  assert.equal(filtered.querySelectorAll("a").length, 1);
+  assert.equal(textOf(filtered.querySelector("a")), "Publish post");
 });
 
 test("People's chooser is inoperable until there is something to choose between", async (t) => {

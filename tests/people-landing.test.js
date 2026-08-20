@@ -170,7 +170,7 @@ test("the picker says what choosing a name does, and the line over the grid says
     assert.equal(document.querySelectorAll(".profile-tile").length, 0);
     assert.equal(textOf(document.querySelector("#profile-name")), "Ari has no image posts yet.");
     assert.match(textOf(document.querySelector("#profile-feed-status")),
-      /No image posts were published under Ari\./);
+      /The display name “Ari” has no image posts yet\.Publish post/);
 
     // The retired sentence is gone from every render path, not just the first
     // one, and no page state brings it back.
@@ -454,7 +454,7 @@ test("the results heading names the display name and counts the tiles under it",
   }
 });
 
-test("a name whose posts are all gone is a filtered dead end, not an empty site", async () => {
+test("a name whose posts are all gone is offered the publishing flow", async () => {
   // Bea's one image post is removed from the live feed and shadowed out of the
   // seed by an id-matching text post, so this is a real, answered zero rather
   // than a name the store has never heard of.
@@ -472,17 +472,9 @@ test("a name whose posts are all gone is a filtered dead end, not an empty site"
     // different words and a different recovery — the reset, not Paint.
     assert.equal(document.querySelectorAll(".empty-state").length, 1);
     const panel = document.querySelector(".empty-state");
-    assert.equal(document.querySelectorAll(".empty-state-filtered").length, 1);
-    assert.match(textOf(panel), /No image posts were published under Bea\./);
-    assert.doesNotMatch(textOf(panel), /Images made in Paint and published on Social appear here\./);
-    // Clear filters restores the full feed and puts the page back into its
-    // loaded state.
-    const clear = panel.querySelector(".feed-status-action");
-    assert.equal(clear.tagName, "BUTTON");
-    assert.equal(textOf(clear), "Clear filters");
-    clear.click();
-    assert.equal(document.querySelectorAll(".empty-state").length, 0);
-    assert.ok(document.querySelectorAll(".profile-tile").length > 0, "Clear filters left the grid empty");
+    assert.equal(document.querySelectorAll(".empty-state-filtered").length, 0);
+    assert.match(textOf(panel), /The display name “Bea” has no image posts yet\.Publish post/);
+    assert.equal(panel.querySelector("a").getAttribute("href"), "/social.html#post-form");
   } finally {
     page.restore();
   }
@@ -504,7 +496,7 @@ test("an empty display name is named in prose once and counted once", async () =
     // The named wording survives in the polite announcement only, which has no
     // page around it to borrow a subject from.
     assert.equal(spoken.filter((text) => text.includes("hasn’t posted an image yet")).length, 0);
-    assert.match(textOf(document.querySelector("#profile-announcer")), /^Nova hasn’t posted an image yet\./);
+    assert.equal(textOf(document.querySelector("#profile-announcer")), "The display name “Nova” has no image posts yet.");
     // An answered zero, in the same words a populated name gets, and it is the
     // heading that carries it: a reader entering the results region is told
     // whose posts are missing rather than that some feature is empty.
@@ -517,7 +509,7 @@ test("an empty display name is named in prose once and counted once", async () =
     // feed holds image posts under other display names, so it is the filter that
     // emptied the view. Guidance rather than a second telling of the count.
     assert.equal(document.querySelectorAll(".empty-state").length, 1);
-    assert.match(textOf(document.querySelector(".empty-state")), /No image posts were published under Nova\./);
+    assert.match(textOf(document.querySelector(".empty-state")), /The display name “Nova” has no image posts yet\.Publish post/);
   } finally {
     page.restore();
   }
@@ -816,7 +808,7 @@ test("the display name is visible twice in the results region, and no more", asy
       chipFor(page, name).click();
       const carriers = nameCarriers(document, name).map((node) => node.getAttribute("id") ?? node.className);
       assert.deepEqual(carriers, name === "Ari"
-        ? ["grid-title", "profile-name", "feed-status-value empty-title"]
+        ? ["grid-title", "profile-name", "empty-title"]
         : ["grid-title", "profile-name"],
         `${name} is printed by ${carriers.length} visible elements: ${carriers.join(" / ")}`);
     }
@@ -1028,7 +1020,7 @@ test("a keyboard selection leaves focus on the name that was chosen, not at the 
   }
 });
 
-test("a selected name with no image posts says so once, and offers the way onward", async () => {
+test("a selected name with no image posts offers Publish post", async () => {
   // Nova has nothing, but this feed does: that is the filtered dead end, whose
   // recovery is the reset rather than the editor. The genuinely-empty
   // invitation — Paint and the whole feed — is covered on a feed with no image
@@ -1040,17 +1032,17 @@ test("a selected name with no image posts says so once, and offers the way onwar
     // One region, not two, and not an empty list.
     assert.equal(document.querySelectorAll(".empty-state").length, 1);
     const empty = document.querySelector(".empty-state");
-    assert.match(textOf(empty), /No image posts were published under Nova\./);
+    assert.match(textOf(empty), /The display name “Nova” has no image posts yet\.Publish post/);
     assert.equal(document.querySelector("#profile-grid").querySelectorAll(".profile-grid").length, 0,
       "the grid drew an empty list beside the region that explains it");
-    // The route onward is the one that undoes what emptied the view.
-    assert.equal(textOf(empty.querySelector(".feed-status-action")), "Clear filters");
+    assert.equal(textOf(empty.querySelector("a")), "Publish post");
+    assert.equal(empty.querySelector("a").getAttribute("href"), "/social.html#post-form");
     // The panel the guidance lands in speaks as content: the polite region is
     // the page's one voice, so this is not announced a second time from here.
     const status = document.querySelector("#profile-feed-status");
     assert.equal(status.getAttribute("aria-live"), null);
     assert.equal(status.getAttribute("role"), null);
-    assert.match(textOf(document.querySelector("#profile-announcer")), /^Nova hasn’t posted an image yet\./);
+    assert.equal(textOf(document.querySelector("#profile-announcer")), "The display name “Nova” has no image posts yet.");
   } finally {
     page.restore();
   }
@@ -1135,7 +1127,7 @@ test("the grid and the status region are read before the demo disclaimer", async
     // state the caveat is most likely to be the only thing on screen.
     chipFor(page, "Ari").click();
     assertPicturesBeforeProvenance(page.document, "filtered-empty", {
-      tiles: 0, status: /No image posts were published under Ari\./,
+      tiles: 0, status: /The display name “Ari” has no image posts yet\.Publish post/,
     });
   } finally {
     page.restore();

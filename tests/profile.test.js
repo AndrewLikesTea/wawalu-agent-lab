@@ -12,13 +12,18 @@ const { FEED_LOADING_LINE } = await import("../src/social.js");
 
 const {
   EMPTY_SUMMARY_LINE, PROFILE_EMPTY_COPY, authorChipLabel, authorInitials, captionFor, countLabel, defaultProfileAuthor,
-  distinctAuthors, emptySummaryText, hasExplicitAuthor, imagePostCounts, loadingSummaryText,
+  distinctAuthors, hasExplicitAuthor, imagePostCounts, loadingSummaryText,
   mergePostsById, normalizeProfileApiPosts, normalizeSeedPosts, pickerEntries, pickerNoteText, postDetailHref,
-  singleNameNotice, PROFILE_CLEAR_FILTERS_LABEL, profileNoMatchLine, profileNoMatchGuidance,
-  profileActiveFilterLine,
-  profileAnnouncement, profileHref, profilePaintHref, profileResultsHeading, profileSummary, profileSummaryText,
+  singleNameNotice, profileActiveFilterLine,
+  profileAnnouncement, profileEmptyText, profileHref, profilePaintHref, profileResultsHeading, profileSummary, profileSummaryText,
   renderAuthorPicker, renderProfileGrid, renderProfileHeader, resolveProfileAuthor, selectProfilePosts,
 } = await import("../src/profile.js");
+
+// The identity line People used to carry for an empty display name, before one
+// zero state took over both the panel and the announcement. It is spelled out
+// here rather than exported from the module, because the only thing left to say
+// about it is that no render path prints it any more.
+const retiredEmptyLine = (name) => `${name} hasn’t posted an image yet.`;
 
 const apiPost = {
   id: "8a1f4c62-1c2a-4f4b-9a3d-2b6e5c7d8e9f",
@@ -448,42 +453,18 @@ test("posts already on screen outrank a pending or failed refresh", () => {
   }
 });
 
-test("an empty profile separates viewing Social from creating and publishing an image", () => {
+test("a completed empty profile names the selected display name and routes to Publish post", () => {
   const container = createElement("div");
   renderProfileGrid(container, [], { author: "Mina" });
   const empty = first(container, "empty-state");
-  assert.equal(tags(empty, "P").length, 1, "the empty state renders one message, not two");
-  assert.equal(first(empty, "empty-title").textContent, "Images made in Paint and published on Social appear here.");
-  // Named, not gestured at: the visitor has to know where to go.
-  assert.match(empty.textContent, /Paint/);
-
-  // Two destinations, told apart by their labels rather than by their weight,
-  // and neither of them a second reading of the sentence above.
+  assert.equal(first(empty, "empty-title").textContent,
+    "The display name “Mina” has no image posts yet.");
   const actions = byClass(empty, "empty-action");
-  assert.equal(actions.length, 2);
-  const title = first(empty, "empty-title").textContent;
-  for (const control of actions) {
-    assert.ok(!title.includes(control.textContent),
-      `the empty state's sentence repeats its own button: ${control.textContent}`);
-  }
-
-  // The primary is first, so the solid control, the reading order, and the tab
-  // order all name the same link. An outlined secondary arriving first would put
-  // the emphasis and the sequence in disagreement.
+  assert.equal(actions.length, 1, "the empty state offers more than one next step");
   const action = actions[0];
-  // The site's one name for the act, plus the disclosure every route into Paint
-  // carries: the editor opens in a new tab, so the label says so.
-  assert.equal(action.textContent, "Create an image in Paint");
-  assert.equal(first(action, "new-tab-note").textContent, ` ${PROFILE_EMPTY_COPY.newTabNote}`);
-  assert.equal(action.href, "/paint/?from=profile&author=Mina");
-  assert.equal(action.target, "_blank");
-  assert.equal(action.rel, "noopener");
-  assert.equal(action.tagName, "A", "the primary action is keyboard reachable without scripted key handling");
-  assert.match(action.href, /^\/paint\//, "first-time visitors get a visible route into creation");
-  assert.ok(!action.className.includes("empty-action-secondary"), "the primary action is styled as the secondary one");
-  assert.equal(actions[1].textContent, "See every post on Social");
-  assert.equal(actions[1].href, "/social.html");
-  assert.ok(actions[1].className.includes("empty-action-secondary"), "the second action is not marked as secondary");
+  assert.equal(action.textContent, "Publish post");
+  assert.equal(action.href, "/social.html#post-form");
+  assert.equal(action.tagName, "A");
 });
 
 test("a failed load is offered a retry, not a false empty state", () => {
@@ -638,7 +619,7 @@ test("the identity line says how many image posts are showing and under which na
   // It is not the grid's empty state and does not borrow its words: that panel
   // still says what fills the grid, one region below.
   assert.equal(profileActiveFilterLine("Ari", 0), "Ari has no image posts yet.");
-  assert.notEqual(profileActiveFilterLine("Ari", 0), PROFILE_EMPTY_COPY.guidance);
+  assert.notEqual(profileActiveFilterLine("Ari", 0), profileEmptyText("Ari"));
   assert.notEqual(profileActiveFilterLine("Ari", 0), EMPTY_SUMMARY_LINE);
   // Nothing counted yet is not a zero: the pre-hydration frame and a first load
   // in flight name the display name and claim no number, exactly as the results
@@ -673,7 +654,7 @@ test("an empty header states the situation once, in image-post terms", () => {
   assert.doesNotMatch(elements.summary.textContent, /Mina/);
   // The description states the state; the grid's empty state gives the action.
   // Neither repeats the other's sentence — that repetition was the bug.
-  assert.notEqual(elements.summary.textContent, PROFILE_EMPTY_COPY.guidance);
+  assert.notEqual(elements.summary.textContent, profileEmptyText("Mina Okafor"));
 });
 
 test("the description carries the posted-but-no-images case, so the empty state need not", () => {
@@ -699,7 +680,7 @@ test("the empty profile says it once across the whole page", () => {
   const elements = { avatar: createElement("span"), name: createElement("span"), summary: createElement("p") };
   renderProfileHeader(elements, "Mina", summary);
   const grid = createElement("div");
-  renderProfileGrid(grid, [], {});
+  renderProfileGrid(grid, [], { author: "Mina" });
 
   const spoken = [
     elements.summary.textContent,
@@ -710,77 +691,55 @@ test("the empty profile says it once across the whole page", () => {
   // a live region has no page around it to borrow context from.
   const onPage = spoken.slice(0, 2);
   assert.equal(new Set(onPage).size, onPage.length, "no two page regions print the same sentence");
-  // The named wording survives in the announcement alone. On the page itself the
-  // counts line states the same fact without the name, because the heading over
-  // it has already given the subject and this page keeps the display name to two
-  // visible elements in that region.
-  assert.equal(onPage.filter((text) => text.includes(emptySummaryText("Mina"))).length, 0);
-  assert.equal(spoken.filter((text) => text.includes(emptySummaryText("Mina"))).length, 1);
-  assert.equal(onPage.filter((text) => text.includes("Mina")).length, 0);
+  // The retired identity line is gone from the page and from the announcement
+  // both: the name is carried by the zero state now, and the counts line states
+  // the same fact without it, because the heading over it has already given the
+  // subject and this page keeps the display name to two visible elements there.
+  assert.equal(onPage.filter((text) => text.includes(retiredEmptyLine("Mina"))).length, 0);
+  assert.equal(spoken.filter((text) => text.includes(retiredEmptyLine("Mina"))).length, 0);
+  assert.equal(onPage.filter((text) => text.includes("Mina")).length, 1);
   assert.equal(onPage.filter((text) => text === EMPTY_SUMMARY_LINE).length, 1);
-  assert.equal(onPage.filter((text) => text.includes("Paint")).length, 1);
+  assert.equal(onPage.filter((text) => text.includes("display name")).length, 2);
   // Neither the identity line nor the grid prints a bare count: an empty name
   // reads one sentence here and one sentence there. The zero itself belongs to
   // the results heading, which states it against a display name
   // (profileResultsHeading) rather than as a figure standing on its own.
   assert.equal(onPage.filter((text) => text.includes(countLabel(0, "image post"))).length, 0);
   assert.equal(profileResultsHeading("Mina", 0), "Mina · 0 image posts");
-  assert.equal(profileAnnouncement("Mina", 0), "Mina hasn’t posted an image yet. Images made in Paint and published on Social appear here.");
+  assert.equal(profileAnnouncement("Mina", 0), "The display name “Mina” has no image posts yet.");
   // Social's settled sentence with this page's noun in it, closing clause and
   // all: "Showing 12 posts, newest first." there, this here.
   assert.equal(profileAnnouncement("Mina", 2), "Showing 2 image posts by Mina, newest first.");
   assert.equal(profileAnnouncement("Mina", 1), "Showing 1 image post by Mina, newest first.");
 });
 
-// A display name with no pictures under it, while other names have plenty, is a
-// full feed narrowed to nothing — not a site with nothing on it. The two empty
-// grids must never read the same, and the filtered one must say which name
-// emptied it and what pressing its control will show.
-test("People's filtered dead end names the display name, the control, and what clearing shows", () => {
-  // Social's shape with this page's noun in it: "Select Clear filters to see all
-  // 9 posts." there, this here. It names where the reset lands, because People's
-  // reset does not restore every image post — it moves to one display name.
-  assert.equal(profileNoMatchLine("Mina"), "No image posts were published under Mina.");
-  assert.equal(profileNoMatchGuidance("Zed"), "Select Clear filters to see Zed’s image posts.");
-  assert.equal(profileNoMatchGuidance(""), "Select Clear filters to see the image posts under another display name.");
-  // The control is named by the exact words printed on it, so a reader can go
-  // looking for the thing they were just told to press.
-  assert.equal(PROFILE_CLEAR_FILTERS_LABEL, "Clear filters");
-  assert.match(profileNoMatchGuidance("Zed"), new RegExp(`Select ${PROFILE_CLEAR_FILTERS_LABEL} `));
-  // "image posts" and "Clear filters" are the words Social uses for the same two
-  // things, and neither sentence borrows the never-posted state's.
-  for (const text of [profileNoMatchLine("Mina"), profileNoMatchGuidance("Zed")]) {
-    assert.doesNotMatch(text, new RegExp(PROFILE_EMPTY_COPY.guidance));
-    assert.doesNotMatch(text, /Paint/);
-    assert.match(text, /image posts/);
-  }
-
-  // The rendered panel: both sentences, one real control, and none of the
-  // never-posted invitation beside them.
+// A selected display name with nothing under it reads one way, whether or not
+// another name in the same feed has pictures. This layer is given no view of the
+// rest of the feed to reach a second wording with, and that is the point: the
+// two zero states this page used to keep apart are one, so nothing a caller
+// knows about the filter can bring the other one back.
+test("the zero state does not vary with what the rest of the feed holds", () => {
   const grid = createElement("div");
-  let cleared = 0;
-  renderProfileGrid(grid, [], {
-    state: "ready", author: "Ari", total: 3, clearTo: "Zed", onClearFilters: () => { cleared += 1; },
-  });
-  const panel = first(grid, "empty-state-filtered");
-  assert.equal(first(panel, "empty-title").textContent, profileNoMatchLine("Ari"));
-  assert.equal(first(panel, "feed-status-detail").textContent, profileNoMatchGuidance("Zed"));
-  const clear = first(panel, "feed-status-action");
-  assert.equal(clear.tagName, "BUTTON");
-  assert.equal(clear.type, "button");
-  assert.equal(clear.textContent, PROFILE_CLEAR_FILTERS_LABEL);
-  for (const handler of clear.listeners.click ?? []) handler({ type: "click" });
-  assert.equal(cleared, 1, "the panel's control runs the reset it names");
-  assert.equal(byClass(grid, "empty-action").filter((node) => node.tagName === "A").length, 0,
-    "the never-posted state's two links answered a question nobody asked here");
+  renderProfileGrid(grid, [], { state: "ready", author: "Ari" });
+  const panel = first(grid, "empty-state");
+  assert.equal(first(panel, "empty-title").textContent, profileEmptyText("Ari"));
+  assert.equal(byClass(grid, "empty-state").length, 1, "one zero state, not two");
+  assert.equal(byClass(grid, "empty-state-filtered").length, 0);
 
-  // The same empty grid with nothing behind the filter is the other state, and
-  // it says the other thing.
-  const emptyGrid = createElement("div");
-  renderProfileGrid(emptyGrid, [], { state: "ready", author: "Ari" });
-  assert.equal(byClass(emptyGrid, "empty-state-filtered").length, 0);
-  assert.equal(first(emptyGrid, "empty-title").textContent, PROFILE_EMPTY_COPY.guidance);
-  assert.notEqual(first(emptyGrid, "empty-title").textContent, profileNoMatchLine("Mina"));
+  // The same call carrying every option the retired filtered panel was fed.
+  // They are not read any more, so they cannot change a word of this.
+  const withFilter = createElement("div");
+  renderProfileGrid(withFilter, [], {
+    state: "ready", author: "Ari", total: 3, clearTo: "Zed", onClearFilters: () => {},
+  });
+  assert.equal(first(withFilter, "empty-title").textContent, profileEmptyText("Ari"));
+  const actions = byClass(withFilter, "empty-action");
+  assert.equal(actions.length, 1, "the zero state offers more than one next step");
+  assert.equal(actions[0].textContent, PROFILE_EMPTY_COPY.actionLabel);
+  assert.equal(actions[0].href, PROFILE_EMPTY_COPY.actionHref);
+  // No button anywhere: the way back to a populated view is the picker above,
+  // which is on screen in both of these situations.
+  assert.equal(tags(withFilter, "BUTTON").length, 0);
 });
 
 test("the waiting line names image posts once without duplicating the selected display name", () => {
@@ -800,7 +759,7 @@ test("the profile page's static copy does not drift from the module's", async ()
   // of the document entirely while a fetch is open, and the placeholder wording
   // is gone from the page.
   assert.match(html, /id="profile-summary"><\/p>/);
-  assert.doesNotMatch(html, new RegExp(emptySummaryText("Ari")));
+  assert.doesNotMatch(html, new RegExp(retiredEmptyLine("Ari")));
   // People's one retrieval status names the content type; the heading already
   // names the selected display name.
   assert.equal(loadingSummaryText("Ari"), "Loading image posts…");
