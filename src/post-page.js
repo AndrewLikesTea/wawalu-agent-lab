@@ -96,6 +96,7 @@ async function init() {
     // page (a test, a smoke check) sees the second fetch as its own load.
     document.documentElement.dataset.shiplogPostDetail = "loading";
     nameHeading(null);
+    document.title = postDetailTitle(null, "loading");
     offerPeople(false);
     offerPublish(false);
     renderPostDetail(container, null, { state: "loading", id, author: requestedAuthor, returnHref: POST_EXITS.social.href });

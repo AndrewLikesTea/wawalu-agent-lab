@@ -48,7 +48,7 @@ const TEXT_POST = {
 // three of these must not appear anywhere in the page's text.
 const STATE_HEADLINES = {
   loading: "Loading the shared post…",
-  loaded: "Post by ",
+  loaded: "Mina Okafor's post",
   "not-found": "Post unavailable",
   error: "Post could not be opened",
 };
@@ -383,7 +383,7 @@ test("retry re-attempts the fetch and can take the page from error to loaded", a
     assert.ok(page.requests.length > attempts, "the retry must re-run the fetch, not redraw the last answer");
     // error → loaded, with nothing of the failure left standing.
     assertOneState(page, "loaded", "after a retry that worked");
-    assert.equal(textOf(page.document.querySelector("#page-title")), "Post by Mina Okafor");
+    assert.equal(textOf(page.document.querySelector("#page-title")), "Mina Okafor's post");
     assert.equal(page.panel.getAttribute("aria-busy"), "false");
   } finally {
     page.restore();
@@ -1084,7 +1084,7 @@ test("a permalink built the old way still resolves to the same post", async () =
     try {
       assertOneState(page, "loaded", `a permalink at ${search}`);
       assert.equal(textOf(page.panel.querySelector(".detail-author-link")), IMAGE_POST.author);
-      assert.equal(textOf(page.document.querySelector("#page-title")), `Post by ${IMAGE_POST.author}`);
+      assert.equal(textOf(page.document.querySelector("#page-title")), `${IMAGE_POST.author}'s post`);
       assert.equal(textOf(page.panel.querySelector("figcaption")), IMAGE_POST.caption);
     } finally {
       page.restore();
