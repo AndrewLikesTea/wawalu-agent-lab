@@ -265,9 +265,8 @@ export function pickerEntries(posts, author) {
 // switch to, so there is no instruction to give and singleNameNotice() below
 // carries the fact instead.
 export function pickerNoteText(author, { preselected = false, choices = 2 } = {}) {
-  if (choices < 2) return "";
-  if (preselected) return "We preselected a name for you; pick another below to switch.";
-  return "Pick another name below to switch.";
+  if (choices < 2 || !preselected) return "";
+  return "We picked this display name by default. You can choose another.";
 }
 
 // A picker holding one entry is not a choice, and a lone chip drawn as one reads
@@ -631,7 +630,10 @@ export const PROFILE_RETRY_LABEL = "Retry loading image posts";
 // and the identity line), so the sentence above it states the situation without
 // a name, exactly as the counts line does.
 export const PROFILE_CLEAR_FILTERS_LABEL = "Clear filters";
-export const PROFILE_NO_MATCH_LINE = "No image posts match the selected display name.";
+export function profileNoMatchLine(author) {
+  const name = String(author ?? "").trim() || DEFAULT_AUTHOR;
+  return `No image posts were published under ${name}.`;
+}
 
 export function profileNoMatchGuidance(clearTo) {
   const name = String(clearTo ?? "").trim();
@@ -651,10 +653,10 @@ function renderError(container, onRetry) {
   failed.querySelector?.(".feed-status-action")?.classList.add("empty-action");
 }
 
-function renderNoMatch(container, { onClearFilters, clearTo }) {
+function renderNoMatch(container, { author, onClearFilters, clearTo }) {
   const panel = renderFeedStatus(container, {
     state: "filtered", label: "People filter result",
-    text: PROFILE_NO_MATCH_LINE, detail: profileNoMatchGuidance(clearTo),
+    text: profileNoMatchLine(author), detail: profileNoMatchGuidance(clearTo),
     actionLabel: PROFILE_CLEAR_FILTERS_LABEL, onAction: onClearFilters,
   });
   panel.classList.add("empty-state", "empty-state-filtered");
@@ -702,7 +704,7 @@ export function renderProfileGrid(container, posts, options = {}) {
       });
       renderSkeleton(container, author);
     } else if (phase === "failed") renderError(statusRegion, onRetry);
-    else if (phase === "filtered-empty") renderNoMatch(statusRegion, { onClearFilters, clearTo });
+    else if (phase === "filtered-empty") renderNoMatch(statusRegion, { author, onClearFilters, clearTo });
     else renderEmpty(statusRegion, author);
     return;
   }
@@ -903,7 +905,9 @@ export function mountProfile(root, options = {}) {
     // The line above the picker, written from the same name the heading states,
     // so the page never says one name is showing while another is filtering.
     if (elements.pickerNote) {
-      elements.pickerNote.textContent = pickerNoteText(author, { preselected, choices: pickerEntries(posts, author).length });
+      elements.pickerNote.textContent = state === "loading"
+        ? ""
+        : pickerNoteText(author, { preselected, choices: pickerEntries(posts, author).length });
     }
     for (const route of elements.paintRoutes) route.href = profilePaintHref(author);
     // The one case where an empty grid is a filtered feed rather than an empty
@@ -953,7 +957,12 @@ export function mountProfile(root, options = {}) {
 
   const renderPicker = ({ refocus = false } = {}) => {
     if (!elements.picker) return;
-    renderAuthorPicker(elements.picker, pickerEntries(posts, author), {
+    // Seed data can paint useful posts while the durable feed is pending, but
+    // it must not become a stale chooser. Until that request settles there are
+    // no valid options to expose; the availability helper is the whole control
+    // state.
+    const entries = state === "loading" ? [] : pickerEntries(posts, author);
+    renderAuthorPicker(elements.picker, entries, {
       author,
       // "loading" is the store not having answered yet, which is a different
       // fact from its answer being zero. Seeded posts are already on screen in

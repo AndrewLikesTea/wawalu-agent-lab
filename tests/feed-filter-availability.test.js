@@ -386,14 +386,7 @@ test("People's display-name chooser is not operable while image posts are loadin
 
   assert.equal(textOf(document.querySelector("#profile-feed-status")), "Loading image posts…");
   const chips = document.querySelectorAll(".profile-filter-option");
-  assert.ok(chips.length > 1, "the chooser drew no chips to disable");
-  const stops = tabSequence(document);
-  for (const chip of chips) {
-    assert.equal(chip.disabled, true, "a chip is operable while the image posts are loading");
-    assert.equal(chip.getAttribute("aria-disabled"), "true");
-    assert.equal(chip.getAttribute("aria-describedby"), "profile-filter-hint");
-    assert.equal(stops.includes(chip), false, "a dead chip is still a tab stop");
-  }
+  assert.equal(chips.length, 0, "the pending chooser exposed stale display names");
 
   const hint = hintIn(document.querySelector("#profile-author").parentNode, "profile-filter-hint");
   assert.equal(textOf(hint), PROFILE_FILTERS_UNAVAILABLE_HINT);

@@ -170,7 +170,7 @@ test("the picker says what choosing a name does, and the line over the grid says
     assert.equal(document.querySelectorAll(".profile-tile").length, 0);
     assert.equal(textOf(document.querySelector("#profile-name")), "Ari has no image posts yet.");
     assert.match(textOf(document.querySelector("#profile-feed-status")),
-      /No image posts match the selected display name\./);
+      /No image posts were published under Ari\./);
 
     // The retired sentence is gone from every render path, not just the first
     // one, and no page state brings it back.
@@ -473,7 +473,7 @@ test("a name whose posts are all gone is a filtered dead end, not an empty site"
     assert.equal(document.querySelectorAll(".empty-state").length, 1);
     const panel = document.querySelector(".empty-state");
     assert.equal(document.querySelectorAll(".empty-state-filtered").length, 1);
-    assert.match(textOf(panel), /No image posts match the selected display name\./);
+    assert.match(textOf(panel), /No image posts were published under Bea\./);
     assert.doesNotMatch(textOf(panel), /Images made in Paint and published on Social appear here\./);
     // Clear filters restores the full feed and puts the page back into its
     // loaded state.
@@ -517,7 +517,7 @@ test("an empty display name is named in prose once and counted once", async () =
     // feed holds image posts under other display names, so it is the filter that
     // emptied the view. Guidance rather than a second telling of the count.
     assert.equal(document.querySelectorAll(".empty-state").length, 1);
-    assert.match(textOf(document.querySelector(".empty-state")), /No image posts match the selected display name\./);
+    assert.match(textOf(document.querySelector(".empty-state")), /No image posts were published under Nova\./);
   } finally {
     page.restore();
   }
@@ -623,7 +623,7 @@ test("selecting with the pointer moves the heading, the list, the URL, and the s
   }
 });
 
-test("a page whose posts have not landed says it is counting, and the heading states no number", async () => {
+test("a page whose posts have not landed exposes no options and one availability helper", async () => {
   // The frame the page really has: the seed has named the display names, the
   // live feed has not answered, and no count is settled. The old defect this
   // guards is the honest-looking one — printing "0 image posts" for a name the
@@ -637,16 +637,12 @@ test("a page whose posts have not landed says it is counting, and the heading st
   try {
     const { document } = page;
     await importPageModule("/profile-page.js");
-    const picker = await waitFor(
-      () => { const node = document.querySelector("#profile-author"); return node.children.length > 0 ? node : null; },
-      "the picker renders its first entries",
-    );
-    const texts = picker.children.map((chip) => textOf(chip));
-    assert.deepEqual(texts, ["Filter People to Ari’s image posts · Counting…", "Filter People to Bea’s image posts · Counting…", "✓ Selected: Filter People to Zed’s image posts · Counting…"]);
-    // Not one number anywhere, and above all not a zero.
-    assert.equal(texts.filter((text) => /· \d+ image posts?$/.test(text)).length, 0);
-    // The names and the pressed state are already right — only the counts wait.
-    assert.deepEqual(picker.children.map((chip) => chip.getAttribute("aria-pressed")), ["false", "false", "true"]);
+    await waitFor(() => textOf(document.querySelector("#profile-filter-hint")), "the loading helper renders");
+    const picker = document.querySelector("#profile-author");
+    assert.equal(picker.children.length, 0);
+    assert.equal(textOf(document.querySelector("#profile-filter-hint")),
+      "Display names become available when image posts load.");
+    assert.equal(textOf(document.querySelector("#profile-picker-note")), "");
     // The results heading waits with them. It names the display name that is
     // showing, and the posts under it, and stops: the seed's tiles are on screen
     // but the feed has not answered, so a number here — a zero above all — would
@@ -819,7 +815,9 @@ test("the display name is visible twice in the results region, and no more", asy
     for (const name of ["Zed", "Bea", "Ari"]) {
       chipFor(page, name).click();
       const carriers = nameCarriers(document, name).map((node) => node.getAttribute("id") ?? node.className);
-      assert.deepEqual(carriers, ["grid-title", "profile-name"],
+      assert.deepEqual(carriers, name === "Ari"
+        ? ["grid-title", "profile-name", "feed-status-value empty-title"]
+        : ["grid-title", "profile-name"],
         `${name} is printed by ${carriers.length} visible elements: ${carriers.join(" / ")}`);
     }
     // The two that are left say different things about the same name: what the
@@ -937,7 +935,7 @@ test("arriving with no name asked for lists every display name with its count an
     // And the sentence that says the visitor did not pick this one. It names
     // nobody: the marked chip above it is the page's statement of which name is
     // showing, and the results region below states it again.
-    assert.equal(pickerNote(document), "We preselected a name for you; pick another below to switch.");
+    assert.equal(pickerNote(document), "We picked this display name by default. You can choose another.");
     // Nothing was written on their behalf to make the preselection stick.
     assert.equal(page.storage.getItem("shiplog.social.author"), null);
     assert.equal(page.replaced.length, 0);
@@ -954,7 +952,7 @@ test("a name that was asked for is never claimed as a preselection", async () =>
     const page = await people(options);
     try {
       const note = pickerNote(page.document);
-      assert.equal(note, "Pick another name below to switch.", how);
+      assert.equal(note, "", how);
       assert.doesNotMatch(note, /preselect/i, `${how} was reported back as the page's own choice`);
     } finally {
       page.restore();
@@ -984,7 +982,7 @@ test("choosing a name by keyboard moves the page and announces it once, from one
     assert.deepEqual(live.map((node) => node.getAttribute("id")), ["profile-announcer"],
       "the main content holds more than one live region");
     // A selection is a choice, so the preselection claim is gone with it.
-    assert.equal(pickerNote(document), "Pick another name below to switch.");
+    assert.equal(pickerNote(document), "");
   } finally {
     page.restore();
   }
@@ -1042,7 +1040,7 @@ test("a selected name with no image posts says so once, and offers the way onwar
     // One region, not two, and not an empty list.
     assert.equal(document.querySelectorAll(".empty-state").length, 1);
     const empty = document.querySelector(".empty-state");
-    assert.match(textOf(empty), /No image posts match the selected display name\./);
+    assert.match(textOf(empty), /No image posts were published under Nova\./);
     assert.equal(document.querySelector("#profile-grid").querySelectorAll(".profile-grid").length, 0,
       "the grid drew an empty list beside the region that explains it");
     // The route onward is the one that undoes what emptied the view.
@@ -1137,7 +1135,7 @@ test("the grid and the status region are read before the demo disclaimer", async
     // state the caveat is most likely to be the only thing on screen.
     chipFor(page, "Ari").click();
     assertPicturesBeforeProvenance(page.document, "filtered-empty", {
-      tiles: 0, status: /No image posts match the selected display name\./,
+      tiles: 0, status: /No image posts were published under Ari\./,
     });
   } finally {
     page.restore();
@@ -1159,10 +1157,8 @@ test("the demo disclaimer stays below the grid while the posts load and when the
       tiles: 0, status: /^Loading image posts…$/,
     });
     await importPageModule("/profile-page.js");
-    await waitFor(
-      () => (pending.document.querySelector("#profile-author").children.length > 0 ? true : null),
-      "the picker renders its first entries",
-    );
+    await waitFor(() => textOf(pending.document.querySelector("#profile-filter-hint")),
+      "the loading helper renders");
     assertPicturesBeforeProvenance(pending.document, "loading");
   } finally {
     globalThis.fetch = routed;

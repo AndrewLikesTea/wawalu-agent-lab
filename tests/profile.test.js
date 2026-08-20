@@ -14,7 +14,7 @@ const {
   EMPTY_SUMMARY_LINE, PROFILE_EMPTY_COPY, authorChipLabel, authorInitials, captionFor, countLabel, defaultProfileAuthor,
   distinctAuthors, emptySummaryText, hasExplicitAuthor, imagePostCounts, loadingSummaryText,
   mergePostsById, normalizeProfileApiPosts, normalizeSeedPosts, pickerEntries, pickerNoteText, postDetailHref,
-  singleNameNotice, PROFILE_CLEAR_FILTERS_LABEL, PROFILE_NO_MATCH_LINE, profileNoMatchGuidance,
+  singleNameNotice, PROFILE_CLEAR_FILTERS_LABEL, profileNoMatchLine, profileNoMatchGuidance,
   profileActiveFilterLine,
   profileAnnouncement, profileHref, profilePaintHref, profileResultsHeading, profileSummary, profileSummaryText,
   renderAuthorPicker, renderProfileGrid, renderProfileHeader, resolveProfileAuthor, selectProfilePosts,
@@ -227,10 +227,10 @@ test("the line over the picker says how to switch, and who chose the name showin
   // A name nobody asked for is reported as the page's own suggestion, with the
   // control that undoes it named where it is.
   assert.equal(pickerNoteText("Mina", { preselected: true }),
-    "We preselected a name for you; pick another below to switch.");
+    "We picked this display name by default. You can choose another.");
   // A shared link or a remembered name is a choice, and saying otherwise would
   // tell a reader they had not made the decision they had.
-  assert.equal(pickerNoteText("Mina"), "Pick another name below to switch.");
+  assert.equal(pickerNoteText("Mina"), "");
   assert.doesNotMatch(pickerNoteText("Mina", { preselected: false }), /preselect/i);
   // It states no name of its own. The selected chip below it is marked
   // "✓ Selected:" and the results region names the display name twice, so this
@@ -733,7 +733,7 @@ test("People's filtered dead end names the display name, the control, and what c
   // Social's shape with this page's noun in it: "Select Clear filters to see all
   // 9 posts." there, this here. It names where the reset lands, because People's
   // reset does not restore every image post — it moves to one display name.
-  assert.equal(PROFILE_NO_MATCH_LINE, "No image posts match the selected display name.");
+  assert.equal(profileNoMatchLine("Mina"), "No image posts were published under Mina.");
   assert.equal(profileNoMatchGuidance("Zed"), "Select Clear filters to see Zed’s image posts.");
   assert.equal(profileNoMatchGuidance(""), "Select Clear filters to see the image posts under another display name.");
   // The control is named by the exact words printed on it, so a reader can go
@@ -742,7 +742,7 @@ test("People's filtered dead end names the display name, the control, and what c
   assert.match(profileNoMatchGuidance("Zed"), new RegExp(`Select ${PROFILE_CLEAR_FILTERS_LABEL} `));
   // "image posts" and "Clear filters" are the words Social uses for the same two
   // things, and neither sentence borrows the never-posted state's.
-  for (const text of [PROFILE_NO_MATCH_LINE, profileNoMatchGuidance("Zed")]) {
+  for (const text of [profileNoMatchLine("Mina"), profileNoMatchGuidance("Zed")]) {
     assert.doesNotMatch(text, new RegExp(PROFILE_EMPTY_COPY.guidance));
     assert.doesNotMatch(text, /Paint/);
     assert.match(text, /image posts/);
@@ -756,7 +756,7 @@ test("People's filtered dead end names the display name, the control, and what c
     state: "ready", author: "Ari", total: 3, clearTo: "Zed", onClearFilters: () => { cleared += 1; },
   });
   const panel = first(grid, "empty-state-filtered");
-  assert.equal(first(panel, "empty-title").textContent, PROFILE_NO_MATCH_LINE);
+  assert.equal(first(panel, "empty-title").textContent, profileNoMatchLine("Ari"));
   assert.equal(first(panel, "feed-status-detail").textContent, profileNoMatchGuidance("Zed"));
   const clear = first(panel, "feed-status-action");
   assert.equal(clear.tagName, "BUTTON");
@@ -773,7 +773,7 @@ test("People's filtered dead end names the display name, the control, and what c
   renderProfileGrid(emptyGrid, [], { state: "ready", author: "Ari" });
   assert.equal(byClass(emptyGrid, "empty-state-filtered").length, 0);
   assert.equal(first(emptyGrid, "empty-title").textContent, PROFILE_EMPTY_COPY.guidance);
-  assert.notEqual(first(emptyGrid, "empty-title").textContent, PROFILE_NO_MATCH_LINE);
+  assert.notEqual(first(emptyGrid, "empty-title").textContent, profileNoMatchLine("Mina"));
 });
 
 test("the waiting line names image posts once without duplicating the selected display name", () => {

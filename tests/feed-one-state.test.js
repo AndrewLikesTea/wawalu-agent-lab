@@ -392,14 +392,14 @@ test("People separates a feed with no pictures from a display name with none", a
   assert.equal(document.querySelectorAll(".empty-state").length, 1);
   assert.match(textOf(document.querySelector(".empty-state")), /Images made in Paint and published on Social appear here\./);
   assert.equal(document.querySelectorAll(".empty-state-filtered").length, 0);
-  assert.doesNotMatch(textOf(document.body), /No image posts match the selected display name/);
+  assert.doesNotMatch(textOf(document.body), /No image posts were published under/);
 
   // Now Zed's pictures exist and Ari is still selected: the same empty grid, a
   // different reason, and the invitation must not be the answer to it.
   profile.seed(MIXED);
   const filtered = document.querySelector(".empty-state-filtered");
   assert.equal(document.querySelectorAll(".empty-state").length, 1);
-  assert.match(textOf(filtered), /No image posts match the selected display name\./);
+  assert.match(textOf(filtered), /No image posts were published under Ari\./);
   // The way out names the control by the words printed on it and says what
   // pressing it will show: this page's reset lands on one display name rather
   // than restoring every image post.
@@ -434,7 +434,9 @@ test("People's chooser is inoperable until there is something to choose between"
   const profile = mountProfile(document, { posts: MIXED, author: "Zed", state: "loading" });
 
   const disabledChips = () => document.querySelectorAll(".profile-filter-option").map((chip) => chip.disabled);
-  assert.deepEqual(disabledChips(), [true, true], "a chooser over a pending feed can change nothing");
+  assert.deepEqual(disabledChips(), [], "a pending feed exposes no stale options");
+  assert.equal(textOf(document.querySelector("#profile-filter-hint")),
+    "Display names become available when image posts load.");
 
   profile.setState("error");
   assert.deepEqual(disabledChips(), [true, true], "a chooser over a failed feed can change nothing");
