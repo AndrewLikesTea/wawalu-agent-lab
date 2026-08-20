@@ -92,8 +92,9 @@
                  together. The wording here is the one post-detail.js renders,
                  character for character; a test pins them to each other.
 
-                 The placeholder under the sentence is the same shape: the four
-                 slots a post fills — image, words, display name, posting time —
+                 The placeholder under the sentence is the same shape: the five
+                 slots a post fills — optional image, caption, display name,
+                 posting time, and actions —
                  in the loaded article's own containers, drawn with the shimmer
                  blocks Social's feed and People's grid already use while they
                  wait. It ships here for the same reason the sentence does: it
@@ -103,7 +104,7 @@
                  is hidden from assistive technology, which is told the sentence
                  rather than the shape of a post that has not arrived. -->
             <div id="post-detail" data-post-state="loading" aria-busy="true" role="status" aria-live="polite" aria-atomic="true">
-              <div class="detail-loading detail-state-panel" data-post-state-panel="loading"><p class="detail-loading-line"><span class="detail-loading-dot" aria-hidden="true"></span><span class="detail-loading-text">Loading the shared post…</span></p><div class="detail-skeleton" aria-hidden="true"><div class="detail-figure"><div class="skeleton-media" data-post-skeleton-slot="image"></div><div class="detail-caption"><div class="skeleton-line" data-post-skeleton-slot="body"></div></div></div><div class="detail-byline"><div class="skeleton-line skeleton-line-short" data-post-skeleton-slot="display-name"></div></div><div class="detail-date"><div class="skeleton-line skeleton-line-short" data-post-skeleton-slot="timestamp"></div></div></div></div>
+              <div class="detail-loading detail-state-panel" data-post-state-panel="loading"><p class="detail-loading-line"><span class="detail-loading-dot" aria-hidden="true"></span><span class="detail-loading-text">Loading the shared post…</span></p><article class="detail-skeleton" aria-hidden="true"><figure class="detail-figure"><div class="skeleton-media" data-post-skeleton-slot="image"></div><figcaption class="detail-caption"><div class="skeleton-line" data-post-skeleton-slot="caption"></div></figcaption></figure><p class="detail-byline"><span class="skeleton-line skeleton-line-short" data-post-skeleton-slot="display-name"></span></p><time class="detail-date"><span class="skeleton-line skeleton-line-short" data-post-skeleton-slot="timestamp"></span></time><p class="detail-stats detail-skeleton-actions"><span class="skeleton-line skeleton-line-short" data-post-skeleton-slot="actions"></span></p></article></div>
             </div>
           </div>
         </section>

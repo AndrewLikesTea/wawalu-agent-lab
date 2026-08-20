@@ -330,12 +330,12 @@ test("a retry re-enters the wait in the post's shape, then lands the post in it"
     await waitFor(() => panel.querySelectorAll(".detail-loading").length === 1, "the retry re-entered the wait");
 
     // One state again: the failure is gone from the document rather than sitting
-    // under the placeholder, and the placeholder holds the same four slots.
+    // under the placeholder, and the placeholder holds the same five slots.
     assert.equal(panel.dataset.postState, "loading");
     assert.equal(panel.getAttribute("aria-busy"), "true");
     assert.equal(panel.querySelectorAll(".detail-state-message").length, 0);
     assert.equal(panel.querySelectorAll("button").length, 0);
-    assert.deepEqual(skeletonSlots(panel), ["image", "body", "display-name", "timestamp"]);
+    assert.deepEqual(skeletonSlots(panel), ["image", "caption", "display-name", "timestamp", "actions"]);
     assert.equal(textOf(panel.querySelector(".detail-loading-text")), "Loading the shared post…");
 
     await waitFor(() => release, "the retry issued its request");
@@ -395,7 +395,7 @@ test("the loading state is one announced line in the post's region, and takes no
     assert.equal(panel.querySelectorAll(".detail-state-message").length, 0);
     assert.equal(panel.querySelectorAll("h2").length, 0);
     assert.equal(state.getAttribute("aria-labelledby"), null);
-    assert.deepEqual(skeletonSlots(panel), ["image", "body", "display-name", "timestamp"]);
+    assert.deepEqual(skeletonSlots(panel), ["image", "caption", "display-name", "timestamp", "actions"]);
     assert.equal(panel.querySelectorAll(".detail-skeleton")[0].getAttribute("aria-hidden"), "true");
     // The placeholder is shape only: it must not put words on the page that a
     // reader would try to read, or that the announcement would read out.
@@ -437,7 +437,7 @@ test("the page opens already saying it is loading, and the post replaces that li
     assert.equal(panel.querySelector(".detail-loading").getAttribute("role"), null);
     // The placeholder is in the markup too — the wait a cold visitor meets is
     // the shape of the post, not a line of text the post then pushes down.
-    assert.deepEqual(skeletonSlots(panel), ["image", "body", "display-name", "timestamp"]);
+    assert.deepEqual(skeletonSlots(panel), ["image", "caption", "display-name", "timestamp", "actions"]);
     // The states that explain an absent post are not in the markup at all, so
     // the wait and an unavailable panel cannot be read together at any point.
     assert.equal(panel.querySelectorAll(".detail-state-message").length, 0);
@@ -458,7 +458,7 @@ test("the page opens already saying it is loading, and the post replaces that li
     assert.equal(panel.querySelectorAll(".detail-state-message").length, 0);
     // And one placeholder: the script redraws the wait the markup shipped, it
     // does not stack a second set of slots under the first.
-    assert.deepEqual(skeletonSlots(panel), ["image", "body", "display-name", "timestamp"]);
+    assert.deepEqual(skeletonSlots(panel), ["image", "caption", "display-name", "timestamp", "actions"]);
     assert.equal(panel.querySelectorAll(".detail-skeleton").length, 1);
 
     release();
