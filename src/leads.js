@@ -8,6 +8,12 @@ export const FOLLOW_UP_REQUEST_TYPES = Object.freeze([
   "follow_up_agents",
 ]);
 export const LEAD_PURPOSES = Object.freeze(["field_notes", "follow_up", ...FOLLOW_UP_REQUEST_TYPES]);
+export const FOLLOW_UP_TOPICS = Object.freeze({
+  follow_up_coach: "Prompt coach page — prompt grading and revision",
+  follow_up_social: "Social page — team posts and published images",
+  follow_up_people: "People page — display names and image posts",
+  follow_up_agents: "Agent observatory page — synthetic engineering activity",
+});
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function normalizeEmail(value) {
@@ -63,11 +69,11 @@ export function createMemoryLeadStore() {
  */
 export function createD1LeadStore(db) {
   return {
-    async capture(email, purpose, createdAt) {
+    async capture(email, purpose, createdAt, topic = null) {
       const result = await db.prepare(
-        "INSERT INTO lead_submissions (email, purpose, created_at) VALUES (?, ?, ?)"
+        "INSERT INTO lead_submissions (email, purpose, created_at, topic) VALUES (?, ?, ?, ?)"
         + " ON CONFLICT (email, purpose) DO NOTHING",
-      ).bind(email, purpose, createdAt).run();
+      ).bind(email, purpose, createdAt, topic).run();
       return Number(result.meta?.changes ?? 0) > 0;
     },
   };
@@ -93,8 +99,10 @@ export async function handleLeadRequest(request, {
   }
   const isObject = input !== null && typeof input === "object" && !Array.isArray(input);
   const keys = isObject ? Object.keys(input) : [];
-  if (!isObject || keys.length !== 2 || !keys.includes("email") || !keys.includes("purpose")) {
-    return json({ error: { code: "invalid_request", message: "Body must contain only email and purpose.", request_id: requestId } }, 400, requestId);
+  const expectedTopic = isObject ? FOLLOW_UP_TOPICS[input.purpose] : null;
+  const expectedKeys = expectedTopic ? ["email", "purpose", "topic"] : ["email", "purpose"];
+  if (!isObject || keys.length !== expectedKeys.length || !expectedKeys.every((key) => keys.includes(key))) {
+    return json({ error: { code: "invalid_request", message: "Body contains unsupported or missing fields.", request_id: requestId } }, 400, requestId);
   }
   const email = normalizeEmail(input.email);
   if (!email) {
@@ -103,9 +111,12 @@ export async function handleLeadRequest(request, {
   if (!LEAD_PURPOSES.includes(input.purpose)) {
     return json({ error: { code: "invalid_purpose", message: "Purpose is not a supported request type.", request_id: requestId } }, 422, requestId);
   }
+  if (expectedTopic && input.topic !== expectedTopic) {
+    return json({ error: { code: "invalid_topic", message: "Topic does not match the request type.", request_id: requestId } }, 422, requestId);
+  }
 
   try {
-    const created = await store.capture(email, input.purpose, now());
+    const created = await store.capture(email, input.purpose, now(), expectedTopic ?? null);
     return json({ captured: true, created, purpose: input.purpose }, created ? 201 : 200, requestId);
   } catch {
     // Correlatable in platform logs without copying a driver message that may

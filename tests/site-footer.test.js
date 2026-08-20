@@ -23,6 +23,7 @@ import { readFile, readdir } from "node:fs/promises";
 import {
   DEMOS, FOLLOW_UP_REDIRECT, IDENTITY, INVITATION, PITCH, PITCH_HREF, PITCH_LINK, siteFooterMarkup,
 } from "../src/site-footer.js";
+import { FOLLOW_UP_TOPICS } from "../src/leads.js";
 import { FOLLOW_UP_PRIVACY } from "../src/lead-capture.js";
 import { SITE_NAV } from "../src/site-nav.js";
 import { loadPage, parseHtml, pressEnter, tabSequence, textOf, typeText } from "./support/browser.js";
@@ -67,11 +68,11 @@ const describedBy = (document) => byId(document, "site-footer-email").getAttribu
 // this table has to record, and src/site-footer.js has to offer copy for.
 const FOOTER_VARIANT = new Map([
   ["executive-briefing.html", { redirect: FOLLOW_UP_REDIRECT.briefing }],
-  ["coach.html", { followUpType: "follow_up_coach" }],
+  ["coach.html", { followUpType: "follow_up_coach", followUpTopic: FOLLOW_UP_TOPICS.follow_up_coach }],
   ["releases.html", { followUpType: "follow_up_releases" }],
-  ["social.html", { followUpType: "follow_up_social" }],
-  ["profile.html", { followUpType: "follow_up_people" }],
-  ["agents.html", { followUpType: "follow_up_agents" }],
+  ["social.html", { followUpType: "follow_up_social", followUpTopic: FOLLOW_UP_TOPICS.follow_up_social }],
+  ["profile.html", { followUpType: "follow_up_people", followUpTopic: FOLLOW_UP_TOPICS.follow_up_people }],
+  ["agents.html", { followUpType: "follow_up_agents", followUpTopic: FOLLOW_UP_TOPICS.follow_up_agents }],
 ]);
 
 test("every page of the site renders the footer, byte for byte from src/site-footer.js", async () => {
@@ -920,7 +921,9 @@ test("a failed request offers its retry in place: named, keyboard-reachable, ann
     await waitFor(() => byId(document, "site-footer-form").dataset.state === "success", "the retry to land");
     assert.equal(calls.length, 2, "retry must re-attempt the same submission");
     assert.deepEqual(JSON.parse(calls[1].options.body), JSON.parse(calls[0].options.body));
-    assert.deepEqual(JSON.parse(calls[1].options.body), { email: TYPED_EMAIL, purpose: "follow_up_social" });
+    assert.deepEqual(JSON.parse(calls[1].options.body), {
+      email: TYPED_EMAIL, purpose: "follow_up_social", topic: FOLLOW_UP_TOPICS.follow_up_social,
+    });
     assert.deepEqual(focused, [], "and the retry must not move focus either");
   } finally {
     page.restore();
