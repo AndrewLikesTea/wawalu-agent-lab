@@ -695,8 +695,8 @@ test("a submission goes through the shared capture path, and the confirmation sa
 
     assert.equal(byId(document, "site-footer-form").dataset.state, "success");
     const confirmation = shownText(document, "site-footer-status");
-    assert.match(confirmation, /^Follow-up requested — we sent your email address, and nothing else\./);
-    assert.match(confirmation, /recorded for the Wawalu team/, "the confirmation must say what happens next");
+    assert.match(confirmation, /^Request received\./);
+    assert.match(confirmation, /Your submitted work email was recorded/);
     // Nothing promised that this demo does not do.
     assert.doesNotMatch(confirmation, /business days?|within \d|hours?\b/i);
     // The live region announces it rather than leaving it to the eye alone.
@@ -712,7 +712,7 @@ test("a submission goes through the shared capture path, and the confirmation sa
     // that was pressed, so it has to name which request succeeded.
     await waitFor(
       () => shownText(document, "site-footer-status")
-        .startsWith("Follow-up requested — that address is already on our list"),
+        .startsWith("Request received. That work email was already recorded"),
       "the already-recorded confirmation");
     assert.equal(calls.length, 2);
   } finally {
@@ -814,7 +814,20 @@ test("a failed submission keeps the typed address, says it can be retried, and t
       "the retry to succeed");
     assert.equal(calls.length, 2, "the retry must make its own request");
     assert.deepEqual(JSON.parse(calls[1].options.body), { email: TYPED_EMAIL, purpose: "follow_up" });
-    assert.match(shownText(document, "site-footer-status"), /^Follow-up requested — we sent your email address, and nothing else\./);
+    assert.match(shownText(document, "site-footer-status"), /^Request received\./);
+
+    // And the failure is gone, not merely outranked. A page that had failed and
+    // then succeeded is the one place both states can end up rendered at once,
+    // and a visitor reading "we didn't get your request" beside a receipt cannot
+    // tell which one is true — so every artefact of the first attempt is checked
+    // off the DOM, not assumed to have been replaced.
+    assert.ok(byId(document, "site-footer-confirmation"), "the landed retry leaves a receipt");
+    assert.equal(byId(document, "site-footer-form").hidden, true, "the failed form is not still standing");
+    assert.equal(byId(document, "site-footer-recovery").hidden, true, "the recovery paragraph is withdrawn");
+    assert.equal(byId(document, "site-footer-retry").hidden, true, "nothing is left to retry");
+    assert.doesNotMatch(shownText(document, "site-footer-status"), /didn’t get your request/);
+    assert.doesNotMatch(describedBy(document), /site-footer-recovery/);
+    assert.equal(field.getAttribute("aria-invalid"), null, "the field no longer reads as the one that failed");
   } finally {
     page.restore();
   }

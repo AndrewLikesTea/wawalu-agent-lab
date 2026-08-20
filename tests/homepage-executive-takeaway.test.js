@@ -253,15 +253,33 @@ test("the contextual request validates locally and never shows success for a fai
   assert.equal(form.dataset.state, "error");
   assert.doesNotMatch(textOf(document.getElementById("finops-example-follow-up-status")), /will reply|requested\./i);
   assert.equal(email.value, "finops@example.com");
+  assert.equal(document.getElementById("finops-example-follow-up-confirmation"), null,
+    "failure and success UI cannot render together");
+  const visibleSubmits = form.querySelectorAll('button[type="submit"]').filter((button) => !button.hidden);
+  assert.equal(visibleSubmits.length, 1);
+  assert.equal(textOf(visibleSubmits[0]), "Retry your follow-up request");
+
+  // Emptying the field and pressing again sends nothing, so there is no attempt
+  // in flight to retry: the control has to go back to describing what pressing
+  // it would actually do, or it offers to resend a request that never left.
+  email.value = "";
+  pressEnter(document);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(calls.length, 1, "an empty field is not a second attempt");
+  assert.equal(form.dataset.state, "invalid");
+  const afterInvalid = form.querySelectorAll('button[type="submit"]').filter((button) => !button.hidden);
+  assert.equal(afterInvalid.length, 1, "exactly one send control is offered");
+  assert.equal(textOf(afterInvalid[0]), "Request a follow-up about this example");
 });
 
-test("a valid contextual request reaches the real endpoint, persists its purpose, then promises an email reply", async (t) => {
+test("a valid contextual request persists and renders an accurate promise-free receipt", async (t) => {
   const db = await createTestD1();
   t.after(() => db.close());
   const response = await onRequest({
     request: new Request("https://labs.wawalu.org/api/leads", {
       method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ email: "finops@example.com", purpose: FINOPS_EXAMPLE_FOLLOW_UP_PURPOSE }),
+      body: JSON.stringify({ email: "finops@example.com", purpose: FINOPS_EXAMPLE_FOLLOW_UP_PURPOSE,
+        topic: "Bundled AI FinOps example — lower-cost routing in Atlas Platform" }),
     }),
     env: { DB: db },
   });
@@ -274,10 +292,15 @@ test("a valid contextual request reaches the real endpoint, persists its purpose
   pressEnter(document);
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(form.dataset.state, "success", textOf(document.getElementById("finops-example-follow-up-status")));
-  assert.match(textOf(document.getElementById("finops-example-follow-up-status")), /Someone from Wawalu will reply by email/);
-  const row = db.raw.prepare("SELECT email, purpose FROM lead_submissions WHERE email = ?").get("finops@example.com");
+  const receipt = textOf(document.getElementById("finops-example-follow-up-confirmation"));
+  assert.match(receipt, /Request received\. Submitted work email: finops@example\.com/);
+  assert.match(receipt, /Bundled AI FinOps example — lower-cost routing in Atlas Platform/);
+  assert.doesNotMatch(receipt, /will reply|within two business days/i);
+  assert.equal(form.hidden, true);
+  const row = db.raw.prepare("SELECT email, purpose, topic FROM lead_submissions WHERE email = ?").get("finops@example.com");
   assert.equal(row.email, "finops@example.com");
   assert.equal(row.purpose, FINOPS_EXAMPLE_FOLLOW_UP_PURPOSE);
+  assert.equal(row.topic, "Bundled AI FinOps example — lower-cost routing in Atlas Platform");
   assert.equal(textOf(document.getElementById("finops-example-follow-up-disclosure")),
     "Only your work email and this fixed follow-up topic are sent.");
 });
