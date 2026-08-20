@@ -26,6 +26,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { CONFIRMATION_DETAIL, REOPEN_LABEL } from "../src/follow-up-confirmation.js";
+import { FOLLOW_UP_TOPICS } from "../src/leads.js";
 import { loadPage, pressEnter, tabSequence, textOf, typeText } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
 
@@ -119,8 +120,8 @@ test("Coach, Releases, Social, People, and Agents send one bounded request and s
     ["coach.html", "follow_up_coach", "Paste a prompt"],
     ["releases.html", "follow_up_releases", "Deployment check"],
     ["social.html", "follow_up_social", "images optional"],
-    ["profile.html", "follow_up_people", "image posts"],
-    ["agents.html", "follow_up_agents", "Agent Observatory"],
+    ["profile.html", "follow_up_people", "newest first"],
+    ["agents.html", "follow_up_agents", "public GitHub activity"],
   ];
   for (const [file, requestType, pageContent] of pages) {
     const page = await openNamedFooterPage(file);
@@ -131,8 +132,12 @@ test("Coach, Releases, Social, People, and Agents send one bounded request and s
 
       assert.equal(calls.length, 1, `${file}: valid submission must be sent once`);
       const payload = JSON.parse(calls[0].options.body);
-      assert.deepEqual(payload, { email: LONG_EMAIL, purpose: requestType }, `${file}: bounded payload`);
-      assert.deepEqual(Object.keys(payload), ["email", "purpose"], `${file}: no third field can disclose content`);
+      const topic = FOLLOW_UP_TOPICS[requestType];
+      assert.deepEqual(payload, topic
+        ? { email: LONG_EMAIL, purpose: requestType, topic }
+        : { email: LONG_EMAIL, purpose: requestType }, `${file}: bounded payload`);
+      assert.deepEqual(Object.keys(payload), topic ? ["email", "purpose", "topic"] : ["email", "purpose"],
+        `${file}: only fixed routing context can accompany the email`);
       assert.doesNotMatch(calls[0].options.body, new RegExp(pageContent, "i"), `${file}: page content stays local`);
       assert.equal(byId(page.document, "site-footer-form").dataset.state, "success", `${file}: success state`);
       const confirmation = byId(page.document, "site-footer-confirmation");

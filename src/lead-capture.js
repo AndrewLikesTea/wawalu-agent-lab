@@ -128,25 +128,13 @@ export function resolveFailure(response, body, copy) {
   return { message: copy.unconfirmed, reason: "unconfirmed" };
 }
 
-/**
- * The one request either form makes. The body is built here from the address
- * and a fixed routing label, so no caller can widen what leaves the browser:
- * `{ email, purpose }` is the entire documented request shape. The purpose is
- * never page content.
- *
- * Resolves every 2xx response as a capture. HTTP success is the durable
- * browser/server contract: older deployed handlers returned `subscribed`
- * while the current handler returns `created`, and rejecting the former after
- * it had committed a row made a valid request visibly end in failure.
- * `created` is normalized for callers that distinguish a new row from an
- * existing one. Non-2xx responses still throw a SubmissionError carrying copy
- * this module owns plus the reason code that drives recovery.
- */
-export async function postLeadEmail(request, email, purpose, copy) {
+// Sends the address, fixed routing label, and an optional fixed topic. Every
+// 2xx is a capture, including legacy responses that predate `created`.
+export async function postLeadEmail(request, email, purpose, copy, topic = null) {
   const response = await request(ENDPOINT, {
     method: "POST",
     headers: { "content-type": "application/json", accept: "application/json" },
-    body: JSON.stringify({ email, purpose }),
+    body: JSON.stringify(topic ? { email, purpose, topic } : { email, purpose }),
     // Without this a hung request strands the visitor on "Submitting…"
     // with the control disabled and no way to recover.
     signal: globalThis.AbortSignal?.timeout?.(TIMEOUT_MS),

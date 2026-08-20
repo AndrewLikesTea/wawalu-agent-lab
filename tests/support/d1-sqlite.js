@@ -12,7 +12,7 @@
 import { DatabaseSync } from "node:sqlite";
 import { readFile } from "node:fs/promises";
 
-export const MIGRATIONS = ["0003_social_posts.sql", "0004_social_post_media.sql", "0005_media_objects.sql", "0006_leads.sql", "0007_lead_submissions.sql", "0008_follow_up_request_types.sql", "0009_finops_example_follow_up.sql"];
+export const MIGRATIONS = ["0003_social_posts.sql", "0004_social_post_media.sql", "0005_media_objects.sql", "0006_leads.sql", "0007_lead_submissions.sql", "0008_follow_up_request_types.sql", "0009_finops_example_follow_up.sql", "0010_follow_up_topics.sql"];
 
 function normalizeArgs(args) {
   // D1 accepts JS nulls/booleans; node:sqlite wants null/number/string/bigint/

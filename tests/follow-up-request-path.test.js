@@ -29,17 +29,18 @@ import { MIGRATIONS, createTestD1 } from "./support/d1-sqlite.js";
 import { initSiteFooter } from "../src/site-footer.js";
 import { CONFIRMATION_DETAIL, CONFIRMATION_LEAD } from "../src/follow-up-confirmation.js";
 import { onRequest } from "../functions/api/leads.js";
+import { createMemoryLeadStore, FOLLOW_UP_TOPICS, handleLeadRequest } from "../src/leads.js";
 
 // The six pages the follow-up request was reviewed on, with the request type
 // each one sends. The homepage predates the bounded types and still sends the
 // legacy label; the other five name the surface the visitor was reading.
 const REVIEWED = [
-  ["index.html", "follow_up"],
-  ["coach.html", "follow_up_coach"],
-  ["releases.html", "follow_up_releases"],
-  ["social.html", "follow_up_social"],
-  ["profile.html", "follow_up_people"],
-  ["agents.html", "follow_up_agents"],
+  ["index.html", "follow_up", null],
+  ["coach.html", "follow_up_coach", FOLLOW_UP_TOPICS.follow_up_coach],
+  ["releases.html", "follow_up_releases", null],
+  ["social.html", "follow_up_social", FOLLOW_UP_TOPICS.follow_up_social],
+  ["profile.html", "follow_up_people", FOLLOW_UP_TOPICS.follow_up_people],
+  ["agents.html", "follow_up_agents", FOLLOW_UP_TOPICS.follow_up_agents],
 ];
 
 const TYPED_EMAIL = "director@example.com";
@@ -85,7 +86,7 @@ const submitControl = (document) =>
 
 /* --------------------------- the panel, per page --------------------------- */
 
-for (const [file, purpose] of REVIEWED) {
+for (const [file, purpose, topic] of REVIEWED) {
   test(`${file} ships the follow-up panel and its live region before anything is submitted`, async () => {
     const page = await loadPage(pageUrl(file));
     const { document } = page;
@@ -93,6 +94,11 @@ for (const [file, purpose] of REVIEWED) {
       const form = byId(document, "site-footer-form");
       assert.equal(form.tagName, "FORM");
       assert.equal(form.getAttribute("data-follow-up-type"), purpose === "follow_up" ? null : purpose);
+      const topicField = byId(document, "site-footer-topic");
+      assert.equal(topicField?.value ?? null, topic);
+      assert.equal(topicField?.hasAttribute("readonly") ?? false, Boolean(topic));
+      const pageName = { "coach.html": "Prompt coach", "social.html": "Social", "profile.html": "People", "agents.html": "Agent observatory" }[file];
+      if (topic) assert.match(topic, new RegExp(pageName, "i"));
       assert.equal(byId(document, "site-footer-email").getAttribute("type"), "email");
       assert.equal(submitControl(document).getAttribute("type"), "submit");
 
@@ -138,7 +144,9 @@ test("a valid work email and a successful transport reach the success state, whi
 
     assert.equal(calls.length, 1);
     assert.equal(calls[0].url, "/api/leads");
-    assert.deepEqual(JSON.parse(calls[0].options.body), { email: TYPED_EMAIL, purpose: "follow_up_coach" });
+    assert.deepEqual(JSON.parse(calls[0].options.body), {
+      email: TYPED_EMAIL, purpose: "follow_up_coach", topic: FOLLOW_UP_TOPICS.follow_up_coach,
+    });
     assert.equal(byId(document, "site-footer-form").dataset.state, "success");
 
     const receipt = shownText(document, "site-footer-confirmation");
@@ -301,7 +309,7 @@ function endpointTransport(db, calls) {
   };
 }
 
-for (const [file, purpose] of REVIEWED) {
+for (const [file, purpose, topic] of REVIEWED) {
   test(`${file}: a follow-up request reaches the real endpoint and lands a row`, async (t) => {
     const db = await createTestD1();
     t.after(() => db.close());
@@ -321,12 +329,14 @@ for (const [file, purpose] of REVIEWED) {
       await settled(document);
 
       assert.equal(byId(document, "site-footer-form").dataset.state, "success", `${file} must reach success`);
-      assert.deepEqual(JSON.parse(calls[0].options.body), { email: TYPED_EMAIL, purpose });
+      assert.deepEqual(JSON.parse(calls[0].options.body), topic
+        ? { email: TYPED_EMAIL, purpose, topic }
+        : { email: TYPED_EMAIL, purpose });
 
       // node:sqlite hands back null-prototype rows; the values are what matter.
-      const rows = db.raw.prepare("SELECT email, purpose FROM lead_submissions").all()
-        .map(({ email, purpose: stored }) => ({ email, purpose: stored }));
-      assert.deepEqual(rows, [{ email: TYPED_EMAIL, purpose }], `${file} must write exactly one row`);
+      const rows = db.raw.prepare("SELECT email, purpose, topic FROM lead_submissions").all()
+        .map(({ email, purpose: stored, topic: storedTopic }) => ({ email, purpose: stored, topic: storedTopic }));
+      assert.deepEqual(rows, [{ email: TYPED_EMAIL, purpose, topic }], `${file} must write exactly one row`);
       assert.ok(shownText(document, "site-footer-confirmation").includes(TYPED_EMAIL));
     } finally {
       globalThis.fetch = passthrough;
@@ -371,15 +381,24 @@ test("a genuine duplicate is still a duplicate, not an error", async (t) => {
   const first = await transport("/api/leads", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ email: TYPED_EMAIL, purpose: "follow_up_people" }),
+    body: JSON.stringify({ email: TYPED_EMAIL, purpose: "follow_up_people", topic: FOLLOW_UP_TOPICS.follow_up_people }),
   });
   assert.equal(first.status, 201);
   const second = await transport("/api/leads", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ email: TYPED_EMAIL, purpose: "follow_up_people" }),
+    body: JSON.stringify({ email: TYPED_EMAIL, purpose: "follow_up_people", topic: FOLLOW_UP_TOPICS.follow_up_people }),
   });
   assert.equal(second.status, 200);
   assert.deepEqual(await second.json(), { captured: true, created: false, purpose: "follow_up_people" });
   assert.equal(db.raw.prepare("SELECT count(*) AS count FROM lead_submissions").get().count, 1);
+});
+
+test("the endpoint rejects a changed topic instead of persisting visitor-authored routing", async () => {
+  const response = await handleLeadRequest(new Request("https://test.invalid/api/leads", {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ email: TYPED_EMAIL, purpose: "follow_up_social", topic: "A different topic" }),
+  }), { store: createMemoryLeadStore() });
+  assert.equal(response.status, 422);
+  assert.equal((await response.json()).error.code, "invalid_topic");
 });

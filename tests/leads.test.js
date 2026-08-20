@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 import {
   createD1LeadStore,
   createMemoryLeadStore,
+  FOLLOW_UP_TOPICS,
   handleLeadRequest,
   normalizeEmail,
 } from "../src/leads.js";
@@ -114,7 +115,10 @@ test("stores field-note and follow-up intent independently for the same address"
 test("persists every reviewed follow-up request type independently", async () => {
   const store = createMemoryLeadStore();
   for (const purpose of ["follow_up_coach", "follow_up_releases", "follow_up_social", "follow_up_people", "follow_up_agents"]) {
-    const response = await handleLeadRequest(request({ email: "rowan@example.com", purpose }), { store });
+    const topic = FOLLOW_UP_TOPICS[purpose];
+    const response = await handleLeadRequest(request(topic
+      ? { email: "rowan@example.com", purpose, topic }
+      : { email: "rowan@example.com", purpose }), { store });
     assert.equal(response.status, 201, purpose);
     assert.deepEqual(await response.json(), { captured: true, created: true, purpose });
     assert.equal(store.has("rowan@example.com", purpose), true);
