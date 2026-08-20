@@ -227,7 +227,9 @@ test("a missing post is named in plain language, with no id or code echoed back"
   assert.equal(first(missing, "empty-title").textContent, "Post unavailable");
   assert.match(missing.textContent, /This post can’t be shown\./);
   assert.doesNotMatch(missing.textContent, /removed|private|signed-in|your post/i);
-  assert.equal(missing.firstChild.getAttribute("role"), "status");
+  assert.equal(missing.getAttribute("role"), "status");
+  assert.equal(missing.getAttribute("aria-live"), "polite");
+  assert.equal(missing.firstChild.getAttribute("role"), null);
   assert.ok(ids(missing).includes(missing.firstChild.getAttribute("aria-labelledby")));
   const feed = first(missing, "detail-state-feed");
   assert.equal(feed.textContent, "Go to the Social feed");
@@ -244,10 +246,14 @@ test("a failed load says what happened once, offers a retry, and leaks no error 
   assert.equal(first(failed, "empty-title").textContent, "Post could not be opened");
   assert.match(failed.textContent, /The Social feed did not respond\./);
   assert.doesNotMatch(failed.textContent, /private|signed-in|your post/i);
-  assert.equal(failed.firstChild.getAttribute("role"), "alert");
+  assert.equal(failed.getAttribute("role"), "status");
+  assert.equal(failed.getAttribute("aria-live"), "polite");
+  assert.equal(failed.getAttribute("aria-atomic"), "true");
+  assert.equal(failed.firstChild.getAttribute("role"), null);
   assert.doesNotMatch(failed.textContent, /p-gone|\b[45]\d\d\b|Error:|fetch|TypeError/);
   // The state offers both ways forward: leave for the feed or retry in place.
-  assert.match(failed.textContent, /Retry/);
+  assert.match(failed.textContent, /Retry the shared post/);
+  assert.equal(tags(failed, "BUTTON")[0].textContent, "Retry the shared post");
   assert.equal(first(failed, "detail-state-feed").textContent, "Open the full Social feed");
   tags(failed, "BUTTON")[0].dispatch("click");
   assert.equal(retried, 1, "a failed load offers a retry");
@@ -291,7 +297,8 @@ test("the loading state says the wait in words and reserves the post's four slot
   // and the placeholder under it are one state, not two things on screen.
   assert.equal(container.children.length, 1, "the wait is one panel, not a stack of furniture");
   const status = first(container, "detail-loading");
-  assert.equal(status.getAttribute("role"), "status");
+  assert.equal(container.getAttribute("role"), "status");
+  assert.equal(status.getAttribute("role"), null);
   assert.equal(first(status, "detail-loading-text").textContent, POST_LOADING_STATUS);
   assert.equal(POST_LOADING_STATUS, "Loading the shared post…");
   // The site's loading voice, not a sentence about the product: "Loading the
@@ -558,7 +565,7 @@ test("the shipped markup opens in the loading state, saying so in words", async 
   // count of panels is one before any script has run, not zero.
   assert.equal((region.match(/data-post-state-panel="loading"/g) ?? []).length, 1);
   assert.ok(region.includes(`>${POST_LOADING_STATUS}</span>`), "the shipped line is the rendered line");
-  assert.match(region, /role="status"/, "so assistive tech announces it without stealing focus");
+  assert.match(region, /role="status"[^>]*aria-live="polite"[^>]*aria-atomic="true"/, "the stable region announces every update without stealing focus");
   assert.match(region, /class="detail-loading-dot" aria-hidden="true"/, "the spinner is decoration");
 
   // One spelling of one sentence. Two would flash a rewrite when the script ran.

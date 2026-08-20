@@ -146,7 +146,6 @@ function labelledState(key, actions = []) {
   const node = el("div", `empty-state detail-state-panel detail-state-message ${copy.className}`);
   const heading = el("h2", "empty-title", copy.title);
   heading.id = `post-state-${key}-title`;
-  node.setAttribute("role", copy.state === "error" ? "alert" : "status");
   node.setAttribute("aria-labelledby", heading.id);
   node.setAttribute("data-post-state-panel", copy.state);
   node.append(
@@ -304,7 +303,7 @@ function renderMissing(container, id) {
 // after the heading and the sentence that explain it — source order, not just
 // visual order — so a screen reader reaches the explanation before the action.
 function renderFailed(container, onRetry) {
-  const retry = el("button", "empty-action detail-retry", "Retry");
+  const retry = el("button", "empty-action detail-retry", "Retry the shared post");
   retry.type = "button";
   if (onRetry) retry.addEventListener("click", onRetry);
   container.append(labelledState("error", [feedAction(POST_EXITS.social.label), retry]));
@@ -377,7 +376,6 @@ function renderSkeleton() {
 // prefers-reduced-motion (see the media query at the end of styles.css).
 function renderLoading(container) {
   const status = el("div", "detail-loading detail-state-panel");
-  status.setAttribute("role", "status");
   status.setAttribute("data-post-state-panel", "loading");
   const line = el("p", "detail-loading-line");
   const dot = el("span", "detail-loading-dot");
@@ -413,6 +411,14 @@ export function renderPostDetail(container, post, options = {}) {
   // a screen reader. src/post.html ships the region already marked "loading",
   // so the shipped markup and the first render agree.
   const state = resolvePostState(post, requested);
+  // The region is the stable announcer across every replacement. Putting live
+  // semantics on the short-lived loading/error children creates a new live
+  // region for each answer and can leave the resolved post unannounced. One
+  // polite, atomic status region lets assistive technology hear the same place
+  // move from waiting to a verdict or the post itself.
+  container.setAttribute("role", "status");
+  container.setAttribute("aria-live", "polite");
+  container.setAttribute("aria-atomic", "true");
   container.replaceChildren();
   container.setAttribute("aria-busy", state === "loading" ? "true" : "false");
   container.dataset.postState = state;
