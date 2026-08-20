@@ -323,7 +323,7 @@ export const POST_LOADING_STATUS = "Loading the shared post…";
 // Each placeholder names its slot on itself, so this list is the one place the
 // shape is written down and a test asks for slots rather than counting anonymous
 // shimmer blocks.
-export const POST_SKELETON_SLOTS = ["image", "body", "display-name", "timestamp"];
+export const POST_SKELETON_SLOTS = ["optional-image", "caption", "author", "timestamp", "actions"];
 
 function skeletonSlot(name, className) {
   const slot = el("div", className);
@@ -344,17 +344,21 @@ function skeletonSlot(name, className) {
 // told the shape of a post that is not here yet; the sentence above carries the
 // state, and it is the sentence that is announced.
 function renderSkeleton() {
-  const skeleton = el("div", "detail-skeleton");
+  const skeleton = el("article", "detail-skeleton detail-post");
   skeleton.setAttribute("aria-hidden", "true");
-  const figure = el("div", "detail-figure");
-  const caption = el("div", "detail-caption");
-  caption.append(skeletonSlot("body", "skeleton-line"));
-  figure.append(skeletonSlot("image", "skeleton-media"), caption);
-  const byline = el("div", "detail-byline");
-  byline.append(skeletonSlot("display-name", "skeleton-line skeleton-line-short"));
-  const date = el("div", "detail-date");
+  skeleton.setAttribute("inert", "");
+  const figure = el("figure", "detail-figure");
+  const caption = el("figcaption", "detail-caption");
+  caption.append(skeletonSlot("caption", "skeleton-line"));
+  figure.append(skeletonSlot("optional-image", "skeleton-media"), caption);
+  const byline = el("p", "detail-byline");
+  byline.append(skeletonSlot("author", "skeleton-line skeleton-line-short"));
+  const date = el("time", "detail-date");
   date.append(skeletonSlot("timestamp", "skeleton-line skeleton-line-short"));
-  skeleton.append(figure, byline, date);
+  const actions = el("div", "detail-stats detail-skeleton-actions");
+  actions.dataset.postSkeletonSlot = "actions";
+  actions.append(el("span", "skeleton-line"), el("span", "skeleton-line"));
+  skeleton.append(figure, byline, date, actions);
   return skeleton;
 }
 

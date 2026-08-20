@@ -288,7 +288,7 @@ test("an id-less visit is headed by the same not-found words, and offers the fee
 const slotsOf = (node) => walk(node, (candidate) => Boolean(candidate.dataset?.postSkeletonSlot))
   .map((candidate) => candidate.dataset.postSkeletonSlot);
 
-test("the loading state says the wait in words and reserves the post's four slots", () => {
+test("the loading state says the wait in words and reserves the post's five areas", () => {
   const container = createElement("div");
   renderPostDetail(container, null, { state: "loading", id: "p-image", author: "Mina" });
 
@@ -310,17 +310,17 @@ test("the loading state says the wait in words and reserves the post's four slot
   // spell it, not three periods pretending to be one.
   assert.ok(POST_LOADING_STATUS.endsWith("…") && !POST_LOADING_STATUS.includes("..."));
 
-  // The four slots a post fills, in the order the loaded article fills them.
+  // The five slots a post fills, in the order the loaded article fills them.
   // A line of text used to be the whole wait, so every post that arrived pushed
   // the page down under the reader; the placeholder holds the box instead.
   assert.deepEqual(slotsOf(container), POST_SKELETON_SLOTS);
-  assert.deepEqual(POST_SKELETON_SLOTS, ["image", "body", "display-name", "timestamp"]);
+  assert.deepEqual(POST_SKELETON_SLOTS, ["optional-image", "caption", "author", "timestamp", "actions"]);
 
   // Built from the blocks Social's feed and People's grid already draw while
   // they wait, in this page's own containers — one placeholder treatment across
   // the three surfaces, and no new stylesheet rule per surface.
   assert.equal(byClass(container, "skeleton-media").length, 1);
-  assert.equal(byClass(container, "skeleton-line").length, 3);
+  assert.equal(byClass(container, "skeleton-line").length, 5);
   for (const name of ["detail-figure", "detail-caption", "detail-byline", "detail-date"]) {
     assert.equal(byClass(container, name).length, 1, `the wait reserves the loaded post's ${name}`);
   }
@@ -572,15 +572,15 @@ test("the shipped markup opens in the loading state, saying so in words", async 
   assert.doesNotMatch(region, /detail-state-chip|empty-state/);
 
   // The placeholder ships too, because a cold visitor meets the markup before
-  // this page's script has been fetched: the four slots, once each, in the order
+  // this page's script has been fetched: the five areas, once each, in the order
   // the loaded article fills them, hidden from assistive technology.
   assert.deepEqual([...region.matchAll(/data-post-skeleton-slot="([a-z-]+)"/g)].map(([, slot]) => slot),
-    ["image", "body", "display-name", "timestamp"]);
-  assert.equal((region.match(/class="detail-skeleton" aria-hidden="true"/g) ?? []).length, 1);
+    ["optional-image", "caption", "author", "timestamp", "actions"]);
+  assert.equal((region.match(/class="detail-skeleton detail-post" aria-hidden="true" inert/g) ?? []).length, 1);
   // Drawn with the feed's blocks, so the shipped wait and the rendered one are
   // the same treatment a reader has already met on Social and on People.
   assert.equal((region.match(/class="skeleton-media"/g) ?? []).length, 1);
-  assert.equal((region.match(/class="skeleton-line/g) ?? []).length, 3);
+  assert.equal((region.match(/class="skeleton-line/g) ?? []).length, 5);
   // And it carries nothing to tab to, so the standing exit stays the first stop
   // a keyboard reader reaches after the site frame.
   assert.doesNotMatch(region, /<a |<button|tabindex/);
@@ -641,7 +641,7 @@ test("the post region holds exactly one state, and names it on one attribute", (
     assert.equal(panels[0].getAttribute("data-post-state-panel"), expected[name]);
     const waiting = byClass(container, "detail-loading").length;
     const explained = byClass(container, "detail-state-message").length;
-    const shown = byClass(container, "detail-post").length;
+    const shown = byClass(container, "detail-post").filter((node) => !node.classList.contains("detail-skeleton")).length;
     assert.equal(waiting + explained + shown, 1, `the ${name} state renders more than one thing at once`);
     assert.equal(waiting, name === "loading" ? 1 : 0, `the ${name} state's wait line`);
     assert.equal(explained, ["missing", "error", "id-less"].includes(name) ? 1 : 0, `the ${name} state's explanation`);
