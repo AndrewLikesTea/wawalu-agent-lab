@@ -188,7 +188,9 @@ test("an unknown id is named as a missing post, with the feed still the way out"
     // No post, no author: the h1 names the page rather than standing as "Post".
     assert.equal(textOf(page.document.querySelector("#page-title")), "Post from Social");
     assert.doesNotMatch(textOf(page.panel), /Try again/);
-    assert.equal(page.panel.querySelector(".detail-state-message").getAttribute("role"), "status");
+    assert.equal(page.panel.getAttribute("role"), "status");
+    assert.equal(page.panel.getAttribute("aria-live"), "polite");
+    assert.equal(page.panel.querySelector(".detail-state-message").getAttribute("role"), null);
     assert.equal(page.document.title, "Post unavailable · Shiplog");
     // No post, so no display name the People link's words could be about: the
     // feed is the one route this state offers.
@@ -249,7 +251,7 @@ test("a failed lookup names the feed it could not reach, and retry can recover",
     assertExits(page, null, "failed");
 
     const retry = page.panel.querySelector("button");
-    assert.equal(textOf(retry), "Retry");
+    assert.equal(textOf(retry), "Retry the shared post");
     // A button, not a link: retrying re-runs the fetch in place rather than
     // reloading the page and losing everything already on screen.
     assert.equal(retry.type, "button");
@@ -268,6 +270,28 @@ test("a failed lookup names the feed it could not reach, and retry can recover",
     assertExits(page, MINA, "recovered");
   } finally {
     page.restore();
+  }
+});
+
+test("not-found and failure keep both settled exit links keyboard reachable", async () => {
+  const cases = [
+    ["not found", seedOnly([SEED_POST])],
+    ["failure", () => { throw new TypeError("Failed to fetch"); }],
+  ];
+
+  for (const [state, answer] of cases) {
+    const page = await openPostPage("?id=p-gone", answer);
+    try {
+      const social = page.document.querySelector("#post-back");
+      const publish = page.document.querySelector("#post-publish");
+      const sequence = tabSequence(page.document);
+      assert.equal(social.hidden, false, `${state}: the Social exit remains rendered`);
+      assert.equal(publish.hidden, false, `${state}: the publish exit remains rendered`);
+      assert.ok(sequence.includes(social), `${state}: the Social exit is keyboard focusable`);
+      assert.ok(sequence.includes(publish), `${state}: the publish exit is keyboard focusable`);
+    } finally {
+      page.restore();
+    }
   }
 });
 
@@ -343,7 +367,8 @@ test("the loading state is one announced line in the post's region, and takes no
 
     const state = panel.querySelector(".detail-loading");
     assert.equal(panel.getAttribute("aria-busy"), "true");
-    assert.equal(state.getAttribute("role"), "status", "the state is announced without stealing focus");
+    assert.equal(panel.getAttribute("role"), "status", "the state is announced without stealing focus");
+    assert.equal(state.getAttribute("role"), null, "the update uses the page's persistent live region");
     assert.equal(page.document.activeElement, null, "nothing may take focus on load");
     assert.equal(textOf(state.querySelector(".detail-loading-text")), "Loading the shared post…");
     assert.doesNotMatch(textOf(panel), /Display names are invented for this demo/);
@@ -393,7 +418,8 @@ test("the page opens already saying it is loading, and the post replaces that li
     assert.equal(panel.getAttribute("aria-busy"), "true");
     assert.equal(panel.querySelectorAll(".detail-loading").length, 1);
     assert.equal(textOf(panel.querySelector(".detail-loading-text")), "Loading the shared post…");
-    assert.equal(panel.querySelector(".detail-loading").getAttribute("role"), "status");
+    assert.equal(panel.getAttribute("role"), "status");
+    assert.equal(panel.querySelector(".detail-loading").getAttribute("role"), null);
     // The placeholder is in the markup too — the wait a cold visitor meets is
     // the shape of the post, not a line of text the post then pushes down.
     assert.deepEqual(skeletonSlots(panel), ["image", "body", "display-name", "timestamp"]);
