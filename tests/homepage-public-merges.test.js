@@ -314,13 +314,42 @@ test("the document a visitor is served authors no figure and no link of its own"
   assert.match(html, /<strong>Example records<\/strong>/);
 });
 
-test("the destination list says the observatory is not entirely invented", async () => {
+test("the destination list separates the observatory's counted and synthetic parts", async () => {
   const html = await readFile(HOME_URL, "utf8");
-  const entry = [...parseHtml(html).querySelector(".site-guide").querySelectorAll("li")]
+  const guide = parseHtml(html).querySelector(".site-guide");
+  const entry = [...guide.querySelectorAll("li")]
     .find((item) => item.querySelector("a").getAttribute("href") === "/agents.html");
 
   assert.ok(entry, "the destination list must still name the Agent observatory");
-  assert.match(textOf(entry), /public GitHub/, "a visitor scanning the list learns the observatory is grounded");
+  assert.equal(
+    textOf(entry),
+    "Agent observatory Its merged pull-request count is counted from public GitHub activity. Its personas and prompt trace are synthetic examples.",
+  );
+  // The caution above the demonstrations used to cover the list by saying
+  // "These run on invented sample data", which is what filed the observatory —
+  // where this page's one counted figure comes from — under invented data. It
+  // names its surfaces now, and a typed list of names can fall behind the list
+  // it sits above, so it is read against that list rather than restated here:
+  // every demonstration is either named in the caution or carries its own
+  // provenance the way the observatory does, and a fifth one added to the group
+  // cannot arrive silently covered by neither.
+  const demos = [...guide.querySelectorAll("ul")][1];
+  const caution = textOf([...guide.querySelectorAll("p")][1]);
+  assert.match(caution, /run on invented sample data\. They are not tools for your data\./);
+  assert.doesNotMatch(caution, /These run on invented sample data/,
+    "a caution covering the whole list files the observatory under invented data");
+  for (const item of demos.querySelectorAll("li")) {
+    const label = item.querySelector("a").textContent;
+    if (item.querySelector("a").getAttribute("href") === "/agents.html") {
+      // The one exception, and it stays an exception: the counted figure may not
+      // be swept back in by adding this name to the sentence above it.
+      assert.ok(!caution.includes(label),
+        "the observatory states its own provenance and must not be named in the invented-data caution");
+      continue;
+    }
+    assert.ok(caution.includes(label),
+      `"${label}" is listed as a demonstration, but the caution above it does not say it runs on invented sample data`);
+  }
   // One number on the page: the list names the grounding, it does not restate
   // the figure.
   assert.doesNotMatch(textOf(entry), /\d/);
