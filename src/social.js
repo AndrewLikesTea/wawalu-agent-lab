@@ -542,8 +542,16 @@ function renderPostCard(post, { index }) {
   return item;
 }
 
-// Placeholder tiles for the first load. Purely visual, so they are hidden from
-// assistive tech — the live region in social.html announces the real status.
+// Placeholder cards for the first load. Each reserved card says in visible text
+// what it is holding open, so the wait reads as the feed's structure rather than
+// as three grey boxes a reader has to interpret from the shimmer alone. There
+// are no links or controls in here, and no card claims to be a particular post:
+// how many are drawn is a layout choice, not a count this page has fetched.
+//
+// Still out of the accessibility tree. #feed-status announces the state in one
+// sentence, and three placeholders reading themselves out after it would be the
+// same news three more times — plus a post count that is not yet a fact. The
+// post permalink's skeleton (src/post-detail.js) waits the same way.
 function renderSkeleton(container, count = 3) {
   const list = el("ol", "post-grid post-grid-skeleton");
   list.setAttribute("role", "list");
@@ -551,7 +559,8 @@ function renderSkeleton(container, count = 3) {
   for (let index = 0; index < count; index += 1) {
     const item = el("li");
     const card = el("div", "post-card post-card-skeleton");
-    card.append(el("div", "skeleton-media"), el("div", "skeleton-line"), el("div", "skeleton-line skeleton-line-short"));
+    card.append(el("p", "eyebrow skeleton-label", "Loading post"), el("div", "skeleton-media"),
+      el("div", "skeleton-line"), el("div", "skeleton-line skeleton-line-short"));
     item.append(card);
     list.append(item);
   }

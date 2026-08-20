@@ -165,7 +165,7 @@ button:hover { background:#1f70c1; }
 .filter { display:flex; flex-direction:column; gap:7px; flex:1 1 150px; min-width:130px; }
 .filter label { color:#62625d; font:700 11px/1.4 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; }
 .filter select { padding:9px 11px; }
-.filter select:disabled { border-color:#d5d3cc; background:#f3f2ee; color:#77776f; cursor:not-allowed; }
+.filter select:disabled,.social-clear:disabled { border-color:#d5d3cc; background:#f3f2ee; color:#77776f; cursor:not-allowed; }
 .filter .hint { margin:0; }
 /* The record-type fieldset keeps the group label and its radios in one
    semantic and visual unit; it wraps to a full row before the options can
@@ -716,8 +716,8 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .profile-tile-meta { display:flex; align-items:center; justify-content:space-between; gap:10px; margin:0; padding:10px 14px 14px; color:#74746e; font:650 11px/1.4 ui-monospace,monospace; }
 .profile-tile-stat { text-align:right; }
 .profile-tile-link-label { margin:0 14px 14px; color:#1f5fa8; font:700 13px/1.4 system-ui,sans-serif; text-decoration:underline; text-underline-offset:3px; }
-.profile-tile-skeleton { gap:12px; padding-bottom:14px; }
-.profile-tile-skeleton .skeleton-line { margin:0 14px; }
+.profile-tile-skeleton { gap:12px; padding:14px; }
+.profile-tile-skeleton .skeleton-media { margin:0 -14px; } /* full-bleed, as loaded */
 .skeleton-media-square { aspect-ratio:1/1; border-radius:0; }
 /* Empty and error panels share the feed's centred layout; the action inside one
    is a real control, so it opts out of the form-grid button geometry. */
@@ -796,13 +796,11 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 /* Tablet: slightly smaller tiles so a narrowed panel keeps three across instead
    of dropping to two very wide ones. */
 @media(max-width:1000px) { .profile-grid{grid-template-columns:repeat(auto-fill,minmax(min(100%,210px),1fr))} }
-/* Phone: a fixed two-up grid. One column would make a short profile a long
-   scroll, and the caption stays readable at this width where a three-up would
-   leave it a sliver. The identity block stacks so a long name has the full
-   width to wrap into. */
+/* Phone: two-up tiles — one column is a long scroll, three-up leaves the caption
+   a sliver. Placeholders go one-up: their label is words. Identity block stacks. */
 @media(max-width:520px) {
   .hero-actions{align-items:stretch;flex-direction:column}.button-link{width:100%}.text-link{padding:7px 2px}.product-story{padding:22px}.story-card{padding:20px}.lead-capture{padding:22px}.lead-capture-controls{grid-template-columns:1fr}.lead-capture-controls button{justify-content:space-between;width:100%}
-  .profile-grid{grid-template-columns:repeat(2,1fr);gap:12px}
+  .profile-grid{grid-template-columns:repeat(2,1fr);gap:12px}.profile-grid-skeleton{grid-template-columns:1fr}
   .profile-tile-caption{padding:11px 11px 0;font-size:13px}
   .profile-tile-meta{flex-direction:column;align-items:flex-start;gap:3px;padding:8px 11px 12px}
   .profile-tile-stat{text-align:left}
