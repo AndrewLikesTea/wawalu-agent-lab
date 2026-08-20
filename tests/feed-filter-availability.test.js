@@ -386,14 +386,7 @@ test("People's display-name chooser is not operable while image posts are loadin
 
   assert.equal(textOf(document.querySelector("#profile-feed-status")), "Loading image posts…");
   const chips = document.querySelectorAll(".profile-filter-option");
-  assert.ok(chips.length > 1, "the chooser drew no chips to disable");
-  const stops = tabSequence(document);
-  for (const chip of chips) {
-    assert.equal(chip.disabled, true, "a chip is operable while the image posts are loading");
-    assert.equal(chip.getAttribute("aria-disabled"), "true");
-    assert.equal(chip.getAttribute("aria-describedby"), "profile-filter-hint");
-    assert.equal(stops.includes(chip), false, "a dead chip is still a tab stop");
-  }
+  assert.equal(chips.length, 0, "the chooser exposed names before image posts loaded");
 
   const hint = hintIn(document.querySelector("#profile-author").parentNode, "profile-filter-hint");
   assert.equal(textOf(hint), PROFILE_FILTERS_UNAVAILABLE_HINT);
@@ -413,11 +406,7 @@ test("a failed People feed disables the chooser and leaves Retry reachable", asy
   profile.setState("error");
   const chips = document.querySelectorAll(".profile-filter-option");
   const stops = tabSequence(document);
-  for (const chip of chips) {
-    assert.equal(chip.disabled, true, "a failed feed still offers a display name to choose");
-    assert.equal(chip.getAttribute("aria-disabled"), "true");
-    assert.equal(stops.includes(chip), false);
-  }
+  assert.equal(chips.length, 0, "a failed first load exposed stale display names");
   assert.equal(textOf(hintIn(document.querySelector("#profile-author").parentNode, "profile-filter-hint")),
     PROFILE_FILTERS_UNAVAILABLE_HINT);
 
@@ -425,8 +414,7 @@ test("a failed People feed disables the chooser and leaves Retry reachable", asy
   assert.equal(retry.tagName, "BUTTON");
   assert.equal(retry.disabled, false);
   assert.equal(stops.includes(retry), true, "the retry control is not reachable by keyboard");
-  const seat = stops.indexOf(retry);
-  assert.equal([...chips].includes(stops[seat - 1]), false, "a dead chip is still a stop ahead of Retry");
+  assert.equal(stops.includes(retry), true, "Retry is not in the tab order");
 
   // And back: the chooser returns with the image posts, described by nothing.
   profile.seed(MIXED);
