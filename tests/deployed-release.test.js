@@ -180,6 +180,30 @@ test("an unstamped build shows no record and withdraws the real marking", async 
 
 /* ---------------------- the check names a real record --------------------- */
 
+// What the band says before the probe answers (#1910). The waiting line is
+// static markup in src/releases.html — deployment-status-view.js overwrites the
+// slot only once the check settles — so this asserts the promise the line makes
+// rather than a copy of its bytes: which identifier is being fetched, what that
+// identifier is compared with, and the line this page draws around it. Reword
+// it freely; leave a waiting visitor able to answer "what am I waiting for, and
+// what will it be measured against". The front door carries the same block with
+// a shorter waiting line of its own (tests/deployment-status.test.js) — these
+// two sentences are deliberately not the same sentence.
+test("the check says what it is retrieving and what it compares, before it answers", async (t) => {
+  const page = await loadPage(RELEASES_PAGE);
+  t.after(() => page.restore());
+  const waiting = verdictText(page);
+
+  assert.match(waiting, /version or commit identifier/, "the waiting line names no identifier to wait for");
+  assert.match(waiting, /compare/, "the waiting line does not say the identifier gets compared with anything");
+  assert.match(waiting, /real record of this deployment/, "the waiting line does not name what it compares against");
+  assert.match(waiting, /invented example records/, "the waiting line lets the real record read as one of the examples");
+
+  // And it claims no comparison. Every verdict sentence is the renderer's; one
+  // copied into the cold document would be an answer nobody ran the check for.
+  assert.doesNotMatch(waiting, /Confirmed:|Not a match:|The check did not complete/);
+});
+
 test("the deployment check's verdict names a record the page marks as real", async (t) => {
   const page = await open(t);
   assert.equal(
