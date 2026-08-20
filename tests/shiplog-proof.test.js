@@ -194,7 +194,7 @@ test("tab order reaches the log's controls before the recorder's fields, and add
   const heroStops = sequence.filter((node) => isWithin(node, hero));
   assert.equal(heroStops.length, 1, "the hero gained more than the one jump control");
   assert.equal(heroStops[0].id, "record-release-link");
-  assert.equal(textOf(heroStops[0]), "Record a release");
+  assert.equal(textOf(heroStops[0]), "Go to the release form");
   assert.equal(heroStops[0].getAttribute("href"), "#record-release");
   // The recorder panel is a focus target, not a stop: it carries tabindex="-1",
   // so nothing else joined the sequence when it became focusable.
