@@ -179,19 +179,47 @@ test("the first screen makes its privacy promise at most twice, beside the link 
   // Whichever copy survives keeps all three claims. A shorter promise that drops
   // storage or upload is a weaker promise, not a tidier one.
   const boundary = textOf(hero.querySelector(".hero-boundary"));
-  assert.match(boundary, /do not leave this tab/);
-  assert.match(boundary, /read and analyzed in this browser/);
-  assert.match(boundary, /No upload/);
+  assert.match(boundary, /AI FinOps provider export/);
+  assert.match(boundary, /pasted Prompt coach text/);
+  assert.match(boundary, /Paint image/);
+  assert.match(boundary, /read only in this browser tab/);
+  assert.match(boundary, /published Social post/);
+  assert.match(boundary, /follow-up email/);
+  assert.match(boundary, /leave your device/);
+  // Naming the five inputs must not cost the claims the boundary already made.
+  // A list of what stays is not a promise about it.
+  assert.match(boundary, /no upload, no credentials, no account/);
+  // And the two that do leave say what leaves with them, because that is the
+  // question a security reviewer forwards this passage to answer. Both restate
+  // a claim made where the control is: Social's publish consequence, and
+  // FOLLOW_UP_NOTE, which postLeadEmail makes true by building the whole
+  // request body from the typed address.
+  assert.match(boundary, /anyone who visits Shiplog can read a published post/);
+  assert.match(boundary, /carrying no figure, file, or prompt with it/);
   // #1799: the storage claim says what is true rather than the shortest thing.
   // "nothing of yours is stored" read as a promise the page next door breaks —
   // the invitation below it offers a briefing built from months this browser
   // already holds. Both facts are kept in one sentence: the export is never
   // written down, and what survives it is the reader's own choice, on their own
   // device. A copy that drops the second half is the contradiction again.
-  assert.match(boundary, /The file itself is never saved/);
+  // #1889: and it says which file, now that the passage names three things read
+  // in the tab. "The file" was unambiguous when the export was the only one.
+  assert.match(boundary, /The export file itself is never saved/);
   assert.match(boundary, /stay on this device only if you choose to keep them/);
   assert.doesNotMatch(boundary, /nothing of yours is stored/,
     "the boundary must not promise a blanket no-storage the retained months break");
+
+  // #1889: the complete boundary is one selectable prose passage. A heading,
+  // link, or control between its inputs would make a visitor assemble the
+  // privacy claim from separate fragments. One tag per call: this harness
+  // matches a single tag name or a single class, so a comma-separated selector
+  // compares against one impossible tag name and reports zero however the
+  // passage is written.
+  const boundaryNode = hero.querySelector(".hero-boundary");
+  for (const tag of ["h1", "h2", "h3", "h4", "a", "button", "input", "select", "textarea", "label"]) {
+    assert.equal(boundaryNode.querySelectorAll(tag).length, 0,
+      `the privacy passage must not contain an interleaved ${tag} element`);
+  }
 
   // And it is made where the file is: in the hero's own block, immediately
   // after the AI FinOps link a reader is deciding to click — not in a banner

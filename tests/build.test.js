@@ -156,7 +156,7 @@ test("the hero names the product before any surface, and keeps the log as a name
   assert.match(hero, /no export of yours, no sign-in, and no account/);
   // One name per concept: the marker AI FinOps publishes the example under.
   assert.match(hero, /bundled synthetic example/);
-  assert.match(hero, /Your files do not leave this tab\./);
+  assert.match(hero, /Your AI FinOps provider export, pasted Prompt coach text, and a Paint image are read only in this browser tab/);
   assert.doesNotMatch(html, /cost analyzer|spend tool/i);
   assert.ok(
     html.indexOf("AI FinOps") < html.indexOf("Know why it shipped."),
