@@ -328,47 +328,16 @@ export function formatDate(iso) {
 
 /* --------------------------- first-run copy ------------------------------- */
 
-// The one place the empty profile's wording lives. Four spots on the page speak
-// to this situation — the hero description, the heading count, the grid, and the
-// live region — and when each held its own literal the page printed the same
-// sentence twice while the grid said something else entirely.
-//
-// The terms are borrowed from the destination rather than invented here: Paint's
-// primary action is "Use in post", so this copy says "image post" and "use it in
-// a post", and it names Paint instead of gesturing at "the team feed".
-//
-// One message for every visitor, deliberately. This demo has no accounts, so an
-// empty view you are only looking at and an empty view of your own are the same
-// surface, and splitting the copy in two is what produced the duplication in the
-// first place. If accounts ever arrive, branch here — not at four call sites.
+// One settled zero state for every selected display name. Its single action uses
+// Social's submit label and opens the composer that owns that action.
 export const PROFILE_EMPTY_COPY = {
-  // The grid's empty state. The sentence says what fills this grid — both ends
-  // of the path, in one telling — and the two buttons below it name the two
-  // destinations. Splitting it that way is deliberate: when the sentence and the
-  // buttons both spell out the instruction, the empty state repeats itself in
-  // the space of three lines, which is the defect this copy exists to fix.
-  guidance: "Images made in Paint and published on Social appear here.",
-  actionLabel: "Create an image in Paint",
-  postActionLabel: "See every post on Social",
-  // Paint opens in a new tab from every route on this site, so the control that
-  // takes it says so in the same five words the two authored links use. It is
-  // part of the label rather than a title attribute: an accessible name that
-  // stops at "Create an image in Paint" has not disclosed anything.
-  newTabNote: "(opens in a new tab)",
+  actionLabel: "Publish post",
+  actionHref: "/social.html#post-form",
 };
 
-// The identity line under the heading when the selected name has nothing to
-// show. It names the person the page is already showing rather than the surface:
-// "No image posts on People yet" read as if People itself were empty, which is
-// never true — some other display name always has posts. Built from the same
-// display name the heading renders, so it stays right for every one of them.
-//
-// The name is written through textContent everywhere it lands (the header, the
-// live region), so an apostrophe in a name needs no escaping; nothing here is
-// ever parsed as markup.
-export function emptySummaryText(author) {
+export function profileEmptyText(author) {
   const name = String(author ?? "").trim() || DEFAULT_AUTHOR;
-  return `${name} hasn’t posted an image yet.`;
+  return `The display name “${name}” has no image posts yet.`;
 }
 
 // The grid's first-load status says exactly what People is retrieving and names
@@ -383,10 +352,8 @@ export function loadingSummaryText(author = DEFAULT_AUTHOR) {
 
 // The counts line when the selected display name has nothing to show. It states
 // the situation without naming anyone, because the heading directly above it
-// does — "Nova · 0 image posts" — and this line is read against it.
-// emptySummaryText() above still carries the name, because the one place that
-// wording still lands is the polite announcement, which has no page around it to
-// borrow a subject from.
+// does — "Nova · 0 image posts" — and this line is read against it. The name is
+// carried by profileEmptyText() instead, in the panel and the announcement.
 export const EMPTY_SUMMARY_LINE = "No image posts under this display name yet.";
 
 // The counts line beside the ordering label, and the one place on the page that
@@ -466,7 +433,7 @@ export function profileActiveFilterLine(author, count = null) {
 // the grid carries.
 export function profileAnnouncement(author, visibleCount) {
   if (visibleCount > 0) return `Showing ${countLabel(visibleCount, "image post")} by ${author}, newest first.`;
-  return `${emptySummaryText(author)} ${PROFILE_EMPTY_COPY.guidance}`;
+  return profileEmptyText(author);
 }
 
 /* ------------------------------ rendering layer --------------------------- */
@@ -592,67 +559,18 @@ function renderSkeleton(container, count = 6) {
   container.append(list);
 }
 
-// One paragraph and two distinct actions. The hero has already said the profile
-// is empty, so this says what fills it and then separates the two things a
-// reader can do about it: read the whole feed, or make an image for it. Paint is
-// the primary and goes first, so the solid control and the first stop in reading
-// and tab order are the same link; the way back to the whole feed is already a
-// sentence in the hero. The secondary is outlined as well as second, so weight
-// is not the only thing saying which is which.
 function renderEmpty(container, author) {
   const empty = el("div", "empty-state");
-  empty.append(el("p", "empty-title", PROFILE_EMPTY_COPY.guidance));
+  empty.append(el("p", "empty-title", profileEmptyText(author)));
   const link = el("a", "empty-action", PROFILE_EMPTY_COPY.actionLabel);
-  link.href = profilePaintHref(author);
-  link.target = "_blank";
-  link.rel = "noopener";
-  link.append(el("span", "new-tab-note", ` ${PROFILE_EMPTY_COPY.newTabNote}`));
-  const postLink = el("a", "empty-action empty-action-secondary",
-    PROFILE_EMPTY_COPY.postActionLabel);
-  postLink.href = "/social.html";
-  const actions = el("div", "empty-actions");
-  actions.append(link, postLink);
-  empty.append(actions);
+  link.href = PROFILE_EMPTY_COPY.actionHref;
+  empty.append(link);
   container.append(empty);
 }
 
-// The retry control's whole job has to be in its own text: a button reading
-// "Try again" is announced as two words with no object, and this page carries a
-// second control ("Create an image in Paint") that also acts on the grid. What
-// it retries is what the message above it just failed at.
+// The retry control's whole job is in its own text: a button reading "Try again"
+// is announced without an object. What it retries is what the failure names.
 export const PROFILE_RETRY_LABEL = "Retry loading image posts";
-
-// The filtered dead end, and the reason it is not the empty state. People is a
-// filtered view of Social, and the display-name picker is the filter: a name
-// with no pictures under it while other names have plenty is a full feed you
-// have narrowed to nothing, not a site with nothing on it. It says so in its
-// own words, and hands over the same reset Social's no-match panel does.
-//
-// The way out is Social's sentence with this page's noun in it: "Select Clear
-// filters to see all 9 posts." there (noMatchGuidance, src/social.js), the same
-// shape here. It names the control by the exact words printed on it — a reader
-// told to "clear filters" on a page whose filter is a row of display-name chips
-// has to go looking for a control that word does not obviously belong to — and
-// it says what pressing it will show, because People's reset does not restore
-// "everything": it lands on the display name this feed opens on. "Clear filters
-// to show them" claimed neither.
-//
-// It names that destination and not the display name showing: this page keeps
-// the selected name to two visible elements in the results region (the heading
-// and the identity line), so the sentence above it states the situation without
-// a name, exactly as the counts line does.
-export const PROFILE_CLEAR_FILTERS_LABEL = "Clear filters";
-export function profileNoMatchLine(author) {
-  const name = String(author ?? "").trim() || DEFAULT_AUTHOR;
-  return `No image posts were published under ${name}.`;
-}
-
-export function profileNoMatchGuidance(clearTo) {
-  const name = String(clearTo ?? "").trim();
-  return name
-    ? `Select ${PROFILE_CLEAR_FILTERS_LABEL} to see ${name}’s image posts.`
-    : `Select ${PROFILE_CLEAR_FILTERS_LABEL} to see the image posts under another display name.`;
-}
 
 function renderError(container, onRetry) {
   const failed = renderFeedStatus(container, {
@@ -665,17 +583,6 @@ function renderError(container, onRetry) {
   failed.querySelector?.(".feed-status-action")?.classList.add("empty-action");
 }
 
-function renderNoMatch(container, { author, onClearFilters, clearTo }) {
-  const panel = renderFeedStatus(container, {
-    state: "filtered", label: "People filter result",
-    text: profileNoMatchLine(author), detail: profileNoMatchGuidance(clearTo),
-    actionLabel: PROFILE_CLEAR_FILTERS_LABEL, onAction: onClearFilters,
-  });
-  panel.classList.add("empty-state", "empty-state-filtered");
-  panel.querySelector?.(".feed-status-value")?.classList.add("empty-title");
-  panel.querySelector?.(".feed-status-action")?.classList.add("empty-action");
-}
-
 // `state` keeps three situations apart that must never share one empty state:
 // still loading, loaded and genuinely empty, and failed. Posts already on screen
 // always win over a pending or failed refresh — stale content beats a spinner
@@ -683,7 +590,6 @@ function renderNoMatch(container, { author, onClearFilters, clearTo }) {
 export function renderProfileGrid(container, posts, options = {}) {
   const {
     state = "ready", onRetry = null, author = DEFAULT_AUTHOR, statusRegion = container,
-    total = null, onClearFilters = null, clearTo = "",
   } = options;
   const ordered = sortNewestFirst(posts ?? []);
   container.replaceChildren();
@@ -700,13 +606,12 @@ export function renderProfileGrid(container, posts, options = {}) {
     statusRegion.hidden = false;
   }
 
-  // `total` is the whole feed behind the display-name filter, and a clear
-  // handler is what makes the filtered dead end recoverable. A caller that
-  // passes neither — the render-layer tests, and any surface with no picker —
-  // gets the old three states, because with no filter there is nothing to have
-  // been filtered out.
-  const filtering = Boolean(onClearFilters) && total !== null && total > 0;
-  const phase = feedPhase({ state, total: total ?? ordered.length, visible: ordered.length, filtering });
+  // One zero state, so this layer needs no view of the feed behind the picker:
+  // a selected display name with nothing under it reads the same whether or not
+  // another name has pictures. Whether the filter emptied the grid still matters
+  // one level up, where it decides if "new image posts arrive on their own" is a
+  // true thing to be promising (mountProfile).
+  const phase = feedPhase({ state, visible: ordered.length });
 
   if (ordered.length === 0) {
     if (phase === "loading") {
@@ -716,7 +621,6 @@ export function renderProfileGrid(container, posts, options = {}) {
       });
       renderSkeleton(container);
     } else if (phase === "failed") renderError(statusRegion, onRetry);
-    else if (phase === "filtered-empty") renderNoMatch(statusRegion, { author, onClearFilters, clearTo });
     else renderEmpty(statusRegion, author);
     return;
   }
@@ -924,24 +828,20 @@ export function mountProfile(root, options = {}) {
     for (const route of elements.paintRoutes) route.href = profilePaintHref(author);
     // The one case where an empty grid is a filtered feed rather than an empty
     // one: some other display name in this feed does have image posts, so the
-    // reader has narrowed a full feed to nothing and there is somewhere to
-    // clear back to. With no such name, nothing was filtered out and the empty
-    // state is the honest answer.
+    // reader has narrowed a full feed to nothing rather than reached a site with
+    // nothing on it. The panel below says the same thing either way — the
+    // selected name has no image posts, and here is how to publish one — but the
+    // promise beside it does not, so the distinction is still worth computing.
     const elsewhere = defaultProfileAuthor(posts);
-    const recoverable = Boolean(elsewhere) && elsewhere !== author;
+    const filtered = Boolean(elsewhere) && elsewhere !== author;
     renderProfileGrid(grid, mine, {
       state,
       onRetry: options.onRetry,
       author,
       statusRegion: elements.feedStatus ?? grid,
-      total: recoverable ? posts.length : 0,
-      onClearFilters: recoverable ? () => clearFilters(elsewhere) : null,
-      // The name the reset lands on, so the panel can say what pressing its
-      // control will show rather than promising a feed it does not restore.
-      clearTo: recoverable ? elsewhere : "",
     });
     const phase = feedPhase({
-      state, total: recoverable ? posts.length : mine.length, visible: mine.length, filtering: recoverable,
+      state, total: filtered ? posts.length : mine.length, visible: mine.length, filtering: filtered,
     });
     for (const line of waiting) line.present(phase !== "loading");
     // The promise speaks only where there is a grid for new image posts to
@@ -953,16 +853,8 @@ export function mountProfile(root, options = {}) {
     // an open fetch it is a promise standing on the line that is already saying
     // the image posts are still loading.
     connectionLine.present(phase === "loaded" || phase === "empty");
-    // The page's one voice carries the panel's way out. An empty grid with
-    // pictures under other display names is a filtered dead end, so the
-    // announcement offers the reset rather than the invitation into Paint that
-    // the visible region no longer offers here — and it names both display names
-    // the reader is standing between, because an announcement has no page around
-    // it to borrow a subject from.
     if (elements.announcer && state === "ready") {
-      elements.announcer.textContent = phase === "filtered-empty"
-        ? `${emptySummaryText(author)} ${profileNoMatchGuidance(elsewhere)}`
-        : profileAnnouncement(author, mine.length);
+      elements.announcer.textContent = profileAnnouncement(author, mine.length);
     }
     if (options.onRender) options.onRender({ author, posts: mine, summary });
   };
@@ -994,19 +886,6 @@ export function mountProfile(root, options = {}) {
     // top of the document after every choice.
     if (refocus) elements.picker.querySelector('[aria-pressed="true"]')?.focus();
   };
-
-  // The reset behind the filtered dead end's Clear filters control: it puts the
-  // picker back on the display name this feed actually opens on — the one a
-  // visitor who chose nobody would have landed on — which restores the full grid
-  // and returns the page to its loaded state. Focus moves with it, because the
-  // button that ran this sits inside the panel the restored tiles replace, and
-  // leaving focus on a removed node drops a keyboard reader to the top of the
-  // document. It lands on the first restored tile, or on the chip choose()
-  // already focused when there is no tile to land on.
-  function clearFilters(next) {
-    choose(next);
-    grid.querySelector(".profile-tile")?.focus();
-  }
 
   function choose(next) {
     if (next === author) return;

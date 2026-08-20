@@ -123,17 +123,18 @@ test("a display name with zero image posts is answered under that name, with a s
     // is the reset rather than the editor.
     assert.equal(document.querySelectorAll(".empty-state").length, 1);
     const panel = document.querySelector("#profile-feed-status").querySelector(".empty-state");
-    assert.match(textOf(panel), /No image posts were published under Ari\./);
-    assert.equal(textOf(panel.querySelector(".feed-status-action")), "Clear filters");
+    assert.match(textOf(panel), /The display name “Ari” has no image posts yet\.Publish post/);
+    assert.equal(textOf(panel.querySelector("a")), "Publish post");
+    assert.equal(panel.querySelector("a").getAttribute("href"), "/social.html#post-form");
     // And the page's one voice names the display name, because an announcement
     // has no page around it to borrow a subject from.
-    assert.match(textOf(document.querySelector("#profile-announcer")), /^Ari hasn’t posted an image yet\./);
+    assert.equal(textOf(document.querySelector("#profile-announcer")), "The display name “Ari” has no image posts yet.");
   } finally {
     page.restore();
   }
 });
 
-test("a feed with no pictures under any name offers the way to make one and the whole feed", async () => {
+test("a feed with no pictures under any name offers Publish post", async () => {
   // Nobody has an image post, so nothing was filtered out: this is the empty
   // state rather than the filtered dead end, and its two routes are the ones
   // that fill it — Paint, and the rest of the posts on Social.
@@ -145,11 +146,10 @@ test("a feed with no pictures under any name offers the way to make one and the 
     const { document } = page;
     assertStatedZero(document, "Ari");
     const panel = document.querySelector("#profile-feed-status").querySelector(".empty-state");
-    assert.match(textOf(panel), /Images made in Paint and published on Social appear here\./);
+    assert.match(textOf(panel), /The display name “Ari” has no image posts yet\.Publish post/);
     const routes = panel.querySelectorAll("a");
-    assert.deepEqual(routes.map((route) => textOf(route)),
-      ["Create an image in Paint (opens in a new tab)", "See every post on Social"]);
-    assert.equal(routes[1].getAttribute("href"), "/social.html", "the way to the whole feed does not open it");
+    assert.deepEqual(routes.map((route) => textOf(route)), ["Publish post"]);
+    assert.equal(routes[0].getAttribute("href"), "/social.html#post-form");
     // Both are real links, so both are a tab stop and neither needs a handler to
     // be reachable from the keyboard.
     for (const route of routes) {
