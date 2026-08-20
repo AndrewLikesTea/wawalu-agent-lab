@@ -123,7 +123,7 @@ test("a display name with zero image posts is answered under that name, with a s
     // is the reset rather than the editor.
     assert.equal(document.querySelectorAll(".empty-state").length, 1);
     const panel = document.querySelector("#profile-feed-status").querySelector(".empty-state");
-    assert.match(textOf(panel), /No image posts match the selected display name\./);
+    assert.match(textOf(panel), /No image posts were published under Ari\./);
     assert.equal(textOf(panel.querySelector(".feed-status-action")), "Clear filters");
     // And the page's one voice names the display name, because an announcement
     // has no page around it to borrow a subject from.
@@ -177,7 +177,7 @@ test("a forwarded name this feed does not hold is repeated verbatim and never tr
     assert.doesNotMatch(rendered, /published as (Zed|Guest)\./);
     assert.doesNotMatch(rendered, /(Zed|Guest) has no image posts yet\./);
     // A link that asked for somebody is not a name the page chose.
-    assert.equal(textOf(document.querySelector("#profile-picker-note")), "Pick another name below to switch.");
+    assert.equal(textOf(document.querySelector("#profile-picker-note")), "");
   } finally {
     page.restore();
   }
@@ -207,7 +207,7 @@ test("a forwarded name the feed cannot hold is still the name the page answers",
     // number borrowed from the name the page used to fall back to.
     assert.equal(textOf(selectedChip(page)), `✓ Selected: Filter People to ${OVERLONG_NAME}’s image posts · 0 image posts`);
     // A name that was asked for is never reported back as the page's own choice.
-    assert.equal(textOf(document.querySelector("#profile-picker-note")), "Pick another name below to switch.");
+    assert.equal(textOf(document.querySelector("#profile-picker-note")), "");
     // Nothing this browser cannot post under is written to storage, and the
     // filter is still linkable: the name goes back into the URL encoded.
     assert.equal(page.storage.getItem("shiplog.social.author"), null);

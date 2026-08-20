@@ -343,7 +343,7 @@ test("a forwarded name with no image posts is named, and offered the whole feed"
   // This feed has image posts, under other display names, so the region says
   // the filter emptied the view rather than that there is nothing to see. The
   // genuinely-empty invitation belongs to a feed with no images at all.
-  assert.match(textOf(empty), /No image posts match the selected display name\./);
+  assert.match(textOf(empty), new RegExp(`No image posts were published under ${TESS}\\.`));
   assert.doesNotMatch(textOf(empty), /Images made in Paint and published on Social appear here\./);
 
   // The way back to the whole feed is the reset that undoes the filter, in the
