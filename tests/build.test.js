@@ -338,16 +338,21 @@ test("the home page names every nav destination and says what each one does", as
   assert.equal(headings.length, 2, "the destinations must be split into exactly two groups");
   assert.deepEqual(headings.map(textOf), NAV_SETS.map((set) => set.label),
     "the group headings must be the nav's group names, word for word and in the nav's order");
-  // The caution the demonstration heading used to carry is copy this section
-  // still owes a buyer; it moved into prose so the heading could carry only the
-  // name. It may not simply have been deleted.
+  // The directory distinguishes invented content from visitor-published work,
+  // and the two publishing surfaces state what a visitor can add.
   const guideText = textOf(guide);
-  assert.match(guideText, /not tools for your data/i,
-    "the demonstration group must still say plainly that it is not a tool for the reader's data");
-  assert.ok(
-    guideText.indexOf("not tools for your data") > guideText.indexOf(textOf(headings[1])),
-    "the caution must read under the demonstration heading, not before it",
-  );
+  assert.match(guideText, /posts and images already published on Social and People are invented sample content/i,
+    "the demonstration group must identify which existing content is invented");
+  assert.doesNotMatch(guideText, /not tools for your data/i);
+
+  const entrySentence = (href) => {
+    const entry = entries.find((item) => item.querySelector("a").getAttribute("href") === href);
+    return entry.textContent.slice(entry.querySelector("a").textContent.length).trim();
+  };
+  assert.equal(entrySentence("/social.html"),
+    "Read posts and images, or publish your own post under a display name.");
+  assert.equal(entrySentence("/paint/"),
+    "Create and export your own image, then publish it in a Social post under a display name.");
 
   const lists = [...guide.querySelectorAll("ul")].map((list) =>
     [...list.querySelectorAll("li")].map((entry) => entry.querySelector("a").getAttribute("href")));
