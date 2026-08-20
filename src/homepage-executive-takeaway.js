@@ -55,6 +55,7 @@ export const TAKEAWAY_COPY_FEEDBACK = Object.freeze({
 import {
   CONTACT_COPY, emailFieldError, looksLikeEmail, postLeadEmail, SubmissionError,
 } from "./lead-capture.js";
+import { createFollowUpConfirmation } from "./follow-up-confirmation.js";
 
 export const FINOPS_EXAMPLE_FOLLOW_UP_PURPOSE = "follow_up_finops_example";
 
@@ -87,6 +88,21 @@ export function bindFinopsExampleFollowUp(doc = globalThis.document, request = (
   if (!open || !panel || !form || !status || !error) return null;
   const email = form.elements.email;
   const submit = form.querySelector('button[type="submit"]');
+  const retry = doc.getElementById("finops-example-follow-up-retry");
+  const confirmation = createFollowUpConfirmation({
+    form, status, submit, email,
+    onReopen: () => { status.textContent = ""; delete form.dataset.state; },
+  });
+
+  // The retry stands where the send control was, exactly as the footer's does.
+  // It is optional here because this handler binds to whatever markup the page
+  // ships, and a submit path that throws on a missing button would surface as an
+  // unhandled rejection rather than as the failure the visitor is looking at.
+  function showRetry(visible) {
+    if (!retry) return;
+    submit.hidden = visible;
+    retry.hidden = !visible;
+  }
 
   open.addEventListener("click", () => {
     panel.hidden = false;
@@ -104,6 +120,9 @@ export function bindFinopsExampleFollowUp(doc = globalThis.document, request = (
     const invalid = emailFieldError(email.value, looksLikeEmail(email.value), CONTACT_COPY);
     if (invalid) {
       form.dataset.state = "invalid";
+      // Nothing was sent, so nothing is being retried: the control goes back to
+      // saying what pressing it would actually do. The footer does the same.
+      showRetry(false);
       error.textContent = invalid;
       error.hidden = false;
       email.setAttribute("aria-invalid", "true");
@@ -112,20 +131,24 @@ export function bindFinopsExampleFollowUp(doc = globalThis.document, request = (
       return;
     }
     form.dataset.state = "submitting";
+    showRetry(false);
     error.hidden = true;
     email.removeAttribute("aria-invalid");
     submit.disabled = true;
     submit.setAttribute("aria-disabled", "true");
     status.textContent = "Sending your follow-up request…";
     try {
-      await postLeadEmail(request, email.value, FINOPS_EXAMPLE_FOLLOW_UP_PURPOSE, CONTACT_COPY);
+      const address = email.value.trim();
+      const topic = form.elements.topic.value;
+      await postLeadEmail(request, email.value, FINOPS_EXAMPLE_FOLLOW_UP_PURPOSE, CONTACT_COPY, topic);
       form.dataset.state = "success";
-      for (const control of [form.elements.topic, email, submit]) control.disabled = true;
-      status.textContent = "Follow-up requested. Someone from Wawalu will reply by email.";
+      status.textContent = "Request received. Your submitted work email and follow-up topic were recorded.";
+      confirmation.show(address, topic);
     } catch (caught) {
       form.dataset.state = "error";
       status.textContent = caught instanceof SubmissionError ? caught.message : CONTACT_COPY.unconfirmed;
       email.setAttribute("aria-invalid", "true");
+      showRetry(true);
       submit.disabled = false;
       submit.removeAttribute("aria-disabled");
     }

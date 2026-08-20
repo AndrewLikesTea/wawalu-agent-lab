@@ -116,8 +116,7 @@ export const DEMOS = Object.freeze([
  * job, and it stands above the form because a visitor reads it before deciding
  * whether to type an address into anything.
  */
-export const INVITATION = "Questions about Shiplog? Ask the Wawalu team that operates it, and a "
-  + "person replies by email.";
+export const INVITATION = "Questions about Shiplog? Send the Wawalu team that operates it a follow-up request.";
 
 // What the field sends is not this footer's sentence to write: all three
 // follow-up forms render FOLLOW_UP_PRIVACY from src/lead-capture.js, beside
@@ -125,16 +124,12 @@ export const INVITATION = "Questions about Shiplog? Ask the Wawalu team that ope
 
 // What a visitor is told once the address is stored.
 //
-// Deliberately not an SLA. The AI FinOps form answers within two business days
-// because someone watches that queue; this footer sits on eight pages of a
-// demonstration product and nobody has promised to watch it that closely. So it
-// says what is actually true — the address is recorded, a person is the one who
-// reads it, and no machine is about to reply — rather than a response time this
-// demo would break.
-const CAPTURED = "Follow-up requested — we sent your email address, and nothing else. It is recorded "
-  + "for the Wawalu team, and a person replies by email; nothing here answers automatically.";
-const ALREADY_CAPTURED = "Follow-up requested — that address is already on our list, so nothing new "
-  + "was recorded. The Wawalu team can reach you there.";
+// One string on every page that ships this footer, so it can only claim the
+// field all of them send. A topic goes only from the pages that declare one, and
+// is named in the receipt, which knows whether there was one. Neither promises a
+// reply, a response time, or an action: nothing here guarantees any of them.
+const CAPTURED = "Request received. Your submitted work email was recorded.";
+const ALREADY_CAPTURED = "Request received. That work email was already recorded, so no duplicate row was added.";
 
 const SUBMITTING = "Requesting a follow-up — sending your email address…";
 
@@ -359,7 +354,7 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
       status.textContent = body.created ? CAPTURED : ALREADY_CAPTURED;
       // The form is replaced from here, so the control that would send again is
       // gone before the `finally` below could bring it back.
-      confirmation.show(address);
+      confirmation.show(address, form.elements.topic?.value);
     } catch (error) {
       // Copy this repository owns, never a string an intermediary supplied, and
       // never a claim that the address was lost when that is not known.

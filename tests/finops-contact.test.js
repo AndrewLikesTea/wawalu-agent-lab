@@ -348,8 +348,8 @@ test("the bundled example brief is equally undisturbed, and the confirmation say
     // something was sent: this sentence is announced on its own, out of the
     // context of the button that produced it.
     const confirmation = shownText(document, "finops-contact-status");
-    assert.match(confirmation, /^Follow-up requested — we sent your email address, and nothing else\./);
-    assert.match(confirmation, /within two business days/, "the confirmation must say roughly when");
+    assert.match(confirmation, /^Request received\./);
+    assert.doesNotMatch(confirmation, /will reply|within two business days/i);
     assert.deepEqual(resultSnapshot(document), before,
       "the example brief must survive the submission exactly as the imported one does");
 
@@ -357,10 +357,10 @@ test("the bundled example brief is equally undisturbed, and the confirmation say
     // after the visitor asks for the form back, which is the only way to one.
     byId(document, "finops-contact-again").click();
     submitEmail(document, TYPED_EMAIL);
-    await waitFor(() => shownText(document, "finops-contact-status").includes("already on our list"),
+    await waitFor(() => shownText(document, "finops-contact-status").includes("already recorded"),
       "the already-captured confirmation");
-    assert.match(shownText(document, "finops-contact-status"), /^Follow-up requested — that address is already on our list/);
-    assert.match(shownText(document, "finops-contact-status"), /within two business days/);
+    assert.match(shownText(document, "finops-contact-status"), /^Request received\./);
+    assert.doesNotMatch(shownText(document, "finops-contact-status"), /will reply|within two business days/i);
     assert.deepEqual(resultSnapshot(document), before);
 
     // The example result's own labelling is exactly what it was.
@@ -425,6 +425,12 @@ test("a failed submission shows recovery copy for the first time and keeps the a
     assert.match(textOf(recovery), /the briefing above is unchanged/);
     assert.equal(byId(document, "finops-contact-email").value, TYPED_EMAIL,
       "a failed submission must not clear the address the visitor typed");
+    const visibleSubmits = byId(document, "finops-contact-form")
+      .querySelectorAll('button[type="submit"]').filter((button) => !button.hidden);
+    assert.equal(visibleSubmits.length, 1, "failure exposes exactly one retry action");
+    assert.equal(textOf(visibleSubmits[0]), "Retry your follow-up request");
+    assert.equal(byId(document, "finops-contact-confirmation"), null,
+      "failure and success UI cannot render together");
     // Copy this repository owns — never the string the response supplied.
     assert.equal(shownText(document, "finops-contact-status"),
       "We didn’t get your request because follow-up requests are temporarily offline.");

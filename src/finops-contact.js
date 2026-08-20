@@ -47,21 +47,19 @@ import {
 } from "./lead-capture.js";
 
 /**
- * What a visitor is told once the address is stored. It names what was asked
- * for, the one thing that travelled, who answers, and by when. Two business days
- * is the commitment this makes; nothing here claims a customer, a saving, or an
- * outcome.
+ * What a visitor is told once the address is stored: that it arrived, and what
+ * arrived with it. No reply, no response time, no next action — this surface
+ * files a request into a queue and nothing downstream of it is guaranteed, so
+ * naming a person or a deadline here would be writing a commitment the product
+ * cannot keep. Neither does it claim a customer, a saving, or an outcome.
  *
- * It opens on "Follow-up requested" for the same reason the site footer's does:
- * the live region announces this sentence on its own, out of the context of the
+ * It opens on "Request received" for the same reason the site footer's does: the
+ * live region announces this sentence on its own, out of the context of the
  * button that was pressed, so the first words have to say which request
  * succeeded rather than merely that something was sent.
  */
-export const CAPTURED = "Follow-up requested — we sent your email address, and nothing else. Someone here "
-  + "replies within two business days. We cannot see your analysis, so say in your reply what you would "
-  + "like to go through.";
-export const ALREADY_CAPTURED = "Follow-up requested — that address is already on our list, so nothing new "
-  + "was stored. Someone here replies within two business days.";
+export const CAPTURED = "Request received. Your submitted work email was recorded.";
+export const ALREADY_CAPTURED = "Request received. That work email was already recorded, so no duplicate row was added.";
 
 const SUBMITTING = "Requesting a follow-up — sending your email address…";
 
@@ -86,6 +84,7 @@ export function initFinopsContact(
 
   const email = form.elements.email;
   const submit = form.querySelector('button[type="submit"]');
+  const retry = root.querySelector(`#${prefix}-retry`);
   const dismiss = root.querySelector(`#${prefix}-dismiss`);
   const fieldError = root.querySelector(`#${ERROR_ID}`);
   const status = root.querySelector(`#${prefix}-status`);
@@ -105,6 +104,10 @@ export function initFinopsContact(
 
   function setRecoveryVisible(visible) {
     recovery.hidden = !visible;
+    if (retry) {
+      retry.hidden = !visible;
+      submit.hidden = visible;
+    }
     describeWith(email, RECOVERY_ID, visible);
   }
 
@@ -222,7 +225,7 @@ export function initFinopsContact(
       // one: somewhere to go now, in this tab, that does not depend on the reply.
       // It survives the swap below: the form goes, this stays.
       setNextStepVisible(true);
-      confirmation.show(address);
+      confirmation.show(address, form.elements.topic?.value);
     } catch (error) {
       // Copy this repository owns, never a string an intermediary supplied, and
       // never a claim that the address was lost when that is not known.
