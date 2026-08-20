@@ -48,7 +48,12 @@ const UNSTAMPED = Object.freeze({ schemaVersion: 1, commitSha: null, builtAt: nu
 // makes rather than a friendlier one invented for the test.
 const answers = (body) => async () => body;
 
-async function open(t, { buildStamp = STAMPED, readHealth = answers({ status: "healthy", version: SHA }) } = {}) {
+// `settle: false` boots the page and stops at the state a visitor meets while
+// the probe is outstanding: the list has rendered, the band has not answered.
+async function open(
+  t,
+  { buildStamp = STAMPED, readHealth = answers({ status: "healthy", version: SHA }), settle = true } = {},
+) {
   const page = await loadPage(RELEASES_PAGE, {
     storage: { [STORAGE_KEY]: JSON.stringify([]), [RELEASE_STORAGE_KEY]: JSON.stringify([]) },
   });
@@ -61,8 +66,8 @@ async function open(t, { buildStamp = STAMPED, readHealth = answers({ status: "h
     now: () => NOW,
   });
   await waitFor(
-    () => page.document.documentElement.dataset.shiplogDeployment === "ready",
-    "the deployment status band never finished its comparison",
+    () => page.document.documentElement.dataset[settle ? "shiplogDeployment" : "shiplogReleases"] === "ready",
+    settle ? "the deployment status band never finished its comparison" : "the releases page never finished rendering",
   );
   return page;
 }
@@ -279,6 +284,27 @@ test("an unstamped build shows no record and withdraws the real marking", async 
 });
 
 /* ---------------------- the check names a real record --------------------- */
+
+// The line the band shows before the probe answers (#1910). Composed from
+// REAL_RECORD_NAME rather than quoted whole: the waiting line and the settled
+// verdict below name one record, so renaming it has to move both or fail here.
+const WAITING_LINE = "Retrieving the running build’s version or commit identifier…"
+  + ` That identifier is compared with ${REAL_RECORD_NAME}, not with the invented example records.`;
+
+test("the check names the identifier it is retrieving and the record it compares, while it waits", async (t) => {
+  // A probe that never answers: the state a visitor on a slow network meets,
+  // and the one a visitor whose /healthz never returns stays in.
+  const page = await open(t, { readHealth: () => new Promise(() => {}), settle: false });
+
+  assert.notEqual(
+    page.document.documentElement.dataset.shiplogDeployment,
+    "ready",
+    "the band answered, so this asserts a settled state and not the waiting one",
+  );
+  assert.equal(verdictText(page), WAITING_LINE);
+  // Announced when it is replaced by the verdict, not read as a heading.
+  assert.equal(page.document.querySelector("#deployment-verdict").getAttribute("role"), "status");
+});
 
 test("the deployment check's verdict names a record the page marks as real", async (t) => {
   const page = await open(t);

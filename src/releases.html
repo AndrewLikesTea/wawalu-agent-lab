@@ -138,6 +138,16 @@
            for. It also draws the line the rest of this page draws — the example
            decision and release above are invented, this answer is not.
 
+           The waiting line below is static markup for the same reason, and it
+           says what is being retrieved and what it will be compared with (#1910)
+           — so a reader who meets the band before the probe answers, or who
+           never gets an answer, still has the identifier to look for and the
+           record to look at. It names that record in the words the marking and
+           the settled verdict use, deliberately: waiting and answer are one
+           claim about one record. The front door's copy of this band keeps its
+           shorter line; it is a teaser that links here, and the detail belongs
+           where the check is.
+
            The classes are the release follow-up callout's, reused rather than
            extended: styles.css is at its measured size budget, and this band is
            the same thing that pattern already means — one state, one sentence,
@@ -151,7 +161,7 @@
         <div class="release-followup" id="deployment-status-callout">
           <h2 class="release-followup-title" id="deployment-status-title">Deployment check</h2>
           <p class="release-followup-lead" id="deployment-status-proof">Does the real record of this deployment name the version this site is running right now? It reads the running deployment when the page loads. The example decision and release above are invented; that record and this answer are not.</p>
-          <p class="release-followup-lead" id="deployment-verdict" role="status">Checking the running deployment now…</p>
+          <p class="release-followup-lead" id="deployment-verdict" role="status">Retrieving the running build’s version or commit identifier… That identifier is compared with the real record of this deployment, not with the invented example records.</p>
           <p class="detail-summary" id="deployment-metric"></p>
           <!-- The commit-sha half of the same question, written by
                releases-page.js from src/release-build-match.js: the same

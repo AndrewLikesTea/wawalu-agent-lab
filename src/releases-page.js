@@ -344,7 +344,8 @@ export function initReleasesPage(root = document, storage = localStorage, option
   // The deployment status band, booted once from the same composed log the list
   // renders. It reads `/healthz` and nothing else, so it cannot delay or fail
   // the list: the promise is guarded end to end, and a boot that somehow still
-  // threw leaves the authored "Comparing…" line rather than a blank panel.
+  // threw leaves the authored waiting line — which names the identifier being
+  // retrieved and the record it is compared with — rather than a blank panel.
   //
   // Not re-run when a release is recorded. The band answers a question about the
   // running deployment against the real record of it, and neither of those
