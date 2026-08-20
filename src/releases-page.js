@@ -197,7 +197,7 @@ export function initReleasesPage(root = document, storage = localStorage, option
   const deployedRelease = options.deployedRelease !== undefined
     ? options.deployedRelease
     : deployedReleaseRecord(buildStamp);
-  renderShippedBuild(root, deployedRelease);
+  renderShippedBuild(root, deployedRelease, options);
 
   // Every early return below leaves the page in a stated end state: the list
   // shows why it is empty, the count says so, and no stale follow-up survives

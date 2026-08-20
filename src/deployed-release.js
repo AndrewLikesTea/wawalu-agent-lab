@@ -107,6 +107,25 @@ export function commitLinkText(sha) {
 }
 
 /**
+ * A link into this same site, or "" when the value is anything else.
+ *
+ * `detailHref` is the one href on the real-record block that is read off the
+ * record rather than composed character by character, and two things now
+ * consume it: an anchor a visitor clicks and a URL a visitor copies. A single
+ * leading slash and a conservative alphabet is the whole rule. It rejects
+ * protocol-relative "//host", every scheme (http:, data:, javascript:),
+ * backslashes, whitespace and "../" traversal — so no record can point either
+ * consumer off this site, and in particular the clipboard cannot be handed a
+ * foreign address under a label that says "real release link". The same check
+ * src/social.js applies to an image path, for the same reason.
+ */
+export function sameSiteHref(value) {
+  if (typeof value !== "string") return "";
+  if (!value.startsWith("/") || value.startsWith("//") || value.includes("..")) return "";
+  return /^\/[A-Za-z0-9._~\-/?#=&%]*$/.test(value) ? value : "";
+}
+
+/**
  * The real record of this deployment, or null when the build is unstamped.
  *
  * Release-record shaped, so every surface that already knows how to read a

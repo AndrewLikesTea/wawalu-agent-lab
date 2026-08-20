@@ -85,6 +85,9 @@
         <p class="shiplog-proof-note" id="shipped-build-note">This record is not an example. The build that produced the page you are reading wrote it, from the commit that build was made from. Open that commit below and check it against the public repository.</p>
         <dl class="shiplog-proof-facts" id="shipped-build-facts"></dl>
         <div class="shiplog-proof-share">
+          <a class="shiplog-real-link" id="shipped-build-detail" href="/releases.html#shipped-build">Open this real release record</a>
+          <button class="share-button" id="shipped-build-copy" type="button" aria-describedby="shipped-build-copy-status">Copy link to this real release</button>
+          <span class="share-status" id="shipped-build-copy-status" role="status" aria-live="polite" aria-atomic="true"></span>
           <!-- Its own class, deliberately not .shiplog-proof-link: that class is
                how releases-page.js finds the invented example's "Open this
                example" control, and a second element wearing it would take the

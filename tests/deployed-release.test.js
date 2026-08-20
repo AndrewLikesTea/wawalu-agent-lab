@@ -29,8 +29,9 @@ import {
   REPOSITORY_URL,
   commitUrl,
   deployedReleaseRecord,
+  sameSiteHref,
 } from "../src/deployed-release.js";
-import { UNSTAMPED_NOTE } from "../src/deployed-release-view.js";
+import { UNSTAMPED_NOTE, renderShippedBuild } from "../src/deployed-release-view.js";
 import { loadPage, textOf } from "./support/browser.js";
 import { waitFor } from "./support/page-module.js";
 
@@ -138,6 +139,8 @@ test("the real record names the deployed version and links a public commit a vis
   const panel = page.document.querySelector("#shipped-build");
   assert.match(textOf(panel), new RegExp(SHA));
   assert.match(textOf(panel), new RegExp(STAMPED.builtAt));
+  assert.match(textOf(panel), /OwnerWawalu/);
+  assert.match(textOf(panel), /SummaryThe commit this artifact was built from/);
 
   const source = page.document.querySelector("#shipped-build-source");
   assert.equal(source.getAttribute("href"), `${REPOSITORY_URL}/commit/${SHA}`);
@@ -145,6 +148,101 @@ test("the real record names the deployed version and links a public commit a vis
   // Named by the commit it opens, not by an adjective about it.
   assert.equal(textOf(source), "Open commit 0123456789ab in the public repository");
   assert.doesNotMatch(textOf(panel), /proven|verified|guaranteed|trusted/i);
+});
+
+test("the real record has a stable visible permalink that can be copied and opened directly", async (t) => {
+  let copied = "";
+  const page = await loadPage(RELEASES_PAGE, {
+    storage: { [STORAGE_KEY]: JSON.stringify([]), [RELEASE_STORAGE_KEY]: JSON.stringify([]) },
+  });
+  t.after(() => page.restore());
+  initReleasesPage(page.document, page.storage, {
+    location: { pathname: "/releases.html", origin: "https://labs.wawalu.org", search: "", hash: "" },
+    history: { replaceState() {} },
+    buildStamp: STAMPED,
+    readHealth: answers({ status: "healthy", version: SHA }),
+    now: () => NOW,
+    clipboard: { writeText: async (value) => { copied = value; } },
+  });
+
+  const detail = page.document.querySelector("#shipped-build-detail");
+  assert.equal(textOf(detail), "Open this real release record");
+  assert.equal(detail.getAttribute("href"), "/releases.html#shipped-build");
+  assert.equal(page.document.querySelectorAll("#shipped-build").length, 1);
+
+  page.document.querySelector("#shipped-build-copy").click();
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.equal(copied, "https://labs.wawalu.org/releases.html#shipped-build");
+  assert.equal(textOf(page.document.querySelector("#shipped-build-copy-status")), "Real release link copied to clipboard.");
+});
+
+// The permalink above is the first value on this block read off the record
+// rather than composed from the stamp, and it now feeds both an anchor and the
+// clipboard. So the hostile version is driven, not reasoned about: a record
+// naming somewhere other than this site must reach neither.
+test("sameSiteHref accepts this record's own link and refuses every value that leaves the site", () => {
+  assert.equal(sameSiteHref("/releases.html#shipped-build"), "/releases.html#shipped-build");
+  for (const value of [
+    "javascript:navigator.clipboard.writeText('x')",
+    "data:text/html,<p>hi</p>",
+    "//evil.example/releases.html",
+    "https://evil.example/releases.html",
+    "/../../etc/passwd",
+    "\\releases.html",
+    " /releases.html",
+    "",
+    null,
+  ]) assert.equal(sameSiteHref(value), "", `accepted ${String(value)}`);
+});
+
+test("a record naming somewhere off this site gets no link, no copy button, and writes no clipboard", async (t) => {
+  let copied = null;
+  const page = await loadPage(RELEASES_PAGE, {
+    storage: { [STORAGE_KEY]: JSON.stringify([]), [RELEASE_STORAGE_KEY]: JSON.stringify([]) },
+  });
+  t.after(() => page.restore());
+  initReleasesPage(page.document, page.storage, {
+    location: { pathname: "/releases.html", origin: "https://labs.wawalu.org", search: "", hash: "" },
+    history: { replaceState() {} },
+    buildStamp: STAMPED,
+    readHealth: answers({ status: "healthy", version: SHA }),
+    now: () => NOW,
+    deployedRelease: { ...deployedReleaseRecord(STAMPED), detailHref: "https://evil.example/releases.html" },
+    clipboard: { writeText: async (value) => { copied = value; } },
+  });
+
+  const detail = page.document.querySelector("#shipped-build-detail");
+  assert.equal(detail.hidden, true);
+  // The authored href survives untouched; the hostile one never reaches the DOM.
+  assert.equal(detail.getAttribute("href"), "/releases.html#shipped-build");
+  const copy = page.document.querySelector("#shipped-build-copy");
+  assert.equal(copy.hidden, true);
+  copy.click();
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.equal(copied, null);
+});
+
+test("re-rendering the block leaves one copy handler, pointed at the record now on screen", async (t) => {
+  const writes = [];
+  const page = await loadPage(RELEASES_PAGE, {
+    storage: { [STORAGE_KEY]: JSON.stringify([]), [RELEASE_STORAGE_KEY]: JSON.stringify([]) },
+  });
+  t.after(() => page.restore());
+  const options = {
+    location: { origin: "https://labs.wawalu.org" },
+    clipboard: { writeText: async (value) => { writes.push(value); } },
+  };
+  const record = deployedReleaseRecord(STAMPED);
+  renderShippedBuild(page.document, record, options);
+  renderShippedBuild(page.document, { ...record, detailHref: "/releases.html?id=later#shipped-build" }, options);
+
+  page.document.querySelector("#shipped-build-copy").click();
+  await Promise.resolve();
+  await Promise.resolve();
+  // One write, not one per past render, and it names the second record.
+  assert.deepEqual(writes, ["https://labs.wawalu.org/releases.html?id=later#shipped-build"]);
 });
 
 test("the real record precedes the invented example, so the observatory link lands on it", async (t) => {
@@ -172,6 +270,8 @@ test("an unstamped build shows no record and withdraws the real marking", async 
   assert.equal(textOf(page.document.querySelector("#shipped-build-note")), UNSTAMPED_NOTE);
   assert.equal(page.document.querySelector("#shipped-build-facts").children.length, 0);
   assert.equal(page.document.querySelector("#shipped-build-source").hidden, true);
+  assert.equal(page.document.querySelector("#shipped-build-detail").hidden, true);
+  assert.equal(page.document.querySelector("#shipped-build-copy").hidden, true);
   // And the check says it has nothing real to compare against rather than
   // falling back to an invented record.
   assert.match(verdictText(page), /The check did not complete/);
