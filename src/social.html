@@ -545,25 +545,12 @@
               <label for="post-author">Display name <span class="label-optional">(optional)</span></label>
               <input id="post-author" name="author" type="text" maxlength="60" autocomplete="off"
                 placeholder="Guest" aria-describedby="post-author-hint post-author-identity" />
-              <!-- "Display name" is the one term the site uses for the name a
-                   post is published under; the feed filter, People's picker and
-                   the About Shiplog footer all say it, so the field is named
-                   after the concept instead of defining it in the hint below.
-                   The hint used to open by restating the label — it now carries
-                   only the fact the label cannot: the “Guest” default, stated
-                   here, where the visitor is actually typing a name, and
-                   nowhere else. -->
-              <span class="hint" id="post-author-hint">Defaults to “Guest”.</span>
-              <!-- The one thing the label and the “Guest” default cannot say,
-                   said where the name is actually chosen: what the name does —
-                   it is the key People groups image posts by. It carried what a
-                   display name is not as well; the feed note above says that
-                   once per page, and every visitor reads it without opening this
-                   panel. Plain help text in the field group, named by the
-                   input's own aria-describedby: nothing focusable. The publish
-                   consequence at the button stays the one place the page says
-                   the post is public and permanent. -->
-              <p class="hint" id="post-author-identity">People groups image posts by display name, so this is the name yours appear under.</p>
+              <!-- The two hints state what the display name does on each
+                   surface, in the order the post reaches them: Social first,
+                   then People. Plain help text in the field group, named by the
+                   input's own aria-describedby: nothing focusable. -->
+              <span class="hint" id="post-author-hint">The display name appears on your post in the Social feed, defaults to “Guest,” and cannot be changed after publishing.</span>
+              <p class="hint" id="post-author-identity">People groups image posts under this display name.</p>
             </div>
 
             <!-- The one place this sentence is said, at the moment it costs

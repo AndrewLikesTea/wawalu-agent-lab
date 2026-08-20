@@ -912,14 +912,9 @@ test("Social and People define a display name once, in the same words", async (t
     "Anyone who visits Shiplog can read your post, its image, and the display name you publish it with. You cannot delete it afterwards, so post nothing you would not put on a public page.");
 });
 
-// The display name field says the one thing the label and the “Guest” default
-// cannot: the name is the key People groups image posts by. It used to carry
-// what a display name is not as well, which made this the third wording of that
-// idea on the site and put it behind a disclosure a reader has to open. The
-// definition is now the feed note's, once per page, in the open. Help text only:
-// no heading, no link, nothing focusable, and the publish consequence at the
-// button is left alone.
-test("the display name field says what the name is used for", async (t) => {
+// The opened composer pins both sentences beneath the display name field: what
+// publishes to Social and cannot change, then how People groups image posts.
+test("the display name field explains where the name appears and that it cannot change", async (t) => {
   const page = await loadPage(new URL("../src/social.html", import.meta.url), {});
   t.after(() => page.restore());
   // The composer ships collapsed now, so this asks the question about the state
@@ -941,19 +936,18 @@ test("the display name field says what the name is used for", async (t) => {
     "the hint left the display name field's own group");
   assert.deepEqual((input.getAttribute("aria-describedby") ?? "").split(" "),
     ["post-author-hint", "post-author-identity"],
-    "the input names its hints in reading order: the default, then what the name means");
+    "the input names its Social and People hints in reading order");
 
+  const socialHelp = textOf(page.document.querySelector("#post-author-hint"));
+  assert.equal(socialHelp,
+    "The display name appears on your post in the Social feed, defaults to “Guest,” and cannot be changed after publishing.");
   const text = textOf(identity[0]);
-  assert.equal(text, "People groups image posts by display name, so this is the name yours appear under.",
-    "the field stops saying that the name is how People groups a post");
+  assert.equal(text, "People groups image posts under this display name.");
   // What a display name is not is the feed note's sentence, said once on the
   // page. Repeating it here would put the definition in two wordings again, and
   // the second copy would sit behind a panel a reader has to open.
   assert.doesNotMatch(text, /not a signed-in user|owns or verifies|invented for this demo/,
     "the field states the display-name definition a second time");
-
-  // The “Guest” default survives the addition, in its own sentence.
-  assert.equal(textOf(page.document.querySelector("#post-author-hint")), "Defaults to “Guest”.");
 
   // Help text, not a control: the composer gains no tab stop and no widget.
   assert.equal(identity[0].querySelectorAll("a,button,input,select,textarea,summary").length, 0,
@@ -1735,7 +1729,8 @@ test("the composer's three cautions still read word for word once it is open", a
 
   const cautions = {
     "post-image-alt-hint": "Describe what matters in the image for people who cannot see it. Up to 200 characters.",
-    "post-author-identity": "People groups image posts by display name, so this is the name yours appear under.",
+    "post-author-hint": "The display name appears on your post in the Social feed, defaults to “Guest,” and cannot be changed after publishing.",
+    "post-author-identity": "People groups image posts under this display name.",
     "post-consequence": "Anyone who visits Shiplog can read your post, its image, and the display name you publish it with. You cannot delete it afterwards, so post nothing you would not put on a public page.",
   };
   for (const [id_, wording] of Object.entries(cautions)) {
