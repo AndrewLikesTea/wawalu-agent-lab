@@ -194,7 +194,7 @@ test("tab order reaches the log's controls before the recorder's fields, and add
   const heroStops = sequence.filter((node) => isWithin(node, hero));
   assert.equal(heroStops.length, 1, "the hero gained more than the one jump control");
   assert.equal(heroStops[0].id, "record-release-link");
-  assert.equal(textOf(heroStops[0]), "Record a release");
+  assert.equal(textOf(heroStops[0]), "Open the form to record a release");
   assert.equal(heroStops[0].getAttribute("href"), "#record-release");
   assert.equal(textOf(page.document.querySelector("#release-form").querySelector("button")), "Record release");
   // The recorder panel is a focus target, not a stop: it carries tabindex="-1",
@@ -215,6 +215,31 @@ test("the jump control puts focus on the record-a-release form", async (t) => {
     "activating the jump control left focus outside the recorder");
   // Focus, not only a scroll: the next Tab is inside the form.
   assert.ok(isWithin(page.document.querySelector("#release-version"), panel));
+});
+
+// The hero's link used to be named for the destination alone, which read like
+// the record links a few blocks below it. It now states the action too, in the
+// form's own words. Pinned as a relationship rather than a second copy of the
+// string: the link is checked against the heading of the panel it lands on, so
+// renaming one and not the other fails here instead of drifting.
+test("the jump control names the form it opens and reads unlike the links that open records", async (t) => {
+  const page = await open(t);
+  const link = page.document.querySelector("#record-release-link");
+  const label = textOf(link);
+  assert.match(label, /^Open the form to /, "the link no longer says a form is what it opens");
+  const heading = textOf(page.document.querySelector("#release-form-title"));
+  assert.ok(label.endsWith(heading.toLowerCase()),
+    `the link ends "${label}" but the form it opens is headed "${heading}"`);
+
+  // Distinguishable from the real record, the example record and the repository:
+  // those open something already written, this one opens the form that writes
+  // one. Compared as strings, never element against element.
+  const others = page.document.querySelectorAll("a").filter((node) => node.id !== "record-release-link");
+  assert.ok(others.length > 2, "the page rendered too few links for this to be a real comparison");
+  for (const other of others) {
+    assert.notEqual(textOf(other), label, "another link on the page reads exactly like the form's link");
+    assert.doesNotMatch(textOf(other), /the form/, "a link that opens a record claims to open the form");
+  }
 });
 
 test("deep link identifies and expands the same release so its linked decision is visible", async (t) => {
