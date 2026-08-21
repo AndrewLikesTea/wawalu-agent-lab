@@ -63,7 +63,7 @@ export function filtersAvailable(phase) {
 // The one sentence the filter region says while its controls cannot do
 // anything. Caption weight, not content weight: it describes the controls
 // beside it rather than the feed, which the status region is already reporting.
-export const FILTERS_UNAVAILABLE_HINT = "Filters become available when posts load.";
+export const FILTERS_UNAVAILABLE_HINT = "Display name and posting time options become available when posts load.";
 
 /** Is `node` inside `host`? Ancestor walk: no descendant selectors here. */
 function within(node, host) {
