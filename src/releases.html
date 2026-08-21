@@ -162,17 +162,12 @@
           <h2 class="release-followup-title" id="deployment-status-title">Deployment check</h2>
           <p class="release-followup-lead" id="deployment-status-proof">Does the real record of this deployment name the version this site is running right now? It reads the running deployment when the page loads. The example decision and release above are invented; that record and this answer are not.</p>
           <p class="release-followup-lead" id="deployment-verdict" role="status">Retrieving the running build’s version or commit identifier… That identifier is compared with the real record of this deployment, not with the invented example records.</p>
+          <p class="detail-summary" id="deployment-identifiers"></p>
+          <div class="shiplog-proof-share" id="deployment-proof-links">
+            <a class="shiplog-real-link" id="deployment-release-record" href="/releases.html#shipped-build">Open release record</a>
+            <a class="shiplog-real-link" id="deployment-commit" href="https://github.com/AndrewLikesTea/wawalu-agent-lab">Open the public repository this site is built from</a>
+          </div>
           <p class="detail-summary" id="deployment-metric"></p>
-          <!-- The commit-sha half of the same question, written by
-               releases-page.js from src/release-build-match.js: the same
-               function, over the same generated build stamp, that /healthz
-               answers with. An operator reading this line and one reading the
-               probe get the same verdict and the same next action because there
-               is only one comparison. Reuses the metric's class rather than
-               adding a rule: styles.css is at its measured size budget. Empty
-               until the module runs — a page with no JavaScript claims nothing
-               about what shipped. -->
-          <p class="detail-summary" id="deployment-build-match"></p>
           <div id="deployment-next-action"></div>
           <details class="supersede-disclosure" id="deployment-evidence" data-disclosure="collapsed">
             <summary class="supersede-disclosure-summary" id="deployment-evidence-summary" aria-expanded="false" aria-controls="deployment-evidence-body">Evidence: what the running deployment answered, and the release record it was compared with</summary>

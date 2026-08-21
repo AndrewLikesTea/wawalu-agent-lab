@@ -30,7 +30,7 @@
 // N ago"), not a claim about when a drift began — which nothing on this page
 // could know without persisting past verdicts.
 
-import { REAL_RECORD_NAME } from "./deployed-release.js";
+import { REAL_RECORD_NAME, sameSiteHref } from "./deployed-release.js";
 import { releaseDetailHref } from "./releases.js";
 
 // The fields a health response may name its build in, in order. `/healthz`
@@ -48,7 +48,10 @@ export const UNKNOWN_REASONS = Object.freeze({
   unreachable: "The health check could not be reached.",
   timeout: "The health check did not answer in time.",
   "unexpected-shape": "The health check answered in a shape this page does not recognise.",
-  "no-build": "The health check answered, but it named no build identifier.",
+  // Covers both ways the answer can carry no usable identifier — a response
+  // that named none, and one that named something this page refused to show —
+  // so the sentence stays true without claiming to know which happened.
+  "no-build": "The health check answered, but it named no build identifier this page can read.",
   "no-record": "There is no real record of this deployment to compare the running deployment against.",
 });
 
@@ -56,6 +59,37 @@ const FALLBACK_REASON = UNKNOWN_REASONS.unreachable;
 
 function text(value) {
   return typeof value === "string" && value.trim() !== "" ? value.trim() : null;
+}
+
+/** The longest run of characters either side of the comparison may be named by. */
+export const MAX_IDENTIFIER_LENGTH = 64;
+
+// NEITHER IDENTIFIER IS WRITTEN BY THIS PAGE. One is whatever answered
+// `/healthz`; the other comes off a release record, which can be edited outside
+// the recorder. Both are painted as the proof a reader is asked to believe, so
+// an identifier carrying an invisible bidirectional override could make the
+// verdict display a different sha from the one that was compared — which is the
+// single lie this band exists to make impossible.
+//
+// THE RULE IS REJECT, NOT STRIP, and that is the whole reason this is not a call
+// to the display sanitizer the record surfaces use. Deleting the controls would
+// let two identifiers that differ compare equal — "abc<override>def" and
+// "abcdef" strip to the same string — and invent a match out of a mangled value.
+// Refusing it instead sends the check down the `unknown` path it already has,
+// which states that nothing here says what is running. Length is the same
+// reasoning: a build identifier is a 40-character sha, and an answer longer than
+// this is not one being abbreviated, it is one filling the panel.
+//
+// Written through RegExp from escapes so this source file stays plain text, and
+// deliberately not `g`: a global regex carries `lastIndex` between `.test`
+// calls, which would let every second hostile value through.
+const UNSAFE_DISPLAY_CHARACTERS = new RegExp("[\\u0000-\\u001f\\u007f\\u202a-\\u202e\\u2066-\\u2069]", "u");
+
+/** The value if it can be read and shown as an identifier, or null if it cannot. */
+export function readableIdentifier(value) {
+  const found = text(value);
+  if (!found || found.length > MAX_IDENTIFIER_LENGTH) return null;
+  return UNSAFE_DISPLAY_CHARACTERS.test(found) ? null : found;
 }
 
 // A recognised reading is a JSON object that states a `status`. Anything else —
@@ -70,8 +104,11 @@ export function isHealthShape(health) {
 
 export function healthBuildId(health) {
   if (!isHealthShape(health)) return null;
+  // A field this page cannot read is skipped rather than returned: the next
+  // field may still name the build honestly, and if none does the caller lands
+  // on the `no-build` reason, whose words cover both ways that happens.
   for (const field of HEALTH_BUILD_FIELDS) {
-    const found = text(health[field]);
+    const found = readableIdentifier(health[field]);
     if (found) return found;
   }
   return null;
@@ -120,10 +157,16 @@ function nextActionFor(release) {
       releaseId: null,
     };
   }
-  const name = text(release.version) ?? release.id;
+  const name = readableIdentifier(release.version) ?? readableIdentifier(release.id) ?? "this deployment";
   return {
     label: text(release.actionLabel) ?? `Reconcile release ${name}`,
-    href: text(release.detailHref) ?? releaseDetailHref(release.id),
+    // A record's own detail route only survives if it points into this site.
+    // `releaseDetailHref` encodes the id it is given; a `detailHref` written by
+    // hand does not, and the view assigns it straight to an anchor — so an
+    // imported log must not be able to hand this band a `javascript:` or
+    // off-site destination under a label a reader trusts. Same check, and the
+    // same reason, as the real record's own link (src/deployed-release.js).
+    href: sameSiteHref(release.detailHref) || releaseDetailHref(release.id),
     target: text(release.actionTarget)
       ?? `Open ${name} and re-record it if what is running is correct, or ship the recorded build if it is not.`,
     releaseId: release.id,
@@ -142,14 +185,17 @@ function nextActionFor(release) {
  */
 export function deploymentVerdict(reading = {}, release = null, now = new Date().toISOString()) {
   const { health = null, failure = null, checkedAt = now } = reading ?? {};
-  const recordedBuild = text(release?.version);
+  const recordedBuild = readableIdentifier(release?.version);
   const recordedAt = text(release?.createdAt);
   const heldMs = elapsed(recordedAt, now);
   const base = {
     deployedBuild: null,
     recordedBuild,
     recordedAt,
-    release: release?.id ? { id: release.id, version: recordedBuild } : null,
+    // The record's own id, which the band now names beside the running build as
+    // the thing that was compared. Null when it cannot be read, so the surface
+    // says it does not have one rather than printing a value it cannot vouch for.
+    release: release?.id ? { id: readableIdentifier(release.id), version: recordedBuild } : null,
     heldMs,
     heldFor: durationText(heldMs),
     reason: null,

@@ -17,11 +17,12 @@
 import {
   NO_ACTION_TEXT,
   deploymentVerdict,
+  readableIdentifier,
   verdictMetricText,
   verdictSentence,
 } from "./deployment-status.js";
 import { BUILD_STAMP } from "./build-stamp.js";
-import { commitLinkText, deployedReleaseRecord } from "./deployed-release.js";
+import { commitLinkText, deployedReleaseRecord, sameSiteHref } from "./deployed-release.js";
 
 export const HEALTH_URL = "/healthz";
 
@@ -29,6 +30,7 @@ export const DEPLOYMENT_IDS = Object.freeze({
   panel: "deployment-status",
   callout: "deployment-status-callout",
   verdict: "deployment-verdict",
+  identifiers: "deployment-identifiers",
   metric: "deployment-metric",
   action: "deployment-next-action",
   actionTarget: "deployment-next-action-target",
@@ -36,6 +38,8 @@ export const DEPLOYMENT_IDS = Object.freeze({
   evidenceSummary: "deployment-evidence-summary",
   evidenceBody: "deployment-evidence-body",
   source: "deployment-commit",
+  proofLinks: "deployment-proof-links",
+  releaseRecord: "deployment-release-record",
 });
 
 // A response body, whatever the deployment answered with.
@@ -158,6 +162,12 @@ export function renderDeploymentStatus(root, verdict, { reading = null, release 
 
   const verdictLine = byId(root, DEPLOYMENT_IDS.verdict);
   if (verdictLine) verdictLine.textContent = verdictSentence(verdict);
+  const identifiers = byId(root, DEPLOYMENT_IDS.identifiers);
+  if (identifiers) {
+    const running = verdict.deployedBuild ?? "not reported";
+    const recordId = verdict.release?.id ?? "not available";
+    identifiers.textContent = `Running build identifier: ${running}. Compared release-record identifier: ${recordId}.`;
+  }
   const metric = byId(root, DEPLOYMENT_IDS.metric);
   if (metric) metric.textContent = verdictMetricText(verdict);
 
@@ -228,6 +238,30 @@ export function renderDeploymentSource(root, record) {
   return record.sourceUrl;
 }
 
+/**
+ * Keep the proof's record destination beside its public commit destination.
+ *
+ * Both halves of the offer are checked before it is made: the destination has to
+ * stay on this site (`sameSiteHref`) and the id has to be one a reader can see
+ * whole (`readableIdentifier`). A record failing either is not linked at all,
+ * because a link is a claim about where it goes and what it names.
+ */
+export function renderDeploymentRecordLink(root, record) {
+  const link = byId(root, DEPLOYMENT_IDS.releaseRecord);
+  if (!link) return null;
+  const href = sameSiteHref(record?.detailHref);
+  const id = readableIdentifier(record?.id);
+  if (!id || !href) {
+    link.hidden = true;
+    return null;
+  }
+  link.hidden = false;
+  link.href = href;
+  link.setAttribute("href", href);
+  link.textContent = `Open release record ${id}`;
+  return href;
+}
+
 // Mirror the disclosure's own state onto the summary, the way every other
 // disclosure on this site does: the details element owns open/closed and the
 // keyboard handling, and this keeps `aria-expanded` telling the same story.
@@ -269,8 +303,14 @@ export async function initDeploymentStatus(root, options = {}) {
   // is the stamp's record even when a caller compares against a different one:
   // the question this link answers is "which commit produced the page I am
   // reading?", and only the stamp knows that.
-  renderDeploymentSource(root, stampedRecord);
+  const sourceHref = renderDeploymentSource(root, stampedRecord);
   const release = options.release !== undefined ? options.release : stampedRecord;
+  const recordHref = renderDeploymentRecordLink(root, release);
+  // An unstamped build offers neither destination, and the row they share is a
+  // ruled band with padding of its own — so it goes with them rather than
+  // painting an empty divider under a check that has nothing to link to.
+  const proofLinks = byId(root, DEPLOYMENT_IDS.proofLinks);
+  if (proofLinks) proofLinks.hidden = !sourceHref && !recordHref;
   const checkedAt = (options.now ?? (() => new Date().toISOString()))();
   const reading = await probeHealth(options.readHealth ?? healthEndpointReader(), checkedAt);
   let verdict;

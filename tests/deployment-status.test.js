@@ -16,9 +16,11 @@ import { STORAGE_KEY, initDecisionLog } from "../src/app.js";
 import { RELEASE_STORAGE_KEY } from "../src/releases.js";
 import { initReleasesPage } from "../src/releases-page.js";
 import {
+  MAX_IDENTIFIER_LENGTH,
   UNKNOWN_REASONS,
   deploymentVerdict,
   durationText,
+  readableIdentifier,
   verdictMetricText,
   verdictSentence,
 } from "../src/deployment-status.js";
@@ -53,7 +55,7 @@ const NEWEST = {
 
 const OLDER = { ...NEWEST, id: "r-2-0-0", version: "v2.0.0", title: "Read cache", createdAt: "2026-06-01T12:00:00.000Z" };
 
-async function openReleases(t, { releases = [OLDER, NEWEST], readHealth } = {}) {
+async function openReleases(t, { releases = [OLDER, NEWEST], readHealth, deployedRelease = NEWEST } = {}) {
   const page = await loadPage(RELEASES_PAGE, {
     storage: {
       [STORAGE_KEY]: JSON.stringify([]),
@@ -70,7 +72,7 @@ async function openReleases(t, { releases = [OLDER, NEWEST], readHealth } = {}) 
     seed: NO_SEED,
     readHealth,
     now: () => NOW,
-    deployedRelease: NEWEST,
+    deployedRelease,
   });
   await waitFor(
     () => page.document.documentElement.dataset.shiplogDeployment === "ready",
@@ -317,6 +319,54 @@ test("the band writes nothing and executes no supplied markup", async (t) => {
     2,
     "the deployment band changed the release log",
   );
+});
+
+// Written as an escape so this source file stays plain text: a right-to-left
+// override in a build identifier must not survive into the proof a buyer reads.
+const BIDI_OVERRIDE = String.fromCharCode(0x202e);
+
+test("an identifier the page cannot show whole is refused, never stripped into a match", async (t) => {
+  // The two sides differ. Deleting the override rather than refusing the value
+  // would leave "v2.1.0" on both sides and report a match this deployment never
+  // earned — which is why the rule is reject, and why this case exists.
+  const spoofed = `v2.1.${BIDI_OVERRIDE}0`;
+  const verdict = deploymentVerdict({ health: { status: "ok", build: spoofed } }, NEWEST, NOW);
+  assert.equal(verdict.state, "unknown", "an unreadable identifier was compared anyway");
+  assert.equal(verdict.deployedBuild, null);
+  assert.equal(verdict.reason, UNKNOWN_REASONS["no-build"]);
+  assert.doesNotMatch(verdictSentence(verdict), /^Confirmed/);
+
+  // Length is the same rule for the same reason: one answer from the endpoint
+  // may not become the whole proof area.
+  const longest = "9".repeat(MAX_IDENTIFIER_LENGTH);
+  assert.equal(readableIdentifier(longest), longest, "a full-length identifier is still readable");
+  assert.equal(readableIdentifier(`${longest}9`), null);
+  assert.equal(deploymentVerdict({ health: { status: "ok", build: `${longest}9` } }, NEWEST, NOW).deployedBuild, null);
+
+  // And none of it reaches the rendered page.
+  const page = await openReleases(t, { readHealth: answers({ status: "ok", build: spoofed }) });
+  const identifiers = textOf(page.document.querySelector("#deployment-identifiers"));
+  assert.equal(identifiers.includes(BIDI_OVERRIDE), false, "an invisible override reached the proof line");
+  assert.equal(identifiers, "Running build identifier: not reported. Compared release-record identifier: r-2-1-0.");
+  assert.match(verdictText(page), /The check did not complete/);
+});
+
+test("a record this band cannot route to is not linked, on either link it draws", async (t) => {
+  // A record can be edited outside the recorder, and both of these hrefs are
+  // assigned straight to an anchor. Neither may choose a scheme.
+  const hostile = { ...NEWEST, detailHref: "javascript:alert(1)" };
+  const drift = deploymentVerdict({ health: { status: "ok", build: "v9.9.9" } }, hostile, NOW);
+  assert.equal(drift.state, "drift");
+  assert.equal(drift.nextAction.href, "/release.html?id=r-2-1-0", "the record chose the next action's destination");
+
+  const page = await openReleases(t, {
+    deployedRelease: hostile,
+    readHealth: answers({ status: "ok", build: "v9.9.9" }),
+  });
+  assert.equal(nextActions(page)[0].getAttribute("href"), "/release.html?id=r-2-1-0");
+  // A link is a claim about where it goes, so a record with no usable
+  // destination is not offered as one rather than offered pointing elsewhere.
+  assert.equal(page.document.querySelector("#deployment-release-record").hidden, true);
 });
 
 /* ------------------------------ the pure core ----------------------------- */
