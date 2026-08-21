@@ -281,6 +281,15 @@ test("an unstamped build shows no record and withdraws the real marking", async 
   // falling back to an invented record.
   assert.match(verdictText(page), /The check did not complete/);
   assert.match(verdictText(page), /no real record of this deployment/);
+  assert.equal(
+    textOf(page.document.querySelector("#deployment-identifiers")),
+    "Running build identifier: 0123456789abcdef0123456789abcdef01234567. Compared release-record identifier: not available.",
+  );
+  assert.equal(page.document.querySelector("#deployment-release-record").hidden, true);
+  // With no commit and no record there is nothing to link, so the ruled row the
+  // two links share goes with them instead of painting an empty divider.
+  assert.equal(page.document.querySelector("#deployment-proof-links").hidden, true);
+  assert.doesNotMatch(verdictText(page), /^Confirmed:/);
 });
 
 /* ---------------------- the check names a real record --------------------- */
@@ -338,14 +347,23 @@ test("a page and a deployment built from different commits read as a mismatch wi
   // resolve to nothing: this record does not live in the visitor's log.
   assert.equal(actions[0].getAttribute("href"), "/releases.html#shipped-build");
   assert.equal(textOf(actions[0]), "Open the real record of this deployment");
+  assert.equal(
+    textOf(page.document.querySelector("#deployment-identifiers")),
+    `Running build identifier: ${other}. Compared release-record identifier: ${DEPLOYED_RELEASE_ID}.`,
+  );
+  assert.equal(page.document.querySelector("#deployment-release-record").hidden, false);
 });
 
-test("the build-sha line compares the running build against the real record", async (t) => {
+test("the proof names both compared identifiers and links both records", async (t) => {
   const page = await open(t);
-  const line = textOf(page.document.querySelector("#deployment-build-match"));
-  assert.match(line, /^Running build 0123456789ab is the build release deployed-build says shipped/);
-  // Never against an invented record, which shipped no commit at all.
-  assert.doesNotMatch(line, /demo-r-/);
+  assert.equal(
+    textOf(page.document.querySelector("#deployment-identifiers")),
+    `Running build identifier: ${SHA}. Compared release-record identifier: ${DEPLOYED_RELEASE_ID}.`,
+  );
+  const record = page.document.querySelector("#deployment-release-record");
+  assert.equal(textOf(record), `Open release record ${DEPLOYED_RELEASE_ID}`);
+  assert.equal(record.getAttribute("href"), "/releases.html#shipped-build");
+  assert.equal(page.document.querySelector("#deployment-commit").getAttribute("href"), `${REPOSITORY_URL}/commit/${SHA}`);
 });
 
 /* -------------------- the invented example still works -------------------- */

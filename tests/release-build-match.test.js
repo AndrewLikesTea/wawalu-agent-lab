@@ -13,9 +13,6 @@ import assert from "node:assert/strict";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
-import { STORAGE_KEY } from "../src/app.js";
-import { RELEASE_STORAGE_KEY } from "../src/releases.js";
-import { initReleasesPage } from "../src/releases-page.js";
 import {
   UNKNOWN_REASONS,
   VERDICTS,
@@ -29,17 +26,11 @@ import {
 } from "../src/release-build-match.js";
 import { onRequest, releaseBuildFields } from "../functions/healthz.js";
 import { headCommitSha, stampSource, writeBuildStamp } from "../scripts/write-build-stamp.mjs";
-import { loadPage } from "./support/browser.js";
-import { waitFor } from "./support/page-module.js";
 
 const FIXTURE = JSON.parse(
   await readFile(new URL("./fixtures/release-build-match.json", import.meta.url), "utf8"),
 );
 const { stamp, unstampedBuild, matchingRelease, mismatchingRelease, olderRelease } = FIXTURE;
-
-const RELEASES_PAGE = new URL("../src/releases.html", import.meta.url);
-const NO_SEED = { decisions: [], releases: [] };
-const NOW = "2026-08-06T12:00:00.000Z";
 
 // Written as escapes so this source file stays plain text: a right-to-left
 // override in a release id must not survive into an operator's next action.
@@ -60,31 +51,6 @@ async function probe({ stamp: injectedStamp, releases }) {
     response: { status: 200 },
     body: { status: "healthy", storage: "available", ...releaseBuildFields(injectedStamp, releases) },
   };
-}
-
-/** The releases page, booted the way the browser boots it, with no network. */
-// `compared` is the record the page's line is about. It used to be whichever
-// record in the log was newest; since #1819 the band compares against the real
-// record of this deployment, so the caller names it here for the same reason it
-// names the stamp — these cases are about the comparison, not about which
-// record production derives (tests/deployed-release.test.js pins that).
-async function openReleases(t, releases, compared = releases.at(-1)) {
-  const page = await loadPage(RELEASES_PAGE, {
-    storage: { [STORAGE_KEY]: JSON.stringify([]), [RELEASE_STORAGE_KEY]: JSON.stringify(releases) },
-  });
-  t.after(() => page.restore());
-  initReleasesPage(page.document, page.storage, {
-    seed: NO_SEED,
-    buildStamp: stamp,
-    deployedRelease: compared,
-    readHealth: async () => ({ status: "ok" }),
-    now: () => NOW,
-  });
-  await waitFor(
-    () => page.document.documentElement.dataset.shiplogDeployment === "ready",
-    "the deployment status band never finished its comparison",
-  );
-  return page;
 }
 
 test("the comparison is over shas, tolerant of abbreviation and nothing else", () => {
@@ -210,54 +176,14 @@ test("nothing an operator can feed the probe turns it into a 500", async () => {
   assert.match(thrown.reason_detail, /stamp unreadable/);
 });
 
-test("the page line and the probe are the same computation, not two copies of one sentence", async (t) => {
-  const releases = [olderRelease, mismatchingRelease];
-  const page = await openReleases(t, releases);
-
-  const line = page.document.querySelector("#deployment-build-match");
-  const expected = releaseBuildMatchLine(releaseBuildStatus(stamp, releases));
-  // The rendered line IS the shared function's output for the same inputs. Not
-  // "contains the same words" — the same string, so a change to the rule moves
-  // the page and the probe together, or moves neither.
-  assert.equal(line.textContent, expected);
-
-  const { body } = await probe({ stamp, releases });
-  assert.equal(body.verdict, VERDICTS.mismatched);
-  assert.ok(line.textContent.includes(body.action), "the page carries the probe's next action verbatim");
-  assert.ok(line.textContent.includes(mismatchingRelease.id));
-
-  // It lives inside the deployment status band that already answers this
-  // question, rather than in a new component of its own. Walked upward, because
-  // the harness has no descendant selectors.
-  let ancestor = line.parentNode;
-  while (ancestor && ancestor.id !== "deployment-status") ancestor = ancestor.parentNode;
-  assert.equal(ancestor?.id, "deployment-status", "the line belongs to the status surface that already exists");
-  assert.equal(page.document.querySelectorAll("#deployment-build-match").length, 1, "exactly one such line");
-});
-
-test("a matched page says so and offers no next action", async (t) => {
-  const releases = [olderRelease, matchingRelease];
-  const page = await openReleases(t, releases);
-
-  const text = page.document.querySelector("#deployment-build-match").textContent;
-  assert.equal(text, releaseBuildMatchLine(releaseBuildStatus(stamp, releases)));
-  assert.ok(text.includes(shortSha(stamp.commitSha)));
-  assert.ok(text.includes(matchingRelease.id));
-  const { body } = await probe({ stamp, releases });
-  assert.equal("action" in body, false);
-  assert.doesNotMatch(text, /Open release/, "a matched verdict names nothing to do");
-});
-
-test("both surfaces import the one comparison module and neither writes its own", async () => {
+test("the health endpoint imports the one comparison module and does not write its own", async () => {
   const endpoint = await readFile(new URL("../functions/healthz.js", import.meta.url), "utf8");
-  const surface = await readFile(new URL("../src/releases-page.js", import.meta.url), "utf8");
   assert.match(endpoint, /from "\.\.\/src\/release-build-match\.js"/);
-  assert.match(surface, /from "\.\/release-build-match\.js"/);
   // Neither file may decide the verdict itself: the words below exist in one
   // module, so the page and the probe are structurally incapable of disagreeing.
   // Comments are where these files are allowed to name the verdict; code is not.
   const code = (source) => source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
-  for (const [name, source] of [["functions/healthz.js", endpoint], ["src/releases-page.js", surface]]) {
+  for (const [name, source] of [["functions/healthz.js", endpoint]]) {
     assert.doesNotMatch(code(source), /mismatched/, `${name} must not author a verdict of its own`);
     assert.doesNotMatch(code(source), /Open release /, `${name} must not author a next action of its own`);
   }

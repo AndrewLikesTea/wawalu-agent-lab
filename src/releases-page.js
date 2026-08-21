@@ -19,7 +19,6 @@ import {
 } from "./releases.js";
 import { loadReleaseData } from "./releases-data.js";
 import { BUILD_STAMP } from "./build-stamp.js";
-import { releaseBuildMatch, releaseBuildMatchLine } from "./release-build-match.js";
 import { deployedReleaseRecord } from "./deployed-release.js";
 import { renderShippedBuild } from "./deployed-release-view.js";
 import { initDeploymentStatus } from "./deployment-status-view.js";
@@ -169,9 +168,6 @@ export function initReleasesPage(root = document, storage = localStorage, option
   const search = root.querySelector("#release-search");
   const statusFilter = root.querySelector("#release-status");
   const followUpSlot = root.querySelector("#release-followup");
-  // The one line in the deployment status band that says whether the build
-  // serving this page is the build the newest release record says shipped.
-  const buildMatchSlot = root.querySelector("#deployment-build-match");
   // A radio group, so the active filter is whichever option is checked. Read
   // from the controls on every update rather than mirrored into page state:
   // the browser already owns "which one is selected", and a second copy of that
@@ -259,18 +255,6 @@ export function initReleasesPage(root = document, storage = localStorage, option
     if (target) historyRef?.replaceState?.(null, "", target);
   };
 
-  // The commit-sha half of the same question, from the same function `/healthz`
-  // answers with (src/release-build-match.js) over the same generated stamp
-  // (src/build-stamp.js) that shipped inside this artifact. Compared against the
-  // real record of this deployment, not against the newest record in the log:
-  // the log's newest record is an invented demonstration that shipped no commit,
-  // so comparing a running build against it was never a true statement about
-  // what is running.
-  const renderBuildMatch = () => {
-    if (!buildMatchSlot) return;
-    buildMatchSlot.textContent = releaseBuildMatchLine(releaseBuildMatch(buildStamp, deployedRelease));
-  };
-
   const view = mountReleaseList(container, { releases, decisions, exampleIds: exampleReleaseIds });
   // The one selection this page holds: whatever the last render actually drew.
   // The export reads it rather than filtering a second time, so the file a
@@ -290,9 +274,6 @@ export function initReleasesPage(root = document, storage = localStorage, option
     // point at a release the active filter has hidden.
     if (count) count.textContent = releaseSummarySentence(shown.length, releases.length);
     if (followUpSlot) renderReleaseFollowUp(followUpSlot, releaseFollowUp(shown));
-    // Re-read after a record joins the log: recording a release changes which
-    // record is newest, and therefore what the verdict is about.
-    renderBuildMatch();
   };
   // Reads the selection above at press time, not a copy taken at boot, so the
   // file follows every filter change without a subscription to maintain.
@@ -352,6 +333,7 @@ export function initReleasesPage(root = document, storage = localStorage, option
   // changes because a visitor wrote a record of their own.
   initDeploymentStatus(root, {
     release: deployedRelease,
+    buildStamp,
     readHealth: options.readHealth,
     now: options.now,
   }).catch(() => {});
