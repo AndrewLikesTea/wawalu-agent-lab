@@ -94,7 +94,7 @@ for (const [name, document] of Object.entries(NEARBY_INVITATION)) {
     assert.ok(sentence.indexOf("Paint") < sentence.indexOf("Social"),
       `${name}'s helper names the two steps out of order`);
 
-    // Two steps, and the sentence stops at the second one. It used to read
+    // The destination, then the two linked steps that reach it. It used to read
     // "return to this tab, then publish it on Social", which sent the reader
     // back to the page they were already on — People has no composer — and then
     // named Social in plain text, leaving the nav as the only way to it. Both
@@ -104,7 +104,13 @@ for (const [name, document] of Object.entries(NEARBY_INVITATION)) {
       `${name}'s helper still routes the reader back to a page with no composer`);
     assert.doesNotMatch(sentence, /publish it on this page|publish it here/i,
       `${name}'s helper asks the reader to publish on the page they are reading`);
-    assert.equal(sentence.trim().endsWith("under a display name."), true,
+    // Named before the steps, not after them: the reader is told what publishing
+    // does before being asked to open two tools, and the paragraph opens on a
+    // sentence rather than on a link with nothing in front of it.
+    assert.match(sentence.trim(),
+      /^A published post with an image appears on People, under the display name you publish it with\./,
+      `${name}'s helper does not open by naming where a published image lands: ${sentence.trim()}`);
+    assert.equal(sentence.trim().endsWith("and publish it."), true,
       `${name}'s helper does not end on the publishing step: ${sentence.trim()}`);
   });
 
@@ -616,8 +622,19 @@ test("nothing in the image section says Paint delivers the file", () => {
 test("People names the same steps in the same words as the composer", () => {
   const invitation = textOf(documents.People.querySelector(".feed-create")).trim();
   assert.equal(invitation,
-    "Want a picture of your own here? Create an image in Paint (opens in a new tab), "
-    + "export the PNG, then Write a post on Social and publish it under a display name.");
+    "A published post with an image appears on People, under the display name you publish it with. "
+    + "To add yours: Create an image in Paint (opens in a new tab), export the PNG, "
+    + "then Write a post on Social and publish it.");
+
+  // And one wording for the result, not one per page. Social's composer hint
+  // already tells a writer where an image post lands and under which name; the
+  // helper here says it in the composer's words, so a reader who meets both
+  // reads one rule twice rather than two rules that have to be reconciled.
+  const RESULT = "appears on People, under the display name you publish it with";
+  assert.ok(invitation.includes(RESULT),
+    `People states the result in words of its own: ${invitation}`);
+  assert.ok(textOf(documents.Social.getElementById("post-form-hint")).includes(RESULT),
+    "the composer no longer states the result in the words People borrows from it");
 
   // One name per concept across the two pages: the same tool, the same export,
   // the same file. People stops at the composer rather than naming Choose image,
