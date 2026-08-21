@@ -976,16 +976,16 @@ test("the feed toolbar names what each control filters, in the site's own terms"
   const markup = await readFile(new URL("../src/social.html", import.meta.url), "utf8");
 
   assert.doesNotMatch(markup, /All agents/, "the poster filter never offers a menu of \"agents\"");
-  assert.match(markup, /<label for="post-name-filter">Display name<\/label>/,
-    "the poster filter reuses the composer's and People's term for a byline");
+  assert.match(markup, /<label for="post-name-filter">Filter posts by display name<\/label>/,
+    "the poster filter states its effect and reuses the composer's and People's term for a byline");
   assert.match(markup, /<option value="all">All display names<\/option>/,
     "the all-values option names the thing the menu holds, in the label's own term");
   assert.doesNotMatch(markup.replace(/<!--[\s\S]*?-->/g, ""), /Post order: newest first/,
     "the ordering eyebrow survives above a summary sentence that already ends \"newest first\"");
   // "Show posts" named no field — it read as the button beside it rather than
   // as the label above a menu. The label is the fact the menu narrows on.
-  assert.match(markup, /<label for="post-time-filter">Time posted<\/label>/,
-    "the time menu is labelled by what it filters on");
+  assert.match(markup, /<label for="post-time-filter">Filter posts by posting time<\/label>/,
+    "the time menu states its effect and what it filters on");
   assert.doesNotMatch(markup.replace(/<!--[\s\S]*?-->/g, ""), /Show posts/,
     "the label that read like a button survives somewhere on the page");
   assert.match(markup, /<option value="hour">From the past hour<\/option>/,
@@ -1014,7 +1014,8 @@ test("the feed toolbar names what each control filters, in the site's own terms"
   // Both menus, and only these two, carry a visible label tied to their own
   // control — so neither reads as the button they sit beside.
   const labels = page.document.querySelector(".social-toolbar").querySelectorAll("label");
-  assert.deepEqual(labels.map((label) => textOf(label)), ["Display name", "Time posted"]);
+  assert.deepEqual(labels.map((label) => textOf(label)),
+    ["Filter posts by display name", "Filter posts by posting time"]);
   assert.deepEqual(labels.map((label) => label.getAttribute("for")), ["post-name-filter", "post-time-filter"]);
 });
 
