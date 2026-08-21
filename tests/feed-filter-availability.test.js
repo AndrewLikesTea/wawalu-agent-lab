@@ -91,9 +91,9 @@ test("Social's filters are not operable while the feed is loading, and say why",
   const hint = hintIn(document.querySelector(".social-toolbar"), "post-filter-hint");
   assert.equal(hint.tagName, "P");
   assert.equal(textOf(hint), FILTERS_UNAVAILABLE_HINT);
-  assert.equal(textOf(hint), "Filters become available when posts load.");
+  assert.equal(textOf(hint), "Display name and posting time options become available when posts load.");
   assert.equal(classesOf(hint).includes("hint"), true, "the reason is set at content weight");
-  assert.equal((textOf(document.body).match(/Filters become available when posts load\./g) ?? []).length, 1);
+  assert.equal((textOf(document.body).match(/Display name and posting time options become available when posts load\./g) ?? []).length, 1);
 });
 
 test("Social's filters come back, in their authored order, the moment posts render", async (t) => {
@@ -291,7 +291,7 @@ test("a loading filter row says the filters open with the posts, and offers none
     assert.equal(document.querySelector(id).disabled, true, `${id} offers itself before there is a feed`);
   }
   assert.equal(filterStatus(document), FILTERS_UNAVAILABLE_HINT);
-  assert.equal(filterStatus(document), "Filters become available when posts load.");
+  assert.equal(filterStatus(document), "Display name and posting time options become available when posts load.");
   assert.equal(filterStatus(document), filterStatusLine({ available: false }));
 });
 
