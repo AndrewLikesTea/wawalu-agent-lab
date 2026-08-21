@@ -310,7 +310,7 @@ test("the deployment check's verdict names a record the page marks as real", asy
   const page = await open(t);
   assert.equal(
     verdictText(page),
-    `Confirmed: this site is running ${SHA}, the version ${REAL_RECORD_NAME} names.`,
+    `Confirmed: this site is running ${SHA}, the version ${REAL_RECORD_NAME} (record ${DEPLOYED_RELEASE_ID}) names.`,
   );
   // The record the verdict names is the one carrying the real marking, in the
   // same words — and it is never one of the invented rows.
@@ -321,7 +321,12 @@ test("the deployment check's verdict names a record the page marks as real", asy
     assert.doesNotMatch(verdictText(page), new RegExp(version.replace(/\./g, "\\.")),
       "the check named an invented demonstration record");
   }
-  assert.match(textOf(page.document.querySelector("#deployment-metric")), new RegExp(`^Running ${SHA} · Real record ${SHA} ·`));
+  assert.equal(
+    textOf(page.document.querySelector("#deployment-metric")),
+    `Running build ${SHA} · Compared release record ${DEPLOYED_RELEASE_ID} · Recorded build ${SHA} · recorded 4 hours ago`,
+  );
+  assert.equal(page.document.querySelector("#deployment-record").getAttribute("href"), "/releases.html#shipped-build");
+  assert.equal(page.document.querySelector("#deployment-commit").getAttribute("href"), commitUrl(SHA));
 });
 
 test("a page and a deployment built from different commits read as a mismatch with one action", async (t) => {
@@ -330,7 +335,7 @@ test("a page and a deployment built from different commits read as a mismatch wi
   assert.equal(page.document.querySelector("#deployment-status").dataset.deploymentState, "drift");
   assert.equal(
     verdictText(page),
-    `Not a match: this site is running ${other}, but ${REAL_RECORD_NAME} names ${SHA}.`,
+    `Not a match: this site is running ${other}, but ${REAL_RECORD_NAME} (record ${DEPLOYED_RELEASE_ID}) names ${SHA}.`,
   );
   const actions = page.document.querySelectorAll("[data-deployment-action]");
   assert.equal(actions.length, 1, "drift must name exactly one next action");
@@ -338,6 +343,37 @@ test("a page and a deployment built from different commits read as a mismatch wi
   // resolve to nothing: this record does not live in the visitor's log.
   assert.equal(actions[0].getAttribute("href"), "/releases.html#shipped-build");
   assert.equal(textOf(actions[0]), "Open the real record of this deployment");
+});
+
+// The state this page was reported in: the check has not answered. It is the
+// one a prospect is most likely to meet on a cold load, and the one where the
+// two destinations that make the answer checkable have to still be there —
+// without the page claiming an answer it does not have.
+test("a check that cannot resolve keeps both proof destinations and claims no match", async (t) => {
+  const pending = await open(t, { readHealth: () => new Promise(() => {}), settle: false });
+  const offered = (page, state) => {
+    const record = page.document.querySelector("#deployment-record");
+    const commit = page.document.querySelector("#deployment-commit");
+    assert.equal(record.getAttribute("href"), "/releases.html#shipped-build", `record link lost its destination when ${state}`);
+    assert.equal(textOf(record), `Open release record ${DEPLOYED_RELEASE_ID}`, `record link lost its name when ${state}`);
+    assert.equal(record.hidden, false, `record link was withdrawn when ${state}`);
+    assert.equal(commit.getAttribute("href"), commitUrl(SHA), `commit link lost its destination when ${state}`);
+    assert.equal(commit.hidden, false, `commit link was withdrawn when ${state}`);
+  };
+  // Painted before the probe, so they are on the page while it is outstanding.
+  offered(pending, "the probe is outstanding");
+
+  const failed = await open(t, { readHealth: async () => { throw new TypeError("no endpoint here"); } });
+  assert.equal(failed.document.querySelector("#deployment-status").dataset.deploymentState, "unknown");
+  assert.match(verdictText(failed), /^The check did not complete/);
+  assert.doesNotMatch(verdictText(failed), /Confirmed|is running 0123456789ab/, "a failed check implied a verified match");
+  offered(failed, "the check could not answer");
+  // It still names which record it would have compared against, and does not
+  // report a running build it never read.
+  assert.equal(
+    textOf(failed.document.querySelector("#deployment-metric")),
+    `Running build not reported · Compared release record ${DEPLOYED_RELEASE_ID} · Recorded build ${SHA} · recorded 4 hours ago`,
+  );
 });
 
 test("the build-sha line compares the running build against the real record", async (t) => {

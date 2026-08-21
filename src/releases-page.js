@@ -352,6 +352,7 @@ export function initReleasesPage(root = document, storage = localStorage, option
   // changes because a visitor wrote a record of their own.
   initDeploymentStatus(root, {
     release: deployedRelease,
+    buildStamp,
     readHealth: options.readHealth,
     now: options.now,
   }).catch(() => {});

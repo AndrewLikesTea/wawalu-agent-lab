@@ -17,6 +17,7 @@
 import {
   NO_ACTION_TEXT,
   deploymentVerdict,
+  recordDetailHref,
   verdictMetricText,
   verdictSentence,
 } from "./deployment-status.js";
@@ -36,6 +37,7 @@ export const DEPLOYMENT_IDS = Object.freeze({
   evidenceSummary: "deployment-evidence-summary",
   evidenceBody: "deployment-evidence-body",
   source: "deployment-commit",
+  record: "deployment-record",
 });
 
 // A response body, whatever the deployment answered with.
@@ -228,6 +230,37 @@ export function renderDeploymentSource(root, record) {
   return record.sourceUrl;
 }
 
+/**
+ * Keep the exact record the check compared against reachable, and name it.
+ *
+ * Painted before the probe and never by a verdict, for the reason the commit
+ * link above is: the record the comparison was made against is the same record
+ * whether the check is pending, agreed, disagreed or never completed, and the
+ * state a reader most needs it in is the one where the check could not answer.
+ * The match state offers no next action at all, so without this link that state
+ * — the one a prospect is meant to be convinced by — would name a record id it
+ * gave no way to open.
+ *
+ * The destination is `recordDetailHref`, the same derivation the non-matching
+ * next action uses, so the two anchors cannot name different places for one
+ * record. No record, or a record naming nowhere on this site: no link, rather
+ * than a link to something invented.
+ */
+export function renderDeploymentRecordLink(root, record) {
+  const link = byId(root, DEPLOYMENT_IDS.record);
+  if (!link) return null;
+  const href = recordDetailHref(record);
+  if (!href) {
+    link.hidden = true;
+    return null;
+  }
+  link.hidden = false;
+  link.href = href;
+  link.setAttribute("href", href);
+  link.textContent = `Open release record ${record.id}`;
+  return href;
+}
+
 // Mirror the disclosure's own state onto the summary, the way every other
 // disclosure on this site does: the details element owns open/closed and the
 // keyboard handling, and this keeps `aria-expanded` telling the same story.
@@ -271,6 +304,7 @@ export async function initDeploymentStatus(root, options = {}) {
   // reading?", and only the stamp knows that.
   renderDeploymentSource(root, stampedRecord);
   const release = options.release !== undefined ? options.release : stampedRecord;
+  renderDeploymentRecordLink(root, release);
   const checkedAt = (options.now ?? (() => new Date().toISOString()))();
   const reading = await probeHealth(options.readHealth ?? healthEndpointReader(), checkedAt);
   let verdict;

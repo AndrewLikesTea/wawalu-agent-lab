@@ -163,6 +163,16 @@
           <p class="release-followup-lead" id="deployment-status-proof">Does the real record of this deployment name the version this site is running right now? It reads the running deployment when the page loads. The example decision and release above are invented; that record and this answer are not.</p>
           <p class="release-followup-lead" id="deployment-verdict" role="status">Retrieving the running build’s version or commit identifier… That identifier is compared with the real record of this deployment, not with the invented example records.</p>
           <p class="detail-summary" id="deployment-metric"></p>
+          <!-- The two destinations the answer above is checkable against: the
+               record it was compared with, and the commit this page was built
+               from. Written by deployment-status-view.js before the probe, so
+               both are on the page in the pending state and in the one where
+               the check could not answer. One paragraph each rather than one
+               line with a separator: an unstamped build withdraws both links,
+               and a separator between two hidden anchors is a stray bullet on
+               a line with nothing on it. -->
+          <p class="detail-summary"><a class="text-link" id="deployment-record" href="/releases.html#shipped-build">Open the real release record</a></p>
+          <p class="detail-summary"><a class="text-link" id="deployment-commit" href="https://github.com/AndrewLikesTea/wawalu-agent-lab">Open the public repository this site is built from</a></p>
           <!-- The commit-sha half of the same question, written by
                releases-page.js from src/release-build-match.js: the same
                function, over the same generated build stamp, that /healthz

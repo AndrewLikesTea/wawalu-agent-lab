@@ -30,7 +30,7 @@
 // N ago"), not a claim about when a drift began — which nothing on this page
 // could know without persisting past verdicts.
 
-import { REAL_RECORD_NAME } from "./deployed-release.js";
+import { REAL_RECORD_NAME, sameSiteHref } from "./deployed-release.js";
 import { releaseDetailHref } from "./releases.js";
 
 // The fields a health response may name its build in, in order. `/healthz`
@@ -111,6 +111,27 @@ function elapsed(fromIso, nowIso) {
 // is not what a reader should do when the page in front of them and the
 // deployment answering the probe name different builds. Every other record
 // falls back to the recorder's own wording, unchanged.
+/**
+ * Where the compared record's own page is — one rule, for both anchors.
+ *
+ * Two things now offer that destination: the next action a non-matching verdict
+ * names, and the standing link beside the metric that keeps the record
+ * reachable in the states that have no next action. They are one derivation
+ * here so they cannot drift into naming two different places for one record.
+ *
+ * A record may name its own location — the real record of this deployment does,
+ * because it does not live in the visitor's log — but only a location on this
+ * site, checked the way deployed-release-view.js checks the same field before
+ * putting it in an anchor. Anything else falls back to the log's own route,
+ * which is the single derivation of that URL shape (src/releases.js).
+ *
+ * Empty for a record with no id: there is nothing to open.
+ */
+export function recordDetailHref(release) {
+  if (!release?.id) return "";
+  return sameSiteHref(release.detailHref) || releaseDetailHref(release.id);
+}
+
 function nextActionFor(release) {
   if (!release?.id) {
     return {
@@ -123,7 +144,7 @@ function nextActionFor(release) {
   const name = text(release.version) ?? release.id;
   return {
     label: text(release.actionLabel) ?? `Reconcile release ${name}`,
-    href: text(release.detailHref) ?? releaseDetailHref(release.id),
+    href: recordDetailHref(release),
     target: text(release.actionTarget)
       ?? `Open ${name} and re-record it if what is running is correct, or ship the recorded build if it is not.`,
     releaseId: release.id,
@@ -185,21 +206,25 @@ export function deploymentVerdict(reading = {}, release = null, now = new Date()
 export function verdictSentence(verdict) {
   const deployed = verdict.deployedBuild ?? "an unreported build";
   const recorded = verdict.recordedBuild ?? "no recorded build";
+  const recordId = verdict.release?.id ?? "an unavailable release record";
   if (verdict.state === "match") {
-    return `Confirmed: this site is running ${deployed}, the version ${REAL_RECORD_NAME} names.`;
+    return `Confirmed: this site is running ${deployed}, the version ${REAL_RECORD_NAME} (record ${recordId}) names.`;
   }
   if (verdict.state === "drift") {
-    return `Not a match: this site is running ${deployed}, but ${REAL_RECORD_NAME} names ${recorded}.`;
+    return `Not a match: this site is running ${deployed}, but ${REAL_RECORD_NAME} (record ${recordId}) names ${recorded}.`;
   }
   return `The check did not complete, so nothing here says which version this site is running. ${verdict.reason}`;
 }
 
-// The single headline metric: both identifiers and how long the state has held.
+// The single headline metric: the running identifier, the exact record id it
+// was compared with, that record's build identifier, and its age. The verdict
+// remains the line above this one so these facts support rather than bury it.
 export function verdictMetricText(verdict) {
   const deployed = verdict.deployedBuild ?? "not reported";
   const recorded = verdict.recordedBuild ?? "none recorded";
+  const recordId = verdict.release?.id ?? "none";
   const held = verdict.recordedAt ? `recorded ${verdict.heldFor} ago` : "never recorded";
-  return `Running ${deployed} · Real record ${recorded} · ${held}`;
+  return `Running build ${deployed} · Compared release record ${recordId} · Recorded build ${recorded} · ${held}`;
 }
 
 // What a matching verdict says instead of offering an action.
