@@ -571,11 +571,12 @@ test("the People picker and the page's own description use one term for what is 
     assert.doesNotMatch(intro, rival, "the page intro must not name the selected thing a second way");
 
   // The line about publishing keeps the term too: a reader is told how to put a
-  // picture here, and it has to be the same word they just picked by. Pinned to
-  // the term and its position rather than to the whole sentence — the sentence
-  // is the helper beside the grid, and it names the publishing step with a link
-  // now instead of in plain text.
-  assert.match(html, /Write a post on Social<\/a> and publish it under a display name\./);
+  // picture here, and it has to be the same word they just picked by. It leads
+  // on the result, in the term, and the publishing step stays a link — pinned to
+  // the term and the link rather than to the whole sentence, which is the helper
+  // beside the grid and is worded with Social's composer.
+  assert.match(html, /A published post with an image appears on People, under the display name you publish it with\./);
+  assert.match(html, /Write a post on Social<\/a> and publish it\./);
   const social = await readFile(new URL("../src/social.html", import.meta.url), "utf8");
   assert.match(social, /<label for="post-author">Display name <span class="label-optional">\(optional\)<\/span><\/label>/,
     "the composer names the same thing the picker selects");
