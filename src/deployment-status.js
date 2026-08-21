@@ -198,8 +198,9 @@ export function verdictSentence(verdict) {
 export function verdictMetricText(verdict) {
   const deployed = verdict.deployedBuild ?? "not reported";
   const recorded = verdict.recordedBuild ?? "none recorded";
+  const recordId = verdict.release?.id ?? "none";
   const held = verdict.recordedAt ? `recorded ${verdict.heldFor} ago` : "never recorded";
-  return `Running ${deployed} · Real record ${recorded} · ${held}`;
+  return `Running ${deployed} · Real release record ${recordId} · Recorded build ${recorded} · ${held}`;
 }
 
 // What a matching verdict says instead of offering an action.

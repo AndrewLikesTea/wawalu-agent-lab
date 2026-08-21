@@ -281,6 +281,16 @@ test("an unstamped build shows no record and withdraws the real marking", async 
   // falling back to an invented record.
   assert.match(verdictText(page), /The check did not complete/);
   assert.match(verdictText(page), /no real record of this deployment/);
+  // The band's two destinations go with it, and each one sits alone on its
+  // line: they shared a line with a separator between them, which is a mark an
+  // unstamped build has no way to withdraw and would have been left on the page
+  // with nothing on either side of it.
+  for (const id of ["#deployment-record", "#deployment-commit"]) {
+    const link = page.document.querySelector(id);
+    assert.equal(link.hidden, true, `${id} was offered by a build that names nothing to point it at`);
+    assert.equal(link.parentNode.childElements.length, 1,
+      `${id} shares its line with something withdrawing the link cannot withdraw`);
+  }
 });
 
 /* ---------------------- the check names a real record --------------------- */
@@ -321,7 +331,8 @@ test("the deployment check's verdict names a record the page marks as real", asy
     assert.doesNotMatch(verdictText(page), new RegExp(version.replace(/\./g, "\\.")),
       "the check named an invented demonstration record");
   }
-  assert.match(textOf(page.document.querySelector("#deployment-metric")), new RegExp(`^Running ${SHA} · Real record ${SHA} ·`));
+  assert.match(textOf(page.document.querySelector("#deployment-metric")),
+    new RegExp(`^Running ${SHA} · Real release record deployed-build · Recorded build ${SHA} ·`));
 });
 
 test("a page and a deployment built from different commits read as a mismatch with one action", async (t) => {

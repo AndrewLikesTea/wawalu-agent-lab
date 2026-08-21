@@ -350,8 +350,14 @@ export function initReleasesPage(root = document, storage = localStorage, option
   // Not re-run when a release is recorded. The band answers a question about the
   // running deployment against the real record of it, and neither of those
   // changes because a visitor wrote a record of their own.
+  // The stamp goes with the record. The band paints a commit link of its own
+  // now, off the stamp rather than off the record — "which commit produced the
+  // page I am reading?" is a question only the stamp answers — so a stamp this
+  // page was handed has to reach it, or the block above and the band below this
+  // one would be describing two different builds.
   initDeploymentStatus(root, {
     release: deployedRelease,
+    buildStamp,
     readHealth: options.readHealth,
     now: options.now,
   }).catch(() => {});

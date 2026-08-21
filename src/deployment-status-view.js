@@ -21,7 +21,8 @@ import {
   verdictSentence,
 } from "./deployment-status.js";
 import { BUILD_STAMP } from "./build-stamp.js";
-import { commitLinkText, deployedReleaseRecord } from "./deployed-release.js";
+import { commitLinkText, deployedReleaseRecord, sameSiteHref } from "./deployed-release.js";
+import { releaseDetailHref } from "./releases.js";
 
 export const HEALTH_URL = "/healthz";
 
@@ -35,6 +36,7 @@ export const DEPLOYMENT_IDS = Object.freeze({
   evidence: "deployment-evidence",
   evidenceSummary: "deployment-evidence-summary",
   evidenceBody: "deployment-evidence-body",
+  record: "deployment-record",
   source: "deployment-commit",
 });
 
@@ -228,6 +230,41 @@ export function renderDeploymentSource(root, record) {
   return record.sourceUrl;
 }
 
+/**
+ * Point the block's record link at the record the check compared against.
+ *
+ * Painted before the probe, for the reason the commit link above it is, and for
+ * one more: a match offers no next action, so without this the state that proves
+ * the most is the state with no way through to the record that proves it.
+ *
+ * THE LABEL NAMES THE ID AND STOPS THERE — it does not call the record real.
+ * This renders whichever record the caller compared against, and the two
+ * markings src/deployed-release.js keeps apart may not be applied by a renderer
+ * that cannot tell them apart. The id is the one the metric line names, so
+ * "which record was this?" and "open it" are the same string.
+ *
+ * The destination is the record's own `detailHref` when it has one — the real
+ * record does, because it lives in its own region rather than in the visitor's
+ * log — and otherwise `releaseDetailHref`, the derivation the verdict's next
+ * action already uses rather than a second copy of the route. `sameSiteHref` is
+ * what stops a record pointing this link off the site.
+ */
+export function renderDeploymentRecord(root, record) {
+  const link = byId(root, DEPLOYMENT_IDS.record);
+  if (!link) return null;
+  const href = sameSiteHref(record?.detailHref)
+    || (record?.id ? releaseDetailHref(record.id) : "");
+  if (!href || !record?.id) {
+    link.hidden = true;
+    return null;
+  }
+  link.hidden = false;
+  link.href = href;
+  link.setAttribute("href", href);
+  link.textContent = `Open release record ${record.id}`;
+  return href;
+}
+
 // Mirror the disclosure's own state onto the summary, the way every other
 // disclosure on this site does: the details element owns open/closed and the
 // keyboard handling, and this keeps `aria-expanded` telling the same story.
@@ -271,6 +308,7 @@ export async function initDeploymentStatus(root, options = {}) {
   // reading?", and only the stamp knows that.
   renderDeploymentSource(root, stampedRecord);
   const release = options.release !== undefined ? options.release : stampedRecord;
+  renderDeploymentRecord(root, release);
   const checkedAt = (options.now ?? (() => new Date().toISOString()))();
   const reading = await probeHealth(options.readHealth ?? healthEndpointReader(), checkedAt);
   let verdict;

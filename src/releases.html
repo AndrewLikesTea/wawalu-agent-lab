@@ -163,6 +163,19 @@
           <p class="release-followup-lead" id="deployment-status-proof">Does the real record of this deployment name the version this site is running right now? It reads the running deployment when the page loads. The example decision and release above are invented; that record and this answer are not.</p>
           <p class="release-followup-lead" id="deployment-verdict" role="status">Retrieving the running build’s version or commit identifier… That identifier is compared with the real record of this deployment, not with the invented example records.</p>
           <p class="detail-summary" id="deployment-metric"></p>
+          <!-- The two destinations a settled answer has to keep reachable: the
+               record this check compared against, and the public commit the
+               build was made from. Both are painted before the probe by
+               deployment-status-view.js, so they are here while the check is
+               working and here when it never completed, and both sit outside
+               the verdict's live region, so settling announces the answer
+               rather than reading the links out again.
+
+               One link per paragraph, the way the front door writes the same
+               pair: an unstamped build withdraws both links and could not
+               withdraw a separator between them. -->
+          <p><a class="text-link" id="deployment-record" href="/releases.html#shipped-build">Open the release record this check compares against</a></p>
+          <p><a class="text-link" id="deployment-commit" href="https://github.com/AndrewLikesTea/wawalu-agent-lab">Open the public repository this site is built from</a></p>
           <!-- The commit-sha half of the same question, written by
                releases-page.js from src/release-build-match.js: the same
                function, over the same generated build stamp, that /healthz

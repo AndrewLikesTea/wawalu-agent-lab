@@ -188,7 +188,13 @@ test("a running build that equals the newest record reads as a match and offers 
     verdictText(page),
     "Confirmed: this site is running v2.1.0, the version the real record of this deployment names.",
   );
-  assert.equal(metricText(page), "Running v2.1.0 · Real record v2.1.0 · recorded 2 days ago");
+  assert.equal(metricText(page), "Running v2.1.0 · Real release record r-2-1-0 · Recorded build v2.1.0 · recorded 2 days ago");
+  // The record is reachable in the one state that offers no next action, and it
+  // is named by its id and not by a marking this renderer cannot verify: NEWEST
+  // is a seed record, and nothing here may call a seed record real.
+  assert.equal(page.document.querySelector("#deployment-record").getAttribute("href"), "/release.html?id=r-2-1-0");
+  assert.equal(textOf(page.document.querySelector("#deployment-record")), "Open release record r-2-1-0");
+  assert.doesNotMatch(textOf(page.document.querySelector("#deployment-record")), /real/i);
   // The match state's whole claim: there is nothing to do, and nothing to click.
   assert.equal(nextActions(page).length, 0, "a matching deployment offered a next action");
   assert.match(
@@ -205,7 +211,7 @@ test("a running build that differs from the newest record reads as drift and nam
     verdictText(page),
     "Not a match: this site is running v2.0.0, but the real record of this deployment names v2.1.0.",
   );
-  assert.equal(metricText(page), "Running v2.0.0 · Real record v2.1.0 · recorded 2 days ago");
+  assert.equal(metricText(page), "Running v2.0.0 · Real release record r-2-1-0 · Recorded build v2.1.0 · recorded 2 days ago");
 
   const actions = nextActions(page);
   assert.equal(actions.length, 1, "drift must name exactly one next action");
@@ -225,7 +231,7 @@ test("a health response in an unexpected shape reads as unknown, in plain langua
       + UNKNOWN_REASONS["unexpected-shape"],
   );
   // The comparison it can still make: the recorded build is last-known-good.
-  assert.equal(metricText(page), "Running not reported · Real record v2.1.0 · recorded 2 days ago");
+  assert.equal(metricText(page), "Running not reported · Real release record r-2-1-0 · Recorded build v2.1.0 · recorded 2 days ago");
   assert.equal(nextActions(page).length, 1, "unknown must name exactly one next action");
   assert.equal(nextActions(page)[0].href, "/release.html?id=r-2-1-0");
   assert.doesNotMatch(verdictText(page), /Error|error:|at .*\.js/, "a reader was shown an error object");
@@ -239,7 +245,7 @@ test("an unreachable health check reads as unknown and still reports the last-kn
     "The check did not complete, so nothing here says which version this site is running. "
       + UNKNOWN_REASONS.unreachable,
   );
-  assert.equal(metricText(page), "Running not reported · Real record v2.1.0 · recorded 2 days ago");
+  assert.equal(metricText(page), "Running not reported · Real release record r-2-1-0 · Recorded build v2.1.0 · recorded 2 days ago");
   assert.equal(nextActions(page).length, 1, "unknown must name exactly one next action");
   // The thrown message is not a thing a reader is shown.
   assert.doesNotMatch(verdictText(page), /must never reach the page/);
@@ -338,7 +344,7 @@ test("the comparison is a pure function of the reading, the record, and the cloc
   // With nothing recorded there is still exactly one next action, and it points
   // at the recorder rather than at a record that does not exist.
   assert.equal(noRecord.nextAction.href, "/releases.html#record-release");
-  assert.equal(verdictMetricText(noRecord), "Running v9 · Real record none recorded · never recorded");
+  assert.equal(verdictMetricText(noRecord), "Running v9 · Real release record none · Recorded build none recorded · never recorded");
 
   const noBuild = deploymentVerdict({ health: { status: "ok", storage: "available" } }, NEWEST, NOW);
   assert.equal(noBuild.state, "unknown");
@@ -538,9 +544,9 @@ test("each outcome names both the running version and the recorded one", async (
   );
   // Both sides of the comparison are named in every outcome, including the one
   // where the running side could not be read: "not reported" is an answer.
-  assert.equal(matched.metric, "Running v2.1.0 · Real record v2.1.0 · recorded 2 days ago");
-  assert.equal(drifted.metric, "Running v2.0.0 · Real record v2.1.0 · recorded 2 days ago");
-  assert.equal(stalled.metric, "Running not reported · Real record v2.1.0 · recorded 2 days ago");
+  assert.equal(matched.metric, "Running v2.1.0 · Real release record r-2-1-0 · Recorded build v2.1.0 · recorded 2 days ago");
+  assert.equal(drifted.metric, "Running v2.0.0 · Real release record r-2-1-0 · Recorded build v2.1.0 · recorded 2 days ago");
+  assert.equal(stalled.metric, "Running not reported · Real release record r-2-1-0 · Recorded build v2.1.0 · recorded 2 days ago");
   assert.match(matched.verdict, /v2\.1\.0/);
   assert.match(drifted.verdict, /v2\.0\.0[\s\S]*v2\.1\.0/);
   assert.match(stalled.verdict, /The check did not complete/);
@@ -660,6 +666,17 @@ test("the front door and the releases page name that one commit the same way", a
   assert.equal(textOf(homeLink), textOf(releasesLink));
   assert.equal(textOf(homeLink), commitLinkText(HOME_SHA));
   assert.equal(homeLink.getAttribute("href"), `${REPOSITORY_URL}/commit/${HOME_SHA}`);
+  // And the band's other destination is the record the check compared against,
+  // which for the real record is its own region on this page rather than a log
+  // route that would resolve to nothing.
+  const recordLink = releases.document.querySelector("#deployment-record");
+  assert.equal(recordLink.hidden, false);
+  assert.equal(recordLink.getAttribute("href"), "/releases.html#shipped-build");
+  assert.equal(textOf(recordLink), "Open release record deployed-build");
+  // The two destinations read as two different things in a link list, and
+  // neither is inside the live region that announces the answer.
+  assert.notEqual(textOf(recordLink), textOf(releasesLink));
+  assert.ok(!ancestorIds(recordLink).includes(DEPLOYMENT_IDS.verdict));
 });
 
 test("the front door's two links do different jobs and read as different things", async (t) => {
