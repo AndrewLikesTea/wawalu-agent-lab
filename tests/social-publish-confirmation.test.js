@@ -22,6 +22,7 @@ import {
   FILTERED_OUT_NOTE,
   NO_IMAGE_NOTE,
   PUBLISH_FAILED_NOTE,
+  PUBLISH_RETRY_LABEL,
   PUBLISH_RETRY_NOTE,
   PUBLISH_STATE_WORDS,
   REVEAL_CONTROL_LABEL,
@@ -277,8 +278,13 @@ test("a failed publish keeps every field and says something different from the c
   // which is the only instruction, and it is the button already on screen.
   assert.match(textOf(region), new RegExp(PUBLISH_FAILED_NOTE));
   assert.match(textOf(region), new RegExp(PUBLISH_RETRY_NOTE));
+  const retry = region.querySelector(".feed-status-action");
+  assert.equal(retry.tagName, "BUTTON");
+  assert.equal(retry.type, "button");
+  assert.equal(textOf(retry), PUBLISH_RETRY_LABEL);
+  assert.ok(tabSequence(harness.document).includes(retry), "the retry is keyboard reachable");
   assert.equal(harness.document.querySelector("#post-submit").disabled, false,
-    "and the control that sends it again is usable, so the instruction is followable");
+    "the original publish control is usable too");
   assert.doesNotMatch(textOf(region), /^Published/, "the failure does not borrow the confirmation's opening");
   assert.equal(noticeLinks(harness.document).length, 0, "no permalink, because there is no post");
   assert.equal(region.classList.contains("is-success"), false);
@@ -316,7 +322,8 @@ test("a retry after a failure sends the same post again, without re-entering any
   assert.equal(harness.document.querySelector("#post-submit").disabled, false);
 
   harness.setFailure(null);
-  await harness.publish();
+  notice(harness.document).querySelector(".feed-status-action").click();
+  await harness.settle();
 
   assert.equal(harness.requests.length, 2, "the second press is a second request, not a queued repeat");
   const [first, second] = harness.requests;

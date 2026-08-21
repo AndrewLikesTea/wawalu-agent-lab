@@ -287,7 +287,8 @@ export const PUBLISH_FAILED_NOTE = "Your post, image, and image description are 
 // control that sends it. The composer's own refusals — a blank post, a
 // missing image description — do not get it, because pressing the same button
 // again without fixing the field would fail the same way.
-export const PUBLISH_RETRY_NOTE = "Select Publish post to send the same post again.";
+export const PUBLISH_RETRY_NOTE = "Use Retry publishing post to send the same post again.";
+export const PUBLISH_RETRY_LABEL = "Retry publishing post";
 
 // The label said "(required with an image)" and nothing said what the
 // requirement does, so the one refusal that is entirely this page's own — the
@@ -1171,6 +1172,12 @@ export function mountSocialFeed(root, options = {}) {
       stateChip(PUBLISH_STATE_WORDS.failed, "detail-state-chip-error"),
       document.createTextNode(` ${message} ${PUBLISH_FAILED_NOTE}${retry ? ` ${PUBLISH_RETRY_NOTE}` : ""}`),
     );
+    if (retry) {
+      const retryButton = el("button", "feed-status-action", PUBLISH_RETRY_LABEL);
+      retryButton.type = "button";
+      retryButton.addEventListener("click", () => submit?.click());
+      notice.append(document.createTextNode(" "), retryButton);
+    }
     notice.hidden = false;
   };
 
