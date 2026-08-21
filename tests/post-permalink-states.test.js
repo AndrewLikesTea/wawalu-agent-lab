@@ -626,16 +626,16 @@ const EXITS_BY_STATE = {
   "not-found": SETTLED_EXITS,
   error: SETTLED_EXITS,
 };
-// Word for word the last sentence of Social's own intro, because a visitor who
-// lands here may never open /social.html.
-const DEMO_SENTENCE = "Posts use no customer or production data.";
+// The shared page makes the boundary explicit because a visitor who lands here
+// may never open /social.html.
+const DEMO_SENTENCE = "The posts supplied for this demo are invented. Posts published by visitors are real and public. Posts use no customer or production data.";
 // What a pasted link opens, for a reader who has never seen the feed. It is
 // context about the page, not about this post — which is also why it holds in
 // the states where the lookup found nothing — so it reads after the post
 // rather than in front of it.
 const CONTEXT_SENTENCE = "Shared links like this one open a single post from Social’s shared demo feed.";
 
-test("the words of a route out never change, and the demo sentence survives every state", async () => {
+test("the words of a route out never change, and the post provenance survives every state", async () => {
   const cases = [
     ["loaded", "?id=p-image", seedOnly([IMAGE_POST])],
     ["not-found", "?id=p-never-existed", seedOnly([IMAGE_POST])],
@@ -657,7 +657,7 @@ test("the words of a route out never change, and the demo sentence survives ever
       for (const label of CHROME_LINKS) assert.doesNotMatch(label, /←|Back/);
 
       assert.equal(textOf(main).includes(DEMO_SENTENCE), true,
-        `the ${state} state lost the sentence saying the feed is a demo`);
+        `the ${state} state lost the post provenance`);
 
       // And none of it lives in the region the fetch replaces — which is the
       // whole reason it survives. renderPostDetail() empties #post-detail on
@@ -675,7 +675,7 @@ test("the words of a route out never change, and the demo sentence survives ever
   // the shipped markup too, not only from a page that has finished loading.
   const html = await readFile(new URL("../src/post.html", import.meta.url), "utf8");
   assert.ok(html.includes(`>${SOCIAL_LINK}</a>`), `${SOCIAL_LINK} must ship in the markup`);
-  assert.ok(html.includes(`<p>${DEMO_SENTENCE}</p>`), "the demo sentence must ship in the markup");
+  assert.ok(html.includes(`<p>${DEMO_SENTENCE}</p>`), "the post provenance must ship in the markup");
   // The eyebrow is the feed pages' eyebrow, word for word, so a permalink is
   // stamped as a demo the same way /social.html and /profile.html are — and it
   // no longer says "post" a line above the h1 that says it and two lines above
