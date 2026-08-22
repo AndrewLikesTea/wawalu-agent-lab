@@ -4,14 +4,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { byClass, createElement, first, ids, installDocument, tags } from "./support/dom.js";
+import { byClass, createElement, first, ids, installDocument, tags, walk } from "./support/dom.js";
 
 installDocument();
 
 const { FEED_LOADING_LINE } = await import("../src/social.js");
 
 const {
-  EMPTY_SUMMARY_LINE, PROFILE_EMPTY_COPY, authorChipLabel, authorInitials, captionFor, countLabel, defaultProfileAuthor,
+  EMPTY_SUMMARY_LINE, MAX_CAPTION_LENGTH, PROFILE_EMPTY_COPY, authorChipLabel, authorInitials, captionFor, countLabel, defaultProfileAuthor,
   distinctAuthors, hasExplicitAuthor, imagePostCounts, loadingSummaryText,
   mergePostsById, normalizeProfileApiPosts, normalizeSeedPosts, pickerEntries, pickerNoteText, postDetailHref,
   singleNameNotice, profileActiveFilterLine,
@@ -82,6 +82,29 @@ test("a malformed row is dropped, and its neighbours still render", () => {
     null,
   ] });
   assert.deepEqual(posts.map((post) => post.id), ["third"]);
+});
+
+// The title is drawn into the same fixed-width grid cell as the caption and
+// comes off the same payload, so it takes the same cap. Both normalizers are
+// checked, because the seed path and the API path are separate code and a cap
+// applied to one of them is a cap a reader cannot rely on. Untested before this
+// change on the caption too, so the number itself is pinned here for the first
+// time.
+test("an over-long title or caption is cut to the same length, on both read paths", () => {
+  const long = "x".repeat(MAX_CAPTION_LENGTH + 40);
+  for (const [name, post] of [
+    ["API", normalizeProfileApiPosts({ posts: [{ ...apiPost, title: long, caption: long }] })[0]],
+    ["seed", normalizeSeedPosts([{ ...imagePost, title: long, caption: long }])[0]],
+  ]) {
+    assert.equal(post.title.length, MAX_CAPTION_LENGTH, `${name}: the title is not bounded`);
+    assert.equal(post.caption.length, MAX_CAPTION_LENGTH, `${name}: the caption is not bounded`);
+  }
+  // Absent, blank, and non-string all land on the same falsy value, so a tile
+  // tests one thing rather than three shapes.
+  for (const value of [undefined, null, "   ", 42, {}]) {
+    const [post] = normalizeProfileApiPosts({ posts: [{ ...apiPost, title: value }] });
+    assert.equal(post.title, null, `a title of ${JSON.stringify(value) ?? "undefined"} must normalize to null`);
+  }
 });
 
 test("an off-origin image is refused, but the post it came with survives", () => {
@@ -335,17 +358,18 @@ test("a tile visibly links to the full Social post", () => {
   assert.equal(list.getAttribute("role"), "list");
 
   const tile = first(container, "profile-tile");
-  assert.equal(tile.tagName, "A", "the whole tile is the navigation target");
+  assert.equal(tile.tagName, "ARTICLE");
   // Every tile says where it sent the reader from, so the post page's single
   // back link can read "← Back to People" instead of guessing.
-  assert.equal(tile.href, "/post.html?id=p-image&author=Mina&from=profile");
   assert.equal(tile.dataset.postId, "p-image");
 
   const caption = first(tile, "profile-tile-caption");
-  assert.equal(caption.tagName, "FIGCAPTION");
+  assert.equal(caption.tagName, "P");
   assert.equal(caption.textContent, "Focus rings landed everywhere.");
-  assert.equal(tile.getAttribute("aria-label"), "Focus rings landed everywhere. — Open post");
-  assert.equal(first(tile, "profile-tile-link-label").textContent, "Open post");
+  const open = first(tile, "profile-tile-link-label");
+  assert.equal(open.textContent, "Open post");
+  assert.equal(open.href, "/post.html?id=p-image&author=Mina&from=profile");
+  assert.equal(first(tile, "profile-tile-author").textContent, "Mina");
 
   const img = tags(tile, "IMG")[0];
   assert.equal(img.src, "/media/focus-ring.svg");
@@ -370,11 +394,61 @@ test("tiles render newest first, and each gets its own caption id", () => {
   assert.equal(new Set(captionIds).size, 2, "ids are unique per tile");
 });
 
+// The reading order a People image-post tile has to keep, and the same order
+// Social's card keeps (tests/social-render.test.js), under this page's class
+// names. Collected by name in document order rather than compared as sorted
+// indices: `first` returns null for an element that is not on the tile,
+// `indexOf(null)` is -1, and -1 sorts to the front, so an index-sort check is
+// satisfied by a tile that dropped its display name altogether. Names assert
+// presence, exactly-once, and order together, and print readably on failure.
+const TILE_READING_ORDER = [
+  "profile-tile-author", "profile-tile-title", "profile-tile-caption", "profile-media",
+  "post-image-description", "profile-tile-date", "profile-tile-link-label",
+];
+const readingOrder = (tile, expected) =>
+  walk(tile, () => true).flatMap((node) => expected.filter((name) => node.classes?.includes(name)));
+
+test("a titled People image post reads display name, text, image, description, time, then action", () => {
+  const container = createElement("div");
+  renderProfileGrid(container, [{ ...imagePost, title: "A resilient People card" }], { author: "Mina" });
+  const tile = first(container, "profile-tile");
+  assert.deepEqual(readingOrder(tile, TILE_READING_ORDER), TILE_READING_ORDER);
+  assert.equal(first(tile, "profile-tile-title").textContent, "A resilient People card");
+});
+
+test("an untitled People image post keeps the same order without the title", () => {
+  const container = createElement("div");
+  renderProfileGrid(container, [imagePost], { author: "Mina" });
+  const tile = first(container, "profile-tile");
+  const expected = TILE_READING_ORDER.filter((name) => name !== "profile-tile-title");
+  assert.deepEqual(readingOrder(tile, expected), expected);
+  assert.equal(byClass(tile, "profile-tile-title").length, 0);
+});
+
+// A post with no image has no image to describe. The description line is built
+// from a read-path fallback that names the poster when an image carries no alt
+// text, so rendering it unconditionally gave a text-only tile a caption reading
+// "Image description: Image posted by Mina. No description provided." about a
+// picture that was never posted — and src/social-demo-data.json ships one such
+// post, so the shipped People page said it.
+test("a People post with no image renders no image description and no figure", () => {
+  const container = createElement("div");
+  renderProfileGrid(container, [textPost], { author: "Mina" });
+  const tile = first(container, "profile-tile");
+  assert.equal(byClass(tile, "post-image-description").length, 0);
+  assert.equal(byClass(tile, "profile-figure").length, 0);
+  assert.equal(tags(tile, "FIGCAPTION").length, 0);
+  assert.ok(!tile.textContent.includes("Image description"), tile.textContent);
+  // What a text post keeps: its name, its words, its time, and its one action,
+  // in the same order the image tiles use.
+  const expected = ["profile-tile-author", "profile-tile-caption", "profile-tile-date", "profile-tile-link-label"];
+  assert.deepEqual(readingOrder(tile, expected), expected);
+  assert.equal(first(tile, "profile-tile-caption").textContent, "No picture on this one.");
+});
+
 // Every tile offers the same named step into the post, and offers it once. The
-// tile itself is that control here — the whole picture is the hit target — so
-// what is counted is the label printed on it, and what is checked is that the
-// label is last in the tile: the action reads after the picture and the words
-// it acts on, and is the last stop a reader tabs through before the next tile.
+// explicit anchor is last: the action reads after the picture and the words it
+// acts on, and is the last stop before the next tile.
 test("every tile carries one control named Open post, pointing at that post", () => {
   const container = createElement("div");
   renderProfileGrid(container, [olderImagePost, imagePost], { author: "Mina" });
@@ -388,10 +462,11 @@ test("every tile carries one control named Open post, pointing at that post", ()
     const labels = byClass(tile, "profile-tile-link-label");
     assert.equal(labels.length, 1, "a tile names its way into the post exactly once");
     assert.equal(labels[0].textContent, "Open post");
-    assert.equal(tile.tagName, "A");
-    assert.equal(tile.href, `/post.html?id=${tile.dataset.postId}&author=Mina&from=profile`,
+    assert.equal(tile.tagName, "ARTICLE");
+    assert.equal(labels[0].tagName, "A");
+    assert.equal(labels[0].href, `/post.html?id=${tile.dataset.postId}&author=Mina&from=profile`,
       "the tile opens its own post, not the grid's first one");
-    assert.equal(tile.getAttribute("aria-label"), "Focus rings landed everywhere. — Open post");
+    assert.equal(labels[0].getAttribute("aria-describedby"), first(tile, "profile-tile-caption").id);
     // Last child, by index rather than by node identity: a failed identity
     // comparison would print the whole parsed tile.
     assert.equal(tile.children.indexOf(labels[0]), tile.children.length - 1,
@@ -411,10 +486,36 @@ test("a dead image leaves the caption and the link intact", () => {
   assert.equal(media.dataset.state, "error");
   assert.equal(tags(container, "IMG").length, 0, "the broken image element is removed");
   assert.equal(first(container, "profile-media-fallback").hidden, false);
-  // The tile is still a working link with a name.
+  // The tile still carries a working, clearly named link.
   const tile = first(container, "profile-tile");
-  assert.equal(tile.href, "/post.html?id=p-image&author=Mina&from=profile");
+  assert.equal(first(tile, "profile-tile-link-label").href, "/post.html?id=p-image&author=Mina&from=profile");
   assert.equal(first(tile, "profile-tile-caption").textContent, "Focus rings landed everywhere.");
+});
+
+// Both pages' card headings, checked here because the rule is one decision in
+// one stylesheet rather than two.
+//
+// Nothing on either page reads matchMedia or innerWidth, so a narrow viewport
+// cannot be simulated in the element stub and a shim would only assert itself.
+// What can be asserted is the declaration that decides the narrow case.
+// `overflow-wrap:anywhere` lets a break fall between any two characters AND
+// lowers the box's min-content width to one character, so a heading in a
+// narrowed grid column collapses to roughly one word per line. `break-word`
+// breaks a word only when it genuinely cannot fit on a line of its own, which
+// still contains a pasted URL without shrinking the column to it.
+//
+// Only headings. The post text below them keeps `anywhere`: it is the box that
+// has to survive arbitrary pasted content, and it is not what the acceptance
+// criterion describes.
+test("card headings on Social and People wrap between words, not inside them", async () => {
+  const css = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
+  for (const name of ["post-title", "profile-tile-author", "profile-tile-title"]) {
+    const rule = css.match(new RegExp(`^\\.${name} \\{([^}]*)\\}`, "m"))?.[1] ?? "";
+    assert.ok(rule, `.${name} has no rule in styles.css`);
+    assert.match(rule, /overflow-wrap:break-word/, `.${name} must not break inside a word to fit`);
+    assert.doesNotMatch(rule, /overflow-wrap:anywhere/, `.${name} must not break inside a word to fit`);
+    assert.match(rule, /word-break:normal/, `.${name} must not inherit a break-all from anywhere else`);
+  }
 });
 
 test("a loaded image settles to ready and keeps the fallback hidden", () => {

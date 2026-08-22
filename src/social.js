@@ -491,39 +491,33 @@ function renderPostCard(post, { index }) {
   // arbitrary text and must not be spliced into an id/IDREF list.
   author.id = `post-${index}-author`;
   byline.append(author);
-  const time = el("time", "post-date", formatDateTime(post.createdAt));
-  time.dateTime = post.createdAt;
-  byline.append(time);
-
   header.append(avatar, byline);
+  article.append(header);
   if (post.title) article.append(el("h3", "post-title", post.title));
 
   const image = normalizeImage(post.image);
   const textId = `post-${index}-text`;
+  const body = el("p", image ? "post-caption" : "post-body", post.body);
+  body.id = textId;
+  article.append(body);
   if (image) {
     article.classList.add("post-card-media");
-    // <figure>/<figcaption> is the semantic tie between an image and the text
-    // that explains it, and it survives the caption being the only content left
-    // when the image fails to load.
+    // The post's words precede the picture; the figure's caption is specifically
+    // the visible image description, so neither is mistaken for the other.
     const figure = el("figure", "post-figure");
     const description = imageDescription({ ...post, image });
-    const caption = el("figcaption", "post-caption", post.body);
-    caption.id = textId;
-    figure.append(caption);
-    const descriptionText = el("p", "post-image-description", `Image description: ${description.alt}`);
+    const descriptionText = el("figcaption", "post-image-description", `Image description: ${description.alt}`);
     descriptionText.id = `post-${index}-image-description`;
     figure.append(renderMedia(image, description, descriptionText.id), descriptionText);
     // The note sits beside the caption rather than inside it, so an undescribed
     // legacy post is visibly flagged without the flag joining the card's
     // accessible name.
     if (description.missing) figure.append(renderDescriptionNote());
-    article.append(figure, header);
-  } else {
-    article.append(header);
-    const body = el("p", "post-body", post.body);
-    body.id = textId;
-    article.append(body);
+    article.append(figure);
   }
+  const time = el("time", "post-date", formatDateTime(post.createdAt));
+  time.dateTime = post.createdAt;
+  article.append(time);
   // The card's own way into the post, last in the card so the action follows the
   // picture and the words it acts on. A plain anchor in the link shape the
   // Releases index already uses for the same job — a row that summarises a

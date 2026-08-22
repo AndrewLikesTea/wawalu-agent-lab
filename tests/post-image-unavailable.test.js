@@ -105,7 +105,7 @@ test("Social feed: a post whose image dies still shows the label and the descrip
   assert.ok(visible.includes("Image unavailable"), "the label is rendered text, not a class name");
   assert.ok(visible.includes(DESCRIPTION), "the description is rendered text, not just an alt");
 
-  // Reading order: caption, display name and timestamp all still present, and
+  // Reading order: display name, caption and timestamp all still present, and
   // the placeholder sits where the image was rather than after the card.
   const caption = first(container, "post-caption");
   const author = first(container, "post-author");
@@ -113,9 +113,9 @@ test("Social feed: a post whose image dies still shows the label and the descrip
   assert.equal(caption.textContent, "Focus rings landed everywhere.");
   assert.equal(author.textContent, "Mina Okafor");
   assert.equal(time.dateTime, post.createdAt);
+  assert.ok(order(container, author) < order(container, caption));
   assert.ok(order(container, caption) < order(container, fallback), "caption remains the primary content");
-  assert.ok(order(container, fallback) < order(container, author));
-  assert.ok(order(container, author) < order(container, time));
+  assert.ok(order(container, fallback) < order(container, time));
 
   // Same number of tab stops broken as unbroken: the placeholder adds no control.
   assert.equal(tabStops(container), loadedStops);
@@ -143,11 +143,11 @@ test("People tile: a post whose image dies still shows the label and the descrip
   const time = tags(container, "TIME")[0];
   assert.equal(caption.textContent, "Focus rings landed everywhere.");
   assert.equal(time.dateTime, post.createdAt);
-  assert.ok(order(container, fallback) < order(container, caption), "the placeholder took the image's place");
-  assert.ok(order(container, caption) < order(container, time));
+  assert.ok(order(container, caption) < order(container, fallback), "the placeholder took the image's place after the post text");
+  assert.ok(order(container, fallback) < order(container, time));
 
-  // The tile is one link before and one link after; the placeholder is text
-  // inside it, so the grid's tab order is untouched.
+  // The tile has one link before and after; placeholder text does not alter
+  // the grid's tab order.
   assert.equal(tabStops(container), loadedStops);
   assert.equal(tabStops(container), 1);
 });

@@ -37,6 +37,14 @@ export const MAX_CAPTION_LENGTH = 280;
 
 /* -------------------------------- pure core ------------------------------- */
 
+// Optional text off the wire, bounded before it reaches a tile. The title and
+// the caption take the same cap because they are the same kind of thing here:
+// a line of arbitrary length from a payload this page does not control, drawn
+// into a fixed-width grid cell. Absent, blank, and non-string all become null,
+// so a renderer tests one falsy value rather than three shapes.
+const boundedText = (value) =>
+  (typeof value === "string" && value.trim() ? value.trim().slice(0, MAX_CAPTION_LENGTH) : null);
+
 // The public read model of src/social-posts-api.js, narrowed to what the grid
 // draws. A post that fails validation is dropped rather than rendered half-formed
 // — this view is a wall of images, and one malformed row must not take the wall
@@ -48,8 +56,9 @@ export function normalizeProfileApiPosts(payload) {
     const normalized = {
       id: post.id,
       author: post.author.trim(),
+      title: boundedText(post.title),
       body: post.content.trim(),
-      caption: typeof post.caption === "string" && post.caption.trim() ? post.caption.trim().slice(0, MAX_CAPTION_LENGTH) : null,
+      caption: boundedText(post.caption),
       createdAt: post.timestamp,
       likes: countOf(post.like_count),
       comments: countOf(post.comment_count),
@@ -69,8 +78,9 @@ export function normalizeSeedPosts(list) {
     const normalized = {
       id: post.id,
       author: post.author.trim(),
+      title: boundedText(post.title),
       body: post.body.trim(),
-      caption: typeof post.caption === "string" && post.caption.trim() ? post.caption.trim().slice(0, MAX_CAPTION_LENGTH) : null,
+      caption: boundedText(post.caption),
       createdAt: post.createdAt,
       likes: countOf(post.likes),
       comments: countOf(post.comments),
@@ -492,42 +502,49 @@ function renderTileMedia(image, description) {
 
 function renderTile(post, index) {
   const item = el("li", "profile-cell");
-  const link = el("a", "profile-tile");
-  link.href = postDetailHref(post.id, post.author, "profile");
-  link.dataset.postId = post.id;
+  const tile = el("article", "profile-tile");
+  tile.dataset.postId = post.id;
 
-  const figure = el("figure", "profile-figure");
-  const description = imageDescription(post);
-  if (post.image) figure.append(renderTileMedia(post.image, description));
-
-  const caption = el("figcaption", "profile-tile-caption", captionFor(post));
-  // Ids are minted from the render index, never from post.id: a post id is
-  // arbitrary text and must not be spliced into an id/IDREF list.
+  tile.append(el("p", "profile-tile-author", post.author));
+  if (post.title) tile.append(el("p", "profile-tile-title", post.title));
+  const caption = el("p", "profile-tile-caption", captionFor(post));
   caption.id = `profile-tile-${index}-caption`;
-  figure.append(caption);
-  // Beside the caption, not inside it: the tile is named by its caption alone,
-  // and flagging a missing description must not rename the link.
-  if (post.image && description.missing) figure.append(renderDescriptionNote());
-  // The tile is the control, and this is the word printed on it — the same two
-  // words Social's cards print (src/social-links.js owns them) and the same two
-  // the lead sentence on both pages tells a reader to look for. It used to say
-  // "View full post on Social", which named a destination rather than an action
-  // and named a different one from the feed's, so the two pages offered the same
-  // step under two labels and neither matched the sentence above the grid.
-  const destination = el("span", "profile-tile-link-label", OPEN_POST_LABEL);
-  link.append(figure);
+  tile.append(caption);
+
+  // Only a post with an image has an image to describe. The figure is built
+  // inside this guard because building it unconditionally gave a text-only post
+  // a figcaption reading "Image description: Image posted by <name>. No
+  // description provided." about a picture that was never there — and
+  // src/social-demo-data.json ships one such post, so that reached the page.
+  if (post.image) {
+    const figure = el("figure", "profile-figure");
+    const description = imageDescription(post);
+    figure.append(
+      renderTileMedia(post.image, description),
+      el("figcaption", "post-image-description", `Image description: ${description.alt}`),
+    );
+    // Beside the description, not inside it, so flagging an undescribed legacy
+    // post does not join the text that stands in for the picture.
+    if (description.missing) figure.append(renderDescriptionNote());
+    tile.append(figure);
+  }
 
   const meta = el("p", "profile-tile-meta");
   const time = el("time", "profile-tile-date", formatDate(post.createdAt));
   time.dateTime = post.createdAt;
   meta.append(time);
   meta.append(el("span", "profile-tile-stat", `${countLabel(post.likes, "like")} · ${countLabel(post.comments, "comment")}`));
-  link.append(meta, destination);
-
-  // Which post first, then what the tile does, quoting the words printed on it
-  // so a reader who hears the name can find the control by sight.
-  link.setAttribute("aria-label", `${captionFor(post)} — ${OPEN_POST_LABEL}`);
-  item.append(link);
+  tile.append(meta);
+  // Last in the tile, so the action follows the picture and the words it acts
+  // on. These are the two words Social's cards print (src/social-links.js owns
+  // them) and the two the lead sentence on both pages tells a reader to look
+  // for; the post it opens is said by aria-describedby rather than folded into
+  // the link's name, which is the shape the feed's card already uses.
+  const destination = el("a", "profile-tile-link-label release-detail-link", OPEN_POST_LABEL);
+  destination.href = postDetailHref(post.id, post.author, "profile");
+  destination.setAttribute("aria-describedby", caption.id);
+  tile.append(destination);
+  item.append(tile);
   return item;
 }
 

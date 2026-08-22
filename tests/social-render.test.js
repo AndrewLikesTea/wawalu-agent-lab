@@ -74,7 +74,7 @@ const imagePost = {
 
 const textPost = { id: "p-text", author: "Kai", body: "No picture on this one.", createdAt: "2026-07-13T09:00:00.000Z" };
 
-test("an image post renders as a figure with the caption as its figcaption", () => {
+test("an image post renders its text before a figure with a visible description", () => {
   const container = createElement("div");
   renderPosts(container, [imagePost]);
 
@@ -86,7 +86,7 @@ test("an image post renders as a figure with the caption as its figcaption", () 
   const figure = tags(card, "FIGURE")[0];
   assert.ok(figure, "an image post is wrapped in a <figure>");
   const caption = tags(figure, "FIGCAPTION")[0];
-  assert.equal(caption.textContent, "Focus rings landed everywhere.");
+  assert.equal(caption.textContent, "Image description: A card wrapped in a blue focus ring");
 
   const img = tags(figure, "IMG")[0];
   assert.equal(img.src, "/media/focus-ring.svg");
@@ -104,6 +104,44 @@ test("an image post renders as a figure with the caption as its figcaption", () 
   assert.equal(first(card, "post-image-description").textContent,
     "Image description: A card wrapped in a blue focus ring");
   assert.equal(img.getAttribute("aria-describedby"), first(card, "post-image-description").id);
+});
+
+// The card order a titled image post has to keep. A title used to be appended
+// before the header, which put it ahead of the display name on exactly these
+// posts; that is the case this pins.
+//
+// The order is collected by name in document order rather than compared as
+// sorted indices. `first` returns null for an element that is not on the card,
+// `indexOf(null)` is -1, and -1 sorts to the front — so an index-sort check is
+// satisfied by a card that dropped its display name altogether. Collecting
+// names asserts presence, exactly-once, and order together, and a failure
+// prints the order that was rendered instead of a row of integers.
+const SOCIAL_READING_ORDER = [
+  "post-author", "post-title", "post-caption", "post-media", "post-image-description", "post-date", "release-detail-link",
+];
+const readingOrder = (card, expected) =>
+  walk(card, () => true).flatMap((node) => expected.filter((name) => node.classes.includes(name)));
+
+test("a titled image post starts with its display name, then all post text", () => {
+  const container = createElement("div");
+  renderPosts(container, [{ ...imagePost, title: "A resilient Social card" }]);
+  const card = first(container, "post-card");
+  assert.deepEqual(readingOrder(card, SOCIAL_READING_ORDER), SOCIAL_READING_ORDER);
+  assert.equal(first(card, "post-title").textContent, "A resilient Social card");
+  assert.equal(first(card, "post-caption").textContent, "Focus rings landed everywhere.");
+});
+
+// An untitled image post keeps the same order minus the title, so the title is
+// an insertion into one reading order rather than a second one.
+test("an untitled image post keeps the same order without the title", () => {
+  const container = createElement("div");
+  renderPosts(container, [imagePost]);
+  const card = first(container, "post-card");
+  const expected = SOCIAL_READING_ORDER.filter((name) => name !== "post-title");
+  assert.deepEqual(readingOrder(card, expected), expected);
+  // Counted, not compared to null: a failed identity comparison against a stub
+  // element prints the whole parsed card.
+  assert.equal(byClass(card, "post-title").length, 0);
 });
 
 test("a post without an image keeps the plain body paragraph", () => {
