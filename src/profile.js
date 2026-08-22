@@ -221,7 +221,7 @@ export const COUNTING_LABEL = "Counting…";
 // colour: it is the one difference between selected and unselected that
 // survives greyscale, inversion, and forced colours. "Selected" distinguishes
 // the current option while its action still says exactly what the filter does.
-export const SELECTED_MARK = "✓ Selected:";
+export const SELECTED_MARK = "✓ Current filter —";
 
 // What one entry in the picker reads. The count is part of the button's text —
 // a button's accessible name is its text — so the picker says which names have
@@ -230,7 +230,7 @@ export const SELECTED_MARK = "✓ Selected:";
 // phrasing and the same separator the rest of this page uses.
 export function authorChipLabel(name, images, { selected = false } = {}) {
   const count = images === null || images === undefined ? COUNTING_LABEL : countLabel(images, "image post");
-  return `${selected ? `${SELECTED_MARK} ` : ""}Filter People to ${name}’s image posts · ${count}`;
+  return `${selected ? `${SELECTED_MARK} ` : ""}Display name: ${name} · ${count}`;
 }
 
 // The rows the picker draws: every display name the loaded posts carry, plus

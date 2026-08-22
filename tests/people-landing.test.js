@@ -151,7 +151,7 @@ test("the picker says what choosing a name does, and the line over the grid says
   try {
     const { document } = page;
     assert.equal(textOf(document.querySelector("#profile-author-hint")),
-      "Choose a display name to see only the image posts published under it.");
+      "The selected display name is the current filter. Choose another display name to update the image-post list.");
 
     // Zed is the landing name and has two pictures. The number is the tiles on
     // screen, not the size of the feed behind them: four posts are loaded here.
@@ -375,9 +375,9 @@ test("every entry says how many image posts that display name has, and which one
     // Singular for exactly one; a bare zero only for a name the feed answered
     // zero for. Zed is selected, and says so in words rather than in colour.
     assert.deepEqual(chipTexts(page), [
-      "Filter People to Ari’s image posts · 0 image posts",
-      "Filter People to Bea’s image posts · 1 image post",
-      "✓ Selected: Filter People to Zed’s image posts · 2 image posts",
+      "Display name: Ari · 0 image posts",
+      "Display name: Bea · 1 image post",
+      "✓ Current filter — Display name: Zed · 2 image posts",
     ]);
     // The value stays the bare display name: the label is for the reader, the
     // data attribute is what the page filters and links by.
@@ -385,7 +385,7 @@ test("every entry says how many image posts that display name has, and which one
     // Present on every entry, not only the pressed one.
     assert.deepEqual(chips(page).map((chip) => chip.getAttribute("aria-pressed")), ["false", "false", "true"]);
     // The mark is a character and a word, so the distinction survives greyscale.
-    assert.equal(chipTexts(page).filter((text) => text.includes("✓ Selected:")).length, 1);
+    assert.equal(chipTexts(page).filter((text) => text.includes("✓ Current filter —")).length, 1);
     // A name with nothing to show is still selectable — its count is the thing
     // that tells the reader it is empty.
     assert.equal(chips(page)[0].hasAttribute("disabled"), false);
@@ -402,7 +402,7 @@ test("the counts on the picker are the rows the grid draws, name by name", async
   try {
     const { document } = page;
     const claimed = new Map(chipTexts(page).map((text) => {
-      const [, name, count] = text.match(/(?:✓ Selected: )?Filter People to (.+)’s image posts · (\d+) image posts?$/);
+      const [, name, count] = text.match(/(?:✓ Current filter — )?Display name: (.+) · (\d+) image posts?$/);
       return [name, Number(count)];
     }));
     assert.deepEqual([...claimed], [["Ari", 0], ["Bea", 1], ["Zed", 2]]);
@@ -463,7 +463,7 @@ test("a name whose posts are all gone is offered the publishing flow", async () 
   });
   try {
     const { document } = page;
-    assert.equal(chipTexts(page).includes("Filter People to Bea’s image posts · 0 image posts"), true, chipTexts(page).join(" / "));
+    assert.equal(chipTexts(page).includes("Display name: Bea · 0 image posts"), true, chipTexts(page).join(" / "));
     chipFor(page, "Bea").click();
     assert.equal(document.querySelectorAll(".profile-tile").length, 0);
     // One region, and it is the filtered one: other display names in this feed
@@ -914,9 +914,9 @@ test("arriving with no name asked for lists every display name with its count an
     // The whole set on arrival, each entry carrying its count as words rather
     // than a bare figure beside a name.
     assert.deepEqual(chipTexts(page), [
-      "Filter People to Ari’s image posts · 0 image posts",
-      "Filter People to Bea’s image posts · 1 image post",
-      "✓ Selected: Filter People to Zed’s image posts · 2 image posts",
+      "Display name: Ari · 0 image posts",
+      "Display name: Bea · 1 image post",
+      "✓ Current filter — Display name: Zed · 2 image posts",
     ]);
     for (const text of chipTexts(page))
       assert.match(text, /· \d+ image posts?$/, `an entry states a number without saying what it counts: ${text}`);
