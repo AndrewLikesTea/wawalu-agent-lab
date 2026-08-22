@@ -573,36 +573,90 @@ test("the last step names Choose image and the file it takes", () => {
     "the closing step grew a focusable element");
 });
 
-test("the image section says a picture also costs an Image description", () => {
-  const note = documents.Social.getElementById("post-image-alt-requirement");
-  assert.ok(note, "the image section never mentions the description requirement");
-  assert.equal(textOf(note),
-    "A post with an image will not publish until you fill in Image description, "
-    + "which appears below once you choose an image.");
+// #1967: the sentence a picture costs an Image description used to stand before
+// the file picker, where it had to spend half of itself saying where the field it
+// named would turn up — a rule about a control that was not on the screen, read
+// before the reader had decided whether it applied to them. It is one sentence at
+// the field now, revealed with the preview, which is the moment the rule binds.
+const ALT_REQUIREMENT = "A post with an image will not publish until you fill this in.";
 
-  // Named the way its own label names it. The label carries the condition marker
-  // after the name, so the name is what stands before the parenthetical.
-  const fieldLabel = textOf(documents.Social.querySelector('label[for="post-image-alt"]'));
-  assert.equal(fieldLabel.split(" (")[0], "Image description");
-  assert.ok(textOf(note).includes("Image description"),
-    "the requirement paraphrases the field instead of naming it");
-
-  // In the image section, and outside the media region — that region is hidden
-  // until a file is chosen, which is exactly when this sentence is too late.
-  assert.ok(inMediaPicker(note), "the requirement sits outside the image field");
-  for (let cursor = note; cursor; cursor = cursor.parentNode) {
-    assert.notEqual(cursor.getAttribute?.("id"), "compose-media",
-      "the requirement only appears once the reader has already met it");
+/** Text a reader cannot reach yet: something above it carries `hidden`. */
+const foldedAway = (node) => {
+  for (let cursor = node; cursor; cursor = cursor.parentNode) {
+    if (cursor.getAttribute?.("hidden") !== null && cursor.getAttribute) return true;
   }
-  assert.ok(!note.getAttribute("hidden"), "the requirement ships hidden");
+  return false;
+};
 
-  // Help text in the shipped style, adding no tab stop and no fifth status
-  // marker — the four labels that carry one still carry all of them.
+test("the description requirement is stated once, at the field it is about", () => {
+  const note = documents.Social.getElementById("post-image-alt-requirement");
+  assert.ok(note, "the composer never mentions the description requirement");
+  assert.equal(textOf(note), ALT_REQUIREMENT);
+
+  // One sentence, and it names no field and no location: the label directly
+  // above it does both, so a second naming would be the same fact twice.
+  assert.equal(textOf(note).split(". ").length, 1, `the requirement runs to two sentences: ${textOf(note)}`);
+  assert.doesNotMatch(textOf(note), /appears below|choose an image/i,
+    "the requirement still says where the field turns up");
+
+  // At the field: same field group as the label and the textarea it is about.
+  const field = documents.Social.querySelector('label[for="post-image-alt"]').parentNode;
+  assert.equal(field.querySelectorAll("textarea")[0].getAttribute("id"), "post-image-alt");
+  let inField = false;
+  for (let cursor = note; cursor; cursor = cursor.parentNode) if (cursor === field) inField = true;
+  assert.ok(inField, "the requirement sits outside the field it is about");
+  // And read by the field, in the order it is met — the Display name pattern,
+  // where a second hint under one input is named by that input as well.
+  assert.deepEqual((documents.Social.getElementById("post-image-alt").getAttribute("aria-describedby") ?? "").split(/\s+/),
+    ["post-image-alt-hint", "post-image-alt-requirement", "post-image-alt-counter-label", "post-image-alt-counter"]);
+
+  // Said exactly once on the page, in the shipped markup, adding no tab stop and
+  // no fifth status marker — the four labels that carry one still carry all of
+  // them. The label keeps its own condition marker.
+  assert.equal(sources.Social.split(ALT_REQUIREMENT).length - 1, 1);
+  assert.equal(textOf(documents.Social.getElementById("post-image-alt-required")), "(required with an image)");
   assert.equal(note.tagName, "P");
   assert.equal(note.getAttribute("class"), "hint");
-  assert.equal(note.querySelectorAll("a,button,input").length, 0);
+  for (const tag of ["a", "button", "input"]) assert.equal(note.querySelectorAll(tag).length, 0);
   assert.equal(documents.Social.querySelectorAll(".label-optional").length, 4);
   assert.match(sources.Social, /<p class="hint" id="post-image-alt-requirement">/);
+});
+
+test("with no image chosen, nothing in the composer describes the Image description field", async () => {
+  const page = await loadPage(PAGES.Social);
+  try {
+    const document = page.document;
+    // The composer as a reader opens it, with no file chosen: the media region
+    // ships hidden, so everything it holds is still folded away.
+    document.getElementById("post-compose-panel").hidden = false;
+    assert.equal(document.getElementById("compose-media").hidden, true);
+    assert.equal(foldedAway(document.getElementById("post-image-alt-requirement")), true,
+      "the requirement is readable before there is an image it applies to");
+
+    // No paragraph the reader can reach names the field or restates its rule —
+    // the pre-warning is gone, and nothing paraphrases it.
+    const reachable = document.getElementById("post-form").querySelectorAll("p")
+      .filter((paragraph) => !foldedAway(paragraph));
+    for (const paragraph of reachable) {
+      assert.doesNotMatch(textOf(paragraph), /image description/i,
+        `the composer names Image description before there is an image: ${textOf(paragraph)}`);
+      assert.doesNotMatch(textOf(paragraph), /will not publish until/i,
+        `the composer restates the description rule early: ${textOf(paragraph)}`);
+    }
+    assert.equal(sources.Social.split("which appears below once you choose an image").length - 1, 0);
+
+    // Chosen: the state src/social-page.js puts the panel in once a file is in
+    // hand. The rule is now on screen, once.
+    document.getElementById("compose-media").hidden = false;
+    const composer = textOf(document.getElementById("post-form"));
+    assert.equal(composer.split(ALT_REQUIREMENT).length - 1, 1,
+      `the requirement is stated ${composer.split(ALT_REQUIREMENT).length - 1} times once an image is chosen`);
+    assert.equal(foldedAway(document.getElementById("post-image-alt-requirement")), false);
+    assert.equal(composer.split("will not publish until").length - 1, 1,
+      "a second sentence states the description rule alongside the first");
+  } finally {
+    page.restore();
+  }
 });
 
 test("nothing in the image section says Paint delivers the file", () => {

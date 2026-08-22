@@ -376,7 +376,7 @@
                    cannot.
                    Named by the textarea's own aria-describedby, ahead of the
                    counter, the way Display name names its own hint. -->
-              <label for="post-body">Post <span class="label-optional label-required">(required)</span></label>
+              <label for="post-body">Your post <span class="label-optional label-required">(required)</span></label>
               <textarea id="post-body" name="body" rows="4" maxlength="280" required
                 aria-describedby="post-body-hint post-counter-label post-counter"></textarea>
               <span class="hint" id="post-body-hint">Up to 280 characters.</span>
@@ -451,22 +451,13 @@
                    The same help class every other line in this form wears, so
                    it costs no new rule and no new type or colour scale. -->
               <p class="hint" id="post-draft-note">Anything you have already typed is kept here while you are in the other tab, and while this panel is closed.</p>
-              <!-- The second half of the price of attaching an image, said where
-                   the visitor decides whether to attach one. Image description
-                   is required with an image and its label says so, but that
-                   label ships inside the media region below, which is hidden
-                   until a file has actually been chosen — so the requirement was
-                   readable only after the reader had committed to meeting it,
-                   and never while they were following the steps above. It names
-                   the field in the label's own words, and says where the field
-                   turns up, because a reader sent to look for it now would not
-                   find it on the screen in front of them.
-                   The condition, not a flat "(required)": the legend above reads
-                   "Image (optional)", and the marker on the field itself already
-                   settled how this rule is worded. Help text, not a marker, so
-                   it takes the same .hint every other line in this form wears and
-                   is not one of the four .label-optional markers. -->
-              <p class="hint" id="post-image-alt-requirement">A post with an image will not publish until you fill in Image description, which appears below once you choose an image.</p>
+              <!-- The requirement moved to the field it is about (#1967). It
+                   stood here, before the picker, and had to spend half a
+                   sentence saying where the field it named would turn up — a
+                   rule about a control the reader could not see, read before
+                   they had decided whether it applied to them. It is now one
+                   sentence beside Image description, which appears at the same
+                   moment the rule starts to bind. -->
               <div class="compose-media" id="compose-media" hidden>
                 <!-- One name for the image the visitor chose. This region used to
                      give it two, a caption below the picture reading "Preview
@@ -530,9 +521,18 @@
                 <div class="field field-wide">
                   <label for="post-image-alt">Image description <span class="label-optional label-required" id="post-image-alt-required">(required with an image)</span></label>
                   <textarea id="post-image-alt" name="image-alt" rows="2" maxlength="200"
-                    aria-describedby="post-image-alt-hint post-image-alt-counter-label post-image-alt-counter"></textarea>
+                    aria-describedby="post-image-alt-hint post-image-alt-requirement post-image-alt-counter-label post-image-alt-counter"></textarea>
                   <p class="field-error compose-error" id="post-image-alt-error" hidden></p>
                   <span class="hint" id="post-image-alt-hint">Describe what matters in the image for people who cannot see it. Up to 200 characters.</span>
+                  <!-- The consequence of leaving this field empty, said once, at
+                       the field, and only once there is an image to describe:
+                       this region is revealed with the preview. It names no
+                       field and no location, because it stands under the label
+                       that names it. Two hints stacked under one input is the
+                       Display name pattern, and like that field's second hint
+                       it is named by the input's own aria-describedby, in the
+                       order it is read. -->
+                  <p class="hint" id="post-image-alt-requirement">A post with an image will not publish until you fill this in.</p>
                   <p class="counter-row">
                     <span id="post-image-alt-counter-label">Characters remaining:</span>
                     <span id="post-image-alt-counter" aria-live="polite" aria-atomic="true">200</span>
