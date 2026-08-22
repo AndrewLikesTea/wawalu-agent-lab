@@ -20,7 +20,6 @@ import {
   mergedCountUnit,
   readPublicEvents,
   unavailableReason,
-  unavailableSentences,
 } from "./public-merges.js";
 // What a browser remembers of that number between visits, shared with the home
 // page so one response cannot be remembered two ways.
@@ -413,9 +412,9 @@ export const ACTIVITY_STATES = Object.freeze({
   }),
   error: Object.freeze({
     shape: "error",
-    chip: "Request failed",
-    title: "Public GitHub activity could not be loaded",
-    detail: "The request for public GitHub activity failed, so nothing below is live. The steps shown are a synthetic example, and the rest of this page is unaffected.",
+    chip: "Unavailable",
+    title: "Public GitHub activity unavailable",
+    detail: `We could not fetch public GitHub activity from ${SOURCE_REPOSITORIES.join(" and ")}. The personas and prompt trace are separate synthetic examples.`,
     keptDetail: "The request for public GitHub activity failed. The events below are from the last successful update, and the rest of this page is unaffected.",
     action: "Retry public GitHub activity",
     recovery: "retry",
@@ -496,7 +495,7 @@ export const CONNECTION_LABELS = Object.freeze({
   loading: "Loading the GitHub signal",
   live: "Live signal",
   empty: "No GitHub events · synthetic example",
-  error: "GitHub check failed",
+  error: "Public GitHub activity unavailable",
 });
 
 // --- The one real number on this page --------------------------------------
@@ -588,15 +587,15 @@ export async function readRecordedCount(fetcher = fetch) {
 }
 
 /**
- * The never-counted state's two sentences, for the reason this request actually
- * failed for. Not written here: `unavailableSentences` in ./public-merges.js is
- * the only place either sentence exists, and the home page's counted-figure
- * block renders the same list — so the two surfaces cannot describe one outcome
- * in two sets of words, and neither can be reworded without the other.
+ * The observatory deliberately collapses transport-specific failures into one
+ * buyer-readable state. Prospects do not need to interpret HTTP failure modes.
  */
 const unavailableCopy = (reason) => {
-  const [value, source] = unavailableSentences(reason);
-  return { value, source };
+  void reason;
+  return {
+    value: "Public GitHub activity unavailable.",
+    source: `We could not fetch public GitHub activity from ${SOURCE_REPOSITORIES.join(" and ")}.`,
+  };
 };
 
 export const MERGED_FIGURE_COPY = Object.freeze({

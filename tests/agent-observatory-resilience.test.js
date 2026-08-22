@@ -93,8 +93,9 @@ test("unavailable public activity retains the representative fallback and retry"
   assert.equal(byClass(root.nodes["#activity-list"], "activity-fallback")[0].dataset.reason, "unavailable");
   assert.equal(byClass(root.nodes["#activity-list"], "activity-item-representative").length, 4);
   assert.equal(root.nodes["#activity-status"].dataset.state, "error");
-  assert.match(root.nodes["#activity-status"].textContent, /could not be loaded.*synthetic example/i);
-  assert.equal(root.nodes["#connection-label"].textContent, "GitHub check failed");
+  assert.match(root.nodes["#activity-status"].textContent,
+    /Public GitHub activity unavailable.*personas and prompt trace are separate synthetic examples/i);
+  assert.equal(root.nodes["#connection-label"].textContent, "Public GitHub activity unavailable");
   assert.equal(root.nodes["#refresh-activity"].textContent, "Retry public GitHub activity");
 });
 

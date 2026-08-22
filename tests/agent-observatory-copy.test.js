@@ -144,7 +144,7 @@ test("the hero card names the signal, and says when the rows are a synthetic exa
   // them apart before the panel below it repeats the distinction.
   assert.match(CONNECTION_LABELS.empty, /no GitHub events/i);
   assert.match(CONNECTION_LABELS.empty, /synthetic example/i, "the rows below are named for what they are");
-  assert.match(CONNECTION_LABELS.error, /failed/i);
+  assert.equal(CONNECTION_LABELS.error, "Public GitHub activity unavailable");
   assert.doesNotMatch(CONNECTION_LABELS.error, /synthetic example/i,
     "a failed check can keep the last live events, so the card must not call them an example");
 });

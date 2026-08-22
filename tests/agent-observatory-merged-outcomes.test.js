@@ -27,9 +27,7 @@ import { loadActivity } from "../src/agents.js";
 import {
   EVENTS_URLS,
   SOURCE_REPOSITORIES,
-  UNAVAILABLE_REASONS,
   feedLinkText,
-  unavailableSentences,
 } from "../src/public-merges.js";
 import {
   RETAINED_COUNT_KEY,
@@ -185,8 +183,10 @@ test("GitHub did not answer and nothing was ever counted: the home page's wordin
 
   const readout = document.querySelector("#merged-figure-readout");
   assert.equal(document.querySelector("#merged-figure").dataset.state, "unavailable");
-  assert.deepEqual(readout.querySelectorAll("p").map(textOf),
-    unavailableSentences(UNAVAILABLE_REASONS.rateLimited));
+  assert.deepEqual(readout.querySelectorAll("p").map(textOf), [
+    "Public GitHub activity unavailable.",
+    `We could not fetch public GitHub activity from ${SOURCE_REPOSITORIES.join(" and ")}.`,
+  ]);
   // No zero, no dash, no remembered figure standing in for a count nobody took.
   assert.doesNotMatch(textOf(readout), /\d/, "something a reader could quote as a count was left behind");
 
@@ -258,15 +258,18 @@ async function homeReadout(storage) {
   }
 }
 
-test("the never-counted outcome reads the same on the home page and in the observatory", async () => {
+test("the observatory turns the never-counted outcome into buyer-readable unavailable copy", async () => {
   const observatory = await observatoryReadout({});
   const home = await homeReadout({});
 
   assert.equal(observatory.state, "unavailable");
   assert.equal(home.state, "unavailable");
-  assert.deepEqual(observatory.said, home.said,
-    "the two pages describe one outcome — a rate limit and nothing ever counted — in different words");
-  assert.deepEqual(observatory.said, unavailableSentences(UNAVAILABLE_REASONS.rateLimited));
+  assert.deepEqual(observatory.said, [
+    "Public GitHub activity unavailable.",
+    `We could not fetch public GitHub activity from ${SOURCE_REPOSITORIES.join(" and ")}.`,
+  ]);
+  assert.notDeepEqual(observatory.said, home.said,
+    "the observatory intentionally replaces transport-specific detail with one buyer-readable state");
 });
 
 test("the stored-count outcome reads the same on the home page and in the observatory", async () => {

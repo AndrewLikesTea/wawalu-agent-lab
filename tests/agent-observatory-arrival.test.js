@@ -181,12 +181,12 @@ test("with the published file and GitHub both blocked, all three regions settle 
     assert.match(text, /published demo file is unavailable/i, `${name}: it names the file that did not load`);
     assert.doesNotMatch(text, /GitHub/i, `${name}: this panel never asked GitHub for anything`);
   }
-  assert.match(activity, /request for public GitHub activity failed/i);
+  assert.match(activity, /Public GitHub activity unavailable/i);
   assert.doesNotMatch(activity, /GitHub answered/i, "a request that failed must not be told as an answer");
   assert.notEqual(personas, trace, "one fact, said once per panel, in each panel's own words");
 
   // The hero card settles too, rather than holding the arrival spinner.
-  assert.equal(textOf(document.querySelector("#connection-label")), "GitHub check failed");
+  assert.equal(textOf(document.querySelector("#connection-label")), "Public GitHub activity unavailable");
   assert.equal(textOf(document.querySelector("#last-updated")), "Not updated");
 
   // And the standing text is still the page's answer to "what is this".
