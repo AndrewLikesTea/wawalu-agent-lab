@@ -31,16 +31,26 @@ import { CONFIRMATION_DETAIL, CONFIRMATION_LEAD } from "../src/follow-up-confirm
 import { onRequest } from "../functions/api/leads.js";
 import { createMemoryLeadStore, FOLLOW_UP_TOPICS, handleLeadRequest } from "../src/leads.js";
 
-// The six pages the follow-up request was reviewed on, with the request type
-// each one sends. The homepage predates the bounded types and still sends the
-// legacy label; the other five name the surface the visitor was reading.
+// The pages the follow-up request was reviewed on, with the request type each
+// one sends and how that request's fixed topic is presented. The homepage
+// predates the bounded types and still sends the legacy label; the rest name the
+// surface the visitor was reading.
+//
+// `stated` is the difference issue #1956 closed. A page a visitor could pick a
+// topic on never existed — every one of these topics is fixed by the page — but
+// four pages showed the fixed value in a read-only control and two showed
+// nothing at all. Those two now name it in prose instead, and the request they
+// send carries the same string: the shipped markup and the payload are compared
+// against FOLLOW_UP_TOPICS here rather than against a phrase typed into a test,
+// so the sentence cannot drift away from what goes on the wire.
 const REVIEWED = [
-  ["index.html", "follow_up", null],
-  ["coach.html", "follow_up_coach", FOLLOW_UP_TOPICS.follow_up_coach],
-  ["releases.html", "follow_up_releases", null],
-  ["social.html", "follow_up_social", FOLLOW_UP_TOPICS.follow_up_social],
-  ["profile.html", "follow_up_people", FOLLOW_UP_TOPICS.follow_up_people],
-  ["agents.html", "follow_up_agents", FOLLOW_UP_TOPICS.follow_up_agents],
+  ["index.html", "follow_up", null, false],
+  ["coach.html", "follow_up_coach", FOLLOW_UP_TOPICS.follow_up_coach, false],
+  ["post.html", "follow_up_social", FOLLOW_UP_TOPICS.follow_up_social, true],
+  ["releases.html", "follow_up_releases", FOLLOW_UP_TOPICS.follow_up_releases, true],
+  ["social.html", "follow_up_social", FOLLOW_UP_TOPICS.follow_up_social, false],
+  ["profile.html", "follow_up_people", FOLLOW_UP_TOPICS.follow_up_people, false],
+  ["agents.html", "follow_up_agents", FOLLOW_UP_TOPICS.follow_up_agents, false],
 ];
 
 const TYPED_EMAIL = "director@example.com";
@@ -86,7 +96,7 @@ const submitControl = (document) =>
 
 /* --------------------------- the panel, per page --------------------------- */
 
-for (const [file, purpose, topic] of REVIEWED) {
+for (const [file, purpose, topic, stated] of REVIEWED) {
   test(`${file} ships the follow-up panel and its live region before anything is submitted`, async () => {
     const page = await loadPage(pageUrl(file));
     const { document } = page;
@@ -95,9 +105,23 @@ for (const [file, purpose, topic] of REVIEWED) {
       assert.equal(form.tagName, "FORM");
       assert.equal(form.getAttribute("data-follow-up-type"), purpose === "follow_up" ? null : purpose);
       const topicField = byId(document, "site-footer-topic");
-      assert.equal(topicField?.value ?? null, topic);
-      assert.equal(topicField?.hasAttribute("readonly") ?? false, Boolean(topic));
-      const pageName = { "coach.html": "Prompt coach", "social.html": "Social", "profile.html": "People", "agents.html": "Agent observatory" }[file];
+      assert.equal(topicField?.value ?? null, stated ? null : topic);
+      assert.equal(topicField?.hasAttribute("readonly") ?? false, Boolean(topic) && !stated);
+
+      // A page with no control says the same thing in prose, and the string it
+      // names is the one the form carries to the wire — read from the markup,
+      // not typed here.
+      const note = byId(document, "site-footer-topic-note");
+      assert.equal(note?.tagName ?? null, stated ? "P" : null);
+      if (stated) {
+        assert.equal(textOf(note), `This request is sent about the ${topic}.`);
+        assert.equal(form.getAttribute("data-follow-up-topic"), topic);
+      }
+
+      const pageName = {
+        "coach.html": "Prompt coach", "post.html": "Social", "releases.html": "Releases",
+        "social.html": "Social", "profile.html": "People", "agents.html": "Agent observatory",
+      }[file];
       if (topic) assert.match(topic, new RegExp(pageName, "i"));
       assert.equal(byId(document, "site-footer-email").getAttribute("type"), "email");
       assert.equal(submitControl(document).getAttribute("type"), "submit");
@@ -310,7 +334,7 @@ function endpointTransport(db, calls) {
   };
 }
 
-for (const [file, purpose, topic] of REVIEWED) {
+for (const [file, purpose, topic, stated] of REVIEWED) {
   test(`${file}: a follow-up request reaches the real endpoint and lands a row`, async (t) => {
     const db = await createTestD1();
     t.after(() => db.close());
@@ -338,6 +362,16 @@ for (const [file, purpose, topic] of REVIEWED) {
       const rows = db.raw.prepare("SELECT email, purpose, topic FROM lead_submissions").all()
         .map(({ email, purpose: stored, topic: storedTopic }) => ({ email, purpose: stored, topic: storedTopic }));
       assert.deepEqual(rows, [{ email: TYPED_EMAIL, purpose, topic }], `${file} must write exactly one row`);
+
+      // Both halves in one chain, for the pages that state the topic in prose:
+      // what the page says, what the request sent, and what the row holds are
+      // the same string — the one FOLLOW_UP_TOPICS supplies for this purpose.
+      if (stated) {
+        const sentence = shownText(document, "site-footer-topic-note");
+        const named = sentence.slice("This request is sent about the ".length, -1);
+        assert.equal(named, JSON.parse(calls[0].options.body).topic, `${file}: the page names what it sends`);
+        assert.equal(named, rows[0].topic, `${file}: and what it sends is what was stored`);
+      }
       assert.ok(shownText(document, "site-footer-confirmation").includes(TYPED_EMAIL));
     } finally {
       globalThis.fetch = passthrough;

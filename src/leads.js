@@ -11,6 +11,13 @@ export const LEAD_PURPOSES = Object.freeze(["field_notes", "follow_up", ...FOLLO
 export const FOLLOW_UP_TOPICS = Object.freeze({
   follow_up_finops_example: "Bundled AI FinOps example — lower-cost routing in Atlas Platform",
   follow_up_coach: "Prompt coach page — prompt grading and revision",
+  // Releases sent this request type with no topic entry, so the request reached
+  // the row with an empty topic column and the page had nothing true to name.
+  // The purpose was already in the migration 0009 CHECK; only the topic was
+  // missing, and a topic is a free column (migration 0010), so naming it here
+  // costs no schema change. The words are the site's own for this surface —
+  // DEMOS in src/site-footer.js describes Releases the same way.
+  follow_up_releases: "Releases page — every release and the decisions it carried",
   follow_up_social: "Social page — team posts and published images",
   follow_up_people: "People page — display names and image posts",
   follow_up_agents: "Agent observatory page — synthetic engineering activity",

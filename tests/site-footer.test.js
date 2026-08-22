@@ -66,10 +66,19 @@ const describedBy = (document) => byId(document, "site-footer-email").getAttribu
 // carrying the generic one. Kept here rather than inferred from the page, so a
 // page cannot quietly drop the contact affordance: dropping it is a decision
 // this table has to record, and src/site-footer.js has to offer copy for.
+//
+// `statedTopic` is the second shape a fixed topic takes: the pages a visitor
+// cannot choose a topic on say what the request is about in prose instead of in
+// a read-only control, so the block gains a sentence and no tab stop.
 const FOOTER_VARIANT = new Map([
   ["executive-briefing.html", { redirect: FOLLOW_UP_REDIRECT.briefing }],
   ["coach.html", { followUpType: "follow_up_coach", followUpTopic: FOLLOW_UP_TOPICS.follow_up_coach }],
-  ["releases.html", { followUpType: "follow_up_releases" }],
+  ["post.html", {
+    followUpType: "follow_up_social", followUpTopic: FOLLOW_UP_TOPICS.follow_up_social, statedTopic: true,
+  }],
+  ["releases.html", {
+    followUpType: "follow_up_releases", followUpTopic: FOLLOW_UP_TOPICS.follow_up_releases, statedTopic: true,
+  }],
   ["social.html", { followUpType: "follow_up_social", followUpTopic: FOLLOW_UP_TOPICS.follow_up_social }],
   ["profile.html", { followUpType: "follow_up_people", followUpTopic: FOLLOW_UP_TOPICS.follow_up_people }],
   ["agents.html", { followUpType: "follow_up_agents", followUpTopic: FOLLOW_UP_TOPICS.follow_up_agents }],
@@ -773,7 +782,7 @@ test("a failed submission keeps the typed address, says it can be retried, and t
   let failNext = true;
   const calls = interceptLeads(() => (failNext
     ? jsonReply({ error: { code: "storage_unavailable", message: "unreviewed upstream text" } }, 503)
-    : jsonReply({ captured: true, created: true, purpose: "follow_up" })));
+    : jsonReply({ captured: true, created: true, purpose: "follow_up_social" })));
   try {
     const field = byId(document, "site-footer-email");
     const submit = byId(document, "site-footer-panel").querySelector('button[type="submit"]');
@@ -804,7 +813,9 @@ test("a failed submission keeps the typed address, says it can be retried, and t
     await waitFor(() => byId(document, "site-footer-form").dataset.state === "success",
       "the retry to succeed");
     assert.equal(calls.length, 2, "the retry must make its own request");
-    assert.deepEqual(JSON.parse(calls[1].options.body), { email: TYPED_EMAIL, purpose: "follow_up" });
+    assert.deepEqual(JSON.parse(calls[1].options.body), {
+      email: TYPED_EMAIL, purpose: "follow_up_social", topic: FOLLOW_UP_TOPICS.follow_up_social,
+    });
     assert.match(shownText(document, "site-footer-status"), /^Request received\./);
 
     // And the failure is gone, not merely outranked. A page that had failed and
