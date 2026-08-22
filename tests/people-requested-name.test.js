@@ -117,7 +117,7 @@ test("a display name with zero image posts is answered under that name, with a s
     assertStatedZero(document, "Ari");
     // The chip prints the zero too, so the picker and the grid cannot disagree
     // about what choosing this name will show.
-    assert.equal(textOf(selectedChip(page)), "✓ Selected: Filter People to Ari’s image posts · 0 image posts");
+    assert.equal(textOf(selectedChip(page)), "✓ Current filter — Display name: Ari · 0 image posts");
     // One panel, in the region that was carrying the wait, and it says which
     // way out this state has: other names here do have pictures, so the way out
     // is the reset rather than the editor.
@@ -205,7 +205,7 @@ test("a forwarded name the feed cannot hold is still the name the page answers",
     assert.doesNotMatch(rendered, /Guest/);
     // The count on its own chip is the drawn zero, not "Counting…" and not a
     // number borrowed from the name the page used to fall back to.
-    assert.equal(textOf(selectedChip(page)), `✓ Selected: Filter People to ${OVERLONG_NAME}’s image posts · 0 image posts`);
+    assert.equal(textOf(selectedChip(page)), `✓ Current filter — Display name: ${OVERLONG_NAME} · 0 image posts`);
     // A name that was asked for is never reported back as the page's own choice.
     assert.equal(textOf(document.querySelector("#profile-picker-note")), "");
     // Nothing this browser cannot post under is written to storage, and the
