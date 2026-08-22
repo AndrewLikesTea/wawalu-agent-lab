@@ -385,7 +385,7 @@ test("the composer numbers the round trip and puts the rule beside the control",
     "Create an image in Paint (opens in a new tab) ↗",
     "Export the PNG",
     "Return to this tab",
-    "Use Choose image above to pick the PNG you exported",
+    "Pick the PNG you exported, using Choose image below",
   ]);
   assert.equal(textOf(documents.Social.querySelector("body")).split("Select Choose image").length - 1, 0,
     "the composer still instructs the reader to select the button beside the instruction");
@@ -402,7 +402,17 @@ test("the composer numbers the round trip and puts the rule beside the control",
   const blocks = field.children.filter((node) => node.dataset);
   assert.equal(blocks.indexOf(hint), blocks.indexOf(control.parentNode) + 1,
     "the format and size rule is not the element next to Choose image");
-  assert.ok(blocks.indexOf(hint) < blocks.indexOf(steps), "the rule reads after the steps again");
+  // #1957: the steps are no longer a sibling of the rule at all — they are the
+  // group above the control. The rule still reads after the picker, and the
+  // group still reads before it.
+  const group = documents.Social.getElementById("post-image-source");
+  assert.ok(blocks.indexOf(group) >= 0, "the round trip is not a block of the image section");
+  assert.ok(blocks.indexOf(group) < blocks.indexOf(control.parentNode),
+    "the round trip reads after Choose image again");
+  assert.ok(blocks.indexOf(control.parentNode) < blocks.indexOf(hint),
+    "the rule reads before the control it qualifies");
+  assert.equal(steps.parentNode.getAttribute("id"), "post-image-source",
+    "the steps are outside the group that names them");
   assert.equal(items.filter((item) => /512 KB|WebP/.test(textOf(item))).length, 0,
     "the rule is back inside the step list");
 
@@ -447,8 +457,10 @@ test("the numbered Paint step keeps its new-tab words and its external indicatio
 });
 
 // (d) The numbered list and the relocated rule are text, so the keyboard walks
-// the composer in exactly the order it did before #1818.
-test("the composer's focusable sequence is unchanged by the numbered steps", async () => {
+// the composer in the order the markup stands in — which since #1957 puts the
+// Paint link ahead of the file control, because the round trip is written ahead
+// of it and nothing fakes a position with a tabindex.
+test("the composer's focusable sequence follows the markup, Paint before the picker", async () => {
   const page = await loadPage(PAGES.Social);
   try {
     page.document.getElementById("post-compose-panel").hidden = false;
@@ -461,8 +473,8 @@ test("the composer's focusable sequence is unchanged by the numbered steps", asy
     const named = stops.map((node) => node.getAttribute("id") ?? textOf(node));
     assert.deepEqual(named, [
       "post-body",
-      "post-image",
       "Create an image in Paint (opens in a new tab) ↗",
+      "post-image",
       "remove-image",
       "post-image-alt",
       "post-author",
@@ -497,8 +509,12 @@ test("the composer names the round trip in the order it is taken, once", () => {
     "the composer asks for the export before the drawing");
   assert.ok(at("Export the PNG") < at("Return to this tab"),
     "the composer sends the visitor back before they have a file");
-  assert.ok(at("Return to this tab") < at("Use Choose image above"),
+  assert.ok(at("Return to this tab") < at("Pick the PNG you exported"),
     "the composer asks for the file before the visitor is back in this tab");
+  // And the closing step points down the form, at the control that now follows
+  // it, rather than back up at one the reader has already passed.
+  assert.doesNotMatch(steps, /Choose image above/,
+    "the closing step still sends the reader backwards up the form");
   // A fourth step once said "Select Choose image", which is the label on the
   // control beside it and nothing else, so the reader's last instruction was to
   // press a button they were already looking at. The step is back with the fact
@@ -564,7 +580,14 @@ test("the last step names Choose image and the file it takes", () => {
   // And the file, identified as the one they just made — the step is useless if
   // the reader has to guess which of their PNGs is meant.
   assert.match(last, /PNG you exported/, `the closing step names no file: ${last}`);
-  assert.equal(last, "Use Choose image above to pick the PNG you exported");
+  // #1957: it used to read "Use Choose image above to pick the PNG you
+  // exported" — the last thing a visitor was told was to go back up past the
+  // steps they had just walked. The control follows the steps now, so the step
+  // reads forwards to it: the file first, the control that takes it second, and
+  // "below" pointing the way the page actually runs.
+  assert.equal(last, "Pick the PNG you exported, using Choose image below");
+  assert.match(last, /below\b/, `the closing step names no direction: ${last}`);
+  assert.doesNotMatch(last, /\babove\b/, `the closing step still points backwards: ${last}`);
 
   // It is prose in the list, not a second route to the same control: the tab
   // sequence through this field is unchanged.
@@ -658,12 +681,20 @@ test("the steps are the image field's own description, so focusing it reads them
   assert.deepEqual(described, ["post-image-hint", "post-image-steps", "post-media-status"]);
 });
 
-test("the composer's Paint link sits between Choose image and Image description", async () => {
+// #1957: a first-time visitor with no image on hand met the picker, then the
+// way to make something to put in it, then an instruction pointing back up the
+// form. The route runs forwards now — make it, export it, come back, choose it —
+// so the Paint link stands before Choose image and Choose image before the
+// description it makes mandatory.
+test("the composer's Paint link sits before Choose image and before Image description", async () => {
   // Source order, which is what the task is: no tabindex anywhere near it.
   const html = sources.Social;
-  assert.ok(html.indexOf('id="post-image"') < html.indexOf('class="secondary-button paint-link"'));
-  assert.ok(html.indexOf('class="secondary-button paint-link"') < html.indexOf('id="post-image-alt"'));
+  assert.ok(html.indexOf('class="secondary-button paint-link"') < html.indexOf('id="post-image"'),
+    "the picker still ships above the way to make something to put in it");
+  assert.ok(html.indexOf('id="post-image"') < html.indexOf('id="post-image-alt"'));
   assert.ok(!composerPaintLink().getAttribute("tabindex"), "the order is faked with tabindex");
+  assert.equal(documents.Social.getElementById("post-image").getAttribute("tabindex"), null,
+    "Choose image declares a tabindex");
 
   // And the sequence a keyboard actually walks, with the media panel open —
   // the description field only exists once an image is attached.
@@ -676,8 +707,19 @@ test("the composer's Paint link sits between Choose image and Image description"
     const paint = sequence.indexOf(page.document.querySelector("#post-image-steps").querySelector("a"));
     assert.ok(at("post-image") >= 0 && paint >= 0 && at("post-image-alt") >= 0,
       "one of the composer's image controls is not keyboard reachable");
-    assert.ok(at("post-image") < paint, "the Paint link comes before Choose image");
-    assert.ok(paint < at("post-image-alt"), "the Paint link comes after Image description");
+    assert.ok(paint < at("post-image"), "the Paint link comes after Choose image");
+    assert.ok(at("post-image") < at("post-image-alt"), "Choose image comes after Image description");
+    // Exactly one tab stop for the round trip, and it is the link: the group
+    // around it is a fieldset element, which is not focusable, and no step grew
+    // a control of its own.
+    assert.equal(page.document.querySelectorAll("#post-image-steps").length, 1);
+    const group = page.document.getElementById("post-image-source");
+    const focusable = tabSequence(page.document).filter((node) => {
+      for (let cursor = node; cursor; cursor = cursor.parentNode) if (cursor === group) return true;
+      return false;
+    });
+    assert.equal(focusable.length, 1, `the round trip offers ${focusable.length} tab stops`);
+    assert.equal(textOf(focusable[0]), "Create an image in Paint (opens in a new tab) ↗");
   } finally {
     page.restore();
   }
@@ -695,6 +737,169 @@ test("Image description states its status in the label, like Name and Image do",
     sources.Social,
     /<label for="post-image-alt">Image description <span class="label-optional label-required" id="post-image-alt-required">\(required with an image\)<\/span><\/label>/,
   );
+});
+
+/* ------------------- #1957: the image section reads forwards ------------- */
+// Iris, from a live-product review: a first-time visitor with no image on hand
+// met the file picker first, the way to make an image second, and a closing
+// instruction that pointed back up the form. Everything below pins the forward
+// order — the price of an image, then the round trip that produces one, then
+// the control that takes it — and pins that the reordering bought no new
+// focus treatment, no disclosure, and no stylesheet rule.
+
+/** The declarations of one rule in the shipped stylesheet, comments removed. */
+const stylesheet = (await readFile(new URL("../src/styles.css", import.meta.url), "utf8"))
+  .replace(/\/\*[\s\S]*?\*\//g, "");
+const declarationsOf = (selector) => {
+  for (const block of stylesheet.split("}")) {
+    const brace = block.indexOf("{");
+    if (brace < 0) continue;
+    if (block.slice(0, brace).trim() === selector) return block.slice(brace + 1).trim();
+  }
+  return null;
+};
+
+test("the round trip is one named group standing before Choose image", () => {
+  const group = documents.Social.getElementById("post-image-source");
+  assert.ok(group, "the round trip is not grouped at all");
+
+  // The grouping idiom this form already uses — the image section itself is a
+  // fieldset element named by a legend — so the group's accessible name comes
+  // from markup the rest of the composer is already built from, and never from
+  // a second aria-label competing with it.
+  assert.equal(group.tagName, "FIELDSET");
+  const legends = group.querySelectorAll("legend");
+  assert.equal(legends.length, 1, `the group carries ${legends.length} names`);
+  assert.equal(textOf(legends[0]), "If you need an image");
+  assert.equal(group.getAttribute("aria-label"), null, "the group is named twice");
+  assert.equal(group.getAttribute("aria-labelledby"), null, "the group is named twice");
+  // The legend is the group's first child, so the name is read before the steps.
+  assert.equal(group.children.filter((node) => node.dataset)[0].tagName, "LEGEND");
+  // It names no second verb for the act the link inside it already names.
+  assert.doesNotMatch(textOf(legends[0]), /\b(create|make|draw|paint)\b/i,
+    `the group's name invents a second verb for Paint: ${textOf(legends[0])}`);
+
+  // It holds the whole round trip: the steps and the promise about the draft,
+  // and it sits inside the image section rather than beside it.
+  assert.ok(inMediaPicker(group), "the round trip is outside the image section");
+  for (const id of ["post-image-steps", "post-draft-note"]) {
+    assert.equal(documents.Social.getElementById(id).parentNode.getAttribute("id"), "post-image-source",
+      `${id} is outside the group that names it`);
+  }
+
+  // And it precedes the control, in the markup as served — not with CSS order
+  // and not with a tabindex. Walked one tag at a time: this harness returns
+  // nothing at all for a comma selector, so a single query here would pass
+  // vacuously.
+  const html = sources.Social;
+  assert.ok(html.indexOf('id="post-image-source"') < html.indexOf('id="post-image"'),
+    "the group ships after the picker it feeds");
+  for (const tag of ["fieldset", "ol", "li", "a", "p"]) {
+    for (const node of group.querySelectorAll(tag)) {
+      assert.equal(node.getAttribute("tabindex"), null, `a ${tag} in the group declares a tabindex`);
+    }
+  }
+});
+
+test("the Paint link stays one visible tab stop in the site's own focus style", () => {
+  // Not folded away: no disclosure widget anywhere on the page, and the link is
+  // not hidden by an attribute either. The harness reads straight through a
+  // closed disclosure, so the count is what rules one out.
+  assert.equal(documents.Social.querySelectorAll("details").length, 0,
+    "the round trip was folded behind a disclosure widget");
+  const group = documents.Social.getElementById("post-image-source");
+  assert.ok(!group.getAttribute("hidden"), "the group ships hidden");
+
+  // Exactly one link, in the page as served, still saying where it goes.
+  const links = group.querySelectorAll("a");
+  assert.equal(links.length, 1, `the group offers ${links.length} routes into Paint`);
+  assert.equal(textOf(links[0]), "Create an image in Paint (opens in a new tab) ↗");
+  assert.equal(links[0].getAttribute("target"), "_blank");
+  assert.match(textOf(links[0]), /\(opens in a new tab\)/);
+  // And it is still the only one on the page: moving it must not have left a
+  // copy behind where it used to stand.
+  const offers = documents.Social.querySelectorAll("a")
+    .filter((anchor) => textOf(anchor).startsWith("Create an image in Paint"));
+  assert.equal(offers.length, 1, "Social offers Paint more than once again");
+
+  // The site's shipped focus ring, not a new treatment: the link wears the same
+  // two classes it wore before, and the only rule that draws a ring for them is
+  // the one every secondary button on the site shares.
+  assert.equal(links[0].getAttribute("class"), "secondary-button paint-link");
+  assert.equal(declarationsOf(".secondary-button:focus-visible,.text-button:focus-visible"),
+    "outline:3px solid var(--focus-ring); outline-offset:2px;");
+  assert.equal(declarationsOf(".paint-link"), "gap:5px;",
+    "the Paint link grew a treatment of its own");
+  assert.doesNotMatch(stylesheet, /post-image-source/,
+    "the group bought a stylesheet rule of its own");
+});
+
+test("the description's price is stated before the picker, and the group is not what states it", () => {
+  const note = documents.Social.getElementById("post-image-alt-requirement");
+  const html = sources.Social;
+  // The one hard constraint: before the file input. It reads before the round
+  // trip too, because the round trip is the expensive half of the branch it
+  // prices — a reader who learns about the description after four steps and a
+  // second tab has already spent the trip.
+  assert.ok(html.indexOf('id="post-image-alt-requirement"') < html.indexOf('id="post-image"'),
+    "the cost of an image is stated after the control that adds one");
+  assert.ok(html.indexOf('id="post-image-alt-requirement"') < html.indexOf('id="post-image-source"'),
+    "the cost of an image is stated after the trip a reader takes to get one");
+  // Outside the group: it prices the whole branch, not the trip to Paint.
+  assert.equal(note.parentNode.getAttribute("class"), "media-picker");
+  assert.equal(textOf(note),
+    "A post with an image will not publish until you fill in Image description, "
+    + "which appears below once you choose an image.");
+  // "below" is still true of the field it names, which ships after the picker.
+  assert.ok(html.indexOf('id="post-image"') < html.indexOf('id="post-image-alt"'));
+});
+
+test("the group's layout is the section's own rules, so nothing clips at a 390px viewport", () => {
+  // No module on this page reads matchMedia or innerWidth, so a harness
+  // viewport shim would assert only itself. What actually governs the group at
+  // 390px is CSS, and it is CSS the section already shipped: the group reuses
+  // the image section's class rather than introducing one.
+  const group = documents.Social.getElementById("post-image-source");
+  assert.equal(group.getAttribute("class"), "media-picker");
+
+  // (a) The rule that keeps a narrow viewport from clipping: a grid item's
+  // default min-width is auto, so a long step could push the form's column
+  // wider than the screen. min-width:0 is what forbids that, and the group
+  // inherits it by wearing the same class.
+  const picker = declarationsOf(".media-picker");
+  assert.ok(picker, "the image section has no rule");
+  assert.match(picker, /min-width:0/, `.media-picker no longer clamps its own width: ${picker}`);
+  assert.match(picker, /grid-column:1\/-1/, `.media-picker no longer spans the form grid: ${picker}`);
+  assert.doesNotMatch(picker, /width:\s*\d+px/, `.media-picker fixes a pixel width: ${picker}`);
+
+  // (b) The rule that keeps the steps on their own lines: every direct hint
+  // child of the section is a block, so the ordered list and the draft promise
+  // stack instead of sitting inline beside anything. Both are direct children
+  // of the group, and the group carries the class the selector matches, so the
+  // rule reaches them where they now stand.
+  const hints = declarationsOf(".media-picker > .hint");
+  assert.equal(hints, "display:block; margin-top:8px;");
+  for (const id of ["post-image-steps", "post-draft-note"]) {
+    const node = documents.Social.getElementById(id);
+    assert.equal(node.getAttribute("class"), "hint", `${id} left the shipped help style`);
+    assert.equal(node.parentNode.getAttribute("class"), "media-picker",
+      `${id} is not a direct child of the element the block rule selects`);
+  }
+  // Nothing overrides that for the list or its steps: the stylesheet names
+  // neither, so the items stay the block list items the markup makes them.
+  assert.doesNotMatch(stylesheet, /post-image-steps/,
+    "the step list bought a layout rule of its own");
+
+  // (c) The one thing in the group that refuses to wrap is the parenthetical
+  // that must not break between "a new" and "tab" — it is short, and nothing
+  // else in the group forbids wrapping, so the link's label reflows at 390px.
+  assert.equal(declarationsOf(".new-tab-note"), "font-weight:600; white-space:nowrap;");
+  assert.doesNotMatch(picker, /white-space|overflow-x|flex-wrap:\s*nowrap/,
+    `the image section forbids wrapping: ${picker}`);
+  assert.doesNotMatch(hints, /white-space|overflow-x/, `the section's help text cannot wrap: ${hints}`);
+  // The one flex row in the section still wraps, which is what keeps the file
+  // control on the screen beside a narrow viewport.
+  assert.match(declarationsOf(".media-source-actions"), /flex-wrap:wrap/);
 });
 
 /* ------------------------------ the way back ------------------------------ */

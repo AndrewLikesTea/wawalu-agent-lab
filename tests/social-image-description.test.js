@@ -117,9 +117,15 @@ test("the caption is the composer's first field, in source order and in the tab 
   assert.equal(harness.document.querySelector("#post-body").getAttribute("tabindex"), null);
   assert.equal(harness.document.querySelector("#post-image").getAttribute("tabindex"), null);
 
-  const stops = tabSequence(harness.document).filter(insideForm).map((node) => node.id);
+  const stops = tabSequence(harness.document).filter(insideForm)
+    .map((node) => node.getAttribute("id") || textOf(node));
   assert.equal(stops[0], "post-body", "the composer's first tab stop is not the caption");
-  assert.equal(stops[1], "post-image", "something focusable sits between the caption and Choose image");
+  // #1957 put the round trip ahead of the picker, so the one thing between the
+  // caption and Choose image is the link that makes something to choose — the
+  // order the steps beside it describe.
+  assert.equal(stops[1], "Create an image in Paint (opens in a new tab) ↗",
+    "something else focusable sits between the caption and the route into Paint");
+  assert.equal(stops[2], "post-image", "something focusable sits between Paint and Choose image");
   assert.ok(stops.indexOf("post-image-alt") > stops.indexOf("post-image"));
   assert.ok(stops.indexOf("post-author") > stops.indexOf("post-image-alt"));
 });

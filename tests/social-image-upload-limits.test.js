@@ -182,7 +182,7 @@ test("the image field states the formats and the size exactly once, in plain sen
   // new tab, still declared in the link's own text.
   assert.equal(textOf(steps),
     "Create an image in Paint (opens in a new tab) ↗ Export the PNG Return to this tab"
-    + " Use Choose image above to pick the PNG you exported");
+    + " Pick the PNG you exported, using Choose image below");
   const paint = steps.querySelector("a");
   assert.equal(paint.getAttribute("href"), "/paint/");
   assert.equal(paint.getAttribute("target"), "_blank");

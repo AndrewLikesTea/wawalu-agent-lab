@@ -2054,3 +2054,52 @@ test("the composer tells the visitor its draft is kept, in the help style, besid
   assert.doesNotMatch(textOf(note), /\bsaved?\b|\bstored?\b|\bdraft is safe\b/i,
     "the sentence promises storage the composer does not have");
 });
+
+// #1957 moved the round trip above the file control, and the sentence above is a
+// promise that reordering could quietly break: if the composer's retention were
+// re-reading field values at render time, moving nodes around would drop them,
+// and the page would go on saying "Anything you have already typed is kept here"
+// over two empty fields. It is not — the panel is revealed and hidden, never
+// rebuilt — and this walks the exact trip the sentence covers to prove it.
+test("a half-written post survives the trip out to Paint and back", async (t) => {
+  const { document, id } = await socialDisclosure(t);
+  const trigger = id("post-compose-open");
+  const DRAFT = "Sketched the release timeline by hand this morning.";
+  const NAME = "Iris";
+
+  trigger.click();
+  id("post-body").focus();
+  typeText(document, DRAFT);
+  id("post-author").focus();
+  typeText(document, NAME);
+
+  // The exit the sentence names first: the Paint link, which opens a second tab
+  // and leaves this one exactly as it was. It is an anchor with target _blank,
+  // so nothing in this tab re-renders — asserted rather than assumed, because a
+  // click handler that rebuilt the form would be invisible to the eye here.
+  const paint = document.querySelector("#post-image-steps").querySelector("a");
+  assert.equal(paint.getAttribute("target"), "_blank");
+  paint.click();
+  assert.equal(id("post-body").value, DRAFT, "leaving for Paint emptied the post");
+  assert.equal(id("post-author").value, NAME, "leaving for Paint emptied the display name");
+
+  // The other exit it answers for: Close collapses the panel, and reopening it
+  // is the return leg. The panel really does collapse and really does come back,
+  // so this is the round trip and not a no-op.
+  id("post-compose-cancel").click();
+  assert.equal(id("post-compose-panel").hidden, true, "Close left the composer open");
+  assert.equal(trigger.getAttribute("aria-expanded"), "false");
+  trigger.click();
+  assert.equal(id("post-compose-panel").hidden, false, "the composer did not reopen");
+  assert.equal(trigger.getAttribute("aria-expanded"), "true");
+
+  assert.equal(id("post-body").value, DRAFT, "the half-written post did not survive the round trip");
+  assert.equal(id("post-author").value, NAME, "the display name did not survive the round trip");
+  // Both fields survive as themselves, not as one value copied into two: the
+  // post keeps the post and the byline keeps the byline.
+  assert.notEqual(id("post-body").value, id("post-author").value);
+  // And the promise is still on the screen beside them, unqualified.
+  assert.equal(textOf(id("post-draft-note")),
+    "Anything you have already typed is kept here while you are in the other tab, and while this panel is closed.");
+  assert.equal(foldedAway(id("post-draft-note")), false, "the promise is only readable inside something collapsed");
+});

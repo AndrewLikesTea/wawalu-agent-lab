@@ -388,6 +388,93 @@
 
             <fieldset class="media-picker">
               <legend>Image <span class="label-optional">(optional)</span></legend>
+              <!-- The second half of the price of attaching an image, said where
+                   the visitor decides whether to attach one. Image description
+                   is required with an image and its label says so, but that
+                   label ships inside the media region below, which is hidden
+                   until a file has actually been chosen — so the requirement was
+                   readable only after the reader had committed to meeting it.
+                   It names the field in the label's own words, and says where
+                   the field turns up, because a reader sent to look for it now
+                   would not find it on the screen in front of them.
+                   #1957 put it first in this section, above the round trip
+                   rather than after it. It is the price of the whole "add an
+                   image" branch, and the most expensive part of that branch is
+                   the trip to Paint: a reader who learns about the description
+                   only after walking four steps and a second tab has already
+                   spent the trip they might not have taken. Said first, it is
+                   the one fact that lets them decide whether to take it at all —
+                   and it leaves the round trip contiguous with the control it
+                   now points forward to.
+                   The condition, not a flat "(required)": the legend above reads
+                   "Image (optional)", and the marker on the field itself already
+                   settled how this rule is worded. Help text, not a marker, so
+                   it takes the same .hint every other line in this form wears and
+                   is not one of the four .label-optional markers. -->
+              <p class="hint" id="post-image-alt-requirement">A post with an image will not publish until you fill in Image description, which appears below once you choose an image.</p>
+              <!-- The round trip, in the page as served: Paint uploads nothing,
+                   so the visitor is the transport and has to know that before
+                   leaving. It was one run-on sentence carrying four steps and
+                   the file rule besides, which is unscannable at the moment a
+                   reader is trying to follow it; it is an ordered list element
+                   now, one step per item, in the order they are taken, because
+                   it used to be a single run-on that stopped at the Paint link
+                   and left a visitor standing in a second tab with a drawing and
+                   no next move. It used to stop again one step early, on
+                   returning to this tab, which left the last and most likely
+                   wrong inference open: that Paint hands the file to Social by
+                   itself. Nothing does — the visitor carries it. So the list
+                   ends on the act that closes the round trip, and the step
+                   carries the fact the control cannot: which file to pick. An
+                   earlier fourth step read "Select Choose image", whose entire
+                   content was the name of the button above it, and that is still
+                   not what this says; naming the control is the means, the
+                   exported PNG is the point.
+                   #1957 moved the whole sequence above Choose image. It used to
+                   follow the picker and end by pointing back up the form, so a
+                   first-time visitor with no image on hand met the picker, then
+                   the way to make something to put in it, then an instruction
+                   that sent them backwards. The page reads forwards now: make
+                   it, export it, come back, choose it. Source order, not a CSS
+                   or tabindex reordering — the keyboard meets the Paint link
+                   before the file control because that is where it stands.
+                   Its own group, with a legend, so the four steps are announced
+                   as one named thing a reader can skip in a single move rather
+                   than as loose help hanging off the picker below them; the
+                   legend states the condition under which the group applies and
+                   introduces no second verb for the act the link inside it
+                   already names. It reuses this section's own class so it costs
+                   styles.css nothing: the same legend rule, the same block hints,
+                   the same min-width that keeps a narrow viewport from clipping.
+                   Nothing folds any of it away — no disclosure widget, no hover,
+                   no script — because a reader who needs it needs it first. -->
+              <fieldset class="media-picker" id="post-image-source">
+                <legend>If you need an image</legend>
+                <ol class="hint" id="post-image-steps">
+                  <li><a class="secondary-button paint-link" href="/paint/" target="_blank" rel="noopener">Create an image in Paint <span class="new-tab-note">(opens in a new tab)</span> <span aria-hidden="true">↗</span></a></li>
+                  <li>Export the PNG</li>
+                  <li>Return to this tab</li>
+                  <li>Pick the PNG you exported, using Choose image below</li>
+                </ol>
+                <!-- Said beside the step that sends the visitor away, because
+                     that is where the question arises: the step above opens a
+                     second tab, and what stops a reader taking it is not knowing
+                     whether the post they have half written will still be here.
+                     It answers for the other exit too, the Close control at the
+                     foot of this panel, because both are the same mechanism —
+                     the composer is revealed and hidden, never rebuilt, so the
+                     fields keep what is in them for as long as this tab is open.
+                     Reordering this section changed no part of that: the fields
+                     hold their own values, nothing re-reads them at render time,
+                     and tests/social.test.js walks the round trip to prove it.
+                     It promises no more than that: nothing is written to
+                     storage, so a reload starts a fresh draft, and the sentence
+                     says "here" and "this panel" rather than claiming the post
+                     is saved. The same help class every other line in this form
+                     wears, so it costs no new rule and no new type or colour
+                     scale. -->
+                <p class="hint" id="post-draft-note">Anything you have already typed is kept here while you are in the other tab, and while this panel is closed.</p>
+              </fieldset>
               <div class="media-source-actions">
                 <label class="secondary-button file-button" for="post-image">Choose image
                   <input id="post-image" name="image" type="file"
@@ -406,67 +493,14 @@
                    .detail-state-chip the image placeholders wear. Nothing in it
                    is focusable, so moving it up the field changed no tab stop.
                    Stated once, here; the refusals below restate it only after a
-                   file has actually been chosen. -->
+                   file has actually been chosen.
+                   The file input names this rule and the steps above it in its
+                   own aria-describedby, in that order: at the control, the rule
+                   it enforces comes first and the round trip it completes second,
+                   so focusing Choose image reads the constraint before the
+                   history. -->
               <p class="hint" id="post-image-hint"><span class="detail-state-chip">PNG, JPEG, GIF, or WebP up to 512 KB</span> Reduce or re-export a larger image before you choose it.</p>
               <p class="media-status" id="post-media-status" role="status" aria-live="polite" aria-atomic="true"></p>
-              <!-- The round trip, in the page as served: Paint uploads nothing,
-                   so the visitor is the transport and has to know that before
-                   leaving. It was one run-on sentence carrying four steps and
-                   the file rule besides, which is unscannable at the moment a
-                   reader is trying to follow it; it is an ordered list element
-                   now, one step per item, in the order they are taken, because
-                   it used to be a single run-on that stopped at the Paint link
-                   and left a visitor standing in a second tab with a drawing and
-                   no next move. It used to stop again one step early, on
-                   returning to this tab, which left the last and most likely
-                   wrong inference open: that Paint hands the file to Social by
-                   itself. Nothing does — the visitor carries it. So the list
-                   ends on the act that closes the round trip, and the step
-                   carries the fact the control cannot: which file to pick. An
-                   earlier fourth step read "Select Choose image", whose entire
-                   content was the name of the button above it, and that is still
-                   not what this says; naming the control is the means, the
-                   exported PNG is the point. The rule above and these steps are both named by the
-                   file input's own aria-describedby, in the order they are met,
-                   so focusing Choose image reads them; and nothing folds either
-                   away — no disclosure widget, no hover, no script — because a
-                   reader who needs them needs them first. -->
-              <ol class="hint" id="post-image-steps">
-                <li><a class="secondary-button paint-link" href="/paint/" target="_blank" rel="noopener">Create an image in Paint <span class="new-tab-note">(opens in a new tab)</span> <span aria-hidden="true">↗</span></a></li>
-                <li>Export the PNG</li>
-                <li>Return to this tab</li>
-                <li>Use Choose image above to pick the PNG you exported</li>
-              </ol>
-              <!-- Said beside the step that sends the visitor away, because that
-                   is where the question arises: the step above opens a second
-                   tab, and what stops a reader taking it is not knowing whether
-                   the post they have half written will still be here. It
-                   answers for the other exit too, the Close control at the foot
-                   of this panel, because both are the same mechanism — the
-                   composer is revealed and hidden, never rebuilt, so the fields
-                   keep what is in them for as long as this tab is open. It
-                   promises no more than that: nothing is written to storage, so
-                   a reload starts a fresh draft, and the sentence says "here"
-                   and "this panel" rather than claiming the post is saved.
-                   The same help class every other line in this form wears, so
-                   it costs no new rule and no new type or colour scale. -->
-              <p class="hint" id="post-draft-note">Anything you have already typed is kept here while you are in the other tab, and while this panel is closed.</p>
-              <!-- The second half of the price of attaching an image, said where
-                   the visitor decides whether to attach one. Image description
-                   is required with an image and its label says so, but that
-                   label ships inside the media region below, which is hidden
-                   until a file has actually been chosen — so the requirement was
-                   readable only after the reader had committed to meeting it,
-                   and never while they were following the steps above. It names
-                   the field in the label's own words, and says where the field
-                   turns up, because a reader sent to look for it now would not
-                   find it on the screen in front of them.
-                   The condition, not a flat "(required)": the legend above reads
-                   "Image (optional)", and the marker on the field itself already
-                   settled how this rule is worded. Help text, not a marker, so
-                   it takes the same .hint every other line in this form wears and
-                   is not one of the four .label-optional markers. -->
-              <p class="hint" id="post-image-alt-requirement">A post with an image will not publish until you fill in Image description, which appears below once you choose an image.</p>
               <div class="compose-media" id="compose-media" hidden>
                 <!-- One name for the image the visitor chose. This region used to
                      give it two, a caption below the picture reading "Preview
