@@ -11,6 +11,7 @@ installDocument();
 const {
   POST_EXITS,
   POST_LOADING_STATUS,
+  POST_LOADED_DESCRIPTION,
   POST_SKELETON_SLOTS,
   POST_STATES,
   findPostById,
@@ -62,6 +63,9 @@ test("the detail view shows the image whole, with its caption and counts", () =>
   assert.equal(first(article, "detail-body").textContent, "Focus rings landed everywhere.");
 
   assert.match(first(article, "detail-stats").textContent, /3 likes.*1 comment/);
+  assert.equal(first(container, "detail-post-description").textContent, POST_LOADED_DESCRIPTION);
+  assert.equal(POST_LOADED_DESCRIPTION,
+    "This shared post shows the display name used to publish it and the post content.");
 
   // The caption names the article, and the id it names resolves inside it.
   const label = article.getAttribute("aria-labelledby");
@@ -225,7 +229,7 @@ test("a missing post is named in plain language, with no id or code echoed back"
   renderPostDetail(missing, null, { id: "p-gone", author: "Mina" });
   assert.equal(first(missing, "detail-state-label").textContent, "Not found");
   assert.equal(first(missing, "empty-title").textContent, "Post unavailable");
-  assert.match(missing.textContent, /This post can’t be shown\./);
+  assert.match(missing.textContent, /This shared link may be unavailable, or the post may no longer be in Social\./);
   assert.doesNotMatch(missing.textContent, /removed|private|signed-in|your post/i);
   assert.equal(missing.getAttribute("role"), "status");
   assert.equal(missing.getAttribute("aria-live"), "polite");
@@ -244,7 +248,15 @@ test("a failed load says what happened once, offers a retry, and leaks no error 
   renderPostDetail(failed, null, { state: "error", id: "p-gone", author: "Mina", onRetry: () => { retried += 1; } });
   assert.equal(first(failed, "detail-state-label").textContent, "Unreachable");
   assert.equal(first(failed, "empty-title").textContent, "Post could not be opened");
-  assert.match(failed.textContent, /The Social feed did not respond\./);
+  assert.match(failed.textContent, /Social did not respond, so this shared link is unavailable for now\./);
+  // Social first, the link second, and "for now" holding the retry's meaning
+  // open. The feed never answered, so this state learned nothing about the link
+  // it was handed and must not open on a verdict about it; and a sentence that
+  // called the link unavailable outright would contradict the button below.
+  const sentence = failed.textContent;
+  assert.ok(sentence.indexOf("Social did not respond") < sentence.indexOf("unavailable"),
+    "the error state names what failed before it says what that means for the link");
+  assert.match(sentence, /unavailable for now/, "and leaves the retry something to be for");
   assert.doesNotMatch(failed.textContent, /private|signed-in|your post/i);
   assert.equal(failed.getAttribute("role"), "status");
   assert.equal(failed.getAttribute("aria-live"), "polite");
@@ -254,7 +266,11 @@ test("a failed load says what happened once, offers a retry, and leaks no error 
   // The state offers both ways forward: leave for the feed or retry in place.
   assert.match(failed.textContent, /Retry the shared post/);
   assert.equal(tags(failed, "BUTTON")[0].textContent, "Retry the shared post");
-  assert.equal(first(failed, "detail-state-feed").textContent, "Open the full Social feed");
+  // The panel's action reads in the panel's own words, not the standing exit's.
+  // It used to borrow POST_EXITS.social.label, so the error state — the one a
+  // reader most needs a way out of — printed "Open the full Social feed" twice.
+  assert.equal(first(failed, "detail-state-feed").textContent, "Go to the Social feed");
+  assert.notEqual(first(failed, "detail-state-feed").textContent, POST_EXITS.social.label);
   tags(failed, "BUTTON")[0].dispatch("click");
   assert.equal(retried, 1, "a failed load offers a retry");
 });
@@ -270,8 +286,8 @@ test("an id-less visit is headed by the same not-found words, and offers the fee
   assert.equal(first(container, "detail-state-panel").getAttribute("data-post-state-panel"), "not-found");
   // Only the sentence differs, because only it can say what is true of *this*
   // link: nothing was asked for, as against something that was not there.
-  assert.match(container.textContent, /This link does not point to a post we can show\./);
-  assert.doesNotMatch(container.textContent, /This post can’t be shown\./);
+  assert.match(container.textContent, /This shared link may be unavailable or incomplete, so there is no post to show\./);
+  assert.doesNotMatch(container.textContent, /post may no longer be in Social/);
   // And one next step, named where the problem is explained. This state used to
   // offer none at all, leaving a dead end with nothing pointing out of it.
   const feed = first(container, "detail-state-feed");
@@ -300,15 +316,7 @@ test("the loading state says the wait in words and reserves the post's five area
   assert.equal(container.getAttribute("role"), "status");
   assert.equal(status.getAttribute("role"), null);
   assert.equal(first(status, "detail-loading-text").textContent, POST_LOADING_STATUS);
-  assert.equal(POST_LOADING_STATUS, "Loading the shared post…");
-  // The site's loading voice, not a sentence about the product: "Loading the
-  // Social feed…" on the feed and "Loading image posts…" on People open the
-  // same way, and none of the three narrates Shiplog in the third person.
-  assert.match(POST_LOADING_STATUS, /^Loading /);
-  assert.doesNotMatch(POST_LOADING_STATUS, /Shiplog/);
-  // A real ellipsis, the way "Loading the Social feed…" and "Loading releases…"
-  // spell it, not three periods pretending to be one.
-  assert.ok(POST_LOADING_STATUS.endsWith("…") && !POST_LOADING_STATUS.includes("..."));
+  assert.equal(POST_LOADING_STATUS, "Shiplog is retrieving one public Social post from the shared link.");
 
   // The five slots a post fills, in the order the loaded article fills them.
   // A line of text used to be the whole wait, so every post that arrived pushed
@@ -654,6 +662,8 @@ test("the post region holds exactly one state, and names it on one attribute", (
     // unresolved states already carry their own sentence about what Social is.
     assert.equal(byClass(container, "detail-identity").length, name === "loaded" ? 1 : 0,
       `the ${name} state's display-name explanation`);
+    assert.equal(byClass(container, "detail-post-description").length, name === "loaded" ? 1 : 0,
+      `the ${name} state's post-content explanation`);
   }
 });
 
@@ -715,7 +725,7 @@ test("loading and unavailable states say what happened in words", () => {
   const missingWords = words(missing);
   const failedWords = words(failed);
   const only = (a, b) => [...a].filter((word) => !b.has(word));
-  assert.ok(only(missingWords, failedWords).includes("shown"), "the missing state says only that the post cannot be shown");
+  assert.ok(only(missingWords, failedWords).includes("longer"), "the missing state says the post may no longer be available");
   assert.ok(only(failedWords, missingWords).includes("respond"), "the failed state must say the feed did not respond");
 
   // Neither state makes the temporary failure sound like confirmed deletion.

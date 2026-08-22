@@ -195,7 +195,7 @@ test("an unknown id is named as a missing post, with the feed still the way out"
   const page = await openPostPage("?id=p-gone", seedOnly([SEED_POST]));
   try {
     assert.match(textOf(page.panel), /Post unavailable/);
-    assert.match(textOf(page.panel), /This post can’t be shown\./);
+    assert.match(textOf(page.panel), /This shared link may be unavailable, or the post may no longer be in Social\./);
     assert.doesNotMatch(textOf(page.panel), /removed|private|signed-in|your post/i);
     assert.doesNotMatch(textOf(page.panel), /Display names are invented for this demo/);
     // No post, no author: the h1 names the page rather than standing as "Post".
@@ -258,8 +258,15 @@ test("a failed lookup names the feed it could not reach, and retry can recover",
   });
   try {
     assert.match(textOf(page.panel), /Post could not be opened/);
-    assert.match(textOf(page.panel), /The Social feed did not respond\./);
-    assert.equal(textOf(page.panel.querySelector(".detail-state-feed")), "Open the full Social feed");
+    assert.match(textOf(page.panel), /Social did not respond, so this shared link is unavailable for now\./);
+    assert.equal(textOf(page.panel.querySelector(".detail-state-feed")), "Go to the Social feed");
+    // Whole-page, not just the panel: the error state's action and the standing
+    // exit both land on /social.html, so they have to be two readable routes and
+    // not one label printed twice on the screen a stuck reader is looking at.
+    const errorFeed = page.document.querySelectorAll("a")
+      .filter((link) => link.getAttribute("href") === "/social.html"
+        && !link.closest(".site-nav") && !link.closest("#site-footer"));
+    assert.deepEqual(errorFeed.map(textOf), ["Go to the Social feed", "Open the full Social feed"]);
     assert.doesNotMatch(textOf(page.panel), /private|signed-in|your post/i);
     assertExits(page, null, "failed");
     assert.equal(page.document.title, "Post · Social · Shiplog");
@@ -336,7 +343,7 @@ test("a retry re-enters the wait in the post's shape, then lands the post in it"
     assert.equal(panel.querySelectorAll(".detail-state-message").length, 0);
     assert.equal(panel.querySelectorAll("button").length, 0);
     assert.deepEqual(skeletonSlots(panel), ["optional-image", "caption", "author", "timestamp", "actions"]);
-    assert.equal(textOf(panel.querySelector(".detail-loading-text")), "Loading the shared post…");
+    assert.equal(textOf(panel.querySelector(".detail-loading-text")), "Shiplog is retrieving one public Social post from the shared link.");
 
     await waitFor(() => release, "the retry issued its request");
     release();
@@ -358,7 +365,7 @@ test("a visit with no id is told what the page needs, and still has one way out"
     // who was handed a truncated URL is not in a different situation from one
     // handed a stale id, and should not have to work out that they are.
     assert.match(textOf(page.panel), /Post unavailable/);
-    assert.match(textOf(page.panel), /This link does not point to a post we can show/);
+    assert.match(textOf(page.panel), /This shared link may be unavailable or incomplete/);
     assert.equal(page.requests.length, 0);
     assertExits(page, null, "no id");
     // The one next step, in the panel that explains why it is needed.
@@ -384,7 +391,7 @@ test("the loading state is one announced line in the post's region, and takes no
     assert.equal(panel.getAttribute("role"), "status", "the state is announced without stealing focus");
     assert.equal(state.getAttribute("role"), null, "the update uses the page's persistent live region");
     assert.equal(page.document.activeElement, null, "nothing may take focus on load");
-    assert.equal(textOf(state.querySelector(".detail-loading-text")), "Loading the shared post…");
+    assert.equal(textOf(state.querySelector(".detail-loading-text")), "Shiplog is retrieving one public Social post from the shared link.");
     assert.doesNotMatch(textOf(panel), /Display names are invented for this demo/);
     // Nothing is named yet, so the h1 names the page — the same words a reader
     // sees in the shipped markup before any script runs.
@@ -436,7 +443,7 @@ test("the page opens already saying it is loading, and the post replaces that li
     assert.equal(panel.dataset.postState, "loading");
     assert.equal(panel.getAttribute("aria-busy"), "true");
     assert.equal(panel.querySelectorAll(".detail-loading").length, 1);
-    assert.equal(textOf(panel.querySelector(".detail-loading-text")), "Loading the shared post…");
+    assert.equal(textOf(panel.querySelector(".detail-loading-text")), "Shiplog is retrieving one public Social post from the shared link.");
     assert.equal(panel.getAttribute("role"), "status");
     assert.equal(panel.querySelector(".detail-loading").getAttribute("role"), null);
     // The placeholder is in the markup too — the wait a cold visitor meets is
@@ -458,7 +465,7 @@ test("the page opens already saying it is loading, and the post replaces that li
 
     assert.equal(panel.dataset.postState, "loading", "the script agrees with the markup it replaced");
     assert.equal(panel.querySelectorAll(".detail-loading").length, 1, "one wait line, not the shipped one plus a second");
-    assert.equal(textOf(panel.querySelector(".detail-loading-text")), "Loading the shared post…");
+    assert.equal(textOf(panel.querySelector(".detail-loading-text")), "Shiplog is retrieving one public Social post from the shared link.");
     assert.equal(panel.querySelectorAll(".detail-state-message").length, 0);
     // And one placeholder: the script redraws the wait the markup shipped, it
     // does not stack a second set of slots under the first.
@@ -516,10 +523,10 @@ test("the failed state reads the post's region and its retry, then the back link
     assert.ok(sequence.includes(back) && sequence.includes(retry), "both controls are reachable by keyboard");
     assert.ok(sequence.indexOf(retry) < sequence.indexOf(back), "the retry comes before the exit");
     assert.ok(retry.closest("#post-detail"), "the retry belongs to the post's region, not the page frame");
-    // The panel offers both a return to the feed and a retry.
+    // The panel offers both a way on to the feed and a retry.
     assert.equal(page.panel.querySelectorAll("button").length, 1);
     assert.equal(page.panel.querySelectorAll("a").length, 1);
-    assert.equal(textOf(page.panel.querySelector("a")), "Open the full Social feed");
+    assert.equal(textOf(page.panel.querySelector("a")), "Go to the Social feed");
   } finally {
     page.restore();
   }
