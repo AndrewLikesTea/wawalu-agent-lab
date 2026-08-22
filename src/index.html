@@ -105,14 +105,19 @@
                 <input id="finops-example-follow-up-topic" name="topic" type="text" value="Bundled AI FinOps example — lower-cost routing in Atlas Platform" readonly />
               </div>
               <div class="site-footer-field">
-                <label for="finops-example-follow-up-email">Work email</label>
+                <label for="finops-example-follow-up-email">Work email for your follow-up</label>
                 <input id="finops-example-follow-up-email" name="email" type="email" maxlength="254" inputmode="email" autocomplete="email" placeholder="you@company.com" required aria-describedby="finops-example-follow-up-disclosure finops-example-follow-up-status" />
               </div>
               <p id="finops-example-follow-up-error" class="site-footer-error" hidden></p>
+              <!-- The footer's order, on the footer's wording: who receives the
+                   address, then what goes with it, above the control that sends
+                   both. This form sends the readonly topic as well, so it says
+                   so rather than borrowing the footer's byte-exact sentence,
+                   which claims nothing else on the page is sent. -->
+              <p id="finops-example-follow-up-disclosure" class="finops-example-follow-up-disclosure">The work email address you type here goes to the Wawalu team that operates Shiplog; only that address and this fixed follow-up topic are sent.</p>
               <button type="submit">Request a follow-up about this example</button>
               <button id="finops-example-follow-up-retry" type="submit" hidden>Retry your follow-up request</button>
             </form>
-            <p id="finops-example-follow-up-disclosure" class="finops-example-follow-up-disclosure">Only your work email and this fixed follow-up topic are sent.</p>
             <p id="finops-example-follow-up-status" role="status" aria-live="polite"></p>
           </div>
         </aside>

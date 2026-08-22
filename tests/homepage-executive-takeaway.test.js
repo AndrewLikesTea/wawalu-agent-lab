@@ -17,6 +17,13 @@ import { buildFirstRunResult } from "../src/finops-first-run.js";
 const PAGE = new URL("../src/index.html", import.meta.url);
 const NativeResponse = globalThis.Response;
 
+// The recipient half is the footer's, word for word (`FOLLOW_UP_PRIVACY` in
+// src/lead-capture.js); the rest is this form's, because this form posts the
+// readonly topic field beside the address and the footer's "nothing else on
+// this page is sent" would be a claim its own request breaks.
+const DISCLOSURE = "The work email address you type here goes to the Wawalu team that operates Shiplog;"
+  + " only that address and this fixed follow-up topic are sent.";
+
 async function openTakeaway(t, clipboard) {
   const page = await loadPage(PAGE);
   t.after(() => page.restore());
@@ -208,12 +215,30 @@ test("the adjacent CTA opens a contextual work-email request that says what is s
   open.click();
   assert.equal(panel.hidden, false);
   assert.equal(document.activeElement?.id, "finops-example-follow-up-email");
+  // The site's one name for this field, the one src/site-footer.js renders on
+  // every other follow-up form.
+  assert.equal(textOf(document.querySelector('label[for="finops-example-follow-up-email"]')),
+    "Work email for your follow-up");
   assert.match(document.getElementById("finops-example-follow-up-topic").value, /Atlas Platform|lower-cost routing/);
   // #1768: this form used to caveat $51,254 a second time, in a second
   // vocabulary, a line under the paragraph that already caveats it. It states
   // the one thing only a form can state now.
-  assert.equal(textOf(document.getElementById("finops-example-follow-up-disclosure")),
-    "Only your work email and this fixed follow-up topic are sent.");
+  //
+  // #1968: and it names the recipient, in the words every other follow-up form
+  // on the site uses, above the button rather than under it — this was the one
+  // form on the site that asked for a work email without saying who reads it.
+  const disclosure = document.getElementById("finops-example-follow-up-disclosure");
+  assert.equal(textOf(disclosure), DISCLOSURE);
+  const form = document.getElementById("finops-example-follow-up-form");
+  const order = form.querySelectorAll("input,p,button");
+  assert.ok(order.indexOf(document.getElementById("finops-example-follow-up-email")) < order.indexOf(disclosure),
+    "the sentence sits below the field it describes");
+  assert.ok(order.indexOf(disclosure) < order.indexOf(form.querySelector('button[type="submit"]')),
+    "a claim a reader meets after pressing the button is not one they got to weigh");
+  // Once. Two sentences making the same promise is how a reader ends up
+  // deciding whether two wordings mean two promises.
+  assert.equal(textOf(document.querySelector(".executive-takeaway")).split("are sent").length - 1, 1,
+    "the panel states what is sent exactly once");
 });
 
 test("the takeaway and the form under it state the sample-data fact once between them", async (t) => {
@@ -301,8 +326,9 @@ test("a valid contextual request persists and renders an accurate promise-free r
   assert.equal(row.email, "finops@example.com");
   assert.equal(row.purpose, FINOPS_EXAMPLE_FOLLOW_UP_PURPOSE);
   assert.equal(row.topic, "Bundled AI FinOps example — lower-cost routing in Atlas Platform");
-  assert.equal(textOf(document.getElementById("finops-example-follow-up-disclosure")),
-    "Only your work email and this fixed follow-up topic are sent.");
+  // The stored row is the whole of what the sentence above the button promised:
+  // that address, that topic, and no third column.
+  assert.equal(textOf(document.getElementById("finops-example-follow-up-disclosure")), DISCLOSURE);
 });
 
 test("every authored claim in the takeaway is one AI FinOps still publishes", () => {
