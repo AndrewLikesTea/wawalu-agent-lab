@@ -377,7 +377,7 @@ test("the shipped composer markup carries the marker, the error slot, and the co
   // owns the live marker and takes it away with the image.
   assert.match(html, /<span class="label-optional label-required" id="post-image-alt-required">\(required with an image\)<\/span>/);
   assert.match(html, /id="post-image-alt"[^>]*maxlength="200"/);
-  assert.match(html, /aria-describedby="post-image-alt-hint post-image-alt-counter-label post-image-alt-counter"/);
+  assert.match(html, /aria-describedby="post-image-alt-hint post-image-alt-requirement post-image-alt-counter-label post-image-alt-counter"/);
   assert.match(html, /<p class="field-error compose-error" id="post-image-alt-error" hidden><\/p>/);
   assert.match(html, /id="post-image-alt-counter" aria-live="polite" aria-atomic="true">200<\/span>/);
 });

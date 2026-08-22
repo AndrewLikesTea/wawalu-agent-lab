@@ -289,7 +289,7 @@ test("social page is wired, labeled, and linked from the other pages", async () 
   // The post text is the one field a post cannot exist without, so its label
   // says so in the same parenthetical the other three fields use, and its hint —
   // the refusal an empty post actually meets — is named by the textarea itself.
-  assert.match(page, /<label for="post-body">Post <span class="label-optional label-required">\(required\)<\/span><\/label>/);
+  assert.match(page, /<label for="post-body">Your post <span class="label-optional label-required">\(required\)<\/span><\/label>/);
   assert.match(page, /aria-describedby="post-body-hint post-counter-label post-counter"/);
   // The budget, and nothing about what the browser will do to an empty field:
   // the hint used to narrate a refusal before the reader had typed anything. The
@@ -490,7 +490,10 @@ test("the composer calls its required 280-character text a post throughout", asy
   const composer = page.document.querySelector("#post-compose-panel");
   assert.equal(textOf(composer.querySelector("#post-form-hint")),
     "Write your post. Add an image if you want one — a post with an image also appears on People, under the display name you publish it with.");
-  assert.equal(textOf(composer.querySelector('label[for="post-body"]')), "Post (required)");
+  // "Your post", not "Post": the page's other uses of the bare word name the
+  // published thing — Publish post, Open post — and the label names the reader's
+  // own draft (#1967). The noun is the same one everything else defers to.
+  assert.equal(textOf(composer.querySelector('label[for="post-body"]')), "Your post (required)");
   assert.equal(textOf(composer.querySelector("#post-body-hint")), "Up to 280 characters.");
   // #1826: the field said it was required twice — once as the label's
   // parenthetical, once as the word the hint below it opened on. The
