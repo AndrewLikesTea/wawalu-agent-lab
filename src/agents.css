@@ -197,6 +197,12 @@ button:focus-visible,.brand:focus-visible { outline:3px solid #155f9e; outline-o
 .site-footer-form[data-state="error"]+.site-footer-status { color:#8a2b2b; }
 .site-footer-recovery { margin:0; border-left:2px solid #8a2b2b; padding-left:11px; color:#4f4f4a; font-size:12px; line-height:1.5; }
 .site-footer-recovery[hidden] { display:none; }
+/* The band's standalone link treatment, copied from styles.css rather than
+   authored: a failed follow-up request offers the public repository beside its
+   retry, and these two pages load this sheet alone. Without it the one link in
+   the failure state paints as unstyled body text. */
+.site-footer-redirect-link { display:inline-block; min-height:44px; padding:11px 0; color:#1f70c1; font-size:14px; font-weight:700; text-decoration:underline; text-underline-offset:3px; }
+.site-footer-redirect-link:hover { color:#171713; }
 /* `a` is in here because the band now carries a link on these two pages too; a
    focus ring that exists in styles.css and not in this file is an invisible
    keyboard focus on the observatory. */

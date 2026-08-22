@@ -34,11 +34,27 @@ import {
   CONTACT_COPY, describeWith, emailFieldError, FOLLOW_UP_PRIVACY, looksLikeEmail, postLeadEmail,
   SubmissionError,
 } from "./lead-capture.js";
+import { REPOSITORY_URL } from "./repository-url.js";
 
 const ERROR_ID = "site-footer-error";
 const RECOVERY_ID = "site-footer-recovery";
+const REPOSITORY_ID = "site-footer-repository";
 const RETRY_ID = "site-footer-retry";
 const STATUS_ID = "site-footer-status";
+
+/**
+ * The one other way in, offered only once the first one has failed.
+ *
+ * A visitor whose request did not land had exactly one thing to press, and it
+ * was the thing that had just not worked. This is a destination that does not
+ * run through that transport at all — the public repository the site is built
+ * from, already published on /releases.html and /index.html. It is deliberately
+ * not a second inbox, a chat channel, or a promise about a reply: this project
+ * has none of those to offer, and inventing one would be worse than the dead end
+ * it replaces. The label names the destination and the act, so a reader who
+ * arrives on it by Tab knows it goes somewhere the retry beside it does not.
+ */
+export const REPOSITORY_LINK_LABEL = "Open an issue on the public GitHub repository";
 
 /**
  * What a visitor can do here, then who runs it and where — on every page.
@@ -254,6 +270,35 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
   const status = root.querySelector("#site-footer-status");
   const recovery = root.querySelector(`#${RECOVERY_ID}`);
   const retry = root.querySelector(`#${RETRY_ID}`);
+  const actions = form.querySelector(".site-footer-actions");
+
+  // The alternative route is built here rather than shipped in the markup, for
+  // the reason the receipt is: a node that exists before anything has failed is
+  // a node a screen reader can find and read out to a visitor who has not
+  // submitted anything. It is created on the first failure and taken off the
+  // page by every path out of one, so a landed request cannot leave it standing
+  // beside its own receipt.
+  //
+  // It goes between the recovery paragraph and the action row, which puts it
+  // immediately before the retry in the tab order: the send control that sits
+  // between them is hidden for exactly as long as this link is on the page.
+  let repositoryLink = null;
+  function setRepositoryLinkVisible(visible) {
+    if (!visible) {
+      repositoryLink?.remove();
+      return;
+    }
+    if (!repositoryLink) {
+      repositoryLink = form.ownerDocument.createElement("a");
+      repositoryLink.id = REPOSITORY_ID;
+      // The footer's own standalone-link treatment: a 44px tap target, blue and
+      // underlined, with the band's focus ring. No rule is added for it.
+      repositoryLink.className = "site-footer-redirect-link";
+      repositoryLink.href = REPOSITORY_URL;
+      repositoryLink.textContent = REPOSITORY_LINK_LABEL;
+    }
+    if (!repositoryLink.parentNode && actions) form.insertBefore(repositoryLink, actions);
+  }
 
   function setFieldError(message) {
     fieldError.textContent = message ?? "";
@@ -274,6 +319,7 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
   // Not the control replacing it: the submit path disables that a line later.
   function setRecoveryVisible(visible) {
     recovery.hidden = !visible;
+    setRepositoryLinkVisible(visible);
     if (retry) {
       const stranded = form.ownerDocument.activeElement === (visible ? submit : retry);
       retry.hidden = !visible;

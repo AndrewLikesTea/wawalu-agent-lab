@@ -28,9 +28,14 @@
  *
  * Not guessed: it is the `origin` remote of this checkout, and the same
  * host-and-owner path src/agents.js already puts in front of a reader when it
- * links the commits behind a merge.
+ * links the commits behind a merge. It is defined in src/repository-url.js and
+ * re-exported here, so the surfaces that already read it off this module are
+ * unchanged while a page that needs the bare address does not have to carry the
+ * release record to get it.
  */
-export const REPOSITORY_URL = "https://github.com/AndrewLikesTea/wawalu-agent-lab";
+import { REPOSITORY_URL } from "./repository-url.js";
+
+export { REPOSITORY_URL };
 
 /** The id this record is known by wherever it is named. */
 export const DEPLOYED_RELEASE_ID = "deployed-build";
