@@ -18,7 +18,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { UNAVAILABLE_REASONS, feedLinkText, unavailableSentences } from "../src/public-merges.js";
+import { UNAVAILABLE_REASONS, feedLinkText } from "../src/public-merges.js";
 import {
   EVENTS_URLS,
   MERGED_FIGURE_COPY,
@@ -196,8 +196,10 @@ test("no number survives a GitHub failure, whatever the failure is", async () =>
     assert.equal(root.nodes["#merged-figure"].dataset.state, "unavailable", name);
     assert.equal(first(readout, "merged-figure-count"), null, `${name}: no figure element`);
     assert.doesNotMatch(readout.textContent, /\d/, `${name}: no digit may stand in the headline slot`);
-    assert.deepEqual(tags(readout, "P").map((node) => node.textContent), unavailableSentences(reason),
-      `${name}: it says what happened, and then what was being counted`);
+    assert.deepEqual(tags(readout, "P").map((node) => node.textContent), [
+      "Public GitHub activity unavailable.",
+      `We could not fetch public GitHub activity from ${SOURCE_REPOSITORIES.join(" and ")}.`,
+    ], `${name}: every fetch failure resolves to the same concise buyer-readable state`);
     assert.doesNotMatch(readout.textContent, /Loading/, `${name}: a failure is not still loading`);
   }
 });

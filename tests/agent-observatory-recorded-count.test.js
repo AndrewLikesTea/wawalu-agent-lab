@@ -20,12 +20,12 @@ import test from "node:test";
 import {
   EVENTS_URLS,
   RECORDED_COUNT_URL,
+  SOURCE_REPOSITORIES,
   formatRecordedDate,
   loadActivity,
   parseRecordedCount,
   renderMergedFigure,
 } from "../src/agents.js";
-import { UNAVAILABLE_REASONS, unavailableSentences } from "../src/public-merges.js";
 import { recordMergedCount } from "../scripts/record-merged-count.mjs";
 import { createElement, first, installDocument } from "./support/dom.js";
 import { loadPage, textOf } from "./support/browser.js";
@@ -194,8 +194,10 @@ test("no record and no answer is the home page's two sentences, no figure, and t
   assert.doesNotMatch(textOf(readout), /Counting|—|--/, "no spinner, no dash");
   // The words are the home page's, out of the shared module: the absence and
   // what was being counted, in that order, for the clause this failure earned.
-  assert.deepEqual(readout.querySelectorAll("p").map(textOf),
-    unavailableSentences(UNAVAILABLE_REASONS.rateLimited));
+  assert.deepEqual(readout.querySelectorAll("p").map(textOf), [
+    "Public GitHub activity unavailable.",
+    `We could not fetch public GitHub activity from ${SOURCE_REPOSITORIES.join(" and ")}.`,
+  ]);
   assert.deepEqual(figure.querySelector(".merged-figure-sources").querySelectorAll("a").map((link) => link.href),
     EVENTS_URLS);
 });

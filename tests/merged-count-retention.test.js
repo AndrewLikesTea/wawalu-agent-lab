@@ -20,8 +20,8 @@
 
 import assert from "node:assert/strict";
 import test from "node:test";
-import { loadActivity } from "../src/agents.js";
-import { EVENTS_URLS, UNAVAILABLE_REASONS, unavailableSentences } from "../src/public-merges.js";
+import { SOURCE_REPOSITORIES, loadActivity } from "../src/agents.js";
+import { EVENTS_URLS } from "../src/public-merges.js";
 import {
   RETAINED_COUNT_KEY,
   RETAINED_COUNT_SCHEMA,
@@ -304,8 +304,10 @@ test("the observatory with an unusable stored value states that nothing was ever
   assert.equal(figure.dataset.state, "unavailable");
   // The same two sentences the home page shows for the same outcome, from the
   // one module that holds them.
-  assert.deepEqual(readout.querySelectorAll("p").map(textOf),
-    unavailableSentences(UNAVAILABLE_REASONS.rateLimited));
+  assert.deepEqual(readout.querySelectorAll("p").map(textOf), [
+    "Public GitHub activity unavailable.",
+    `We could not fetch public GitHub activity from ${SOURCE_REPOSITORIES.join(" and ")}.`,
+  ]);
   assert.doesNotMatch(textOf(readout), /\d/, "an unreadable store became a number on the page");
   assert.deepEqual(figure.querySelector(".merged-figure-sources").querySelectorAll("a")
     .map((link) => link.href), EVENTS_URLS);

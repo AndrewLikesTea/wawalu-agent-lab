@@ -3,7 +3,7 @@
   "check": "tests/finops-answer-reproduction.test.js",
   "fixture": "tests/fixtures/finops-answer-reproduction.json",
   "fixtureRevision": "finops-answer-reproduction/1",
-  "checkedOn": "2026-08-21",
+  "checkedOn": "2026-08-22",
   "figuresChecked": [
     "headlineMetric",
     "nextAction"

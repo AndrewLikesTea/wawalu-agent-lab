@@ -110,8 +110,9 @@ test("a failed request keeps the synthetic boundary and offers a labelled retry"
 
   const panel = stateOf(root);
   assert.equal(panel.dataset.state, "error");
-  assert.match(titleOf(root), /could not be loaded/i);
-  assert.match(panel.textContent, /synthetic example/i, "the fallback rows stay disclosed as synthetic");
+  assert.match(titleOf(root), /Public GitHub activity unavailable/i);
+  assert.match(panel.textContent, /personas and prompt trace are separate synthetic examples/i,
+    "the unavailable live source stays distinct from the synthetic examples");
   assert.equal(tags(panel, "A").length, 0, "a failed request offers no live link");
 
   const retry = root.nodes["#refresh-activity"];
@@ -215,7 +216,7 @@ test("the shipped page reaches the error state and recovers through a keyboard r
   try {
     const status = document.querySelector("#activity-status");
     await waitFor(() => status.dataset.state === "error", "the failed request is reported");
-    assert.match(textOf(status), /could not be loaded/i);
+    assert.match(textOf(status), /Public GitHub activity unavailable/i);
     const failedRequests = page.calls.activity;
 
     const retry = document.querySelector("#refresh-activity");
