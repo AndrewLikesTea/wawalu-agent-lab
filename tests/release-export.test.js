@@ -262,7 +262,9 @@ test("the scope of the export is stated in visible text beside the control", asy
   const page = await bootedReleases(t);
   const scope = page.document.querySelector("#release-export-scope");
   assert.equal(textOf(scope), RELEASE_EXPORT_SCOPE_SENTENCE);
-  assert.match(textOf(scope), /not the whole log/);
+  assert.match(textOf(scope), /only the releases currently shown by the active search and filters/);
+  assert.match(textOf(scope), /not the full release log/);
+  assert.match(textOf(scope), /Each exported release includes its linked decisions/);
   // Named by the control, so a screen reader hears the scope with the button.
   assert.equal(exportButton(page).getAttribute("aria-describedby"), "release-export-scope");
   // Visible markup, not a collapsed disclosure: the sentence has no ancestor

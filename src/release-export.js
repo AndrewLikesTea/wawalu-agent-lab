@@ -49,8 +49,8 @@ export const RELEASE_EXPORT_BUTTON_LABEL = "Export releases as JSON";
 // unfiltered one, where "the releases shown" is the whole log — so it never has
 // to be repainted and can never disagree with the file that was just written.
 export const RELEASE_EXPORT_SCOPE_SENTENCE =
-  "This exports the releases shown by the search and filters above, not the whole log, "
-  + "and each one carries the decisions it is linked to.";
+  "The JSON download includes only the releases currently shown by the active search and filters, "
+  + "not the full release log. Each exported release includes its linked decisions.";
 
 /**
  * The status line after a press, in the visitor's own number.
