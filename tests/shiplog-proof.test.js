@@ -32,7 +32,9 @@ test("renders one clearly disclosed synthetic proof connecting decision, owner, 
   assert.doesNotMatch(textOf(proof), /[Rr]epresentative/);
   assert.match(textOf(proof), /Adopt a durable job queue/);
   assert.equal(textOf(proof.querySelectorAll("dd")[1]), "Kai");
-  assert.equal(textOf(proof.querySelectorAll("dd")[2]), "accepted");
+  // Cased the way the "Linked decision status" filter below offers it, so the
+  // example and the option a reader would pick to find it read as one word.
+  assert.equal(textOf(proof.querySelectorAll("dd")[2]), "Accepted");
   assert.equal(textOf(proof.querySelectorAll("dd")[3]), "v1.3.0 · Throughput and latency");
   // The word "proof" belongs to the deployment check below, not to invented
   // records: the share controls name what they open, and the button's

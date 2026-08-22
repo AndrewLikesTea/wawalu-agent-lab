@@ -20,6 +20,10 @@ import {
   toggleReleaseExpanded,
 } from "../src/releases.js";
 import { loadDecisions, STORAGE_KEY } from "../src/app.js";
+import { initReleasesPage } from "../src/releases-page.js";
+import { REAL_RECORD_LINK_LABEL } from "../src/deployed-release.js";
+import { loadPage, textOf } from "./support/browser.js";
+import { waitFor } from "./support/page-module.js";
 
 function memoryStorage(initial = {}) {
   const values = new Map(Object.entries(initial));
@@ -375,4 +379,202 @@ test("releases demo seed is valid and internally consistent", async () => {
   const missing = summarizeReleases(seed.releases, seed.decisions)
     .flatMap((release) => release.missingIds);
   assert.deepEqual(missing, ["demo-archived-legacy"]);
+});
+
+/* ------------------- one name, one label per destination ------------------ */
+//
+// (#1961) This page used to call the same thing four names — "the build this
+// site is running", "the running deployment", "the version this site is running
+// right now", "the running build's version or commit identifier" — across the
+// two regions that talk about it, and it put two labels on one address and one
+// label on two addresses. These tests boot the shipped markup the way the
+// browser boots it, so what is asserted is what a visitor reads.
+
+const RELEASES_PAGE = new URL("../src/releases.html", import.meta.url);
+const PAGE_SHA = "0123456789abcdef0123456789abcdef01234567";
+const PAGE_STAMP = Object.freeze({
+  schemaVersion: 1,
+  commitSha: PAGE_SHA,
+  builtAt: "2026-08-17T08:00:00.000Z",
+});
+
+// The stamp and the health read are both injected, so nothing opens a socket
+// and the record is the same one in every run. `settle: false` stops at the
+// state a visitor meets while the probe is outstanding — which is where the
+// waiting line still says what is being retrieved.
+async function openReleasesPage(t, { settle = true } = {}) {
+  const page = await loadPage(RELEASES_PAGE, {
+    storage: { [STORAGE_KEY]: JSON.stringify([]), [RELEASE_STORAGE_KEY]: JSON.stringify([]) },
+  });
+  t.after(() => page.restore());
+  initReleasesPage(page.document, page.storage, {
+    location: { pathname: "/releases.html", origin: "https://labs.wawalu.org", search: "", hash: "" },
+    history: { replaceState() {} },
+    buildStamp: PAGE_STAMP,
+    readHealth: settle
+      ? async () => ({ status: "healthy", version: PAGE_SHA })
+      : () => new Promise(() => {}),
+    now: () => "2026-08-17T12:00:00.000Z",
+  });
+  await waitFor(
+    () => page.document.documentElement.dataset[settle ? "shiplogDeployment" : "shiplogReleases"] === "ready",
+    settle ? "the deployment check never answered" : "the releases page never finished rendering",
+  );
+  return page;
+}
+
+// Every anchor inside <main>, collected the only way this harness allows: one
+// tag per querySelectorAll call (a comma selector matches nothing without
+// throwing, a descendant selector throws), then filtered by walking parentNode.
+// A withdrawn control is not a label a visitor can read, so hidden links are
+// left out.
+function mainLinks(document, { without = [] } = {}) {
+  const main = document.querySelector("#main-content");
+  return document.querySelectorAll("a").filter((node) => {
+    if (node.hidden === true) return false;
+    let inside = false;
+    for (let current = node; current; current = current.parentNode) {
+      if (without.includes(current.id)) return false;
+      if (current === main) inside = true;
+    }
+    return inside;
+  });
+}
+
+// The name a link is offered under. An aria-label overrides the visible words,
+// and the log's rows use one so four rows drawing "View release details" still
+// name four different releases.
+const linkLabel = (link) => link.getAttribute("aria-label") ?? textOf(link);
+
+function labelMap(links, key, value) {
+  const map = new Map();
+  for (const link of links) {
+    const from = key(link);
+    if (!map.has(from)) map.set(from, new Set());
+    map.get(from).add(value(link));
+  }
+  return map;
+}
+
+const RETIRED_NAMES = [
+  "the running deployment",
+  "the version this site is running right now",
+  "the running build’s version or commit identifier",
+];
+
+test("the running build has one name in both regions that talk about it", async (t) => {
+  const page = await openReleasesPage(t);
+  const record = textOf(page.document.querySelector("#shipped-build"));
+  const check = textOf(page.document.querySelector("#deployment-status"));
+
+  // The region's heading is the term, so a reader scanning headings meets it
+  // before any sentence uses it.
+  assert.equal(textOf(page.document.querySelector("#shipped-build-title")), "The running build");
+  // And the check asks its question, draws its boundary, and heads its evidence
+  // in those same words rather than three near-synonyms of them.
+  assert.match(check, /Does the real record of this deployment name the running build’s version\?/);
+  assert.match(check, /It reads the running build when the page loads\./);
+  assert.match(check, /Evidence: what the running build answered/);
+
+  // Not a claim about two regions that happen to share a word: each region
+  // names the thing, and neither reaches for a second name for it.
+  for (const [region, name] of [[record, "the running build"], [check, "the deployment check"]]) {
+    assert.match(region.toLowerCase(), /the running build/, `${name} does not use the page's term`);
+    for (const retired of RETIRED_NAMES) {
+      assert.equal(region.includes(retired), false, `${name} still says "${retired}"`);
+    }
+  }
+
+  // Gone from everything the page renders, not just from the two regions —
+  // including the evidence disclosure, which this harness reads through.
+  const rendered = textOf(page.document.querySelector("#main-content"));
+  for (const retired of RETIRED_NAMES) {
+    assert.equal(rendered.includes(retired), false, `the rendered page still says "${retired}"`);
+  }
+  // And gone from the bytes, so no state this test did not drive can bring one
+  // back: the waiting line and the record's own title are in here too.
+  const markup = await readFile(RELEASES_PAGE, "utf8");
+  for (const retired of RETIRED_NAMES) {
+    assert.equal(markup.includes(retired), false, `src/releases.html still ships "${retired}"`);
+  }
+});
+
+test("the waiting line names the running build's version, before the check answers", async (t) => {
+  const page = await openReleasesPage(t, { settle: false });
+  assert.equal(
+    textOf(page.document.querySelector("#deployment-verdict")),
+    "Retrieving the running build’s version… That version is compared with"
+    + " the real record of this deployment, not with the invented example records.",
+  );
+});
+
+test("no label in main content serves two destinations", async (t) => {
+  const page = await openReleasesPage(t);
+  const links = mainLinks(page.document);
+  assert.ok(links.length >= 8, `only ${links.length} links found in main; the markup shape changed`);
+  for (const link of links) {
+    // Both hrefs the modules write are assigned as attributes as well as
+    // properties, so the attribute is the whole truth here.
+    const href = link.getAttribute("href") ?? "";
+    assert.notEqual(linkLabel(link), "", `a link to ${href} has no label`);
+    assert.notEqual(href, "", `the link "${linkLabel(link)}" names no destination`);
+  }
+
+  // The whole of main, the log's rows included: a reader who meets the same
+  // words twice must land in the same place both times. "Open the public
+  // repository this site is built from" is drawn twice — by the record block
+  // and by the deployment check — and both narrow to the commit this build was
+  // made from, which is one destination named once rather than two named alike.
+  const spread = [...labelMap(links, linkLabel, (link) => link.getAttribute("href") ?? "")]
+    .filter(([, hrefs]) => hrefs.size > 1)
+    .map(([label, hrefs]) => `"${label}" → ${[...hrefs].join(" and ")}`);
+  assert.deepEqual(spread, [], `one label serves more than one destination: ${spread.join("; ")}`);
+});
+
+// The other direction, over the regions this page authors rather than lists.
+//
+// It is deliberately not asserted over the release log: a row in an index, a
+// prioritised follow-up naming the work to do, and the worked example naming a
+// release by its version all legitimately offer the same record in their own
+// words, and flattening those to one label would take the follow-up's words
+// away from the action it is asking for. The regions below have no such
+// excuse — they sit on one screen, and two of them drew a second name for a
+// record already named beside them.
+test("no destination in the page's authored regions is offered under two labels", async (t) => {
+  const page = await openReleasesPage(t);
+  const links = mainLinks(page.document, { without: ["release-list", "release-followup"] });
+  assert.ok(links.length >= 7, `only ${links.length} links found; the markup shape changed`);
+
+  const renamed = [...labelMap(links, (link) => link.getAttribute("href") ?? "", linkLabel)]
+    .filter(([, labels]) => labels.size > 1)
+    .map(([href, labels]) => `${href} ← ${[...labels].map((l) => `"${l}"`).join(" and ")}`);
+  assert.deepEqual(renamed, [], `one destination is offered under more than one label: ${renamed.join("; ")}`);
+
+  // The pair that used to break it, named: the block's own permalink and the
+  // deployment check's record link open the same address and now read the same
+  // words. Read off the rendered DOM, because one of them is written by
+  // deployment-status-view.js and the other is authored markup.
+  const detail = page.document.querySelector("#shipped-build-detail");
+  const checkRecord = page.document.querySelector("#deployment-release-record");
+  assert.equal(textOf(detail), REAL_RECORD_LINK_LABEL);
+  assert.equal(textOf(checkRecord), REAL_RECORD_LINK_LABEL);
+  assert.equal(detail.getAttribute("href"), checkRecord.getAttribute("href"));
+});
+
+test("the example record's decision status is cased the way its filter option is", async (t) => {
+  const page = await openReleasesPage(t);
+  // The badge inside the worked example, not the ones the log's rows draw.
+  assert.match(textOf(page.document.querySelector("#shiplog-proof")), /Decision statusAccepted/);
+
+  // The option a visitor would pick to find a record in that state. Matched by
+  // its `for`, because the harness rejects an attribute selector.
+  const option = page.document.querySelectorAll("label")
+    .find((node) => node.getAttribute("for") === "release-decision-status-accepted");
+  assert.ok(option, "the Linked decision status filter lost its accepted option");
+  assert.equal(textOf(option), "Accepted");
+
+  const markup = await readFile(RELEASES_PAGE, "utf8");
+  const badge = markup.match(/<dt>Decision status<\/dt><dd><span class="badge badge-accepted">([^<]+)</);
+  assert.ok(badge, "the example record no longer renders a decision status badge");
+  assert.equal(badge[1], textOf(option), "the example record and the filter case the same status differently");
 });

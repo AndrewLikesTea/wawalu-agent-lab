@@ -25,6 +25,7 @@ import {
   DEPLOYED_RELEASE_ID,
   NO_RECORD_LABEL,
   REAL_LABEL,
+  REAL_RECORD_LINK_LABEL,
   REAL_RECORD_NAME,
   REPOSITORY_URL,
   commitUrl,
@@ -171,7 +172,7 @@ test("the real record has a stable visible permalink that can be copied and open
   });
 
   const detail = page.document.querySelector("#shipped-build-detail");
-  assert.equal(textOf(detail), "Open this real release record");
+  assert.equal(textOf(detail), REAL_RECORD_LINK_LABEL);
   assert.equal(detail.getAttribute("href"), "/releases.html#shipped-build");
   assert.equal(page.document.querySelectorAll("#shipped-build").length, 1);
 
@@ -297,8 +298,8 @@ test("an unstamped build shows no record and withdraws the real marking", async 
 // The line the band shows before the probe answers (#1910). Composed from
 // REAL_RECORD_NAME rather than quoted whole: the waiting line and the settled
 // verdict below name one record, so renaming it has to move both or fail here.
-const WAITING_LINE = "Retrieving the running build’s version or commit identifier…"
-  + ` That identifier is compared with ${REAL_RECORD_NAME}, not with the invented example records.`;
+const WAITING_LINE = "Retrieving the running build’s version…"
+  + ` That version is compared with ${REAL_RECORD_NAME}, not with the invented example records.`;
 
 test("the check names the identifier it is retrieving and the record it compares, while it waits", async (t) => {
   // A probe that never answers: the state a visitor on a slow network meets,
@@ -346,7 +347,7 @@ test("a page and a deployment built from different commits read as a mismatch wi
   // Pointed at the record on this page, not at a detail route that would
   // resolve to nothing: this record does not live in the visitor's log.
   assert.equal(actions[0].getAttribute("href"), "/releases.html#shipped-build");
-  assert.equal(textOf(actions[0]), "Open the real record of this deployment");
+  assert.equal(textOf(actions[0]), REAL_RECORD_LINK_LABEL);
   assert.equal(
     textOf(page.document.querySelector("#deployment-identifiers")),
     `Running build identifier: ${other}. Compared release-record identifier: ${DEPLOYED_RELEASE_ID}.`,
@@ -361,7 +362,10 @@ test("the proof names both compared identifiers and links both records", async (
     `Running build identifier: ${SHA}. Compared release-record identifier: ${DEPLOYED_RELEASE_ID}.`,
   );
   const record = page.document.querySelector("#deployment-release-record");
-  assert.equal(textOf(record), `Open release record ${DEPLOYED_RELEASE_ID}`);
+  // The link names the record, and the identifiers line above states its id —
+  // so the two controls that open this record read the same words, and the id
+  // is still on the page exactly once.
+  assert.equal(textOf(record), REAL_RECORD_LINK_LABEL);
   assert.equal(record.getAttribute("href"), "/releases.html#shipped-build");
   assert.equal(page.document.querySelector("#deployment-commit").getAttribute("href"), `${REPOSITORY_URL}/commit/${SHA}`);
 });

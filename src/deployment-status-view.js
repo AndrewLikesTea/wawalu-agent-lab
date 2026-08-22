@@ -22,7 +22,7 @@ import {
   verdictSentence,
 } from "./deployment-status.js";
 import { BUILD_STAMP } from "./build-stamp.js";
-import { commitLinkText, deployedReleaseRecord, sameSiteHref } from "./deployed-release.js";
+import { REAL_RECORD_LINK_LABEL, commitLinkText, deployedReleaseRecord, sameSiteHref } from "./deployed-release.js";
 
 export const HEALTH_URL = "/healthz";
 
@@ -245,6 +245,12 @@ export function renderDeploymentSource(root, record) {
  * stay on this site (`sameSiteHref`) and the id has to be one a reader can see
  * whole (`readableIdentifier`). A record failing either is not linked at all,
  * because a link is a claim about where it goes and what it names.
+ *
+ * The label is the record's name, not its id. This link and the block's own
+ * permalink open the same address, so they say the same words; two labels for
+ * one destination read as two records. The id itself is still stated, once, on
+ * the identifiers line above ("Compared release-record identifier: …") — which
+ * is where a reader looking for it already looks.
  */
 export function renderDeploymentRecordLink(root, record) {
   const link = byId(root, DEPLOYMENT_IDS.releaseRecord);
@@ -258,7 +264,7 @@ export function renderDeploymentRecordLink(root, record) {
   link.hidden = false;
   link.href = href;
   link.setAttribute("href", href);
-  link.textContent = `Open release record ${id}`;
+  link.textContent = REAL_RECORD_LINK_LABEL;
   return href;
 }
 
