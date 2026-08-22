@@ -146,8 +146,10 @@ test("Coach, Releases, Social, People, and Agents send one bounded request and s
       assert.match(textOf(confirmation), /Request received\. Submitted work email:/, `${file}: receipt states receipt`);
       // Named when the page put one on the wire, absent when it did not — which
       // is why this reads `topic` rather than asserting one shape for all five.
-      // Releases declares a follow-up type with no FOLLOW_UP_TOPICS entry, so it
-      // sends no topic, and a receipt there must not invent one.
+      // Releases used to declare a follow-up type with no FOLLOW_UP_TOPICS entry
+      // and therefore sent none; issue #1956 gave that type the topic it was
+      // missing, so all five now name one, and the conditional stays because a
+      // receipt may only claim a topic the request actually carried.
       if (topic) {
         assert.ok(textOf(confirmation).includes(`Submitted follow-up topic: ${topic}.`),
           `${file}: the receipt names the topic this page put on the wire`);
@@ -186,15 +188,18 @@ test("each reviewed page keeps empty and invalid email inline and sends nothing"
   }
 });
 
-// A topic is a field, not a flourish. The footer renders the topic input only on
-// the pages that declare a follow-up type; everywhere else the request carries
-// the address and the routing label alone. So a receipt on one of those pages has
-// no topic to read back, and supplying a plausible-sounding one is the same class
-// of untruth as promising a reply nobody guaranteed: it describes a field that
-// never left the browser. The acceptance criterion is conditional for this reason
-// — name the topic when a page supplies one, and only then.
+// A topic is a field, not a flourish. The footer carries a topic only on the
+// pages that declare one — in a read-only control, or as a data attribute behind
+// the sentence that states it; everywhere else the request carries the address
+// and the routing label alone. So a receipt on one of those pages has no topic to
+// read back, and supplying a plausible-sounding one is the same class of untruth
+// as promising a reply nobody guaranteed: it describes a field that never left
+// the browser. The acceptance criterion is conditional for this reason — name the
+// topic when a page supplies one, and only then. The home page is the surface
+// that supplies none: its footer sends the legacy `follow_up` label, which has no
+// FOLLOW_UP_TOPICS entry and therefore nothing true to name.
 test("a page that sends no follow-up topic is never told one was submitted", async () => {
-  for (const file of ["index.html", "post.html"]) {
+  for (const file of ["index.html"]) {
     const page = await openNamedFooterPage(file);
     const calls = interceptLeads(() => jsonReply({ captured: true, created: true, purpose: "follow_up" }, 201));
     try {

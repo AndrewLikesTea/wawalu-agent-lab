@@ -162,10 +162,12 @@ export const FOLLOW_UP_REDIRECT = Object.freeze({
  * form — see FOLLOW_UP_REDIRECT. The identity paragraph never varies: every
  * page says who runs Shiplog and where.
  */
-export function siteFooterMarkup(indent = "    ", { redirect = null, followUpType = null, followUpTopic = null } = {}) {
+export function siteFooterMarkup(indent = "    ", {
+  redirect = null, followUpType = null, followUpTopic = null, statedTopic = false,
+} = {}) {
   const contact = redirect ? [
     `    <a class="site-footer-redirect-link" href="${redirect.href}">${redirect.label}</a>`,
-  ] : contactFormLines(followUpType, followUpTopic);
+  ] : contactFormLines(followUpType, followUpTopic, statedTopic);
   const lines = [
     '<footer class="site-footer" id="site-footer" aria-labelledby="site-footer-title">',
     '  <div class="site-footer-inner">',
@@ -196,17 +198,19 @@ function demoListLines() {
   ];
 }
 
-function contactFormLines(followUpType, followUpTopic) {
+function contactFormLines(followUpType, followUpTopic, stated) {
   return [
     `    <p class="site-footer-invitation">${INVITATION}</p>`,
     '    <div class="site-footer-panel" id="site-footer-panel">',
-    `      <form id="site-footer-form" class="site-footer-form"${followUpType ? ` data-follow-up-type="${followUpType}"` : ""} novalidate>`,
-    ...(followUpTopic ? [
+    `      <form id="site-footer-form" class="site-footer-form"${followUpType ? ` data-follow-up-type="${followUpType}"` : ""}${followUpTopic ? ` data-follow-up-topic="${followUpTopic}"` : ""} novalidate>`,
+    ...(!followUpTopic ? [] : stated ? [
+      `        <p class="site-footer-note" id="site-footer-topic-note">This request is sent about the ${followUpTopic}.</p>`,
+    ] : [
       '        <div class="site-footer-field">',
       '          <label for="site-footer-topic">Follow-up topic</label>',
-      `          <input id="site-footer-topic" name="topic" type="text" value="${followUpTopic}" readonly />`,
+      `          <input id="site-footer-topic" type="text" value="${followUpTopic}" readonly />`,
       "        </div>",
-    ] : []),
+    ]),
     '        <div class="site-footer-field">',
     '          <label for="site-footer-email">Work email for your follow-up</label>',
     "          <!-- Only the note is named here. The inline error and the recovery",
@@ -348,13 +352,13 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
 
     try {
       const address = email.value.trim();
-      const body = await postLeadEmail(request, email.value, form.dataset.followUpType || "follow_up", CONTACT_COPY,
-        form.elements.topic?.value);
+      const topic = form.dataset.followUpTopic;
+      const body = await postLeadEmail(request, email.value, form.dataset.followUpType || "follow_up", CONTACT_COPY, topic);
       form.dataset.state = "success";
       status.textContent = body.created ? CAPTURED : ALREADY_CAPTURED;
       // The form is replaced from here, so the control that would send again is
       // gone before the `finally` below could bring it back.
-      confirmation.show(address, form.elements.topic?.value);
+      confirmation.show(address, topic);
     } catch (error) {
       // Copy this repository owns, never a string an intermediary supplied, and
       // never a claim that the address was lost when that is not known.
