@@ -182,7 +182,7 @@ test("the image field states the formats and the size exactly once, in plain sen
   // new tab, still declared in the link's own text.
   assert.equal(textOf(steps),
     "Create an image in Paint (opens in a new tab) ↗ Export the PNG Return to this tab"
-    + " Use Choose image above to pick the PNG you exported");
+    + " Pick the PNG you exported with Choose image below");
   const paint = steps.querySelector("a");
   assert.equal(paint.getAttribute("href"), "/paint/");
   assert.equal(paint.getAttribute("target"), "_blank");
@@ -192,7 +192,7 @@ test("the image field states the formats and the size exactly once, in plain sen
   // Both lines are still there and still described, so nothing the file input
   // names has been left pointing at a node that no longer exists.
   assert.equal(document.querySelector("#post-image").getAttribute("aria-describedby"),
-    "post-image-hint post-image-steps post-media-status");
+    "post-image-steps post-image-hint post-media-status");
   assert.equal(document.querySelectorAll("#post-image-hint").length, 1);
   assert.equal(document.querySelectorAll("#post-image-steps").length, 1);
 });

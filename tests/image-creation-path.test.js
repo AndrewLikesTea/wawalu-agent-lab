@@ -16,8 +16,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { loadPage, parseHtml, tabSequence, textOf } from "./support/browser.js";
+import { loadPage, parseHtml, tabSequence, textOf, typeText } from "./support/browser.js";
 import { SOCIAL_COMPOSER_PATH } from "../src/paint-handoff.js";
+import { mountComposerDisclosure } from "../src/social.js";
 import { initPaint, paintReturnContext } from "../src/paint/paint.js";
 import { mountProfile, profilePaintHref } from "../src/profile.js";
 
@@ -378,14 +379,16 @@ test("the composer numbers the round trip and puts the rule beside the control",
   // the label on the button beside it. #1869 closes the sequence properly: the
   // list stopped on returning to this tab, which left a reader holding a file
   // with nothing saying it is theirs to attach. The last step names the control
-  // and the file, which is the part no label on screen carries.
+  // and the file, which is the part no label on screen carries. #1957 turned it
+  // around: the steps read before the picker now, so the step points down at the
+  // control that follows it instead of back up the form.
   assert.equal(steps.tagName, "OL", "the steps are not an ordered list");
   const items = steps.querySelectorAll("li");
   assert.deepEqual(items.map(textOf), [
     "Create an image in Paint (opens in a new tab) ↗",
     "Export the PNG",
     "Return to this tab",
-    "Use Choose image above to pick the PNG you exported",
+    "Pick the PNG you exported with Choose image below",
   ]);
   assert.equal(textOf(documents.Social.querySelector("body")).split("Select Choose image").length - 1, 0,
     "the composer still instructs the reader to select the button beside the instruction");
@@ -402,7 +405,13 @@ test("the composer numbers the round trip and puts the rule beside the control",
   const blocks = field.children.filter((node) => node.dataset);
   assert.equal(blocks.indexOf(hint), blocks.indexOf(control.parentNode) + 1,
     "the format and size rule is not the element next to Choose image");
-  assert.ok(blocks.indexOf(hint) < blocks.indexOf(steps), "the rule reads after the steps again");
+  // The steps are not a sibling of the rule any more — they moved into their own
+  // labelled group ahead of the picker (#1957) — so the ordering is asserted on
+  // that group, which is what a reader actually meets before Choose image.
+  const roundTrip = documents.Social.getElementById("post-image-round-trip");
+  assert.ok(blocks.indexOf(roundTrip) >= 0, "the round trip left the image field");
+  assert.ok(blocks.indexOf(roundTrip) < blocks.indexOf(control.parentNode),
+    "the picker is offered before the steps that produce something to pick");
   assert.equal(items.filter((item) => /512 KB|WebP/.test(textOf(item))).length, 0,
     "the rule is back inside the step list");
 
@@ -447,8 +456,10 @@ test("the numbered Paint step keeps its new-tab words and its external indicatio
 });
 
 // (d) The numbered list and the relocated rule are text, so the keyboard walks
-// the composer in exactly the order it did before #1818.
-test("the composer's focusable sequence is unchanged by the numbered steps", async () => {
+// the composer in source order — and since #1957 that order is the round trip,
+// then the picker it ends at, then the description that picker costs. The group
+// around the steps is a grouping element with a legend, which adds no tab stop.
+test("the composer's focusable sequence follows the order the steps are taken", async () => {
   const page = await loadPage(PAGES.Social);
   try {
     page.document.getElementById("post-compose-panel").hidden = false;
@@ -461,8 +472,8 @@ test("the composer's focusable sequence is unchanged by the numbered steps", asy
     const named = stops.map((node) => node.getAttribute("id") ?? textOf(node));
     assert.deepEqual(named, [
       "post-body",
-      "post-image",
       "Create an image in Paint (opens in a new tab) ↗",
+      "post-image",
       "remove-image",
       "post-image-alt",
       "post-author",
@@ -497,7 +508,7 @@ test("the composer names the round trip in the order it is taken, once", () => {
     "the composer asks for the export before the drawing");
   assert.ok(at("Export the PNG") < at("Return to this tab"),
     "the composer sends the visitor back before they have a file");
-  assert.ok(at("Return to this tab") < at("Use Choose image above"),
+  assert.ok(at("Return to this tab") < at("Pick the PNG you exported"),
     "the composer asks for the file before the visitor is back in this tab");
   // A fourth step once said "Select Choose image", which is the label on the
   // control beside it and nothing else, so the reader's last instruction was to
@@ -564,7 +575,13 @@ test("the last step names Choose image and the file it takes", () => {
   // And the file, identified as the one they just made — the step is useless if
   // the reader has to guess which of their PNGs is meant.
   assert.match(last, /PNG you exported/, `the closing step names no file: ${last}`);
-  assert.equal(last, "Use Choose image above to pick the PNG you exported");
+  assert.equal(last, "Pick the PNG you exported with Choose image below");
+  // Forwards, at the control that follows it. The step used to read "Use Choose
+  // image above", which was true only while the picker stood before the steps —
+  // and that order met a first-time visitor with the control before the way to
+  // make something to give it (#1957). Nothing in this field points back up it.
+  assert.doesNotMatch(textOf(documents.Social.getElementById("post-image-round-trip")), /\babove\b/i,
+    "a step still sends the reader back up the form");
 
   // It is prose in the list, not a second route to the same control: the tab
   // sequence through this field is unchanged.
@@ -653,16 +670,16 @@ test("the steps are the image field's own description, so focusing it reads them
   const described = (input.getAttribute("aria-describedby") ?? "").split(/\s+/);
   assert.ok(described.includes("post-image-steps"), "Choose image is not described by the steps");
   // The mechanism the other fields already use, and the order it is read in —
-  // the same order the eye meets it in since #1818: the file constraint standing
-  // beside the control, then the round trip, then the live status.
-  assert.deepEqual(described, ["post-image-hint", "post-image-steps", "post-media-status"]);
+  // the same order the eye meets it in since #1957: the round trip standing
+  // above the control, then the file constraint beside it, then the live status.
+  assert.deepEqual(described, ["post-image-steps", "post-image-hint", "post-media-status"]);
 });
 
-test("the composer's Paint link sits between Choose image and Image description", async () => {
+test("the composer's Paint link comes before Choose image and Image description", async () => {
   // Source order, which is what the task is: no tabindex anywhere near it.
   const html = sources.Social;
-  assert.ok(html.indexOf('id="post-image"') < html.indexOf('class="secondary-button paint-link"'));
-  assert.ok(html.indexOf('class="secondary-button paint-link"') < html.indexOf('id="post-image-alt"'));
+  assert.ok(html.indexOf('class="secondary-button paint-link"') < html.indexOf('id="post-image"'));
+  assert.ok(html.indexOf('id="post-image"') < html.indexOf('id="post-image-alt"'));
   assert.ok(!composerPaintLink().getAttribute("tabindex"), "the order is faked with tabindex");
 
   // And the sequence a keyboard actually walks, with the media panel open —
@@ -676,8 +693,8 @@ test("the composer's Paint link sits between Choose image and Image description"
     const paint = sequence.indexOf(page.document.querySelector("#post-image-steps").querySelector("a"));
     assert.ok(at("post-image") >= 0 && paint >= 0 && at("post-image-alt") >= 0,
       "one of the composer's image controls is not keyboard reachable");
-    assert.ok(at("post-image") < paint, "the Paint link comes before Choose image");
-    assert.ok(paint < at("post-image-alt"), "the Paint link comes after Image description");
+    assert.ok(paint < at("post-image"), "the picker is reached before the way to make an image");
+    assert.ok(at("post-image") < at("post-image-alt"), "the picker is reached after the description it costs");
   } finally {
     page.restore();
   }
@@ -695,6 +712,230 @@ test("Image description states its status in the label, like Name and Image do",
     sources.Social,
     /<label for="post-image-alt">Image description <span class="label-optional label-required" id="post-image-alt-required">\(required with an image\)<\/span><\/label>/,
   );
+});
+
+/* ------------- #1957: the way to make an image, before the picker ------------- */
+// The composer used to open its image field with "Choose image" and follow it
+// with the four steps that produce something to choose. A first-time visitor
+// with no image on hand therefore met the control before the means, and the
+// closing step had to point backwards — "Use Choose image above" — to get them
+// out of the dead end. The round trip reads first now, in its own labelled
+// group, and every instruction points down the form at the control that follows
+// it.
+
+/**
+ * Reading order inside an element: the pre-order walk a browser makes of it.
+ * Elements only — this harness keeps text nodes in `children`, and they carry no
+ * attributes — and by walk rather than by a descendant selector, which the
+ * harness rejects.
+ */
+function readingOrder(root) {
+  const order = [];
+  const visit = (node) => {
+    for (const child of node.children) {
+      if (child.nodeType !== 1) continue;
+      order.push(child);
+      visit(child);
+    }
+  };
+  visit(root);
+  return order;
+}
+
+/** Position of an id in the composer's reading order. */
+function composerOrder(document = documents.Social) {
+  const order = readingOrder(document.getElementById("post-form"));
+  return (id) => {
+    const index = order.findIndex((node) => node.getAttribute?.("id") === id);
+    assert.ok(index >= 0, `#${id} is not inside the composer`);
+    return index;
+  };
+}
+
+/** Ancestry by walk: is this node inside the element with this id? */
+const inside = (node, id) => {
+  for (let cursor = node; cursor; cursor = cursor.parentNode) {
+    if (cursor.getAttribute?.("id") === id) return true;
+  }
+  return false;
+};
+
+test("the composer authors the round trip, then the picker, then the description", () => {
+  const at = composerOrder();
+  assert.ok(at("post-image-round-trip") < at("post-image"),
+    "the picker is offered before the group that says how to make something to give it");
+  assert.ok(at("post-image") < at("post-image-alt"),
+    "the description field is authored before the picker that requires it");
+
+  // The steps really are in the group, and the group is in the image field: the
+  // order above is about the thing a reader meets, not about a wrapper that
+  // happens to carry the id.
+  assert.ok(inside(documents.Social.getElementById("post-image-steps"), "post-image-round-trip"),
+    "the group and the steps came apart");
+  assert.ok(inMediaPicker(documents.Social.getElementById("post-image-round-trip")),
+    "the round trip left the image field");
+});
+
+test("the round trip is one labelled group, and one step per list item", () => {
+  const group = documents.Social.getElementById("post-image-round-trip");
+  assert.ok(group, "the steps sit loose between the legend and the file button");
+
+  // A grouping element with a legend, so the four steps are announced under a
+  // name of their own rather than under "Image (optional)", which is the legend
+  // of the field they sit in and says nothing about Paint.
+  assert.equal(group.tagName, "FIELDSET");
+  const legend = group.querySelector("legend");
+  assert.equal(textOf(legend), "Making an image in Paint and bringing it back");
+  assert.match(textOf(legend), /Paint/, "the group's name does not say what the steps are for");
+  assert.match(sources.Social, /<legend>Making an image in Paint and bringing it back<\/legend>/);
+
+  // Not a disclosure. This harness reads text straight through a closed
+  // disclosure widget, so the count is what actually rules one out — a reader
+  // who needs these steps needs them without opening anything.
+  assert.equal(documents.Social.querySelectorAll("details").length, 0);
+  assert.equal(group.querySelectorAll("summary").length, 0);
+  assert.ok(!group.getAttribute("hidden"), "the group ships hidden");
+
+  // One step per item, in an ordered list, wearing the classes the composer
+  // already ships rather than a new one.
+  const list = group.querySelector("ol");
+  assert.equal(list.getAttribute("id"), "post-image-steps");
+  assert.equal(list.getAttribute("class"), "hint");
+  const items = list.querySelectorAll("li");
+  assert.equal(items.length, 4, `the round trip is told in ${items.length} items`);
+  for (const item of items) {
+    assert.equal(item.tagName, "LI");
+    assert.doesNotMatch(textOf(item), /\.\s/, `a step carries more than one sentence: ${textOf(item)}`);
+  }
+  assert.equal(group.getAttribute("class"), "media-picker",
+    "the group invented a class instead of reusing the picker's own");
+});
+
+test("the group offers Paint exactly once, in a link that says the tab will change", async () => {
+  const group = documents.Social.getElementById("post-image-round-trip");
+  const links = group.querySelectorAll("a");
+  assert.equal(links.length, 1, `the round trip offers Paint ${links.length} times`);
+  const [link] = links;
+
+  // The resolved property, not the attribute: this harness does not reflect
+  // properties back to attributes, and `href` is the one a browser follows.
+  assert.equal(link.href, PAINT_PATH);
+  assert.equal(link.getAttribute("target"), "_blank");
+  assert.match(link.getAttribute("rel") ?? "", /noopener/);
+  // The disclosure is in the accessible name, not in the arrow beside it.
+  assert.match(textOf(link), /\(opens in a new tab\)/, "the link hides the new tab from its name");
+
+  // Exactly one tab stop in the whole group: the group added no focusable
+  // wrapper, and the steps around the link are prose.
+  const page = await loadPage(PAGES.Social);
+  try {
+    page.document.getElementById("post-compose-panel").hidden = false;
+    const stops = tabSequence(page.document).filter((node) => inside(node, "post-image-round-trip"));
+    assert.equal(stops.length, 1, `the group contributes ${stops.length} tab stops`);
+    assert.equal(textOf(stops[0]), textOf(link));
+    assert.equal(stops[0].getAttribute("tabindex"), null, "the one stop fakes its position");
+  } finally {
+    page.restore();
+  }
+});
+
+test("the cost of an image is stated before the control that starts paying it", () => {
+  const at = composerOrder();
+  assert.ok(at("post-image-alt-requirement") < at("post-image"),
+    "the description requirement is stated after the picker again");
+  // Still where it was in relation to the field it names, and still outside the
+  // region that only appears once a file has been chosen.
+  assert.equal(textOf(documents.Social.getElementById("post-image-alt-requirement")),
+    "A post with an image will not publish until you fill in Image description, "
+    + "which appears below once you choose an image.");
+  assert.ok(!inside(documents.Social.getElementById("post-image-alt-requirement"), "compose-media"));
+});
+
+test("a half-written post survives the trip out to Paint and the closed panel", async () => {
+  const page = await loadPage(PAGES.Social);
+  try {
+    const { document } = page;
+    const composer = mountComposerDisclosure(document);
+    composer.open();
+
+    const body = document.getElementById("post-body");
+    body.focus();
+    typeText(document, "A drawing of the focus ring");
+    const author = document.getElementById("post-author");
+    author.focus();
+    typeText(document, "Mina");
+
+    // The exit the steps send them through: the composer's own Paint link,
+    // activated the way a visitor activates it. The harness records where an
+    // anchor sends the browser, so this is the trip and not a stand-in for it.
+    document.getElementById("post-image-steps").querySelector("a").click();
+    assert.equal(page.document.navigations.at(-1), PAINT_PATH, "the Paint link went nowhere");
+
+    // And the other exit the same sentence answers for: the panel is revealed
+    // and hidden, never rebuilt, which is the whole of the mechanism.
+    document.getElementById("post-compose-cancel").click();
+    assert.equal(document.getElementById("post-compose-panel").hidden, true);
+    document.getElementById("post-compose-open").click();
+    assert.equal(document.getElementById("post-compose-panel").hidden, false);
+
+    assert.equal(document.getElementById("post-body").value, "A drawing of the focus ring",
+      "the post was lost on the way to Paint and back");
+    assert.equal(document.getElementById("post-author").value, "Mina",
+      "the display name was lost on the way to Paint and back");
+
+    // The sentence that promises exactly this is still on the screen, still in
+    // the group with the step that sends the reader away, and still true.
+    const note = document.getElementById("post-draft-note");
+    assert.equal(textOf(note),
+      "Anything you have already typed is kept here while you are in the other tab, "
+      + "and while this panel is closed.");
+    assert.ok(inside(note, "post-image-round-trip"), "the promise left the steps it answers for");
+    assert.equal(note.getAttribute("hidden"), null);
+  } finally {
+    page.restore();
+  }
+});
+
+// The narrow screen, read from the stylesheet rather than from a viewport shim:
+// no module on Social reads matchMedia or innerWidth, so a shimmed width would
+// assert only itself. What governs the group at 390px is the rule it is styled
+// by, and the group reuses the picker's own class, so no rule was added for it.
+const STYLES = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
+
+function declared(selector, property) {
+  const pattern = selector.split(/\s+/)
+    .map((token) => token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+    .join("\\s*");
+  const rule = STYLES.match(new RegExp(`(?:^|[,}])\\s*${pattern}\\s*\\{([^}]*)\\}`, "m"));
+  assert.ok(rule, `no rule for ${selector}`);
+  const found = rule[1].match(new RegExp(`(?:^|;)\\s*${property}\\s*:\\s*([^;]+)`));
+  return found ? found[1].trim() : null;
+}
+
+test("the group's steps stack, and the group cannot overflow a 390px screen", () => {
+  const group = documents.Social.getElementById("post-image-round-trip");
+  assert.equal(group.getAttribute("class"), "media-picker");
+
+  // A grouping element's default inline size is min-content, which is what
+  // pushes a long unbreakable step past the edge of a 390px screen. The class
+  // the group borrows already answers that, for itself and for the picker.
+  assert.equal(declared(".media-picker", "min-width"), "0");
+
+  // The steps and the promise beside them are block-level, so each takes its own
+  // line instead of running together — and each step is a list item, which
+  // stacks the four of them without a rule of its own.
+  assert.equal(declared(".media-picker > .hint", "display"), "block");
+  for (const id of ["post-image-steps", "post-draft-note"]) {
+    const node = documents.Social.getElementById(id);
+    assert.equal(node.getAttribute("class"), "hint", `#${id} is not styled by that rule`);
+    assert.equal(node.parentNode.getAttribute("id"), "post-image-round-trip",
+      `#${id} is not a direct child of the group, so the rule does not reach it`);
+  }
+
+  // And it cost the stylesheet nothing: no selector of its own, no new colour,
+  // no new spacing value.
+  assert.equal(STYLES.includes("post-image-round-trip"), false,
+    "the group added a rule to a stylesheet with no room for one");
 });
 
 /* ------------------------------ the way back ------------------------------ */
