@@ -34,7 +34,7 @@ const PAGES = [
   { file: "departments.html", current: "/evolution.html", title: "Department answer · Shiplog" },
   { file: "coach.html", current: "/coach.html", title: "Prompt coach · Shiplog" },
   { file: "personal-history.html", current: "/coach.html", title: "Personal AI history · Shiplog" },
-  { file: "agents.html", current: "/agents.html", title: "Agent observatory · Wawalu Labs" },
+  { file: "agents.html", current: "/agents.html", title: "Agent observatory · Shiplog" },
   { file: "agent-trace.html", current: "/agents.html", title: "Published prompt trace · Wawalu Labs" },
 ];
 
