@@ -52,7 +52,7 @@ export const UNKNOWN_REASONS = Object.freeze({
   // that named none, and one that named something this page refused to show —
   // so the sentence stays true without claiming to know which happened.
   "no-build": "The health check answered, but it named no build identifier this page can read.",
-  "no-record": "There is no real record of this deployment to compare the running deployment against.",
+  "no-record": "There is no real record of this deployment to compare the running build against.",
 });
 
 const FALLBACK_REASON = UNKNOWN_REASONS.unreachable;

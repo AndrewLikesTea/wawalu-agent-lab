@@ -140,7 +140,7 @@ export function renderShippedBuild(root, record, options = {}) {
         if (copyStatus) {
           copyStatus.textContent = copied
             ? "Real release link copied to clipboard."
-            : "Clipboard unavailable. Open the real release record to copy its address.";
+            : "Clipboard unavailable. Open the real record of this deployment to copy its address.";
         }
         copy.disabled = false;
       });

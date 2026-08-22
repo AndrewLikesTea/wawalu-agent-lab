@@ -61,6 +61,19 @@ export const NO_RECORD_LABEL = "This deployment records no commit";
  */
 export const REAL_RECORD_NAME = "the real record of this deployment";
 
+/**
+ * How every link to this record names itself, wherever it is offered.
+ *
+ * Three controls on the releases page open the same address: the block's own
+ * permalink, the deployment check's record link, and the one action a
+ * disagreeing verdict offers. They used to read "Open this real release
+ * record", "Open release record deployed-build" and this, which put three
+ * names on one destination and made one record look like three. One address,
+ * one label — and it is REAL_RECORD_NAME, so the link and the verdict that
+ * names the record say the same words.
+ */
+export const REAL_RECORD_LINK_LABEL = `Open ${REAL_RECORD_NAME}`;
+
 // Git's own default abbreviation is 7; the stamp writes the full 40. Anything
 // that is not hexadecimal in that range is not a commit and gets no link.
 const SHA = /^[0-9a-f]{7,40}$/;
@@ -151,7 +164,7 @@ export function deployedReleaseRecord(stamp) {
   return Object.freeze({
     id: DEPLOYED_RELEASE_ID,
     version: commitSha,
-    title: "The build this site is running",
+    title: "The running build",
     description: "The commit this artifact was built from, written by the build that produced this page.",
     status: "completed",
     owner: "Wawalu",
@@ -159,7 +172,7 @@ export function deployedReleaseRecord(stamp) {
     commitSha,
     sourceUrl: commitUrl(commitSha),
     detailHref: "/releases.html#shipped-build",
-    actionLabel: "Open the real record of this deployment",
+    actionLabel: REAL_RECORD_LINK_LABEL,
     actionTarget: "The page you are reading and the deployment answering the health check name different builds. Reload this page; if they still disagree, they came from different builds and the newer one has not finished replacing the older.",
     decisionIds: Object.freeze([]),
   });

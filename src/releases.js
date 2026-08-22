@@ -773,8 +773,16 @@ function renderReleaseBody(release) {
 
 // The disclosure summarises a release inline; this link opens the full detail
 // view. Added to every row (expanded or not) so the list stays a true index.
+//
+// Every row draws this link, so the visible words are the same on all of them
+// while each one goes somewhere different. The accessible name says which
+// release, so a reader tabbing the list — or pulling the links out of it —
+// gets one name per destination instead of "View release details" four times.
+// It is an aria-label rather than longer visible text because the row's own
+// heading already names the release directly above it.
 function renderDetailLink(release) {
   const link = el("a", "release-detail-link", "View release details");
+  link.setAttribute("aria-label", `View release details for ${releaseTitle(release)}`);
   link.href = releaseDetailHref(release.id);
   link.append(el("span", "release-detail-arrow", "→"));
   link.querySelector(".release-detail-arrow").setAttribute("aria-hidden", "true");

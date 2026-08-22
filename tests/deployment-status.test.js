@@ -127,7 +127,7 @@ test("the band opens with what the check proves, ahead of the answer and outside
   // What the check proves, in the page's own words, before any evidence. The
   // question is one sentence and the front door renders the same one, so a
   // reader who follows the link from there meets the words they arrived on.
-  assert.match(sentence, /^Does the real record of this deployment name the version this site is running right now\?/);
+  assert.match(sentence, /^Does the real record of this deployment name the running build’s version\?/);
   // And the line the rest of the page draws, kept here: the worked example
   // above is invented, the record this check names and this answer are not.
   assert.match(sentence, /The example decision and release above are invented; that record and this answer are not\./);
@@ -429,7 +429,7 @@ test("the probe recognises both shipped health bodies and refuses anything else"
 // function both pages render through — rather than against a copy of its
 // output, because a copy is exactly what would drift.
 
-const WAITING_LINE = "Checking the running deployment now…";
+const WAITING_LINE = "Checking the running build now…";
 
 // The stamp both pages are driven from below. Injected for the same reason the
 // clock is: what is asserted is that the link is derived from the stamp, not
@@ -509,10 +509,10 @@ test("the front door's log section carries the check, its question, and the way 
   // its destination are one thing with one name.
   assert.equal(
     textOf(page.document.querySelector("#deployment-status-proof")),
-    "Does the real record of this deployment name the version this site is running right now?",
+    "Does the real record of this deployment name the running build’s version?",
   );
   assert.equal(
-    (textOf(panel).match(/name the version this site is running right now\?/g) ?? []).length,
+    (textOf(panel).match(/name the running build’s version\?/g) ?? []).length,
     1,
     "the question the check answers is asked more than once",
   );
@@ -549,7 +549,7 @@ test("the front door's log section carries the check, its question, and the way 
 test("the front door ships one waiting line, and no settled state stays on it", async (t) => {
   const html = await readFile(HOME_PAGE, "utf8");
   assert.equal(
-    (html.match(/Checking the running deployment now…/g) ?? []).length,
+    (html.match(/Checking the running build now…/g) ?? []).length,
     1,
     "the cold document must carry exactly one waiting line",
   );
@@ -609,7 +609,7 @@ test("the front door's section states the example-records caveat once", async (t
   // draw the same line two ways.
   assert.match(
     section,
-    /It reads the running deployment when the page loads\. The example decision and release above are invented; this answer is not\./,
+    /It reads the running build when the page loads\. The example decision and release above are invented; this answer is not\./,
   );
   assert.equal((section.match(/this answer is not/g) ?? []).length, 1);
 });
