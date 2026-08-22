@@ -226,8 +226,7 @@ test("a settled Social post carries its display name as a link to People, in the
   }
 
   // The newest post is Tess's text post; the one under test here is the newest
-  // image post, because it is the card whose caption and image description the
-  // control must not jump in front of.
+  // image post, because it exercises the complete loaded-card reading order.
   const card = cards.find((node) => node.dataset?.postId === "p-06");
   assert.ok(card, "the fixture's newest image post did not render");
   const link = card.querySelectorAll(".post-author")[0];
@@ -250,15 +249,14 @@ test("a settled Social post carries its display name as a link to People, in the
     "the post grew a tab stop of its own, or lost one it had");
   assert.equal(link.getAttribute("tabindex"), null, "the stop is markup order, not a tabindex trick");
 
-  // And it sits where the name already sat: behind the caption and the image
-  // description, so a reader walking the card meets the post before the byline.
+  // Display name leads the post text, image description, time, and final action.
   const order = documentOrder(card);
   const at = (node) => order.indexOf(node);
   const caption = card.querySelectorAll(".post-caption")[0];
   const description = card.querySelectorAll(".post-image-description")[0];
   assert.equal(textOf(caption), "p-06 from Iris Vale");
-  assert.ok(at(caption) < at(description), "the image description was reordered ahead of the caption");
-  assert.ok(at(description) < at(link), "the display name jumped ahead of the post it belongs to");
+  assert.ok(at(link) < at(caption), "the post text jumped ahead of its display name");
+  assert.ok(at(caption) < at(description), "the image description was reordered ahead of the post text");
 
   // The card's second stop, on the real page rather than in a render stub: one
   // named anchor per card, last in the card, opening that card's own post.

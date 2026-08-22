@@ -10,17 +10,9 @@
 // and every field is written through textContent — never an HTML string — so a
 // caption can never execute markup.
 //
-// Two deliberate interaction decisions, both different from the social feed:
-//
-//   1. A tile is a link, not a focusable article. The feed's cards are prose you
-//      read in place, so they use roving focus and Enter does nothing. A profile
-//      tile's entire job is to go somewhere, so it is an <a>: every tile is a
-//      real tab stop with native Enter, middle-click, and open-in-new-tab
-//      behaviour that no keydown handler reproduces faithfully.
-//   2. The tile's accessible name is the caption alone (aria-labelledby), not
-//      the image alt plus the caption plus the counts. In a link list, "Focus
-//      rings landed everywhere" is a usable name; the alt text is still exposed
-//      on the image inside the link when the tile is read rather than listed.
+// Loaded tiles share Social's source order and end in one native link, preserving
+// Enter, middle-click, and open-in-new-tab behaviour without scripted keyboard
+// handling.
 
 import { connectionStatusLine, normalizeImage } from "./social.js";
 import { OPEN_POST_LABEL, postDetailHref, profileHref } from "./social-links.js";
@@ -48,6 +40,7 @@ export function normalizeProfileApiPosts(payload) {
     const normalized = {
       id: post.id,
       author: post.author.trim(),
+      title: typeof post.title === "string" && post.title.trim() ? post.title.trim() : null,
       body: post.content.trim(),
       caption: typeof post.caption === "string" && post.caption.trim() ? post.caption.trim().slice(0, MAX_CAPTION_LENGTH) : null,
       createdAt: post.timestamp,
@@ -69,6 +62,7 @@ export function normalizeSeedPosts(list) {
     const normalized = {
       id: post.id,
       author: post.author.trim(),
+      title: typeof post.title === "string" && post.title.trim() ? post.title.trim() : null,
       body: post.body.trim(),
       caption: typeof post.caption === "string" && post.caption.trim() ? post.caption.trim().slice(0, MAX_CAPTION_LENGTH) : null,
       createdAt: post.createdAt,
@@ -492,42 +486,42 @@ function renderTileMedia(image, description) {
 
 function renderTile(post, index) {
   const item = el("li", "profile-cell");
-  const link = el("a", "profile-tile");
-  link.href = postDetailHref(post.id, post.author, "profile");
-  link.dataset.postId = post.id;
+  const tile = el("article", "profile-tile");
+  tile.dataset.postId = post.id;
 
-  const figure = el("figure", "profile-figure");
-  const description = imageDescription(post);
-  if (post.image) figure.append(renderTileMedia(post.image, description));
+  tile.append(el("p", "profile-tile-author", post.author));
+  if (post.title) tile.append(el("h3", "profile-tile-title", post.title));
+  const text = el("p", "profile-tile-caption", post.body);
+  text.id = `profile-tile-${index}-text`;
+  tile.append(text);
 
-  const caption = el("figcaption", "profile-tile-caption", captionFor(post));
-  // Ids are minted from the render index, never from post.id: a post id is
-  // arbitrary text and must not be spliced into an id/IDREF list.
-  caption.id = `profile-tile-${index}-caption`;
-  figure.append(caption);
-  // Beside the caption, not inside it: the tile is named by its caption alone,
-  // and flagging a missing description must not rename the link.
-  if (post.image && description.missing) figure.append(renderDescriptionNote());
-  // The tile is the control, and this is the word printed on it — the same two
-  // words Social's cards print (src/social-links.js owns them) and the same two
-  // the lead sentence on both pages tells a reader to look for. It used to say
-  // "View full post on Social", which named a destination rather than an action
-  // and named a different one from the feed's, so the two pages offered the same
-  // step under two labels and neither matched the sentence above the grid.
-  const destination = el("span", "profile-tile-link-label", OPEN_POST_LABEL);
-  link.append(figure);
+  // The whole figure is conditional, not just the media inside it. The page's
+  // image-only filter is a level up (selectProfilePosts, in mountProfile), and
+  // renderProfileGrid is exported and called directly, so a post with no image
+  // does reach here — and a figcaption outside the guard would print "Image
+  // description: …" for a picture that does not exist.
+  if (post.image) {
+    const figure = el("figure", "profile-figure");
+    const description = imageDescription(post);
+    figure.append(renderTileMedia(post.image, description),
+      el("figcaption", "profile-image-description", `Image description: ${description.alt}`));
+    // Beside the description, not inside it: legacy-description status remains a
+    // separate piece of metadata.
+    if (description.missing) figure.append(renderDescriptionNote());
+    tile.append(figure);
+  }
 
   const meta = el("p", "profile-tile-meta");
   const time = el("time", "profile-tile-date", formatDate(post.createdAt));
   time.dateTime = post.createdAt;
-  meta.append(time);
   meta.append(el("span", "profile-tile-stat", `${countLabel(post.likes, "like")} · ${countLabel(post.comments, "comment")}`));
-  link.append(meta, destination);
-
-  // Which post first, then what the tile does, quoting the words printed on it
-  // so a reader who hears the name can find the control by sight.
-  link.setAttribute("aria-label", `${captionFor(post)} — ${OPEN_POST_LABEL}`);
-  item.append(link);
+  meta.append(time);
+  tile.append(meta);
+  const destination = el("a", "profile-tile-link-label", OPEN_POST_LABEL);
+  destination.href = postDetailHref(post.id, post.author, "profile");
+  destination.setAttribute("aria-describedby", text.id);
+  tile.append(destination);
+  item.append(tile);
   return item;
 }
 

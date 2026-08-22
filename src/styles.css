@@ -632,19 +632,18 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .visually-hidden { position:absolute!important; width:1px!important; height:1px!important; padding:0!important; margin:-1px!important; overflow:hidden!important; clip:rect(0,0,0,0)!important; white-space:nowrap!important; border:0!important; }
 /* Responsive post grid: one column when the panel is narrow, filling to more
    columns as space allows (mobile → tablet → desktop) without media queries.
-   The card is a flex column so the caption sits directly under the image and
-   every card in a row ends at the same height. */
+   The card is a flex column so source order is visual order and every card in a
+   row ends at the same height. */
 .post-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(min(100%,272px),1fr)); gap:16px; margin:0; padding:0; list-style:none; }
 .post-card { display:flex; flex-direction:column; height:100%; padding:18px; border:1px solid #d9d7d0; border-radius:12px; background:#fff; }
 .post-head { display:flex; align-items:center; gap:12px; margin-bottom:12px; }
 .post-avatar { flex:none; display:grid; place-items:center; width:38px; height:38px; border-radius:99px; background:#e7eefb; color:#1f5fa8; font:750 13px/1 ui-monospace,monospace; }
 .post-byline { display:flex; flex-direction:column; gap:2px; min-width:0; }
-.post-author { color:#1f5fa8; font-size:15px; font-weight:700; letter-spacing:-.01em; text-decoration:underline; text-underline-offset:3px; overflow-wrap:anywhere; }
+.post-author { color:#1f5fa8; font-size:15px; font-weight:700; letter-spacing:-.01em; text-decoration:underline; text-underline-offset:3px; overflow-wrap:break-word; }
 .post-date { color:#74746e; font:600 11px/1.4 ui-monospace,monospace; }
 .post-body { margin:0; color:#333330; line-height:1.55; white-space:pre-wrap; overflow-wrap:anywhere; }
-.post-title { margin:0 0 8px; font-size:16px; line-height:1.35; letter-spacing:-.015em; overflow-wrap:anywhere; }
-/* Image posts lead with their caption in both visual and DOM order. */
-.post-figure { display:flex; flex-direction:column; margin:2px 0 0; }
+.post-title { margin:0 0 8px; min-width:0; font-size:16px; line-height:1.35; letter-spacing:-.015em; overflow-wrap:break-word; }
+.post-figure { display:flex; flex-direction:column; min-width:0; margin:12px 0 0; }
 .post-media { position:relative; overflow:hidden; aspect-ratio:4/3; display:grid; place-items:center; border-radius:10px; background:#eeece5; }
 .post-image { display:block; width:100%; height:100%; object-fit:cover; }
 /* The tile reserves its space before the image arrives, so a slow load never
@@ -657,7 +656,8 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .media-fallback-text { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:4; overflow:hidden; margin:0; }
 .post-caption { margin:0 0 12px; color:#282824; font:700 17px/1.55 system-ui,sans-serif; white-space:pre-wrap; overflow-wrap:anywhere; }
 .post-image-description { margin:9px 0 0; color:#62625d; font:600 11px/1.5 ui-monospace,monospace; overflow-wrap:anywhere; }
-.post-card-media .post-head { margin:14px 0 0; padding-top:12px; border-top:1px solid #d9d7d0; }
+.post-card>.post-date { margin:12px 0 0; }
+.post-card>.release-detail-link { margin-top:8px; align-self:flex-start; }
 @keyframes shiplog-shimmer { from { background-position:120% 0; } to { background-position:-120% 0; } }
 /* First-load placeholders: same geometry as a real card, so the grid does not
    resize when posts replace them. */
@@ -698,24 +698,23 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .profile-filter-option:focus-visible { outline:3px solid var(--focus-ring); outline-offset:2px; }
 .profile-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(min(100%,240px),1fr)); gap:18px; margin:0; padding:0; list-style:none; }
 .profile-cell { display:flex; min-width:0; }
-/* The whole tile is the link, so the hit target is the image and its caption
-   rather than a word underneath them — 44px-plus in every direction at every
-   breakpoint. */
-.profile-tile { display:flex; flex-direction:column; width:100%; overflow:hidden; border:1px solid #d9d7d0; border-radius:12px; background:#fff; color:inherit; text-decoration:none; transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease; }
-.profile-tile:hover { border-color:#1f70c1; box-shadow:0 10px 26px rgba(38,38,31,.10); transform:translateY(-2px); }
-.profile-tile:focus-visible { outline:3px solid var(--focus-ring); outline-offset:2px; border-color:#1f70c1; }
-.profile-figure { display:flex; flex-direction:column; flex:1; margin:0; }
+/* A loaded tile is an article whose single link follows the content it acts on. */
+.profile-tile { display:flex; flex-direction:column; width:100%; min-width:0; overflow:hidden; border:1px solid #d9d7d0; border-radius:12px; background:#fff; color:inherit; }
+.profile-tile-author { margin:14px 14px 0; color:#1f5fa8; font-size:15px; font-weight:700; overflow-wrap:break-word; }
+.profile-tile-title { margin:8px 14px 0; min-width:0; font-size:16px; line-height:1.35; letter-spacing:-.015em; overflow-wrap:break-word; }
+.profile-figure { display:flex; flex-direction:column; flex:1; margin:12px 0 0; }
 .profile-media { position:relative; overflow:hidden; aspect-ratio:1/1; display:grid; place-items:center; background:#eeece5; }
 .profile-image { display:block; width:100%; height:100%; object-fit:cover; }
 .profile-media[data-state="loading"] { background:linear-gradient(100deg,#eeece5 30%,#f7f6f2 50%,#eeece5 70%) #eeece5; background-size:220% 100%; animation:shiplog-shimmer 1.4s linear infinite; }
 .profile-media[data-state="error"] { background:#f8f1ef; box-shadow:inset 0 0 0 1px #dcc2be; }
 .profile-media-fallback { padding:0 12px; color:#7c3f3a; font:650 12px/1.5 ui-monospace,monospace; text-align:center; }
-/* The caption is clamped, not truncated mid-thought: two lines keep every tile
-   in a row the same height, and the full text is one click away on the post. */
-.profile-tile-caption { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; margin:0; padding:14px 14px 0; color:#333330; font-size:14px; line-height:1.5; overflow-wrap:anywhere; }
+/* Post text stays readable in place; it wraps without clipping or ellipsis. */
+.profile-tile-caption { margin:8px 14px 0; color:#333330; font-size:14px; line-height:1.5; white-space:pre-wrap; overflow-wrap:break-word; }
+.profile-image-description { margin:9px 14px 0; color:#62625d; font:600 11px/1.5 ui-monospace,monospace; overflow-wrap:break-word; }
 .profile-tile-meta { display:flex; align-items:center; justify-content:space-between; gap:10px; margin:0; padding:10px 14px 14px; color:#74746e; font:650 11px/1.4 ui-monospace,monospace; }
 .profile-tile-stat { text-align:right; }
-.profile-tile-link-label { margin:0 14px 14px; color:#1f5fa8; font:700 13px/1.4 system-ui,sans-serif; text-decoration:underline; text-underline-offset:3px; }
+.profile-tile-link-label { align-self:flex-start; margin:0 14px 14px; color:#1f5fa8; font:700 13px/1.4 system-ui,sans-serif; text-decoration:underline; text-underline-offset:3px; }
+.profile-tile-link-label:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
 .profile-tile-skeleton { gap:12px; padding:14px; }
 .profile-tile-skeleton .skeleton-media { margin:0 -14px; } /* full-bleed, as loaded */
 .skeleton-media-square { aspect-ratio:1/1; border-radius:0; }
@@ -800,8 +799,8 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
    a sliver. Placeholders go one-up: their label is words. Identity block stacks. */
 @media(max-width:520px) {
   .hero-actions{align-items:stretch;flex-direction:column}.button-link{width:100%}.text-link{padding:7px 2px}.product-story{padding:22px}.story-card{padding:20px}.lead-capture{padding:22px}.lead-capture-controls{grid-template-columns:1fr}.lead-capture-controls button{justify-content:space-between;width:100%}
-  .profile-grid{grid-template-columns:repeat(2,1fr);gap:12px}.profile-grid-skeleton{grid-template-columns:1fr}
-  .profile-tile-caption{padding:11px 11px 0;font-size:13px}
+  .profile-grid{grid-template-columns:1fr;gap:12px}.profile-grid-skeleton{grid-template-columns:1fr}
+  .profile-tile-caption{margin:8px 11px 0;font-size:13px}
   .profile-tile-meta{flex-direction:column;align-items:flex-start;gap:3px;padding:8px 11px 12px}
   .profile-tile-stat{text-align:left}
   .profile-identity{align-items:flex-start;flex-direction:column;gap:14px}

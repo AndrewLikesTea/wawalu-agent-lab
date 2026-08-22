@@ -74,7 +74,7 @@ const imagePost = {
 
 const textPost = { id: "p-text", author: "Kai", body: "No picture on this one.", createdAt: "2026-07-13T09:00:00.000Z" };
 
-test("an image post renders as a figure with the caption as its figcaption", () => {
+test("an image post renders its text before a figure with a visible description", () => {
   const container = createElement("div");
   renderPosts(container, [imagePost]);
 
@@ -86,7 +86,8 @@ test("an image post renders as a figure with the caption as its figcaption", () 
   const figure = tags(card, "FIGURE")[0];
   assert.ok(figure, "an image post is wrapped in a <figure>");
   const caption = tags(figure, "FIGCAPTION")[0];
-  assert.equal(caption.textContent, "Focus rings landed everywhere.");
+  assert.equal(caption.textContent, "Image description: A card wrapped in a blue focus ring");
+  assert.equal(first(card, "post-caption").textContent, "Focus rings landed everywhere.");
 
   const img = tags(figure, "IMG")[0];
   assert.equal(img.src, "/media/focus-ring.svg");
@@ -168,6 +169,38 @@ test("the grid keeps list semantics and leaves focus on native links", () => {
   assert.equal(first(cards[0], "post-author").tagName, "A");
   // Newest first, regardless of input order.
   assert.deepEqual(cards.map((card) => card.dataset.postId), ["p-image", "p-text"]);
+});
+
+// One reading order, stated once and checked against both shapes a loaded image
+// post can take. Covering both is the point: an earlier attempt at this order
+// shipped the untitled card correctly and put the title ahead of the display
+// name on the titled one, and a single-fixture test is how that reached review.
+//
+// Positions rather than a chain of "A comes before B": a pairwise chain stays
+// green when an unnamed seventh block is spliced into the middle of the card, so
+// the child count is asserted alongside, and every block in the card is named.
+const CARD_ORDER = ["post-head", "post-caption", "post-figure", "post-date", "release-detail-link"];
+
+test("every loaded Social image post reads display name, text, image, description, time, then Open post", () => {
+  for (const [label, post, expected] of [
+    ["untitled", imagePost, CARD_ORDER],
+    ["titled", { ...imagePost, title: "Keyboard polish" },
+      ["post-head", "post-title", ...CARD_ORDER.slice(1)]],
+  ]) {
+    const container = createElement("div");
+    renderPosts(container, [post]);
+    const card = first(container, "post-card");
+    assert.deepEqual(expected.map((name) => card.children.indexOf(first(card, name))),
+      expected.map((_, index) => index), `${label}: the card's blocks are out of reading order`);
+    assert.equal(card.children.length, expected.length, `${label}: an unnamed block joined the card`);
+    assert.equal(first(card, "post-author").textContent, "Mina", label);
+    assert.equal(first(card, "post-caption").textContent, "Focus rings landed everywhere.", label);
+    assert.equal(tags(first(card, "post-figure"), "IMG").length, 1, `${label}: the image is inside the figure`);
+    assert.match(first(card, "post-image-description").textContent, /^Image description:/, label);
+    assert.equal(first(card, "post-date").dateTime, imagePost.createdAt, label);
+    assert.equal(first(card, "release-detail-link").textContent, "Open post", label);
+    assert.equal(byClass(card, "release-detail-link").length, 1, `${label}: exactly one Open post action`);
+  }
 });
 
 // The feed used to have no way into a post at all: a reader could see a card

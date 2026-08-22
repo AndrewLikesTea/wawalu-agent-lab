@@ -148,9 +148,11 @@ test("the feed list is described by its summary sentence, not by keyboard instru
   mountSocialFeed(page.document, { posts, state: "ready" });
   const cards = page.document.querySelectorAll(".post-card");
   assert.deepEqual(cards.map((card) => card.tabIndex), [undefined, undefined, undefined, undefined, undefined]);
-  const links = page.document.querySelectorAll(".post-author");
-  assert.equal(links.length, 5);
-  assert.deepEqual(links.map((link) => link.tagName), ["A", "A", "A", "A", "A"]);
+  const authors = page.document.querySelectorAll(".post-author");
+  assert.equal(authors.length, 5);
+  assert.deepEqual(authors.map((author) => author.tagName), ["A", "A", "A", "A", "A"]);
+  assert.equal(page.document.querySelectorAll(".release-detail-link").length, 5,
+    "each card contributes exactly one tab stop: Open post");
 });
 
 test("normalizeImage accepts same-origin assets and rejects everything else", () => {

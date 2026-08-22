@@ -862,7 +862,7 @@ test("tabbing from the top reaches the picker, then the posts under the header",
     // focusable was added above the results to carry it.
     assert.equal(walked[3].getAttribute("id"), "profile-paint-route");
     assert.equal(walked[4].getAttribute("id"), "profile-publish-route");
-    assert.equal(walked[5].classList.contains("profile-tile"), true, "the sixth stop is not the first post");
+    assert.equal(walked[5].classList.contains("profile-tile-link-label"), true, "the sixth stop is not the first post action");
 
     // And the visual order the tab order is supposed to match: every one of
     // those stops comes after the heading, and the posts come after the label.
