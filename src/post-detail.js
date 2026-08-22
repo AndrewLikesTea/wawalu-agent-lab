@@ -118,7 +118,7 @@ const POST_STATE_COPY = {
     tone: "missing",
     label: "Not found",
     title: "Post unavailable",
-    description: "This link does not point to a post we can show.",
+    description: "This shared link may be unavailable or incomplete, so there is no post to show.",
   },
   "not-found": {
     state: "not-found",
@@ -126,18 +126,23 @@ const POST_STATE_COPY = {
     tone: "missing",
     label: "Not found",
     title: "Post unavailable",
-    description: "This post can’t be shown.",
+    description: "This shared link may be unavailable, or the post may no longer be in Social.",
   },
   // The error state names the thing that broke — the feed — rather than
   // describing the post as "unavailable", which reads as a verdict about the
   // post and tells a reader nothing about whether waiting would help.
+  //
+  // So the clause order is load-bearing: Social first, the link second. Opening
+  // "this shared link may be unavailable" is a verdict this state cannot
+  // support — the feed never answered, so the page learned nothing about the
+  // link it was handed. And "for now" is what keeps the retry below honest.
   error: {
     state: "error",
     className: "empty-state-error detail-state-unavailable",
     tone: "error",
     label: "Unreachable",
     title: "Post could not be opened",
-    description: "The Social feed did not respond.",
+    description: "Social did not respond, so this shared link is unavailable for now.",
   },
 };
 
@@ -160,11 +165,18 @@ function labelledState(key, actions = []) {
   return node;
 }
 
-// Every unavailable requested-post panel links to the feed itself. Keeping the
-// action with the state makes the next step explicit even when the standing
-// exit above leads to the same place.
-function feedAction(label = "Go to the Social feed") {
-  const link = el("a", "empty-action empty-action-secondary detail-state-feed", label);
+// Every unavailable requested-post panel links to the feed itself, and all
+// three say it the same way. Keeping the action with the state makes the next
+// step explicit even when the standing exit above leads to the same place — and
+// because it does lead there, the two must not read as one link said twice: the
+// error state used to be handed POST_EXITS.social.label, so the reader who most
+// needed a way out met "Open the full Social feed" twice on one screen.
+//
+// Not a "Return", either. This page is met cold, from a pasted link, with no
+// Social behind it to go back to (see POST_EXITS above), so the action names
+// its destination and points forward like every other route off this page.
+function feedAction() {
+  const link = el("a", "empty-action empty-action-secondary detail-state-feed", "Go to the Social feed");
   link.href = POST_EXITS.social.href;
   return link;
 }
@@ -306,17 +318,33 @@ function renderFailed(container, onRetry) {
   const retry = el("button", "empty-action detail-retry", "Retry the shared post");
   retry.type = "button";
   if (onRetry) retry.addEventListener("click", onRetry);
-  container.append(labelledState("error", [feedAction(POST_EXITS.social.label), retry]));
+  container.append(labelledState("error", [feedAction(), retry]));
 }
 
 // The wait, in one place, because src/post.html ships this same line in its
 // markup so the region is never blank before this module runs. Two spellings of
 // one sentence would flash a rewrite at the reader on every visit; one exported
-// string cannot. It names what is being loaded, in the site's own loading voice:
-// "Loading the Social feed…" on the feed, "Loading image posts…" on People. It
-// used to be a full sentence narrating the product in the third person, which
-// restated the eyebrow, the heading and the sentence below the post at once.
-export const POST_LOADING_STATUS = "Loading the shared post…";
+// string cannot. It names the product doing the work, the one public post being
+// retrieved, its source, and the shared link it comes from.
+//
+// It is the one wait on this site that does not open "Loading …" — Social says
+// "Loading the Social feed…", People "Loading image posts…". Deliberate, not
+// drift: those are waits on a page the reader chose, where the only unknown is
+// when. This one is met cold, and the reader does not yet know what a Shiplog
+// link is, that one post is coming rather than a feed, or that it is public.
+export const POST_LOADING_STATUS = "Shiplog is retrieving one public Social post from the shared link.";
+
+// What the wait above promised, kept: the two parts of a post this page can
+// always point to, in the order the article renders them. Only the loaded state
+// says it, because it is the only state where the thing it describes is present.
+//
+// A promise about data is worth pinning to what makes it true. Posts reach this
+// renderer through the normalizers in src/profile.js, whose isRenderablePost()
+// drops any record missing an author or a body — so a post with no display name
+// cannot arrive, and the byline's `if (author)` guard below is boundary defence
+// rather than a case a reader meets. Loosen that filter and this sentence starts
+// describing a name the page did not draw.
+export const POST_LOADED_DESCRIPTION = "This shared post shows the display name used to publish it and the post content.";
 
 // The four parts of a post the wait stands in for, in the order the loaded
 // article renders them: the image, the words under it, who wrote them, and when.
@@ -521,6 +549,7 @@ export function renderPostDetail(container, post, options = {}) {
   if (caption) article.setAttribute("aria-labelledby", "detail-caption");
   container.append(
     article,
+    el("p", "hint detail-post-description", POST_LOADED_DESCRIPTION),
     el("p", "hint detail-identity", "Display names are invented for this demo or chosen by whoever published the post — nobody owns or verifies one, and anyone can publish under any name."),
   );
 }
