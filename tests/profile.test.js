@@ -325,7 +325,7 @@ test("initials and counts read as English", () => {
 
 /* ------------------------------ render layer ------------------------------ */
 
-test("a tile visibly links to the full Social post", () => {
+test("a People card exposes one final link to the full Social post", () => {
   const container = createElement("div");
   renderProfileGrid(container, [imagePost], { author: "Mina" });
 
@@ -335,17 +335,18 @@ test("a tile visibly links to the full Social post", () => {
   assert.equal(list.getAttribute("role"), "list");
 
   const tile = first(container, "profile-tile");
-  assert.equal(tile.tagName, "A", "the whole tile is the navigation target");
+  assert.equal(tile.tagName, "ARTICLE");
   // Every tile says where it sent the reader from, so the post page's single
   // back link can read "← Back to People" instead of guessing.
-  assert.equal(tile.href, "/post.html?id=p-image&author=Mina&from=profile");
   assert.equal(tile.dataset.postId, "p-image");
 
   const caption = first(tile, "profile-tile-caption");
-  assert.equal(caption.tagName, "FIGCAPTION");
+  assert.equal(caption.tagName, "P");
   assert.equal(caption.textContent, "Focus rings landed everywhere.");
-  assert.equal(tile.getAttribute("aria-label"), "Focus rings landed everywhere. — Open post");
-  assert.equal(first(tile, "profile-tile-link-label").textContent, "Open post");
+  const open = first(tile, "profile-tile-link-label");
+  assert.equal(open.tagName, "A");
+  assert.equal(open.href, "/post.html?id=p-image&author=Mina&from=profile");
+  assert.equal(open.textContent, "Open post");
 
   const img = tags(tile, "IMG")[0];
   assert.equal(img.src, "/media/focus-ring.svg");
@@ -357,16 +358,72 @@ test("a tile visibly links to the full Social post", () => {
   assert.equal(img.height, 900);
 
   const meta = first(tile, "profile-tile-meta");
-  assert.match(meta.textContent, /3 likes · 1 comment/);
   assert.equal(tags(meta, "TIME")[0].dateTime, imagePost.createdAt);
+  assert.deepEqual(tile.children.map((child) => child.className), [
+    "profile-tile-author", "profile-tile-caption", "profile-figure", "profile-tile-meta",
+    "profile-tile-link-label release-detail-link",
+  ]);
 });
 
-test("tiles render newest first, and each gets its own caption id", () => {
+test("a titled People image card keeps the same readable order at narrow widths", async () => {
+  const container = createElement("div");
+  renderProfileGrid(container, [{
+    ...imagePost,
+    title: "A deliberately long title that must wrap as phrases, never replace the display name",
+  }], { author: "Mina" });
+
+  const tile = first(container, "profile-tile");
+  assert.deepEqual(tile.children.map((child) => child.className), [
+    "profile-tile-author", "profile-tile-title", "profile-tile-caption", "profile-figure",
+    "profile-tile-meta", "profile-tile-link-label release-detail-link",
+  ]);
+  assert.equal(tags(tile, "A").length, 1, "the card has exactly one keyboard action");
+  assert.equal(tags(tile, "A")[0].textContent, "Open post");
+
+  const css = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
+  assert.match(css, /\.profile-tile-title \{[^}]*overflow-wrap:break-word/);
+  assert.doesNotMatch(css, /\.profile-tile-title \{[^}]*(?:white-space:nowrap|text-overflow:ellipsis)/);
+  assert.match(css, /\.profile-tile-link-label \{[^}]*min-height:44px/);
+  assert.match(css, /\.release-detail-link:focus-visible \{[^}]*outline:3px solid var\(--focus-ring\)/);
+  // The caption is no longer clamped to two lines, so a narrow tile shows the
+  // post's words rather than a cut-off sentence with no way to finish it here.
+  assert.doesNotMatch(css, /\.profile-tile-caption \{[^}]*line-clamp/);
+
+  // Those are base rules, and a base rule is not where this breaks. The tile's
+  // inset used to be re-stated inside the phone block, so an override there can
+  // step one row further in than the rows above and below it while every
+  // assertion above stays green. Assert the phone block itself: it may re-state
+  // the caption's type size, and nothing else about the tile.
+  const phone = css.slice(css.indexOf(".profile-grid{grid-template-columns:repeat(2,1fr)"));
+  const overrides = phone.slice(0, phone.indexOf("\n}")).match(/\.profile-tile[\w-]*\{[^}]*\}/g) ?? [];
+  assert.deepEqual(overrides, [".profile-tile-caption{font-size:13px}"],
+    "the phone block re-insets or re-clamps the tile, so its rows no longer share one left edge");
+});
+
+// The figure carries the image and the sentence that describes the image. A tile
+// with no image therefore has no figure — printing "Image description: …" over
+// nothing would be the card stating a fact about a picture it does not have.
+// The page filters to image posts, but renderProfileGrid is exported and the
+// render already guards the image itself, so the two guards agree.
+test("a People card with no image prints no image description", () => {
+  const container = createElement("div");
+  renderProfileGrid(container, [textPost], { author: "Mina" });
+
+  const tile = first(container, "profile-tile");
+  assert.deepEqual(tile.children.map((child) => child.className), [
+    "profile-tile-author", "profile-tile-caption", "profile-tile-meta",
+    "profile-tile-link-label release-detail-link",
+  ]);
+  assert.equal(byClass(tile, "profile-image-description").length, 0);
+  assert.equal(first(tile, "profile-tile-caption").textContent, "No picture on this one.");
+});
+
+test("tiles render newest first, and each gets its own image-description id", () => {
   const container = createElement("div");
   renderProfileGrid(container, [olderImagePost, imagePost], { author: "Mina" });
   const tiles = byClass(container, "profile-tile");
   assert.deepEqual(tiles.map((tile) => tile.dataset.postId), ["p-image", "p-older"]);
-  const captionIds = byClass(container, "profile-tile-caption").map((caption) => caption.id);
+  const captionIds = byClass(container, "profile-image-description").map((caption) => caption.id);
   assert.equal(new Set(captionIds).size, 2, "ids are unique per tile");
 });
 
@@ -388,10 +445,10 @@ test("every tile carries one control named Open post, pointing at that post", ()
     const labels = byClass(tile, "profile-tile-link-label");
     assert.equal(labels.length, 1, "a tile names its way into the post exactly once");
     assert.equal(labels[0].textContent, "Open post");
-    assert.equal(tile.tagName, "A");
-    assert.equal(tile.href, `/post.html?id=${tile.dataset.postId}&author=Mina&from=profile`,
+    assert.equal(tile.tagName, "ARTICLE");
+    assert.equal(labels[0].tagName, "A");
+    assert.equal(labels[0].href, `/post.html?id=${tile.dataset.postId}&author=Mina&from=profile`,
       "the tile opens its own post, not the grid's first one");
-    assert.equal(tile.getAttribute("aria-label"), "Focus rings landed everywhere. — Open post");
     // Last child, by index rather than by node identity: a failed identity
     // comparison would print the whole parsed tile.
     assert.equal(tile.children.indexOf(labels[0]), tile.children.length - 1,
@@ -413,7 +470,7 @@ test("a dead image leaves the caption and the link intact", () => {
   assert.equal(first(container, "profile-media-fallback").hidden, false);
   // The tile is still a working link with a name.
   const tile = first(container, "profile-tile");
-  assert.equal(tile.href, "/post.html?id=p-image&author=Mina&from=profile");
+  assert.equal(first(tile, "profile-tile-link-label").href, "/post.html?id=p-image&author=Mina&from=profile");
   assert.equal(first(tile, "profile-tile-caption").textContent, "Focus rings landed everywhere.");
 });
 

@@ -74,9 +74,9 @@ const imagePost = {
 
 const textPost = { id: "p-text", author: "Kai", body: "No picture on this one.", createdAt: "2026-07-13T09:00:00.000Z" };
 
-test("an image post renders as a figure with the caption as its figcaption", () => {
+test("a titled image post reads display name, title, body, image description, time, then action", () => {
   const container = createElement("div");
-  renderPosts(container, [imagePost]);
+  renderPosts(container, [{ ...imagePost, title: "A deliberately long title that remains after the display name" }]);
 
   const card = first(container, "post-card");
   assert.ok(card.classes.includes("post-card-media"));
@@ -85,8 +85,8 @@ test("an image post renders as a figure with the caption as its figcaption", () 
 
   const figure = tags(card, "FIGURE")[0];
   assert.ok(figure, "an image post is wrapped in a <figure>");
-  const caption = tags(figure, "FIGCAPTION")[0];
-  assert.equal(caption.textContent, "Focus rings landed everywhere.");
+  const description = tags(figure, "FIGCAPTION")[0];
+  assert.equal(description.textContent, "Image description: A card wrapped in a blue focus ring");
 
   const img = tags(figure, "IMG")[0];
   assert.equal(img.src, "/media/focus-ring.svg");
@@ -104,6 +104,9 @@ test("an image post renders as a figure with the caption as its figcaption", () 
   assert.equal(first(card, "post-image-description").textContent,
     "Image description: A card wrapped in a blue focus ring");
   assert.equal(img.getAttribute("aria-describedby"), first(card, "post-image-description").id);
+  const ordered = card.children.map((child) => child.className);
+  assert.deepEqual(ordered, ["post-head", "post-title", "post-body post-caption", "post-figure", "post-date post-card-date", "release-detail-link"]);
+  assert.equal(first(card, "post-author").textContent, "Mina");
 });
 
 test("a post without an image keeps the plain body paragraph", () => {
@@ -194,7 +197,7 @@ test("every card carries one control named Open post, pointing at that post", ()
       "the card opens its own post, not the feed's first one");
     // Named by the action; the post it opens is the description, so the two are
     // announced together without the body being read into the link's name.
-    assert.equal(open.getAttribute("aria-describedby"), first(card, post.image ? "post-caption" : "post-body").id);
+    assert.equal(open.getAttribute("aria-describedby"), first(card, "post-body").id);
     // Last child, by index rather than by node identity: a failed identity
     // comparison would print the whole parsed card.
     assert.equal(card.children.indexOf(open), card.children.length - 1,

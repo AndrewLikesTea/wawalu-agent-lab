@@ -250,15 +250,14 @@ test("a settled Social post carries its display name as a link to People, in the
     "the post grew a tab stop of its own, or lost one it had");
   assert.equal(link.getAttribute("tabindex"), null, "the stop is markup order, not a tabindex trick");
 
-  // And it sits where the name already sat: behind the caption and the image
-  // description, so a reader walking the card meets the post before the byline.
+  // The display name leads the card, then the post text and image description.
   const order = documentOrder(card);
   const at = (node) => order.indexOf(node);
   const caption = card.querySelectorAll(".post-caption")[0];
   const description = card.querySelectorAll(".post-image-description")[0];
   assert.equal(textOf(caption), "p-06 from Iris Vale");
-  assert.ok(at(caption) < at(description), "the image description was reordered ahead of the caption");
-  assert.ok(at(description) < at(link), "the display name jumped ahead of the post it belongs to");
+  assert.ok(at(link) < at(caption), "the display name does not lead the post");
+  assert.ok(at(caption) < at(description), "the image description was reordered ahead of the post text");
 
   // The card's second stop, on the real page rather than in a render stub: one
   // named anchor per card, last in the card, opening that card's own post.

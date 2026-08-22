@@ -1,4 +1,4 @@
-// Profile view: one author's image posts as a grid of linked tiles.
+// Profile view: one author's image posts as a grid of cards.
 //
 // Same shape as the rest of Shiplog — a pure, DOM-free core (normalization,
 // selection, summary math, link building) that `node --test` covers without a
@@ -10,17 +10,14 @@
 // and every field is written through textContent — never an HTML string — so a
 // caption can never execute markup.
 //
-// Two deliberate interaction decisions, both different from the social feed:
-//
-//   1. A tile is a link, not a focusable article. The feed's cards are prose you
-//      read in place, so they use roving focus and Enter does nothing. A profile
-//      tile's entire job is to go somewhere, so it is an <a>: every tile is a
-//      real tab stop with native Enter, middle-click, and open-in-new-tab
-//      behaviour that no keydown handler reproduces faithfully.
-//   2. The tile's accessible name is the caption alone (aria-labelledby), not
-//      the image alt plus the caption plus the counts. In a link list, "Focus
-//      rings landed everywhere" is a usable name; the alt text is still exposed
-//      on the image inside the link when the tile is read rather than listed.
+// A loaded tile reads in the same order as a Social card — display name, title
+// if there is one, the post's words, the image, the image description, the time,
+// then the action — because a reader crossing between the two pages should not
+// have to learn a second order. The tile used to be one big <a>, which gave the
+// image itself a large hit target but named the whole card after its caption and
+// buried the description and the time inside a link's accessible name. It is now
+// an <article> of ordinary prose ending in a single named anchor: one tab stop
+// per card either way, but the words are readable before the action is taken.
 
 import { connectionStatusLine, normalizeImage } from "./social.js";
 import { OPEN_POST_LABEL, postDetailHref, profileHref } from "./social-links.js";
@@ -492,42 +489,49 @@ function renderTileMedia(image, description) {
 
 function renderTile(post, index) {
   const item = el("li", "profile-cell");
-  const link = el("a", "profile-tile");
-  link.href = postDetailHref(post.id, post.author, "profile");
-  link.dataset.postId = post.id;
+  const card = el("article", "profile-tile");
+  card.dataset.postId = post.id;
 
-  const figure = el("figure", "profile-figure");
-  const description = imageDescription(post);
-  if (post.image) figure.append(renderTileMedia(post.image, description));
+  card.append(el("p", "profile-tile-author", post.author));
+  if (post.title) card.append(el("h3", "profile-tile-title", post.title));
+  card.append(el("p", "profile-tile-caption", post.body));
 
-  const caption = el("figcaption", "profile-tile-caption", captionFor(post));
-  // Ids are minted from the render index, never from post.id: a post id is
-  // arbitrary text and must not be spliced into an id/IDREF list.
-  caption.id = `profile-tile-${index}-caption`;
-  figure.append(caption);
-  // Beside the caption, not inside it: the tile is named by its caption alone,
-  // and flagging a missing description must not rename the link.
-  if (post.image && description.missing) figure.append(renderDescriptionNote());
-  // The tile is the control, and this is the word printed on it — the same two
-  // words Social's cards print (src/social-links.js owns them) and the same two
-  // the lead sentence on both pages tells a reader to look for. It used to say
-  // "View full post on Social", which named a destination rather than an action
-  // and named a different one from the feed's, so the two pages offered the same
-  // step under two labels and neither matched the sentence above the grid.
-  const destination = el("span", "profile-tile-link-label", OPEN_POST_LABEL);
-  link.append(figure);
+  // The figure is now the image and the words that describe the image, so it is
+  // drawn only when there is an image. A tile with none used to carry the post's
+  // own caption here; printing "Image description: …" over nothing would be the
+  // card stating a fact about a picture it does not have.
+  if (post.image) {
+    const figure = el("figure", "profile-figure");
+    const description = imageDescription(post);
+    figure.append(renderTileMedia(post.image, description));
+    const imageCaption = el("figcaption", "profile-image-description", `Image description: ${description.alt}`);
+    // Ids are minted from the render index, never from post.id: a post id is
+    // arbitrary text and must not be spliced into an id/IDREF list.
+    imageCaption.id = `profile-tile-${index}-image-description`;
+    figure.append(imageCaption);
+    // Beside the description, not inside it: the legacy warning supplements the
+    // visible description without joining the sentence it supplements.
+    if (description.missing) figure.append(renderDescriptionNote());
+    card.append(figure);
+  }
 
   const meta = el("p", "profile-tile-meta");
   const time = el("time", "profile-tile-date", formatDate(post.createdAt));
   time.dateTime = post.createdAt;
   meta.append(time);
-  meta.append(el("span", "profile-tile-stat", `${countLabel(post.likes, "like")} · ${countLabel(post.comments, "comment")}`));
-  link.append(meta, destination);
+  card.append(meta);
 
-  // Which post first, then what the tile does, quoting the words printed on it
-  // so a reader who hears the name can find the control by sight.
-  link.setAttribute("aria-label", `${captionFor(post)} — ${OPEN_POST_LABEL}`);
-  item.append(link);
+  // The tile's one action, last so it follows the picture and the words it acts
+  // on. It prints the same two words Social's cards print (src/social-links.js
+  // owns them) and the same two the lead sentence on both pages tells a reader
+  // to look for. It used to say "View full post on Social", which named a
+  // destination rather than an action and named a different one from the feed's,
+  // so the two pages offered the same step under two labels and neither matched
+  // the sentence above the grid.
+  const destination = el("a", "profile-tile-link-label release-detail-link", OPEN_POST_LABEL);
+  destination.href = postDetailHref(post.id, post.author, "profile");
+  card.append(destination);
+  item.append(card);
   return item;
 }
 
