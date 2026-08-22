@@ -21,8 +21,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
 import {
-  DEMOS, FOLLOW_UP_REDIRECT, IDENTITY, INVITATION, PITCH, PITCH_HREF, PITCH_LINK, siteFooterMarkup,
+  DEMOS, FOLLOW_UP_REDIRECT, IDENTITY, INVITATION, PITCH, PITCH_HREF, PITCH_LINK,
+  REPOSITORY_LINK_LABEL, siteFooterMarkup,
 } from "../src/site-footer.js";
+import { REPOSITORY_URL } from "../src/repository-url.js";
 import { FOLLOW_UP_TOPICS } from "../src/leads.js";
 import { FOLLOW_UP_PRIVACY } from "../src/lead-capture.js";
 import { SITE_NAV } from "../src/site-nav.js";
@@ -945,6 +947,119 @@ test("a failed request offers its retry in place: named, keyboard-reachable, ann
   }
 });
 
+/* ------------------- the other route out of a failure --------------------- */
+
+// The failure state used to offer exactly one thing to press, and it was the
+// thing that had just not worked. #1958 adds one alternative — the public
+// repository this site is built from — and the whole of what makes it worth
+// anything is checked here: that it is a link and not a sentence about one, that
+// it is only ever on the page while a request has actually failed, and that a
+// reader who reaches the retry by Tab passes it on the way.
+//
+// Counted rather than compared against null: asserting a harness element against
+// null walks the whole parsed page and does not come back.
+const REPOSITORY_ID = "site-footer-repository";
+const countOf = (document, id) => document.querySelectorAll(`#${id}`).length;
+
+test("the failure state offers one other route to the team, and offers it only while it has failed", async () => {
+  const page = await openFooterPage("social.html");
+  const { document } = page;
+  let failNext = true;
+  interceptLeads(() => (failNext
+    ? jsonReply({ error: { code: "storage_error", message: "unreviewed upstream text" } }, 500)
+    : jsonReply({ captured: true, created: true, purpose: "follow_up_social" })));
+
+  try {
+    const field = byId(document, "site-footer-email");
+
+    // 1. Nothing has failed, so there is nothing to fall back to. The node does
+    //    not exist at all — a hidden one is still part of the accessible
+    //    description and still read out to a visitor who has typed nothing.
+    assert.equal(countOf(document, REPOSITORY_ID), 0,
+      "the alternative route must not exist before a request has failed");
+
+    submitEmail(document, TYPED_EMAIL);
+    await settled(document);
+    assert.equal(byId(document, "site-footer-form").dataset.state, "error");
+
+    // 2. A real link to a real address, named for where it goes and what it does
+    //    there — and named nothing like the control beside it.
+    assert.equal(countOf(document, REPOSITORY_ID), 1, "one failure, one alternative route");
+    const link = byId(document, REPOSITORY_ID);
+    assert.equal(link.tagName, "A");
+    assert.equal(link.getAttribute("href"), REPOSITORY_URL);
+    assert.equal(link.getAttribute("href"), "https://github.com/AndrewLikesTea/wawalu-agent-lab",
+      "the destination is the repository the site already publishes, not a second address");
+    assert.equal(textOf(link), REPOSITORY_LINK_LABEL);
+    assert.equal(textOf(link), "Open an issue on the public GitHub repository");
+    const retry = byId(document, "site-footer-retry");
+    assert.notEqual(textOf(link), textOf(retry), "two controls, two names");
+    assert.doesNotMatch(textOf(link), /retry/i, "the alternative must not read as the retry");
+    // No new inbox, channel, or promise about a reply came with it.
+    assert.doesNotMatch(textOf(link), /@|email|hours|reply|respond/i);
+
+    // 3. It is on the page, not folded behind anything: it is a tab stop, and it
+    //    is the tab stop immediately before the retry — the send control that
+    //    sits between them in the markup is hidden for exactly as long as this
+    //    link is up.
+    const ids = tabSequence(document).map((node) => node.id);
+    assert.ok(ids.includes(REPOSITORY_ID), "the alternative route must be keyboard reachable");
+    assert.equal(ids.indexOf("site-footer-retry"), ids.indexOf(REPOSITORY_ID) + 1,
+      "nothing may be skipped between the alternative route and the retry");
+    assert.equal(retry.hidden, false, "the retry stays: this is an addition, not a replacement");
+    assert.equal(retry.disabled, false);
+
+    // 4. And the address the visitor typed is still where they left it, so the
+    //    retry beside the link still has something to send.
+    assert.equal(field.value, TYPED_EMAIL, "the failed attempt must leave the address in the field");
+
+    // 5. A landed request takes it back off the page. Both artefacts of the
+    //    failure go: a reader must not meet "open an issue" beside a receipt.
+    failNext = false;
+    retry.click();
+    await waitFor(() => byId(document, "site-footer-form").dataset.state === "success", "the retry to land");
+    assert.equal(countOf(document, REPOSITORY_ID), 0, "a landed request leaves no stale fallback");
+    assert.ok(byId(document, "site-footer-confirmation"), "the landed retry leaves a receipt");
+
+    // 6. And asking for the form back does not bring it back with it.
+    byId(document, "site-footer-again").click();
+    assert.equal(byId(document, "site-footer-form").hidden, false, "the form is back");
+    assert.equal(countOf(document, REPOSITORY_ID), 0, "the reopened form is not a failed one");
+  } finally {
+    page.restore();
+  }
+});
+
+test("a validation refusal is not a failed request, and offers no route out of one", async () => {
+  const page = await openFooterPage("coach.html");
+  const { document } = page;
+  const calls = interceptLeads(() => jsonReply({ captured: true, created: true, purpose: "follow_up_coach" }));
+  try {
+    submitEmail(document, "director at example");
+    assert.equal(calls.length, 0, "a malformed address must not reach the network");
+    // Nothing failed to send, so nothing needs a second way to send it.
+    assert.equal(countOf(document, REPOSITORY_ID), 0,
+      "a rejected address is a correction to make here, not a request that did not land");
+    assert.equal(byId(document, "site-footer-recovery").hidden, true);
+  } finally {
+    page.restore();
+  }
+});
+
+test("no page ships the alternative route in its markup", async () => {
+  // It is built by the module on failure and nowhere else. A node in the source
+  // is a node every visitor's screen reader can find before anything has gone
+  // wrong, and it would need paying for on seventeen documents besides.
+  const shared = siteFooterMarkup("    ");
+  assert.ok(!shared.includes(REPOSITORY_URL), "the shared footer markup must not carry the repository link");
+  assert.ok(!shared.includes(REPOSITORY_LINK_LABEL));
+  for (const file of PAGES) {
+    const html = await read(file);
+    assert.ok(!html.includes(REPOSITORY_LINK_LABEL), `${file} ships the failure fallback before anything failed`);
+    assert.ok(!html.includes(`id="${REPOSITORY_ID}"`), `${file} authors ${REPOSITORY_ID}`);
+  }
+});
+
 test("the send/retry swap never hides the control a reader is standing on", async () => {
   // The swap is the one moment this form removes a focused element from the
   // page, and a browser answers that by dropping focus to the top of the
@@ -1064,6 +1179,10 @@ test("both stylesheets that the site's pages load style the footer, and agree ab
       ".site-footer", ".site-footer-inner", ".site-footer-trigger", ".site-footer-panel",
       ".site-footer-actions button", ".site-footer-status", ".site-footer-recovery",
       ".site-footer-demos", ".site-footer-demos a",
+      // The band's standalone link: the briefing's pointer at its own form, and
+      // the repository a failed request offers beside its retry. The failure
+      // state reaches every page that ships the form, agents.html among them.
+      ".site-footer-redirect-link",
     ]) assert.ok(css.includes(`${selector} {`), `${file} must style ${selector}`);
 
     // The band's link is keyboard-visible on every page that ships it. This rule
