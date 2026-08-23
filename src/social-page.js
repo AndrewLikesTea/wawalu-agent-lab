@@ -6,7 +6,7 @@
 // Demo only (PRODUCT.md): the seed is static, hand-authored sample content and
 // no customer or production data is read here.
 
-import { connectionStatusLine, mountSocialFeed, normalizeSocialApiPosts } from "/social.js";
+import { connectionStatusLine, mountSocialFeed, normalizeSocialApiPosts, renderFieldError } from "/social.js";
 import {
   MAX_PUBLISH_IMAGE_BYTES,
   PUBLISH_IMAGE_TYPES,
@@ -27,6 +27,10 @@ const REFRESH_INTERVAL = 10_000;
 // element and in the media status line — so the two cannot drift apart. It
 // names the two controls it asks for exactly as they are labelled.
 export const PREVIEW_FAILURE = "We couldn’t create an image preview. Select Remove image, then Choose image to try again.";
+
+// The id of the composer's rejected-file message, referenced from the file
+// input's aria-describedby while the message is showing.
+export const REJECTED_FILE_ERROR_ID = "post-image-error";
 
 async function fetchLivePosts() {
   const response = await fetch("/api/social-posts?limit=100", { cache: "no-store", headers: { accept: "application/json" } });
@@ -112,6 +116,7 @@ function mountMediaComposer(root, description) {
   const alt = root.querySelector("#post-image-alt");
   const status = root.querySelector("#post-media-status");
   const remove = root.querySelector("#remove-image");
+  const rejection = root.querySelector(`#${REJECTED_FILE_ERROR_ID}`);
   const publishBlocker = root.querySelector("#post-publish-blocker");
   const submit = root.querySelector("#post-submit");
   let media = null;
@@ -124,6 +129,30 @@ function mountMediaComposer(root, description) {
   const setStatus = (message, error = false) => {
     status.textContent = message;
     status.classList.toggle("is-error", error);
+  };
+
+  // The refusal for a file this field will not take, drawn in the slot that
+  // follows the picker rather than in the status line below the rule. Same
+  // element, class and drawing as the composer's other two field refusals
+  // (src/social.js), and the same wiring: the id joins the input's
+  // aria-describedby only while the sentence is there, and aria-invalid arrives
+  // and leaves with it, so a control holding nothing invalid is never left
+  // marked as if it were.
+  const described = input.getAttribute("aria-describedby") ?? "";
+
+  const clearRejection = () => {
+    if (!rejection) return;
+    rejection.replaceChildren();
+    rejection.hidden = true;
+    input.removeAttribute("aria-invalid");
+    input.setAttribute("aria-describedby", described);
+  };
+
+  const showRejection = (message) => {
+    if (!rejection) return;
+    renderFieldError(rejection, message);
+    input.setAttribute("aria-invalid", "true");
+    input.setAttribute("aria-describedby", `${described} ${REJECTED_FILE_ERROR_ID}`.trim());
   };
 
   const setSelectionProblem = (message = "") => {
@@ -148,12 +177,18 @@ function mountMediaComposer(root, description) {
     fallback.hidden = true;
     panel.hidden = true;
     setStatus("");
+    // Removing the file takes the refusal with it too: it names a file that is
+    // no longer chosen, and the field it marks is empty and ready again.
+    clearRejection();
     setSelectionProblem();
     if (focus) input.focus();
   };
 
   const show = (next) => {
     media = next;
+    // A file this field accepts is the answer to the refusal, so the refusal
+    // goes as the image arrives.
+    clearRejection();
     setSelectionProblem();
     panel.hidden = false;
     frame.dataset.state = "loading";
@@ -193,11 +228,16 @@ function mountMediaComposer(root, description) {
         ? "The invalid selection was cleared; your prior valid image remains selected."
         : "The invalid selection was cleared; no prior image remains selected.";
       const recovery = `${problem} ${selectionState} Convert or re-export it, then choose it again.`;
-      setStatus(recovery, true);
+      // Said once, at the control that took the file. It used to go to the
+      // status line under the rule, which is polite and two lines further down;
+      // saying it in both places would be one press answered twice.
+      showRejection(recovery);
+      setStatus("");
       setSelectionProblem(problem);
       input.focus();
       return;
     }
+    clearRejection();
     setStatus("Preparing image preview…");
     panel.hidden = true;
     try {
@@ -206,8 +246,10 @@ function mountMediaComposer(root, description) {
       show(next);
     } catch (error) {
       if (generation !== selectionGeneration) return;
+      // clear() empties the field and the refusal slot with it, so the sentence
+      // for the file that just failed is written after it, not before.
       clear();
-      setStatus(error.message, true);
+      showRejection(error.message);
       setSelectionProblem(error.message);
       input.focus();
     }

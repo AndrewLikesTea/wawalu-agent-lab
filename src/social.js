@@ -71,6 +71,22 @@ export function createPost(values, options = {}) {
 // description input's aria-describedby while the error is showing.
 export const IMAGE_DESCRIPTION_ERROR_ID = "post-image-alt-error";
 
+// …and the post field's, which works the same way: the id joins the textarea's
+// aria-describedby only while there is a sentence to point at.
+export const POST_BODY_ERROR_ID = "post-body-error";
+
+// What the composer says about a post that is over the budget, and the only
+// place it is said. Both numbers, because neither is enough on its own: the
+// counter beside the field already counts down to a negative, which tells a
+// reader how far over they are and never what the limit was, and the hint above
+// states the limit and never how long the post is. It opens with the field's own
+// label ("Your post"), so the sentence is self-describing wherever it is read —
+// out of the accessibility tree, out of a find-in-page hit, out of a colourless
+// screen — and nothing in it depends on the counter going red.
+export function overLengthPostMessage(length, max = MAX_POST_LENGTH) {
+  return `Your post is ${length} characters — ${length - max} over the ${max} limit.`;
+}
+
 // Submit-time validation of the image description, deliberately independent of
 // the textarea's `maxlength`: the attribute stops a key press, this stops a
 // value that arrived any other way — a paste, a Paint handoff, a restored
@@ -409,6 +425,21 @@ function el(tag, className, text) {
   if (className) node.className = className;
   if (text !== undefined) node.textContent = text;
   return node;
+}
+
+// One drawing for every refusal the composer shows beside a field — the post
+// that is too long, the image description that is empty, the file this field
+// will not take. Text plus a mark, never a colour on its own: the ⚠ is the
+// message's first character and the band down its edge is a border, not a tint.
+// The mark is hidden from assistive tech, because the sentence beside it already
+// says what is wrong. Exported so src/social-page.js, which owns the file
+// picker, draws its refusal identically rather than growing a second shape for
+// the same thing.
+export function renderFieldError(node, message) {
+  const mark = el("span", "field-error-mark", "⚠");
+  mark.setAttribute("aria-hidden", "true");
+  node.replaceChildren(mark, el("span", "field-error-text", message));
+  node.hidden = false;
 }
 
 function formatDateTime(iso) {
@@ -766,12 +797,7 @@ export function mountImageDescription(root) {
 
   const showError = (message) => {
     if (!input || !errorNode) return;
-    // Text plus a mark, never a colour on its own: the ⚠ is the message's first
-    // character and the band down its edge is a border, not a tint.
-    const mark = el("span", "field-error-mark", "⚠");
-    mark.setAttribute("aria-hidden", "true");
-    errorNode.replaceChildren(mark, el("span", "field-error-text", message));
-    errorNode.hidden = false;
+    renderFieldError(errorNode, message);
     input.setAttribute("aria-invalid", "true");
     input.setAttribute("aria-describedby", `${described} ${IMAGE_DESCRIPTION_ERROR_ID}`.trim());
     // Both halves of the same instruction. focus() moves the caret on the live
@@ -900,6 +926,7 @@ export function mountSocialFeed(root, options = {}) {
   const authorInput = root.querySelector("#post-author");
   const descriptionInput = root.querySelector("#post-image-alt");
   const counter = root.querySelector("#post-counter");
+  const bodyError = root.querySelector("#post-body-error");
   const notice = root.querySelector("#social-notice");
   const submit = root.querySelector("#post-submit") ?? form?.querySelector("button[type=submit]");
   const submitLabel = submit?.querySelector(".submit-label");
@@ -1067,12 +1094,46 @@ export function mountSocialFeed(root, options = {}) {
     nameFilter.value = authors.includes(selected) ? selected : "all";
   };
 
+  // The post field's refusal, wired exactly as the image description's is: the
+  // sentence lives in the slot that follows the field, the id joins the field's
+  // aria-describedby only while the sentence is there, and aria-invalid arrives
+  // and leaves with it. A field left marked invalid while it holds a valid value
+  // is a lie, so there is one place that says so and one place that takes it
+  // back.
+  //
+  // The description read here is the one the markup ships, so restoring it is a
+  // restore and not a re-authoring of the hint and counter ids.
+  const bodyDescribed = bodyInput?.getAttribute("aria-describedby") ?? "";
+
+  const clearBodyError = () => {
+    if (!bodyInput || !bodyError) return;
+    bodyInput.removeAttribute("aria-invalid");
+    bodyInput.setAttribute("aria-describedby", bodyDescribed);
+    bodyError.replaceChildren();
+    bodyError.hidden = true;
+  };
+
+  const showBodyError = (length) => {
+    if (!bodyInput || !bodyError) return;
+    renderFieldError(bodyError, overLengthPostMessage(length));
+    bodyInput.setAttribute("aria-invalid", "true");
+    bodyInput.setAttribute("aria-describedby", `${bodyDescribed} ${POST_BODY_ERROR_ID}`.trim());
+  };
+
   const updateCounter = () => {
     if (!counter || !bodyInput) return;
     const state = counterState(bodyInput.value);
     counter.textContent = `${state.remaining}`;
     counter.classList.toggle("over", state.over);
     counter.classList.toggle("near", state.near);
+    // The counter turning red and the button looking spent are the two halves of
+    // this state a reader may never get. The sentence is the state, drawn beside
+    // the field, arriving as the post crosses the budget and leaving as it comes
+    // back under — the same moment the counter's own class flips, from the same
+    // measurement, so the two cannot disagree about which side of 280 the post
+    // is on.
+    if (state.over) showBodyError(state.length);
+    else clearBodyError();
   };
 
   // The one reset on this page. Both Clear filters controls — the one in the
@@ -1228,6 +1289,21 @@ export function mountSocialFeed(root, options = {}) {
       // same draft, so queuing it would publish the same post twice.
       if (publishing) return;
       if (!form.reportValidity()) return;
+
+      // Over the budget, refused here rather than by createPost below. The
+      // sentence is already beside the field — the counter's own input handler
+      // put it there as the post crossed 280 — so this press only has to make
+      // the refusal true: no post is created, and the reader is put on the
+      // field to cut down. Announcing it a second time in the notice at the foot
+      // of the form would answer one press twice, in two places, and `maxlength`
+      // is not the guard: it stops a key press, not a paste, a restored draft,
+      // or a handoff, and this is the check that decides whether a post exists.
+      const budget = counterState(bodyInput?.value);
+      if (budget.over) {
+        showBodyError(budget.length);
+        bodyInput?.focus();
+        return;
+      }
 
       let post;
       let media;

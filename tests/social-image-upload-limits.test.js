@@ -58,6 +58,11 @@ async function openComposer(t) {
     "the social page finished its first load",
   );
   globalThis.setInterval = realSetInterval;
+  // The composer ships collapsed behind the hero's Write a post control, and a
+  // visitor choosing a file has pressed it. Opened here so "no Remove image
+  // control is in the page" is a fact about a panel a reader can actually
+  // reach, rather than one the disclosure was answering for free.
+  page.document.querySelector("#post-compose-open").click();
   t.after(() => {
     for (const handle of timers) clearInterval(handle);
     page.restore();
@@ -66,33 +71,66 @@ async function openComposer(t) {
 }
 
 // Choose a file the way the visitor does — through the file input — and wait
-// for the composer to say something about it.
+// for the composer to say something about it. What comes back is the slot that
+// follows the picker, because that is where a refused file is answered: beside
+// the control that took it, not in the status line two lines below the rule.
 async function choose(document, file) {
   const input = document.querySelector("#post-image");
   input.files = [file];
   input.dispatchEvent(new DomEvent("change", { bubbles: true }));
+  const error = document.querySelector("#post-image-error");
   const status = document.querySelector("#post-media-status");
   await waitFor(
-    () => textOf(status) && textOf(status) !== "Preparing image preview…",
+    () => textOf(error) || (textOf(status) && textOf(status) !== "Preparing image preview…"),
     `the composer answered for ${file.name}`,
   );
-  return status;
+  return error;
+}
+
+// "Is there a Remove image control here?" asked one tag at a time, because a
+// comma selector matches nothing in some of this project's harnesses and would
+// answer no for free. A control inside a hidden panel is not in the page as far
+// as a reader is concerned, so the walk climbs to check.
+function removeImageControls(document) {
+  const hidden = (node) => {
+    for (let cursor = node; cursor; cursor = cursor.parentNode) if (cursor.hidden) return true;
+    return false;
+  };
+  const named = [];
+  for (const tag of ["button", "a", "input"]) {
+    for (const node of document.querySelectorAll(tag)) {
+      if (textOf(node) === "Remove image" && !hidden(node)) named.push(node);
+    }
+  }
+  return named;
 }
 
 test("a file in an unaccepted format is named as such, with the four accepted formats", async (t) => {
   const { document } = await openComposer(t);
 
-  const status = await choose(document, { name: "sunset.heic", type: "image/heic", size: 40_000 });
+  const error = await choose(document, { name: "sunset.heic", type: "image/heic", size: 40_000 });
 
-  assert.equal(textOf(status), UNSUPPORTED_TYPE);
+  assert.equal(textOf(error), `⚠${UNSUPPORTED_TYPE}`);
   assert.ok(UNSUPPORTED_TYPE.startsWith(UNSUPPORTED_TYPE_ERROR));
-  // Same region as the preview failure, marked as an error the same way.
-  assert.equal(status.classList.contains("is-error"), true);
+  // Beside the control that took the file, announced where it stands, and marked
+  // on the control itself — not a colour, not a disabled button, and not a
+  // banner at the foot of the form.
+  assert.equal(error.hidden, false);
+  assert.equal(error.getAttribute("role"), "alert");
+  assert.equal(document.querySelector("#post-image").getAttribute("aria-invalid"), "true");
+  assert.ok((document.querySelector("#post-image").getAttribute("aria-describedby") ?? "")
+    .split(/\s+/).includes("post-image-error"));
+  // Said once: the polite status line under the rule is left empty rather than
+  // repeating the refusal a second time in a second region.
+  assert.equal(textOf(document.querySelector("#post-media-status")), "");
   assert.equal(document.querySelectorAll("#post-media-status").length, 1);
   assert.equal(document.querySelector("#post-media-status").getAttribute("role"), "status");
   // Nothing was attached, so the composer stays closed and the file input is
-  // empty and ready for the next attempt.
+  // empty and ready for the next attempt — no preview, and no Remove image
+  // control for a file that was never taken.
   assert.equal(document.querySelector("#compose-media").hidden, true);
+  assert.equal(document.querySelector("#compose-preview-image").getAttribute("src"), null);
+  assert.equal(removeImageControls(document).length, 0);
   assert.equal(document.querySelector("#post-image").value, "");
   assert.equal(document.querySelector("#post-submit").disabled, true);
   assert.equal(textOf(document.querySelector("#post-publish-blocker")),
@@ -105,12 +143,17 @@ test("a file in an unaccepted format is named as such, with the four accepted fo
 test("a file over the limit is told the limit, in the words the field's help text uses", async (t) => {
   const { document } = await openComposer(t);
 
-  const status = await choose(document, { name: "poster.png", type: "image/png", size: 512 * 1024 + 1 });
+  const error = await choose(document, { name: "poster.png", type: "image/png", size: 512 * 1024 + 1 });
 
-  assert.equal(textOf(status), OVER_LIMIT);
+  // The rejected file's own size, beside the limit it broke, in the words the
+  // rule above the control uses for that limit.
+  assert.equal(textOf(error), `⚠${OVER_LIMIT}`);
   assert.equal(overLimitError(512 * 1024 + 1), "This file is 513 KB; the maximum is 512 KB.");
-  assert.equal(status.classList.contains("is-error"), true);
+  assert.equal(error.getAttribute("role"), "alert");
+  assert.equal(document.querySelector("#post-image").getAttribute("aria-invalid"), "true");
   assert.equal(document.querySelector("#compose-media").hidden, true);
+  assert.equal(document.querySelector("#compose-preview-image").getAttribute("src"), null);
+  assert.equal(removeImageControls(document).length, 0);
   assert.equal(document.querySelector("#post-submit").disabled, true);
   assert.equal(textOf(document.querySelector("#post-publish-blocker")),
     "Publishing is unavailable until you choose a supported image within 512 KB.");
@@ -233,4 +276,71 @@ test("the preview failure still speaks for a file that passes both checks", asyn
   assert.equal(fallback.hidden, false);
   assert.equal(preview.hidden, true);
   assert.equal(document.querySelector("#compose-preview-frame").dataset.state, "error");
+});
+
+// A 1×1 PNG, so a file this field accepts can be carried all the way to the
+// preview. The bytes are inert and hand-authored; nothing here reads a fixture.
+const PNG_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+
+// The other half of the refusal: it has to go when the reason for it does. A
+// file the field accepts is read by the browser, and this harness is not one, so
+// the two browser pieces the composer calls are stood up for the length of the
+// test and put back afterwards. Everything else on the path is the shipped code.
+async function chooseValid(t, document, file) {
+  const realReader = globalThis.FileReader;
+  const realBitmap = globalThis.createImageBitmap;
+  globalThis.FileReader = class {
+    addEventListener(type, handler) { this.handlers = { ...this.handlers, [type]: handler }; }
+    readAsDataURL() {
+      this.result = `data:image/png;base64,${PNG_BASE64}`;
+      queueMicrotask(() => this.handlers?.load?.());
+    }
+  };
+  globalThis.createImageBitmap = async () => ({ width: 8, height: 8, close() {} });
+  t.after(() => {
+    globalThis.FileReader = realReader;
+    globalThis.createImageBitmap = realBitmap;
+  });
+  const input = document.querySelector("#post-image");
+  input.files = [file];
+  input.dispatchEvent(new DomEvent("change", { bubbles: true }));
+  await waitFor(() => !document.querySelector("#compose-media").hidden, `the composer took ${file.name}`);
+}
+
+test("the refusal goes when a file the field accepts arrives", async (t) => {
+  const { document } = await openComposer(t);
+  const error = await choose(document, { name: "poster.png", type: "image/png", size: 512 * 1024 + 1 });
+  assert.equal(error.hidden, false);
+
+  await chooseValid(t, document, { name: "ring.png", type: "image/png", size: 4_000 });
+
+  // Nothing is left claiming the field holds something it will not take: the
+  // sentence is gone, the mark on the control is gone, and the description the
+  // input ships with is the description it carries again.
+  assert.equal(error.hidden, true);
+  assert.equal(textOf(error), "");
+  assert.equal(document.querySelector("#post-image").getAttribute("aria-invalid"), null);
+  assert.equal(document.querySelector("#post-image").getAttribute("aria-describedby"),
+    "post-image-hint post-image-steps post-media-status");
+  // And the accepted file is where a refused one never got to: on screen, with
+  // the control that takes it back off again.
+  assert.equal(document.querySelector("#compose-media").hidden, false);
+  assert.equal(removeImageControls(document).length, 1);
+  assert.equal(document.querySelector("#post-submit").disabled, false);
+});
+
+// Placement is the criterion, not decoration: a refusal a reader meets after the
+// help, the steps, and the rest of the form is a refusal they meet too late.
+test("the rejected-file message is the next thing after the control that took the file", async (t) => {
+  const { document } = await openComposer(t);
+  const picker = document.querySelector(".media-picker");
+  const order = picker.childElements.map((node) => node.id || node.className);
+
+  assert.equal(order[order.indexOf("post-image-error") - 1], "media-source-actions",
+    `the message does not follow the file control: ${order.join(" ")}`);
+  // Present but empty in the page as served — no visible banner over a form
+  // nobody has done anything wrong in yet.
+  assert.equal(document.querySelector("#post-image-error").hidden, true);
+  assert.equal(textOf(document.querySelector("#post-image-error")), "");
+  assert.equal(document.querySelectorAll("#post-image-error").length, 1);
 });

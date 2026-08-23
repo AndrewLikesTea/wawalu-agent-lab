@@ -378,7 +378,11 @@ test("the shipped composer markup carries the marker, the error slot, and the co
   assert.match(html, /<span class="label-optional label-required" id="post-image-alt-required">\(required with an image\)<\/span>/);
   assert.match(html, /id="post-image-alt"[^>]*maxlength="200"/);
   assert.match(html, /aria-describedby="post-image-alt-hint post-image-alt-requirement post-image-alt-counter-label post-image-alt-counter"/);
-  assert.match(html, /<p class="field-error compose-error" id="post-image-alt-error" hidden><\/p>/);
+  // role="alert" so the refusal is announced when it appears, not only when the
+  // field it is bound to is read. The composer's other two refusals ship the
+  // same slot with the same role — tests/social-composer-refusals.test.js owns
+  // that contract across all three.
+  assert.match(html, /<p class="field-error compose-error" id="post-image-alt-error" role="alert" hidden><\/p>/);
   assert.match(html, /id="post-image-alt-counter" aria-live="polite" aria-atomic="true">200<\/span>/);
 });
 

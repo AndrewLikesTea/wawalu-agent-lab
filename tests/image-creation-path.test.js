@@ -400,7 +400,15 @@ test("the composer numbers the round trip and puts the rule beside the control",
   assert.equal(control.getAttribute("for"), "post-image", "Choose image no longer wraps its own input");
   const field = control.parentNode.parentNode;
   const blocks = field.children.filter((node) => node.dataset);
-  assert.equal(blocks.indexOf(hint), blocks.indexOf(control.parentNode) + 1,
+  // The one element between them is the slot a rejected file is answered in
+  // (#1972), which ships empty and hidden — so the first words a reader meets
+  // under Choose image are still the rule, and the first words they meet after
+  // choosing a file this field will not take are why it will not take it.
+  const refusal = documents.Social.getElementById("post-image-error");
+  assert.equal(textOf(refusal), "", "the refusal slot ships with words in it");
+  assert.equal(blocks.indexOf(refusal), blocks.indexOf(control.parentNode) + 1,
+    "the refusal for a rejected file is not the element next to Choose image");
+  assert.equal(blocks.indexOf(hint), blocks.indexOf(refusal) + 1,
     "the format and size rule is not the element next to Choose image");
   assert.ok(blocks.indexOf(hint) < blocks.indexOf(steps), "the rule reads after the steps again");
   assert.equal(items.filter((item) => /512 KB|WebP/.test(textOf(item))).length, 0,
