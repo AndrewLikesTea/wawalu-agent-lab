@@ -8,9 +8,15 @@ export const FOLLOW_UP_REQUEST_TYPES = Object.freeze([
   "follow_up_agents",
 ]);
 export const LEAD_PURPOSES = Object.freeze(["field_notes", "follow_up", ...FOLLOW_UP_REQUEST_TYPES]);
+// Each entry is the page's name and the words the site already uses for that
+// destination — the description DEMOS in src/site-footer.js gives it, copied
+// rather than rewritten. A topic invented here would be a seventh description of
+// a surface the footer, the home page, and the navigation already describe, and
+// a visitor comparing the follow-up block against the footer above it would find
+// two accounts of the same page.
 export const FOLLOW_UP_TOPICS = Object.freeze({
   follow_up_finops_example: "Bundled AI FinOps example — lower-cost routing in Atlas Platform",
-  follow_up_coach: "Prompt coach page — prompt grading and revision",
+  follow_up_coach: "Prompt coach page — grade a prompt, then revise and grade again",
   // Releases sent this request type with no topic entry, so the request reached
   // the row with an empty topic column and the page had nothing true to name.
   // The purpose was already in the migration 0009 CHECK; only the topic was
@@ -18,8 +24,8 @@ export const FOLLOW_UP_TOPICS = Object.freeze({
   // costs no schema change. The words are the site's own for this surface —
   // DEMOS in src/site-footer.js describes Releases the same way.
   follow_up_releases: "Releases page — every release and the decisions it carried",
-  follow_up_social: "Social page — team posts and published images",
-  follow_up_people: "People page — display names and image posts",
+  follow_up_social: "Social page — read short posts about what the team ships, images optional",
+  follow_up_people: "People page — pick a display name, see its image posts, newest first",
   follow_up_agents: "Agent observatory page — synthetic engineering activity",
 });
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

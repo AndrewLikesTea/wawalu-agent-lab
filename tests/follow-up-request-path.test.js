@@ -45,11 +45,11 @@ import { createMemoryLeadStore, FOLLOW_UP_TOPICS, handleLeadRequest } from "../s
 // so the sentence cannot drift away from what goes on the wire.
 const REVIEWED = [
   ["index.html", "follow_up", null, false],
-  ["coach.html", "follow_up_coach", FOLLOW_UP_TOPICS.follow_up_coach, false],
+  ["coach.html", "follow_up_coach", FOLLOW_UP_TOPICS.follow_up_coach, true],
   ["post.html", "follow_up_social", FOLLOW_UP_TOPICS.follow_up_social, true],
   ["releases.html", "follow_up_releases", FOLLOW_UP_TOPICS.follow_up_releases, true],
-  ["social.html", "follow_up_social", FOLLOW_UP_TOPICS.follow_up_social, false],
-  ["profile.html", "follow_up_people", FOLLOW_UP_TOPICS.follow_up_people, false],
+  ["social.html", "follow_up_social", FOLLOW_UP_TOPICS.follow_up_social, true],
+  ["profile.html", "follow_up_people", FOLLOW_UP_TOPICS.follow_up_people, true],
   ["agents.html", "follow_up_agents", FOLLOW_UP_TOPICS.follow_up_agents, false],
 ];
 
