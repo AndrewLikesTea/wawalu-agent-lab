@@ -379,6 +379,19 @@
               <label for="post-body">Your post <span class="label-optional label-required">(required)</span></label>
               <textarea id="post-body" name="body" rows="4" maxlength="280" required
                 aria-describedby="post-body-hint post-counter-label post-counter"></textarea>
+              <!-- Ships empty, and stands immediately after the field it is
+                   about, so a reader who is refused meets the reason where they
+                   are standing rather than in a banner at the foot of the form.
+                   src/social.js writes the sentence here the moment the post
+                   goes over the budget and takes it away the moment it comes
+                   back under; role="alert" is what announces it. Same slot,
+                   same classes, same drawing as the image description's refusal
+                   below, so the two refusals in this form are one pattern.
+                   The counter under it reddens at the same moment, and that is
+                   the half of the signal a reader who cannot see colour never
+                   gets — this is the whole fact as a sentence: how long the
+                   post is, how far over it is, and what the limit is. -->
+              <p class="field-error compose-error" id="post-body-error" role="alert" hidden></p>
               <span class="hint" id="post-body-hint">Up to 280 characters.</span>
               <p class="counter-row">
                 <span id="post-counter-label">Characters remaining:</span>
@@ -394,6 +407,17 @@
                     accept="image/png,image/jpeg,image/gif,image/webp" aria-describedby="post-image-hint post-image-steps post-media-status" />
                 </label>
               </div>
+              <!-- Ships empty, and stands immediately after the control that
+                   takes the file — before the rule, before the steps — because
+                   a refusal is news and the two lines below it are standing
+                   help. src/social-page.js writes the refusal here, naming the
+                   rejected file's own size or type beside the stated limit, and
+                   clears it when a file this field accepts arrives. It carries
+                   the announcement now: the media status line below is where a
+                   wait and a readiness are reported, and interrupting a reader
+                   with "Preparing image preview…" to say one thing loudly is
+                   how a live region stops being worth listening to. -->
+              <p class="field-error compose-error" id="post-image-error" role="alert" hidden></p>
               <!-- The rule the file has to meet, beside the control that takes
                    the file. It used to sit two lines below the round trip and
                    below the character counter, under the fold, so the one
@@ -522,7 +546,7 @@
                   <label for="post-image-alt">Image description <span class="label-optional label-required" id="post-image-alt-required">(required with an image)</span></label>
                   <textarea id="post-image-alt" name="image-alt" rows="2" maxlength="200"
                     aria-describedby="post-image-alt-hint post-image-alt-requirement post-image-alt-counter-label post-image-alt-counter"></textarea>
-                  <p class="field-error compose-error" id="post-image-alt-error" hidden></p>
+                  <p class="field-error compose-error" id="post-image-alt-error" role="alert" hidden></p>
                   <span class="hint" id="post-image-alt-hint">Describe what matters in the image for people who cannot see it. Up to 200 characters.</span>
                   <!-- The consequence of leaving this field empty, said once, at
                        the field, and only once there is an image to describe:
