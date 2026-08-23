@@ -1,12 +1,18 @@
-// The two pages whose follow-up request has a fixed topic and no way to choose
-// one: the shared post permalink and Releases.
+// The pages whose follow-up request has a fixed topic and no way to choose one,
+// and that therefore say in prose what the request is about.
 //
 // Every follow-up request this site sends carries a topic the page fixes — a
 // visitor has never picked one. Four pages said so, in a read-only control
-// beside the work-email field. These two said nothing: the block asked for a
-// work email and never stated what the request was about, and Releases sent a
-// request type that had no FOLLOW_UP_TOPICS entry at all, so nothing about the
-// errand reached the row either. Issue #1956 closed both halves of that gap.
+// beside the work-email field. Two said nothing: the block asked for a work
+// email and never stated what the request was about, and Releases sent a request
+// type that had no FOLLOW_UP_TOPICS entry at all, so nothing about the errand
+// reached the row either. Issue #1956 closed both halves of that gap.
+//
+// Issue #1980 moved three of the four read-only controls onto this sentence too.
+// A control a visitor cannot edit is a control that owes them an explanation of
+// why it is there; the sentence owes them nothing, reads in one pass, and says
+// the same thing the request carries. The Agent observatory is the one page left
+// on the control, so the shape it uses is still exercised elsewhere.
 //
 // What this file holds is the equality between the halves. The sentence on the
 // page and the value on the wire are compared to each other and to the shared
@@ -26,7 +32,7 @@ import { FOLLOW_UP_TOPICS } from "../src/leads.js";
 // The pages under test, and a page with the plain footer to measure them
 // against. The baseline is what the follow-up block looks like with no topic of
 // any kind, so the tab order it produces is the one the sentence must not change.
-const STATED = ["post.html", "releases.html"];
+const STATED = ["post.html", "releases.html", "social.html", "profile.html", "coach.html"];
 const BASELINE = "decision.html";
 
 const SENTENCE_LEAD = "This request is sent about the ";

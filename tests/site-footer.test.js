@@ -74,15 +74,21 @@ const describedBy = (document) => byId(document, "site-footer-email").getAttribu
 // a read-only control, so the block gains a sentence and no tab stop.
 const FOOTER_VARIANT = new Map([
   ["executive-briefing.html", { redirect: FOLLOW_UP_REDIRECT.briefing }],
-  ["coach.html", { followUpType: "follow_up_coach", followUpTopic: FOLLOW_UP_TOPICS.follow_up_coach }],
+  ["coach.html", {
+    followUpType: "follow_up_coach", followUpTopic: FOLLOW_UP_TOPICS.follow_up_coach, statedTopic: true,
+  }],
   ["post.html", {
     followUpType: "follow_up_social", followUpTopic: FOLLOW_UP_TOPICS.follow_up_social, statedTopic: true,
   }],
   ["releases.html", {
     followUpType: "follow_up_releases", followUpTopic: FOLLOW_UP_TOPICS.follow_up_releases, statedTopic: true,
   }],
-  ["social.html", { followUpType: "follow_up_social", followUpTopic: FOLLOW_UP_TOPICS.follow_up_social }],
-  ["profile.html", { followUpType: "follow_up_people", followUpTopic: FOLLOW_UP_TOPICS.follow_up_people }],
+  ["social.html", {
+    followUpType: "follow_up_social", followUpTopic: FOLLOW_UP_TOPICS.follow_up_social, statedTopic: true,
+  }],
+  ["profile.html", {
+    followUpType: "follow_up_people", followUpTopic: FOLLOW_UP_TOPICS.follow_up_people, statedTopic: true,
+  }],
   ["agents.html", { followUpType: "follow_up_agents", followUpTopic: FOLLOW_UP_TOPICS.follow_up_agents }],
 ]);
 

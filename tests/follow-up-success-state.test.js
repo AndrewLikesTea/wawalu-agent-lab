@@ -116,11 +116,17 @@ function reveal(document, { prefix, gated }) {
 }
 
 test("Coach, Releases, Social, People, and Agents send one bounded request and show durable success", async () => {
+  // Each sentinel is a phrase this page and no other band of the site says, so a
+  // match in the payload is prose that escaped the page. Social's and People's
+  // were "images optional" and "newest first" until issue #1980: those are the
+  // words the footer directory uses for those destinations, so they are also the
+  // words the fixed topic now carries, and a sentinel the topic legitimately
+  // contains proves nothing. The page taglines are the pages' own.
   const pages = [
     ["coach.html", "follow_up_coach", "Paste a prompt"],
     ["releases.html", "follow_up_releases", "Deployment check"],
-    ["social.html", "follow_up_social", "images optional"],
-    ["profile.html", "follow_up_people", "newest first"],
+    ["social.html", "follow_up_social", "publish your own"],
+    ["profile.html", "follow_up_people", "published under one display name"],
     ["agents.html", "follow_up_agents", "public GitHub activity"],
   ];
   for (const [file, requestType, pageContent] of pages) {
