@@ -17,7 +17,7 @@ import assert from "node:assert/strict";
 import { readdir, readFile } from "node:fs/promises";
 import { relative } from "node:path";
 import { fileURLToPath } from "node:url";
-import { DEMOS, PITCH_LINK } from "../src/site-footer.js";
+import { DEMOS, DIRECTORY_SUMMARY, PITCH_LINK } from "../src/site-footer.js";
 import { SITE_NAV } from "../src/site-nav.js";
 import { parseHtml, pressEnter, pressTab, tabSequence, textOf } from "./support/browser.js";
 
@@ -371,9 +371,28 @@ test("the post page's loading tab order reaches Social without a placeholder Peo
   const afterExit = sequence.slice(FRAME_STOPS).map((stop) => textOf(stop));
   // The band opens on the sentence that says who Shiplog is for, so its pointer
   // at the worked decision is the first footer stop, ahead of the site map.
+  // On this page the map is folded away, so the summary that names it stands
+  // between the pitch and the rows. The rows are still listed here because this
+  // harness keeps a closed disclosure's contents in the sequence — a stated gap
+  // in tests/support/browser.js — and the assertion below walks parentNode to
+  // drop them, which is the sequence a browser actually gives.
   assert.deepEqual(
-    afterExit.slice(0, bandStops.length + 3),
-    [PITCH_LINK, ...bandStops, "", "Request a follow-up"],
+    afterExit.slice(0, bandStops.length + 4),
+    [PITCH_LINK, DIRECTORY_SUMMARY, ...bandStops, "", "Request a follow-up"],
+  );
+  // A disclosure's own summary is its handle, not something inside it, so the
+  // walk starts above the element it opens.
+  const closed = (stop) => {
+    const from = stop.tagName === "SUMMARY" ? stop.parentNode : stop;
+    for (let node = from.parentNode; node; node = node.parentNode) {
+      if (node.tagName === "DETAILS" && !node.open) return true;
+    }
+    return false;
+  };
+  assert.deepEqual(
+    afterExit.filter((_, index) => !closed(sequence[FRAME_STOPS + index])).slice(0, 4),
+    [PITCH_LINK, DIRECTORY_SUMMARY, "", "Request a follow-up"],
+    "with the directory closed, the form must still be four stops from the exit",
   );
   assert.ok(
     sequence.slice(FRAME_STOPS).every((stop) => stop.closest("#site-footer")),

@@ -410,14 +410,25 @@ export function profileResultsHeading(author, count = null) {
 // image post" never lands as "1 image posts".
 //
 // A null count is the page not having counted yet — the pre-hydration frame and
-// a load still in flight — so the line names the display name and stops rather
-// than claiming a number, and the same rule keeps it from printing an empty
-// verdict over a feed that has not answered. A settled zero is a different fact
-// and reads as one, in the same voice; the empty state below the grid still
-// carries what to do about it, unchanged.
-export function profileActiveFilterLine(author, count = null) {
+// a load still in flight — so the line never claims a number, and the same rule
+// keeps it from printing an empty verdict over a feed that has not answered. A
+// settled zero is a different fact and reads as one, in the same voice; the
+// empty state below the grid still carries what to do about it, unchanged.
+//
+// `counting` is the one case where the line still says something about the
+// figure: a fetch is open, and it says so in the site's own word for a count it
+// does not have yet — COUNTING_LABEL, after the same `·` the picker's chips put
+// it behind. So the caption carries a count in both states a reader meets it in,
+// and the pending one reads as pending rather than as a filter with no effect. A
+// failed load with nothing on screen is not counting anything and keeps the bare
+// sentence.
+export function profileActiveFilterLine(author, count = null, { counting = false } = {}) {
   const name = String(author ?? "").trim() || DEFAULT_AUTHOR;
-  if (count === null || count === undefined) return `Showing image posts published as ${name}.`;
+  if (count === null || count === undefined) {
+    return counting
+      ? `Showing image posts published as ${name} · ${COUNTING_LABEL}`
+      : `Showing image posts published as ${name}.`;
+  }
   if (count === 0) return `${name} has no image posts yet.`;
   return `Showing ${countLabel(count, "image post")} published as ${name}.`;
 }
@@ -722,12 +733,12 @@ export function renderAuthorPicker(container, entries, { author, counted = true,
 // page has nothing settled to count. The header does not derive it: mountProfile
 // holds the one filtered array, and a second count taken here could drift from
 // the one on screen.
-export function renderProfileHeader(elements, author, summary, { count = null } = {}) {
+export function renderProfileHeader(elements, author, summary, { count = null, counting = false } = {}) {
   if (elements.avatar) {
     elements.avatar.textContent = authorInitials(author);
     elements.avatar.setAttribute("aria-hidden", "true");
   }
-  if (elements.name) elements.name.textContent = profileActiveFilterLine(author, count);
+  if (elements.name) elements.name.textContent = profileActiveFilterLine(author, count, { counting });
   if (elements.summary) elements.summary.textContent = profileSummaryText(summary);
 }
 
@@ -795,12 +806,13 @@ export function mountProfile(root, options = {}) {
     //
     // A number only where the page has a settled answer behind it: a finished
     // load, or, after a failed refresh, the tiles still on screen from the last
-    // one. While the first load is in flight there is nothing to count — the
-    // picker says "Counting…" in that frame, and a line claiming a number beside
-    // it would contradict it — and a failed load with an empty grid states no
-    // zero it cannot support.
+    // one. While the first load is in flight there is nothing to count, so the
+    // identity line says so in the picker's own word for it rather than claiming
+    // a figure — the two are in the same frame and now agree. A failed load with
+    // an empty grid states no zero it cannot support, and is not counting.
     const counted = state === "ready" || (state === "error" && mine.length > 0);
-    renderProfileHeader(elements, author, summary, { count: counted ? mine.length : null });
+    renderProfileHeader(elements, author, summary,
+      { count: counted ? mine.length : null, counting: !counted && state === "loading" });
     if (elements.heading) {
       elements.heading.textContent = profileResultsHeading(author, counted ? mine.length : null);
     }

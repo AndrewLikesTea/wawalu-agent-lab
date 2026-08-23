@@ -77,8 +77,13 @@ const FOOTER_VARIANT = new Map([
   ["coach.html", {
     followUpType: "follow_up_coach", followUpTopic: FOLLOW_UP_TOPICS.follow_up_coach, statedTopic: true,
   }],
+  // `collapsedDemos` is the third shape, and one page carries it: /post.html is
+  // opened from a forwarded link to read one post, so its directory ships behind
+  // a closed disclosure. Recorded here rather than inferred, for the same reason
+  // the redirect is: a page cannot quietly fold its site map away.
   ["post.html", {
     followUpType: "follow_up_social", followUpTopic: FOLLOW_UP_TOPICS.follow_up_social, statedTopic: true,
+    collapsedDemos: true,
   }],
   ["releases.html", {
     followUpType: "follow_up_releases", followUpTopic: FOLLOW_UP_TOPICS.follow_up_releases, statedTopic: true,

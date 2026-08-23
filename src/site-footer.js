@@ -177,9 +177,14 @@ export const FOLLOW_UP_REDIRECT = Object.freeze({
  * `redirect` replaces the inline form with a pointer to a page's own follow-up
  * form — see FOLLOW_UP_REDIRECT. The identity paragraph never varies: every
  * page says who runs Shiplog and where.
+ *
+ * `collapsedDemos` folds the destination list into a disclosure that ships
+ * closed. Only /post.html asks for it: a forwarded link is opened to read one
+ * post, and the map of everywhere else was the larger half of that page.
  */
 export function siteFooterMarkup(indent = "    ", {
   redirect = null, followUpType = null, followUpTopic = null, statedTopic = false,
+  collapsedDemos = false,
 } = {}) {
   const contact = redirect ? [
     `    <a class="site-footer-redirect-link" href="${redirect.href}">${redirect.label}</a>`,
@@ -190,7 +195,7 @@ export function siteFooterMarkup(indent = "    ", {
     '    <h2 class="site-footer-title" id="site-footer-title">About Shiplog</h2>',
     `    <p class="site-footer-identity">${IDENTITY}</p>`,
     `    <p class="site-footer-identity site-footer-pitch">${PITCH} See <a href="${PITCH_HREF}">${PITCH_LINK}</a>.</p>`,
-    ...demoListLines(),
+    ...demoListLines(collapsedDemos),
     ...contact,
     "  </div>",
     "</footer>",
@@ -198,19 +203,33 @@ export function siteFooterMarkup(indent = "    ", {
   return lines.map((line) => `${indent}${line}`).join("\n");
 }
 
+// The one line a folded directory gets: the rest of the site, and how much of it.
+export const DIRECTORY_SUMMARY = `Where else to go on Shiplog — all ${DEMOS.length} destinations`;
+
 /**
  * A real <ul>, so the destinations arrive as a list rather than a run-on
  * sentence and a screen reader gets the count. The hrefs are root-relative:
  * this band ships on every page, and a bare relative path would resolve against
  * a page in a subdirectory rather than against the site.
+ *
+ * `collapsed` wraps that same list, unchanged, in a disclosure. The summary
+ * reuses the band's caption class and restyles no marker, so it paints one
+ * triangle and keeps the band's ring. Nothing that announces is inside.
  */
-function demoListLines() {
-  return [
+function demoListLines(collapsed = false) {
+  const list = [
     '    <ul class="site-footer-demos">',
     ...DEMOS.map(({ label, href, purpose, note, also }) =>
       `      <li><a href="${href}">${label}</a> — ${note ? `${note} ` : ""}${purpose}`
       + `${also ? `; <a href="${also.href}">${also.label}</a> ${also.purpose}` : ""}</li>`),
     "    </ul>",
+  ];
+  if (!collapsed) return list;
+  return [
+    '    <details id="site-footer-directory">',
+    `      <summary class="site-footer-note" id="site-footer-directory-summary">${DIRECTORY_SUMMARY}</summary>`,
+    ...list.map((line) => `  ${line}`),
+    "    </details>",
   ];
 }
 
