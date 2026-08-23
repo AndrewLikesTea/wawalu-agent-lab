@@ -314,6 +314,73 @@ test("the document a visitor is served authors no figure and no link of its own"
   assert.match(html, /<strong>Example records<\/strong>/);
 });
 
+// #1986: the block counted merged pull requests, named the repositories it
+// counted them in, and linked the feeds — and never said what those merges were
+// evidence of. The Agent observatory already makes that claim, so this is the
+// observatory's sentence rather than a second description of the same merges.
+// It is about the work and never about the digit, which is why it is authored
+// beside the status region: the readout is the only thing a response replaces,
+// and a reader who never gets a number is the one who needs it most.
+const CLAIM = "These merged pull requests built and changed the pages of this site.";
+const CLAIM_PHRASE = /built and changed the pages of this site/;
+const claimsMade = (text) => text.split(CLAIM).length - 1;
+
+test("the block says what the counted merges built, in every state a reader can arrive in", async (t) => {
+  const served = parseHtml(await readFile(HOME_URL, "utf8"));
+  // Authored, not painted: the shipped document already carries it, and the
+  // live region a response replaces does not.
+  assert.equal(claimsMade(textOf(served.querySelector("#public-merges"))), 1,
+    "the served document does not state, or restates, what the merges built");
+  assert.doesNotMatch(textOf(served.querySelector("#public-merges-readout")), CLAIM_PHRASE,
+    "a sentence inside the live region is one a response can take away");
+
+  // Nothing was ever counted here: the state the sentence is written for.
+  const cold = await loadPage(HOME_URL, {});
+  t.after(() => cold.restore());
+  await loadPublicMerges(cold.document, async () => ({ ok: false, status: 403 }));
+  const unavailable = cold.document.querySelector("#public-merges");
+  assert.equal(unavailable.dataset.state, "unavailable");
+  assert.equal(claimsMade(textOf(unavailable)), 1, "an unanswered request took the claim with it");
+
+  // The last count this browser took, shown because GitHub did not answer now.
+  const remembered = await loadPage(HOME_URL, {
+    storage: { [RETAINED_COUNT_KEY]: JSON.stringify({
+      schemaVersion: RETAINED_COUNT_SCHEMA, count: 412, takenAt: "2026-07-14T09:05:00.000Z",
+    }) },
+  });
+  t.after(() => remembered.restore());
+  await loadPublicMerges(remembered.document, async () => ({ ok: false, status: 403 }), remembered.storage);
+  const retained = remembered.document.querySelector("#public-merges");
+  assert.equal(retained.dataset.state, "retained");
+  assert.equal(claimsMade(textOf(retained)), 1, "a remembered count is shown without saying what it counted");
+
+  // And the steady state, where a live count arrived.
+  const answered = await loadPage(HOME_URL, {});
+  t.after(() => answered.restore());
+  await loadPublicMerges(answered.document, githubFetcher(LIVE_EVENTS));
+  const counted = answered.document.querySelector("#public-merges");
+  assert.equal(counted.dataset.state, "live");
+  assert.equal(claimsMade(textOf(counted)), 1, "the claim is missing, or doubled, beside a live count");
+
+  // It states the work and nothing else — no figure, no repository, no date —
+  // so nothing in it can disagree with the count beside it.
+  assert.doesNotMatch(CLAIM, /\d/);
+  for (const repository of SOURCE_REPOSITORIES) {
+    assert.ok(!CLAIM.includes(repository), `the claim restates ${repository}`);
+  }
+
+  // One claim, one wording. The observatory says it in its own sentence, and
+  // these words are that sentence's, so the two pages describe one body of work
+  // the same way.
+  const observatory = parseHtml(await readFile(OBSERVATORY_URL, "utf8"));
+  assert.match(textOf(observatory.querySelector("#merged-figure-note")), CLAIM_PHRASE);
+  assert.match(CLAIM, CLAIM_PHRASE);
+
+  // And the line that separates this counted figure from the page's invented
+  // example is untouched, still drawn once, in its own words.
+  assert.equal(textOf(unavailable).split("bundled synthetic example").length - 1, 1);
+});
+
 test("the destination list says the observatory is not entirely invented", async () => {
   const html = await readFile(HOME_URL, "utf8");
   const entry = [...parseHtml(html).querySelector(".site-guide").querySelectorAll("li")]
