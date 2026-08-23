@@ -227,6 +227,23 @@ test("the front door counts in months, and never in an undefined 'period'", asyn
   assert.match(html, /built from the months you kept on this device/);
 });
 
+test("what reading the example costs is said once, above the takeaway", async () => {
+  const html = (await readFile(PAGE, "utf8")).replace(/<!--[\s\S]*?-->/g, "");
+
+  // #1991: the building state repeated the paragraph above the takeaway almost
+  // word for word, so a visitor read the same reassurance twice within two
+  // screens. It belongs to the paragraph that introduces the worked decision;
+  // said again a screen later it reads as anxiety, and it costs the first
+  // screen space the executive takeaway needs.
+  assert.equal((html.match(/no sign-in, and no account/g) ?? []).length, 1,
+    "what reading the example costs must be stated once on the front door");
+  assert.match(html, /Reading it takes no export of yours, no sign-in, and no account\./);
+
+  // The building state keeps both facts a waiting visitor needs: where the
+  // example is being built, and that its months came with the page.
+  assert.match(html, /<p>The example decision is being assembled in this tab, which takes a moment\. Its three synthetic months ship with this page\.<\/p>/);
+});
+
 test("the front-door answer reproduces Noor's labelled canonical fixture exactly", async () => {
   const fixture = JSON.parse(await readFile(FIXTURE, "utf8"));
   const first = composeLandingDecision();
