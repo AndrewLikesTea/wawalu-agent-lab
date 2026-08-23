@@ -27,7 +27,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { loadPage, textOf } from "./support/browser.js";
 import { mountSocialFeed, shownPostsCount } from "../src/social.js";
-import { mountProfile, profileSummary } from "../src/profile.js";
+import { COUNTING_LABEL, mountProfile, profileSummary } from "../src/profile.js";
 
 const SOCIAL_PAGE = new URL("../src/social.html", import.meta.url);
 const PEOPLE_PAGE = new URL("../src/profile.html", import.meta.url);
@@ -281,6 +281,42 @@ test("People states the count beside the ordering label, and it is the chip's nu
   assert.equal(loadedTiles(document), 0);
   assert.equal(claimedBy(chipFor(document, "Ari")), 0);
   assert.match(textOf(document.querySelector("#profile-summary")), /^0 image posts · 1 post in total/);
+});
+
+test("People's caption under the heading carries the count in both states a reader meets it in", async (t) => {
+  const page = await loadPage(PEOPLE_PAGE, {});
+  t.after(() => page.restore());
+  const { document } = page;
+  const profile = mountProfile(document, { posts: FEED, author: "Zed", state: "loading" });
+  const caption = document.querySelector("#profile-name");
+
+  // One element and one class across both states: the count arrives in the
+  // caption role the line already had, not in a second line under it.
+  assert.equal(caption.getAttribute("class"), "profile-active-filter");
+
+  // Loading. A wait may not claim a figure, so it says what the picker's chips
+  // say in the same frame — the site's one word for a count it does not have —
+  // rather than leaving the caption looking like a filter with no effect.
+  assert.equal(textOf(caption), `Showing image posts published as Zed · ${COUNTING_LABEL}`);
+  assert.doesNotMatch(textOf(caption), /\d/, "a wait must not print a number");
+  assert.equal(textOf(document.querySelector("#profile-order")), "Newest first");
+
+  // Loaded, and the figure is the tiles actually drawn in that paint.
+  profile.setState("ready");
+  const drawn = loadedTiles(document);
+  assert.equal(drawn, 2);
+  assert.equal(textOf(caption), `Showing ${drawn} image posts published as Zed.`);
+  assert.equal(claimedBy(chipFor(document, "Zed")), drawn);
+
+  // A settled zero is still a count, and still this one line.
+  chipFor(document, "Ari").click();
+  assert.equal(loadedTiles(document), 0);
+  assert.equal(textOf(caption), "Ari has no image posts yet.");
+
+  // And no second statement of the order: the page says it once, in the eyebrow
+  // beside the grid. The caption counts, it does not sort.
+  assert.doesNotMatch(textOf(caption), /newest first/i);
+  assert.equal(document.querySelectorAll(".profile-active-filter").length, 1);
 });
 
 test("the region count and the chip count are one derivation, not two that agree today", () => {
