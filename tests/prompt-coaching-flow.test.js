@@ -101,7 +101,13 @@ test("the workflow is discoverable and idle before anything is pasted", async ()
     assert.equal(textOf(byId(document, "coach-neighbour-title")),
       "Grading more than one prompt?");
     assert.match(textOf(neighbour),
-      /Personal AI history runs the same rubric across weeks of your prompts/);
+      /Personal AI history runs the same rubric across your assistant export/);
+    // And it names that file the way the site-wide footer names it. This
+    // paragraph and the footer clause are the only two places the site says
+    // what Personal AI history reads, and they used to disagree: the footer
+    // called it "your export", the same words the AI FinOps row uses for a
+    // provider billing file. One name per concept, in both places.
+    assert.match(textOf(neighbour), /across your assistant export — weeks of your prompts —/);
     const historyLink = [...neighbour.querySelectorAll("a")]
       .find((link) => textOf(link) === "Personal AI history");
     assert.equal(historyLink?.getAttribute("href"), "/personal-history.html",

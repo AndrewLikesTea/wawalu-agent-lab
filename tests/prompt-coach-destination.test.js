@@ -445,7 +445,10 @@ test("Personal AI history is pitched once, in the card under the grade", async (
   // The surviving pitch carries every fact the deleted one had, so nothing a
   // reader needed to choose the destination left with the duplicate.
   const card = textOf(document.querySelector(".coach-neighbour"));
-  assert.match(card, /the same rubric across weeks of your prompts/);
+  // Including the file it wants, named the way the site-wide footer names it:
+  // the card and that clause are the only two places the site says what
+  // Personal AI history reads, so they say it in the same words.
+  assert.match(card, /the same rubric across your assistant export — weeks of your prompts —/);
   assert.match(card, /names the single habit worth changing first/);
   assert.match(card, /It is read in your browser too\./);
 

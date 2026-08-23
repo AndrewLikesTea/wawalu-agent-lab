@@ -113,7 +113,7 @@ export const DEMOS = Object.freeze([
     also: Object.freeze({
       label: "Personal AI history",
       href: "/personal-history.html",
-      purpose: "reads your export in this browser tab",
+      purpose: "grades your assistant export in this browser tab",
     }),
   }),
   Object.freeze({ label: "Decisions", href: "/", purpose: "record a decision, then search the history" }),

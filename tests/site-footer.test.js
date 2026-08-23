@@ -545,11 +545,47 @@ test("a page named beneath a destination is named there, by the name the rest of
     // where their export is read before they hand one over.
     for (const file of PAGES) {
       assert.ok((await read(file)).includes(
-        '<a href="/personal-history.html">Personal AI history</a> reads your export in this browser tab'),
+        '<a href="/personal-history.html">Personal AI history</a> grades your assistant export in this browser tab'),
       `${file} is missing "Personal AI history"`);
     }
   } finally {
     page.restore();
+  }
+});
+
+// The same words for the same file, different words for a different one.
+//
+// The band names two files a visitor might hand over, one line apart: AI FinOps
+// reads a provider billing export, Personal AI history reads a personal
+// assistant export. Both clauses used to end "your export in this browser tab",
+// so the two surfaces read as one feature wanting one file. The pages disagree —
+// personal-history.html asks for "your own assistant export" and refuses a file
+// that is neither a conversation export nor a prompt log — and this band is the
+// site's most repeated prose, so it is where a first-time visitor picks the
+// wrong idea up. The rule is the invariant, not the string: no two clauses may
+// name the file they read with the same words.
+test("the About Shiplog band names a different file for each surface that reads one", async () => {
+  const history = DEMOS.find((demo) => demo.also?.label === "Personal AI history").also;
+  assert.doesNotMatch(history.purpose, /your export/,
+    "the Personal AI history clause names its file the way AI FinOps names a different one");
+  assert.match(history.purpose, /in this browser tab$/,
+    "the clause must keep the promise its neighbour makes, in its neighbour's words");
+  // What it does with the file, not merely that it opens one.
+  assert.doesNotMatch(history.purpose, /^reads /,
+    "the clause must say what Personal AI history does with what it reads");
+
+  // Rendered, on the five surfaces the report names and every other page too:
+  // the band is hand-embedded per document, which is how one page keeps an old
+  // wording. The file phrase is the two words in front of the shared promise.
+  const FILE = /(\w+ \w+) in this browser tab/g;
+  const surfaces = new Set(["social.html", "profile.html", "post.html", "coach.html", "releases.html", ...PAGES]);
+  for (const file of surfaces) {
+    const band = textOf(parseHtml(await read(file)).querySelector(".site-footer-demos"));
+    const named = [...band.matchAll(FILE)].map(([, phrase]) => phrase);
+    assert.ok(named.length >= 2, `${file} lost a clause that says where a file is read`);
+    assert.equal(new Set(named).size, named.length,
+      `${file} calls two different files "${named.join('" and "')}"`);
+    assert.ok(band.includes(history.purpose), `${file} is missing the Personal AI history clause`);
   }
 });
 
