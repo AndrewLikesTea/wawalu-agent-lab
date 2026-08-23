@@ -1,4 +1,17 @@
+import { MAX_FOLLOW_UP_MESSAGE_LENGTH } from "./lead-capture.js";
+
+export { MAX_FOLLOW_UP_MESSAGE_LENGTH };
 export const MAX_EMAIL_LENGTH = 254;
+/**
+ * The request types whose form offers a free-text message, and therefore the
+ * only ones a `message` key may arrive on.
+ *
+ * It is a list rather than a flag on every follow-up type because the other
+ * forms do not ship the field: a `message` sent for one of them is a key the
+ * page cannot have produced, and the strict body check below refuses it rather
+ * than storing text no surface invited.
+ */
+export const FOLLOW_UP_MESSAGE_PURPOSES = Object.freeze(["follow_up_finops_example"]);
 export const FOLLOW_UP_REQUEST_TYPES = Object.freeze([
   "follow_up_finops_example",
   "follow_up_coach",
@@ -30,6 +43,24 @@ export const FOLLOW_UP_TOPICS = Object.freeze({
 });
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+/**
+ * The optional message, held to the number the field beside it prints.
+ *
+ * Absent, null, or blank is `{ message: null }` — an optional field left empty
+ * is not a refusal, and the row simply carries no message. Anything that is not
+ * a string, or a string past the limit, is `{ invalid: true }`: the endpoint
+ * must not accept what the form forbids, and must not silently truncate either,
+ * because a stored half-question is worse than a refused one.
+ */
+export function normalizeFollowUpMessage(value) {
+  if (value === undefined || value === null) return { message: null };
+  if (typeof value !== "string") return { invalid: true };
+  const message = value.trim();
+  if (!message) return { message: null };
+  if (message.length > MAX_FOLLOW_UP_MESSAGE_LENGTH) return { invalid: true };
+  return { message };
+}
+
 export function normalizeEmail(value) {
   if (typeof value !== "string") return null;
   const email = value.trim().toLocaleLowerCase("en-US");
@@ -50,15 +81,18 @@ function json(body, status, requestId, headers = {}) {
 }
 
 export function createMemoryLeadStore() {
-  const submissions = new Set();
+  const submissions = new Map();
   return {
-    async capture(email, purpose) {
+    async capture(email, purpose, createdAt = null, topic = null, message = null) {
       const key = `${purpose}:${email}`;
       const created = !submissions.has(key);
-      submissions.add(key);
+      if (created) submissions.set(key, { topic, message });
       return created;
     },
     has: (email, purpose = "field_notes") => submissions.has(`${purpose}:${email}`),
+    // What was stored, not merely that something was: a test that can only ask
+    // "is this address here?" cannot tell a carried message from a dropped one.
+    read: (email, purpose = "field_notes") => submissions.get(`${purpose}:${email}`) ?? null,
   };
 }
 
@@ -83,11 +117,11 @@ export function createMemoryLeadStore() {
  */
 export function createD1LeadStore(db) {
   return {
-    async capture(email, purpose, createdAt, topic = null) {
+    async capture(email, purpose, createdAt, topic = null, message = null) {
       const result = await db.prepare(
-        "INSERT INTO lead_submissions (email, purpose, created_at, topic) VALUES (?, ?, ?, ?)"
+        "INSERT INTO lead_submissions (email, purpose, created_at, topic, message) VALUES (?, ?, ?, ?, ?)"
         + " ON CONFLICT (email, purpose) DO NOTHING",
-      ).bind(email, purpose, createdAt, topic).run();
+      ).bind(email, purpose, createdAt, topic, message).run();
       return Number(result.meta?.changes ?? 0) > 0;
     },
   };
@@ -115,7 +149,12 @@ export async function handleLeadRequest(request, {
   const keys = isObject ? Object.keys(input) : [];
   const expectedTopic = isObject ? FOLLOW_UP_TOPICS[input.purpose] : null;
   const expectedKeys = expectedTopic ? ["email", "purpose", "topic"] : ["email", "purpose"];
-  if (!isObject || keys.length !== expectedKeys.length || !expectedKeys.every((key) => keys.includes(key))) {
+  // `message` is the one key that may be present or absent, and only on a
+  // purpose whose form offers the field. Everything else is still exact.
+  const allowedKeys = isObject && FOLLOW_UP_MESSAGE_PURPOSES.includes(input.purpose)
+    ? [...expectedKeys, "message"]
+    : expectedKeys;
+  if (!isObject || !keys.every((key) => allowedKeys.includes(key)) || !expectedKeys.every((key) => keys.includes(key))) {
     return json({ error: { code: "invalid_request", message: "Body contains unsupported or missing fields.", request_id: requestId } }, 400, requestId);
   }
   const email = normalizeEmail(input.email);
@@ -128,9 +167,13 @@ export async function handleLeadRequest(request, {
   if (expectedTopic && input.topic !== expectedTopic) {
     return json({ error: { code: "invalid_topic", message: "Topic does not match the request type.", request_id: requestId } }, 422, requestId);
   }
+  const { message, invalid: unusableMessage } = normalizeFollowUpMessage(input.message);
+  if (unusableMessage) {
+    return json({ error: { code: "invalid_message", message: `Your message must be ${MAX_FOLLOW_UP_MESSAGE_LENGTH} characters or fewer.`, request_id: requestId } }, 422, requestId);
+  }
 
   try {
-    const created = await store.capture(email, input.purpose, now(), expectedTopic ?? null);
+    const created = await store.capture(email, input.purpose, now(), expectedTopic ?? null, message ?? null);
     return json({ captured: true, created, purpose: input.purpose }, created ? 201 : 200, requestId);
   } catch {
     // Correlatable in platform logs without copying a driver message that may

@@ -26,7 +26,10 @@ const TIMEOUT_MS = 10000;
  * same questions in the same order: what to type, what a rejection means, and
  * what is and is not known when nothing answered.
  */
-const UNREADABLE_CODES = ["invalid_request", "invalid_purpose", "invalid_json", "unsupported_media_type", "method_not_allowed"];
+const UNREADABLE_CODES = ["invalid_request", "invalid_purpose", "invalid_json", "unsupported_media_type", "method_not_allowed", "invalid_message"];
+
+// One limit for both halves: src/leads.js imports it rather than repeating it.
+export const MAX_FOLLOW_UP_MESSAGE_LENGTH = 200;
 
 // Keyed by the contract's application `error.code` enum. Every one of these
 // means the address is definitely not stored, so the copy can say so.
@@ -128,13 +131,13 @@ export function resolveFailure(response, body, copy) {
   return { message: copy.unconfirmed, reason: "unconfirmed" };
 }
 
-// Sends the address, fixed routing label, and an optional fixed topic. Every
-// 2xx is a capture, including legacy responses that predate `created`.
-export async function postLeadEmail(request, email, purpose, copy, topic = null) {
+// Sends the address, routing label, optional fixed topic, optional message.
+// Every 2xx is a capture, including legacy responses that predate `created`.
+export async function postLeadEmail(request, email, purpose, copy, topic = null, message = null) {
   const response = await request(ENDPOINT, {
     method: "POST",
     headers: { "content-type": "application/json", accept: "application/json" },
-    body: JSON.stringify(topic ? { email, purpose, topic } : { email, purpose }),
+    body: JSON.stringify({ email, purpose, ...(topic && { topic }), ...(message && { message }) }),
     // Without this a hung request strands the visitor on "Submitting…"
     // with the control disabled and no way to recover.
     signal: globalThis.AbortSignal?.timeout?.(TIMEOUT_MS),
