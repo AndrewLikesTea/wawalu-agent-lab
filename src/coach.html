@@ -148,13 +148,20 @@
           </div>
           <div class="prompt-coaching-field prompt-coaching-field-model">
             <label for="prompt-coaching-model">Model you used (optional)</label>
-            <select id="prompt-coaching-model" name="modelTier">
+            <!-- The tiers are described by what the model is at its provider,
+                 never by name or version, so a reader who knows what they used
+                 can pick without guessing and the text cannot go stale as
+                 providers ship. The hint carries an id because it is the
+                 select's accessible description, read on focus, and the
+                 consequence of picking nothing stays last: it is what happens
+                 when the reader leaves the control alone. -->
+            <select id="prompt-coaching-model" name="modelTier" aria-describedby="prompt-coaching-model-hint">
               <option value="">Not specified</option>
               <option value="premium">Premium or frontier</option>
               <option value="standard">Standard</option>
               <option value="economy">Economy or small</option>
             </select>
-            <p class="prompt-coaching-hint">Model fit is one of the three scores. Left as Not specified, this grade makes no routing recommendation rather than assuming a tier.</p>
+            <p class="prompt-coaching-hint" id="prompt-coaching-model-hint">Model fit is one of the three scores. Pick the tier by what the model is at its provider: Premium or frontier is the most capable model a provider sells, Standard is a provider’s general-purpose default, and Economy or small is a provider’s small or cheap model. Left as Not specified, this grade makes no routing recommendation rather than assuming a tier.</p>
           </div>
           <div class="prompt-coaching-actions">
             <button type="submit" id="prompt-coaching-grade">Grade this prompt</button>

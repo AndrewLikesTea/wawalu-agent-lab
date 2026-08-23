@@ -411,6 +411,40 @@ test("the model select offers a stated-nothing default and does not require a ch
   }
 });
 
+test("the model select describes each tier by what the model is at its provider", async () => {
+  const page = await openCoachingPage();
+  try {
+    const { document } = page;
+    const select = byId(document, "prompt-coaching-model");
+
+    // Every offered label is still offered, against the value it grades as: the
+    // guidance explains the choices, it does not rename them.
+    assert.deepEqual(select.options.map((option) => option.getAttribute("value")),
+      ["", "premium", "standard", "economy"]);
+    assert.deepEqual(select.options.map((option) => textOf(option)),
+      ["Not specified", "Premium or frontier", "Standard", "Economy or small"]);
+
+    // The guidance is the control's accessible description, so a reader hears
+    // it on focus rather than having to find a paragraph below the field.
+    const describedBy = select.getAttribute("aria-describedby").split(/\s+/);
+    assert.deepEqual(describedBy, ["prompt-coaching-model-hint"]);
+    const description = describedBy.map((id) => textOf(byId(document, id))).join(" ");
+
+    // Each tier is placed by what kind of model it is at any provider, and no
+    // model name or version number is spent, because those go stale.
+    assert.match(description, /Premium or frontier is the most capable model a provider sells/);
+    assert.match(description, /Standard is a provider’s general-purpose default/);
+    assert.match(description, /Economy or small is a provider’s small or cheap model/);
+    assert.doesNotMatch(description, /\d/, description);
+
+    // And picking nothing still reads as the consequence of picking nothing.
+    assert.match(description,
+      /Left as Not specified, this grade makes no routing recommendation rather than assuming a tier\./);
+  } finally {
+    page.restore();
+  }
+});
+
 // ---------------------------------------------------------------------------
 // The pre-paste preview
 // ---------------------------------------------------------------------------
