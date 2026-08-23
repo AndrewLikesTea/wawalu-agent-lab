@@ -223,9 +223,15 @@
              needs this sentence needs it before the records. -->
         <p class="feed-summary" id="release-count" aria-live="polite"></p>
         <div class="release-filters" role="search" aria-label="Filter releases">
+          <!-- The two filters below say what they narrow to; this one used to
+               say nothing, so what a typed word was tested against was a guess.
+               The line names the fields filterReleases actually reads and no
+               others — a version tag or an owner name matches nothing — and a
+               test in releases.test.js holds the sentence to that function. -->
           <div class="filter release-search-filter">
             <label for="release-search">Search releases</label>
-            <input id="release-search" type="search" placeholder="Title, description, or decision context" autocomplete="off" />
+            <input id="release-search" type="search" placeholder="Title, description, or decision context" autocomplete="off" aria-describedby="release-search-hint" />
+            <span class="hint" id="release-search-hint">Shows releases matching your text in their title or summary, or in the title or context of a linked decision.</span>
           </div>
           <div class="filter">
             <label for="release-status">Release status</label>

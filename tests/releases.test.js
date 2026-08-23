@@ -456,6 +456,49 @@ function labelMap(links, key, value) {
   return map;
 }
 
+// What the search field narrows to, in the shape the two filters beside it
+// already use. The sentence is a claim about filterReleases, so it is held to
+// that function rather than to itself: every field it names has to find a
+// release, and the fields it leaves out have to find nothing.
+const SEARCH_SCOPE_HINT = "Shows releases matching your text in their title or summary, "
+  + "or in the title or context of a linked decision.";
+
+test("the search field says which parts of a release it matches, and matches those", async (t) => {
+  const page = await openReleasesPage(t);
+  const input = page.document.querySelector("#release-search");
+  const label = [...page.document.querySelectorAll("label")].find((node) => node.getAttribute("for") === "release-search");
+  assert.equal(textOf(label), "Search releases");
+
+  // Described by the line, not merely printed beside it — the association the
+  // linked-decision filter below it already carries.
+  assert.equal(input.getAttribute("aria-describedby"), "release-search-hint");
+  assert.equal(textOf(page.document.getElementById("release-search-hint")), SEARCH_SCOPE_HINT);
+
+  // One term per field, sharing no word with any other, so a hit names the
+  // field it came through. The release is titled, which is what keeps its
+  // version out of the search: an untitled release falls back to it.
+  const scopeDecisions = [
+    { id: "d-scope", title: "Zephyr", context: "Quilting", owner: "Ari", status: "accepted", createdAt: "2026-06-01T00:00:00.000Z" },
+  ];
+  const scoped = [{
+    id: "r-scope",
+    version: "v9.9.9-perihelion",
+    title: "Nightjar",
+    description: "Cormorant",
+    owner: "Wolstenholme",
+    status: "completed",
+    createdAt: "2026-06-02T00:00:00.000Z",
+    decisionIds: ["d-scope"],
+  }];
+  const finds = (query) => filterReleases(scoped, scopeDecisions, { query }).length === 1;
+  for (const term of ["Nightjar", "Cormorant", "Zephyr", "Quilting"]) {
+    assert.ok(finds(term), `search no longer matches "${term}", which the help line promises it does`);
+  }
+  for (const term of ["perihelion", "Wolstenholme"]) {
+    assert.equal(finds(term), false, `search matches "${term}", which the help line does not name`);
+  }
+});
+
 const RETIRED_NAMES = [
   "the running deployment",
   "the version this site is running right now",
