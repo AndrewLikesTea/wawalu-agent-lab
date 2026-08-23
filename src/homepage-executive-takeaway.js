@@ -53,11 +53,23 @@ export const TAKEAWAY_COPY_FEEDBACK = Object.freeze({
 });
 
 import {
-  CONTACT_COPY, emailFieldError, looksLikeEmail, postLeadEmail, SubmissionError,
+  CONTACT_COPY, emailFieldError, looksLikeEmail, MAX_FOLLOW_UP_MESSAGE_LENGTH, postLeadEmail,
+  SubmissionError,
 } from "./lead-capture.js";
 import { createFollowUpConfirmation } from "./follow-up-confirmation.js";
 
 export const FINOPS_EXAMPLE_FOLLOW_UP_PURPOSE = "follow_up_finops_example";
+
+/**
+ * The refusal, in the Social composer's words on this field's budget: how long
+ * the message is, how far over it is, and what the limit is. `overLengthPostMessage`
+ * in src/social.js says the same three things about a post, and this is not an
+ * import of it — that module is not something the home page's first screen can
+ * load for one subtraction. It is the sentence, not a second mechanism.
+ */
+export function overLengthMessage(length, max = MAX_FOLLOW_UP_MESSAGE_LENGTH) {
+  return `Your message is ${length} characters — ${length - max} over the ${max} limit.`;
+}
 
 /** Wire the native copy button. The clipboard is injectable for focused tests. */
 export function bindExecutiveTakeaway(doc = globalThis.document, clipboard = globalThis.navigator?.clipboard) {
@@ -85,8 +97,11 @@ export function bindFinopsExampleFollowUp(doc = globalThis.document, request = (
   const form = doc?.getElementById("finops-example-follow-up-form");
   const status = doc?.getElementById("finops-example-follow-up-status");
   const error = doc?.getElementById("finops-example-follow-up-error");
-  if (!open || !panel || !form || !status || !error) return null;
+  const messageError = doc?.getElementById("finops-example-follow-up-message-error");
+  const counter = doc?.getElementById("finops-example-follow-up-message-counter");
+  if (!open || !panel || !form || !status || !error || !messageError || !counter) return null;
   const email = form.elements.email;
+  const message = form.elements.message;
   const submit = form.querySelector('button[type="submit"]');
   const retry = doc.getElementById("finops-example-follow-up-retry");
   const confirmation = createFollowUpConfirmation({
@@ -114,6 +129,26 @@ export function bindFinopsExampleFollowUp(doc = globalThis.document, request = (
     error.textContent = "";
     email.removeAttribute("aria-invalid");
   });
+
+  /**
+   * The live count, and the refusal that arrives with it.
+   *
+   * Both halves come off the same measurement in the same moment, so the number
+   * beside the field and the sentence under it cannot disagree about which side
+   * of the limit the message is on. Returns whether it is over, because that is
+   * the same question the submit path has to ask.
+   */
+  function updateCounter() {
+    const { length } = message.value;
+    const over = length > MAX_FOLLOW_UP_MESSAGE_LENGTH;
+    counter.textContent = `${MAX_FOLLOW_UP_MESSAGE_LENGTH - length}`;
+    messageError.textContent = over ? overLengthMessage(length) : "";
+    messageError.hidden = !over;
+    if (over) message.setAttribute("aria-invalid", "true");
+    else message.removeAttribute("aria-invalid");
+    return over;
+  }
+  message.addEventListener("input", updateCounter);
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     if (form.dataset.state === "submitting" || form.dataset.state === "success") return;
@@ -130,6 +165,16 @@ export function bindFinopsExampleFollowUp(doc = globalThis.document, request = (
       email.focus();
       return;
     }
+    // Refused here, before the request, against the number the endpoint would
+    // refuse it against — the field states one limit and both halves keep it.
+    // Nothing typed is cleared or truncated on the way out.
+    if (updateCounter()) {
+      form.dataset.state = "invalid";
+      showRetry(false);
+      status.textContent = "";
+      message.focus();
+      return;
+    }
     form.dataset.state = "submitting";
     showRetry(false);
     error.hidden = true;
@@ -140,7 +185,10 @@ export function bindFinopsExampleFollowUp(doc = globalThis.document, request = (
     try {
       const address = email.value.trim();
       const topic = form.elements.topic.value;
-      await postLeadEmail(request, email.value, FINOPS_EXAMPLE_FOLLOW_UP_PURPOSE, CONTACT_COPY, topic);
+      // Blank stays off the wire entirely: an optional field left empty sends
+      // exactly the request this form sent before it existed.
+      const note = message.value.trim() || null;
+      await postLeadEmail(request, email.value, FINOPS_EXAMPLE_FOLLOW_UP_PURPOSE, CONTACT_COPY, topic, note);
       form.dataset.state = "success";
       status.textContent = "Request received. Your submitted work email and follow-up topic were recorded.";
       confirmation.show(address, topic);

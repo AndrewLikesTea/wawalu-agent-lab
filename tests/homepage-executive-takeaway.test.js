@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { loadPage, pressEnter, tabSequence, textOf } from "./support/browser.js";
+import { loadPage, pressEnter, tabSequence, textOf, typeText } from "./support/browser.js";
 import { importPageModule } from "./support/page-module.js";
 import {
   ANALYZED_PERIOD, bindFinopsExampleFollowUp, EXECUTIVE_TAKEAWAY,
@@ -10,6 +10,8 @@ import {
 import { analyzedPeriodPhrase, EXAMPLE_MONTHS, reportingWindow } from "../src/analyzed-period.js";
 import { loadExampleDataset } from "../src/example-dataset.js";
 import { onRequest } from "../functions/api/leads.js";
+import { createMemoryLeadStore, FOLLOW_UP_TOPICS, handleLeadRequest } from "../src/leads.js";
+import { MAX_FOLLOW_UP_MESSAGE_LENGTH } from "../src/lead-capture.js";
 import { createTestD1 } from "./support/d1-sqlite.js";
 import { buildStandHeadline } from "../src/finops-stand.js";
 import { buildFirstRunResult } from "../src/finops-first-run.js";
@@ -21,8 +23,11 @@ const NativeResponse = globalThis.Response;
 // src/lead-capture.js); the rest is this form's, because this form posts the
 // readonly topic field beside the address and the footer's "nothing else on
 // this page is sent" would be a claim its own request breaks.
+// #1985: three things, because the form now offers a third. The list is the
+// order the controls stand in, and nothing else on the page has a route to the
+// wire — `postLeadEmail` builds the body from these arguments and no others.
 const DISCLOSURE = "The work email address you type here goes to the Wawalu team that operates Shiplog;"
-  + " only that address and this fixed follow-up topic are sent.";
+  + " only that address, this fixed follow-up topic, and the message you type are sent.";
 
 async function openTakeaway(t, clipboard) {
   const page = await loadPage(PAGE);
@@ -316,6 +321,7 @@ test("the worked decision is offered before the work email is asked for", async 
   assert.equal(document.getElementById("finops-example-follow-up-open")
     .getAttribute("aria-controls"), "finops-example-follow-up-panel");
   for (const id of ["finops-example-follow-up-form", "finops-example-follow-up-topic",
+    "finops-example-follow-up-message", "finops-example-follow-up-message-counter",
     "finops-example-follow-up-email", "finops-example-follow-up-disclosure",
     "finops-example-follow-up-retry", "finops-example-follow-up-status"]) {
     assert.ok(at("finops-example-follow-up-panel") < at(id), `${id} left the moved panel`);
@@ -347,9 +353,10 @@ test("moving the follow-up ask spends no tab stop and reorders no other control"
   // everything above — never above the link they have not read yet.
   document.getElementById("finops-example-follow-up-open").click();
   const opened = tabSequence(document).filter((stop) => inHero.has(stop));
-  // Three, not four: the retry control ships hidden and only stands in for the
+  // Four, not five: the retry control ships hidden and only stands in for the
   // send control after a request has actually failed.
-  assert.equal(opened.length, stops.length + 3, "the open panel offers the topic, the field, and one send control");
+  assert.equal(opened.length, stops.length + 4,
+    "the open panel offers the topic, the message, the field, and one send control");
   assert.equal(opened.indexOf(document.getElementById("finops-example-follow-up-open")), 3,
     "the disclosure must still be the last stop the closed first screen offers");
 });
@@ -417,13 +424,261 @@ test("a valid contextual request persists and renders an accurate promise-free r
   assert.match(receipt, /Bundled AI FinOps example — lower-cost routing in Atlas Platform/);
   assert.doesNotMatch(receipt, /will reply|within two business days/i);
   assert.equal(form.hidden, true);
-  const row = db.raw.prepare("SELECT email, purpose, topic FROM lead_submissions WHERE email = ?").get("finops@example.com");
+  const row = db.raw.prepare("SELECT email, purpose, topic, message FROM lead_submissions WHERE email = ?").get("finops@example.com");
   assert.equal(row.email, "finops@example.com");
   assert.equal(row.purpose, FINOPS_EXAMPLE_FOLLOW_UP_PURPOSE);
   assert.equal(row.topic, "Bundled AI FinOps example — lower-cost routing in Atlas Platform");
-  // The stored row is the whole of what the sentence above the button promised:
-  // that address, that topic, and no third column.
+  // The stored row is the whole of what the sentence above the button promised,
+  // and no more: nothing was typed in the optional field, so the column is null
+  // rather than an empty string standing in for a question nobody asked.
+  assert.equal(row.message, null);
   assert.equal(textOf(document.getElementById("finops-example-follow-up-disclosure")), DISCLOSURE);
+});
+
+/* ------------------- the optional message, click to row -------------------- */
+
+const MESSAGE_ID = "finops-example-follow-up-message";
+const COUNTER_ID = "finops-example-follow-up-message-counter";
+const TOPIC = "Bundled AI FinOps example — lower-cost routing in Atlas Platform";
+
+/** Open the panel and put the caret in the message field, as a visitor would. */
+function openAndFocusMessage(document) {
+  document.getElementById("finops-example-follow-up-open").click();
+  const field = document.getElementById(MESSAGE_ID);
+  field.value = "";
+  field.focus();
+  return field;
+}
+
+const settle = () => new Promise((resolve) => setImmediate(resolve));
+
+test("the optional message field is offered above the address, with its limit in words", async (t) => {
+  const document = await openContextualFollowUp(t, async () => reply({ captured: true, created: true }));
+  document.getElementById("finops-example-follow-up-open").click();
+  const form = document.getElementById("finops-example-follow-up-form");
+  const field = document.getElementById(MESSAGE_ID);
+
+  // Plain words, and marked optional in the site's own way — the same
+  // `.label-optional` span the Social composer puts on a field you may skip.
+  const label = document.querySelector(`label[for="${MESSAGE_ID}"]`);
+  assert.equal(textOf(label), "What do you want to know? (optional)");
+  assert.equal(field.hasAttribute("required"), false);
+
+  // Keyboard order is reading order: the topic a visitor is told about, then
+  // what they want to ask, then the address the answer would go to.
+  const order = form.querySelectorAll("input,p,button");
+  const at = (node) => order.indexOf(node);
+  assert.ok(at(document.getElementById("finops-example-follow-up-topic")) < at(field));
+  assert.ok(at(field) < at(document.getElementById("finops-example-follow-up-email")));
+  const stops = tabSequence(document).map((stop) => stop.getAttribute("id"));
+  assert.ok(stops.indexOf(MESSAGE_ID) > stops.indexOf("finops-example-follow-up-topic"));
+  assert.ok(stops.indexOf(MESSAGE_ID) < stops.indexOf("finops-example-follow-up-email"));
+
+  // The limit is stated in prose as well as counted, and the field is described
+  // by both, so a reader who never sees the count still meets the number.
+  const described = (field.getAttribute("aria-describedby") ?? "").split(/\s+/);
+  assert.ok(described.includes("finops-example-follow-up-message-hint"));
+  assert.ok(described.includes(COUNTER_ID));
+  assert.equal(textOf(document.getElementById("finops-example-follow-up-message-hint")),
+    `Up to ${MAX_FOLLOW_UP_MESSAGE_LENGTH} characters.`);
+  assert.equal(textOf(document.getElementById("finops-example-follow-up-message-counter-label")),
+    "Characters remaining:");
+
+  // The Social composer's live region, so the count is announced rather than
+  // only drawn: a counter that only changes colour is half a signal.
+  const counter = document.getElementById(COUNTER_ID);
+  assert.equal(counter.getAttribute("aria-live"), "polite");
+  assert.equal(counter.getAttribute("aria-atomic"), "true");
+  assert.equal(textOf(counter), String(MAX_FOLLOW_UP_MESSAGE_LENGTH));
+});
+
+test("the remaining-characters count follows what the visitor types", async (t) => {
+  const document = await openContextualFollowUp(t, async () => reply({ captured: true, created: true }));
+  openAndFocusMessage(document);
+  const counter = document.getElementById(COUNTER_ID);
+
+  typeText(document, "Can you");
+  assert.equal(textOf(counter), String(MAX_FOLLOW_UP_MESSAGE_LENGTH - 7));
+  typeText(document, " share the routing detail?");
+  assert.equal(textOf(counter), String(MAX_FOLLOW_UP_MESSAGE_LENGTH - 33));
+  // Nothing is refused yet, so nothing says anything is wrong.
+  assert.equal(document.getElementById("finops-example-follow-up-message-error").hidden, true);
+  assert.equal(document.getElementById(MESSAGE_ID).getAttribute("aria-invalid"), null);
+});
+
+test("an empty optional field sends exactly the request this form sent before it existed", async (t) => {
+  const calls = [];
+  const document = await openContextualFollowUp(t, async (url, options) => {
+    calls.push({ url, options });
+    return reply({ captured: true, created: true });
+  });
+  document.getElementById("finops-example-follow-up-open").click();
+  const email = document.getElementById("finops-example-follow-up-email");
+  email.value = "finops@example.com";
+  email.focus();
+  pressEnter(document);
+  await settle();
+
+  assert.deepEqual(JSON.parse(calls[0].options.body), {
+    email: "finops@example.com", purpose: FINOPS_EXAMPLE_FOLLOW_UP_PURPOSE, topic: TOPIC,
+  }, "an untouched optional field puts no key on the wire");
+  const form = document.getElementById("finops-example-follow-up-form");
+  assert.equal(form.dataset.state, "success");
+  assert.match(textOf(document.getElementById("finops-example-follow-up-confirmation")),
+    /Request received\. Submitted work email: finops@example\.com/);
+});
+
+test("a typed message reaches the real endpoint and lands in the row beside the address", async (t) => {
+  const db = await createTestD1();
+  t.after(() => db.close());
+  const calls = [];
+  const document = await openContextualFollowUp(t, (url, options) => {
+    calls.push({ url, options });
+    return onRequest({
+      request: new Request(`https://labs.wawalu.org${url}`, options),
+      env: { DB: db },
+    });
+  });
+  openAndFocusMessage(document);
+  typeText(document, "Which models are in the lower-cost tier?");
+  const email = document.getElementById("finops-example-follow-up-email");
+  email.value = "director@example.com";
+  email.focus();
+  pressEnter(document);
+  await settle();
+
+  const form = document.getElementById("finops-example-follow-up-form");
+  assert.equal(form.dataset.state, "success",
+    textOf(document.getElementById("finops-example-follow-up-status")));
+  // The click, the wire, and the row: the same string in all three places, and
+  // the topic the page has always sent, unchanged beside it.
+  assert.deepEqual(JSON.parse(calls[0].options.body), {
+    email: "director@example.com",
+    purpose: FINOPS_EXAMPLE_FOLLOW_UP_PURPOSE,
+    topic: TOPIC,
+    message: "Which models are in the lower-cost tier?",
+  });
+  const row = db.raw.prepare("SELECT email, purpose, topic, message FROM lead_submissions").all()[0];
+  assert.equal(row.email, "director@example.com");
+  assert.equal(row.purpose, FINOPS_EXAMPLE_FOLLOW_UP_PURPOSE);
+  assert.equal(row.topic, TOPIC);
+  assert.equal(row.message, "Which models are in the lower-cost tier?");
+});
+
+test("a message past the stated limit is refused here, in words that name the limit", async (t) => {
+  const calls = [];
+  const document = await openContextualFollowUp(t, async (...args) => {
+    calls.push(args);
+    return reply({ captured: true, created: true });
+  });
+  const field = openAndFocusMessage(document);
+  const over = "x".repeat(MAX_FOLLOW_UP_MESSAGE_LENGTH + 12);
+  typeText(document, over);
+
+  // The count and the sentence come off one measurement, so they cannot
+  // disagree about which side of the limit the message is on.
+  assert.equal(textOf(document.getElementById(COUNTER_ID)), "-12");
+  const refusal = document.getElementById("finops-example-follow-up-message-error");
+  assert.equal(refusal.hidden, false);
+  assert.equal(textOf(refusal),
+    `Your message is ${MAX_FOLLOW_UP_MESSAGE_LENGTH + 12} characters — 12 over the ${MAX_FOLLOW_UP_MESSAGE_LENGTH} limit.`);
+  assert.equal(refusal.getAttribute("role"), "alert");
+  assert.equal(field.getAttribute("aria-invalid"), "true");
+
+  const email = document.getElementById("finops-example-follow-up-email");
+  email.value = "director@example.com";
+  email.focus();
+  pressEnter(document);
+  await settle();
+
+  // Nothing left the page, and nothing the visitor typed was cleared or cut
+  // down to fit — both values are still theirs to correct.
+  assert.equal(calls.length, 0, "an over-limit message must never reach the network");
+  assert.equal(document.getElementById("finops-example-follow-up-form").dataset.state, "invalid");
+  assert.equal(field.value, over);
+  assert.equal(email.value, "director@example.com");
+  assert.equal(textOf(document.getElementById("finops-example-follow-up-status")), "");
+});
+
+test("the endpoint refuses the same limit the field states, and stores nothing", async (t) => {
+  const db = await createTestD1();
+  t.after(() => db.close());
+  const post = (message) => onRequest({
+    request: new Request("https://labs.wawalu.org/api/leads", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email: "over@example.com", purpose: FINOPS_EXAMPLE_FOLLOW_UP_PURPOSE, topic: TOPIC, message }),
+    }),
+    env: { DB: db },
+  });
+
+  const refused = await post("y".repeat(MAX_FOLLOW_UP_MESSAGE_LENGTH + 1));
+  assert.equal(refused.status, 422);
+  assert.equal((await refused.json()).error.code, "invalid_message");
+  assert.equal(db.raw.prepare("SELECT count(*) AS count FROM lead_submissions").get().count, 0,
+    "a refused message must not leave a row behind");
+
+  // And the last character the field allows is accepted, so the two halves
+  // refuse the same submissions rather than merely similar ones.
+  const accepted = await post("y".repeat(MAX_FOLLOW_UP_MESSAGE_LENGTH));
+  assert.equal(accepted.status, 201);
+  assert.equal(db.raw.prepare("SELECT message FROM lead_submissions").get().message.length,
+    MAX_FOLLOW_UP_MESSAGE_LENGTH);
+});
+
+test("a message sent for a purpose whose form has no such field is refused, not stored", async () => {
+  // Only the home page's form offers a message. A `message` key on any other
+  // request type is a field no surface invited, so it is an unsupported body
+  // rather than a column to quietly fill.
+  const response = await handleLeadRequest(new Request("https://test.invalid/api/leads", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      email: "director@example.com", purpose: "follow_up_coach",
+      topic: FOLLOW_UP_TOPICS.follow_up_coach, message: "Smuggled",
+    }),
+  }), { store: createMemoryLeadStore() });
+  assert.equal(response.status, 400);
+  assert.equal((await response.json()).error.code, "invalid_request");
+});
+
+test("a failed request keeps both typed values, and the retry resends the message with them", async (t) => {
+  const calls = [];
+  let attempt = 0;
+  const document = await openContextualFollowUp(t, async (url, options) => {
+    calls.push({ url, options });
+    attempt += 1;
+    return attempt === 1
+      ? reply({ error: { code: "storage_error" } }, 500)
+      : reply({ captured: true, created: true });
+  });
+  const field = openAndFocusMessage(document);
+  typeText(document, "Can we see the routing assumptions?");
+  const email = document.getElementById("finops-example-follow-up-email");
+  email.value = "director@example.com";
+  email.focus();
+  pressEnter(document);
+  await settle();
+
+  const form = document.getElementById("finops-example-follow-up-form");
+  assert.equal(form.dataset.state, "error");
+  // Both fields survive the failure, unchanged, and stay editable.
+  assert.equal(field.value, "Can we see the routing assumptions?");
+  assert.equal(email.value, "director@example.com");
+  assert.equal(field.disabled, false);
+  assert.equal(textOf(document.getElementById(COUNTER_ID)),
+    String(MAX_FOLLOW_UP_MESSAGE_LENGTH - 35));
+
+  // The retry is the same request, message and all — not a bare address.
+  const retry = document.getElementById("finops-example-follow-up-retry");
+  assert.equal(retry.hidden, false);
+  retry.focus();
+  pressEnter(document);
+  await settle();
+  assert.equal(calls.length, 2);
+  assert.deepEqual(JSON.parse(calls[1].options.body), JSON.parse(calls[0].options.body));
+  assert.equal(JSON.parse(calls[1].options.body).message, "Can we see the routing assumptions?");
+  assert.equal(form.dataset.state, "success");
 });
 
 test("every authored claim in the takeaway is one AI FinOps still publishes", () => {
