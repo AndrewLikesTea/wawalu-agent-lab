@@ -542,11 +542,29 @@ test("a page named beneath a destination is named there, by the name the rest of
       "the page must carry the name the footer sends a reader to");
 
     // The reassurance is the AI FinOps row's, one line away: a reader is told
-    // where their export is read before they hand one over.
+    // where their file is read before they hand one over. It names the file
+    // this page reads — an assistant export — because the row above it names a
+    // provider export, and both used to end "your export in this browser tab",
+    // so the band called two different files by one name.
     for (const file of PAGES) {
       assert.ok((await read(file)).includes(
-        '<a href="/personal-history.html">Personal AI history</a> reads your export in this browser tab'),
+        '<a href="/personal-history.html">Personal AI history</a> grades your assistant export in your browser'),
       `${file} is missing "Personal AI history"`);
+      assert.ok(!(await read(file)).includes(
+        '<a href="/personal-history.html">Personal AI history</a> reads your export in this browser tab'),
+      `${file} still calls the assistant export "your export"`);
+    }
+
+    // One name per concept, enforced rather than proof-read: no two clauses in
+    // the band may end on the same words, or a reader meets one promise twice
+    // and has no way to tell which file it was about.
+    const clauses = DEMOS.flatMap((demo) => [demo.purpose, demo.also?.purpose]).filter(Boolean);
+    for (const length of [2, 3]) {
+      const tails = clauses.map((clause) => clause.toLowerCase().split(/\s+/).slice(-length).join(" "));
+      for (const tail of tails) {
+        assert.equal(tails.filter((other) => other === tail).length, 1,
+          `two clauses in the About Shiplog band both end "${tail}"`);
+      }
     }
   } finally {
     page.restore();

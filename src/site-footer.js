@@ -109,11 +109,11 @@ export const DEMOS = Object.freeze([
     // `also` is a page named beneath this destination rather than beside it:
     // src/site-nav.js files /personal-history.html under Prompt coach's section
     // instead of giving it a door, and a reader who left the home page had
-    // nowhere else to find it. Its browser-tab clause is a promise, as above.
+    // nowhere else to find it. Its in-browser clause is a promise, as above.
     also: Object.freeze({
       label: "Personal AI history",
       href: "/personal-history.html",
-      purpose: "reads your export in this browser tab",
+      purpose: "grades your assistant export in your browser",
     }),
   }),
   Object.freeze({ label: "Decisions", href: "/", purpose: "record a decision, then search the history" }),
