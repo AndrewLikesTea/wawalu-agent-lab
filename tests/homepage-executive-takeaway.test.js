@@ -236,27 +236,122 @@ test("the adjacent CTA opens a contextual work-email request that says what is s
   assert.ok(order.indexOf(disclosure) < order.indexOf(form.querySelector('button[type="submit"]')),
     "a claim a reader meets after pressing the button is not one they got to weigh");
   // Once. Two sentences making the same promise is how a reader ends up
-  // deciding whether two wordings mean two promises.
-  assert.equal(textOf(document.querySelector(".executive-takeaway")).split("are sent").length - 1, 1,
+  // deciding whether two wordings mean two promises. Counted over the whole
+  // first screen since #1974 moved the panel below the worked-decision link:
+  // the takeaway card no longer contains it, and a scope that stopped at the
+  // card would count zero and pass.
+  assert.equal(textOf(document.getElementById("top")).split("are sent").length - 1, 1,
     "the panel states what is sent exactly once");
 });
 
 test("the takeaway and the form under it state the sample-data fact once between them", async (t) => {
   const document = await openContextualFollowUp(t, async () => reply({ captured: true, created: true }));
   document.getElementById("finops-example-follow-up-open").click();
-  const card = textOf(document.querySelector(".executive-takeaway"));
+  const screen = textOf(document.getElementById("top"));
   const times = (text, phrase) => text.split(phrase).length - 1;
 
   // Once, in the paragraph the figure is written in, so it travels with the
   // number a reader copies. The open panel is counted too: the caveat may not
-  // reappear behind the control that reveals the form.
-  assert.equal(times(card, "not visitor data"), 1,
-    `the takeaway card and its form state the sample-data fact ${times(card, "not visitor data")} times`);
+  // reappear behind the control that reveals the form. Scoped to the first
+  // screen rather than to the takeaway card, because #1974 moved the panel out
+  // of the card and below the worked-decision link.
+  assert.equal(times(screen, "not visitor data"), 1,
+    `the first screen states the sample-data fact ${times(screen, "not visitor data")} times`);
   assert.match(textOf(document.getElementById("executive-takeaway-text")),
     /Figures are from a bundled synthetic example and are not visitor data\./);
   // One name for one thing: "bundled synthetic data" was the fourth vocabulary.
-  assert.equal(times(card, "bundled synthetic data"), 0,
+  assert.equal(times(screen, "bundled synthetic data"), 0,
     "the sample data is named a bundled synthetic example wherever it is named");
+});
+
+/**
+ * Every element under `root`, in the order a reader meets them. The harness
+ * puts text nodes in `children` and refuses the universal selector, so this
+ * walks the tree and keeps only elements.
+ */
+function inReadingOrder(root, found = []) {
+  for (const child of root.children) {
+    if (child.nodeType !== 1) continue;
+    found.push(child);
+    inReadingOrder(child, found);
+  }
+  return found;
+}
+
+test("the worked decision is offered before the work email is asked for", async (t) => {
+  // #1974: the follow-up panel sat between the takeaway and the AI FinOps link,
+  // so the first screen asked a visitor for their work email before it had shown
+  // them anything the product does. The block moved whole — same copy, same ids,
+  // same submit label, same controls — to below the two entry points.
+  const document = await openContextualFollowUp(t, async () => reply({ captured: true, created: true }));
+  const order = inReadingOrder(document.getElementById("top"));
+  const at = (id) => order.findIndex((node) => node.getAttribute("id") === id);
+  const linkTo = (href) => order.findIndex((node) => node.tagName === "A" && node.getAttribute("href") === href);
+  const worked = linkTo("/evolution.html");
+  const briefing = linkTo("#landing-decision");
+
+  // 1. The takeaway card is the heading, the figures that end in what they are
+  // from, and the control that copies them — and nothing else. Deep-equal
+  // rather than a pair of index comparisons: this is the adjacency the move was
+  // not allowed to disturb, and an extra node between any two of them is the
+  // failure worth catching.
+  assert.deepEqual(
+    inReadingOrder(document.querySelector(".executive-takeaway"))
+      .map((node) => node.getAttribute("id") ?? node.getAttribute("class")),
+    ["executive-takeaway-title", "executive-takeaway-text", "executive-takeaway-actions",
+      "copy-executive-takeaway", "executive-takeaway-status"],
+  );
+  assert.match(textOf(document.getElementById("executive-takeaway-text")),
+    /Figures are from a bundled synthetic example and are not visitor data\.$/);
+
+  // 2 and 3. Both entry points, in their own order, above the ask.
+  assert.ok(at("executive-takeaway-title") < worked,
+    "the worked-decision link must read below the takeaway it summarises");
+  assert.ok(worked < briefing, "the primary entry point must read before the secondary one");
+  assert.ok(briefing < at("finops-example-follow-up-open"),
+    "the follow-up ask must read below both entry points");
+
+  // 4. And the block arrived intact: its disclosure still sits directly above
+  // the panel it controls, and the panel still holds the whole form.
+  assert.equal(document.getElementById("finops-example-follow-up-open")
+    .getAttribute("aria-controls"), "finops-example-follow-up-panel");
+  for (const id of ["finops-example-follow-up-form", "finops-example-follow-up-topic",
+    "finops-example-follow-up-email", "finops-example-follow-up-disclosure",
+    "finops-example-follow-up-retry", "finops-example-follow-up-status"]) {
+    assert.ok(at("finops-example-follow-up-panel") < at(id), `${id} left the moved panel`);
+  }
+
+  // Nothing that asks for an address may be reached between the heading and the
+  // link. Read off the tree rather than from a list of ids, so a second field
+  // added above the link fails here too.
+  const before = order.slice(at("executive-takeaway-title"), worked);
+  assert.equal(before.filter((node) => node.tagName === "INPUT").length, 0,
+    "a field sits between the executive takeaway and the worked-decision link");
+  assert.equal(before.filter((node) => /work email/i.test(textOf(node))).length, 0,
+    "the work-email ask is still read before the worked decision");
+});
+
+test("moving the follow-up ask spends no tab stop and reorders no other control", async (t) => {
+  const document = await openContextualFollowUp(t, async () => reply({ captured: true, created: true }));
+  const inHero = new Set(inReadingOrder(document.getElementById("top")));
+
+  // Four stops before the move, four after: the copy control, the two entry
+  // points, and the disclosure that reveals the form. The panel is closed on
+  // arrival, so its field and its two buttons cost nothing until it is opened —
+  // and the homepage's tab budget is full, so this count may not grow.
+  const stops = tabSequence(document).filter((stop) => inHero.has(stop));
+  assert.deepEqual(stops.map((stop) => stop.getAttribute("id") ?? stop.getAttribute("href")),
+    ["copy-executive-takeaway", "/evolution.html", "#landing-decision", "finops-example-follow-up-open"]);
+
+  // Opening it adds the form's own stops where the reader just pressed, below
+  // everything above — never above the link they have not read yet.
+  document.getElementById("finops-example-follow-up-open").click();
+  const opened = tabSequence(document).filter((stop) => inHero.has(stop));
+  // Three, not four: the retry control ships hidden and only stands in for the
+  // send control after a request has actually failed.
+  assert.equal(opened.length, stops.length + 3, "the open panel offers the topic, the field, and one send control");
+  assert.equal(opened.indexOf(document.getElementById("finops-example-follow-up-open")), 3,
+    "the disclosure must still be the last stop the closed first screen offers");
 });
 
 test("the contextual request validates locally and never shows success for a failed response", async (t) => {
