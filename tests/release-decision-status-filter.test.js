@@ -392,9 +392,12 @@ test("the filter group is one keyboard stop and the arrow keys change the view",
   // Semantics first: a named group, and every option labelled.
   const fieldset = page.document.querySelector(".release-decision-filter");
   assert.equal(fieldset.tagName, "FIELDSET");
-  assert.equal(textOf(fieldset.querySelector("legend")), "Linked decision status");
+  assert.equal(textOf(fieldset.querySelector("legend")), "Status of linked decisions");
   const hint = page.document.getElementById(fieldset.getAttribute("aria-describedby"));
-  assert.ok(hint && textOf(hint) !== "", "the group explains what choosing a status does");
+  assert.equal(
+    textOf(hint),
+    "A release appears when at least one linked decision has the selected status. “Decision not in this log” shows releases linked to a decision this log does not hold. Arrow keys move between the options.",
+  );
   for (const radio of group) {
     const label = page.document.querySelectorAll("label").find((node) => node.getAttribute("for") === radio.id);
     assert.ok(label && textOf(label) !== "", `${radio.value} is labelled`);
