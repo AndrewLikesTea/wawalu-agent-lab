@@ -5,7 +5,7 @@ import { loadPage, pressEnter, tabSequence, textOf, typeText } from "./support/b
 import { importPageModule } from "./support/page-module.js";
 import {
   ANALYZED_PERIOD, bindFinopsExampleFollowUp, EXECUTIVE_TAKEAWAY,
-  FINOPS_EXAMPLE_FOLLOW_UP_PURPOSE, TAKEAWAY_COPY_FEEDBACK, takeawayText,
+  FINOPS_EXAMPLE_FOLLOW_UP_PURPOSE, TAKEAWAY_COPY_FEEDBACK, takeawaySegments, takeawayText,
 } from "../src/homepage-executive-takeaway.js";
 import { analyzedPeriodPhrase, EXAMPLE_MONTHS, reportingWindow } from "../src/analyzed-period.js";
 import { loadExampleDataset } from "../src/example-dataset.js";
@@ -44,7 +44,6 @@ test("the homepage visibly labels a concise, qualified executive takeaway", asyn
 
   assert.equal(region.getAttribute("aria-labelledby"), "executive-takeaway-title");
   assert.equal(textOf(document.getElementById("executive-takeaway-title")), "Executive takeaway");
-  assert.equal(text, EXECUTIVE_TAKEAWAY);
   assert.match(text, /\$51,254 of \$154,500/);
   assert.match(text, /33%/);
   assert.match(text, /Pilot lower-cost routing in Atlas Platform/);
@@ -54,6 +53,39 @@ test("the homepage visibly labels a concise, qualified executive takeaway", asyn
   // the limit on this figure: read alone, "$51,254 is recoverable" is a saving
   // somebody can be held to. It travels with the ceiling or it does not travel.
   assert.match(text, /modelled ceiling on what re-routing this work could save, not money already saved/);
+});
+
+test("the value, qualification, and recommended action are distinct and link to the worked decision", async (t) => {
+  const document = await openTakeaway(t, { writeText: async () => {} });
+  const region = document.querySelector(".executive-takeaway");
+  const order = inReadingOrder(region);
+  const at = (id) => order.findIndex((node) => node.getAttribute("id") === id);
+  const link = region.querySelector('a[href="/evolution.html"]');
+
+  assert.ok(at("executive-takeaway-value") < at("executive-takeaway-qualification"));
+  assert.ok(at("executive-takeaway-qualification") < at("executive-takeaway-action-label"));
+  assert.ok(at("executive-takeaway-action-label") < at("executive-takeaway-action"));
+  assert.match(textOf(link), /^Read the worked decision in AI FinOps/);
+  assert.ok(tabSequence(document).includes(link), "the worked-decision link is keyboard focusable");
+
+  // Splitting one paragraph into four blocks split the agreement this module's
+  // first line makes with the markup, so the agreement is now made per block.
+  // A word edited on screen and not in `takeawaySegments` — or the reverse —
+  // fails here rather than forwarding a sentence nobody on this page can read.
+  const segments = takeawaySegments();
+  const rendered = (id) => textOf(document.getElementById(id));
+  assert.equal(rendered("executive-takeaway-value"), segments.value);
+  assert.equal(rendered("executive-takeaway-qualification"), segments.qualification);
+  assert.equal(rendered("executive-takeaway-action-label"), segments.actionLabel);
+  assert.equal(rendered("executive-takeaway-action"), segments.action);
+  assert.equal(rendered("executive-takeaway-disclosure"), segments.disclosure);
+
+  // And the payload is those same blocks joined, in the order they are read in.
+  // The label leads the action as prose because an inbox has no eyebrow; the
+  // link is a control, so it is the one visible thing the clipboard drops.
+  assert.equal(EXECUTIVE_TAKEAWAY, `${segments.value} ${segments.qualification} `
+    + `${segments.actionLabel}: ${segments.action} ${segments.disclosure}`);
+  assert.ok(!EXECUTIVE_TAKEAWAY.includes("Read the worked decision"));
 });
 
 test("the rendered figure sentence says which months it is true over", async (t) => {
@@ -67,7 +99,7 @@ test("the rendered figure sentence says which months it is true over", async (t)
   // $154,500 total still left a reader unable to tell a month's money from a
   // quarter's. "alone" is the word that settles it, and it is pinned here.
   assert.equal(ANALYZED_PERIOD, "June 2026");
-  assert.ok(text.includes(`is recoverable (33%) in ${ANALYZED_PERIOD} alone —`),
+  assert.ok(text.includes(`is recoverable (33%) in ${ANALYZED_PERIOD} alone.`),
     `the rendered takeaway does not carry the derived period: ${text}`);
   // The span rides on the figure sentence, so it cannot be read as a claim of
   // its own and cannot displace anything above the fold.
@@ -88,7 +120,7 @@ test("the analyzed period is derived from the bundled months, not written down",
   // no fixture file, nothing about "June" anywhere in the derivation.
   assert.equal(analyzedPeriodPhrase(reportingWindow(["2027-02", "2027-03"])), "March 2027");
   assert.ok(takeawayText(analyzedPeriodPhrase(reportingWindow(["2027-02", "2027-03"])))
-    .includes("is recoverable (33%) in March 2027 alone —"));
+    .includes("is recoverable (33%) in March 2027 alone. This is a modelled ceiling"));
   // Whole-month spans and year boundaries are named in calendar words too: a
   // window this cannot say in English must not reach a reader as an ISO string.
   assert.equal(analyzedPeriodPhrase("2026-01-01 to 2026-07-01"), "January–June 2026");
@@ -105,7 +137,7 @@ test("with no nameable period the takeaway degrades to its wording rather than a
   // no usable month, so no window, so no phrase, so no clause.
   for (const empty of [analyzedPeriodPhrase(reportingWindow([])), null, "", "   "]) {
     const degraded = takeawayText(empty);
-    assert.ok(degraded.includes("is recoverable (33%) — a modelled ceiling"),
+    assert.ok(degraded.includes("is recoverable (33%). This is a modelled ceiling"),
       `the degraded takeaway is not the unqualified sentence: ${degraded}`);
     assert.doesNotMatch(degraded, /\balone\b|undefined|null/);
     // Everything else the takeaway owes a reader survives the missing period.
@@ -303,8 +335,10 @@ test("the worked decision is offered before the work email is asked for", async 
   assert.deepEqual(
     inReadingOrder(document.querySelector(".executive-takeaway"))
       .map((node) => node.getAttribute("id") ?? node.getAttribute("class")),
-    ["executive-takeaway-title", "executive-takeaway-text", "executive-takeaway-actions",
-      "copy-executive-takeaway", "executive-takeaway-status"],
+    ["executive-takeaway-title", "executive-takeaway-text", "executive-takeaway-value", null,
+      "executive-takeaway-qualification", "takeaway-action", "executive-takeaway-action-label",
+      "executive-takeaway-action", null, "button-link", null, "executive-takeaway-disclosure",
+      "executive-takeaway-actions", "copy-executive-takeaway", "executive-takeaway-status"],
   );
   assert.match(textOf(document.getElementById("executive-takeaway-text")),
     /Figures are from a bundled synthetic example and are not visitor data\.$/);
@@ -341,13 +375,14 @@ test("moving the follow-up ask spends no tab stop and reorders no other control"
   const document = await openContextualFollowUp(t, async () => reply({ captured: true, created: true }));
   const inHero = new Set(inReadingOrder(document.getElementById("top")));
 
-  // Four stops before the move, four after: the copy control, the two entry
-  // points, and the disclosure that reveals the form. The panel is closed on
+  // Four stops: the action's worked-decision link, the copy control, the
+  // briefing entry point, and the disclosure that reveals the form. The panel is closed on
   // arrival, so its field and its two buttons cost nothing until it is opened —
   // and the homepage's tab budget is full, so this count may not grow.
   const stops = tabSequence(document).filter((stop) => inHero.has(stop));
   assert.deepEqual(stops.map((stop) => stop.getAttribute("id") ?? stop.getAttribute("href")),
-    ["copy-executive-takeaway", "/evolution.html", "#landing-decision", "finops-example-follow-up-open"]);
+    ["/evolution.html", "copy-executive-takeaway", "#landing-decision",
+      "finops-example-follow-up-open"]);
 
   // Opening it adds the form's own stops where the reader just pressed, below
   // everything above — never above the link they have not read yet.

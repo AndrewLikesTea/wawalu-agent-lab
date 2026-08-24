@@ -21,7 +21,19 @@
   max-width:760px; margin:22px 0 0; border:1px solid #b9cec4; border-left:5px solid #315f50;
   border-radius:12px; padding:16px; background:#eef6f2;
 }
-.executive-takeaway > p:not(.eyebrow) { margin:8px 0 0; font-size:15px; line-height:1.55; }
+.executive-takeaway #executive-takeaway-text > p { margin:8px 0 0; font-size:15px; line-height:1.55; }
+
+/* The step this screen asks for. It takes the privacy boundary's block treatment
+ * — rule, indent, eyebrow — but not its class and not its 13px: the boundary is
+ * a footnote to a decision, and this is the decision. Set at the takeaway's own
+ * type size, so the action never reads smaller than the figure it answers, and
+ * distinguished by rule and label rather than by tint, so it survives greyscale.
+ * The link's own gap is narrowed because two levels of padding sit inside it
+ * here, and at 320px the label may wrap but may not be pushed out of the box. */
+.takeaway-action { margin-top:14px; border-left:4px solid #315f50; border-radius:0 10px 10px 0; padding:10px 14px; }
+.takeaway-action p { margin:0; font-size:15px; line-height:1.55; overflow-wrap:anywhere; }
+.takeaway-action p + p { margin-top:8px; }
+.takeaway-action .button-link { gap:14px; }
 .executive-takeaway-actions {
   display:flex; align-items:center; flex-wrap:wrap; gap:10px 14px; margin-top:14px;
 }

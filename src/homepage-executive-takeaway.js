@@ -1,6 +1,9 @@
 // The homepage's short, forwardable reading of the bundled worked decision.
-// Keep this byte-identical to #executive-takeaway-text: the visible paragraph
-// lets a reader verify the clipboard payload before activating the control.
+// Keep this byte-identical to #executive-takeaway-text: the visible text lets a
+// reader verify the clipboard payload before activating the control. The screen
+// now prints that text as four labelled blocks rather than one paragraph, so the
+// segments below are the unit of that agreement — one authored source, rendered
+// as blocks and forwarded as prose, rather than two strings free to drift.
 // Every claim here EXCEPT THE PERIOD is authored rather than composed, because the composer that
 // publishes it on AI FinOps carries an import graph this first screen must not
 // pay for. Authored, then, but not unpinned: the test file holds all four
@@ -36,13 +39,27 @@ export const ANALYZED_PERIOD = analyzedPeriodPhrase(reportingWindow());
  * The clause is dropped whole when no period can be named. There is no state in
  * which this prints "in " with nothing after it.
  */
-export function takeawayText(period = ANALYZED_PERIOD) {
+export function takeawaySegments(period = ANALYZED_PERIOD) {
   const span = typeof period === "string" && period.trim() ? ` in ${period.trim()} alone` : "";
-  return `$51,254 of $154,500 in analyzed AI spend is recoverable (33%)${span} `
-    + "— a modelled ceiling on what re-routing this work could save, not money already saved. "
-    + "First recommended action: Pilot lower-cost routing in Atlas Platform. "
-    + "Accountable role: Platform Engineering Lead. Figures are from a bundled synthetic example "
-    + "and are not visitor data.";
+  return Object.freeze({
+    value: `$51,254 of $154,500 in analyzed AI spend is recoverable (33%)${span}.`,
+    qualification:
+      "This is a modelled ceiling on what re-routing this work could save, not money already saved.",
+    actionLabel: "First recommended action",
+    action: "Pilot lower-cost routing in Atlas Platform. Accountable role: Platform Engineering Lead.",
+    disclosure: "Figures are from a bundled synthetic example and are not visitor data.",
+  });
+}
+
+/**
+ * The same four blocks joined back into the one paragraph the clipboard carries:
+ * an inbox is not a layout, so the label that is an eyebrow on screen is the
+ * "First recommended action:" lead-in in the forwarded text. The link beside the
+ * action is a control, not a sentence, and is not part of the payload.
+ */
+export function takeawayText(period = ANALYZED_PERIOD) {
+  const { value, qualification, actionLabel, action, disclosure } = takeawaySegments(period);
+  return `${value} ${qualification} ${actionLabel}: ${action} ${disclosure}`;
 }
 
 export const EXECUTIVE_TAKEAWAY = takeawayText();

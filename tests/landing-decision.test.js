@@ -193,15 +193,21 @@ test("the first screen makes its privacy promise at most twice, beside the link 
   assert.doesNotMatch(boundary, /nothing of yours is stored/,
     "the boundary must not promise a blanket no-storage the retained months break");
 
-  // And it is made where the file is: in the hero's own block, immediately
-  // after the AI FinOps link a reader is deciding to click — not in a banner
-  // further up the page that they have already scrolled past by then.
+  // And it is made where the entry points are: directly after the hero action
+  // row, so a reader meets it before the picker rather than after. The class is
+  // matched exactly — the recommended action's block took this treatment but not
+  // this name, and a second `.hero-boundary` in the hero would make the promise
+  // twice under one selector while this index still read as one.
   const blocks = hero.childElements;
   const actions = blocks.findIndex((node) => node.getAttribute("class") === "hero-actions");
-  const promise = blocks.findIndex((node) => (node.getAttribute("class") ?? "").includes("hero-boundary"));
+  const promise = blocks.findIndex((node) => node.getAttribute("class") === "hero-boundary");
   assert.ok(actions >= 0 && promise === actions + 1,
-    "the promise must read in the same block as the AI FinOps entry point, directly after it");
-  assert.match(textOf(blocks[actions]), /Read the worked decision in AI FinOps/);
+    "the promise must read directly after the hero's entry-point row");
+  // The worked-decision link left that row for the takeaway's action block. It
+  // is still on the first screen and still exactly once on it.
+  assert.match(textOf(document.getElementById("executive-takeaway-action").parentNode),
+    /Read the worked decision in AI FinOps/);
+  assert.equal(textOf(hero).match(/Read the worked decision in AI FinOps/g).length, 1);
 });
 
 test("the front door counts in months, and never in an undefined 'period'", async () => {

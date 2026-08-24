@@ -250,15 +250,19 @@ test("the log entry's proof point ties a recorded decision to the release that s
   const paragraphAt = (marker) =>
     hero.slice(hero.indexOf(marker), hero.indexOf("</p>", hero.indexOf(marker)));
   const proofPoint = paragraphAt('<p class="hero-proof-point">');
-  const takeaway = paragraphAt('<p id="executive-takeaway-text">');
+  const takeaway = hero.slice(
+    hero.indexOf('<div id="executive-takeaway-text">'),
+    hero.indexOf('<div class="executive-takeaway-actions">'),
+  );
+  const takeawayText = parseHtml(takeaway).querySelector("#executive-takeaway-text").textContent;
   for (const figure of hero.match(/\$[\d,]+|\d+% of analyzed AI spend/g) ?? []) {
-    assert.ok(takeaway.includes(figure),
+    assert.ok(takeawayText.includes(figure),
       `the hero states ${figure} outside the paragraph that discloses the example`);
     assert.ok(finops.includes(figure), `the hero states ${figure}, which AI FinOps does not publish`);
   }
-  assert.match(takeaway, /\$51,254 of \$154,500 in analyzed AI spend is recoverable \(33%\)/,
+  assert.match(takeawayText, /\$51,254 of \$154,500 in analyzed AI spend is recoverable \(33%\)/,
     "the first screen must state the result, not the categories of an answer");
-  assert.match(takeaway, /bundled synthetic example/,
+  assert.match(takeawayText, /bundled synthetic example/,
     "a money figure in the hero must carry its disclosure in the same paragraph");
   assert.match(proofPoint, /bundled synthetic example/,
     "the paragraph that introduces the example must still say it is synthetic");
