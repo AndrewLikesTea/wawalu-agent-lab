@@ -629,13 +629,17 @@ const EXITS_BY_STATE = {
   error: SETTLED_EXITS,
 };
 // The shared page makes the boundary explicit because a visitor who lands here
-// may never open /social.html.
-const DEMO_SENTENCE = "The posts supplied for this demo are invented. Posts published by visitors are real and public. Posts use no customer or production data.";
+// may never open /social.html. The invented/real half of that boundary moved
+// into the sentence below, where it is attached to the link a reader followed;
+// what stands alone is the claim about the data, which is true of every post.
+const DEMO_SENTENCE = "Posts use no customer or production data.";
 // What a pasted link opens, for a reader who has never seen the feed. It is
 // context about the page, not about this post — which is also why it holds in
 // the states where the lookup found nothing — so it reads after the post
-// rather than in front of it.
-const CONTEXT_SENTENCE = "Shared links like this one open a single post from Social’s shared demo feed.";
+// rather than in front of it. It names both kinds of post a shared link can
+// open, because a forwarded link is as likely to carry a visitor's real post as
+// one of the invented ones.
+const CONTEXT_SENTENCE = "Shared links like this one open a single Social post: an invented demo post, or a real public post published by a visitor.";
 
 test("the words of a route out never change, and the post provenance survives every state", async () => {
   const cases = [
@@ -1180,8 +1184,19 @@ function assertSaidOnce(document, where) {
   assert.equal(times(main, RETIRED_WAIT), 0, `${where}: the retired wait is back on the page`);
   assert.equal(times(main, CONTEXT_SENTENCE), 1, `${where}: what a shared link opens is said ${times(main, CONTEXT_SENTENCE)} times`);
   assert.equal(times(main, DEMO_SENTENCE), 1, `${where}: the demo sentence is said ${times(main, DEMO_SENTENCE)} times`);
-  // And no second wording of the same fact anywhere in the page's content: one
-  // mention of a post coming from Social, the one in the sentence above.
-  assert.equal(times(main, "post from Social’s shared demo feed"), 1, `${where}: a second wording of the same fact`);
+  // And no second wording of the same fact anywhere in the page's content.
+  // Counting the bare word rather than a fixed phrase is deliberate: a
+  // duplicate is caught however it is worded, which a phrase match would miss —
+  // and missed, when the standing copy and the paragraph under it both grew a
+  // sentence about invented posts versus a visitor's. The one other "invented"
+  // a settled page may carry is the loaded post's display-name hint, which is
+  // about who a name belongs to rather than about where the post came from.
+  const displayNames = times(main, "Display names are invented");
+  assert.ok(displayNames <= 1, `${where}: the display-name hint is said ${displayNames} times`);
+  assert.equal(times(main, "invented"), displayNames + 1,
+    `${where}: the invented/real distinction is worded more than once`);
+  // A shared link can carry a visitor's real post, so the page must not file
+  // every shared link under the demo feed.
+  assert.doesNotMatch(main, /demo feed/, `${where}: every shared link is called demo content again`);
   assert.doesNotMatch(main, /single shared post|Social · post/, `${where}: the page restates itself`);
 }

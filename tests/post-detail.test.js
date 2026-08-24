@@ -488,7 +488,7 @@ test("both destinations ship as constants, and only the People link's target nar
 // It describes what a shared link opens rather than what is on screen, which is
 // why it can outlive not-found and error: those states have no post, so a
 // sentence beginning "This is one post…" would be describing an empty panel.
-const STANDING_SENTENCE = "Shared links like this one open a single post from Social’s shared demo feed.";
+const STANDING_SENTENCE = "Shared links like this one open a single Social post: an invented demo post, or a real public post published by a visitor.";
 
 // Every state the panel can be in, named the way a reader would name it.
 const PANEL_STATES = [
@@ -501,7 +501,7 @@ const PANEL_STATES = [
 
 const postPageHtml = () => readFile(new URL("../src/post.html", import.meta.url), "utf8");
 
-test("the page identifies one post from the shared demo feed, written once outside the panel", async () => {
+test("the page identifies a shared post as either demo or visitor-published, written once outside the panel", async () => {
   const html = await postPageHtml();
   assert.ok(html.includes(`<p>${STANDING_SENTENCE}</p>`), "the standing sentence must ship in the markup");
   // Counted over the page's own content, not the whole document: the About
