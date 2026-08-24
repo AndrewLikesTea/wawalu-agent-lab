@@ -149,7 +149,7 @@ test("Coach, Releases, Social, People, and Agents send one bounded request and s
       const confirmation = byId(page.document, "site-footer-confirmation");
       assert.ok(confirmation, `${file}: visible confirmation`);
       assert.equal(page.document.activeElement?.id, "site-footer-confirmation", `${file}: focus reaches confirmation`);
-      assert.match(textOf(confirmation), /Request received\. Submitted work email:/, `${file}: receipt states receipt`);
+      assert.match(textOf(confirmation), /Request sent to the Wawalu team\. Submitted work email:/, `${file}: receipt states receipt`);
       // Named when the page put one on the wire, absent when it did not — which
       // is why this reads `topic` rather than asserting one shape for all five.
       // Releases used to declare a follow-up type with no FOLLOW_UP_TOPICS entry
@@ -216,7 +216,7 @@ test("a page that sends no follow-up topic is never told one was submitted", asy
       assert.deepEqual(JSON.parse(calls[0].options.body), { email: LONG_EMAIL, purpose: "follow_up" },
         `${file}: no topic reaches the wire`);
       const receipt = textOf(byId(page.document, "site-footer-confirmation"));
-      assert.match(receipt, /Request received\. Submitted work email:/, `${file}: the receipt still confirms receipt`);
+      assert.match(receipt, /Request sent to the Wawalu team\. Submitted work email:/, `${file}: the receipt still confirms receipt`);
       assert.doesNotMatch(receipt, /topic/i, `${file}: the receipt cannot name a topic that never went`);
       assert.doesNotMatch(shownText(page.document, "site-footer-status"), /topic/i,
         `${file}: the announcement cannot claim one either`);

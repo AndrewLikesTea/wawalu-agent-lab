@@ -420,7 +420,7 @@ test("a valid contextual request persists and renders an accurate promise-free r
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(form.dataset.state, "success", textOf(document.getElementById("finops-example-follow-up-status")));
   const receipt = textOf(document.getElementById("finops-example-follow-up-confirmation"));
-  assert.match(receipt, /Request received\. Submitted work email: finops@example\.com/);
+  assert.match(receipt, /Request sent to the Wawalu team\. Submitted work email: finops@example\.com/);
   assert.match(receipt, /Bundled AI FinOps example — lower-cost routing in Atlas Platform/);
   assert.doesNotMatch(receipt, /will reply|within two business days/i);
   assert.equal(form.hidden, true);
@@ -525,7 +525,7 @@ test("an empty optional field sends exactly the request this form sent before it
   const form = document.getElementById("finops-example-follow-up-form");
   assert.equal(form.dataset.state, "success");
   assert.match(textOf(document.getElementById("finops-example-follow-up-confirmation")),
-    /Request received\. Submitted work email: finops@example\.com/);
+    /Request sent to the Wawalu team\. Submitted work email: finops@example\.com/);
 });
 
 test("a typed message reaches the real endpoint and lands in the row beside the address", async (t) => {
@@ -662,6 +662,9 @@ test("a failed request keeps both typed values, and the retry resends the messag
 
   const form = document.getElementById("finops-example-follow-up-form");
   assert.equal(form.dataset.state, "error");
+  assert.match(textOf(document.getElementById("finops-example-follow-up-status")),
+    /^No request was sent\b/,
+    "a known storage failure must explicitly say that the request was not sent");
   // Both fields survive the failure, unchanged, and stay editable.
   assert.equal(field.value, "Can we see the routing assumptions?");
   assert.equal(email.value, "director@example.com");

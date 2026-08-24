@@ -228,12 +228,12 @@ for (const file of STATED) {
 
       assert.equal(byId(document, "site-footer-form").dataset.state, "error");
       assert.equal(textOf(byId(document, "site-footer-recovery")),
-        "We could not send your follow-up request. Your email address is still in the field above, and nothing"
+        "No request was sent. Your email address is still in the field above, and nothing"
         + " else on this page changed. Retry sends the same request again from this page; if it keeps failing,"
         + " wait a few minutes and retry.", `${file}: the recovery copy has drifted`);
       assert.equal(byId(document, "site-footer-retry").hidden, false, `${file}: a failure offers a retry`);
       assert.equal(textOf(byId(document, "site-footer-status")),
-        "We didn’t get your request because follow-up requests are temporarily offline.");
+        "No request was sent because follow-up requests are temporarily offline.");
       assert.equal(byId(document, "site-footer-email").value, TYPED_EMAIL,
         `${file}: the typed address survives the failure`);
 

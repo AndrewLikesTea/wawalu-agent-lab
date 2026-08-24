@@ -190,7 +190,7 @@ export function bindFinopsExampleFollowUp(doc = globalThis.document, request = (
       const note = message.value.trim() || null;
       await postLeadEmail(request, email.value, FINOPS_EXAMPLE_FOLLOW_UP_PURPOSE, CONTACT_COPY, topic, note);
       form.dataset.state = "success";
-      status.textContent = "Request received. Your submitted work email and follow-up topic were recorded.";
+      status.textContent = "Request sent to the Wawalu team. Your submitted work email and follow-up topic were recorded.";
       confirmation.show(address, topic);
     } catch (caught) {
       form.dataset.state = "error";
