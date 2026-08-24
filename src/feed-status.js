@@ -63,7 +63,17 @@ export function filtersAvailable(phase) {
 // The one sentence the filter region says while its controls cannot do
 // anything. Caption weight, not content weight: it describes the controls
 // beside it rather than the feed, which the status region is already reporting.
-export const FILTERS_UNAVAILABLE_HINT = "Display name and posting time options become available when posts load.";
+//
+// It names the display-name menu and nothing else (#2001). Both menus are shut
+// while the feed is open, but only one of them is also EMPTY: the time menu
+// ships its four ranges in the markup, while the display names are read off the
+// posts and so cannot exist yet. Listing the time menu as something that
+// "becomes available" described a choice the reader could already see. Naming
+// it as shown would be the same mistake inverted — the control is `disabled`,
+// so an invitation to use it is a second claim the row cannot support. Why
+// neither menu is operable is the fetch's news, and the status region beside
+// this line is already reporting it.
+export const FILTERS_UNAVAILABLE_HINT = "Display name options become available when posts load.";
 
 /** Is `node` inside `host`? Ancestor walk: no descendant selectors here. */
 function within(node, host) {
