@@ -197,11 +197,12 @@ test("the first screen makes its privacy promise at most twice, beside the link 
   // after the AI FinOps link a reader is deciding to click — not in a banner
   // further up the page that they have already scrolled past by then.
   const blocks = hero.childElements;
+  const takeaway = blocks.findIndex((node) => node.getAttribute("class") === "executive-takeaway");
   const actions = blocks.findIndex((node) => node.getAttribute("class") === "hero-actions");
   const promise = blocks.findIndex((node) => (node.getAttribute("class") ?? "").includes("hero-boundary"));
-  assert.ok(actions >= 0 && promise === actions + 1,
-    "the promise must read in the same block as the AI FinOps entry point, directly after it");
-  assert.match(textOf(blocks[actions]), /Read the worked decision in AI FinOps/);
+  assert.ok(takeaway >= 0 && actions === takeaway + 1 && promise === actions + 1,
+    "the privacy promise must follow the worked-decision card and its secondary briefing link");
+  assert.match(textOf(blocks[takeaway]), /Read the worked decision in AI FinOps/);
 });
 
 test("the front door counts in months, and never in an undefined 'period'", async () => {

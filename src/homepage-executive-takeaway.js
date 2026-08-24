@@ -38,8 +38,8 @@ export const ANALYZED_PERIOD = analyzedPeriodPhrase(reportingWindow());
  */
 export function takeawayText(period = ANALYZED_PERIOD) {
   const span = typeof period === "string" && period.trim() ? ` in ${period.trim()} alone` : "";
-  return `$51,254 of $154,500 in analyzed AI spend is recoverable (33%)${span} `
-    + "— a modelled ceiling on what re-routing this work could save, not money already saved. "
+  return `$51,254 of $154,500 in analyzed AI spend is recoverable (33%)${span}. `
+    + "Modelled ceiling. This is what re-routing the work could save, not money already saved. "
     + "First recommended action: Pilot lower-cost routing in Atlas Platform. "
     + "Accountable role: Platform Engineering Lead. Figures are from a bundled synthetic example "
     + "and are not visitor data.";

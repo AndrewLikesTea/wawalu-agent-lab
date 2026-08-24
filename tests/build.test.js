@@ -169,7 +169,7 @@ test("the hero names the product before any surface, and keeps the log as a name
   // buttons beside each other would make neither one primary.
   assert.equal((hero.match(/class="button-link"/g) ?? []).length, 1,
     "the hero must carry exactly one primary call to action");
-  assert.match(hero, /<a class="button-link" href="\/evolution\.html">Read the worked decision in AI FinOps/);
+  assert.match(hero, /<a class="button-link" href="\/evolution\.html#workspace-answer">Read the worked decision in AI FinOps/);
   assert.match(hero, /<a class="text-link" href="#landing-decision">/);
   assert.equal((hero.match(/class="secondary-button"/g) ?? []).length, 0,
     "the hero must not carry a third call to action");
@@ -250,13 +250,14 @@ test("the log entry's proof point ties a recorded decision to the release that s
   const paragraphAt = (marker) =>
     hero.slice(hero.indexOf(marker), hero.indexOf("</p>", hero.indexOf(marker)));
   const proofPoint = paragraphAt('<p class="hero-proof-point">');
-  const takeaway = paragraphAt('<p id="executive-takeaway-text">');
+  const takeaway = hero.slice(hero.indexOf('<div id="executive-takeaway-text"'),
+    hero.indexOf('<div class="executive-takeaway-actions">'));
   for (const figure of hero.match(/\$[\d,]+|\d+% of analyzed AI spend/g) ?? []) {
     assert.ok(takeaway.includes(figure),
       `the hero states ${figure} outside the paragraph that discloses the example`);
     assert.ok(finops.includes(figure), `the hero states ${figure}, which AI FinOps does not publish`);
   }
-  assert.match(takeaway, /\$51,254 of \$154,500 in analyzed AI spend is recoverable \(33%\)/,
+  assert.match(takeaway, /\$51,254<\/strong> of \$154,500 in analyzed AI spend is recoverable \(33%\)/,
     "the first screen must state the result, not the categories of an answer");
   assert.match(takeaway, /bundled synthetic example/,
     "a money figure in the hero must carry its disclosure in the same paragraph");
@@ -467,7 +468,7 @@ test("no page paints an HTML entity reference at a reader", async (t) => {
 
 test("the AI FinOps call to action is reachable by Tab alone and opens on Enter", async () => {
   const document = parseHtml(await readFile(new URL("../src/index.html", import.meta.url), "utf8"));
-  const primary = document.querySelector('a[href="/evolution.html"].button-link');
+  const primary = document.querySelector('a[href="/evolution.html#workspace-answer"].button-link');
 
   // From the top of the page, with nothing but Tab: the skip link, the brand,
   // the nav, and then the hero's own call to action. Leading a page with a
@@ -477,7 +478,7 @@ test("the AI FinOps call to action is reachable by Tab alone and opens on Enter"
   for (let press = 0; press < 20 && reached !== primary; press += 1) reached = pressTab(document);
   assert.equal(reached, primary, "the AI FinOps link must sit in the natural tab order");
   pressEnter(document);
-  assert.deepEqual(document.navigations, ["/evolution.html"]);
+  assert.deepEqual(document.navigations, ["/evolution.html#workspace-answer"]);
 });
 
 test("security headers ship with the site", async () => {

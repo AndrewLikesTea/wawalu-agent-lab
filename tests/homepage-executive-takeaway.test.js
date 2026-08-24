@@ -44,7 +44,25 @@ test("the homepage visibly labels a concise, qualified executive takeaway", asyn
 
   assert.equal(region.getAttribute("aria-labelledby"), "executive-takeaway-title");
   assert.equal(textOf(document.getElementById("executive-takeaway-title")), "Executive takeaway");
-  assert.equal(text, EXECUTIVE_TAKEAWAY);
+  // THE CLIPBOARD CONTRACT, restated as a schema of named blocks. It used to be
+  // "the text of this region is the payload", which stopped being a definition
+  // the moment the card grew a control the clipboard does not send. The payload
+  // is the claim paragraphs of the four blocks concatenated in reading order —
+  // so each block still carries exactly one claim, a reader can still verify by
+  // reading what Copy will send, and the entry point can stand inside the action
+  // block it opens instead of below the disclosure.
+  const claimOf = (block) => (block.tagName === "P" ? [block] : block.childElements)
+    .filter((node) => node.tagName === "P").map(textOf).join(" ");
+  const blocks = document.getElementById("executive-takeaway-text").childElements;
+  const CLAIMS = [["executive-takeaway-figure", /^\$51,254 of \$154,500 /],
+    ["executive-takeaway-qualification", /^Modelled ceiling\. /],
+    ["executive-takeaway-recommendation", /^First recommended action: /],
+    ["executive-takeaway-source", /^Figures are from a bundled /]];
+  assert.deepEqual(blocks.map((block) => block.getAttribute("class")), CLAIMS.map(([name]) => name),
+    "figure, qualification, action, and source must be separate and read in that order");
+  CLAIMS.forEach(([name, opening], index) => assert.match(claimOf(blocks[index]), opening,
+    `${name} does not open on the claim it is a distinct block for`));
+  assert.equal(blocks.map(claimOf).join(" "), EXECUTIVE_TAKEAWAY);
   assert.match(text, /\$51,254 of \$154,500/);
   assert.match(text, /33%/);
   assert.match(text, /Pilot lower-cost routing in Atlas Platform/);
@@ -53,7 +71,14 @@ test("the homepage visibly labels a concise, qualified executive takeaway", asyn
   // A takeaway written to be forwarded is the worst place on the site to drop
   // the limit on this figure: read alone, "$51,254 is recoverable" is a saving
   // somebody can be held to. It travels with the ceiling or it does not travel.
-  assert.match(text, /modelled ceiling on what re-routing this work could save, not money already saved/);
+  assert.match(text, /Modelled ceiling\. This is what re-routing the work could save, not money already saved/);
+
+  // The path out of the action is inside the action, one Tab from the figure
+  // that motivates it — not a control parked below the sample-data disclosure.
+  const entry = blocks[2].childElements.filter((node) => node.tagName === "A");
+  assert.equal(entry.length, 1, "the recommended action must offer exactly one way to the decision");
+  assert.equal(entry[0].getAttribute("href"), "/evolution.html#workspace-answer");
+  assert.match(textOf(entry[0]), /^Read the worked decision in AI FinOps/);
 });
 
 test("the rendered figure sentence says which months it is true over", async (t) => {
@@ -67,7 +92,7 @@ test("the rendered figure sentence says which months it is true over", async (t)
   // $154,500 total still left a reader unable to tell a month's money from a
   // quarter's. "alone" is the word that settles it, and it is pinned here.
   assert.equal(ANALYZED_PERIOD, "June 2026");
-  assert.ok(text.includes(`is recoverable (33%) in ${ANALYZED_PERIOD} alone —`),
+  assert.ok(text.includes(`is recoverable (33%) in ${ANALYZED_PERIOD} alone.`),
     `the rendered takeaway does not carry the derived period: ${text}`);
   // The span rides on the figure sentence, so it cannot be read as a claim of
   // its own and cannot displace anything above the fold.
@@ -88,7 +113,7 @@ test("the analyzed period is derived from the bundled months, not written down",
   // no fixture file, nothing about "June" anywhere in the derivation.
   assert.equal(analyzedPeriodPhrase(reportingWindow(["2027-02", "2027-03"])), "March 2027");
   assert.ok(takeawayText(analyzedPeriodPhrase(reportingWindow(["2027-02", "2027-03"])))
-    .includes("is recoverable (33%) in March 2027 alone —"));
+    .includes("is recoverable (33%) in March 2027 alone."));
   // Whole-month spans and year boundaries are named in calendar words too: a
   // window this cannot say in English must not reach a reader as an ISO string.
   assert.equal(analyzedPeriodPhrase("2026-01-01 to 2026-07-01"), "January–June 2026");
@@ -105,7 +130,7 @@ test("with no nameable period the takeaway degrades to its wording rather than a
   // no usable month, so no window, so no phrase, so no clause.
   for (const empty of [analyzedPeriodPhrase(reportingWindow([])), null, "", "   "]) {
     const degraded = takeawayText(empty);
-    assert.ok(degraded.includes("is recoverable (33%) — a modelled ceiling"),
+    assert.ok(degraded.includes("is recoverable (33%). Modelled ceiling."),
       `the degraded takeaway is not the unqualified sentence: ${degraded}`);
     assert.doesNotMatch(degraded, /\balone\b|undefined|null/);
     // Everything else the takeaway owes a reader survives the missing period.
@@ -292,20 +317,15 @@ test("the worked decision is offered before the work email is asked for", async 
   const order = inReadingOrder(document.getElementById("top"));
   const at = (id) => order.findIndex((node) => node.getAttribute("id") === id);
   const linkTo = (href) => order.findIndex((node) => node.tagName === "A" && node.getAttribute("href") === href);
-  const worked = linkTo("/evolution.html");
+  const worked = linkTo("/evolution.html#workspace-answer");
   const briefing = linkTo("#landing-decision");
 
-  // 1. The takeaway card is the heading, the figures that end in what they are
-  // from, and the control that copies them — and nothing else. Deep-equal
-  // rather than a pair of index comparisons: this is the adjacency the move was
-  // not allowed to disturb, and an extra node between any two of them is the
-  // failure worth catching.
-  assert.deepEqual(
-    inReadingOrder(document.querySelector(".executive-takeaway"))
-      .map((node) => node.getAttribute("id") ?? node.getAttribute("class")),
-    ["executive-takeaway-title", "executive-takeaway-text", "executive-takeaway-actions",
-      "copy-executive-takeaway", "executive-takeaway-status"],
-  );
+  // 1. The three claims are separate blocks in the order an executive needs
+  // them, followed by the source note and the controls.
+  const summary = document.getElementById("executive-takeaway-text");
+  assert.deepEqual(summary.childElements.map((node) => node.getAttribute("class")),
+    ["executive-takeaway-figure", "executive-takeaway-qualification",
+      "executive-takeaway-recommendation", "executive-takeaway-source"]);
   assert.match(textOf(document.getElementById("executive-takeaway-text")),
     /Figures are from a bundled synthetic example and are not visitor data\.$/);
 
@@ -347,7 +367,7 @@ test("moving the follow-up ask spends no tab stop and reorders no other control"
   // and the homepage's tab budget is full, so this count may not grow.
   const stops = tabSequence(document).filter((stop) => inHero.has(stop));
   assert.deepEqual(stops.map((stop) => stop.getAttribute("id") ?? stop.getAttribute("href")),
-    ["copy-executive-takeaway", "/evolution.html", "#landing-decision", "finops-example-follow-up-open"]);
+    ["/evolution.html#workspace-answer", "copy-executive-takeaway", "#landing-decision", "finops-example-follow-up-open"]);
 
   // Opening it adds the form's own stops where the reader just pressed, below
   // everything above — never above the link they have not read yet.
@@ -740,7 +760,7 @@ test("the keyboard-operable control copies only the takeaway and confirms succes
     "First recommended action: Pilot lower-cost routing in Atlas Platform.",
     "Accountable role: Platform Engineering Lead.",
     "Figures are from a bundled synthetic example and are not visitor data.",
-    "a modelled ceiling on what re-routing this work could save, not money already saved",
+    "Modelled ceiling. This is what re-routing the work could save, not money already saved",
   ]) {
     assert.ok(payload.includes(claim), `the copied text drops "${claim}"`);
   }
