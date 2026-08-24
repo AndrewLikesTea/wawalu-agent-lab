@@ -228,9 +228,8 @@ for (const file of STATED) {
 
       assert.equal(byId(document, "site-footer-form").dataset.state, "error");
       assert.equal(textOf(byId(document, "site-footer-recovery")),
-        "No request was sent. Your email address is still in the field above, and nothing"
-        + " else on this page changed. Retry sends the same request again from this page; if it keeps failing,"
-        + " wait a few minutes and retry.", `${file}: the recovery copy has drifted`);
+        "No request was sent. Retry the same request from this page. If it keeps failing, wait a few minutes and retry.",
+        `${file}: the recovery copy has drifted`);
       assert.equal(byId(document, "site-footer-retry").hidden, false, `${file}: a failure offers a retry`);
       assert.equal(textOf(byId(document, "site-footer-status")),
         "No request was sent because follow-up requests are temporarily offline.");

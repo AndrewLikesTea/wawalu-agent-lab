@@ -30,7 +30,7 @@ import { initSiteFooter } from "../src/site-footer.js";
 import { CONFIRMATION_DETAIL, CONFIRMATION_LEAD } from "../src/follow-up-confirmation.js";
 import { onRequest } from "../functions/api/leads.js";
 import { createMemoryLeadStore, FOLLOW_UP_TOPICS, handleLeadRequest } from "../src/leads.js";
-import { CONTACT_COPY, knownNotSent, resolveFailure, SubmissionError } from "../src/lead-capture.js";
+import { CONTACT_COPY, FOLLOW_UP_PRIVACY, knownNotSent, resolveFailure, SubmissionError } from "../src/lead-capture.js";
 
 // The pages the follow-up request was reviewed on, with the request type each
 // one sends and how that request's fixed topic is presented. The homepage
@@ -135,6 +135,8 @@ for (const [file, purpose, topic, stated] of REVIEWED) {
       assert.equal(status.getAttribute("role"), "status");
       assert.equal(status.getAttribute("aria-live"), "polite");
       assert.equal(textOf(status), "", "the region must start empty, claiming nothing");
+      assert.equal(shownText(document, "site-footer-note"), FOLLOW_UP_PRIVACY,
+        `${file}: initial privacy language must name what is sent`);
 
       // ...and it is not folded inside a summary/details the browser collapses.
       // The harness reads through one; a screen reader in a real browser does
@@ -146,6 +148,7 @@ for (const [file, purpose, topic, stated] of REVIEWED) {
       // The recovery ships with the page and stays on it: a paragraph that
       // leaves for no other form, and a retry control inside this very form.
       const recovery = byId(document, "site-footer-recovery");
+      assert.equal(textOf(recovery), "", `${file}: no failed-request guidance belongs in the initial state`);
       assert.equal(recovery.children.filter((child) => child.tagName === "A").length, 0,
         `${file}: a failure here must be recovered here, not on another page`);
       const retry = byId(document, "site-footer-retry");
@@ -256,7 +259,7 @@ for (const [name, transport] of [
       assert.equal(submitControl(document).disabled, false);
       const recovery = byId(document, "site-footer-recovery");
       assert.equal(recovery.hidden, false);
-      assert.match(textOf(recovery), /Retry sends the same request again from this page/);
+      assert.match(textOf(recovery), /Retry the same request from this page/);
       assert.doesNotMatch(textOf(recovery), /briefing/i);
       const retry = byId(document, "site-footer-retry");
       assert.equal(retry.hidden, false, "a failure must offer a retry where it happened");

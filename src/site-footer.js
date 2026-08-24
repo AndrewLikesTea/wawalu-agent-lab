@@ -148,8 +148,7 @@ const CAPTURED = "Request sent to the Wawalu team. Your submitted work email was
 const ALREADY_CAPTURED = "Request sent to the Wawalu team. That work email was already recorded, so no duplicate row was added.";
 
 const SUBMITTING = "Requesting a follow-up — sending your email address…";
-const RECOVERY_PRESERVATION = "Your email address is still in the field above, and nothing else on this page changed. "
-  + "Retry sends the same request again from this page; if it keeps failing, wait a few minutes and retry.";
+const RECOVERY_GUIDANCE = "Retry the same request from this page. If it keeps failing, wait a few minutes and retry.";
 
 // What a failure is, before what it left behind: a visitor asks whether the
 // team got their request, so the paragraph answers that in its first sentence
@@ -266,7 +265,7 @@ function contactFormLines(followUpType, followUpTopic, stated) {
     "        </div>",
     `        <p class="site-footer-error" id="site-footer-error" hidden></p>`,
     `        <p class="site-footer-note" id="site-footer-note">${FOLLOW_UP_PRIVACY}</p>`,
-    `        <p class="site-footer-recovery" id="site-footer-recovery" hidden>${RECOVERY_PRESERVATION}</p>`,
+    '        <p class="site-footer-recovery" id="site-footer-recovery" hidden></p>',
     '        <div class="site-footer-actions">',
     '          <button type="submit">Request a follow-up</button>',
     `          <button id="${RETRY_ID}" type="submit" hidden>Retry your follow-up request</button>`,
@@ -349,7 +348,7 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
   // only the half of the paragraph that is true of both failures.
   function setRecoveryVisible(visible, notSent = false) {
     if (visible) {
-      recovery.textContent = `${notSent ? RECOVERY_NOT_SENT : RECOVERY_UNCONFIRMED} ${RECOVERY_PRESERVATION}`;
+      recovery.textContent = `${notSent ? RECOVERY_NOT_SENT : RECOVERY_UNCONFIRMED} ${RECOVERY_GUIDANCE}`;
     }
     recovery.hidden = !visible;
     setRepositoryLinkVisible(visible);
