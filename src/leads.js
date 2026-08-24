@@ -28,6 +28,7 @@ export const LEAD_PURPOSES = Object.freeze(["field_notes", "follow_up", ...FOLLO
 // a visitor comparing the follow-up block against the footer above it would find
 // two accounts of the same page.
 export const FOLLOW_UP_TOPICS = Object.freeze({
+  follow_up: "Shiplog homepage — decisions, releases, and product questions",
   follow_up_finops_example: "Bundled AI FinOps example — lower-cost routing in Atlas Platform",
   follow_up_coach: "Prompt coach page — grade a prompt, then revise and grade again",
   // Releases sent this request type with no topic entry, so the request reached
@@ -148,12 +149,14 @@ export async function handleLeadRequest(request, {
   const isObject = input !== null && typeof input === "object" && !Array.isArray(input);
   const keys = isObject ? Object.keys(input) : [];
   const expectedTopic = isObject ? FOLLOW_UP_TOPICS[input.purpose] : null;
-  const expectedKeys = expectedTopic ? ["email", "purpose", "topic"] : ["email", "purpose"];
+  const expectedKeys = ["email", "purpose"];
   // `message` is the one key that may be present or absent, and only on a
   // purpose whose form offers the field. Everything else is still exact.
-  const allowedKeys = isObject && FOLLOW_UP_MESSAGE_PURPOSES.includes(input.purpose)
-    ? [...expectedKeys, "message"]
-    : expectedKeys;
+  const allowedKeys = [
+    ...expectedKeys,
+    ...(expectedTopic ? ["topic"] : []),
+    ...(isObject && FOLLOW_UP_MESSAGE_PURPOSES.includes(input.purpose) ? ["message"] : []),
+  ];
   if (!isObject || !keys.every((key) => allowedKeys.includes(key)) || !expectedKeys.every((key) => keys.includes(key))) {
     return json({ error: { code: "invalid_request", message: "Body contains unsupported or missing fields.", request_id: requestId } }, 400, requestId);
   }
@@ -164,7 +167,10 @@ export async function handleLeadRequest(request, {
   if (!LEAD_PURPOSES.includes(input.purpose)) {
     return json({ error: { code: "invalid_purpose", message: "Purpose is not a supported request type.", request_id: requestId } }, 422, requestId);
   }
-  if (expectedTopic && input.topic !== expectedTopic) {
+  // Older clients sent the fixed topic. Accept only the server-owned value
+  // during the transition; current clients send the purpose and the server
+  // derives this value before storage.
+  if (input.topic !== undefined && input.topic !== expectedTopic) {
     return json({ error: { code: "invalid_topic", message: "Topic does not match the request type.", request_id: requestId } }, 422, requestId);
   }
   const { message, invalid: unusableMessage } = normalizeFollowUpMessage(input.message);

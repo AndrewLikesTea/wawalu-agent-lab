@@ -306,12 +306,9 @@
           <span class="hint" id="release-export-scope">The JSON download includes only the releases currently shown by the active search and filters, not the full release log. Each exported release includes its linked decisions.</span>
           <span class="share-status" id="release-export-status" role="status" aria-live="polite" aria-atomic="true"></span>
         </div>
-        <!-- One action per key, and only the keys the list answers. Space
-             expands the row in place — the same verb the paragraph above the
-             list uses — while Enter leaves for the release's own page, so a
-             reader can tell the two apart before pressing either. Exercised
-             key by key in tests/release-keyboard-line.test.js. -->
-        <p class="hint release-hint">Use ↑ and ↓ to move between releases, Home and End to jump to the first and last release, Space to expand a release in place, and Enter to open its details page.</p>
+        <!-- Enter and Space use the button's native disclosure behavior. The
+             detail link inside the row remains the explicit route away. -->
+        <p class="hint release-hint">Use ↑ and ↓ to move between releases, Home and End to jump to the first and last release, and Enter or Space to expand a release in place. Use the detail link inside an expanded row to open its page.</p>
         <!-- One prioritised follow-up for whatever the filters left on screen.
              Filled by releases-page.js and hidden while nothing is outstanding;
              it is not a live region, because #release-count already announces

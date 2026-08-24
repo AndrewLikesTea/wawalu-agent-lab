@@ -188,10 +188,10 @@ export function bindFinopsExampleFollowUp(doc = globalThis.document, request = (
       // Blank stays off the wire entirely: an optional field left empty sends
       // exactly the request this form sent before it existed.
       const note = message.value.trim() || null;
-      await postLeadEmail(request, email.value, FINOPS_EXAMPLE_FOLLOW_UP_PURPOSE, CONTACT_COPY, topic, note);
+      await postLeadEmail(request, email.value, FINOPS_EXAMPLE_FOLLOW_UP_PURPOSE, CONTACT_COPY, note);
       form.dataset.state = "success";
-      status.textContent = "Request sent to the Wawalu team. Your submitted work email and follow-up topic were recorded.";
-      confirmation.show(address, topic);
+      status.textContent = "Request sent to the Wawalu team. Your work email was recorded with this page’s follow-up topic.";
+      confirmation.show(address, topic, Boolean(note));
     } catch (caught) {
       form.dataset.state = "error";
       status.textContent = caught instanceof SubmissionError ? caught.message : CONTACT_COPY.unconfirmed;

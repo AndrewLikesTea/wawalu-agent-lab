@@ -79,6 +79,9 @@ const describedBy = (document) => byId(document, "site-footer-email").getAttribu
 // cannot choose a topic on say what the request is about in prose instead of in
 // a read-only control, so the block gains a sentence and no tab stop.
 const FOOTER_VARIANT = new Map([
+  ["index.html", {
+    followUpType: "follow_up", followUpTopic: FOLLOW_UP_TOPICS.follow_up, statedTopic: true,
+  }],
   ["executive-briefing.html", { redirect: FOLLOW_UP_REDIRECT.briefing }],
   ["coach.html", {
     followUpType: "follow_up_coach", followUpTopic: FOLLOW_UP_TOPICS.follow_up_coach, statedTopic: true,
@@ -869,7 +872,7 @@ test("a failed submission keeps the typed address, says it can be retried, and t
       "the retry to succeed");
     assert.equal(calls.length, 2, "the retry must make its own request");
     assert.deepEqual(JSON.parse(calls[1].options.body), {
-      email: TYPED_EMAIL, purpose: "follow_up_social", topic: FOLLOW_UP_TOPICS.follow_up_social,
+      email: TYPED_EMAIL, purpose: "follow_up_social",
     });
     assert.match(shownText(document, "site-footer-status"), /^Request sent to the Wawalu team\./);
 
@@ -992,7 +995,7 @@ test("a failed request offers its retry in place: named, keyboard-reachable, ann
     assert.equal(calls.length, 2, "retry must re-attempt the same submission");
     assert.deepEqual(JSON.parse(calls[1].options.body), JSON.parse(calls[0].options.body));
     assert.deepEqual(JSON.parse(calls[1].options.body), {
-      email: TYPED_EMAIL, purpose: "follow_up_social", topic: FOLLOW_UP_TOPICS.follow_up_social,
+      email: TYPED_EMAIL, purpose: "follow_up_social",
     });
     assert.deepEqual(focused, [], "and the retry must not move focus either");
   } finally {

@@ -145,13 +145,15 @@ export function resolveFailure(response, body, copy) {
   return { message: copy.unconfirmed, reason: "unconfirmed" };
 }
 
-// Sends the address, routing label, optional fixed topic, optional message.
+// Sends visitor-entered data plus a routing label. The server derives the fixed
+// page topic from that label, so the browser never presents routing copy as
+// visitor-submitted content.
 // Every 2xx is a capture, including legacy responses that predate `created`.
-export async function postLeadEmail(request, email, purpose, copy, topic = null, message = null) {
+export async function postLeadEmail(request, email, purpose, copy, message = null) {
   const response = await request(ENDPOINT, {
     method: "POST",
     headers: { "content-type": "application/json", accept: "application/json" },
-    body: JSON.stringify({ email, purpose, ...(topic && { topic }), ...(message && { message }) }),
+    body: JSON.stringify({ email, purpose, ...(message && { message }) }),
     // Without this a hung request strands the visitor on "Submitting…"
     // with the control disabled and no way to recover.
     signal: globalThis.AbortSignal?.timeout?.(TIMEOUT_MS),

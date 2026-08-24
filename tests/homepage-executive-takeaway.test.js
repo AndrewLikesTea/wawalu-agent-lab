@@ -420,9 +420,9 @@ test("a valid contextual request persists and renders an accurate promise-free r
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(form.dataset.state, "success", textOf(document.getElementById("finops-example-follow-up-status")));
   const receipt = textOf(document.getElementById("finops-example-follow-up-confirmation"));
-  assert.match(receipt, /Request sent to the Wawalu team\. Submitted work email: finops@example\.com/);
+  assert.match(receipt, /Request received by the Wawalu team\. Work email: finops@example\.com/);
   assert.match(receipt, /Bundled AI FinOps example — lower-cost routing in Atlas Platform/);
-  assert.doesNotMatch(receipt, /will reply|within two business days/i);
+  assert.match(receipt, /may reply by email.*reply is not guaranteed/i);
   assert.equal(form.hidden, true);
   const row = db.raw.prepare("SELECT email, purpose, topic, message FROM lead_submissions WHERE email = ?").get("finops@example.com");
   assert.equal(row.email, "finops@example.com");
@@ -520,12 +520,12 @@ test("an empty optional field sends exactly the request this form sent before it
   await settle();
 
   assert.deepEqual(JSON.parse(calls[0].options.body), {
-    email: "finops@example.com", purpose: FINOPS_EXAMPLE_FOLLOW_UP_PURPOSE, topic: TOPIC,
+    email: "finops@example.com", purpose: FINOPS_EXAMPLE_FOLLOW_UP_PURPOSE,
   }, "an untouched optional field puts no key on the wire");
   const form = document.getElementById("finops-example-follow-up-form");
   assert.equal(form.dataset.state, "success");
   assert.match(textOf(document.getElementById("finops-example-follow-up-confirmation")),
-    /Request sent to the Wawalu team\. Submitted work email: finops@example\.com/);
+    /Request received by the Wawalu team\. Work email: finops@example\.com/);
 });
 
 test("a typed message reaches the real endpoint and lands in the row beside the address", async (t) => {
@@ -555,7 +555,6 @@ test("a typed message reaches the real endpoint and lands in the row beside the 
   assert.deepEqual(JSON.parse(calls[0].options.body), {
     email: "director@example.com",
     purpose: FINOPS_EXAMPLE_FOLLOW_UP_PURPOSE,
-    topic: TOPIC,
     message: "Which models are in the lower-cost tier?",
   });
   const row = db.raw.prepare("SELECT email, purpose, topic, message FROM lead_submissions").all()[0];
@@ -563,6 +562,9 @@ test("a typed message reaches the real endpoint and lands in the row beside the 
   assert.equal(row.purpose, FINOPS_EXAMPLE_FOLLOW_UP_PURPOSE);
   assert.equal(row.topic, TOPIC);
   assert.equal(row.message, "Which models are in the lower-cost tier?");
+  const receipt = textOf(document.getElementById("finops-example-follow-up-confirmation"));
+  assert.match(receipt, /Only your work email and the optional message you entered were sent/);
+  assert.match(receipt, /may reply by email.*reply is not guaranteed/i);
 });
 
 test("a message past the stated limit is refused here, in words that name the limit", async (t) => {

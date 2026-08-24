@@ -45,7 +45,7 @@ import { CONTACT_COPY, knownNotSent, resolveFailure, SubmissionError } from "../
 // against FOLLOW_UP_TOPICS here rather than against a phrase typed into a test,
 // so the sentence cannot drift away from what goes on the wire.
 const REVIEWED = [
-  ["index.html", "follow_up", null, false],
+  ["index.html", "follow_up", FOLLOW_UP_TOPICS.follow_up, true],
   ["coach.html", "follow_up_coach", FOLLOW_UP_TOPICS.follow_up_coach, true],
   ["post.html", "follow_up_social", FOLLOW_UP_TOPICS.follow_up_social, true],
   ["releases.html", "follow_up_releases", FOLLOW_UP_TOPICS.follow_up_releases, true],
@@ -104,7 +104,7 @@ for (const [file, purpose, topic, stated] of REVIEWED) {
     try {
       const form = byId(document, "site-footer-form");
       assert.equal(form.tagName, "FORM");
-      assert.equal(form.getAttribute("data-follow-up-type"), purpose === "follow_up" ? null : purpose);
+      assert.equal(form.getAttribute("data-follow-up-type"), purpose);
       const topicField = byId(document, "site-footer-topic");
       assert.equal(topicField?.value ?? null, stated ? null : topic);
       assert.equal(topicField?.hasAttribute("readonly") ?? false, Boolean(topic) && !stated);
@@ -170,7 +170,7 @@ test("a valid work email and a successful transport reach the success state, whi
     assert.equal(calls.length, 1);
     assert.equal(calls[0].url, "/api/leads");
     assert.deepEqual(JSON.parse(calls[0].options.body), {
-      email: TYPED_EMAIL, purpose: "follow_up_coach", topic: FOLLOW_UP_TOPICS.follow_up_coach,
+      email: TYPED_EMAIL, purpose: "follow_up_coach",
     });
     assert.equal(byId(document, "site-footer-form").dataset.state, "success");
 
@@ -181,7 +181,8 @@ test("a valid work email and a successful transport reach the success state, whi
     // 2. The exact fixed topic that was submitted.
     assert.match(receipt, new RegExp(FOLLOW_UP_TOPICS.follow_up_coach));
     // 3. What did not go with it, without an unguaranteed next-step promise.
-    assert.match(receipt, /No page content, prompt text, uploaded file, or browsing data was submitted/);
+    assert.match(receipt, /Only your work email was sent/);
+    assert.match(receipt, /reply is not guaranteed/);
     assert.doesNotMatch(receipt, /will reply|within two business days/i);
     assert.ok(receipt.includes(CONFIRMATION_DETAIL));
   } finally {
@@ -357,9 +358,7 @@ for (const [file, purpose, topic, stated] of REVIEWED) {
       await settled(document);
 
       assert.equal(byId(document, "site-footer-form").dataset.state, "success", `${file} must reach success`);
-      assert.deepEqual(JSON.parse(calls[0].options.body), topic
-        ? { email: TYPED_EMAIL, purpose, topic }
-        : { email: TYPED_EMAIL, purpose });
+      assert.deepEqual(JSON.parse(calls[0].options.body), { email: TYPED_EMAIL, purpose });
 
       // node:sqlite hands back null-prototype rows; the values are what matter.
       const rows = db.raw.prepare("SELECT email, purpose, topic FROM lead_submissions").all()
@@ -372,8 +371,9 @@ for (const [file, purpose, topic, stated] of REVIEWED) {
       if (stated) {
         const sentence = shownText(document, "site-footer-topic-note");
         const named = sentence.slice("This request is sent about the ".length, -1);
-        assert.equal(named, JSON.parse(calls[0].options.body).topic, `${file}: the page names what it sends`);
-        assert.equal(named, rows[0].topic, `${file}: and what it sends is what was stored`);
+        assert.equal(JSON.parse(calls[0].options.body).topic, undefined,
+          `${file}: fixed routing copy must not be sent as visitor data`);
+        assert.equal(named, rows[0].topic, `${file}: the server-derived topic is what was stored`);
       }
       assert.ok(shownText(document, "site-footer-confirmation").includes(TYPED_EMAIL));
     } finally {

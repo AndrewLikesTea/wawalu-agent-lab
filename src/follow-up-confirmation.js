@@ -16,20 +16,12 @@
 // live region inserted already-populated is not reliably announced, so focus
 // landing on the receipt is what puts a reader inside it.
 
-/**
- * The receipt answers three questions and nothing else: whether the request was
- * received, what was submitted, and what did not go with it. `LEAD` is split
- * around the address so the address arrives as a text node of its own.
- *
- * The exclusion list is not decoration. `postLeadEmail` builds the whole request
- * body from the typed address and a fixed routing label, so no page state has a
- * route to the wire on any surface — the sentence is true by construction, and
- * naming what stayed behind is the point of it. It deliberately promises no
- * reply, response time, or action after storage.
- */
-export const CONFIRMATION_LEAD = "Request sent to the Wawalu team. Submitted work email: ";
-export const CONFIRMATION_DETAIL = "No page content, prompt text, uploaded file, or browsing data was submitted.";
-export const TOPIC_LEAD = "Submitted follow-up topic: ";
+// Split around the address so visitor input remains a text node.
+export const CONFIRMATION_LEAD = "Request received by the Wawalu team. Work email: ";
+export const CONFIRMATION_DETAIL = "Only your work email was sent; no page content, prompt text, uploaded file, or browsing data was sent.";
+export const CONFIRMATION_DETAIL_WITH_MESSAGE = "Only your work email and the optional message you entered were sent; no other page content, prompt text, uploaded file, or browsing data was sent.";
+export const CONFIRMATION_NEXT_STEP = "A Wawalu teammate may reply by email to clarify your question or suggest a relevant next step; a reply is not guaranteed.";
+export const TOPIC_LEAD = "Follow-up topic: ";
 export const REOPEN_LABEL = "Request another follow-up";
 
 /**
@@ -81,10 +73,11 @@ export function createFollowUpConfirmation({ form, status, submit, email, onReop
 
   const detail = document.createElement("p");
   detail.className = `${base}-confirmation-detail`;
-  // Empty unless the surface sent a topic. See `show`.
   const topic = document.createElement("strong");
   topic.className = `${base}-confirmation-topic`;
-  detail.append(topic, CONFIRMATION_DETAIL);
+  const nextStep = document.createElement("p");
+  nextStep.className = `${base}-confirmation-detail`;
+  nextStep.textContent = CONFIRMATION_NEXT_STEP;
 
   const again = document.createElement("button");
   again.className = `${base}-confirmation-again`;
@@ -99,21 +92,15 @@ export function createFollowUpConfirmation({ form, status, submit, email, onReop
     email.focus();
   });
 
-  region.append(lead, detail, again);
+  region.append(lead, detail, nextStep, again);
 
   let sent = false;
 
-  /**
-   * Put the panel into its terminal state, naming exactly what was submitted.
-   *
-   * `submittedTopic` is the surface's readonly topic field, which most surfaces
-   * do not ship. A default here would read a topic back to a visitor whose
-   * request carried none — untrue the way a promised reply is untrue — so the
-   * sentence appears only where the field does.
-   */
-  function show(value, submittedTopic = "") {
+  // Put the panel into its terminal state and name its fixed page topic.
+  function show(value, submittedTopic = "", sentMessage = false) {
     address.textContent = value;
     topic.textContent = submittedTopic ? `${TOPIC_LEAD}${submittedTopic}. ` : "";
+    detail.replaceChildren(topic, sentMessage ? CONFIRMATION_DETAIL_WITH_MESSAGE : CONFIRMATION_DETAIL);
     if (!region.parentNode) form.parentNode.insertBefore(region, form);
     // Hiding the form takes the field and both of its buttons out of the tab
     // order; disabling submit means even a stray click on it does nothing.

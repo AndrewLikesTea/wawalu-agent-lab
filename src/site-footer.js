@@ -432,12 +432,12 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
     try {
       const address = email.value.trim();
       const topic = form.dataset.followUpTopic;
-      const body = await postLeadEmail(request, email.value, form.dataset.followUpType || "follow_up", CONTACT_COPY, topic);
+      const body = await postLeadEmail(request, email.value, form.dataset.followUpType || "follow_up", CONTACT_COPY);
       form.dataset.state = "success";
       status.textContent = body.created ? CAPTURED : ALREADY_CAPTURED;
       // The form is replaced from here, so the control that would send again is
       // gone before the `finally` below could bring it back.
-      confirmation.show(address, topic);
+      confirmation.show(address, topic, false);
     } catch (error) {
       // Copy this repository owns, never a string an intermediary supplied, and
       // never a claim that the address was lost when that is not known.

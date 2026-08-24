@@ -321,9 +321,11 @@ test("a release's decisions are reachable from the history with the keyboard alo
   }
   assert.equal(focused, toggles[0], "the first release is tabbable");
 
-  // Enter opens that release's decisions; Space still expands them in place.
+  // Enter activates the disclosure just like Space; the detail link inside the
+  // expanded row remains the explicit route to the release page.
   pressEnter(page.document);
-  assert.deepEqual(page.navigations, ["/release.html?id=r-mixed"]);
+  assert.equal(toggles[0].getAttribute("aria-expanded"), "true");
+  assert.deepEqual(page.navigations, []);
 });
 
 test("the detail page a keyboard user lands on leads with the follow-up and its evidence", async (t) => {

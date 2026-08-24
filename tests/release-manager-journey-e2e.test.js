@@ -583,7 +583,7 @@ test("the release row expands on Space, and the detail link inside it is what le
   assert.equal(toggle.getAttribute("aria-expanded"), "false", "Space did not collapse the release row again");
 });
 
-test("the release row expands when its button is activated with Enter", { todo: true }, async (t) => {
+test("the release row expands when its button is activated with Enter", async (t) => {
   const { releasesPage } = await shipTheDecision(t);
 
   const toggle = tabTo(releasesPage, ".release-toggle", "the release row");
