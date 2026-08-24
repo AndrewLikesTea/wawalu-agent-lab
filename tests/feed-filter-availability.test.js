@@ -91,9 +91,9 @@ test("Social's filters are not operable while the feed is loading, and say why",
   const hint = hintIn(document.querySelector(".social-toolbar"), "post-filter-hint");
   assert.equal(hint.tagName, "P");
   assert.equal(textOf(hint), FILTERS_UNAVAILABLE_HINT);
-  assert.equal(textOf(hint), "Display name and posting time options become available when posts load.");
+  assert.equal(textOf(hint), "Display name options become available when posts load.");
   assert.equal(classesOf(hint).includes("hint"), true, "the reason is set at content weight");
-  assert.equal((textOf(document.body).match(/Display name and posting time options become available when posts load\./g) ?? []).length, 1);
+  assert.equal((textOf(document.body).match(/Display name options become available when posts load\./g) ?? []).length, 1);
 });
 
 test("Social's filters come back, in their authored order, the moment posts render", async (t) => {
@@ -280,19 +280,51 @@ test("the filter row's status line is one live region inside the group it descri
   assert.equal(textOf(document.querySelector("#feed-summary")), "Showing 2 posts, newest first.");
 });
 
-test("a loading filter row says the filters open with the posts, and offers none of them", async (t) => {
+// #2001. The row promised BOTH menus' options "when posts load" while the time
+// menu was standing there listing all four of its ranges, so a reader was told
+// to wait for a choice they could already read. The rule the sentence is held
+// to from here is one a reader can check against the controls without knowing
+// the code: it names as pending exactly the menu that is EMPTY, and says
+// nothing about the menu that already carries its choices — in either
+// direction, because both menus are `disabled` and "shown now" would invite a
+// reader into a control that refuses them. Pinning the option counts and not
+// only the sentence is the point: the words drifted from the controls once
+// because nothing tied them together.
+test("a loading filter row names the empty menu, and neither promises nor offers the full one", async (t) => {
   const page = await loadPage(SOCIAL_PAGE, {});
   t.after(() => page.restore());
   const { document } = page;
-  mountSocialFeed(document, { posts: [], state: "loading" });
+  const feed = mountSocialFeed(document, { posts: [], state: "loading" });
 
   rowIsWhole(document, "loading");
   for (const id of SOCIAL_FILTERS) {
     assert.equal(document.querySelector(id).disabled, true, `${id} offers itself before there is a feed`);
   }
+
+  // The fact the sentence rests on. The time ranges are authored in the markup
+  // and owe the fetch nothing; the display names are read off the posts, so
+  // "All display names" over an empty feed is the whole menu.
+  const names = document.querySelector("#post-name-filter");
+  const time = document.querySelector("#post-time-filter");
+  assert.equal(names.options.length, 1, "the display-name menu already holds names with no posts behind them");
+  assert.equal(names.options[0].getAttribute("value"), "all");
+  assert.ok(time.options.length > 1, "the time menu has no ranges to be told to wait for");
+  assert.equal(time.options.length, 4);
+
   assert.equal(filterStatus(document), FILTERS_UNAVAILABLE_HINT);
-  assert.equal(filterStatus(document), "Display name and posting time options become available when posts load.");
+  assert.equal(filterStatus(document), "Display name options become available when posts load.");
   assert.equal(filterStatus(document), filterStatusLine({ available: false }));
+  assert.match(filterStatus(document), /Display name/, "the row stopped naming the menu that is empty");
+  assert.doesNotMatch(filterStatus(document), /posting time|time range|shown now/i,
+    "the row describes the time menu, whose ranges are already on screen either way");
+
+  // And the promise comes true, which is what makes it a promise and not a
+  // sentence that merely reads well: the names arrive with the posts.
+  feed.seed(RECENT);
+  assert.ok(names.options.length > 1, "the display names never became available at all");
+  assert.equal(names.disabled, false);
+  assert.equal(time.options.length, 4, "the time menu's ranges changed when the posts landed");
+  assert.doesNotMatch(textOf(document.body), /become available/, "the waiting sentence outlived the wait");
 });
 
 test("a settled filter row with nothing set says so, and its reset has nothing to do", async (t) => {
