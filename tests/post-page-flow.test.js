@@ -414,7 +414,7 @@ test("the loading state is one announced line in the post's region, and takes no
     // The frame around it still says what the page is, so the region is never
     // an unexplained blank.
     assert.match(textOf(page.document.querySelector(".hero-post")),
-      /Shared links like this one open a single post from Social’s shared demo feed\./);
+      /Shared links like this one open one Social post, which may be an invented demo or a real, public post published by a visitor\./);
     assertExits(page, null, "loading", { publish: false });
     assert.equal(textOf(page.document.querySelector("#post-people")), "", "loading must not expose an empty or placeholder display name");
     assert.equal(page.document.querySelector("#post-people").hidden, true);
