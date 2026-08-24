@@ -574,9 +574,9 @@ function renderPostCard(post, { index }) {
   return item;
 }
 
-// Placeholder cards for the first load. Each reserved card says in visible text
-// what it is holding open, so the wait reads as the feed's structure rather than
-// as three grey boxes a reader has to interpret from the shimmer alone. There
+// Placeholder cards for the first load. They reserve the real card hierarchy —
+// author and time, post text, an optional image, then the post action — rather
+// than turning every pending record into the same large grey rectangle. There
 // are no links or controls in here, and no card claims to be a particular post:
 // how many are drawn is a layout choice, not a count this page has fetched.
 //
@@ -588,11 +588,28 @@ function renderSkeleton(container, count = 3) {
   const list = el("ol", "post-grid post-grid-skeleton");
   list.setAttribute("role", "list");
   list.setAttribute("aria-hidden", "true");
+  list.setAttribute("inert", "");
   for (let index = 0; index < count; index += 1) {
     const item = el("li");
     const card = el("div", "post-card post-card-skeleton");
-    card.append(el("p", "eyebrow skeleton-label", "Loading post"), el("div", "skeleton-media"),
-      el("div", "skeleton-line"), el("div", "skeleton-line skeleton-line-short"));
+    const head = el("div", "post-head skeleton-post-head");
+    const byline = el("div", "post-byline skeleton-byline");
+    byline.append(el("div", "skeleton-line skeleton-line-author skeleton-line-short"),
+      el("div", "skeleton-line skeleton-line-date skeleton-line-short"));
+    // The avatar keeps .post-avatar's 38px circle and does not also take
+    // .skeleton-line, whose 13px height wins on source order and would shrink
+    // the reserved head row to a quarter of the height the real card needs.
+    head.append(el("div", "post-avatar skeleton-avatar"), byline);
+    const copy = el("div", "skeleton-copy");
+    copy.append(el("div", "skeleton-line"), el("div", "skeleton-line"),
+      el("div", "skeleton-line skeleton-line-short"));
+    const action = el("div", "skeleton-line skeleton-line-short skeleton-line-action");
+    if (index % 2 === 0) {
+      card.classList.add("post-card-media");
+      card.append(copy, el("div", "skeleton-media"), head, action);
+    } else {
+      card.append(head, copy, action);
+    }
     item.append(card);
     list.append(item);
   }

@@ -431,15 +431,15 @@ test("the first load reserves a skeleton grid instead of a blank panel", () => {
   renderProfileGrid(container, [], { state: "loading", author: "Mina", statusRegion: status });
   assert.equal(container.getAttribute("aria-busy"), "true");
   const skeleton = first(container, "profile-grid-skeleton");
-  // The status region is the announcement; the cells are the visible shape of
-  // what is coming, and they name themselves without claiming to be six posts
-  // Mina has or repeating the name the header above them already carries.
+  // The status region is the announcement; the cells reserve the image,
+  // caption, metadata, and action hierarchy without claiming six fetched posts.
   assert.equal(skeleton.getAttribute("aria-hidden"), "true");
+  assert.equal(skeleton.getAttribute("inert"), "");
   assert.equal(status.textContent, "Loading image posts…");
   assert.equal(byClass(skeleton, "profile-tile-skeleton").length, 6);
-  const labels = byClass(skeleton, "skeleton-label");
-  assert.equal(labels.length, 6, "every reserved cell says what it is holding open");
-  assert.ok(labels.every((node) => node.textContent === "Loading image post"));
+  assert.equal(byClass(skeleton, "skeleton-media-square").length, 6);
+  assert.equal(byClass(skeleton, "skeleton-meta").length, 6);
+  assert.equal(byClass(skeleton, "skeleton-line-action").length, 6);
   assert.equal(tags(skeleton, "A").length + tags(skeleton, "BUTTON").length, 0);
   assert.equal(byClass(container, "empty-state").length, 0);
 });

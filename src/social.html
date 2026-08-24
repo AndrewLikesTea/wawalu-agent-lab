@@ -297,7 +297,16 @@
                cards. -->
           <p class="feed-summary" id="feed-summary" aria-live="polite"></p>
           <div id="feed-state" role="status" aria-live="polite" aria-atomic="true">Loading the Social feed…</div>
-          <div id="post-feed" aria-describedby="feed-summary"></div>
+          <div id="post-feed" aria-describedby="feed-summary" aria-busy="true">
+            <!-- Keep first paint structurally honest before the module mounts.
+                 These are presentation-only reservations: the status immediately
+                 above is the one assistive-technology loading label. -->
+            <ol class="post-grid post-grid-skeleton" role="list" aria-hidden="true" inert>
+              <li><div class="post-card post-card-skeleton post-card-media"><div class="skeleton-copy"><div class="skeleton-line"></div><div class="skeleton-line"></div><div class="skeleton-line skeleton-line-short"></div></div><div class="skeleton-media"></div><div class="post-head skeleton-post-head"><div class="post-avatar skeleton-avatar"></div><div class="post-byline skeleton-byline"><div class="skeleton-line skeleton-line-author skeleton-line-short"></div><div class="skeleton-line skeleton-line-date skeleton-line-short"></div></div></div><div class="skeleton-line skeleton-line-short skeleton-line-action"></div></div></li>
+              <li><div class="post-card post-card-skeleton"><div class="post-head skeleton-post-head"><div class="post-avatar skeleton-avatar"></div><div class="post-byline skeleton-byline"><div class="skeleton-line skeleton-line-author skeleton-line-short"></div><div class="skeleton-line skeleton-line-date skeleton-line-short"></div></div></div><div class="skeleton-copy"><div class="skeleton-line"></div><div class="skeleton-line"></div><div class="skeleton-line skeleton-line-short"></div></div><div class="skeleton-line skeleton-line-short skeleton-line-action"></div></div></li>
+              <li><div class="post-card post-card-skeleton post-card-media"><div class="skeleton-copy"><div class="skeleton-line"></div><div class="skeleton-line"></div><div class="skeleton-line skeleton-line-short"></div></div><div class="skeleton-media"></div><div class="post-head skeleton-post-head"><div class="post-avatar skeleton-avatar"></div><div class="post-byline skeleton-byline"><div class="skeleton-line skeleton-line-author skeleton-line-short"></div><div class="skeleton-line skeleton-line-date skeleton-line-short"></div></div></div><div class="skeleton-line skeleton-line-short skeleton-line-action"></div></div></li>
+            </ol>
+          </div>
           <!-- Who wrote what a reader has just scrolled through, said once and
                said here, because here is where the names are. A reader meets
                "Ari" on a card and reads an account unless the page tells them
