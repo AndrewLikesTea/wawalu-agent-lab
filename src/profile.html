@@ -298,7 +298,19 @@
                one voice, and while this element was also live a name with no
                image posts spoke the same guidance twice, from two regions. -->
           <div id="profile-feed-status">Loading image posts…</div>
-          <div id="profile-grid" aria-describedby="profile-order"></div>
+          <div id="profile-grid" aria-describedby="profile-order" aria-busy="true">
+            <!-- The selected Ari context remains in the heading and filled
+                 state chip above. Pending names are not rendered as controls;
+                 these inert tiles reserve only the image-result layout. -->
+            <ul class="profile-grid profile-grid-skeleton" role="list" aria-hidden="true" inert>
+              <li class="profile-cell"><div class="profile-tile profile-tile-skeleton"><div class="skeleton-media skeleton-media-square"></div><div class="skeleton-line"></div><div class="skeleton-line skeleton-line-short"></div><div class="profile-tile-meta skeleton-meta"><div class="skeleton-line skeleton-line-date skeleton-line-short"></div><div class="skeleton-line skeleton-line-stat skeleton-line-short"></div></div><div class="skeleton-line skeleton-line-short skeleton-line-action"></div></div></li>
+              <li class="profile-cell"><div class="profile-tile profile-tile-skeleton"><div class="skeleton-media skeleton-media-square"></div><div class="skeleton-line"></div><div class="skeleton-line skeleton-line-short"></div><div class="profile-tile-meta skeleton-meta"><div class="skeleton-line skeleton-line-date skeleton-line-short"></div><div class="skeleton-line skeleton-line-stat skeleton-line-short"></div></div><div class="skeleton-line skeleton-line-short skeleton-line-action"></div></div></li>
+              <li class="profile-cell"><div class="profile-tile profile-tile-skeleton"><div class="skeleton-media skeleton-media-square"></div><div class="skeleton-line"></div><div class="skeleton-line skeleton-line-short"></div><div class="profile-tile-meta skeleton-meta"><div class="skeleton-line skeleton-line-date skeleton-line-short"></div><div class="skeleton-line skeleton-line-stat skeleton-line-short"></div></div><div class="skeleton-line skeleton-line-short skeleton-line-action"></div></div></li>
+              <li class="profile-cell"><div class="profile-tile profile-tile-skeleton"><div class="skeleton-media skeleton-media-square"></div><div class="skeleton-line"></div><div class="skeleton-line skeleton-line-short"></div><div class="profile-tile-meta skeleton-meta"><div class="skeleton-line skeleton-line-date skeleton-line-short"></div><div class="skeleton-line skeleton-line-stat skeleton-line-short"></div></div><div class="skeleton-line skeleton-line-short skeleton-line-action"></div></div></li>
+              <li class="profile-cell"><div class="profile-tile profile-tile-skeleton"><div class="skeleton-media skeleton-media-square"></div><div class="skeleton-line"></div><div class="skeleton-line skeleton-line-short"></div><div class="profile-tile-meta skeleton-meta"><div class="skeleton-line skeleton-line-date skeleton-line-short"></div><div class="skeleton-line skeleton-line-stat skeleton-line-short"></div></div><div class="skeleton-line skeleton-line-short skeleton-line-action"></div></div></li>
+              <li class="profile-cell"><div class="profile-tile profile-tile-skeleton"><div class="skeleton-media skeleton-media-square"></div><div class="skeleton-line"></div><div class="skeleton-line skeleton-line-short"></div><div class="profile-tile-meta skeleton-meta"><div class="skeleton-line skeleton-line-date skeleton-line-short"></div><div class="skeleton-line skeleton-line-stat skeleton-line-short"></div></div><div class="skeleton-line skeleton-line-short skeleton-line-action"></div></div></li>
+            </ul>
+          </div>
           <!-- People is a filtered view of Social, and the nav says so by
                nesting them. This is where People defines the thing its picker
                selects, in the bytes Social's feed note and the permalink both

@@ -666,7 +666,8 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .skeleton-media { aspect-ratio:4/3; border-radius:10px; }
 .skeleton-line { height:13px; border-radius:7px; }
 .skeleton-line-short { width:62%; }
-.skeleton-media,.skeleton-line { background:linear-gradient(100deg,#eeece5 30%,#f7f6f2 50%,#eeece5 70%) #eeece5; background-size:220% 100%; animation:shiplog-shimmer 1.4s linear infinite; }
+.skeleton-copy { display:grid; gap:7px; }
+.skeleton-media,.skeleton-line,.skeleton-avatar { background:linear-gradient(100deg,#eeece5 30%,#f7f6f2 50%,#eeece5 70%) #eeece5; background-size:220% 100%; animation:shiplog-shimmer 1.4s linear infinite; }
 /* ---------------------------------------------------------------------------
    The sidebar-less workspace: People's tile grid, a post permalink, and Social,
    whose composer opens below the feed instead of standing beside it. The panel
@@ -792,15 +793,14 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 /* Tablet: two comfortable columns instead of three cramped ones. */
 @media(max-width:1000px) { .post-grid{grid-template-columns:repeat(auto-fill,minmax(min(100%,240px),1fr))} }
 /* Phone: a single column of full-bleed images, the Instagram reading posture. */
-@media(max-width:520px) { .post-grid{grid-template-columns:1fr;gap:14px}.post-card{padding:16px}.post-media{aspect-ratio:1/1} }
+@media(max-width:520px) { .post-grid{grid-template-columns:1fr;gap:14px}.post-card{padding:16px}.post-media,.post-card-skeleton .skeleton-media{aspect-ratio:1/1} }
 /* Tablet: slightly smaller tiles so a narrowed panel keeps three across instead
    of dropping to two very wide ones. */
 @media(max-width:1000px) { .profile-grid{grid-template-columns:repeat(auto-fill,minmax(min(100%,210px),1fr))} }
-/* Phone: two-up tiles — one column is a long scroll, three-up leaves the caption
-   a sliver. Placeholders go one-up: their label is words. Identity block stacks. */
+/* Phone: loaded and loading tiles share the same two-up geometry. */
 @media(max-width:520px) {
   .hero-actions{align-items:stretch;flex-direction:column}.button-link{width:100%}.text-link{padding:7px 2px}.product-story{padding:22px}.story-card{padding:20px}.lead-capture{padding:22px}.lead-capture-controls{grid-template-columns:1fr}.lead-capture-controls button{justify-content:space-between;width:100%}
-  .profile-grid{grid-template-columns:repeat(2,1fr);gap:12px}.profile-grid-skeleton{grid-template-columns:1fr}
+  .profile-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
   .profile-tile-caption{padding:11px 11px 0;font-size:13px}
   .profile-tile-meta{flex-direction:column;align-items:flex-start;gap:3px;padding:8px 11px 12px}
   .profile-tile-stat{text-align:left}
@@ -979,4 +979,4 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 /* Phone: the metadata row stops competing with the title for width, and the
    picker gives up its scroll cap so the page scrolls as one column. */
 @media(max-width:520px) { .decision-picker{max-height:none}.decision-picker-meta{gap:6px 10px} }
-@media(prefers-reduced-motion:reduce) { html{scroll-behavior:auto}.release-chevron{transition:none}.list-state-loading h3::before,.detail-loading-dot,.post-media[data-state="loading"],.profile-media[data-state="loading"],.detail-media[data-state="loading"],.skeleton-media,.skeleton-line{animation:none}.profile-tile{transition:none}.profile-tile:hover{transform:none}.site-footer-panel{animation:none} }
+@media(prefers-reduced-motion:reduce) { html{scroll-behavior:auto}.release-chevron{transition:none}.list-state-loading h3::before,.detail-loading-dot,.post-media[data-state="loading"],.profile-media[data-state="loading"],.detail-media[data-state="loading"],.skeleton-media,.skeleton-line,.skeleton-avatar{animation:none}.profile-tile{transition:none}.profile-tile:hover{transform:none}.site-footer-panel{animation:none} }

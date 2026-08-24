@@ -558,12 +558,16 @@ function renderSkeleton(container, count = 6) {
   const list = el("ul", "profile-grid profile-grid-skeleton");
   list.setAttribute("role", "list");
   list.setAttribute("aria-hidden", "true");
+  list.setAttribute("inert", "");
   for (let index = 0; index < count; index += 1) {
     const item = el("li", "profile-cell");
     const tile = el("div", "profile-tile profile-tile-skeleton");
-    tile.append(el("p", "eyebrow skeleton-label", "Loading image post"),
-      el("div", "skeleton-media skeleton-media-square"),
-      el("div", "skeleton-line"), el("div", "skeleton-line skeleton-line-short"));
+    const meta = el("div", "profile-tile-meta skeleton-meta");
+    meta.append(el("div", "skeleton-line skeleton-line-date skeleton-line-short"),
+      el("div", "skeleton-line skeleton-line-stat skeleton-line-short"));
+    tile.append(el("div", "skeleton-media skeleton-media-square"),
+      el("div", "skeleton-line"), el("div", "skeleton-line skeleton-line-short"),
+      meta, el("div", "skeleton-line skeleton-line-short skeleton-line-action"));
     item.append(tile);
     list.append(item);
   }

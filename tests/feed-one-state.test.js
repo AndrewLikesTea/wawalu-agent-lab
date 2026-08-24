@@ -134,6 +134,19 @@ test("Social says one thing while it loads, and the other three lines are not on
   assert.doesNotMatch(body, /New posts will appear here on their own/);
   assert.equal((body.match(/Loading the Social feed/g) ?? []).length, 1);
 
+  // The wait reserves both kinds of post card, including their metadata and
+  // eventual action position, without inventing anything a keyboard can reach.
+  const skeleton = document.querySelector(".post-grid-skeleton");
+  assert.equal(skeleton.getAttribute("aria-hidden"), "true");
+  assert.equal(skeleton.hasAttribute("inert"), true);
+  assert.equal(document.querySelectorAll(".post-card-skeleton").length, 3);
+  assert.equal(document.querySelectorAll(".post-card-skeleton")
+    .filter((card) => classesOf(card).includes("post-card-media")).length, 2);
+  assert.equal(document.querySelectorAll(".skeleton-avatar").length, 3);
+  assert.equal(document.querySelectorAll(".skeleton-line-date").length, 3);
+  assert.equal(document.querySelectorAll(".skeleton-line-action").length, 3);
+  for (const tag of ["a", "button", "input", "select"]) assert.equal(skeleton.querySelectorAll(tag).length, 0);
+
   // And nothing to filter yet, so the controls say so with the attribute that
   // also takes them out of the tab order.
   for (const id of ["#post-name-filter", "#post-time-filter", "#post-filter-clear"]) {
@@ -321,7 +334,68 @@ test("People says one thing while it loads, and the other three lines are not on
   assert.doesNotMatch(body, /New image posts will appear here on their own/);
   assert.doesNotMatch(body, /Want a picture of your own here\?/);
   assert.equal((body.match(/Loading image posts/g) ?? []).length, 1);
+
+  // The requested/selected name remains real context while the result tiles
+  // wait, but no partial set of names is offered as if it were selectable.
+  assert.match(textOf(document.querySelector("#grid-title")), /^Zed · image posts/);
+  assert.match(textOf(document.querySelector("#profile-name")), /published as Zed/);
+  assert.equal(document.querySelectorAll(".profile-filter-option").length, 0);
+  const skeleton = document.querySelector(".profile-grid-skeleton");
+  assert.equal(skeleton.getAttribute("aria-hidden"), "true");
+  assert.equal(skeleton.hasAttribute("inert"), true);
+  assert.equal(document.querySelectorAll(".profile-tile-skeleton").length, 6);
+  assert.equal(document.querySelectorAll(".skeleton-media-square").length, 6);
+  assert.equal(document.querySelectorAll(".skeleton-meta").length, 6);
+  assert.equal(document.querySelectorAll(".skeleton-line-action").length, 6);
+  for (const tag of ["a", "button", "input", "select"]) assert.equal(skeleton.querySelectorAll(tag).length, 0);
 });
+
+/* --------------------- the frame before hydration ------------------------- */
+
+// Both pages now author a placeholder grid into their markup, so the first
+// paint is the feed's shape rather than one sentence over an empty box. That
+// makes the HTML a second copy of what renderSkeleton() draws a moment later,
+// and a copy nobody compares is a copy that drifts — a preview of a layout the
+// module has stopped rendering is worse than no preview, because it moves twice.
+// So: read the authored shape, mount the module in its loading state, read it
+// again. Same tags, same classes, same nesting, or the two have parted.
+// Elements only: this harness keeps text nodes in `children` and gives them a
+// tagName of "#text", so the element test is whether they answer getAttribute.
+const elements = (node) => (node?.children ?? []).filter((child) => typeof child.getAttribute === "function");
+const shapeOf = (node) => elements(node)
+  .map((child) => `${child.tagName}.${classesOf(child).join(".")}(${shapeOf(child)})`)
+  .join(" ");
+
+for (const { name, url, selector, mount } of [
+  {
+    name: "Social", url: SOCIAL_PAGE, selector: "#post-feed",
+    mount: (document) => mountSocialFeed(document, { posts: [], state: "loading" }),
+  },
+  {
+    name: "People", url: PEOPLE_PAGE, selector: "#profile-grid",
+    mount: (document) => mountProfile(document, { posts: [], author: "Zed", state: "loading" }),
+  },
+]) {
+  test(`${name}'s authored first paint is the shape its module renders while loading`, async (t) => {
+    const page = await loadPage(url, {});
+    t.after(() => page.restore());
+    const { document } = page;
+    const region = document.querySelector(selector);
+    // Authored busy, inert and out of the accessibility tree, exactly as
+    // rendered: the status region above is the one loading label either page
+    // has, and nothing in here is a control or claims to be a fetched post.
+    assert.equal(region.getAttribute("aria-busy"), "true");
+    const [list] = elements(region);
+    assert.equal(list.getAttribute("aria-hidden"), "true");
+    assert.equal(list.hasAttribute("inert"), true);
+    for (const tag of ["a", "button", "input", "select"]) assert.equal(list.querySelectorAll(tag).length, 0);
+
+    const authored = shapeOf(region);
+    assert.notEqual(authored, "", "the page ships no placeholder to preview with");
+    mount(document);
+    assert.equal(shapeOf(document.querySelector(selector)), authored);
+  });
+}
 
 test("People's status region is a top-level sibling and not the chooser's chip", async (t) => {
   const page = await loadPage(PEOPLE_PAGE, {});
