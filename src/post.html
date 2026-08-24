@@ -123,14 +123,16 @@
              outlives the two states where nothing is: not-found and error have
              no post for it to be about. Saying what a shared link opens is true
              in all four states, and it is the fact a cold visitor is missing —
-             that they are on a one-post page and the rest is a feed away. -->
-        <p>Shared links like this one open a single post from Social’s shared demo feed.</p>
-        <!-- A visitor who arrives from a shared link may never open
-             /social.html, so this page distinguishes the supplied demo posts
-             from posts visitors publish. It stands in the hero, outside the
-             post's own region, so it survives every state the lookup can land
-             in. -->
-        <p>The posts supplied for this demo are invented. Posts published by visitors are real and public. Posts use no customer or production data.</p>
+             that they are on a one-post page and the rest is a feed away.
+
+             It names both provenances because a shared link can carry either.
+             A visitor who lands here may never open /social.html, and one who
+             was forwarded a post a visitor published must not be told that
+             every shared link opens invented demo content. -->
+        <p>Shared links like this one open one Social post, which may be an invented demo or a real, public post published by a visitor.</p>
+        <!-- The data boundary, kept as its own sentence: it holds whichever of
+             the two provenances above this particular link turned out to open. -->
+        <p>Posts use no customer or production data.</p>
         <!-- No publication consequence here. It used to stand in this hero, word
              for word the sentence Social's composer shows beside Publish post,
              on the reasoning that a permalink is the page a visitor meets cold.

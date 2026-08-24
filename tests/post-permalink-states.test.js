@@ -630,12 +630,12 @@ const EXITS_BY_STATE = {
 };
 // The shared page makes the boundary explicit because a visitor who lands here
 // may never open /social.html.
-const DEMO_SENTENCE = "The posts supplied for this demo are invented. Posts published by visitors are real and public. Posts use no customer or production data.";
+const DATA_SENTENCE = "Posts use no customer or production data.";
 // What a pasted link opens, for a reader who has never seen the feed. It is
 // context about the page, not about this post — which is also why it holds in
 // the states where the lookup found nothing — so it reads after the post
 // rather than in front of it.
-const CONTEXT_SENTENCE = "Shared links like this one open a single post from Social’s shared demo feed.";
+const CONTEXT_SENTENCE = "Shared links like this one open one Social post, which may be an invented demo or a real, public post published by a visitor.";
 
 test("the words of a route out never change, and the post provenance survives every state", async () => {
   const cases = [
@@ -658,7 +658,7 @@ test("the words of a route out never change, and the post provenance survives ev
       // on a pasted link has a step to undo.
       for (const label of CHROME_LINKS) assert.doesNotMatch(label, /←|Back/);
 
-      assert.equal(textOf(main).includes(DEMO_SENTENCE), true,
+      assert.equal(textOf(main).includes(CONTEXT_SENTENCE), true,
         `the ${state} state lost the post provenance`);
 
       // And none of it lives in the region the fetch replaces — which is the
@@ -666,8 +666,8 @@ test("the words of a route out never change, and the post provenance survives ev
       // every render, so anything inside it is gone the moment a state changes.
       assert.equal(page.panel.querySelectorAll(".detail-back").length, 0,
         `the ${state} state's routes out must sit in the page frame, not the panel`);
-      assert.equal(textOf(page.panel).includes(DEMO_SENTENCE), false,
-        `the ${state} state must not repeat the demo sentence inside the panel`);
+      assert.equal(textOf(page.panel).includes(CONTEXT_SENTENCE), false,
+        `the ${state} state must not repeat the provenance sentence inside the panel`);
     } finally {
       page.restore();
     }
@@ -677,7 +677,8 @@ test("the words of a route out never change, and the post provenance survives ev
   // the shipped markup too, not only from a page that has finished loading.
   const html = await readFile(new URL("../src/post.html", import.meta.url), "utf8");
   assert.ok(html.includes(`>${SOCIAL_LINK}</a>`), `${SOCIAL_LINK} must ship in the markup`);
-  assert.ok(html.includes(`<p>${DEMO_SENTENCE}</p>`), "the post provenance must ship in the markup");
+  assert.ok(html.includes(`<p>${CONTEXT_SENTENCE}</p>`), "the post provenance must ship in the markup");
+  assert.ok(html.includes(`<p>${DATA_SENTENCE}</p>`), "the data boundary must ship in the markup");
   // The eyebrow is the feed pages' eyebrow, word for word, so a permalink is
   // stamped as a demo the same way /social.html and /profile.html are — and it
   // no longer says "post" a line above the h1 that says it and two lines above
@@ -943,13 +944,13 @@ function assertLeadsWithThePost(document, where) {
 
   // The whole page sequence: eyebrow, heading, the post's own region, what
   // Social is, then the links. The context paragraph is the standing sentence
-  // about the feed; the demo sentence follows it, and neither precedes the post.
+  // about the shared post; the data sentence follows it, and neither precedes the post.
   const flow = main.querySelectorAll("h1,p,div");
   const eyebrow = flow.findIndex((node) => node.classList.contains("eyebrow"));
   const heading = flow.findIndex((node) => node.id === "page-title");
   const slot = flow.findIndex((node) => node.id === "post-detail");
   const context = flow.findIndex((node) => textOf(node) === CONTEXT_SENTENCE);
-  const intro = flow.findIndex((node) => textOf(node) === DEMO_SENTENCE);
+  const intro = flow.findIndex((node) => textOf(node) === DATA_SENTENCE);
   const exits = flow.findIndex((node) => node.classList.contains("detail-page-exits"));
   assert.ok(eyebrow >= 0 && slot >= 0 && context >= 0 && intro >= 0 && exits >= 0,
     `${where}: the page lost a part of its sequence`);
@@ -1016,8 +1017,8 @@ test("the permalink leads with the post and puts the feed context under it, load
   assert.ok(at('<p class="eyebrow">Social · demo</p>') < at('<h1 id="page-title">'), "the eyebrow precedes the heading");
   assert.ok(at('<h1 id="page-title">') < at('id="post-detail"'), "the heading precedes the post's own region");
   assert.ok(at('id="post-detail"') < at(`<p>${CONTEXT_SENTENCE}</p>`), "the post precedes what the page says about Social");
-  assert.ok(at(`<p>${CONTEXT_SENTENCE}</p>`) < at(`<p>${DEMO_SENTENCE}</p>`), "the two standing sentences keep their order");
-  assert.ok(at(`<p>${DEMO_SENTENCE}</p>`) < at(`>${SOCIAL_LINK}</a>`), "the intro precedes the Social route out");
+  assert.ok(at(`<p>${CONTEXT_SENTENCE}</p>`) < at(`<p>${DATA_SENTENCE}</p>`), "the two standing sentences keep their order");
+  assert.ok(at(`<p>${DATA_SENTENCE}</p>`) < at(`>${SOCIAL_LINK}</a>`), "the intro precedes the Social route out");
   assert.ok(at(`>${SOCIAL_LINK}</a>`) < at('id="post-people"'), "Social precedes People, the order the nav names them in");
   // Moved in the markup, not turned around in CSS: a stylesheet reorder would
   // leave reading order and tab order in the order this change exists to end.
@@ -1172,16 +1173,21 @@ test("the shared-post page introduces itself once, answering what a cold visitor
   }
 });
 
-// One explanation of what this page is, and one statement that the feed is a
-// demo. Counted over the rendered page's own content — the About Shiplog band
+// One explanation of what this page is, and one statement of its data boundary.
+// Counted over the rendered page's own content — the About Shiplog band
 // below it is the site's directory and is not this page introducing itself.
 function assertSaidOnce(document, where) {
   const main = textOf(document.querySelector("#main-content"));
   assert.equal(times(main, RETIRED_WAIT), 0, `${where}: the retired wait is back on the page`);
   assert.equal(times(main, CONTEXT_SENTENCE), 1, `${where}: what a shared link opens is said ${times(main, CONTEXT_SENTENCE)} times`);
-  assert.equal(times(main, DEMO_SENTENCE), 1, `${where}: the demo sentence is said ${times(main, DEMO_SENTENCE)} times`);
+  assert.equal(times(main, DATA_SENTENCE), 1, `${where}: the data boundary is said ${times(main, DATA_SENTENCE)} times`);
   // And no second wording of the same fact anywhere in the page's content: one
   // mention of a post coming from Social, the one in the sentence above.
-  assert.equal(times(main, "post from Social’s shared demo feed"), 1, `${where}: a second wording of the same fact`);
+  assert.equal(times(main, "invented demo"), 1, `${where}: invented provenance is said a second way`);
+  // The claim this page must not make, in any wording: that a shared link is
+  // demo content by virtue of being a shared link. A reader forwarded a post a
+  // visitor published is one of the readers this page has to be true for, so
+  // no sentence here may sort every link into a demo feed.
+  assert.doesNotMatch(main, /demo feed/, `${where}: the page sorts every shared link into a demo feed`);
   assert.doesNotMatch(main, /single shared post|Social · post/, `${where}: the page restates itself`);
 }
