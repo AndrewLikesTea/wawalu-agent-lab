@@ -201,7 +201,45 @@ test("the first screen makes its privacy promise at most twice, beside the link 
   const promise = blocks.findIndex((node) => (node.getAttribute("class") ?? "").includes("hero-boundary"));
   assert.ok(actions >= 0 && promise === actions + 1,
     "the promise must read in the same block as the AI FinOps entry point, directly after it");
-  assert.match(textOf(blocks[actions]), /Read the worked decision in AI FinOps/);
+
+  // #2006 moved the AI FinOps link out of this row and into the recommended
+  // action it belongs to, so "beside the link" is now "after both of them".
+  // Still an adjacency and not a pair of loose facts: every way into the example
+  // reads above the promise, and nothing stands between the row and it.
+  const takeaway = blocks.findIndex((node) => node.getAttribute("class") === "executive-takeaway");
+  assert.ok(takeaway >= 0 && takeaway < actions,
+    "the block holding the AI FinOps link must read above the promise, not below it");
+  assert.match(textOf(hero.querySelector('a[href="/evolution.html"].button-link')),
+    /Read the worked decision in AI FinOps/);
+});
+
+test("the takeaway's recommended action fits a narrow viewport without clipping", async () => {
+  // Asserted on the stylesheet because nothing on this page reads a viewport
+  // width: there is no script here to drive, so a harness viewport shim would
+  // assert only itself. These rules are the whole mechanism.
+  const css = await readFile(STYLES, "utf8");
+  const rules = css.match(/\.executive-takeaway[^{}]*\{[^}]*\}/g) ?? [];
+  assert.ok(rules.length >= 10, `the takeaway's rules did not parse: ${rules.length}`);
+  const block = rules.join("\n");
+
+  // The three ways this card could push the hero sideways at 320px, all barred.
+  assert.doesNotMatch(block, /white-space:\s*nowrap/,
+    "a label that cannot wrap clips or scrolls on a phone");
+  assert.doesNotMatch(block, /(?<![a-z-])width:\s*\d+(?:px|rem|em|ch)/,
+    "a fixed width cannot fit a viewport narrower than it");
+  assert.doesNotMatch(block, /position:\s*absolute/);
+
+  // And the two declarations that make it fit: the figure scales with the
+  // viewport rather than sitting at one size, and a token too long for the card
+  // breaks instead of overflowing it.
+  assert.match(css, /\.executive-takeaway \{[^}]*overflow-wrap:anywhere/);
+  assert.match(css, /\.executive-takeaway-value \{[^}]*font-size:clamp\(/);
+
+  // The destination keeps the shipped button geometry rather than a local one,
+  // which is what puts its arrow at the far edge when styles.css widens it to
+  // the full column at 520px and under.
+  assert.doesNotMatch(block, /\.executive-takeaway-action a[^{]*\{[^}]*display:/,
+    "the decision link must not re-declare the display .button-link ships with");
 });
 
 test("the front door counts in months, and never in an undefined 'period'", async () => {
