@@ -32,7 +32,7 @@ import { FOLLOW_UP_TOPICS } from "../src/leads.js";
 // The pages under test, and a page with the plain footer to measure them
 // against. The baseline is what the follow-up block looks like with no topic of
 // any kind, so the tab order it produces is the one the sentence must not change.
-const STATED = ["post.html", "releases.html", "social.html", "profile.html", "coach.html"];
+const STATED = ["index.html", "post.html", "releases.html", "social.html", "profile.html", "coach.html"];
 const BASELINE = "decision.html";
 
 const SENTENCE_LEAD = "This request is sent about the ";
@@ -134,7 +134,7 @@ for (const file of STATED) {
 
       // And the receipt reads back the same string, so a visitor can check the
       // page's claim against what was submitted.
-      assert.ok(textOf(byId(document, "site-footer-confirmation")).includes(`Submitted follow-up topic: ${expected}.`),
+      assert.ok(textOf(byId(document, "site-footer-confirmation")).includes(`Fixed page topic: ${expected}.`),
         `${file}: the receipt must name the topic the page named`);
     } finally {
       lead.restore();

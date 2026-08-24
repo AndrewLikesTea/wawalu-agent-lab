@@ -45,7 +45,7 @@ import { CONTACT_COPY, FOLLOW_UP_PRIVACY, knownNotSent, resolveFailure, Submissi
 // against FOLLOW_UP_TOPICS here rather than against a phrase typed into a test,
 // so the sentence cannot drift away from what goes on the wire.
 const REVIEWED = [
-  ["index.html", "follow_up", null, false],
+  ["index.html", "follow_up_homepage", FOLLOW_UP_TOPICS.follow_up_homepage, true],
   ["coach.html", "follow_up_coach", FOLLOW_UP_TOPICS.follow_up_coach, true],
   ["post.html", "follow_up_social", FOLLOW_UP_TOPICS.follow_up_social, true],
   ["releases.html", "follow_up_releases", FOLLOW_UP_TOPICS.follow_up_releases, true],
@@ -104,7 +104,7 @@ for (const [file, purpose, topic, stated] of REVIEWED) {
     try {
       const form = byId(document, "site-footer-form");
       assert.equal(form.tagName, "FORM");
-      assert.equal(form.getAttribute("data-follow-up-type"), purpose === "follow_up" ? null : purpose);
+      assert.equal(form.getAttribute("data-follow-up-type"), purpose);
       const topicField = byId(document, "site-footer-topic");
       assert.equal(topicField?.value ?? null, stated ? null : topic);
       assert.equal(topicField?.hasAttribute("readonly") ?? false, Boolean(topic) && !stated);
@@ -184,7 +184,7 @@ test("a valid work email and a successful transport reach the success state, whi
     // 2. The exact fixed topic that was submitted.
     assert.match(receipt, new RegExp(FOLLOW_UP_TOPICS.follow_up_coach));
     // 3. What did not go with it, without an unguaranteed next-step promise.
-    assert.match(receipt, /No page content, prompt text, uploaded file, or browsing data was submitted/);
+    assert.match(receipt, /Only that work email was entered by you and sent/);
     assert.doesNotMatch(receipt, /will reply|within two business days/i);
     assert.ok(receipt.includes(CONFIRMATION_DETAIL));
   } finally {
@@ -389,7 +389,8 @@ for (const [file, purpose, topic, stated] of REVIEWED) {
 test("a write the live schema refuses fails out loud instead of reporting a duplicate", async (t) => {
   // The database as it stands before an operator applies migration 0008: the
   // purpose CHECK still knows only field_notes and follow_up.
-  const beforeTheirMigration = MIGRATIONS.filter((name) => !name.startsWith("0008") && !name.startsWith("0009"));
+  const beforeTheirMigration = MIGRATIONS.filter((name) => !name.startsWith("0008")
+    && !name.startsWith("0009") && !name.startsWith("0012"));
   const db = await createTestD1({ migrations: beforeTheirMigration });
   t.after(() => db.close());
 

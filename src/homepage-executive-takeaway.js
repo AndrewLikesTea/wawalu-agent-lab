@@ -232,7 +232,7 @@ export function bindFinopsExampleFollowUp(doc = globalThis.document, request = (
       await postLeadEmail(request, email.value, FINOPS_EXAMPLE_FOLLOW_UP_PURPOSE, CONTACT_COPY, topic, note);
       form.dataset.state = "success";
       status.textContent = "Request sent to the Wawalu team. Your submitted work email and follow-up topic were recorded.";
-      confirmation.show(address, topic);
+      confirmation.show(address, topic, Boolean(note));
     } catch (caught) {
       form.dataset.state = "error";
       status.textContent = caught instanceof SubmissionError ? caught.message : CONTACT_COPY.unconfirmed;

@@ -149,7 +149,7 @@ test("Coach, Releases, Social, People, and Agents send one bounded request and s
       const confirmation = byId(page.document, "site-footer-confirmation");
       assert.ok(confirmation, `${file}: visible confirmation`);
       assert.equal(page.document.activeElement?.id, "site-footer-confirmation", `${file}: focus reaches confirmation`);
-      assert.match(textOf(confirmation), /Request sent to the Wawalu team\. Submitted work email:/, `${file}: receipt states receipt`);
+      assert.match(textOf(confirmation), /Request received\. Submitted work email:/, `${file}: receipt states receipt`);
       // Named when the page put one on the wire, absent when it did not — which
       // is why this reads `topic` rather than asserting one shape for all five.
       // Releases used to declare a follow-up type with no FOLLOW_UP_TOPICS entry
@@ -157,14 +157,14 @@ test("Coach, Releases, Social, People, and Agents send one bounded request and s
       // missing, so all five now name one, and the conditional stays because a
       // receipt may only claim a topic the request actually carried.
       if (topic) {
-        assert.ok(textOf(confirmation).includes(`Submitted follow-up topic: ${topic}.`),
+        assert.ok(textOf(confirmation).includes(`Fixed page topic: ${topic}.`),
           `${file}: the receipt names the topic this page put on the wire`);
       } else {
         assert.doesNotMatch(textOf(confirmation), /topic/i, `${file}: no topic sent, none claimed`);
       }
       assert.doesNotMatch(textOf(confirmation), new RegExp(pageContent, "i"), `${file}: receipt does not render page content`);
-      assert.doesNotMatch(textOf(confirmation), /will reply|within two business days/i,
-        `${file}: confirmation makes no unguaranteed next-step claim`);
+      assert.match(textOf(confirmation), /may review the request and reply.*reply is not guaranteed/i,
+        `${file}: confirmation gives a concrete, qualified next step`);
     } finally {
       page.restore();
     }
@@ -204,22 +204,21 @@ test("each reviewed page keeps empty and invalid email inline and sends nothing"
 // topic when a page supplies one, and only then. The home page is the surface
 // that supplies none: its footer sends the legacy `follow_up` label, which has no
 // FOLLOW_UP_TOPICS entry and therefore nothing true to name.
-test("a page that sends no follow-up topic is never told one was submitted", async () => {
+test("the homepage footer sends and confirms its fixed page topic", async () => {
   for (const file of ["index.html"]) {
     const page = await openNamedFooterPage(file);
-    const calls = interceptLeads(() => jsonReply({ captured: true, created: true, purpose: "follow_up" }, 201));
+    const calls = interceptLeads(() => jsonReply({ captured: true, created: true, purpose: "follow_up_homepage" }, 201));
     try {
-      assert.ok(!byId(page.document, "site-footer-topic"), `${file}: no topic field ships here`);
+      assert.ok(!byId(page.document, "site-footer-topic"), `${file}: the fixed topic is prose, not an editable field`);
       submitEmail(page.document, "site-footer", LONG_EMAIL);
       await settled(page.document, "site-footer");
 
-      assert.deepEqual(JSON.parse(calls[0].options.body), { email: LONG_EMAIL, purpose: "follow_up" },
-        `${file}: no topic reaches the wire`);
+      assert.deepEqual(JSON.parse(calls[0].options.body), {
+        email: LONG_EMAIL, purpose: "follow_up_homepage", topic: FOLLOW_UP_TOPICS.follow_up_homepage,
+      }, `${file}: fixed topic reaches the wire`);
       const receipt = textOf(byId(page.document, "site-footer-confirmation"));
-      assert.match(receipt, /Request sent to the Wawalu team\. Submitted work email:/, `${file}: the receipt still confirms receipt`);
-      assert.doesNotMatch(receipt, /topic/i, `${file}: the receipt cannot name a topic that never went`);
-      assert.doesNotMatch(shownText(page.document, "site-footer-status"), /topic/i,
-        `${file}: the announcement cannot claim one either`);
+      assert.match(receipt, /Request received\. Submitted work email:/, `${file}: the receipt confirms receipt`);
+      assert.match(receipt, new RegExp(FOLLOW_UP_TOPICS.follow_up_homepage));
     } finally {
       page.restore();
     }
@@ -247,11 +246,12 @@ for (const { name, open, prefix, gated } of SURFACES) {
       assert.equal(textOf(receipt.querySelector(`.${receipt.className}-address`)), LONG_EMAIL);
       // Neither of these two surfaces ships a topic field, so neither receipt
       // may mention one — and neither may promise what happens next.
-      assert.doesNotMatch(textOf(receipt), /topic/i);
-      assert.doesNotMatch(textOf(receipt), /will reply|within two business days/i);
+      if (prefix === "site-footer") assert.match(textOf(receipt), /Fixed page topic:/i);
+      else assert.doesNotMatch(textOf(receipt), /topic/i);
+      assert.match(textOf(receipt), /may review the request and reply.*reply is not guaranteed/i);
       // And what stayed behind, named rather than left to be assumed: the
       // request carried one field, so the receipt says so out loud.
-      assert.match(textOf(receipt), /No page content, prompt text, uploaded file, or browsing data was submitted/);
+      assert.match(textOf(receipt), /Only that work email was entered by you and sent/);
       // The categories may be named; a value from the page may not. The address
       // line is the only place a page could leak into, so it is checked alone.
       const addressLine = textOf(receipt.querySelector(`.${receipt.className}-lead`));

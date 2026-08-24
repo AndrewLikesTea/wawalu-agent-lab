@@ -13,6 +13,7 @@ export const MAX_EMAIL_LENGTH = 254;
  */
 export const FOLLOW_UP_MESSAGE_PURPOSES = Object.freeze(["follow_up_finops_example"]);
 export const FOLLOW_UP_REQUEST_TYPES = Object.freeze([
+  "follow_up_homepage",
   "follow_up_finops_example",
   "follow_up_coach",
   "follow_up_releases",
@@ -28,6 +29,7 @@ export const LEAD_PURPOSES = Object.freeze(["field_notes", "follow_up", ...FOLLO
 // a visitor comparing the follow-up block against the footer above it would find
 // two accounts of the same page.
 export const FOLLOW_UP_TOPICS = Object.freeze({
+  follow_up_homepage: "Homepage — record a decision and explore Shiplog",
   follow_up_finops_example: "Bundled AI FinOps example — lower-cost routing in Atlas Platform",
   follow_up_coach: "Prompt coach page — grade a prompt, then revise and grade again",
   // Releases sent this request type with no topic entry, so the request reached
