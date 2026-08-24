@@ -5,7 +5,7 @@ import { loadPage, pressEnter, tabSequence, textOf, typeText } from "./support/b
 import { importPageModule } from "./support/page-module.js";
 import {
   ANALYZED_PERIOD, bindFinopsExampleFollowUp, EXECUTIVE_TAKEAWAY,
-  FINOPS_EXAMPLE_FOLLOW_UP_PURPOSE, TAKEAWAY_COPY_FEEDBACK, takeawayText,
+  FINOPS_EXAMPLE_FOLLOW_UP_PURPOSE, forwardableTakeaway, TAKEAWAY_COPY_FEEDBACK, takeawayText,
 } from "../src/homepage-executive-takeaway.js";
 import { analyzedPeriodPhrase, EXAMPLE_MONTHS, reportingWindow } from "../src/analyzed-period.js";
 import { loadExampleDataset } from "../src/example-dataset.js";
@@ -44,7 +44,18 @@ test("the homepage visibly labels a concise, qualified executive takeaway", asyn
 
   assert.equal(region.getAttribute("aria-labelledby"), "executive-takeaway-title");
   assert.equal(textOf(document.getElementById("executive-takeaway-title")), "Executive takeaway");
-  assert.equal(text, EXECUTIVE_TAKEAWAY);
+  // The block says what the clipboard says, still. Breaking the sentence into a
+  // value, a qualification and an action block cost the old byte-for-byte
+  // equality with `EXECUTIVE_TAKEAWAY`, and a length bound would not have
+  // replaced it: what this control promises is that a reader can verify the
+  // payload by reading the page, and only an equality keeps that true. The
+  // payload is now composed FROM the block, so this pins the composition to the
+  // prose the tests below hold against AI FinOps.
+  assert.equal(forwardableTakeaway(document), EXECUTIVE_TAKEAWAY);
+  // The link reads inside the block and stays out of the payload: a control
+  // label is an affordance, not a claim somebody can be held to.
+  assert.match(text, /Read the worked decision in AI FinOps/);
+  assert.doesNotMatch(forwardableTakeaway(document), /Read the worked decision/);
   assert.match(text, /\$51,254 of \$154,500/);
   assert.match(text, /33%/);
   assert.match(text, /Pilot lower-cost routing in Atlas Platform/);
@@ -53,7 +64,27 @@ test("the homepage visibly labels a concise, qualified executive takeaway", asyn
   // A takeaway written to be forwarded is the worst place on the site to drop
   // the limit on this figure: read alone, "$51,254 is recoverable" is a saving
   // somebody can be held to. It travels with the ceiling or it does not travel.
-  assert.match(text, /modelled ceiling on what re-routing this work could save, not money already saved/);
+  assert.match(text, /Modelled ceiling: what re-routing this work could save, not money already saved/);
+});
+
+test("the value, qualification, action, and decision link form a semantic reading order", async (t) => {
+  const document = await openTakeaway(t, { writeText: async () => {} });
+  const region = document.querySelector(".executive-takeaway");
+  const order = inReadingOrder(region);
+  const at = (id) => order.findIndex((node) => node.id === id);
+  const value = region.querySelector(".executive-takeaway-value");
+  const qualification = region.querySelector(".executive-takeaway-qualification");
+  const action = region.querySelector(".executive-takeaway-action");
+  const link = action.querySelector("a");
+
+  assert.equal(document.getElementById("executive-takeaway-title").tagName, "H2");
+  assert.equal(document.getElementById("executive-takeaway-action-title").tagName, "H3");
+  assert.ok(order.indexOf(value) < order.indexOf(qualification));
+  assert.ok(order.indexOf(qualification) < order.indexOf(action));
+  assert.ok(at("executive-takeaway-action-title") < order.indexOf(link));
+  assert.equal(textOf(link), "Read the worked decision in AI FinOps →");
+  assert.equal(link.getAttribute("href"), "/evolution.html");
+  assert.ok(tabSequence(document).includes(link), "the native decision link must be keyboard focusable");
 });
 
 test("the rendered figure sentence says which months it is true over", async (t) => {
@@ -67,7 +98,7 @@ test("the rendered figure sentence says which months it is true over", async (t)
   // $154,500 total still left a reader unable to tell a month's money from a
   // quarter's. "alone" is the word that settles it, and it is pinned here.
   assert.equal(ANALYZED_PERIOD, "June 2026");
-  assert.ok(text.includes(`is recoverable (33%) in ${ANALYZED_PERIOD} alone —`),
+  assert.ok(text.includes(`is recoverable (33%) in ${ANALYZED_PERIOD} alone.`),
     `the rendered takeaway does not carry the derived period: ${text}`);
   // The span rides on the figure sentence, so it cannot be read as a claim of
   // its own and cannot displace anything above the fold.
@@ -88,7 +119,7 @@ test("the analyzed period is derived from the bundled months, not written down",
   // no fixture file, nothing about "June" anywhere in the derivation.
   assert.equal(analyzedPeriodPhrase(reportingWindow(["2027-02", "2027-03"])), "March 2027");
   assert.ok(takeawayText(analyzedPeriodPhrase(reportingWindow(["2027-02", "2027-03"])))
-    .includes("is recoverable (33%) in March 2027 alone —"));
+    .includes("is recoverable (33%) in March 2027 alone."));
   // Whole-month spans and year boundaries are named in calendar words too: a
   // window this cannot say in English must not reach a reader as an ISO string.
   assert.equal(analyzedPeriodPhrase("2026-01-01 to 2026-07-01"), "January–June 2026");
@@ -105,7 +136,7 @@ test("with no nameable period the takeaway degrades to its wording rather than a
   // no usable month, so no window, so no phrase, so no clause.
   for (const empty of [analyzedPeriodPhrase(reportingWindow([])), null, "", "   "]) {
     const degraded = takeawayText(empty);
-    assert.ok(degraded.includes("is recoverable (33%) — a modelled ceiling"),
+    assert.ok(degraded.includes("is recoverable (33%). Modelled ceiling:"),
       `the degraded takeaway is not the unqualified sentence: ${degraded}`);
     assert.doesNotMatch(degraded, /\balone\b|undefined|null/);
     // Everything else the takeaway owes a reader survives the missing period.
@@ -303,8 +334,12 @@ test("the worked decision is offered before the work email is asked for", async 
   assert.deepEqual(
     inReadingOrder(document.querySelector(".executive-takeaway"))
       .map((node) => node.getAttribute("id") ?? node.getAttribute("class")),
-    ["executive-takeaway-title", "executive-takeaway-text", "executive-takeaway-actions",
-      "copy-executive-takeaway", "executive-takeaway-status"],
+    ["executive-takeaway-title", "executive-takeaway-text", "executive-takeaway-value", null,
+      "executive-takeaway-qualification", null, "executive-takeaway-action",
+      "executive-takeaway-action-title", "executive-takeaway-detail",
+      "executive-takeaway-owner", null, "button-link", null,
+      "executive-takeaway-source", "executive-takeaway-actions", "copy-executive-takeaway",
+      "executive-takeaway-status"],
   );
   assert.match(textOf(document.getElementById("executive-takeaway-text")),
     /Figures are from a bundled synthetic example and are not visitor data\.$/);
@@ -347,7 +382,7 @@ test("moving the follow-up ask spends no tab stop and reorders no other control"
   // and the homepage's tab budget is full, so this count may not grow.
   const stops = tabSequence(document).filter((stop) => inHero.has(stop));
   assert.deepEqual(stops.map((stop) => stop.getAttribute("id") ?? stop.getAttribute("href")),
-    ["copy-executive-takeaway", "/evolution.html", "#landing-decision", "finops-example-follow-up-open"]);
+    ["/evolution.html", "copy-executive-takeaway", "#landing-decision", "finops-example-follow-up-open"]);
 
   // Opening it adds the form's own stops where the reader just pressed, below
   // everything above — never above the link they have not read yet.
@@ -740,12 +775,30 @@ test("the keyboard-operable control copies only the takeaway and confirms succes
     "First recommended action: Pilot lower-cost routing in Atlas Platform.",
     "Accountable role: Platform Engineering Lead.",
     "Figures are from a bundled synthetic example and are not visitor data.",
-    "a modelled ceiling on what re-routing this work could save, not money already saved",
+    "Modelled ceiling: what re-routing this work could save, not money already saved.",
   ]) {
     assert.ok(payload.includes(claim), `the copied text drops "${claim}"`);
   }
   // A ceiling, still. Nothing here may read as money the reader has banked.
   assert.doesNotMatch(payload, /realized savings|we recovered|we saved|has saved/i);
+});
+
+test("a takeaway missing a claim is not composed into a payload at all", async (t) => {
+  // Fail closed. Composing the paste from the block is what keeps it honest,
+  // and the cost of that is a block that did not fully render: a figure pasted
+  // into somebody's inbox with a piece of its qualification dropped is worse
+  // than a paste that did not happen and said so.
+  assert.equal(forwardableTakeaway({ querySelector: () => null }), "");
+  assert.equal(forwardableTakeaway(undefined), "");
+
+  const copied = [];
+  const document = await openTakeaway(t, { writeText: async (value) => copied.push(value) });
+  document.querySelector(".executive-takeaway-qualification").textContent = "";
+  document.getElementById("copy-executive-takeaway").click();
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.deepEqual(copied, []);
+  assert.equal(textOf(document.getElementById("executive-takeaway-status")), TAKEAWAY_COPY_FEEDBACK.failed);
 });
 
 test("clipboard refusal leaves visible recovery guidance", async (t) => {

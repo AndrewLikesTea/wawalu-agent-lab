@@ -19,9 +19,26 @@
 
 .executive-takeaway {
   max-width:760px; margin:22px 0 0; border:1px solid #b9cec4; border-left:5px solid #315f50;
-  border-radius:12px; padding:16px; background:#eef6f2;
+  border-radius:12px; padding:clamp(16px,3vw,22px); background:#eef6f2; overflow-wrap:anywhere;
 }
-.executive-takeaway > p:not(.eyebrow) { margin:8px 0 0; font-size:15px; line-height:1.55; }
+.executive-takeaway > .eyebrow { margin:0; }
+.executive-takeaway-value { margin:8px 0 0; font-size:clamp(18px,3vw,23px); line-height:1.35; color:#24332d; }
+.executive-takeaway-value strong { font-size:1.28em; }
+.executive-takeaway-qualification,.executive-takeaway-source {
+  margin:8px 0 0; color:#4c5650; font-size:14px; line-height:1.55;
+}
+.executive-takeaway-action {
+  margin:18px 0 0; border:1px solid #c8d7d0; border-radius:10px; padding:14px;
+  background:#fff;
+}
+.executive-takeaway-action h3 { margin:0; color:#245643; font-size:13px; line-height:1.4; letter-spacing:.04em; text-transform:uppercase; }
+.executive-takeaway-action p { margin:6px 0 0; font-size:17px; line-height:1.45; }
+.executive-takeaway-action .executive-takeaway-owner { color:#55554f; font-size:13px; }
+/* Spacing only. `.button-link` is an inline-flex box that pushes its arrow to
+ * the far edge, and at 520px and under styles.css widens it to the full column;
+ * re-declaring `display` here dropped both, so the shipped control read as a
+ * label with an arrow stuck to it inside an otherwise empty button. */
+.executive-takeaway-action a.button-link { margin-top:12px; }
 .executive-takeaway-actions {
   display:flex; align-items:center; flex-wrap:wrap; gap:10px 14px; margin-top:14px;
 }

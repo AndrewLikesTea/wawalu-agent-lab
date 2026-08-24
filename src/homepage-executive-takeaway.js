@@ -1,6 +1,10 @@
 // The homepage's short, forwardable reading of the bundled worked decision.
-// Keep this byte-identical to #executive-takeaway-text: the visible paragraph
-// lets a reader verify the clipboard payload before activating the control.
+// This is the EXPECTED reading, not the payload: `forwardableTakeaway()` builds
+// what the clipboard gets out of the block the reader is looking at, and the
+// test file asserts the two are the same string. Splitting the takeaway into a
+// value, a qualification and an action block gave the page and this module two
+// ways to word the same claims, and two authored copies of a money figure stay
+// equal only until somebody edits one of them.
 // Every claim here EXCEPT THE PERIOD is authored rather than composed, because the composer that
 // publishes it on AI FinOps carries an import graph this first screen must not
 // pay for. Authored, then, but not unpinned: the test file holds all four
@@ -38,14 +42,49 @@ export const ANALYZED_PERIOD = analyzedPeriodPhrase(reportingWindow());
  */
 export function takeawayText(period = ANALYZED_PERIOD) {
   const span = typeof period === "string" && period.trim() ? ` in ${period.trim()} alone` : "";
-  return `$51,254 of $154,500 in analyzed AI spend is recoverable (33%)${span} `
-    + "— a modelled ceiling on what re-routing this work could save, not money already saved. "
+  return `$51,254 of $154,500 in analyzed AI spend is recoverable (33%)${span}. `
+    + "Modelled ceiling: what re-routing this work could save, not money already saved. "
     + "First recommended action: Pilot lower-cost routing in Atlas Platform. "
     + "Accountable role: Platform Engineering Lead. Figures are from a bundled synthetic example "
     + "and are not visitor data.";
 }
 
 export const EXECUTIVE_TAKEAWAY = takeawayText();
+
+/**
+ * The claims the block paints, in reading order, each entry the selectors whose
+ * text makes up one sentence. The action title leads its own detail, so the two
+ * join with the colon the forwarded line needs and the heading does not.
+ *
+ * Selectors and not a walk of the subtree: the block also holds a link, and a
+ * label for a control is an affordance rather than a claim anybody can be held
+ * to. A claim added to the markup and not to this list fails the equality
+ * against `EXECUTIVE_TAKEAWAY` rather than reaching a clipboard silently.
+ */
+const TAKEAWAY_CLAIMS = Object.freeze([
+  [".executive-takeaway-value"],
+  [".executive-takeaway-qualification"],
+  ["#executive-takeaway-action-title", ".executive-takeaway-detail"],
+  [".executive-takeaway-owner"],
+  [".executive-takeaway-source"],
+]);
+
+/**
+ * The visible takeaway as one forwardable line, or "" when any part of it is
+ * missing. Empty is the fail-closed answer and the copy path treats it as a
+ * failure: a payload assembled from a block that did not fully render is a
+ * money claim with a piece of its qualification cut off.
+ */
+export function forwardableTakeaway(doc = globalThis.document) {
+  const sentences = [];
+  for (const selectors of TAKEAWAY_CLAIMS) {
+    const said = selectors.map((selector) =>
+      (doc?.querySelector(selector)?.textContent ?? "").replace(/\s+/g, " ").trim());
+    if (said.some((part) => !part)) return "";
+    sentences.push(said.join(": "));
+  }
+  return sentences.join(" ");
+}
 
 export const TAKEAWAY_COPY_FEEDBACK = Object.freeze({
   copied: "Executive takeaway copied.",
@@ -81,7 +120,9 @@ export function bindExecutiveTakeaway(doc = globalThis.document, clipboard = glo
   button.addEventListener("click", async () => {
     try {
       if (typeof clipboard?.writeText !== "function") throw new Error("Clipboard unavailable");
-      await clipboard.writeText(EXECUTIVE_TAKEAWAY);
+      const payload = forwardableTakeaway(doc);
+      if (!payload) throw new Error("Takeaway unreadable");
+      await clipboard.writeText(payload);
       status.textContent = TAKEAWAY_COPY_FEEDBACK.copied;
     } catch {
       status.textContent = TAKEAWAY_COPY_FEEDBACK.failed;
