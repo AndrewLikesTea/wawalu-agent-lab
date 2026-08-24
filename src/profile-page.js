@@ -22,20 +22,37 @@ import {
 } from "/profile.js";
 import { readStoredAuthor, rememberAuthor } from "/social-identity.js";
 import { recordTitle } from "/page-title.js";
+import { withDeadline } from "/request-deadline.js";
 
 const REFRESH_INTERVAL = 30_000;
 
-async function fetchLivePosts() {
+async function readLivePosts() {
   const response = await fetch("/api/social-posts?limit=100", { cache: "no-store", headers: { accept: "application/json" } });
   if (!response.ok) throw new Error(`Posts API returned ${response.status}`);
   return normalizeProfileApiPosts(await response.json());
 }
 
+// A request that never answers is a failure the reader can act on, not a
+// spinner. Past the deadline this rejects and the catch in `refresh` paints the
+// failed state and its Retry, exactly as a 500 does.
+const fetchLivePosts = () => withDeadline(readLivePosts(),
+  { message: "The image-post request ran out of time." });
+
+async function readSeedPosts() {
+  const response = await fetch("/social-demo-data.json", { cache: "no-store" });
+  if (!response.ok) return [];
+  return normalizeSeedPosts((await response.json()).posts);
+}
+
+// Under the same deadline, and for a worse reason: this read is awaited before
+// the grid mounts, so a hang leaves the authored "Loading image posts…" on
+// screen with nothing wired up behind it and no Retry to press. The whole read
+// is inside the deadline, headers and body alike — a response that arrives and
+// then stops streaming strands the page exactly as one that never arrives does.
+// Running out of time here is already an empty seed, which the page handles.
 async function fetchSeedPosts() {
   try {
-    const response = await fetch("/social-demo-data.json", { cache: "no-store" });
-    if (!response.ok) return [];
-    return normalizeSeedPosts((await response.json()).posts);
+    return await withDeadline(readSeedPosts());
   } catch {
     return [];
   }
@@ -96,11 +113,18 @@ async function init() {
   if (!profile) return;
   updateTitle(author);
 
-  let live = [];
+  // Refresh is fired from four places — mount, the timer, a tab coming back into
+  // view, and Retry — so two reads can be in flight at once, and the deadline
+  // above guarantees a hung one eventually rejects. Only the newest read may
+  // paint: without this, a request that timed out would drop the page back into
+  // the failed state a Retry had already cleared.
+  let latest = 0;
 
   async function refresh() {
+    const attempt = (latest += 1);
     try {
-      live = await fetchLivePosts();
+      const live = await fetchLivePosts();
+      if (attempt !== latest) return;
       // Live posts shadow same-id seeds; the seed stays visible underneath so an
       // empty database does not read as an empty profile.
       profile.seed(mergePostsById(live, seeds));
@@ -118,6 +142,7 @@ async function init() {
       }
       profile.setStatus(profileConnectionLine("live"));
     } catch {
+      if (attempt !== latest) return;
       // One sentence whether this is the first failed load or a connection that
       // dropped later: either way nothing new arrives on its own, and reloading
       // is the answer, so the page says it once.

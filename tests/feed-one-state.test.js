@@ -375,9 +375,15 @@ test("People names its failure, retries it by keyboard, and comes back", async (
   retry.click();
   assert.equal(textOf(document.querySelector("#profile-feed-status")), "Loading image posts…",
     "retry did not put the page back into the loading state");
-  await waitFor(() => document.querySelectorAll(".profile-tile").length > 0, "the retried request settled");
+  // Skeleton cells carry `.profile-tile` too, and the retry above just drew six
+  // of them, so "any tile" is satisfied by the loading state this is waiting to
+  // leave. Waiting on that let the test end mid-request, with the real paint
+  // landing after the harness had taken the document away.
+  const drawnTiles = () => document.querySelectorAll(".profile-tile")
+    .filter((tile) => !classesOf(tile).includes("profile-tile-skeleton"));
+  await waitFor(() => drawnTiles().length > 0, "the retried request settled");
 
-  assert.ok(document.querySelectorAll(".profile-tile").length > 0, "the retried request drew no tiles");
+  assert.ok(drawnTiles().length > 0, "the retried request drew no tiles");
   assert.equal(document.querySelectorAll(".empty-state").length, 0);
 });
 

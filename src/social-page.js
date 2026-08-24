@@ -17,6 +17,7 @@ import {
   validatePublishImage,
 } from "/publishing-media.js";
 import { paintHandoffIntent, renderPaintArrival } from "/paint-handoff.js";
+import { withDeadline } from "/request-deadline.js";
 
 const REFRESH_INTERVAL = 10_000;
 
@@ -32,11 +33,17 @@ export const PREVIEW_FAILURE = "We couldn’t create an image preview. Select Re
 // input's aria-describedby while the message is showing.
 export const REJECTED_FILE_ERROR_ID = "post-image-error";
 
-async function fetchLivePosts() {
+async function readLivePosts() {
   const response = await fetch("/api/social-posts?limit=100", { cache: "no-store", headers: { accept: "application/json" } });
   if (!response.ok) throw new Error(`Posts API returned ${response.status}`);
   return normalizeSocialApiPosts(await response.json());
 }
+
+// A request that never answers is a failure the reader can act on, not a
+// spinner. Past the deadline this rejects and the catch in `refresh` paints the
+// failed state and its Retry, exactly as a 500 does.
+const fetchLivePosts = () => withDeadline(readLivePosts(),
+  { message: "The post request ran out of time." });
 
 async function createLivePost(post, media) {
   const image = media ? {
@@ -279,12 +286,22 @@ function mountMediaComposer(root, description) {
   };
 }
 
+async function readDemoPosts() {
+  const response = await fetch("/social-demo-data.json", { cache: "no-store" });
+  if (!response.ok) return [];
+  const data = await response.json();
+  return Array.isArray(data.posts) ? data.posts : [];
+}
+
+// Under the same deadline, and for a worse reason: this read is awaited before
+// the first live request is even made, so a hang leaves the feed on its mounted
+// skeleton with no seed, no live attempt, and no Retry. The whole read is inside
+// the deadline, headers and body alike — a response that arrives and then stops
+// streaming strands the page exactly as one that never arrives does. Running out
+// of time here is already an empty seed, which the page handles.
 async function fetchDemoPosts() {
   try {
-    const response = await fetch("/social-demo-data.json", { cache: "no-store" });
-    if (!response.ok) return [];
-    const data = await response.json();
-    return Array.isArray(data.posts) ? data.posts : [];
+    return await withDeadline(readDemoPosts());
   } catch {
     return [];
   }
@@ -342,10 +359,19 @@ async function init() {
   if (fallback.length) feed.seed(fallback);
   let knownIds = new Set(fallback.map((post) => post.id));
   let hasConnected = false;
+  // Refresh is fired from four places — mount, the timer, a tab coming back into
+  // view, and Retry — so two reads can be in flight at once, and the deadline
+  // above guarantees a hung one eventually rejects. Only the newest read may
+  // paint or touch `knownIds`: without this, a request that timed out would drop
+  // the page back into the failed state a Retry had already cleared, and count
+  // its own posts as "new" on the next poll.
+  let latest = 0;
 
   const refresh = async () => {
+    const attempt = (latest += 1);
     try {
       const live = await fetchLivePosts();
+      if (attempt !== latest) return;
       const nextIds = new Set(live.map((post) => post.id));
       const added = live.filter((post) => !knownIds.has(post.id)).length;
       feed.seed(live);
@@ -355,6 +381,7 @@ async function init() {
       if (hasConnected && added && announcer) announcer.textContent = `${added} new ${added === 1 ? "post" : "posts"} added to the feed.`;
       hasConnected = true;
     } catch {
+      if (attempt !== latest) return;
       // One sentence for a first failure and for a dropped connection alike: the
       // reader's situation is the same either way — nothing new will arrive on
       // its own — and reloading is the same answer, so the page states it once

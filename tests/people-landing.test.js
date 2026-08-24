@@ -336,8 +336,7 @@ test("People uses one status node for loading, error, and recovery to live posts
   const routes = { [SEED_ROUTE]: { posts: [] } };
   const page = await loadPage(PAGE_URL, { routes });
   const savedInterval = globalThis.setInterval;
-  let refresh;
-  globalThis.setInterval = (callback) => { refresh = callback; return 0; };
+  globalThis.setInterval = () => 0;
   t.after(() => { globalThis.setInterval = savedInterval; page.restore(); });
 
   const status = page.document.querySelector("#profile-feed-status");
@@ -361,7 +360,9 @@ test("People uses one status node for loading, error, and recovery to live posts
     id: "live-image", author: "Mina", content: "Recovered.", timestamp: "2026-07-18T12:00:00.000Z",
     image_url: "/media/Mina.svg", image_alt: "A drawing signed Mina", image_width: 1200, image_height: 900,
   }] };
-  await refresh();
+  retry.click();
+  await waitFor(() => page.document.querySelectorAll(".profile-tile").length === 1,
+    "the in-place retry recovers the People grid");
   assert.equal(page.document.querySelectorAll(".profile-tile").length, 1);
   assert.equal(status.hidden, true, "live refresh hides the failed status after posts arrive");
   assert.equal(textOf(status), "");
