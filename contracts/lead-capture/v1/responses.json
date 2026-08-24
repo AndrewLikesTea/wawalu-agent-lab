@@ -92,6 +92,24 @@
       "meaning": "Non-POST method. Responds with an Allow: POST header."
     },
     {
+      "id": "invalid_topic",
+      "code": "invalid_topic",
+      "status": 422,
+      "origin": "application",
+      "captured": false,
+      "retryable": false,
+      "meaning": "The submitted topic is not the one the purpose fixes. Refused before the insert, so nothing is stored. A shipped page cannot fix this by resubmitting the same body: its markup and the endpoint's topic table have drifted."
+    },
+    {
+      "id": "invalid_message",
+      "code": "invalid_message",
+      "status": 422,
+      "origin": "application",
+      "captured": false,
+      "retryable": true,
+      "meaning": "The optional follow-up message exceeded the shared length limit. Refused before the insert; shortening the message and resubmitting succeeds."
+    },
+    {
       "id": "storage_error",
       "code": "storage_error",
       "status": 500,

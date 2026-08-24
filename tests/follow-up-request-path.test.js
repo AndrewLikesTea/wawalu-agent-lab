@@ -30,6 +30,7 @@ import { initSiteFooter } from "../src/site-footer.js";
 import { CONFIRMATION_DETAIL, CONFIRMATION_LEAD } from "../src/follow-up-confirmation.js";
 import { onRequest } from "../functions/api/leads.js";
 import { createMemoryLeadStore, FOLLOW_UP_TOPICS, handleLeadRequest } from "../src/leads.js";
+import { CONTACT_COPY, knownNotSent, resolveFailure, SubmissionError } from "../src/lead-capture.js";
 
 // The pages the follow-up request was reviewed on, with the request type each
 // one sends and how that request's fixed topic is presented. The homepage
@@ -245,8 +246,10 @@ for (const [name, transport] of [
       assert.equal(field.disabled, false, "and stay editable");
 
       const message = shownText(document, "site-footer-status");
-      assert.doesNotMatch(message, RECEIPT_CLAIM, `a failure must not claim receipt: ${message}`);
-      assert.match(message, /^We (didn|couldn)['’]t/);
+      assert.doesNotMatch(message, /Request sent to|Request received|recorded|on our list|we['’]ll be in touch/i,
+        `a failure must not claim receipt: ${message}`);
+      if (name === "a non-ok response") assert.match(message, /^No request was sent\b/);
+      else assert.match(message, /^We couldn['’]t send your request, so we can['’]t confirm/);
 
       // The retry path: the control comes back, and the recovery it belongs to
       // keeps the reader on the page the request failed on.
@@ -400,7 +403,7 @@ test("a write the live schema refuses fails out loud instead of reporting a dupl
     // our list" to someone who had never submitted anything.
     assert.equal(byId(document, "site-footer-form").dataset.state, "error");
     const message = shownText(document, "site-footer-status");
-    assert.doesNotMatch(message, RECEIPT_CLAIM);
+    assert.match(message, /^No request was sent\b/);
     assert.match(message, /something went wrong at our end/);
     assert.equal(db.raw.prepare("SELECT count(*) AS count FROM lead_submissions").get().count, 0);
   } finally {
@@ -435,5 +438,46 @@ test("the endpoint rejects a changed topic instead of persisting visitor-authore
     body: JSON.stringify({ email: TYPED_EMAIL, purpose: "follow_up_social", topic: "A different topic" }),
   }), { store: createMemoryLeadStore() });
   assert.equal(response.status, 422);
-  assert.equal((await response.json()).error.code, "invalid_topic");
+  const body = await response.json();
+  assert.equal(body.error.code, "invalid_topic");
+
+  // ...and the browser half reads that refusal as the definite non-delivery it
+  // is. `invalid_topic` shipped without a client mapping, so it fell through to
+  // the gateway bucket and a visitor whose page had drifted from the endpoint's
+  // topic table was told we could not confirm whether the request reached us —
+  // about a request the origin had answered, refused, and not stored. It also
+  // invited them to wait a few minutes and retry a body that can only be
+  // refused again.
+  const failure = resolveFailure(response, body, CONTACT_COPY);
+  assert.equal(failure.reason, "invalid_topic");
+  assert.match(failure.message, /^No request was sent\b/);
+  assert.doesNotMatch(failure.message, /can’t confirm|can't confirm/);
+  assert.equal(knownNotSent(new SubmissionError(failure.message, failure.reason)), true);
+});
+
+test("only an unanswered request is allowed to leave delivery unknown", () => {
+  // Every `code` src/leads.js and functions/api/leads.js can answer with. The
+  // contract declares all of them `captured: false`, so each must resolve to
+  // its own reason and to copy that says so — a code the client has no entry
+  // for silently becomes `unconfirmed`, which is how `invalid_topic` came to
+  // tell visitors we could not say whether a refused request had landed.
+  for (const code of ["invalid_request", "invalid_purpose", "invalid_email", "invalid_json",
+    "unsupported_media_type", "method_not_allowed", "invalid_message", "invalid_topic",
+    "storage_error", "storage_unavailable"]) {
+    const failure = resolveFailure({ status: 422 }, { error: { code } }, CONTACT_COPY);
+    assert.equal(failure.reason, code, `${code} has no client mapping, so it degrades to unconfirmed`);
+    assert.match(failure.message, /^No request was sent\b/, `${code} must state a definite non-delivery`);
+    assert.equal(knownNotSent(new SubmissionError(failure.message, failure.reason)), true);
+  }
+
+  // A 429 never carries an application code: an edge limiter blocks it before
+  // the origin runs, so it is still definite. A body no code was recognized in
+  // is the one case that is not, and neither is a fetch that never resolved.
+  const limited = resolveFailure({ status: 429 }, null, CONTACT_COPY);
+  assert.equal(knownNotSent(new SubmissionError(limited.message, limited.reason)), true);
+  const gateway = resolveFailure({ status: 502 }, "<html>Bad Gateway</html>", CONTACT_COPY);
+  assert.equal(gateway.reason, "unconfirmed");
+  assert.equal(knownNotSent(new SubmissionError(gateway.message, gateway.reason)), false);
+  assert.equal(knownNotSent(new TypeError("network error")), false,
+    "a rejected fetch may have reached the origin, so it cannot claim the request was not sent");
 });

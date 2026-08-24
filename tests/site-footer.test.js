@@ -54,9 +54,15 @@ const TYPED_EMAIL = "director@example.com";
 // It names no other page. A request that failed here is retried here: sending a
 // reader to the executive briefing's form abandoned the page they were reading
 // and left a first-time visitor unable to tell whether anything had been sent.
-const RECOVERY_COPY = "We could not send your follow-up request. "
-  + "Your email address is still in the field above, and nothing else on this page changed. "
+const RECOVERY_COPY = "Your email address is still in the field above, and nothing else on this page changed. "
   + "Retry sends the same request again from this page; if it keeps failing, wait a few minutes and retry.";
+// The two shapes the paragraph takes once a request has actually failed. Both
+// lead with the delivery outcome, and they disagree about it because the two
+// failures do: a refusal the origin answered is a definite non-delivery, and a
+// fetch that never resolved is not. The authored markup above carries neither,
+// because before an attempt there is no outcome to state.
+const KNOWN_FAILURE_RECOVERY_COPY = `No request was sent. ${RECOVERY_COPY}`;
+const UNCONFIRMED_RECOVERY_COPY = `We could not confirm whether your request was sent. ${RECOVERY_COPY}`;
 
 const byId = (document, id) => document.getElementById(id);
 const shownText = (document, id) => textOf(byId(document, id));
@@ -744,7 +750,7 @@ test("a submission goes through the shared capture path, and the confirmation sa
 
     assert.equal(byId(document, "site-footer-form").dataset.state, "success");
     const confirmation = shownText(document, "site-footer-status");
-    assert.match(confirmation, /^Request received\./);
+    assert.match(confirmation, /^Request sent to the Wawalu team\./);
     assert.match(confirmation, /Your submitted work email was recorded/);
     // Nothing promised that this demo does not do.
     assert.doesNotMatch(confirmation, /business days?|within \d|hours?\b/i);
@@ -761,7 +767,7 @@ test("a submission goes through the shared capture path, and the confirmation sa
     // that was pressed, so it has to name which request succeeded.
     await waitFor(
       () => shownText(document, "site-footer-status")
-        .startsWith("Request received. That work email was already recorded"),
+        .startsWith("Request sent to the Wawalu team. That work email was already recorded"),
       "the already-recorded confirmation");
     assert.equal(calls.length, 2);
   } finally {
@@ -846,10 +852,10 @@ test("a failed submission keeps the typed address, says it can be retried, and t
     assert.equal(field.value, TYPED_EMAIL, "a failed submission must not clear the address the visitor typed");
     assert.equal(byId(document, "site-footer-recovery").hidden, false);
     assert.match(describedBy(document), /site-footer-recovery/);
-    assert.equal(textOf(byId(document, "site-footer-recovery")), RECOVERY_COPY);
+    assert.equal(textOf(byId(document, "site-footer-recovery")), KNOWN_FAILURE_RECOVERY_COPY);
     // Copy this repository owns — never the string the response supplied.
     assert.equal(shownText(document, "site-footer-status"),
-      "We didn’t get your request because follow-up requests are temporarily offline.");
+      "No request was sent because follow-up requests are temporarily offline.");
     assert.doesNotMatch(shownText(document, "site-footer-status"), /unreviewed upstream text/);
     // The control is usable again, without a reload.
     assert.equal(submit.disabled, false);
@@ -865,7 +871,7 @@ test("a failed submission keeps the typed address, says it can be retried, and t
     assert.deepEqual(JSON.parse(calls[1].options.body), {
       email: TYPED_EMAIL, purpose: "follow_up_social", topic: FOLLOW_UP_TOPICS.follow_up_social,
     });
-    assert.match(shownText(document, "site-footer-status"), /^Request received\./);
+    assert.match(shownText(document, "site-footer-status"), /^Request sent to the Wawalu team\./);
 
     // And the failure is gone, not merely outranked. A page that had failed and
     // then succeeded is the one place both states can end up rendered at once,
@@ -953,11 +959,11 @@ test("a failed request offers its retry in place: named, keyboard-reachable, ann
     const status = byId(document, "site-footer-status");
     assert.equal(status.getAttribute("role"), "status");
     assert.equal(status.getAttribute("aria-live"), "polite");
-    assert.equal(textOf(status), "We didn’t get your request — something went wrong at our end. Please try again.");
+    assert.equal(textOf(status), "No request was sent — something went wrong at our end. Please try again.");
     assert.doesNotMatch(textOf(status), /unreviewed upstream text/);
     // The meaning is in the words, not in a colour: the copy says what failed
     // even with every stylesheet thrown away.
-    assert.match(textOf(byId(document, "site-footer-recovery")), /^We could not send your follow-up request\./);
+    assert.match(textOf(byId(document, "site-footer-recovery")), /^No request was sent\./);
 
     // 2. The retry is visible, in this region, and it is the primary action of
     //    the row — it stands where the send control was rather than beside it.
@@ -1167,9 +1173,12 @@ for (const file of ["agents.html", "decision.html"]) {
 
       assert.equal(byId(document, "site-footer-form").dataset.state, "error");
       assert.equal(byId(document, "site-footer-recovery").hidden, false);
-      assert.equal(shownText(document, "site-footer-recovery"), RECOVERY_COPY);
-      assert.ok(shownText(document, "site-footer-recovery").startsWith("We could not send your follow-up request."),
-        "the outcome sentence must be the first thing read");
+      // Still an outcome sentence first — but the honest one. A transport that
+      // never answered may have reached the origin, so this branch may not
+      // borrow the definite wording the refusals get.
+      assert.equal(shownText(document, "site-footer-recovery"), UNCONFIRMED_RECOVERY_COPY);
+      assert.ok(shownText(document, "site-footer-status").startsWith("We couldn’t send your request, so we can’t confirm"),
+        "an ambiguous transport failure must not claim whether the request landed");
     } finally {
       page.restore();
     }

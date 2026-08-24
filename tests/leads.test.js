@@ -9,7 +9,7 @@ import {
   normalizeEmail,
 } from "../src/leads.js";
 import {
-  CONTACT_COPY, FIELD_NOTE_COPY, initLeadCapture, looksLikeEmail, resolveFailure,
+  CONTACT_COPY, FIELD_NOTE_COPY, initLeadCapture, looksLikeEmail, MAX_FOLLOW_UP_MESSAGE_LENGTH, resolveFailure,
 } from "../src/lead-capture.js";
 import { onRequest as leadsOnRequest } from "../functions/api/leads.js";
 import { createTestD1 } from "./support/d1-sqlite.js";
@@ -424,6 +424,18 @@ test("the endpoint still returns every response the published contract documents
     ["invalid_json", () => handleLeadRequest(request("{", { raw: true }), { store: createMemoryLeadStore() })],
     ["unsupported_media_type", () => handleLeadRequest(request({}, { headers: { "content-type": "text/plain" } }), { store: createMemoryLeadStore() })],
     ["method_not_allowed", () => handleLeadRequest(request(undefined, { method: "GET" }), { store: createMemoryLeadStore() })],
+    // Both refusals a bounded follow-up request can earn: a topic that is not
+    // the one its purpose fixes, and a message over the shared length limit.
+    ["invalid_topic", () => handleLeadRequest(request({
+      email: "mina@example.com", purpose: "follow_up_social", topic: "A topic this purpose does not fix",
+    }), { store: createMemoryLeadStore() })],
+    // The one purpose whose form offers a message field at all.
+    ["invalid_message", () => handleLeadRequest(request({
+      email: "mina@example.com",
+      purpose: "follow_up_finops_example",
+      topic: FOLLOW_UP_TOPICS.follow_up_finops_example,
+      message: "x".repeat(MAX_FOLLOW_UP_MESSAGE_LENGTH + 1),
+    }), { store: createMemoryLeadStore() })],
     ["storage_error", () => handleLeadRequest(request({ email: "mina@example.com", purpose: "field_notes" }), {
       store: { capture: async () => { throw new Error("database password"); } },
     })],

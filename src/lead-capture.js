@@ -26,7 +26,7 @@ const TIMEOUT_MS = 10000;
  * same questions in the same order: what to type, what a rejection means, and
  * what is and is not known when nothing answered.
  */
-const UNREADABLE_CODES = ["invalid_request", "invalid_purpose", "invalid_json", "unsupported_media_type", "method_not_allowed", "invalid_message"];
+const UNREADABLE_CODES = ["invalid_request", "invalid_purpose", "invalid_json", "unsupported_media_type", "method_not_allowed", "invalid_message", "invalid_topic"];
 
 // One limit for both halves: src/leads.js imports it rather than repeating it.
 export const MAX_FOLLOW_UP_MESSAGE_LENGTH = 200;
@@ -39,7 +39,10 @@ function rejectedCopy({ invalidEmail, unreadable, storageError, storageUnavailab
     storage_error: storageError,
     storage_unavailable: storageUnavailable,
   };
-  // Three distinct codes, one thing a visitor can do about them.
+  // Distinct refusals, one thing a visitor can do about any of them. Every code
+  // the endpoint can answer with belongs to one of these buckets: a code missing
+  // from here degrades to `unconfirmed` below, which tells a visitor we cannot
+  // say whether their request landed when the origin has just said it did not.
   for (const code of UNREADABLE_CODES) byCode[code] = unreadable;
   return Object.freeze(byCode);
 }
@@ -72,12 +75,12 @@ export const CONTACT_COPY = Object.freeze({
   emptyEmail: "Enter your work email to request a Shiplog follow-up.",
   invalidEmail: "Enter a valid work email address to request a Shiplog follow-up.",
   rejected: rejectedCopy({
-    invalidEmail: "We didn’t get your request: that address wasn’t accepted. Check it and submit again.",
-    unreadable: "We didn’t get your request because it couldn’t be read. Reload the page and try again.",
-    storageError: "We didn’t get your request — something went wrong at our end. Please try again.",
-    storageUnavailable: "We didn’t get your request because follow-up requests are temporarily offline.",
+    invalidEmail: "No request was sent: that address wasn’t accepted. Check it and submit again.",
+    unreadable: "No request was sent because it couldn’t be read. Reload the page and try again.",
+    storageError: "No request was sent — something went wrong at our end. Please try again.",
+    storageUnavailable: "No request was sent because follow-up requests are temporarily offline.",
   }),
-  rateLimited: "We didn’t get your request — too many attempts. Please wait a moment and try again.",
+  rateLimited: "No request was sent — too many attempts. Please wait a moment and try again.",
   unconfirmed: "We couldn’t send your request, so we can’t confirm it reached us. Please try again in a few minutes.",
 });
 
@@ -119,6 +122,17 @@ export class SubmissionError extends Error {
     super(message);
     this.reason = reason;
   }
+}
+
+/**
+ * Whether a failed submission is *known* not to have been stored. The contract
+ * answers this once and no form re-answers it: every recognized application
+ * `code` is documented `captured: false`, and a 429 is refused before the
+ * origin runs. Only `unconfirmed` — a proxy answered, or the fetch itself
+ * rejected — leaves capture unknown, as does anything that is not one of these.
+ */
+export function knownNotSent(error) {
+  return error instanceof SubmissionError && error.reason !== "unconfirmed";
 }
 
 // Resolves a response into copy we own plus the reason code that drives

@@ -31,8 +31,8 @@
 
 import { createFollowUpConfirmation } from "./follow-up-confirmation.js";
 import {
-  CONTACT_COPY, describeWith, emailFieldError, FOLLOW_UP_PRIVACY, looksLikeEmail, postLeadEmail,
-  SubmissionError,
+  CONTACT_COPY, describeWith, emailFieldError, FOLLOW_UP_PRIVACY, knownNotSent, looksLikeEmail,
+  postLeadEmail, SubmissionError,
 } from "./lead-capture.js";
 import { REPOSITORY_URL } from "./repository-url.js";
 
@@ -144,10 +144,19 @@ export const INVITATION = "Questions about Shiplog? Send the Wawalu team that op
 // field all of them send. A topic goes only from the pages that declare one, and
 // is named in the receipt, which knows whether there was one. Neither promises a
 // reply, a response time, or an action: nothing here guarantees any of them.
-const CAPTURED = "Request received. Your submitted work email was recorded.";
-const ALREADY_CAPTURED = "Request received. That work email was already recorded, so no duplicate row was added.";
+const CAPTURED = "Request sent to the Wawalu team. Your submitted work email was recorded.";
+const ALREADY_CAPTURED = "Request sent to the Wawalu team. That work email was already recorded, so no duplicate row was added.";
 
 const SUBMITTING = "Requesting a follow-up — sending your email address…";
+const RECOVERY_PRESERVATION = "Your email address is still in the field above, and nothing else on this page changed. "
+  + "Retry sends the same request again from this page; if it keeps failing, wait a few minutes and retry.";
+
+// What a failure is, before what it left behind: a visitor asks whether the
+// team got their request, so the paragraph answers that in its first sentence
+// rather than describing the field. Two answers and never a third — the origin
+// refused it, or nobody answered and we cannot say. `knownNotSent` picks.
+const RECOVERY_NOT_SENT = "No request was sent.";
+const RECOVERY_UNCONFIRMED = "We could not confirm whether your request was sent.";
 
 /**
  * The pages that answer a follow-up request better than this footer can, and
@@ -257,7 +266,7 @@ function contactFormLines(followUpType, followUpTopic, stated) {
     "        </div>",
     `        <p class="site-footer-error" id="site-footer-error" hidden></p>`,
     `        <p class="site-footer-note" id="site-footer-note">${FOLLOW_UP_PRIVACY}</p>`,
-    '        <p class="site-footer-recovery" id="site-footer-recovery" hidden>We could not send your follow-up request. Your email address is still in the field above, and nothing else on this page changed. Retry sends the same request again from this page; if it keeps failing, wait a few minutes and retry.</p>',
+    `        <p class="site-footer-recovery" id="site-footer-recovery" hidden>${RECOVERY_PRESERVATION}</p>`,
     '        <div class="site-footer-actions">',
     '          <button type="submit">Request a follow-up</button>',
     `          <button id="${RETRY_ID}" type="submit" hidden>Retry your follow-up request</button>`,
@@ -336,7 +345,12 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
   // announcement. So the control being hidden hands focus to the field, which is
   // present on both sides of the swap and is the thing they may want to correct.
   // Not the control replacing it: the submit path disables that a line later.
-  function setRecoveryVisible(visible) {
+  // Written when the outcome is known, not before: the authored markup ships
+  // only the half of the paragraph that is true of both failures.
+  function setRecoveryVisible(visible, notSent = false) {
+    if (visible) {
+      recovery.textContent = `${notSent ? RECOVERY_NOT_SENT : RECOVERY_UNCONFIRMED} ${RECOVERY_PRESERVATION}`;
+    }
     recovery.hidden = !visible;
     setRepositoryLinkVisible(visible);
     if (retry) {
@@ -432,7 +446,7 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
       // Every failure here is retryable in place, so the paragraph that says so
       // and the control that does it appear on all of them — the same rule the
       // AI FinOps form follows.
-      setRecoveryVisible(true);
+      setRecoveryVisible(true, knownNotSent(error));
       setOutcomeDescribed(true);
     } finally {
       // Retry has to work without a reload, so the control comes back on every

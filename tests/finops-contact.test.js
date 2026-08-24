@@ -433,7 +433,7 @@ test("a failed submission shows recovery copy for the first time and keeps the a
       "failure and success UI cannot render together");
     // Copy this repository owns — never the string the response supplied.
     assert.equal(shownText(document, "finops-contact-status"),
-      "We didn’t get your request because follow-up requests are temporarily offline.");
+      "No request was sent because follow-up requests are temporarily offline.");
     assert.doesNotMatch(shownText(document, "finops-contact-status"), /unreviewed upstream text/);
     // The control is usable again.
     assert.equal(byId(document, "finops-contact-panel").querySelector('button[type="submit"]').disabled, false);

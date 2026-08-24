@@ -27,7 +27,7 @@
  * naming what stayed behind is the point of it. It deliberately promises no
  * reply, response time, or action after storage.
  */
-export const CONFIRMATION_LEAD = "Request received. Submitted work email: ";
+export const CONFIRMATION_LEAD = "Request sent to the Wawalu team. Submitted work email: ";
 export const CONFIRMATION_DETAIL = "No page content, prompt text, uploaded file, or browsing data was submitted.";
 export const TOPIC_LEAD = "Submitted follow-up topic: ";
 export const REOPEN_LABEL = "Request another follow-up";
