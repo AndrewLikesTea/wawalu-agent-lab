@@ -361,11 +361,12 @@ for (const { name, open, prefix, gated } of SURFACES) {
       assert.equal(byId(document, `${prefix}-form`).hidden, false);
       assert.equal(byId(document, `${prefix}-form`).querySelector('button[type="submit"]').disabled, false);
 
-      // The recovery paragraph is exactly the sentence it has always been, and
-      // it reads nothing like a receipt.
+      // The recovery paragraph gives this form's accurate next step and reads
+      // nothing like a receipt.
       const recovery = byId(document, `${prefix}-recovery`);
       assert.equal(recovery.hidden, false);
-      assert.match(textOf(recovery), /Your email address is still in the field/);
+      if (prefix === "site-footer") assert.match(textOf(recovery), /Retry the same request from this page/);
+      else assert.match(textOf(recovery), /Your email address is still in the field/);
       assert.doesNotMatch(textOf(recovery), new RegExp(CONFIRMATION_DETAIL.slice(0, 40)));
       assert.doesNotMatch(shownText(document, `${prefix}-status`), /Your work email was sent to the Wawalu team/);
     } finally {

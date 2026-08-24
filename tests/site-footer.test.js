@@ -46,16 +46,15 @@ const read = (file) => readFile(pageUrl(file), "utf8");
 
 const TYPED_EMAIL = "director@example.com";
 
-// The recovery paragraph, in the order a person needs it: what happened, what is
-// still safe, then what the control below it does. Pinned whole rather than by
-// fragment — the order of the three sentences is the point, and a substring
+// The recovery paragraph, in the order a person needs it: what happened, then
+// what the control below it does. Pinned whole rather than by fragment — the
+// order of the sentences is the point, and a substring
 // match would not see it.
 //
 // It names no other page. A request that failed here is retried here: sending a
 // reader to the executive briefing's form abandoned the page they were reading
 // and left a first-time visitor unable to tell whether anything had been sent.
-const RECOVERY_COPY = "Your email address is still in the field above, and nothing else on this page changed. "
-  + "Retry sends the same request again from this page; if it keeps failing, wait a few minutes and retry.";
+const RECOVERY_COPY = "Retry the same request from this page. If it keeps failing, wait a few minutes and retry.";
 // The two shapes the paragraph takes once a request has actually failed. Both
 // lead with the delivery outcome, and they disagree about it because the two
 // failures do: a refusal the origin answered is a definite non-delivery, and a
@@ -900,7 +899,7 @@ const IN_SCOPE = ["social.html", "profile.html", "post.html", "coach.html", "rel
 
 test("every in-scope page ships the same in-place recovery, and none of them points at another page's form", async () => {
   const shared = siteFooterMarkup("    ");
-  assert.ok(shared.includes(RECOVERY_COPY), "the shared footer must carry the recovery copy");
+  assert.ok(!shared.includes(RECOVERY_COPY), "the shared footer must not carry failure copy on initial load");
   assert.ok(shared.includes('<button id="site-footer-retry" type="submit" hidden>Retry your follow-up request</button>'),
     "the shared footer must carry the retry control");
 
@@ -909,7 +908,7 @@ test("every in-scope page ships the same in-place recovery, and none of them poi
     const page = await loadPage(pageUrl(file));
     try {
       const recovery = byId(page.document, "site-footer-recovery");
-      assert.equal(textOf(recovery), RECOVERY_COPY, `${file} words the failure its own way`);
+      assert.equal(textOf(recovery), "", `${file} must not state a failure before a request`);
       // No link out at all: the whole point is that the recovery is here.
       assert.equal(recovery.children.filter((child) => child.tagName === "A").length, 0,
         `${file}: the failure copy must not send a reader anywhere`);
