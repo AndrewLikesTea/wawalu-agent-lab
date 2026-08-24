@@ -434,7 +434,7 @@ test("the contextual request validates locally and never shows success for a fai
   assert.equal(textOf(afterInvalid[0]), "Request a follow-up about this example");
 });
 
-test("a valid contextual request persists and renders an accurate promise-free receipt", async (t) => {
+test("a valid contextual request persists and renders an accurate qualified receipt", async (t) => {
   const db = await createTestD1();
   t.after(() => db.close());
   const response = await onRequest({
@@ -455,7 +455,7 @@ test("a valid contextual request persists and renders an accurate promise-free r
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(form.dataset.state, "success", textOf(document.getElementById("finops-example-follow-up-status")));
   const receipt = textOf(document.getElementById("finops-example-follow-up-confirmation"));
-  assert.match(receipt, /Request sent to the Wawalu team\. Submitted work email: finops@example\.com/);
+  assert.match(receipt, /Request received\. Submitted work email: finops@example\.com/);
   assert.match(receipt, /Bundled AI FinOps example — lower-cost routing in Atlas Platform/);
   assert.doesNotMatch(receipt, /will reply|within two business days/i);
   assert.equal(form.hidden, true);
@@ -560,7 +560,7 @@ test("an empty optional field sends exactly the request this form sent before it
   const form = document.getElementById("finops-example-follow-up-form");
   assert.equal(form.dataset.state, "success");
   assert.match(textOf(document.getElementById("finops-example-follow-up-confirmation")),
-    /Request sent to the Wawalu team\. Submitted work email: finops@example\.com/);
+    /Request received\. Submitted work email: finops@example\.com/);
 });
 
 test("a typed message reaches the real endpoint and lands in the row beside the address", async (t) => {
@@ -598,6 +598,11 @@ test("a typed message reaches the real endpoint and lands in the row beside the 
   assert.equal(row.purpose, FINOPS_EXAMPLE_FOLLOW_UP_PURPOSE);
   assert.equal(row.topic, TOPIC);
   assert.equal(row.message, "Which models are in the lower-cost tier?");
+  const receipt = textOf(document.getElementById("finops-example-follow-up-confirmation"));
+  assert.match(receipt, /Only that work email and the message you entered.*sent/i);
+  assert.doesNotMatch(receipt, /Which models are in the lower-cost tier/,
+    "the receipt acknowledges the message without repeating visitor-authored text");
+  assert.match(receipt, /may review the request and reply.*reply is not guaranteed/i);
 });
 
 test("a message past the stated limit is refused here, in words that name the limit", async (t) => {

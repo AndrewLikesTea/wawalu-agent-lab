@@ -78,6 +78,9 @@ const describedBy = (document) => byId(document, "site-footer-email").getAttribu
 // cannot choose a topic on say what the request is about in prose instead of in
 // a read-only control, so the block gains a sentence and no tab stop.
 const FOOTER_VARIANT = new Map([
+  ["index.html", {
+    followUpType: "follow_up_homepage", followUpTopic: FOLLOW_UP_TOPICS.follow_up_homepage, statedTopic: true,
+  }],
   ["executive-briefing.html", { redirect: FOLLOW_UP_REDIRECT.briefing }],
   ["coach.html", {
     followUpType: "follow_up_coach", followUpTopic: FOLLOW_UP_TOPICS.follow_up_coach, statedTopic: true,
@@ -744,8 +747,10 @@ test("a submission goes through the shared capture path, and the confirmation sa
     const [{ url, options }] = calls;
     assert.equal(url, "/api/leads");
     assert.equal(options.method, "POST");
-    assert.deepEqual(JSON.parse(options.body), { email: TYPED_EMAIL, purpose: "follow_up" });
-    assert.deepEqual(Object.keys(JSON.parse(options.body)), ["email", "purpose"]);
+    assert.deepEqual(JSON.parse(options.body), {
+      email: TYPED_EMAIL, purpose: "follow_up_homepage", topic: FOLLOW_UP_TOPICS.follow_up_homepage,
+    });
+    assert.deepEqual(Object.keys(JSON.parse(options.body)), ["email", "purpose", "topic"]);
 
     assert.equal(byId(document, "site-footer-form").dataset.state, "success");
     const confirmation = shownText(document, "site-footer-status");

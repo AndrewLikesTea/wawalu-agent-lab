@@ -27,9 +27,10 @@
  * naming what stayed behind is the point of it. It deliberately promises no
  * reply, response time, or action after storage.
  */
-export const CONFIRMATION_LEAD = "Request sent to the Wawalu team. Submitted work email: ";
-export const CONFIRMATION_DETAIL = "No page content, prompt text, uploaded file, or browsing data was submitted.";
-export const TOPIC_LEAD = "Submitted follow-up topic: ";
+export const CONFIRMATION_LEAD = "Request received. Submitted work email: ";
+export const CONFIRMATION_DETAIL = "Only that work email was entered by you and sent. The Wawalu team may review the request and reply; a reply is not guaranteed.";
+export const CONFIRMATION_MESSAGE_DETAIL = "Only that work email and the message you entered were entered by you and sent. The Wawalu team may review the request and reply; a reply is not guaranteed.";
+export const TOPIC_LEAD = "Fixed page topic: ";
 export const REOPEN_LABEL = "Request another follow-up";
 
 /**
@@ -84,7 +85,7 @@ export function createFollowUpConfirmation({ form, status, submit, email, onReop
   // Empty unless the surface sent a topic. See `show`.
   const topic = document.createElement("strong");
   topic.className = `${base}-confirmation-topic`;
-  detail.append(topic, CONFIRMATION_DETAIL);
+  detail.append(topic);
 
   const again = document.createElement("button");
   again.className = `${base}-confirmation-again`;
@@ -111,9 +112,10 @@ export function createFollowUpConfirmation({ form, status, submit, email, onReop
    * request carried none — untrue the way a promised reply is untrue — so the
    * sentence appears only where the field does.
    */
-  function show(value, submittedTopic = "") {
+  function show(value, submittedTopic = "", messageProvided = false) {
     address.textContent = value;
     topic.textContent = submittedTopic ? `${TOPIC_LEAD}${submittedTopic}. ` : "";
+    detail.append(messageProvided ? CONFIRMATION_MESSAGE_DETAIL : CONFIRMATION_DETAIL);
     if (!region.parentNode) form.parentNode.insertBefore(region, form);
     // Hiding the form takes the field and both of its buttons out of the tab
     // order; disabling submit means even a stray click on it does nothing.
