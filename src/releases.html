@@ -372,7 +372,7 @@
                 <option value="planned">Planned</option>
                 <option value="cancelled">Cancelled</option>
               </select>
-              <span class="hint" id="release-form-status-hint">Only a completed release shipped what it carried — a planned or cancelled one only names its decisions.</span>
+              <span class="hint" id="release-form-status-hint">A completed release implemented its selected decisions. A planned or cancelled release only names them.</span>
             </div>
 
             <div class="field field-wide">
@@ -389,8 +389,8 @@
             <!-- Linking is optional. When a decision is selected, createRelease()
                  verifies that it still exists before saving the association. -->
             <fieldset class="field field-wide decision-picker-field" id="release-decisions-field" aria-describedby="release-decisions-hint release-decisions-summary">
-              <legend>Link decisions to this release <span class="label-optional">(optional)</span></legend>
-              <p class="hint" id="release-decisions-hint">Tick every decision this release carried, or leave all unchecked. The first one you tick is the release’s governing decision: the release page shows it in its own section above the rest. Tab moves through the list; Space links or unlinks the decision in focus.</p>
+              <legend>Decisions included in this release <span class="label-optional">(optional)</span></legend>
+              <p class="hint" id="release-decisions-hint">Select every decision included in this release, or leave all unchecked. The first decision you select is the release’s governing decision: the release page shows it in its own section above the rest. Tab moves through the list; Space selects or clears the decision in focus.</p>
               <p class="decision-picker-summary" id="release-decisions-summary" role="status" aria-live="polite">No decisions linked yet.</p>
               <div class="decision-picker" id="release-decisions"></div>
             </fieldset>

@@ -278,7 +278,12 @@ test("the recorder markup groups the picker and never builds HTML from stored te
   ]);
   assert.match(page, /id="release-form"/);
   assert.match(page, /id="release-decisions"/);
-  assert.match(page, /<legend>Link decisions to this release <span class="label-optional">\(optional\)<\/span><\/legend>/);
+  assert.match(page, /<legend>Decisions included in this release <span class="label-optional">\(optional\)<\/span><\/legend>/);
+  assert.match(page, /Select every decision included in this release, or leave all unchecked\./);
+  assert.match(page, /The first decision you select is the release’s governing decision: the release page shows it in its own section above the rest\./);
+  assert.match(page, /A completed release implemented its selected decisions\. A planned or cancelled release only names them\./);
+  assert.doesNotMatch(page, /Only a completed release shipped what it carried/);
+  assert.doesNotMatch(page, /Tick every decision this release carried/);
   // The three required fields issue #533 adds. The date is a native date
   // control, so the platform supplies the picker and the format hint; the
   // summary is required in the markup as well as in createRelease().

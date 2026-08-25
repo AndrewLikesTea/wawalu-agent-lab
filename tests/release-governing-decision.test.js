@@ -338,7 +338,7 @@ test("the recorder names the decision that will govern the release as it is chos
   // The hint says the rule before anything is ticked, in the same words the
   // release detail view heads that decision with.
   assert.ok(textOf(page.document.querySelector("#release-decisions-hint"))
-    .includes("The first one you tick is the release’s governing decision: the release page shows it in its own section above the rest."));
+    .includes("The first decision you select is the release’s governing decision: the release page shows it in its own section above the rest."));
   // A live region, so the choice is announced without moving focus out of the
   // group — and it is a region, so it was announced at all.
   assert.equal(summary.getAttribute("role"), "status");
