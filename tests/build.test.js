@@ -169,7 +169,7 @@ test("the hero names the product before any surface, and keeps the log as a name
   // buttons beside each other would make neither one primary.
   assert.equal((hero.match(/class="button-link"/g) ?? []).length, 1,
     "the hero must carry exactly one primary call to action");
-  assert.match(hero, /<a class="button-link" href="\/evolution\.html">Read the worked decision in AI FinOps/);
+  assert.match(hero, /<a class="button-link" href="\/evolution\.html#workspace-answer">Read the worked decision in AI FinOps/);
   assert.match(hero, /<a class="text-link" href="#landing-decision">/);
   assert.equal((hero.match(/class="secondary-button"/g) ?? []).length, 0,
     "the hero must not carry a third call to action");
@@ -468,7 +468,7 @@ test("no page paints an HTML entity reference at a reader", async (t) => {
 
 test("the AI FinOps call to action is reachable by Tab alone and opens on Enter", async () => {
   const document = parseHtml(await readFile(new URL("../src/index.html", import.meta.url), "utf8"));
-  const primary = document.querySelector('a[href="/evolution.html"].button-link');
+  const primary = document.querySelector('a[href="/evolution.html#workspace-answer"].button-link');
 
   // From the top of the page, with nothing but Tab: the skip link, the brand,
   // the nav, and then the hero's own call to action. Leading a page with a
@@ -478,7 +478,7 @@ test("the AI FinOps call to action is reachable by Tab alone and opens on Enter"
   for (let press = 0; press < 20 && reached !== primary; press += 1) reached = pressTab(document);
   assert.equal(reached, primary, "the AI FinOps link must sit in the natural tab order");
   pressEnter(document);
-  assert.deepEqual(document.navigations, ["/evolution.html"]);
+  assert.deepEqual(document.navigations, ["/evolution.html#workspace-answer"]);
 });
 
 test("security headers ship with the site", async () => {

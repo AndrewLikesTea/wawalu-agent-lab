@@ -23,6 +23,20 @@ import { analyzedPeriodPhrase, reportingWindow } from "./analyzed-period.js";
  * window can be named, which is a state the sentence below has a shape for.
  */
 export const ANALYZED_PERIOD = analyzedPeriodPhrase(reportingWindow());
+/**
+ * Where a forwarded takeaway sends the person who receives it. Absolute and
+ * hard-coded to production on purpose: the page's own origin is whatever the
+ * reader happens to be on, and a preview deployment or a localhost port pasted
+ * into a mail to somebody's boss is a source link that resolves for nobody.
+ *
+ * The path is the site's one address for the worked decision — the string every
+ * nav link, every footer and `fragment` in src/site-nav.js already carry, so a
+ * link forwarded out of this block and a link followed from any other page land
+ * a reader on the same destination rather than on the rail above it.
+ */
+export const SHIPLOG_ORIGIN = "https://labs.wawalu.org";
+export const WORKED_DECISION_PATH = "/evolution.html#workspace-answer";
+export const WORKED_DECISION_URL = new URL(WORKED_DECISION_PATH, SHIPLOG_ORIGIN).href;
 
 /**
  * The takeaway, with the span appended to the figure sentence rather than added
@@ -49,7 +63,7 @@ export function takeawayText(period = ANALYZED_PERIOD) {
     + "and are not visitor data.";
 }
 
-export const EXECUTIVE_TAKEAWAY = takeawayText();
+export const EXECUTIVE_TAKEAWAY = `${takeawayText()} Source: ${WORKED_DECISION_URL}`;
 
 /**
  * The claims the block paints, in reading order, each entry the selectors whose
@@ -70,10 +84,17 @@ const TAKEAWAY_CLAIMS = Object.freeze([
 ]);
 
 /**
- * The visible takeaway as one forwardable line, or "" when any part of it is
- * missing. Empty is the fail-closed answer and the copy path treats it as a
- * failure: a payload assembled from a block that did not fully render is a
- * money claim with a piece of its qualification cut off.
+ * The visible takeaway as one forwardable line, ending in the absolute address
+ * of the decision the block links to, or "" when any part of it is missing.
+ * Empty is the fail-closed answer and the copy path treats it as a failure: a
+ * payload assembled from a block that did not fully render is a money claim
+ * with a piece of its qualification cut off, and one assembled without a
+ * reachable source is the unsourced finance claim #2024 was filed about.
+ *
+ * The address is read off the link the reader can see rather than printed from
+ * `WORKED_DECISION_URL`, for the reason in this file's header: two authored
+ * copies of one fact stay equal only until somebody edits one of them. What a
+ * reader forwards is the link they were offered, whatever it becomes.
  */
 export function forwardableTakeaway(doc = globalThis.document) {
   const sentences = [];
@@ -83,11 +104,33 @@ export function forwardableTakeaway(doc = globalThis.document) {
     if (said.some((part) => !part)) return "";
     sentences.push(said.join(": "));
   }
-  return sentences.join(" ");
+  const sourcePath = doc?.querySelector(".executive-takeaway-action")
+    ?.querySelector("a")?.getAttribute("href");
+  if (!sourcePath) return "";
+  let source;
+  try {
+    source = new URL(sourcePath, SHIPLOG_ORIGIN);
+  } catch {
+    return "";
+  }
+  // Same origin, and nothing narrower. This is the one thing the block cannot
+  // tell us by being read: the href is a path, so the origin is this module's
+  // to supply, and a line that says "Source:" to somebody's boss must not be
+  // made absolute against Shiplog while pointing off it.
+  //
+  // WHICH Shiplog page is deliberately not checked. Pinning the path and the
+  // fragment here would restate what the equality against `EXECUTIVE_TAKEAWAY`,
+  // build.test.js and landing-decision.test.js already hold this link to, so it
+  // could never fire in a build that shipped; what it would do is break the
+  // copy control under a reader's hands the day the link legitimately moves to
+  // the executive briefing — which #2024 names as an equally good source — and
+  // report a block that reads perfectly well as unreadable.
+  if (source.origin !== SHIPLOG_ORIGIN) return "";
+  return `${sentences.join(" ")} Source: ${source.href}`;
 }
 
 export const TAKEAWAY_COPY_FEEDBACK = Object.freeze({
-  copied: "Executive takeaway copied.",
+  copied: "Executive takeaway and source link copied.",
   failed: "Could not copy the executive takeaway. Select the text above and copy it manually.",
 });
 

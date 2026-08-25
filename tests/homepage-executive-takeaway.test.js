@@ -6,6 +6,7 @@ import { importPageModule } from "./support/page-module.js";
 import {
   ANALYZED_PERIOD, bindFinopsExampleFollowUp, EXECUTIVE_TAKEAWAY,
   FINOPS_EXAMPLE_FOLLOW_UP_PURPOSE, forwardableTakeaway, TAKEAWAY_COPY_FEEDBACK, takeawayText,
+  WORKED_DECISION_URL,
 } from "../src/homepage-executive-takeaway.js";
 import { analyzedPeriodPhrase, EXAMPLE_MONTHS, reportingWindow } from "../src/analyzed-period.js";
 import { loadExampleDataset } from "../src/example-dataset.js";
@@ -56,6 +57,7 @@ test("the homepage visibly labels a concise, qualified executive takeaway", asyn
   // label is an affordance, not a claim somebody can be held to.
   assert.match(text, /Read the worked decision in AI FinOps/);
   assert.doesNotMatch(forwardableTakeaway(document), /Read the worked decision/);
+  assert.match(forwardableTakeaway(document), new RegExp(`Source: ${WORKED_DECISION_URL.replaceAll(".", "\\.")}$`));
   assert.match(text, /\$51,254 of \$154,500/);
   assert.match(text, /33%/);
   assert.match(text, /Pilot lower-cost routing in Atlas Platform/);
@@ -83,7 +85,7 @@ test("the value, qualification, action, and decision link form a semantic readin
   assert.ok(order.indexOf(qualification) < order.indexOf(action));
   assert.ok(at("executive-takeaway-action-title") < order.indexOf(link));
   assert.equal(textOf(link), "Read the worked decision in AI FinOps →");
-  assert.equal(link.getAttribute("href"), "/evolution.html");
+  assert.equal(link.getAttribute("href"), "/evolution.html#workspace-answer");
   assert.ok(tabSequence(document).includes(link), "the native decision link must be keyboard focusable");
 });
 
@@ -323,7 +325,7 @@ test("the worked decision is offered before the work email is asked for", async 
   const order = inReadingOrder(document.getElementById("top"));
   const at = (id) => order.findIndex((node) => node.getAttribute("id") === id);
   const linkTo = (href) => order.findIndex((node) => node.tagName === "A" && node.getAttribute("href") === href);
-  const worked = linkTo("/evolution.html");
+  const worked = linkTo("/evolution.html#workspace-answer");
   const briefing = linkTo("#landing-decision");
 
   // 1. The takeaway card is the heading, the figures that end in what they are
@@ -382,7 +384,7 @@ test("moving the follow-up ask spends no tab stop and reorders no other control"
   // and the homepage's tab budget is full, so this count may not grow.
   const stops = tabSequence(document).filter((stop) => inHero.has(stop));
   assert.deepEqual(stops.map((stop) => stop.getAttribute("id") ?? stop.getAttribute("href")),
-    ["/evolution.html", "copy-executive-takeaway", "#landing-decision", "finops-example-follow-up-open"]);
+    ["/evolution.html#workspace-answer", "copy-executive-takeaway", "#landing-decision", "finops-example-follow-up-open"]);
 
   // Opening it adds the form's own stops where the reader just pressed, below
   // everything above — never above the link they have not read yet.
@@ -781,6 +783,7 @@ test("the keyboard-operable control copies only the takeaway and confirms succes
     "Accountable role: Platform Engineering Lead.",
     "Figures are from a bundled synthetic example and are not visitor data.",
     "Modelled ceiling: what re-routing this work could save, not money already saved.",
+    `Source: ${WORKED_DECISION_URL}`,
   ]) {
     assert.ok(payload.includes(claim), `the copied text drops "${claim}"`);
   }
@@ -803,6 +806,38 @@ test("a takeaway missing a claim is not composed into a payload at all", async (
   await new Promise((resolve) => setImmediate(resolve));
 
   assert.deepEqual(copied, []);
+  assert.equal(textOf(document.getElementById("executive-takeaway-status")), TAKEAWAY_COPY_FEEDBACK.failed);
+});
+
+test("the forwarded source is the link the reader was offered, and it must be a Shiplog one", async (t) => {
+  const copied = [];
+  const document = await openTakeaway(t, { writeText: async (value) => copied.push(value) });
+  const link = () => document.querySelector(".executive-takeaway-action").querySelector("a");
+  const copy = async () => {
+    document.getElementById("copy-executive-takeaway").click();
+    await new Promise((resolve) => setImmediate(resolve));
+  };
+
+  // The block links somewhere else on Shiplog — #2024 names the briefing as an
+  // equally good source — and the paste follows it. The source line is composed
+  // from the page, not printed from a constant beside it, so moving the visible
+  // link moves the forwarded one and the two cannot disagree about where the
+  // figures came from. The address is made absolute, because the reader of a
+  // forwarded takeaway has no page to resolve a path against.
+  link().setAttribute("href", "/executive-briefing.html?example=ai-finops-bundled");
+  await copy();
+  assert.equal(copied.length, 1);
+  assert.ok(copied[0].endsWith(
+    " Source: https://labs.wawalu.org/executive-briefing.html?example=ai-finops-bundled"));
+  assert.equal(textOf(document.getElementById("executive-takeaway-status")), TAKEAWAY_COPY_FEEDBACK.copied);
+
+  // Off Shiplog it fails closed instead. This is the one thing reading the
+  // block cannot establish, and a takeaway forwarded to somebody's boss saying
+  // "Source:" over an address that is not ours is worse than one that did not
+  // copy and said why.
+  link().setAttribute("href", "https://example.com/evolution.html#workspace-answer");
+  await copy();
+  assert.equal(copied.length, 1, "an off-site source must reach no clipboard");
   assert.equal(textOf(document.getElementById("executive-takeaway-status")), TAKEAWAY_COPY_FEEDBACK.failed);
 });
 

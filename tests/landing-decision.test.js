@@ -209,7 +209,7 @@ test("the first screen makes its privacy promise at most twice, beside the link 
   const takeaway = blocks.findIndex((node) => node.getAttribute("class") === "executive-takeaway");
   assert.ok(takeaway >= 0 && takeaway < actions,
     "the block holding the AI FinOps link must read above the promise, not below it");
-  assert.match(textOf(hero.querySelector('a[href="/evolution.html"].button-link')),
+  assert.match(textOf(hero.querySelector('a[href="/evolution.html#workspace-answer"].button-link')),
     /Read the worked decision in AI FinOps/);
 });
 
