@@ -220,10 +220,10 @@ test("a link with no id, or a truncated one, lands in the same not-found state a
   for (const [route, search, answer, sentence] of NOT_FOUND_ROUTES) {
     const page = await openPostPage(search, answer);
     try {
-      // The same named state, the same heading, the same chip word.
+      // The same named state, heading, and plain-text outcome.
       assertOneState(page, "not-found", route);
       assert.equal(textOf(page.panel.querySelector(".empty-title")), "Post unavailable", `${route}: the heading names what happened`);
-      assert.equal(textOf(page.panel.querySelector(".detail-state-chip")), "Not found", `${route}: the chip carries its own word`);
+      assert.equal(textOf(page.panel.querySelector(".detail-state-label")), "Not found", `${route}: the outcome is visible text`);
       assert.match(textOf(page.panel), sentence, `${route}: the sentence says how this link failed`);
 
       // The wait is gone from the document, not pushed below the answer.
@@ -320,8 +320,8 @@ test("an unreachable feed is named as such, with a keyboard-reachable retry afte
     assert.match(textOf(page.panel), /Social did not respond, so this shared link is unavailable for now\./);
     assert.equal(textOf(page.panel.querySelector(".empty-title")), "Post could not be opened");
     assert.equal(textOf(page.panel.querySelector(".detail-state-feed")), "Go to the Social feed");
-    // A word, not just a wash: the state reads with the stylesheet gone.
-    assert.equal(textOf(page.panel.querySelector(".detail-state-chip")), "Unreachable");
+    // A word, not just colour: the state reads with the stylesheet gone.
+    assert.equal(textOf(page.panel.querySelector(".detail-state-label")), "Unreachable");
 
     const retry = page.panel.querySelector(".detail-retry");
     // A real button. Not a div with a click handler: this is why it is in the
@@ -340,7 +340,10 @@ test("an unreachable feed is named as such, with a keyboard-reachable retry afte
     // produce the post is reached before the ones that leave without it.
     const sequence = tabSequence(page.document);
     assert.ok(sequence.includes(retry), "the retry is reachable by keyboard");
-    assert.ok(sequence.indexOf(retry) < sequence.indexOf(page.document.querySelector("#post-back")));
+    const social = page.document.querySelector("#post-back");
+    const publish = page.document.querySelector("#post-publish");
+    assert.ok(sequence.indexOf(retry) < sequence.indexOf(social));
+    assert.ok(sequence.indexOf(social) < sequence.indexOf(publish), "feed then publish follows reading order");
 
     retry.focus();
     assert.equal(page.document.activeElement, retry, "and it can hold focus");
