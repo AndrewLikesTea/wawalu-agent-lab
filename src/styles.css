@@ -769,13 +769,13 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 /* The wait keeps the post's own column, so the answer lands where it waited. */
 .detail-loading { display:grid; gap:14px; min-height:96px; max-width:720px; margin:auto; padding:20px 0; color:#4a4a44; }
 .detail-skeleton { display:flex; flex-direction:column; min-width:0; }
+.detail-skeleton-metadata { display:flex; justify-content:space-between; gap:24px; min-height:44px; align-items:center; }
+.detail-skeleton-metadata .skeleton-line { width:min(32%,180px); }
+.detail-skeleton .detail-caption { display:grid; gap:8px; margin:8px 0 16px; }
 .detail-loading-line { display:flex; align-items:center; gap:10px; margin:0; font:650 14px/1.5 system-ui,sans-serif; }
 .detail-loading-dot { flex:none; width:12px; height:12px; border:2px solid #a8c2da; border-top-color:#155f9e; border-radius:50%; animation:shiplog-spin .8s linear infinite; }
-/* Status chips. Text first — the word is the signal and survives colour being
-   off, inverted, or unseen. The base is the OUTLINE chip, this site's mark for
-   a standing classification; currentColor keeps the border in contrast with its
-   own text in any rendering. The two variants fill it, because each reports a
-   live lookup. Every pairing is an existing site palette at AA contrast. */
+/* Shared status chips remain available to image and publishing states. The
+   shared-post availability panel intentionally uses .detail-state-label only. */
 .detail-state-chip { display:inline-flex; align-items:center; margin:0 0 11px; border:1px solid currentColor; border-radius:5px; padding:2px 9px; font:750 10px/1.6 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; }
 .detail-state-chip-missing { border-color:#d9c69a; background:#fdf7e8; color:#5b4a20; }
 .detail-state-chip-error { border-color:#d5aaa6; background:#fbf1f1; color:#713b37; }

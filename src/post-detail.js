@@ -115,7 +115,6 @@ const POST_STATE_COPY = {
   empty: {
     state: "not-found",
     className: "detail-state-not-found",
-    tone: "missing",
     label: "Not found",
     title: "Post unavailable",
     description: "This shared link may be unavailable or incomplete, so there is no post to show.",
@@ -123,7 +122,6 @@ const POST_STATE_COPY = {
   "not-found": {
     state: "not-found",
     className: "detail-state-not-found",
-    tone: "missing",
     label: "Not found",
     title: "Post unavailable",
     description: "This shared link may be unavailable, or the post may no longer be in Social.",
@@ -139,7 +137,6 @@ const POST_STATE_COPY = {
   error: {
     state: "error",
     className: "empty-state-error detail-state-unavailable",
-    tone: "error",
     label: "Unreachable",
     title: "Post could not be opened",
     description: "Social did not respond, so this shared link is unavailable for now.",
@@ -154,7 +151,7 @@ function labelledState(key, actions = []) {
   node.setAttribute("aria-labelledby", heading.id);
   node.setAttribute("data-post-state-panel", copy.state);
   node.append(
-    el("p", `detail-state-label detail-state-chip detail-state-chip-${copy.tone}`, copy.label),
+    el("p", "detail-state-label", copy.label),
     heading,
     el("p", undefined, copy.description),
   );
@@ -180,7 +177,6 @@ function feedAction() {
   link.href = POST_EXITS.social.href;
   return link;
 }
-
 // The image's accessible name, in one place, with one precedence:
 //
 //   1. what the poster wrote about the image, when they wrote anything;
@@ -318,7 +314,7 @@ function renderFailed(container, onRetry) {
   const retry = el("button", "empty-action detail-retry", "Retry the shared post");
   retry.type = "button";
   if (onRetry) retry.addEventListener("click", onRetry);
-  container.append(labelledState("error", [feedAction(), retry]));
+  container.append(labelledState("error", [retry, feedAction()]));
 }
 
 // The wait, in one place, because src/post.html ships this same line in its
@@ -346,12 +342,11 @@ export const POST_LOADING_STATUS = "Shiplog is retrieving one public Social post
 // describing a name the page did not draw.
 export const POST_LOADED_DESCRIPTION = "This shared post shows the display name used to publish it and the post content.";
 
-// The four parts of a post the wait stands in for, in the order the loaded
-// article renders them: the image, the words under it, who wrote them, and when.
-// Each placeholder names its slot on itself, so this list is the one place the
-// shape is written down and a test asks for slots rather than counting anonymous
-// shimmer blocks.
-export const POST_SKELETON_SLOTS = ["optional-image", "caption", "author", "timestamp", "actions"];
+// Three visually distinct regions make the preview readable as a post before
+// its data arrives: author and metadata together, the caption, then optional
+// media. Each region names itself so tests assert hierarchy instead of counting
+// anonymous shimmer blocks.
+export const POST_SKELETON_SLOTS = ["author-metadata", "caption", "optional-image"];
 
 function skeletonSlot(name, className) {
   const slot = el("div", className);
@@ -375,18 +370,17 @@ function renderSkeleton() {
   const skeleton = el("article", "detail-skeleton detail-post");
   skeleton.setAttribute("aria-hidden", "true");
   skeleton.setAttribute("inert", "");
+  const metadata = skeletonSlot("author-metadata", "detail-skeleton-metadata");
+  metadata.append(
+    el("span", "skeleton-line skeleton-line-short"),
+    el("span", "skeleton-line skeleton-line-short"),
+  );
+  const caption = skeletonSlot("caption", "detail-caption");
+  caption.append(el("span", "skeleton-line"), el("span", "skeleton-line"));
   const figure = el("figure", "detail-figure");
-  const caption = el("figcaption", "detail-caption");
-  caption.append(skeletonSlot("caption", "skeleton-line"));
-  figure.append(skeletonSlot("optional-image", "skeleton-media"), caption);
-  const byline = el("p", "detail-byline");
-  byline.append(skeletonSlot("author", "skeleton-line skeleton-line-short"));
-  const date = el("time", "detail-date");
-  date.append(skeletonSlot("timestamp", "skeleton-line skeleton-line-short"));
-  const actions = el("div", "detail-stats detail-skeleton-actions");
-  actions.dataset.postSkeletonSlot = "actions";
-  actions.append(el("span", "skeleton-line"), el("span", "skeleton-line"));
-  skeleton.append(figure, byline, date, actions);
+  figure.dataset.postSkeletonSlot = "optional-image";
+  figure.append(el("div", "skeleton-media"));
+  skeleton.append(metadata, caption, figure);
   return skeleton;
 }
 

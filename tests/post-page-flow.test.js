@@ -342,7 +342,7 @@ test("a retry re-enters the wait in the post's shape, then lands the post in it"
     assert.equal(panel.getAttribute("aria-busy"), "true");
     assert.equal(panel.querySelectorAll(".detail-state-message").length, 0);
     assert.equal(panel.querySelectorAll("button").length, 0);
-    assert.deepEqual(skeletonSlots(panel), ["optional-image", "caption", "author", "timestamp", "actions"]);
+    assert.deepEqual(skeletonSlots(panel), ["author-metadata", "caption", "optional-image"]);
     assert.equal(textOf(panel.querySelector(".detail-loading-text")), "Shiplog is retrieving one public Social post from the shared link.");
 
     await waitFor(() => release, "the retry issued its request");
@@ -402,12 +402,14 @@ test("the loading state is one announced line in the post's region, and takes no
     assert.equal(panel.querySelectorAll(".detail-state-message").length, 0);
     assert.equal(panel.querySelectorAll("h2").length, 0);
     assert.equal(state.getAttribute("aria-labelledby"), null);
-    assert.deepEqual(skeletonSlots(panel), ["optional-image", "caption", "author", "timestamp", "actions"]);
+    assert.deepEqual(skeletonSlots(panel), ["author-metadata", "caption", "optional-image"]);
     assert.equal(panel.querySelectorAll(".detail-skeleton")[0].getAttribute("aria-hidden"), "true");
     assert.ok(panel.querySelector("article.detail-skeleton"), "the wait uses the loaded post's semantic container");
     assert.equal(panel.querySelector(".detail-skeleton").hasAttribute("inert"), true, "the placeholder can never enter the tab order");
-    const skeletonFigure = panel.querySelector(".detail-skeleton").querySelector("figure");
-    assert.ok(skeletonFigure?.querySelector("figcaption"), "optional media and caption keep their relationship");
+    const skeleton = panel.querySelector(".detail-skeleton");
+    assert.ok(skeleton.querySelector('[data-post-skeleton-slot="author-metadata"]'));
+    assert.ok(skeleton.querySelector('[data-post-skeleton-slot="caption"]'));
+    assert.ok(skeleton.querySelector('figure[data-post-skeleton-slot="optional-image"]'));
     // The placeholder is shape only: it must not put words on the page that a
     // reader would try to read, or that the announcement would read out.
     assert.equal(textOf(panel.querySelector(".detail-skeleton")).trim(), "");
@@ -448,7 +450,7 @@ test("the page opens already saying it is loading, and the post replaces that li
     assert.equal(panel.querySelector(".detail-loading").getAttribute("role"), null);
     // The placeholder is in the markup too — the wait a cold visitor meets is
     // the shape of the post, not a line of text the post then pushes down.
-    assert.deepEqual(skeletonSlots(panel), ["optional-image", "caption", "author", "timestamp", "actions"]);
+    assert.deepEqual(skeletonSlots(panel), ["author-metadata", "caption", "optional-image"]);
     // The states that explain an absent post are not in the markup at all, so
     // the wait and an unavailable panel cannot be read together at any point.
     assert.equal(panel.querySelectorAll(".detail-state-message").length, 0);
@@ -469,7 +471,7 @@ test("the page opens already saying it is loading, and the post replaces that li
     assert.equal(panel.querySelectorAll(".detail-state-message").length, 0);
     // And one placeholder: the script redraws the wait the markup shipped, it
     // does not stack a second set of slots under the first.
-    assert.deepEqual(skeletonSlots(panel), ["optional-image", "caption", "author", "timestamp", "actions"]);
+    assert.deepEqual(skeletonSlots(panel), ["author-metadata", "caption", "optional-image"]);
     assert.equal(panel.querySelectorAll(".detail-skeleton").length, 1);
 
     release();

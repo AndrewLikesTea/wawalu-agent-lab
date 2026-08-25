@@ -304,7 +304,7 @@ test("an id-less visit is headed by the same not-found words, and offers the fee
 const slotsOf = (node) => walk(node, (candidate) => Boolean(candidate.dataset?.postSkeletonSlot))
   .map((candidate) => candidate.dataset.postSkeletonSlot);
 
-test("the loading state says the wait in words and reserves the post's five areas", () => {
+test("the loading state says the wait in words and reserves three distinct content regions", () => {
   const container = createElement("div");
   renderPostDetail(container, null, { state: "loading", id: "p-image", author: "Mina" });
 
@@ -318,18 +318,18 @@ test("the loading state says the wait in words and reserves the post's five area
   assert.equal(first(status, "detail-loading-text").textContent, POST_LOADING_STATUS);
   assert.equal(POST_LOADING_STATUS, "Shiplog is retrieving one public Social post from the shared link.");
 
-  // The five slots a post fills, in the order the loaded article fills them.
+  // The three regions distinguish identity, words, and optional media.
   // A line of text used to be the whole wait, so every post that arrived pushed
   // the page down under the reader; the placeholder holds the box instead.
   assert.deepEqual(slotsOf(container), POST_SKELETON_SLOTS);
-  assert.deepEqual(POST_SKELETON_SLOTS, ["optional-image", "caption", "author", "timestamp", "actions"]);
+  assert.deepEqual(POST_SKELETON_SLOTS, ["author-metadata", "caption", "optional-image"]);
 
   // Built from the blocks Social's feed and People's grid already draw while
   // they wait, in this page's own containers — one placeholder treatment across
   // the three surfaces, and no new stylesheet rule per surface.
   assert.equal(byClass(container, "skeleton-media").length, 1);
-  assert.equal(byClass(container, "skeleton-line").length, 5);
-  for (const name of ["detail-figure", "detail-caption", "detail-byline", "detail-date"]) {
+  assert.equal(byClass(container, "skeleton-line").length, 4);
+  for (const name of ["detail-skeleton-metadata", "detail-caption", "detail-figure"]) {
     assert.equal(byClass(container, name).length, 1, `the wait reserves the loaded post's ${name}`);
   }
 
@@ -580,15 +580,15 @@ test("the shipped markup opens in the loading state, saying so in words", async 
   assert.doesNotMatch(region, /detail-state-chip|empty-state/);
 
   // The placeholder ships too, because a cold visitor meets the markup before
-  // this page's script has been fetched: the five areas, once each, in the order
-  // the loaded article fills them, hidden from assistive technology.
+  // this page's script has been fetched: the three content regions, once each,
+  // hidden from assistive technology.
   assert.deepEqual([...region.matchAll(/data-post-skeleton-slot="([a-z-]+)"/g)].map(([, slot]) => slot),
-    ["optional-image", "caption", "author", "timestamp", "actions"]);
+    ["author-metadata", "caption", "optional-image"]);
   assert.equal((region.match(/class="detail-skeleton detail-post" aria-hidden="true" inert/g) ?? []).length, 1);
   // Drawn with the feed's blocks, so the shipped wait and the rendered one are
   // the same treatment a reader has already met on Social and on People.
   assert.equal((region.match(/class="skeleton-media"/g) ?? []).length, 1);
-  assert.equal((region.match(/class="skeleton-line/g) ?? []).length, 5);
+  assert.equal((region.match(/class="skeleton-line/g) ?? []).length, 4);
   // And it carries nothing to tab to, so the standing exit stays the first stop
   // a keyboard reader reaches after the site frame.
   assert.doesNotMatch(region, /<a |<button|tabindex/);
@@ -733,49 +733,24 @@ test("loading and unavailable states say what happened in words", () => {
   assert.doesNotMatch(failed.textContent, /removed|incomplete|may have been/i);
 });
 
-test("each state's chip carries a word, and a wash that only agrees with it", async () => {
-  const chipOf = (value, options) => {
+test("each unavailable state carries a plain-text outcome without a chip", () => {
+  const labelOf = (value, options) => {
     const container = createElement("div");
     renderPostDetail(container, value, options);
-    return first(container, "detail-state-chip");
+    assert.equal(byClass(container, "detail-state-chip").length, 0);
+    return first(container, "detail-state-label");
   };
 
-  const chips = [
-    ["not-found", chipOf(null, { state: "ready", id: "p-gone" }), "missing", "Not found"],
-    ["error", chipOf(null, { state: "error", id: "p-gone" }), "error", "Unreachable"],
-    // A link that named no post is not a third answer. It used to be chipped
-    // "Post status" in a neutral wash — a label naming the field rather than
-    // the state, on the one page where a reader most needs to be told what
-    // happened. It carries the not-found word now, like every other link that
-    // did not reach a post.
-    ["id-less", chipOf(null, { state: "ready", id: "" }), "missing", "Not found"],
+  const labels = [
+    ["not-found", labelOf(null, { state: "ready", id: "p-gone" }), "Not found"],
+    ["error", labelOf(null, { state: "error", id: "p-gone" }), "Unreachable"],
+    ["id-less", labelOf(null, { state: "ready", id: "" }), "Not found"],
   ];
 
-  for (const [name, chip, tone, text] of chips) {
-    // Text plus colour, never colour alone: with the stylesheet gone the chip
-    // still reads, and the wash class only names the tone it is painted in.
-    assert.equal(chip.textContent, text, `the ${name} chip must name its state in words`);
-    assert.ok(chip.classes.includes(`detail-state-chip-${tone}`), `the ${name} chip carries its tone class`);
+  for (const [name, label, text] of labels) {
+    assert.equal(label.textContent, text, `the ${name} state must name its outcome in words`);
   }
-  // Two answers, two words: a post that is gone and a feed that could not be
-  // reached are different facts and must not share a label. A link that named
-  // no post at all is the first of those two, not a third.
-  assert.equal(new Set(chips.map(([, chip]) => chip.textContent)).size, 2);
-
-  // A resolved lookup is a dynamic signal, so every one of these is a filled
-  // wash. The outline chip is this site's mark for a standing classification,
-  // and nothing on this page is one.
-  const css = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
-  for (const tone of ["missing", "error"]) {
-    const rule = css.match(new RegExp(`^\\.detail-state-chip-${tone} \\{([^}]*)\\}`, "m"))?.[1] ?? "";
-    assert.match(rule, /background:#/, `the ${tone} chip needs a filled wash, not a bare outline`);
-    assert.match(rule, /color:#/, `the ${tone} chip needs its own ink`);
-  }
-  // The wait is not chipped at all: it is a sentence, and a colour would be the
-  // only thing a chip added to it.
-  const waiting = createElement("div");
-  renderPostDetail(waiting, null, { state: "loading", id: "p-image" });
-  assert.equal(byClass(waiting, "detail-state-chip").length, 0);
+  assert.equal(new Set(labels.map(([, label]) => label.textContent)).size, 2);
 });
 
 test("a missing post reaches the feed even when the standing exit does not", () => {
