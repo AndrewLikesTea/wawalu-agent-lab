@@ -618,8 +618,8 @@ test("a release can be associated with a decision from the UI", async () => {
   const controls = document.querySelectorAll("button,a,input,select,label,legend")
     .map((control) => textOf(control));
   assert.ok(
-    controls.some((label) => /link .*decision|associate .*decision/i.test(label)),
-    "no control on the releases page lets a user link a decision to a release",
+    controls.some((label) => /decision.*included.*release/i.test(label)),
+    "no control on the releases page lets a user include a decision in a release",
   );
 });
 
