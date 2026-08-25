@@ -18,6 +18,22 @@
 import { analyzedPeriodPhrase, reportingWindow } from "./analyzed-period.js";
 
 /**
+ * Where the forwarded figure came from. Absolute, because a takeaway pasted
+ * into someone else's mail has no base to resolve a path against, and the
+ * fragment every other decision link on this site uses, because landing on the
+ * page top asks a CFO to go find the number again.
+ *
+ * The origin is authored here rather than imported from `site-footer.js`: this
+ * module is on the home page's first screen and pays for its own import graph,
+ * and one string is not worth the second entry-graph edge. It does not drift
+ * unwatched — index.html authors the same address in the block below, and the
+ * test file holds `forwardableTakeaway()` against `EXECUTIVE_TAKEAWAY`, so the
+ * page and the clipboard cannot disagree about it.
+ */
+export const EXECUTIVE_TAKEAWAY_SOURCE_URL =
+  "https://labs.wawalu.org/evolution.html#workspace-answer";
+
+/**
  * The window the figures above cover, in words: "June 2026" for the bundled
  * example, whatever the bundled months become for anything else. Null when no
  * window can be named, which is a state the sentence below has a shape for.
@@ -40,13 +56,13 @@ export const ANALYZED_PERIOD = analyzedPeriodPhrase(reportingWindow());
  * The clause is dropped whole when no period can be named. There is no state in
  * which this prints "in " with nothing after it.
  */
-export function takeawayText(period = ANALYZED_PERIOD) {
+export function takeawayText(period = ANALYZED_PERIOD, sourceUrl = EXECUTIVE_TAKEAWAY_SOURCE_URL) {
   const span = typeof period === "string" && period.trim() ? ` in ${period.trim()} alone` : "";
   return `$51,254 of $154,500 in analyzed AI spend is recoverable (33%)${span}. `
     + "Modelled ceiling: what re-routing this work could save, not money already saved. "
     + "First recommended action: Pilot lower-cost routing in Atlas Platform. "
     + "Accountable role: Platform Engineering Lead. Figures are from a bundled synthetic example "
-    + "and are not visitor data.";
+    + `and are not visitor data. Source: ${sourceUrl}`;
 }
 
 export const EXECUTIVE_TAKEAWAY = takeawayText();
@@ -87,7 +103,7 @@ export function forwardableTakeaway(doc = globalThis.document) {
 }
 
 export const TAKEAWAY_COPY_FEEDBACK = Object.freeze({
-  copied: "Executive takeaway copied.",
+  copied: "Executive takeaway and source link copied.",
   failed: "Could not copy the executive takeaway. Select the text above and copy it manually.",
 });
 
