@@ -331,14 +331,19 @@ test("a stale decision in the URL falls back to the whole history rather than em
 
 test("the recorder names the decision that will govern the release as it is chosen", async (t) => {
   const { page } = await openReleases(t);
+  const field = page.document.querySelector("#release-decisions-field");
   const summary = page.document.querySelector("#release-decisions-summary");
   const checks = [...page.document.querySelectorAll(".decision-picker-check")];
   const optionFor = (id) => checks.find((check) => check.getAttribute("value") === id);
 
-  // The hint says the rule before anything is ticked, in the same words the
+  // The label and hint use one relationship, and the hint says the rule before
+  // anything is selected, in the same words the
   // release detail view heads that decision with.
-  assert.ok(textOf(page.document.querySelector("#release-decisions-hint"))
-    .includes("The first one you tick is the release’s governing decision: the release page shows it in its own section above the rest."));
+  assert.equal(textOf(field.querySelector("legend")), "Decisions included in this release (optional)");
+  assert.equal(
+    textOf(page.document.querySelector("#release-decisions-hint")),
+    "Select every decision included in this release, or select none. The first one you select is the release’s governing decision: the release page shows it in its own section above the rest. Tab moves through the list; Space selects or clears the decision in focus.",
+  );
   // A live region, so the choice is announced without moving focus out of the
   // group — and it is a region, so it was announced at all.
   assert.equal(summary.getAttribute("role"), "status");
