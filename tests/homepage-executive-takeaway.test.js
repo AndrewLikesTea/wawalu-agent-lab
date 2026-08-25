@@ -5,9 +5,11 @@ import { loadPage, pressEnter, tabSequence, textOf, typeText } from "./support/b
 import { importPageModule } from "./support/page-module.js";
 import {
   ANALYZED_PERIOD, bindFinopsExampleFollowUp, EXECUTIVE_TAKEAWAY,
-  FINOPS_EXAMPLE_FOLLOW_UP_PURPOSE, forwardableTakeaway, TAKEAWAY_COPY_FEEDBACK, takeawayText,
+  EXECUTIVE_TAKEAWAY_SOURCE_URL, FINOPS_EXAMPLE_FOLLOW_UP_PURPOSE, forwardableTakeaway,
+  TAKEAWAY_COPY_FEEDBACK, takeawayText,
 } from "../src/homepage-executive-takeaway.js";
 import { analyzedPeriodPhrase, EXAMPLE_MONTHS, reportingWindow } from "../src/analyzed-period.js";
+import { navHref, SITE_NAV } from "../src/site-nav.js";
 import { loadExampleDataset } from "../src/example-dataset.js";
 import { onRequest } from "../functions/api/leads.js";
 import { createMemoryLeadStore, FOLLOW_UP_TOPICS, handleLeadRequest } from "../src/leads.js";
@@ -61,10 +63,29 @@ test("the homepage visibly labels a concise, qualified executive takeaway", asyn
   assert.match(text, /Pilot lower-cost routing in Atlas Platform/);
   assert.match(text, /Accountable role: Platform Engineering Lead/);
   assert.match(text, /bundled synthetic example and are not visitor data/);
+  assert.match(text, new RegExp(`Source: ${EXECUTIVE_TAKEAWAY_SOURCE_URL.replaceAll(".", "\\.")}$`));
   // A takeaway written to be forwarded is the worst place on the site to drop
   // the limit on this figure: read alone, "$51,254 is recoverable" is a saving
   // somebody can be held to. It travels with the ceiling or it does not travel.
   assert.match(text, /Modelled ceiling: what re-routing this work could save, not money already saved/);
+});
+
+test("the forwarded address is the site's own door to the answer, not a second one", () => {
+  // The one link on this site nobody can fix after it is sent. It leaves in a
+  // paste, lands in somebody's boss's mail, and has no path back here — so it
+  // is not authored against evolution.html's markup, it is the destination's
+  // own door: the same string `navHref()` gives the nav, the footer band and
+  // every other link to the worked decision. #1523 already moved this fragment
+  // once; when it moves again, the forwarded address moves with it or this
+  // fails rather than shipping a dead anchor to a CFO.
+  const finops = SITE_NAV.find((link) => link.href === "/evolution.html");
+  assert.ok(finops, "AI FinOps is no longer a nav destination; the forwarded address has no door");
+  const url = new URL(EXECUTIVE_TAKEAWAY_SOURCE_URL);
+  assert.equal(`${url.pathname}${url.hash}`, navHref(finops));
+  // Absolute and on this site: a pasted line carries no base to resolve a path
+  // against, and a takeaway that cites somebody else's origin is not a source.
+  assert.equal(url.protocol, "https:");
+  assert.equal(url.host, "labs.wawalu.org");
 });
 
 test("the value, qualification, action, and decision link form a semantic reading order", async (t) => {
@@ -103,7 +124,7 @@ test("the rendered figure sentence says which months it is true over", async (t)
   // The span rides on the figure sentence, so it cannot be read as a claim of
   // its own and cannot displace anything above the fold.
   assert.doesNotMatch(text, /\(33%\) in\s+(?:alone|—)|undefined/);
-  assert.match(text, /Figures are from a bundled synthetic example and are not visitor data\.$/);
+  assert.match(text, /Figures are from a bundled synthetic example and are not visitor data\. Source:/);
 });
 
 test("the analyzed period is derived from the bundled months, not written down", () => {
@@ -342,7 +363,7 @@ test("the worked decision is offered before the work email is asked for", async 
       "executive-takeaway-status"],
   );
   assert.match(textOf(document.getElementById("executive-takeaway-text")),
-    /Figures are from a bundled synthetic example and are not visitor data\.$/);
+    /Figures are from a bundled synthetic example and are not visitor data\. Source:/);
 
   // 2 and 3. Both entry points, in their own order, above the ask.
   assert.ok(at("executive-takeaway-title") < worked,
@@ -372,14 +393,17 @@ test("the worked decision is offered before the work email is asked for", async 
     "the work-email ask is still read before the worked decision");
 });
 
-test("moving the follow-up ask spends no tab stop and reorders no other control", async (t) => {
+test("the closed first screen spends four tab stops, and nothing added may spend a fifth", async (t) => {
   const document = await openContextualFollowUp(t, async () => reply({ captured: true, created: true }));
   const inHero = new Set(inReadingOrder(document.getElementById("top")));
 
-  // Four stops before the move, four after: the copy control, the two entry
-  // points, and the disclosure that reveals the form. The panel is closed on
-  // arrival, so its field and its two buttons cost nothing until it is opened —
-  // and the homepage's tab budget is full, so this count may not grow.
+  // Four stops, and this count may not grow. The home page's tab order is
+  // spent: the coach entry point sits at press 30 of the 30 that
+  // prompt-coach-destination.test.js will spend reaching it, so a focusable
+  // added anywhere above it fails there — by hanging on a deep-equal of two
+  // parsed nodes, not by reporting this line. That is why the source is cited
+  // as an address rather than linked: the worked decision is already the first
+  // stop below, and the copied payload carries the address either way.
   const stops = tabSequence(document).filter((stop) => inHero.has(stop));
   assert.deepEqual(stops.map((stop) => stop.getAttribute("id") ?? stop.getAttribute("href")),
     ["/evolution.html", "copy-executive-takeaway", "#landing-decision", "finops-example-follow-up-open"]);
@@ -781,6 +805,7 @@ test("the keyboard-operable control copies only the takeaway and confirms succes
     "Accountable role: Platform Engineering Lead.",
     "Figures are from a bundled synthetic example and are not visitor data.",
     "Modelled ceiling: what re-routing this work could save, not money already saved.",
+    `Source: ${EXECUTIVE_TAKEAWAY_SOURCE_URL}`,
   ]) {
     assert.ok(payload.includes(claim), `the copied text drops "${claim}"`);
   }
