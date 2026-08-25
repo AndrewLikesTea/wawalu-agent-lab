@@ -604,20 +604,43 @@ test("no destination in the page's authored regions is offered under two labels"
   assert.equal(detail.getAttribute("href"), checkRecord.getAttribute("href"));
 });
 
-test("the example record's decision status is cased the way its filter option is", async (t) => {
-  const page = await openReleasesPage(t);
-  // The badge inside the worked example, not the ones the log's rows draw.
-  assert.match(textOf(page.document.querySelector("#shiplog-proof")), /Decision statusAccepted/);
+test("the loading page clearly discloses one actionable invented release with both detail routes", async (t) => {
+  const page = await loadPage(RELEASES_PAGE);
+  t.after(() => page.restore());
+  const loading = page.document.querySelector(".list-state-loading");
+  const demo = page.document.querySelector("#shiplog-proof");
+  const real = page.document.querySelector("#shipped-build");
 
-  // The option a visitor would pick to find a record in that state. Matched by
-  // its `for`, because the harness rejects an attribute selector.
-  const option = page.document.querySelectorAll("label")
-    .find((node) => node.getAttribute("for") === "release-decision-status-accepted");
-  assert.ok(option, "the Linked decision status filter lost its accepted option");
-  assert.equal(textOf(option), "Accepted");
+  assert.ok(loading, "the release log is visibly pending before its module boots");
+  assert.equal(page.document.querySelectorAll("#shiplog-proof").length, 1);
+  assert.equal(demo.getAttribute("aria-labelledby"), "shiplog-proof-title");
+  assert.equal(demo.getAttribute("aria-describedby"), "shiplog-proof-note");
+  assert.match(textOf(demo), /Example records/);
+  assert.match(textOf(demo), /invented records demonstrate Shiplog/);
+  assert.match(textOf(demo), /demonstration data, not live release-log data/i);
+  for (const value of ["Versionv1.3.0", "Release statusCompleted", "Release ownerKai", "SummaryThroughput and latency", "Linked decisionAdopt a durable job queue"]) {
+    assert.match(textOf(demo), new RegExp(value));
+  }
+
+  assert.ok(demo.classList.contains("shiplog-demo"), "the demonstration has its own visual treatment");
+  assert.ok(real.classList.contains("shiplog-real"), "the running build retains its real-record treatment");
+  assert.equal(demo.classList.contains("shiplog-real"), false);
+  const links = demo.querySelectorAll("a");
+  assert.ok(links.some((link) => link.getAttribute("href") === "/release.html?id=demo-r-1-3-0"));
+  assert.ok(links.some((link) => link.getAttribute("href") === "/decision.html?id=demo-queue"));
+});
+
+test("the example record's completed status is cased the way its filter option is", async (t) => {
+  const page = await openReleasesPage(t);
+  assert.match(textOf(page.document.querySelector("#shiplog-proof")), /Release statusCompleted/);
+
+  const option = page.document.querySelectorAll("option")
+    .find((node) => node.getAttribute("value") === "completed");
+  assert.ok(option, "the release status filter lost its completed option");
+  assert.equal(textOf(option), "Completed");
 
   const markup = await readFile(RELEASES_PAGE, "utf8");
-  const badge = markup.match(/<dt>Decision status<\/dt><dd><span class="badge badge-accepted">([^<]+)</);
-  assert.ok(badge, "the example record no longer renders a decision status badge");
+  const badge = markup.match(/<dt>Release status<\/dt><dd><span class="badge badge-release-completed">([^<]+)</);
+  assert.ok(badge, "the example record no longer renders a release status badge");
   assert.equal(badge[1], textOf(option), "the example record and the filter case the same status differently");
 });
