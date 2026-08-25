@@ -1087,20 +1087,20 @@ test("the no-match copy names the filters and cannot be confused with the never-
 test("feedHeading names the set on screen and counts it, in the menus' own words", () => {
   // No count before a fetch has answered, and no "All" claim beside a sentence
   // that already says how many of how many posts are showing.
-  assert.equal(DEFAULT_FEED_HEADING, "Posts");
+  assert.equal(DEFAULT_FEED_HEADING, "Post feed");
 
-  assert.equal(feedHeading({ shown: 12 }), "12 posts");
-  assert.equal(feedHeading({ shown: 1 }), "1 post");
+  assert.equal(feedHeading({ shown: 12 }), "Post feed: 12 posts");
+  assert.equal(feedHeading({ shown: 1 }), "Post feed: 1 post");
   // An answered, unfiltered, empty feed. Same two words the empty panel opens
   // with ("No posts on Social yet."), so the heading cannot contradict it.
-  assert.equal(feedHeading({ shown: 0 }), "No posts");
+  assert.equal(feedHeading({ shown: 0 }), "Post feed: No posts");
 
-  assert.equal(feedHeading({ shown: 2, author: "Ari" }), "2 posts by Ari");
-  assert.equal(feedHeading({ shown: 1, range: "from the past hour" }), "1 post from the past hour");
+  assert.equal(feedHeading({ shown: 2, author: "Ari" }), "Post feed: 2 posts by Ari");
+  assert.equal(feedHeading({ shown: 1, range: "from the past hour" }), "Post feed: 1 post from the past hour");
   assert.equal(feedHeading({ shown: 3, range: "from the past 24 hours", author: "Ari" }),
-    "3 posts by Ari from the past 24 hours");
+    "Post feed: 3 posts by Ari from the past 24 hours");
   assert.equal(feedHeading({ shown: 0, range: "from the past 7 days", author: "Mina" }),
-    "No posts by Mina from the past 7 days");
+    "Post feed: No posts by Mina from the past 7 days");
 
   // A heading, not a second copy of the sentence below it, and no arrow glyphs.
   for (const shown of [0, 1, 5]) {
@@ -1139,31 +1139,31 @@ test("the feed heading tracks the filters and the cards actually rendered", asyn
     control.dispatchEvent({ type: "change", bubbles: true });
   };
 
-  assert.equal(textOf(heading), "3 posts");
+  assert.equal(textOf(heading), "Post feed: 3 posts");
   assert.equal(shown(), 3);
 
   choose(nameFilter, "Ari");
-  assert.equal(textOf(heading), "2 posts by Ari");
+  assert.equal(textOf(heading), "Post feed: 2 posts by Ari");
   assert.equal(shown(), 2, "the heading's count is the number of cards rendered");
 
   choose(nameFilter, "all");
   choose(timeFilter, "hour");
-  assert.equal(textOf(heading), "1 post from the past hour");
+  assert.equal(textOf(heading), "Post feed: 1 post from the past hour");
   assert.equal(shown(), 1);
 
   choose(nameFilter, "Ari");
-  assert.equal(textOf(heading), "1 post by Ari from the past hour",
+  assert.equal(textOf(heading), "Post feed: 1 post by Ari from the past hour",
     "both filters are named, and the pair carries one count");
   assert.equal(shown(), 1);
 
   choose(nameFilter, "Mina");
-  assert.equal(textOf(heading), "No posts by Mina from the past hour");
+  assert.equal(textOf(heading), "Post feed: No posts by Mina from the past hour");
   assert.equal(shown(), 0);
   assert.doesNotMatch(textOf(heading), /No posts on Social yet/,
     "the heading takes over the never-posted empty state's words");
 
   page.document.querySelector("#post-filter-clear").click();
-  assert.equal(textOf(heading), "3 posts", "Clear filters restores the unfiltered heading and count");
+  assert.equal(textOf(heading), "Post feed: 3 posts", "Clear filters restores the unfiltered heading and count");
   assert.equal(shown(), 3);
 
   // Still the panel's accessible name, and still out in the open: a heading
@@ -1185,12 +1185,12 @@ test("the feed heading makes no claim about the feed before a fetch has answered
   const heading = page.document.querySelector("#feed-title");
   const feed = mountSocialFeed(page.document, { posts: [], state: "loading" });
 
-  assert.equal(textOf(heading), "Posts", "an open fetch is not a count of zero");
+  assert.equal(textOf(heading), "Post feed", "an open fetch is not a count of zero");
   feed.setState("error");
-  assert.equal(textOf(heading), "Posts", "a failed fetch is not a count of zero");
+  assert.equal(textOf(heading), "Post feed", "a failed fetch is not a count of zero");
 
   feed.seed([]);
-  assert.equal(textOf(heading), "No posts", "an answered fetch with nothing in it is a real zero");
+  assert.equal(textOf(heading), "Post feed: No posts", "an answered fetch with nothing in it is a real zero");
   assert.match(textOf(page.document.querySelector(".empty-state")), /No posts on Social yet\./);
 });
 
