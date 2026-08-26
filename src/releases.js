@@ -1149,10 +1149,14 @@ export const GOVERNING_DECISION_MISSING_TEXT =
 // and a sentence saying what to do — rather than to a link that would open a
 // "decision not found" page. A dangling reference is a fact about this log, not
 // a destination.
+//
+// Every word a reader sees here says "linked decision", the same name the
+// recorder's hint and the evidence list below use; `governing` survives only in
+// the class names and render-local ids, which no reader meets.
 function renderDetailGoverning(association) {
   const section = el("section", `detail-governing${association.missing ? " detail-governing-missing" : ""}`);
   section.setAttribute("aria-labelledby", GOVERNING_TITLE_ID);
-  const heading = el("h2", "detail-governing-heading", "Governing decision");
+  const heading = el("h2", "detail-governing-heading", "First linked decision");
   heading.id = GOVERNING_TITLE_ID;
   section.append(heading);
   section.append(el("p", "detail-governing-caption", GOVERNING_DECISION_CAPTION));

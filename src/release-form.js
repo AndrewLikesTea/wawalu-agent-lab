@@ -88,15 +88,15 @@ export function pruneSelection(selected = [], decisions = []) {
 // live region, so the answer is announced as the choice is made without moving
 // focus out of the checkbox group.
 //
-// "Governing decision" is the one name for this concept: the field's hint above
-// says it, this summary says it, and the release detail view heads the section
-// it renders for that decision with it.
+// "Linked decision" is the one user-facing name for this relationship: the
+// field's hint above says it, this summary says it, and the release detail view
+// heads the section it renders for the first one with it.
 export function selectionSummaryText(count, total, governingTitle = "") {
   if (total === 0) return "No decisions are available to link yet.";
   if (count === 0) return `No decisions linked yet. ${total} available.`;
   const linked = `${count} of ${total} ${total === 1 ? "decision" : "decisions"} linked.`;
   const governing = typeof governingTitle === "string" ? governingTitle.trim() : "";
-  return governing === "" ? linked : `${linked} “${governing}” is the governing decision.`;
+  return governing === "" ? linked : `${linked} “${governing}” is the first linked decision.`;
 }
 
 // Build the record. Throws a TypeError carrying one of RELEASE_FORM_ERRORS so
