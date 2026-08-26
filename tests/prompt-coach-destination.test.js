@@ -583,3 +583,70 @@ test("one name per concept: the example, the grade button, and the clear button"
     assert.equal(line.dataset.control, "prompt-coaching-input");
   }
 });
+
+/* --------------------- three invitations, three promises ------------------- */
+
+// The page carries three "See …" invitations, each one the whole of what a
+// reader has to go on before they open the explanation under it. They are
+// pinned byte for byte because the failure they had was not a typo: the middle
+// invitation listed possible results and the privacy details, which are what
+// the explanations either side of it reveal, so all three read as the same
+// offer and none of them said which one to open.
+const INVITATIONS = Object.freeze([
+  [".prompt-coaching-entry-lead",
+    "See what you get here, what it is measured against, and what to do first."],
+  [".prompt-coaching-preview-lead",
+    "See the text this preview analyzes and every field a grade returns."],
+  ["#coaching-specimen-summary",
+    "See possible results, including the ones with no grade"],
+]);
+
+test("each 'See …' invitation names only what its own explanation reveals", async () => {
+  // Read from the markup, before a module paints: two of the three are the copy
+  // a reader gets with scripts blocked, and the preview's is replaced the
+  // instant the preview paints over it. A stale copy survives here, unseen by
+  // any test that only reads the painted page.
+  const markup = await read("coach.html");
+  const document = parseHtml(markup);
+
+  for (const [selector, invitation] of INVITATIONS) {
+    assert.equal(textOf(document.querySelector(selector)), invitation);
+    // Authored once. An invitation with a second copy elsewhere in the page is
+    // an invitation that gets rewritten in one place and left stale in the other.
+    assert.equal(markup.split(invitation).length - 1, 1,
+      `"${invitation}" is authored more than once in coach.html`);
+  }
+
+  const [entry, preview, specimen] = INVITATIONS.map(([, invitation]) => invitation);
+  // The middle one is the whole point: the bundled sample it reads and the
+  // fields that come back are its own, and neither the outcome list nor the
+  // privacy boundary is what a reader should open it for.
+  assert.doesNotMatch(preview, /possible results|privacy/i,
+    "the preview invitation promises what the other two explanations reveal");
+  assert.doesNotMatch(entry, /possible results|privacy/i,
+    "the entry invitation promises what the other two explanations reveal");
+  assert.match(specimen, /possible results/,
+    "possible results is the name this page gives the specimen, in its copy and in its retry control");
+  assert.equal(new Set([entry, preview, specimen]).size, 3);
+});
+
+test("the invitations survive as three promises once the page has painted", async () => {
+  const { document } = await openCoach();
+
+  // The specimen is closed on arrival, so its invitation is all a reader has;
+  // a closed details reports its open property as undefined, not false.
+  const disclosure = byId(document, "coaching-specimen");
+  assert.ok(!disclosure.open, "the specimen opens on request, not on arrival");
+  assert.equal(textOf(byId(document, "coaching-specimen-summary")),
+    "See possible results, including the ones with no grade");
+
+  // And the preview has painted over its own invitation with the material that
+  // invitation described: the text it analyzes, and the fields that come back.
+  const painted = textOf(byId(document, "prompt-coaching-preview-body"));
+  for (const [, invitation] of INVITATIONS.slice(0, 2)) {
+    assert.ok(!painted.includes(invitation),
+      "a pre-script invitation is still on the page after the block it introduced painted");
+  }
+  assert.match(painted, /What text is analyzed/);
+  assert.match(painted, /What you receive/);
+});
