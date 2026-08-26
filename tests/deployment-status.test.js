@@ -22,6 +22,7 @@ import {
   durationText,
   readableIdentifier,
   verdictMetricText,
+  verdictCopyText,
   verdictSentence,
 } from "../src/deployment-status.js";
 import {
@@ -106,9 +107,15 @@ function evidencePairs(page) {
 
 // Every tag inside the band that could change state. Walked rather than
 // selected: the harness rejects a descendant selector.
+//
+// A `type="button"` control submits nothing, so the copy control is judged on
+// its type rather than exempted by its tag: a `<button>` that omits the type
+// defaults to submit and is still caught here, and so is one swapped in for the
+// copy control later.
 function mutatingControls(node, found = []) {
   for (const child of node.children ?? []) {
-    if (["FORM", "BUTTON", "INPUT", "TEXTAREA", "SELECT"].includes(child.tagName)) found.push(child.tagName);
+    if (["FORM", "INPUT", "TEXTAREA", "SELECT"].includes(child.tagName)) found.push(child.tagName);
+    if (child.tagName === "BUTTON" && child.getAttribute("type") !== "button") found.push("BUTTON");
     mutatingControls(child, found);
   }
   return found;
@@ -116,7 +123,7 @@ function mutatingControls(node, found = []) {
 
 /* --------------------------- what the check proves ------------------------ */
 
-test("the band opens with what the check proves, ahead of the answer and outside every disclosure", async (t) => {
+test("the band leads with the answer, then explains what the check proves outside every disclosure", async (t) => {
   const page = await openReleases(t, { readHealth: answers({ status: "ok", build: "v2.1.0" }) });
   const proof = page.document.querySelector("#deployment-status-proof");
   const sentence = textOf(proof);
@@ -146,11 +153,11 @@ test("the band opens with what the check proves, ahead of the answer and outside
   }
   assert.ok(inBand, "the proof sentence is not inside the deployment status band");
 
-  // It leads: the answer line comes after it, not before.
+  // The verdict leads; its explanation follows it.
   const lines = page.document.querySelector("#deployment-status-callout").childElements.map((node) => node.id);
   assert.ok(
-    lines.indexOf("deployment-status-proof") < lines.indexOf(DEPLOYMENT_IDS.verdict),
-    "the answer is rendered above the sentence saying what the check proves",
+    lines.indexOf(DEPLOYMENT_IDS.verdict) < lines.indexOf("deployment-status-proof"),
+    "the explanation is rendered above the answer",
   );
 });
 
@@ -248,6 +255,94 @@ test("an unreachable health check reads as unknown and still reports the last-kn
   assert.doesNotMatch(evidenceText(page), /must never reach the page/);
 });
 
+test("the visible copy control copies the verdict plus both compared version values and announces success", async (t) => {
+  let copied = "";
+  const page = await loadPage(RELEASES_PAGE, {
+    storage: {
+      [STORAGE_KEY]: JSON.stringify([]),
+      [RELEASE_STORAGE_KEY]: JSON.stringify([OLDER, NEWEST]),
+    },
+  });
+  t.after(() => page.restore());
+  initReleasesPage(page.document, page.storage, {
+    seed: NO_SEED,
+    deployedRelease: NEWEST,
+    readHealth: answers({ status: "ok", build: "v2.0.0" }),
+    now: () => NOW,
+    clipboard: { writeText: async (value) => { copied = value; } },
+  });
+  await waitFor(() => page.document.documentElement.dataset.shiplogDeployment === "ready");
+
+  const button = page.document.querySelector("#deployment-copy");
+  assert.equal(textOf(button), "Copy verdict and both versions");
+  assert.equal(button.getAttribute("aria-describedby"), "deployment-copy-status");
+  button.click();
+  await waitFor(() => textOf(page.document.querySelector("#deployment-copy-status")) !== "");
+
+  const verdict = deploymentVerdict({ health: { status: "ok", build: "v2.0.0" } }, NEWEST, NOW);
+  assert.equal(copied, verdictCopyText(verdict));
+  assert.match(copied, /^Deployment check verdict: Not a match:/);
+  assert.match(copied, /Running build version: v2\.0\.0/);
+  assert.match(copied, /Real deployment-record version: v2\.1\.0/);
+  assert.equal(
+    textOf(page.document.querySelector("#deployment-copy-status")),
+    "Deployment verdict and both version values copied to clipboard.",
+  );
+});
+
+test("the copy control offers nothing until the check has answered, and never blames the clipboard for that", async (t) => {
+  // A visitor on a slow connection reaches the band before `/healthz` does.
+  // The control is bound at boot, so without this the click copies the empty
+  // `data-copy-text` and reports a clipboard failure that never happened —
+  // pointing at an identifiers line that has not been written yet.
+  let answer;
+  let copied = null;
+  const page = await loadPage(RELEASES_PAGE, {
+    storage: { [STORAGE_KEY]: JSON.stringify([]), [RELEASE_STORAGE_KEY]: JSON.stringify([OLDER, NEWEST]) },
+  });
+  t.after(() => page.restore());
+  initReleasesPage(page.document, page.storage, {
+    seed: NO_SEED,
+    deployedRelease: NEWEST,
+    readHealth: () => new Promise((resolve) => { answer = resolve; }),
+    now: () => NOW,
+    clipboard: { writeText: async (value) => { copied = value; } },
+  });
+  const button = page.document.querySelector("#deployment-copy");
+  const status = page.document.querySelector("#deployment-copy-status");
+
+  await waitFor(() => typeof answer === "function", "the probe never started");
+  assert.equal(button.disabled, true, "a result was offered for copying before the check produced one");
+  assert.equal(textOf(page.document.querySelector("#deployment-identifiers")), "", "the identifiers line was written early");
+  button.click();
+  await Promise.resolve();
+  assert.equal(copied, null, "a half-loaded page wrote to the clipboard");
+  assert.equal(textOf(status), "", "the page reported a clipboard failure while the check was still running");
+
+  // The match path, once the probe answers: the control becomes usable and
+  // copies the verdict a buyer came for.
+  answer({ status: "healthy", version: "v2.1.0" });
+  await waitFor(() => page.document.documentElement.dataset.shiplogDeployment === "ready");
+  assert.equal(button.disabled, false, "the control stayed unusable after the check answered");
+  button.click();
+  await waitFor(() => textOf(status) !== "");
+  assert.match(copied, /^Deployment check verdict: Confirmed: this site is running v2\.1\.0/);
+  assert.match(copied, /Running build version: v2\.1\.0\. Real deployment-record version: v2\.1\.0\./);
+});
+
+test("copy preserves an unavailable running value and gives recoverable feedback when clipboard access fails", async (t) => {
+  const page = await openReleases(t, { readHealth: fails("TypeError") });
+  const button = page.document.querySelector("#deployment-copy");
+  button.click();
+  await waitFor(() => textOf(page.document.querySelector("#deployment-copy-status")) !== "");
+  assert.match(button.dataset.copyText, /Running build version: not reported/);
+  assert.match(button.dataset.copyText, /Real deployment-record version: v2\.1\.0/);
+  assert.equal(
+    textOf(page.document.querySelector("#deployment-copy-status")),
+    "Clipboard unavailable. Select the verdict and both version values above to copy them.",
+  );
+});
+
 test("an aborted health check is reported as a timeout, not as an unreachable endpoint", async (t) => {
   const page = await openReleases(t, { readHealth: fails("AbortError") });
   assert.match(verdictText(page), /did not answer in time/);
@@ -311,8 +406,9 @@ test("the band writes nothing and executes no supplied markup", async (t) => {
   assert.match(verdictText(page), /<img src=x onerror=alert\(1\)>/, "the build identifier was not shown as text");
   // Inserted as text, so the page holds no element the response asked for.
   assert.equal(page.document.querySelectorAll("img").length, 0, "supplied markup became an element");
-  // The band has no control that could submit: the only thing it renders is a
-  // link to a record. Walked, because the harness rejects a descendant selector.
+  // The band has no control that could submit: it renders a link to a record
+  // and one control that only reads the verdict back out. Walked, because the
+  // harness rejects a descendant selector.
   assert.deepEqual(mutatingControls(page.document.querySelector("#deployment-status")), []);
   assert.equal(
     JSON.parse(page.storage.getItem(RELEASE_STORAGE_KEY)).length,
@@ -347,8 +443,13 @@ test("an identifier the page cannot show whole is refused, never stripped into a
   const page = await openReleases(t, { readHealth: answers({ status: "ok", build: spoofed }) });
   const identifiers = textOf(page.document.querySelector("#deployment-identifiers"));
   assert.equal(identifiers.includes(BIDI_OVERRIDE), false, "an invisible override reached the proof line");
-  assert.equal(identifiers, "Running build identifier: not reported. Compared release-record identifier: r-2-1-0.");
+  assert.equal(identifiers, "Running build version: not reported. Real deployment-record version: v2.1.0.");
   assert.match(verdictText(page), /The check did not complete/);
+  // Nor into the copy, which is the one thing here that leaves the page: a
+  // refused identifier must not ride an override into a document elsewhere.
+  const copyText = page.document.querySelector("#deployment-copy").dataset.copyText;
+  assert.equal(copyText.includes(BIDI_OVERRIDE), false, "an invisible override reached the copied result");
+  assert.equal(copyText.endsWith(identifiers), true, "the copy and the band worded the comparison differently");
 });
 
 test("a record this band cannot route to is not linked, on either link it draws", async (t) => {

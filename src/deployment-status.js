@@ -248,5 +248,30 @@ export function verdictMetricText(verdict) {
   return `Running ${deployed} · Real record ${recorded} · ${held}`;
 }
 
+/**
+ * Both compared values, named side by side, in one sentence.
+ *
+ * The band paints this and the copy control copies it, from this one function,
+ * so the two can never word the same comparison differently. A value the page
+ * could not read is still named as a side of the comparison — a proof a reader
+ * takes away has to say what it failed to establish, not go quiet about it.
+ */
+export function comparedVersionsText(verdict) {
+  const running = verdict?.deployedBuild ?? "not reported";
+  const recorded = verdict?.recordedBuild ?? "not available";
+  return `Running build version: ${running}. Real deployment-record version: ${recorded}.`;
+}
+
+/**
+ * The portable deployment-check result copied by the visible control.
+ *
+ * Verdict first, then the two values it was drawn from — the order the band
+ * itself reads in, so a pasted incident note and the page it came from make the
+ * same claim in the same words.
+ */
+export function verdictCopyText(verdict) {
+  return `Deployment check verdict: ${verdictSentence(verdict)}\n${comparedVersionsText(verdict)}`;
+}
+
 // What a matching verdict says instead of offering an action.
 export const NO_ACTION_TEXT = `No action is needed: the version running is the one ${REAL_RECORD_NAME} names.`;

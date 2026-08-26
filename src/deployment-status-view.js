@@ -16,13 +16,16 @@
 
 import {
   NO_ACTION_TEXT,
+  comparedVersionsText,
   deploymentVerdict,
   readableIdentifier,
+  verdictCopyText,
   verdictMetricText,
   verdictSentence,
 } from "./deployment-status.js";
 import { BUILD_STAMP } from "./build-stamp.js";
 import { REAL_RECORD_LINK_LABEL, commitLinkText, deployedReleaseRecord, sameSiteHref } from "./deployed-release.js";
+import { copyRecordUrl } from "./share-link.js";
 
 export const HEALTH_URL = "/healthz";
 
@@ -32,6 +35,8 @@ export const DEPLOYMENT_IDS = Object.freeze({
   verdict: "deployment-verdict",
   identifiers: "deployment-identifiers",
   metric: "deployment-metric",
+  copy: "deployment-copy",
+  copyStatus: "deployment-copy-status",
   action: "deployment-next-action",
   actionTarget: "deployment-next-action-target",
   evidence: "deployment-evidence",
@@ -163,13 +168,17 @@ export function renderDeploymentStatus(root, verdict, { reading = null, release 
   const verdictLine = byId(root, DEPLOYMENT_IDS.verdict);
   if (verdictLine) verdictLine.textContent = verdictSentence(verdict);
   const identifiers = byId(root, DEPLOYMENT_IDS.identifiers);
-  if (identifiers) {
-    const running = verdict.deployedBuild ?? "not reported";
-    const recordId = verdict.release?.id ?? "not available";
-    identifiers.textContent = `Running build identifier: ${running}. Compared release-record identifier: ${recordId}.`;
-  }
+  if (identifiers) identifiers.textContent = comparedVersionsText(verdict);
   const metric = byId(root, DEPLOYMENT_IDS.metric);
   if (metric) metric.textContent = verdictMetricText(verdict);
+  const copy = byId(root, DEPLOYMENT_IDS.copy);
+  if (copy) {
+    copy.dataset.copyText = verdictCopyText(verdict);
+    // The control ships disabled and is enabled by the render that gives it
+    // something to say. Before a verdict exists there is no result to copy, and
+    // a click on nothing would report a clipboard failure that never happened.
+    copy.disabled = false;
+  }
 
   const slot = byId(root, DEPLOYMENT_IDS.action);
   if (slot) {
@@ -203,6 +212,24 @@ export function renderDeploymentStatus(root, verdict, { reading = null, release 
     ]));
   }
   return verdict;
+}
+
+/** Bind the one non-mutating control in the band exactly once. */
+export function bindDeploymentCopy(root, clipboard = globalThis.navigator?.clipboard) {
+  const button = byId(root, DEPLOYMENT_IDS.copy);
+  const status = byId(root, DEPLOYMENT_IDS.copyStatus);
+  if (!button || !status || button.dataset.copyBound === "true") return null;
+  button.dataset.copyBound = "true";
+  button.addEventListener("click", async () => {
+    button.disabled = true;
+    status.textContent = "";
+    const copied = await copyRecordUrl(clipboard, button.dataset.copyText);
+    status.textContent = copied
+      ? "Deployment verdict and both version values copied to clipboard."
+      : "Clipboard unavailable. Select the verdict and both version values above to copy them.";
+    button.disabled = false;
+  });
+  return button;
 }
 
 /**
@@ -304,6 +331,7 @@ export async function initDeploymentStatus(root, options = {}) {
   const panel = byId(root, DEPLOYMENT_IDS.panel);
   if (!panel) return null;
   bindDeploymentEvidence(root);
+  bindDeploymentCopy(root, options.clipboard);
   const stampedRecord = deployedReleaseRecord(options.buildStamp ?? BUILD_STAMP);
   // Before the probe, so the link is on the page in the pending state too. It
   // is the stamp's record even when a caller compares against a different one:
