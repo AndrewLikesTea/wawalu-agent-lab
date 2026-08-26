@@ -20,11 +20,11 @@ import { copyRecordUrl } from "./share-link.js";
 
 export const SHIPPED_BUILD_IDS = Object.freeze({
   panel: "shipped-build",
+  title: "shipped-build-title",
   marking: "shipped-build-marking",
   note: "shipped-build-note",
   facts: "shipped-build-facts",
   source: "shipped-build-source",
-  detail: "shipped-build-detail",
   copy: "shipped-build-copy",
   copyStatus: "shipped-build-copy-status",
 });
@@ -32,6 +32,17 @@ export const SHIPPED_BUILD_IDS = Object.freeze({
 export const REAL_NOTE = "This record is not an example. The build that produced the page you are reading wrote it, from the commit that build was made from. Open that commit below and check it against the public repository.";
 
 export const UNSTAMPED_NOTE = "This build is unstamped: it records no commit, so there is no real record of it to show. Every release record on this page is an invented example.";
+
+/**
+ * What the block is headed when the build is unstamped.
+ *
+ * The heading is the record's name, so it goes with the record the way the
+ * marking does: with no record there is nothing to head "Real record of this
+ * deployment", and a heading that says it anyway would be the one claim this
+ * block exists not to make. It is the same name, negated, rather than a second
+ * name for the same thing.
+ */
+export const NO_RECORD_TITLE = "No real record of this deployment";
 
 function byId(root, id) {
   return root.querySelector(`#${id}`);
@@ -59,30 +70,31 @@ export function renderShippedBuild(root, record, options = {}) {
   const panel = byId(root, SHIPPED_BUILD_IDS.panel);
   if (!panel) return null;
   const doc = root.ownerDocument ?? root;
+  const title = byId(root, SHIPPED_BUILD_IDS.title);
   const marking = byId(root, SHIPPED_BUILD_IDS.marking);
   const note = byId(root, SHIPPED_BUILD_IDS.note);
   const facts = byId(root, SHIPPED_BUILD_IDS.facts);
   const source = byId(root, SHIPPED_BUILD_IDS.source);
-  const detail = byId(root, SHIPPED_BUILD_IDS.detail);
   const copy = byId(root, SHIPPED_BUILD_IDS.copy);
   const copyStatus = byId(root, SHIPPED_BUILD_IDS.copyStatus);
 
   if (!record) {
     panel.dataset.shippedBuild = "unstamped";
-    // The marking goes with the record. With no record there is nothing to
-    // mark as real, so the badge says that instead of keeping a word it can no
-    // longer back.
+    // The heading and the marking go with the record. With no record there is
+    // nothing to name and nothing to mark as real, so both say that instead of
+    // keeping a word they can no longer back.
+    if (title) title.textContent = NO_RECORD_TITLE;
     if (marking) marking.textContent = NO_RECORD_LABEL;
     if (note) note.textContent = UNSTAMPED_NOTE;
     if (facts) facts.replaceChildren();
     if (source) source.hidden = true;
-    if (detail) detail.hidden = true;
     if (copy) copy.hidden = true;
     if (copyStatus) copyStatus.textContent = "";
     return null;
   }
 
   panel.dataset.shippedBuild = "real";
+  if (title) title.textContent = REAL_LABEL;
   if (marking) marking.textContent = REAL_LABEL;
   if (note) note.textContent = REAL_NOTE;
   if (facts) {
@@ -101,18 +113,11 @@ export function renderShippedBuild(root, record, options = {}) {
     source.textContent = commitLinkText(record.commitSha);
   }
   // Checked, not trusted: a record whose detailHref is not a link into this
-  // site gets no anchor and no copy button, the same way a record whose sha is
-  // not a commit gets no repository link above. A withdrawn control is a state
-  // the block already has; a control pointing somewhere this module did not
-  // sanction is not.
+  // site gets no copy button, the same way a record whose sha is not a commit
+  // gets no repository link above. A withdrawn control is a state the block
+  // already has; a control pointing somewhere this module did not sanction is
+  // not.
   const detailHref = sameSiteHref(record.detailHref);
-  if (detail) {
-    detail.hidden = !detailHref;
-    if (detailHref) {
-      detail.href = detailHref;
-      detail.setAttribute("href", detailHref);
-    }
-  }
   if (copy) {
     const locationRef = options.location ?? globalThis.window?.location;
     const clipboard = options.clipboard ?? globalThis.navigator?.clipboard;
@@ -139,7 +144,7 @@ export function renderShippedBuild(root, record, options = {}) {
         const copied = await copyRecordUrl(clipboard, copy.dataset.copyUrl);
         if (copyStatus) {
           copyStatus.textContent = copied
-            ? "Real release link copied to clipboard."
+            ? "Link to the real record of this deployment copied to clipboard."
             : "Clipboard unavailable. Open the real record of this deployment to copy its address.";
         }
         copy.disabled = false;

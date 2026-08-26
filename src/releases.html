@@ -71,6 +71,16 @@
            heading ARE authored, because they are what makes the block legible
            before any module runs, and neither names a commit.
 
+           THE HEADING IS THE RECORD'S NAME, in the words the marking beside it,
+           the copy button below it, and the deployment check's verdict all use.
+           It used to head this block with a second name for the same artifact,
+           so one screen called it two things before a reader reached the check
+           that calls it a third. One artifact, one name, everywhere. Because
+           the heading is now the record's name it goes with the record: an
+           unstamped build has none, and the module heads the block "No real
+           record of this deployment" rather than leaving a heading that claims
+           one.
+
            The link's authored href is the public repository, which is true
            whatever the stamp says; the module narrows it to the exact commit.
            An unstamped build replaces the marking and the note and withdraws
@@ -78,19 +88,22 @@
       <section class="shiplog-proof shiplog-real" id="shipped-build" aria-labelledby="shipped-build-title" tabindex="-1">
         <div class="shiplog-proof-heading">
           <div>
-            <h2 id="shipped-build-title">The running build</h2>
+            <h2 id="shipped-build-title">Real record of this deployment</h2>
           </div>
           <span class="badge badge-real" id="shipped-build-marking">Real record of this deployment</span>
         </div>
         <p class="shiplog-proof-note" id="shipped-build-note">This record is not an example. The build that produced the page you are reading wrote it, from the commit that build was made from. Open that commit below and check it against the public repository.</p>
         <dl class="shiplog-proof-facts" id="shipped-build-facts"></dl>
         <div class="shiplog-proof-share">
-          <!-- One label per destination. This link and the deployment check's
-               record link below both open this block, so they read the same
-               words — the words the verdict already names the record with. Two
-               labels for one address made them look like two records. -->
-          <a class="shiplog-real-link" id="shipped-build-detail" href="/releases.html#shipped-build">Open the real record of this deployment</a>
-          <button class="share-button" id="shipped-build-copy" type="button" aria-describedby="shipped-build-copy-status">Copy link to this real release</button>
+          <!-- One label per destination, and one link per destination. This row
+               used to open with an anchor to /releases.html#shipped-build — the
+               address of the block the anchor sits inside. It read the same
+               words as the deployment check's record link below, so a link list
+               showed the same label twice for one address, and the block offered
+               a reader a way to arrive where they already were. The button
+               beside this hands over that address, and the check's record link
+               is the one that carries a reader to it. -->
+          <button class="share-button" id="shipped-build-copy" type="button" aria-describedby="shipped-build-copy-status">Copy link to the real record of this deployment</button>
           <span class="share-status" id="shipped-build-copy-status" role="status" aria-live="polite" aria-atomic="true"></span>
           <!-- Its own class, deliberately not .shiplog-proof-link: that class is
                how releases-page.js finds the invented example's "Open this
@@ -175,14 +188,22 @@
             <span class="share-status" id="deployment-copy-status" role="status" aria-live="polite" aria-atomic="true"></span>
           </div>
           <p class="release-followup-lead" id="deployment-status-proof">Does the real record of this deployment name the running build’s version? It reads the running build when the page loads. The example decision and release above are invented; that record and this answer are not.</p>
+          <!-- One way out, to the record this check compares against. The row
+               used to carry a second link to the commit, which
+               deployment-status-view.js narrows to the same commit, under the
+               same words, as the record block's own commit link higher up the
+               page — one destination offered twice on one screen. The front
+               door keeps its copy of that link: there the check is the only
+               block on the page, and the commit has nowhere else to be offered.
+               Here the path is the check, then the record, then the commit the
+               record links. -->
           <div class="shiplog-proof-share" id="deployment-proof-links">
             <a class="shiplog-real-link" id="deployment-release-record" href="/releases.html#shipped-build">Open the real record of this deployment</a>
-            <a class="shiplog-real-link" id="deployment-commit" href="https://github.com/AndrewLikesTea/wawalu-agent-lab">Open the public repository this site is built from</a>
           </div>
           <p class="detail-summary" id="deployment-metric"></p>
           <div id="deployment-next-action"></div>
           <details class="supersede-disclosure" id="deployment-evidence" data-disclosure="collapsed">
-            <summary class="supersede-disclosure-summary" id="deployment-evidence-summary" aria-expanded="false" aria-controls="deployment-evidence-body">Evidence: what the running build answered, and the release record it was compared with</summary>
+            <summary class="supersede-disclosure-summary" id="deployment-evidence-summary" aria-expanded="false" aria-controls="deployment-evidence-body">Evidence: what the running build answered, and the real record of this deployment it was compared with</summary>
             <dl class="supersede-disclosure-body" id="deployment-evidence-body"></dl>
           </details>
         </div>
