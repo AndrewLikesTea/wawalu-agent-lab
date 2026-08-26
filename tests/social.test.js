@@ -390,7 +390,7 @@ test("the composer describes no failure that has not happened yet", async (t) =>
   // One offer of Paint on the page, and it is the composer's. The hero carried a
   // second button with the same four words, and the feed's empty state a third.
   const paint = page.document.querySelectorAll("a")
-    .filter((anchor) => textOf(anchor).startsWith("Create an image in Paint"));
+    .filter((anchor) => textOf(anchor).startsWith("Create or open an image in Paint"));
   assert.equal(paint.length, 1, "Social offers Paint more than once again");
   assert.match(textOf(paint[0]), /\(opens in a new tab\)/);
 });
@@ -418,7 +418,7 @@ test("the composer describes no failure that has not happened yet", async (t) =>
 // The same pass pins the destination for image posts: this site has no page
 // called Profile, so "profile" survives on Social only as the People page's URL
 // and the class that styles its nav item, never as a word a reader sees.
-test("the opener and heading name opening, and only the submit control names publishing", async (t) => {
+test("the opener and heading name writing, and the submit control names publishing", async (t) => {
   const markup = await readFile(new URL("../src/social.html", import.meta.url), "utf8");
   const page = await loadPage(new URL("../src/social.html", import.meta.url), {});
   t.after(() => page.restore());
@@ -438,11 +438,11 @@ test("the opener and heading name opening, and only the submit control names pub
   assert.equal(textOf(page.document.querySelector("#post-form-title")), "Write a post",
     "the composer heading no longer repeats the words on the control that opens it");
   // One verb for opening, a different one for publishing. "Create" survives on
-  // this page for images only, at "Create an image in Paint".
+  // this page for images only, in the first Paint step.
   assert.equal(textOf(page.document.querySelector("#post-submit")), "Publish post",
     "the submit control is named something other than the act it performs, or grew an arrow back");
   const panelWords = textOf(page.document.querySelector("#post-compose-panel"))
-    .replaceAll("Create an image in Paint", "");
+    .replaceAll("Create or open an image in Paint", "");
   assert.doesNotMatch(panelWords, /\bcreate\b/i,
     "the composer names the post with a second verb again");
   // Counted, not compared against null: a surviving element sends assert.equal

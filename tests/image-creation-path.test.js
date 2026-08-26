@@ -176,7 +176,7 @@ test("Social's route into Paint is the composer's control, and there is no secon
   // Making an image, in words. "Paint" alone repeats the nav item beside it, an
   // arrow alone names nothing, and a colour alone names nothing a reader can
   // act on. It stops at the act: the empty state says where the image goes.
-  assert.match(textOf(composer), /^Create an image in Paint/);
+  assert.match(textOf(composer), /^Create or open an image in Paint/);
   assert.doesNotMatch(textOf(composer), /then (publish|post)/i,
     "the composer's control restates the publishing path the empty state already gives");
   // With the composer open: it ships collapsed behind the hero's Write a post
@@ -248,7 +248,7 @@ test("the composer's own Paint control carries the same label as every other rou
   assert.equal(composer.href, PAINT_PATH);
   // It used to read "Create in Paint" — the same act under a second name, two
   // screens from the hero that named it first.
-  assert.match(textOf(composer), /^Create an image in Paint/);
+  assert.match(textOf(composer), /^Create or open an image in Paint/);
 });
 
 /* -------------------- one feature, offered exactly once -------------------- */
@@ -270,7 +270,7 @@ test("Social offers Paint exactly once: the composer's in-flow control", () => {
   assert.equal(entryPoints[0], composerPaintLink(), "the composer's control is not the offer");
 
   // One feature, one placement, one name.
-  for (const link of entryPoints) assert.match(textOf(link), /^Create an image in Paint/);
+  for (const link of entryPoints) assert.match(textOf(link), /^Create or open an image in Paint/);
 
   // The removed third invitation named the destination alone. Nothing outside
   // the site nav may go back to naming it that way.
@@ -382,10 +382,9 @@ test("the composer numbers the round trip and puts the rule beside the control",
   assert.equal(steps.tagName, "OL", "the steps are not an ordered list");
   const items = steps.querySelectorAll("li");
   assert.deepEqual(items.map(textOf), [
-    "Create an image in Paint (opens in a new tab) ↗",
-    "Export the PNG",
-    "Return to this tab",
-    "Use Choose image above to pick the PNG you exported",
+    "Create or open an image in Paint (opens in a new tab) ↗",
+    "Export it as a PNG, then select that PNG in the image picker above",
+    "Publish your post",
   ]);
   assert.equal(textOf(documents.Social.querySelector("body")).split("Select Choose image").length - 1, 0,
     "the composer still instructs the reader to select the button beside the instruction");
@@ -444,7 +443,7 @@ test("the numbered Paint step keeps its new-tab words and its external indicatio
   assert.equal(link.getAttribute("href"), PAINT_PATH);
   assert.equal(link.getAttribute("target"), "_blank");
   assert.match(link.getAttribute("rel") ?? "", /noopener/);
-  assert.equal(textOf(link), "Create an image in Paint (opens in a new tab) ↗");
+  assert.equal(textOf(link), "Create or open an image in Paint (opens in a new tab) ↗");
   assert.match(textOf(link), /\(opens in a new tab\)/);
   const glyphs = link.querySelectorAll("span").filter((span) => /[↗→]/.test(textOf(span)));
   assert.equal(glyphs.length, 1);
@@ -470,7 +469,7 @@ test("the composer's focusable sequence is unchanged by the numbered steps", asy
     assert.deepEqual(named, [
       "post-body",
       "post-image",
-      "Create an image in Paint (opens in a new tab) ↗",
+      "Create or open an image in Paint (opens in a new tab) ↗",
       "remove-image",
       "post-image-alt",
       "post-author",
@@ -501,28 +500,20 @@ test("the composer names the round trip in the order it is taken, once", () => {
     assert.ok(index >= 0, `the composer never says "${fragment}": ${steps}`);
     return index;
   };
-  assert.ok(at("Create an image in Paint") < at("Export the PNG"),
+  assert.ok(at("Create or open an image in Paint") < at("Export it as a PNG"),
     "the composer asks for the export before the drawing");
-  assert.ok(at("Export the PNG") < at("Return to this tab"),
-    "the composer sends the visitor back before they have a file");
-  assert.ok(at("Return to this tab") < at("Use Choose image above"),
-    "the composer asks for the file before the visitor is back in this tab");
-  // A fourth step once said "Select Choose image", which is the label on the
-  // control beside it and nothing else, so the reader's last instruction was to
-  // press a button they were already looking at. The step is back with the fact
-  // that was missing — which file — and never as the bare label again.
-  assert.doesNotMatch(steps, /Select Choose image/,
-    "the steps end by naming the control standing beside them again");
+  assert.ok(at("Export it as a PNG") < at("select that PNG in the image picker above"),
+    "the composer asks for the file before it has been exported");
+  assert.ok(at("select that PNG in the image picker above") < at("Publish your post"),
+    "the composer asks the visitor to publish before selecting the file");
+  // The sequence identifies the picker without repeating the control's label.
+  assert.doesNotMatch(steps, /Choose image/,
+    "the steps repeat the control's instruction");
   assert.equal(textOf(documents.Social.querySelector('label[for="post-image"]')), "Choose image");
 
-  // Once, in the field where the file is chosen — not restated by the warning,
-  // the refusals, or anything else on the page.
+  // Once, in the field where the file is chosen — not restated elsewhere.
   const page = textOf(documents.Social.querySelector("main"));
-  // Case-insensitive: the step is its own numbered item now, so it is sentence
-  // case rather than a clause hanging off a comma.
-  assert.equal(page.split(/return to this tab/i).length - 1, 1,
-    "the round trip is described in more than one place on Social");
-  assert.equal(page.split("Export the PNG").length - 1, 1,
+  assert.equal(page.split("Export it as a PNG").length - 1, 1,
     "the export step is stated more than once on Social");
 });
 
@@ -560,19 +551,17 @@ test("the image section holds exactly one step list, and it is the Paint one", (
   }
 });
 
-test("the last step names Choose image and the file it takes", () => {
+test("the sequence names the image picker and ends with publishing", () => {
   const items = documents.Social.getElementById("post-image-steps").querySelectorAll("li");
   const last = textOf(items[items.length - 1]);
 
-  // The control in its own words, not a paraphrase: the string in the step is
-  // the string on the label, so a reader matching one to the other cannot miss.
+  // The label remains on the control, while the sequence names the picker and
+  // the exact exported file without repeating that label.
   const label = textOf(documents.Social.querySelector('label[for="post-image"]'));
   assert.equal(label, "Choose image");
-  assert.ok(last.includes(label), `the closing step does not name ${label}: ${last}`);
-  // And the file, identified as the one they just made — the step is useless if
-  // the reader has to guess which of their PNGs is meant.
-  assert.match(last, /PNG you exported/, `the closing step names no file: ${last}`);
-  assert.equal(last, "Use Choose image above to pick the PNG you exported");
+  assert.doesNotMatch(textOf(items[1]), /Choose image/);
+  assert.match(textOf(items[1]), /that PNG in the image picker above/);
+  assert.equal(last, "Publish your post");
 
   // It is prose in the list, not a second route to the same control: the tab
   // sequence through this field is unchanged.
@@ -702,7 +691,7 @@ test("People names the same steps in the same words as the composer", () => {
   // the same file. People stops at the composer rather than naming Choose image,
   // because the composer is a page away and names it itself.
   const composer = textOf(documents.Social.getElementById("post-image-steps"));
-  for (const step of ["Create an image in Paint", "PNG"]) {
+  for (const step of ["Paint", "PNG"]) {
     assert.match(invitation, new RegExp(step, "i"), `People does not name "${step}"`);
     assert.match(composer, new RegExp(step, "i"), `the composer does not name "${step}"`);
   }

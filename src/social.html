@@ -442,33 +442,14 @@
                    file has actually been chosen. -->
               <p class="hint" id="post-image-hint"><span class="detail-state-chip">PNG, JPEG, GIF, or WebP up to 512 KB</span> Reduce or re-export a larger image before you choose it.</p>
               <p class="media-status" id="post-media-status" role="status" aria-live="polite" aria-atomic="true"></p>
-              <!-- The round trip, in the page as served: Paint uploads nothing,
-                   so the visitor is the transport and has to know that before
-                   leaving. It was one run-on sentence carrying four steps and
-                   the file rule besides, which is unscannable at the moment a
-                   reader is trying to follow it; it is an ordered list element
-                   now, one step per item, in the order they are taken, because
-                   it used to be a single run-on that stopped at the Paint link
-                   and left a visitor standing in a second tab with a drawing and
-                   no next move. It used to stop again one step early, on
-                   returning to this tab, which left the last and most likely
-                   wrong inference open: that Paint hands the file to Social by
-                   itself. Nothing does — the visitor carries it. So the list
-                   ends on the act that closes the round trip, and the step
-                   carries the fact the control cannot: which file to pick. An
-                   earlier fourth step read "Select Choose image", whose entire
-                   content was the name of the button above it, and that is still
-                   not what this says; naming the control is the means, the
-                   exported PNG is the point. The rule above and these steps are both named by the
-                   file input's own aria-describedby, in the order they are met,
-                   so focusing Choose image reads them; and nothing folds either
-                   away — no disclosure widget, no hover, no script — because a
-                   reader who needs them needs them first. -->
+              <!-- One ordered sequence carries the complete Paint-to-post path:
+                   make or open the image, select its exported PNG here, then
+                   publish. The file rule above and these steps are both named
+                   by the input's aria-describedby, in the order they appear. -->
               <ol class="hint" id="post-image-steps">
-                <li><a class="secondary-button paint-link" href="/paint/" target="_blank" rel="noopener">Create an image in Paint <span class="new-tab-note">(opens in a new tab)</span> <span aria-hidden="true">↗</span></a></li>
-                <li>Export the PNG</li>
-                <li>Return to this tab</li>
-                <li>Use Choose image above to pick the PNG you exported</li>
+                <li><a class="secondary-button paint-link" href="/paint/" target="_blank" rel="noopener">Create or open an image in Paint <span class="new-tab-note">(opens in a new tab)</span> <span aria-hidden="true">↗</span></a></li>
+                <li>Export it as a PNG, then select that PNG in the image picker above</li>
+                <li>Publish your post</li>
               </ol>
               <!-- Said beside the step that sends the visitor away, because that
                    is where the question arises: the step above opens a second
