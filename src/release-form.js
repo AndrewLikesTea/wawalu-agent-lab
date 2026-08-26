@@ -33,6 +33,7 @@ export const MAX_RELEASE_OWNER_LENGTH = 80;
 // Where the empty state sends someone who has nothing to link yet: the decision
 // recorder on the decisions page, not the page's top.
 export const RECORD_DECISION_HREF = "/#decision-form";
+export const DECISION_PICKER_LOADING_TEXT = "Loading decisions to link…";
 
 export const RELEASE_FORM_ERRORS = {
   required: "A release needs a version, an owner, a status, a release date, and a summary.",
@@ -242,9 +243,23 @@ function renderPickerEmpty() {
   return empty;
 }
 
-export function renderDecisionPicker(container, decisions = [], selected = []) {
+function renderPickerLoading() {
+  const loading = el("div", "decision-picker-empty decision-picker-loading");
+  loading.append(el("p", "decision-picker-empty-title", DECISION_PICKER_LOADING_TEXT));
+  // The adjacent status is the single announcement source. This visible copy
+  // keeps the state clear without making a screen reader repeat the sentence.
+  loading.setAttribute("aria-hidden", "true");
+  return loading;
+}
+
+export function renderDecisionPicker(container, decisions = [], selected = [], state = "loaded") {
   container.replaceChildren();
   const chosen = new Set(selected);
+
+  if (state === "loading") {
+    container.append(renderPickerLoading());
+    return container;
+  }
 
   if (decisions.length === 0) {
     container.append(renderPickerEmpty());
@@ -264,6 +279,7 @@ export function renderDecisionPicker(container, decisions = [], selected = []) {
 // it fresh decisions when the data changes, and clear it after a save.
 export function mountDecisionPicker(container, options = {}) {
   let decisions = options.decisions ?? [];
+  let state = options.state === "loading" ? "loading" : "loaded";
   let selected = pruneSelection(options.selected ?? [], decisions);
   const summary = options.summary ?? null;
 
@@ -274,11 +290,14 @@ export function mountDecisionPicker(container, options = {}) {
   };
 
   const syncSummary = () => {
-    if (summary) summary.textContent = selectionSummaryText(selected.length, decisions.length, governingTitle());
+    if (!summary) return;
+    summary.textContent = state === "loading"
+      ? DECISION_PICKER_LOADING_TEXT
+      : selectionSummaryText(selected.length, decisions.length, governingTitle());
   };
 
   const render = () => {
-    renderDecisionPicker(container, decisions, selected);
+    renderDecisionPicker(container, decisions, selected, state);
     syncSummary();
   };
 
@@ -298,7 +317,12 @@ export function mountDecisionPicker(container, options = {}) {
     selectedIds: () => [...selected],
     setDecisions(next = []) {
       decisions = next;
+      state = "loaded";
       selected = pruneSelection(selected, decisions);
+      render();
+    },
+    setLoading() {
+      state = "loading";
       render();
     },
     clear() {

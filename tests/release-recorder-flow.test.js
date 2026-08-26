@@ -233,6 +233,28 @@ test("a failed save is reported and preserves the release for retry", async (t) 
   assert.equal(textOf(page.document.querySelector("#release-record-status")), "");
 });
 
+// The picker's authored markup now opens on "Loading decisions to link…", so
+// the one thing that must never happen is the boot leaving that claim standing.
+// A browser that refuses storage is the closest a visitor gets to the log not
+// being readable, and it has to settle just like an empty one does.
+test("a browser that refuses storage still settles the picker off its loading claim", async (t) => {
+  const page = await loadPage(RELEASES_PAGE, { storage: {} });
+  t.after(() => page.restore());
+  page.storage.getItem = () => { throw new Error("storage is blocked"); };
+  initReleasesPage(page.document, page.storage, { seed: NO_DEMO_DATA });
+
+  assert.doesNotMatch(summaryText(page), /Loading/, "the picker is still claiming it is loading");
+  assert.equal(summaryText(page), "No decisions are available to link yet.");
+  assert.equal(page.document.querySelectorAll(".decision-picker-loading").length, 0);
+  assert.match(textOf(page.document.querySelector(".decision-picker-empty")), /No decisions to link yet\./);
+
+  // And the recorder is live rather than a dead form: a release is still
+  // recordable when the log behind the picker could not be read.
+  fillRequired(page, { version: "v0.2.0" });
+  submit(page);
+  assert.equal(textOf(page.document.querySelector("#release-record-status")), "Recorded v0.2.0 with no linked decisions.");
+});
+
 test("with no decisions to link, the picker says so and offers the way out", async (t) => {
   const page = await openReleases(t);
 

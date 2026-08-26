@@ -11,6 +11,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import {
   MAX_VERSION_LENGTH,
+  DECISION_PICKER_LOADING_TEXT,
   RECORD_DECISION_HREF,
   RELEASE_FORM_ERRORS,
   createRelease,
@@ -210,6 +211,31 @@ test("each option is a labelled checkbox describing its decision", (t) => {
   assert.deepEqual(checks(container).map((check) => check.checked), [false, true, false]);
 });
 
+test("the loading picker announces loading without showing the empty state", (t) => {
+  const document = withDocument(t);
+  const container = document.querySelector("#picker");
+  const summary = document.querySelector("#summary");
+  const picker = mountDecisionPicker(container, { state: "loading", summary });
+
+  assert.equal(textOf(summary), DECISION_PICKER_LOADING_TEXT);
+  assert.equal(textOf(container), DECISION_PICKER_LOADING_TEXT);
+  assert.equal(container.querySelector(".decision-picker-loading").getAttribute("aria-hidden"), "true");
+  assert.equal(container.querySelector(".decision-picker-empty:not(.decision-picker-loading)"), null);
+  assert.equal(container.querySelector("a"), null, "loading introduced a focusable empty-state action");
+  assert.deepEqual(picker.selectedIds(), []);
+
+  picker.setDecisions(DECISIONS);
+  assert.equal(options(container).length, 3);
+  assert.equal(textOf(summary), "No decisions linked yet. 3 available.");
+
+  picker.setLoading();
+  assert.equal(textOf(summary), DECISION_PICKER_LOADING_TEXT);
+  assert.equal(container.querySelector(".decision-picker-empty:not(.decision-picker-loading)"), null);
+  picker.setDecisions([]);
+  assert.equal(textOf(summary), "No decisions are available to link yet.");
+  assert.ok(container.querySelector(".decision-picker-empty"));
+});
+
 test("the picker states there is nothing to link and routes to the decision recorder", (t) => {
   const document = withDocument(t);
   const container = document.querySelector("#picker");
@@ -297,7 +323,8 @@ test("the recorder markup groups the picker and never builds HTML from stored te
   // `required` is absent because linking decisions is optional.
   assert.doesNotMatch(page, /class="decision-picker-check"/);
   assert.match(page, /id="release-decisions-field" aria-describedby="release-decisions-hint release-decisions-summary"/);
-  assert.match(page, /id="release-decisions-summary" role="status" aria-live="polite"/);
+  assert.match(page, /id="release-decisions-summary" role="status" aria-live="polite" aria-atomic="true">Loading decisions to link…<\/p>/);
+  assert.match(page, /class="decision-picker-empty decision-picker-loading" aria-hidden="true">\s*<p class="decision-picker-empty-title">Loading decisions to link…<\/p>/);
   assert.match(page, /id="release-form-error" role="alert" hidden/);
   assert.match(page, /id="release-storage-notice" role="alert" hidden/);
   assert.match(page, /<button type="submit">Record release<\/button>/);
