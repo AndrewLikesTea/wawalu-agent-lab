@@ -503,39 +503,57 @@ const RETIRED_NAMES = [
   "the running deployment",
   "the version this site is running right now",
   "the running build’s version or commit identifier",
+  // The three names this page used to give the one record it does not invent,
+  // beside the name it kept: the block was headed "The running build", its copy
+  // control offered "this real release", and the check's evidence called the
+  // thing it compared against "the release record". A reader met four names for
+  // one artifact on one screen and had to work out that they were one.
+  "The running build",
+  "this real release",
+  "the release record it was compared with",
 ];
 
-test("the running build has one name in both regions that talk about it", async (t) => {
+test("the real record of this deployment has one name everywhere the page names it", async (t) => {
   const page = await openReleasesPage(t);
   const record = textOf(page.document.querySelector("#shipped-build"));
   const check = textOf(page.document.querySelector("#deployment-status"));
 
-  // The region's heading is the term, so a reader scanning headings meets it
-  // before any sentence uses it.
-  assert.equal(textOf(page.document.querySelector("#shipped-build-title")), "The running build");
-  // And the check asks its question, draws its boundary, and heads its evidence
-  // in those same words rather than three near-synonyms of them.
-  assert.match(check, /Does the real record of this deployment name the running build’s version\?/);
-  assert.match(check, /It reads the running build when the page loads\./);
-  assert.match(check, /Evidence: what the running build answered/);
+  // The name, in the three places the page offers the record: the heading a
+  // reader scanning headings meets first, the link that opens it, and the
+  // control that hands over its address.
+  assert.equal(textOf(page.document.querySelector("#shipped-build-title")), "Real record of this deployment");
+  assert.equal(textOf(page.document.querySelector("#deployment-release-record")), REAL_RECORD_LINK_LABEL);
+  assert.equal(
+    textOf(page.document.querySelector("#shipped-build-copy")),
+    "Copy link to the real record of this deployment",
+  );
+  assert.equal(REAL_RECORD_LINK_LABEL, "Open the real record of this deployment");
 
-  // Not a claim about two regions that happen to share a word: each region
-  // names the thing, and neither reaches for a second name for it.
-  for (const [region, name] of [[record, "the running build"], [check, "the deployment check"]]) {
-    assert.match(region.toLowerCase(), /the running build/, `${name} does not use the page's term`);
-    for (const retired of RETIRED_NAMES) {
-      assert.equal(region.includes(retired), false, `${name} still says "${retired}"`);
-    }
+  // The check keeps its own name and still says in one sentence what it
+  // compares — naming the compared-against record in those same words, in its
+  // question, its waiting line, its verdict and the heading of its evidence.
+  assert.match(check, /^Deployment check /);
+  assert.match(check, /Does the real record of this deployment name the running build’s version\?/);
+  assert.match(check, /the version the real record of this deployment names\./);
+  assert.match(check, /Evidence: what the running build answered, and the real record of this deployment it was compared with/);
+
+  // "The running build" is now only ever the deployment the check reads a
+  // version from, never the record it is compared with.
+  assert.match(check, /It reads the running build when the page loads\./);
+  assert.doesNotMatch(record, /running build/i, "the record is named after the build again");
+  for (const region of [record, check]) {
+    assert.match(region, /real record of this deployment/, "a region reaches for a second name for the record");
   }
 
   // Gone from everything the page renders, not just from the two regions —
-  // including the evidence disclosure, which this harness reads through.
+  // including the evidence disclosure, which this harness reads through, and
+  // which prints the record's own title.
   const rendered = textOf(page.document.querySelector("#main-content"));
   for (const retired of RETIRED_NAMES) {
     assert.equal(rendered.includes(retired), false, `the rendered page still says "${retired}"`);
   }
   // And gone from the bytes, so no state this test did not drive can bring one
-  // back: the waiting line and the record's own title are in here too.
+  // back: the waiting line and the unstamped state's words are in here too.
   const markup = await readFile(RELEASES_PAGE, "utf8");
   for (const retired of RETIRED_NAMES) {
     assert.equal(markup.includes(retired), false, `src/releases.html still ships "${retired}"`);
@@ -564,10 +582,10 @@ test("no label in main content serves two destinations", async (t) => {
   }
 
   // The whole of main, the log's rows included: a reader who meets the same
-  // words twice must land in the same place both times. "Open the public
-  // repository this site is built from" is drawn twice — by the record block
-  // and by the deployment check — and both narrow to the commit this build was
-  // made from, which is one destination named once rather than two named alike.
+  // words twice must land in the same place both times. The log's rows are the
+  // reason this direction is asserted over all of main and the other direction
+  // is not — the example record and a row of the log can both offer the same
+  // decision, in the same words, and that is one destination named once.
   const spread = [...labelMap(links, linkLabel, (link) => link.getAttribute("href") ?? "")]
     .filter(([, hrefs]) => hrefs.size > 1)
     .map(([label, hrefs]) => `"${label}" → ${[...hrefs].join(" and ")}`);
@@ -586,22 +604,33 @@ test("no label in main content serves two destinations", async (t) => {
 test("no destination in the page's authored regions is offered under two labels", async (t) => {
   const page = await openReleasesPage(t);
   const links = mainLinks(page.document, { without: ["release-list", "release-followup"] });
-  assert.ok(links.length >= 7, `only ${links.length} links found; the markup shape changed`);
+  assert.ok(links.length >= 6, `only ${links.length} links found; the markup shape changed`);
 
   const renamed = [...labelMap(links, (link) => link.getAttribute("href") ?? "", linkLabel)]
     .filter(([, labels]) => labels.size > 1)
     .map(([href, labels]) => `${href} ← ${[...labels].map((l) => `"${l}"`).join(" and ")}`);
   assert.deepEqual(renamed, [], `one destination is offered under more than one label: ${renamed.join("; ")}`);
 
-  // The pair that used to break it, named: the block's own permalink and the
-  // deployment check's record link open the same address and now read the same
-  // words. Read off the rendered DOM, because one of them is written by
-  // deployment-status-view.js and the other is authored markup.
-  const detail = page.document.querySelector("#shipped-build-detail");
+  // And no destination is offered twice under the one label it has, which is
+  // what a reader actually meets: a link list that reads "Open the real record
+  // of this deployment" twice and "Open commit 0123456789ab in the public
+  // repository" twice, four entries for two places. One label per destination
+  // AND one link per label, so those two rules together make the labels in
+  // these regions a set of distinct names for a set of distinct places.
+  const labels = links.map(linkLabel);
+  const twice = labels.filter((label, index) => labels.indexOf(label) !== index);
+  assert.deepEqual(twice, [], `two links read as the same thing: ${twice.map((l) => `"${l}"`).join(", ")}`);
+  const hrefs = links.map((link) => link.getAttribute("href"));
+  assert.equal(new Set(hrefs).size, hrefs.length, "two links in these regions go to the same place");
+
+  // The record is still offered, once, by the deployment check — the band that
+  // needs to say which record it compared against. Read off the rendered DOM,
+  // because deployment-status-view.js writes that label rather than the markup.
   const checkRecord = page.document.querySelector("#deployment-release-record");
-  assert.equal(textOf(detail), REAL_RECORD_LINK_LABEL);
   assert.equal(textOf(checkRecord), REAL_RECORD_LINK_LABEL);
-  assert.equal(detail.getAttribute("href"), checkRecord.getAttribute("href"));
+  assert.equal(checkRecord.getAttribute("href"), "/releases.html#shipped-build");
+  assert.equal(page.document.querySelectorAll("#shipped-build-detail").length, 0);
+  assert.equal(page.document.querySelectorAll("#deployment-commit").length, 0);
 });
 
 test("the loading page clearly discloses one actionable invented release with both detail routes", async (t) => {

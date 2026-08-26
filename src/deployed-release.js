@@ -69,13 +69,13 @@ export const REAL_RECORD_NAME = "the real record of this deployment";
 /**
  * How every link to this record names itself, wherever it is offered.
  *
- * Three controls on the releases page open the same address: the block's own
- * permalink, the deployment check's record link, and the one action a
- * disagreeing verdict offers. They used to read "Open this real release
- * record", "Open release record deployed-build" and this, which put three
- * names on one destination and made one record look like three. One address,
- * one label — and it is REAL_RECORD_NAME, so the link and the verdict that
- * names the record say the same words.
+ * They used to read "Open this real release record", "Open release record
+ * deployed-build" and this, which put three names on one destination and made
+ * one record look like three. One address, one label — and it is
+ * REAL_RECORD_NAME, so the link and the verdict that names the record say the
+ * same words. The releases page now offers that address once, from the
+ * deployment check, rather than from the record block's own permalink as well:
+ * one label per destination, and one link per label.
  */
 export const REAL_RECORD_LINK_LABEL = `Open ${REAL_RECORD_NAME}`;
 
@@ -169,7 +169,10 @@ export function deployedReleaseRecord(stamp) {
   return Object.freeze({
     id: DEPLOYED_RELEASE_ID,
     version: commitSha,
-    title: "The running build",
+    // The record's name, not a second one for it: this is what the evidence
+    // disclosure prints as the compared record's title, and it is the words the
+    // heading, the marking, the copy button and the verdict all use.
+    title: REAL_LABEL,
     description: "The commit this artifact was built from, written by the build that produced this page.",
     status: "completed",
     owner: "Wawalu",

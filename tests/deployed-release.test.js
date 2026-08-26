@@ -32,7 +32,7 @@ import {
   deployedReleaseRecord,
   sameSiteHref,
 } from "../src/deployed-release.js";
-import { UNSTAMPED_NOTE, renderShippedBuild } from "../src/deployed-release-view.js";
+import { NO_RECORD_TITLE, UNSTAMPED_NOTE, renderShippedBuild } from "../src/deployed-release-view.js";
 import { healthContract } from "../src/health-contract.js";
 import { parseHealthBody } from "../src/deployment-status-view.js";
 import { loadPage, textOf } from "./support/browser.js";
@@ -158,7 +158,7 @@ test("the real record names the deployed version and links a public commit a vis
   assert.doesNotMatch(textOf(panel), /proven|verified|guaranteed|trusted/i);
 });
 
-test("the real record has a stable visible permalink that can be copied and opened directly", async (t) => {
+test("the real record's address is handed over by the one control that offers it", async (t) => {
   let copied = "";
   const page = await loadPage(RELEASES_PAGE, {
     storage: { [STORAGE_KEY]: JSON.stringify([]), [RELEASE_STORAGE_KEY]: JSON.stringify([]) },
@@ -173,22 +173,29 @@ test("the real record has a stable visible permalink that can be copied and open
     clipboard: { writeText: async (value) => { copied = value; } },
   });
 
-  const detail = page.document.querySelector("#shipped-build-detail");
-  assert.equal(textOf(detail), REAL_RECORD_LINK_LABEL);
-  assert.equal(detail.getAttribute("href"), "/releases.html#shipped-build");
   assert.equal(page.document.querySelectorAll("#shipped-build").length, 1);
+  // The block no longer anchors to its own address: that anchor read the same
+  // words as the deployment check's record link and went to the same place, so
+  // a link list offered one destination twice. The button is what hands the
+  // address over now, and it names the record the way everything else does.
+  const copy = page.document.querySelector("#shipped-build-copy");
+  assert.equal(textOf(copy), `Copy link to ${REAL_RECORD_NAME}`);
+  assert.equal(page.document.querySelectorAll("#shipped-build-detail").length, 0);
 
-  page.document.querySelector("#shipped-build-copy").click();
+  copy.click();
   await Promise.resolve();
   await Promise.resolve();
   assert.equal(copied, "https://labs.wawalu.org/releases.html#shipped-build");
-  assert.equal(textOf(page.document.querySelector("#shipped-build-copy-status")), "Real release link copied to clipboard.");
+  assert.equal(
+    textOf(page.document.querySelector("#shipped-build-copy-status")),
+    `Link to ${REAL_RECORD_NAME} copied to clipboard.`,
+  );
 });
 
 // The permalink above is the first value on this block read off the record
-// rather than composed from the stamp, and it now feeds both an anchor and the
-// clipboard. So the hostile version is driven, not reasoned about: a record
-// naming somewhere other than this site must reach neither.
+// rather than composed from the stamp, and it feeds the clipboard. So the
+// hostile version is driven, not reasoned about: a record naming somewhere
+// other than this site must never reach it.
 test("sameSiteHref accepts this record's own link and refuses every value that leaves the site", () => {
   assert.equal(sameSiteHref("/releases.html#shipped-build"), "/releases.html#shipped-build");
   for (const value of [
@@ -204,7 +211,7 @@ test("sameSiteHref accepts this record's own link and refuses every value that l
   ]) assert.equal(sameSiteHref(value), "", `accepted ${String(value)}`);
 });
 
-test("a record naming somewhere off this site gets no link, no copy button, and writes no clipboard", async (t) => {
+test("a record naming somewhere off this site gets no copy button and writes no clipboard", async (t) => {
   let copied = null;
   const page = await loadPage(RELEASES_PAGE, {
     storage: { [STORAGE_KEY]: JSON.stringify([]), [RELEASE_STORAGE_KEY]: JSON.stringify([]) },
@@ -220,10 +227,10 @@ test("a record naming somewhere off this site gets no link, no copy button, and 
     clipboard: { writeText: async (value) => { copied = value; } },
   });
 
-  const detail = page.document.querySelector("#shipped-build-detail");
-  assert.equal(detail.hidden, true);
-  // The authored href survives untouched; the hostile one never reaches the DOM.
-  assert.equal(detail.getAttribute("href"), "/releases.html#shipped-build");
+  // The hostile address never reaches the DOM, on any control.
+  const links = page.document.querySelectorAll("a")
+    .filter((node) => (node.getAttribute("href") ?? "").includes("evil.example"));
+  assert.equal(links.length, 0);
   const copy = page.document.querySelector("#shipped-build-copy");
   assert.equal(copy.hidden, true);
   copy.click();
@@ -274,11 +281,13 @@ test("an unstamped build shows no record and withdraws the real marking", async 
   const panel = page.document.querySelector("#shipped-build");
   assert.equal(panel.dataset.shippedBuild, "unstamped");
   assert.equal(marking(page), NO_RECORD_LABEL);
+  // The heading is the record's name, so it goes with the record: with none to
+  // show, the block is not headed as though there were one.
+  assert.equal(textOf(page.document.querySelector("#shipped-build-title")), NO_RECORD_TITLE);
   assert.doesNotMatch(textOf(panel), new RegExp(REAL_LABEL));
   assert.equal(textOf(page.document.querySelector("#shipped-build-note")), UNSTAMPED_NOTE);
   assert.equal(page.document.querySelector("#shipped-build-facts").children.length, 0);
   assert.equal(page.document.querySelector("#shipped-build-source").hidden, true);
-  assert.equal(page.document.querySelector("#shipped-build-detail").hidden, true);
   assert.equal(page.document.querySelector("#shipped-build-copy").hidden, true);
   // And the check says it has nothing real to compare against rather than
   // falling back to an invented record.
@@ -357,19 +366,25 @@ test("a page and a deployment built from different commits read as a mismatch wi
   assert.equal(page.document.querySelector("#deployment-release-record").hidden, false);
 });
 
-test("the proof names both compared version values and links both records", async (t) => {
+test("the proof names both compared version values and offers the record once", async (t) => {
   const page = await open(t);
   assert.equal(
     textOf(page.document.querySelector("#deployment-identifiers")),
     `Running build version: ${SHA}. Real deployment-record version: ${SHA}.`,
   );
   const record = page.document.querySelector("#deployment-release-record");
-  // The link names the record, and the identifiers line above states its id —
-  // so the two controls that open this record read the same words, and the id
-  // is still on the page exactly once.
+  // The link names the record, and the identifiers line above states its id.
   assert.equal(textOf(record), REAL_RECORD_LINK_LABEL);
   assert.equal(record.getAttribute("href"), "/releases.html#shipped-build");
-  assert.equal(page.document.querySelector("#deployment-commit").getAttribute("href"), `${REPOSITORY_URL}/commit/${SHA}`);
+  // The commit is offered by the record block above, once. This band used to
+  // repeat that link — same commit, same words — so one screen offered one
+  // destination twice; the front door, where the check stands alone, keeps its
+  // own copy of it.
+  assert.equal(page.document.querySelectorAll("#deployment-commit").length, 0);
+  assert.equal(
+    page.document.querySelector("#shipped-build-source").getAttribute("href"),
+    `${REPOSITORY_URL}/commit/${SHA}`,
+  );
 });
 
 /* -------------------- the invented example still works -------------------- */
