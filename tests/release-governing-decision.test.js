@@ -126,6 +126,10 @@ test("the release view shows the linked decision's title, status, owner, and rat
 
   const governing = first(detailFor("r-queue"), "detail-governing");
   assert.ok(governing, "the release view does not state which decision governs it");
+  // The section the recorder's hint promises, under the name the hint uses: a
+  // reader who linked decisions in the form meets no second word for them here.
+  assert.equal(textOf(first(governing, "detail-governing-heading")), "First linked decision");
+  assert.doesNotMatch(textOf(governing), /governing/i, "the release view names this relationship twice");
   assert.equal(textOf(first(governing, "detail-governing-name")), "Adopt a durable job queue");
   assert.equal(textOf(first(governing, "detail-governing-meta")), "Status accepted Owner Kai");
   assert.ok(textOf(first(governing, "detail-governing-rationale"))
@@ -338,7 +342,7 @@ test("the recorder names the decision that will govern the release as it is chos
   // The hint says the rule before anything is ticked, in the same words the
   // release detail view heads that decision with.
   assert.ok(textOf(page.document.querySelector("#release-decisions-hint"))
-    .includes("The first decision you select is the release’s governing decision: the release page shows it in its own section above the rest."));
+    .includes("The first linked decision you select is summarised in its own section on the release page, above the other linked decisions."));
   // A live region, so the choice is announced without moving focus out of the
   // group — and it is a region, so it was announced at all.
   assert.equal(summary.getAttribute("role"), "status");
@@ -347,17 +351,17 @@ test("the recorder names the decision that will govern the release as it is chos
   // Keyboard only: reach an option and link it with Space.
   optionFor("d-flags").focus();
   pressSpace(page.document);
-  assert.equal(textOf(summary), "1 of 3 decisions linked. “Ship behind feature flags” is the governing decision.");
+  assert.equal(textOf(summary), "1 of 3 decisions linked. “Ship behind feature flags” is the first linked decision.");
 
   // A second tick joins the release but does not take the governing seat.
   optionFor("d-queue").focus();
   pressSpace(page.document);
-  assert.equal(textOf(summary), "2 of 3 decisions linked. “Ship behind feature flags” is the governing decision.");
+  assert.equal(textOf(summary), "2 of 3 decisions linked. “Ship behind feature flags” is the first linked decision.");
 
   // Unticking the governing decision promotes the next one in the chosen order.
   optionFor("d-flags").focus();
   pressSpace(page.document);
-  assert.equal(textOf(summary), "1 of 3 decisions linked. “Adopt a durable job queue” is the governing decision.");
+  assert.equal(textOf(summary), "1 of 3 decisions linked. “Adopt a durable job queue” is the first linked decision.");
 
   // Each option carries the rationale it is being chosen on, as text.
   const rationale = [...page.document.querySelectorAll(".decision-picker-rationale")].map(textOf);
