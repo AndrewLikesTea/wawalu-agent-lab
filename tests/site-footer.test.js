@@ -74,9 +74,11 @@ const describedBy = (document) => byId(document, "site-footer-email").getAttribu
 // page cannot quietly drop the contact affordance: dropping it is a decision
 // this table has to record, and src/site-footer.js has to offer copy for.
 //
-// `statedTopic` is the second shape a fixed topic takes: the pages a visitor
-// cannot choose a topic on say what the request is about in prose instead of in
-// a read-only control, so the block gains a sentence and no tab stop.
+// `statedTopic` is the shape a fixed topic takes: the pages a visitor cannot
+// choose a topic on say what the request is about in prose instead of in a
+// read-only control, so the block gains a sentence and no tab stop. Every page
+// that declares a topic uses it — issue #2046 moved the last one, the Agent
+// observatory, off the control it was the only page still carrying.
 const FOOTER_VARIANT = new Map([
   ["index.html", {
     followUpType: "follow_up_homepage", followUpTopic: FOLLOW_UP_TOPICS.follow_up_homepage, statedTopic: true,
@@ -102,7 +104,9 @@ const FOOTER_VARIANT = new Map([
   ["profile.html", {
     followUpType: "follow_up_people", followUpTopic: FOLLOW_UP_TOPICS.follow_up_people, statedTopic: true,
   }],
-  ["agents.html", { followUpType: "follow_up_agents", followUpTopic: FOLLOW_UP_TOPICS.follow_up_agents }],
+  ["agents.html", {
+    followUpType: "follow_up_agents", followUpTopic: FOLLOW_UP_TOPICS.follow_up_agents, statedTopic: true,
+  }],
 ]);
 
 test("every page of the site renders the footer, byte for byte from src/site-footer.js", async () => {
@@ -455,6 +459,38 @@ test("the About Shiplog band reads the same on every page of the site", async ()
   // And it is the band, not an empty one that trivially matches everywhere.
   for (const demo of DEMOS) assert.ok(expected.includes(demo.purpose), `the band lost "${demo.label}"`);
   assert.ok(expected.includes(PITCH), "the band lost the sentence that says who Shiplog is for");
+});
+
+// The destinations whose follow-up topic is the directory row for the same
+// page. FOLLOW_UP_TOPICS lives in src/leads.js because the worker validates
+// against it, and it copies these words rather than importing DEMOS — the same
+// trade the DEMOS table itself makes with src/site-nav.js, for the same reason:
+// src/leads.js is a Pages Function's dependency and must not pull a browser
+// module into that graph. So the guarantee that the two never drift is this
+// test, which reads both tables and compares them.
+//
+// The home page is deliberately absent. DEMOS names that destination
+// "Decisions" at "/", while its follow-up topic calls it the Homepage — one
+// surface with two true names, which is a separate question from this one.
+const DIRECTORY_TOPICS = new Map([
+  ["Prompt coach", "follow_up_coach"],
+  ["Releases", "follow_up_releases"],
+  ["Social", "follow_up_social"],
+  ["People", "follow_up_people"],
+  ["Agent observatory", "follow_up_agents"],
+]);
+
+test("a page's follow-up topic is the directory's own description of that page", async () => {
+  for (const [label, purpose] of DIRECTORY_TOPICS) {
+    const demo = DEMOS.find((row) => row.label === label);
+    assert.ok(demo, `the directory no longer lists ${label}`);
+    // Issue #2046: the Agent observatory named "synthetic engineering activity",
+    // a description of itself that appeared nowhere else on the site, in a
+    // control the page never explained. A visitor reading the sentence above the
+    // work-email field and the directory ten lines above it now reads one claim.
+    assert.equal(FOLLOW_UP_TOPICS[purpose], `${label} page — ${demo.purpose}`,
+      `${purpose} describes ${label} differently from the footer directory`);
+  }
 });
 
 // The description a fragment and a card may differ in, and nothing else: the

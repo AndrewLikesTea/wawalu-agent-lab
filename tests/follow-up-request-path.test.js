@@ -40,8 +40,10 @@ import { CONTACT_COPY, FOLLOW_UP_PRIVACY, knownNotSent, resolveFailure, Submissi
 // `stated` is the difference issue #1956 closed. A page a visitor could pick a
 // topic on never existed — every one of these topics is fixed by the page — but
 // four pages showed the fixed value in a read-only control and two showed
-// nothing at all. Those two now name it in prose instead, and the request they
-// send carries the same string: the shipped markup and the payload are compared
+// nothing at all. Every page now names it in prose instead — issue #2046 moved
+// the last one, the Agent observatory, which had been showing a "Follow-up
+// topic" control and no sentence at all. The request each page sends carries
+// the same string: the shipped markup and the payload are compared
 // against FOLLOW_UP_TOPICS here rather than against a phrase typed into a test,
 // so the sentence cannot drift away from what goes on the wire.
 const REVIEWED = [
@@ -51,7 +53,7 @@ const REVIEWED = [
   ["releases.html", "follow_up_releases", FOLLOW_UP_TOPICS.follow_up_releases, true],
   ["social.html", "follow_up_social", FOLLOW_UP_TOPICS.follow_up_social, true],
   ["profile.html", "follow_up_people", FOLLOW_UP_TOPICS.follow_up_people, true],
-  ["agents.html", "follow_up_agents", FOLLOW_UP_TOPICS.follow_up_agents, false],
+  ["agents.html", "follow_up_agents", FOLLOW_UP_TOPICS.follow_up_agents, true],
 ];
 
 const TYPED_EMAIL = "director@example.com";

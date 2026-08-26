@@ -41,7 +41,11 @@ export const FOLLOW_UP_TOPICS = Object.freeze({
   follow_up_releases: "Releases page — every release and the decisions it carried",
   follow_up_social: "Social page — read short posts about what the team ships, images optional",
   follow_up_people: "People page — pick a display name, see its image posts, newest first",
-  follow_up_agents: "Agent observatory page — synthetic engineering activity",
+  // "synthetic engineering activity" until issue #2046: a phrase that appeared
+  // nowhere else on the site, on the page a technical buyer lands on. The words
+  // are now the ones the footer directory above the form already uses for this
+  // destination, and tests/site-footer.test.js compares the two tables.
+  follow_up_agents: "Agent observatory page — watch a synthetic engineering team build and review work",
 });
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
