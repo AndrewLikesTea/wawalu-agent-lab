@@ -28,6 +28,7 @@ import { REPOSITORY_URL } from "../src/repository-url.js";
 import { FOLLOW_UP_TOPICS } from "../src/leads.js";
 import { FOLLOW_UP_PRIVACY } from "../src/lead-capture.js";
 import { SITE_NAV } from "../src/site-nav.js";
+import { OBSERVATORY_DESCRIPTION } from "../src/surface-copy.js";
 import { loadPage, parseHtml, pressEnter, tabSequence, textOf, typeText } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
 
@@ -74,36 +75,59 @@ const describedBy = (document) => byId(document, "site-footer-email").getAttribu
 // page cannot quietly drop the contact affordance: dropping it is a decision
 // this table has to record, and src/site-footer.js has to offer copy for.
 //
-// `statedTopic` is the second shape a fixed topic takes: the pages a visitor
-// cannot choose a topic on say what the request is about in prose instead of in
-// a read-only control, so the block gains a sentence and no tab stop.
+// A fixed topic has one shape — prose beside the field — so there is no flag
+// here for it: src/site-footer.js has no branch that can draw the read-only
+// control it used to, and tests/follow-up-fixed-topic.test.js holds the sentence
+// to the string the request actually carries.
 const FOOTER_VARIANT = new Map([
-  ["index.html", {
-    followUpType: "follow_up_homepage", followUpTopic: FOLLOW_UP_TOPICS.follow_up_homepage, statedTopic: true,
-  }],
+  ["index.html", { followUpType: "follow_up_homepage", followUpTopic: FOLLOW_UP_TOPICS.follow_up_homepage }],
   ["executive-briefing.html", { redirect: FOLLOW_UP_REDIRECT.briefing }],
-  ["coach.html", {
-    followUpType: "follow_up_coach", followUpTopic: FOLLOW_UP_TOPICS.follow_up_coach, statedTopic: true,
-  }],
-  // `collapsedDemos` is the third shape, and one page carries it: /post.html is
+  ["coach.html", { followUpType: "follow_up_coach", followUpTopic: FOLLOW_UP_TOPICS.follow_up_coach }],
+  // `collapsedDemos` is the second shape, and one page carries it: /post.html is
   // opened from a forwarded link to read one post, so its directory ships behind
   // a closed disclosure. Recorded here rather than inferred, for the same reason
   // the redirect is: a page cannot quietly fold its site map away.
   ["post.html", {
-    followUpType: "follow_up_social", followUpTopic: FOLLOW_UP_TOPICS.follow_up_social, statedTopic: true,
-    collapsedDemos: true,
+    followUpType: "follow_up_social", followUpTopic: FOLLOW_UP_TOPICS.follow_up_social, collapsedDemos: true,
   }],
-  ["releases.html", {
-    followUpType: "follow_up_releases", followUpTopic: FOLLOW_UP_TOPICS.follow_up_releases, statedTopic: true,
-  }],
-  ["social.html", {
-    followUpType: "follow_up_social", followUpTopic: FOLLOW_UP_TOPICS.follow_up_social, statedTopic: true,
-  }],
-  ["profile.html", {
-    followUpType: "follow_up_people", followUpTopic: FOLLOW_UP_TOPICS.follow_up_people, statedTopic: true,
-  }],
+  ["releases.html", { followUpType: "follow_up_releases", followUpTopic: FOLLOW_UP_TOPICS.follow_up_releases }],
+  ["social.html", { followUpType: "follow_up_social", followUpTopic: FOLLOW_UP_TOPICS.follow_up_social }],
+  ["profile.html", { followUpType: "follow_up_people", followUpTopic: FOLLOW_UP_TOPICS.follow_up_people }],
   ["agents.html", { followUpType: "follow_up_agents", followUpTopic: FOLLOW_UP_TOPICS.follow_up_agents }],
 ]);
+
+test("the Agent observatory states its follow-up subject in the site directory's own words", async () => {
+  const page = await loadPage(pageUrl("agents.html"));
+  const { document } = page;
+  try {
+    // Both halves are read off the rendered page and compared to each other.
+    // Checking each against the same imported string instead would still pass
+    // once one half had been inlined and then edited — which is the drift the
+    // acceptance criterion is about.
+    const entry = [...document.querySelectorAll("a")]
+      .find((link) => link.getAttribute("href") === "/agents.html" && link.closest(".site-footer-demos"))
+      ?.closest("li");
+    const line = textOf(entry);
+    assert.ok(line.startsWith("Agent observatory — "), `the directory line did not parse: ${line}`);
+    const described = line.slice("Agent observatory — ".length);
+
+    assert.equal(shownText(document, "site-footer-topic-note"),
+      `This request is sent about the Agent observatory page — ${described}.`);
+    assert.equal(byId(document, "site-footer-form").dataset.followUpTopic,
+      `Agent observatory page — ${described}`);
+    // …and that agreed wording has one source, so keeping them equal is not a
+    // matter of remembering to edit two files.
+    assert.equal(described, OBSERVATORY_DESCRIPTION);
+
+    // Asserted as truthiness, never `assert.equal(node, null)`: on failure this
+    // harness walks the whole parsed page to build the diff and the test hangs
+    // for minutes instead of reporting the control it found.
+    assert.ok(!byId(document, "site-footer-topic"),
+      "a fixed subject must be stated, not presented as a topic control");
+  } finally {
+    page.restore();
+  }
+});
 
 test("every page of the site renders the footer, byte for byte from src/site-footer.js", async () => {
   for (const file of PAGES) {

@@ -11,8 +11,9 @@
 // Issue #1980 moved three of the four read-only controls onto this sentence too.
 // A control a visitor cannot edit is a control that owes them an explanation of
 // why it is there; the sentence owes them nothing, reads in one pass, and says
-// the same thing the request carries. The Agent observatory is the one page left
-// on the control, so the shape it uses is still exercised elsewhere.
+// the same thing the request carries. Issue #2046 moved the last one, the Agent
+// observatory, so every page that fixes a topic now states it in prose and the
+// renderer has no branch left that can draw the control.
 //
 // What this file holds is the equality between the halves. The sentence on the
 // page and the value on the wire are compared to each other and to the shared
@@ -32,7 +33,8 @@ import { FOLLOW_UP_TOPICS } from "../src/leads.js";
 // The pages under test, and a page with the plain footer to measure them
 // against. The baseline is what the follow-up block looks like with no topic of
 // any kind, so the tab order it produces is the one the sentence must not change.
-const STATED = ["index.html", "post.html", "releases.html", "social.html", "profile.html", "coach.html"];
+const STATED = ["index.html", "post.html", "releases.html", "social.html", "profile.html", "coach.html",
+  "agents.html"];
 const BASELINE = "decision.html";
 
 const SENTENCE_LEAD = "This request is sent about the ";

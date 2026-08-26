@@ -1,4 +1,5 @@
 import { MAX_FOLLOW_UP_MESSAGE_LENGTH } from "./lead-capture.js";
+import { OBSERVATORY_DESCRIPTION } from "./surface-copy.js";
 
 export { MAX_FOLLOW_UP_MESSAGE_LENGTH };
 export const MAX_EMAIL_LENGTH = 254;
@@ -41,7 +42,15 @@ export const FOLLOW_UP_TOPICS = Object.freeze({
   follow_up_releases: "Releases page — every release and the decisions it carried",
   follow_up_social: "Social page — read short posts about what the team ships, images optional",
   follow_up_people: "People page — pick a display name, see its image posts, newest first",
-  follow_up_agents: "Agent observatory page — synthetic engineering activity",
+  // The one entry built from a shared constant rather than retyped. The
+  // observatory's follow-up block states its subject in prose directly above the
+  // work-email field, on a page that also renders the footer directory — so the
+  // visitor can read both descriptions of the same page in one glance, and two
+  // hand-kept copies would be visibly different rather than merely stale. The
+  // rest are still copies of the DEMOS wording; nothing pins them, and a check
+  // cannot be written for all of them because Homepage and the bundled FinOps
+  // example are not directory rows.
+  follow_up_agents: `Agent observatory page — ${OBSERVATORY_DESCRIPTION}`,
 });
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 

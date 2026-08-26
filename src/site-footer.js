@@ -35,6 +35,7 @@ import {
   postLeadEmail, SubmissionError,
 } from "./lead-capture.js";
 import { REPOSITORY_URL } from "./repository-url.js";
+import { OBSERVATORY_DESCRIPTION } from "./surface-copy.js";
 
 const ERROR_ID = "site-footer-error";
 const RECOVERY_ID = "site-footer-recovery";
@@ -89,10 +90,10 @@ export const PITCH_HREF = "/evolution.html#workspace-answer";
  * and src/site-nav.js is 6 KB of it, so tests/site-footer.test.js compares the
  * two tables instead.
  *
- * `purpose` is a fragment built from the home page's sentence for the same
- * surface — the footer points, the home page explains — keeping the facts the
- * act turns on: where Paint's PNG goes, what order People's posts come in. AI
- * FinOps keeps "in this browser tab", a promise about where an export is read.
+ * `purpose` is a fragment of the home page's sentence for the same surface,
+ * keeping the facts the act turns on: where Paint's PNG goes, what order
+ * People's posts come in. The observatory's is imported, not written: its
+ * follow-up request is sent about that wording, so the two must not drift.
  */
 export const DEMOS = Object.freeze([
   Object.freeze({
@@ -121,7 +122,7 @@ export const DEMOS = Object.freeze([
   Object.freeze({ label: "Social", href: "/social.html", purpose: "read short posts about what the team ships, images optional" }),
   Object.freeze({ label: "People", href: "/profile.html", purpose: "pick a display name, see its image posts, newest first" }),
   Object.freeze({ label: "Paint", href: "/paint/", purpose: "crop or draw an image, export a PNG, publish it on Social" }),
-  Object.freeze({ label: "Agent observatory", href: "/agents.html", purpose: "watch a synthetic engineering team build and review work" }),
+  Object.freeze({ label: "Agent observatory", href: "/agents.html", purpose: OBSERVATORY_DESCRIPTION }),
 ]);
 
 /**
@@ -191,12 +192,12 @@ export const FOLLOW_UP_REDIRECT = Object.freeze({
  * post, and the map of everywhere else was the larger half of that page.
  */
 export function siteFooterMarkup(indent = "    ", {
-  redirect = null, followUpType = null, followUpTopic = null, statedTopic = false,
+  redirect = null, followUpType = null, followUpTopic = null,
   collapsedDemos = false,
 } = {}) {
   const contact = redirect ? [
     `    <a class="site-footer-redirect-link" href="${redirect.href}">${redirect.label}</a>`,
-  ] : contactFormLines(followUpType, followUpTopic, statedTopic);
+  ] : contactFormLines(followUpType, followUpTopic);
   const lines = [
     '<footer class="site-footer" id="site-footer" aria-labelledby="site-footer-title">',
     '  <div class="site-footer-inner">',
@@ -241,18 +242,15 @@ function demoListLines(collapsed = false) {
   ];
 }
 
-function contactFormLines(followUpType, followUpTopic, stated) {
+// A fixed topic is prose, never a control: a value a visitor cannot change owes
+// them an explanation of why it sits in a field. One shape, so none can return.
+function contactFormLines(followUpType, followUpTopic) {
   return [
     `    <p class="site-footer-invitation">${INVITATION}</p>`,
     '    <div class="site-footer-panel" id="site-footer-panel">',
     `      <form id="site-footer-form" class="site-footer-form"${followUpType ? ` data-follow-up-type="${followUpType}"` : ""}${followUpTopic ? ` data-follow-up-topic="${followUpTopic}"` : ""} novalidate>`,
-    ...(!followUpTopic ? [] : stated ? [
+    ...(!followUpTopic ? [] : [
       `        <p class="site-footer-note" id="site-footer-topic-note">This request is sent about the ${followUpTopic}.</p>`,
-    ] : [
-      '        <div class="site-footer-field">',
-      '          <label for="site-footer-topic">Follow-up topic</label>',
-      `          <input id="site-footer-topic" type="text" value="${followUpTopic}" readonly />`,
-      "        </div>",
     ]),
     '        <div class="site-footer-field">',
     '          <label for="site-footer-email">Work email for your follow-up</label>',
