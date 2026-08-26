@@ -177,10 +177,12 @@
         <div class="landing-decision-intro">
           <h2 id="landing-decision-title">The decision this site produces.</h2>
           <p>It answers where AI spend stands, how much of it is recoverable, and the one action to take first. Open it to check the benchmark, the confidence, the provenance, the limits, and the arithmetic behind that figure.</p>
-          <p class="brief-print-hint">Use “Print or save as PDF” below to keep the whole briefing — the answer, the action, and the evidence behind them.</p>
         </div>
         <!-- Drawn by the entry module, never shipped in the markup: a print
-             control on a page whose script never ran is a dead control. -->
+             control on a page whose script never ran is a dead control.
+             The sentence naming that control is drawn with it, into the same
+             container, for the same reason: shipped here it told a visitor to
+             use a control that did not exist yet (#2044). -->
         <div class="brief-actions" id="landing-decision-actions"></div>
         <!-- Deliberately not a live region. The summary is painted once, on
              arrival, and nothing on this page ever replaces it — so announcing
@@ -192,6 +194,11 @@
           <section class="brief-state" data-state="loading" role="status">
             <h3>Building the example decision</h3>
             <p>The example decision is being assembled in this tab, which takes a moment. Its three synthetic months ship with this page.</p>
+            <!-- What is coming, said while the visitor waits. Its own sentence,
+                 because the paragraph above states what is happening now and is
+                 pinned word for word as the pair of facts a waiting reader
+                 needs; this is the third. -->
+            <p>The printable briefing appears when the example is finished.</p>
           </section>
         </div>
         <p class="landing-decision-next">Your own numbers: <a href="/evolution.html">analyze a provider export in AI FinOps</a>, then <a href="/executive-briefing.html">read the same briefing built from the months you kept on this device</a>.</p>
