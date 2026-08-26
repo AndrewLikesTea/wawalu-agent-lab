@@ -382,10 +382,23 @@ test("People says one thing while it loads, and the other three lines are not on
   assert.doesNotMatch(body, /Want a picture of your own here\?/);
   assert.equal((body.match(/Image posts are loading\. Open Social to publish an image post\./g) ?? []).length, 1);
 
-  // The requested/selected name remains real context while the result tiles
-  // wait, but no partial set of names is offered as if it were selectable.
-  assert.match(textOf(document.querySelector("#grid-title")), /^Zed · image posts/);
-  assert.match(textOf(document.querySelector("#profile-name")), /published as Zed/);
+  // And the results region claims nothing about a person while it waits (#2043):
+  // the heading names the content type, the sentence that says what the grid is
+  // showing is off the page with the count and the promise, and the reserved
+  // avatar carries no initials. The selected name is still the page's state — it
+  // comes back in the same paint as the first tile — but nothing on screen says
+  // a named display name's image posts are currently showing, newest first.
+  assert.equal(textOf(document.querySelector("#grid-title")), "Image posts");
+  assert.equal(document.querySelectorAll("#profile-name").length, 0);
+  // The whole header block, read end to end: one noun, and no third copy of the
+  // name hiding in the initials.
+  assert.equal(textOf(document.querySelector(".profile-identity")), "Image posts");
+  assert.doesNotMatch(body, /published as Zed/);
+  assert.doesNotMatch(body, /Zed · /);
+  // The ordering label is untouched — it labels the list it describes rather
+  // than a result under a name, and there is no longer a name for it to be read
+  // against.
+  assert.equal(textOf(document.querySelector("#profile-order")), "Newest first");
   assert.equal(document.querySelectorAll(".profile-filter-option").length, 0);
   const skeleton = document.querySelector(".profile-grid-skeleton");
   assert.equal(skeleton.getAttribute("aria-hidden"), "true");

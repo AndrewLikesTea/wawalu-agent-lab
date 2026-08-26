@@ -400,7 +400,22 @@ export function profileSummaryText(summary) {
 // A null count is the page not having counted yet, which is a different fact
 // from a count of zero: the heading names the display name and the posts under
 // it and stops, exactly as the picker says "Counting…" rather than "0".
-export function profileResultsHeading(author, count = null) {
+//
+// `pending` is the one state where it names nobody: a first load with an empty
+// grid. "Ari · image posts" over six placeholders was the page's largest heading
+// asserting a filtered view of a named person over nothing at all — the name was
+// a guess the markup shipped, and the region it named held no post by anyone
+// (#2043). While the page is waiting with nothing to show, the heading is the
+// region's plain noun; the display name lands in it in the same paint as the
+// first tile it can be true of.
+//
+// This is not the retired "Image posts in every state" the comment above
+// describes: a region with posts in it still names the display name and counts
+// them, unchanged, and that is every state a reader reaches by choosing a name.
+export const PENDING_RESULTS_HEADING = "Image posts";
+
+export function profileResultsHeading(author, count = null, { pending = false } = {}) {
+  if (pending) return PENDING_RESULTS_HEADING;
   const name = String(author ?? "").trim() || DEFAULT_AUTHOR;
   const counted = count === null || count === undefined ? "image posts" : countLabel(count, "image post");
   return `${name} · ${counted}`;
@@ -430,7 +445,16 @@ export function profileResultsHeading(author, count = null) {
 // and the pending one reads as pending rather than as a filter with no effect. A
 // failed load with nothing on screen is not counting anything and keeps the bare
 // sentence.
-export function profileActiveFilterLine(author, count = null, { counting = false } = {}) {
+//
+// `pending` — a first load with an empty grid — has no sentence at all, and
+// mountProfile takes the element out of the document rather than leaving an
+// empty chip standing. "Showing image posts published as Ari" is a claim about
+// what is on screen, and in that frame nothing is: the page had it in its
+// authored markup, above six placeholders, under a name the seed had guessed
+// (#2043). The wait is stated once, over the grid, by the status region that
+// owns it — this line does not narrate it a second time.
+export function profileActiveFilterLine(author, count = null, { counting = false, pending = false } = {}) {
+  if (pending) return "";
   const name = String(author ?? "").trim() || DEFAULT_AUTHOR;
   if (count === null || count === undefined) {
     return counting
@@ -745,12 +769,21 @@ export function renderAuthorPicker(container, entries, { author, counted = true,
 // page has nothing settled to count. The header does not derive it: mountProfile
 // holds the one filtered array, and a second count taken here could drift from
 // the one on screen.
-export function renderProfileHeader(elements, author, summary, { count = null, counting = false } = {}) {
+//
+// `pending` is a first load with an empty grid, and it empties this header of
+// every claim about a person: no initials, no sentence. The initials are the
+// third copy of a name the page cannot support yet — two letters standing for
+// whoever the seed guessed — so the chip waits as the shape it already is, an
+// empty circle the stylesheet sizes, exactly the way the cells below it reserve
+// a tile without standing for a particular post. It is not removed: taking the
+// avatar out and putting it back would move the header under the reader between
+// two paints, which is what the reserved shapes exist to prevent.
+export function renderProfileHeader(elements, author, summary, { count = null, counting = false, pending = false } = {}) {
   if (elements.avatar) {
-    elements.avatar.textContent = authorInitials(author);
+    elements.avatar.textContent = pending ? "" : authorInitials(author);
     elements.avatar.setAttribute("aria-hidden", "true");
   }
-  if (elements.name) elements.name.textContent = profileActiveFilterLine(author, count, { counting });
+  if (elements.name) elements.name.textContent = profileActiveFilterLine(author, count, { counting, pending });
   if (elements.summary) elements.summary.textContent = profileSummaryText(summary);
 }
 
@@ -782,16 +815,28 @@ export function mountProfile(root, options = {}) {
     paintRoutes: [root.querySelector("#profile-paint-route")].filter(Boolean),
   };
 
-  // The three lines this page may only say once a fetch has answered: the count,
-  // the promise about image posts arriving on their own, and the invitation to
-  // put a picture in a grid nobody has seen yet. All three used to sit on screen
+  // The lines this page may only say once a fetch has answered: the count, the
+  // promise about image posts arriving on their own, the invitation to put a
+  // picture in a grid nobody has seen yet, and the sentence that says whose
+  // image posts are showing. All of them used to sit on screen
   // beside "Loading image posts…", so one wait was narrated four times. They
   // leave the document while the feed is loading — absent, not hidden, because a
   // hidden line is still text a screen reader can be walked through.
   const waiting = [
     feedPresence(elements.summary),
     feedPresence(root.querySelector(".feed-create")),
+    // The identity line is the fourth: it says what the grid beside it is
+    // showing, so a grid with nothing in it has nothing for it to say. It leaves
+    // the document while the first load is open — absent rather than emptied,
+    // because an empty `.profile-active-filter` still paints its wash, and
+    // rather than `hidden`, which would leave the sentence in the accessibility
+    // tree for a screen reader to be walked through.
+    feedPresence(elements.name),
   ];
+  // It ships `hidden` and wordless in src/profile.html for the frame before this
+  // module runs, the way the connection line below does; presence owns it from
+  // here on, and the attribute would otherwise outlive the wait.
+  elements.name?.removeAttribute("hidden");
   // The connection line ships empty and `hidden` (src/profile.html) so the frame
   // before this module runs says one thing: that the image posts are loading.
   // The attribute is dropped once, here, and presence decides the rest.
@@ -823,10 +868,18 @@ export function mountProfile(root, options = {}) {
     // a figure — the two are in the same frame and now agree. A failed load with
     // an empty grid states no zero it cannot support, and is not counting.
     const counted = state === "ready" || (state === "error" && mine.length > 0);
+    // A first load with nothing drawn: the one state in which this region may
+    // not name a display name at all. Posts on screen — seeded tiles under an
+    // open refresh included — are a result the heading and the line can be true
+    // about, and they say so; an empty grid waiting on its first answer is not,
+    // and the header says nothing rather than something it cannot support. This
+    // is feedPhase()'s "loading" outcome by the same two inputs, computed here
+    // because the header is written before the grid it describes.
+    const pending = state === "loading" && mine.length === 0;
     renderProfileHeader(elements, author, summary,
-      { count: counted ? mine.length : null, counting: !counted && state === "loading" });
+      { count: counted ? mine.length : null, counting: !counted && state === "loading", pending });
     if (elements.heading) {
-      elements.heading.textContent = profileResultsHeading(author, counted ? mine.length : null);
+      elements.heading.textContent = profileResultsHeading(author, counted ? mine.length : null, { pending });
     }
     // The connection line until the first fetch answers and profile-page.js
     // writes the settled one over it. The markup ships it wordless, so this is

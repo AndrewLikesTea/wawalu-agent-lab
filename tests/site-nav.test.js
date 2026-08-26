@@ -320,9 +320,12 @@ test("the profile page defines the selected name as a display name", async () =>
   // a filter on it, not its name, so the name renders in the profile header that
   // opens the results — still present, still the pre-hydration default.
   assert.match(html, /<h1 id="page-title">People<\/h1>/);
-  // Nothing has been counted in the pre-hydration frame, so the line names the
-  // display name without a number, the way the heading beside it does.
-  assert.match(html, /<p class="profile-active-filter" id="profile-name">Showing image posts published as Ari\.<\/p>/);
+  // Nothing has been published by anyone in the pre-hydration frame, so the line
+  // that states what the grid is showing ships with no sentence in it and the
+  // heading beside it names the content type rather than a display name the seed
+  // guessed (#2043). Both are filled by profile.js from the posts it has.
+  assert.match(html, /<p class="profile-active-filter" id="profile-name" hidden><\/p>/);
+  assert.doesNotMatch(html, /Showing image posts published as/);
 });
 
 // The two surfaces a visitor mixes up. Each page's first sentence has to say

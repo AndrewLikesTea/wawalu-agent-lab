@@ -1192,3 +1192,127 @@ test("a feed with one display name says so in words instead of drawing a lone ch
     page.restore();
   }
 });
+
+// The live feed's own shape, which is a different shape from the seed's: this
+// route is normalized by normalizeProfileApiPosts, so the fields are the API's.
+// The id tail is the day of month the post is dated, so it has to be a real day
+// — an invalid one is dropped on the way in and the page lands on the default
+// name with nothing under it and no error.
+const apiPost = (id, author, day) => ({
+  id,
+  author,
+  content: `${id} from ${author}`,
+  timestamp: `2026-07-${day}T09:00:00.000Z`,
+  source: "shiplog-web",
+  like_count: 0,
+  comment_count: 0,
+  image_url: `/media/${author}.svg`,
+  image_alt: `A drawing signed ${author}`,
+  image_width: 1200,
+  image_height: 900,
+});
+
+// Everything the results region may not say before a single image post has
+// arrived. The claim is the whole subject: a heading naming a display name, a
+// sentence saying that name's image posts are showing, an ordering claim
+// attached to either, or initials standing for the person the page guessed.
+function assertClaimsNoResult(document, state) {
+  const body = textOf(document.body);
+  assert.doesNotMatch(body, /published as/, `${state}: the page says whose image posts it is showing`);
+  assert.doesNotMatch(body, /Showing \d* ?image post/, `${state}: the page claims a result it has not loaded`);
+  for (const name of ["Ari", "Bea", "Zed", "Guest"]) {
+    assert.doesNotMatch(body, new RegExp(`${name} · `), `${state}: ${name} is named over an empty grid`);
+  }
+
+  // The heading is the region's plain noun, and the header block holds nothing
+  // else: no sentence, and no initials in the reserved chip beside it.
+  assert.equal(resultsHeading(document), "Image posts", `${state}: the largest heading names a display name`);
+  assert.equal(textOf(document.querySelector(".profile-identity")), "Image posts",
+    `${state}: the profile header carries more than the content type`);
+  assert.equal(textOf(document.querySelector("#profile-avatar")), "", `${state}: the avatar spells out a name`);
+  // As served it is authored, wordless and out of the way; hydrated it has left
+  // the document. Either way it states nothing.
+  for (const claim of document.querySelectorAll("#profile-name")) {
+    assert.equal(textOf(claim), "", `${state}: the identity line states a result over an empty grid`);
+  }
+
+  // The two lines that must not regress with it: what the filter row is waiting
+  // for, and the next action a reader can actually take from here.
+  assert.equal(textOf(document.querySelector("#profile-filter-hint")),
+    "Display names become available when image posts load.", `${state}: the filter hint was reworded`);
+  assert.equal(textOf(document.querySelector("#profile-feed-status")),
+    "Image posts are loading. Open Social to publish an image post.", `${state}: the waiting line lost its next action`);
+
+  // The placeholders and the content-hierarchy preview are untouched: this
+  // change takes a claim away, it does not take a shape away. And nothing in the
+  // header became focusable, in either state.
+  assert.equal(drawnTiles(document).length, 0, `${state}: a real tile is on screen`);
+  assert.equal(document.querySelectorAll(".profile-tile-skeleton").length, 6, `${state}: the reserved tiles are gone`);
+  assert.equal(document.querySelectorAll(".skeleton-media-square").length, 6, `${state}: the reserved images are gone`);
+  const header = document.querySelector(".profile-identity");
+  for (const tag of ["a", "button", "input", "select"])
+    assert.equal(header.querySelectorAll(tag).length, 0, `${state}: the profile header grew a tab stop`);
+}
+
+// The reported defect (issue #2043). The served page pre-rendered the loaded
+// state: the largest heading on it named a display name the seed had guessed and
+// the sentence under it said that name's image posts were showing, newest first
+// — while the filter row three lines above still said display names become
+// available when image posts load and the grid below was six placeholders. Two
+// frames of a waiting page are checked here, the one a visitor is served and the
+// hydrated one with the first fetch still open, and then the settled page, whose
+// strings must not have moved by a byte.
+test("People claims no result before its first image post, and the loaded page is unchanged", async () => {
+  const live = { posts: [apiPost("p-21", "Zed", "21"), apiPost("p-22", "Bea", "22"), apiPost("p-23", "Zed", "23")] };
+  // An empty seed, so the mounted page has nothing to draw and nothing to be
+  // true about: with seeded tiles on screen the heading is honest already.
+  const page = await loadPage(PAGE_URL, { routes: { [SEED_ROUTE]: { posts: [] }, [LIVE_ROUTE]: live } });
+  const savedInterval = globalThis.setInterval;
+  globalThis.setInterval = () => 0;
+  globalThis.window.history = { replaceState() {} };
+  const routed = globalThis.fetch;
+  let release = () => {};
+  const held = new Promise((resolve) => { release = resolve; });
+  globalThis.fetch = async (url, init) => {
+    if (url === LIVE_ROUTE) await held;
+    return routed(url, init);
+  };
+  const { document } = page;
+  try {
+    // Turn zero: the markup as served, before a line of script has run.
+    assertClaimsNoResult(document, "as served");
+
+    // And hydrated, with the first fetch still open. The wait is on something
+    // only the module does — this page's authored markup fakes hydration, so a
+    // wait on any string under test would return before the module ran.
+    await importPageModule("/profile-page.js");
+    await waitFor(() => document.querySelectorAll(".feed-create").length === 0, "the module takes the page over");
+    assertClaimsNoResult(document, "loading");
+    // The module wrote this frame rather than leaving the served one standing:
+    // the identity line left the document beside the count it waits with.
+    assert.equal(document.querySelectorAll("#profile-name").length, 0,
+      "the identity line stayed on the page over an empty grid");
+    assert.equal(document.querySelectorAll("#profile-summary").length, 0);
+
+    // Settled: the same strings the loaded page has always rendered, counted off
+    // the tiles actually drawn in that paint.
+    release();
+    await waitFor(() => document.documentElement.dataset.shiplogProfile === "ready", "the first load settles");
+    assert.equal(drawnTiles(document).length, 2);
+    assert.equal(resultsHeading(document), "Zed · 2 image posts");
+    assert.equal(textOf(document.querySelector("#profile-name")), "Showing 2 image posts published as Zed.");
+    assert.equal(document.querySelector("#profile-name").hasAttribute("hidden"), false,
+      "the identity line came back still hidden");
+    assert.equal(textOf(document.querySelector("#profile-avatar")), "ZE");
+    assert.equal(document.querySelector("#profile-avatar").getAttribute("aria-hidden"), "true");
+    // The ordering label is the page's one statement of the sort, in its own
+    // words and its own place, unmoved by any of this.
+    assert.equal(textOf(document.querySelector("#profile-order")), "Newest first");
+    assert.equal(document.querySelectorAll("#profile-order").length, 1);
+    assert.equal(document.querySelector("#profile-grid").getAttribute("aria-describedby"), "profile-order");
+  } finally {
+    globalThis.fetch = routed;
+    globalThis.setInterval = savedInterval;
+    page.restore();
+  }
+});
