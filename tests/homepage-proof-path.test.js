@@ -129,6 +129,25 @@ test("the release that decision links to lists the decision back", async (t) => 
   assert.ok(releaseHref.endsWith(SAMPLE_RELEASE_ID));
 });
 
+test("the Shiplog offer states the pricing status and points to its contact path", async (t) => {
+  const home = await openHome(t);
+  const offer = home.document.getElementById("shiplog-entry");
+  const contact = offer.querySelector('a[href="#site-footer-email"]');
+
+  assert.match(textOf(offer), /How a team gets Shiplog/);
+  assert.match(textOf(offer), /no self-serve signup and no published price/i);
+  assert.match(textOf(offer), /what it would cost are both answered on request/i);
+  assert.equal(textOf(contact), "Ask Wawalu about getting Shiplog");
+  // The link names one destination on this page, so the buyer picks no form.
+  assert.equal(offer.querySelectorAll('a[href="#site-footer-email"]').length, 1);
+  assert.ok(home.document.getElementById("site-footer-email"),
+    "the offer must point to the rendered follow-up form");
+  // ...and that destination is the form this page actually submits, so the ask
+  // the copy invites is the row the Wawalu team receives.
+  const form = home.document.getElementById("site-footer-form");
+  assert.equal(form.getAttribute("data-follow-up-type"), "follow_up_homepage");
+});
+
 test("the representative release panel features the release the story names", async (t) => {
   const home = await openHome(t);
   const panel = home.document.querySelector("#sample-release-list");
