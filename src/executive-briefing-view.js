@@ -377,9 +377,14 @@ export const PRINT_UNAVAILABLE_MESSAGE =
  * script never ran is a control that does nothing when pressed. The keyboard
  * route that does not depend on this button at all (the browser's own print
  * command) still works: `wirePrintExpansion` listens for `beforeprint`.
+ *
+ * `lead` is the one sentence a page may put directly above the button to name
+ * it. It is drawn here rather than shipped in a page's markup so that a
+ * sentence naming this control cannot exist while the control does not: both
+ * appear in the same paint, as adjacent siblings, or neither does (#2044).
  */
 export function renderPrintControl({
-  label = PRINT_CONTROL_LABEL, note = PRINT_CONTROL_NOTE,
+  label = PRINT_CONTROL_LABEL, note = PRINT_CONTROL_NOTE, lead = "",
 } = {}) {
   const wrapper = el("div", "brief-print-control");
   const button = el("button", "brief-print-button", label);
@@ -391,6 +396,7 @@ export function renderPrintControl({
   const status = el("p", "brief-print-status");
   status.id = PRINT_STATUS_ID;
   status.setAttribute("role", "status");
+  if (lead) wrapper.append(el("p", "brief-print-hint", lead));
   wrapper.append(button, hint, status);
   return wrapper;
 }

@@ -407,6 +407,56 @@ test("the front door's print hint names the control it points at", async (t) => 
     "the hint must still say what the whole briefing contains");
 });
 
+// #2044: that same sentence was shipped in the page's intro markup, one region
+// above the summary, so a visitor waiting on the building state was told to use
+// a control that was nowhere on the page yet. A sentence that names a control
+// may not outlive the control's absence.
+test("the building state names no print control, and says when one arrives", async (t) => {
+  const page = await loadPage(PAGE, {
+    storage: { [STORAGE_KEY]: JSON.stringify([]), [RELEASE_STORAGE_KEY]: JSON.stringify([]) },
+  });
+  t.after(() => page.restore());
+
+  // The entry module is deliberately not imported: this is the document a
+  // visitor holds while the example is still being assembled. The view module
+  // is, but only to read the control's own label off it — importing it mounts
+  // nothing and paints nothing.
+  const { PRINT_CONTROL_LABEL } = await importPageModule("/executive-briefing-view.js");
+  const waiting = textOf(page.document.getElementById("landing-decision"));
+
+  assert.ok(!page.document.getElementById("brief-print"),
+    "the print control must not be in the shipped markup; the module draws it");
+  assert.equal((waiting.match(new RegExp(PRINT_CONTROL_LABEL, "g")) ?? []).length, 0,
+    `the building state must not name the print control; it reads: ${waiting}`);
+  assert.equal((waiting.match(/the answer, the action, and the evidence behind them/g) ?? []).length, 0,
+    "and it must not promise the contents of a briefing it has not drawn");
+
+  // What it says instead: the printable briefing is coming, not missing.
+  assert.ok(waiting.includes("The printable briefing appears when the example is finished."),
+    `the building state must say the printable briefing is on its way; it reads: ${waiting}`);
+});
+
+test("the drawn print hint is the control's own immediately preceding sibling", async (t) => {
+  const { document } = await openFrontDoor(t);
+  const button = document.getElementById("brief-print");
+  const siblings = button.parentNode.childElements;
+  const hintIndex = siblings.findIndex(
+    (node) => (node.getAttribute("class") ?? "").split(" ").includes("brief-print-hint"));
+
+  assert.notEqual(hintIndex, -1,
+    "the sentence naming the control must be drawn into the control's own container");
+  assert.equal(siblings.indexOf(button) - hintIndex, 1,
+    "the sentence must sit immediately above the button it names, with nothing between them");
+
+  // One sentence, in one place: it is no longer duplicated into the intro.
+  assert.equal(document.querySelectorAll(".brief-print-hint").length, 1);
+
+  // And it adds no tab stop — index.html's tab budget above the coach entry is
+  // full, so the instruction is prose, not a second control.
+  assert.equal(siblings[hintIndex].getAttribute("tabindex"), null);
+  assert.equal(siblings[hintIndex].tagName, "P");
+});
+
 /* --------------------------- the log is preserved ---------------------------- */
 
 test("every Shiplog workflow is still on the front door and still works", async (t) => {

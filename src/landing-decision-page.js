@@ -18,6 +18,7 @@ import {
   LANDING_DECISION_UNAVAILABLE,
 } from "/landing-decision.js";
 import {
+  PRINT_CONTROL_LABEL,
   renderBriefingError,
   renderExecutiveBriefingPreview,
   renderPrintControl,
@@ -25,6 +26,17 @@ import {
   wirePrintControl,
   wirePrintExpansion,
 } from "/executive-briefing-view.js";
+
+// The sentence that points at the print control, drawn with it.
+//
+// It used to be shipped in the page's intro markup, one region above the
+// summary, which meant a visitor waiting on the building state read "Use
+// 'Print or save as PDF' below" while there was no such control anywhere on
+// the page and no briefing to print (#2044). It quotes the control's own
+// exported label rather than retyping it, so the prose and the button cannot
+// drift into two names for one thing.
+const PRINT_LEAD = `Use “${PRINT_CONTROL_LABEL}” below to keep the whole briefing — `
+  + "the answer, the action, and the evidence behind them.";
 
 const mount = document.getElementById(LANDING_DECISION_IDS.mount);
 const actions = document.getElementById(LANDING_DECISION_IDS.actions);
@@ -64,7 +76,7 @@ export function loadLandingDecision() {
   wireDisclosures(article, document);
   wirePrintExpansion(globalThis.window ?? globalThis, article, document);
   if (actions) {
-    const control = renderPrintControl();
+    const control = renderPrintControl({ lead: PRINT_LEAD });
     actions.replaceChildren(control);
     wirePrintControl(control, article, { scope: globalThis.window ?? globalThis, doc: document });
   }
