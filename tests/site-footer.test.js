@@ -102,7 +102,9 @@ const FOOTER_VARIANT = new Map([
   ["profile.html", {
     followUpType: "follow_up_people", followUpTopic: FOLLOW_UP_TOPICS.follow_up_people, statedTopic: true,
   }],
-  ["agents.html", { followUpType: "follow_up_agents", followUpTopic: FOLLOW_UP_TOPICS.follow_up_agents }],
+  ["agents.html", {
+    followUpType: "follow_up_agents", followUpTopic: FOLLOW_UP_TOPICS.follow_up_agents, statedTopic: true,
+  }],
 ]);
 
 test("every page of the site renders the footer, byte for byte from src/site-footer.js", async () => {

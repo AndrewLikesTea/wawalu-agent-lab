@@ -11,16 +11,20 @@
 // Issue #1980 moved three of the four read-only controls onto this sentence too.
 // A control a visitor cannot edit is a control that owes them an explanation of
 // why it is there; the sentence owes them nothing, reads in one pass, and says
-// the same thing the request carries. The Agent observatory is the one page left
-// on the control, so the shape it uses is still exercised elsewhere.
+// the same thing the request carries. The Agent observatory now uses that same
+// sentence shape.
 //
 // What this file holds is the equality between the halves. The sentence on the
 // page and the value on the wire are compared to each other and to the shared
 // map, never to a phrase typed in here: a test that pins prose against a string
 // literal passes just as happily when the sentence and the request have drifted
-// apart, which is the defect, not the fix. It also holds the shape of the
-// sentence — prose, in the hint style the privacy note already uses, adding no
-// control and no tab stop to a block a keyboard reader has already learned.
+// apart, which is the defect, not the fix. It holds one more equality since
+// #2046 — the sentence against the site directory row for the same page, in the
+// same footer — because a sentence can agree with the wire perfectly and still
+// be the second description a visitor reads of one page. It also holds the
+// shape of the sentence — prose, in the hint style the privacy note already
+// uses, adding no control and no tab stop to a block a keyboard reader has
+// already learned.
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -32,7 +36,7 @@ import { FOLLOW_UP_TOPICS } from "../src/leads.js";
 // The pages under test, and a page with the plain footer to measure them
 // against. The baseline is what the follow-up block looks like with no topic of
 // any kind, so the tab order it produces is the one the sentence must not change.
-const STATED = ["index.html", "post.html", "releases.html", "social.html", "profile.html", "coach.html"];
+const STATED = ["index.html", "post.html", "releases.html", "social.html", "profile.html", "coach.html", "agents.html"];
 const BASELINE = "decision.html";
 
 const SENTENCE_LEAD = "This request is sent about the ";
@@ -159,6 +163,52 @@ test("every follow-up type these pages send has an entry in the shared topic lis
     // edit, and it is the same string the map holds.
     assert.equal(form.getAttribute("data-follow-up-topic"), FOLLOW_UP_TOPICS[purpose]);
   }
+});
+
+/* ---------------- the words are the site directory's own words -------------- */
+
+// The half of a stated topic that describes the page is not written for the
+// follow-up block. It is the line the site directory in the same footer already
+// gives that destination, copied — src/leads.js says why. Two accounts of one
+// page is the defect, so what this compares is the two strings a visitor can
+// see at once: the directory row, and the sentence a few lines under it. Both
+// are read out of the shipped markup rather than from a shared constant, because
+// a constant the two sides import proves only that the source agrees; the pages
+// are static HTML and it is the rendered text that drifts.
+//
+// index.html falls out of scope by construction, not by exception: the directory
+// has no row for the home page under its own name — it lists that surface as
+// Decisions — so "Homepage — …" names no destination and there is nothing to
+// look up. The count at the end is what stops that from quietly swallowing a
+// page that should have been compared.
+test("a stated topic that names a directory destination uses the directory's own words", async () => {
+  const NAMES_A_PAGE = " page — ";
+  let compared = 0;
+  for (const file of STATED) {
+    const document = parseHtml(await read(file));
+    const sentence = textOf(document.getElementById("site-footer-topic-note"));
+    const named = sentence.slice(SENTENCE_LEAD.length, -1);
+    const split = named.indexOf(NAMES_A_PAGE);
+    if (split < 0) continue;
+    const label = named.slice(0, split);
+    const description = named.slice(split + NAMES_A_PAGE.length);
+
+    // The band is found first and then walked: a descendant selector throws in
+    // this harness, and an empty list would make the comparison vacuous.
+    const rows = document.querySelector(".site-footer-demos").querySelectorAll("li");
+    assert.ok(rows.length > 1, `${file}: the footer directory did not parse`);
+    const row = rows.find((item) => textOf(item.querySelectorAll("a")[0]) === label);
+    assert.ok(row, `${file}: the topic names "${label}", which this page's directory does not list`);
+
+    // Everything after the row's own em dash, stopping at the semicolon a row
+    // with a second destination filed under it uses — Prompt coach is that row.
+    const listed = textOf(row).slice(`${label} — `.length).split("; ")[0];
+    assert.equal(description, listed,
+      `${file}: the follow-up block and the directory above it describe this page differently`);
+    compared += 1;
+  }
+  assert.equal(compared, STATED.length - 1,
+    "index.html is the one stated topic that names no directory destination; another page has joined it");
 });
 
 /* --------------------------- prose, not a control -------------------------- */

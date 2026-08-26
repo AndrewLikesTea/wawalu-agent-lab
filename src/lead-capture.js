@@ -87,18 +87,13 @@ export const CONTACT_COPY = Object.freeze({
 /**
  * The one privacy sentence every follow-up form shows between its field and its
  * submit button — the footer's, the AI FinOps result's, and the executive
- * briefing's.
- *
- * It used to be a paragraph per surface, each listing the particular things that
- * page holds, and a reader moving between two had to work out whether two lists
- * meant two promises. They did not: `postLeadEmail` below builds the whole
- * request body from one argument, the typed address, so no page state has a
- * route to the wire anywhere. One claim, one sentence, one string, naming what
- * is sent, who receives it, and that nothing else goes with it.
- *
- * The pages are static HTML and the build copies src/ verbatim, so each form
- * embeds the rendered text; tests/follow-up-privacy.test.js reads this constant
- * and requires every form to render it exactly.
+ * briefing's. It is one sentence rather than a per-surface list of what that
+ * page holds because there is one promise to make: `postLeadEmail` below builds
+ * the whole request body from one argument, the typed address, so no page state
+ * has a route to the wire on any of them. The pages are static HTML and the
+ * build copies src/ verbatim, so each form embeds the rendered text;
+ * tests/follow-up-privacy.test.js reads this constant and requires every form to
+ * render it exactly.
  */
 export const FOLLOW_UP_PRIVACY = "The work email address you type here goes to the Wawalu team that "
   + "operates Shiplog; nothing else on this page is sent.";

@@ -51,7 +51,7 @@ const REVIEWED = [
   ["releases.html", "follow_up_releases", FOLLOW_UP_TOPICS.follow_up_releases, true],
   ["social.html", "follow_up_social", FOLLOW_UP_TOPICS.follow_up_social, true],
   ["profile.html", "follow_up_people", FOLLOW_UP_TOPICS.follow_up_people, true],
-  ["agents.html", "follow_up_agents", FOLLOW_UP_TOPICS.follow_up_agents, false],
+  ["agents.html", "follow_up_agents", FOLLOW_UP_TOPICS.follow_up_agents, true],
 ];
 
 const TYPED_EMAIL = "director@example.com";
