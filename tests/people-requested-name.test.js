@@ -99,7 +99,10 @@ function assertStatedZero(document, name) {
   assert.equal(drawnTiles(document).length, 0, "the grid drew a tile under a name with no image posts");
   assert.equal(document.querySelectorAll(".profile-tile-skeleton").length, 0,
     "loading placeholders are still standing behind the answered state");
-  assert.doesNotMatch(textOf(status), /Loading image posts…/,
+  // Anchored on the clause that names the wait, not the whole sentence: this
+  // guard has to keep failing when the waiting line survives its fetch, and a
+  // later edit to the publishing directive after it must not quietly retire it.
+  assert.doesNotMatch(textOf(status), /Image posts are loading\./,
     "the waiting line outlived the wait it stood in for");
   // Replaced, not merely emptied: the region says something a reader can act on.
   assert.ok(textOf(status).length > 0, "the status region answered with nothing at all");

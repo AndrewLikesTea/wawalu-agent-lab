@@ -340,14 +340,22 @@ export function profileEmptyText(author) {
   return `The display name “${name}” has no image posts yet.`;
 }
 
-// The grid's first-load status says exactly what People is retrieving and names
-// the selected display name. The name is interpolated as text, never markup.
+// The grid's first-load status says exactly what People is retrieving, and then
+// where a visitor publishes one of them — this page has no composer, so the next
+// action it can honestly name is on Social. "Open Social" is the page's own
+// phrase for that route (the lede above the feed already uses it), and the nav
+// link it names is on screen in this state, unlike the .feed-create hint, which
+// feedPresence() removes while the fetch is open.
+//
+// `author` is accepted for call-site symmetry with the other status builders and
+// deliberately not used: the heading directly above carries the selected display
+// name already, and saying it here narrated one wait under two names.
 //
 // It does not guess a count: the page ships this line as static markup for
 // the frame before hydration, where it once shipped "Ari hasn't posted an image
 // yet", a verdict that was false for the seeded feed.
 export function loadingSummaryText(author = DEFAULT_AUTHOR) {
-  return "Loading image posts…";
+  return "Image posts are loading. Open Social to publish an image post.";
 }
 
 // The counts line when the selected display name has nothing to show. It states

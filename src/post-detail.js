@@ -323,11 +323,13 @@ function renderFailed(container, onRetry) {
 // string cannot. It names the product doing the work, the one public post being
 // retrieved, its source, and the shared link it comes from.
 //
-// It is the one wait on this site that does not open "Loading …" — Social says
-// "Loading the Social feed…", People "Loading image posts…". Deliberate, not
-// drift: those are waits on a page the reader chose, where the only unknown is
-// when. This one is met cold, and the reader does not yet know what a Shiplog
-// link is, that one post is coming rather than a feed, or that it is public.
+// It is the one wait on this site that offers no next action (#2034). Social
+// and People each name the control that publishes, because they are waits on a
+// page the reader chose: the only unknown there is when, so the sentence can be
+// spent on what to do meanwhile. This one is met cold from somebody else's
+// link, and the reader does not yet know what a Shiplog link is, that one post
+// is coming rather than a feed, or that it is public. Naming a composer to a
+// reader in that position would be an instruction before an orientation.
 export const POST_LOADING_STATUS = "Shiplog is retrieving one public Social post from the shared link.";
 
 // What the wait above promised, kept: the two parts of a post this page can

@@ -435,7 +435,7 @@ test("the first load reserves a skeleton grid instead of a blank panel", () => {
   // caption, metadata, and action hierarchy without claiming six fetched posts.
   assert.equal(skeleton.getAttribute("aria-hidden"), "true");
   assert.equal(skeleton.getAttribute("inert"), "");
-  assert.equal(status.textContent, "Loading image posts…");
+  assert.equal(status.textContent, "Image posts are loading. Open Social to publish an image post.");
   assert.equal(byClass(skeleton, "profile-tile-skeleton").length, 6);
   assert.equal(byClass(skeleton, "skeleton-media-square").length, 6);
   assert.equal(byClass(skeleton, "skeleton-meta").length, 6);
@@ -744,8 +744,8 @@ test("the zero state does not vary with what the rest of the feed holds", () => 
 });
 
 test("the waiting line names image posts once without duplicating the selected display name", () => {
-  assert.equal(loadingSummaryText(), "Loading image posts…");
-  assert.equal(loadingSummaryText("Zed"), "Loading image posts…");
+  assert.equal(loadingSummaryText(), "Image posts are loading. Open Social to publish an image post.");
+  assert.equal(loadingSummaryText("Zed"), "Image posts are loading. Open Social to publish an image post.");
 });
 
 test("the profile page's static copy does not drift from the module's", async () => {
@@ -763,7 +763,7 @@ test("the profile page's static copy does not drift from the module's", async ()
   assert.doesNotMatch(html, new RegExp(retiredEmptyLine("Ari")));
   // People's one retrieval status names the content type; the heading already
   // names the selected display name.
-  assert.equal(loadingSummaryText("Ari"), "Loading image posts…");
+  assert.equal(loadingSummaryText("Ari"), "Image posts are loading. Open Social to publish an image post.");
   // And the connection line ships wordless. Its promise used to be authored
   // above the status that says the image posts are still loading, so the frame
   // with nothing in it made a promise and then admitted it had nothing — two
