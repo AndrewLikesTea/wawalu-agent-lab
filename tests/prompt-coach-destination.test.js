@@ -510,6 +510,46 @@ test("the privacy promise is made once, in one wording, before the field", async
     "the disclosure must not restate where the text stays");
 });
 
+// The three invitations a visitor reads before opening anything, and the one
+// rule they are held to: each names what is behind it and nothing another one
+// covers. The middle one promised the whole page — the example, what a grade
+// includes, possible results, and the privacy details — so a reader who opened
+// it met the boundary the block before the field already carries and the states
+// the disclosure below it shows, and had no way to tell the three apart.
+test("each invitation names only what it reveals, and no two name the same thing", async () => {
+  const document = parseHtml(await read("coach.html"));
+
+  const before = textOf(document.querySelector(".prompt-coaching-entry-lead"));
+  const reads = textOf(document.querySelector(".prompt-coaching-preview-lead"));
+  const results = textOf(byId(document, "coaching-specimen-summary"));
+
+  assert.equal(before, "See how the score is measured and what to do first.");
+  assert.equal(reads, "See the bundled example text and the counts read from it.");
+  assert.equal(results, "See possible results, from a graded prompt to a refusal.");
+
+  // The middle one is written from its own first block outward. Every other
+  // topic it used to promise is read behind one of the other two.
+  for (const promise of [/possible result/i, /privacy/i, /boundary/i, /never|stays out/i,
+    /what a grade includes/i, /score/i]) {
+    assert.doesNotMatch(reads, promise,
+      `the disclosure over the read text promises “${promise.source}”, which another invitation covers`);
+  }
+  // And no topic noun is offered twice: the score is named where it is measured,
+  // the example text where it is printed, the results where they are shown.
+  assert.doesNotMatch(before, /bundled|result/i);
+  assert.doesNotMatch(results, /score|counts|bundled/i);
+
+  // All three read as one set — each an instruction ending in a full stop — and
+  // the two that open a details element are still closed on arrival.
+  for (const invitation of [before, reads, results]) {
+    assert.match(invitation, /^See .+\.$/, `“${invitation}” is not written as the other invitations are`);
+  }
+  assert.ok(!byId(document, "prompt-coaching-preview").open,
+    "the disclosure over the read text opens on arrival");
+  assert.ok(!byId(document, "coaching-specimen").open,
+    "the disclosure over the possible results opens on arrival");
+});
+
 test("one name for what a reader leaves with: the coaching summary", async () => {
   const { document } = await openCoach();
 
