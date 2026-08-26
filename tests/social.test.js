@@ -993,6 +993,17 @@ test("the feed toolbar names what each control filters, in the site's own terms"
     "the label that read like a button survives somewhere on the page");
   assert.match(markup, /<option value="hour">From the past hour<\/option>/,
     "each option states what it includes, so the closed menu is already readable");
+  // The all-values option is the one option here that is never read into a
+  // sentence, so it is written as a menu entry: "All" and the thing the label
+  // names, exactly as the display-name menu writes its own. "From any time"
+  // opened like a start date — "from" and an unbounded point — which is not what
+  // choosing it does.
+  assert.match(markup, /<option value="all">All posting times<\/option>/,
+    "the all-values option names every post, in the label's own term");
+  assert.doesNotMatch(markup.replace(/<!--[\s\S]*?-->/g, ""), /From any time/,
+    "the all-values option still opens like a start date");
+  assert.equal(markup.match(/<option value="all">/g).length, 2,
+    "the relabelling changed which value means \"no filter\"");
   // The button carries no description paragraph: the one it had opened by
   // restating its own label. What the filters are doing to the feed is the
   // summary sentence's job (asserted on a booted page below).
