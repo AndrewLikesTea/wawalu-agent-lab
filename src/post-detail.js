@@ -323,11 +323,13 @@ function renderFailed(container, onRetry) {
 // string cannot. It names the product doing the work, the one public post being
 // retrieved, its source, and the shared link it comes from.
 //
-// It is the one wait on this site that does not open "Loading …" — Social says
-// "Loading the Social feed…", People "Loading image posts…". Deliberate, not
-// drift: those are waits on a page the reader chose, where the only unknown is
-// when. This one is met cold, and the reader does not yet know what a Shiplog
-// link is, that one post is coming rather than a feed, or that it is public.
+// Every wait on this site now names what is being retrieved rather than opening
+// "Loading …", and Social's and People's go on to name the next thing a reader
+// can do while it runs. This one names no action, because there is none: the
+// reader followed a link to one post and the only thing to do is receive it. So
+// it spends that sentence on what a cold reader does not yet know instead —
+// what Shiplog is, that one post is coming rather than a feed, and that it is
+// public.
 export const POST_LOADING_STATUS = "Shiplog is retrieving one public Social post from the shared link.";
 
 // What the wait above promised, kept: the two parts of a post this page can

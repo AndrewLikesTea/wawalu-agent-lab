@@ -341,7 +341,7 @@ test("People uses one status node for loading, error, and recovery to live posts
   t.after(() => { globalThis.setInterval = savedInterval; page.restore(); });
 
   const status = page.document.querySelector("#profile-feed-status");
-  assert.equal(textOf(status), "Loading image posts…");
+  assert.equal(textOf(status), "Image posts are loading. Go to Social to publish an image post.");
   assert.equal(page.document.querySelectorAll("#profile-feed-status").length, 1);
 
   await importPageModule("/profile-page.js");
@@ -1146,7 +1146,7 @@ test("the demo disclaimer stays below the grid while the posts load and when the
   globalThis.fetch = (url, init) => (url === LIVE_ROUTE ? new Promise(() => {}) : routed(url, init));
   try {
     assertPicturesBeforeProvenance(pending.document, "as served", {
-      tiles: 0, status: /^Loading image posts…$/,
+      tiles: 0, status: /^Image posts are loading\. Go to Social to publish an image post\.$/,
     });
     await importPageModule("/profile-page.js");
     await waitFor(() => textOf(pending.document.querySelector("#profile-filter-hint")),

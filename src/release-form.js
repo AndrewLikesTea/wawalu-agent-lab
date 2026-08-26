@@ -81,22 +81,22 @@ export function pruneSelection(selected = [], decisions = []) {
   return [...new Set(selected)].filter((id) => known.has(id));
 }
 
-// What is linked, and — once anything is — which of those decisions governs the
-// release. It is the first ticked (see toggleDecisionSelection: the selection
-// keeps the order it was chosen in, and the detail view reads the head of that
-// order back). Saying so here is how the recorder chooses it: the summary is a
-// live region, so the answer is announced as the choice is made without moving
-// focus out of the checkbox group.
+// What is linked, and — once anything is — which decision was linked first (see
+// toggleDecisionSelection: the selection keeps the order it was chosen in, and
+// the detail view reads the head of that order back). Saying so here is how the
+// recorder chooses it: the summary is a live region, so the answer is announced
+// as the choice is made without moving focus out of the checkbox group.
 //
-// "Governing decision" is the one name for this concept: the field's hint above
-// says it, this summary says it, and the release detail view heads the section
-// it renders for that decision with it.
+// "First linked decision" is the one name for this concept: the field's hint
+// above says it, this summary says it, and the release detail view heads the
+// section it renders for that decision with it (GOVERNING_DECISION_HEADING,
+// src/releases.js). The `governing` names below are the internal ones and stay.
 export function selectionSummaryText(count, total, governingTitle = "") {
   if (total === 0) return "No decisions are available to link yet.";
   if (count === 0) return `No decisions linked yet. ${total} available.`;
   const linked = `${count} of ${total} ${total === 1 ? "decision" : "decisions"} linked.`;
   const governing = typeof governingTitle === "string" ? governingTitle.trim() : "";
-  return governing === "" ? linked : `${linked} “${governing}” is the governing decision.`;
+  return governing === "" ? linked : `${linked} “${governing}” is the first linked decision.`;
 }
 
 // Build the record. Throws a TypeError carrying one of RELEASE_FORM_ERRORS so

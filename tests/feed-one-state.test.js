@@ -122,7 +122,7 @@ test("Social says one thing while it loads, and the other three lines are not on
 
   const status = document.querySelector("#feed-state");
   assert.equal(status.querySelectorAll(".state-title").length, 1);
-  assert.equal(textOf(status.querySelector(".state-title")), "Loading the Social feed…");
+  assert.equal(textOf(status.querySelector(".state-title")), "Posts are loading. Select “Write a post” to publish.");
 
   // Removed, not hidden. Each of these would otherwise be a second description
   // of the one open fetch, and neither is a claim the page can support yet.
@@ -132,7 +132,7 @@ test("Social says one thing while it loads, and the other three lines are not on
   const body = textOf(document.body);
   assert.doesNotMatch(body, /Counting posts/);
   assert.doesNotMatch(body, /New posts will appear here on their own/);
-  assert.equal((body.match(/Loading the Social feed/g) ?? []).length, 1);
+  assert.equal((body.match(/Posts are loading\. Select “Write a post” to publish\./g) ?? []).length, 1);
 
   // The wait reserves both kinds of post card, including their metadata and
   // eventual action position, without inventing anything a keyboard can reach.
@@ -202,7 +202,7 @@ test("Social names its failure, retries it by keyboard, and comes back", async (
     { id: "back-2", author: "Ari", content: "Also here.", timestamp: "2026-07-17T12:00:00.000Z" },
   ] };
   retry.click();
-  assert.equal(textOf(status.querySelector(".state-title")), "Loading the Social feed…",
+  assert.equal(textOf(status.querySelector(".state-title")), "Posts are loading. Select “Write a post” to publish.",
     "retry did not put the page back into the loading state");
   assert.equal(document.querySelectorAll("#post-count").length, 0, "the count outlived the state that has no count");
   await waitFor(() => document.querySelectorAll("#post-count").length === 1, "the retried request settled");
@@ -284,7 +284,7 @@ test("Social's promise about new posts is said only where there is a feed for th
   // authored directly above "Loading the Social feed…", which is the whole of
   // #1772: two statuses at once, and the one that could not be true yet first.
   assert.equal(promiseCount(document, promise), 0);
-  assert.equal((textOf(document.body).match(/Loading the Social feed…/g) ?? []).length, 1);
+  assert.equal((textOf(document.body).match(/Posts are loading\. Select “Write a post” to publish\./g) ?? []).length, 1);
 
   // Loading: still one statement, and it is the wait.
   // A retry the panel can offer, so the failed state below is the one a reader
@@ -293,7 +293,7 @@ test("Social's promise about new posts is said only where there is a feed for th
   const feed = mountSocialFeed(document, { posts: [], state: "loading", onRetry: () => {} });
   assert.equal(promiseCount(document, promise), 0);
   assert.equal(document.querySelectorAll(".feed-connection").length, 0);
-  assert.equal(textOf(document.querySelector("#feed-state").querySelector(".state-title")), "Loading the Social feed…");
+  assert.equal(textOf(document.querySelector("#feed-state").querySelector(".state-title")), "Posts are loading. Select “Write a post” to publish.");
 
   // Failed: the panel's message and its Retry are the page's whole status. A
   // connection line here would be a second instruction — reload the page —
@@ -323,7 +323,7 @@ test("People says one thing while it loads, and the other three lines are not on
   mountProfile(document, { posts: [], author: "Zed", state: "loading" });
 
   const status = document.querySelector("#profile-feed-status");
-  assert.equal(textOf(status), "Loading image posts…");
+  assert.equal(textOf(status), "Image posts are loading. Go to Social to publish an image post.");
 
   assert.equal(document.querySelectorAll("#profile-summary").length, 0);
   assert.equal(document.querySelectorAll(".feed-connection").length, 0);
@@ -333,7 +333,7 @@ test("People says one thing while it loads, and the other three lines are not on
   assert.doesNotMatch(body, /Counting image posts/);
   assert.doesNotMatch(body, /New image posts will appear here on their own/);
   assert.doesNotMatch(body, /Want a picture of your own here\?/);
-  assert.equal((body.match(/Loading image posts/g) ?? []).length, 1);
+  assert.equal((body.match(/Image posts are loading\. Go to Social to publish an image post\./g) ?? []).length, 1);
 
   // The requested/selected name remains real context while the result tiles
   // wait, but no partial set of names is offered as if it were selectable.
@@ -447,7 +447,7 @@ test("People names its failure, retries it by keyboard, and comes back", async (
     image_url: "/media/Mina.svg", image_alt: "A drawing signed Mina", image_width: 1200, image_height: 900,
   }] };
   retry.click();
-  assert.equal(textOf(document.querySelector("#profile-feed-status")), "Loading image posts…",
+  assert.equal(textOf(document.querySelector("#profile-feed-status")), "Image posts are loading. Go to Social to publish an image post.",
     "retry did not put the page back into the loading state");
   await waitFor(() => document.querySelectorAll(".profile-tile").length > 0, "the retried request settled");
 
@@ -519,14 +519,14 @@ test("People's promise about new image posts is said only where there is a grid 
 
   // The shipped frame: one statement, and it is the one over the grid.
   assert.equal(promiseCount(document, promise), 0);
-  assert.equal((textOf(document.body).match(/Loading image posts…/g) ?? []).length, 1);
+  assert.equal((textOf(document.body).match(/Image posts are loading\. Go to Social to publish an image post\./g) ?? []).length, 1);
 
   // With a retry to run, so the failed panel below builds the control a reader
   // is actually given.
   const profile = mountProfile(document, { posts: [], author: "Zed", state: "loading", onRetry: () => {} });
   assert.equal(promiseCount(document, promise), 0);
   assert.equal(document.querySelectorAll(".feed-connection").length, 0);
-  assert.equal(textOf(document.querySelector("#profile-feed-status")), "Loading image posts…");
+  assert.equal(textOf(document.querySelector("#profile-feed-status")), "Image posts are loading. Go to Social to publish an image post.");
 
   // Failed: the panel names it and holds the one control that retries it.
   profile.setState("error");

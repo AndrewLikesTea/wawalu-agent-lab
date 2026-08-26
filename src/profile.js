@@ -347,7 +347,7 @@ export function profileEmptyText(author) {
 // the frame before hydration, where it once shipped "Ari hasn't posted an image
 // yet", a verdict that was false for the seeded feed.
 export function loadingSummaryText(author = DEFAULT_AUTHOR) {
-  return "Loading image posts…";
+  return "Image posts are loading. Go to Social to publish an image post.";
 }
 
 // The counts line when the selected display name has nothing to show. It states

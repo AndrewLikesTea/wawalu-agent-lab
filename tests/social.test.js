@@ -312,7 +312,7 @@ test("social page is wired, labeled, and linked from the other pages", async () 
   // tests/live-connection-copy.test.js owns the three states it can be in.
   assert.match(page, /id="feed-status"><\/span>/);
   assert.doesNotMatch(page, /will appear here on their own/);
-  assert.equal((page.match(/Loading the Social feed…/g) ?? []).length, 1);
+  assert.equal((page.match(/Posts are loading\. Select “Write a post” to publish\./g) ?? []).length, 1);
   assert.doesNotMatch(page, /id="post-count"[^>]*>0 posts<\/span>/);
   // One announced region for a filter change, and it is the summary: the count
   // beside the heading says a thinner version of the same news, so announcing
@@ -788,7 +788,7 @@ test("the status region and the posts are read before the demo disclaimer, in ev
   };
 
   const feed = mountSocialFeed(document, { posts: [], state: "loading" });
-  invariant("loading", { status: /Loading the Social feed/ });
+  invariant("loading", { status: /Posts are loading\. Select “Write a post” to publish\./ });
 
   feed.setState("error");
   invariant("error", { status: /Social posts could not be loaded\./ });
@@ -1456,7 +1456,7 @@ test("the post count never claims zero posts before the feed has any answer", as
   assert.equal(page.document.querySelectorAll(".empty-state").length, 0, "loading copy never shares the page with empty-state guidance");
   const status = page.document.querySelector("#feed-state");
   assert.equal(status.querySelectorAll(".state-title").length, 1);
-  assert.equal(textOf(status.querySelector(".state-title")), "Loading the Social feed…");
+  assert.equal(textOf(status.querySelector(".state-title")), "Posts are loading. Select “Write a post” to publish.");
 
   feed.setState("error");
   assert.equal(textOf(count), "Unavailable", "a failed fetch is not a count of zero");

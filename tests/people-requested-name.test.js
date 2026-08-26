@@ -21,6 +21,10 @@ import assert from "node:assert/strict";
 import { loadPage, textOf } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
 import { MAX_AUTHOR_LENGTH } from "../src/social-identity.js";
+// Imported rather than spelled out: this file only ever asserts that the wait is
+// gone, and a literal copy of it here goes quietly true the next time the wait
+// is reworded, leaving the check passing over a page still narrating a load.
+import { loadingSummaryText } from "../src/profile.js";
 
 const PAGE_URL = new URL("../src/profile.html", import.meta.url);
 const SEED_ROUTE = "/social-demo-data.json";
@@ -99,7 +103,7 @@ function assertStatedZero(document, name) {
   assert.equal(drawnTiles(document).length, 0, "the grid drew a tile under a name with no image posts");
   assert.equal(document.querySelectorAll(".profile-tile-skeleton").length, 0,
     "loading placeholders are still standing behind the answered state");
-  assert.doesNotMatch(textOf(status), /Loading image posts…/,
+  assert.notEqual(textOf(status), loadingSummaryText(),
     "the waiting line outlived the wait it stood in for");
   // Replaced, not merely emptied: the region says something a reader can act on.
   assert.ok(textOf(status).length > 0, "the status region answered with nothing at all");

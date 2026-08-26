@@ -651,7 +651,7 @@ const NO_POSTS_GUIDANCE = "Write a post, or create an image in Paint first.";
 // People is not one of them. It waits on the same fetch but shows one display
 // name's image posts, so it says that instead (loadingSummaryText,
 // src/profile.js); this sentence stays Social's.
-export const FEED_LOADING_LINE = "Loading the Social feed…";
+export const FEED_LOADING_LINE = "Posts are loading. Select “Write a post” to publish.";
 
 // The connection line under the filters, on Social and on People, from one
 // source so the same fact never gets two phrasings. `noun` is the only

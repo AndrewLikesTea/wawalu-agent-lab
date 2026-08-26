@@ -1130,13 +1130,15 @@ test("the shared-post page introduces itself once, answering what a cold visitor
     assert.equal(times(source, RETIRED_WAIT), 0, `${name} still ships the retired wait`);
   }
 
-  // This page's wait is the one on the site that does not open "Loading …",
-  // because it is the one wait a reader meets without having chosen the page.
-  // That is a scoped exception, not the start of a drift: the two feeds this
-  // page is a permalink into still say it the site's way, and a reader who
-  // leaves here for either of them meets the pattern immediately.
-  assert.match(sources.get("src/social.js"), /"Loading the Social feed…"/);
-  assert.match(sources.get("src/profile.js"), /"Loading image posts…"/);
+  // This page's wait is the one on the site that names no next action, because
+  // a reader who followed a link to one post has none to take. That is a scoped
+  // exception, not the start of a drift: the two feeds this page is a permalink
+  // into both name what is loading and what to do while it runs, and a reader
+  // who leaves here for either of them meets that pattern immediately. Pinned
+  // against the modules, so retiring either line here fails loudly rather than
+  // leaving this page's exception describing a rule nothing follows.
+  assert.match(sources.get("src/social.js"), /"Posts are loading\. Select “Write a post” to publish\."/);
+  assert.match(sources.get("src/profile.js"), /"Image posts are loading\. Go to Social to publish an image post\."/);
 
   // The wait a cold visitor meets, held open. Read off the rendered page rather
   // than the markup, because this is the state the module redraws.

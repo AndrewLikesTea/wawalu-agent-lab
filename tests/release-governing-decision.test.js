@@ -17,6 +17,7 @@ import { STORAGE_KEY } from "../src/app.js";
 import {
   ALL_DECISIONS_FILTER,
   DECISION_FILTER_PARAM,
+  GOVERNING_DECISION_HEADING,
   GOVERNING_DECISION_MISSING_TEXT,
   NO_RATIONALE_TEXT,
   RATIONALE_PREVIEW_LENGTH,
@@ -32,6 +33,7 @@ import {
   renderReleaseDetail,
   resolveReleaseDetail,
 } from "../src/releases.js";
+import { selectionSummaryText } from "../src/release-form.js";
 import { initReleasesPage } from "../src/releases-page.js";
 import { createElement, first, byClass, installDocument } from "./support/dom.js";
 import { DomEvent, loadPage, pressKey, pressSpace, textOf } from "./support/browser.js";
@@ -329,6 +331,26 @@ test("a stale decision in the URL falls back to the whole history rather than em
   assert.deepEqual(versions(page), ["v2.0.0", "v1.9.0", "v1.8.0", "v1.7.0"]);
 });
 
+// One relationship, one name, across every surface that states it. The concept
+// used to ship as "governing decision" in the recorder and "linked decision" in
+// the summary beside it, which is two names for one thing (issue #2034). The
+// half-renamed state is the one that hurts most — a reader is told to expect a
+// section the release page does not appear to have — so the three surfaces are
+// held together here rather than one at a time in the tests below.
+test("the first linked decision is called that on all three surfaces that name it", async (t) => {
+  const { page } = await openReleases(t);
+  const surfaces = {
+    "the recorder's field hint": textOf(page.document.querySelector("#release-decisions-hint")),
+    "the recorder's live summary": selectionSummaryText(1, 2, "Adopt a durable job queue"),
+    "the release detail heading": GOVERNING_DECISION_HEADING,
+  };
+
+  for (const [where, copy] of Object.entries(surfaces)) {
+    assert.match(copy, /first linked decision/i, `${where} does not use the one name for this relationship`);
+    assert.doesNotMatch(copy, /governing decision/i, `${where} still ships the retired second name`);
+  }
+});
+
 test("the recorder names the decision that will govern the release as it is chosen", async (t) => {
   const { page } = await openReleases(t);
   const summary = page.document.querySelector("#release-decisions-summary");
@@ -338,7 +360,7 @@ test("the recorder names the decision that will govern the release as it is chos
   // The hint says the rule before anything is ticked, in the same words the
   // release detail view heads that decision with.
   assert.ok(textOf(page.document.querySelector("#release-decisions-hint"))
-    .includes("The first decision you select is the release’s governing decision: the release page shows it in its own section above the rest."));
+    .includes("The release page shows the first linked decision in its own section above the rest."));
   // A live region, so the choice is announced without moving focus out of the
   // group — and it is a region, so it was announced at all.
   assert.equal(summary.getAttribute("role"), "status");
@@ -347,17 +369,17 @@ test("the recorder names the decision that will govern the release as it is chos
   // Keyboard only: reach an option and link it with Space.
   optionFor("d-flags").focus();
   pressSpace(page.document);
-  assert.equal(textOf(summary), "1 of 3 decisions linked. “Ship behind feature flags” is the governing decision.");
+  assert.equal(textOf(summary), "1 of 3 decisions linked. “Ship behind feature flags” is the first linked decision.");
 
   // A second tick joins the release but does not take the governing seat.
   optionFor("d-queue").focus();
   pressSpace(page.document);
-  assert.equal(textOf(summary), "2 of 3 decisions linked. “Ship behind feature flags” is the governing decision.");
+  assert.equal(textOf(summary), "2 of 3 decisions linked. “Ship behind feature flags” is the first linked decision.");
 
   // Unticking the governing decision promotes the next one in the chosen order.
   optionFor("d-flags").focus();
   pressSpace(page.document);
-  assert.equal(textOf(summary), "1 of 3 decisions linked. “Adopt a durable job queue” is the governing decision.");
+  assert.equal(textOf(summary), "1 of 3 decisions linked. “Adopt a durable job queue” is the first linked decision.");
 
   // Each option carries the rationale it is being chosen on, as text.
   const rationale = [...page.document.querySelectorAll(".decision-picker-rationale")].map(textOf);

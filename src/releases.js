@@ -1135,6 +1135,13 @@ function renderDetailDecisionsEmpty() {
 const GOVERNING_TITLE_ID = "detail-governing-title";
 const GOVERNING_TARGET_ID = "detail-governing-target";
 
+// "First linked decision" is the one name for this concept, and this heading is
+// the third of the three surfaces that have to say it: the recorder's field hint
+// and its live summary are the other two (selectionSummaryText,
+// src/release-form.js). The caption carries the meaning the old name "governing
+// decision" used to carry on its own, so dropping that second term costs the
+// reader nothing.
+export const GOVERNING_DECISION_HEADING = "First linked decision";
 export const GOVERNING_DECISION_CAPTION =
   "The decision this release stands on — the first one linked when it was recorded.";
 export const GOVERNING_DECISION_MISSING_TEXT =
@@ -1152,7 +1159,7 @@ export const GOVERNING_DECISION_MISSING_TEXT =
 function renderDetailGoverning(association) {
   const section = el("section", `detail-governing${association.missing ? " detail-governing-missing" : ""}`);
   section.setAttribute("aria-labelledby", GOVERNING_TITLE_ID);
-  const heading = el("h2", "detail-governing-heading", "Governing decision");
+  const heading = el("h2", "detail-governing-heading", GOVERNING_DECISION_HEADING);
   heading.id = GOVERNING_TITLE_ID;
   section.append(heading);
   section.append(el("p", "detail-governing-caption", GOVERNING_DECISION_CAPTION));

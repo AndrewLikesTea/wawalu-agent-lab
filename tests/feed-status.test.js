@@ -8,13 +8,13 @@ const { renderFeedStatus } = await import("../src/feed-status.js");
 test("loading is one labelled status with no invented keyboard stop", () => {
   const container = createElement("div");
   const status = renderFeedStatus(container, {
-    state: "loading", label: "Social feed loading", text: "Loading the Social feed…",
+    state: "loading", label: "Social feed loading", text: "Posts are loading. Select “Write a post” to publish.",
   });
 
   assert.equal(container.children.length, 1);
   assert.equal(status.getAttribute("role"), "status");
   assert.equal(status.getAttribute("aria-label"), "Social feed loading");
-  assert.equal(status.textContent, "Loading the Social feed…");
+  assert.equal(status.textContent, "Posts are loading. Select “Write a post” to publish.");
   assert.equal(status.tabIndex, undefined);
   assert.equal(byClass(status, "feed-status-action").length, 0);
 });
