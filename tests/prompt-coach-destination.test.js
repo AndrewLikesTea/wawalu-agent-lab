@@ -111,8 +111,12 @@ test("the home page offers the coach twice: in the destination list and as a thi
   const document2 = parseHtml(html);
   const target = document2.querySelector(".coach-entry").querySelector('a[href="/coach.html"]');
   let reached = null;
-  for (let press = 0; press < 30 && reached !== target; press += 1) reached = pressTab(document2);
-  assert.equal(reached, target, "the coach entry point must sit in the natural tab order");
+  // Bounded by the page's own tab stops, like tabTo above: a fixed count turns
+  // every new link added higher up the page into a failure of this test.
+  for (let press = 0; press < tabSequence(document2).length && reached !== target; press += 1) reached = pressTab(document2);
+  // ok(), not equal(): a failing equal() on two parsed nodes stringifies the
+  // whole page and takes minutes to report what this message already says.
+  assert.ok(reached === target, "the coach entry point must sit in the natural tab order");
   pressEnter(document2);
   assert.deepEqual(document2.navigations, ["/coach.html"]);
 });
