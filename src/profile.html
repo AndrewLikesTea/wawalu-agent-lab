@@ -151,9 +151,20 @@
                borrow context from.
                The avatar is decoration and is hidden from assistive technology,
                so the name is announced once, from the heading, and never as the
-               word "AR". -->
+               word "AR".
+               This whole block ships without a person in it. Every visible
+               string here is written by profile.js from the posts it has in
+               hand, and until it has some, the served page names nobody: the
+               initials, the heading and the sentence under it were all authored
+               as the seed's guess, so the first paint asserted a filtered,
+               sorted result under a display name over an empty grid. -->
           <div class="profile-identity">
-            <span class="profile-avatar" id="profile-avatar" aria-hidden="true">AR</span>
+            <!-- Empty, not "AR": the stylesheet gives this chip its size, so it
+                 waits as a reserved shape beside the placeholder tiles rather
+                 than as two letters standing for whoever the seed guessed.
+                 profile.js writes the initials in the same paint the grid gets
+                 its first tile. -->
+            <span class="profile-avatar" id="profile-avatar" aria-hidden="true"></span>
             <div class="profile-identity-text">
               <!-- This heading is the accessible name of the results section
                    around it, so it has to say whose posts are below it and how
@@ -170,11 +181,18 @@
                    feature.
                    profile.js writes it from the same list it draws the tiles
                    from — it must stay word-for-word with profileResultsHeading(),
-                   and a test pins both. "Ari" is the pre-hydration render of the
-                   display name the seed feed lands on; nothing has been counted
-                   in that frame, so the heading names the posts without numbering
-                   them, the way the picker says "Counting…" rather than "0". -->
-              <h2 id="grid-title">Ari · image posts</h2>
+                   and a test pins both.
+                   It ships as the region's plain noun, which is what
+                   profileResultsHeading() returns for a first load with an empty
+                   grid (PENDING_RESULTS_HEADING). It used to ship "Ari · image
+                   posts": the page's largest heading naming a display name the
+                   seed had guessed, over six placeholders and beside a filter
+                   row still saying display names become available when image
+                   posts load. Nothing has been published by anyone in that
+                   frame, so the heading names the content type and waits; the
+                   display name and its count land in the same paint as the first
+                   tile they can be true of. -->
+              <h2 id="grid-title">Image posts</h2>
               <!-- The second and last visible copy of the display name in this
                    region, and the one that states the result in a sentence: how
                    many image posts are under the grid and whose name they were
@@ -185,15 +203,25 @@
                    pictures — and left the number to the heading beside it alone.
                    profile.js writes it from the same array it draws the tiles
                    from (profileActiveFilterLine).
-                   "Ari" is the pre-hydration render, and nothing is counted in
-                   that frame, so it names the display name without a number,
-                   exactly as the heading above it does.
+                   It ships empty and `hidden`, the way the connection line below
+                   ships wordless: this sentence states what the grid beside it
+                   is showing, and the served page is showing nothing. It used to
+                   ship the loaded page's own sentence with the seed's guess at a
+                   display name in it — a claim about a result, painted before
+                   the feed had answered, which a test here pins the absence of
+                   and so is paraphrased rather than quoted. profile.js drops the
+                   attribute on mount and
+                   takes the element out of the document for as long as the first
+                   load has an empty grid — absent rather than hidden, because a
+                   hidden sentence is still text a screen reader can be walked
+                   through, and rather than emptied, because an empty element
+                   with this class still paints its wash.
                    A filled wash rather than an outline, because it reports a
                    state that changes (design-system/claude-design,
                    review-08-foundations: filled wash = dynamic signal, outline =
                    static classification), in the same two colours the avatar
                    beside it already uses. -->
-              <p class="profile-active-filter" id="profile-name">Showing image posts published as Ari.</p>
+              <p class="profile-active-filter" id="profile-name" hidden></p>
             </div>
           </div>
           <!-- The ordering line, and the counts beside it: a label on the list
@@ -299,9 +327,10 @@
                image posts spoke the same guidance twice, from two regions. -->
           <div id="profile-feed-status">Image posts are loading. Open Social to publish an image post.</div>
           <div id="profile-grid" aria-describedby="profile-order" aria-busy="true">
-            <!-- The selected Ari context remains in the heading and filled
-                 state chip above. Pending names are not rendered as controls;
-                 these inert tiles reserve only the image-result layout. -->
+            <!-- No display name is claimed above these: the heading names the
+                 content type and the filled state chip is not on the page yet.
+                 Pending names are not rendered as controls either; these inert
+                 tiles reserve only the image-result layout. -->
             <ul class="profile-grid profile-grid-skeleton" role="list" aria-hidden="true" inert>
               <li class="profile-cell"><div class="profile-tile profile-tile-skeleton"><div class="skeleton-media skeleton-media-square"></div><div class="skeleton-line"></div><div class="skeleton-line skeleton-line-short"></div><div class="profile-tile-meta skeleton-meta"><div class="skeleton-line skeleton-line-date skeleton-line-short"></div><div class="skeleton-line skeleton-line-stat skeleton-line-short"></div></div><div class="skeleton-line skeleton-line-short skeleton-line-action"></div></div></li>
               <li class="profile-cell"><div class="profile-tile profile-tile-skeleton"><div class="skeleton-media skeleton-media-square"></div><div class="skeleton-line"></div><div class="skeleton-line skeleton-line-short"></div><div class="profile-tile-meta skeleton-meta"><div class="skeleton-line skeleton-line-date skeleton-line-short"></div><div class="skeleton-line skeleton-line-stat skeleton-line-short"></div></div><div class="skeleton-line skeleton-line-short skeleton-line-action"></div></div></li>

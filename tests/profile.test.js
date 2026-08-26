@@ -11,7 +11,7 @@ installDocument();
 const { FEED_LOADING_LINE } = await import("../src/social.js");
 
 const {
-  EMPTY_SUMMARY_LINE, PROFILE_EMPTY_COPY, authorChipLabel, authorInitials, captionFor, countLabel, defaultProfileAuthor,
+  EMPTY_SUMMARY_LINE, PENDING_RESULTS_HEADING, PROFILE_EMPTY_COPY, authorChipLabel, authorInitials, captionFor, countLabel, defaultProfileAuthor,
   distinctAuthors, hasExplicitAuthor, imagePostCounts, loadingSummaryText,
   mergePostsById, normalizeProfileApiPosts, normalizeSeedPosts, pickerEntries, pickerNoteText, postDetailHref,
   singleNameNotice, profileActiveFilterLine,
@@ -639,6 +639,37 @@ test("the identity line says how many image posts are showing and under which na
     'Showing 2 image posts published as <a href="#">Social</a>.');
 });
 
+// The reported defect (#2043): a first load with an empty grid asserted a
+// filtered, sorted result under a named person — the heading, the sentence under
+// it and the initials beside it all naming whoever the seed had guessed, painted
+// beside a filter row saying display names become available when image posts
+// load. The claim is what goes; the placeholders stay exactly as they were.
+test("a first load with nothing on screen names no display name and claims no result", () => {
+  const elements = { avatar: createElement("span"), name: createElement("span"), summary: createElement("p") };
+  renderProfileHeader(elements, "Mina Okafor", { total: 0, withImages: 0, likes: 0, latest: null }, { pending: true });
+
+  // Nothing in this header carries a person, in any of the three ways it used to.
+  for (const node of [elements.avatar, elements.name]) assert.equal(node.textContent, "");
+  assert.equal(elements.avatar.getAttribute("aria-hidden"), "true", "the reserved chip started announcing itself");
+  assert.equal(profileActiveFilterLine("Mina Okafor", null, { pending: true }), "");
+  assert.equal(profileActiveFilterLine("Mina Okafor", 3, { pending: true }), "");
+  assert.equal(profileActiveFilterLine("Mina Okafor", null, { pending: true, counting: true }), "");
+  // And the heading is the content type, with no name, no count and no ordering
+  // claim attached to either.
+  assert.equal(profileResultsHeading("Mina Okafor", null, { pending: true }), "Image posts");
+  assert.equal(PENDING_RESULTS_HEADING, "Image posts");
+  assert.doesNotMatch(PENDING_RESULTS_HEADING, /Mina|Okafor|\d|newest first/i);
+
+  // The moment there is something to be true about, both go back to the strings
+  // the loaded page has always rendered, byte for byte.
+  assert.equal(profileResultsHeading("Mina Okafor", 3), "Mina Okafor · 3 image posts");
+  assert.equal(profileResultsHeading("Mina Okafor"), "Mina Okafor · image posts");
+  assert.equal(profileActiveFilterLine("Mina Okafor", 3), "Showing 3 image posts published as Mina Okafor.");
+  renderProfileHeader(elements, "Mina Okafor", { total: 3, withImages: 3, likes: 0, latest: null }, { count: 3 });
+  assert.equal(elements.avatar.textContent, "MO");
+  assert.equal(elements.name.textContent, "Showing 3 image posts published as Mina Okafor.");
+});
+
 test("an empty header states the situation once, in image-post terms", () => {
   const elements = { avatar: createElement("span"), name: createElement("span"), summary: createElement("p") };
   renderProfileHeader(elements, "Mina Okafor", { total: 0, withImages: 0, likes: 0, latest: null }, { count: 0 });
@@ -776,10 +807,25 @@ test("the profile page's static copy does not drift from the module's", async ()
     "People renders one authoritative loading message");
   assert.doesNotMatch(html, new RegExp(FEED_LOADING_LINE), "People is announcing Social's feed again");
   // The results heading ships the same words the module writes there, so the
-  // frame before hydration reads as the state it is in: the display name the
-  // seed lands on, and the posts under it, with nothing counted yet.
-  assert.match(html, new RegExp(`id="grid-title">${profileResultsHeading("Ari")}<`));
+  // frame before hydration reads as the state it is in — and that state is a
+  // page with no posts on it, by anybody. It shipped "Ari · image posts", the
+  // largest heading on the page, naming a display name the seed had guessed over
+  // six placeholders (#2043); it now ships the region's plain noun, which is
+  // what the module writes for a first load with an empty grid.
+  assert.match(html, new RegExp(`id="grid-title">${profileResultsHeading("Ari", null, { pending: true })}<`));
+  assert.equal(profileResultsHeading("Ari", null, { pending: true }), PENDING_RESULTS_HEADING);
+  assert.doesNotMatch(html, /id="grid-title">[^<]*·/, "the static heading names a display name nobody has published as");
   assert.doesNotMatch(html, /id="grid-title">[^<]*\d/, "the static heading counts posts nobody has counted");
+  // And the sentence under it ships with nothing in it and out of the reader's
+  // way, rather than claiming a filtered, sorted view of a named person. The
+  // initials beside it are gone for the same reason: two letters standing for
+  // whoever the seed guessed.
+  assert.match(html, /id="profile-name" hidden><\/p>/);
+  assert.match(html, /id="profile-avatar" aria-hidden="true"><\/span>/);
+  assert.doesNotMatch(html, new RegExp(profileActiveFilterLine("Ari")));
+  for (const name of ["Ari", "Zed", "Bea"]) {
+    assert.doesNotMatch(html, new RegExp(`published as ${name}`), "the served page still names a display name");
+  }
   assert.equal(profileResultsHeading("Ari", 1), "Ari · 1 image post", "Social's own pluralisation");
   assert.equal(profileResultsHeading("Ari", 3), "Ari · 3 image posts");
   assert.equal(profileResultsHeading("Ari", 0), "Ari · 0 image posts");
