@@ -33,6 +33,8 @@ import {
   sameSiteHref,
 } from "../src/deployed-release.js";
 import { UNSTAMPED_NOTE, renderShippedBuild } from "../src/deployed-release-view.js";
+import { healthContract } from "../src/health-contract.js";
+import { parseHealthBody } from "../src/deployment-status-view.js";
 import { loadPage, textOf } from "./support/browser.js";
 import { waitFor } from "./support/page-module.js";
 
@@ -284,7 +286,7 @@ test("an unstamped build shows no record and withdraws the real marking", async 
   assert.match(verdictText(page), /no real record of this deployment/);
   assert.equal(
     textOf(page.document.querySelector("#deployment-identifiers")),
-    "Running build identifier: 0123456789abcdef0123456789abcdef01234567. Compared release-record identifier: not available.",
+    "Running build version: 0123456789abcdef0123456789abcdef01234567. Real deployment-record version: not available.",
   );
   assert.equal(page.document.querySelector("#deployment-release-record").hidden, true);
   // With no commit and no record there is nothing to link, so the ruled row the
@@ -350,16 +352,16 @@ test("a page and a deployment built from different commits read as a mismatch wi
   assert.equal(textOf(actions[0]), REAL_RECORD_LINK_LABEL);
   assert.equal(
     textOf(page.document.querySelector("#deployment-identifiers")),
-    `Running build identifier: ${other}. Compared release-record identifier: ${DEPLOYED_RELEASE_ID}.`,
+    `Running build version: ${other}. Real deployment-record version: ${SHA}.`,
   );
   assert.equal(page.document.querySelector("#deployment-release-record").hidden, false);
 });
 
-test("the proof names both compared identifiers and links both records", async (t) => {
+test("the proof names both compared version values and links both records", async (t) => {
   const page = await open(t);
   assert.equal(
     textOf(page.document.querySelector("#deployment-identifiers")),
-    `Running build identifier: ${SHA}. Compared release-record identifier: ${DEPLOYED_RELEASE_ID}.`,
+    `Running build version: ${SHA}. Real deployment-record version: ${SHA}.`,
   );
   const record = page.document.querySelector("#deployment-release-record");
   // The link names the record, and the identifiers line above states its id —
@@ -409,6 +411,34 @@ test("the invented example keeps its marking, its controls, and the link they co
   await Promise.resolve();
   assert.equal(copied, "https://labs.wawalu.org/releases.html?focus=demo-r-1-3-0#shiplog-proof");
   assert.equal(textOf(page.document.querySelector("#shiplog-proof-copy-status")), "Example link copied to clipboard.");
+});
+
+test("the body the endpoint really serves is one this band reads, and it resolves to the real record's version", async (t) => {
+  // Every other case here hands the band a body written by hand to look like
+  // the endpoint's. This one takes the endpoint's own object — functions/healthz.js
+  // answers `healthContract(BUILD_STAMP)` — and puts it through the wire the
+  // browser reads it over, so the whole path is pinned end to end: serialise,
+  // parse, find the build field, compare against the real record.
+  //
+  // Without this, renaming that field leaves the deployed page permanently
+  // saying the check did not complete while every fixture-driven test above
+  // stays green. It is not a hypothetical rename: `releaseBuildFields`, in the
+  // same endpoint file, already names the same value `build_sha`.
+  const served = parseHealthBody(JSON.stringify(healthContract(STAMPED)));
+  const page = await open(t, { readHealth: answers(served) });
+
+  assert.equal(
+    textOf(page.document.querySelector("#deployment-identifiers")),
+    `Running build version: ${SHA}. Real deployment-record version: ${SHA}.`,
+  );
+  assert.equal(page.document.querySelector("#deployment-status").dataset.deploymentState, "match");
+  assert.match(verdictText(page), /^Confirmed: this site is running [0-9a-f]{40}, the version/);
+  // And the copy a buyer takes away carries the same two values, from the same
+  // check, rather than a second reading of it.
+  assert.equal(
+    page.document.querySelector("#deployment-copy").dataset.copyText,
+    `Deployment check verdict: ${verdictText(page)}\nRunning build version: ${SHA}. Real deployment-record version: ${SHA}.`,
+  );
 });
 
 /* ------------------------- the shipped build stamp ------------------------ */

@@ -168,9 +168,13 @@
       <section class="release-followup-slot" id="deployment-status" aria-labelledby="deployment-status-title">
         <div class="release-followup" id="deployment-status-callout">
           <h2 class="release-followup-title" id="deployment-status-title">Deployment check</h2>
-          <p class="release-followup-lead" id="deployment-status-proof">Does the real record of this deployment name the running build’s version? It reads the running build when the page loads. The example decision and release above are invented; that record and this answer are not.</p>
           <p class="release-followup-lead" id="deployment-verdict" role="status">Retrieving the running build’s version… That version is compared with the real record of this deployment, not with the invented example records.</p>
           <p class="detail-summary" id="deployment-identifiers"></p>
+          <div class="shiplog-proof-share">
+            <button class="share-button" id="deployment-copy" type="button" disabled aria-describedby="deployment-copy-status">Copy verdict and both versions</button>
+            <span class="share-status" id="deployment-copy-status" role="status" aria-live="polite" aria-atomic="true"></span>
+          </div>
+          <p class="release-followup-lead" id="deployment-status-proof">Does the real record of this deployment name the running build’s version? It reads the running build when the page loads. The example decision and release above are invented; that record and this answer are not.</p>
           <div class="shiplog-proof-share" id="deployment-proof-links">
             <a class="shiplog-real-link" id="deployment-release-record" href="/releases.html#shipped-build">Open the real record of this deployment</a>
             <a class="shiplog-real-link" id="deployment-commit" href="https://github.com/AndrewLikesTea/wawalu-agent-lab">Open the public repository this site is built from</a>

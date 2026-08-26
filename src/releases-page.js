@@ -336,6 +336,7 @@ export function initReleasesPage(root = document, storage = localStorage, option
     buildStamp,
     readHealth: options.readHealth,
     now: options.now,
+    clipboard: options.clipboard,
   }).catch(() => {});
 
   update();
