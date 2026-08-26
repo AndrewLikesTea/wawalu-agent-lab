@@ -186,8 +186,13 @@ test("the hero names the product before any surface, and keeps the log as a name
   // own labelled section, its own heading, and the same call to action landing
   // on the same populated record list.
   const entry = logEntryOf(html);
-  assert.match(entry, /The decision and release log · further down this page/);
+  assert.match(entry, /<p class="eyebrow">The decision and release log<\/p>/);
   assert.match(entry, /records decisions, tracks the releases they shape/);
+  // The log is named, never located: the entry used to say the workflows were
+  // "further down this page" twice in three lines, which names no destination a
+  // reader can look for. The call to action below carries the same name.
+  assert.doesNotMatch(entry, /further down this page/);
+  assert.match(entry, /You can record, search, filter, export, and import records in the decision and release log on this page\./);
   assert.match(entry, /<a class="button-link" href="#record-history">Explore the decision and release log/);
   assert.match(html, /<section class="workspace" id="record-history"/);
   assert.ok(
