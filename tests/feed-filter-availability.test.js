@@ -416,7 +416,7 @@ test("People's display-name chooser is not operable while image posts are loadin
   // genuinely waiting on the fetch rather than already drawn from seeded tiles.
   mountProfile(document, { posts: MIXED, author: "Ari", state: "loading" });
 
-  assert.equal(textOf(document.querySelector("#profile-feed-status")), "Loading image posts…");
+  assert.equal(textOf(document.querySelector("#profile-feed-status")), "Image posts are loading. Open Social to publish an image post.");
   const chips = document.querySelectorAll(".profile-filter-option");
   assert.equal(chips.length, 0, "the chooser exposed names before image posts loaded");
 
