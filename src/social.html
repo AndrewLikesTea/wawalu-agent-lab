@@ -215,8 +215,20 @@
                    name filter beside it, so clicking it moves focus to the menu
                    and a screen reader reads the pair. -->
               <label for="post-time-filter">Filter posts by posting time</label>
+              <!-- The all-values option is the one option in this menu that is
+                   never quoted into a sentence — src/social.js reads a set range
+                   back off the control, and "all" sets no range — so it is
+                   written as what the closed menu says, not as a clause. It read
+                   "From any time", which opens the way a start date opens: "from"
+                   plus an unbounded point, leaving a reader to decide whether the
+                   feed begins somewhere or holds everything. It is now the same
+                   shape as the neutral option in the menu beside it — "All" plus
+                   the thing the label names — so the two menus in this row say
+                   "no filter" the same way. "All posting times" rather than "All
+                   dates" because the ranges below it are measured in hours, and a
+                   reader choosing the past hour is not choosing a date. -->
               <select id="post-time-filter">
-                <option value="all">From any time</option>
+                <option value="all">All posting times</option>
                 <option value="hour">From the past hour</option>
                 <option value="day">From the past 24 hours</option>
                 <option value="week">From the past 7 days</option>
