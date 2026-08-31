@@ -634,11 +634,9 @@ function renderSkeleton(container, count = 3) {
 // Social offered one action three times and the composer above is where the
 // image is actually attached.
 //
-// It names the hero's control in that control's own words. The sentence used to
-// open "Publish a post", which was the opener's label at the time; the opener is
-// "Write a post" now, and an empty state that tells a reader to press a button
-// nothing on the page is called sends them looking for it.
-const NO_POSTS_GUIDANCE = "Write a post, or create an image in Paint first.";
+// It names the hero's control in that control's own words, so a reader can find
+// the action the empty state points to.
+const NO_POSTS_GUIDANCE = "Publish a post, or create an image in Paint first.";
 
 // One wait, one sentence — on this page. Social used to describe it twice at
 // once: a visible line ("Loading posts…") beside a live region that said
@@ -651,7 +649,7 @@ const NO_POSTS_GUIDANCE = "Write a post, or create an image in Paint first.";
 // People is not one of them. It waits on the same fetch but shows one display
 // name's image posts, so it says that instead (loadingSummaryText,
 // src/profile.js); this sentence stays Social's.
-export const FEED_LOADING_LINE = "Existing posts are still loading. Select Write a post to publish.";
+export const FEED_LOADING_LINE = "Existing posts are still loading. Select Publish a post.";
 
 // The connection line under the filters, on Social and on People, from one
 // source so the same fact never gets two phrasings. `noun` is the only
@@ -1332,7 +1330,7 @@ export function mountSocialFeed(root, options = {}) {
         // not a body of spaces — `required` is satisfied by whitespace — so the
         // blank refusal reaches this notice for real. The fallback is the belt:
         // an error that arrives with no message still says what happened.
-        // Not "Write a post within the limit": "Write a post" is the label on
+        // Not "Publish a post within the limit": "Publish a post" is the label on
         // the control that opens this composer, so that sentence read as an
         // instruction to press a button the reader is already past. This one
         // names the field and the number instead.

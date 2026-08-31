@@ -108,14 +108,9 @@
              "(optional)", so the composer takes a post with an image or
              without one and the control that opens it may not promise
              otherwise. It claims nothing about images in either direction now.
-             It names opening the form, and only that. It read "Publish a post"
-             for a while — the words the button at the end of the form already
-             carries — so the page offered what looked like two publish
-             controls, and a first-time visitor could not tell which of them
-             would make a post public. Opening is "Write a post", here and on
-             the heading it reveals, word for word; publishing is "Publish
-             post", said once, at the button that does it. Nothing else on this
-             page may take either name. The composer heading used to read "Create a
+             It names the publishing flow, while the button at the end of the
+             form names the final action. The opener and heading use "Publish a
+             post"; the submit button uses "Publish post". The composer heading used to read "Create a
              Social post", which named the act with a second verb — the one the
              page keeps for images, at "Create an image in Paint". The third
              name went too — an eyebrow read "New post" above the heading.
@@ -125,7 +120,7 @@
              image to. Paint is offered once now, beside Choose image, where the
              image is attached. -->
         <div class="hero-actions">
-          <button class="secondary-button" id="post-compose-open" type="button" aria-expanded="false" aria-controls="post-compose-panel">Write a post</button>
+          <button class="secondary-button" id="post-compose-open" type="button" aria-expanded="false" aria-controls="post-compose-panel">Publish a post</button>
         </div>
       </section>
 
@@ -308,7 +303,7 @@
                silent, and a reader who needs this sentence needs it before the
                cards. -->
           <p class="feed-summary" id="feed-summary" aria-live="polite"></p>
-          <div id="feed-state" role="status" aria-live="polite" aria-atomic="true">Existing posts are still loading. Select Write a post to publish.</div>
+          <div id="feed-state" role="status" aria-live="polite" aria-atomic="true">Existing posts are still loading. Select Publish a post.</div>
           <div id="post-feed" aria-describedby="feed-summary" aria-busy="true">
             <!-- Keep first paint structurally honest before the module mounts.
                  These are presentation-only reservations: the status immediately
@@ -344,7 +339,7 @@
           <p class="hint" id="feed-source-note">Display names are invented for this demo or chosen by whoever published the post — nobody owns or verifies one, and anyone can publish under any name.</p>
         </div>
 
-        <!-- Ships collapsed, and is revealed by the hero's Write a post
+        <!-- Ships collapsed, and is revealed by the hero's Publish a post
              control. `hidden` and not a CSS reordering: the acceptance
              criterion is rendered order and tab order, and a panel that is only
              visually moved still stands between the heading and the first post
@@ -357,7 +352,7 @@
              an announcement fires into a region the reader can already see. -->
         <div class="form-panel" id="post-compose-panel" aria-labelledby="post-form-title" hidden>
           <div class="section-heading">
-            <h2 id="post-form-title">Write a post</h2>
+            <h2 id="post-form-title">Publish a post</h2>
           </div>
 
           <!-- Filled by src/paint-handoff.js when the visitor arrives from the
@@ -613,7 +608,7 @@
             </button>
             <!-- The way out, in the word the footer's panel already uses for
                  the same act. It collapses the composer and puts focus back on
-                 Write a post in the hero, which is the only place focus can
+                 Publish a post in the hero, which is the only place focus can
                  go that does not drop a keyboard reader at the top of the
                  document. Escape from anywhere inside this panel does the same
                  thing. A publish that succeeds does NOT close the panel: the
