@@ -23,7 +23,7 @@ const PAGES = [
   { file: "decision.html", current: "/", title: "Decision · Shiplog" },
   { file: "workspace.html", current: "/", title: "Local workspace · Shiplog" },
   { file: "social.html", current: "/social.html", title: "Social · Shiplog" },
-  { file: "post.html", current: "/social.html", title: "Post · Social · Shiplog" },
+  { file: "post.html", current: "/social.html", title: "Shared post · Social · Shiplog" },
   { file: "profile.html", current: "/profile.html", title: "People · Shiplog" },
   { file: "releases.html", current: "/releases.html", title: "Releases · Shiplog" },
   { file: "release.html", current: "/releases.html", title: "Release · Shiplog" },

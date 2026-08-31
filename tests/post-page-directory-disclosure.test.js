@@ -53,7 +53,7 @@ const DIRECTORY = "#site-footer-directory";
 const SUMMARY = "#site-footer-directory-summary";
 
 // The retrieval line the page ships in its markup, character for character.
-const RETRIEVING = "Shiplog is retrieving one public Social post from the shared link.";
+const LOADING = "The public shared post is loading.";
 
 const open = (node) => node.hasAttribute("open");
 
@@ -106,12 +106,12 @@ test("the post is the first thing in the content region, under the heading that 
   const post = blocks.findIndex((node) => node.getAttribute("aria-label") === "Post");
   assert.ok(post >= 0, "the content region has no post region");
   assert.deepEqual(blocks.slice(0, post).map((node) => node.tagName), ["P", "H1"]);
-  assert.equal(textOf(blocks[post - 1]), "Post from Social");
+  assert.equal(textOf(blocks[post - 1]), "Shared post");
 
   // And it is the region that holds the post slot, the retrieval line included.
   const region = blocks[post];
   assert.equal(region.querySelectorAll("#post-detail").length, 1);
-  assert.ok(textOf(region).includes(RETRIEVING), "the retrieval line must sit in the post's own region");
+  assert.ok(textOf(region).includes(LOADING), "the loading line must sit in the post's own region");
 
   // Everything the page says about the surface the post came from, and every
   // route off the page, follows it. Counted rather than compared as nodes.
@@ -243,7 +243,7 @@ test("every live region on the page renders outside the disclosure", async (t) =
   const slot = document.querySelector("#post-detail");
   assert.equal(slot.getAttribute("role"), "status");
   assert.equal(slot.getAttribute("aria-live"), "polite");
-  assert.ok(textOf(slot).includes(RETRIEVING));
+  assert.ok(textOf(slot).includes(LOADING));
   assert.equal(insideDirectory(slot), false, "the retrieval message must not be foldable away");
 
   // The follow-up's three: the inline error, the recovery paragraph the failure
