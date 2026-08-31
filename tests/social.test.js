@@ -1645,6 +1645,26 @@ test("the feed is what a first-time visitor reads first, and the composer follow
   assert.ok(stops.findIndex((node) => node.id === "post-name-filter") + 1 <= 3);
 });
 
+test("the first-visit publish action is primary and precedes feed guidance and filters", async (t) => {
+  const { document, id } = await socialDisclosure(t);
+  const hero = document.querySelector(".hero-social");
+  const action = id("post-compose-open");
+  const intro = document.querySelector(".social-feed-intro");
+  const filter = id("post-name-filter");
+
+  assert.equal(action.getAttribute("class"), "button-link",
+    "the first-visit publishing route no longer uses the primary action pattern");
+  assert.equal(textOf(action), "Publish a post");
+  assert.ok(hero.childElements.indexOf(action.parentNode) < hero.childElements.indexOf(intro),
+    "feed guidance appears before the primary publishing action");
+
+  const mainStops = tabSequence(document).filter((node) => node.id);
+  assert.ok(mainStops.indexOf(action) < mainStops.indexOf(filter),
+    "filters are reached before the primary publishing action");
+  assert.equal(action.getAttribute("aria-controls"), "post-compose-panel");
+  assert.equal(action.getAttribute("aria-expanded"), "false");
+});
+
 test("the trigger reveals the composer and puts focus in the post field", async (t) => {
   const { document, id } = await socialDisclosure(t);
   const trigger = id("post-compose-open");
