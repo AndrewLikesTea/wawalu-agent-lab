@@ -15,7 +15,7 @@
 //
 // The block writes nothing: no form, no submit, no storage.
 
-import { NO_RECORD_LABEL, REAL_LABEL, commitLinkText, sameSiteHref } from "./deployed-release.js";
+import { NO_RECORD_LABEL, REAL_LABEL, REAL_MARKING, commitLinkText, sameSiteHref } from "./deployed-release.js";
 import { copyRecordUrl } from "./share-link.js";
 
 export const SHIPPED_BUILD_IDS = Object.freeze({
@@ -95,7 +95,7 @@ export function renderShippedBuild(root, record, options = {}) {
 
   panel.dataset.shippedBuild = "real";
   if (title) title.textContent = REAL_LABEL;
-  if (marking) marking.textContent = REAL_LABEL;
+  if (marking) marking.textContent = REAL_MARKING;
   if (note) note.textContent = REAL_NOTE;
   if (facts) {
     facts.replaceChildren(
