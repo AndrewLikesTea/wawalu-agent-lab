@@ -1132,7 +1132,7 @@ test("the shared-post page introduces itself once, answering what a cold visitor
 
   // The two feed waits name what is loading and the next publishing step. The
   // permalink keeps its own context-setting wait for a cold visitor.
-  assert.match(sources.get("src/social.js"), /"Existing posts are still loading\. Select Write a post to publish\."/);
+  assert.match(sources.get("src/social.js"), /"Existing posts are still loading\. Select Publish a post\."/);
   assert.match(sources.get("src/profile.js"), /"Image posts are loading\. Open Social to publish an image post\."/);
 
   // The wait a cold visitor meets, held open. Read off the rendered page rather

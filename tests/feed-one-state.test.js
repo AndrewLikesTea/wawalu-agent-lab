@@ -132,10 +132,10 @@ test("each wait names a control that is on the page while its fetch is open", as
   assert.equal(compose.getAttribute("hidden"), null, "the wait names a composer control that is not on screen");
   assert.equal(collapsibleAncestor(compose), null, "the wait names a composer control folded inside a disclosure");
   // Both halves of the directive, so a control that renders no label at all
-  // cannot satisfy this by leaving "Select  to" to match on the whitespace.
+  // cannot satisfy this by leaving "Select ." to match on the whitespace.
   const composeLabel = textOf(compose);
   assert.ok(composeLabel.length > 0, "the composer control the wait names renders no label");
-  assert.ok(FEED_LOADING_LINE.includes(`Select ${composeLabel} to`),
+  assert.ok(FEED_LOADING_LINE.includes(`Select ${composeLabel}.`),
     `the wait does not name the composer control, which reads "${composeLabel}"`);
 
   const people = await loadPage(PEOPLE_PAGE, {});
@@ -169,7 +169,7 @@ test("Social says one thing while it loads, and the other three lines are not on
 
   const status = document.querySelector("#feed-state");
   assert.equal(status.querySelectorAll(".state-title").length, 1);
-  assert.equal(textOf(status.querySelector(".state-title")), "Existing posts are still loading. Select Write a post to publish.");
+  assert.equal(textOf(status.querySelector(".state-title")), "Existing posts are still loading. Select Publish a post.");
 
   // Removed, not hidden. Each of these would otherwise be a second description
   // of the one open fetch, and neither is a claim the page can support yet.
@@ -179,7 +179,7 @@ test("Social says one thing while it loads, and the other three lines are not on
   const body = textOf(document.body);
   assert.doesNotMatch(body, /Counting posts/);
   assert.doesNotMatch(body, /New posts will appear here on their own/);
-  assert.equal((body.match(/Existing posts are still loading\. Select Write a post to publish\./g) ?? []).length, 1);
+  assert.equal((body.match(/Existing posts are still loading\. Select Publish a post\./g) ?? []).length, 1);
 
   // The wait reserves both kinds of post card, including their metadata and
   // eventual action position, without inventing anything a keyboard can reach.
@@ -249,7 +249,7 @@ test("Social names its failure, retries it by keyboard, and comes back", async (
     { id: "back-2", author: "Ari", content: "Also here.", timestamp: "2026-07-17T12:00:00.000Z" },
   ] };
   retry.click();
-  assert.equal(textOf(status.querySelector(".state-title")), "Existing posts are still loading. Select Write a post to publish.",
+  assert.equal(textOf(status.querySelector(".state-title")), "Existing posts are still loading. Select Publish a post.",
     "retry did not put the page back into the loading state");
   assert.equal(document.querySelectorAll("#post-count").length, 0, "the count outlived the state that has no count");
   await waitFor(() => document.querySelectorAll("#post-count").length === 1, "the retried request settled");
@@ -331,7 +331,7 @@ test("Social's promise about new posts is said only where there is a feed for th
   // authored directly above "Loading the Social feed…", which is the whole of
   // #1772: two statuses at once, and the one that could not be true yet first.
   assert.equal(promiseCount(document, promise), 0);
-  assert.equal((textOf(document.body).match(/Existing posts are still loading\. Select Write a post to publish\./g) ?? []).length, 1);
+  assert.equal((textOf(document.body).match(/Existing posts are still loading\. Select Publish a post\./g) ?? []).length, 1);
 
   // Loading: still one statement, and it is the wait.
   // A retry the panel can offer, so the failed state below is the one a reader
@@ -340,7 +340,7 @@ test("Social's promise about new posts is said only where there is a feed for th
   const feed = mountSocialFeed(document, { posts: [], state: "loading", onRetry: () => {} });
   assert.equal(promiseCount(document, promise), 0);
   assert.equal(document.querySelectorAll(".feed-connection").length, 0);
-  assert.equal(textOf(document.querySelector("#feed-state").querySelector(".state-title")), "Existing posts are still loading. Select Write a post to publish.");
+  assert.equal(textOf(document.querySelector("#feed-state").querySelector(".state-title")), "Existing posts are still loading. Select Publish a post.");
 
   // Failed: the panel's message and its Retry are the page's whole status. A
   // connection line here would be a second instruction — reload the page —

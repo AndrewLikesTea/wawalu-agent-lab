@@ -58,7 +58,7 @@ async function openComposer(t) {
     "the social page finished its first load",
   );
   globalThis.setInterval = realSetInterval;
-  // The composer ships collapsed behind the hero's Write a post control, and a
+  // The composer ships collapsed behind the hero's Publish a post control, and a
   // visitor choosing a file has pressed it. Opened here so "no Remove image
   // control is in the page" is a fact about a panel a reader can actually
   // reach, rather than one the disclosure was answering for free.
