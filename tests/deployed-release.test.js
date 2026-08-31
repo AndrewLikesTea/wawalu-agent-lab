@@ -25,6 +25,7 @@ import {
   DEPLOYED_RELEASE_ID,
   NO_RECORD_LABEL,
   REAL_LABEL,
+  REAL_MARKING,
   REAL_RECORD_LINK_LABEL,
   REAL_RECORD_NAME,
   REPOSITORY_URL,
@@ -102,14 +103,15 @@ test("the record is derived from the build stamp, and is null when the build nam
 
 test("the two markings are distinct strings that cannot be read as each other", () => {
   assert.equal(REAL_LABEL, "Real record of this deployment");
+  assert.equal(REAL_MARKING, "Build-generated record");
   assert.equal(EXAMPLE_LABEL, "Example record");
-  assert.notEqual(REAL_LABEL, EXAMPLE_LABEL);
-  // Neither contains the other, and they share no word: "real" and "example"
-  // are not near-synonyms a reader has to weigh against each other.
-  assert.equal(REAL_LABEL.includes(EXAMPLE_LABEL), false);
-  assert.equal(EXAMPLE_LABEL.includes(REAL_LABEL), false);
+  assert.notEqual(REAL_MARKING, EXAMPLE_LABEL);
+  // Neither marking contains the other, so a reader cannot mistake the
+  // build-generated record for an example record.
+  assert.equal(REAL_MARKING.includes(EXAMPLE_LABEL), false);
+  assert.equal(EXAMPLE_LABEL.includes(REAL_MARKING), false);
   const words = (label) => new Set(label.toLowerCase().split(/\W+/).filter(Boolean));
-  const shared = [...words(REAL_LABEL)].filter((word) => words(EXAMPLE_LABEL).has(word) && word !== "record");
+  const shared = [...words(REAL_MARKING)].filter((word) => words(EXAMPLE_LABEL).has(word) && word !== "record");
   assert.deepEqual(shared, [], "the two markings share wording beyond the noun they both name");
   // The marking the badge carries and the name the verdict uses are the same
   // words, so "which record was this compared against?" needs no translation.
@@ -134,7 +136,7 @@ test("every rendered release record carries exactly one of the two markings", as
   }
   // One record is real and the rest are invented, and the real one is not one
   // of the demonstration rows.
-  assert.equal(marking(page), REAL_LABEL);
+  assert.equal(marking(page), REAL_MARKING);
   assert.equal(page.document.querySelector("#shipped-build").dataset.shippedBuild, "real");
   for (const row of page.document.querySelectorAll(".release-item")) {
     assert.match(textOf(row), new RegExp(EXAMPLE_LABEL));
@@ -333,10 +335,10 @@ test("the deployment check's verdict names a record the page marks as real", asy
     verdictText(page),
     `Confirmed: this site is running ${SHA}, the version ${REAL_RECORD_NAME} names.`,
   );
-  // The record the verdict names is the one carrying the real marking, in the
-  // same words — and it is never one of the invented rows.
+  // The record the verdict names is the one carrying the build-generated
+  // marking — and it is never one of the invented rows.
   assert.ok(verdictText(page).includes(REAL_RECORD_NAME));
-  assert.equal(marking(page), REAL_LABEL);
+  assert.equal(marking(page), REAL_MARKING);
   assert.doesNotMatch(verdictText(page), /newest release record/);
   for (const version of ["v1.4.0", "v1.3.0", "v1.2.1", "v1.2.0"]) {
     assert.doesNotMatch(verdictText(page), new RegExp(version.replace(/\./g, "\\.")),
