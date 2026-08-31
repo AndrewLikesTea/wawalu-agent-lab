@@ -47,8 +47,8 @@ const TEXT_POST = {
 // The headline each state puts on screen. Whichever one is active, the other
 // three of these must not appear anywhere in the page's text.
 const STATE_HEADLINES = {
-  loading: "Shiplog is retrieving one public Social post from the shared link.",
-  loaded: "Mina Okafor's post",
+  loading: "The public shared post is loading.",
+  loaded: "Mina Okafor's shared post",
   "not-found": "Post unavailable",
   error: "Post could not be opened",
 };
@@ -388,7 +388,7 @@ test("retry re-attempts the fetch and can take the page from error to loaded", a
     assert.ok(page.requests.length > attempts, "the retry must re-run the fetch, not redraw the last answer");
     // error → loaded, with nothing of the failure left standing.
     assertOneState(page, "loaded", "after a retry that worked");
-    assert.equal(textOf(page.document.querySelector("#page-title")), "Mina Okafor's post");
+    assert.equal(textOf(page.document.querySelector("#page-title")), "Mina Okafor's shared post");
     assert.equal(page.panel.getAttribute("aria-busy"), "false");
   } finally {
     page.restore();
@@ -638,7 +638,7 @@ const DATA_SENTENCE = "Posts use no customer or production data.";
 // context about the page, not about this post — which is also why it holds in
 // the states where the lookup found nothing — so it reads after the post
 // rather than in front of it.
-const CONTEXT_SENTENCE = "Shared links like this one open one Social post, which may be an invented demo or a real, public post published by a visitor.";
+const CONTEXT_SENTENCE = "Shared posts may be invented demos or real, public posts published by visitors.";
 
 test("the words of a route out never change, and the post provenance survives every state", async () => {
   const cases = [
@@ -865,7 +865,7 @@ test("every state the page can reach puts exactly one of the four on screen", as
     assert.equal(panel.getAttribute("aria-busy"), "true");
     // The wait carries visible words, not a bare spinner: the dot is aria-hidden
     // decoration and the sentence is the state.
-    assert.equal(textOf(panel.querySelector(".detail-loading-text")), "Shiplog is retrieving one public Social post from the shared link.");
+    assert.equal(textOf(panel.querySelector(".detail-loading-text")), "The public shared post is loading.");
     assert.equal(panel.querySelector(".detail-loading-dot").getAttribute("aria-hidden"), "true");
 
     release();
@@ -898,7 +898,7 @@ test("every state the page can reach puts exactly one of the four on screen", as
 // an icon to be understood. Asserted on text with every class name ignored.
 test("all four states carry a visible text label, not colour alone", async () => {
   const labels = {
-    loading: /Shiplog is retrieving one public Social post from the shared link\./,
+    loading: /The public shared post is loading\./,
     loaded: /Rowan Diaz/,
     "not-found": /Post unavailable/,
     error: /Post could not be opened/,
@@ -1090,7 +1090,7 @@ test("a permalink built the old way still resolves to the same post", async () =
     try {
       assertOneState(page, "loaded", `a permalink at ${search}`);
       assert.equal(textOf(page.panel.querySelector(".detail-author-link")), IMAGE_POST.author);
-      assert.equal(textOf(page.document.querySelector("#page-title")), `${IMAGE_POST.author}'s post`);
+      assert.equal(textOf(page.document.querySelector("#page-title")), `${IMAGE_POST.author}'s shared post`);
       assert.equal(textOf(page.panel.querySelector("figcaption")), IMAGE_POST.caption);
     } finally {
       page.restore();
@@ -1146,9 +1146,9 @@ test("the shared-post page introduces itself once, answering what a cold visitor
     await waitFor(() => panel.querySelectorAll(".detail-loading").length === 1, "the loading state rendered");
 
     const wait = textOf(panel.querySelector(".detail-loading-text"));
-    assert.equal(wait, "Shiplog is retrieving one public Social post from the shared link.");
-    assert.match(wait, /^Shiplog is retrieving one public Social post/,
-      "the wait names the product, quantity, public source, and shared link");
+    assert.equal(wait, "The public shared post is loading.");
+    assert.match(wait, /^The public shared post is loading/,
+      "the wait names the public shared post and says it is loading");
     assertSaidOnce(waiting.document, "while the lookup runs");
 
     release();

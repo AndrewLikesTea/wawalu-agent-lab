@@ -81,7 +81,7 @@ test("the post reads in one order: description, image, caption, name, then time"
   // The poster's name heads the page as its h1 (src/post-page.js writes it into
   // the hero above this panel) and opens the article as a link to that person's
   // People view — the page's one forward step out of a shared link.
-  assert.equal(postPageHeading(post), "Mina Okafor's post");
+  assert.equal(postPageHeading(post), "Mina Okafor's shared post");
 
   const time = tags(article, "TIME")[0];
   assert.equal(time.textContent.length > 0, true, "the timestamp needs human-readable text");
@@ -316,7 +316,7 @@ test("the loading state says the wait in words and reserves three distinct conte
   assert.equal(container.getAttribute("role"), "status");
   assert.equal(status.getAttribute("role"), null);
   assert.equal(first(status, "detail-loading-text").textContent, POST_LOADING_STATUS);
-  assert.equal(POST_LOADING_STATUS, "Shiplog is retrieving one public Social post from the shared link.");
+  assert.equal(POST_LOADING_STATUS, "The public shared post is loading.");
 
   // The three regions distinguish identity, words, and optional media.
   // A line of text used to be the whole wait, so every post that arrived pushed
@@ -372,10 +372,10 @@ test("no slot of the placeholder survives into a state that resolved", () => {
 // And with no author to name, it says which surface the page belongs to rather
 // than the bare word "Post", which tells a first-time visitor nothing.
 test("the loaded page is headed by the display name on the post", () => {
-  assert.equal(postPageHeading(post), "Mina Okafor's post");
-  assert.equal(postPageHeading(null), "Post from Social");
-  assert.equal(postPageHeading({ ...post, author: "" }), "Post from Social");
-  assert.equal(postPageHeading({ ...post, author: "  Mina Okafor  " }), "Mina Okafor's post");
+  assert.equal(postPageHeading(post), "Mina Okafor's shared post");
+  assert.equal(postPageHeading(null), "Shared post");
+  assert.equal(postPageHeading({ ...post, author: "" }), "Shared post");
+  assert.equal(postPageHeading({ ...post, author: "  Mina Okafor  " }), "Mina Okafor's shared post");
 });
 
 // The heading and the tab name the same thing, so a visitor scanning open tabs
@@ -386,12 +386,12 @@ test("the permalink heading matches the phrase in the document title", () => {
 });
 
 test("the document title names the post, the feed, and the product", () => {
-  assert.equal(postDetailTitle(post), "Mina Okafor's post · Social · Shiplog");
-  assert.equal(postDetailTitle(null), "Post · Social · Shiplog");
-  assert.equal(postDetailTitle(null, "not-found"), "Post · Social · Shiplog");
-  assert.equal(postDetailTitle(null, "error"), "Post · Social · Shiplog");
+  assert.equal(postDetailTitle(post), "Mina Okafor's shared post · Social · Shiplog");
+  assert.equal(postDetailTitle(null), "Shared post · Social · Shiplog");
+  assert.equal(postDetailTitle(null, "not-found"), "Shared post · Social · Shiplog");
+  assert.equal(postDetailTitle(null, "error"), "Shared post · Social · Shiplog");
   // A state name never overrides a post that actually loaded.
-  assert.equal(postDetailTitle(post, "error"), "Mina Okafor's post · Social · Shiplog");
+  assert.equal(postDetailTitle(post, "error"), "Mina Okafor's shared post · Social · Shiplog");
 });
 
 test("the post page's two routes out sit after the site frame, and name where they go", async () => {
@@ -488,7 +488,7 @@ test("both destinations ship as constants, and only the People link's target nar
 // It describes what a shared link opens rather than what is on screen, which is
 // why it can outlive not-found and error: those states have no post, so a
 // sentence beginning "This is one post…" would be describing an empty panel.
-const STANDING_SENTENCE = "Shared links like this one open one Social post, which may be an invented demo or a real, public post published by a visitor.";
+const STANDING_SENTENCE = "Shared posts may be invented demos or real, public posts published by visitors.";
 
 // Every state the panel can be in, named the way a reader would name it.
 const PANEL_STATES = [

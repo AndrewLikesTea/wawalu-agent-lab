@@ -330,7 +330,7 @@ function renderFailed(container, onRetry) {
 // link, and the reader does not yet know what a Shiplog link is, that one post
 // is coming rather than a feed, or that it is public. Naming a composer to a
 // reader in that position would be an instruction before an orientation.
-export const POST_LOADING_STATUS = "Shiplog is retrieving one public Social post from the shared link.";
+export const POST_LOADING_STATUS = "The public shared post is loading.";
 
 // What the wait above promised, kept: the two parts of a post this page can
 // always point to, in the order the article renders them. Only the loaded state
@@ -568,7 +568,7 @@ export function postDisplayName(post) {
 
 export function postPageHeading(post) {
   const displayName = postDisplayName(post);
-  return displayName ? `${displayName}'s post` : "Post from Social";
+  return displayName ? `${displayName}'s shared post` : "Shared post";
 }
 
 // Same shape as the decision detail's title — the record, then the surface the
@@ -579,5 +579,5 @@ export function postPageHeading(post) {
 // loads, the same display-name value rendered in the byline names the tab.
 export function postDetailTitle(post) {
   const displayName = postDisplayName(post);
-  return displayName ? pageTitle(`${displayName}'s post`, "Social") : pageTitle("Post", "Social");
+  return pageTitle(postPageHeading(post), "Social");
 }
