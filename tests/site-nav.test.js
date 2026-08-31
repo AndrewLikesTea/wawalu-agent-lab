@@ -335,7 +335,7 @@ test("Social and People each disambiguate the other in the sentence under the he
   const pages = [
     // The heading is followed by the one-line tagline, and the description is
     // the paragraph under that.
-    { file: "social.html", heading: "Social", other: "People", lede: /<h1 id="page-title">Social<\/h1>\s*<p id="page-tagline">[^<]*<\/p>\s*<p>([^<]*)<\/p>/ },
+    { file: "social.html", heading: "Social", other: "People", lede: /<h1 id="page-title">Social<\/h1>[\s\S]*?<p class="social-feed-intro">([^<]*)<\/p>/ },
     // People's description carries the link to Social inside itself, so the
     // capture takes markup: the sentence that names the other surface is the
     // sentence that opens it.

@@ -81,7 +81,16 @@
              -->
         <h1 id="page-title">Social</h1>
         <p id="page-tagline">Read every post, and publish your own.</p>
-        <p>Social is a shared feed of short posts about what the team ships, images optional. Open People when you want the image posts published under one display name instead. Select Open post to read a post in full. The posts already here are invented to demonstrate Shiplog; a post you publish is real. Posts use no customer or production data.</p>
+        <!-- The publishing route is the first action and sits directly under the
+             page promise. It uses the site's solid primary-action pattern and
+             has a solid shape and dedicated row, so hierarchy does not depend
+             on colour. The feed explanation and filters follow it in both
+             visual and DOM order; detailed publishing guidance stays inside
+             the composer. -->
+        <div class="hero-actions section-heading">
+          <button class="button-link" id="post-compose-open" type="button" aria-expanded="false" aria-controls="post-compose-panel">Publish a post</button>
+        </div>
+        <p class="social-feed-intro">Social is a shared feed of short posts about what the team ships, images optional. Open People when you want the image posts published under one display name instead. Select Open post to read a post in full. The posts already here are invented to demonstrate Shiplog; a post you publish is real. Posts use no customer or production data.</p>
         <!-- What publishing costs is not said here any more. It used to be: the
              same sentence stood in this intro, again beside Publish post, and
              again in the permalink's hero — one fact in three places, two of
@@ -119,9 +128,6 @@
              action, offered twice, before the reader had a post to attach an
              image to. Paint is offered once now, beside Choose image, where the
              image is attached. -->
-        <div class="hero-actions">
-          <button class="secondary-button" id="post-compose-open" type="button" aria-expanded="false" aria-controls="post-compose-panel">Publish a post</button>
-        </div>
       </section>
 
       <!-- The region held the page's own name, so a reader arriving here heard
