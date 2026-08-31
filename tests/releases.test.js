@@ -566,6 +566,33 @@ test("the real record of this deployment has one name everywhere the page names 
   }
 });
 
+test("the deployment proof renders one record heading without losing its verification path", async (t) => {
+  const page = await openReleasesPage(t);
+  const headings = page.document.querySelectorAll("h1, h2, h3, h4, h5, h6")
+    .filter((heading) => textOf(heading) === "Real record of this deployment");
+
+  assert.equal(headings.length, 1, "the rendered page repeats the deployment-record heading");
+  assert.equal(headings[0].getAttribute("id"), "shipped-build-title");
+  assert.equal(
+    textOf(page.document.querySelector("#shipped-build-note")),
+    "This record is not an example. The build that produced the page you are reading wrote it,"
+      + " from the commit that build was made from. Open that commit below and check it against"
+      + " the public repository.",
+  );
+
+  const source = page.document.querySelector("#shipped-build-source");
+  assert.match(textOf(source), /^Open commit [0-9a-f]{12} in the public repository$/);
+  assert.match(source.getAttribute("href"), /github\.com\/AndrewLikesTea\/wawalu-agent-lab\/commit\/[0-9a-f]{40}$/);
+
+  assert.equal(textOf(page.document.querySelector("#deployment-status-title")), "Deployment check");
+  assert.equal(
+    textOf(page.document.querySelector("#deployment-status-proof")),
+    "Does the real record of this deployment name the running build’s version? It reads the"
+      + " running build when the page loads. The example decision and release above are invented;"
+      + " that record and this answer are not.",
+  );
+});
+
 test("the waiting line names the running build's version, before the check answers", async (t) => {
   const page = await openReleasesPage(t, { settle: false });
   assert.equal(
