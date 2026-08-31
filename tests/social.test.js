@@ -312,7 +312,7 @@ test("social page is wired, labeled, and linked from the other pages", async () 
   // tests/live-connection-copy.test.js owns the three states it can be in.
   assert.match(page, /id="feed-status"><\/span>/);
   assert.doesNotMatch(page, /will appear here on their own/);
-  assert.equal((page.match(/Existing posts are still loading\. Select Write a post to publish\./g) ?? []).length, 1);
+  assert.equal((page.match(/Existing posts are still loading\. Select Publish a post to open the composer\./g) ?? []).length, 1);
   assert.doesNotMatch(page, /id="post-count"[^>]*>0 posts<\/span>/);
   // One announced region for a filter change, and it is the summary: the count
   // beside the heading says a thinner version of the same news, so announcing
@@ -418,7 +418,7 @@ test("the composer describes no failure that has not happened yet", async (t) =>
 // The same pass pins the destination for image posts: this site has no page
 // called Profile, so "profile" survives on Social only as the People page's URL
 // and the class that styles its nav item, never as a word a reader sees.
-test("the opener and heading name writing, and the submit control names publishing", async (t) => {
+test("the opener prioritizes publishing and the composer heading names the revealed task", async (t) => {
   const markup = await readFile(new URL("../src/social.html", import.meta.url), "utf8");
   const page = await loadPage(new URL("../src/social.html", import.meta.url), {});
   t.after(() => page.restore());
@@ -426,8 +426,8 @@ test("the opener and heading name writing, and the submit control names publishi
   const entry = page.document.querySelector(".hero-actions")
     .querySelectorAll("#post-compose-open");
   assert.equal(entry.length, 1, "the hero offers exactly one route into the composer");
-  assert.equal(textOf(entry[0]), "Write a post",
-    "the control that opens the composer names publishing, which the submit button also names");
+  assert.equal(textOf(entry[0]), "Publish a post",
+    "the first composer action is not framed as the page's primary publishing path");
   // A disclosure, told the way this site's other one is told: the button owns
   // the state, the panel it names is the composer, and it starts collapsed.
   assert.equal(entry[0].tagName, "BUTTON");
@@ -788,7 +788,7 @@ test("the status region and the posts are read before the demo disclaimer, in ev
   };
 
   const feed = mountSocialFeed(document, { posts: [], state: "loading" });
-  invariant("loading", { status: /Existing posts are still loading\. Select Write a post to publish\./ });
+  invariant("loading", { status: /Existing posts are still loading\. Select Publish a post to open the composer\./ });
 
   feed.setState("error");
   invariant("error", { status: /Social posts could not be loaded\./ });
@@ -1467,7 +1467,7 @@ test("the post count never claims zero posts before the feed has any answer", as
   assert.equal(page.document.querySelectorAll(".empty-state").length, 0, "loading copy never shares the page with empty-state guidance");
   const status = page.document.querySelector("#feed-state");
   assert.equal(status.querySelectorAll(".state-title").length, 1);
-  assert.equal(textOf(status.querySelector(".state-title")), "Existing posts are still loading. Select Write a post to publish.");
+  assert.equal(textOf(status.querySelector(".state-title")), "Existing posts are still loading. Select Publish a post to open the composer.");
 
   feed.setState("error");
   assert.equal(textOf(count), "Unavailable", "a failed fetch is not a count of zero");
@@ -1588,7 +1588,7 @@ const foldedAway = (node) => {
 // that names a field is counted: anchors, buttons, summaries, and field labels,
 // across the whole document rather than the composer alone, so the nav, the
 // feed's own controls and the footer cannot quietly take the word either.
-test("with the composer open, one control on Social says Publish and it is the submit button", async (t) => {
+test("the primary Publish a post action opens the composer without obscuring the final publish control", async (t) => {
   const { document, id } = await socialDisclosure(t);
   id("post-compose-open").click();
 
@@ -1598,13 +1598,14 @@ test("with the composer open, one control on Social says Publish and it is the s
 
   const publishing = document.querySelectorAll("a,button,summary,label")
     .filter((node) => /Publish/.test(textOf(node)));
-  assert.deepEqual(publishing.map((node) => textOf(node)), ["Publish post"],
-    "Social offers more than one control whose label says Publish");
-  assert.equal(publishing[0].getAttribute("id"), "post-submit");
+  assert.deepEqual(publishing.map((node) => textOf(node)), ["Publish a post", "Publish post"],
+    "Social does not distinguish opening the composer from submitting it");
+  assert.equal(publishing[0].getAttribute("id"), "post-compose-open");
+  assert.equal(publishing[1].getAttribute("id"), "post-submit");
 
   // The other half of the pair: the control that opens the form and the heading
   // it reveals are the same words, and they are not the publishing ones.
-  assert.equal(textOf(id("post-compose-open")), "Write a post");
+  assert.equal(textOf(id("post-compose-open")), "Publish a post");
   assert.equal(textOf(id("post-form-title")), "Write a post");
 
   // The consequence is untouched and still stands between the last field and the
@@ -1619,7 +1620,7 @@ test("with the composer open, one control on Social says Publish and it is the s
   assert.ok(id("post-submit").getAttribute("aria-describedby").split(/\s+/).includes("post-consequence"));
 });
 
-test("the feed is what a first-time visitor reads first, and the composer follows it", async (t) => {
+test("a first-time visitor reaches the primary publishing action, then filters, then revealed composer controls", async (t) => {
   const { document } = await socialDisclosure(t);
 
   // Rendered order, in the source of truth for the markup: the feed panel and
@@ -1657,6 +1658,21 @@ test("the feed is what a first-time visitor reads first, and the composer follow
   // "No more than three tab stops from the skip link to the first feed control":
   // the display-name filter is stop 2.
   assert.ok(stops.findIndex((node) => node.id === "post-name-filter") + 1 <= 3);
+  assert.equal(textOf(stops[0]), "Publish a post");
+  assert.equal(stops[0].getAttribute("class"), null, "the primary action regressed to secondary styling");
+
+  const toolbar = document.querySelector(".social-toolbar");
+  assert.equal(toolbar.getAttribute("role"), "group");
+  assert.equal(toolbar.getAttribute("aria-labelledby"), "feed-filter-title");
+  assert.equal(textOf(document.querySelector("#feed-filter-title")), "Filter the feed");
+});
+
+test("the publishing action stays prominent and filters stack at phone width", async () => {
+  const styles = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
+  assert.match(styles, /\.social-primary-action button \{[^}]*width:min\(100%,360px\);[^}]*min-height:52px;/,
+    "the primary action does not keep a large full-width target");
+  assert.match(styles, /@media\(max-width:520px\).*\.filters,\.social-toolbar\{align-items:stretch;flex-direction:column;/s,
+    "the filter controls do not stack at 390px");
 });
 
 test("the trigger reveals the composer and puts focus in the post field", async (t) => {

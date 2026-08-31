@@ -266,7 +266,8 @@ test("the filter row's status line is one live region inside the group it descri
   const toolbar = document.querySelector(".social-toolbar");
   assert.ok(line.parentNode === toolbar, "the status line left the filter group");
   assert.equal(toolbar.getAttribute("role"), "group");
-  assert.equal(toolbar.getAttribute("aria-label"), "Filter posts");
+  assert.equal(toolbar.getAttribute("aria-labelledby"), "feed-filter-title");
+  assert.equal(textOf(document.querySelector("#feed-filter-title")), "Filter the feed");
   // And it is not a second copy of the sentence below it: that one stays the
   // list panel's, said once, and this line is not it.
   assert.equal(document.querySelectorAll(".feed-summary").length, 1, "the feed summary was duplicated");
