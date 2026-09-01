@@ -595,11 +595,16 @@ function renderSkeleton(container, count = 6) {
     const item = el("li", "profile-cell");
     const tile = el("div", "profile-tile profile-tile-skeleton");
     const meta = el("div", "profile-tile-meta skeleton-meta");
+    meta.dataset.loadingRegion = "metadata";
     meta.append(el("div", "skeleton-line skeleton-line-date skeleton-line-short"),
       el("div", "skeleton-line skeleton-line-stat skeleton-line-short"));
-    tile.append(el("div", "skeleton-media skeleton-media-square"),
-      el("div", "skeleton-line"), el("div", "skeleton-line skeleton-line-short"),
-      meta, el("div", "skeleton-line skeleton-line-short skeleton-line-action"));
+    const media = el("div", "skeleton-media skeleton-media-square");
+    media.dataset.loadingRegion = "image";
+    const caption = el("div", "skeleton-line");
+    caption.dataset.loadingRegion = "caption";
+    const action = el("div", "skeleton-line skeleton-line-short skeleton-line-action");
+    action.dataset.loadingRegion = "action";
+    tile.append(media, caption, el("div", "skeleton-line skeleton-line-short"), meta, action);
     item.append(tile);
     list.append(item);
   }

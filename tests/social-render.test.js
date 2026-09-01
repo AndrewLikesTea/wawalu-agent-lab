@@ -249,6 +249,9 @@ test("empty, loading, and error states are three distinct renders", () => {
   assert.equal(byClass(loading, "skeleton-line-action").length, 3);
   assert.equal(byClass(loading, "skeleton-media").length, 2,
     "optional image regions do not make every pending post image-heavy");
+  assert.equal(walk(skeleton, (node) => node.dataset.loadingRegion === "text").length, 3);
+  assert.equal(walk(skeleton, (node) => node.dataset.loadingRegion === "image").length, 2);
+  assert.equal(walk(skeleton, (node) => node.dataset.loadingRegion === "metadata").length, 3);
   assert.equal(tags(skeleton, "A").length + tags(skeleton, "BUTTON").length, 0);
   assert.equal(first(loading, "empty-state"), null);
 

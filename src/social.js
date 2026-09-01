@@ -601,13 +601,20 @@ function renderSkeleton(container, count = 3) {
     // the reserved head row to a quarter of the height the real card needs.
     head.append(el("div", "post-avatar skeleton-avatar"), byline);
     const copy = el("div", "skeleton-copy");
+    copy.dataset.loadingRegion = "text";
     copy.append(el("div", "skeleton-line"), el("div", "skeleton-line"),
       el("div", "skeleton-line skeleton-line-short"));
     const action = el("div", "skeleton-line skeleton-line-short skeleton-line-action");
     if (index % 2 === 0) {
       card.classList.add("post-card-media");
-      card.append(copy, el("div", "skeleton-media"), head, action);
+      const media = el("div", "skeleton-media");
+      media.dataset.loadingRegion = "image";
+      head.dataset.loadingRegion = "metadata";
+      action.dataset.loadingRegion = "action";
+      card.append(copy, media, head, action);
     } else {
+      head.dataset.loadingRegion = "metadata";
+      action.dataset.loadingRegion = "action";
       card.append(head, copy, action);
     }
     item.append(card);

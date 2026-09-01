@@ -180,6 +180,8 @@ function element(tag, className, text) {
 
 export function renderFeedStatus(container, options = {}) {
   if (!container) return null;
+  // Static pages ship a compact first-paint status before this renderer runs.
+  container.classList?.remove?.("feed-status");
   const {
     state = "ready", label = "Feed status", text = "", detail = "",
     actionLabel = "", onAction = null, append = false,
