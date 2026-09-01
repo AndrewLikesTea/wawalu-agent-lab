@@ -412,7 +412,7 @@ test("the composer describes no failure that has not happened yet", async (t) =>
 // The same pass pins the destination for image posts: this site has no page
 // called Profile, so "profile" survives on Social only as the People page's URL
 // and the class that styles its nav item, never as a word a reader sees.
-test("the opener and heading use Publish a post, and the submit names the final action", async (t) => {
+test("the opener, heading, and submit use Publish a post", async (t) => {
   const markup = await readFile(new URL("../src/social.html", import.meta.url), "utf8");
   const page = await loadPage(new URL("../src/social.html", import.meta.url), {});
   t.after(() => page.restore());
@@ -431,10 +431,10 @@ test("the opener and heading use Publish a post, and the submit names the final 
   assert.equal(page.document.querySelector("#post-compose-panel").hidden, true);
   assert.equal(textOf(page.document.querySelector("#post-form-title")), "Publish a post",
     "the composer heading does not match the control that opens it");
-  // One verb for opening, a different one for publishing. "Create" survives on
-  // this page for images only, in the first Paint step.
-  assert.equal(textOf(page.document.querySelector("#post-submit")), "Publish post",
-    "the submit control is named something other than the act it performs, or grew an arrow back");
+  // One primary-action label across the opener, heading, and submit. "Create"
+  // survives on this page for images only, in the first Paint step.
+  assert.equal(textOf(page.document.querySelector("#post-submit")), "Publish a post",
+    "the submit control drifted from the composer's primary-action label, or grew an arrow back");
   const panelWords = textOf(page.document.querySelector("#post-compose-panel"))
     .replaceAll("Create or open an image in Paint", "");
   assert.doesNotMatch(panelWords, /\bcreate\b/i,
@@ -498,7 +498,7 @@ test("the composer calls its required 280-character text a post throughout", asy
   const postField = composer.querySelector('label[for="post-body"]').parentNode;
   assert.equal(textOf(postField).toLowerCase().split("required").length - 1, 1,
     `the post field states that it is required more than once: ${textOf(postField)}`);
-  assert.equal(textOf(composer.querySelector("#post-submit")), "Publish post");
+  assert.equal(textOf(composer.querySelector("#post-submit")), "Publish a post");
   assert.equal(PUBLISH_FAILED_NOTE,
     "Your post, image, and image description are still in the composer, exactly as you left them.");
   // The two sentences the composer's notice can carry from createPost. They are
@@ -1576,7 +1576,7 @@ const foldedAway = (node) => {
 
 // Read with the composer open because that is the state in which both the flow
 // opener and final submit action are on screen at once.
-test("with the composer open, the flow and submit controls use distinct publishing labels", async (t) => {
+test("with the composer open, the flow and submit controls use one publishing label", async (t) => {
   const { document, id } = await socialDisclosure(t);
   id("post-compose-open").click();
 
@@ -1586,7 +1586,7 @@ test("with the composer open, the flow and submit controls use distinct publishi
 
   const publishing = document.querySelectorAll("a,button,summary,label")
     .filter((node) => /Publish/.test(textOf(node)));
-  assert.deepEqual(publishing.map((node) => textOf(node)), ["Publish a post", "Publish post"]);
+  assert.deepEqual(publishing.map((node) => textOf(node)), ["Publish a post", "Publish a post"]);
   assert.equal(publishing[1].getAttribute("id"), "post-submit");
 
   // The control that opens the form and the heading it reveals use the same term.

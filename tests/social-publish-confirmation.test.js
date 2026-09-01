@@ -379,7 +379,7 @@ test("while a publish is in flight the button carries the state alone, and a sec
   assert.equal(notice(harness.document).classList.contains("is-success"), true);
   assert.equal(harness.published.length, 1, "and exactly one post was created");
   assert.equal(submit.disabled, false);
-  assert.match(textOf(submit), /Publish post/, "the control is back to naming what it will do");
+  assert.match(textOf(submit), /Publish a post/, "the control is back to naming what it will do");
   assert.equal(submit.getAttribute("aria-busy"), "false");
 });
 
