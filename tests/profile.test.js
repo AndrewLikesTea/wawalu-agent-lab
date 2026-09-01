@@ -4,7 +4,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { byClass, createElement, first, ids, installDocument, tags } from "./support/dom.js";
+import { byClass, createElement, first, ids, installDocument, tags, walk } from "./support/dom.js";
 
 installDocument();
 
@@ -440,6 +440,9 @@ test("the first load reserves a skeleton grid instead of a blank panel", () => {
   assert.equal(byClass(skeleton, "skeleton-media-square").length, 6);
   assert.equal(byClass(skeleton, "skeleton-meta").length, 6);
   assert.equal(byClass(skeleton, "skeleton-line-action").length, 6);
+  assert.equal(walk(skeleton, (node) => node.dataset.loadingRegion === "image").length, 6);
+  assert.equal(walk(skeleton, (node) => node.dataset.loadingRegion === "caption").length, 6);
+  assert.equal(walk(skeleton, (node) => node.dataset.loadingRegion === "metadata").length, 6);
   assert.equal(tags(skeleton, "A").length + tags(skeleton, "BUTTON").length, 0);
   assert.equal(byClass(container, "empty-state").length, 0);
 });
