@@ -55,7 +55,7 @@ export const DEPLOYED_RELEASE_ID = "deployed-build";
 export const REAL_LABEL = "Real record of this deployment";
 
 /** The shorter marking beside the real record's heading. */
-export const REAL_MARKING = "Build-generated record";
+export const REAL_MARKING = "Current deployment record";
 
 /** What the marking reads when the build is unstamped and there is no record. */
 export const NO_RECORD_LABEL = "This deployment records no commit";

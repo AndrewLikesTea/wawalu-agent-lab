@@ -522,7 +522,7 @@ test("the real record of this deployment has one name everywhere the page names 
   // reader scanning headings meets first, the link that opens it, and the
   // control that hands over its address.
   assert.equal(textOf(page.document.querySelector("#shipped-build-title")), "Real record of this deployment");
-  assert.equal(textOf(page.document.querySelector("#shipped-build-marking")), "Build-generated record");
+  assert.equal(textOf(page.document.querySelector("#shipped-build-marking")), "Current deployment record");
   assert.equal(
     record.match(/Real record of this deployment/g)?.length,
     1,
