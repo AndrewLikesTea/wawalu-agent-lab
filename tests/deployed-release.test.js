@@ -103,11 +103,11 @@ test("the record is derived from the build stamp, and is null when the build nam
 
 test("the two markings are distinct strings that cannot be read as each other", () => {
   assert.equal(REAL_LABEL, "Real record of this deployment");
-  assert.equal(REAL_MARKING, "Build-generated record");
+  assert.equal(REAL_MARKING, "Current deployment record");
   assert.equal(EXAMPLE_LABEL, "Example record");
   assert.notEqual(REAL_MARKING, EXAMPLE_LABEL);
   // Neither marking contains the other, so a reader cannot mistake the
-  // build-generated record for an example record.
+  // current deployment record for an example record.
   assert.equal(REAL_MARKING.includes(EXAMPLE_LABEL), false);
   assert.equal(EXAMPLE_LABEL.includes(REAL_MARKING), false);
   const words = (label) => new Set(label.toLowerCase().split(/\W+/).filter(Boolean));
