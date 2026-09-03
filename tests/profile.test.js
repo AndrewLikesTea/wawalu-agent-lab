@@ -514,13 +514,16 @@ test("the profile and post pages are wired, labelled, and reachable", async () =
   // inside it, so the instruction is attached to the controls rather than to one
   // of them.
   assert.match(profile, /<fieldset class="filter-group" aria-describedby="profile-author-hint">/);
-  // And the hint says what choosing an entry does. It used to define the term
-  // instead — "The display name is the name shown on each post." — which a
-  // reader could take in whole and still not know that pressing one narrows the
-  // grid below, so the one sentence attached to the control explained nothing
-  // about the control.
-  assert.match(profile, /<p class="hint profile-toolbar-hint" id="profile-author-hint">\s*The selected display name is the current filter\. Choose another display name to update the image-post list\.\s*<\/p>/);
+  // And the hint says what the grid below holds, then what choosing an entry
+  // does. It used to define the term instead — "The display name is the name
+  // shown on each post." — and after that it defined the filter as itself,
+  // which a reader could take in whole and still not know that pressing one
+  // narrows the grid below, so the one sentence attached to the control
+  // explained nothing about the control.
+  assert.match(profile, /<p class="hint profile-toolbar-hint" id="profile-author-hint">\s*The list below shows only the image posts published under the selected display name\. Choose another display name to update the image-post list\.\s*<\/p>/);
   assert.doesNotMatch(profile, /The display name is the name shown on each post\./);
+  assert.doesNotMatch(profile, /is the current filter/,
+    "the hint defines the filter as itself again");
   assert.match(profile, /<div class="filter-options" id="profile-author"><\/div>/);
   // The picker is buttons, not a menu: an option list can hold the count but
   // cannot hold a pressed state a reader can see.

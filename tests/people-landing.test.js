@@ -150,8 +150,12 @@ test("the picker says what choosing a name does, and the line over the grid says
   const page = await people();
   try {
     const { document } = page;
+    // Read after hydration, not off the served markup: this page pre-renders
+    // filter copy, so the sentence has to survive the render that fills the
+    // picker beside it.
     assert.equal(textOf(document.querySelector("#profile-author-hint")),
-      "The selected display name is the current filter. Choose another display name to update the image-post list.");
+      "The list below shows only the image posts published under the selected display name."
+      + " Choose another display name to update the image-post list.");
 
     // Zed is the landing name and has two pictures. The number is the tiles on
     // screen, not the size of the feed behind them: four posts are loaded here.
@@ -176,8 +180,16 @@ test("the picker says what choosing a name does, and the line over the grid says
     // one, and no page state brings it back.
     for (const name of ["Zed", "Bea", "Ari"]) {
       chipFor(page, name).click();
-      assert.equal(textOf(document.getElementById("main-content")).includes("People is filtered to"), false,
+      const main = textOf(document.getElementById("main-content"));
+      assert.equal(main.includes("People is filtered to"), false,
         `the retired filter sentence is still rendered under ${name}`);
+      assert.equal(main.includes("is the current filter"), false,
+        `the picker defines the filter as itself under ${name}`);
+      // And the sentence that says what the grid holds stays put while the
+      // selection moves: it explains the control, not one name's results.
+      assert.match(textOf(document.querySelector("#profile-author-hint")),
+        /^The list below shows only the image posts published under the selected display name\./,
+        `the picker hint lost its explanation under ${name}`);
     }
     // The ordering label is untouched by all of it, in its own words and its own
     // place above the list.
