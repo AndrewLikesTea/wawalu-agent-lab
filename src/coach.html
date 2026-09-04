@@ -119,9 +119,18 @@
              The same page load produces the same figures on every machine.
              It stands down the moment a visitor grades their own text, so the
              page never shows two results at once and an example figure can
-             never be misread as a reading of the visitor's work. -->
+             never be misread as a reading of the visitor's work.
+
+             The heading names the state the region is actually in. What ships
+             is the loading state's wording, because that is the state these
+             bytes are read in: the grade does not exist until the module paints
+             it, and prompt-coaching-entry-view.js rewrites the heading to
+             "already graded" in the same breath as the result that makes it
+             true. It used to ship "already graded" over "Loading the bundled
+             example", which told a first-time visitor a score was on screen
+             before one was. -->
         <section class="prompt-coach-sample" id="prompt-coach-sample" data-sample-state="static" aria-labelledby="prompt-coach-sample-title">
-          <h3 class="eyebrow" id="prompt-coach-sample-title">Bundled synthetic example, already graded</h3>
+          <h3 class="eyebrow" id="prompt-coach-sample-title">Bundled synthetic example, grading now</h3>
           <p class="prompt-coach-sample-static">This result uses a bundled synthetic example written for this page, not your prompt or anyone else’s real prompt.</p>
           <div class="prompt-coach-sample-body" id="prompt-coach-sample-body">
             <p class="prompt-coach-sample-lead">Loading the bundled example. You can paste your own prompt below now.</p>

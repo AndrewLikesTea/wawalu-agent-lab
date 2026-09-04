@@ -18,10 +18,11 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
 import { loadPage, parseHtml, pressEnter, pressTab, tabSequence, textOf, typeText } from "./support/browser.js";
-import { importPageModule } from "./support/page-module.js";
+import { importPageModule, waitFor } from "./support/page-module.js";
 import { SITE_NAV } from "../src/site-nav.js";
 import { COACHING_INPUT_SOURCE } from "../src/prompt-coaching-contract.js";
 import { COACHING_ENTRY_EXAMPLE } from "../src/prompt-coaching-entry.js";
+import { FIRST_RUN_GRADED_TITLE, applyCoachingFirstRun } from "../src/prompt-coaching-entry-view.js";
 import { COPY_LABEL } from "../src/coaching-summary-view.js";
 
 const PAGE = fileURLToPath(new URL("../src/coach.html", import.meta.url));
@@ -177,6 +178,11 @@ test("a visitor who types nothing reads one complete result on arrival", async (
   const attribution = textOf(document.querySelector(".prompt-coach-sample-attribution"));
   assert.match(attribution, /bundled synthetic example, not of your text/);
 
+  // And the heading over the figures says the grade exists, because by now it
+  // does: it names the example in the page's own words and states its state.
+  assert.equal(textOf(byId(document, "prompt-coach-sample-title")), FIRST_RUN_GRADED_TITLE);
+  assert.match(FIRST_RUN_GRADED_TITLE, /Bundled synthetic example/);
+
   // Supporting evidence stays disclosed rather than spent on a first read.
   const toggle = result.querySelector(".coaching-result-toggle");
   assert.ok(toggle, "the rubric evidence must sit behind a disclosure");
@@ -185,6 +191,48 @@ test("a visitor who types nothing reads one complete result on arrival", async (
   toggle.focus?.();
   pressEnter(document);
   assert.equal(toggle.getAttribute("aria-expanded"), "true", "the disclosure must open from the keyboard");
+});
+
+// The state every visitor reads first, and the one the heading used to be
+// written for the end of: "Bundled synthetic example, already graded" stood
+// over "Loading the bundled example", so the page claimed a score before there
+// was one on screen.
+test("while the example is loading, the heading says it is being graded, not that it is graded", async () => {
+  // The page entry mounts itself on import, so it is imported against a
+  // document this test discards. The page it drives is loaded afterwards and
+  // wired by hand, with the loader held open, because the shipped loader paints
+  // in the same turn it is called in and there is no loading state to read.
+  const booted = await loadPage(PAGE);
+  const { initPromptCoaching } = await importPageModule("/prompt-coaching-page.js");
+  const page = await loadPage(PAGE);
+  let paint;
+  initPromptCoaching(page.document, {
+    loadBundledExample: (document) => new Promise((resolve) => {
+      paint = () => resolve(applyCoachingFirstRun(document));
+    }),
+  });
+
+  const title = () => textOf(byId(page.document, "prompt-coach-sample-title"));
+  const body = sampleBody(page.document);
+  assert.equal(body.dataset.loadState, "loading");
+  assert.match(textOf(body), /Loading the bundled example/, "the region must be in its loading state");
+  assert.doesNotMatch(title(), /already graded/,
+    "the heading claims a grade over a region that has not been graded yet");
+  assert.equal(title(), "Bundled synthetic example, grading now");
+  // And the invitation that stands while it loads is still standing: a visitor
+  // with a prompt of their own never has to wait for the example.
+  assert.match(textOf(body), /paste your own prompt below now/);
+
+  paint();
+  await waitFor(() => sampleBody(page.document).dataset.loadState === "ready",
+    "the bundled example to finish grading");
+  assert.equal(title(), FIRST_RUN_GRADED_TITLE);
+  // The sentence that separates the example from the visitor's own prompt is
+  // the page's own, in both states, and this paint does not touch it.
+  assert.match(textOf(page.document.querySelector(".prompt-coach-sample-static")),
+    /bundled synthetic example written for this page, not your prompt/);
+  page.restore();
+  booted.restore();
 });
 
 test("the same visit twice draws the same figures, because nothing is sampled or timed", async () => {
@@ -597,6 +645,14 @@ test("the first screen names the result and the next action, before any script r
   const sampleFallback = textOf(document.querySelector(".prompt-coach-sample-lead"));
   assert.match(sampleFallback, /Loading the bundled example/);
   assert.match(sampleFallback, /paste your own prompt below now/);
+
+  // The heading over that line is the loading state's too, because that is the
+  // state these bytes are read in. A reader whose script never runs is told the
+  // example is being graded, and never that a grade they cannot see exists.
+  const sampleTitle = textOf(byId(document, "prompt-coach-sample-title"));
+  assert.equal(sampleTitle, "Bundled synthetic example, grading now");
+  assert.doesNotMatch(sampleTitle, /already graded/,
+    "the shipped heading claims a grade the shipped markup does not contain");
 });
 
 test("one name per concept: the example, the grade button, and the clear button", async () => {
