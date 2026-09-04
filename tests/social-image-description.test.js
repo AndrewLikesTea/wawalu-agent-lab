@@ -138,8 +138,11 @@ test("the description requirement is stated only once there is an image to descr
   // their "(optional)" markers — one treatment answers both questions.
   assert.equal(marker.tagName, "SPAN");
   assert.equal(marker.getAttribute("class"), "label-optional label-required");
+  // Counted inside the composer, not across the page: the follow-up block in the
+  // footer carries an optional field of its own, and a page-wide count would
+  // make this assertion's message false while still passing.
   assert.equal(
-    harness.document.querySelectorAll(".label-optional").length,
+    harness.document.getElementById("post-form").querySelectorAll(".label-optional").length,
     4,
     "Image, Image description, Display name, and Caption each carry exactly one marker — none is left unmarked",
   );

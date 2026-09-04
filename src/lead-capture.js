@@ -103,6 +103,17 @@ export const CONTACT_COPY = Object.freeze({
 export const FOLLOW_UP_PRIVACY = "The work email address you type here goes to the Wawalu team that "
   + "operates Shiplog; nothing else on this page is sent.";
 
+// The same claim on a form that also offers a message box, which cannot say
+// nothing else is sent. It lists the three arguments `postLeadEmail` builds the
+// body from instead, which is still everything with a route to the wire.
+export const FOLLOW_UP_PRIVACY_WITH_MESSAGE = "The work email address you type here goes to the Wawalu "
+  + "team that operates Shiplog; only that address, this fixed follow-up topic, and the message you type are sent.";
+
+// One refusal for both message fields: how long, how far over, and the limit.
+export function overLengthMessage(length, max = MAX_FOLLOW_UP_MESSAGE_LENGTH) {
+  return `Your message is ${length} characters — ${length - max} over the ${max} limit.`;
+}
+
 // What the team then does with it, beside the sentence above on every follow-up
 // form. A second string, not a second clause: the sentence above is pinned as
 // one sentence. It states a use and promises no reply and no schedule.

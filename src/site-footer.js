@@ -31,8 +31,9 @@
 
 import { createFollowUpConfirmation } from "./follow-up-confirmation.js";
 import {
-  CONTACT_COPY, describeWith, emailFieldError, FOLLOW_UP_PRIVACY, FOLLOW_UP_USE, knownNotSent,
-  looksLikeEmail, postLeadEmail, SubmissionError,
+  CONTACT_COPY, describeWith, emailFieldError, FOLLOW_UP_PRIVACY, FOLLOW_UP_PRIVACY_WITH_MESSAGE,
+  FOLLOW_UP_USE, knownNotSent, looksLikeEmail, MAX_FOLLOW_UP_MESSAGE_LENGTH, overLengthMessage,
+  postLeadEmail, SubmissionError,
 } from "./lead-capture.js";
 import { REPOSITORY_URL } from "./repository-url.js";
 
@@ -189,14 +190,18 @@ export const FOLLOW_UP_REDIRECT = Object.freeze({
  * `collapsedDemos` folds the destination list into a disclosure that ships
  * closed. Only /post.html asks for it: a forwarded link is opened to read one
  * post, and the map of everywhere else was the larger half of that page.
+ *
+ * `askMessage` adds the home page's optional question field above the work-email
+ * field, and switches the privacy sentence with it: a form carrying a message
+ * box cannot claim nothing else on the page is sent.
  */
 export function siteFooterMarkup(indent = "    ", {
   redirect = null, followUpType = null, followUpTopic = null, statedTopic = false,
-  collapsedDemos = false,
+  collapsedDemos = false, askMessage = false,
 } = {}) {
   const contact = redirect ? [
     `    <a class="site-footer-redirect-link" href="${redirect.href}">${redirect.label}</a>`,
-  ] : contactFormLines(followUpType, followUpTopic, statedTopic);
+  ] : contactFormLines(followUpType, followUpTopic, statedTopic, askMessage);
   const lines = [
     '<footer class="site-footer" id="site-footer" aria-labelledby="site-footer-title">',
     '  <div class="site-footer-inner">',
@@ -241,7 +246,25 @@ function demoListLines(collapsed = false) {
   ];
 }
 
-function contactFormLines(followUpType, followUpTopic, stated) {
+// Above the address on purpose: a visitor decides what to ask before deciding
+// whether to hand over a work address for the answer, and keyboard order is
+// reading order. Every class and string here is the home page field's.
+function messageFieldLines() {
+  return [
+    '        <div class="site-footer-field">',
+    '          <label for="site-footer-message">What do you want to know? <span class="label-optional">(optional)</span></label>',
+    '          <input id="site-footer-message" name="message" type="text" autocomplete="off" aria-describedby="site-footer-message-hint site-footer-message-counter-label site-footer-message-counter" />',
+    '          <p class="site-footer-error" id="site-footer-message-error" role="alert" hidden></p>',
+    `          <span class="hint" id="site-footer-message-hint">Up to ${MAX_FOLLOW_UP_MESSAGE_LENGTH} characters.</span>`,
+    '          <p class="counter-row">',
+    '            <span id="site-footer-message-counter-label">Characters remaining:</span>',
+    `            <span id="site-footer-message-counter" aria-live="polite" aria-atomic="true">${MAX_FOLLOW_UP_MESSAGE_LENGTH}</span>`,
+    "          </p>",
+    "        </div>",
+  ];
+}
+
+function contactFormLines(followUpType, followUpTopic, stated, askMessage = false) {
   return [
     `    <p class="site-footer-invitation">${INVITATION}</p>`,
     '    <div class="site-footer-panel" id="site-footer-panel">',
@@ -254,6 +277,7 @@ function contactFormLines(followUpType, followUpTopic, stated) {
       `          <input id="site-footer-topic" type="text" value="${followUpTopic}" readonly />`,
       "        </div>",
     ]),
+    ...(askMessage ? messageFieldLines() : []),
     '        <div class="site-footer-field">',
     '          <label for="site-footer-email">Work email for your follow-up</label>',
     "          <!-- Only the note is named here. The inline error and the recovery",
@@ -264,7 +288,7 @@ function contactFormLines(followUpType, followUpTopic, stated) {
     '          <input id="site-footer-email" name="email" type="email" maxlength="254" inputmode="email" autocomplete="email" placeholder="you@company.com" required aria-describedby="site-footer-note" />',
     "        </div>",
     `        <p class="site-footer-error" id="site-footer-error" hidden></p>`,
-    `        <p class="site-footer-note" id="site-footer-note">${FOLLOW_UP_PRIVACY}</p>`,
+    `        <p class="site-footer-note" id="site-footer-note">${askMessage ? FOLLOW_UP_PRIVACY_WITH_MESSAGE : FOLLOW_UP_PRIVACY}</p>`,
     `        <p class="site-footer-note" id="site-footer-use">${FOLLOW_UP_USE}</p>`,
     '        <p class="site-footer-recovery" id="site-footer-recovery" hidden></p>',
     '        <div class="site-footer-actions">',
@@ -293,6 +317,11 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
   if (!form || !panel) return null;
 
   const email = form.elements.email;
+  // Only the pages that ask a question ship these three; everything below has
+  // to work exactly as it did when none of them existed.
+  const message = form.elements.message ?? null;
+  const messageError = root.querySelector("#site-footer-message-error");
+  const counter = root.querySelector("#site-footer-message-counter");
   const submit = form.querySelector('button[type="submit"]');
   const fieldError = root.querySelector(`#${ERROR_ID}`);
   const status = root.querySelector("#site-footer-status");
@@ -399,6 +428,22 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
     }
   });
 
+  // The live count and the refusal beside it, off one measurement in one moment,
+  // so the number and the sentence cannot disagree about which side of the limit
+  // the message is on. Returns the answer the submit path needs too.
+  function overLimit() {
+    if (!message || !counter || !messageError) return false;
+    const { length } = message.value;
+    const over = length > MAX_FOLLOW_UP_MESSAGE_LENGTH;
+    counter.textContent = `${MAX_FOLLOW_UP_MESSAGE_LENGTH - length}`;
+    messageError.textContent = over ? overLengthMessage(length) : "";
+    messageError.hidden = !over;
+    if (over) message.setAttribute("aria-invalid", "true");
+    else message.removeAttribute("aria-invalid");
+    return over;
+  }
+  message?.addEventListener("input", overLimit);
+
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     // One request in flight, one request per receipt. The disabled control and
@@ -417,6 +462,16 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
       email.focus();
       return;
     }
+    // Refused against the number the endpoint would refuse it against. Nothing
+    // typed is cleared or truncated on the way out.
+    if (overLimit()) {
+      form.dataset.state = "invalid";
+      setFieldError(null);
+      setRecoveryVisible(false);
+      status.textContent = "";
+      message.focus();
+      return;
+    }
 
     form.dataset.state = "submitting";
     setFieldError(null);
@@ -432,12 +487,15 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
     try {
       const address = email.value.trim();
       const topic = form.dataset.followUpTopic;
-      const body = await postLeadEmail(request, email.value, form.dataset.followUpType || "follow_up", CONTACT_COPY, topic);
+      // Blank stays off the wire: an empty optional field sends exactly the
+      // request this form sent before it existed.
+      const note = message?.value.trim() || null;
+      const body = await postLeadEmail(request, email.value, form.dataset.followUpType || "follow_up", CONTACT_COPY, topic, note);
       form.dataset.state = "success";
       status.textContent = body.created ? CAPTURED : ALREADY_CAPTURED;
       // The form is replaced from here, so the control that would send again is
       // gone before the `finally` below could bring it back.
-      confirmation.show(address, topic);
+      confirmation.show(address, topic, Boolean(note));
     } catch (error) {
       // Copy this repository owns, never a string an intermediary supplied, and
       // never a claim that the address was lost when that is not known.

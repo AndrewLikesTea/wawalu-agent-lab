@@ -77,6 +77,14 @@ const describedBy = (document) => byId(document, "site-footer-email").getAttribu
 // `statedTopic` is the second shape a fixed topic takes: the pages a visitor
 // cannot choose a topic on say what the request is about in prose instead of in
 // a read-only control, so the block gains a sentence and no tab stop.
+//
+// `askMessage` is the fourth shape, and the one issue #2129 added: the block
+// offers the home page's optional question field above the work-email field, so
+// a visitor can say what they want to know before handing over an address. It
+// costs one tab stop and changes the privacy sentence — see
+// tests/follow-up-privacy.test.js, which holds the two shapes apart. The home
+// page is deliberately not on it: its footer is unchanged, and the field it
+// already carries belongs to the bundled-example form higher up the page.
 const FOOTER_VARIANT = new Map([
   ["index.html", {
     followUpType: "follow_up_homepage", followUpTopic: FOLLOW_UP_TOPICS.follow_up_homepage, statedTopic: true,
@@ -84,6 +92,7 @@ const FOOTER_VARIANT = new Map([
   ["executive-briefing.html", { redirect: FOLLOW_UP_REDIRECT.briefing }],
   ["coach.html", {
     followUpType: "follow_up_coach", followUpTopic: FOLLOW_UP_TOPICS.follow_up_coach, statedTopic: true,
+    askMessage: true,
   }],
   // `collapsedDemos` is the third shape, and one page carries it: /post.html is
   // opened from a forwarded link to read one post, so its directory ships behind
@@ -95,14 +104,19 @@ const FOOTER_VARIANT = new Map([
   }],
   ["releases.html", {
     followUpType: "follow_up_releases", followUpTopic: FOLLOW_UP_TOPICS.follow_up_releases, statedTopic: true,
+    askMessage: true,
   }],
   ["social.html", {
     followUpType: "follow_up_social", followUpTopic: FOLLOW_UP_TOPICS.follow_up_social, statedTopic: true,
+    askMessage: true,
   }],
   ["profile.html", {
     followUpType: "follow_up_people", followUpTopic: FOLLOW_UP_TOPICS.follow_up_people, statedTopic: true,
+    askMessage: true,
   }],
-  ["agents.html", { followUpType: "follow_up_agents", followUpTopic: FOLLOW_UP_TOPICS.follow_up_agents }],
+  ["agents.html", {
+    followUpType: "follow_up_agents", followUpTopic: FOLLOW_UP_TOPICS.follow_up_agents, askMessage: true,
+  }],
 ]);
 
 test("every page of the site renders the footer, byte for byte from src/site-footer.js", async () => {

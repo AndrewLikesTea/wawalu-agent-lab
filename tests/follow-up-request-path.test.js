@@ -30,7 +30,10 @@ import { initSiteFooter } from "../src/site-footer.js";
 import { CONFIRMATION_DETAIL, CONFIRMATION_LEAD } from "../src/follow-up-confirmation.js";
 import { onRequest } from "../functions/api/leads.js";
 import { createMemoryLeadStore, FOLLOW_UP_TOPICS, handleLeadRequest } from "../src/leads.js";
-import { CONTACT_COPY, FOLLOW_UP_PRIVACY, knownNotSent, resolveFailure, SubmissionError } from "../src/lead-capture.js";
+import {
+  CONTACT_COPY, FOLLOW_UP_PRIVACY, FOLLOW_UP_PRIVACY_WITH_MESSAGE, knownNotSent, MAX_FOLLOW_UP_MESSAGE_LENGTH,
+  resolveFailure, SubmissionError,
+} from "../src/lead-capture.js";
 
 // The pages the follow-up request was reviewed on, with the request type each
 // one sends and how that request's fixed topic is presented. The homepage
@@ -53,6 +56,15 @@ const REVIEWED = [
   ["profile.html", "follow_up_people", FOLLOW_UP_TOPICS.follow_up_people, true],
   ["agents.html", "follow_up_agents", FOLLOW_UP_TOPICS.follow_up_agents, false],
 ];
+
+// The pages that also let a visitor say what they want to know before handing
+// over an address (issue #2129). The field is optional everywhere it appears, so
+// the request these pages send with it left empty is byte for byte the request
+// they sent before it existed — which is what the loop below still asserts. The
+// sentence beside the field changes with the field: a form carrying a message
+// box cannot claim nothing else on the page is sent.
+const ASKS_MESSAGE = new Set(["agents.html", "coach.html", "profile.html", "releases.html", "social.html"]);
+const expectedPrivacy = (file) => (ASKS_MESSAGE.has(file) ? FOLLOW_UP_PRIVACY_WITH_MESSAGE : FOLLOW_UP_PRIVACY);
 
 const TYPED_EMAIL = "director@example.com";
 const pageUrl = (file) => new URL(`../src/${file}`, import.meta.url);
@@ -135,8 +147,23 @@ for (const [file, purpose, topic, stated] of REVIEWED) {
       assert.equal(status.getAttribute("role"), "status");
       assert.equal(status.getAttribute("aria-live"), "polite");
       assert.equal(textOf(status), "", "the region must start empty, claiming nothing");
-      assert.equal(shownText(document, "site-footer-note"), FOLLOW_UP_PRIVACY,
+      assert.equal(shownText(document, "site-footer-note"), expectedPrivacy(file),
         `${file}: initial privacy language must name what is sent`);
+
+      // The optional question, where the page offers it: present before anything
+      // is submitted, never required, and counting down from the limit it
+      // states. The count is authored at full, so a visitor who never types sees
+      // the same number the hint beside it names.
+      const asked = byId(document, "site-footer-message");
+      assert.equal(Boolean(asked), ASKS_MESSAGE.has(file), `${file}: the optional question field is misplaced`);
+      if (asked) {
+        assert.equal(asked.getAttribute("required"), null, `${file}: the question must never be required`);
+        assert.equal(shownText(document, "site-footer-message-counter"), `${MAX_FOLLOW_UP_MESSAGE_LENGTH}`);
+        assert.equal(shownText(document, "site-footer-message-hint"),
+          `Up to ${MAX_FOLLOW_UP_MESSAGE_LENGTH} characters.`);
+        assert.equal(byId(document, "site-footer-message-error").hidden, true,
+          `${file}: nothing has been typed, so nothing is refused`);
+      }
 
       // ...and it is not folded inside a summary/details the browser collapses.
       // The harness reads through one; a screen reader in a real browser does
@@ -187,6 +214,89 @@ test("a valid work email and a successful transport reach the success state, whi
     assert.match(receipt, /Only that work email was entered by you and sent/);
     assert.doesNotMatch(receipt, /will reply|within two business days/i);
     assert.ok(receipt.includes(CONFIRMATION_DETAIL));
+  } finally {
+    page.restore();
+  }
+});
+
+/* ------------------- the question a visitor arrives with -------------------- */
+
+/** Type into the optional question field, from the keyboard, as a visitor does. */
+function ask(document, text) {
+  const field = byId(document, "site-footer-message");
+  field.value = "";
+  field.focus();
+  typeText(document, text);
+  return field;
+}
+
+test("a typed question rides along with the address and the page's fixed topic", async () => {
+  const { page, document, calls } = await mountFooter("releases.html",
+    () => jsonReply({ captured: true, created: true, purpose: "follow_up_releases" }));
+  try {
+    const question = "Which release carried the routing decision?";
+    ask(document, question);
+    // The count is live: it answers the question the field's hint raises while
+    // the visitor is still typing, not after they submit.
+    assert.equal(shownText(document, "site-footer-message-counter"),
+      `${MAX_FOLLOW_UP_MESSAGE_LENGTH - question.length}`);
+
+    openAndSubmit(document);
+    await settled(document);
+
+    assert.equal(byId(document, "site-footer-form").dataset.state, "success");
+    assert.deepEqual(JSON.parse(calls[0].options.body), {
+      email: TYPED_EMAIL, purpose: "follow_up_releases", topic: FOLLOW_UP_TOPICS.follow_up_releases,
+      message: question,
+    });
+    // And the receipt says a message went, rather than repeating the sentence
+    // for a request that carried only an address.
+    const receipt = shownText(document, "site-footer-confirmation");
+    assert.match(receipt, /Only that work email and the message you entered were entered by you and sent/);
+  } finally {
+    page.restore();
+  }
+});
+
+test("the question is optional: left empty it sends the request it always sent", async () => {
+  const { page, document, calls } = await mountFooter("social.html",
+    () => jsonReply({ captured: true, created: true, purpose: "follow_up_social" }));
+  try {
+    // Whitespace, not nothing: a visitor who tabbed through the field and hit
+    // the space bar has not asked anything, and an empty string on the wire is
+    // not the same request as no message at all.
+    ask(document, "   ");
+    openAndSubmit(document);
+    await settled(document);
+
+    assert.equal(byId(document, "site-footer-form").dataset.state, "success");
+    assert.deepEqual(Object.keys(JSON.parse(calls[0].options.body)), ["email", "purpose", "topic"]);
+    assert.match(shownText(document, "site-footer-confirmation"),
+      /Only that work email was entered by you and sent/);
+  } finally {
+    page.restore();
+  }
+});
+
+test("a message past the stated limit is refused here, not by the endpoint", async () => {
+  const { page, document, calls } = await mountFooter("coach.html",
+    () => jsonReply({ captured: true, created: true, purpose: "follow_up_coach" }));
+  try {
+    const tooLong = "x".repeat(MAX_FOLLOW_UP_MESSAGE_LENGTH + 3);
+    const field = ask(document, tooLong);
+    assert.equal(shownText(document, "site-footer-message-counter"), "-3");
+    assert.equal(shownText(document, "site-footer-message-error"),
+      `Your message is ${tooLong.length} characters — 3 over the ${MAX_FOLLOW_UP_MESSAGE_LENGTH} limit.`);
+    assert.equal(field.getAttribute("aria-invalid"), "true");
+
+    openAndSubmit(document);
+    assert.equal(calls.length, 0, "a message the endpoint would refuse must not reach the network");
+    assert.equal(byId(document, "site-footer-form").dataset.state, "invalid");
+    // Nothing typed is cleared or truncated, and the cursor lands on the field
+    // the visitor has to shorten rather than on the address they got right.
+    assert.equal(field.value, tooLong);
+    assert.equal(document.activeElement?.id, "site-footer-message");
+    assert.equal(byId(document, "site-footer-email").value, TYPED_EMAIL);
   } finally {
     page.restore();
   }

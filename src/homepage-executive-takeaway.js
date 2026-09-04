@@ -108,23 +108,17 @@ export const TAKEAWAY_COPY_FEEDBACK = Object.freeze({
 });
 
 import {
-  CONTACT_COPY, emailFieldError, looksLikeEmail, MAX_FOLLOW_UP_MESSAGE_LENGTH, postLeadEmail,
-  SubmissionError,
+  CONTACT_COPY, emailFieldError, looksLikeEmail, MAX_FOLLOW_UP_MESSAGE_LENGTH, overLengthMessage,
+  postLeadEmail, SubmissionError,
 } from "./lead-capture.js";
 import { createFollowUpConfirmation } from "./follow-up-confirmation.js";
 
 export const FINOPS_EXAMPLE_FOLLOW_UP_PURPOSE = "follow_up_finops_example";
 
-/**
- * The refusal, in the Social composer's words on this field's budget: how long
- * the message is, how far over it is, and what the limit is. `overLengthPostMessage`
- * in src/social.js says the same three things about a post, and this is not an
- * import of it — that module is not something the home page's first screen can
- * load for one subtraction. It is the sentence, not a second mechanism.
- */
-export function overLengthMessage(length, max = MAX_FOLLOW_UP_MESSAGE_LENGTH) {
-  return `Your message is ${length} characters — ${length - max} over the ${max} limit.`;
-}
+// The refusal this form shows is `overLengthMessage`, which now lives beside the
+// limit it counts against in src/lead-capture.js: the footer's message field
+// asks the same question and owes a visitor the same sentence, and a second copy
+// of it is how two forms come to disagree about one number.
 
 /** Wire the native copy button. The clipboard is injectable for focused tests. */
 export function bindExecutiveTakeaway(doc = globalThis.document, clipboard = globalThis.navigator?.clipboard) {
