@@ -644,7 +644,7 @@ test("who wrote the posts survives loading, populated, empty, and no-match", asy
 // the visitor's own post to the consequence at the Publish post button, which
 // stays the one and only place that cost is stated.
 const PROVENANCE_SENTENCE = "The posts already here are invented to demonstrate Shiplog; a post you publish is real.";
-const PUBLISH_CONSEQUENCE = "Anyone who visits Shiplog can read your post, its image, and the display name you publish it with. You cannot delete it afterwards, so post nothing you would not put on a public page.";
+const PUBLISH_CONSEQUENCE = "Anyone who visits Shiplog can read your post, its image, and the display name you publish it with. You cannot edit or delete a post after you publish it, so post nothing you would not put on a public page.";
 
 test("the intro scopes the demo promise to the seeded posts, and the composer states the cost once", async (t) => {
   const { document, id } = await socialDisclosure(t);
@@ -906,7 +906,7 @@ test("Social and People define a display name once, in the same words", async (t
   const social = await loadPage(new URL("../src/social.html", import.meta.url), {});
   t.after(() => social.restore());
   assert.equal(textOf(social.document.querySelector("#post-consequence")),
-    "Anyone who visits Shiplog can read your post, its image, and the display name you publish it with. You cannot delete it afterwards, so post nothing you would not put on a public page.");
+    "Anyone who visits Shiplog can read your post, its image, and the display name you publish it with. You cannot edit or delete a post after you publish it, so post nothing you would not put on a public page.");
 });
 
 // The opened composer pins both sentences beneath the display name field: what
@@ -1601,7 +1601,7 @@ test("with the composer open, the flow and submit controls use one publishing la
     `the composer no longer authors the consequence and the button as siblings: ${siblings}`);
   assert.ok(siblings.indexOf("post-consequence") < siblings.indexOf("post-submit"),
     "the consequence moved below the button that costs it");
-  assert.match(textOf(id("post-consequence")), /You cannot delete it afterwards/);
+  assert.match(textOf(id("post-consequence")), /You cannot edit or delete a post after you publish it/);
   assert.ok(id("post-submit").getAttribute("aria-describedby").split(/\s+/).includes("post-consequence"));
 });
 
@@ -1751,7 +1751,7 @@ test("the composer's three cautions still read word for word once it is open", a
     "post-image-alt-hint": "Describe what matters in the image for people who cannot see it. Up to 200 characters.",
     "post-author-hint": "The display name appears on your post in the Social feed, defaults to “Guest,” and cannot be changed after publishing.",
     "post-author-identity": "People groups image posts under this display name.",
-    "post-consequence": "Anyone who visits Shiplog can read your post, its image, and the display name you publish it with. You cannot delete it afterwards, so post nothing you would not put on a public page.",
+    "post-consequence": "Anyone who visits Shiplog can read your post, its image, and the display name you publish it with. You cannot edit or delete a post after you publish it, so post nothing you would not put on a public page.",
   };
   for (const [id_, wording] of Object.entries(cautions)) {
     const node = document.querySelector(`#${id_}`);

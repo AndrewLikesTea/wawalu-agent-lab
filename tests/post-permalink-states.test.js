@@ -806,7 +806,7 @@ test("the onward row offers the feed, the display name and a post of your own", 
 // stops reading, and it was spent before it could cost anything. It is now said
 // exactly once, at the Publish post button, which names it as its own
 // accessible description so it is announced at the moment of the act.
-const CONSEQUENCE = "Anyone who visits Shiplog can read your post, its image, and the display name you publish it with. You cannot delete it afterwards, so post nothing you would not put on a public page.";
+const CONSEQUENCE = "Anyone who visits Shiplog can read your post, its image, and the display name you publish it with. You cannot edit or delete a post after you publish it, so post nothing you would not put on a public page.";
 const consequencesIn = (html) => [...html.matchAll(/<p class="[^"]*publish-consequence[^"]*"[^>]*>([^<]*)<\/p>/g)].map((match) => match[1]);
 
 test("the publication consequence is said once, at the button that publishes", async () => {
