@@ -614,7 +614,7 @@ test("a post with no image renders no image element and no empty frame to hold o
 // can resolve to a post or to nothing at all, and the frame has to read the same
 // either way — so this is asserted in the missing state as well as the loaded
 // one, not just in the state that happens to work.
-const SOCIAL_LINK = "Open the full Social feed";
+const SOCIAL_LINK = "Open Social to read the whole feed";
 const PEOPLE_LINK = "Open People to see Mina Okafor’s other image posts";
 // The act, not a second name for the place. Both routes land on /social.html;
 // the labels are what tell them apart, so they may not open on the same words.
