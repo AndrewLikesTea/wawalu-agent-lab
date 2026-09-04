@@ -135,6 +135,20 @@ export const DEMOS = Object.freeze([
  */
 export const INVITATION = "Questions about Shiplog? Send the Wawalu team that operates it a follow-up request.";
 
+/**
+ * What asking actually gets a visitor — the home page's answer, on the pages a
+ * shared link lands on.
+ *
+ * A reader who arrived on a deep page from a forwarded link had only INVITATION
+ * above, which names the errand and not the offer. The home page's "How a team
+ * gets Shiplog" paragraph answers it, so its claims are reused rather than
+ * rewritten, and nothing is added: no reply time, no figure, no promise the
+ * home page does not already make. tests/follow-up-offer.test.js compares this
+ * against that paragraph, so the two cannot become two answers.
+ */
+export const OFFER = "There is no self-serve signup and no published price. Whether Shiplog is available "
+  + "for your team and what it would cost are both answered on request.";
+
 // What the field sends is not this footer's sentence to write: all three
 // follow-up forms render FOLLOW_UP_PRIVACY from src/lead-capture.js, beside
 // the transport that makes it true.
@@ -194,14 +208,17 @@ export const FOLLOW_UP_REDIRECT = Object.freeze({
  * `askMessage` adds the home page's optional question field above the work-email
  * field, and switches the privacy sentence with it: a form carrying a message
  * box cannot claim nothing else on the page is sent.
+ *
+ * `offer` opens the block with OFFER — what asking gets a visitor who never read
+ * the home page's answer to the same question.
  */
 export function siteFooterMarkup(indent = "    ", {
   redirect = null, followUpType = null, followUpTopic = null, statedTopic = false,
-  collapsedDemos = false, askMessage = false,
+  collapsedDemos = false, askMessage = false, offer = false,
 } = {}) {
   const contact = redirect ? [
     `    <a class="site-footer-redirect-link" href="${redirect.href}">${redirect.label}</a>`,
-  ] : contactFormLines(followUpType, followUpTopic, statedTopic, askMessage);
+  ] : contactFormLines(followUpType, followUpTopic, statedTopic, askMessage, offer);
   const lines = [
     '<footer class="site-footer" id="site-footer" aria-labelledby="site-footer-title">',
     '  <div class="site-footer-inner">',
@@ -264,11 +281,14 @@ function messageFieldLines() {
   ];
 }
 
-function contactFormLines(followUpType, followUpTopic, stated, askMessage = false) {
+function contactFormLines(followUpType, followUpTopic, stated, askMessage = false, offer = false) {
   return [
     `    <p class="site-footer-invitation">${INVITATION}</p>`,
     '    <div class="site-footer-panel" id="site-footer-panel">',
     `      <form id="site-footer-form" class="site-footer-form"${followUpType ? ` data-follow-up-type="${followUpType}"` : ""}${followUpTopic ? ` data-follow-up-topic="${followUpTopic}"` : ""} novalidate>`,
+    // Why to ask, then what this request is about, then the fields: a visitor
+    // reads the offer before the topic, and both before an address.
+    ...(offer ? [`        <p class="site-footer-note" id="site-footer-offer">${OFFER}</p>`] : []),
     ...(!followUpTopic ? [] : stated ? [
       `        <p class="site-footer-note" id="site-footer-topic-note">This request is sent about the ${followUpTopic}.</p>`,
     ] : [
