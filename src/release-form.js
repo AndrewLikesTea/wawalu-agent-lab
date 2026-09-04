@@ -34,6 +34,11 @@ export const MAX_RELEASE_OWNER_LENGTH = 80;
 // recorder on the decisions page, not the page's top.
 export const RECORD_DECISION_HREF = "/#decision-form";
 export const DECISION_PICKER_LOADING_TEXT = "Loading decisions to link…";
+// The status line beside the picker says the same state in different words. The
+// visible placeholder inside the picker already reads "Loading decisions to
+// link…"; repeating it here stacks two identical sentences in the form and
+// tells a screen-reader user the same thing twice.
+export const DECISION_PICKER_LOADING_STATUS_TEXT = "No decisions can be linked until the list loads.";
 
 export const RELEASE_FORM_ERRORS = {
   required: "A release needs a version, an owner, a status, a release date, and a summary.",
@@ -292,7 +297,7 @@ export function mountDecisionPicker(container, options = {}) {
   const syncSummary = () => {
     if (!summary) return;
     summary.textContent = state === "loading"
-      ? DECISION_PICKER_LOADING_TEXT
+      ? DECISION_PICKER_LOADING_STATUS_TEXT
       : selectionSummaryText(selected.length, decisions.length, governingTitle());
   };
 
