@@ -67,7 +67,7 @@
              as a reader can tell. -->
         <h1 id="page-title">People</h1>
         <p class="profile-lede" id="page-tagline">See the image posts published under one display name.</p>
-        <p class="profile-lede">Open <a class="text-link" href="/social.html">Social</a> when you want the whole feed, including posts with no image. Select Open post to read a post in full. Posts use no customer or production data.</p>
+        <p class="profile-lede">Open <a class="text-link" href="/social.html">Social</a> when you want the whole feed, including posts with no image. Posts use no customer or production data.</p>
 
         <!-- The picker comes before the answer, in the markup and not merely in
              the layout: it is the first control in the main content — only the
@@ -314,6 +314,18 @@
             <span id="profile-status"></span>
           </div>
           <p class="visually-hidden" id="profile-announcer" aria-live="polite" aria-atomic="true"></p>
+
+          <!-- How to read one post in full, beside the tiles that carry the
+               control it names, and only while they are there. Social's feed
+               ships the same sentence in the same place, word for word. It used
+               to stand in the intro at the top of this page, so a reader waiting
+               on the first fetch was told to select a control no tile on the
+               page had yet. profile.js writes it from the rendered tiles, the
+               skeleton reservations excluded, so it is absent on a loading,
+               failed, or empty grid and present the moment there is an image
+               post to open. Wordless rather than hidden, and prose rather than a
+               live region: the polite region above is this panel's one voice. -->
+          <p class="hint" id="profile-open-note"></p>
 
           <!-- The grid container itself carries aria-busy while the first load is
                in flight; the tiles inside are ordinary links, so Tab, Enter, and

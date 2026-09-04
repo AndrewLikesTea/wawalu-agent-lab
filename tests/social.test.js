@@ -569,11 +569,17 @@ test("the feed says who wrote the posts, where the posts are", async (t) => {
     "the intro says who wrote the posts a second time, four screens from a card");
   assert.match(intro, /Posts use no customer or production data\.$/,
     "the demo-data sentence must stay the intro's last words");
-  // One sentence, word for word People's, naming the control both feeds print
-  // on every card. Social had no such control and said nothing about opening a
-  // post; People told a reader to "select a post" and named nothing.
-  assert.match(intro, /Select Open post to read a post in full\./,
-    "the intro never tells a reader a post can be opened in full");
+  // How to open a post is not the hero's to say (#2111). The sentence names a
+  // control that only a rendered card carries, so it moved down to the feed
+  // panel, where social.js writes it from the cards themselves — and this page
+  // is the loading frame, so it is nowhere on it. tests/feed-open-post-
+  // instruction.test.js owns both halves of that rule.
+  assert.doesNotMatch(intro, /Select Open post/,
+    "the intro tells a reader to select a control no card on this page has yet");
+  assert.equal(page.document.querySelectorAll("#post-open-note").length, 1,
+    "the panel that will carry the instruction is not on the page");
+  assert.equal(textOf(page.document.querySelector("#post-open-note")), "",
+    "the loading feed already names a control none of its cards carry");
 
   // And the demo status is stated once above the feed. The hero used to say it
   // twice within one paragraph break — an eyebrow reading "Social · demo", then

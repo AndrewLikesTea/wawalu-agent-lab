@@ -25,7 +25,7 @@
 import { connectionStatusLine, normalizeImage } from "./social.js";
 import { OPEN_POST_LABEL, postDetailHref, profileHref } from "./social-links.js";
 import { imageDescription, renderDescriptionNote, renderImageUnavailable } from "./image-description.js";
-import { renderFeedStatus, feedPhase, feedPresence, setFilterAvailability } from "./feed-status.js";
+import { renderFeedStatus, feedPhase, feedPresence, setFilterAvailability, renderOpenPostInstruction } from "./feed-status.js";
 import { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH } from "./social-identity.js";
 
 // Social's three connection sentences with the noun this page shows, so the two
@@ -811,6 +811,7 @@ export function mountProfile(root, options = {}) {
     announcer: root.querySelector("#profile-announcer"),
     picker: root.querySelector("#profile-author"),
     pickerNote: root.querySelector("#profile-picker-note"),
+    openNote: root.querySelector("#profile-open-note"),
     // The one route into Paint: the invitation above the grid. It is a real
     // anchor in the markup and stays one whether or not this runs; all that is
     // added here is the display name, so Paint's back link returns to the
@@ -922,6 +923,12 @@ export function mountProfile(root, options = {}) {
       author,
       statusRegion: elements.feedStatus ?? grid,
     });
+    // Read off the tiles renderProfileGrid just drew rather than off `mine`, so
+    // the instruction is true of the grid on screen: it names the control
+    // printed on a tile, and it speaks only when a tile that carries one is
+    // there. The skeleton reservations wear the tile's own class and open
+    // nothing, so the helper leaves them out of the count.
+    renderOpenPostInstruction(elements.openNote, grid, ".profile-tile");
     const phase = feedPhase({
       state, total: filtered ? posts.length : mine.length, visible: mine.length, filtering: filtered,
     });

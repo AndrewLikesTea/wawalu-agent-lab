@@ -75,6 +75,39 @@ export function filtersAvailable(phase) {
 // this line is already reporting it.
 export const FILTERS_UNAVAILABLE_HINT = "Display name options become available when posts load.";
 
+// The one instruction both feeds give about reading a post in full (#2111). It
+// names a control — "Open post" — that exists nowhere except on a rendered
+// card, and it was authored in the hero on Social and on People, so a reader
+// whose fetch had not answered met a step they could not take, several screens
+// above the cards it was about. It is written from the cards themselves now, so
+// the sentence and the control it names arrive in the same frame and leave in
+// the same frame.
+export const OPEN_POST_INSTRUCTION = "Select Open post to read a post in full.";
+
+// Cards a reader can actually open. The loading placeholders wear the same
+// class as a real card, so a plain count of them includes the reservations this
+// sentence must not speak over: anything whose class ends in "-skeleton" is a
+// held space, not a post. `className` rather than the class attribute, because
+// that is the one reading that holds for a node a render layer just created as
+// well as for one parsed out of the shipped markup.
+export function renderedCards(host, selector) {
+  if (!host) return 0;
+  return [...host.querySelectorAll(selector)]
+    .filter((node) => !String(node?.className ?? "").split(/\s+/).some((name) => name.endsWith("-skeleton")))
+    .length;
+}
+
+// The instruction, present exactly when the cards it names are. The node is
+// authored with no words in it and only its text changes, so the pre-load page
+// genuinely lacks the sentence, the sentence is never a second copy of itself,
+// and nothing in the panel moves under a reader when it arrives. Returns the
+// count so a caller can state the same fact without counting twice.
+export function renderOpenPostInstruction(node, host, selector) {
+  const count = renderedCards(host, selector);
+  if (node) node.textContent = count > 0 ? OPEN_POST_INSTRUCTION : "";
+  return count;
+}
+
 /** Is `node` inside `host`? Ancestor walk: no descendant selectors here. */
 function within(node, host) {
   for (let walker = node; host && walker; walker = walker.parentNode) {

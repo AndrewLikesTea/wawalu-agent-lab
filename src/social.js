@@ -24,7 +24,7 @@
 import { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH, readStoredAuthor, rememberAuthor } from "./social-identity.js";
 import { imageDescription, renderDescriptionNote, renderImageUnavailable } from "./image-description.js";
 import { OPEN_POST_LABEL, postDetailHref, profileHref } from "./social-links.js";
-import { renderFeedStatus, feedPhase, feedPresence, filtersAvailable, setFilterAvailability, FILTERS_UNAVAILABLE_HINT } from "./feed-status.js";
+import { renderFeedStatus, feedPhase, feedPresence, filtersAvailable, setFilterAvailability, renderOpenPostInstruction, FILTERS_UNAVAILABLE_HINT } from "./feed-status.js";
 
 export { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH };
 
@@ -955,6 +955,7 @@ export function mountSocialFeed(root, options = {}) {
   const count = root.querySelector("#post-count");
   const heading = root.querySelector("#feed-title");
   const summary = root.querySelector("#feed-summary");
+  const openNote = root.querySelector("#post-open-note");
   const nameFilter = root.querySelector("#post-name-filter");
   const timeFilter = root.querySelector("#post-time-filter");
   const clearFilters = root.querySelector("#post-filter-clear");
@@ -1005,6 +1006,12 @@ export function mountSocialFeed(root, options = {}) {
     renderPosts(feed, visible, {
       state, noMatch, statusRegion: feedState ?? feed, onRetry: options.onRetry,
     });
+    // Read off the cards renderPosts just drew rather than off `visible`, so the
+    // instruction is true of the list on screen: it names the control printed on
+    // a post card, and it speaks only when a card that carries one is there. The
+    // skeleton reservations left standing during a load are excluded inside the
+    // helper — they wear the card's own class and open nothing.
+    renderOpenPostInstruction(openNote, feed, ".post-card");
     // The same machine renderPosts just branched on, so the count, the filters
     // and the connection line are describing the state the status region drew.
     const phase = feedPhase({ state, total: posts.length, visible: visible.length, filtering });

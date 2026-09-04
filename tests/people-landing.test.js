@@ -220,11 +220,14 @@ test("a first-time visitor lands on a display name that has image posts", async 
       "See the image posts published under one display name.");
     assert.match(textOf(document.querySelectorAll(".profile-lede")[1]),
       /^Open Social when you want the whole feed, including posts with no image\./);
-    // And it names the control that does it, in the words printed on the tile,
-    // rather than telling a reader to "select a post" and leaving them to guess
-    // what part of one is selectable.
-    assert.match(textOf(document.querySelectorAll(".profile-lede")[1]),
-      /Select Open post to read a post in full\./);
+    // And the control that does it is named in the words printed on the tile —
+    // beside the tiles, not in the intro, because it exists only where they do
+    // (#2111). This page has two image posts on screen, so the sentence is here.
+    assert.doesNotMatch(textOf(document.querySelectorAll(".profile-lede")[1]),
+      /Select Open post/, "the intro names a control that only a tile carries");
+    assert.equal(textOf(document.querySelector("#profile-open-note")),
+      "Select Open post to read a post in full.",
+      "a grid with tiles in it does not say how to open one");
     // What a reader who scrolled straight to the grid meets: the heading counts
     // image posts, the eyebrow above it orders them. Neither repeats the other.
     const panelHeading = document.querySelector(".list-heading");

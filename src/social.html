@@ -90,7 +90,7 @@
         <div class="hero-actions section-heading">
           <button class="button-link" id="post-compose-open" type="button" aria-expanded="false" aria-controls="post-compose-panel">Publish a post</button>
         </div>
-        <p class="social-feed-intro">Social is a shared feed of short posts about what the team ships, images optional. Open People when you want the image posts published under one display name instead. Select Open post to read a post in full. The posts already here are invented to demonstrate Shiplog; a post you publish is real. Posts use no customer or production data.</p>
+        <p class="social-feed-intro">Social is a shared feed of short posts about what the team ships, images optional. Open People when you want the image posts published under one display name instead. The posts already here are invented to demonstrate Shiplog; a post you publish is real. Posts use no customer or production data.</p>
         <!-- What publishing costs is not said here any more. It used to be: the
              same sentence stood in this intro, again beside Publish post, and
              again in the permalink's hero — one fact in three places, two of
@@ -309,6 +309,19 @@
                silent, and a reader who needs this sentence needs it before the
                cards. -->
           <p class="feed-summary" id="feed-summary" aria-live="polite"></p>
+          <!-- How to read one post in full, said beside the cards that carry the
+               control it names, and only while they are there. It used to stand
+               in the hero intro, so a reader whose feed had not answered was
+               told to select a control no card on the page had yet — an
+               instruction for an affordance that did not exist. social.js writes
+               it from the rendered cards, skeleton reservations excluded, so it
+               is absent on a loading, failed, or empty feed and present the
+               moment there is a post to open. It ships wordless rather than
+               hidden: a hidden sentence is still text a screen reader can be
+               walked through. Prose, not a live region — the summary above is
+               the panel's one announcement, and a fixed instruction announcing
+               itself would read a second sentence over every filter change. -->
+          <p class="hint" id="post-open-note"></p>
           <div class="feed-status" id="feed-state" role="status" aria-label="Social feed loading" aria-live="polite" aria-atomic="true">Existing posts are still loading. Select Publish a post.</div>
           <div id="post-feed" aria-describedby="feed-summary" aria-busy="true">
             <!-- Keep first paint structurally honest before the module mounts.
