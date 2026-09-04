@@ -155,14 +155,18 @@
            record on this page marked as real, and the verdict names that record
            in the same words its marking uses.
 
-           The lead sentence is static markup, not a slot: what this check
-           proves is true before the probe answers and stays true if it never
-           does, so a reader with no JavaScript still learns what the band is
-           for. It also draws the line the rest of this page draws — the example
-           decision and release above are invented, this answer is not.
+           The question leads, as it does in the front door's copy of this band
+           (#2122): a reader meets what is being compared before the machinery
+           that compares it, rather than a status line, a caveat and a copy
+           control ahead of the sentence that says what any of it is for. It is
+           static markup, not a slot: what this check proves is true before the
+           probe answers and stays true if it never does, so a reader with no
+           JavaScript still learns what the band is for. It also draws the line
+           the rest of this page draws — the example decision and release above
+           are invented, this answer is not.
 
-           The waiting line below is static markup for the same reason, and it
-           says what is being retrieved and what it will be compared with (#1910)
+           The waiting line under it is static markup for the same reason, and
+           it says what is being retrieved and what it will be compared with (#1910)
            — so a reader who meets the band before the probe answers, or who
            never gets an answer, still has the identifier to look for and the
            record to look at. It names that record in the words the marking and
@@ -183,13 +187,13 @@
       <section class="release-followup-slot" id="deployment-status" aria-labelledby="deployment-status-title">
         <div class="release-followup" id="deployment-status-callout">
           <h2 class="release-followup-title" id="deployment-status-title">Deployment check</h2>
+          <p class="release-followup-lead" id="deployment-status-proof">Does the real record of this deployment name the running build’s version? It reads the running build when the page loads. The example decision and release above are invented; that record and this answer are not.</p>
           <p class="release-followup-lead" id="deployment-verdict" role="status">Retrieving the running build’s version… That version is compared with the real record of this deployment, not with the invented example records.</p>
           <p class="detail-summary" id="deployment-identifiers"></p>
           <div class="shiplog-proof-share">
             <button class="share-button" id="deployment-copy" type="button" disabled aria-describedby="deployment-copy-status">Copy verdict and both versions</button>
             <span class="share-status" id="deployment-copy-status" role="status" aria-live="polite" aria-atomic="true"></span>
           </div>
-          <p class="release-followup-lead" id="deployment-status-proof">Does the real record of this deployment name the running build’s version? It reads the running build when the page loads. The example decision and release above are invented; that record and this answer are not.</p>
           <!-- One way out, to the record this check compares against. The row
                used to carry a second link to the commit, which
                deployment-status-view.js narrows to the same commit, under the

@@ -591,6 +591,16 @@ test("the deployment proof renders one record heading without losing its verific
       + " running build when the page loads. The example decision and release above are invented;"
       + " that record and this answer are not.",
   );
+
+  // The question is asked once. It now opens the band, which is the place a
+  // second copy of it would be added to — a lead that restated it would leave a
+  // reader answering the same question twice before reaching the answer.
+  const check = textOf(page.document.querySelector("#deployment-status"));
+  assert.equal(
+    check.match(/Does the real record of this deployment name the running build’s version\?/g)?.length,
+    1,
+    "the deployment check asks what it compares more than once",
+  );
 });
 
 test("the waiting line names the running build's version, before the check answers", async (t) => {

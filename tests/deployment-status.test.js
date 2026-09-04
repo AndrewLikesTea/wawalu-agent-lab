@@ -123,7 +123,7 @@ function mutatingControls(node, found = []) {
 
 /* --------------------------- what the check proves ------------------------ */
 
-test("the band leads with the answer, then explains what the check proves outside every disclosure", async (t) => {
+test("the band leads with what it compares, then answers, outside every disclosure", async (t) => {
   const page = await openReleases(t, { readHealth: answers({ status: "ok", build: "v2.1.0" }) });
   const proof = page.document.querySelector("#deployment-status-proof");
   const sentence = textOf(proof);
@@ -153,11 +153,18 @@ test("the band leads with the answer, then explains what the check proves outsid
   }
   assert.ok(inBand, "the proof sentence is not inside the deployment status band");
 
-  // The verdict leads; its explanation follows it.
+  // The question leads; the machinery that answers it follows. That is the
+  // order the front door's copy of this band reads in, so a reader arriving
+  // from there meets the same shape rather than a status line, a caveat and a
+  // copy control ahead of the sentence saying what is being compared.
   const lines = page.document.querySelector("#deployment-status-callout").childElements.map((node) => node.id);
   assert.ok(
-    lines.indexOf(DEPLOYMENT_IDS.verdict) < lines.indexOf("deployment-status-proof"),
-    "the explanation is rendered above the answer",
+    lines.indexOf("deployment-status-proof") < lines.indexOf(DEPLOYMENT_IDS.verdict),
+    "the answer machinery is rendered above the question it answers",
+  );
+  assert.ok(
+    lines.indexOf("deployment-status-proof") < lines.indexOf(DEPLOYMENT_IDS.identifiers),
+    "the compared identifiers are rendered above the question they answer",
   );
 });
 
