@@ -686,11 +686,15 @@ test("the words of a route out never change, and the post provenance survives ev
   assert.ok(html.includes(`>${SOCIAL_LINK}</a>`), `${SOCIAL_LINK} must ship in the markup`);
   assert.ok(html.includes(`<p>${CONTEXT_SENTENCE}</p>`), "the post provenance must ship in the markup");
   assert.ok(html.includes(`<p>${DATA_SENTENCE}</p>`), "the data boundary must ship in the markup");
-  // The eyebrow is the feed pages' eyebrow, word for word, so a permalink is
-  // stamped as a demo the same way /social.html and /profile.html are — and it
-  // no longer says "post" a line above the h1 that says it and two lines above
-  // the sentence that says it again.
-  assert.match(html, /<p class="eyebrow">Social · demo<\/p>/);
+  // The eyebrow names the surface the post came out of and stops there. It no
+  // longer says "post" a line above the h1 that says it and two lines above the
+  // sentence that says it again, and it no longer says "demo": this page paints
+  // before the lookup has read the post, and a shared link can carry a real,
+  // public post a visitor published. CONTEXT_SENTENCE above is the page's only
+  // provenance claim before load, and it names both cases.
+  assert.match(html, /<p class="eyebrow">Social<\/p>/);
+  assert.doesNotMatch(html, /<p class="eyebrow">[^<]*demo/,
+    "the permalink eyebrow classifies a post the page has not read");
 });
 
 // The row a visitor lands next to when a shared link is all they have.
@@ -1026,7 +1030,7 @@ test("the permalink leads with the post and puts the feed context under it, load
   // script has run — including a reader whose script never runs at all.
   const html = await readFile(new URL("../src/post.html", import.meta.url), "utf8");
   const at = (needle) => html.indexOf(needle);
-  assert.ok(at('<p class="eyebrow">Social · demo</p>') < at('<h1 id="page-title">'), "the eyebrow precedes the heading");
+  assert.ok(at('<p class="eyebrow">Social</p>') < at('<h1 id="page-title">'), "the eyebrow precedes the heading");
   assert.ok(at('<h1 id="page-title">') < at('id="post-detail"'), "the heading precedes the post's own region");
   assert.ok(at('id="post-detail"') < at(`<p>${CONTEXT_SENTENCE}</p>`), "the post precedes what the page says about Social");
   assert.ok(at(`<p>${CONTEXT_SENTENCE}</p>`) < at(`<p>${DATA_SENTENCE}</p>`), "the two standing sentences keep their order");
@@ -1114,9 +1118,10 @@ test("a permalink built the old way still resolves to the same post", async () =
 // eyebrow read "Social · post · demo", the h1 reads "Post from Social", the wait
 // was a whole sentence about the product opening a single shared post from
 // Social, and the standing sentence under the post says it again. The eyebrow
-// now carries the surface and the demo marker the feed pages carry, the wait
-// joins the loading voice used on Social and People, and the one sentence that
-// explains what a shared link opens is left to do the explaining alone.
+// now carries the surface alone — the demo marker the feed pages carry went
+// with it, because this page paints before its lookup has read the post — the
+// wait joins the loading voice used on Social and People, and the one sentence
+// that explains what a shared link opens is left to do the explaining alone.
 //
 // Assembled from parts so this file can name the retired line without becoming
 // the place it survives.
@@ -1198,5 +1203,9 @@ function assertSaidOnce(document, where) {
   // visitor published is one of the readers this page has to be true for, so
   // no sentence here may sort every link into a demo feed.
   assert.doesNotMatch(main, /demo feed/, `${where}: the page sorts every shared link into a demo feed`);
+  // Including the eyebrow, which paints in every state — before the lookup has
+  // read anything, and after it has read a post it cannot classify.
+  assert.equal(textOf(document.querySelector(".hero-post").querySelector(".eyebrow")), "Social",
+    `${where}: the eyebrow classifies the post instead of naming its surface`);
   assert.doesNotMatch(main, /single shared post|Social · post/, `${where}: the page restates itself`);
 }
