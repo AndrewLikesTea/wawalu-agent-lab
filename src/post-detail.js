@@ -43,11 +43,22 @@ import { normalizeImage } from "./social.js";
 // the fragment src/social-page.js already opens the composer on, so a reader who
 // wants to write their own post lands in that form rather than beside a
 // collapsed panel. Its words are about the reader, not about this post, so it
-// stands in every state that has settled — loaded, not-found and error alike.
+// stands in every state, including the one where the lookup is still running.
+//
+// It is labelled "Publish a post" and not a sentence containing those words.
+// The two routes to Social used to open the same way — "Open the full Social
+// feed" and "Open Social to publish a post of your own" — so a reader skimming
+// the row met one destination phrased twice, and had to read to the ninth word
+// of the second before the two came apart. They are now two distinct things: a
+// place, and an act. The act is named in the bytes Social already uses for it on
+// the control that opens the composer, the composer's own heading, and its
+// submit button, so the link, the thing it lands on and the button that finishes
+// the job all say one string. A fourth phrasing for the same act would be a
+// fourth thing to learn.
 export const POST_EXITS = {
   social: { href: "/social.html", label: "Open the full Social feed" },
   people: { href: "/profile.html" },
-  publish: { href: "/social.html#post-form", label: "Open Social to publish a post of your own" },
+  publish: { href: "/social.html#post-form", label: "Publish a post" },
 };
 const MAX_RETURN_AUTHOR_LENGTH = 60;
 

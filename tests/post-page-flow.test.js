@@ -76,14 +76,14 @@ function exits(document) {
 // `peopleHref` of null asserts that withdrawal — counted through the list, so
 // no node is ever compared against null.
 //
-// Publish is the third, and it belongs to the reader rather than to the post:
-// every settled state offers it, and only a lookup still in flight does not, so
-// `publish: false` is the loading state's business alone.
-function assertExits(page, peopleHref, where, { publish = true } = {}) {
+// Publish is the third, and it belongs to the reader rather than to the post,
+// so every state offers it — the loading one included. Nothing a lookup can
+// answer decides whether a visitor may write a post of their own.
+function assertExits(page, peopleHref, where) {
   const links = exits(page.document);
   const expected = [[SOCIAL.label, SOCIAL.href]];
   if (peopleHref) expected.push([PEOPLE.label, peopleHref]);
-  if (publish) expected.push([PUBLISH.label, PUBLISH.href]);
+  expected.push([PUBLISH.label, PUBLISH.href]);
   assert.deepEqual(
     links.map((link) => [textOf(link), link.href]),
     expected,
@@ -101,7 +101,7 @@ const IDENTITY = "Display names are invented for this demo or chosen by whoever 
 
 const SOCIAL = { label: "Open the full Social feed", href: "/social.html" };
 const PEOPLE = { label: "Open People to see Mina Okafor’s other image posts", href: "/profile.html" };
-const PUBLISH = { label: "Open Social to publish a post of your own", href: "/social.html#post-form" };
+const PUBLISH = { label: "Publish a post", href: "/social.html#post-form" };
 const MINA = "/profile.html?author=Mina%20Okafor";
 
 test("a post that loads is headed by its display name and reads description, image, caption, name, time", async () => {
@@ -417,7 +417,7 @@ test("the loading state is one announced line in the post's region, and takes no
     // an unexplained blank.
     assert.match(textOf(page.document.querySelector(".hero-post")),
       /Shared posts may be invented demos or real, public posts published by visitors\./);
-    assertExits(page, null, "loading", { publish: false });
+    assertExits(page, null, "loading");
     assert.equal(textOf(page.document.querySelector("#post-people")), "", "loading must not expose an empty or placeholder display name");
     assert.equal(page.document.querySelector("#post-people").hidden, true);
     // Nothing inside the waiting region is tabbable, so the exit stays the
@@ -456,7 +456,7 @@ test("the page opens already saying it is loading, and the post replaces that li
     assert.equal(panel.querySelectorAll(".detail-state-message").length, 0);
     assert.equal(panel.querySelectorAll(".detail-post").filter((node) => !node.classList.contains("detail-skeleton")).length, 0);
     // And it takes nothing away from the exit above it.
-    assertExits(page, null, "before the script runs", { publish: false });
+    assertExits(page, null, "before the script runs");
     assert.equal(tabSequence(page.document).filter((node) => node.closest("#post-detail")).length, 0);
 
     // Held open, so the script's own render of the same line can be read.

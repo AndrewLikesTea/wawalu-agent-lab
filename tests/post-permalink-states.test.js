@@ -260,7 +260,7 @@ test("the states with no post withdraw the People link and keep the one to Socia
       // The feed, and the reader's own next post. Neither depends on this
       // lookup having found anything, so both survive a link that reached no
       // post at all.
-      assert.deepEqual(exits.map(textOf), SETTLED_EXITS, `${where}: the routes out`);
+      assert.deepEqual(exits.map(textOf), NO_POST_EXITS, `${where}: the routes out`);
       assert.equal(exits[0].getAttribute("href"), "/social.html");
       assert.equal(exits[1].getAttribute("href"), "/social.html#post-form");
       // Withdrawn from the document, not hidden: a hidden link still reads to a
@@ -616,20 +616,24 @@ test("a post with no image renders no image element and no empty frame to hold o
 // one, not just in the state that happens to work.
 const SOCIAL_LINK = "Open the full Social feed";
 const PEOPLE_LINK = "Open People to see Mina Okafor’s other image posts";
-const PUBLISH_LINK = "Open Social to publish a post of your own";
+// The act, not a second name for the place. Both routes land on /social.html;
+// the labels are what tell them apart, so they may not open on the same words.
+const PUBLISH_LINK = "Publish a post";
 const CHROME_LINKS = [SOCIAL_LINK, PEOPLE_LINK, PUBLISH_LINK];
 // What each state offers. Social is true whatever the lookup did — the feed
 // exists either way — so it stands in all four. People is offered only where
 // there is a post, because its words are about that post's display name and a
 // state with no post has no name to put behind them. Publish is about the
-// reader rather than about this post, so it stands wherever the lookup has
-// settled and is withheld only while it is still running.
-const SETTLED_EXITS = [SOCIAL_LINK, PUBLISH_LINK];
+// reader rather than about this post, so it stands in all four states too —
+// nothing a lookup can answer decides whether a visitor may write one of their
+// own, and the reader who wants to write rather than read should not have to
+// sit out a fetch they have no stake in to be offered it.
+const NO_POST_EXITS = [SOCIAL_LINK, PUBLISH_LINK];
 const EXITS_BY_STATE = {
-  loading: [SOCIAL_LINK],
+  loading: NO_POST_EXITS,
   loaded: CHROME_LINKS,
-  "not-found": SETTLED_EXITS,
-  error: SETTLED_EXITS,
+  "not-found": NO_POST_EXITS,
+  error: NO_POST_EXITS,
 };
 // The shared page makes the boundary explicit because a visitor who lands here
 // may never open /social.html.
@@ -737,8 +741,10 @@ test("the onward row offers the feed, the display name and a post of your own", 
     loaded.restore();
   }
 
-  // Loading: the feed alone. A People link here would have to guess at a name,
-  // and a stub or a disabled control would promise one the page does not have.
+  // Loading: the feed and a post of your own — two onward destinations, neither
+  // of which depends on this lookup. Only People is missing, because a link
+  // here would have to guess at a name, and a stub or a disabled control would
+  // promise one the page does not have.
   const waiting = await loadPage(new URL("../src/post.html", import.meta.url), { location: { search: "?id=p-image" } });
   try {
     let release;
@@ -747,8 +753,11 @@ test("the onward row offers the feed, the display name and a post of your own", 
     await waitFor(() => waiting.document.querySelector("#post-detail").querySelectorAll(".detail-loading").length === 1, "the loading state rendered");
 
     const row = offeredRow(waiting.document);
-    assert.equal(row.length, 1, "a lookup still running offers exactly one control");
-    assert.deepEqual(row.map(textOf), [SOCIAL_LINK]);
+    assert.equal(row.length, 2, "a lookup still running offers the two routes that do not depend on it");
+    assert.deepEqual(row.map(textOf), NO_POST_EXITS);
+    // Two destinations, not one said twice: different hrefs and different
+    // words, in the state a cold visitor meets first.
+    assert.deepEqual(row.map((link) => link.getAttribute("href")), ["/social.html", "/social.html#post-form"]);
     assert.equal(row.filter((link) => link.id === "post-people").length, 0, "no People link before the display name is known");
     // Withheld, not stubbed: the withheld link holds no placeholder name for a
     // later render to have to correct.
@@ -769,7 +778,7 @@ test("the onward row offers the feed, the display name and a post of your own", 
     const page = await openPostPage(search, answer);
     try {
       const row = offeredRow(page.document);
-      assert.deepEqual(row.map(textOf), SETTLED_EXITS, `${state}: the feed and a post of your own`);
+      assert.deepEqual(row.map(textOf), NO_POST_EXITS, `${state}: the feed and a post of your own`);
       assert.equal(row.filter((link) => link.id === "post-people").length, 0, `${state}: no People link without a post`);
       assert.equal(row.filter((link) => link.id === "post-publish").length, 1, `${state}: the publish route survives`);
       const sequence = tabSequence(page.document);
@@ -976,9 +985,9 @@ function assertLeadsWithThePost(document, where) {
   // Only links valid for this state are offered and reachable.
   const sequence = tabSequence(document);
   const offered = main.querySelectorAll(".detail-back").filter((link) => !link.hidden);
-  // Loading offers the feed alone; a settled state adds the reader's own next
-  // post, and a loaded one adds the display name it can now name.
-  const expected = main.querySelector("#post-publish").hidden ? [SOCIAL_LINK] : main.querySelector("#post-people").hidden ? SETTLED_EXITS : CHROME_LINKS;
+  // Every state offers the feed and the reader's own next post; only a loaded
+  // one adds the display name it can now name.
+  const expected = main.querySelector("#post-people").hidden ? NO_POST_EXITS : CHROME_LINKS;
   assert.deepEqual(offered.map(textOf), expected, `${where}: a route out changed`);
   for (const id of offered.map((link) => `#${link.id}`)) {
     assert.ok(sequence.includes(main.querySelector(id)), `${where}: ${id} must stay reachable by keyboard`);

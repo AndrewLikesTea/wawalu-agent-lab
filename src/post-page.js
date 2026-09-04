@@ -73,16 +73,15 @@ async function init() {
     people.hidden = true;
   };
   aimPeople("");
-  // The publish route is not about this post, so nothing narrows it and nothing
-  // rewrites it — only whether it is standing. It is withheld while the lookup
-  // runs, where the page has one honest route out and no answer yet, and it is
-  // offered by all three settled states: a reader whose link found nothing can
-  // still have something of their own to say. A reader cannot be standing on it
-  // when it goes, because the only way back into loading is the retry button.
-  const publish = document.querySelector("#post-publish");
-  const offerPublish = (offered) => {
-    if (publish) publish.hidden = !offered;
-  };
+  // The publish route is not about this post at all, so nothing here narrows
+  // it, rewrites it, or withdraws it: it ships standing in src/post.html and
+  // this module never touches it. It used to be withheld while the lookup ran,
+  // on the reasoning that a page still looking something up offers one route
+  // out and not a row of them — but the reader it costs is the one who already
+  // knows they want to write rather than to read, and making them wait out a
+  // fetch they have no stake in buys nothing. The state that can go wrong here
+  // is the one where a link's words promise something the page cannot supply,
+  // and this link promises nothing about this post.
 
   const heading = document.querySelector("#page-title");
   const nameHeading = (post) => {
@@ -98,7 +97,6 @@ async function init() {
     nameHeading(null);
     document.title = postDetailTitle(null, "loading");
     offerPeople(false);
-    offerPublish(false);
     renderPostDetail(container, null, { state: "loading", id, author: requestedAuthor, returnHref: POST_EXITS.social.href });
     let post = null;
     let failed = false;
@@ -136,7 +134,6 @@ async function init() {
     nameHeading(post);
     aimPeople(post?.author ?? "");
     offerPeople(Boolean(post));
-    offerPublish(true);
     document.title = postDetailTitle(post, state);
     document.documentElement.dataset.shiplogPostDetail = "ready";
 
