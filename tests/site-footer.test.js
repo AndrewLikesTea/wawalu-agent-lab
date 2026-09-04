@@ -85,6 +85,13 @@ const describedBy = (document) => byId(document, "site-footer-email").getAttribu
 // tests/follow-up-privacy.test.js, which holds the two shapes apart. The home
 // page is deliberately not on it: its footer is unchanged, and the field it
 // already carries belongs to the bundled-example form higher up the page.
+//
+// `offer` is the fifth shape, and the one issue #2130 added: the four deep pages
+// a shared link lands on open the block with what asking gets a visitor — no
+// self-serve signup, no published price, availability and cost answered on
+// request. The home page already says it in prose a few sections up, so its
+// footer stays as it was; tests/follow-up-offer.test.js holds the two halves to
+// the same claims.
 const FOOTER_VARIANT = new Map([
   ["index.html", {
     followUpType: "follow_up_homepage", followUpTopic: FOLLOW_UP_TOPICS.follow_up_homepage, statedTopic: true,
@@ -92,7 +99,7 @@ const FOOTER_VARIANT = new Map([
   ["executive-briefing.html", { redirect: FOLLOW_UP_REDIRECT.briefing }],
   ["coach.html", {
     followUpType: "follow_up_coach", followUpTopic: FOLLOW_UP_TOPICS.follow_up_coach, statedTopic: true,
-    askMessage: true,
+    askMessage: true, offer: true,
   }],
   // `collapsedDemos` is the third shape, and one page carries it: /post.html is
   // opened from a forwarded link to read one post, so its directory ships behind
@@ -104,15 +111,15 @@ const FOOTER_VARIANT = new Map([
   }],
   ["releases.html", {
     followUpType: "follow_up_releases", followUpTopic: FOLLOW_UP_TOPICS.follow_up_releases, statedTopic: true,
-    askMessage: true,
+    askMessage: true, offer: true,
   }],
   ["social.html", {
     followUpType: "follow_up_social", followUpTopic: FOLLOW_UP_TOPICS.follow_up_social, statedTopic: true,
-    askMessage: true,
+    askMessage: true, offer: true,
   }],
   ["profile.html", {
     followUpType: "follow_up_people", followUpTopic: FOLLOW_UP_TOPICS.follow_up_people, statedTopic: true,
-    askMessage: true,
+    askMessage: true, offer: true,
   }],
   ["agents.html", {
     followUpType: "follow_up_agents", followUpTopic: FOLLOW_UP_TOPICS.follow_up_agents, askMessage: true,
