@@ -31,8 +31,8 @@
 
 import { createFollowUpConfirmation } from "./follow-up-confirmation.js";
 import {
-  CONTACT_COPY, describeWith, emailFieldError, FOLLOW_UP_PRIVACY, knownNotSent, looksLikeEmail,
-  postLeadEmail, SubmissionError,
+  CONTACT_COPY, describeWith, emailFieldError, FOLLOW_UP_PRIVACY, FOLLOW_UP_USE, knownNotSent,
+  looksLikeEmail, postLeadEmail, SubmissionError,
 } from "./lead-capture.js";
 import { REPOSITORY_URL } from "./repository-url.js";
 
@@ -265,6 +265,7 @@ function contactFormLines(followUpType, followUpTopic, stated) {
     "        </div>",
     `        <p class="site-footer-error" id="site-footer-error" hidden></p>`,
     `        <p class="site-footer-note" id="site-footer-note">${FOLLOW_UP_PRIVACY}</p>`,
+    `        <p class="site-footer-note" id="site-footer-use">${FOLLOW_UP_USE}</p>`,
     '        <p class="site-footer-recovery" id="site-footer-recovery" hidden></p>',
     '        <div class="site-footer-actions">',
     '          <button type="submit">Request a follow-up</button>',

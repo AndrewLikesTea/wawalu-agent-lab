@@ -24,7 +24,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readdir, readFile } from "node:fs/promises";
-import { FOLLOW_UP_PRIVACY } from "../src/lead-capture.js";
+import { FOLLOW_UP_PRIVACY, FOLLOW_UP_USE } from "../src/lead-capture.js";
 import { parseHtml, pressEnter, pressTab, tabSequence, textOf } from "./support/browser.js";
 
 const SRC = new URL("../src/", import.meta.url);
@@ -86,6 +86,61 @@ test("the shared sentence is one sentence, under 25 words, and names all three t
   for (const filler of [/\bwe (?:will )?never\b/i, /\brest assured\b/i, /\bsecurely\b/i, /\bof course\b/i,
     /\bsimply\b/i, /\bprivacy[- ]first\b/i]) {
     assert.doesNotMatch(FOLLOW_UP_PRIVACY, filler, `the sentence must not read as marketing: ${filler}`);
+  }
+});
+
+test("the use sentence states a use, and promises no reply, no schedule, and no list", () => {
+  // The privacy sentence says where the address goes. It does not say what the
+  // team then does with it, and "goes to a team" is not an answer to "will you
+  // put me on something?". This is that answer, and it is a separate string
+  // because the sentence above is pinned as one sentence naming one thing.
+  const words = FOLLOW_UP_USE.split(/\s+/).filter(Boolean);
+  assert.ok(words.length <= 20, `the sentence is ${words.length} words; the budget is 20`);
+  assert.equal(FOLLOW_UP_USE.at(-1), ".");
+  assert.equal((FOLLOW_UP_USE.match(/[.!?]/g) ?? []).length, 1, "one sentence, not two");
+
+  // The use, and the limit on it.
+  assert.match(FOLLOW_UP_USE, /reply to this request/, "it must name what the address is used for");
+  assert.match(FOLLOW_UP_USE, /nothing else/, "it must say the address is used for nothing else");
+
+  // What a stored address cannot promise. Nobody is committed to answering by
+  // this sentence, no clock starts, and no figure is quoted.
+  for (const overreach of [/\bwill (?:reply|respond|get back)\b/i, /\bguarantee/i, /\bwithin\b/i,
+    /\bbusiness day/i, /\d/]) {
+    assert.doesNotMatch(FOLLOW_UP_USE, overreach, `the sentence must promise no reply or schedule: ${overreach}`);
+  }
+  // And it is not a sign-up. The home page has one of those, a few sections up
+  // from this form, and the two must not read as the same errand.
+  for (const signup of [/newsletter/i, /mailing list/i, /subscrib/i, /\bmarketing\b/i, /\baccount\b/i,
+    /field note/i]) {
+    assert.doesNotMatch(FOLLOW_UP_USE, signup, `the sentence must not read as a sign-up: ${signup}`);
+  }
+});
+
+test("every follow-up form renders the use sentence too, byte for byte, beside the field", async () => {
+  const forms = await followUpForms();
+  assert.ok(forms.length >= NAMED_PAGES.length, "no follow-up form was found at all");
+
+  for (const { file, form, field, submit } of forms) {
+    // Same discovery rule as the sentence above it: read out of the shipped
+    // markup, matched whole. A form that carries one claim and not the other
+    // leaves a visitor a question the page next door answers.
+    const order = form.querySelectorAll("input,p,button");
+    const at = (node) => order.indexOf(node);
+    const uses = order.filter((node) => textOf(node) === FOLLOW_UP_USE);
+    assert.equal(uses.length, 1, `${file}: the use sentence renders ${uses.length} times in one form`);
+    assert.ok(at(field) < at(uses[0]), `${file}: the use sentence is above the field it describes`);
+    assert.ok(at(uses[0]) < at(submit), `${file}: the use sentence is below the button it should precede`);
+
+    // It is on the page before anything is submitted, rather than in a receipt
+    // or a retry: it is what a visitor weighs while deciding whether to type.
+    assert.ok(!uses[0].hidden, `${file}: the use sentence ships hidden`);
+
+    // The hint style the privacy sentence already uses — no new class, and so
+    // no new colour, size, or spacing to pay for in a stylesheet with none left.
+    const note = form.querySelectorAll("p").find((node) => textOf(node) === FOLLOW_UP_PRIVACY);
+    assert.equal(uses[0].getAttribute("class"), note.getAttribute("class"),
+      `${file}: the use sentence must reuse the form-hint style, not introduce one`);
   }
 });
 

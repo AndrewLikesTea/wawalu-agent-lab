@@ -103,6 +103,11 @@ export const CONTACT_COPY = Object.freeze({
 export const FOLLOW_UP_PRIVACY = "The work email address you type here goes to the Wawalu team that "
   + "operates Shiplog; nothing else on this page is sent.";
 
+// What the team then does with it, beside the sentence above on every follow-up
+// form. A second string, not a second clause: the sentence above is pinned as
+// one sentence. It states a use and promises no reply and no schedule.
+export const FOLLOW_UP_USE = "We use your address to reply to this request and for nothing else.";
+
 // This form's own pending and success states: the contact forms promise
 // something else, so each set owns that sentence. Both repeat src/index.html's
 // promise — who writes field notes, and that there is no schedule — so a
