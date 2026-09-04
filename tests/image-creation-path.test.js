@@ -615,7 +615,11 @@ test("the description requirement is stated once, at the field it is about", () 
   assert.equal(note.tagName, "P");
   assert.equal(note.getAttribute("class"), "hint");
   for (const tag of ["a", "button", "input"]) assert.equal(note.querySelectorAll(tag).length, 0);
-  assert.equal(documents.Social.querySelectorAll(".label-optional").length, 4);
+  // Inside the composer, where the four fields are. The footer's follow-up block
+  // marks an optional field too, and counting the whole page would turn "the
+  // four labels that carry one still carry all of them" into a claim about a
+  // number rather than about those four labels.
+  assert.equal(documents.Social.getElementById("post-form").querySelectorAll(".label-optional").length, 4);
   assert.match(sources.Social, /<p class="hint" id="post-image-alt-requirement">/);
 });
 

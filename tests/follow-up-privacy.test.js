@@ -24,7 +24,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readdir, readFile } from "node:fs/promises";
-import { FOLLOW_UP_PRIVACY, FOLLOW_UP_USE } from "../src/lead-capture.js";
+import { FOLLOW_UP_PRIVACY, FOLLOW_UP_PRIVACY_WITH_MESSAGE, FOLLOW_UP_USE } from "../src/lead-capture.js";
 import { parseHtml, pressEnter, pressTab, tabSequence, textOf } from "./support/browser.js";
 
 const SRC = new URL("../src/", import.meta.url);
@@ -65,6 +65,25 @@ const NAMED_PAGES = [
   "executive-briefing.html",
 ];
 
+/**
+ * Which of the two sentences a form is held to, and why there are two.
+ *
+ * A form that offers only a work-email field can say that nothing else on the
+ * page is sent, because nothing else is. Issue #2129 gave five of these forms an
+ * optional field asking what the visitor wants to know, and on those the first
+ * sentence would be false the moment anyone typed in it. So they render the
+ * second one, which names all three things that go: the address, the topic the
+ * page fixes, and the message.
+ *
+ * The table is keyed on the page rather than inferred from the markup on
+ * purpose. Inferring it would mean a form that lost its message field, or grew
+ * one, could swap sentences without anyone deciding to — which is the drift this
+ * whole file exists to catch. `expectedPrivacy` is what every assertion below
+ * reads, so a page is never compared against a sentence it does not ship.
+ */
+const ASKS_MESSAGE = new Set(["agents.html", "coach.html", "profile.html", "releases.html", "social.html"]);
+const expectedPrivacy = (file) => (ASKS_MESSAGE.has(file) ? FOLLOW_UP_PRIVACY_WITH_MESSAGE : FOLLOW_UP_PRIVACY);
+
 test("the shared sentence is one sentence, under 25 words, and names all three things", () => {
   const words = FOLLOW_UP_PRIVACY.split(/\s+/).filter(Boolean);
   assert.ok(words.length <= 25, `the sentence is ${words.length} words; the budget is 25`);
@@ -86,6 +105,34 @@ test("the shared sentence is one sentence, under 25 words, and names all three t
   for (const filler of [/\bwe (?:will )?never\b/i, /\brest assured\b/i, /\bsecurely\b/i, /\bof course\b/i,
     /\bsimply\b/i, /\bprivacy[- ]first\b/i]) {
     assert.doesNotMatch(FOLLOW_UP_PRIVACY, filler, `the sentence must not read as marketing: ${filler}`);
+  }
+});
+
+test("the message form's sentence is one sentence too, and lists everything that goes", () => {
+  const words = FOLLOW_UP_PRIVACY_WITH_MESSAGE.split(/\s+/).filter(Boolean);
+  // A longer budget than the sentence above, because it names three things
+  // rather than one. Still one sentence, and still short enough to read once.
+  assert.ok(words.length <= 32, `the sentence is ${words.length} words; the budget is 32`);
+  assert.equal(FOLLOW_UP_PRIVACY_WITH_MESSAGE.at(-1), ".");
+  assert.equal((FOLLOW_UP_PRIVACY_WITH_MESSAGE.match(/[.!?]/g) ?? []).length, 1,
+    "one sentence, not two joined by a full stop");
+
+  // The same opening the other sentence makes, so a reader moving between two
+  // forms is reading one promise with one exception, not two promises.
+  assert.match(FOLLOW_UP_PRIVACY_WITH_MESSAGE, /work email address you type here/, "it must name what is sent");
+  assert.match(FOLLOW_UP_PRIVACY_WITH_MESSAGE, /Wawalu team that operates Shiplog/,
+    "it must name who receives it");
+
+  // All three things, and the claim it may not make: a form with a message box
+  // is a form where something else on the page can reach the wire.
+  assert.match(FOLLOW_UP_PRIVACY_WITH_MESSAGE, /follow-up topic/, "it must name the topic it sends");
+  assert.match(FOLLOW_UP_PRIVACY_WITH_MESSAGE, /message you type/, "it must name the message it sends");
+  assert.doesNotMatch(FOLLOW_UP_PRIVACY_WITH_MESSAGE, /nothing else on this page is sent/,
+    "a form that carries a message box may not claim nothing else on the page is sent");
+
+  for (const filler of [/\bwe (?:will )?never\b/i, /\brest assured\b/i, /\bsecurely\b/i, /\bof course\b/i,
+    /\bsimply\b/i, /\bprivacy[- ]first\b/i]) {
+    assert.doesNotMatch(FOLLOW_UP_PRIVACY_WITH_MESSAGE, filler, `the sentence must not read as marketing: ${filler}`);
   }
 });
 
@@ -138,7 +185,7 @@ test("every follow-up form renders the use sentence too, byte for byte, beside t
 
     // The hint style the privacy sentence already uses — no new class, and so
     // no new colour, size, or spacing to pay for in a stylesheet with none left.
-    const note = form.querySelectorAll("p").find((node) => textOf(node) === FOLLOW_UP_PRIVACY);
+    const note = form.querySelectorAll("p").find((node) => textOf(node) === expectedPrivacy(file));
     assert.equal(uses[0].getAttribute("class"), note.getAttribute("class"),
       `${file}: the use sentence must reuse the form-hint style, not introduce one`);
   }
@@ -165,7 +212,13 @@ test("every follow-up form on the site renders that sentence, byte for byte", as
 
     // Byte for byte, not by fragment: a substring match would pass on any prose
     // that happened to contain the words, which is how six copies drifted apart.
-    assert.equal(textOf(note), FOLLOW_UP_PRIVACY, `${file}: the privacy sentence has drifted`);
+    assert.equal(textOf(note), expectedPrivacy(file), `${file}: the privacy sentence has drifted`);
+
+    // And the sentence agrees with the form under it. A form with a message box
+    // must not claim nothing else is sent; a form without one must not describe
+    // a field a visitor cannot see, which would be the same lie the other way.
+    assert.equal(Boolean(form.querySelector("#site-footer-message")), ASKS_MESSAGE.has(file),
+      `${file}: the shipped message field disagrees with the sentence it is held to`);
   }
 });
 
@@ -176,7 +229,7 @@ test("the sentence sits between the work-email field and the submit button, once
     // they got to weigh.
     const order = form.querySelectorAll("input,p,button");
     const at = (node) => order.indexOf(node);
-    const notes = order.filter((node) => textOf(node) === FOLLOW_UP_PRIVACY);
+    const notes = order.filter((node) => textOf(node) === expectedPrivacy(file));
     assert.equal(notes.length, 1, `${file}: the sentence renders ${notes.length} times in one form`);
     assert.ok(at(field) < at(notes[0]), `${file}: the sentence is above the field it describes`);
     assert.ok(at(notes[0]) < at(submit), `${file}: the sentence is below the button it should precede`);

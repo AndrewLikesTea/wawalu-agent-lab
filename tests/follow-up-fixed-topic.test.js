@@ -35,6 +35,23 @@ import { FOLLOW_UP_TOPICS } from "../src/leads.js";
 const STATED = ["index.html", "post.html", "releases.html", "social.html", "profile.html", "coach.html"];
 const BASELINE = "decision.html";
 
+/**
+ * The pages that also ask what the visitor wants to know (issue #2129), and the
+ * tab order that field buys them.
+ *
+ * The block used to be one field and two submit controls everywhere, and this
+ * file pinned that sequence for every page it covers. It is now two shapes, so
+ * the expectation is a table rather than a constant: a page is held to the
+ * sequence its shape has, and a page that grows a control neither shape declares
+ * still fails. The message field comes first because it is above the address in
+ * the markup — a visitor decides what to ask before deciding whether to pay for
+ * the answer with a work address, and keyboard order is reading order.
+ */
+const ASKS_MESSAGE = new Set(["releases.html", "social.html", "profile.html", "coach.html"]);
+const MESSAGE_FIELD = "INPUT#site-footer-message";
+const withMessage = (baseline) => [MESSAGE_FIELD, ...baseline];
+const expectedStops = (file, baseline) => (ASKS_MESSAGE.has(file) ? withMessage(baseline) : baseline);
+
 const SENTENCE_LEAD = "This request is sent about the ";
 const TYPED_EMAIL = "director@example.com";
 
@@ -185,14 +202,22 @@ test("the stated topic is prose in the existing hint style, and costs no tab sto
     assert.deepEqual(focusables(note), [], `${file}: the sentence must contain no control`);
     assert.equal(note.getAttribute("tabindex"), null, `${file}: the sentence must not take focus`);
 
-    // The block's tab order is the one a reader of any other page already knows:
-    // same stops, same order, nothing inserted by the sentence.
-    assert.deepEqual(focusables(document.getElementById("site-footer-panel")), baselineStops,
+    // The block's tab order is the one its shape declares: the plain block's
+    // stops, plus the optional question field on the pages that offer one, and
+    // nothing else. The sentence itself still inserts nothing anywhere.
+    assert.deepEqual(focusables(document.getElementById("site-footer-panel")),
+      expectedStops(file, baselineStops),
       `${file}: the follow-up block's tab stops changed`);
   }
 });
 
 test("the topic sentence sits with the work-email field, above the control that sends", async () => {
+  // Derived from the plain block rather than typed here, for the reason the test
+  // above derives it: a shape this file invented is a shape no page has to keep.
+  const baselineStops = focusables(parseHtml(await read(BASELINE)).getElementById("site-footer-panel"));
+  assert.deepEqual(baselineStops, ["INPUT#site-footer-email", "BUTTON#", "BUTTON#site-footer-retry"],
+    `${BASELINE}: the plain follow-up block did not parse`);
+
   for (const file of STATED) {
     const document = parseHtml(await read(file));
     const form = document.getElementById("site-footer-form");
@@ -202,11 +227,25 @@ test("the topic sentence sits with the work-email field, above the control that 
       ...form.querySelectorAll("button")];
     assert.ok(order.length >= 6, `${file}: the follow-up block did not parse`);
 
-    const stops = focusables(form).length;
     const note = document.getElementById("site-footer-topic-note");
     const field = document.getElementById("site-footer-email");
+    const asked = document.getElementById("site-footer-message");
     assert.ok(order.includes(note) && order.includes(field));
-    assert.equal(stops, 3, `${file}: the field and its two submit controls are all that is focusable`);
+    // Every control the block ships, and no fourth one: the work-email field,
+    // its two submit controls, and — where the page offers it — the optional
+    // question field, which is asked before the address rather than after it.
+    assert.deepEqual(focusables(form), expectedStops(file, baselineStops),
+      `${file}: the follow-up block offers a control neither shape declares`);
+    assert.equal(Boolean(asked), ASKS_MESSAGE.has(file),
+      `${file}: the optional question field disagrees with the table above`);
+    if (asked) {
+      assert.ok(order.indexOf(asked) < order.indexOf(field),
+        `${file}: the question is asked below the address it decides the price of`);
+      assert.equal(asked.getAttribute("required"), null, `${file}: the question must never be required`);
+    }
+    // The topic sentence still stands above the address, whichever shape it is
+    // in: it is what tells a reader what they are about to send one about.
+    assert.ok(order.indexOf(note) < order.indexOf(field), `${file}: the topic is stated below the field`);
 
     // The live sentence renders once, in one form.
     const stated = form.querySelectorAll("p").filter((node) => textOf(node).startsWith(SENTENCE_LEAD));
