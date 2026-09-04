@@ -82,8 +82,13 @@ const FOOTER_VARIANT = new Map([
     followUpType: "follow_up_homepage", followUpTopic: FOLLOW_UP_TOPICS.follow_up_homepage, statedTopic: true,
   }],
   ["executive-briefing.html", { redirect: FOLLOW_UP_REDIRECT.briefing }],
+  // `howToGet` is the fourth shape: the deep pages a shared link lands on carry
+  // the home page's sentence about how a team gets Shiplog, because a visitor who
+  // never saw that paragraph reads the invitation above it as a support box.
+  // Listed here rather than inferred, like every other variant.
   ["coach.html", {
     followUpType: "follow_up_coach", followUpTopic: FOLLOW_UP_TOPICS.follow_up_coach, statedTopic: true,
+    howToGet: true,
   }],
   // `collapsedDemos` is the third shape, and one page carries it: /post.html is
   // opened from a forwarded link to read one post, so its directory ships behind
@@ -95,12 +100,15 @@ const FOOTER_VARIANT = new Map([
   }],
   ["releases.html", {
     followUpType: "follow_up_releases", followUpTopic: FOLLOW_UP_TOPICS.follow_up_releases, statedTopic: true,
+    howToGet: true,
   }],
   ["social.html", {
     followUpType: "follow_up_social", followUpTopic: FOLLOW_UP_TOPICS.follow_up_social, statedTopic: true,
+    howToGet: true,
   }],
   ["profile.html", {
     followUpType: "follow_up_people", followUpTopic: FOLLOW_UP_TOPICS.follow_up_people, statedTopic: true,
+    howToGet: true,
   }],
   ["agents.html", { followUpType: "follow_up_agents", followUpTopic: FOLLOW_UP_TOPICS.follow_up_agents }],
 ]);

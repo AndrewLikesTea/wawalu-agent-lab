@@ -134,6 +134,18 @@ export const DEMOS = Object.freeze([
  */
 export const INVITATION = "Questions about Shiplog? Send the Wawalu team that operates it a follow-up request.";
 
+/**
+ * What asking actually gets you, on the pages a shared link lands on.
+ *
+ * The home page's "How a team gets Shiplog" paragraph in its published words,
+ * minus the clause the identity paragraph above already carries. Without it the
+ * question above reads as a support box; with it, asking is the route to the
+ * product rather than the fallback. It claims nothing the home page does not:
+ * no price, no availability, and no promise about a reply.
+ */
+export const HOW_TO_GET = "There is no self-serve signup and no published price: whether Shiplog is available "
+  + "for your team and what it would cost are both answered on request.";
+
 // What the field sends is not this footer's sentence to write: all three
 // follow-up forms render FOLLOW_UP_PRIVACY from src/lead-capture.js, beside
 // the transport that makes it true.
@@ -189,14 +201,17 @@ export const FOLLOW_UP_REDIRECT = Object.freeze({
  * `collapsedDemos` folds the destination list into a disclosure that ships
  * closed. Only /post.html asks for it: a forwarded link is opened to read one
  * post, and the map of everywhere else was the larger half of that page.
+ *
+ * `howToGet` adds HOW_TO_GET under the invitation, for the deep pages a shared
+ * link lands on without the home page's paragraph.
  */
 export function siteFooterMarkup(indent = "    ", {
   redirect = null, followUpType = null, followUpTopic = null, statedTopic = false,
-  collapsedDemos = false,
+  collapsedDemos = false, howToGet = false,
 } = {}) {
   const contact = redirect ? [
     `    <a class="site-footer-redirect-link" href="${redirect.href}">${redirect.label}</a>`,
-  ] : contactFormLines(followUpType, followUpTopic, statedTopic);
+  ] : contactFormLines(followUpType, followUpTopic, statedTopic, howToGet);
   const lines = [
     '<footer class="site-footer" id="site-footer" aria-labelledby="site-footer-title">',
     '  <div class="site-footer-inner">',
@@ -241,9 +256,11 @@ function demoListLines(collapsed = false) {
   ];
 }
 
-function contactFormLines(followUpType, followUpTopic, stated) {
+function contactFormLines(followUpType, followUpTopic, stated, howToGet = false) {
   return [
     `    <p class="site-footer-invitation">${INVITATION}</p>`,
+    // Above the field, in the invitation's own style: no rule is added for it.
+    ...(howToGet ? [`    <p class="site-footer-invitation" id="site-footer-how">${HOW_TO_GET}</p>`] : []),
     '    <div class="site-footer-panel" id="site-footer-panel">',
     `      <form id="site-footer-form" class="site-footer-form"${followUpType ? ` data-follow-up-type="${followUpType}"` : ""}${followUpTopic ? ` data-follow-up-topic="${followUpTopic}"` : ""} novalidate>`,
     ...(!followUpTopic ? [] : stated ? [
