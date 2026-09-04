@@ -330,12 +330,29 @@ async function init() {
   // The composer ships collapsed, so the two arrivals that name it in the URL
   // have to open it or they land on a fragment that is not being rendered: the
   // Paint handoff (/social.html?from=paint&image=…#post-form) and anyone who
-  // pasted or bookmarked #post-form. Opened without taking focus — the handoff's
-  // own arrival panel and the browser's fragment jump each already decide where
-  // the reader lands, and mountMediaComposer below runs after this.
-  const wantsComposer = Boolean(paintHandoffIntent(globalThis.location?.search))
-    || globalThis.location?.hash === "#post-form";
-  if (wantsComposer) feed.composer.open({ focus: false });
+  // pasted, bookmarked or followed a link to #post-form.
+  //
+  // Where focus goes is not the same answer for both. The Paint handoff already
+  // decides that for itself — it has an arrival panel saying what did and did
+  // not happen to the image, and dropping the caret past that explanation into
+  // the post field would skip it — so it opens without taking focus.
+  //
+  // A plain #post-form arrival has no such panel and no such explanation. It is
+  // somebody who followed a link that named the act ("Publish a post" on the
+  // shared post page) and asked for this form by name, and the browser's own
+  // fragment jump scrolls the panel into view without moving the keyboard
+  // anywhere: a keyboard reader would land looking at a form whose first field
+  // is still several tab stops away, behind the whole page header. So this
+  // arrival opens the way the trigger does — open() puts the caret in the post
+  // field, the composer's first field, which is the one focus idiom this
+  // disclosure has and the same one Escape reverses.
+  //
+  // Nothing here binds a key. Tab and Shift+Tab stay the browser's, so the
+  // reader carries on into the rest of the fields and back out of the panel
+  // exactly as they would had they pressed the trigger themselves.
+  const fromPaint = Boolean(paintHandoffIntent(globalThis.location?.search));
+  const wantsComposer = fromPaint || globalThis.location?.hash === "#post-form";
+  if (wantsComposer) feed.composer.open({ focus: !fromPaint });
   const media = mountMediaComposer(root, feed.description);
 
   const fallback = dedupeById(await fetchDemoPosts());

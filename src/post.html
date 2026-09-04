@@ -153,15 +153,15 @@
              intro and People names Social after its intro; this page names both
              after its own content, in the same spirit.
 
-             Two links, both forward. This page is the one surface a visitor
-             reaches cold, from a link pasted into a chat window: they have no
-             "back" to undo, because they were never on Social or People to begin
-             with. So neither link says "Back", and neither carries an arrow — an
-             arrow reads as a return. Each one names its destination and says what
-             is there, in the verb Social and People already use for each other:
-             those two pages point at one another with "Open Social…" and "Open
-             People…", and this page joins that pattern rather than inventing a
-             third phrasing for the same job.
+             Every link here points forward. This page is the one surface a
+             visitor reaches cold, from a link pasted into a chat window: they
+             have no "back" to undo, because they were never on Social or People
+             to begin with. So no link says "Back", and none carries an arrow —
+             an arrow reads as a return. The two that name a page name it in the
+             verb Social and People already use for each other: those two pages
+             point at one another with "Open Social…" and "Open People…", and
+             this page joins that pattern rather than inventing a third phrasing
+             for the same job.
 
              The People link says "display name" because that is the term Social's
              composer, Social's feed filter and the People picker all use for the
@@ -183,18 +183,31 @@
              The Social link is offered in all four states — the feed is true
              whether or not this one post is.
 
-             The third route is the one act this page cannot perform. It points
-             at /social.html#post-form, the fragment social-page.js already
-             opens the composer on, so a reader who wants to write their own
-             post lands in that form instead of beside a collapsed panel. Its
-             words are about the reader rather than about this post, so it
-             stands in every settled state; it ships withheld only because a
-             page that is still looking something up offers one route out, not
-             a row of them. -->
+             The third route is the one act this page cannot perform, and it is
+             the one route here that names an act rather than a place. It used
+             to read "Open Social to publish a post of your own", which opened
+             on the same two words as the feed link directly above it: two
+             routes to /social.html, phrased as one destination said twice, and
+             a reader had to reach the ninth word of the second before the two
+             came apart. It now says what Social's own control, composer heading
+             and submit button say — "Publish a post" — so the row offers a
+             place and an act, and the act is called the same thing on the page
+             it lands on.
+
+             It points at /social.html#post-form, the fragment social-page.js
+             opens the composer on, and which now also moves the caret into the
+             first field: a link that names an act has to land the reader
+             somewhere they can perform it, not beside a panel they must find
+             and open again. Its words are about the reader rather than about
+             this post, so it stands in every state — including while the lookup
+             is still running, where a visitor who already knows this link
+             reached nothing they wanted should not have to wait out a fetch
+             they have no stake in to be offered the one thing this page can
+             still give them. -->
         <p class="detail-page-exits">
           <a class="detail-back detail-page-back" id="post-back" href="/social.html">Open the full Social feed</a>
           <a class="detail-back detail-page-back" id="post-people" href="/profile.html" hidden></a>
-          <a class="detail-back detail-page-back" id="post-publish" href="/social.html#post-form" hidden>Open Social to publish a post of your own</a>
+          <a class="detail-back detail-page-back" id="post-publish" href="/social.html#post-form">Publish a post</a>
         </p>
       </section>
       </main>

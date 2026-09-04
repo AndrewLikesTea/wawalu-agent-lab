@@ -337,7 +337,10 @@ test("the main landmark rings for keyboard focus only, never for a mouse click",
 
 /* --------------------------- the post page's order ------------------------ */
 
-const FRAME_STOPS = SITE_NAV.length + 3;
+// The skip link, the wordmark, the nav, and the two onward routes the page
+// offers before its lookup has answered. People is the only exit missing here:
+// it needs a display name nobody has yet.
+const FRAME_STOPS = SITE_NAV.length + 4;
 
 test("the post page's loading tab order reaches Social without a placeholder People link", async () => {
   const document = await load("post.html");
@@ -350,6 +353,7 @@ test("the post page's loading tab order reaches Social without a placeholder Peo
       "Shiplog",
       ...SITE_NAV.map((link) => link.label),
       "Open the full Social feed",
+      "Publish a post",
     ],
     "the post page's tab order changed",
   );
@@ -432,14 +436,17 @@ test("the post page withholds People until it can name the loaded display name",
     [
       ["/social.html", "Open the full Social feed"],
       ["/profile.html", ""],
-      ["/social.html#post-form", "Open Social to publish a post of your own"],
+      ["/social.html#post-form", "Publish a post"],
     ],
   );
-  // Both withheld in the shipped markup, which is the loading state: People has
-  // no display name yet, and the page offers one route out until it has an
-  // answer. Publish ships its words, so it is never rewritten under a reader.
+  // People alone is withheld in the shipped markup, which is the loading state:
+  // it has no display name yet. The two onward routes to Social both stand,
+  // with two hrefs and two labels — a place and an act — so a cold visitor is
+  // offered both before the lookup answers and after it.
   assert.equal(exits[1].hidden, true);
-  assert.equal(exits[2].hidden, true);
+  assert.ok(!exits[2].hidden, "the publish route is withheld while the lookup runs");
+  assert.notEqual(exits[0].href, exits[2].href);
+  assert.notEqual(textOf(exits[0]), textOf(exits[2]));
 
   // The visible text carries the destination, so no aria-label may hold a word
   // the eye cannot read.
