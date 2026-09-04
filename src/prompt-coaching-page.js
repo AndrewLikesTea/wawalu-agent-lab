@@ -19,8 +19,8 @@
 import { COACHING_INPUT_SOURCE, buildCoachingSession } from "./prompt-coaching-contract.js";
 import { COACHING_ENTRY_EXAMPLE, coachingEntryState } from "./prompt-coaching-entry.js";
 import {
-  EXAMPLE_CONTROL_ID, announceCoachingEntrySource, applyCoachingEntry, applyCoachingFirstRun,
-  setCoachingEntryState, setCoachingFirstRunState,
+  EXAMPLE_CONTROL_ID, FIRST_RUN_TITLE_ID, announceCoachingEntrySource, applyCoachingEntry,
+  applyCoachingFirstRun, setCoachingEntryState, setCoachingFirstRunState,
 } from "./prompt-coaching-entry-view.js";
 import {
   INPUT_HINT, applyPromptCoaching, buildRevisionChange, clearPromptCoaching,
@@ -40,13 +40,20 @@ const POSSIBLE_RESULTS_FAILURE = "Possible results could not be loaded. You can 
  * so what a retry re-shows is the page's own text and never content a loader
  * drew — and it travels by textContent both ways, so it can never become markup.
  */
-function initBundledRegion(doc, { bodyId, sectionId, loadingClass, loader, failureCopy, retryLabel }) {
+function initBundledRegion(doc, { bodyId, sectionId, titleId, loadingClass, loader, failureCopy, retryLabel }) {
   const body = doc?.getElementById?.(bodyId);
   if (!body) return;
   const section = doc.getElementById(sectionId);
   const loadingCopy = body.textContent;
+  // The heading, read the same way and for the same reason: what ships is the
+  // wording of the state this region starts in, so every return to that state
+  // returns to it. A loader is what replaces it, and only once it has painted
+  // the thing the replacement claims.
+  const title = titleId ? doc.getElementById(titleId) : null;
+  const loadingTitle = title?.textContent;
 
   const run = () => {
+    if (title) title.textContent = loadingTitle;
     body.replaceChildren();
     const loading = doc.createElement("p");
     loading.className = loadingClass;
@@ -121,6 +128,7 @@ export function initPromptCoaching(doc = globalThis.document, {
   initBundledRegion(doc, {
     bodyId: "prompt-coach-sample-body",
     sectionId: "prompt-coach-sample",
+    titleId: FIRST_RUN_TITLE_ID,
     loadingClass: "prompt-coach-sample-lead",
     loader: loadBundledExample,
     failureCopy: BUNDLED_EXAMPLE_FAILURE,

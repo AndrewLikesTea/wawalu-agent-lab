@@ -36,6 +36,12 @@ const ALTERNATIVE_ID = "prompt-coaching-entry-alternative";
 const SOURCE_ID = "prompt-coaching-entry-source";
 const FIRST_RUN_SECTION_ID = "prompt-coach-sample";
 const FIRST_RUN_BODY_ID = "prompt-coach-sample-body";
+export const FIRST_RUN_TITLE_ID = "prompt-coach-sample-title";
+// What the sample's heading says once there is a grade under it. The heading
+// that ships says "grading now", because that is the state the page is in until
+// this module paints; a heading claiming a graded result over a loading line
+// tells a first-time visitor a score is on screen before one is.
+export const FIRST_RUN_GRADED_TITLE = "Bundled synthetic example, already graded";
 export const EXAMPLE_CONTROL_ID = "prompt-coaching-example";
 export const FIRST_RUN_RESULT_ID = "prompt-coach-sample-result";
 
@@ -234,9 +240,12 @@ export function applyCoachingFirstRun(doc) {
     renderCoachingResult(doc, model, {
       idPrefix: FIRST_RUN_RESULT_ID,
       headingLevel: 4,
-      labelledBy: "prompt-coach-sample-title",
+      labelledBy: FIRST_RUN_TITLE_ID,
     }),
   );
+  // The grade exists now, so the heading may say so.
+  const title = byId(doc, FIRST_RUN_TITLE_ID);
+  if (title) title.textContent = FIRST_RUN_GRADED_TITLE;
   body.dataset.sampleId = COACHING_ENTRY_EXAMPLE.sampleId;
   body.dataset.source = session.input.source;
   setCoachingFirstRunState(doc, { replaced: false });
