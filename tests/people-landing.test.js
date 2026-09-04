@@ -1328,3 +1328,50 @@ test("People claims no result before its first image post, and the loaded page i
     page.restore();
   }
 });
+
+// What the pictures on this page are made of, said before a reader has seen one.
+//
+// "Posts use no customer or production data." was the only thing People said
+// about its own contents, and on its own it reads as a promise about the whole
+// page — a first-time visitor takes it to mean nothing here is real, including
+// the image post they are about to publish from Social. Two true statements
+// about two different sets of posts. The intro now names the set it means, in
+// Social's sentence with People's noun in it, and both claims stand.
+const PEOPLE_PROVENANCE = "The image posts already here are invented to demonstrate Shiplog; an image post you publish is real.";
+const DEMO_DATA = "Posts use no customer or production data.";
+
+test("the intro says the image posts on this page are invented, before any of them load", async (t) => {
+  // Served, not hydrated: what a reader receives from the markup, ahead of the
+  // fetch. profile-page.js is never imported here on purpose.
+  const served = await loadPage(PAGE_URL, {});
+  t.after(() => served.restore());
+  const main = textOf(served.document.querySelector("#main-content"));
+
+  assert.equal(main.split(PEOPLE_PROVENANCE).length - 1, 1,
+    "the provenance sentence is not in People's served markup exactly once");
+  // Provenance first, then the boundary it scopes, and the paragraph still ends
+  // on the demo-data sentence Social and the permalink end on.
+  assert.match(textOf(served.document.querySelectorAll(".profile-lede")[1]),
+    /The image posts already here are invented to demonstrate Shiplog; an image post you publish is real\. Posts use no customer or production data\.$/,
+    "the two claims are no longer adjacent, in that order, at the end of the intro");
+  assert.equal(main.split(DEMO_DATA).length - 1, 1, "the demo-data sentence was replaced or repeated");
+
+  // Read before the control that filters the grid, so it covers the pictures a
+  // reader is about to choose between rather than explaining them afterwards.
+  const order = documentOrder(served.document);
+  assert.ok(order.indexOf(served.document.querySelectorAll(".profile-lede")[1])
+    < order.indexOf(served.document.querySelector("#profile-author-label")),
+    "the intro now reads after the display-name picker");
+
+  // And the loaded page still carries both: nothing the module paints may drop
+  // or double either claim.
+  const page = await people();
+  try {
+    const hydrated = textOf(page.document.querySelector("#main-content"));
+    assert.equal(hydrated.split(PEOPLE_PROVENANCE).length - 1, 1,
+      "the loaded page lost the provenance sentence or states it twice");
+    assert.equal(hydrated.split(DEMO_DATA).length - 1, 1);
+  } finally {
+    page.restore();
+  }
+});
