@@ -55,8 +55,12 @@ import { normalizeImage } from "./social.js";
 // submit button, so the link, the thing it lands on and the button that finishes
 // the job all say one string. A fourth phrasing for the same act would be a
 // fourth thing to learn.
+//
+// The place is named the way the rest of the site names it: "Open Social to read
+// the whole feed", People's own words for that destination. It replaced "Open
+// the full Social feed", whose "the full Social feed" appeared on no other page.
 export const POST_EXITS = {
-  social: { href: "/social.html", label: "Open the full Social feed" },
+  social: { href: "/social.html", label: "Open Social to read the whole feed" },
   people: { href: "/profile.html" },
   publish: { href: "/social.html#post-form", label: "Publish a post" },
 };
@@ -178,7 +182,7 @@ function labelledState(key, actions = []) {
 // step explicit even when the standing exit above leads to the same place — and
 // because it does lead there, the two must not read as one link said twice: the
 // error state used to be handed POST_EXITS.social.label, so the reader who most
-// needed a way out met "Open the full Social feed" twice on one screen.
+// needed a way out met the standing exit's own words twice on one screen.
 //
 // Not a "Return", either. This page is met cold, from a pasted link, with no
 // Social behind it to go back to (see POST_EXITS above), so the action names
