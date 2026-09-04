@@ -23,7 +23,7 @@
 // profile remembers cannot drift apart.
 import { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH, readStoredAuthor, rememberAuthor } from "./social-identity.js";
 import { imageDescription, renderDescriptionNote, renderImageUnavailable } from "./image-description.js";
-import { OPEN_POST_LABEL, postDetailHref, profileHref } from "./social-links.js";
+import { OPEN_POST_LABEL, OPEN_POST_INSTRUCTION, postDetailHref, profileHref } from "./social-links.js";
 import { renderFeedStatus, feedPhase, feedPresence, filtersAvailable, setFilterAvailability, FILTERS_UNAVAILABLE_HINT } from "./feed-status.js";
 
 export { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH };
@@ -975,6 +975,11 @@ export function mountSocialFeed(root, options = {}) {
   connection?.removeAttribute("hidden");
   const connectionPresence = feedPresence(connection);
   const connectionText = root.querySelector("#feed-status");
+  // The intro's slot for the sentence that names the control on a card. It is
+  // an instruction, so it may only be on the page while the thing it instructs
+  // about is: the words go in when a card renders and come out again in every
+  // state that has no cards to open.
+  const openPostNote = root.querySelector("#feed-open-post-note");
 
   let posts = options.posts ?? [];
   let state = options.state ?? "ready";
@@ -1024,6 +1029,11 @@ export function mountSocialFeed(root, options = {}) {
     // a second line saying to reload the page instead is a rival instruction.
     const connected = phase === "loaded" || phase === "empty";
     connectionPresence.present(connected);
+    // Words, not visibility: the sentence is text a screen reader can be walked
+    // through, so while there is no "Open post" on screen there is no sentence
+    // about one either. "loaded" is the phase with at least one card in it, and
+    // the card is where the control it names is printed.
+    if (openPostNote) openPostNote.textContent = phase === "loaded" ? OPEN_POST_INSTRUCTION : "";
     // The connecting sentence, written here rather than authored in the markup,
     // because the markup frame is the loading frame. Only into a line that has
     // no words yet, so the settled sentence social-page.js writes over it

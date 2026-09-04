@@ -17,6 +17,19 @@
 // naming a control the reader cannot find.
 export const OPEN_POST_LABEL = "Open post";
 
+// And the sentence that says it back, built from the label rather than typed
+// beside it, so the words a reader is sent looking for are the words printed on
+// the control by construction.
+//
+// It is written into the page by the two feed modules instead of being authored
+// in social.html and profile.html, because it is an instruction about a control
+// that only exists once a card does. The frame before hydration has no cards in
+// it, and neither does a feed that is still loading, one that failed, or one a
+// filter has emptied — so in all of those the sentence names nothing on screen
+// and is not on the page at all. Same reason the connection line ships wordless
+// in both pages (src/social.html, src/profile.html).
+export const OPEN_POST_INSTRUCTION = `Select ${OPEN_POST_LABEL} to read a post in full.`;
+
 // `from` is provenance, written by the surface that links to the post so the
 // detail page can offer one back link that names where the reader actually came
 // from. Same parameter, same value, same defaulting rule as profilePaintHref in

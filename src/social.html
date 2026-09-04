@@ -90,7 +90,16 @@
         <div class="hero-actions section-heading">
           <button class="button-link" id="post-compose-open" type="button" aria-expanded="false" aria-controls="post-compose-panel">Publish a post</button>
         </div>
-        <p class="social-feed-intro">Social is a shared feed of short posts about what the team ships, images optional. Open People when you want the image posts published under one display name instead. Select Open post to read a post in full. The posts already here are invented to demonstrate Shiplog; a post you publish is real. Posts use no customer or production data.</p>
+        <p class="social-feed-intro">Social is a shared feed of short posts about what the team ships, images optional. Open People when you want the image posts published under one display name instead. <span id="feed-open-post-note"></span> The posts already here are invented to demonstrate Shiplog; a post you publish is real. Posts use no customer or production data.</p>
+        <!-- The empty span is the slot for one sentence: "Select Open post to
+             read a post in full." It ships wordless because this frame is the
+             loading frame — no card has been fetched yet, so the control those
+             words name is not on the page and an instruction for it would send
+             a reader looking for something that is not there. src/social.js
+             writes it from OPEN_POST_INSTRUCTION the moment a post card
+             renders, and empties it again in every state that has no cards, the
+             same way the connection line below is left to the module. -->
+
         <!-- What publishing costs is not said here any more. It used to be: the
              same sentence stood in this intro, again beside Publish post, and
              again in the permalink's hero — one fact in three places, two of
@@ -203,7 +212,21 @@
                    control used to be headed with a word that appears nowhere on
                    a post, which left a reader guessing what the menu held. -->
               <label for="post-name-filter">Filter posts by display name</label>
-              <select id="post-name-filter">
+              <!-- Shipped shut, like the two controls below it. This frame has
+                   no posts in it: the menu holds one option, "All display
+                   names", the reset has nothing to reset, and the line at the
+                   foot of the row already says the names arrive with the posts.
+                   Offering the controls anyway would put three working-looking
+                   stops in the keyboard path to a feed that has not answered,
+                   for the handful of frames before src/social.js runs — which
+                   then owns the state, opening them the moment cards render and
+                   shutting them again on a failed or empty feed. `disabled` and
+                   not a class: it is what takes a control out of the tab order
+                   and out of the pointer path in one move.
+                   Each one names the reason as well as showing it, through the
+                   row's own status line — the same association src/feed-status.js
+                   writes and removes from here on. -->
+              <select id="post-name-filter" disabled aria-describedby="post-filter-hint">
                 <option value="all">All display names</option>
               </select>
             </div>
@@ -228,7 +251,15 @@
                    "no filter" the same way. "All posting times" rather than "All
                    dates" because the ranges below it are measured in hours, and a
                    reader choosing the past hour is not choosing a date. -->
-              <select id="post-time-filter">
+              <!-- Shut in this frame too, and it is the one control here whose
+                   options are all present: its four ranges are authored below.
+                   A range is still a filter over the posts, though, and there
+                   are none — choosing "From the past hour" against an unanswered
+                   feed narrows nothing and would be answered by the same three
+                   skeletons. So the menu that can be read is not also a menu
+                   that can be operated, which is the state src/social.js already
+                   puts it in on every render path with no cards. -->
+              <select id="post-time-filter" disabled aria-describedby="post-filter-hint">
                 <option value="all">All posting times</option>
                 <option value="hour">From the past hour</option>
                 <option value="day">From the past 24 hours</option>
@@ -242,7 +273,7 @@
                  currently doing to the feed is a live fact, not a gloss, and
                  the summary below already states it: how many of how many posts
                  are showing, and which menus narrowed them. -->
-            <button class="clear-filters social-clear" id="post-filter-clear" type="button">Clear filters</button>
+            <button class="clear-filters social-clear" id="post-filter-clear" type="button" disabled aria-describedby="post-filter-hint">Clear filters</button>
             <!-- What this row is doing, in words, and the one line that says it.
                  Three shapes and no more: the wait, "No filters applied.", and
                  the set filters named in the option text read back off the menus

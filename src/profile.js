@@ -23,7 +23,7 @@
 //      on the image inside the link when the tile is read rather than listed.
 
 import { connectionStatusLine, normalizeImage } from "./social.js";
-import { OPEN_POST_LABEL, postDetailHref, profileHref } from "./social-links.js";
+import { OPEN_POST_LABEL, OPEN_POST_INSTRUCTION, postDetailHref, profileHref } from "./social-links.js";
 import { imageDescription, renderDescriptionNote, renderImageUnavailable } from "./image-description.js";
 import { renderFeedStatus, feedPhase, feedPresence, setFilterAvailability } from "./feed-status.js";
 import { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH } from "./social-identity.js";
@@ -848,6 +848,10 @@ export function mountProfile(root, options = {}) {
   const connection = root.querySelector(".feed-connection");
   connection?.removeAttribute("hidden");
   const connectionLine = feedPresence(connection);
+  // The intro's slot for the sentence naming the control a tile prints. Social
+  // keeps the same one, in the same bytes (src/social-links.js), and both fill
+  // it on the same condition: a card is on screen to open.
+  const openPostNote = root.querySelector("#feed-open-post-note");
 
   let posts = options.posts ?? [];
   let state = options.state ?? "ready";
@@ -935,6 +939,10 @@ export function mountProfile(root, options = {}) {
     // an open fetch it is a promise standing on the line that is already saying
     // the image posts are still loading.
     connectionLine.present(phase === "loaded" || phase === "empty");
+    // And the instruction about opening a post says nothing over an empty grid:
+    // it names a control printed on a tile, so it is on the page exactly while
+    // at least one tile is.
+    if (openPostNote) openPostNote.textContent = phase === "loaded" ? OPEN_POST_INSTRUCTION : "";
     if (elements.announcer && state === "ready") {
       elements.announcer.textContent = profileAnnouncement(author, mine.length);
     }

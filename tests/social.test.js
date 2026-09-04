@@ -572,8 +572,16 @@ test("the feed says who wrote the posts, where the posts are", async (t) => {
   // One sentence, word for word People's, naming the control both feeds print
   // on every card. Social had no such control and said nothing about opening a
   // post; People told a reader to "select a post" and named nothing.
-  assert.match(intro, /Select Open post to read a post in full\./,
-    "the intro never tells a reader a post can be opened in full");
+  //
+  // It is not in this frame, which is the frame before the feed answers: the
+  // sentence is an instruction for a control printed on a card, and there are
+  // no cards here (#2111). The intro holds its slot and src/social.js fills it
+  // with the posts — pinned in tests/feed-controls-before-load.test.js, along
+  // with the same rule on People.
+  assert.doesNotMatch(intro, /Select Open post/,
+    "the unanswered feed instructs a reader to use a control no card has drawn yet");
+  assert.equal(page.document.querySelectorAll("#feed-open-post-note").length, 1,
+    "the intro lost the slot the sentence returns to");
 
   // And the demo status is stated once above the feed. The hero used to say it
   // twice within one paragraph break — an eyebrow reading "Social · demo", then
@@ -1003,7 +1011,10 @@ test("the feed toolbar names what each control filters, in the site's own terms"
   // summary sentence's job (asserted on a booted page below).
   assert.doesNotMatch(markup, /post-filter-clear-hint/,
     "the button's label is not restated as a sentence beside it");
-  assert.match(markup, /<button class="clear-filters social-clear" id="post-filter-clear" type="button">Clear filters<\/button>/,
+  // It ships `disabled` (#2111): the frame this file is is the one before any
+  // post has been fetched, so there is nothing set to clear. The label and the
+  // shape are unchanged, which is the part this line is about.
+  assert.match(markup, /<button class="clear-filters social-clear" id="post-filter-clear" type="button" disabled aria-describedby="post-filter-hint">Clear filters<\/button>/,
     "Clear filters is the whole control: a label a reader has already read needs no gloss");
 
   // Only the Agent observatory destination may still carry the word.
@@ -1607,6 +1618,11 @@ test("with the composer open, the flow and submit controls use one publishing la
 
 test("the feed is what a first-time visitor reads first, and the composer follows it", async (t) => {
   const { document } = await socialDisclosure(t);
+  // A settled feed, because the filters this asserts the path to are shut until
+  // one arrives (#2111) — a control that cannot act is not a tab stop, so the
+  // question "what does a reader meet first" is only a question about the page
+  // a reader actually reads.
+  mountSocialFeed(document, { posts: sample, state: "ready" });
 
   // Rendered order, in the source of truth for the markup: the feed panel and
   // the composer panel are siblings, and the feed is first. A CSS reordering
@@ -1637,8 +1653,11 @@ test("the feed is what a first-time visitor reads first, and the composer follow
   // skip link's destination, then the trigger, then the feed's own controls.
   assert.equal(document.querySelector(".skip-link").getAttribute("href"), "#main-content");
   assert.equal(main.getAttribute("tabindex"), "-1");
-  assert.deepEqual(stops.slice(0, 4).map((node) => node.id),
-    ["post-compose-open", "post-name-filter", "post-time-filter", "post-filter-clear"],
+  // Clear filters is not in this list: with nothing set to clear it stays shut
+  // (#1855), so the three stops a reader meets on a settled feed with no filter
+  // applied are the trigger and the two menus.
+  assert.deepEqual(stops.slice(0, 3).map((node) => node.id),
+    ["post-compose-open", "post-name-filter", "post-time-filter"],
     "the first controls after the page heading are not the trigger and then the feed");
   // "No more than three tab stops from the skip link to the first feed control":
   // the display-name filter is stop 2.
@@ -1647,6 +1666,10 @@ test("the feed is what a first-time visitor reads first, and the composer follow
 
 test("the first-visit publish action is primary and precedes feed guidance and filters", async (t) => {
   const { document, id } = await socialDisclosure(t);
+  // With posts, for the same reason as the test above: the filter this compares
+  // the publishing action against is a tab stop only once there is a feed to
+  // filter (#2111).
+  mountSocialFeed(document, { posts: sample, state: "ready" });
   const hero = document.querySelector(".hero-social");
   const action = id("post-compose-open");
   const intro = document.querySelector(".social-feed-intro");
