@@ -233,6 +233,21 @@ test("a failed save is reported and preserves the release for retry", async (t) 
   assert.equal(textOf(page.document.querySelector("#release-record-status")), "");
 });
 
+// The frame before the boot: the recorder as a visitor first sees it, with the
+// picker still loading. Two elements state that wait — the visible placeholder
+// inside the picker and the status line beside it — and they used to state it
+// in the same words, stacking one sentence twice in the form.
+test("the loading recorder states the wait once, in two different sentences", async (t) => {
+  const page = await loadPage(RELEASES_PAGE, { storage: {} });
+  t.after(() => page.restore());
+
+  const recorder = textOf(page.document.querySelector("#record-release"));
+  assert.equal(recorder.split("Loading decisions to link…").length - 1, 1,
+    "the recorder paints the same loading sentence twice");
+  assert.match(textOf(page.document.querySelector(".decision-picker-loading")), /Loading decisions to link…/);
+  assert.equal(summaryText(page), "No decisions can be linked until the list loads.");
+});
+
 // The picker's authored markup now opens on "Loading decisions to link…", so
 // the one thing that must never happen is the boot leaving that claim standing.
 // A browser that refuses storage is the closest a visitor gets to the log not

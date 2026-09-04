@@ -11,6 +11,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import {
   MAX_VERSION_LENGTH,
+  DECISION_PICKER_LOADING_STATUS_TEXT,
   DECISION_PICKER_LOADING_TEXT,
   RECORD_DECISION_HREF,
   RELEASE_FORM_ERRORS,
@@ -217,8 +218,12 @@ test("the loading picker announces loading without showing the empty state", (t)
   const summary = document.querySelector("#summary");
   const picker = mountDecisionPicker(container, { state: "loading", summary });
 
-  assert.equal(textOf(summary), DECISION_PICKER_LOADING_TEXT);
+  // Two elements state the wait: the visible placeholder inside the picker and
+  // the status line beside it. They must not say it in the same words, or the
+  // form stacks one sentence twice and a screen reader reads it twice.
   assert.equal(textOf(container), DECISION_PICKER_LOADING_TEXT);
+  assert.equal(textOf(summary), DECISION_PICKER_LOADING_STATUS_TEXT);
+  assert.notEqual(textOf(summary), textOf(container), "the status line repeats the placeholder word for word");
   assert.equal(container.querySelector(".decision-picker-loading").getAttribute("aria-hidden"), "true");
   assert.equal(container.querySelector(".decision-picker-empty:not(.decision-picker-loading)"), null);
   assert.equal(container.querySelector("a"), null, "loading introduced a focusable empty-state action");
@@ -229,8 +234,9 @@ test("the loading picker announces loading without showing the empty state", (t)
   assert.equal(textOf(summary), "No decisions linked yet. 3 available.");
 
   picker.setLoading();
-  assert.equal(textOf(summary), DECISION_PICKER_LOADING_TEXT);
+  assert.equal(textOf(summary), DECISION_PICKER_LOADING_STATUS_TEXT);
   assert.equal(container.querySelector(".decision-picker-empty:not(.decision-picker-loading)"), null);
+  // An empty log states its own thing, and it is neither loading sentence.
   picker.setDecisions([]);
   assert.equal(textOf(summary), "No decisions are available to link yet.");
   assert.ok(container.querySelector(".decision-picker-empty"));
@@ -323,8 +329,11 @@ test("the recorder markup groups the picker and never builds HTML from stored te
   // `required` is absent because linking decisions is optional.
   assert.doesNotMatch(page, /class="decision-picker-check"/);
   assert.match(page, /id="release-decisions-field" aria-describedby="release-decisions-hint release-decisions-summary"/);
-  assert.match(page, /id="release-decisions-summary" role="status" aria-live="polite" aria-atomic="true">Loading decisions to link…<\/p>/);
+  assert.match(page, /id="release-decisions-summary" role="status" aria-live="polite" aria-atomic="true">No decisions can be linked until the list loads\.<\/p>/);
   assert.match(page, /class="decision-picker-empty decision-picker-loading" aria-hidden="true">\s*<p class="decision-picker-empty-title">Loading decisions to link…<\/p>/);
+  // The wait is stated once. The status line beside the picker used to repeat
+  // the placeholder verbatim, which painted the sentence twice in the form.
+  assert.equal(page.match(/Loading decisions to link…/g).length, 1, "the recorder states the wait twice");
   assert.match(page, /id="release-form-error" role="alert" hidden/);
   assert.match(page, /id="release-storage-notice" role="alert" hidden/);
   assert.match(page, /<button type="submit">Record release<\/button>/);
