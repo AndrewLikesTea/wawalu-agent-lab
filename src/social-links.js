@@ -17,6 +17,15 @@
 // naming a control the reader cannot find.
 export const OPEN_POST_LABEL = "Open post";
 
+// The sentence that names that control, built from the label itself so the two
+// cannot drift apart. It is an instruction about a control that only exists on
+// a rendered card, so neither feed authors it in its markup any more: a page
+// with nothing but placeholders on it used to tell a reader to select a control
+// that was not there yet. src/social.js and src/profile.js write it into the
+// slot their pages reserve for it, in the same render that draws the first
+// card, and take it back out again whenever there is no card to act on.
+export const OPEN_POST_INSTRUCTION = `Select ${OPEN_POST_LABEL} to read a post in full.`;
+
 // `from` is provenance, written by the surface that links to the post so the
 // detail page can offer one back link that names where the reader actually came
 // from. Same parameter, same value, same defaulting rule as profilePaintHref in

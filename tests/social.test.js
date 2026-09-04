@@ -569,11 +569,19 @@ test("the feed says who wrote the posts, where the posts are", async (t) => {
     "the intro says who wrote the posts a second time, four screens from a card");
   assert.match(intro, /Posts use no customer or production data\.$/,
     "the demo-data sentence must stay the intro's last words");
-  // One sentence, word for word People's, naming the control both feeds print
-  // on every card. Social had no such control and said nothing about opening a
-  // post; People told a reader to "select a post" and named nothing.
-  assert.match(intro, /Select Open post to read a post in full\./,
-    "the intro never tells a reader a post can be opened in full");
+  // The sentence naming the control that opens a post is no longer one of the
+  // intro's (#2111). It is an instruction about a control printed on a card, and
+  // this paragraph is painted over placeholders; it is said beside the cards, by
+  // the render path, once there is a card printing that control. Word for word
+  // People's still — one constant, in src/social-links.js, feeds both pages.
+  assert.doesNotMatch(intro, /Select Open post/,
+    "the intro tells a reader to select a control the page has not drawn yet");
+  assert.equal(textOf(page.document.querySelector("#post-open-instruction")), "",
+    "the instruction is painted before the feed has a card to act on");
+  mountSocialFeed(page.document, { posts: sample, state: "ready" });
+  assert.equal(textOf(page.document.querySelector("#post-open-instruction")),
+    "Select Open post to read a post in full.",
+    "the feed never tells a reader a post can be opened in full");
 
   // And the demo status is stated once above the feed. The hero used to say it
   // twice within one paragraph break — an eyebrow reading "Social · demo", then
@@ -1003,7 +1011,10 @@ test("the feed toolbar names what each control filters, in the site's own terms"
   // summary sentence's job (asserted on a booted page below).
   assert.doesNotMatch(markup, /post-filter-clear-hint/,
     "the button's label is not restated as a sentence beside it");
-  assert.match(markup, /<button class="clear-filters social-clear" id="post-filter-clear" type="button">Clear filters<\/button>/,
+  // Still the whole control — a label a reader has already read needs no gloss —
+  // and it now ships shut, describing itself with the row's own sentence while
+  // there is nothing behind the filters to clear (#2111).
+  assert.match(markup, /<button class="clear-filters social-clear" id="post-filter-clear" type="button" disabled aria-disabled="true" aria-describedby="post-filter-hint">Clear filters<\/button>/,
     "Clear filters is the whole control: a label a reader has already read needs no gloss");
 
   // Only the Agent observatory destination may still carry the word.
@@ -1637,12 +1648,32 @@ test("the feed is what a first-time visitor reads first, and the composer follow
   // skip link's destination, then the trigger, then the feed's own controls.
   assert.equal(document.querySelector(".skip-link").getAttribute("href"), "#main-content");
   assert.equal(main.getAttribute("tabindex"), "-1");
-  assert.deepEqual(stops.slice(0, 4).map((node) => node.id),
-    ["post-compose-open", "post-name-filter", "post-time-filter", "post-filter-clear"],
+  // The served frame stops at the trigger. The filters ship `disabled` (#2111)
+  // because there is nothing behind them to filter until the feed answers, so
+  // the one control a reader can spend a Tab on before then is the one that
+  // opens the composer — and that is still what the first Tab reaches.
+  assert.deepEqual(stops.map((node) => node.id), ["post-compose-open"],
+    "the pre-hydration page offers a control that cannot act on an empty feed");
+  const filters = ["post-name-filter", "post-time-filter", "post-filter-clear"];
+  for (const control of filters) {
+    assert.equal(document.querySelector(`#${control}`).disabled, true,
+      `${control} is operable before the feed has answered`);
+  }
+
+  // And with posts on screen the row comes back in the authored order, still
+  // behind the trigger: the feed is read first, the composer follows it.
+  mountSocialFeed(document, { posts: sample, state: "ready" });
+  const settled = tabSequence(document).filter((node) => {
+    for (let cursor = node; cursor; cursor = cursor.parentNode) if (cursor === main) return true;
+    return false;
+  });
+  // Clear filters stays shut with nothing set to clear, which is its own rule.
+  assert.deepEqual(settled.slice(0, 3).map((node) => node.id),
+    ["post-compose-open", "post-name-filter", "post-time-filter"],
     "the first controls after the page heading are not the trigger and then the feed");
   // "No more than three tab stops from the skip link to the first feed control":
   // the display-name filter is stop 2.
-  assert.ok(stops.findIndex((node) => node.id === "post-name-filter") + 1 <= 3);
+  assert.ok(settled.findIndex((node) => node.id === "post-name-filter") + 1 <= 3);
 });
 
 test("the first-visit publish action is primary and precedes feed guidance and filters", async (t) => {
@@ -1658,7 +1689,12 @@ test("the first-visit publish action is primary and precedes feed guidance and f
   assert.ok(hero.childElements.indexOf(action.parentNode) < hero.childElements.indexOf(intro),
     "feed guidance appears before the primary publishing action");
 
+  // Read on a feed that has answered: the filters are shut until it does
+  // (#2111), and a control that is not in the tab order cannot be compared for
+  // its place in it.
+  mountSocialFeed(document, { posts: sample, state: "ready" });
   const mainStops = tabSequence(document).filter((node) => node.id);
+  assert.equal(filter.disabled, false, "the display-name menu did not come back with the posts");
   assert.ok(mainStops.indexOf(action) < mainStops.indexOf(filter),
     "filters are reached before the primary publishing action");
   assert.equal(action.getAttribute("aria-controls"), "post-compose-panel");

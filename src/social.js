@@ -23,7 +23,7 @@
 // profile remembers cannot drift apart.
 import { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH, readStoredAuthor, rememberAuthor } from "./social-identity.js";
 import { imageDescription, renderDescriptionNote, renderImageUnavailable } from "./image-description.js";
-import { OPEN_POST_LABEL, postDetailHref, profileHref } from "./social-links.js";
+import { OPEN_POST_INSTRUCTION, OPEN_POST_LABEL, postDetailHref, profileHref } from "./social-links.js";
 import { renderFeedStatus, feedPhase, feedPresence, filtersAvailable, setFilterAvailability, FILTERS_UNAVAILABLE_HINT } from "./feed-status.js";
 
 export { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH };
@@ -967,6 +967,13 @@ export function mountSocialFeed(root, options = {}) {
   // feed…", so a waiting reader met three sentences about one wait. They leave
   // the document while the feed is loading and come back with the answer.
   const countPresence = feedPresence(count);
+  // And the third: how to open a post. It names a control that is printed on a
+  // card, so it may only be on the page when there is a card printing it. The
+  // slot is authored empty in src/social.html and the sentence is written here,
+  // once, in the same render that draws the first card.
+  const openInstruction = root.querySelector("#post-open-instruction");
+  const openInstructionPresence = feedPresence(openInstruction);
+  if (openInstruction) openInstruction.textContent = OPEN_POST_INSTRUCTION;
   // The connection line ships empty and `hidden` (src/social.html) so that the
   // frame before this module runs states one thing — that the feed is loading.
   // Everything about the line from here is decided in code: this drops the
@@ -1012,6 +1019,13 @@ export function mountSocialFeed(root, options = {}) {
     // accessibility tree, and the point is that a page with no answer yet makes
     // no claim at all.
     countPresence.present(phase !== "loading");
+    // The one phase with a card in it. "loaded" is the phase feedPhase() gives
+    // for a visible post and no other — a filtered dead end, an empty feed, an
+    // open fetch and a failed one all draw a panel with no Open post control on
+    // it — so the instruction is on the page exactly when the control it names
+    // is, and it is removed rather than hidden, because a hidden sentence is
+    // still text a screen reader can be walked through.
+    openInstructionPresence.present(phase === "loaded");
     // The promise goes with it, and it speaks only in the two states that have
     // a feed for new posts to arrive in: one with posts, and one waiting for its
     // first. It leaves while a fetch is open, because the status region is

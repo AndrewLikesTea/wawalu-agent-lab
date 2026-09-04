@@ -23,7 +23,7 @@
 //      on the image inside the link when the tile is read rather than listed.
 
 import { connectionStatusLine, normalizeImage } from "./social.js";
-import { OPEN_POST_LABEL, postDetailHref, profileHref } from "./social-links.js";
+import { OPEN_POST_INSTRUCTION, OPEN_POST_LABEL, postDetailHref, profileHref } from "./social-links.js";
 import { imageDescription, renderDescriptionNote, renderImageUnavailable } from "./image-description.js";
 import { renderFeedStatus, feedPhase, feedPresence, setFilterAvailability } from "./feed-status.js";
 import { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH } from "./social-identity.js";
@@ -749,6 +749,21 @@ export function renderAuthorPicker(container, entries, { author, counted = true,
     hintText: PROFILE_FILTERS_UNAVAILABLE_HINT,
     hintClass: "hint profile-toolbar-hint",
   });
+  // The group around them, which is the only part of this control a reader can
+  // meet while the fetch is open: the chips are drawn from the posts, so there
+  // is nothing inside it to disable yet. `disabled` on the fieldset is the
+  // platform's own state for that, it needs no rule in the stylesheet, and it
+  // is what src/profile.html ships so the served frame does not offer an open
+  // group over an empty row. Its description carries the reason only while the
+  // reason is on the page — the sentence above leaves with the wait, and a
+  // description pointing at an id that is gone describes nothing.
+  const group = container.parentNode;
+  if (group?.tagName === "FIELDSET") {
+    const shut = Boolean(disabled) && !alone;
+    group.disabled = shut;
+    group.setAttribute("aria-describedby",
+      shut ? "profile-author-hint profile-filter-hint" : "profile-author-hint");
+  }
   if (alone) {
     container.replaceChildren(el("p", "hint", alone));
     return;
@@ -842,6 +857,13 @@ export function mountProfile(root, options = {}) {
   // module runs, the way the connection line below does; presence owns it from
   // here on, and the attribute would otherwise outlive the wait.
   elements.name?.removeAttribute("hidden");
+  // And the sentence that says how to open one of these posts. It names a
+  // control printed on a tile, so it is on the page only when a tile is: the
+  // slot is authored empty in src/profile.html, the words are written once here,
+  // and presence below decides which paints carry them.
+  const openInstruction = root.querySelector("#profile-open-instruction");
+  const openInstructionPresence = feedPresence(openInstruction);
+  if (openInstruction) openInstruction.textContent = OPEN_POST_INSTRUCTION;
   // The connection line ships empty and `hidden` (src/profile.html) so the frame
   // before this module runs says one thing: that the image posts are loading.
   // The attribute is dropped once, here, and presence decides the rest.
@@ -926,6 +948,11 @@ export function mountProfile(root, options = {}) {
       state, total: filtered ? posts.length : mine.length, visible: mine.length, filtering: filtered,
     });
     for (const line of waiting) line.present(phase !== "loading");
+    // "loaded" is the one phase with a tile in it: a display name with no image
+    // posts, a filtered grid, an open fetch and a failed one all draw a panel
+    // with no Open post control anywhere on it, so the instruction goes with the
+    // tiles rather than with the page.
+    openInstructionPresence.present(phase === "loaded");
     // The promise speaks only where there is a grid for new image posts to
     // arrive in: one with tiles, and one waiting for its first. "New image posts
     // will appear here on their own." over a grid the picker has emptied gives

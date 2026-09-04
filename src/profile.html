@@ -67,7 +67,14 @@
              as a reader can tell. -->
         <h1 id="page-title">People</h1>
         <p class="profile-lede" id="page-tagline">See the image posts published under one display name.</p>
-        <p class="profile-lede">Open <a class="text-link" href="/social.html">Social</a> when you want the whole feed, including posts with no image. Select Open post to read a post in full. Posts use no customer or production data.</p>
+        <p class="profile-lede">Open <a class="text-link" href="/social.html">Social</a> when you want the whole feed, including posts with no image. Posts use no customer or production data.</p>
+        <!-- The sentence that named the control for opening a post has left this
+             paragraph, for the reason Social's has left its own intro: it is an
+             instruction about a control printed on a tile, and this paragraph is
+             painted over six placeholders. src/profile.js writes it into
+             #profile-open-instruction beside the grid, in the same render that
+             draws the first tile. Social carries the mirror pair here too — the
+             two pages say it in one wording, from one constant. -->
 
         <!-- The picker comes before the answer, in the markup and not merely in
              the layout: it is the first control in the main content — only the
@@ -115,7 +122,19 @@
                filters and on the composer's field is what a test here pins, and
                an abbreviation in the one sentence that explains the control is
                where a second word starts. -->
-          <fieldset class="filter-group" aria-describedby="profile-author-hint">
+          <!-- The group ships shut. There are no entries in it until the feed
+               answers — profile.js draws one button per display name — so the
+               served frame used to paint a named, enabled control group with
+               nothing inside it, and the sentence saying the names were still
+               coming stood beside a control that claimed otherwise. `disabled`
+               on the fieldset is the platform's own state for a group of
+               controls that cannot act, so it costs no rule in the stylesheet
+               and takes the whole group out of the pointer path at once; the
+               description names both the sentence about what choosing an entry
+               does and the one about why there is nothing to choose yet.
+               profile.js reopens it, and drops the second description with the
+               sentence it points at, in the paint that draws the first tile. -->
+          <fieldset class="filter-group" disabled aria-describedby="profile-author-hint profile-filter-hint">
             <legend id="profile-author-label">Filter by display name</legend>
             <p class="hint profile-toolbar-hint" id="profile-author-hint">
               The list below shows only the image posts published under the selected display name. Choose another display name to update the image-post list.
@@ -329,6 +348,14 @@
                one voice, and while this element was also live a name with no
                image posts spoke the same guidance twice, from two regions. -->
           <div class="feed-status" id="profile-feed-status">Image posts are loading. Open Social to publish an image post.</div>
+          <!-- How to read one of these posts in full, said beside the grid that
+               holds them. It ships empty and profile.js takes it out of the
+               document until a tile exists: the control it names is printed on
+               a tile, so over placeholders, over a display name with no image
+               posts and over a failed load it points at nothing. Plain prose,
+               no live region, nothing focusable — the polite region above is
+               this page's one voice. -->
+          <p class="hint" id="profile-open-instruction"></p>
           <div id="profile-grid" aria-describedby="profile-order" aria-busy="true">
             <!-- No display name is claimed above these: the heading names the
                  content type and the filled state chip is not on the page yet.

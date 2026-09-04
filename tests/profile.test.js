@@ -513,7 +513,9 @@ test("the profile and post pages are wired, labelled, and reachable", async () =
   // The group is what the hint describes, and the container profile.js fills is
   // inside it, so the instruction is attached to the controls rather than to one
   // of them.
-  assert.match(profile, /<fieldset class="filter-group" aria-describedby="profile-author-hint">/);
+  // It ships shut (#2111) and describes itself with both sentences while it is:
+  // what choosing an entry does, and why there is nothing to choose yet.
+  assert.match(profile, /<fieldset class="filter-group" disabled aria-describedby="profile-author-hint profile-filter-hint">/);
   // And the hint says what the grid below holds, then what choosing an entry
   // does. It used to define the term instead — "The display name is the name
   // shown on each post." — and after that it defined the filter as itself,
