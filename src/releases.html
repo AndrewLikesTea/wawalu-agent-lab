@@ -432,6 +432,21 @@
 
             <p class="field-error" id="release-form-error" role="alert" hidden></p>
 
+            <!-- Where a recorded release goes, said before the button that
+                 sends it there. Social tells a poster "Anyone who visits
+                 Shiplog can read your post" and AI FinOps tells an importer
+                 "Your files do not leave this tab"; this recorder said nothing,
+                 so the one surface on the site that writes to local storage and
+                 nowhere else was the one that never said so. It claims only
+                 what saveReleases in releases.js actually does — one key in
+                 this browser's local storage, no request — and makes no promise
+                 about accounts, sync, or how long the record survives.
+                 The way out is the control the log already offers, named in the
+                 words on its face rather than a synonym. Static markup, like
+                 every other scope line in this form: it is true before any
+                 module runs and stays true if none ever does. -->
+            <p class="hint" id="release-record-scope">A release you record here is kept in this browser, on this device: it is not sent to the Wawalu team, and a teammate on another browser or device will not see it. Use “Export releases as JSON” above to take your releases elsewhere.</p>
+
             <button type="submit">Record release</button>
           </form>
 
