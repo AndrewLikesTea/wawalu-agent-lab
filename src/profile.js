@@ -811,7 +811,7 @@ export function mountProfile(root, options = {}) {
     announcer: root.querySelector("#profile-announcer"),
     picker: root.querySelector("#profile-author"),
     pickerNote: root.querySelector("#profile-picker-note"),
-    // The one route into Paint: the invitation above the grid. It is a real
+    // The one route into Paint: the invitation under the grid. It is a real
     // anchor in the markup and stays one whether or not this runs; all that is
     // added here is the display name, so Paint's back link returns to the
     // profile that was actually being read rather than the default display
@@ -829,7 +829,13 @@ export function mountProfile(root, options = {}) {
   // hidden line is still text a screen reader can be walked through.
   const waiting = [
     feedPresence(elements.summary),
-    feedPresence(root.querySelector(".feed-create")),
+    // Restored in front of the display-name caveat rather than at a remembered
+    // index (#2142): this paragraph ships under the grid now, with the
+    // connection line — which also leaves the document — above it, and an index
+    // counted from a panel that is missing a line lands this one past the
+    // caveat. The caveat is authored outside every branch rendered here, so it
+    // is the one sibling that is always there to stand in front of.
+    feedPresence(root.querySelector(".feed-create"), root.querySelector(".profile-role")),
     // The identity line is the fourth: it says what the grid beside it is
     // showing, so a grid with nothing in it has nothing for it to say. It leaves
     // the document while the first load is open — absent rather than emptied,
