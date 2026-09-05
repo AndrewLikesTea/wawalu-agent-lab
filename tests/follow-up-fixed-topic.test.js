@@ -47,7 +47,7 @@ const BASELINE = "decision.html";
  * the markup — a visitor decides what to ask before deciding whether to pay for
  * the answer with a work address, and keyboard order is reading order.
  */
-const ASKS_MESSAGE = new Set(["releases.html", "social.html", "profile.html", "coach.html"]);
+const ASKS_MESSAGE = new Set(["releases.html", "social.html", "post.html", "profile.html", "coach.html"]);
 const MESSAGE_FIELD = "INPUT#site-footer-message";
 const withMessage = (baseline) => [MESSAGE_FIELD, ...baseline];
 const expectedStops = (file, baseline) => (ASKS_MESSAGE.has(file) ? withMessage(baseline) : baseline);

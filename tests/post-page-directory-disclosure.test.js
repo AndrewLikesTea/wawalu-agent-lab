@@ -303,8 +303,10 @@ test("the permalink's tab order runs skip, nav, post, exits, directory, follow-u
   const between = stops.slice(exits[2] + 1, at(SUMMARY)).map(textOf);
   assert.deepEqual(between, [PITCH_LINK, SOURCE_LINK_LABEL]);
 
-  // The whole sequence, end to end, with the directory shut.
-  assert.deepEqual(stops.slice(at(SUMMARY)).map(textOf),
-    [DIRECTORY_SUMMARY, "", "Request a follow-up"],
+  // The whole sequence, end to end, with the directory shut. The block's two
+  // fields carry no text of their own — the optional question #2153 added, then
+  // the work email — so they are named here by id rather than by an empty string.
+  assert.deepEqual(stops.slice(at(SUMMARY)).map((stop) => textOf(stop) || stop.id),
+    [DIRECTORY_SUMMARY, "site-footer-message", "site-footer-email", "Request a follow-up"],
     "with nothing expanded the page ends on the summary and the follow-up form");
 });
