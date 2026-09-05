@@ -13,7 +13,7 @@ import { navHref, SITE_NAV } from "../src/site-nav.js";
 import { loadExampleDataset } from "../src/example-dataset.js";
 import { onRequest } from "../functions/api/leads.js";
 import { createMemoryLeadStore, FOLLOW_UP_TOPICS, handleLeadRequest } from "../src/leads.js";
-import { MAX_FOLLOW_UP_MESSAGE_LENGTH } from "../src/lead-capture.js";
+import { FOLLOW_UP_USE, MAX_FOLLOW_UP_MESSAGE_LENGTH } from "../src/lead-capture.js";
 import { createTestD1 } from "./support/d1-sqlite.js";
 import { buildStandHeadline } from "../src/finops-stand.js";
 import { buildFirstRunResult } from "../src/finops-first-run.js";
@@ -299,6 +299,48 @@ test("the adjacent CTA opens a contextual work-email request that says what is s
   // card would count zero and pass.
   assert.equal(textOf(document.getElementById("top")).split("are sent").length - 1, 1,
     "the panel states what is sent exactly once");
+});
+
+test("the contextual form says what the address is used for, in the site's one sentence", async (t) => {
+  // #2144: the sentence above says where the address goes. It does not say what
+  // the team then does with it, and this is the page that asks earliest — the
+  // only work-email ask above the fold. Every other follow-up form on the site
+  // renders `FOLLOW_UP_USE` in this position (src/site-footer.js does it for the
+  // footer's); this one dropped it, so the earliest ask made the weakest
+  // promise. Read out of the painted DOM after the page module boots, not out of
+  // the authored markup, because a paragraph a view module replaces on load is
+  // not a sentence a visitor sees.
+  const document = await openTakeaway(t, { writeText: async () => {} });
+  document.getElementById("finops-example-follow-up-open").click();
+
+  const use = document.getElementById("finops-example-follow-up-use");
+  // Byte for byte against the constant, not by fragment: a substring match
+  // passes on any prose that happens to contain the words, which is how the
+  // site's privacy copy drifted into six wordings before issue #797.
+  assert.equal(textOf(use), FOLLOW_UP_USE, "the use sentence has drifted from the shared one");
+  assert.ok(!use.hidden, "the use sentence ships hidden");
+
+  // Immediately after the disclosure, and still above the button: the two
+  // sentences are one promise read in one pass — who receives the address, then
+  // what they do with it — and a claim met after pressing send is not a claim
+  // anyone got to weigh.
+  const form = document.getElementById("finops-example-follow-up-form");
+  const order = form.querySelectorAll("input,p,button");
+  const at = (node) => order.indexOf(node);
+  const disclosure = document.getElementById("finops-example-follow-up-disclosure");
+  assert.equal(at(use), at(disclosure) + 1, "the use sentence must read directly under the disclosure");
+  assert.ok(at(use) < at(form.querySelector('button[type="submit"]')),
+    "the use sentence is below the button it should precede");
+
+  // The hint style the disclosure already uses — no new class, and so no new
+  // colour, size, or spacing to pay for in a stylesheet with none left.
+  assert.equal(use.getAttribute("class"), disclosure.getAttribute("class"),
+    "the use sentence must reuse the form-hint style, not introduce one");
+
+  // Once on the first screen. Two sentences making the same promise is how a
+  // reader ends up deciding whether two wordings mean two promises.
+  assert.equal(textOf(document.getElementById("top")).split(FOLLOW_UP_USE).length - 1, 1,
+    "the first screen states the use of the address exactly once");
 });
 
 test("the takeaway and the form under it state the sample-data fact once between them", async (t) => {
