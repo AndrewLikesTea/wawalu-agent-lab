@@ -57,6 +57,11 @@ const STATUS_ID = "site-footer-status";
  */
 export const REPOSITORY_LINK_LABEL = "Open an issue on the public GitHub repository";
 
+// The provenance signal, on every page rather than two: the repository the site
+// is built from, so the claim below can be checked from outside. Word for word
+// the link /index.html and /releases.html publish, at the same one address.
+export const SOURCE_LINK_LABEL = "Open the public repository this site is built from";
+
 /**
  * What a visitor can do here, then who runs it and where — on every page.
  *
@@ -226,6 +231,7 @@ export function siteFooterMarkup(indent = "    ", {
     '    <h2 class="site-footer-title" id="site-footer-title">About Shiplog</h2>',
     `    <p class="site-footer-identity">${IDENTITY}</p>`,
     `    <p class="site-footer-identity site-footer-pitch">${PITCH} See <a href="${PITCH_HREF}">${PITCH_LINK}</a>.</p>`,
+    `    <p class="site-footer-identity"><a id="site-footer-source" href="${REPOSITORY_URL}">${SOURCE_LINK_LABEL}</a></p>`,
     ...demoListLines(collapsedDemos),
     ...contact,
     "  </div>",

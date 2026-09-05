@@ -22,7 +22,7 @@ import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
 import {
   DEMOS, FOLLOW_UP_REDIRECT, IDENTITY, INVITATION, PITCH, PITCH_HREF, PITCH_LINK,
-  REPOSITORY_LINK_LABEL, siteFooterMarkup,
+  REPOSITORY_LINK_LABEL, siteFooterMarkup, SOURCE_LINK_LABEL,
 } from "../src/site-footer.js";
 import { REPOSITORY_URL } from "../src/repository-url.js";
 import { FOLLOW_UP_TOPICS } from "../src/leads.js";
@@ -1169,14 +1169,140 @@ test("a validation refusal is not a failed request, and offers no route out of o
 test("no page ships the alternative route in its markup", async () => {
   // It is built by the module on failure and nowhere else. A node in the source
   // is a node every visitor's screen reader can find before anything has gone
-  // wrong, and it would need paying for on seventeen documents besides.
+  // wrong. What the source does carry since #2152 is the provenance link below,
+  // which is a different label doing a different job — so the guard is on the
+  // failure fallback's own wording and id, and the address it shares with the
+  // provenance link is counted rather than forbidden.
   const shared = siteFooterMarkup("    ");
-  assert.ok(!shared.includes(REPOSITORY_URL), "the shared footer markup must not carry the repository link");
+  assert.equal(shared.split(REPOSITORY_URL).length - 1, 1,
+    "the shared block publishes the repository once: the provenance link, not a second copy");
   assert.ok(!shared.includes(REPOSITORY_LINK_LABEL));
   for (const file of PAGES) {
     const html = await read(file);
     assert.ok(!html.includes(REPOSITORY_LINK_LABEL), `${file} ships the failure fallback before anything failed`);
     assert.ok(!html.includes(`id="${REPOSITORY_ID}"`), `${file} authors ${REPOSITORY_ID}`);
+  }
+});
+
+/* --------------------------- the provenance link -------------------------- */
+
+// Issue #2152. The repository this site is built from is the one thing the About
+// block claims that a reader can check without taking our word for it, and it
+// was published on two pages out of seventeen. It comes off the shared block
+// now, so a visitor who arrived on People or Social from a forwarded link has it
+// too.
+//
+// The wording and the address are verbatim from the two pages that already
+// carried the link — /index.html's deployment check and /releases.html's
+// shipped-build panel — because a second wording for one address is a second
+// thing to keep true, and nothing new is claimed about what is in there.
+const SOURCE_ID = "site-footer-source";
+const SOURCE_HREF = "https://github.com/AndrewLikesTea/wawalu-agent-lab";
+const repositoryLinksIn = (root) => root.querySelectorAll("a")
+  .filter((node) => node.getAttribute("href") === SOURCE_HREF);
+
+test("every page's About block links the public repository, in the site's own words", async () => {
+  assert.equal(SOURCE_LINK_LABEL, "Open the public repository this site is built from");
+  assert.equal(REPOSITORY_URL, SOURCE_HREF);
+  // Reused, not invented: both pages that carried the link before this still
+  // spell it exactly this way, so the three cannot drift into three answers.
+  for (const file of ["index.html", "releases.html"]) {
+    assert.ok((await read(file)).includes(`>${SOURCE_LINK_LABEL}</a>`),
+      `${file} no longer carries the wording the shared block reuses`);
+  }
+
+  for (const file of PAGES) {
+    const html = await read(file);
+    const footer = html.slice(html.indexOf('<footer class="site-footer"'));
+    assert.ok(footer.includes(`id="${SOURCE_ID}"`), `${file}'s About block ships no repository link`);
+    assert.ok(footer.includes(`href="${SOURCE_HREF}"`), `${file}'s About block links some other address`);
+    assert.ok(footer.includes(`>${SOURCE_LINK_LABEL}</a>`), `${file}'s About block renames the repository link`);
+  }
+});
+
+// Four pages, driven through the shipped document: the two that already
+// published the address, one deep page that never did, and agents.html — the
+// page whose stylesheet is not styles.css, where an unstyled or unfocusable
+// link in this band has gone unnoticed before.
+for (const file of ["index.html", "releases.html", "social.html", "agents.html"]) {
+  test(`${file} carries the repository link in its About block, and a keyboard reaches it`, async () => {
+    const page = await loadPage(pageUrl(file));
+    const { document } = page;
+    try {
+      assert.equal(countOf(document, SOURCE_ID), 1, "one provenance link, and one is enough");
+      const link = byId(document, SOURCE_ID);
+      assert.equal(link.tagName, "A");
+      assert.equal(link.getAttribute("href"), SOURCE_HREF);
+      assert.equal(textOf(link), SOURCE_LINK_LABEL);
+      assert.equal(link.closest("footer").id, "site-footer",
+        "the provenance signal belongs to the shared block, not to the content above it");
+
+      // A real tab stop with the band's ring — .site-footer a:focus-visible
+      // already covers it in both stylesheets, so no rule was added for it.
+      assert.ok(tabSequence(document).map((node) => node.id).includes(SOURCE_ID),
+        "a link nothing can Tab to is not a route to anything");
+      assert.equal(link.getAttribute("tabindex"), null, "it takes its place in reading order, it does not jump the queue");
+
+      // Nothing rode in with it: no second window, and no sentence about what
+      // the repository contains. The link is the whole line.
+      assert.equal(link.getAttribute("target"), null);
+      assert.equal(textOf(link.parentNode), SOURCE_LINK_LABEL);
+    } finally {
+      page.restore();
+    }
+  });
+}
+
+test("a page that already published the repository does not publish it twice in one region", async () => {
+  // The home page's deployment check and the Releases page's shipped-build panel
+  // both link the repository from inside <main>. That is a different region from
+  // the About block, which is the contentinfo landmark behind the content — so
+  // neither hand-authored link had to go, nothing paints two of them together,
+  // and no one region carries the address twice.
+  for (const file of ["index.html", "releases.html"]) {
+    const page = await loadPage(pageUrl(file));
+    const { document } = page;
+    try {
+      const inMain = repositoryLinksIn(document.querySelector("main"));
+      const inFooter = repositoryLinksIn(byId(document, "site-footer"));
+      assert.equal(inMain.length, 1, `${file}: the content region links the repository more than once`);
+      assert.equal(inFooter.length, 1, `${file}: the About block links the repository more than once`);
+      assert.notEqual(inMain[0].id, SOURCE_ID, `${file}: the page's own link and the block's are the same node`);
+      assert.equal(inFooter[0].id, SOURCE_ID);
+    } finally {
+      page.restore();
+    }
+  }
+});
+
+test("a failed request adds one route out, not a second copy of the provenance link", async () => {
+  // Both name the same address, and that is not a duplicate: one is provenance,
+  // standing in the block on every page whether or not anything has happened,
+  // and the other is what to press when a request did not send. They are only
+  // ever up together during a failure, they are a whole directory apart in the
+  // tab order, and their labels say which is which.
+  const page = await openFooterPage("social.html");
+  const { document } = page;
+  interceptLeads(() => jsonReply({ error: { code: "storage_error", message: "unreviewed upstream text" } }, 500));
+  try {
+    const footer = byId(document, "site-footer");
+    assert.equal(repositoryLinksIn(footer).length, 1, "before a failure the block names the repository once");
+
+    submitEmail(document, TYPED_EMAIL);
+    await settled(document);
+    assert.equal(byId(document, "site-footer-form").dataset.state, "error");
+
+    const links = repositoryLinksIn(footer);
+    assert.equal(links.length, 2, "the failure brings exactly one more");
+    assert.equal(countOf(document, SOURCE_ID), 1, "and it must not be a second provenance link");
+    assert.notEqual(textOf(links[0]), textOf(links[1]),
+      "two links to one address in one band must not read as the same link twice");
+
+    const ids = tabSequence(document).map((node) => node.id);
+    assert.ok(ids.indexOf(SOURCE_ID) >= 0 && ids.indexOf(SOURCE_ID) + 1 < ids.indexOf(REPOSITORY_ID),
+      "the provenance link stays up in the block; it is not a neighbour of the retry");
+  } finally {
+    page.restore();
   }
 });
 

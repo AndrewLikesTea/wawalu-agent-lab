@@ -42,7 +42,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
-import { DEMOS, DIRECTORY_SUMMARY, PITCH_LINK } from "../src/site-footer.js";
+import { DEMOS, DIRECTORY_SUMMARY, PITCH_LINK, SOURCE_LINK_LABEL } from "../src/site-footer.js";
 import { SITE_NAV } from "../src/site-nav.js";
 import { loadPage, pressEnter, tabSequence, textOf } from "./support/browser.js";
 
@@ -297,11 +297,11 @@ test("the permalink's tab order runs skip, nav, post, exits, directory, follow-u
   assert.ok(at(SUMMARY) < at("#site-footer-email"), "the summary is reached before the follow-up field");
   assert.ok(at("#site-footer-email") < stops.length - 1);
 
-  // Exactly one stop between the last exit and the summary, and it is the
-  // footer's own pointer at the worked decision — a link every page of the site
-  // carries, and the one thing this change deliberately did not move.
+  // Two stops between the last exit and the summary, and both belong to the
+  // shared block rather than to this page: its pointer at the worked decision,
+  // and the repository link #2152 added beneath it. Neither was moved here.
   const between = stops.slice(exits[2] + 1, at(SUMMARY)).map(textOf);
-  assert.deepEqual(between, [PITCH_LINK]);
+  assert.deepEqual(between, [PITCH_LINK, SOURCE_LINK_LABEL]);
 
   // The whole sequence, end to end, with the directory shut.
   assert.deepEqual(stops.slice(at(SUMMARY)).map(textOf),

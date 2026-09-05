@@ -17,7 +17,7 @@ import assert from "node:assert/strict";
 import { readdir, readFile } from "node:fs/promises";
 import { relative } from "node:path";
 import { fileURLToPath } from "node:url";
-import { DEMOS, DIRECTORY_SUMMARY, PITCH_LINK } from "../src/site-footer.js";
+import { DEMOS, DIRECTORY_SUMMARY, PITCH_LINK, SOURCE_LINK_LABEL } from "../src/site-footer.js";
 import { SITE_NAV } from "../src/site-nav.js";
 import { parseHtml, pressEnter, pressTab, tabSequence, textOf } from "./support/browser.js";
 
@@ -374,15 +374,16 @@ test("the post page's loading tab order reaches Social without a placeholder Peo
   const bandStops = DEMOS.map((demo) => demo.label);
   const afterExit = sequence.slice(FRAME_STOPS).map((stop) => textOf(stop));
   // The band opens on the sentence that says who Shiplog is for, so its pointer
-  // at the worked decision is the first footer stop, ahead of the site map.
+  // at the worked decision is the first footer stop, and the repository link
+  // #2152 put in the shared block is the second — both ahead of the site map.
   // On this page the map is folded away, so the summary that names it stands
-  // between the pitch and the rows. The rows are still listed here because this
+  // between them and the rows. The rows are still listed here because this
   // harness keeps a closed disclosure's contents in the sequence — a stated gap
   // in tests/support/browser.js — and the assertion below walks parentNode to
   // drop them, which is the sequence a browser actually gives.
   assert.deepEqual(
-    afterExit.slice(0, bandStops.length + 4),
-    [PITCH_LINK, DIRECTORY_SUMMARY, ...bandStops, "", "Request a follow-up"],
+    afterExit.slice(0, bandStops.length + 5),
+    [PITCH_LINK, SOURCE_LINK_LABEL, DIRECTORY_SUMMARY, ...bandStops, "", "Request a follow-up"],
   );
   // A disclosure's own summary is its handle, not something inside it, so the
   // walk starts above the element it opens.
@@ -394,9 +395,9 @@ test("the post page's loading tab order reaches Social without a placeholder Peo
     return false;
   };
   assert.deepEqual(
-    afterExit.filter((_, index) => !closed(sequence[FRAME_STOPS + index])).slice(0, 4),
-    [PITCH_LINK, DIRECTORY_SUMMARY, "", "Request a follow-up"],
-    "with the directory closed, the form must still be four stops from the exit",
+    afterExit.filter((_, index) => !closed(sequence[FRAME_STOPS + index])).slice(0, 5),
+    [PITCH_LINK, SOURCE_LINK_LABEL, DIRECTORY_SUMMARY, "", "Request a follow-up"],
+    "with the directory closed, the form must still be five stops from the exit",
   );
   assert.ok(
     sequence.slice(FRAME_STOPS).every((stop) => stop.closest("#site-footer")),

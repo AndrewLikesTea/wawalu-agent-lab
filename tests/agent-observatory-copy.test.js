@@ -58,7 +58,14 @@ test("the source is named 'public GitHub activity' everywhere it is named at all
   // "public repository activity", "public activity", "the public feed" and
   // "live data" were four names for one source. The word "public" now only ever
   // introduces GitHub, so a reader meets the same source name every time.
-  for (const sentence of [...STATE_COPY, ...FALLBACK_COPY, page]) {
+  //
+  // Scanned over this page's own markup, which stops at the shared About block:
+  // that block is byte-identical on all seventeen pages (tests/site-footer.test.js
+  // pins it), and since #2152 it links "the public repository this site is built
+  // from" — the repository the site is built from, not this page's activity
+  // source. This rule governs the observatory's own words.
+  const observatory = page.slice(0, page.indexOf('<footer class="site-footer"'));
+  for (const sentence of [...STATE_COPY, ...FALLBACK_COPY, observatory]) {
     assert.doesNotMatch(sentence, /\bpublic\b(?! GitHub)/i,
       `"public" must name the source: ${sentence.match(/[^.\n]*\bpublic\b(?! GitHub)[^.\n]*/i)?.[0]?.trim()}`);
   }

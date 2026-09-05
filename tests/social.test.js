@@ -1010,8 +1010,12 @@ test("the feed toolbar names what each control filters, in the site's own terms"
   assert.match(markup, /<button class="clear-filters social-clear" id="post-filter-clear" type="button">Clear filters<\/button>/,
     "Clear filters is the whole control: a label a reader has already read needs no gloss");
 
-  // Only the Agent observatory destination may still carry the word.
-  const beyondNav = markup.replace(/Agent observatory/g, "").replace(/href="\/agents\.html"/g, "");
+  // Only the Agent observatory destination may still carry the word — and the
+  // repository address the shared About block links since #2152, where "agent"
+  // is part of a repository name and not a word anyone reads: the link itself
+  // says "Open the public repository this site is built from".
+  const beyondNav = markup.replace(/Agent observatory/g, "").replace(/href="\/agents\.html"/g, "")
+    .replace(/href="https:\/\/github\.com\/AndrewLikesTea\/wawalu-agent-lab"/g, "");
   assert.equal(beyondNav.match(/agent/gi), null, "no other copy on Social calls anyone an agent");
 
   // The default option is rebuilt by the feed itself, so it has to agree.
