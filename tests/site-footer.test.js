@@ -298,7 +298,7 @@ test("the About block says who Shiplog is for, and reaches the worked decision i
       // It is a paragraph of the band, not a row of the map.
       assert.equal(pitch.parentNode.getAttribute("class"), "site-footer-inner", `${file}: the pitch is nested somewhere new`);
 
-      // The list is untouched: eight destinations, the same links, in the same
+      // The list is untouched: every destination, the same links, in the same
       // order, and the provenance sentence still renders word for word.
       const items = document.querySelector(".site-footer-demos").querySelectorAll("li");
       assert.equal(items.length, DEMOS.length, `${file}: the destination list changed length`);
@@ -341,10 +341,26 @@ test("the footer is a site map: every destination the navigation offers, each on
     // Every door the navigation offers, named exactly once. This band is the
     // only directory on the pages whose body carries none, so a surface missing
     // here is a surface a visitor has to guess at.
+    // A row the navigation has no door for is the one exception, and it has to
+    // declare itself: `filedUnder` names the destination src/site-nav.js files
+    // it inside, and the two tables are checked against each other there too.
     const navLabels = SITE_NAV.map((link) => link.label);
     const sorted = (labels) => [...labels].sort();
-    assert.deepEqual(sorted(DEMOS.map((demo) => demo.label)), sorted(navLabels),
+    const filed = DEMOS.filter((demo) => demo.filedUnder);
+    assert.deepEqual(sorted(DEMOS.filter((demo) => !demo.filedUnder).map((demo) => demo.label)), sorted(navLabels),
       "the band must name each navigation destination exactly once, by the name the navigation uses");
+    for (const demo of filed) {
+      const parent = SITE_NAV.find((link) => link.label === demo.filedUnder);
+      assert.ok(parent?.section?.includes(demo.href),
+        `the navigation does not file "${demo.label}" under ${demo.filedUnder}`);
+      assert.ok(!navLabels.includes(demo.label),
+        `"${demo.label}" has a door in the navigation now, so it is not filed under anything`);
+    }
+
+    // And no destination is described twice: a reader meeting one name on two
+    // rows has to work out whether they are two places.
+    const hrefs = [...list.querySelectorAll("a")].map((link) => link.getAttribute("href"));
+    assert.equal(new Set(hrefs).size, hrefs.length, "a destination is linked twice in the band");
 
     // One door per name. src/site-footer.js repeats the hrefs rather than
     // importing src/site-nav.js — that file is 6 KB and this module is in every
@@ -352,8 +368,10 @@ test("the footer is a site map: every destination the navigation offers, each on
     // where it costs a visitor nothing.
     for (const demo of DEMOS) {
       const destination = SITE_NAV.find((link) => link.label === demo.label);
-      assert.equal(demo.href, destination.href,
-        `the footer sends "${demo.label}" somewhere the navigation does not`);
+      if (destination) {
+        assert.equal(demo.href, destination.href,
+          `the footer sends "${demo.label}" somewhere the navigation does not`);
+      }
       // Root-relative, the convention every cross-page link in src/site-nav.js
       // uses: this band ships on every page, and a bare relative path would
       // resolve against a page in a subdirectory instead of against the site.
@@ -364,10 +382,9 @@ test("the footer is a site map: every destination the navigation offers, each on
     // name a reader cannot follow is a name they have to go and find in the
     // header for themselves.
     const stops = tabSequence(document);
-    // One link per destination, plus one for each page named beneath a
-    // destination rather than beside it — see `also` in src/site-footer.js.
-    const nested = DEMOS.filter((demo) => demo.also);
-    assert.equal(list.querySelectorAll("a").length, DEMOS.length + nested.length,
+    // One link per destination and no more: every row is one door, including
+    // the row the navigation files inside another one.
+    assert.equal(list.querySelectorAll("a").length, DEMOS.length,
       "every destination must be followable");
     for (const [index, demo] of DEMOS.entries()) {
       const link = items[index].querySelector("a");
@@ -387,10 +404,17 @@ test("the footer is a site map: every destination the navigation offers, each on
     // People's posts come in. The marker on the first row is the order signal,
     // not purpose copy, so it is counted separately.
     const guideRows = [...document.querySelector(".site-guide").querySelectorAll("li")];
+    // The page the navigation files under Prompt coach is explained on the home
+    // page too, in the coach entry's companion paragraph rather than in the
+    // directory. That is the sentence its row has to stay shorter than, so it
+    // is looked up where the home page actually writes it.
     const guideSentence = (demo) => {
       const row = guideRows.find((entry) => entry.querySelector(`a[href="${demo.href}"]`));
-      assert.ok(row, `the home page's directory is missing ${demo.label}`);
-      return textOf(row).slice(demo.label.length).trim();
+      if (row) return textOf(row).slice(demo.label.length).trim();
+      const companion = demo.filedUnder ? textOf(document.querySelector(".coach-entry-companion")) : "";
+      assert.ok(companion.includes(COACH_COMPANION_SENTENCE),
+        `the home page no longer explains ${demo.label}`);
+      return COACH_COMPANION_SENTENCE;
     };
     for (const demo of DEMOS) {
       const words = demo.purpose.split(/\s+/).length;
@@ -482,6 +506,11 @@ test("the About Shiplog band reads the same on every page of the site", async ()
 // band lists fragments, the home page's directory lists sentences.
 const asFragment = (text) => text.replace(/\.$/, "").replace(/^./, (first) => first.toLowerCase());
 
+// The home page's explanation of the one destination its directory does not
+// carry a row for. It sits in the coach entry's companion paragraph, and the
+// band's row for that page must stay shorter than it and never repeat it.
+const COACH_COMPANION_SENTENCE = "It runs the same rubric over that export in this browser tab, then names the one habit worth changing first and whether it is moving.";
+
 test("Social's homepage directory explains publishing, while a permalink explains the specific post", async () => {
   // The homepage explains publishing; the compact site-wide band points to the
   // feed. The permalink identifies the specific item a visitor opened.
@@ -542,36 +571,44 @@ test("Social's homepage directory explains publishing, while a permalink explain
   }
 });
 
-test("a page named beneath a destination is named there, by the name the rest of the site uses", async () => {
-  // Personal AI history has no door of its own: src/site-nav.js files it under
-  // Prompt coach's section. Before this it was named on the home page alone, so
-  // a reader who had left that page could not find it again by name.
+test("a page the navigation files under a destination still gets a door of its own here", async () => {
+  // Personal AI history has no door in the header: src/site-nav.js files it
+  // inside Prompt coach's section. It used to be a clause hanging off the
+  // Prompt coach row of this band, which named the capability without giving it
+  // a door either — so the band is where it gets one, as a row like the rest.
   const page = await loadPage(pageUrl("index.html"));
   const { document } = page;
   try {
-    for (const parent of DEMOS.filter((demo) => demo.also)) {
-      const { also } = parent;
-      const row = [...document.querySelector(".site-footer-demos").querySelectorAll("li")]
-        .find((item) => textOf(item).startsWith(parent.label));
-      const link = [...row.querySelectorAll("a")].find((node) => node.getAttribute("href") === also.href);
+    const items = [...document.querySelector(".site-footer-demos").querySelectorAll("li")];
+    for (const demo of DEMOS.filter((entry) => entry.filedUnder)) {
+      const index = DEMOS.indexOf(demo);
+      const row = items[index];
+      const link = row.querySelector("a");
       // Boolean, never the node: a failed assert on a parsed element inspects
       // the whole page and takes the suite with it.
-      assert.ok(Boolean(link), `"${also.label}" must be followable from the ${parent.label} row`);
+      assert.ok(Boolean(link), `"${demo.label}" must be followable from its own row`);
       // Character for character the name the home page and the page's own title
       // use. One name per concept, everywhere.
-      assert.equal(textOf(link), also.label);
-      assert.ok(tabSequence(document).includes(link), `${also.label} must be keyboard reachable`);
-      // Named after the destination it sits beneath, never before it.
-      assert.ok(textOf(row).indexOf(parent.label) < textOf(row).indexOf(also.label),
-        `${also.label} must read as a page beneath ${parent.label}, not ahead of it`);
+      assert.equal(textOf(link), demo.label);
+      assert.equal(link.getAttribute("href"), demo.href);
+      assert.ok(tabSequence(document).includes(link), `${demo.label} must be keyboard reachable`);
+      // A real anchor in the flow of the list, not a control the band paints.
+      assert.equal(link.tagName, "A");
+      assert.equal(row.tagName, "LI");
 
-      // Same rules as a row of its own: a fragment, not a sentence, and no filler.
-      assert.ok(also.purpose.split(/\s+/).length <= 8, `"${also.label}" runs long`);
-      assert.doesNotMatch(also.purpose, /[.!?]$/, `"${also.label}" is written as a sentence`);
-      assert.doesNotMatch(also.purpose, /powerful|seamless|unlock|leverage|central hub/i, `"${also.label}" uses filler`);
+      // Beside the destination the navigation files it under, and directly
+      // after it: the reader who wanted the coach meets it on the next line.
+      assert.equal(textOf(items[index - 1]).startsWith(demo.filedUnder), true,
+        `${demo.label} must follow ${demo.filedUnder} in the list`);
+      // And that destination describes only itself now.
+      assert.equal(textOf(items[index - 1]).includes(demo.label), false,
+        `the ${demo.filedUnder} row still describes ${demo.label} as well`);
+      assert.equal(items[index - 1].querySelectorAll("a").length, 1,
+        `the ${demo.filedUnder} row still carries a second door`);
+
       // And it must not repeat the home page's sentence for that surface.
       assert.ok(!textOf(row).includes("It runs the same rubric over that export"),
-        `${also.label} repeats the home page's sentence in the footer`);
+        `${demo.label} repeats the home page's sentence in the footer`);
     }
 
     // The name the site uses for it, on the page itself and on the home page.
@@ -582,11 +619,16 @@ test("a page named beneath a destination is named there, by the name the rest of
       "the page must carry the name the footer sends a reader to");
 
     // The reassurance is the AI FinOps row's, one line away: a reader is told
-    // where their export is read before they hand one over.
+    // where their export is read before they hand one over. Byte for byte on
+    // every page, because the band is hand-embedded in each document.
     for (const file of PAGES) {
-      assert.ok((await read(file)).includes(
-        '<a href="/personal-history.html">Personal AI history</a> grades your assistant export in this browser tab'),
-      `${file} is missing "Personal AI history"`);
+      const html = await read(file);
+      assert.ok(html.includes(
+        '<li><a href="/personal-history.html">Personal AI history</a> — grades your assistant export in this browser tab</li>'),
+      `${file} is missing the "Personal AI history" row`);
+      assert.ok(html.includes(
+        '<li><a href="/coach.html">Prompt coach</a> — grade a prompt, then revise and grade again</li>'),
+      `${file}: the Prompt coach row still carries more than the coach`);
     }
   } finally {
     page.restore();
@@ -605,7 +647,7 @@ test("a page named beneath a destination is named there, by the name the rest of
 // wrong idea up. The rule is the invariant, not the string: no two clauses may
 // name the file they read with the same words.
 test("the About Shiplog band names a different file for each surface that reads one", async () => {
-  const history = DEMOS.find((demo) => demo.also?.label === "Personal AI history").also;
+  const history = DEMOS.find((demo) => demo.label === "Personal AI history");
   assert.doesNotMatch(history.purpose, /your export/,
     "the Personal AI history clause names its file the way AI FinOps names a different one");
   assert.match(history.purpose, /in this browser tab$/,
