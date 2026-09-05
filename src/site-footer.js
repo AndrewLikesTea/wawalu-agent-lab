@@ -94,6 +94,12 @@ export const PITCH_HREF = "/evolution.html#workspace-answer";
  * surface — the footer points, the home page explains — keeping the facts the
  * act turns on: where Paint's PNG goes, what order People's posts come in. AI
  * FinOps keeps "in this browser tab", a promise about where an export is read.
+ *
+ * `filedUnder` marks the one row the navigation has no door for: src/site-nav.js
+ * files /personal-history.html inside Prompt coach's section, so the header
+ * never spells the name. It was a clause hanging off the Prompt coach row here,
+ * which named the page without giving it a door either. It is a row of its own
+ * now, and the field records that the two tables disagree by design.
  */
 export const DEMOS = Object.freeze([
   Object.freeze({
@@ -103,19 +109,14 @@ export const DEMOS = Object.freeze([
     // The only row that says where to start: a list with no order is no list.
     note: "start here:",
   }),
+  Object.freeze({ label: "Prompt coach", href: "/coach.html", purpose: "grade a prompt, then revise and grade again" }),
+  // Beneath Prompt coach in the navigation, beside it here. Its browser-tab
+  // clause is a promise, as above, about a different file.
   Object.freeze({
-    label: "Prompt coach",
-    href: "/coach.html",
-    purpose: "grade a prompt, then revise and grade again",
-    // `also` is a page named beneath this destination rather than beside it:
-    // src/site-nav.js files /personal-history.html under Prompt coach's section
-    // instead of giving it a door, and a reader who left the home page had
-    // nowhere else to find it. Its browser-tab clause is a promise, as above.
-    also: Object.freeze({
-      label: "Personal AI history",
-      href: "/personal-history.html",
-      purpose: "grades your assistant export in this browser tab",
-    }),
+    label: "Personal AI history",
+    href: "/personal-history.html",
+    purpose: "grades your assistant export in this browser tab",
+    filedUnder: "Prompt coach",
   }),
   Object.freeze({ label: "Decisions", href: "/", purpose: "record a decision, then search the history" }),
   Object.freeze({ label: "Releases", href: "/releases.html", purpose: "every release and the decisions it carried" }),
@@ -249,9 +250,8 @@ export const DIRECTORY_SUMMARY = `Where else to go on Shiplog — all ${DEMOS.le
 function demoListLines(collapsed = false) {
   const list = [
     '    <ul class="site-footer-demos">',
-    ...DEMOS.map(({ label, href, purpose, note, also }) =>
-      `      <li><a href="${href}">${label}</a> — ${note ? `${note} ` : ""}${purpose}`
-      + `${also ? `; <a href="${also.href}">${also.label}</a> ${also.purpose}` : ""}</li>`),
+    ...DEMOS.map(({ label, href, purpose, note }) =>
+      `      <li><a href="${href}">${label}</a> — ${note ? `${note} ` : ""}${purpose}</li>`),
     "    </ul>",
   ];
   if (!collapsed) return list;

@@ -13,7 +13,7 @@
 //      names it — the promise the link made, not the sixth block down.
 //   2. The disclosure is closed on first paint. An "open by default" details is
 //      the same page it replaced with an extra triangle.
-//   3. All eight destinations survive and are keyboard-reachable once expanded.
+//   3. Every destination survives and is keyboard-reachable once expanded.
 //      A disclosure that loses rows is a deletion wearing a summary.
 //   4. The follow-up form — its field and its action — is OUTSIDE the disclosure
 //      and in the tab order with nothing expanded, so a reader can still reach a
@@ -194,12 +194,12 @@ test("every destination survives the fold and is reachable once the directory is
   pressEnter(document);
   assert.ok(open(directory), "Enter on the summary must open the directory");
 
-  // Every link the band offers, now walkable. That is the eight destinations
-  // plus the page named beneath Prompt coach, which has no door of its own.
-  const expected = DEMOS.flatMap((demo) => (demo.also ? [demo.label, demo.also.label] : [demo.label]));
+  // Every link the band offers, now walkable: one stop per row, including the
+  // row for the page the navigation files under Prompt coach.
+  const expected = DEMOS.map((demo) => demo.label);
   const reachable = browserTabSequence(document).filter(insideDirectory).map(textOf);
   assert.deepEqual(reachable, expected, "an expanded directory must offer every destination, in order");
-  assert.equal(reachable.length, DEMOS.length + 1);
+  assert.equal(reachable.length, DEMOS.length);
 
   // And it closes again on the same key, so a reader who opened it by mistake is
   // not stuck with it.
