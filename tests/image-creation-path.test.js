@@ -682,7 +682,25 @@ test("People names the same steps in the same words as the composer", () => {
   assert.equal(invitation,
     "A published post with an image appears on People, under the display name you publish it with. "
     + "To add yours: Create an image in Paint (opens in a new tab), export the PNG, "
-    + "then Write a post on Social and publish it.");
+    + "then Write a post on Social, fill in the required image description, and publish it.");
+
+  // The composer refuses a post that carries an image and no description, so the
+  // steps that lead a reader to that composer name the field before the step it
+  // blocks. Social's term, not a synonym: "caption" and "alt text" are the same
+  // field under two more names, and a reader who prepared a "caption" would
+  // still be looking for it on a form that asks for an image description.
+  const DESCRIPTION_FIELD = "image description";
+  assert.ok(invitation.includes(`the required ${DESCRIPTION_FIELD}`),
+    `People does not name the description as required: ${invitation}`);
+  assert.ok(invitation.indexOf(DESCRIPTION_FIELD) < invitation.indexOf("and publish it."),
+    "People names the description after the publishing step it is required for");
+  assert.doesNotMatch(invitation, /caption|alt text/i,
+    "People invents a second name for the field Social calls the image description");
+  const altLabel = documents.Social.querySelectorAll("label")
+    .filter((label) => label.getAttribute("for") === "post-image-alt");
+  assert.equal(altLabel.length, 1, "the composer has no Image description label");
+  assert.ok(textOf(altLabel[0]).toLowerCase().startsWith(DESCRIPTION_FIELD),
+    "the composer no longer labels the field with the words People borrows from it");
 
   // And one wording for the result, not one per page. Social's composer hint
   // already tells a writer where an image post lands and under which name; the
