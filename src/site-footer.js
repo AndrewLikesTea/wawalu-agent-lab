@@ -125,7 +125,7 @@ export const DEMOS = Object.freeze([
   }),
   Object.freeze({ label: "Decisions", href: "/", purpose: "record a decision, then search the history" }),
   Object.freeze({ label: "Releases", href: "/releases.html", purpose: "every release and the decisions it carried" }),
-  Object.freeze({ label: "Social", href: "/social.html", purpose: "read short posts about what the team ships, images optional" }),
+  Object.freeze({ label: "Social", href: "/social.html", purpose: "read short posts about what the team ships, or publish one" }),
   Object.freeze({ label: "People", href: "/profile.html", purpose: "pick a display name, see its image posts, newest first" }),
   Object.freeze({ label: "Paint", href: "/paint/", purpose: "crop or draw an image, export a PNG, publish it on Social" }),
   Object.freeze({ label: "Agent observatory", href: "/agents.html", purpose: "watch a synthetic engineering team build and review work" }),
