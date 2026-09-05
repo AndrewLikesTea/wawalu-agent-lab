@@ -14,6 +14,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { STORAGE_KEY } from "../src/app.js";
 import { RELEASE_STORAGE_KEY } from "../src/releases.js";
+import { RELEASE_EXPORT_BUTTON_LABEL } from "../src/release-export.js";
 import { initReleasesPage } from "../src/releases-page.js";
 import { initReleaseDetail } from "../src/release-page.js";
 import { buildShiplogExport } from "../src/shiplog-export.js";
@@ -148,6 +149,57 @@ test("a release is recorded from the page with the decisions it carried", async 
   assert.equal(page.document.querySelector("#release-description").value, "");
   assert.equal(optionFor(page, QUEUE_DECISION.title).checked, false);
   assert.equal(summaryText(page), "No decisions linked yet. 2 available.");
+});
+
+// Where a recorded release goes, and how to take it elsewhere. Asserted on the
+// painted page rather than the bytes, and on the order a visitor reads: a
+// sentence about the button is only doing its job if it is on screen above the
+// button. The claim is checked against the behaviour in the same test — a
+// release is recorded and has to land in this browser's storage and nowhere
+// else, which the harness enforces by throwing on any undeclared request.
+const RECORD_SCOPE = "A release you record here is kept in this browser, on this device:"
+  + " it is not sent to the Wawalu team, and a teammate on another browser or device"
+  + " will not see it. Use “Export releases as JSON” above to take your releases elsewhere.";
+
+test("the recorder says where a recorded release is kept, above the button that records it", async (t) => {
+  const page = await openReleases(t, { decisions: [QUEUE_DECISION] });
+
+  const scope = page.document.querySelector("#release-record-scope");
+  assert.ok(scope, "the recorder says nothing about where a recorded release is kept");
+  assert.equal(textOf(scope), RECORD_SCOPE);
+
+  // Painted above the submit control, in the form's own reading order.
+  const order = page.document.querySelector("#release-form").querySelectorAll("p,button");
+  const scopeIndex = order.indexOf(scope);
+  const submitIndex = order.findIndex((node) => node.tagName === "BUTTON" && textOf(node) === "Record release");
+  assert.ok(submitIndex >= 0, "the recorder has no “Record release” button");
+  assert.ok(scopeIndex >= 0 && scopeIndex < submitIndex, "the storage line is painted below the button it is about");
+
+  // The way out is the control the log actually offers, named in the words on
+  // its face — not a synonym this sentence invented for it.
+  const exportButton = page.document.querySelector("#release-export");
+  assert.equal(textOf(exportButton), RELEASE_EXPORT_BUTTON_LABEL);
+  assert.ok(
+    textOf(scope).includes(`“${textOf(exportButton)}”`),
+    "the sentence names the export control by a label the page does not show",
+  );
+  // And that control is above the recorder, where the sentence says it is.
+  const buttons = page.document.querySelectorAll("button");
+  assert.ok(
+    buttons.indexOf(exportButton) < buttons.indexOf(order[submitIndex]),
+    "the export control is not above the recorder the sentence points up at",
+  );
+
+  // No claim beyond the storage: nothing about accounts, sync, backup, or how
+  // long a record survives.
+  assert.doesNotMatch(textOf(scope), /account|sign in|sync|back(ed)? up|backup|forever|permanent|always/i);
+
+  // The claim itself. Recording writes the release into this browser's storage
+  // under the one key, and the run completes — an upload would have thrown.
+  fillRequired(page, { version: "v1.4.0" });
+  submit(page);
+  assert.equal(stored(page).length, 1, "the release was not kept in this browser");
+  assert.equal(page.storage.getItem(RELEASE_STORAGE_KEY) === null, false);
 });
 
 test("more than one decision can be linked, in the order they were picked", async (t) => {
