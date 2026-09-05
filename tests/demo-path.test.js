@@ -169,6 +169,24 @@ test("a cold home page renders a non-zero count with decisions and releases in i
   );
 });
 
+// A visitor who reads the home page and then opens Social used to arrive
+// believing everything there was invented, including the post they were about
+// to publish. The demonstration group says both halves now, on the loaded page
+// rather than only in the markup (#2154).
+test("the loaded home page scopes the sample-content claim and says a published post is real", async (t) => {
+  const page = await openHome(t);
+
+  const guide = page.document.querySelector(".site-guide");
+  const description = textOf(guide.querySelectorAll("p")[1]);
+  assert.match(description, /posts and images already published on Social and People are invented sample content/,
+    "the demonstration group stopped saying which content is invented");
+  assert.match(description, /A post you publish on Social is real: anyone who visits Shiplog can read it\./,
+    "the demonstration group stopped saying a visitor's own post is real and public");
+  // The counted figure is still the stated exception to the sample-data claim,
+  // in its own words, and this addition did not become a second one.
+  assert.match(description, /merged pull request count is the exception: it is counted, not invented\./);
+});
+
 test("recording a decision keeps both the visitor's record and the examples, visitor first", async (t) => {
   const page = await openHome(t, { decisions: [OWN_DECISION] });
 
