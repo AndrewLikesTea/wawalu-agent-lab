@@ -258,8 +258,66 @@
                  count is a number or it is not on the page. -->
             <p class="profile-summary" id="profile-summary"></p>
           </div>
+          <div class="feed-connection" hidden>
+            <span class="live-dot" aria-hidden="true"></span>
+            <!-- Ships with no sentence in it, for the same reason Social's does
+                 (src/social.html): authored, this line promised image posts
+                 directly above the status that says they are still loading, so
+                 the frame that has nothing yet opened with a promise about it.
+                 src/profile.js writes the connecting sentence — Social's words
+                 with People's noun, profileConnectionLine — when the line goes
+                 back on a rendered grid, and profile-page.js writes the settled
+                 one once the fetch answers. It must not print the display name
+                 either: the heading and the active-filter chip carry it.
+                 `hidden` covers the decorative dot that is left once the
+                 sentence is gone; src/profile.js drops it on mount. -->
+            <span id="profile-status"></span>
+          </div>
+          <p class="visually-hidden" id="profile-announcer" aria-live="polite" aria-atomic="true"></p>
+
+          <!-- The grid container itself carries aria-busy while the first load is
+               in flight; the tiles inside are ordinary links, so Tab, Enter, and
+               open-in-new-tab all behave the way the browser already promises.
+               aria-describedby ties the list to the line that orders it, in the
+               direction that is actually announced: the ordering is a static
+               label rather than a control, so the list carries the reference and
+               a reader entering it hears "Newest first" against the posts it
+               describes. No new tab stop is added above the results for it. -->
+          <!-- The panel that stands in for the grid when there are no tiles:
+               loading, failed, or an empty display name. It is rendered content
+               and not an announcement — the polite region above is the page's
+               one voice, and while this element was also live a name with no
+               image posts spoke the same guidance twice, from two regions. -->
+          <div class="feed-status" id="profile-feed-status">Image posts are loading. Open Social to publish an image post.</div>
+          <div id="profile-grid" aria-describedby="profile-order" aria-busy="true">
+            <!-- No display name is claimed above these: the heading names the
+                 content type and the filled state chip is not on the page yet.
+                 Pending names are not rendered as controls either; these inert
+                 tiles reserve only the image-result layout. -->
+            <ul class="profile-grid profile-grid-skeleton" role="list" aria-hidden="true" inert>
+              <li class="profile-cell"><div class="profile-tile profile-tile-skeleton"><div class="skeleton-media skeleton-media-square"></div><div class="skeleton-line"></div><div class="skeleton-line skeleton-line-short"></div><div class="profile-tile-meta skeleton-meta"><div class="skeleton-line skeleton-line-date skeleton-line-short"></div><div class="skeleton-line skeleton-line-stat skeleton-line-short"></div></div><div class="skeleton-line skeleton-line-short skeleton-line-action"></div></div></li>
+              <li class="profile-cell"><div class="profile-tile profile-tile-skeleton"><div class="skeleton-media skeleton-media-square"></div><div class="skeleton-line"></div><div class="skeleton-line skeleton-line-short"></div><div class="profile-tile-meta skeleton-meta"><div class="skeleton-line skeleton-line-date skeleton-line-short"></div><div class="skeleton-line skeleton-line-stat skeleton-line-short"></div></div><div class="skeleton-line skeleton-line-short skeleton-line-action"></div></div></li>
+              <li class="profile-cell"><div class="profile-tile profile-tile-skeleton"><div class="skeleton-media skeleton-media-square"></div><div class="skeleton-line"></div><div class="skeleton-line skeleton-line-short"></div><div class="profile-tile-meta skeleton-meta"><div class="skeleton-line skeleton-line-date skeleton-line-short"></div><div class="skeleton-line skeleton-line-stat skeleton-line-short"></div></div><div class="skeleton-line skeleton-line-short skeleton-line-action"></div></div></li>
+              <li class="profile-cell"><div class="profile-tile profile-tile-skeleton"><div class="skeleton-media skeleton-media-square"></div><div class="skeleton-line"></div><div class="skeleton-line skeleton-line-short"></div><div class="profile-tile-meta skeleton-meta"><div class="skeleton-line skeleton-line-date skeleton-line-short"></div><div class="skeleton-line skeleton-line-stat skeleton-line-short"></div></div><div class="skeleton-line skeleton-line-short skeleton-line-action"></div></div></li>
+              <li class="profile-cell"><div class="profile-tile profile-tile-skeleton"><div class="skeleton-media skeleton-media-square"></div><div class="skeleton-line"></div><div class="skeleton-line skeleton-line-short"></div><div class="profile-tile-meta skeleton-meta"><div class="skeleton-line skeleton-line-date skeleton-line-short"></div><div class="skeleton-line skeleton-line-stat skeleton-line-short"></div></div><div class="skeleton-line skeleton-line-short skeleton-line-action"></div></div></li>
+              <li class="profile-cell"><div class="profile-tile profile-tile-skeleton"><div class="skeleton-media skeleton-media-square"></div><div class="skeleton-line"></div><div class="skeleton-line skeleton-line-short"></div><div class="profile-tile-meta skeleton-meta"><div class="skeleton-line skeleton-line-date skeleton-line-short"></div><div class="skeleton-line skeleton-line-stat skeleton-line-short"></div></div><div class="skeleton-line skeleton-line-short skeleton-line-action"></div></div></li>
+            </ul>
+          </div>
           <!-- People is where a visitor browses images, so the route into the
-               editor stays beside them. The sentence names every step in the
+               editor stays with them — under the grid, not between the heading
+               and the pictures it names (#2142). The list is what this page
+               answers with, so nothing stands between the heading that names
+               it, the line that orders it, and the list itself; the invitation
+               is the step after the browsing rather than a paragraph a reader
+               has to get past to reach the images. Tab order follows out of the
+               markup and not out of a tabindex: the display-name picker, then
+               every Open post control, then these two links.
+               profile.js takes this paragraph out of the document while the
+               first fetch is open and puts it back against the display-name
+               caveat below (feedPresence's anchor in src/feed-status.js), so
+               the painted order is this order in every state rather than only
+               before hydration.
+               The sentence names every step in the
                order they happen, because Paint publishes nothing: it used to
                read "Want a picture of your own here? Open Paint", which made
                opening the editor sound like the whole path and left the
@@ -306,52 +364,6 @@
           <p class="feed-create hint">
             A published post with an image appears on People, under the display name you publish it with. To add yours: <a class="text-link paint-link" id="profile-paint-route" href="/paint/?from=profile" target="_blank" rel="noopener">Create an image in Paint <span class="new-tab-note">(opens in a new tab)</span></a>, export the PNG, then <a class="text-link" id="profile-publish-route" href="/social.html#post-form">Write a post on Social</a> and publish it.
           </p>
-
-          <div class="feed-connection" hidden>
-            <span class="live-dot" aria-hidden="true"></span>
-            <!-- Ships with no sentence in it, for the same reason Social's does
-                 (src/social.html): authored, this line promised image posts
-                 directly above the status that says they are still loading, so
-                 the frame that has nothing yet opened with a promise about it.
-                 src/profile.js writes the connecting sentence — Social's words
-                 with People's noun, profileConnectionLine — when the line goes
-                 back on a rendered grid, and profile-page.js writes the settled
-                 one once the fetch answers. It must not print the display name
-                 either: the heading and the active-filter chip carry it.
-                 `hidden` covers the decorative dot that is left once the
-                 sentence is gone; src/profile.js drops it on mount. -->
-            <span id="profile-status"></span>
-          </div>
-          <p class="visually-hidden" id="profile-announcer" aria-live="polite" aria-atomic="true"></p>
-
-          <!-- The grid container itself carries aria-busy while the first load is
-               in flight; the tiles inside are ordinary links, so Tab, Enter, and
-               open-in-new-tab all behave the way the browser already promises.
-               aria-describedby ties the list to the line that orders it, in the
-               direction that is actually announced: the ordering is a static
-               label rather than a control, so the list carries the reference and
-               a reader entering it hears "Newest first" against the posts it
-               describes. No new tab stop is added above the results for it. -->
-          <!-- The panel that stands in for the grid when there are no tiles:
-               loading, failed, or an empty display name. It is rendered content
-               and not an announcement — the polite region above is the page's
-               one voice, and while this element was also live a name with no
-               image posts spoke the same guidance twice, from two regions. -->
-          <div class="feed-status" id="profile-feed-status">Image posts are loading. Open Social to publish an image post.</div>
-          <div id="profile-grid" aria-describedby="profile-order" aria-busy="true">
-            <!-- No display name is claimed above these: the heading names the
-                 content type and the filled state chip is not on the page yet.
-                 Pending names are not rendered as controls either; these inert
-                 tiles reserve only the image-result layout. -->
-            <ul class="profile-grid profile-grid-skeleton" role="list" aria-hidden="true" inert>
-              <li class="profile-cell"><div class="profile-tile profile-tile-skeleton"><div class="skeleton-media skeleton-media-square"></div><div class="skeleton-line"></div><div class="skeleton-line skeleton-line-short"></div><div class="profile-tile-meta skeleton-meta"><div class="skeleton-line skeleton-line-date skeleton-line-short"></div><div class="skeleton-line skeleton-line-stat skeleton-line-short"></div></div><div class="skeleton-line skeleton-line-short skeleton-line-action"></div></div></li>
-              <li class="profile-cell"><div class="profile-tile profile-tile-skeleton"><div class="skeleton-media skeleton-media-square"></div><div class="skeleton-line"></div><div class="skeleton-line skeleton-line-short"></div><div class="profile-tile-meta skeleton-meta"><div class="skeleton-line skeleton-line-date skeleton-line-short"></div><div class="skeleton-line skeleton-line-stat skeleton-line-short"></div></div><div class="skeleton-line skeleton-line-short skeleton-line-action"></div></div></li>
-              <li class="profile-cell"><div class="profile-tile profile-tile-skeleton"><div class="skeleton-media skeleton-media-square"></div><div class="skeleton-line"></div><div class="skeleton-line skeleton-line-short"></div><div class="profile-tile-meta skeleton-meta"><div class="skeleton-line skeleton-line-date skeleton-line-short"></div><div class="skeleton-line skeleton-line-stat skeleton-line-short"></div></div><div class="skeleton-line skeleton-line-short skeleton-line-action"></div></div></li>
-              <li class="profile-cell"><div class="profile-tile profile-tile-skeleton"><div class="skeleton-media skeleton-media-square"></div><div class="skeleton-line"></div><div class="skeleton-line skeleton-line-short"></div><div class="profile-tile-meta skeleton-meta"><div class="skeleton-line skeleton-line-date skeleton-line-short"></div><div class="skeleton-line skeleton-line-stat skeleton-line-short"></div></div><div class="skeleton-line skeleton-line-short skeleton-line-action"></div></div></li>
-              <li class="profile-cell"><div class="profile-tile profile-tile-skeleton"><div class="skeleton-media skeleton-media-square"></div><div class="skeleton-line"></div><div class="skeleton-line skeleton-line-short"></div><div class="profile-tile-meta skeleton-meta"><div class="skeleton-line skeleton-line-date skeleton-line-short"></div><div class="skeleton-line skeleton-line-stat skeleton-line-short"></div></div><div class="skeleton-line skeleton-line-short skeleton-line-action"></div></div></li>
-              <li class="profile-cell"><div class="profile-tile profile-tile-skeleton"><div class="skeleton-media skeleton-media-square"></div><div class="skeleton-line"></div><div class="skeleton-line skeleton-line-short"></div><div class="profile-tile-meta skeleton-meta"><div class="skeleton-line skeleton-line-date skeleton-line-short"></div><div class="skeleton-line skeleton-line-stat skeleton-line-short"></div></div><div class="skeleton-line skeleton-line-short skeleton-line-action"></div></div></li>
-            </ul>
-          </div>
           <!-- People is a filtered view of Social, and the nav says so by
                nesting them. This is where People defines the thing its picker
                selects, in the bytes Social's feed note and the permalink both

@@ -33,7 +33,13 @@ export function feedPhase({ state = "ready", total = 0, visible = 0, filtering =
 // The slot is remembered as the index the node shipped at, so restoring it puts
 // the line back where the author put it rather than at the end of its panel.
 // `[...parent.children]` because a real HTMLCollection has no indexOf.
-export function feedPresence(node) {
+//
+// An index alone is only true while every other sibling is where it shipped, and
+// a panel that removes more than one line at a time breaks that: a line that
+// ships after another removable one is restored one place late, or appended past
+// the end of the panel. `anchor` is the element this line must stay in front of
+// — a sibling the page never removes — and it wins whenever it is still there.
+export function feedPresence(node, anchor = null) {
   const parent = node?.parentNode ?? null;
   if (!node || !parent) return { present() {} };
   const slot = [...parent.children].indexOf(node);
@@ -45,7 +51,8 @@ export function feedPresence(node) {
         node.remove();
         return;
       }
-      const after = parent.children[slot] ?? null;
+      const anchored = anchor && anchor.parentNode === parent ? anchor : null;
+      const after = anchored ?? parent.children[slot] ?? null;
       if (after) parent.insertBefore(node, after);
       else parent.append(node);
     },

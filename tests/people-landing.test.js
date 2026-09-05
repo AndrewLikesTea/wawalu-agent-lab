@@ -864,31 +864,126 @@ test("tabbing from the top reaches the picker, then the posts under the header",
     // Walked, not read off the markup: every stop is a real focus move made by
     // the page harness that boots the shipped markup with the shipped module.
     document.querySelectorAll(".profile-lede")[1].querySelectorAll("a")[0].focus();
+    const tiles = drawnTiles(document);
     const walked = [];
-    for (let step = 0; step < 6; step += 1) walked.push(pressTab(document));
+    for (let step = 0; step < 3 + tiles.length + 2; step += 1) walked.push(pressTab(document));
     assert.deepEqual(walked.slice(0, 3).map((node) => node.dataset?.author), ["Ari", "Bea", "Zed"],
       "the display-name picker is not the first thing a keyboard reaches in main");
-    // Then the panel's own two-step helper — make the image, publish it — in the
-    // order the steps happen, then the first post. The ordering label sits
-    // between the picker and these, and takes no stop of its own: nothing
-    // focusable was added above the results to carry it.
-    assert.equal(walked[3].getAttribute("id"), "profile-paint-route");
-    assert.equal(walked[4].getAttribute("id"), "profile-publish-route");
-    assert.equal(walked[5].classList.contains("profile-tile"), true, "the sixth stop is not the first post");
+    // Then the posts the picker just filtered — every drawn tile, in the order
+    // the grid drew them — and only after them the panel's own two-step helper,
+    // make the image and publish it, in the order the steps happen (#2142). The
+    // helper used to take the two stops between the picker and the first post,
+    // so a keyboard reader crossed an invitation to make a picture before
+    // reaching a single one of the pictures they came for. The ordering label
+    // sits between the picker and the posts and takes no stop of its own:
+    // nothing focusable was added above the results to carry it.
+    // Identity, one stop at a time: a deep comparison against a harness element
+    // walks the whole parsed page.
+    assert.ok(tiles.length > 0, "the grid drew no posts to tab through");
+    for (const [index, tile] of tiles.entries()) {
+      assert.equal(walked[3 + index] === tile, true,
+        `stop ${4 + index} is not post ${index + 1}, in the order the grid drew them`);
+    }
+    assert.equal(walked[3 + tiles.length].getAttribute("id"), "profile-paint-route");
+    assert.equal(walked[4 + tiles.length].getAttribute("id"), "profile-publish-route");
 
     // And the visual order the tab order is supposed to match: every one of
-    // those stops comes after the heading, and the posts come after the label.
+    // those stops comes after the heading, the posts come after the label, and
+    // the helper comes after the posts.
     const order = documentOrder(document);
     const at = (node) => order.indexOf(node);
     assert.ok(at(document.querySelector("#profile-author")) < at(document.querySelector("#grid-title")));
     assert.ok(at(document.querySelector("#grid-title")) < at(document.querySelector("#profile-order")));
-    assert.ok(at(document.querySelector("#profile-order")) < at(walked[5]));
+    assert.ok(at(document.querySelector("#profile-order")) < at(walked[3]));
+    assert.ok(at(walked[3 + tiles.length - 1]) < at(document.querySelector("#profile-paint-route")));
     // No new focusable above the results region: the intro's link to Social and
     // the picker are still the whole of it.
     const inMain = tabSequence(document).filter((element) => element.closest("#main-content"));
     const beforePanel = inMain.filter((element) => !element.closest(".list-panel"));
     assert.deepEqual(beforePanel.map((element) => element.dataset?.author ?? element.getAttribute("href")),
       ["/social.html", "Ari", "Bea", "Zed"]);
+  } finally {
+    page.restore();
+  }
+});
+
+/* ------------------------- the pictures come first ------------------------- */
+// #2142: the results panel opened on the heading that names the image posts, the
+// line that orders them, and then a paragraph about how to publish one — so the
+// answer this page exists to give started a paragraph below the invitation to go
+// and make something else. The list leads its section now and the invitation
+// follows it, in the markup as served and in every frame the module paints:
+// src/profile.js takes that paragraph off the page while the first fetch is open
+// and has to put it back under the grid rather than at a remembered index.
+
+// The results panel's own element children, in order. The harness keeps text
+// nodes in `children`, so this filters on nodeType the way documentOrder does.
+const panelBlocks = (document) =>
+  document.querySelector(".list-panel").children.filter((node) => node.nodeType === 1);
+
+// Where a block sits among them. Index, never the node: comparing harness
+// elements with a deep assertion walks the whole parsed page.
+const blockIndex = (document, selector) => {
+  const target = document.querySelector(selector);
+  return panelBlocks(document).findIndex((node) => node === target);
+};
+
+function assertListLeadsInvitation(document, when) {
+  const blocks = panelBlocks(document);
+  const at = (selector) => blockIndex(document, selector);
+  for (const selector of [".section-heading", "#profile-feed-status", "#profile-grid", ".feed-create", ".profile-role"]) {
+    assert.ok(at(selector) > -1, `${when}: the panel is missing ${selector}`);
+  }
+  // The list slot — the panel that stands in for the grid while it is loading,
+  // failed or empty, and the grid itself — is one block of the page, in that
+  // order, directly under the heading group that names and orders it.
+  assert.equal(at("#profile-grid"), at("#profile-feed-status") + 1,
+    `${when}: something was inserted between the list's status panel and its tiles`);
+  assert.ok(at(".section-heading") < at("#profile-feed-status"),
+    `${when}: the ordering label no longer comes before the list it orders`);
+  // Nothing between the ordering label and the list asks the reader to go
+  // somewhere else: no invitation, and no link of any kind.
+  for (const block of blocks.slice(at(".section-heading") + 1, at("#profile-feed-status"))) {
+    assert.equal(block.classList.contains("feed-create"), false,
+      `${when}: the publishing invitation is back between the heading and the image posts`);
+    assert.equal(block.querySelectorAll("a").length, 0,
+      `${when}: a link stands between the heading that names the image posts and the image posts`);
+  }
+  // And the invitation is under the grid, against the display-name caveat that
+  // closes the panel — the slot the presence anchor in src/profile.js restores
+  // it to, not the end of the panel and not the caveat's place.
+  assert.ok(at("#profile-grid") < at(".feed-create"),
+    `${when}: the publishing invitation renders above the image posts`);
+  assert.equal(at(".profile-role"), at(".feed-create") + 1,
+    `${when}: the invitation and the display-name caveat swapped places`);
+}
+
+test("the image-post list leads its section and the way to publish one follows it", async () => {
+  // The markup as served, before a line of script has run.
+  const served = await loadPage(PAGE_URL, { routes: { [SEED_ROUTE]: SEED_FEED, [LIVE_ROUTE]: { posts: [] } } });
+  try {
+    assertListLeadsInvitation(served.document, "as served");
+  } finally {
+    served.restore();
+  }
+
+  // And once the module owns the page: the invitation leaves the document while
+  // the first fetch is open, so this is the frame that proves it came back where
+  // the author put it rather than one block late.
+  const page = await people();
+  try {
+    const { document } = page;
+    assert.equal(document.querySelectorAll(".feed-create").length, 1,
+      "the invitation came back twice, or never came back");
+    assertListLeadsInvitation(document, "loaded");
+
+    // A filter change repaints the region; a display name with no image posts
+    // repaints it down to the empty state. Neither may move the invitation.
+    chipFor(page, "Bea").click();
+    assertListLeadsInvitation(document, "after a filter change");
+    chipFor(page, "Ari").click();
+    assert.equal(drawnTiles(document).length, 0, "Ari drew a tile, so this is not the empty state");
+    assertListLeadsInvitation(document, "on an empty display name");
   } finally {
     page.restore();
   }
