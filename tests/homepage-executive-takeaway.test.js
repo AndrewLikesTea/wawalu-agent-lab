@@ -13,7 +13,7 @@ import { navHref, SITE_NAV } from "../src/site-nav.js";
 import { loadExampleDataset } from "../src/example-dataset.js";
 import { onRequest } from "../functions/api/leads.js";
 import { createMemoryLeadStore, FOLLOW_UP_TOPICS, handleLeadRequest } from "../src/leads.js";
-import { MAX_FOLLOW_UP_MESSAGE_LENGTH } from "../src/lead-capture.js";
+import { FOLLOW_UP_USE, MAX_FOLLOW_UP_MESSAGE_LENGTH } from "../src/lead-capture.js";
 import { createTestD1 } from "./support/d1-sqlite.js";
 import { buildStandHeadline } from "../src/finops-stand.js";
 import { buildFirstRunResult } from "../src/finops-first-run.js";
@@ -292,6 +292,22 @@ test("the adjacent CTA opens a contextual work-email request that says what is s
     "the sentence sits below the field it describes");
   assert.ok(order.indexOf(disclosure) < order.indexOf(form.querySelector('button[type="submit"]')),
     "a claim a reader meets after pressing the button is not one they got to weigh");
+  // #2144: and the second half of the promise, byte for byte out of
+  // src/lead-capture.js. "Goes to a team" is not an answer to "will you put me
+  // on something?", and every other follow-up form on the site answers it
+  // directly under the sentence above — this one was the last that did not.
+  // Same class as the sentence above it, so no new hint style is introduced.
+  const uses = order.filter((node) => textOf(node) === FOLLOW_UP_USE);
+  assert.equal(uses.length, 1, `the panel states the use of the address ${uses.length} times`);
+  assert.ok(order.indexOf(disclosure) < order.indexOf(uses[0]),
+    "where the address goes reads before what is done with it");
+  assert.ok(order.indexOf(uses[0]) < order.indexOf(form.querySelector('button[type="submit"]')),
+    "the use sentence is below the button it should precede");
+  assert.ok(!uses[0].hidden, "the use sentence ships hidden");
+  assert.equal(uses[0].getAttribute("class"), disclosure.getAttribute("class"));
+  // Once over the whole first screen, on the same rule as the sentence above.
+  assert.equal(textOf(document.getElementById("top")).split("and for nothing else").length - 1, 1,
+    "the first screen states the use of the address exactly once");
   // Once. Two sentences making the same promise is how a reader ends up
   // deciding whether two wordings mean two promises. Counted over the whole
   // first screen since #1974 moved the panel below the worked-decision link:
