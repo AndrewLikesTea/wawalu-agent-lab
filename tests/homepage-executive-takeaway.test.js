@@ -13,7 +13,7 @@ import { navHref, SITE_NAV } from "../src/site-nav.js";
 import { loadExampleDataset } from "../src/example-dataset.js";
 import { onRequest } from "../functions/api/leads.js";
 import { createMemoryLeadStore, FOLLOW_UP_TOPICS, handleLeadRequest } from "../src/leads.js";
-import { MAX_FOLLOW_UP_MESSAGE_LENGTH } from "../src/lead-capture.js";
+import { FOLLOW_UP_USE, MAX_FOLLOW_UP_MESSAGE_LENGTH } from "../src/lead-capture.js";
 import { createTestD1 } from "./support/d1-sqlite.js";
 import { buildStandHeadline } from "../src/finops-stand.js";
 import { buildFirstRunResult } from "../src/finops-first-run.js";
@@ -299,6 +299,44 @@ test("the adjacent CTA opens a contextual work-email request that says what is s
   // card would count zero and pass.
   assert.equal(textOf(document.getElementById("top")).split("are sent").length - 1, 1,
     "the panel states what is sent exactly once");
+});
+
+test("that form says what the team does with the address, in the site's one wording", async (t) => {
+  // #2144: the sentence above says where the address goes. It does not say what
+  // happens to it afterwards, and "goes to a team" is not an answer to "will you
+  // put me on something?" — which is the question a visitor asks of the one form
+  // on the site that requests a work email above the fold. Every other follow-up
+  // form on the site answers it, in `FOLLOW_UP_USE`; this one did not.
+  //
+  // Held against the constant rather than a literal, so the promise here cannot
+  // drift from the promise the footer makes on the page underneath it. And read
+  // out of the painted DOM rather than the markup, because this panel is opened
+  // by a script and some of this page's copy is drawn rather than shipped.
+  const document = await openContextualFollowUp(t, async () => reply({ captured: true, created: true }));
+  document.getElementById("finops-example-follow-up-open").click();
+
+  const use = document.getElementById("finops-example-follow-up-use");
+  assert.equal(textOf(use), FOLLOW_UP_USE);
+  assert.ok(!use.hidden, "the use sentence is what a visitor weighs before typing, not a receipt");
+
+  // Directly after the sentence it completes, and both above the button: a
+  // claim a reader meets after pressing send is not one they got to weigh.
+  const form = document.getElementById("finops-example-follow-up-form");
+  const disclosure = document.getElementById("finops-example-follow-up-disclosure");
+  const order = form.querySelectorAll("input,p,button");
+  const at = (node) => order.indexOf(node);
+  assert.equal(at(use), at(disclosure) + 1, "the two halves of the promise read as one");
+  assert.ok(at(use) < at(form.querySelector('button[type="submit"]')),
+    "the use sentence must sit above the control that sends");
+
+  // The hint style the sentence above already uses — no new class, and so no
+  // new colour, size, or spacing to pay for.
+  assert.equal(use.getAttribute("class"), disclosure.getAttribute("class"));
+
+  // Once over the whole first screen. Two wordings of one promise is how a
+  // reader ends up deciding whether two sentences mean two promises.
+  assert.equal(textOf(document.getElementById("top")).split(FOLLOW_UP_USE).length - 1, 1,
+    "the first screen makes this promise exactly once");
 });
 
 test("the takeaway and the form under it state the sample-data fact once between them", async (t) => {

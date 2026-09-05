@@ -152,6 +152,14 @@
                  which claims nothing else on the page is sent. Three things
                  now, because the field above sends a third. -->
             <p id="finops-example-follow-up-disclosure" class="finops-example-follow-up-disclosure">The work email address you type here goes to the Wawalu team that operates Shiplog; only that address, this fixed follow-up topic, and the message you type are sent.</p>
+            <!-- #2144: where the address goes, then what the team does with it —
+                 the second half of the promise every other follow-up form on the
+                 site already makes, byte for byte. It is FOLLOW_UP_USE in
+                 src/lead-capture.js, rendered here as text because this page is
+                 static markup; the same string the footer's form embeds. This
+                 was the one form that asked for a work email above the fold
+                 without answering "will you put me on something?". -->
+            <p id="finops-example-follow-up-use" class="finops-example-follow-up-disclosure">We use your address to reply to this request and for nothing else.</p>
             <button type="submit">Request a follow-up about this example</button>
             <button id="finops-example-follow-up-retry" type="submit" hidden>Retry your follow-up request</button>
           </form>
