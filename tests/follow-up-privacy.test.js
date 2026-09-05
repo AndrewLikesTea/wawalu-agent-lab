@@ -70,10 +70,10 @@ const NAMED_PAGES = [
  *
  * A form that offers only a work-email field can say that nothing else on the
  * page is sent, because nothing else is. Issue #2129 gave five of these forms an
- * optional field asking what the visitor wants to know, and on those the first
- * sentence would be false the moment anyone typed in it. So they render the
- * second one, which names all three things that go: the address, the topic the
- * page fixes, and the message.
+ * optional field asking what the visitor wants to know, and issue #2153 gave the
+ * shared post page the same shape; on those the first sentence would be false the
+ * moment anyone typed in it. So they render the second one, which names all three
+ * things that go: the address, the topic the page fixes, and the message.
  *
  * The table is keyed on the page rather than inferred from the markup on
  * purpose. Inferring it would mean a form that lost its message field, or grew
@@ -81,7 +81,9 @@ const NAMED_PAGES = [
  * whole file exists to catch. `expectedPrivacy` is what every assertion below
  * reads, so a page is never compared against a sentence it does not ship.
  */
-const ASKS_MESSAGE = new Set(["agents.html", "coach.html", "profile.html", "releases.html", "social.html"]);
+const ASKS_MESSAGE = new Set([
+  "agents.html", "coach.html", "post.html", "profile.html", "releases.html", "social.html",
+]);
 const expectedPrivacy = (file) => (ASKS_MESSAGE.has(file) ? FOLLOW_UP_PRIVACY_WITH_MESSAGE : FOLLOW_UP_PRIVACY);
 
 test("the shared sentence is one sentence, under 25 words, and names all three things", () => {

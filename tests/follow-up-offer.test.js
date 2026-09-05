@@ -7,13 +7,15 @@
 // answered on request. A visitor who arrived on Prompt coach, Releases, Social
 // or People from a forwarded link never read it. Their follow-up block asked
 // "Questions about Shiplog?" and then asked for a work address, with no stated
-// reason to hand one over. Issue #2130 gave those four the home page's answer.
+// reason to hand one over. Issue #2130 gave those four the home page's answer,
+// and issue #2153 gave it to the shared post page, which is the page a forwarded
+// link lands on most often of all.
 //
 // Two things this file holds, and one it deliberately does not:
 //
-//   1. The four pages carry the sentence and every other page does not, so the
-//      shape is a decision recorded here rather than something a page can grow
-//      or drop quietly. The home page is on the "does not" side: its footer is
+//   1. The carriers listed below have the sentence and every other page does
+//      not, so the shape is a decision recorded here rather than something a
+//      page can grow or drop quietly. The home page is on the "does not" side: its footer is
 //      unchanged, and the paragraph a few sections up is where it says this.
 //   2. The claims are the home page's, compared against the home page's own
 //      shipped paragraph rather than against a string typed in here. A reused
@@ -36,9 +38,10 @@ const pageUrl = (file) => new URL(`../src/${file}`, import.meta.url);
 const read = (file) => readFile(pageUrl(file), "utf8");
 const byId = (document, id) => document.getElementById(id);
 
-// The four deep pages issue #2130 named. A shared link lands on one of these,
-// and the follow-up block is the first thing on it that asks for anything.
-const CARRIERS = ["coach.html", "releases.html", "social.html", "profile.html"];
+// The four deep pages issue #2130 named, and the shared post page issue #2153
+// added to them. A shared link lands on one of these, and the follow-up block is
+// the first thing on it that asks for anything.
+const CARRIERS = ["coach.html", "releases.html", "social.html", "profile.html", "post.html"];
 
 // The two claims, sliced out of the shipped sentence rather than retyped: a
 // fragment written here would keep passing after the sentence changed under it.

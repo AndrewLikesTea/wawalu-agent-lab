@@ -86,12 +86,14 @@ const describedBy = (document) => byId(document, "site-footer-email").getAttribu
 // page is deliberately not on it: its footer is unchanged, and the field it
 // already carries belongs to the bundled-example form higher up the page.
 //
-// `offer` is the fifth shape, and the one issue #2130 added: the four deep pages
-// a shared link lands on open the block with what asking gets a visitor — no
+// `offer` is the fifth shape, and the one issue #2130 added: the deep pages a
+// shared link lands on open the block with what asking gets a visitor — no
 // self-serve signup, no published price, availability and cost answered on
 // request. The home page already says it in prose a few sections up, so its
 // footer stays as it was; tests/follow-up-offer.test.js holds the two halves to
-// the same claims.
+// the same claims. Issue #2153 brought /post.html onto both shapes: it is the
+// page a forwarded link lands on most often, and it was the last one asking for
+// a work address without saying what asking gets.
 const FOOTER_VARIANT = new Map([
   ["index.html", {
     followUpType: "follow_up_homepage", followUpTopic: FOLLOW_UP_TOPICS.follow_up_homepage, statedTopic: true,
@@ -107,7 +109,7 @@ const FOOTER_VARIANT = new Map([
   // the redirect is: a page cannot quietly fold its site map away.
   ["post.html", {
     followUpType: "follow_up_social", followUpTopic: FOLLOW_UP_TOPICS.follow_up_social, statedTopic: true,
-    collapsedDemos: true,
+    collapsedDemos: true, askMessage: true, offer: true,
   }],
   ["releases.html", {
     followUpType: "follow_up_releases", followUpTopic: FOLLOW_UP_TOPICS.follow_up_releases, statedTopic: true,

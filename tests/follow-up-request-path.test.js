@@ -63,7 +63,9 @@ const REVIEWED = [
 // they sent before it existed — which is what the loop below still asserts. The
 // sentence beside the field changes with the field: a form carrying a message
 // box cannot claim nothing else on the page is sent.
-const ASKS_MESSAGE = new Set(["agents.html", "coach.html", "profile.html", "releases.html", "social.html"]);
+const ASKS_MESSAGE = new Set([
+  "agents.html", "coach.html", "post.html", "profile.html", "releases.html", "social.html",
+]);
 const expectedPrivacy = (file) => (ASKS_MESSAGE.has(file) ? FOLLOW_UP_PRIVACY_WITH_MESSAGE : FOLLOW_UP_PRIVACY);
 
 const TYPED_EMAIL = "director@example.com";
