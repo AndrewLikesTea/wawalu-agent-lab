@@ -216,10 +216,15 @@ test("a settled Social post carries its display name as a link to People, in the
   const cards = document.querySelectorAll(".post-card");
   assert.equal(cards.length, FEED.length, "the settled feed is not the feed this test served");
 
-  // Every card, not a lucky first one: an image post and a text post lay their
-  // insides out differently, and both have to carry the control.
+  // Every image card, not a lucky first one: the two image posts lay their
+  // insides out differently from the text posts, and each image card has to
+  // carry the control. The text posts carry the same name as prose — People
+  // holds image posts only, so a link from one of them would arrive at nothing
+  // (#2149); tests/social-image-post-people-link.test.js pins that half.
+  const withImage = FEED.filter((entry) => entry.image);
   const names = document.querySelectorAll(".post-author");
-  assert.equal(names.length, FEED.length);
+  assert.equal(names.length, withImage.length);
+  assert.equal(document.querySelectorAll(".post-name").length, FEED.length - withImage.length);
   for (const link of names) {
     assert.equal(link.tagName, "A", "the display name is not an anchor, so it cannot be forwarded or copied");
     assert.ok(link.href, "the display name is an anchor with no destination");
@@ -275,7 +280,7 @@ test("a settled Social post carries its display name as a link to People, in the
   // rule already gives every link. No rule of its own, because styles.css has no
   // room for one and this control needs nothing the site does not already ship.
   const css = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
-  assert.match(css, /\.post-author \{[^}]*text-decoration:underline/);
+  assert.match(css, /\.post-author[^{]*\{[^}]*text-decoration:underline/);
   assert.match(css, /button:focus-visible,a:focus-visible \{[^}]*outline:3px solid var\(--focus-ring\)/);
   assert.equal(/outline\s*:\s*(none|0)/.test(css.match(/\.post-author[^{]*\{[^}]*\}/g)?.join("") ?? ""), false,
     "no rule may take the focus outline off the display name");

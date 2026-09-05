@@ -33,3 +33,15 @@ export function postDetailHref(id, author = "", from = "") {
 export function profileHref(author) {
   return `/profile.html?author=${encodeURIComponent(String(author ?? ""))}`;
 }
+
+// What a link to People is called, wherever Social offers one. It names the
+// display name AND the destination, because both the feed card and the publish
+// confirmation put it beside other links, and "Iris Vale" on its own does not
+// say where activating it goes.
+//
+// Owned here for the same reason OPEN_POST_LABEL is: two surfaces print it, and
+// a second wording on one of them would be a second promise about the same
+// place.
+export function peopleImagePostsLabel(author) {
+  return `See ${String(author ?? "").trim()}’s image posts on People`;
+}

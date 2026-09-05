@@ -23,7 +23,7 @@
 // profile remembers cannot drift apart.
 import { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH, readStoredAuthor, rememberAuthor } from "./social-identity.js";
 import { imageDescription, renderDescriptionNote, renderImageUnavailable } from "./image-description.js";
-import { OPEN_POST_LABEL, postDetailHref, profileHref } from "./social-links.js";
+import { OPEN_POST_LABEL, peopleImagePostsLabel, postDetailHref, profileHref } from "./social-links.js";
 import { renderFeedStatus, feedPhase, feedPresence, filtersAvailable, setFilterAvailability, FILTERS_UNAVAILABLE_HINT } from "./feed-status.js";
 
 export { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH };
@@ -514,10 +514,28 @@ function renderPostCard(post, { index }) {
   const avatar = el("span", "post-avatar", initials(post.author));
   avatar.setAttribute("aria-hidden", "true");
 
+  // People holds image posts and nothing else, so the display name is a link
+  // exactly when there is something at the other end of it: an image post's
+  // byline opens that name's People view, and a text-only post prints the same
+  // name as text. This is the rule showConfirmation() below already follows for
+  // the link it offers after publishing — a link to a view the destination
+  // cannot fill is a promise, not a path, and the two surfaces make the same one.
+  //
+  // The name keeps its place either way: same element, same slot in the byline,
+  // same reading order. A text post loses a tab stop it should not have had; no
+  // card gains one, and nothing moves to make room.
+  const image = normalizeImage(post.image);
   const byline = el("div", "post-byline");
-  const author = el("a", "post-author", post.author);
-  author.href = profileHref(post.author);
-  author.setAttribute("aria-label", `${post.author} — view this display name on People`);
+  const author = image
+    ? el("a", "post-author", post.author)
+    : el("span", "post-name", post.author);
+  if (image) {
+    author.href = profileHref(post.author);
+    // Both halves of the destination in the accessible name: whose posts, and
+    // which page. Position and ink are not the difference between this link and
+    // the card's other one.
+    author.setAttribute("aria-label", peopleImagePostsLabel(post.author));
+  }
   // Ids are minted from the render index, never from post.id — a post id is
   // arbitrary text and must not be spliced into an id/IDREF list.
   author.id = `post-${index}-author`;
@@ -529,7 +547,6 @@ function renderPostCard(post, { index }) {
   header.append(avatar, byline);
   if (post.title) article.append(el("h3", "post-title", post.title));
 
-  const image = normalizeImage(post.image);
   const textId = `post-${index}-text`;
   if (image) {
     article.classList.add("post-card-media");
@@ -1175,15 +1192,21 @@ export function mountSocialFeed(root, options = {}) {
   // document.body and back to the top of the page. It lands on the first
   // restored post — the thing the reader asked for — and falls back to the list
   // heading, which is the panel's own accessible name and always present.
+  // Where focus lands when the page puts a reader on a card. The byline is a
+  // control only on an image post, so a text post hands focus to the one stop it
+  // does have — the card's way into the post — rather than to a span, which in a
+  // browser drops the reader on <body> and back to the top of the page.
+  const cardFocusTarget = (card) =>
+    card?.querySelector(".post-author") ?? card?.querySelector(".release-detail-link") ?? null;
+
   const recoverFromNoMatch = () => {
     clearBothFilters();
-    const firstLink = feed.querySelector(".post-author");
-    (firstLink ?? heading)?.focus();
+    (cardFocusTarget(feed.querySelector(".post-card")) ?? heading)?.focus();
   };
 
   const focusPostCard = (id) => {
     const card = [...feed.querySelectorAll(".post-card")].find((item) => item.dataset.postId === id);
-    card?.querySelector(".post-author")?.focus();
+    cardFocusTarget(card)?.focus();
     card?.scrollIntoView?.({ block: "center", behavior: "smooth" });
     return Boolean(card);
   };
@@ -1215,7 +1238,7 @@ export function mountSocialFeed(root, options = {}) {
       // exactly when there is something at the other end of it.
       const people = document.createElement("a");
       people.href = profileHref(saved.author);
-      people.textContent = `See ${saved.author}’s image posts on People`;
+      people.textContent = peopleImagePostsLabel(saved.author);
       notice.append(people, document.createTextNode("."));
     } else {
       notice.append(document.createTextNode(NO_IMAGE_NOTE));
