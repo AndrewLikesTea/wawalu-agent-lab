@@ -148,9 +148,13 @@ test("the feed list is described by its summary sentence, not by keyboard instru
   mountSocialFeed(page.document, { posts, state: "ready" });
   const cards = page.document.querySelectorAll(".post-card");
   assert.deepEqual(cards.map((card) => card.tabIndex), [undefined, undefined, undefined, undefined, undefined]);
-  const links = page.document.querySelectorAll(".post-author");
-  assert.equal(links.length, 5);
-  assert.deepEqual(links.map((link) => link.tagName), ["A", "A", "A", "A", "A"]);
+  // None of these five posts carries an image, and People shows nothing else, so
+  // the display names are prose here rather than links into an empty view.
+  assert.equal(page.document.querySelectorAll(".post-author").length, 0);
+  const names = page.document.querySelectorAll(".post-name");
+  assert.equal(names.length, 5);
+  assert.deepEqual(names.map((name) => name.tagName), ["SPAN", "SPAN", "SPAN", "SPAN", "SPAN"]);
+  assert.deepEqual(names.map((name) => textOf(name)).sort(), ["A0", "A1", "A2", "A3", "A4"]);
 });
 
 test("normalizeImage accepts same-origin assets and rejects everything else", () => {
@@ -1360,7 +1364,11 @@ test("a filter combination matching nothing reads as a dead end with its own rec
   const landed = page.document.activeElement;
   assert.notEqual(landed, null, "focus is moved explicitly, not dropped");
   assert.equal(inDocument(landed), true, "focus lands on a node still in the document");
-  assert.equal(landed.classList.contains("post-author"), true, "focus lands on the first restored native link");
+  // These three posts carry no image, so their display names are prose and the
+  // first restored card's own control — its way into the post — is the native
+  // link focus lands on. A span would have dropped the reader to the body.
+  assert.equal(landed.tagName, "A", "focus lands on the first restored native link");
+  assert.equal(landed.classList.contains("release-detail-link"), true);
   assert.equal(landed.closest(".post-card").dataset.postId, "ari-recent");
   // Only the dead end's own control was ever added to the tab sequence.
   assert.equal(feed.querySelectorAll("button").length, 0);

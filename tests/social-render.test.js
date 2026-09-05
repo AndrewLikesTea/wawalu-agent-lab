@@ -100,7 +100,7 @@ test("an image post renders as a figure with the caption as its figcaption", () 
   const author = first(card, "post-author");
   assert.equal(author.tagName, "A");
   assert.equal(author.href, "/profile.html?author=Mina");
-  assert.equal(author.getAttribute("aria-label"), "Mina — view this display name on People");
+  assert.equal(author.getAttribute("aria-label"), "See Mina’s image posts on People");
   assert.equal(first(card, "post-image-description").textContent,
     "Image description: A card wrapped in a blue focus ring");
   assert.equal(img.getAttribute("aria-describedby"), first(card, "post-image-description").id);

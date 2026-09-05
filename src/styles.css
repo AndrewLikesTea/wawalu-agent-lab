@@ -639,7 +639,10 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .post-head { display:flex; align-items:center; gap:12px; margin-bottom:12px; }
 .post-avatar { flex:none; display:grid; place-items:center; width:38px; height:38px; border-radius:99px; background:#e7eefb; color:#1f5fa8; font:750 13px/1 ui-monospace,monospace; }
 .post-byline { display:flex; flex-direction:column; gap:2px; min-width:0; }
-.post-author { color:#1f5fa8; font-size:15px; font-weight:700; letter-spacing:-.01em; text-decoration:underline; text-underline-offset:3px; overflow-wrap:anywhere; }
+/* .post-name is prose: People holds image posts only, so a text post's name
+   links nowhere. .post-author is an image post's, linked to its People view. */
+.post-name,.post-author,.detail-author-link { font-size:15px; font-weight:700; letter-spacing:-.01em; overflow-wrap:anywhere; }
+.post-author,.detail-author-link { color:#1f5fa8; text-decoration:underline; text-underline-offset:3px; }
 .post-date { color:#74746e; font:600 11px/1.4 ui-monospace,monospace; }
 .post-body { margin:0; color:#333330; line-height:1.55; white-space:pre-wrap; overflow-wrap:anywhere; }
 .post-title { margin:0 0 8px; font-size:16px; line-height:1.35; letter-spacing:-.015em; overflow-wrap:anywhere; }
@@ -743,12 +746,10 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .detail-page-exits { display:flex; flex-wrap:wrap; gap:0 24px; margin:0; }
 .detail-post { display:flex; flex-direction:column; min-width:0; max-width:720px; margin:auto; }
 /* The post's one forward step: the poster's display name, linked to their
-   People view. Sized like .post-author on a feed card so the same name reads
-   the same weight in both places, in the site's existing link ink (#1f5fa8 on
-   #fff, ~5.4:1). It keeps a 44px-tall row on touch without a second rule, and
-   the global a:focus-visible ring is the only focus treatment it needs. */
+   People view. It shares the feed card's name rule above (same weight, the
+   site's link ink #1f5fa8 on #fff, ~5.4:1) and the global a:focus-visible ring,
+   and keeps a 44px-tall row on touch without a second rule. */
 .detail-byline { display:flex; align-items:center; min-height:44px; margin:0; }
-.detail-author-link { color:#1f5fa8; font-size:15px; font-weight:700; letter-spacing:-.01em; text-decoration:underline; text-underline-offset:3px; overflow-wrap:anywhere; }
 .detail-author-link:hover { color:#144a86; }
 .detail-date { display:block; margin:0 0 2px; color:#62625d; font:650 13px/1.45 ui-monospace,monospace; }
 .detail-figure { display:flex; flex-direction:column; min-width:0; margin:6px 0 0; }
