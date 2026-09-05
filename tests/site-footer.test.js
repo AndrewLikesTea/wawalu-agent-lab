@@ -298,7 +298,7 @@ test("the About block says who Shiplog is for, and reaches the worked decision i
       // It is a paragraph of the band, not a row of the map.
       assert.equal(pitch.parentNode.getAttribute("class"), "site-footer-inner", `${file}: the pitch is nested somewhere new`);
 
-      // The list is untouched: eight destinations, the same links, in the same
+      // The list is untouched: every row of DEMOS, the same links, in the same
       // order, and the provenance sentence still renders word for word.
       const items = document.querySelector(".site-footer-demos").querySelectorAll("li");
       assert.equal(items.length, DEMOS.length, `${file}: the destination list changed length`);
@@ -343,32 +343,50 @@ test("the footer is a site map: every destination the navigation offers, each on
     // here is a surface a visitor has to guess at.
     const navLabels = SITE_NAV.map((link) => link.label);
     const sorted = (labels) => [...labels].sort();
-    assert.deepEqual(sorted(DEMOS.map((demo) => demo.label)), sorted(navLabels),
+    // A row carrying `beneath` is a page the navigation files under another
+    // destination and never offers a door of its own, so it is not compared
+    // against the nav table — it is held against the section it belongs to
+    // below. Every other row is a navigation destination, named once.
+    const listed = DEMOS.filter((demo) => !demo.beneath);
+    assert.deepEqual(sorted(listed.map((demo) => demo.label)), sorted(navLabels),
       "the band must name each navigation destination exactly once, by the name the navigation uses");
+
+    // A page with no door is still somewhere the navigation knows about: its
+    // path is in its parent's `section`, which is what makes this band the
+    // place a reader can reach it from rather than a link invented here.
+    for (const demo of DEMOS.filter((demo) => demo.beneath)) {
+      const parent = SITE_NAV.find((link) => link.label === demo.beneath);
+      assert.ok(Boolean(parent), `"${demo.beneath}" is not a navigation destination`);
+      assert.ok((parent.section ?? []).includes(demo.href),
+        `the navigation does not file "${demo.label}" under ${demo.beneath}`);
+      assert.ok(!navLabels.includes(demo.label),
+        `"${demo.label}" has a door of its own now, so it is a destination, not a page beneath one`);
+    }
 
     // One door per name. src/site-footer.js repeats the hrefs rather than
     // importing src/site-nav.js — that file is 6 KB and this module is in every
     // page's initial payload — so the two tables are compared here instead,
     // where it costs a visitor nothing.
-    for (const demo of DEMOS) {
+    for (const demo of listed) {
       const destination = SITE_NAV.find((link) => link.label === demo.label);
       assert.equal(demo.href, destination.href,
         `the footer sends "${demo.label}" somewhere the navigation does not`);
-      // Root-relative, the convention every cross-page link in src/site-nav.js
-      // uses: this band ships on every page, and a bare relative path would
-      // resolve against a page in a subdirectory instead of against the site.
+    }
+    // Root-relative, the convention every cross-page link in src/site-nav.js
+    // uses: this band ships on every page, and a bare relative path would
+    // resolve against a page in a subdirectory instead of against the site.
+    for (const demo of DEMOS) {
       assert.ok(demo.href.startsWith("/"), `"${demo.label}" must resolve from any page depth`);
     }
 
     // Every row is a link, and every link is reachable from the keyboard: a
     // name a reader cannot follow is a name they have to go and find in the
-    // header for themselves.
+    // header for themselves. One link per row, and no row describing a second
+    // destination inside the first: Personal AI history used to be a clause on
+    // the Prompt coach row, so the band named nine places in eight rows.
     const stops = tabSequence(document);
-    // One link per destination, plus one for each page named beneath a
-    // destination rather than beside it — see `also` in src/site-footer.js.
-    const nested = DEMOS.filter((demo) => demo.also);
-    assert.equal(list.querySelectorAll("a").length, DEMOS.length + nested.length,
-      "every destination must be followable");
+    assert.equal(list.querySelectorAll("a").length, DEMOS.length,
+      "every destination must be followable, and no row may carry a second one");
     for (const [index, demo] of DEMOS.entries()) {
       const link = items[index].querySelector("a");
       assert.equal(textOf(link), demo.label, `${demo.label} must be the linked text, and named first in its row`);
@@ -392,12 +410,15 @@ test("the footer is a site map: every destination the navigation offers, each on
       assert.ok(row, `the home page's directory is missing ${demo.label}`);
       return textOf(row).slice(demo.label.length).trim();
     };
+    // A row filed beneath a destination has no card in that directory to be
+    // measured against — the home page pitches it in the block under the Prompt
+    // coach entry, not in "Where everything is" — so it keeps the tighter cap
+    // the clause it replaced was held to.
     for (const demo of DEMOS) {
       const words = demo.purpose.split(/\s+/).length;
-      const explained = guideSentence(demo).split(/\s+/).length;
-      assert.ok(words <= explained,
-        `"${demo.label}" runs to ${words} words against the home page's ${explained}`);
-      assert.ok(words <= 16, `"${demo.label}" runs to ${words} words of purpose`);
+      const cap = demo.beneath ? 8 : Math.min(16, guideSentence(demo).split(/\s+/).length);
+      assert.ok(words <= cap,
+        `"${demo.label}" runs to ${words} words against a cap of ${cap}`);
       assert.doesNotMatch(demo.purpose, /powerful|seamless|unlock|leverage|central hub/i, `"${demo.label}" uses filler`);
     }
 
@@ -413,6 +434,7 @@ test("the footer is a site map: every destination the navigation offers, each on
     const SHARED = ["People"];
     for (const demo of DEMOS) {
       assert.doesNotMatch(demo.purpose, /[.!?]$/, `"${demo.label}" is written as a sentence`);
+      if (demo.beneath) continue;
       if (SHARED.includes(demo.label)) {
         assert.equal(asFragment(guideSentence(demo)), demo.purpose,
           `${demo.label}'s home page card and this band describe it in different words`);
@@ -542,36 +564,56 @@ test("Social's homepage directory explains publishing, while a permalink explain
   }
 });
 
-test("a page named beneath a destination is named there, by the name the rest of the site uses", async () => {
+test("a page named beneath a destination gets a row of its own, by the name the rest of the site uses", async () => {
   // Personal AI history has no door of its own: src/site-nav.js files it under
-  // Prompt coach's section. Before this it was named on the home page alone, so
-  // a reader who had left that page could not find it again by name.
+  // Prompt coach's section. It was named in the band as a clause hung off the
+  // Prompt coach row, so one row described two destinations and the second had
+  // no entry a reader could scan the list for. It is a row now, directly under
+  // the destination it is filed beneath.
   const page = await loadPage(pageUrl("index.html"));
   const { document } = page;
   try {
-    for (const parent of DEMOS.filter((demo) => demo.also)) {
-      const { also } = parent;
-      const row = [...document.querySelector(".site-footer-demos").querySelectorAll("li")]
-        .find((item) => textOf(item).startsWith(parent.label));
-      const link = [...row.querySelectorAll("a")].find((node) => node.getAttribute("href") === also.href);
+    const items = [...document.querySelector(".site-footer-demos").querySelectorAll("li")];
+    for (const demo of DEMOS.filter((entry) => entry.beneath)) {
+      const index = DEMOS.indexOf(demo);
+      const row = items[index];
+      // The row opens on the destination's own name, and carries one link.
+      assert.match(textOf(row), new RegExp(`^${demo.label}`),
+        `${demo.label} must open its own row`);
+      assert.equal(row.querySelectorAll("a").length, 1, `${demo.label}'s row must carry one door`);
+      const link = row.querySelectorAll("a")[0];
       // Boolean, never the node: a failed assert on a parsed element inspects
       // the whole page and takes the suite with it.
-      assert.ok(Boolean(link), `"${also.label}" must be followable from the ${parent.label} row`);
+      assert.ok(Boolean(link), `"${demo.label}" must be followable`);
       // Character for character the name the home page and the page's own title
       // use. One name per concept, everywhere.
-      assert.equal(textOf(link), also.label);
-      assert.ok(tabSequence(document).includes(link), `${also.label} must be keyboard reachable`);
-      // Named after the destination it sits beneath, never before it.
-      assert.ok(textOf(row).indexOf(parent.label) < textOf(row).indexOf(also.label),
-        `${also.label} must read as a page beneath ${parent.label}, not ahead of it`);
+      assert.equal(textOf(link), demo.label);
+      assert.equal(link.getAttribute("href"), demo.href);
+      // The visible text names the destination, so nothing may rename it for a
+      // screen reader.
+      assert.equal(link.getAttribute("aria-label"), null,
+        `${demo.label}'s link must be named by the words a reader can see`);
+      assert.ok(tabSequence(document).includes(link), `${demo.label} must be keyboard reachable`);
 
-      // Same rules as a row of its own: a fragment, not a sentence, and no filler.
-      assert.ok(also.purpose.split(/\s+/).length <= 8, `"${also.label}" runs long`);
-      assert.doesNotMatch(also.purpose, /[.!?]$/, `"${also.label}" is written as a sentence`);
-      assert.doesNotMatch(also.purpose, /powerful|seamless|unlock|leverage|central hub/i, `"${also.label}" uses filler`);
+      // Beneath the destination it belongs to in reading order, which on a list
+      // is tab order: a reader meets Prompt coach, then the page filed under it.
+      const parentIndex = DEMOS.findIndex((entry) => entry.label === demo.beneath);
+      assert.ok(parentIndex >= 0 && parentIndex < index,
+        `${demo.label} must follow ${demo.beneath} in the list, not lead it`);
+      const stops = tabSequence(document);
+      const parentLink = items[parentIndex].querySelectorAll("a")[0];
+      assert.ok(stops.indexOf(parentLink) < stops.indexOf(link),
+        `${demo.label} must come after ${demo.beneath} in the tab order`);
+
+      // And the row it left describes only itself now.
+      assert.equal(textOf(items[parentIndex]).includes(demo.label), false,
+        `the ${demo.beneath} row still describes ${demo.label}`);
+      assert.equal(textOf(items[parentIndex]).includes(demo.purpose), false,
+        `the ${demo.beneath} row still carries ${demo.label}'s clause`);
+
       // And it must not repeat the home page's sentence for that surface.
       assert.ok(!textOf(row).includes("It runs the same rubric over that export"),
-        `${also.label} repeats the home page's sentence in the footer`);
+        `${demo.label} repeats the home page's sentence in the footer`);
     }
 
     // The name the site uses for it, on the page itself and on the home page.
@@ -582,11 +624,17 @@ test("a page named beneath a destination is named there, by the name the rest of
       "the page must carry the name the footer sends a reader to");
 
     // The reassurance is the AI FinOps row's, one line away: a reader is told
-    // where their export is read before they hand one over.
+    // where their export is read before they hand one over. Its own row on
+    // every page that ships the band, and the Prompt coach row above it left
+    // describing the Prompt coach and nothing else — the hand-embedded band is
+    // exactly how one page keeps a retired wording.
+    const ROW = '<li><a href="/personal-history.html">Personal AI history</a> — grades your assistant export in this browser tab</li>';
     for (const file of PAGES) {
-      assert.ok((await read(file)).includes(
-        '<a href="/personal-history.html">Personal AI history</a> grades your assistant export in this browser tab'),
-      `${file} is missing "Personal AI history"`);
+      const html = await read(file);
+      assert.equal(html.split(ROW).length - 1, 1, `${file} must carry the "Personal AI history" row exactly once`);
+      assert.ok(html.includes(
+        '<li><a href="/coach.html">Prompt coach</a> — grade a prompt, then revise and grade again</li>'),
+      `${file}'s Prompt coach row describes something other than the Prompt coach`);
     }
   } finally {
     page.restore();
@@ -605,7 +653,8 @@ test("a page named beneath a destination is named there, by the name the rest of
 // wrong idea up. The rule is the invariant, not the string: no two clauses may
 // name the file they read with the same words.
 test("the About Shiplog band names a different file for each surface that reads one", async () => {
-  const history = DEMOS.find((demo) => demo.also?.label === "Personal AI history").also;
+  const history = DEMOS.find((demo) => demo.label === "Personal AI history");
+  assert.ok(Boolean(history), "the band must still name Personal AI history");
   assert.doesNotMatch(history.purpose, /your export/,
     "the Personal AI history clause names its file the way AI FinOps names a different one");
   assert.match(history.purpose, /in this browser tab$/,

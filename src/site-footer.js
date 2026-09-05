@@ -85,7 +85,8 @@ export const PITCH_HREF = "/evolution.html#workspace-answer";
  * This band is the only directory on the pages whose body carries none, so a
  * surface left out is one a reader has to guess at. Every row is a link.
  *
- * `label` and `href` are the word and the path src/site-nav.js uses. They are
+ * `label` and `href` are the word and the path src/site-nav.js uses — for a row
+ * carrying `beneath`, the path that navigation files under it. They are
  * copied rather than imported: this module is in every page's initial payload
  * and src/site-nav.js is 6 KB of it, so tests/site-footer.test.js compares the
  * two tables instead.
@@ -103,19 +104,17 @@ export const DEMOS = Object.freeze([
     // The only row that says where to start: a list with no order is no list.
     note: "start here:",
   }),
+  Object.freeze({ label: "Prompt coach", href: "/coach.html", purpose: "grade a prompt, then revise and grade again" }),
+  // `beneath` names the destination this page is filed under: src/site-nav.js
+  // gives /personal-history.html no door of its own, so this band is the only
+  // directory that can offer one. It used to be a clause hung off the Prompt
+  // coach row, which described two destinations in one row and gave the
+  // second no entry of its own. Its browser-tab clause is a promise, as above.
   Object.freeze({
-    label: "Prompt coach",
-    href: "/coach.html",
-    purpose: "grade a prompt, then revise and grade again",
-    // `also` is a page named beneath this destination rather than beside it:
-    // src/site-nav.js files /personal-history.html under Prompt coach's section
-    // instead of giving it a door, and a reader who left the home page had
-    // nowhere else to find it. Its browser-tab clause is a promise, as above.
-    also: Object.freeze({
-      label: "Personal AI history",
-      href: "/personal-history.html",
-      purpose: "grades your assistant export in this browser tab",
-    }),
+    label: "Personal AI history",
+    href: "/personal-history.html",
+    purpose: "grades your assistant export in this browser tab",
+    beneath: "Prompt coach",
   }),
   Object.freeze({ label: "Decisions", href: "/", purpose: "record a decision, then search the history" }),
   Object.freeze({ label: "Releases", href: "/releases.html", purpose: "every release and the decisions it carried" }),
@@ -249,9 +248,8 @@ export const DIRECTORY_SUMMARY = `Where else to go on Shiplog — all ${DEMOS.le
 function demoListLines(collapsed = false) {
   const list = [
     '    <ul class="site-footer-demos">',
-    ...DEMOS.map(({ label, href, purpose, note, also }) =>
-      `      <li><a href="${href}">${label}</a> — ${note ? `${note} ` : ""}${purpose}`
-      + `${also ? `; <a href="${also.href}">${also.label}</a> ${also.purpose}` : ""}</li>`),
+    ...DEMOS.map(({ label, href, purpose, note }) =>
+      `      <li><a href="${href}">${label}</a> — ${note ? `${note} ` : ""}${purpose}</li>`),
     "    </ul>",
   ];
   if (!collapsed) return list;

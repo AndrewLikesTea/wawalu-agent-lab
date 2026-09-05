@@ -194,12 +194,12 @@ test("every destination survives the fold and is reachable once the directory is
   pressEnter(document);
   assert.ok(open(directory), "Enter on the summary must open the directory");
 
-  // Every link the band offers, now walkable. That is the eight destinations
-  // plus the page named beneath Prompt coach, which has no door of its own.
-  const expected = DEMOS.flatMap((demo) => (demo.also ? [demo.label, demo.also.label] : [demo.label]));
+  // Every link the band offers, now walkable: one per row, including the row
+  // for the page filed beneath Prompt coach, which has no door of its own.
+  const expected = DEMOS.map((demo) => demo.label);
   const reachable = browserTabSequence(document).filter(insideDirectory).map(textOf);
   assert.deepEqual(reachable, expected, "an expanded directory must offer every destination, in order");
-  assert.equal(reachable.length, DEMOS.length + 1);
+  assert.equal(reachable.length, DEMOS.length);
 
   // And it closes again on the same key, so a reader who opened it by mistake is
   // not stuck with it.

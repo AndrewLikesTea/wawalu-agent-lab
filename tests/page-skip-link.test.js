@@ -369,9 +369,9 @@ test("the post page's loading tab order reaches Social without a placeholder Peo
   // (a caption is text, never markup — PRODUCT.md), so the order the review
   // asked for — exit, image link, caption links, footer — holds with its middle
   // two steps empty.
-  // A row that names a page beneath its destination contributes a second stop,
-  // after the destination's own link — see `also` in src/site-footer.js.
-  const bandStops = DEMOS.flatMap((demo) => (demo.also ? [demo.label, demo.also.label] : [demo.label]));
+  // One stop per row, including the row for a page filed beneath a destination
+  // rather than given a door of its own — see `beneath` in src/site-footer.js.
+  const bandStops = DEMOS.map((demo) => demo.label);
   const afterExit = sequence.slice(FRAME_STOPS).map((stop) => textOf(stop));
   // The band opens on the sentence that says who Shiplog is for, so its pointer
   // at the worked decision is the first footer stop, ahead of the site map.
