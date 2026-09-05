@@ -344,6 +344,10 @@ test("the home page names every nav destination and says what each one does", as
   const guideText = textOf(guide);
   assert.match(guideText, /posts and images already published on Social and People are invented sample content/i,
     "the demonstration group must identify which existing content is invented");
+  // Both halves, or the group is a half-truth a visitor acts on: what is here
+  // already was invented, what they publish is not (#2154).
+  assert.match(guideText, /A post you publish on Social is real: anyone who visits Shiplog can read it\./,
+    "the demonstration group must say a visitor's own post is real and public");
   assert.doesNotMatch(guideText, /not tools for your data/i);
 
   const entrySentence = (href) => {
