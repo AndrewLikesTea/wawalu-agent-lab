@@ -115,8 +115,8 @@ test("the five feed states are mutually exclusive and decided in one place", () 
 /* ------------------------ what the waits send you to ----------------------- */
 
 // #2034 turned both waits into instructions, and an instruction names something.
-// That couples each string to a control declared in another file: Social's line
-// carries the composer button's label, People's carries the route to the page
+// That couples each string to a control declared in another file: both lines
+// carry the composer button's label, and People's carries the route to the page
 // that has a composer at all. Rename either control and the wait points at a
 // name nothing answers to — while every assertion above, which compares the
 // string to a second copy of itself, still passes. So read the label off the
@@ -142,20 +142,23 @@ test("each wait names a control that is on the page while its fetch is open", as
   t.after(() => people.restore());
   mountProfile(people.document, { posts: [], author: "Zed", state: "loading" });
 
-  // People has no composer, so its wait names a destination instead, in the
-  // page's own phrasing for it — the lede over the feed already says "Open
-  // Social". The nav link is the copy of that route which survives the fetch.
+  // People has no composer, so its wait names Social's — by the label that
+  // control actually prints, and by the destination, because a control on
+  // another page is only findable if the reader is told which page. The nav link
+  // is the copy of that route which survives the fetch, and it supplies the
+  // destination half rather than a second literal.
   const route = people.document.querySelector(".nav-social");
   assert.equal(route.getAttribute("href"), "/social.html");
   assert.equal(collapsibleAncestor(route), null, "the wait names a route folded inside a disclosure");
   const routeLabel = textOf(route);
   assert.ok(routeLabel.length > 0, "the route the wait names renders no label");
-  assert.ok(loadingSummaryText().includes(`Open ${routeLabel} to`),
-    `the wait does not name the route it sends a visitor to, which reads "${routeLabel}"`);
+  assert.ok(loadingSummaryText().includes(`${composeLabel} on ${routeLabel}`),
+    `the wait does not name the composer control on ${routeLabel}, which reads "${composeLabel}"`);
 
-  // Not the fuller "Write a post on Social" link: that one sits in .feed-create,
-  // which feedPresence() takes out of the document for exactly this state, so a
-  // wait naming it would point at something the reader cannot see yet.
+  // The wait says the words itself rather than leaning on the .feed-create link
+  // that also carries them: feedPresence() takes that paragraph out of the
+  // document for exactly this state, so a wait relying on it would point at
+  // something the reader cannot see yet.
   assert.equal(people.document.querySelectorAll(".feed-create").length, 0);
 });
 
@@ -370,7 +373,7 @@ test("People says one thing while it loads, and the other three lines are not on
   mountProfile(document, { posts: [], author: "Zed", state: "loading" });
 
   const status = document.querySelector("#profile-feed-status");
-  assert.equal(textOf(status), "Image posts are loading. Open Social to publish an image post.");
+  assert.equal(textOf(status), "Image posts are loading. Publish a post on Social to add one.");
 
   assert.equal(document.querySelectorAll("#profile-summary").length, 0);
   assert.equal(document.querySelectorAll(".feed-connection").length, 0);
@@ -380,7 +383,7 @@ test("People says one thing while it loads, and the other three lines are not on
   assert.doesNotMatch(body, /Counting image posts/);
   assert.doesNotMatch(body, /New image posts will appear here on their own/);
   assert.doesNotMatch(body, /Want a picture of your own here\?/);
-  assert.equal((body.match(/Image posts are loading\. Open Social to publish an image post\./g) ?? []).length, 1);
+  assert.equal((body.match(/Image posts are loading\. Publish a post on Social to add one\./g) ?? []).length, 1);
 
   // And the results region claims nothing about a person while it waits (#2043):
   // the heading names the content type, the sentence that says what the grid is
@@ -507,7 +510,7 @@ test("People names its failure, retries it by keyboard, and comes back", async (
     image_url: "/media/Mina.svg", image_alt: "A drawing signed Mina", image_width: 1200, image_height: 900,
   }] };
   retry.click();
-  assert.equal(textOf(document.querySelector("#profile-feed-status")), "Image posts are loading. Open Social to publish an image post.",
+  assert.equal(textOf(document.querySelector("#profile-feed-status")), "Image posts are loading. Publish a post on Social to add one.",
     "retry did not put the page back into the loading state");
   await waitFor(() => document.querySelectorAll(".profile-tile").length > 0, "the retried request settled");
 
@@ -579,14 +582,14 @@ test("People's promise about new image posts is said only where there is a grid 
 
   // The shipped frame: one statement, and it is the one over the grid.
   assert.equal(promiseCount(document, promise), 0);
-  assert.equal((textOf(document.body).match(/Image posts are loading\. Open Social to publish an image post\./g) ?? []).length, 1);
+  assert.equal((textOf(document.body).match(/Image posts are loading\. Publish a post on Social to add one\./g) ?? []).length, 1);
 
   // With a retry to run, so the failed panel below builds the control a reader
   // is actually given.
   const profile = mountProfile(document, { posts: [], author: "Zed", state: "loading", onRetry: () => {} });
   assert.equal(promiseCount(document, promise), 0);
   assert.equal(document.querySelectorAll(".feed-connection").length, 0);
-  assert.equal(textOf(document.querySelector("#profile-feed-status")), "Image posts are loading. Open Social to publish an image post.");
+  assert.equal(textOf(document.querySelector("#profile-feed-status")), "Image posts are loading. Publish a post on Social to add one.");
 
   // Failed: the panel names it and holds the one control that retries it.
   profile.setState("error");

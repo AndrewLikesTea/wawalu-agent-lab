@@ -288,7 +288,7 @@
                and not an announcement — the polite region above is the page's
                one voice, and while this element was also live a name with no
                image posts spoke the same guidance twice, from two regions. -->
-          <div class="feed-status" id="profile-feed-status">Image posts are loading. Open Social to publish an image post.</div>
+          <div class="feed-status" id="profile-feed-status">Image posts are loading. Publish a post on Social to add one.</div>
           <div id="profile-grid" aria-describedby="profile-order" aria-busy="true">
             <!-- No display name is claimed above these: the heading names the
                  content type and the filled state chip is not on the page yet.
@@ -341,13 +341,17 @@
                plain text, which asked the reader to come back to the one page
                on this site that has no composer, and then named the place that
                does have one without offering a way to reach it. The second link
-               carries Social's own control label, "Write a post", and its
+               carries Social's own control label, "Publish a post", and its
                href opens the composer rather than the top of the feed:
                social-page.js reveals the collapsed panel for the #post-form
-               hash. It said "Publish a post" while that was the label on the
-               control it lands next to; that control is "Write a post" now, so
-               this link is too. It has to name the button the reader arrives
-               at, not the one at the far end of the form. The publishing is
+               hash. It has to name the button the reader arrives at, not the
+               one at the far end of the form, so the label is owned once in
+               src/social-links.js (PUBLISH_POST_LABEL) and the loading status
+               above the grid says the same three words. This link used to open
+               on a third verb, "Write", while that status sent the same reader
+               to "Open Social to publish an image post": one trip under two
+               names, neither of them a control Social renders (#2181).
+               The publishing is
                still in the sentence, in the clause after the link: opening the
                composer and making the post public are two acts on Social now,
                and a reader who is told only to write one would not know the
@@ -369,7 +373,7 @@
                profile that was being read; this static href is the
                pre-hydration render and returns to People either way. -->
           <p class="feed-create hint">
-            A published post with an image appears on People, under the display name you publish it with. To add yours: <a class="text-link paint-link" id="profile-paint-route" href="/paint/?from=profile" target="_blank" rel="noopener">Create an image in Paint <span class="new-tab-note">(opens in a new tab)</span></a>, export the PNG, then <a class="text-link" id="profile-publish-route" href="/social.html#post-form">Write a post on Social</a>, fill in the required image description, and publish it.
+            A published post with an image appears on People, under the display name you publish it with. To add yours: <a class="text-link paint-link" id="profile-paint-route" href="/paint/?from=profile" target="_blank" rel="noopener">Create an image in Paint <span class="new-tab-note">(opens in a new tab)</span></a>, export the PNG, then <a class="text-link" id="profile-publish-route" href="/social.html#post-form">Publish a post on Social</a>, fill in the required image description, and publish it.
           </p>
           <!-- People is a filtered view of Social, and the nav says so by
                nesting them. This is where People defines the thing its picker

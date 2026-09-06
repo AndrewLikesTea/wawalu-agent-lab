@@ -20,6 +20,8 @@ import assert from "node:assert/strict";
 import { readdir, readFile } from "node:fs/promises";
 import { DomEvent, loadPage, parseHtml, pressEnter, pressTab, tabSequence, textOf } from "./support/browser.js";
 import { postDetailHref } from "../src/social-links.js";
+import { FEED_LOADING_LINE } from "../src/social.js";
+import { loadingSummaryText } from "../src/profile.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
 
 const SEED_URL = "/social-demo-data.json";
@@ -1145,9 +1147,11 @@ test("the shared-post page introduces itself once, answering what a cold visitor
   }
 
   // The two feed waits name what is loading and the next publishing step. The
-  // permalink keeps its own context-setting wait for a cold visitor.
-  assert.match(sources.get("src/social.js"), /"Existing posts are still loading\. Select Publish a post\."/);
-  assert.match(sources.get("src/profile.js"), /"Image posts are loading\. Open Social to publish an image post\."/);
+  // permalink keeps its own context-setting wait for a cold visitor. Both are
+  // built from PUBLISH_POST_LABEL now, so they are read as values rather than
+  // matched as literals in the source.
+  assert.equal(FEED_LOADING_LINE, "Existing posts are still loading. Select Publish a post.");
+  assert.equal(loadingSummaryText(), "Image posts are loading. Publish a post on Social to add one.");
 
   // The wait a cold visitor meets, held open. Read off the rendered page rather
   // than the markup, because this is the state the module redraws.

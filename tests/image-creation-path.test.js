@@ -121,7 +121,7 @@ for (const [name, document] of Object.entries(NEARBY_INVITATION)) {
     const toSocial = invitation.querySelectorAll("a")
       .filter((anchor) => (anchor.getAttribute("href") ?? "").startsWith("/social.html"));
     assert.equal(toSocial.length, 1, `${name}'s helper names Social without linking it, or links it twice`);
-    assert.equal(textOf(toSocial[0]), "Write a post on Social");
+    assert.equal(textOf(toSocial[0]), "Publish a post on Social");
     // The composer, not the top of the feed: src/social-page.js reveals the
     // collapsed panel for this hash, so the reader lands on the field.
     assert.equal(toSocial[0].getAttribute("href"), `${SOCIAL_COMPOSER_PATH}#post-form`);
@@ -722,7 +722,7 @@ test("People names the same steps in the same words as the composer", () => {
   assert.equal(invitation,
     "A published post with an image appears on People, under the display name you publish it with. "
     + "To add yours: Create an image in Paint (opens in a new tab), export the PNG, "
-    + "then Write a post on Social, fill in the required image description, and publish it.");
+    + "then Publish a post on Social, fill in the required image description, and publish it.");
 
   // The composer refuses a post that carries an image and no description, so the
   // steps that lead a reader to that composer name the field before the step it

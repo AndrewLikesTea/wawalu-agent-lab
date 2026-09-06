@@ -23,7 +23,7 @@
 // profile remembers cannot drift apart.
 import { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH, readStoredAuthor, rememberAuthor } from "./social-identity.js";
 import { imageDescription, renderDescriptionNote, renderImageUnavailable } from "./image-description.js";
-import { OPEN_POST_LABEL, peopleImagePostsLabel, postDetailHref, profileHref } from "./social-links.js";
+import { OPEN_POST_LABEL, PUBLISH_POST_LABEL, peopleImagePostsLabel, postDetailHref, profileHref } from "./social-links.js";
 import { postPermalink, renderPostCopyControl } from "./post-share.js";
 import { renderFeedStatus, feedPhase, feedPresence, filtersAvailable, setFilterAvailability, FILTERS_UNAVAILABLE_HINT } from "./feed-status.js";
 
@@ -670,7 +670,7 @@ function renderSkeleton(container, count = 3) {
 //
 // It names the hero's control in that control's own words, so a reader can find
 // the action the empty state points to.
-const NO_POSTS_GUIDANCE = "Publish a post, or create an image in Paint first.";
+const NO_POSTS_GUIDANCE = `${PUBLISH_POST_LABEL}, or create an image in Paint first.`;
 
 // One wait, one sentence — on this page. Social used to describe it twice at
 // once: a visible line ("Loading posts…") beside a live region that said
@@ -683,7 +683,7 @@ const NO_POSTS_GUIDANCE = "Publish a post, or create an image in Paint first.";
 // People is not one of them. It waits on the same fetch but shows one display
 // name's image posts, so it says that instead (loadingSummaryText,
 // src/profile.js); this sentence stays Social's.
-export const FEED_LOADING_LINE = "Existing posts are still loading. Select Publish a post.";
+export const FEED_LOADING_LINE = `Existing posts are still loading. Select ${PUBLISH_POST_LABEL}.`;
 
 // The connection line under the filters, on Social and on People, from one
 // source so the same fact never gets two phrasings. `noun` is the only
