@@ -21,8 +21,7 @@
 import { captionFor, countLabel, profileHref } from "./profile.js";
 import { renderImageUnavailable } from "./image-description.js";
 import { pageTitle } from "./page-title.js";
-import { postDetailHref } from "./social-links.js";
-import { SHARE_COPIED_STATUS, SHARE_COPY_FAILED_STATUS, copyRecordUrl } from "./share-link.js";
+import { postPermalink, renderPostCopyControl } from "./post-share.js";
 import { normalizeImage } from "./social.js";
 
 // The three routes out of a permalink, named once and shipped in src/post.html.
@@ -374,60 +373,17 @@ export const POST_LOADED_DESCRIPTION = "This shared post shows the display name 
 // that names what it copies, a status line beside it that says what happened,
 // and the site's shared .share-control/.share-button/.share-status treatment, so
 // no new stylesheet rule is spent on a control this site already draws.
-export const POST_COPY_LABEL = "Copy link to this post";
-
-// The address the button hands over, rebuilt rather than read back off the
-// address bar. postDetailHref is the one URL shape /post.html reads its post out
-// of (src/social-links.js) and it puts the id through URLSearchParams, so an id
-// that arrived over the wire is encoded rather than concatenated: it cannot open
-// a second parameter, a fragment, or a scheme of its own. What comes out is the
-// canonical link to this one post — no ?author=, no ?from=, because those are
-// how one reader got here and not part of the post.
 //
-// No origin, no link: a URL that cannot be resolved absolutely is no use pasted
-// into a chat window, so the control is withdrawn rather than left to hand over
-// something broken. That is the same rule the deployment record's copy button
-// follows in src/deployed-release-view.js.
-export function postPermalink(id, origin) {
-  const wanted = String(id ?? "").trim();
-  if (!wanted) return "";
-  try {
-    return new URL(postDetailHref(wanted), origin).href;
-  } catch {
-    return "";
-  }
-}
-
-// A real <button>, so it is in the natural tab order and takes the site's own
-// focus ring with no extra rule — and so the clipboard is written under an
-// explicit activation. Nothing here touches the clipboard on render.
+// The label, the address and the control itself now live in src/post-share.js,
+// because Social's publish receipt hands over the same link for the same post
+// and could not import this module to do it (post-detail.js imports social.js).
+// They are re-exported here: this page is still where a reader meets them, and
+// every existing caller names them at this address.
 //
-// The status is its own polite live region rather than words appended to the
-// post: #post-detail is announced atomically, so a confirmation written into it
-// directly would re-read the whole post every time the button was pressed.
-function renderCopyLink(url, clipboard) {
-  const group = el("div", "share-control");
-  const button = el("button", "share-button", POST_COPY_LABEL);
-  button.type = "button";
-  button.id = "post-copy";
-  button.setAttribute("aria-describedby", "post-copy-status");
-  const status = el("span", "share-status", "");
-  status.id = "post-copy-status";
-  status.setAttribute("role", "status");
-  status.setAttribute("aria-live", "polite");
-  status.setAttribute("aria-atomic", "true");
-  button.addEventListener("click", async () => {
-    button.disabled = true;
-    status.textContent = "";
-    // Read at press time, not at render time: a page entry can render before a
-    // browser has a clipboard to offer, and a test injects one either way.
-    const copied = await copyRecordUrl(clipboard ?? globalThis.navigator?.clipboard, url);
-    status.textContent = copied ? SHARE_COPIED_STATUS : SHARE_COPY_FAILED_STATUS;
-    button.disabled = false;
-  });
-  group.append(button, status);
-  return group;
-}
+// The status the control renders is its own polite live region rather than words
+// appended to the post: #post-detail is announced atomically, so a confirmation
+// written into it directly would re-read the whole post on every press.
+export { POST_COPY_LABEL, postPermalink } from "./post-share.js";
 
 // Three visually distinct regions make the preview readable as a post before
 // its data arrives: author and metadata together, the caption, then optional
@@ -642,7 +598,7 @@ export function renderPostDetail(container, post, options = {}) {
   // page was asked for, so the copied link reopens what the reader is reading.
   const permalink = postPermalink(post.id ?? id, (options.location ?? globalThis.window?.location)?.origin);
   container.append(article);
-  if (permalink) container.append(renderCopyLink(permalink, options.clipboard));
+  if (permalink) container.append(renderPostCopyControl(permalink, { clipboard: options.clipboard }));
   container.append(
     el("p", "hint detail-post-description", POST_LOADED_DESCRIPTION),
     el("p", "hint detail-identity", "Display names are invented for this demo or chosen by whoever published the post — nobody owns or verifies one, and anyone can publish under any name."),
