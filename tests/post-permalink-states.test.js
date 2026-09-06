@@ -1209,3 +1209,130 @@ function assertSaidOnce(document, where) {
     `${where}: the eyebrow classifies the post instead of naming its surface`);
   assert.doesNotMatch(main, /single shared post|Social · post/, `${where}: the page restates itself`);
 }
+
+/* ------------- what the page is, before it says it is loading ------------- */
+
+// A stranger reaches this page from a link pasted somewhere else, so it is the
+// one surface on the site that gets no run-up: no nav they chose, no page they
+// came from. It used to read eyebrow, heading, then straight into "The public
+// shared post is loading." — a page saying it was busy before it had said what
+// it was. This is the sentence that answers the question the loading line
+// assumes has already been answered, and it stands above that line.
+//
+// It is the only place on this page the reader is told what Social is, so it
+// says it in Social's own words rather than in a second description invented
+// here. The clause after the comma is the predicate of the intro paragraph in
+// /social.html's hero, so the two pages describe one thing one way.
+const LEAD_SENTENCE = "A shared link opens one post from Social, a shared feed of short posts about what the team ships, images optional.";
+// Lifted, not paraphrased: the same words, checked against the page they came
+// from, so the two cannot drift into two names for one feed.
+const SOCIAL_PREDICATE = "a shared feed of short posts about what the team ships, images optional.";
+
+// Where the lead has to be, in every state: after the heading, before the
+// region that carries the loading line, and outside that region — which is what
+// lets it survive, since renderPostDetail() empties #post-detail on each render.
+//
+// Read off one combined query, which comes back in document order, and matched
+// by text rather than by a class, because the sentence carries neither an id nor
+// a class of its own. Counted, never compared against null.
+function assertLeadReads(document, where) {
+  const main = document.querySelector("#main-content");
+  const blocks = main.querySelectorAll("h1,p,div");
+  const found = blocks.filter((node) => textOf(node) === LEAD_SENTENCE);
+  assert.equal(found.length, 1, `${where}: the lead is on the page ${found.length} times, not once`);
+
+  const heading = blocks.findIndex((node) => node.id === "page-title");
+  const lead = blocks.findIndex((node) => textOf(node) === LEAD_SENTENCE);
+  const slot = blocks.findIndex((node) => node.id === "post-detail");
+  assert.ok(heading >= 0 && slot >= 0, `${where}: the page lost its heading or its post region`);
+  assert.deepEqual([heading, lead, slot], [heading, lead, slot].slice().sort((a, b) => a - b),
+    `${where}: the order must be heading, then what the page is, then the post's own region`);
+
+  // Outside the region every render replaces — asserted as a boolean, because a
+  // failing node comparison serialises the whole parsed page.
+  assert.equal(Boolean(found[0].closest("#post-detail")), false,
+    `${where}: the lead must sit in the standing frame, not in the region the fetch empties`);
+  assert.ok(found[0].closest(".hero-post"), `${where}: the lead must sit in the hero beside the heading`);
+}
+
+test("the shared post page says what it is before it says it is loading", async () => {
+  const html = await readFile(new URL("../src/post.html", import.meta.url), "utf8");
+  // Shipped in the markup, so it is on screen at first paint — before this
+  // page's script has been fetched, and for a reader whose script never runs.
+  assert.ok(html.includes(`<p>${LEAD_SENTENCE}</p>`), "the lead must ship in the markup");
+
+  const content = html.slice(0, html.indexOf('<footer class="site-footer"'));
+  assert.equal(content.split(LEAD_SENTENCE).length - 1, 1, "the lead is written once, not once per state");
+
+  const at = (needle) => html.indexOf(needle);
+  assert.ok(at('<h1 id="page-title">') < at(LEAD_SENTENCE), "the heading precedes the lead");
+  assert.ok(at(LEAD_SENTENCE) < at('id="post-detail"'), "the lead precedes the post's own region");
+  assert.ok(at(LEAD_SENTENCE) < at(STATE_HEADLINES.loading), "the lead precedes the line saying the page is busy");
+  assert.ok(at(LEAD_SENTENCE) < at(CONTEXT_SENTENCE), "the page says what it is before it hedges what a post may be");
+
+  // One sentence, plain and short enough to read at a glance.
+  assert.equal(LEAD_SENTENCE.split(/[.!?]/).filter((part) => part.trim()).length, 1, "one sentence, not two");
+  assert.ok(LEAD_SENTENCE.split(/\s+/).length <= 25, "the lead stays at 25 words or fewer");
+
+  // Social's own vocabulary, read from Social's own page: one name per concept.
+  const social = await readFile(new URL("../src/social.html", import.meta.url), "utf8");
+  assert.ok(social.includes(SOCIAL_PREDICATE), "Social must still describe itself in the words this lead borrows");
+  assert.ok(LEAD_SENTENCE.endsWith(SOCIAL_PREDICATE), "the lead must describe Social in Social's own words");
+  // Borrowed, not pasted: Social's paragraph opens by naming itself as its
+  // subject, and this page has already named Social in its eyebrow.
+  assert.equal(content.includes("Social is a shared feed of short posts"), false,
+    "the permalink must not restate Social's whole intro sentence");
+
+  // The four strings this page already owns are untouched, byte for byte.
+  assert.ok(html.includes(`<span class="detail-loading-text">${STATE_HEADLINES.loading}</span>`), "the loading line is unchanged");
+  assert.ok(html.includes(`<p>${CONTEXT_SENTENCE}</p>`), "the provenance sentence is unchanged");
+  assert.ok(html.includes(`<p>${DATA_SENTENCE}</p>`), "the data boundary is unchanged");
+  for (const label of CHROME_LINKS.filter((text) => text !== PEOPLE_LINK)) {
+    assert.ok(html.includes(`>${label}</a>`), `${label} is unchanged`);
+  }
+});
+
+test("the lead stands once, in the same place, through loading, a loaded post, and both failures", async () => {
+  // Loading held open: the state a cold visitor meets first, drawn by its own
+  // branch of renderPostDetail() rather than inferred from the one after it.
+  const waiting = await loadPage(new URL("../src/post.html", import.meta.url), { location: { search: "?id=p-image" } });
+  try {
+    let release;
+    globalThis.fetch = () => new Promise((resolve) => { release = () => resolve(seedResponse([IMAGE_POST])); });
+    await importPageModule("/post-page.js");
+    const panel = waiting.document.querySelector("#post-detail");
+    await waitFor(() => panel.querySelectorAll(".detail-loading").length === 1, "the loading state rendered");
+    assertLeadReads(waiting.document, "while the lookup runs");
+    // And it is above the wait it explains, not merely on the page with it.
+    assert.equal(textOf(panel.querySelector(".detail-loading-text")), STATE_HEADLINES.loading);
+
+    release();
+    // Waited on the post's own content rather than on any authored string: the
+    // display name is drawn by post-detail.js and appears nowhere in the markup,
+    // so this cannot pass on turn zero.
+    await waitFor(() => panel.querySelectorAll(".detail-author-link").length === 1, "the post arrived");
+    assert.equal(textOf(panel.querySelector(".detail-author-link")), IMAGE_POST.author);
+    assertLeadReads(waiting.document, "once the post arrived");
+  } finally {
+    waiting.restore();
+  }
+
+  // The two states with no post at all, where a reader is told the least and
+  // this sentence is the only thing on screen saying where they have landed.
+  for (const [state, search, answer] of [
+    ["not-found", "?id=p-never-existed", seedOnly([IMAGE_POST])],
+    ["error", "?id=p-image", () => { throw new TypeError("Failed to fetch"); }],
+  ]) {
+    const page = await openPostPage(search, answer);
+    try {
+      assertOneState(page, state, `the ${state} state`);
+      assertLeadReads(page.document, `the ${state} state`);
+      // The lead is not repeated by the state's own panel, and the state's
+      // words are not swallowed by it either.
+      assert.equal(textOf(page.panel).includes(LEAD_SENTENCE), false, `${state}: the panel must not repeat the lead`);
+      assert.match(textOf(page.panel.querySelector(".empty-title")), /Post unavailable|Post could not be opened/);
+    } finally {
+      page.restore();
+    }
+  }
+});
