@@ -24,6 +24,7 @@
 import { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH, readStoredAuthor, rememberAuthor } from "./social-identity.js";
 import { imageDescription, renderDescriptionNote, renderImageUnavailable } from "./image-description.js";
 import { OPEN_POST_LABEL, peopleImagePostsLabel, postDetailHref, profileHref } from "./social-links.js";
+import { postPermalink, renderPostCopyControl } from "./post-share.js";
 import { renderFeedStatus, feedPhase, feedPresence, filtersAvailable, setFilterAvailability, FILTERS_UNAVAILABLE_HINT } from "./feed-status.js";
 
 export { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH };
@@ -296,6 +297,15 @@ export const PUBLISH_STATE_WORDS = Object.freeze({ filtered: "Hidden by filters"
 export const FILTERED_OUT_NOTE = "Your current filters hide this post from the feed below.";
 export const REVEAL_CONTROL_LABEL = "Clear filters and show this post";
 export const NO_IMAGE_NOTE = "This post carries no image, so it appears on Social only.";
+
+// The one thing the receipt says when it cannot say the usual thing. A publish
+// that landed is still news, so the confirmation keeps its opening sentence and
+// only drops what it cannot back: without a usable id there is no address for
+// this one post, and the feed below is where it is. Nothing is offered in the
+// link's place — no empty href, no "#", no control that would copy a URL with no
+// post in it — because a link that goes nowhere costs a reader more than the
+// sentence that says there is no link.
+export const PERMALINK_UNAVAILABLE_NOTE = "This post has no link of its own to open, so find it in the feed below.";
 export const PUBLISH_FAILED_NOTE = "Your post, image, and image description are still in the composer, exactly as you left them.";
 
 // …and the sentence that says what to do with them. Said only where it is true:
@@ -1227,11 +1237,31 @@ export function mountSocialFeed(root, options = {}) {
     if (!notice) return;
     const hiddenByFilters = !postMatchesFilters(saved, { author: nameFilter?.value, range: timeFilter?.value });
 
+    // The address of the post that was just created, built by the one helper
+    // /post.html's own copy control builds it with (src/post-share.js) — so the
+    // link this receipt offers and the link the permalink page copies are the
+    // same address for the same row, and neither can drift from the other.
+    //
+    // Whether there is a link at all is decided from this value and not from a
+    // thrown error: a publish that came back without a usable id succeeded, and
+    // the reader is told so. It is the *only* gate — the link and the copy
+    // control stand or fall together, because a control that copies an address
+    // the receipt would not link to is a link by another name.
+    const permalinkUrl = postPermalink(saved?.id, (options.location ?? globalThis.window?.location)?.origin);
+
     notice.replaceChildren(document.createTextNode(`${publishedPostLabel(saved)} `));
-    const permalink = document.createElement("a");
-    permalink.href = postDetailHref(saved.id, saved.author);
-    permalink.textContent = "Open the post’s permalink";
-    notice.append(permalink, document.createTextNode(". "));
+    if (permalinkUrl) {
+      const permalink = document.createElement("a");
+      // Relative, and carrying the display name the post was published under:
+      // that is provenance /post.html reads while its own lookup is in flight,
+      // so the byline is named from the first paint. The copy control below
+      // hands over the canonical address instead, without it.
+      permalink.href = postDetailHref(saved.id, saved.author);
+      permalink.textContent = "Open the post’s permalink";
+      notice.append(permalink, document.createTextNode(". "));
+    } else {
+      notice.append(document.createTextNode(`${PERMALINK_UNAVAILABLE_NOTE} `));
+    }
 
     if (hasImage) {
       // An image post is the only kind People shows, so that link is offered
@@ -1261,6 +1291,24 @@ export function mountSocialFeed(root, options = {}) {
         focusPostCard(saved.id);
       });
       notice.append(reveal);
+    }
+
+    // Last, after every sentence: the reader meets what happened, then the one
+    // thing there is to do with it. It is the site's shipped copy control —
+    // same words, same success and failure lines, same .share-control treatment
+    // — because the address it copies is the same address /post.html copies,
+    // and a second wording here would be a second promise about one act. A span
+    // rather than a div: this receipt is a <p>.
+    //
+    // Handing the link over here is the whole point of the receipt: without it
+    // a visitor who has just published has to find their own post in the feed
+    // and open it to reach the control that was always on the other page.
+    if (permalinkUrl) {
+      notice.append(document.createTextNode(" "), renderPostCopyControl(permalinkUrl, {
+        id: "publish-copy",
+        tag: "span",
+        clipboard: options.clipboard,
+      }));
     }
 
     notice.classList.add("is-success");
