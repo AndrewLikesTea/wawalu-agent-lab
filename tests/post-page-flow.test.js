@@ -566,3 +566,101 @@ test("a retry that succeeds puts the reader on the post, not back at the top", a
     page.restore();
   }
 });
+
+// The clipboard the shipped page reaches for. post-page.js injects nothing —
+// the browser's own clipboard is read at press time — so a test that wants to
+// watch the write has to stand one on the global and put it back afterwards.
+function installClipboard(writeText) {
+  const saved = Object.getOwnPropertyDescriptor(globalThis, "navigator");
+  Object.defineProperty(globalThis, "navigator", { value: { clipboard: { writeText } }, configurable: true });
+  return () => Object.defineProperty(globalThis, "navigator", saved);
+}
+
+// The one act this page can perform on the post it is showing. Asserted end to
+// end because both halves of it are only true together: the page reads its id
+// out of `?id=`, and the address the button copies has to be a link that reads
+// back to the same post.
+test("a loaded post can hand over its own link, and says so where the post is", async () => {
+  let copied = null;
+  const restoreClipboard = installClipboard(async (value) => { copied = value; });
+  // Opened the way a feed links here: with the author and provenance those
+  // surfaces add. What is copied is the post, not this reader's route to it.
+  const page = await openPostPage("?id=p-image&author=Mina%20Okafor&from=profile", seedOnly([SEED_POST]));
+  try {
+    const copy = page.panel.querySelector(".share-button");
+    assert.equal(textOf(copy), "Copy link to this post");
+    assert.equal(copy.tagName, "BUTTON");
+    assert.ok(copy.closest("#post-detail"), "the control belongs to the post's region, not the page frame");
+    // Nothing reaches the clipboard on render.
+    assert.equal(copied, null);
+    assert.equal(textOf(page.panel.querySelector(".share-status")), "");
+
+    copy.click();
+    await waitFor(() => copied !== null, "the clipboard was written");
+    assert.equal(copied, "https://labs.wawalu.org/post.html?id=p-image");
+    await waitFor(() => textOf(page.panel.querySelector(".share-status")) !== "", "the control reported what happened");
+    assert.equal(textOf(page.panel.querySelector(".share-status")), "Link copied to clipboard.");
+
+    // Reading order, and so tab order: the post, then the control that copies
+    // it, then the page's standing routes out — by document position, with no
+    // tabindex spent on any of it.
+    const sequence = tabSequence(page.document);
+    assert.equal(copy.getAttribute("tabindex"), null);
+    assert.ok(sequence.includes(copy), "the control is reachable by keyboard");
+    assert.ok(sequence.indexOf(page.panel.querySelector(".detail-author-link")) < sequence.indexOf(copy),
+      "the post's own content is reached before the control that copies its link");
+    for (const id of ["#post-back", "#post-people", "#post-publish"]) {
+      assert.ok(sequence.indexOf(copy) < sequence.indexOf(page.document.querySelector(id)),
+        `the copy control precedes ${id}`);
+    }
+    // It takes nothing away from the routes off the page.
+    assertExits(page, MINA, "with a copy control");
+  } finally {
+    page.restore();
+    restoreClipboard();
+  }
+});
+
+// The states with no post: a control offering to copy a link to a post that is
+// not there would hand over an address for a page that says the same nothing.
+test("no state without a post offers to copy a link to one", async () => {
+  const cases = [
+    ["not found", "?id=p-gone", seedOnly([SEED_POST])],
+    ["failure", "?id=p-image", () => { throw new TypeError("Failed to fetch"); }],
+  ];
+  for (const [state, search, answer] of cases) {
+    const page = await openPostPage(search, answer);
+    try {
+      assert.equal(page.panel.querySelectorAll(".share-button").length, 0, `${state}: a link to copy without a post`);
+      assert.equal(page.panel.querySelectorAll(".share-status").length, 0, `${state}: a confirmation with nothing to confirm`);
+      assert.equal(textOf(page.document.getElementById("main-content")).includes("Copy link to this post"), false,
+        `${state}: the label survived into a state with no post`);
+    } finally {
+      page.restore();
+    }
+  }
+});
+
+// Before the script runs at all, and while the lookup is still running: the
+// shipped markup and the wait are both states with no post in them.
+test("the wait a cold visitor meets offers no link to copy", async () => {
+  const page = await loadPage(new URL("../src/post.html", import.meta.url), { location: { search: "?id=p-image" } });
+  try {
+    assert.equal(page.document.querySelectorAll(".share-button").length, 0, "the shipped markup offers a copy before a post exists");
+
+    let release;
+    globalThis.fetch = () => new Promise((resolve) => { release = () => resolve(seedResponse([SEED_POST])); });
+    await importPageModule("/post-page.js");
+    await waitFor(() => page.document.documentElement.dataset.shiplogPostDetail === "loading", "the script took the region");
+    const panel = page.document.querySelector("#post-detail");
+    assert.equal(panel.querySelectorAll(".share-button").length, 0, "the wait offers a copy before a post exists");
+    // Which is also why nothing inside the waiting region is tabbable yet.
+    assert.equal(tabSequence(page.document).filter((node) => node.closest("#post-detail")).length, 0);
+
+    release();
+    await waitFor(() => page.document.documentElement.dataset.shiplogPostDetail === "ready", "the post arrived");
+    assert.equal(panel.querySelectorAll(".share-button").length, 1, "the post brought the control with it");
+  } finally {
+    page.restore();
+  }
+});

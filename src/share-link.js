@@ -23,6 +23,16 @@ export function recordUrl(origin, type, id) {
   }
 }
 
+// What a copy control says once it has been pressed, in the two outcomes it can
+// have. Named here because a second surface now builds its own control out of
+// copyRecordUrl below — the permalink copy on /post.html — and a copy control
+// that reports success in its own words would be a third spelling of a sentence
+// this site already says. The failure line names the next step rather than the
+// cause: every page that carries one of these controls is the page whose address
+// is being copied, so the address bar is a real fallback.
+export const SHARE_COPIED_STATUS = "Link copied to clipboard.";
+export const SHARE_COPY_FAILED_STATUS = "Could not copy the link. Copy it from the address bar.";
+
 export async function copyRecordUrl(clipboard, url) {
   if (!url || typeof clipboard?.writeText !== "function") return false;
   try {
@@ -60,9 +70,7 @@ export function createShareControl({
     button.disabled = true;
     status.textContent = "";
     const copied = await copyRecordUrl(clipboard, url);
-    status.textContent = copied
-      ? "Link copied to clipboard."
-      : "Could not copy the link. Copy it from the address bar.";
+    status.textContent = copied ? SHARE_COPIED_STATUS : SHARE_COPY_FAILED_STATUS;
     button.disabled = false;
   });
   group.append(button, status);
