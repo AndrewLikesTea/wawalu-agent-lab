@@ -573,7 +573,7 @@ test("each invitation names only what it reveals, and no two name the same thing
 
   assert.equal(before, "See how the score is measured and what to do first.");
   assert.equal(reads, "See the bundled example text and the counts read from it.");
-  assert.equal(results, "See possible results, from a graded prompt to a refusal.");
+  assert.equal(results, "See a graded prompt, one that needs changes, and text the coach cannot grade.");
 
   // The middle one is written from its own first block outward. Every other
   // topic it used to promise is read behind one of the other two.
@@ -586,6 +586,11 @@ test("each invitation names only what it reveals, and no two name the same thing
   // the example text where it is printed, the results where they are shown.
   assert.doesNotMatch(before, /bundled|result/i);
   assert.doesNotMatch(results, /score|counts|bundled/i);
+  // And the third case is named as the page names it — text the coach cannot
+  // grade. Never a refusal: the coach runs in this tab and declines nothing on
+  // content grounds, so a reader who reads one would expect a rule that is not
+  // there.
+  assert.doesNotMatch(textOf(byId(document, "coaching-specimen")), /refusal|refuses/i);
 
   // All three read as one set — each an instruction ending in a full stop — and
   // the two that open a details element are still closed on arrival.
