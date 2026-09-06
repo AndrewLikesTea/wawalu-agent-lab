@@ -387,6 +387,7 @@ test("the composer numbers the round trip and puts the rule beside the control",
   assert.deepEqual(items.map(textOf), [
     "Create or open an image in Paint (opens in a new tab) ↗",
     "Export it as a PNG, then select that PNG in the image picker above",
+    "Fill in the required image description",
     "Publish your post",
   ]);
   assert.equal(textOf(documents.Social.querySelector("body")).split("Select Choose image").length - 1, 0,
@@ -509,6 +510,12 @@ test("the composer names the round trip in the order it is taken, once", () => {
     "the composer asks for the file before it has been exported");
   assert.ok(at("select that PNG in the image picker above") < at("Publish your post"),
     "the composer asks the visitor to publish before selecting the file");
+  // #2170: the description is a step, in the place it is actually taken —
+  // after the file it describes exists, before the publishing it blocks.
+  assert.ok(at("select that PNG in the image picker above") < at("Fill in the required image description"),
+    "the composer asks for the description before there is an image to describe");
+  assert.ok(at("Fill in the required image description") < at("Publish your post"),
+    "the composer asks the visitor to publish before writing the description publishing requires");
   // The sequence identifies the picker without repeating the control's label.
   assert.doesNotMatch(steps, /Choose image/,
     "the steps repeat the control's instruction");
@@ -624,6 +631,39 @@ test("the description requirement is stated once, at the field it is about", () 
   // number rather than about those four labels.
   assert.equal(documents.Social.getElementById("post-form").querySelectorAll(".label-optional").length, 4);
   assert.match(sources.Social, /<p class="hint" id="post-image-alt-requirement">/);
+});
+
+// #2170: the step list walked a visitor to the publish step and let them press
+// it, because it never mentioned the one field the composer refuses a post over.
+// The step names the act; the rule beside the field still owns the consequence.
+test("the step list names the description as a step, in Social's own term, once", () => {
+  const items = documents.Social.getElementById("post-image-steps").querySelectorAll("li")
+    .map(textOf);
+  const step = "Fill in the required image description";
+  assert.equal(items.filter((item) => item === step).length, 1,
+    `the step list states the description step ${items.filter((item) => item === step).length} times: ${items.join(" | ")}`);
+  assert.equal(items.indexOf(step), items.length - 2,
+    "the description step is not the step before publishing");
+
+  // Social's term for the field, the one People borrows: not a second name for
+  // it, and not the label of a control the reader has to hunt for.
+  const steps = textOf(documents.Social.getElementById("post-image-steps"));
+  assert.doesNotMatch(steps, /caption|alt text/i,
+    "the step list invents a second name for the image description");
+  assert.ok(textOf(documents.Social.querySelector('label[for="post-image-alt"]'))
+    .toLowerCase().startsWith("image description"),
+    "the step no longer uses the field's own label words");
+
+  // The consequence is still stated exactly once, at the field, and the step
+  // does not carry a copy of it up here where there is nothing to fill in yet.
+  assert.equal(sources.Social.split(ALT_REQUIREMENT).length - 1, 1);
+  assert.equal(steps.split("will not publish until").length - 1, 0,
+    "the step list restates the rule the field already carries");
+  // Prose, not a second route to the field: the list still contributes the one
+  // tab stop the Paint link has always been.
+  const item = documents.Social.getElementById("post-image-steps").querySelectorAll("li")[items.indexOf(step)];
+  assert.equal(item.querySelectorAll("a,button,input").length, 0,
+    "the description step grew a focusable element");
 });
 
 test("with no image chosen, nothing in the composer describes the Image description field", async () => {

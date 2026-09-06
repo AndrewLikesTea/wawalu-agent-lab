@@ -456,12 +456,23 @@
               <p class="hint" id="post-image-hint"><span class="detail-state-chip">PNG, JPEG, GIF, or WebP up to 512 KB</span> Reduce or re-export a larger image before you choose it.</p>
               <p class="media-status" id="post-media-status" role="status" aria-live="polite" aria-atomic="true"></p>
               <!-- One ordered sequence carries the complete Paint-to-post path:
-                   make or open the image, select its exported PNG here, then
-                   publish. The file rule above and these steps are both named
-                   by the input's aria-describedby, in the order they appear. -->
+                   make or open the image, select its exported PNG here, write
+                   the description that image costs, then publish. The
+                   description step is the one this list used to leave out
+                   (#2170): a reader who took these steps in order reached the
+                   final one and was refused, because the composer will not
+                   publish a post that carries an image and no description. It
+                   names the field in Social's own term and in People's words
+                   for the same step, so the two routes into this form do not
+                   invent two names for one field. The rule itself still stands
+                   once, beside Image description, where it binds; this step
+                   only puts the act in the sequence. The file rule above and
+                   these steps are both named by the input's aria-describedby,
+                   in the order they appear. -->
               <ol class="hint" id="post-image-steps">
                 <li><a class="secondary-button paint-link" href="/paint/" target="_blank" rel="noopener">Create or open an image in Paint <span class="new-tab-note">(opens in a new tab)</span> <span aria-hidden="true">↗</span></a></li>
                 <li>Export it as a PNG, then select that PNG in the image picker above</li>
+                <li>Fill in the required image description</li>
                 <li>Publish your post</li>
               </ol>
               <!-- Said beside the step that sends the visitor away, because that
