@@ -9,8 +9,10 @@
 // row, every link, in the same order, one keystroke away.
 //
 // WHAT IS PINNED HERE, and why each one is a defect if it slips:
-//   1. The post is the first thing in the content region under the heading that
-//      names it — the promise the link made, not the sixth block down.
+//   1. The post is what the content region opens on, under the heading that
+//      names it and the one sentence saying what this page is — the promise the
+//      link made, not the sixth block down. That sentence is counted, not just
+//      allowed: one paragraph, one sentence, and nothing else may join it.
 //   2. The disclosure is closed on first paint. An "open by default" details is
 //      the same page it replaced with an extra triangle.
 //   3. Every destination survives and is keyboard-reachable once expanded.
@@ -96,17 +98,30 @@ test("the post is the first thing in the content region, under the heading that 
   const main = document.querySelector("#main-content");
 
   // One region opens the content, and the post's own region opens that: what
-  // precedes the post is exactly the demo marker and the heading. Anything else
-  // appearing here — an intro paragraph, a row of routes off the page — is the
-  // old order coming back, where the thing the link promised was the sixth block
-  // a reader reached.
+  // precedes the post is the surface marker, the heading, and one sentence
+  // saying what the page is. Anything beyond those three — a second paragraph,
+  // a row of routes off the page — is the old order coming back, where the
+  // thing the link promised was the sixth block a reader reached.
+  //
+  // The third block is the concession #2179 asked for, and it is bounded here
+  // rather than left open: exactly one paragraph, exactly one sentence. This
+  // page is met cold by someone who has never seen Social, and it used to go
+  // from the heading straight into "The public shared post is loading." — busy
+  // before it had said what it was. One line of orientation is not the intro
+  // block that was removed; the count is what keeps the two apart.
   const frame = elementChildren(main)[0];
   assert.equal(frame.tagName, "SECTION");
   const blocks = elementChildren(frame);
   const post = blocks.findIndex((node) => node.getAttribute("aria-label") === "Post");
   assert.ok(post >= 0, "the content region has no post region");
-  assert.deepEqual(blocks.slice(0, post).map((node) => node.tagName), ["P", "H1"]);
-  assert.equal(textOf(blocks[post - 1]), "Shared post");
+  assert.deepEqual(blocks.slice(0, post).map((node) => node.tagName), ["P", "H1", "P"]);
+  assert.equal(textOf(blocks[post - 2]), "Shared post");
+  const lead = textOf(blocks[post - 1]);
+  assert.equal(lead.split(/[.!?]/).filter((part) => part.trim()).length, 1,
+    "one sentence stands between the heading and the post, not a paragraph of them");
+  // It says what the page is, in the words Social uses for itself.
+  assert.match(lead, /^A shared link opens one post from Social, /);
+  assert.equal(lead.includes(LOADING), false, "the lead must not restate the retrieval line above it");
 
   // And it is the region that holds the post slot, the retrieval line included.
   const region = blocks[post];
