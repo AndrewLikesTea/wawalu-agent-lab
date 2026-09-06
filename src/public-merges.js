@@ -76,17 +76,27 @@ export const feedLinkText = (repository) =>
   `Count the merged pull requests yourself in the ${repository} public GitHub event feed`;
 
 /**
- * What the block counts, for the state where no count arrived.
+ * What the block counts, for the state where the count has not arrived yet.
  *
- * The unavailable sentence says only that there is no number, which leaves a
- * reader holding an absence. This says what the missing figure would have been
- * a count of, in which repositories, and that the feeds to count it in are
- * linked right here — so the block still hands over something checkable when
- * GitHub hands over nothing. IT CONTAINS NO DIGIT, for the reason the
- * unavailable reasons contain none.
+ * The sentence above it says the counting is happening; this says what is being
+ * counted, in which repositories, and that the feeds to count it in are linked
+ * right here — so a reader who does not wait still has something checkable. IT
+ * CONTAINS NO DIGIT, for the reason the unavailable reasons contain none.
  */
 export const COUNTED_SUBJECT_SENTENCE = `This block counts merged pull requests in `
   + `${SOURCE_REPOSITORIES.join(" and ")}, and links the public GitHub event feeds it counts them from.`;
+
+/**
+ * Where to get the figure, for the state where this page could not.
+ *
+ * The absence sentence beside it says the count could not be retrieved, which
+ * leaves a reader holding an absence. This says what to do about it, and it
+ * points at the feed links this block already paints below the readout rather
+ * than offering a retry or a second destination of its own. IT CONTAINS NO
+ * DIGIT, for the same reason.
+ */
+export const COUNT_IT_YOURSELF_SENTENCE = `Count the merged pull requests in `
+  + `${SOURCE_REPOSITORIES.join(" and ")} yourself, in the public GitHub event feeds linked below.`;
 
 /**
  * When the response the figure was computed from arrived.
@@ -161,15 +171,14 @@ export const unavailableSentence = (reason) => `${reason}, so there is no count 
  * The whole of what a surface says when a settled request left no count.
  *
  * Two sentences, in this order, because one of them is not enough to leave a
- * reader with: the honest absence, and then what was being counted, where, and
- * that the feeds to count it in are linked right beside it. Both surfaces render
- * this list rather than composing their own — the home page's counted-figure
- * block and the Agent observatory's headline figure are the same claim about the
- * same response, so they may not describe one outcome in two sets of words.
+ * reader with: the honest absence, and then where to go and count it. They are
+ * deliberately not the sentences the block ships in while the request is still
+ * out — "could not" and "counting now" are different states, and a reader who
+ * meets one must never be reading the words for the other.
  * NEITHER SENTENCE CONTAINS A DIGIT, for the reason the reasons do not.
  */
 export const unavailableSentences = (reason = UNAVAILABLE_REASONS.unreachable) =>
-  [unavailableSentence(reason), COUNTED_SUBJECT_SENTENCE];
+  [unavailableSentence(reason), COUNT_IT_YOURSELF_SENTENCE];
 
 /**
  * The count, or the reason there is none. Never throws and never rejects.
