@@ -611,10 +611,13 @@
                  the name a visitor picked instead of the post they published. -->
             <p class="hint publish-consequence" id="post-consequence">Anyone who visits Shiplog can read your post, its image, and the display name you publish it with. You cannot edit or delete a post after you publish it, so post nothing you would not put on a public page.</p>
             <p class="field-error compose-error" id="post-publish-blocker" hidden></p>
-            <!-- The only control on this page whose label says "Publish", and
-                 the only one that makes a post public. The hero's opener said
-                 the same word until now, so the page named one act twice and
-                 the reader had to guess which press was the irreversible one.
+            <!-- The only control on this page that makes a post public, and the
+                 only one whose label names the post being written rather than
+                 the act in general. The hero's opener keeps "Publish a post" —
+                 the site-wide name for this flow, and the words the shared post
+                 page links here by — so this button says "this post": one press
+                 opens the composer, the other is the irreversible one, and a
+                 reader who hears both labels can tell them apart.
                  No arrow after the words. Every other arrow on this site
                  decorates a route — it means "this moves you somewhere" — and
                  this button moves the reader nowhere: it publishes, in place,
@@ -625,7 +628,7 @@
                  and the arrow could never have been part of the word swapped
                  in there. -->
             <button id="post-submit" type="submit" aria-describedby="post-consequence post-publish-blocker social-notice">
-              <span class="submit-label">Publish a post</span>
+              <span class="submit-label">Publish this post</span>
             </button>
             <!-- The way out, in the word the footer's panel already uses for
                  the same act. It collapses the composer and puts focus back on

@@ -53,10 +53,11 @@ import { normalizeImage } from "./social.js";
 // the row met one destination phrased twice, and had to read to the ninth word
 // of the second before the two came apart. They are now two distinct things: a
 // place, and an act. The act is named in the bytes Social already uses for it on
-// the control that opens the composer, the composer's own heading, and its
-// submit button, so the link, the thing it lands on and the button that finishes
-// the job all say one string. A fourth phrasing for the same act would be a
-// fourth thing to learn.
+// the control that opens the composer and the composer's own heading, so the
+// link and the thing it lands on say one string. A third phrasing for the same
+// act would be a third thing to learn. (The composer's submit button reads
+// "Publish this post": it names the draft in front of the reader, because it is
+// the press that cannot be taken back.)
 //
 // The place is named the way the rest of the site names it: "Open Social to read
 // the whole feed", People's own words for that destination. It replaced "Open
