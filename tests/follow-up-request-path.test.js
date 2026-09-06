@@ -40,21 +40,22 @@ import {
 // predates the bounded types and still sends the legacy label; the rest name the
 // surface the visitor was reading.
 //
-// `stated` is the difference issue #1956 closed. A page a visitor could pick a
-// topic on never existed — every one of these topics is fixed by the page — but
-// four pages showed the fixed value in a read-only control and two showed
-// nothing at all. Those two now name it in prose instead, and the request they
-// send carries the same string: the shipped markup and the payload are compared
-// against FOLLOW_UP_TOPICS here rather than against a phrase typed into a test,
-// so the sentence cannot drift away from what goes on the wire.
+// A page a visitor could pick a topic on never existed — every one of these
+// topics is fixed by the page. Issue #1956 gave the two pages that stated
+// nothing a sentence naming theirs, #1980 moved four read-only controls onto the
+// same sentence, and #2168 moved the last of them (agents.html), so the column
+// that recorded which shape a page used is gone: they all state it in prose. The
+// shipped markup and the payload are compared against FOLLOW_UP_TOPICS here
+// rather than against a phrase typed into a test, so the sentence cannot drift
+// away from what goes on the wire.
 const REVIEWED = [
-  ["index.html", "follow_up_homepage", FOLLOW_UP_TOPICS.follow_up_homepage, true],
-  ["coach.html", "follow_up_coach", FOLLOW_UP_TOPICS.follow_up_coach, true],
-  ["post.html", "follow_up_social", FOLLOW_UP_TOPICS.follow_up_social, true],
-  ["releases.html", "follow_up_releases", FOLLOW_UP_TOPICS.follow_up_releases, true],
-  ["social.html", "follow_up_social", FOLLOW_UP_TOPICS.follow_up_social, true],
-  ["profile.html", "follow_up_people", FOLLOW_UP_TOPICS.follow_up_people, true],
-  ["agents.html", "follow_up_agents", FOLLOW_UP_TOPICS.follow_up_agents, false],
+  ["index.html", "follow_up_homepage", FOLLOW_UP_TOPICS.follow_up_homepage],
+  ["coach.html", "follow_up_coach", FOLLOW_UP_TOPICS.follow_up_coach],
+  ["post.html", "follow_up_social", FOLLOW_UP_TOPICS.follow_up_social],
+  ["releases.html", "follow_up_releases", FOLLOW_UP_TOPICS.follow_up_releases],
+  ["social.html", "follow_up_social", FOLLOW_UP_TOPICS.follow_up_social],
+  ["profile.html", "follow_up_people", FOLLOW_UP_TOPICS.follow_up_people],
+  ["agents.html", "follow_up_agents", FOLLOW_UP_TOPICS.follow_up_agents],
 ];
 
 // The pages that also let a visitor say what they want to know before handing
@@ -111,7 +112,7 @@ const submitControl = (document) =>
 
 /* --------------------------- the panel, per page --------------------------- */
 
-for (const [file, purpose, topic, stated] of REVIEWED) {
+for (const [file, purpose, topic] of REVIEWED) {
   test(`${file} ships the follow-up panel and its live region before anything is submitted`, async () => {
     const page = await loadPage(pageUrl(file));
     const { document } = page;
@@ -119,19 +120,16 @@ for (const [file, purpose, topic, stated] of REVIEWED) {
       const form = byId(document, "site-footer-form");
       assert.equal(form.tagName, "FORM");
       assert.equal(form.getAttribute("data-follow-up-type"), purpose);
-      const topicField = byId(document, "site-footer-topic");
-      assert.equal(topicField?.value ?? null, stated ? null : topic);
-      assert.equal(topicField?.hasAttribute("readonly") ?? false, Boolean(topic) && !stated);
+      // The topic is stated, never offered: no control holds it, so there is
+      // nothing on the block a visitor could put a cursor in and change.
+      assert.ok(!byId(document, "site-footer-topic"), `${file}: the fixed topic is prose, not a field`);
 
-      // A page with no control says the same thing in prose, and the string it
-      // names is the one the form carries to the wire — read from the markup,
-      // not typed here.
+      // And the string it names is the one the form carries to the wire — read
+      // from the markup, not typed here.
       const note = byId(document, "site-footer-topic-note");
-      assert.equal(note?.tagName ?? null, stated ? "P" : null);
-      if (stated) {
-        assert.equal(textOf(note), `This request is sent about the ${topic}.`);
-        assert.equal(form.getAttribute("data-follow-up-topic"), topic);
-      }
+      assert.equal(note?.tagName ?? null, "P", `${file}: the follow-up block states no topic`);
+      assert.equal(textOf(note), `This request is sent about the ${topic}.`);
+      assert.equal(form.getAttribute("data-follow-up-topic"), topic);
 
       const pageName = {
         "coach.html": "Prompt coach", "post.html": "Social", "releases.html": "Releases",
@@ -452,7 +450,7 @@ function endpointTransport(db, calls) {
   };
 }
 
-for (const [file, purpose, topic, stated] of REVIEWED) {
+for (const [file, purpose, topic] of REVIEWED) {
   test(`${file}: a follow-up request reaches the real endpoint and lands a row`, async (t) => {
     const db = await createTestD1();
     t.after(() => db.close());
@@ -481,15 +479,14 @@ for (const [file, purpose, topic, stated] of REVIEWED) {
         .map(({ email, purpose: stored, topic: storedTopic }) => ({ email, purpose: stored, topic: storedTopic }));
       assert.deepEqual(rows, [{ email: TYPED_EMAIL, purpose, topic }], `${file} must write exactly one row`);
 
-      // Both halves in one chain, for the pages that state the topic in prose:
-      // what the page says, what the request sent, and what the row holds are
-      // the same string — the one FOLLOW_UP_TOPICS supplies for this purpose.
-      if (stated) {
-        const sentence = shownText(document, "site-footer-topic-note");
-        const named = sentence.slice("This request is sent about the ".length, -1);
-        assert.equal(named, JSON.parse(calls[0].options.body).topic, `${file}: the page names what it sends`);
-        assert.equal(named, rows[0].topic, `${file}: and what it sends is what was stored`);
-      }
+      // Both halves in one chain: what the page says, what the request sent,
+      // and what the row holds are the same string — the one FOLLOW_UP_TOPICS
+      // supplies for this purpose. Every page that sends a topic states it, so
+      // there is no page this chain is allowed to skip.
+      const sentence = shownText(document, "site-footer-topic-note");
+      const named = sentence.slice("This request is sent about the ".length, -1);
+      assert.equal(named, JSON.parse(calls[0].options.body).topic, `${file}: the page names what it sends`);
+      assert.equal(named, rows[0].topic, `${file}: and what it sends is what was stored`);
       assert.ok(shownText(document, "site-footer-confirmation").includes(TYPED_EMAIL));
     } finally {
       globalThis.fetch = passthrough;
