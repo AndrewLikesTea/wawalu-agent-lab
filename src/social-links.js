@@ -30,6 +30,37 @@ export function postDetailHref(id, author = "", from = "") {
   return `/post.html?${params}`;
 }
 
+// The absolute address a reader can carry away — the value a copy control hands
+// to the clipboard. Built from postDetailHref above, so it is the one URL shape
+// /post.html reads its post out of, and the id goes through URLSearchParams:
+// an id that arrived over the wire is encoded rather than concatenated, so it
+// cannot open a second parameter, a fragment, or a scheme of its own. No
+// ?author=, no ?from=, because those are how one reader got here and not part of
+// the post.
+//
+// No id or no origin, no link: a URL that cannot be resolved absolutely is no
+// use pasted into a chat window, so the control that would offer it is withdrawn
+// rather than left handing over something broken.
+//
+// Owned here rather than on the permalink page for the same reason the two hrefs
+// above are: /post.html's copy control and Social's publish confirmation both
+// hand over this address now, and a second rule for building it would be a
+// second answer to "what is this post's link". src/post-detail.js re-exports it,
+// so every existing caller is unchanged.
+export function postPermalink(id, origin) {
+  const wanted = String(id ?? "").trim();
+  if (!wanted) return "";
+  try {
+    return new URL(postDetailHref(wanted), origin).href;
+  } catch {
+    return "";
+  }
+}
+
+// What the control that hands over that address is called, on both surfaces that
+// offer it. One wording, for the same reason OPEN_POST_LABEL is one wording.
+export const POST_COPY_LABEL = "Copy link to this post";
+
 export function profileHref(author) {
   return `/profile.html?author=${encodeURIComponent(String(author ?? ""))}`;
 }

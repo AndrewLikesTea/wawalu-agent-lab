@@ -23,7 +23,8 @@
 // profile remembers cannot drift apart.
 import { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH, readStoredAuthor, rememberAuthor } from "./social-identity.js";
 import { imageDescription, renderDescriptionNote, renderImageUnavailable } from "./image-description.js";
-import { OPEN_POST_LABEL, peopleImagePostsLabel, postDetailHref, profileHref } from "./social-links.js";
+import { OPEN_POST_LABEL, POST_COPY_LABEL, peopleImagePostsLabel, postDetailHref, postPermalink, profileHref } from "./social-links.js";
+import { SHARE_COPIED_STATUS, SHARE_COPY_FAILED_STATUS, copyRecordUrl } from "./share-link.js";
 import { renderFeedStatus, feedPhase, feedPresence, filtersAvailable, setFilterAvailability, FILTERS_UNAVAILABLE_HINT } from "./feed-status.js";
 
 export { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH };
@@ -296,6 +297,15 @@ export const PUBLISH_STATE_WORDS = Object.freeze({ filtered: "Hidden by filters"
 export const FILTERED_OUT_NOTE = "Your current filters hide this post from the feed below.";
 export const REVEAL_CONTROL_LABEL = "Clear filters and show this post";
 export const NO_IMAGE_NOTE = "This post carries no image, so it appears on Social only.";
+
+// Said instead of the permalink, in the one case where there is no permalink to
+// say: the response that confirmed the post did not name it, so nothing here
+// knows its address. The confirmation still states plainly that the post was
+// published — that is publishedPostLabel, above, and it is true either way — and
+// this names the only place the reader can still find it. No link, no copy
+// control, no disabled-looking stand-in for either: an empty href is a promise
+// the publish path cannot keep.
+export const NO_PERMALINK_NOTE = "Find this post in the feed below.";
 export const PUBLISH_FAILED_NOTE = "Your post, image, and image description are still in the composer, exactly as you left them.";
 
 // …and the sentence that says what to do with them. Said only where it is true:
@@ -425,6 +435,45 @@ function el(tag, className, text) {
   if (className) node.className = className;
   if (text !== undefined) node.textContent = text;
   return node;
+}
+
+// The site's copy control, drawn where a reader has just made something worth
+// copying. Every part of it already ships: the label and the address come from
+// src/social-links.js (the permalink page's control hands over the same string
+// and the same URL), the two outcomes are share-link.js's own sentences, and the
+// treatment is .share-control/.share-button/.share-status — so no wording and no
+// stylesheet rule is invented for a control this site already draws twice.
+//
+// A span, not a div: this lands inside #social-notice, which is a <p>, so the
+// control has to be phrasing content to keep that paragraph's content model
+// intact. Everything the confirmation already appends there is.
+//
+// The status is its own polite live region. #social-notice is announced
+// atomically, so a confirmation written straight into it would re-read the whole
+// receipt — the post, the permalink, the filter state — every time the button
+// was pressed.
+function renderCopyControl(url, clipboard) {
+  const group = el("span", "share-control");
+  const button = el("button", "share-button", POST_COPY_LABEL);
+  button.type = "button";
+  button.id = "publish-copy";
+  button.setAttribute("aria-describedby", "publish-copy-status");
+  const status = el("span", "share-status", "");
+  status.id = "publish-copy-status";
+  status.setAttribute("role", "status");
+  status.setAttribute("aria-live", "polite");
+  status.setAttribute("aria-atomic", "true");
+  button.addEventListener("click", async () => {
+    button.disabled = true;
+    status.textContent = "";
+    // Read at press time, not at render time: a page can mount before a browser
+    // has a clipboard to offer, and a test injects one either way.
+    const copied = await copyRecordUrl(clipboard ?? globalThis.navigator?.clipboard, url);
+    status.textContent = copied ? SHARE_COPIED_STATUS : SHARE_COPY_FAILED_STATUS;
+    button.disabled = false;
+  });
+  group.append(button, status);
+  return group;
 }
 
 // One drawing for every refusal the composer shows beside a field — the post
@@ -1226,12 +1275,26 @@ export function mountSocialFeed(root, options = {}) {
   const showConfirmation = (saved, { hasImage, focus = true }) => {
     if (!notice) return;
     const hiddenByFilters = !postMatchesFilters(saved, { author: nameFilter?.value, range: timeFilter?.value });
+    // Decided from the response, never from a timer or a guess: the address is
+    // built only if the row the API returned named itself. Both the link and the
+    // copy control below hang off this one value, so the confirmation cannot
+    // offer one of them and not the other, and cannot offer either over an id
+    // that does not exist.
+    const named = Boolean(String(saved?.id ?? "").trim());
+    const address = postPermalink(saved.id, (options.location ?? globalThis.window?.location)?.origin);
 
     notice.replaceChildren(document.createTextNode(`${publishedPostLabel(saved)} `));
-    const permalink = document.createElement("a");
-    permalink.href = postDetailHref(saved.id, saved.author);
-    permalink.textContent = "Open the post’s permalink";
-    notice.append(permalink, document.createTextNode(". "));
+    if (named) {
+      const permalink = document.createElement("a");
+      // Relative and with the display name, which is what every other link into
+      // a post on this page carries: it is provenance for the permalink page's
+      // one back link. The copied address below is the canonical one, without it.
+      permalink.href = postDetailHref(saved.id, saved.author);
+      permalink.textContent = "Open the post’s permalink";
+      notice.append(permalink, document.createTextNode(". "));
+    } else {
+      notice.append(document.createTextNode(`${NO_PERMALINK_NOTE} `));
+    }
 
     if (hasImage) {
       // An image post is the only kind People shows, so that link is offered
@@ -1262,6 +1325,13 @@ export function mountSocialFeed(root, options = {}) {
       });
       notice.append(reveal);
     }
+
+    // The one act this confirmation can perform on the post it just announced:
+    // hand over the address that reopens it. Offered here so a reader who has
+    // something to share does not have to find the post in the feed, open it,
+    // and press the same control on the permalink page — which is where this
+    // control, these words and this address all already come from.
+    if (address) notice.append(renderCopyControl(address, options.clipboard));
 
     notice.classList.add("is-success");
     notice.hidden = false;

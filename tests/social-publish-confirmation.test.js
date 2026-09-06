@@ -21,6 +21,7 @@ import { readFile } from "node:fs/promises";
 import {
   FILTERED_OUT_NOTE,
   NO_IMAGE_NOTE,
+  NO_PERMALINK_NOTE,
   PUBLISH_FAILED_NOTE,
   PUBLISH_RETRY_LABEL,
   PUBLISH_RETRY_NOTE,
@@ -30,11 +31,15 @@ import {
   postMatchesFilters,
   publishedPostLabel,
 } from "../src/social.js";
-import { postDetailHref } from "../src/social-links.js";
+import { POST_COPY_LABEL, postDetailHref, postPermalink } from "../src/social-links.js";
+import { SHARE_COPIED_STATUS, SHARE_COPY_FAILED_STATUS } from "../src/share-link.js";
 import { loadPage, pressEnter, pressTab, tabSequence, textOf } from "./support/browser.js";
+import { importPageModule, waitFor } from "./support/page-module.js";
 
 const NOW = Date.parse("2026-08-05T12:00:00.000Z");
 const SAVED_ID = "3f2a1c58-8f6e-4a1b-9c2d-77c4f0a1b2e3";
+// The origin tests/support/browser.js serves every page from.
+const ORIGIN = "https://labs.wawalu.org";
 
 // An existing post, so the display-name filter has a second name to sit on.
 const EXISTING = {
@@ -51,10 +56,20 @@ const EXISTING = {
 // The request is controllable in two ways the outcome tests need: `fail` can be
 // cleared between presses (a retry that lands), and `hold` parks the request
 // mid-flight so the in-flight state can be read while it is actually true.
-async function composer(t, { hasImage = false, fail = null, hold = false } = {}) {
+// `savedId` is the id the publish response carries back. Controllable because
+// the confirmation's link and its copy control both hang off it, and the honest
+// degradation — a response that never named the post — is only reachable by
+// answering without one.
+//
+// `clipboard` is the browser's, replaced: a copy control that reports success is
+// only worth a sentence if something was actually written, and a browser that
+// refuses the clipboard is a state this control has to report rather than a
+// silence.
+async function composer(t, { hasImage = false, fail = null, hold = false, savedId = SAVED_ID, clipboard } = {}) {
   const page = await loadPage(new URL("../src/social.html", import.meta.url), {});
   t.after(() => page.restore());
   const document = page.document;
+  const written = [];
   const published = [];
   // Every payload the composer handed the API, in order — the evidence for "one
   // press, one request" and for "the retry sent the same post".
@@ -70,6 +85,7 @@ async function composer(t, { hasImage = false, fail = null, hold = false } = {})
     posts: [EXISTING],
     state: "ready",
     storage: page.storage,
+    clipboard: clipboard === undefined ? { writeText: async (value) => { written.push(value); } } : clipboard,
     getMedia: () => (media ? { ...media, alt: document.querySelector("#post-image-alt").value.trim() } : null),
     clearMedia: () => { media = null; },
     create: async (post, image) => {
@@ -77,7 +93,7 @@ async function composer(t, { hasImage = false, fail = null, hold = false } = {})
       if (holding) await new Promise((release) => { resume = release; });
       if (failure) throw new Error(failure);
       published.push(post);
-      return { ...post, id: SAVED_ID, createdAt: new Date(NOW).toISOString() };
+      return { ...post, id: savedId, createdAt: new Date(NOW).toISOString() };
     },
   });
   feed.description.setAttached(Boolean(media));
@@ -115,6 +131,7 @@ async function composer(t, { hasImage = false, fail = null, hold = false } = {})
       pressEnter(document);
       await settle();
     },
+    written,
     setFailure(next) { failure = next; },
     hold(next) { holding = next; },
     async releaseRequest() {
@@ -427,6 +444,167 @@ test("the confirmation and the failure clear 4.5:1 on colours already in the pal
   // introducing a second one, so the permalink and the People link are covered
   // by the pairing above.
   assert.match(css, /\.notice a \{[^}]*color:inherit/);
+});
+
+/* ------------------- copying the link to the post just made ------------------ */
+
+// The address the confirmation hands over is the one the permalink page's own
+// copy control hands over for the same post — same builder, same canonical
+// shape — so what a reader pastes out of the composer and what they paste out of
+// /post.html cannot be two different links to one post.
+test("the confirmation copies the same address the shared post page copies", async (t) => {
+  const harness = await composer(t);
+  harness.fill({ body: "Worth passing on.", author: "Remy" });
+  await harness.publish();
+
+  const region = notice(harness.document);
+  const buttons = region.querySelectorAll(".share-button");
+  assert.equal(buttons.length, 1, "one copy control, not a row of them");
+  const button = buttons[0];
+  assert.equal(textOf(button), POST_COPY_LABEL);
+  assert.equal(textOf(button), "Copy link to this post");
+  // The visible words are the accessible name, and a button is focusable
+  // already — no aria-label and no invented tabindex.
+  assert.equal(button.getAttribute("aria-label"), null);
+  assert.equal(button.type, "button");
+  assert.equal(button.getAttribute("tabindex"), null);
+  assert.ok(tabSequence(harness.document).includes(button), "the copy control is keyboard reachable");
+
+  // Rendering copies nothing: the clipboard is written under an activation only.
+  assert.deepEqual(harness.written, []);
+  const status = region.querySelectorAll(".share-status");
+  assert.equal(status.length, 1);
+  assert.equal(textOf(status[0]), "");
+  assert.equal(button.getAttribute("aria-describedby"), status[0].getAttribute("id"));
+
+  button.click();
+  await harness.settle();
+
+  assert.deepEqual(harness.written, [postPermalink(SAVED_ID, ORIGIN)]);
+  assert.equal(harness.written[0], `${ORIGIN}/post.html?id=${SAVED_ID}`);
+  // The confirmation is the site's existing one, not a second wording of it.
+  assert.equal(textOf(status[0]), SHARE_COPIED_STATUS);
+  assert.equal(textOf(status[0]), "Link copied to clipboard.");
+  assert.equal(button.disabled, false, "the control is pressable again once it has reported");
+  // And the receipt it sits in is unchanged: same opening sentence, same one
+  // link, and the copy control added no second link to the post.
+  assert.match(textOf(region), /^Published “Worth passing on\.” as Remy\./);
+  assert.equal(noticeLinks(harness.document).length, 1);
+});
+
+// A browser that refuses the clipboard is a state, not a silence: the control
+// says so and names what to do instead, in the words share-link.js already uses.
+test("a refused clipboard is reported in the wording the site already uses", async (t) => {
+  const harness = await composer(t, { clipboard: {} });
+  harness.fill({ body: "The clipboard says no.", author: "Remy" });
+  await harness.publish();
+
+  notice(harness.document).querySelector(".share-button").click();
+  await harness.settle();
+
+  const status = notice(harness.document).querySelector(".share-status");
+  assert.equal(textOf(status), SHARE_COPY_FAILED_STATUS);
+  assert.match(textOf(status), /Could not copy the link/);
+  // A refusal is not a failed publish: the post landed, and the receipt still
+  // says so and still links to it.
+  assert.match(textOf(notice(harness.document)), /^Published/);
+  assert.equal(noticeLinks(harness.document).length, 1);
+});
+
+// The honest degradation. A response that never named the post cannot address
+// it, so the confirmation says what it does know — the post is published, and
+// where it is — and offers nothing that pretends otherwise. Decided from the
+// response, so this is the whole of the condition.
+test("a publish the response could not name offers no link and no copy control", async (t) => {
+  const harness = await composer(t, { savedId: "" });
+  harness.fill({ body: "Published without an address.", author: "Remy" });
+  await harness.publish();
+
+  const region = notice(harness.document);
+  assert.equal(region.hidden, false, "the publish is still confirmed");
+  assert.match(textOf(region), /^Published “Published without an address\.” as Remy\./);
+  assert.match(textOf(region), new RegExp(NO_PERMALINK_NOTE));
+
+  // No link at all — not an empty href, not a "#", not a control drawn to look
+  // unavailable. Counted, never compared against null.
+  assert.equal(noticeLinks(harness.document).length, 0);
+  assert.equal(region.querySelectorAll(".share-control").length, 0);
+  assert.equal(region.querySelectorAll(".share-button").length, 0);
+  assert.equal(region.querySelectorAll(".share-status").length, 0);
+  assert.equal(textOf(region).includes(POST_COPY_LABEL), false, "the label survived into a state with no address");
+  assert.equal(
+    tabSequence(harness.document).filter((node) => textOf(node) === POST_COPY_LABEL).length,
+    0,
+    "and nothing unpressable is left in the tab order",
+  );
+});
+
+// The round trip the issue is actually about: publish, copy, and open what was
+// copied. The second page is the shipped /post.html with the shipped wiring, and
+// it is asked for the post by the id that came out of the clipboard — so this
+// fails if the address the composer hands over addresses anything else.
+test("the copied address opens the shared post page for that post", async (t) => {
+  const social = await composer(t, { hasImage: true });
+  social.fill({
+    body: "Ring landed on every control.",
+    author: "Remy",
+    description: "A card wrapped in a blue focus ring.",
+  });
+  await social.publish();
+  notice(social.document).querySelector(".share-button").click();
+  await social.settle();
+
+  const copied = new URL(social.written[0]);
+  assert.equal(copied.pathname, "/post.html");
+  // The globals go back before a second page takes them; t.after restores the
+  // same snapshot again, which is a no-op.
+  social.page.restore();
+
+  const post = await loadPage(new URL("../src/post.html", import.meta.url), { location: { search: copied.search } });
+  t.after(() => post.restore());
+  const requested = [];
+  globalThis.fetch = async (url) => {
+    requested.push(String(url));
+    if (String(url) === `/api/social-posts/${SAVED_ID}`) {
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          post: {
+            id: SAVED_ID,
+            author: "Remy",
+            content: "Ring landed on every control.",
+            caption: "A card wrapped in a blue focus ring.",
+            timestamp: new Date(NOW).toISOString(),
+            source: "shiplog-web",
+            image_url: "/media/focus-ring.svg",
+            image_alt: "A card wrapped in a blue focus ring",
+            image_width: 1200,
+            image_height: 900,
+          },
+        }),
+      };
+    }
+    throw new Error(`Unexpected request: ${url}`);
+  };
+  await importPageModule("/post-page.js");
+  await waitFor(
+    () => post.document.documentElement.dataset.shiplogPostDetail === "ready",
+    "the post page settled for the copied address",
+  );
+
+  assert.ok(requested.includes(`/api/social-posts/${SAVED_ID}`), "the copied id is what the page looked up");
+  const panel = post.document.querySelector("#post-detail");
+  // The post that was just published: its text, its image, and the display name
+  // it was published under.
+  assert.match(textOf(panel), /Ring landed on every control\./);
+  assert.match(textOf(panel), /Remy/);
+  const images = panel.querySelectorAll("img");
+  assert.equal(images.length, 1);
+  // Properties, not attributes: the renderer assigns them and this harness
+  // reflects neither back into markup.
+  assert.equal(images[0].src, "/media/focus-ring.svg");
+  assert.equal(images[0].alt, "A card wrapped in a blue focus ring");
 });
 
 test("a long caption is shortened in the confirmation rather than repeated whole", () => {

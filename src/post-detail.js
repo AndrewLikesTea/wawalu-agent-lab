@@ -21,7 +21,7 @@
 import { captionFor, countLabel, profileHref } from "./profile.js";
 import { renderImageUnavailable } from "./image-description.js";
 import { pageTitle } from "./page-title.js";
-import { postDetailHref } from "./social-links.js";
+import { POST_COPY_LABEL, postDetailHref, postPermalink } from "./social-links.js";
 import { SHARE_COPIED_STATUS, SHARE_COPY_FAILED_STATUS, copyRecordUrl } from "./share-link.js";
 import { normalizeImage } from "./social.js";
 
@@ -373,29 +373,13 @@ export const POST_LOADED_DESCRIPTION = "This shared post shows the display name 
 // that names what it copies, a status line beside it that says what happened,
 // and the site's shared .share-control/.share-button/.share-status treatment, so
 // no new stylesheet rule is spent on a control this site already draws.
-export const POST_COPY_LABEL = "Copy link to this post";
-
-// The address the button hands over, rebuilt rather than read back off the
-// address bar. postDetailHref is the one URL shape /post.html reads its post out
-// of (src/social-links.js) and it puts the id through URLSearchParams, so an id
-// that arrived over the wire is encoded rather than concatenated: it cannot open
-// a second parameter, a fragment, or a scheme of its own. What comes out is the
-// canonical link to this one post — no ?author=, no ?from=, because those are
-// how one reader got here and not part of the post.
 //
-// No origin, no link: a URL that cannot be resolved absolutely is no use pasted
-// into a chat window, so the control is withdrawn rather than left to hand over
-// something broken. That is the same rule the deployment record's copy button
-// follows in src/deployed-release-view.js.
-export function postPermalink(id, origin) {
-  const wanted = String(id ?? "").trim();
-  if (!wanted) return "";
-  try {
-    return new URL(postDetailHref(wanted), origin).href;
-  } catch {
-    return "";
-  }
-}
+// The label and the address it hands over now live in src/social-links.js, next
+// to the href shape they are built from: Social's publish confirmation offers
+// the same control over the same post the moment it is created, and two owners
+// for one address is two answers to "what is this post's link". Re-exported
+// here, so every caller that learned them from this module is unchanged.
+export { POST_COPY_LABEL, postPermalink };
 
 // A real <button>, so it is in the natural tab order and takes the site's own
 // focus ring with no extra rule — and so the clipboard is written under an
