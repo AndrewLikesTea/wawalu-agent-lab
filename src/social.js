@@ -23,7 +23,13 @@
 // profile remembers cannot drift apart.
 import { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH, readStoredAuthor, rememberAuthor } from "./social-identity.js";
 import { imageDescription, renderDescriptionNote, renderImageUnavailable } from "./image-description.js";
-import { OPEN_POST_LABEL, peopleImagePostsLabel, postDetailHref, profileHref } from "./social-links.js";
+import { OPEN_POST_LABEL, POST_COPY_LABEL, peopleImagePostsLabel, postDetailHref, postPermalink, profileHref } from "./social-links.js";
+// The clipboard call and the two sentences a copy control is allowed to report,
+// shared with the permalink's own control on /post.html and with the copy
+// controls on Releases. Imported rather than restated: a confirmation that
+// reported success in its own words would be a third spelling of a sentence this
+// site already says.
+import { SHARE_COPIED_STATUS, SHARE_COPY_FAILED_STATUS, copyRecordUrl } from "./share-link.js";
 import { renderFeedStatus, feedPhase, feedPresence, filtersAvailable, setFilterAvailability, FILTERS_UNAVAILABLE_HINT } from "./feed-status.js";
 
 export { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH };
@@ -296,6 +302,15 @@ export const PUBLISH_STATE_WORDS = Object.freeze({ filtered: "Hidden by filters"
 export const FILTERED_OUT_NOTE = "Your current filters hide this post from the feed below.";
 export const REVEAL_CONTROL_LABEL = "Clear filters and show this post";
 export const NO_IMAGE_NOTE = "This post carries no image, so it appears on Social only.";
+
+// Said in place of the link, and only when there is genuinely no link to say:
+// the publish response carried no post id, or there is no origin to resolve one
+// against. Decided from the response, never from a render that went wrong — so
+// the confirmation either hands over a working address or admits it has none.
+// It still says the post was published (publishedPostLabel above says so first)
+// and it says where the post is, because the feed on this page is the one place
+// left that can show it.
+export const PUBLISH_NO_LINK_NOTE = "This post has no link of its own yet. Find it in the feed below.";
 export const PUBLISH_FAILED_NOTE = "Your post, image, and image description are still in the composer, exactly as you left them.";
 
 // …and the sentence that says what to do with them. Said only where it is true:
@@ -1215,6 +1230,42 @@ export function mountSocialFeed(root, options = {}) {
   // wash whose label carries the word, never a wash on its own.
   const stateChip = (word, variant) => el("span", `detail-state-chip ${variant}`, word);
 
+  // Handing the address over, for the reader whose next move is to paste the
+  // post somewhere this site never sees. Same shape as the control on the
+  // permalink itself and on the deployment record: a native <button>, so it is
+  // in the tab order with the site's own focus ring and the clipboard is only
+  // written under an explicit activation, the shared
+  // .share-control/.share-button/.share-status treatment, so no new stylesheet
+  // rule is spent, and the two shared sentences for what happened.
+  //
+  // A <span> rather than a <div>: this control is appended to #social-notice,
+  // which is a <p>, and .share-control gives it the same flex row either way.
+  //
+  // The status carries no live region of its own. #social-notice is already
+  // role="status" aria-live="polite" aria-atomic="true", so writing into it is
+  // announced; a nested region here would be a second announcement of the same
+  // result. Nothing touches the clipboard on render.
+  const copyControl = (url) => {
+    const group = el("span", "share-control");
+    const button = el("button", "share-button", POST_COPY_LABEL);
+    button.type = "button";
+    button.id = "publish-copy";
+    button.setAttribute("aria-describedby", "publish-copy-status");
+    const status = el("span", "share-status", "");
+    status.id = "publish-copy-status";
+    button.addEventListener("click", async () => {
+      button.disabled = true;
+      status.textContent = "";
+      // Read at press time, not at render time: a page can render before a
+      // browser has a clipboard to offer, and a test injects one either way.
+      const copied = await copyRecordUrl(options.clipboard ?? globalThis.navigator?.clipboard, url);
+      status.textContent = copied ? SHARE_COPIED_STATUS : SHARE_COPY_FAILED_STATUS;
+      button.disabled = false;
+    });
+    group.append(button, status);
+    return group;
+  };
+
   // What a reader gets back for pressing Publish. Everything in it is derived
   // from the post the API actually returned — the permalink is built from that
   // row's id, never reconstructed from the caption or the clock — and whether
@@ -1226,12 +1277,28 @@ export function mountSocialFeed(root, options = {}) {
   const showConfirmation = (saved, { hasImage, focus = true }) => {
     if (!notice) return;
     const hiddenByFilters = !postMatchesFilters(saved, { author: nameFilter?.value, range: timeFilter?.value });
+    // The one address this confirmation is allowed to hand over: the canonical
+    // permalink, built from the id the response returned and resolved against
+    // this origin — the same construction, from the same function, that the
+    // permalink page's own copy control uses (src/social-links.js). The link the
+    // reader clicks and the address the button copies are therefore the same
+    // string, not two spellings of the same post.
+    //
+    // A response that yields no id, or an origin that will not resolve, produces
+    // "" here and nothing below draws a link or a copy control from it. That is
+    // read off the data before anything is rendered: no href="", no href="#",
+    // and no control that looks pressable and copies nothing.
+    const permalinkUrl = postPermalink(saved.id, (options.location ?? globalThis.window?.location)?.origin);
 
     notice.replaceChildren(document.createTextNode(`${publishedPostLabel(saved)} `));
-    const permalink = document.createElement("a");
-    permalink.href = postDetailHref(saved.id, saved.author);
-    permalink.textContent = "Open the post’s permalink";
-    notice.append(permalink, document.createTextNode(". "));
+    if (permalinkUrl) {
+      const permalink = document.createElement("a");
+      permalink.href = permalinkUrl;
+      permalink.textContent = "Open the post’s permalink";
+      notice.append(permalink, document.createTextNode(". "));
+    } else {
+      notice.append(document.createTextNode(`${PUBLISH_NO_LINK_NOTE} `));
+    }
 
     if (hasImage) {
       // An image post is the only kind People shows, so that link is offered
@@ -1262,6 +1329,10 @@ export function mountSocialFeed(root, options = {}) {
       });
       notice.append(reveal);
     }
+
+    // Last, and only when there is an address to hand over: reading comes first,
+    // the act of passing the post on comes after it.
+    if (permalinkUrl) notice.append(document.createTextNode(" "), copyControl(permalinkUrl));
 
     notice.classList.add("is-success");
     notice.hidden = false;

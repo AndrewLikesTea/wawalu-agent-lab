@@ -30,6 +30,37 @@ export function postDetailHref(id, author = "", from = "") {
   return `/post.html?${params}`;
 }
 
+// What a control that copies a post's address is called, and the address it
+// hands over. Both were owned by src/post-detail.js, which built the first one
+// of these controls; they moved here when the publish confirmation in
+// src/social.js grew the second, because post-detail.js imports social.js and
+// the reverse import would have closed a cycle. Same reason OPEN_POST_LABEL
+// lives here: two surfaces print it, and a second wording on one of them would
+// be a second promise about the same address.
+export const POST_COPY_LABEL = "Copy link to this post";
+
+// The address the button hands over, built rather than read back off the address
+// bar. postDetailHref above is the one URL shape /post.html reads its post out
+// of, and it puts the id through URLSearchParams, so an id that arrived over the
+// wire is encoded rather than concatenated: it cannot open a second parameter, a
+// fragment, or a scheme of its own. What comes out is the canonical link to this
+// one post — no ?author=, no ?from=, because those are how one reader got here
+// and not part of the post.
+//
+// No origin, no link: a URL that cannot be resolved absolutely is no use pasted
+// into a chat window, so the surfaces that carry one withdraw the control rather
+// than hand over something broken. That is the same rule the deployment record's
+// copy button follows in src/deployed-release-view.js.
+export function postPermalink(id, origin) {
+  const wanted = String(id ?? "").trim();
+  if (!wanted) return "";
+  try {
+    return new URL(postDetailHref(wanted), origin).href;
+  } catch {
+    return "";
+  }
+}
+
 export function profileHref(author) {
   return `/profile.html?author=${encodeURIComponent(String(author ?? ""))}`;
 }
