@@ -5,13 +5,16 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { byClass, createElement, first, ids, installDocument, tags, walk } from "./support/dom.js";
+// The one owner of the label Social prints on the control that opens its
+// composer, and the source both of People's offers of that trip are built from.
+import { PUBLISH_POST_LABEL } from "../src/social-links.js";
 
 installDocument();
 
 const { FEED_LOADING_LINE } = await import("../src/social.js");
 
 const {
-  EMPTY_SUMMARY_LINE, PENDING_RESULTS_HEADING, PROFILE_EMPTY_COPY, authorChipLabel, authorInitials, captionFor, countLabel, defaultProfileAuthor,
+  EMPTY_SUMMARY_LINE, PENDING_RESULTS_HEADING, PROFILE_EMPTY_COPY, PUBLISH_ON_SOCIAL, authorChipLabel, authorInitials, captionFor, countLabel, defaultProfileAuthor,
   distinctAuthors, hasExplicitAuthor, imagePostCounts, loadingSummaryText,
   mergePostsById, normalizeProfileApiPosts, normalizeSeedPosts, pickerEntries, pickerNoteText, postDetailHref,
   singleNameNotice, profileActiveFilterLine,
@@ -435,7 +438,7 @@ test("the first load reserves a skeleton grid instead of a blank panel", () => {
   // caption, metadata, and action hierarchy without claiming six fetched posts.
   assert.equal(skeleton.getAttribute("aria-hidden"), "true");
   assert.equal(skeleton.getAttribute("inert"), "");
-  assert.equal(status.textContent, "Image posts are loading. Open Social to publish an image post.");
+  assert.equal(status.textContent, "Image posts are loading. Publish a post on Social to add one.");
   assert.equal(byClass(skeleton, "profile-tile-skeleton").length, 6);
   assert.equal(byClass(skeleton, "skeleton-media-square").length, 6);
   assert.equal(byClass(skeleton, "skeleton-meta").length, 6);
@@ -582,7 +585,7 @@ test("the People picker and the page's own description use one term for what is 
   // the term and the link rather than to the whole sentence, which is the helper
   // beside the grid and is worded with Social's composer.
   assert.match(html, /A published post with an image appears on People, under the display name you publish it with\./);
-  assert.match(html, /Write a post on Social<\/a>, fill in the required image description, and publish it\./);
+  assert.match(html, /Publish a post on Social<\/a>, fill in the required image description, and publish it\./);
   const social = await readFile(new URL("../src/social.html", import.meta.url), "utf8");
   assert.match(social, /<label for="post-author">Display name <span class="label-optional">\(optional\)<\/span><\/label>/,
     "the composer names the same thing the picker selects");
@@ -781,8 +784,51 @@ test("the zero state does not vary with what the rest of the feed holds", () => 
 });
 
 test("the waiting line names image posts once without duplicating the selected display name", () => {
-  assert.equal(loadingSummaryText(), "Image posts are loading. Open Social to publish an image post.");
-  assert.equal(loadingSummaryText("Zed"), "Image posts are loading. Open Social to publish an image post.");
+  assert.equal(loadingSummaryText(), "Image posts are loading. Publish a post on Social to add one.");
+  assert.equal(loadingSummaryText("Zed"), "Image posts are loading. Publish a post on Social to add one.");
+});
+
+// People cannot publish anything, so both places it sends a visitor to Social —
+// the wait over the grid and the publishing step in the helper beside it — name
+// a control that is declared in another file. They used to name two, and neither
+// was on Social: the wait said "Open Social to publish an image post" and the
+// step said "Write a post on Social", while the button that opens the composer
+// read something else again (#2181). Comparing People's two strings to each
+// other would not have caught that, so the label is read off Social's own
+// control and the assertions run against what that control prints.
+test("People names Social's composer control in the words Social prints on it", async () => {
+  const social = await readFile(new URL("../src/social.html", import.meta.url), "utf8");
+  const opener = social.match(/<button[^>]*id="post-compose-open"[^>]*>([^<]*)<\/button>/);
+  assert.notEqual(opener, null, "Social ships no control that opens the composer");
+  const composerLabel = opener[1].trim();
+  // Both halves, so a control that renders nothing cannot satisfy this on an
+  // empty string that every sentence contains.
+  assert.ok(composerLabel.length > 0, "Social's composer control renders no label");
+  assert.equal(PUBLISH_POST_LABEL, composerLabel,
+    "the shared publish label drifted from the button Social renders");
+
+  // People's one phrase for the trip is that label plus the page it is on: the
+  // destination is named because the control is on another page, and nothing
+  // else is added, so a reader who follows either offer meets those words.
+  assert.equal(PUBLISH_ON_SOCIAL, `${composerLabel} on Social`);
+  assert.equal(loadingSummaryText(), `Image posts are loading. ${PUBLISH_ON_SOCIAL} to add one.`);
+
+  const html = await readFile(new URL("../src/profile.html", import.meta.url), "utf8");
+  const step = html.match(/<a class="text-link" id="profile-publish-route" href="([^"]*)">([^<]*)<\/a>/);
+  assert.notEqual(step, null, "People offers the publishing step as something other than a link");
+  // The link's whole text is the accessible name, so the name a screen reader
+  // announces is the same findable action the sighted reader is given.
+  assert.equal(step[2], PUBLISH_ON_SOCIAL);
+  assert.equal(step[1], "/social.html#post-form", "the step stopped pointing at Social's composer");
+  assert.equal(html.includes(loadingSummaryText()), true,
+    "the authored wait drifted from the one the module writes over it");
+
+  // And the retired name is gone from both of People's layers: the paragraph a
+  // visitor reads before hydration, and the sentence the module renders.
+  const invitation = html.match(/<p class="feed-create hint">([\s\S]*?)<\/p>/)[1];
+  assert.doesNotMatch(invitation, /Write a post/, "People still names a control Social does not have");
+  assert.doesNotMatch(loadingSummaryText(), /Write a post|Open Social/,
+    "the wait still names the trip a second way");
 });
 
 test("the profile page's static copy does not drift from the module's", async () => {
@@ -800,7 +846,7 @@ test("the profile page's static copy does not drift from the module's", async ()
   assert.doesNotMatch(html, new RegExp(retiredEmptyLine("Ari")));
   // People's one retrieval status names the content type; the heading already
   // names the selected display name.
-  assert.equal(loadingSummaryText("Ari"), "Image posts are loading. Open Social to publish an image post.");
+  assert.equal(loadingSummaryText("Ari"), "Image posts are loading. Publish a post on Social to add one.");
   // And the connection line ships wordless. Its promise used to be authored
   // above the status that says the image posts are still loading, so the frame
   // with nothing in it made a promise and then admitted it had nothing — two

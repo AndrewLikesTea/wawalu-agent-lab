@@ -17,6 +17,16 @@
 // naming a control the reader cannot find.
 export const OPEN_POST_LABEL = "Open post";
 
+// What Social prints on the control that opens its composer, owned here for the
+// same reason OPEN_POST_LABEL is: both pages say these three words back to a
+// reader — Social's own waiting and empty lines, and People's route into the
+// composer — and a second wording on one of them sends a visitor to Social
+// looking for a control that is not there. People used to say "Write a post on
+// Social", which was that exact failure. The button that renders the label is
+// authored in src/social.html (#post-compose-open); the pages that only name it
+// take it from here.
+export const PUBLISH_POST_LABEL = "Publish a post";
+
 // `from` is provenance, written by the surface that links to the post so the
 // detail page can offer one back link that names where the reader actually came
 // from. Same parameter, same value, same defaulting rule as profilePaintHref in

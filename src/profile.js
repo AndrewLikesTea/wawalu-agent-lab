@@ -23,7 +23,7 @@
 //      on the image inside the link when the tile is read rather than listed.
 
 import { connectionStatusLine, normalizeImage } from "./social.js";
-import { OPEN_POST_LABEL, postDetailHref, profileHref } from "./social-links.js";
+import { OPEN_POST_LABEL, PUBLISH_POST_LABEL, postDetailHref, profileHref } from "./social-links.js";
 import { imageDescription, renderDescriptionNote, renderImageUnavailable } from "./image-description.js";
 import { renderFeedStatus, feedPhase, feedPresence, setFilterAvailability } from "./feed-status.js";
 import { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH } from "./social-identity.js";
@@ -340,12 +340,20 @@ export function profileEmptyText(author) {
   return `The display name “${name}” has no image posts yet.`;
 }
 
+// The one phrase People uses for the trip to Social's composer, in both places
+// it offers that trip: this status while the grid loads, and the publishing step
+// in the .feed-create hint (src/profile.html). It is Social's own control label
+// plus the page that renders it, so a reader who follows either one arrives at a
+// button reading exactly those words. People used to send the same reader twice
+// under two names — "Open Social to publish an image post" here and "Write a
+// post on Social" in the hint — and neither was a control Social has.
+export const PUBLISH_ON_SOCIAL = `${PUBLISH_POST_LABEL} on Social`;
+
 // The grid's first-load status says exactly what People is retrieving, and then
 // where a visitor publishes one of them — this page has no composer, so the next
-// action it can honestly name is on Social. "Open Social" is the page's own
-// phrase for that route (the lede above the feed already uses it), and the nav
-// link it names is on screen in this state, unlike the .feed-create hint, which
-// feedPresence() removes while the fetch is open.
+// action it can honestly name is on Social. It names the destination as well as
+// the control because the nav link to Social is on screen in this state, unlike
+// the .feed-create hint, which feedPresence() removes while the fetch is open.
 //
 // `author` is accepted for call-site symmetry with the other status builders and
 // deliberately not used: the heading directly above carries the selected display
@@ -355,7 +363,7 @@ export function profileEmptyText(author) {
 // the frame before hydration, where it once shipped "Ari hasn't posted an image
 // yet", a verdict that was false for the seeded feed.
 export function loadingSummaryText(author = DEFAULT_AUTHOR) {
-  return "Image posts are loading. Open Social to publish an image post.";
+  return `Image posts are loading. ${PUBLISH_ON_SOCIAL} to add one.`;
 }
 
 // The counts line when the selected display name has nothing to show. It states
