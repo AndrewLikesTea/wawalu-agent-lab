@@ -9,6 +9,7 @@ import { byClass, createElement, first, ids, installDocument, tags, walk } from 
 installDocument();
 
 const {
+  POST_COPY_LABEL,
   POST_EXITS,
   POST_LOADING_STATUS,
   POST_LOADED_DESCRIPTION,
@@ -21,8 +22,16 @@ const {
   postPageHeading,
   postPeopleHref,
   postPeopleLabel,
+  postPermalink,
   renderPostDetail,
 } = await import("../src/post-detail.js");
+
+const { SHARE_COPIED_STATUS, SHARE_COPY_FAILED_STATUS } = await import("../src/share-link.js");
+
+// The copy handler is async twice over — the listener awaits the clipboard write
+// — so a click is followed by a turn of the loop rather than by a fixed number
+// of resolved promises.
+const settled = () => new Promise((resolve) => { setTimeout(resolve, 0); });
 
 const post = {
   id: "p-image",
@@ -870,4 +879,126 @@ test("the post page's nav lists the profile destination once", async () => {
   const html = await readFile(new URL("../src/post.html", import.meta.url), "utf8");
   const nav = html.match(/<nav class="site-nav"[\s\S]*?<\/nav>/)[0];
   assert.equal([...nav.matchAll(/>People</g)].length, 1, "People appears twice in the post page nav");
+});
+
+/* ------------------------ copying this post's link ------------------------ */
+
+const ORIGIN = "https://labs.wawalu.org";
+const copying = (writeText) => ({ location: { origin: ORIGIN }, clipboard: writeText ? { writeText } : {} });
+
+// The address the button hands over. Pinned at the function as well as through a
+// render, because this is the one value in the feature a reader can carry away
+// and paste somewhere this site never sees.
+test("the copied address is this post's own canonical permalink", () => {
+  assert.equal(postPermalink("p-image", ORIGIN), `${ORIGIN}/post.html?id=p-image`);
+  // An id that arrived over the wire is encoded through URLSearchParams, never
+  // concatenated: it cannot open a parameter, a fragment or a scheme of its own.
+  assert.equal(postPermalink("p&from=evil#x", ORIGIN), `${ORIGIN}/post.html?id=p%26from%3Devil%23x`);
+  // Nothing to copy is nothing to offer, rather than a broken or relative link.
+  assert.equal(postPermalink("", ORIGIN), "");
+  assert.equal(postPermalink("p-image", ""), "");
+  assert.equal(postPermalink(null, ORIGIN), "");
+});
+
+test("a loaded post offers one control that copies its own link", async () => {
+  const container = createElement("div");
+  let copied = null;
+  renderPostDetail(container, post, copying(async (value) => { copied = value; }));
+
+  const buttons = tags(container, "BUTTON");
+  assert.equal(buttons.length, 1, "one control, not a row of them");
+  const button = buttons[0];
+  assert.equal(button.textContent, "Copy link to this post");
+  assert.equal(button.textContent, POST_COPY_LABEL);
+  // The visible words are the accessible name: no aria-label standing in for
+  // something the eye cannot read.
+  assert.equal(button.getAttribute("aria-label"), null);
+  // A button, so it is focusable already — no tabindex was invented for it.
+  assert.equal(button.type, "button");
+  assert.equal(button.getAttribute("tabindex"), null);
+  // The site's shipped control treatment, which is also its focus ring.
+  assert.ok(button.classes.includes("share-button"));
+
+  // Rendering copies nothing. The clipboard is only written under an activation.
+  assert.equal(copied, null, "the page wrote to the clipboard without being asked");
+  const status = first(container, "share-status");
+  assert.equal(status.textContent, "");
+
+  button.dispatch("click");
+  await settled();
+  assert.equal(copied, `${ORIGIN}/post.html?id=p-image`);
+  assert.equal(copied, postPermalink(post.id, ORIGIN));
+  // The confirmation is the site's existing one, not a second wording of it.
+  assert.equal(status.textContent, "Link copied to clipboard.");
+  assert.equal(status.textContent, SHARE_COPIED_STATUS);
+  assert.equal(status.getAttribute("role"), "status");
+  assert.equal(status.getAttribute("aria-live"), "polite");
+  assert.equal(button.getAttribute("aria-describedby"), status.id);
+  assert.equal(button.disabled, false, "the control is pressable again once it has reported");
+});
+
+// A browser that refuses the clipboard is a state, not a silence: the control
+// says so and names what to do instead, in the words share-link.js already uses.
+test("a refused clipboard is reported where the confirmation would have been", async () => {
+  const container = createElement("div");
+  renderPostDetail(container, post, copying(null));
+  tags(container, "BUTTON")[0].dispatch("click");
+  await settled();
+  assert.equal(first(container, "share-status").textContent, SHARE_COPY_FAILED_STATUS);
+  assert.match(first(container, "share-status").textContent, /Could not copy the link/);
+});
+
+// The one guard that matters: three of this page's four states have no post, so
+// none of them may offer to copy a link to one.
+test("only a loaded post offers a link to copy", () => {
+  const cases = [
+    ["loading", null, { state: "loading", id: "p-image" }],
+    ["not-found", null, { state: "ready", id: "p-gone" }],
+    ["id-less", null, { state: "ready", id: "" }],
+    ["error", null, { state: "error", id: "p-image" }],
+  ];
+  for (const [name, value, options] of cases) {
+    const container = createElement("div");
+    renderPostDetail(container, value, { ...options, location: { origin: ORIGIN } });
+    assert.equal(byClass(container, "share-button").length, 0, `${name}: nothing here has a link worth copying`);
+    assert.equal(byClass(container, "share-status").length, 0, `${name}: a confirmation with nothing to confirm`);
+    assert.equal(container.textContent.includes(POST_COPY_LABEL), false, `${name}: the label survived into a state with no post`);
+  }
+});
+
+// Document order is the whole of the keyboard-order claim here: the control sits
+// after the post's own content, and #post-detail sits above the page's routes
+// out in src/post.html, so the reader meets the post, then the one thing to do
+// with it, then the ways off the page.
+test("the copy control follows the post's content in the region's document order", () => {
+  const container = createElement("div");
+  renderPostDetail(container, post, copying(async () => {}));
+  const order = walk(container, () => true);
+  const article = first(container, "detail-post");
+  const control = first(container, "share-control");
+  assert.ok(order.indexOf(article) < order.indexOf(control), "the post reads before the control that copies it");
+  assert.ok(order.indexOf(first(article, "detail-byline")) < order.indexOf(control));
+  assert.ok(order.indexOf(first(article, "detail-stats")) < order.indexOf(control));
+  // And it belongs to the post's region rather than to the page frame, so every
+  // re-render takes it with the post it was about.
+  assert.equal(control.parent, container);
+  // The confirmation lands in that same region, beside the control.
+  assert.equal(first(container, "share-status").parent, control);
+});
+
+// A shared link often carries the provenance a feed wrote into it. What gets
+// copied is the post, not one visitor's route to it.
+test("the copied link drops the provenance the arriving link carried", async () => {
+  const container = createElement("div");
+  let copied = null;
+  renderPostDetail(container, post, {
+    ...copying(async (value) => { copied = value; }),
+    id: "p-image",
+    author: "Mina Okafor",
+  });
+  tags(container, "BUTTON")[0].dispatch("click");
+  await settled();
+  assert.equal(copied, `${ORIGIN}/post.html?id=p-image`);
+  assert.equal(copied.includes("author="), false);
+  assert.equal(copied.includes("from="), false);
 });
