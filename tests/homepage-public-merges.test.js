@@ -16,6 +16,7 @@ import test from "node:test";
 import { loadActivity } from "../src/agents.js";
 import {
   COUNTED_SUBJECT_SENTENCE,
+  COUNT_IT_YOURSELF_SENTENCE,
   EVENTS_URLS,
   SOURCE_REPOSITORIES,
   UNAVAILABLE_REASONS,
@@ -155,6 +156,12 @@ test("the count's verification links are the observatory's, and the feeds it was
   }
 });
 
+// #2171: the words a reader meets while the count is still being taken. It is
+// authored copy — the block's one state no response has painted yet — so it is
+// typed here, like the claim sentence below, and read back off the served
+// document and off a page whose request has not resolved.
+const IN_PROGRESS_SENTENCE = "Counting the merged pull requests from public GitHub now.";
+
 // Every way GitHub can fail to answer, and the one thing they must all do:
 // state what happened, in words, and render nothing that looks like a figure.
 const FAILURES = [
@@ -179,11 +186,23 @@ for (const [what, fetcher, reason] of FAILURES) {
     const section = page.document.querySelector("#public-merges");
     assert.equal(section.dataset.state, "unavailable");
     // Two sentences, both announced by the live region: the absence, and then
-    // what was being counted. A reader must not be left with the absence alone.
+    // where to go and count it. A reader must not be left with the absence
+    // alone, and neither sentence may be the one the page ships while it is
+    // still counting — #2171: a failure and a request in flight are different
+    // states, and the words are how a reader tells them apart.
     const said = page.document.querySelector("#public-merges-readout").querySelectorAll("p").map(textOf);
-    assert.deepEqual(said, [unavailableSentence(reason), COUNTED_SUBJECT_SENTENCE]);
+    assert.deepEqual(said, [unavailableSentence(reason), COUNT_IT_YOURSELF_SENTENCE]);
     assert.match(said[1], /merged pull requests/, `${what} did not say what was being counted`);
     for (const repository of SOURCE_REPOSITORIES) assert.ok(said[1].includes(repository));
+    for (const sentence of said) {
+      assert.ok(!sentence.includes(IN_PROGRESS_SENTENCE) && !IN_PROGRESS_SENTENCE.includes(sentence),
+        `${what} left a sentence a reader cannot tell from "still counting"`);
+    }
+    // It sends them to the feeds this block already carries, rather than
+    // announcing a control the block does not have.
+    assert.match(said[1], /public GitHub event feeds linked below/);
+    assert.doesNotMatch(textOf(section), /\b(try again|retry|reload|refresh)\b/i,
+      `${what} offered a control this block does not have`);
 
     // And the way to check it yourself is still on the page, unchanged: same
     // feeds, same words, whether or not a number ever arrived.
@@ -263,7 +282,7 @@ test("the feed links are real anchors a keyboard reaches, after the sentence tha
     "the way to count it yourself comes before the sentence explaining it");
 });
 
-test("a response still in flight shows the reason, never a placeholder digit", async (t) => {
+test("a response still in flight says it is counting, never a placeholder digit", async (t) => {
   const page = await loadPage(HOME_URL, {});
   t.after(() => page.restore());
   let answer;
@@ -277,6 +296,14 @@ test("a response still in flight shows the reason, never a placeholder digit", a
   const section = page.document.querySelector("#public-merges");
   assert.equal(section.dataset.state ?? section.getAttribute("data-state"), "unavailable");
   assert.doesNotMatch(textOf(section), /\d/, "a slow response flashed a digit a reader could quote");
+  // #2171: the page's one honest number is being fetched, and the block says so
+  // — work in progress, not a figure that is missing. Read off the live region
+  // of a page whose request has not resolved, which is the state a first-time
+  // visitor actually lands in.
+  const waiting = page.document.querySelector("#public-merges-readout").querySelectorAll("p").map(textOf);
+  assert.deepEqual(waiting, [IN_PROGRESS_SENTENCE, COUNTED_SUBJECT_SENTENCE]);
+  assert.doesNotMatch(waiting[0], /no count|could not|did not|not answer/i,
+    "the block reads like a dead end while it is still counting");
   // The links are already there, so a reader who gives up waiting can still go
   // and count it themselves.
   assert.equal(anchorsIn(page.document.querySelector("#public-merges-sources")).length, EVENTS_URLS.length);
@@ -284,6 +311,39 @@ test("a response still in flight shows the reason, never a placeholder digit", a
   answer();
   await loading;
   assert.match(textOf(page.document.querySelector("#public-merges-readout")), /^3 merged pull requests/);
+});
+
+// #2171, the other half: the same block, the same reader, one request later.
+// Whatever it says when the count could not be retrieved has to be a different
+// string from the one above — not a longer version of it, and not a prefix of
+// it — or "still counting" and "could not count" are one state to anybody
+// reading the page.
+test("counting and could-not-count are two sentences a reader can tell apart", async (t) => {
+  const page = await loadPage(HOME_URL, {});
+  t.after(() => page.restore());
+  const readout = page.document.querySelector("#public-merges-readout");
+  const before = readout.querySelectorAll("p").map(textOf);
+
+  await loadPublicMerges(page.document, async () => { throw new TypeError("Failed to fetch"); });
+  const after = readout.querySelectorAll("p").map(textOf);
+
+  assert.deepEqual(before, [IN_PROGRESS_SENTENCE, COUNTED_SUBJECT_SENTENCE]);
+  assert.deepEqual(after, [unavailableSentence(UNAVAILABLE_REASONS.unreachable), COUNT_IT_YOURSELF_SENTENCE]);
+  // Says plainly that the count could not be retrieved, and then where to get
+  // it — in the feeds this block already links, with no new control.
+  assert.match(after[0], /could not reach public GitHub/);
+  assert.match(after[1], /^Count the merged pull requests in .+ yourself, in the public GitHub event feeds linked below\.$/);
+  for (const sentence of after) {
+    assert.notEqual(sentence, IN_PROGRESS_SENTENCE);
+    assert.ok(!sentence.includes(IN_PROGRESS_SENTENCE) && !IN_PROGRESS_SENTENCE.includes(sentence),
+      `"${sentence}" cannot be told apart from the in-progress sentence`);
+  }
+  // Neither state names anything the block does not carry: one figure, one
+  // vocabulary, no second name for public GitHub or a merged pull request.
+  for (const sentence of [...before, ...after]) {
+    assert.doesNotMatch(sentence, /\d/, "a sentence with no count in it carries a digit");
+    assert.doesNotMatch(sentence, /\b(PRs?|GitHub API|repos)\b/, "a second name for something already named");
+  }
 });
 
 test("the document a visitor is served authors no figure and no link of its own", async () => {
@@ -294,8 +354,8 @@ test("the document a visitor is served authors no figure and no link of its own"
   assert.equal(section.getAttribute("data-state"), "unavailable",
     "the shipped state must be the one with no number in it");
   assert.deepEqual(document.querySelector("#public-merges-readout").querySelectorAll("p").map(textOf),
-    [unavailableSentence(UNAVAILABLE_REASONS.pending), COUNTED_SUBJECT_SENTENCE],
-    "the shipped sentences and the painted ones must be the same sentences");
+    [IN_PROGRESS_SENTENCE, COUNTED_SUBJECT_SENTENCE],
+    "the document must ship the in-progress sentences, and only those");
   assert.doesNotMatch(textOf(section), /\d/, "a figure is authored into the markup");
   assert.equal(anchorsIn(document.querySelector("#public-merges-sources")).length, 0,
     "the feed links must be built from the URLs the count is requested from, not typed");

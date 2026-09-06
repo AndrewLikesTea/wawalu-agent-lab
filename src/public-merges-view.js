@@ -15,8 +15,8 @@
 // named as an earlier count, when the next request does not answer. That is the
 // only number this block can show without a live response. There is no seed, no
 // default, and no constant: a browser that has never had an answer from GitHub
-// still gets the honest empty sentence, and the document still ships in that
-// state so a slow response cannot flash a placeholder digit.
+// still gets the honest empty sentence, and the document ships saying the count
+// is being taken now, so a slow response cannot flash a placeholder digit.
 //
 // NO FIGURE IS EVER UNDATED HERE. A live count carries the response time; a
 // retained one carries the sentence saying it is not live and the date it was
@@ -109,12 +109,13 @@ export function renderPublicMerges(root = document, result = {}) {
     readout.replaceChildren(value, source);
   } else {
     // Two sentences, because one of them is not enough to leave with. The first
-    // is the honest absence; the second says what was being counted and where a
-    // reader may go and count it, which is what the feed links below are for.
+    // is the honest absence; the second sends the reader to the feed links below
+    // to count it themselves. Together they replace the in-progress sentence the
+    // document ships with, and they say something different from it: a request
+    // that failed is not a request still running, and a reader must be able to
+    // tell which one they are looking at without watching the block change.
     // The live region announces both, so a reader who arrives after the failure
-    // hears the same thing a reader who was waiting hears. They are the shared
-    // module's sentences, so the observatory's empty state reads word for word
-    // the same as this one.
+    // hears the same thing a reader who was waiting hears.
     const [absence, subject] = unavailableSentences(result?.reason ?? UNAVAILABLE_REASONS.unreachable);
     value.textContent = absence;
     readout.replaceChildren(value);
