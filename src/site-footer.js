@@ -217,14 +217,17 @@ export const FOLLOW_UP_REDIRECT = Object.freeze({
  *
  * `offer` opens the block with OFFER — what asking gets a visitor who never read
  * the home page's answer to the same question.
+ *
+ * `followUpTopic` is always stated in prose. The read-only control that used to
+ * be its other shape lost its last page in #2168; tests hold that shape gone.
  */
 export function siteFooterMarkup(indent = "    ", {
-  redirect = null, followUpType = null, followUpTopic = null, statedTopic = false,
+  redirect = null, followUpType = null, followUpTopic = null,
   collapsedDemos = false, askMessage = false, offer = false,
 } = {}) {
   const contact = redirect ? [
     `    <a class="site-footer-redirect-link" href="${redirect.href}">${redirect.label}</a>`,
-  ] : contactFormLines(followUpType, followUpTopic, statedTopic, askMessage, offer);
+  ] : contactFormLines(followUpType, followUpTopic, askMessage, offer);
   const lines = [
     '<footer class="site-footer" id="site-footer" aria-labelledby="site-footer-title">',
     '  <div class="site-footer-inner">',
@@ -287,7 +290,7 @@ function messageFieldLines() {
   ];
 }
 
-function contactFormLines(followUpType, followUpTopic, stated, askMessage = false, offer = false) {
+function contactFormLines(followUpType, followUpTopic, askMessage = false, offer = false) {
   return [
     `    <p class="site-footer-invitation">${INVITATION}</p>`,
     '    <div class="site-footer-panel" id="site-footer-panel">',
@@ -295,14 +298,9 @@ function contactFormLines(followUpType, followUpTopic, stated, askMessage = fals
     // Why to ask, then what this request is about, then the fields: a visitor
     // reads the offer before the topic, and both before an address.
     ...(offer ? [`        <p class="site-footer-note" id="site-footer-offer">${OFFER}</p>`] : []),
-    ...(!followUpTopic ? [] : stated ? [
+    ...(followUpTopic ? [
       `        <p class="site-footer-note" id="site-footer-topic-note">This request is sent about the ${followUpTopic}.</p>`,
-    ] : [
-      '        <div class="site-footer-field">',
-      '          <label for="site-footer-topic">Follow-up topic</label>',
-      `          <input id="site-footer-topic" type="text" value="${followUpTopic}" readonly />`,
-      "        </div>",
-    ]),
+    ] : []),
     ...(askMessage ? messageFieldLines() : []),
     '        <div class="site-footer-field">',
     '          <label for="site-footer-email">Work email for your follow-up</label>',

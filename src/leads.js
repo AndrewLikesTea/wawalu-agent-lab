@@ -41,7 +41,10 @@ export const FOLLOW_UP_TOPICS = Object.freeze({
   follow_up_releases: "Releases page — every release and the decisions it carried",
   follow_up_social: "Social page — read short posts about what the team ships, or publish one",
   follow_up_people: "People page — pick a display name, see its image posts, newest first",
-  follow_up_agents: "Agent observatory page — synthetic engineering activity",
+  // Agent observatory named an activity rather than what the page lets a reader
+  // do, and it was the one entry that was not the footer's own words for its
+  // destination. It is DEMOS's clause now, like every other row here.
+  follow_up_agents: "Agent observatory page — watch a synthetic engineering team build and review work",
 });
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 

@@ -74,9 +74,11 @@ const describedBy = (document) => byId(document, "site-footer-email").getAttribu
 // page cannot quietly drop the contact affordance: dropping it is a decision
 // this table has to record, and src/site-footer.js has to offer copy for.
 //
-// `statedTopic` is the second shape a fixed topic takes: the pages a visitor
-// cannot choose a topic on say what the request is about in prose instead of in
-// a read-only control, so the block gains a sentence and no tab stop.
+// `followUpTopic` is the fixed topic the page's request carries, and it is
+// always stated in prose: a visitor cannot choose one anywhere, so the block
+// gains a sentence and no tab stop. It used to have a second shape — a
+// read-only control holding the same string — and issue #2168 moved the last
+// page (agents.html) off it, so the flag that selected between them is gone.
 //
 // `askMessage` is the fourth shape, and the one issue #2129 added: the block
 // offers the home page's optional question field above the work-email field, so
@@ -96,11 +98,11 @@ const describedBy = (document) => byId(document, "site-footer-email").getAttribu
 // a work address without saying what asking gets.
 const FOOTER_VARIANT = new Map([
   ["index.html", {
-    followUpType: "follow_up_homepage", followUpTopic: FOLLOW_UP_TOPICS.follow_up_homepage, statedTopic: true,
+    followUpType: "follow_up_homepage", followUpTopic: FOLLOW_UP_TOPICS.follow_up_homepage,
   }],
   ["executive-briefing.html", { redirect: FOLLOW_UP_REDIRECT.briefing }],
   ["coach.html", {
-    followUpType: "follow_up_coach", followUpTopic: FOLLOW_UP_TOPICS.follow_up_coach, statedTopic: true,
+    followUpType: "follow_up_coach", followUpTopic: FOLLOW_UP_TOPICS.follow_up_coach,
     askMessage: true, offer: true,
   }],
   // `collapsedDemos` is the third shape, and one page carries it: /post.html is
@@ -108,25 +110,47 @@ const FOOTER_VARIANT = new Map([
   // a closed disclosure. Recorded here rather than inferred, for the same reason
   // the redirect is: a page cannot quietly fold its site map away.
   ["post.html", {
-    followUpType: "follow_up_social", followUpTopic: FOLLOW_UP_TOPICS.follow_up_social, statedTopic: true,
+    followUpType: "follow_up_social", followUpTopic: FOLLOW_UP_TOPICS.follow_up_social,
     collapsedDemos: true, askMessage: true, offer: true,
   }],
   ["releases.html", {
-    followUpType: "follow_up_releases", followUpTopic: FOLLOW_UP_TOPICS.follow_up_releases, statedTopic: true,
+    followUpType: "follow_up_releases", followUpTopic: FOLLOW_UP_TOPICS.follow_up_releases,
     askMessage: true, offer: true,
   }],
   ["social.html", {
-    followUpType: "follow_up_social", followUpTopic: FOLLOW_UP_TOPICS.follow_up_social, statedTopic: true,
+    followUpType: "follow_up_social", followUpTopic: FOLLOW_UP_TOPICS.follow_up_social,
     askMessage: true, offer: true,
   }],
   ["profile.html", {
-    followUpType: "follow_up_people", followUpTopic: FOLLOW_UP_TOPICS.follow_up_people, statedTopic: true,
+    followUpType: "follow_up_people", followUpTopic: FOLLOW_UP_TOPICS.follow_up_people,
     askMessage: true, offer: true,
   }],
   ["agents.html", {
     followUpType: "follow_up_agents", followUpTopic: FOLLOW_UP_TOPICS.follow_up_agents, askMessage: true,
   }],
 ]);
+
+// The shape that is gone, held gone: no page of the site may ship a topic a
+// visitor can put a cursor in, and none may ship the label that stood over it.
+// Asserted against every page rather than against the module, because the
+// markup is hand-embedded per document — a page could keep the old block after
+// src/site-footer.js stopped generating it, and the byte-for-byte comparison
+// above only proves the generated footer is *somewhere* in the file.
+test("no page states its follow-up topic in a control instead of a sentence", async () => {
+  for (const file of PAGES) {
+    const html = await read(file);
+    assert.doesNotMatch(html, /id="site-footer-topic"/,
+      `${file}: the fixed topic is prose, not a field nobody can edit`);
+    assert.doesNotMatch(html, /<label for="site-footer-topic">Follow-up topic<\/label>/,
+      `${file}: a bare "Follow-up topic" label names no topic at all`);
+    // ...and a page that sends a topic still says which one, in the one sentence.
+    const topic = FOLLOW_UP_TOPICS[FOOTER_VARIANT.get(file)?.followUpType];
+    if (topic) {
+      assert.ok(html.includes(`This request is sent about the ${topic}.`),
+        `${file}: sends a fixed topic the page never names`);
+    }
+  }
+});
 
 test("every page of the site renders the footer, byte for byte from src/site-footer.js", async () => {
   for (const file of PAGES) {

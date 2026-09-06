@@ -11,8 +11,12 @@
 // Issue #1980 moved three of the four read-only controls onto this sentence too.
 // A control a visitor cannot edit is a control that owes them an explanation of
 // why it is there; the sentence owes them nothing, reads in one pass, and says
-// the same thing the request carries. The Agent observatory is the one page left
-// on the control, so the shape it uses is still exercised elsewhere.
+// the same thing the request carries. The Agent observatory was the one page
+// left on the control — and it named an activity rather than a page, so the
+// label above it read "Follow-up topic" over a topic nobody had been told the
+// point of. Issue #2168 moved it across too, which is why every page that sends
+// a topic is in the table below and the read-only shape is gone from
+// src/site-footer.js entirely; tests/site-footer.test.js holds it gone.
 //
 // What this file holds is the equality between the halves. The sentence on the
 // page and the value on the wire are compared to each other and to the shared
@@ -32,7 +36,9 @@ import { FOLLOW_UP_TOPICS } from "../src/leads.js";
 // The pages under test, and a page with the plain footer to measure them
 // against. The baseline is what the follow-up block looks like with no topic of
 // any kind, so the tab order it produces is the one the sentence must not change.
-const STATED = ["index.html", "post.html", "releases.html", "social.html", "profile.html", "coach.html"];
+const STATED = [
+  "index.html", "post.html", "releases.html", "social.html", "profile.html", "coach.html", "agents.html",
+];
 const BASELINE = "decision.html";
 
 /**
@@ -47,7 +53,9 @@ const BASELINE = "decision.html";
  * the markup — a visitor decides what to ask before deciding whether to pay for
  * the answer with a work address, and keyboard order is reading order.
  */
-const ASKS_MESSAGE = new Set(["releases.html", "social.html", "post.html", "profile.html", "coach.html"]);
+const ASKS_MESSAGE = new Set([
+  "releases.html", "social.html", "post.html", "profile.html", "coach.html", "agents.html",
+]);
 const MESSAGE_FIELD = "INPUT#site-footer-message";
 const withMessage = (baseline) => [MESSAGE_FIELD, ...baseline];
 const expectedStops = (file, baseline) => (ASKS_MESSAGE.has(file) ? withMessage(baseline) : baseline);
@@ -188,9 +196,19 @@ test("the stated topic is prose in the existing hint style, and costs no tab sto
   assert.equal(baselineStops.length, 3, `${BASELINE}: the plain follow-up block did not parse`);
 
   for (const file of STATED) {
-    const document = parseHtml(await read(file));
+    const html = await read(file);
+    const document = parseHtml(html);
     const note = document.getElementById("site-footer-topic-note");
     assert.equal(note.tagName, "P", `${file}: the topic must be a paragraph`);
+
+    // The shape the sentence replaced, held gone: no control carrying the topic,
+    // and no label announcing "Follow-up topic" over a topic it never names.
+    // `assert.ok(!node)` rather than a comparison against null — this harness
+    // walks a whole parsed page to render an element in a failure message.
+    assert.ok(!document.getElementById("site-footer-topic"),
+      `${file}: the fixed topic is a sentence, not a field a visitor cannot edit`);
+    assert.doesNotMatch(html, /<label for="site-footer-topic">Follow-up topic<\/label>/,
+      `${file}: a bare "Follow-up topic" label names no topic at all`);
 
     // The same hint role the privacy sentence already uses — no new class, and
     // therefore no new colour, size, or spacing to pay for in styles.css.
