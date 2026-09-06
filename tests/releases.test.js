@@ -511,6 +511,10 @@ const RETIRED_NAMES = [
   "The running build",
   "this real release",
   "the release record it was compared with",
+  // And the last one, which outlived those three: the badge beside the record's
+  // heading marked it "Current deployment record", so a reader still had to
+  // work out that the badge and the heading named one artifact.
+  "Current deployment record",
 ];
 
 test("the real record of this deployment has one name everywhere the page names it", async (t) => {
@@ -522,7 +526,9 @@ test("the real record of this deployment has one name everywhere the page names 
   // reader scanning headings meets first, the link that opens it, and the
   // control that hands over its address.
   assert.equal(textOf(page.document.querySelector("#shipped-build-title")), "Real record of this deployment");
-  assert.equal(textOf(page.document.querySelector("#shipped-build-marking")), "Current deployment record");
+  // The badge beside that heading is the same name, shortened to badge length,
+  // rather than the fourth name for the record this page used to carry.
+  assert.equal(textOf(page.document.querySelector("#shipped-build-marking")), "Real record");
   assert.equal(
     record.match(/Real record of this deployment/g)?.length,
     1,

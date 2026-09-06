@@ -54,8 +54,17 @@ export const DEPLOYED_RELEASE_ID = "deployed-build";
  */
 export const REAL_LABEL = "Real record of this deployment";
 
-/** The shorter marking beside the real record's heading. */
-export const REAL_MARKING = "Current deployment record";
+/**
+ * The shorter marking beside the real record's heading.
+ *
+ * It is REAL_LABEL's opening words, not a second name: the badge used to read
+ * "Current deployment record", which left one screen naming one artifact twice
+ * — a reader had to work out that the badge and the heading above it were the
+ * same record. The qualifier the badge drops is the one the heading it sits
+ * beside supplies, and what is left is the word that does the badge's job:
+ * real, as against the example records below.
+ */
+export const REAL_MARKING = "Real record";
 
 /** What the marking reads when the build is unstamped and there is no record. */
 export const NO_RECORD_LABEL = "This deployment records no commit";
