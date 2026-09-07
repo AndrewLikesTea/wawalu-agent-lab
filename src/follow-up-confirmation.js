@@ -1,20 +1,7 @@
-// The third state of a follow-up form: it landed. Written once, for both
-// work-email panels — the About Shiplog one in the footer (src/site-footer.js)
-// and the one under a FinOps brief (src/finops-contact.js) — so the two cannot
-// word a success differently.
-//
-//   1. Success is terminal until the visitor says otherwise. The form is hidden
-//      and its submit control disabled, so no click, key press, or tab stop can
-//      send twice; `sent` is checked by the submit handler too. Coming back is
-//      the reopen button, a deliberate act.
-//   2. The address is rendered as text. `textContent` is all this module writes,
-//      so nothing a visitor types can become a node.
-//
-// Announcement follows the panel rather than inventing a second pattern: the
-// surface's status paragraph carries the outcome sentence exactly as it does on
-// failure, and the receipt is a `role="status"` region too and takes focus. A
-// live region inserted already-populated is not reliably announced, so focus
-// landing on the receipt is what puts a reader inside it.
+// Shared receipt for follow-up forms. Success replaces the form until the
+// visitor explicitly reopens it. All submitted values are rendered as text.
+// Surfaces with a persistent outcome live region can disable receipt live
+// announcements while retaining its focus target and accessible details.
 
 /**
  * The receipt answers three questions and nothing else: whether the request was
@@ -54,7 +41,7 @@ function classBase(status) {
  * exists only after a request lands, so there is no hidden node for a screen
  * reader to find first.
  */
-export function createFollowUpConfirmation({ form, status, submit, email, onReopen = () => {} }) {
+export function createFollowUpConfirmation({ form, status, submit, email, onReopen = () => {}, announceReceipt = true }) {
   const document = form.ownerDocument;
   const base = classBase(status);
   const prefix = form.id.replace(/-form$/, "");
@@ -62,8 +49,11 @@ export function createFollowUpConfirmation({ form, status, submit, email, onReop
   const region = document.createElement("div");
   region.className = `${base}-confirmation`;
   region.id = `${prefix}-confirmation`;
-  region.setAttribute("role", "status");
-  region.setAttribute("aria-live", "polite");
+  // The shared footer already has a persistent outcome live region. Its
+  // focusable receipt supplies details without announcing the outcome twice.
+  region.setAttribute("role", announceReceipt ? "status" : "group");
+  if (announceReceipt) region.setAttribute("aria-live", "polite");
+  else region.setAttribute("aria-label", "Follow-up request details");
   // The focus target. Not a tab stop — a reader tabs out of it to the reopen
   // control, never back into a receipt they have already read.
   region.setAttribute("tabindex", "-1");
@@ -115,6 +105,8 @@ export function createFollowUpConfirmation({ form, status, submit, email, onReop
   function show(value, submittedTopic = "", messageProvided = false) {
     address.textContent = value;
     topic.textContent = submittedTopic ? `${TOPIC_LEAD}${submittedTopic}. ` : "";
+    detail.textContent = "";
+    detail.append(topic);
     detail.append(messageProvided ? CONFIRMATION_MESSAGE_DETAIL : CONFIRMATION_DETAIL);
     if (!region.parentNode) form.parentNode.insertBefore(region, form);
     // Hiding the form takes the field and both of its buttons out of the tab

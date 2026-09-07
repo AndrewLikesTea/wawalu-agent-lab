@@ -169,6 +169,12 @@ const CAPTURED = "Request sent to the Wawalu team. Your submitted work email was
 const ALREADY_CAPTURED = "Request sent to the Wawalu team. That work email was already recorded, so no duplicate row was added.";
 
 const SUBMITTING = "Requesting a follow-up — sending your email address…";
+
+// The in-flight name of the pressed action — the visible half of SUBMITTING —
+// then the `data-state` each submission state paints as. `null` paints none.
+export const PENDING_ACTION_LABEL = "Sending your request…";
+const STYLE_STATE = { idle: null, submitting: "submitting", success: "success", failure: "error" };
+
 const RECOVERY_GUIDANCE = "Retry the same request from this page. If it keeps failing, wait a few minutes and retry.";
 
 // What a failure is, before what it left behind: a visitor asks whether the
@@ -353,6 +359,30 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
   const retry = root.querySelector(`#${RETRY_ID}`);
   const actions = form.querySelector(".site-footer-actions");
 
+  // One authority for the submission state and the `data-state` that paints it,
+  // so no branch can advance one without the other. `styleState` is passed only
+  // where they differ: a refused address is idle and looks `invalid`.
+  let submissionState = "idle";
+  const idleLabels = [submit.textContent, retry?.textContent];
+  function setSubmissionState(next, styleState = STYLE_STATE[next]) {
+    submissionState = next;
+    form.dataset.submissionState = next;
+    if (styleState) form.dataset.state = styleState;
+    else delete form.dataset.state;
+    const busy = next === "submitting";
+    form.setAttribute("aria-busy", String(busy));
+    // aria-disabled, not `disabled`: the pressed control keeps its focus and its
+    // tab stop, and the submit listener's guard is what refuses a second send.
+    [submit, retry].forEach((button, index) => {
+      if (!button) return;
+      if (busy) button.setAttribute("aria-disabled", "true");
+      else button.removeAttribute("aria-disabled");
+      button.textContent = busy ? PENDING_ACTION_LABEL : idleLabels[index];
+    });
+  }
+  setSubmissionState("idle");
+  status.setAttribute("aria-atomic", "true");
+
   // The alternative route is built here rather than shipped in the markup, for
   // the reason the receipt is: a node that exists before anything has failed is
   // a node a screen reader can find and read out to a visitor who has not
@@ -392,25 +422,20 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
   // A failure is recovered here, on the page it happened on: the retry stands
   // where the send control was and submits this form again, value and all.
   //
-  // The swap is the one moment this form can hide the control a reader is
-  // standing on, and a browser answers that by dropping focus to the top of the
-  // document — out of the footer, above everything they read, with no
-  // announcement. So the control being hidden hands focus to the field, which is
-  // present on both sides of the swap and is the thing they may want to correct.
-  // Not the control replacing it: the submit path disables that a line later.
-  // Written when the outcome is known, not before: the authored markup ships
-  // only the half of the paragraph that is true of both failures.
+  // Keep the active action mounted throughout a request, including retries.
+  // On failure, hand a focused send button to the editable field before hiding
+  // it. On success, the receipt takes focus immediately after this cleanup.
   function setRecoveryVisible(visible, notSent = false) {
     if (visible) {
       recovery.textContent = `${notSent ? RECOVERY_NOT_SENT : RECOVERY_UNCONFIRMED} ${RECOVERY_GUIDANCE}`;
     }
     recovery.hidden = !visible;
     setRepositoryLinkVisible(visible);
-    if (retry) {
+    if (retry && submissionState !== "submitting") {
       const stranded = form.ownerDocument.activeElement === (visible ? submit : retry);
       retry.hidden = !visible;
       submit.hidden = visible;
-      if (stranded) email.focus();
+      if (stranded && submissionState !== "success") email.focus();
     }
     describeWith(email, RECOVERY_ID, visible);
   }
@@ -434,7 +459,13 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
     email,
     // Coming back to the form clears the outcome of the last request: it reports
     // something that happened, and the visitor has just said they are not done.
-    onReopen: () => { status.textContent = ""; delete form.dataset.state; setOutcomeDescribed(false); },
+    announceReceipt: false,
+    onReopen: () => {
+      setSubmissionState("idle");
+      status.textContent = "";
+      setOutcomeDescribed(false);
+      setRecoveryVisible(false);
+    },
   });
 
   // Editing the field retracts the diagnostic about it. The submission outcome
@@ -470,16 +501,14 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
 
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
-    // One request in flight, one request per receipt. The disabled control and
-    // the hidden retry make a second submission hard to reach by hand, but this
-    // form now carries two submit buttons and an implicit submission from the
-    // field, so what stops a duplicate POST is stated here rather than left to
-    // emerge from which control happens to be visible.
-    if (confirmation.sent || form.dataset.state === "submitting") return;
+    // Clicks, keyboard activation and implicit submission all arrive here, so
+    // this is the one place a second request has to be refused.
+    if (submissionState === "success" || submissionState === "submitting") return;
+    setOutcomeDescribed(false);
     const invalid = emailFieldError(email.value, looksLikeEmail(email.value), CONTACT_COPY);
     if (invalid) {
       // Whatever was typed stays; the field is never cleared to "help".
-      form.dataset.state = "invalid";
+      setSubmissionState("idle", "invalid");
       setFieldError(invalid);
       setRecoveryVisible(false);
       status.textContent = "";
@@ -489,7 +518,7 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
     // Refused against the number the endpoint would refuse it against. Nothing
     // typed is cleared or truncated on the way out.
     if (overLimit()) {
-      form.dataset.state = "invalid";
+      setSubmissionState("idle", "invalid");
       setFieldError(null);
       setRecoveryVisible(false);
       status.textContent = "";
@@ -497,13 +526,9 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
       return;
     }
 
-    form.dataset.state = "submitting";
+    setSubmissionState("submitting");
     setFieldError(null);
     setRecoveryVisible(false);
-    // The last outcome stops describing the field once a new one is in flight.
-    setOutcomeDescribed(false);
-    submit.disabled = true;
-    submit.setAttribute("aria-disabled", "true");
     // Announced, not merely spun: the live region carries the pending state to a
     // reader who never sees the button change.
     status.textContent = SUBMITTING;
@@ -515,29 +540,21 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
       // request this form sent before it existed.
       const note = message?.value.trim() || null;
       const body = await postLeadEmail(request, email.value, form.dataset.followUpType || "follow_up", CONTACT_COPY, topic, note);
-      form.dataset.state = "success";
+      // The failure UI comes down before the receipt goes up.
+      setSubmissionState("success");
+      setRecoveryVisible(false);
       status.textContent = body.created ? CAPTURED : ALREADY_CAPTURED;
-      // The form is replaced from here, so the control that would send again is
-      // gone before the `finally` below could bring it back.
       confirmation.show(address, topic, Boolean(note));
     } catch (error) {
       // Copy this repository owns, never a string an intermediary supplied, and
       // never a claim that the address was lost when that is not known.
-      form.dataset.state = "error";
+      setSubmissionState("failure");
       status.textContent = error instanceof SubmissionError ? error.message : CONTACT_COPY.unconfirmed;
       // Every failure here is retryable in place, so the paragraph that says so
       // and the control that does it appear on all of them — the same rule the
       // AI FinOps form follows.
       setRecoveryVisible(true, knownNotSent(error));
       setOutcomeDescribed(true);
-    } finally {
-      // Retry has to work without a reload, so the control comes back on every
-      // path out of the request — except the one where the request landed and
-      // the form it belongs to is no longer on screen.
-      if (!confirmation.sent) {
-        submit.disabled = false;
-        submit.removeAttribute("aria-disabled");
-      }
     }
   });
 

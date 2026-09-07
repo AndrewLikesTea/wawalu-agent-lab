@@ -321,11 +321,11 @@ for (const { name, open, prefix, gated } of SURFACES) {
       assert.equal(receipt.getAttribute("tabindex"), "-1", "the receipt takes focus but is not a tab stop");
       assert.ok(!tabSequence(document).includes(receipt));
 
-      // Announced the way the failure is: the same role and the same politeness
-      // the status paragraph beside it has carried all along.
+      // The footer uses its persistent status paragraph for announcements;
+      // its receipt is focusable detail, not a second live region.
       const status = byId(document, `${prefix}-status`);
-      assert.equal(receipt.getAttribute("role"), "status");
-      assert.equal(receipt.getAttribute("aria-live"), "polite");
+      assert.equal(receipt.getAttribute("role"), prefix === "site-footer" ? "group" : "status");
+      assert.equal(receipt.getAttribute("aria-live"), prefix === "site-footer" ? null : "polite");
       assert.equal(status.getAttribute("role"), "status");
       assert.equal(status.getAttribute("aria-live"), "polite");
 

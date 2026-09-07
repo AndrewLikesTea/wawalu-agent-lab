@@ -1334,15 +1334,8 @@ test("a failed request adds one route out, not a second copy of the provenance l
 });
 
 test("the send/retry swap never hides the control a reader is standing on", async () => {
-  // The swap is the one moment this form removes a focused element from the
-  // page, and a browser answers that by dropping focus to the top of the
-  // document — out of the footer, silently. This harness models no layout, so it
-  // would go on reporting the hidden control as focused and show nothing; both
-  // directions are pinned here as an explicit move onto the field, which is the
-  // one control present on both sides of the swap.
-  //
-  // The test presses the buttons rather than submitting from the field, because
-  // submitting from the field is the path where focus is already safe.
+  // A failed first attempt hands focus to the field; retry keeps its active
+  // button mounted and focusable while the next request is pending.
   const page = await openFooterPage("coach.html");
   const { document } = page;
   let failNext = true;
@@ -1363,13 +1356,13 @@ test("the send/retry swap never hides the control a reader is standing on", asyn
     assert.equal(document.activeElement?.id, "site-footer-email",
       "hiding the pressed control must hand focus to the field, not to the document");
 
-    // And back the other way: sending again puts the send control up and takes
-    // the retry down, while the reader is standing on the retry.
+    // Sending again renames the retry in place without moving focus.
     failNext = false;
     retry.focus();
     pressEnter(document);
-    assert.equal(retry.hidden, true, "the send control stands back up while a retry is in flight");
-    assert.equal(document.activeElement?.id, "site-footer-email");
+    assert.equal(retry.hidden, false, "the active control stays visible while sending again");
+    assert.equal(textOf(retry), "Sending your request…");
+    assert.equal(document.activeElement, retry);
 
     await waitFor(() => byId(document, "site-footer-form").dataset.state === "success", "the retry to land");
     // Success moves focus on purpose, and it is the receipt that takes it.
@@ -1416,7 +1409,7 @@ test("the pending state is announced, not merely spun", async () => {
     await waitFor(() => byId(document, "site-footer-form").dataset.state === "submitting", "the pending state");
 
     const submit = byId(document, "site-footer-panel").querySelector('button[type="submit"]');
-    assert.equal(submit.disabled, true, "the submit control must be unusable while a request is in flight");
+    assert.equal(submit.disabled, false, "aria-disabled keeps the pending control focusable; the submit guard blocks activation");
     assert.equal(submit.getAttribute("aria-disabled"), "true");
     assert.equal(shownText(document, "site-footer-status"), "Requesting a follow-up — sending your email address…",
       "the pending state must be in the live region, not only in the button");

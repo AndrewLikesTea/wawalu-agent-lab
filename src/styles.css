@@ -898,6 +898,7 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .site-footer-panel[hidden] { display:none; }
 @keyframes site-footer-reveal { from { opacity:0; transform:translateY(-4px); } }
 .site-footer-form { display:grid; gap:12px; }
+.site-footer-form[hidden],.site-footer-actions button[hidden] { display:none; }
 .site-footer-field { display:grid; gap:7px; }
 .site-footer-field label { color:#2c2c28; font-size:14px; font-weight:700; }
 .site-footer-field input { min-height:46px; min-width:0; border:1px solid #a9bccd; border-radius:9px; padding:0 12px; background:#fff; font:inherit; }
@@ -909,16 +910,13 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .site-footer-actions button[type="button"] { border-color:#a9bccd; background:#fff; color:#2c2c28; }
 .site-footer-actions button[aria-disabled="true"] { border-color:#777771; background:#777771; cursor:wait; }
 .site-footer-status { margin:0; min-height:1.5em; color:#2c2c28; font:700 13px/1.5 inherit; }
+/* Filled wash = live signal (design-system/claude-design), never colour alone. */
+.site-footer-form[data-state="submitting"]+.site-footer-status { background:var(--wash,rgba(42,120,214,.08)); border-radius:5px; padding:8px 12px; }
 .site-footer-form[data-state="success"]+.site-footer-status { color:#205d2b; }
 .site-footer-form[data-state="error"]+.site-footer-status { color:#8a2b2b; }
 .site-footer-recovery { margin:0; border-left:2px solid #8a2b2b; padding-left:11px; color:#4f4f4a; font-size:12px; line-height:1.5; }
 .site-footer-recovery[hidden] { display:none; }
-/* The receipt that stands where the form was. Nothing about it repeats the
-   failure box above: that one is a red rule down one edge of a pink strip, this
-   is a filled green card with a check in front of the address, so the two are
-   told apart at a glance and never by reading. The address is the one string
-   here a visitor supplied, so it wraps anywhere rather than pushing the card
-   wider than the panel on a phone. */
+/* Success uses a filled wash and check; long addresses wrap on narrow screens. */
 .site-footer-confirmation { display:grid; gap:10px; justify-items:start; border:1px solid #9dc4a8; border-radius:11px; padding:14px 15px; background:#eef7f0; }
 .site-footer-confirmation:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
 .site-footer-confirmation-lead { margin:0; color:#1c5c2c; font:700 14px/1.55 inherit; }

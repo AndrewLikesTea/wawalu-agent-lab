@@ -2400,6 +2400,10 @@ section[data-workspace-current="true"] { box-shadow:-6px 0 0 0 var(--import-wash
 .finops-contact-panel { display:grid; gap:14px; width:100%; max-width:640px; border:1px solid var(--import-line); border-radius:13px; padding:18px; background:var(--import-wash); }
 .finops-contact-panel[hidden] { display:none; }
 .finops-contact-form { display:grid; gap:12px; }
+/* A success hides this form so its send and retry cannot stand beside a request
+   that landed. The panel above already declares this; the form needs it too,
+   because the grid on the line above outranks the browser's own [hidden] rule. */
+.finops-contact-form[hidden] { display:none; }
 .finops-contact-field { display:grid; gap:7px; }
 .finops-contact-field label { font-size:14px; font-weight:700; color:var(--import-ink); }
 .finops-contact-field input { min-height:46px; border:1px solid var(--import-line); border-radius:9px; padding:0 12px; background:#fff; font:inherit; }

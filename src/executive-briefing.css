@@ -269,6 +269,10 @@
 .brief-contact-panel { display:grid; gap:14px; width:100%; max-width:640px; border:1px solid var(--brief-line); border-radius:14px; padding:20px; background:var(--brief-quiet); }
 .brief-contact-panel[hidden] { display:none; }
 .brief-contact-form { display:grid; gap:12px; }
+/* A success hides this form so its send and retry cannot stand beside a request
+   that landed. The panel above already declares this; the form needs it too,
+   because the grid on the line above outranks the browser's own [hidden] rule. */
+.brief-contact-form[hidden] { display:none; }
 .brief-contact-field { display:grid; gap:7px; }
 .brief-contact-field label { color:var(--brief-ink); font-size:14px; font-weight:700; }
 .brief-contact-field input { min-height:46px; border:1px solid var(--brief-line); border-radius:9px; padding:0 12px; background:#fff; font:inherit; }
