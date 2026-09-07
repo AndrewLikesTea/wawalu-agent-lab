@@ -23,7 +23,9 @@
 // profile remembers cannot drift apart.
 import { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH, readStoredAuthor, rememberAuthor } from "./social-identity.js";
 import { imageDescription, renderDescriptionNote, renderImageUnavailable } from "./image-description.js";
-import { OPEN_POST_LABEL, PUBLISH_POST_LABEL, peopleImagePostsLabel, postDetailHref, profileHref } from "./social-links.js";
+import {
+  OPEN_POST_LABEL, PUBLISH_POST_LABEL, peopleImagePostsLabel, postDetailHref, profileHref, requestedFeedAuthor,
+} from "./social-links.js";
 import { postPermalink, renderPostCopyControl } from "./post-share.js";
 import { renderFeedStatus, feedPhase, feedPresence, filtersAvailable, setFilterAvailability, FILTERS_UNAVAILABLE_HINT } from "./feed-status.js";
 
@@ -1006,6 +1008,23 @@ export function mountSocialFeed(root, options = {}) {
   let posts = options.posts ?? [];
   let state = options.state ?? "ready";
 
+  // The page's own address, read once. The origin behind the permalink a publish
+  // hands back, and the query string People's link back to the whole feed writes
+  // a display name into, are the same location object.
+  const pageLocation = options.location ?? globalThis.window?.location;
+
+  // A display name asked for in the URL — People links here with the name it was
+  // filtered to, so a reader gets that name's text posts without re-selecting a
+  // filter the page they came from already knew.
+  //
+  // Held rather than applied. The display-name menu holds no names until a fetch
+  // answers — renderNames() below builds its options out of the posts in hand —
+  // so setting it here would set a value the control does not offer, and the
+  // very next render would drop it. It is spent by the first answer that
+  // actually carries the name, and by nothing else: re-applying it on every
+  // ten-second refresh would make Clear filters something the page undid.
+  let pendingAuthor = requestedFeedAuthor(pageLocation?.search);
+
   // The words a filter is currently showing, read back off the control itself
   // rather than kept as a second copy in this file. "From the past hour" is
   // sentence-initial in the menu and mid-sentence in the summary, so only its
@@ -1140,8 +1159,23 @@ export function mountSocialFeed(root, options = {}) {
     const selected = nameFilter.value;
     const authors = [...new Set(posts.map((post) => post.author))].sort((a, b) => a.localeCompare(b));
     nameFilter.replaceChildren(new Option("All display names", "all"), ...authors.map((author) => new Option(author, author)));
+    // The URL's preselection wins exactly once, and only over an option list
+    // that actually holds the name. A name this feed does not carry is dropped
+    // rather than forced: the menu would be showing a value it does not offer,
+    // and the summary sentence beside it would describe a filter no control
+    // could clear.
+    if (pendingAuthor && authors.includes(pendingAuthor)) {
+      nameFilter.value = pendingAuthor;
+      pendingAuthor = "";
+      return;
+    }
     nameFilter.value = authors.includes(selected) ? selected : "all";
   };
+
+  // Any deliberate move on the filters spends the preselection too, so a reader
+  // who clears the filters before the name they were sent for has arrived is not
+  // filtered again behind their back by the next refresh.
+  const forgetPreselection = () => { pendingAuthor = ""; };
 
   // The post field's refusal, wired exactly as the image description's is: the
   // sentence lives in the slot that follows the field, the id joins the field's
@@ -1191,6 +1225,7 @@ export function mountSocialFeed(root, options = {}) {
   // accident of where the reader was standing, never by holding two copies of
   // what "clear" means.
   const clearBothFilters = () => {
+    forgetPreselection();
     if (nameFilter) nameFilter.value = "all";
     if (timeFilter) timeFilter.value = "all";
     render();
@@ -1247,7 +1282,7 @@ export function mountSocialFeed(root, options = {}) {
     // the reader is told so. It is the *only* gate — the link and the copy
     // control stand or fall together, because a control that copies an address
     // the receipt would not link to is a link by another name.
-    const permalinkUrl = postPermalink(saved?.id, (options.location ?? globalThis.window?.location)?.origin);
+    const permalinkUrl = postPermalink(saved?.id, pageLocation?.origin);
 
     notice.replaceChildren(document.createTextNode(`${publishedPostLabel(saved)} `));
     if (permalinkUrl) {
@@ -1473,8 +1508,8 @@ export function mountSocialFeed(root, options = {}) {
   }
 
 
-  nameFilter?.addEventListener("change", render);
-  timeFilter?.addEventListener("change", render);
+  nameFilter?.addEventListener("change", () => { forgetPreselection(); render(); });
+  timeFilter?.addEventListener("change", () => { forgetPreselection(); render(); });
   clearFilters?.addEventListener("click", () => {
     clearBothFilters();
     nameFilter.focus();

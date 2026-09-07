@@ -290,19 +290,26 @@ test("People states the images-only rule once and offers each route once", async
     // a tail on the end of it.
     assert.equal(textOf(main.querySelector(".list-heading").querySelectorAll(".eyebrow")[0]), "Newest first");
 
-    // Two routes to Social, and they go to different places for different
-    // reasons: the intro's states the rule and opens the whole feed, and the
-    // helper beside the grid opens the composer, because publishing is the one
-    // thing People cannot do. Neither is a spare copy of the other, so each is
-    // pinned to its own sentence and its own destination.
+    // Three routes to Social, and they go to different places for different
+    // reasons: the intro's states the rule and opens the whole feed, the
+    // picker's opens that feed already filtered to the display name being read
+    // (#2193), and the helper beside the grid opens the composer, because
+    // publishing is the one thing People cannot do. None is a spare copy of
+    // another, so each is pinned to its own sentence and its own destination.
     const toSocial = anchors.filter((anchor) => (anchor.getAttribute("href") ?? "").startsWith("/social.html"));
-    assert.equal(toSocial.length, 2, "the main content changed how many times it routes to Social");
+    assert.equal(toSocial.length, 3, "the main content changed how many times it routes to Social");
     assert.equal(toSocial[0].getAttribute("href"), "/social.html");
     assert.equal(toSocial[0].parentNode?.classList?.contains("profile-lede"), true,
       "the link to the whole feed is not in the sentence that states the rule");
-    assert.equal(toSocial[1].getAttribute("href"), "/social.html#post-form");
-    assert.equal(textOf(toSocial[1]), "Publish a post on Social");
-    assert.equal(toSocial[1].parentNode?.classList?.contains("feed-create"), true,
+    // The filtered route names the display name it carries and nothing else: the
+    // rule it depends on is the intro's, counted once above.
+    assert.equal(toSocial[1].getAttribute("href"), "/social.html?author=Zed");
+    assert.equal(textOf(toSocial[1]), "See every post published under Zed on Social");
+    assert.equal(toSocial[1].parentNode?.getAttribute("id"), "profile-social-route",
+      "the filtered route to Social is not the link the picker draws");
+    assert.equal(toSocial[2].getAttribute("href"), "/social.html#post-form");
+    assert.equal(textOf(toSocial[2]), "Publish a post on Social");
+    assert.equal(toSocial[2].parentNode?.classList?.contains("feed-create"), true,
       "the route to the composer is not in the helper beside the grid");
 
     // One route into Paint, beside the pictures that prompt it, still saying
@@ -866,9 +873,16 @@ test("tabbing from the top reaches the picker, then the posts under the header",
     document.querySelectorAll(".profile-lede")[1].querySelectorAll("a")[0].focus();
     const tiles = drawnTiles(document);
     const walked = [];
-    for (let step = 0; step < 3 + tiles.length + 2; step += 1) walked.push(pressTab(document));
+    for (let step = 0; step < 4 + tiles.length + 2; step += 1) walked.push(pressTab(document));
     assert.deepEqual(walked.slice(0, 3).map((node) => node.dataset?.author), ["Ari", "Bea", "Zed"],
       "the display-name picker is not the first thing a keyboard reaches in main");
+    // Then the way out of the filter the reader has just set: the selected
+    // display name's whole feed on Social (#2193). It is the last stop in the
+    // filter region and comes before the heading that names the results, so a
+    // keyboard reader meets "here is the rest of this name" where the name is
+    // chosen rather than after the pictures.
+    assert.equal(walked[3].parentNode?.getAttribute("id"), "profile-social-route",
+      "the route to the whole feed is not the stop after the picker");
     // Then the posts the picker just filtered — every drawn tile, in the order
     // the grid drew them — and only after them the panel's own two-step helper,
     // make the image and publish it, in the order the steps happen (#2142). The
@@ -881,11 +895,11 @@ test("tabbing from the top reaches the picker, then the posts under the header",
     // walks the whole parsed page.
     assert.ok(tiles.length > 0, "the grid drew no posts to tab through");
     for (const [index, tile] of tiles.entries()) {
-      assert.equal(walked[3 + index] === tile, true,
-        `stop ${4 + index} is not post ${index + 1}, in the order the grid drew them`);
+      assert.equal(walked[4 + index] === tile, true,
+        `stop ${5 + index} is not post ${index + 1}, in the order the grid drew them`);
     }
-    assert.equal(walked[3 + tiles.length].getAttribute("id"), "profile-paint-route");
-    assert.equal(walked[4 + tiles.length].getAttribute("id"), "profile-publish-route");
+    assert.equal(walked[4 + tiles.length].getAttribute("id"), "profile-paint-route");
+    assert.equal(walked[5 + tiles.length].getAttribute("id"), "profile-publish-route");
 
     // And the visual order the tab order is supposed to match: every one of
     // those stops comes after the heading, the posts come after the label, and
@@ -894,14 +908,17 @@ test("tabbing from the top reaches the picker, then the posts under the header",
     const at = (node) => order.indexOf(node);
     assert.ok(at(document.querySelector("#profile-author")) < at(document.querySelector("#grid-title")));
     assert.ok(at(document.querySelector("#grid-title")) < at(document.querySelector("#profile-order")));
-    assert.ok(at(document.querySelector("#profile-order")) < at(walked[3]));
-    assert.ok(at(walked[3 + tiles.length - 1]) < at(document.querySelector("#profile-paint-route")));
-    // No new focusable above the results region: the intro's link to Social and
-    // the picker are still the whole of it.
+    assert.ok(at(document.querySelector("#profile-social-route")) < at(document.querySelector("#grid-title")));
+    assert.ok(at(document.querySelector("#profile-order")) < at(walked[4]));
+    assert.ok(at(walked[4 + tiles.length - 1]) < at(document.querySelector("#profile-paint-route")));
+    // Nothing above the results region but the filter region itself: the intro's
+    // link to Social, the picker, and the picker's own way out of the filter it
+    // sets. Every one of them belongs to choosing a display name, and none of
+    // them stands between the heading that names the results and the results.
     const inMain = tabSequence(document).filter((element) => element.closest("#main-content"));
     const beforePanel = inMain.filter((element) => !element.closest(".list-panel"));
     assert.deepEqual(beforePanel.map((element) => element.dataset?.author ?? element.getAttribute("href")),
-      ["/social.html", "Ari", "Bea", "Zed"]);
+      ["/social.html", "Ari", "Bea", "Zed", "/social.html?author=Zed"]);
   } finally {
     page.restore();
   }
