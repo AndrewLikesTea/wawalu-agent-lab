@@ -573,7 +573,20 @@ test("each invitation names only what it reveals, and no two name the same thing
 
   assert.equal(before, "See how the score is measured and what to do first.");
   assert.equal(reads, "See the bundled example text and the counts read from it.");
-  assert.equal(results, "See a graded prompt, one that needs changes, and text the coach cannot grade.");
+  assert.equal(results, "See bundled examples of a graded prompt, a prompt that needs changes, and text the coach cannot grade, none taken from text you paste.");
+  // Said once, and in one block. The paragraph that used to sit under this
+  // summary named the same three examples in different words, so counting the
+  // summary's own sentence would have let it back in: what is pinned is the
+  // shape — the disclosure holds its introduction and the rendered cases, and
+  // no third block of prose between them. Asserted on the mounted page because
+  // the body is script-drawn, and on tag names rather than on the nodes
+  // themselves, which the harness cannot inspect without hanging.
+  const { document: mounted } = await openCoach();
+  const section = byId(mounted, "coaching-specimen");
+  assert.deepEqual(section.childElements.map((node) => node.tagName), ["SUMMARY", "DIV"],
+    "the examples section carries a second block of prose beside its introduction");
+  assert.equal(textOf(section).split(results).length - 1, 1,
+    "the examples introduction renders once");
 
   // The middle one is written from its own first block outward. Every other
   // topic it used to promise is read behind one of the other two.
@@ -582,10 +595,15 @@ test("each invitation names only what it reveals, and no two name the same thing
     assert.doesNotMatch(reads, promise,
       `the disclosure over the read text promises “${promise.source}”, which another invitation covers`);
   }
-  // And no topic noun is offered twice: the score is named where it is measured,
-  // the example text where it is printed, the results where they are shown.
+  // And no topic noun is offered twice: the score is named where it is
+  // measured, the counts where they are read, the results where they are shown.
+  // "Bundled" is the one word both disclosures may use. Each opens material
+  // this build wrote rather than anything a reader typed, and that is owed to
+  // them before they open it, not after — so it is stated on each, and the
+  // rule holds only over the nouns that name a different thing behind a
+  // different invitation.
   assert.doesNotMatch(before, /bundled|result/i);
-  assert.doesNotMatch(results, /score|counts|bundled/i);
+  assert.doesNotMatch(results, /score|counts/i);
   // And the third case is named as the page names it — text the coach cannot
   // grade. Never a refusal: the coach runs in this tab and declines nothing on
   // content grounds, so a reader who reads one would expect a rule that is not
