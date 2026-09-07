@@ -386,9 +386,9 @@ test("the composer numbers the round trip and puts the rule beside the control",
   const items = steps.querySelectorAll("li");
   assert.deepEqual(items.map(textOf), [
     "Create or open an image in Paint (opens in a new tab) ↗",
-    "Export it as a PNG, then select that PNG in the image picker above",
+    "Export it as a PNG, then select that PNG using “Choose image” above",
     "Fill in the required image description",
-    "Publish your post",
+    "Publish this post",
   ]);
   assert.equal(textOf(documents.Social.querySelector("body")).split("Select Choose image").length - 1, 0,
     "the composer still instructs the reader to select the button beside the instruction");
@@ -506,19 +506,19 @@ test("the composer names the round trip in the order it is taken, once", () => {
   };
   assert.ok(at("Create or open an image in Paint") < at("Export it as a PNG"),
     "the composer asks for the export before the drawing");
-  assert.ok(at("Export it as a PNG") < at("select that PNG in the image picker above"),
+  assert.ok(at("Export it as a PNG") < at("select that PNG using “Choose image” above"),
     "the composer asks for the file before it has been exported");
-  assert.ok(at("select that PNG in the image picker above") < at("Publish your post"),
+  assert.ok(at("select that PNG using “Choose image” above") < at("Publish this post"),
     "the composer asks the visitor to publish before selecting the file");
   // #2170: the description is a step, in the place it is actually taken —
   // after the file it describes exists, before the publishing it blocks.
-  assert.ok(at("select that PNG in the image picker above") < at("Fill in the required image description"),
+  assert.ok(at("select that PNG using “Choose image” above") < at("Fill in the required image description"),
     "the composer asks for the description before there is an image to describe");
-  assert.ok(at("Fill in the required image description") < at("Publish your post"),
+  assert.ok(at("Fill in the required image description") < at("Publish this post"),
     "the composer asks the visitor to publish before writing the description publishing requires");
-  // The sequence identifies the picker without repeating the control's label.
-  assert.doesNotMatch(steps, /Choose image/,
-    "the steps repeat the control's instruction");
+  // The sequence identifies the picker by its rendered label.
+  assert.match(steps, /Choose image/,
+    "the steps must name the image control");
   assert.equal(textOf(documents.Social.querySelector('label[for="post-image"]')), "Choose image");
 
   // Once, in the field where the file is chosen — not restated elsewhere.
@@ -565,13 +565,14 @@ test("the sequence names the image picker and ends with publishing", () => {
   const items = documents.Social.getElementById("post-image-steps").querySelectorAll("li");
   const last = textOf(items[items.length - 1]);
 
-  // The label remains on the control, while the sequence names the picker and
-  // the exact exported file without repeating that label.
+  // The sequence names the exported file and the exact rendered control labels.
   const label = textOf(documents.Social.querySelector('label[for="post-image"]'));
   assert.equal(label, "Choose image");
-  assert.doesNotMatch(textOf(items[1]), /Choose image/);
-  assert.match(textOf(items[1]), /that PNG in the image picker above/);
-  assert.equal(last, "Publish your post");
+  assert.ok(textOf(items[1]).includes(label));
+  assert.match(textOf(items[1]), /that PNG using “Choose image” above/);
+  assert.equal(last, "Publish this post");
+  assert.equal(textOf(documents.Social.querySelector('button[type="submit"]')), last);
+  assert.doesNotMatch(textOf(documents.Social.querySelector("body")), /Publish your post/);
 
   // It is prose in the list, not a second route to the same control: the tab
   // sequence through this field is unchanged.
