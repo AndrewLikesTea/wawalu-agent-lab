@@ -137,6 +137,19 @@
                  heading over the grid already had. -->
             <p class="hint profile-toolbar-hint" id="profile-picker-note"></p>
             <div class="filter-options" id="profile-author"></div>
+            <!-- profile.js draws one more thing into this group, under the row
+                 above: the way out of it. This page shows image posts and only
+                 image posts, so the selected display name's text posts are on
+                 Social, and a reader who wanted them used to have to take the
+                 link in the intro and then re-select, by hand, the filter they
+                 had just set here. The link names the selected display name and
+                 carries it to Social's own display-name filter.
+                 It is not authored here, for the reason the buttons above it are
+                 not: before the feed answers this page knows no display name,
+                 and a link naming the seed's guess is the claim the heading over
+                 the grid used to make. It arrives and leaves with the picker,
+                 driven by the picker's own availability, so the group has one
+                 loading state rather than two. -->
           </fieldset>
         </div>
 

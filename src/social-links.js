@@ -44,6 +44,51 @@ export function profileHref(author) {
   return `/profile.html?author=${encodeURIComponent(String(author ?? ""))}`;
 }
 
+// The third URL shape, and the mirror of the one above: People filtered to a
+// display name links back to that same name's whole feed on Social, text posts
+// included. Without it a reader who wanted the rest of one name's posts had to
+// open Social and re-select a filter the page they were standing on already
+// knew.
+//
+// One parameter name for one idea across three pages. /post.html and
+// /profile.html both carry a display name as `author`, so the feed reads the
+// same word rather than inventing a fourth spelling of it, and the value is a
+// plain display name percent-encoded once — no casing rule, no slug, nothing to
+// reverse at the other end.
+export const FEED_AUTHOR_PARAM = "author";
+
+export function socialFeedHref(author) {
+  return `/social.html?${FEED_AUTHOR_PARAM}=${encodeURIComponent(String(author ?? "").trim())}`;
+}
+
+// The read half of that contract, next to the write half so the two cannot
+// drift: src/social.js hands it the page's query string and gets back a display
+// name to preselect, or "" when nobody was asked for. Trimmed, because a name
+// that arrives with padding would match no option in the menu and silently show
+// the whole feed instead.
+export function requestedFeedAuthor(search) {
+  return String(new URLSearchParams(String(search ?? "")).get(FEED_AUTHOR_PARAM) ?? "").trim();
+}
+
+// What that link is called on People, owned here beside the label Social's own
+// links to People use. It names the display name and the destination, because a
+// link that said only the name would not say where activating it goes, and it
+// leads on "every post" — the one word that separates the feed at the other end
+// from the image posts People is showing.
+//
+// It stops there. People's intro already says what the whole feed includes
+// ("including posts with no image"), and a test on this page counts that rule as
+// stated once in the main content: this link is the second route to Social, not
+// a second telling of the rule that explains why anyone would take it.
+//
+// "published under" is the site's phrasing for the relationship between a post
+// and a display name — People's own picker hint and its publishing helper both
+// spell it that way — and there is no count in it: the number belongs to the
+// feed at the other end, which this page has not loaded.
+export function socialAllPostsLabel(author) {
+  return `See every post published under ${String(author ?? "").trim()} on Social`;
+}
+
 // What a link to People is called, wherever Social offers one. It names the
 // display name AND the destination, because both the feed card and the publish
 // confirmation put it beside other links, and "Iris Vale" on its own does not

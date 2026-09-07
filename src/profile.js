@@ -23,7 +23,9 @@
 //      on the image inside the link when the tile is read rather than listed.
 
 import { connectionStatusLine, normalizeImage } from "./social.js";
-import { OPEN_POST_LABEL, PUBLISH_POST_LABEL, postDetailHref, profileHref } from "./social-links.js";
+import {
+  OPEN_POST_LABEL, PUBLISH_POST_LABEL, postDetailHref, profileHref, socialAllPostsLabel, socialFeedHref,
+} from "./social-links.js";
 import { imageDescription, renderDescriptionNote, renderImageUnavailable } from "./image-description.js";
 import { renderFeedStatus, feedPhase, feedPresence, setFilterAvailability } from "./feed-status.js";
 import { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH } from "./social-identity.js";
@@ -733,6 +735,60 @@ export function renderProfileGrid(container, posts, options = {}) {
 // which is a real path here because selecting a name rebuilds every chip.
 export const PROFILE_FILTERS_UNAVAILABLE_HINT = "Display names become available when image posts load.";
 
+// The id of the one link out of this filter region, so the page, the tests, and
+// anything that has to find it later all name it once.
+export const SOCIAL_FEED_ROUTE_ID = "profile-social-route";
+
+// The way out of the filtered view: the selected display name's WHOLE feed on
+// Social, text posts included. People shows image posts and only image posts, so
+// a reader who wants the rest of one name's posts used to have to open Social
+// from the intro and re-select, by hand, the filter the page they were standing
+// on already knew.
+//
+// It sits in the filter region, after the control that decides the name and
+// before the heading that names the results — the same place in reading order it
+// occupies on screen, so a keyboard reader meets "here is the rest of this name"
+// where the name is chosen rather than after the pictures. Its text and its href
+// are written from the same `author` the chips are drawn from, in the same call,
+// so the name in the sentence and the name in the URL cannot disagree.
+//
+// It is drawn beside the picker rather than authored in src/profile.html for the
+// reason the chips are: before the feed answers, the page does not know a
+// display name, and a link naming the seed's guess is a claim it cannot support.
+// So it follows the picker exactly — `present` is the picker's own availability,
+// and while the chips are shut this link is not on the page either. No second
+// load-state pattern, and nothing new in styles.css: a `.hint` paragraph and the
+// site's `.text-link`, which is underlined, so it reads as a link with colour
+// off.
+//
+// `container` is the chips' own element; its parent is the filter group both it
+// and this link belong to. A container with no parent — the render-layer tests
+// stand one up on its own — has no region to put this in, and gets nothing,
+// exactly as the availability hint beside it does.
+function renderSocialFeedRoute(container, { author = "", present = true } = {}) {
+  const host = container?.parentNode ?? null;
+  if (!host) return null;
+  const existing = [...(host.children ?? [])]
+    .find((child) => child.getAttribute?.("id") === SOCIAL_FEED_ROUTE_ID) ?? null;
+  const name = String(author ?? "").trim();
+  if (!present || !name) {
+    existing?.remove();
+    return null;
+  }
+  // The anchor is reused rather than rebuilt: a refresh landing while a reader
+  // stands on this link must not drop their focus to <body> and send the next
+  // Tab back to the top of the document.
+  const line = existing ?? el("p", "hint");
+  const link = [...(line.children ?? [])].find((child) => child.tagName === "A") ?? el("a", "text-link");
+  link.href = socialFeedHref(name);
+  link.textContent = socialAllPostsLabel(name);
+  if (existing) return link;
+  line.setAttribute("id", SOCIAL_FEED_ROUTE_ID);
+  line.append(link);
+  host.append(line);
+  return link;
+}
+
 export function renderAuthorPicker(container, entries, { author, counted = true, onSelect = null, disabled = false, statusRegion = null } = {}) {
   const alone = singleNameNotice(entries, { counted });
   const chips = alone ? [] : entries.map((entry) => {
@@ -744,10 +800,11 @@ export function renderAuthorPicker(container, entries, { author, counted = true,
     if (onSelect) chip.addEventListener("click", () => onSelect(entry.name));
     return chip;
   });
+  const available = !disabled || Boolean(alone);
   // Before replaceChildren, so the focus check still sees the chip the reader
   // is standing on; the hint goes above the row, where this group already puts
   // the words that describe the controls under them.
-  setFilterAvailability(!disabled || alone, {
+  setFilterAvailability(available, {
     controls: chips,
     statusRegion,
     focusHost: container,
@@ -757,6 +814,14 @@ export function renderAuthorPicker(container, entries, { author, counted = true,
     hintText: PROFILE_FILTERS_UNAVAILABLE_HINT,
     hintClass: "hint profile-toolbar-hint",
   });
+  // `disabled` is the caller's one input for "is there a feed behind this
+  // region?", and it is what the link follows — not `available`, whose `alone`
+  // escape hatch is about a lone chip being replaced by a sentence rather than
+  // about there being posts. A feed that answered with nothing still has a
+  // selected name (the composer's default), and a link promising that name's
+  // whole feed on Social would be this page's old defect moved down a block: a
+  // claim about somebody nobody has published as.
+  renderSocialFeedRoute(container, { author, present: !disabled });
   if (alone) {
     container.replaceChildren(el("p", "hint", alone));
     return;
