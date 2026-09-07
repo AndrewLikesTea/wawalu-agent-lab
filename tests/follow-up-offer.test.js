@@ -8,8 +8,10 @@
 // or People from a forwarded link never read it. Their follow-up block asked
 // "Questions about Shiplog?" and then asked for a work address, with no stated
 // reason to hand one over. Issue #2130 gave those four the home page's answer,
-// and issue #2153 gave it to the shared post page, which is the page a forwarded
-// link lands on most often of all.
+// issue #2153 gave it to the shared post page, which is the page a forwarded
+// link lands on most often of all, and issue #2195 gave it to the Agent
+// observatory, the last page asking for an address without saying what asking
+// gets.
 //
 // Two things this file holds, and one it deliberately does not:
 //
@@ -38,10 +40,11 @@ const pageUrl = (file) => new URL(`../src/${file}`, import.meta.url);
 const read = (file) => readFile(pageUrl(file), "utf8");
 const byId = (document, id) => document.getElementById(id);
 
-// The four deep pages issue #2130 named, and the shared post page issue #2153
-// added to them. A shared link lands on one of these, and the follow-up block is
-// the first thing on it that asks for anything.
-const CARRIERS = ["coach.html", "releases.html", "social.html", "profile.html", "post.html"];
+// The four deep pages issue #2130 named, the shared post page issue #2153 added
+// to them, and the Agent observatory issue #2195 added. A shared link lands on
+// one of these, and the follow-up block is the first thing on it that asks for
+// anything.
+const CARRIERS = ["coach.html", "releases.html", "social.html", "profile.html", "post.html", "agents.html"];
 
 // The two claims, sliced out of the shipped sentence rather than retyped: a
 // fragment written here would keep passing after the sentence changed under it.
@@ -72,7 +75,7 @@ test("the offer sentence carries the home page's claims and adds none of its own
   }
 });
 
-test("exactly the four deep pages open their follow-up block with it", async () => {
+test("exactly the pages in the table above open their follow-up block with it", async () => {
   const files = (await readdir(SRC)).filter((name) => name.endsWith(".html")).sort();
   assert.ok(files.length > CARRIERS.length, "the page list did not read");
 

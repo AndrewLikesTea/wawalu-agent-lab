@@ -126,7 +126,8 @@ const FOOTER_VARIANT = new Map([
     askMessage: true, offer: true,
   }],
   ["agents.html", {
-    followUpType: "follow_up_agents", followUpTopic: FOLLOW_UP_TOPICS.follow_up_agents, askMessage: true,
+    followUpType: "follow_up_agents", followUpTopic: FOLLOW_UP_TOPICS.follow_up_agents,
+    askMessage: true, offer: true,
   }],
 ]);
 
