@@ -1451,6 +1451,7 @@ test("People claims no result before its first image post, and the loaded page i
 // Social's sentence with People's noun in it, and both claims stand.
 const PEOPLE_PROVENANCE = "The image posts already here are invented to demonstrate Shiplog; an image post you publish is real.";
 const DEMO_DATA = "Posts use no customer or production data.";
+const PEOPLE_CONSEQUENCE = "Anyone who visits Shiplog can read your post, its image, and the display name you publish it with. You cannot edit or delete a post after you publish it.";
 
 test("the intro says the image posts on this page are invented, before any of them load", async (t) => {
   // Served, not hydrated: what a reader receives from the markup, ahead of the
@@ -1461,12 +1462,24 @@ test("the intro says the image posts on this page are invented, before any of th
 
   assert.equal(main.split(PEOPLE_PROVENANCE).length - 1, 1,
     "the provenance sentence is not in People's served markup exactly once");
-  // Provenance first, then the boundary it scopes, and the paragraph still ends
-  // on the demo-data sentence Social and the permalink end on.
+  // Keep the existing provenance and demo-data statements together, followed
+  // by the consequences a visitor needs before leaving for Social.
   assert.match(textOf(served.document.querySelectorAll(".profile-lede")[1]),
-    /The image posts already here are invented to demonstrate Shiplog; an image post you publish is real\. Posts use no customer or production data\.$/,
-    "the two claims are no longer adjacent, in that order, at the end of the intro");
+    /The image posts already here are invented to demonstrate Shiplog; an image post you publish is real\. Posts use no customer or production data\./,
+    "the two claims are no longer adjacent, in that order, in the intro");
   assert.equal(main.split(DEMO_DATA).length - 1, 1, "the demo-data sentence was replaced or repeated");
+
+  const intro = textOf(served.document.querySelectorAll(".profile-lede")[1]);
+  assert.ok(intro.endsWith(PEOPLE_CONSEQUENCE));
+  assert.doesNotMatch(intro, /published as|Showing \d+ image post/i);
+  const social = await loadPage(new URL("../src/social.html", import.meta.url), {});
+  try {
+    const composer = textOf(social.document.querySelector("#post-consequence"));
+    assert.ok(composer.startsWith(PEOPLE_CONSEQUENCE.slice(0, -1) + ","),
+      "People's consequences drifted from Social's composer terminology");
+  } finally {
+    social.restore();
+  }
 
   // Read before the control that filters the grid, so it covers the pictures a
   // reader is about to choose between rather than explaining them afterwards.
@@ -1483,6 +1496,8 @@ test("the intro says the image posts on this page are invented, before any of th
     assert.equal(hydrated.split(PEOPLE_PROVENANCE).length - 1, 1,
       "the loaded page lost the provenance sentence or states it twice");
     assert.equal(hydrated.split(DEMO_DATA).length - 1, 1);
+    assert.ok(textOf(page.document.querySelectorAll(".profile-lede")[1]).endsWith(PEOPLE_CONSEQUENCE),
+      "the loaded People intro lost the publishing consequences");
   } finally {
     page.restore();
   }
