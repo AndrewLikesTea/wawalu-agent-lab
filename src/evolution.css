@@ -3106,7 +3106,7 @@ section[data-workspace-current="true"] { box-shadow:-6px 0 0 0 var(--import-wash
 .coaching-specimen { border:1px solid var(--import-line); border-radius:11px; padding:12px 14px; }
 .coaching-specimen > summary { font:650 13px/1.5 inherit; cursor:pointer; }
 .coaching-specimen > summary:focus-visible { outline:3px solid var(--import-accent); outline-offset:3px; }
-.coaching-specimen-static,.coaching-specimen-lead { margin:10px 0 0; max-width:70ch; color:var(--ink-muted); font-size:12px; line-height:1.6; }
+.coaching-specimen-lead { margin:10px 0 0; max-width:70ch; color:var(--ink-muted); font-size:12px; line-height:1.6; }
 .coaching-specimen-body { display:grid; gap:22px; margin-top:14px; }
 .coaching-specimen-case { display:grid; gap:8px; }
 .coaching-specimen-case-title { margin:0; font-size:14px; line-height:1.4; }
