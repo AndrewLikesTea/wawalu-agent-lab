@@ -208,10 +208,9 @@ test("the image field states the formats and the size exactly once, in plain sen
   assert.equal(textOf(hint),
     "PNG, JPEG, GIF, or WebP up to 512 KB Reduce or re-export a larger image before you choose it.");
   assert.equal(textOf(document.querySelector('label[for="post-image"]')), "Choose image");
-  // The steps identify the image picker without repeating its "Choose image"
-  // label, so the instruction appears only on the control itself.
-  assert.equal(help.split("Choose image").length - 1, 0,
-    `the help repeats the control's instruction: ${help}`);
+  // The steps name the image control by its exact rendered label.
+  assert.equal(help.split("Choose image").length - 1, 1,
+    `the help must name the control once: ${help}`);
   assert.equal(textOf(hint).split("Choose image").length - 1, 0,
     `the format and size rule repeats the control's label: ${textOf(hint)}`);
   // No second phrasing of the same rule beside it, and no clause welding.
@@ -222,8 +221,8 @@ test("the image field states the formats and the size exactly once, in plain sen
   // remains declared in the link's own text.
   assert.equal(textOf(steps),
     "Create or open an image in Paint (opens in a new tab) ↗"
-    + " Export it as a PNG, then select that PNG in the image picker above"
-    + " Fill in the required image description Publish your post");
+    + " Export it as a PNG, then select that PNG using “Choose image” above"
+    + " Fill in the required image description Publish this post");
   const paint = steps.querySelector("a");
   assert.equal(paint.getAttribute("href"), "/paint/");
   assert.equal(paint.getAttribute("target"), "_blank");
