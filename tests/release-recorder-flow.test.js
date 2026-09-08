@@ -300,6 +300,30 @@ test("the loading recorder states the wait once, in two different sentences", as
   assert.equal(summaryText(page), "No decisions can be linked until the list loads.");
 });
 
+// The required date is one field for three statuses, so its hint has to name
+// all three days a recorder might be holding — and name the cancelled one
+// without saying that release shipped. Asserted on the booted page, because
+// the hint a visitor reads is whatever survives the page's own render.
+test("the date hint names the day to enter for each status, in the stated format", async (t) => {
+  const page = await openReleases(t);
+
+  const field = page.document.querySelector("#release-released-on");
+  assert.equal(field.getAttribute("aria-describedby"), "release-released-on-hint");
+  const hint = textOf(page.document.querySelector("#release-released-on-hint"));
+  assert.equal(hint,
+    "The calendar day this release shipped, is planned to ship, or was cancelled, written as YYYY-MM-DD.");
+  // Each status the form offers is answered by the hint: shipped, planned, and
+  // cancelled, with the format the field is validated against still stated.
+  assert.match(hint, /shipped/);
+  assert.match(hint, /planned to ship/);
+  assert.match(hint, /was cancelled/);
+  assert.match(hint, /YYYY-MM-DD/);
+  // The one reading it must not permit: a cancelled release having shipped.
+  assert.doesNotMatch(hint, /cancelled release shipped/i);
+  assert.doesNotMatch(hint, /shipped or is planned/,
+    "the hint still leaves a cancelled release with no date to enter");
+});
+
 // The picker's authored markup now opens on "Loading decisions to link…", so
 // the one thing that must never happen is the boot leaving that claim standing.
 // A browser that refuses storage is the closest a visitor gets to the log not
