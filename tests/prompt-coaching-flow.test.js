@@ -417,6 +417,12 @@ test("the model select describes each tier by what the model is at its provider"
     const { document } = page;
     const select = byId(document, "prompt-coaching-model");
 
+    // The field asks for the tier, because every option below is a tier. A label
+    // asking for the model sent a reader looking for a model name that is not in
+    // the list, and the optional marker stays part of the label.
+    assert.equal(document.querySelector('label[for="prompt-coaching-model"]').textContent.trim(),
+      "Model tier you used (optional)");
+
     // Every offered label is still offered, against the value it grades as: the
     // guidance explains the choices, it does not rename them.
     assert.deepEqual(select.options.map((option) => option.getAttribute("value")),
