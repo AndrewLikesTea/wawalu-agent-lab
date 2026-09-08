@@ -324,6 +324,30 @@ test("the date hint names the day to enter for each status, in the stated format
     "the hint still leaves a cancelled release with no date to enter");
 });
 
+// The Summary is the second field standing for three statuses, and nothing on
+// the page rewrites its hint when the status changes — so the one sentence
+// authored here is what every recorder reads, and it has to answer all three
+// without telling a planned or cancelled release that it shipped.
+test("the Summary hint says what to write for each release status", async (t) => {
+  const page = await openReleases(t);
+
+  const field = page.document.querySelector("#release-description");
+  assert.equal(field.getAttribute("aria-describedby"), "release-description-hint");
+  const hint = textOf(page.document.querySelector("#release-description-hint"));
+  assert.equal(hint,
+    "What shipped, what is planned to ship, or why the release was cancelled, in a sentence or two.");
+  // Each status the form offers is answered: the completed release's work, the
+  // planned release's intent, and the cancelled release's reason.
+  assert.match(hint, /What shipped/);
+  assert.match(hint, /planned to ship/);
+  assert.match(hint, /why the release was cancelled/);
+  // The reading the issue exists to remove: every summary being what shipped.
+  assert.doesNotMatch(hint, /^What shipped, in a sentence or two\.$/,
+    "a planned or cancelled release is still asked to summarise what shipped");
+  // The field a recorder is asked to fill keeps the name the guidance assumes.
+  assert.equal(textOf(page.document.querySelector('label[for="release-description"]')), "Summary (required)");
+});
+
 // The picker's authored markup now opens on "Loading decisions to link…", so
 // the one thing that must never happen is the boot leaving that claim standing.
 // A browser that refuses storage is the closest a visitor gets to the log not
