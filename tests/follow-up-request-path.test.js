@@ -319,7 +319,7 @@ test("the success state is reached only on a confirmed successful response", asy
   }
 });
 
-test("the submit control is disabled in flight and every path resolves out of submitting", async () => {
+test("the submit control is aria-disabled in flight and every path resolves out of submitting", async () => {
   let release;
   const gate = new Promise((resolve) => { release = resolve; });
   const { page, document } = await mountFooter("social.html", async () => {
@@ -330,13 +330,17 @@ test("the submit control is disabled in flight and every path resolves out of su
     openAndSubmit(document);
     const form = byId(document, "site-footer-form");
     assert.equal(form.dataset.state, "submitting");
-    assert.equal(submitControl(document).disabled, true);
+    assert.equal(submitControl(document).disabled, false);
     assert.equal(submitControl(document).getAttribute("aria-disabled"), "true");
     assert.match(shownText(document, "site-footer-status"), /^Requesting a follow-up/);
 
     release();
     await settled(document);
     assert.equal(form.dataset.state, "success");
+    // Resolving out of submitting restores the control the request borrowed —
+    // except on the one path where the receipt has already taken it.
+    assert.equal(submitControl(document).textContent, "Request a follow-up");
+    assert.equal(submitControl(document).getAttribute("aria-disabled"), "true");
   } finally {
     page.restore();
   }

@@ -162,7 +162,6 @@ export function resolveFailure(response, body, copy) {
 }
 
 // Sends the address, routing label, optional fixed topic, optional message.
-// Every 2xx is a capture, including legacy responses that predate `created`.
 export async function postLeadEmail(request, email, purpose, copy, topic = null, message = null) {
   const response = await request(ENDPOINT, {
     method: "POST",
@@ -177,10 +176,15 @@ export async function postLeadEmail(request, email, purpose, copy, topic = null,
     const failure = resolveFailure(response, body, copy);
     throw new SubmissionError(failure.message, failure.reason);
   }
-  const created = typeof body?.created === "boolean"
-    ? body.created
-    : (typeof body?.subscribed === "boolean" ? body.subscribed : true);
-  return { captured: true, created, purpose };
+  // A 2xx is not a receipt. Two documented shapes are, on every purpose: the
+  // contract's `captured: true` with a boolean `created`, and the pre-contract
+  // `subscribed`. Both answer the only question asked of the body — was a row
+  // written — and anything else leaves it unanswered, so it reads as unknown
+  // delivery. The echoed `purpose` is not checked, because nothing reads it.
+  const legacy = typeof body?.subscribed === "boolean" ? body.subscribed : null;
+  const confirmed = body?.captured === true && typeof body.created === "boolean";
+  if (!confirmed && legacy === null) throw new SubmissionError(copy.unconfirmed, "unconfirmed");
+  return { captured: true, created: confirmed ? body.created : legacy, purpose };
 }
 
 // The browser's own shape check, for forms that cannot lean on the control's
