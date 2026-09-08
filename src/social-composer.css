@@ -1,0 +1,20 @@
+/* In-flow composer: allow long content to shrink and wrap without clipping
+   focus rings or creating a nested viewport when the mobile keyboard opens. */
+#post-compose-panel, #post-form, #post-form .field { min-width:0; }
+#post-compose-panel { overflow-wrap:anywhere; }
+#post-form .secondary-button { max-width:100%; flex-wrap:wrap; }
+#post-form .compose-media-head { flex-wrap:wrap; }
+#post-form .new-tab-note { white-space:normal; }
+#post-form input, #post-form textarea { min-width:0; }
+/* 24px is the scroll-margin styles.css already uses (.product-story,
+   article:target), reused here so Tab scrolling a control into view leaves room
+   for the shared 3px ring at 2px offset instead of pressing it to the edge.
+   Buttons are in the list because Publish and Close are the two stops nearest
+   the foot of the panel, which is where a short viewport clips. */
+#post-form input, #post-form textarea, #post-form button { scroll-margin-block:24px; }
+/* The shared button rule sets `font:700 14px/1`, which is a line-height of 1 —
+   correct for the one-line label it assumes, and overlapping lines as soon as
+   white-space:normal lets a label wrap on a narrow screen. 1.4 and 12px of
+   block padding are what let it wrap; both sit under the shared min-height:46px,
+   so a label that still fits on one line is the same size it was. */
+#post-form button { white-space:normal; line-height:1.4; padding-block:12px; }

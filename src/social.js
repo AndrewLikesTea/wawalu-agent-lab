@@ -900,7 +900,7 @@ export function mountImageDescription(root) {
 // The composer as a disclosure, wired the way this site already wires its other
 // one (src/site-footer.js): a trigger that carries `aria-expanded`, a panel that
 // carries `hidden`, Escape from inside the panel, and focus that returns to the
-// trigger on every close. No new pattern, no new class, no new rule.
+// actual opener on close. In-flight submissions keep the panel open.
 //
 // Why the panel is `hidden` rather than moved with CSS: the point of the reorder
 // is that the feed comes first in the order a keyboard reader and a screen
@@ -932,7 +932,7 @@ export function mountImageDescription(root) {
 // in step with it, no storage promise to answer for, and no draft waiting on a
 // shared machine after the visitor closes the tab. The sentence beside the
 // Paint steps in src/social.html is this paragraph, said to the visitor.
-export function mountComposerDisclosure(root) {
+export function mountComposerDisclosure(root, { isSubmitting = () => false } = {}) {
   const trigger = root.querySelector("#post-compose-open");
   const panel = root.querySelector("#post-compose-panel");
   const caption = root.querySelector("#post-body");
@@ -942,22 +942,35 @@ export function mountComposerDisclosure(root) {
 
   // `focus: false` is for the two arrivals that already own where the reader
   // lands — a Paint handoff, and a cold load on the composer's own fragment.
-  const open = ({ focus = true } = {}) => {
+  const isWithin = (node, ancestor) => {
+    for (let current = node; current; current = current.parentNode) {
+      if (current === ancestor) return true;
+    }
+    return false;
+  };
+  let opener = trigger;
+  const open = ({ focus = true, opener: origin } = {}) => {
+    if (panel.hidden) {
+      const active = root.ownerDocument?.activeElement ?? root.activeElement;
+      opener = origin ?? (active && active !== panel && !isWithin(active, panel) &&
+        active.tagName !== "BODY" ? active : trigger);
+    }
     panel.hidden = false;
     trigger.setAttribute("aria-expanded", "true");
     if (focus) caption?.focus();
   };
   const close = () => {
-    if (panel.hidden) return;
+    if (panel.hidden || isSubmitting()) return;
     panel.hidden = true;
     trigger.setAttribute("aria-expanded", "false");
-    trigger.focus();
+    if (opener && isWithin(opener, root.ownerDocument ?? root)) opener.focus();
+    else trigger.focus();
   };
 
-  trigger.addEventListener("click", () => (panel.hidden ? open() : close()));
+  trigger.addEventListener("click", () => (panel.hidden ? open({ opener: trigger }) : close()));
   cancel?.addEventListener("click", close);
   panel.addEventListener("keydown", (event) => {
-    if (event.key !== "Escape") return;
+    if (event.key !== "Escape" || event.defaultPrevented || event.isComposing) return;
     event.preventDefault();
     close();
   });
@@ -980,6 +993,7 @@ export function mountSocialFeed(root, options = {}) {
   const bodyError = root.querySelector("#post-body-error");
   const notice = root.querySelector("#social-notice");
   const submit = root.querySelector("#post-submit") ?? form?.querySelector("button[type=submit]");
+  const composeCancel = root.querySelector("#post-compose-cancel");
   const submitLabel = submit?.querySelector(".submit-label");
   const count = root.querySelector("#post-count");
   const heading = root.querySelector("#feed-title");
@@ -988,7 +1002,8 @@ export function mountSocialFeed(root, options = {}) {
   const timeFilter = root.querySelector("#post-time-filter");
   const clearFilters = root.querySelector("#post-filter-clear");
   const description = options.description ?? mountImageDescription(root);
-  const composer = mountComposerDisclosure(root);
+  let publishing = false;
+  const composer = mountComposerDisclosure(root, { isSubmitting: () => publishing });
 
   // The two lines that may only speak once a fetch has answered. The count is a
   // number the page has not got yet, and the connection line is a promise about
@@ -1354,7 +1369,16 @@ export function mountSocialFeed(root, options = {}) {
     if (focus) notice.focus();
   };
 
-  const showFailure = (message, { retry = false } = {}) => {
+  // `focus` is false for the refusals validate() has already marked and focused
+  // a field for, and true for the one failure that costs the reader their place:
+  // a request that comes back with an error. Pressing Publish disables the
+  // button under the reader's own focus, so by the time the request settles the
+  // browser has dropped them on <body> — outside the panel, out of reach of the
+  // Escape binding, and above everything they have read. Success already lands
+  // them on this region; failure now lands them on the same one, next to the
+  // Retry the failure just grew. Nothing else moves focus, so the rule is one
+  // sentence: after a publish settles, the reader is on the notice.
+  const showFailure = (message, { retry = false, focus = false } = {}) => {
     if (!notice) return;
     notice.classList.remove("is-success");
     notice.replaceChildren(
@@ -1368,6 +1392,9 @@ export function mountSocialFeed(root, options = {}) {
       notice.append(document.createTextNode(" "), retryButton);
     }
     notice.hidden = false;
+    // Same -1 the confirmation uses: a place focus can be put, never a tab stop.
+    notice.setAttribute("tabindex", "-1");
+    if (focus) notice.focus();
   };
 
   // The outcome of the *last* press is not the state of this one. Cleared as a
@@ -1386,10 +1413,11 @@ export function mountSocialFeed(root, options = {}) {
   // single-line field, and the post field's Cmd/Ctrl+Enter shortcut, both submit
   // the form without going through that button. This is what makes a second press
   // impossible rather than merely inconvenient.
-  let publishing = false;
-
   const setSubmitting = (submitting) => {
     publishing = submitting;
+    // Close is refused by the disclosure itself while this is true; disabling it
+    // is the half a reader can see, so the control does not look available.
+    if (composeCancel) composeCancel.disabled = submitting;
     if (!submit) return;
     submit.disabled = submitting;
     submit.setAttribute("aria-busy", String(submitting));
@@ -1489,7 +1517,7 @@ export function mountSocialFeed(root, options = {}) {
         // exception that escapes into the console: the draft is untouched above
         // this line, so the same post can be sent again from where the reader
         // is standing.
-        showFailure(error?.message || "This post could not be saved. Check the live connection.", { retry: true });
+        showFailure(error?.message || "This post could not be saved. Check the live connection.", { retry: true, focus: true });
         return;
       } finally {
         setSubmitting(false);
