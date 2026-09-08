@@ -6,6 +6,7 @@
     <meta name="description" content="Shiplog Social — a shared demo feed of short posts about what the team ships, images optional" />
     <title>Social · Shiplog</title>
     <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/social-composer.css" />
     <link rel="stylesheet" href="/state-ui.css" />
   </head>
   <body>
@@ -368,8 +369,18 @@
                the explanation rather than in the middle of the form. -->
           <div class="paint-arrival" id="paint-arrival" role="status" tabindex="-1" hidden></div>
 
-          <form id="post-form" aria-describedby="post-form-hint">
+          <form id="post-form" aria-labelledby="post-form-title" aria-describedby="post-form-hint post-keyboard-hint">
             <p class="hint" id="post-form-hint">Write your post. Add an image if you want one — a post with an image also appears on People, under the display name you publish it with.</p>
+            <!-- The escape route, said once, at the top, where the reader is
+                 standing when the composer opens. It is the second half of this
+                 form's aria-describedby, so the order it is announced in is the
+                 order it is printed in, and the two action buttons at the foot
+                 stay next to each other instead of having a paragraph between
+                 them. Naming it here and not on Close is deliberate: the
+                 sentence is about the whole form, and repeating it on the one
+                 control whose label already says "Close" spends a second
+                 announcement on news the reader has had. -->
+            <p class="hint" id="post-keyboard-hint">Escape or Close hides this form and keeps your draft in this tab. While publishing, wait for the result before closing.</p>
 
             <div class="field field-wide">
               <!-- First, because the hint above says "Write your post. Add an
@@ -632,11 +643,12 @@
             </button>
             <!-- The way out, in the word the footer's panel already uses for
                  the same act. It collapses the composer and puts focus back on
-                 Publish a post in the hero, which is the only place focus can
-                 go that does not drop a keyboard reader at the top of the
-                 document. Escape from anywhere inside this panel does the same
-                 thing. A publish that succeeds does NOT close the panel: the
-                 receipt below is where focus goes, and it lives in here. -->
+                 the control that opened it, which is not always the hero's
+                 opener. Escape from inside this panel does the same thing,
+                 unless a submission is in flight — closing then would hide the
+                 only region that is going to say how it ended. A publish that
+                 succeeds does NOT close the panel either: the receipt below is
+                 where focus goes, and it lives in here. -->
             <button class="text-button" id="post-compose-cancel" type="button">Close</button>
             <p class="notice submit-feedback" id="social-notice" role="status" aria-live="polite" aria-atomic="true" hidden></p>
           </form>
