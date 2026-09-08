@@ -321,7 +321,7 @@ test("the releases page states its order in the site's words and repeats no head
   const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
   const [page, home] = await Promise.all([read("src/releases.html"), read("src/index.html")]);
 
-  const ordering = "Every release, newest first, with the decisions it carried.";
+  const ordering = "Every release, newest first, with its linked decisions.";
   assert.ok(home.includes(ordering), "the home page card's wording moved");
   assert.ok(page.includes(ordering), "the releases intro no longer says newest first in the card's words");
   assert.doesNotMatch(page, /reverse chronological/i, "the page invented a second phrase for newest first");

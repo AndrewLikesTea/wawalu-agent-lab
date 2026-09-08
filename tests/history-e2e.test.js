@@ -613,13 +613,13 @@ test("a release can be recorded from the UI", async () => {
 // Same flow, association half: the control that links decisions to the release
 // being recorded. The group is a fieldset, so its legend is the label a user
 // reads for it — hence `legend` alongside the other control elements.
-test("a release can be associated with a decision from the UI", async () => {
+test("a release can be linked to a decision from the UI", async () => {
   const document = parseHtml(await readFile(RELEASES_PAGE, "utf8"));
   const controls = document.querySelectorAll("button,a,input,select,label,legend")
     .map((control) => textOf(control));
   assert.ok(
-    controls.some((label) => /decision.*included.*release/i.test(label)),
-    "no control on the releases page lets a user include a decision in a release",
+    controls.some((label) => /linked decisions/i.test(label)),
+    "no control on the releases page lets a user link a decision to a release",
   );
 });
 
