@@ -236,7 +236,14 @@ export function initReleasesPage(root = document, storage = localStorage, option
     }
   }
 
-  const view = mountReleaseList(container, { releases, decisions, exampleIds: exampleReleaseIds });
+  // The clipboard the expanded rows' "Copy release brief" controls write
+  // through, from the same option the share and export controls above read, so
+  // a test drives one writer rather than patching a global.
+  const view = mountReleaseList(
+    container,
+    { releases, decisions, exampleIds: exampleReleaseIds },
+    { clipboard: options.clipboard ?? globalThis.navigator?.clipboard },
+  );
   // The one selection this page holds: whatever the last render actually drew.
   // The export reads it rather than filtering a second time, so the file a
   // visitor downloads is the list they are looking at by construction and not

@@ -14,7 +14,7 @@
 
 import { DECISION_STATUSES, canonicalDecisionStatus } from "./decision-status.js";
 import { retentionDeclined, retentionRefusal } from "./local-retention.js";
-import { createShareControl } from "./share-link.js";
+import { copyText, createShareControl } from "./share-link.js";
 import { EXAMPLE_LABEL } from "./seed-records.js";
 
 export const RELEASE_STORAGE_KEY = "shiplog.releases.v1";
@@ -658,6 +658,109 @@ export function statusSummaryText(resolved) {
   return parts.length ? `${head} · ${parts.join(", ")}` : head;
 }
 
+// ---------------------------------------------------------------------------
+// The buyer brief: one release as plain text, for the mail, ticket, or board
+// pack a reader is going to paste it into.
+//
+// Pure and exported, because the words are the product here and the control
+// below is only the thing that hands them to the clipboard. Asserting the text
+// through a rendered row would test the renderer; asserting it here tests what
+// a reader receives.
+//
+// TWO DISCLOSURES, NEVER BOTH, NEVER NEITHER. A brief leaves this page and
+// arrives somewhere with none of the page's framing around it, so it has to
+// carry its own provenance. Which line a record gets is decided from the
+// distinction the page already draws — `exampleIds`, the same set that badges a
+// row "Example record" — rather than from a new field or a guess: a seeded
+// example cannot be described as something written in this browser, and a
+// release the visitor recorded cannot be described as a demonstration of the
+// product. The browser-local line is deliberately not Social's wording. Social's
+// posts are hosted records; these are in this browser's storage and nowhere
+// else, and saying otherwise would promise a reader durability they do not have.
+// ---------------------------------------------------------------------------
+
+/** The visible words on the control, which say what pressing it produces. */
+export const RELEASE_BRIEF_BUTTON_LABEL = "Copy release brief";
+
+export const RELEASE_BRIEF_EXAMPLE_LINE =
+  "Example record: invented to demonstrate Shiplog. It uses no customer or production data, and it is not a customer result.";
+export const RELEASE_BRIEF_BROWSER_LINE =
+  "Recorded in this browser: this release is stored only in this browser, and it is not a shared hosted record.";
+
+export const RELEASE_BRIEF_COPIED_STATUS = "Release brief copied to clipboard.";
+export const RELEASE_BRIEF_COPY_FAILED_STATUS =
+  "Could not copy the release brief. The same details are on this release’s page.";
+
+export const NO_SUMMARY_TEXT = "No summary recorded.";
+
+// The calendar day, not a formatted one. formatDate() above is for the screen,
+// where the reader's locale is this browser's; a brief is read somewhere else
+// entirely, and YYYY-MM-DD is the one shape that means the same day to everyone.
+// It is also the shape the recorder's own date field writes.
+function briefDate(iso) {
+  const day = typeof iso === "string" ? iso.slice(0, 10) : "";
+  return /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : "Unknown";
+}
+
+// Status words in the casing the recorder's own options and the hero sentence
+// use ("Completed, Planned, or Cancelled"), because the brief is prose. The
+// vocabulary is unchanged — only the first letter.
+const capitalized = (word) => word.charAt(0).toUpperCase() + word.slice(1);
+
+/**
+ * One release as plain text.
+ *
+ * @param release a release record — raw from storage or already resolved.
+ * @param decisions the decisions to resolve `decisionIds` against. Defaults to
+ *   the release's own linked decisions, so a resolved record can be passed
+ *   alone; a caller holding the whole log passes it and gets the same answer.
+ * @param options.example whether this record is one of the shipped examples the
+ *   visitor has not taken over. Decides which disclosure line the brief ends on.
+ *
+ * No clock, no DOM, no storage: the same record and the same decisions produce
+ * the same string every time, which is what makes the wording testable at all.
+ */
+export function buildReleaseBrief(release, decisions = release?.decisions ?? [], options = {}) {
+  const ids = Array.isArray(release?.decisionIds) ? release.decisionIds : [];
+  const resolved = resolveRelease({ ...release, decisionIds: ids }, decisions);
+  const version = typeof release?.version === "string" && release.version.trim() !== ""
+    ? release.version.trim()
+    : "Unknown version";
+  // The title the record carries itself, not releaseTitle()'s screen fallback:
+  // on a row that fallback IS the heading, but here the version is already on
+  // the line, and "v1.2.0 — v1.2.0" names one release twice.
+  const title = typeof release?.title === "string" ? release.title.trim() : "";
+  const summary = releaseDescription(resolved).replace(/\s+/g, " ").trim();
+
+  const lines = [
+    // Version and title on one line, the way the row heads itself.
+    title === "" || title === version ? `Release brief: ${version}` : `Release brief: ${version} — ${title}`,
+    `Release date: ${briefDate(release?.createdAt)}`,
+    `Status: ${capitalized(releaseStatus(release))}`,
+    `Owner: ${releaseOwner(release)}`,
+    `Summary: ${summary === "" ? NO_SUMMARY_TEXT : summary}`,
+  ];
+
+  if (resolved.counts.total === 0) {
+    // The sentence the collapsed row and the detail view both use, so the brief
+    // reads the same as the page it came from.
+    lines.push("No decisions linked to this release.");
+  } else {
+    lines.push(`Linked decisions (${resolved.counts.total}):`);
+    // Association order, dangling references included and in place. A brief
+    // that quietly dropped them would claim the release carried fewer decisions
+    // than it recorded — the same reason the export reports them.
+    for (const association of resolved.associations) {
+      lines.push(association.missing
+        ? `- Linked decision ${association.id} is not in this log.`
+        : `- ${decisionLabel(association.decision)} — ${capitalized(canonicalDecisionStatus(association.decision.status))}`);
+    }
+  }
+
+  lines.push("", options.example === true ? RELEASE_BRIEF_EXAMPLE_LINE : RELEASE_BRIEF_BROWSER_LINE);
+  return lines.join("\n");
+}
+
 // Focus math for the release controls. Arrow/Home/End move focus and clamp at
 // the ends (no wrap); Enter activates the selected release's detail action.
 // Space retains the native button behavior and expands the inline disclosure.
@@ -703,6 +806,14 @@ export function toggleReleaseExpanded(state, id, releases = []) {
 // written through textContent / text nodes (never HTML strings), so stored
 // decision text can never execute (PRODUCT.md: no user-generated HTML).
 // ---------------------------------------------------------------------------
+
+// The example ids as a set, however the caller holds them. One reading, used by
+// the renderer and by the copy handler below, so the badge on a row and the
+// disclosure in that row's brief can never disagree about which records are the
+// shipped examples.
+function idSet(value) {
+  return value instanceof Set ? value : new Set(value ?? []);
+}
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -789,6 +900,41 @@ function renderDetailLink(release) {
   return link;
 }
 
+// The copy control for one release's brief, inside the panel it describes.
+//
+// A real <button type="button">, so keyboard activation, the role, and the
+// disabled state all come from the platform. It lives in the expanded panel
+// rather than on the collapsed row for the reason the brief exists: it copies
+// what the reader has just opened, and a control on every collapsed row would
+// offer to copy text nobody has seen.
+//
+// No new CSS. The classes are the share control the detail page and the export
+// already use, which is also what gives this its narrow-viewport behaviour —
+// the 520px rule stacks .share-control and widens .share-button, so the control
+// and its message reflow with no rule of their own. styles.css is at its
+// measured size budget and this change does not spend from it.
+//
+// The status line is the page's own live-region pattern (role="status",
+// aria-live="polite", aria-atomic="true"), rendered per row rather than once
+// per page: it sits beside the control it belongs to, so "copied" is heard next
+// to the release it is about rather than in a shared region at the top of a log
+// that may hold four of these.
+function renderBriefControl(release, index) {
+  const group = el("div", "share-control release-brief");
+  const button = el("button", "share-button release-brief-copy", RELEASE_BRIEF_BUTTON_LABEL);
+  button.type = "button";
+  button.dataset.releaseId = release.id;
+  const statusId = `release-brief-status-${index}`;
+  button.setAttribute("aria-describedby", statusId);
+  const status = el("span", "share-status release-brief-status");
+  status.id = statusId;
+  status.setAttribute("role", "status");
+  status.setAttribute("aria-live", "polite");
+  status.setAttribute("aria-atomic", "true");
+  group.append(button, status);
+  return group;
+}
+
 function renderReleaseItem(release, index, expanded = false, example = false) {
   const item = el("li", "release-item");
   // Render-local ids keep arbitrary stored release ids out of ARIA IDREFs.
@@ -830,6 +976,7 @@ function renderReleaseItem(release, index, expanded = false, example = false) {
   panel.setAttribute("aria-labelledby", toggleId);
   panel.append(renderReleaseBody(release));
   panel.append(renderDetailLink(release));
+  panel.append(renderBriefControl(release, index));
 
   item.append(heading, panel);
   return item;
@@ -849,9 +996,7 @@ export function renderReleaseList(container, resolvedReleases, options = {}) {
   // Which of these rows are the shipped examples rather than the visitor's own
   // records. Absent by default, so a caller that has no such distinction to
   // draw renders exactly what it did before.
-  const exampleIds = options.exampleIds instanceof Set
-    ? options.exampleIds
-    : new Set(options.exampleIds ?? []);
+  const exampleIds = idSet(options.exampleIds);
   resolvedReleases.forEach((release, index) => {
     list.append(renderReleaseItem(release, index, expandedIds.has(release.id), exampleIds.has(release.id)));
   });
@@ -968,9 +1113,17 @@ export function focusRelease(container, id, options = {}) {
 // Wire the interactive behaviour. Handlers are delegated to the container so
 // they survive a re-render without re-binding. Returns a small API so the page
 // (or a future filter control) can re-render with fresh data.
-export function mountReleaseList(container, data = {}) {
+export function mountReleaseList(container, data = {}, options = {}) {
   let current = data;
   let state = createReleaseListState(current.releases ?? []);
+  // The releases the last render drew, resolved. The copy control reads this
+  // rather than scraping the row it sits in: what a visitor pastes is the
+  // record, not a transcription of the markup describing it.
+  let drawn = [];
+  // Injected so a test can drive both outcomes without reaching for a global,
+  // and so a page in an embedded view with no clipboard is a stated failure
+  // rather than a handler that throws. Read at press time, never cached.
+  const clipboard = () => options.clipboard ?? globalThis.navigator?.clipboard;
   // Returns the releases actually shown so callers get the visible count from
   // the same computation that rendered them, rather than re-deriving it by
   // querying the rendered DOM (which would couple the page to class names here).
@@ -978,6 +1131,7 @@ export function mountReleaseList(container, data = {}) {
     current = next;
     state = createReleaseListState(current.releases ?? [], state.expandedIds);
     const shown = filterReleases(current.releases ?? [], current.decisions ?? [], filters);
+    drawn = shown;
     const filtered = releaseFiltersActive(filters);
     renderReleaseList(container, shown, {
       filtered,
@@ -1001,6 +1155,28 @@ export function mountReleaseList(container, data = {}) {
     toggle.setAttribute("aria-expanded", String(expanded));
     const panel = container.ownerDocument.getElementById(toggle.getAttribute("aria-controls"));
     if (panel) panel.hidden = !expanded;
+  });
+
+  // Copy one release's brief. Delegated like the handlers above, so it survives
+  // the re-render a filter change causes without being re-bound.
+  //
+  // Both outcomes are said out loud, in the row's own status line: the write is
+  // awaited, and a clipboard that is absent or refuses lands on the failure
+  // sentence rather than on a silent press. The control is disabled for the
+  // duration so a second press cannot race the first's answer.
+  container.addEventListener("click", async (event) => {
+    const button = event.target.closest?.(".release-brief-copy");
+    if (!button) return;
+    const release = drawn.find((candidate) => candidate.id === button.dataset.releaseId);
+    const status = container.ownerDocument.getElementById(button.getAttribute("aria-describedby"));
+    if (!release) return;
+    button.disabled = true;
+    if (status) status.textContent = "";
+    const copied = await copyText(clipboard(), buildReleaseBrief(release, current.decisions ?? [], {
+      example: idSet(current.exampleIds).has(release.id),
+    }));
+    if (status) status.textContent = copied ? RELEASE_BRIEF_COPIED_STATUS : RELEASE_BRIEF_COPY_FAILED_STATUS;
+    button.disabled = false;
   });
 
   render(data);
