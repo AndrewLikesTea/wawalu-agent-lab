@@ -300,6 +300,29 @@ test("the loading recorder states the wait once, in two different sentences", as
   assert.equal(summaryText(page), "No decisions can be linked until the list loads.");
 });
 
+// Summary is one required field for three statuses, and its hint used to ask
+// only for "what shipped" — copy a Planned or Cancelled recorder has no true
+// answer to. No module rewrites this hint per status, so the single sentence
+// has to answer all three, under the field name recorders already know.
+test("the Summary hint names what to enter for each status, under the same field name", async (t) => {
+  const page = await openReleases(t);
+
+  const field = page.document.querySelector("#release-description");
+  assert.equal(field.getAttribute("aria-describedby"), "release-description-hint");
+  // The hint carries the change; the field is still called Summary.
+  assert.equal(textOf(page.document.querySelector('label[for="release-description"]')), "Summary (required)");
+  const hint = textOf(page.document.querySelector("#release-description-hint"));
+  assert.equal(hint,
+    "In a sentence or two, describe what shipped, what is planned, or why the release was cancelled.");
+  // Each status the form offers is told what to enter, and the cancelled one is
+  // asked for its reason rather than for something it shipped.
+  assert.match(hint, /what shipped/);
+  assert.match(hint, /what is planned/);
+  assert.match(hint, /why the release was cancelled/);
+  assert.doesNotMatch(hint, /^What shipped/,
+    "the hint is back to describing every release as shipped");
+});
+
 // The required date is one field for three statuses, so its hint has to name
 // all three days a recorder might be holding — and name the cancelled one
 // without saying that release shipped. Asserted on the booted page, because
