@@ -321,15 +321,19 @@ test("the releases page states its order in the site's words and repeats no head
   const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
   const [page, home] = await Promise.all([read("src/releases.html"), read("src/index.html")]);
 
-  const ordering = "Every release, newest first, with its linked decisions.";
-  assert.ok(home.includes(ordering), "the home page card's wording moved");
+  // The tail is the shared wording: the home page card and this page's intro
+  // say the order and what a release carries in the same words. The intro now
+  // opens by naming the three statuses the log holds (#2208), so the sentences
+  // differ ahead of "newest first" and agree from there on.
+  const ordering = "newest first, with its linked decisions.";
+  assert.ok(home.includes(`Every release, ${ordering}`), "the home page card's wording moved");
   assert.ok(page.includes(ordering), "the releases intro no longer says newest first in the card's words");
   assert.doesNotMatch(page, /reverse chronological/i, "the page invented a second phrase for newest first");
 
   // The destination keeps one name in all three places it names itself.
   assert.match(page, /<title>Releases · Shiplog<\/title>/);
   assert.match(page, /<a aria-current="page" href="\/releases\.html">Releases<\/a>/);
-  assert.match(page, /<h1 id="page-title">See what shipped,<br \/>and why\.<\/h1>/);
+  assert.match(page, /<h1 id="page-title">See every release,<br \/>and why\.<\/h1>/);
   // The order moved off the heading and onto the log's summary sentence, which
   // is the line that also carries the count — one line, both facts, the shape
   // Social's feed summary already uses. The heading names the panel, once, and
@@ -455,6 +459,32 @@ function labelMap(links, key, value) {
   }
   return map;
 }
+
+// (#2208) The page's definition of its own log, read from the DOM a visitor
+// actually meets. It used to open "See what shipped, and why." over a line that
+// named no status, so the first thing on the page defined the log as a history
+// of shipped work — while the status filter, the recorder and the rows below it
+// all carry Planned and Cancelled records. The intro names all three, in the
+// words those controls use, and still says a release carries linked decisions.
+test("the intro names every status the log holds and the decisions a release carries", async (t) => {
+  const page = await openReleasesPage(t);
+  const intro = textOf(page.document.querySelector("#top"));
+
+  // The statuses are collected from the recorder rather than typed here, so
+  // renaming an option fails this test instead of leaving the intro out of date.
+  const statuses = page.document.querySelector("#release-form-status").querySelectorAll("option").map(textOf);
+  assert.deepEqual([...statuses].sort(), ["Cancelled", "Completed", "Planned"]);
+  for (const status of statuses) {
+    assert.ok(intro.includes(status), `the intro no longer names ${status} releases, which this log holds`);
+  }
+
+  // Every release is still offered with what it links, and no record on this
+  // page is promised as shipped work — the heading included, since it sits in
+  // this section too.
+  assert.match(intro, /with its linked decisions/);
+  assert.match(textOf(page.document.querySelector("#page-title")), /See every release/);
+  assert.doesNotMatch(intro, /shipped/i, "the intro defines the log as shipped work again");
+});
 
 // What the search field narrows to, in the shape the two filters beside it
 // already use. The sentence is a claim about filterReleases, so it is held to

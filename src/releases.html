@@ -42,8 +42,16 @@
       <main id="main-content" tabindex="-1">
       <section class="hero" id="top" aria-labelledby="page-title">
         <p class="eyebrow">Releases</p>
-        <h1 id="page-title">See what shipped,<br />and why.</h1>
-        <p>Every release, newest first, with its linked decisions. Expand a release to review each linked decision and its status.</p>
+        <!-- What the log actually holds, said before a visitor meets a record
+             that contradicts it. The heading used to read "See what shipped,
+             and why." and the line under it named no status, so the page
+             defined itself as a history of shipped work — while the status
+             filter, the recorder and the rows below all offer Planned and
+             Cancelled records too. The three names here are the filter's and
+             the recorder's own options, in their casing, so a visitor reads
+             the same three words here that they select by further down. -->
+        <h1 id="page-title">See every release,<br />and why.</h1>
+        <p>Every release — Completed, Planned, or Cancelled — newest first, with its linked decisions. Expand a release to review each linked decision and its status.</p>
         <!-- The log stands above the recorder now, so a visitor who came here
              to write a record would otherwise pass the whole history on the way
              to a field. One control, one destination: it lands on the recorder

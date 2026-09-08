@@ -366,7 +366,7 @@ test("Social and People each disambiguate the other in the sentence under the he
   assert.notEqual(descriptions[0], descriptions[1], "the two descriptions must not be the same sentence");
 });
 
-// Releases leads on "See what shipped, and why." — one line, one verb first,
+// Releases leads on "See every release, and why." — one line, one verb first,
 // what you do here. Prompt coach makes that line the tagline under a heading
 // that names the page, which is the shape this test asks of Social and People:
 // the name the visitor clicked, then one line saying what they do here.
@@ -376,7 +376,7 @@ test("Social and People each disambiguate the other in the sentence under the he
 test("Social and People lead with the same one-line, verb-first tagline the rest of the site does", async () => {
   // The register they join, pinned so a rewrite of either source moves both.
   assert.match(await readFile(pageUrl("releases.html"), "utf8"),
-    /<h1 id="page-title">See what shipped,<br \/>and why\.<\/h1>/,
+    /<h1 id="page-title">See every release,<br \/>and why\.<\/h1>/,
     "Releases no longer leads with the line these two copy");
   const coach = await readFile(pageUrl("coach.html"), "utf8");
   assert.match(coach,
