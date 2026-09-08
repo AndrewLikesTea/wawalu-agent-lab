@@ -262,7 +262,9 @@ test("the nav names people, and never promises the visitor a personal profile", 
   // The home page's destination list is the same name, doing the same job, so it
   // no longer needs a sentence undoing the label.
   const home = await readFile(pageUrl("index.html"), "utf8");
-  const entry = home.match(/<li><a href="\/profile\.html">([\s\S]*?)<\/li>/);
+  const summaries = home.match(/<ul aria-labelledby="site-guide-demos-title">([\s\S]*?)<\/ul>/);
+  assert.ok(summaries, "the demo destination summaries must remain available");
+  const entry = summaries[1].match(/<li><a href="\/profile\.html">([\s\S]*?)<\/li>/);
   assert.ok(entry, "the destination list must still name this page");
   assert.match(entry[1], /^People<\/a>/, "the list calls it what the nav calls it");
   assert.doesNotMatch(entry[1], /not your account/, "a truthful label needs no correction");

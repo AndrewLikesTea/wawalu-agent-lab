@@ -301,7 +301,7 @@ test("the home page names every nav destination and says what each one does", as
   // and links it. The list is grouped now rather than flat, so a destination is
   // found by its href instead of by its position — but the count still has to
   // match, so a regrouping cannot quietly drop one.
-  const entries = [...guide.querySelectorAll("li")];
+  const entries = [...guide.querySelectorAll("ul")].flatMap((list) => [...list.querySelectorAll("li")]);
   assert.equal(entries.length, SITE_NAV.length);
   for (const { href, label } of SITE_NAV) {
     const matches = entries.filter((entry) => entry.querySelector("a").getAttribute("href") === href);

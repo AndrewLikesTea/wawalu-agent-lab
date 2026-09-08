@@ -430,7 +430,8 @@ test("the footer is a site map: every destination the navigation offers, each on
     // dropped belong in both maps: where Paint's PNG goes, and what order
     // People's posts come in. The marker on the first row is the order signal,
     // not purpose copy, so it is counted separately.
-    const guideRows = [...document.querySelector(".site-guide").querySelectorAll("li")];
+    const guideRows = [...document.querySelector(".site-guide").querySelectorAll("ul")]
+      .flatMap((list) => [...list.querySelectorAll("li")]);
     // The page the navigation files under Prompt coach is explained on the home
     // page too, in the coach entry's companion paragraph rather than in the
     // directory. That is the sentence its row has to stay shorter than, so it
@@ -548,7 +549,7 @@ test("Social's homepage directory explains publishing, while a permalink explain
   assert.match(PURPOSE, /^read /, "the Social row must open with what a visitor does");
   assert.doesNotMatch(PURPOSE, /^social\b/i, "the Social row repeats the name of the link beside it");
 
-  const guide = parseHtml(await read("index.html")).querySelector(".site-guide");
+  const guide = parseHtml(await read("index.html")).querySelector('ul[aria-labelledby="site-guide-demos-title"]');
   const card = [...guide.querySelectorAll("li")].find((row) => row.querySelector('a[href="/social.html"]'));
   assert.ok(Boolean(card), "the home page's directory must name Social");
   const cardText = textOf(card).slice("Social".length).trim();
