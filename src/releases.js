@@ -399,7 +399,7 @@ const FOLLOW_UP_COPY = {
     target: (release, name) => `Opens the decision detail for “${name}”, with the context and alternatives behind it.`,
   },
   superseded: {
-    lead: (release, name) => `${releaseTitle(release)} carried “${name}”, which a later decision replaced.`,
+    lead: (release, name) => `“${name}” is linked to ${releaseTitle(release)}, and a later decision replaced it.`,
     action: (release, name) => `Review “${name}”`,
     target: (release, name) => `Opens the decision detail for “${name}”, which names the decision that replaced it.`,
   },
@@ -816,7 +816,7 @@ function renderReleaseItem(release, index, expanded = false, example = false) {
   datePair.append(el("span", "meta-label", "Released:"));
   datePair.append(time);
   info.append(datePair);
-  info.append(labelledValue("Decisions", statusSummaryText(release), "release-summary"));
+  info.append(labelledValue("Linked decisions", statusSummaryText(release), "release-summary"));
 
   const chevron = el("span", "release-chevron");
   chevron.setAttribute("aria-hidden", "true");

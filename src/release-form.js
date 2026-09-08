@@ -44,7 +44,7 @@ export const RELEASE_FORM_ERRORS = {
   required: "A release needs a version, an owner, a status, a release date, and a summary.",
   length: "A release field exceeds its maximum length.",
   invalidDate: "A release date must be a real calendar day written as YYYY-MM-DD.",
-  unknownDecision: "A selected decision is no longer in this log. Review the selection and record the release again.",
+  unknownDecision: "A decision you linked is no longer in this log. Review the linked decisions and record the release again.",
 };
 
 // `<input type="date">` yields a calendar day, never an instant. It is stored as

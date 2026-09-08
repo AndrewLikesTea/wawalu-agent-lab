@@ -110,7 +110,7 @@ test("the decision-to-release trail is named once above the first example record
   assert.equal(textOf(headings[0]), "From decision to release");
   // One instruction, and it names what the linked record shows.
   assert.equal((intro.match(/Open either link below to read the full record/g) ?? []).length, 1);
-  assert.match(intro, /the decision’s context, or the release and the decisions it carried/);
+  assert.match(intro, /the decision’s context, or the release and its linked decisions/);
 });
 
 // "Record a release" printed twice in a row above the first field: an eyebrow,

@@ -38,7 +38,7 @@ export const FOLLOW_UP_TOPICS = Object.freeze({
   // missing, and a topic is a free column (migration 0010), so naming it here
   // costs no schema change. The words are the site's own for this surface —
   // DEMOS in src/site-footer.js describes Releases the same way.
-  follow_up_releases: "Releases page — every release and the decisions it carried",
+  follow_up_releases: "Releases page — every release and its linked decisions",
   follow_up_social: "Social page — read short posts about what the team ships, or publish one",
   follow_up_people: "People page — pick a display name, see its image posts, newest first",
   // Agent observatory named an activity rather than what the page lets a reader

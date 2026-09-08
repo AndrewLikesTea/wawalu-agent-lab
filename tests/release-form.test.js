@@ -147,6 +147,7 @@ test("createRelease refuses an incomplete, oversized, or dangling record", () =>
     { message },
   );
   const { required, length, invalidDate, unknownDecision } = RELEASE_FORM_ERRORS;
+  assert.equal(unknownDecision, "A decision you linked is no longer in this log. Review the linked decisions and record the release again.");
 
   rejects({ ...VALID, version: "   " }, required);
   rejects({ ...VALID, owner: "" }, required);
@@ -310,13 +311,16 @@ test("the recorder markup groups the picker and never builds HTML from stored te
   ]);
   assert.match(page, /id="release-form"/);
   assert.match(page, /id="release-decisions"/);
-  assert.match(page, /<legend>Decisions included in this release <span class="label-optional">\(optional\)<\/span><\/legend>/);
-  assert.match(page, /Select every decision included in this release, or leave all unchecked\./);
-  assert.match(page, /The first linked decision you select is summarised in its own section on the release page, above the other linked decisions\./);
+  assert.match(page, /<legend>Linked decisions <span class="label-optional">\(optional\)<\/span><\/legend>/);
+  assert.match(page, /Link decisions to this release, or leave all unchecked\./);
+  assert.match(page, /The first decision you link is summarised in its own section on the release page, above the other linked decisions\./);
   // One name for the relationship, page-wide: the recorder, the filters and the
   // list all say "linked decision", and no reader meets a second word for it.
   assert.doesNotMatch(page, /governing/i, "the Releases page reintroduces a second name for a linked decision");
-  assert.match(page, /A completed release implemented its selected decisions\. A planned or cancelled release only names them\./);
+  // "names", not "links": a completed release links its decisions too, so the
+  // contrast the sentence draws is implemented-versus-only-named. It is the
+  // same split releaseLinkPhrase() prints on both detail views.
+  assert.match(page, /A completed release implemented its linked decisions\. A planned or cancelled release only names them\./);
   assert.doesNotMatch(page, /Only a completed release shipped what it carried/);
   assert.doesNotMatch(page, /Tick every decision this release carried/);
   // The three required fields issue #533 adds. The date is a native date

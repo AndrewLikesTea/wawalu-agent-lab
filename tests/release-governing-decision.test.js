@@ -274,7 +274,7 @@ test("the history filter is a labelled select of this log's decisions, operable 
   assert.equal(textOf(label), "Linked decision");
   assert.equal(
     textOf(page.document.getElementById(select.getAttribute("aria-describedby"))),
-    "Shows only the releases associated with the chosen decision.",
+    "Shows only releases linked to the chosen decision.",
   );
 
   // One option per decision this log holds, named by its title, plus the
@@ -342,7 +342,7 @@ test("the recorder names the decision that will govern the release as it is chos
   // The hint says the rule before anything is ticked, in the same words the
   // release detail view heads that decision with.
   assert.ok(textOf(page.document.querySelector("#release-decisions-hint"))
-    .includes("The first linked decision you select is summarised in its own section on the release page, above the other linked decisions."));
+    .includes("The first decision you link is summarised in its own section on the release page, above the other linked decisions."));
   // A live region, so the choice is announced without moving focus out of the
   // group — and it is a region, so it was announced at all.
   assert.equal(summary.getAttribute("role"), "status");
@@ -370,4 +370,26 @@ test("the recorder names the decision that will govern the release as it is chos
     "RationaleRollbacks were manual.",
     "RationaleTwo schedulers drifted.",
   ]);
+});
+
+
+test("the Releases page renders linked-decision copy from markup and the list renderer", async (t) => {
+  const page = await loadPage(RELEASES_PAGE, {
+    storage: {
+      [STORAGE_KEY]: JSON.stringify([{ ...DECISIONS[0], id: "d-old", title: "Old approach", status: "superseded", createdAt: "2026-01-01T00:00:00Z" }]),
+      [RELEASE_STORAGE_KEY]: JSON.stringify([{ id: "r-old", version: "v1", title: "Old release", status: "completed", createdAt: "2026-02-01T00:00:00Z", decisionIds: ["d-old"] }]),
+    },
+  });
+  t.after(() => page.restore());
+  initReleasesPage(page.document, page.storage, { seed: NO_SEED });
+  assert.match(textOf(page.document.querySelector("#top")), /Every release, newest first, with its linked decisions/);
+  assert.match(textOf(page.document.querySelector("#shiplog-proof-note")), /the release and its linked decisions/);
+  assert.equal(textOf(page.document.querySelector("#release-decisions-field").querySelector("legend")), "Linked decisions (optional)");
+  // The keyboard line describes the control, not the record: nothing is linked
+  // until the release is recorded, so Space ticks a box — it does not link.
+  assert.match(textOf(page.document.querySelector("#release-decisions-hint")), /Space ticks or clears the decision in focus/);
+  assert.equal(textOf(page.document.querySelector("#release-form-status-hint")), "A completed release implemented its linked decisions. A planned or cancelled release only names them.");
+  assert.match(textOf(page.document.querySelector(".release-summary")), /^Linked decisions/);
+  assert.match(textOf(page.document.querySelector("#release-followup")), /“Old approach” is linked to Old release, and a later decision replaced it/);
+  assert.match(textOf(page.document.querySelector("#site-footer-topic-note")), /Releases page — every release and its linked decisions/);
 });
