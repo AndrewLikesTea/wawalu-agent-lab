@@ -382,7 +382,7 @@ test("the Releases page renders linked-decision copy from markup and the list re
   });
   t.after(() => page.restore());
   initReleasesPage(page.document, page.storage, { seed: NO_SEED });
-  assert.match(textOf(page.document.querySelector("#top")), /Every release, newest first, with its linked decisions/);
+  assert.match(textOf(page.document.querySelector("#top")), /Every release — Completed, Planned, or Cancelled — newest first, with its linked decisions/);
   assert.match(textOf(page.document.querySelector("#shiplog-proof-note")), /the release and its linked decisions/);
   assert.equal(textOf(page.document.querySelector("#release-decisions-field").querySelector("legend")), "Linked decisions (optional)");
   // The keyboard line describes the control, not the record: nothing is linked
