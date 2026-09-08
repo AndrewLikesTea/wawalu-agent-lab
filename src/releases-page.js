@@ -6,17 +6,16 @@
 
 import {
   ALL_DECISIONS_FILTER,
-  decisionFilterSearch,
   focusRelease,
   loadReleases,
   mountReleaseList,
   releaseSummarySentence,
-  readDecisionFilter,
   releaseFollowUp,
   renderReleaseFollowUp,
   renderReleaseListState,
   saveReleases,
 } from "./releases.js";
+import { bindReleaseFilterUrl } from "./release-filter-url.js";
 import { loadReleaseData } from "./releases-data.js";
 import { BUILD_STAMP } from "./build-stamp.js";
 import { deployedReleaseRecord } from "./deployed-release.js";
@@ -173,9 +172,6 @@ export function initReleasesPage(root = document, storage = localStorage, option
   // the browser already owns "which one is selected", and a second copy of that
   // answer is a second thing that can be wrong.
   const decisionStatusInputs = [...(root.querySelectorAll?.('input[name="release-decision-status"]') ?? [])];
-  // The one filter whose state survives a reload, for the same reason the
-  // decisions history's does: a link to the releases behind one decision is
-  // worth sharing. Everything else stays in the controls.
   const decisionFilter = root.querySelector("#release-decision");
   const locationRef = options.location ?? globalThis.window?.location;
   const historyRef = options.history ?? globalThis.window?.history;
@@ -238,22 +234,7 @@ export function initReleasesPage(root = document, storage = localStorage, option
         : decision.id;
       decisionFilter.append(option);
     }
-    // A restored value naming a decision this log no longer holds falls back to
-    // "all" rather than emptying the history — the same rule the status filter
-    // applies to a stale bookmark. The <select> cannot show an option that is
-    // not there, so leaving it set would also desync the control from the view.
-    const restored = readDecisionFilter(locationRef?.search ?? "");
-    decisionFilter.value = knownDecisionIds.has(restored) ? restored : ALL_DECISIONS_FILTER;
   }
-
-  // The query string this page owns, tracked locally because replaceState does
-  // not report back through the same object in every environment.
-  let queryString = locationRef?.search ?? "";
-  const syncUrl = () => {
-    queryString = decisionFilterSearch(queryString, decisionFilter?.value ?? ALL_DECISIONS_FILTER);
-    const target = `${locationRef?.pathname ?? ""}${queryString}${locationRef?.hash ?? ""}`;
-    if (target) historyRef?.replaceState?.(null, "", target);
-  };
 
   const view = mountReleaseList(container, { releases, decisions, exampleIds: exampleReleaseIds });
   // The one selection this page holds: whatever the last render actually drew.
@@ -283,12 +264,11 @@ export function initReleasesPage(root = document, storage = localStorage, option
     now: options.now,
     download: options.download,
   });
-  search?.addEventListener("input", update);
-  statusFilter?.addEventListener("change", update);
-  for (const input of decisionStatusInputs) input.addEventListener("change", update);
-  decisionFilter?.addEventListener("change", () => {
-    syncUrl();
-    update();
+  const filtersChanged = bindReleaseFilterUrl({
+    root, search, statusFilter, decisionFilter, decisionStatusInputs, knownDecisionIds,
+    location: locationRef, history: historyRef,
+    navigation: options.navigation ?? globalThis.window,
+    clipboard: options.clipboard ?? globalThis.navigator?.clipboard, update,
   });
 
   // The next step each empty state offers. Delegated to the list container so it
@@ -303,8 +283,7 @@ export function initReleasesPage(root = document, storage = localStorage, option
       if (statusFilter) statusFilter.value = "all";
       if (decisionFilter) decisionFilter.value = ALL_DECISIONS_FILTER;
       for (const input of decisionStatusInputs) input.checked = input.value === "all";
-      syncUrl();
-      update();
+      filtersChanged();
       decisionStatusInputs.find((input) => input.value === "all")?.focus?.();
     } else if (action.dataset.action === "record-release") {
       root.querySelector("#release-version")?.focus?.();

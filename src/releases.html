@@ -323,6 +323,29 @@
             </div>
           </fieldset>
         </div>
+        <!-- Share whatever the filters are showing. The label is the one the
+             decisions history already uses for the same control on index.html,
+             and it names the view because this page carries a second copy
+             button higher up, for the deployment record. The scope sentence
+             says what the link does not carry as plainly as what it does: it
+             repeats the promise the recorder makes further down this page, that
+             a release recorded here stays in this browser, so a reader learns
+             before pressing that a colleague gets the filters and their own
+             log. Both buttons start disabled and are enabled by
+             release-filter-url.js — without the script neither can do anything.
+             The manual field stays hidden until a copy fails; it borrows the
+             filter class so its label and box match the controls above rather
+             than paying for a new rule in styles.css. -->
+        <div class="share-control">
+          <button class="share-button" id="release-copy-link" type="button" aria-describedby="release-share-scope" disabled>Copy link to this view</button>
+          <button class="share-button" id="release-clear-filters" type="button" disabled>Clear filters</button>
+          <span class="hint" id="release-share-scope">The link carries your search and filters, not your releases: a teammate who opens it sees the same filters applied to the releases in their own browser.</span>
+          <span class="share-status" id="release-copy-status" role="status" aria-live="polite" aria-atomic="true"></span>
+          <div class="filter" id="release-copy-fallback" hidden>
+            <label for="release-copy-url">Link to this view</label>
+            <input id="release-copy-url" type="text" readonly />
+          </div>
+        </div>
         <!-- Export what the filters are showing. Outside the search landmark
              above, because this writes a file rather than narrowing the list.
              A button element, not a link: there is no address to open, and the
