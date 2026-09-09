@@ -422,21 +422,8 @@ test("the post page's two routes out sit after the site frame, and name where th
   // loading cannot expose an empty or placeholder name.
   assert.match(html, /<a class="detail-back detail-page-back" id="post-back" href="\/social\.html">Open Social to read the whole feed<\/a>/);
   assert.match(html, /<a class="detail-back detail-page-back" id="post-people" href="\/profile\.html" hidden><\/a>/);
-  // The third route ships its words and is never withheld: publishing is the
-  // reader's own act, and nothing a lookup can answer changes whether it is
-  // true. Its words are the ones Social uses for the same act, so the link and
-  // the control it lands beside say one string rather than two.
-  assert.match(html, /<a class="detail-back detail-page-back" id="post-publish" href="\/social\.html#post-form">Publish a post<\/a>/);
-  // And they are not a longer sentence with those words inside it. The feed
-  // link above it is the page's one "Open Social to…" sentence, so a second one
-  // would put two phrasings of one destination in one row. Read off the publish
-  // link itself: the row now legitimately carries "Open Social to…" once, and
-  // the rationale comment above it quotes the wording this replaced, which is
-  // prose about the copy and not the copy.
-  assert.doesNotMatch(html.match(/<a[^>]*id="post-publish"[^>]*>[\s\S]*?<\/a>/)[0], /Open Social/,
-    "the publish route went back to a sentence that opens like the feed link");
-  assert.equal([...html.matchAll(/>Open Social to /g)].length, 1,
-    "one 'Open Social to…' route in the shipped markup, the feed link");
+  // Publishing opens Social's composer; the visible label names that destination.
+  assert.match(html, /<a class="detail-back detail-page-back" id="post-publish" href="\/social\.html#post-form">Open Social to publish a post<\/a>/);
   assert.equal(html.includes("post-back-feed"), false, "the old stacked exit is gone");
   const exits = html.match(/<p class="detail-page-exits">[\s\S]*?<\/p>/)[0];
   assert.doesNotMatch(exits, /aria-label/, "an exit must not depend on aria-label to name its destination");
@@ -467,20 +454,15 @@ test("both destinations ship as constants, and only the People link's target nar
   assert.deepEqual(POST_EXITS, {
     social: { href: "/social.html", label: "Open Social to read the whole feed" },
     people: { href: "/profile.html" },
-    publish: { href: "/social.html#post-form", label: "Publish a post" },
+    publish: { href: "/social.html#post-form", label: "Open Social to publish a post" },
   });
   // Both name a destination the nav offers: this site has a People page and no
   // page called Profile, so a link here cannot promise one.
   assert.equal(POST_EXITS.social.label, "Open Social to read the whole feed");
 
-  // Two onward routes to Social, and they have to be two: distinct hrefs, and
-  // labels that come apart on the first word rather than the ninth. The publish
-  // label is exactly the string Social's own composer control carries, not a
-  // sentence wrapped around it.
+  // The two Social routes name their different purposes and keep distinct targets.
   assert.notEqual(POST_EXITS.social.href, POST_EXITS.publish.href);
-  assert.equal(POST_EXITS.publish.label, "Publish a post");
-  assert.equal(POST_EXITS.publish.label.startsWith("Open"), false,
-    "the publish route reads as a second way of saying the feed link");
+  assert.equal(POST_EXITS.publish.label, "Open Social to publish a post");
 
   // The loaded post's own author wins, then the ?author= profile.js writes into
   // its tiles.

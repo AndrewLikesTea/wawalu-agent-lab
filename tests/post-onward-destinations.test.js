@@ -3,11 +3,8 @@
 //
 // A permalink is the one page in this product met cold, from a link pasted into
 // a chat window. It offers a way to read more and a way to write something, and
-// both of them land on /social.html — so the *href* is not what tells them
-// apart, the label is. They used to open on the same two words ("Open the full
-// Social feed", "Open Social to publish a post of your own"), which put one
-// destination on the page phrased twice, and a reader had to get to the ninth
-// word of the second before the two came apart.
+// both of them land on /social.html. Their labels name Social and explain
+// whether the reader will read the feed or open the composer.
 //
 // This file holds the whole slice honest, both halves of it:
 //   * the page ships two links, with two hrefs and two names, as siblings in
@@ -36,7 +33,7 @@ const POST_PAGE = new URL("../src/post.html", import.meta.url);
 const SOCIAL_PAGE = new URL("../src/social.html", import.meta.url);
 
 const FEED_NAME = "Open Social to read the whole feed";
-const PUBLISH_NAME = "Publish a post";
+const PUBLISH_NAME = "Open Social to publish a post";
 const FEED_HREF = "/social.html";
 const PUBLISH_HREF = "/social.html#post-form";
 
@@ -91,10 +88,7 @@ function assertTwoDestinations(document, where) {
   assert.notEqual(feed.getAttribute("href"), publish.getAttribute("href"),
     `${where}: both routes lead to the same URL`);
 
-  // …and two names. The publish route's name is exactly the string Social uses
-  // for the same act on the control that opens its composer, on the composer's
-  // heading, and on its submit button — not a sentence containing that string,
-  // which is what "Open Social to publish a post of your own" was.
+  // The visible names explain the purpose of each route to Social.
   assert.equal(accessibleName(feed, where), FEED_NAME, `${where}: the feed route's name`);
   assert.equal(accessibleName(publish, where), PUBLISH_NAME, `${where}: the publish route's name`);
   assert.notEqual(accessibleName(feed, where), accessibleName(publish, where));

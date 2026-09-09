@@ -618,9 +618,8 @@ test("a post with no image renders no image element and no empty frame to hold o
 // one, not just in the state that happens to work.
 const SOCIAL_LINK = "Open Social to read the whole feed";
 const PEOPLE_LINK = "Open People to see Mina Okafor’s other image posts";
-// The act, not a second name for the place. Both routes land on /social.html;
-// the labels are what tell them apart, so they may not open on the same words.
-const PUBLISH_LINK = "Publish a post";
+// Both routes name Social; their labels explain whether to read or publish.
+const PUBLISH_LINK = "Open Social to publish a post";
 const CHROME_LINKS = [SOCIAL_LINK, PEOPLE_LINK, PUBLISH_LINK];
 // What each state offers. Social is true whatever the lookup did — the feed
 // exists either way — so it stands in all four. People is offered only where

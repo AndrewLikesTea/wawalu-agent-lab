@@ -101,7 +101,7 @@ const IDENTITY = "Display names are invented for this demo or chosen by whoever 
 
 const SOCIAL = { label: "Open Social to read the whole feed", href: "/social.html" };
 const PEOPLE = { label: "Open People to see Mina Okafor’s other image posts", href: "/profile.html" };
-const PUBLISH = { label: "Publish a post", href: "/social.html#post-form" };
+const PUBLISH = { label: "Open Social to publish a post", href: "/social.html#post-form" };
 const MINA = "/profile.html?author=Mina%20Okafor";
 
 test("a post that loads is headed by its display name and reads description, image, caption, name, time", async () => {
