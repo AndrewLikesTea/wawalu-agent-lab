@@ -167,7 +167,7 @@ test("a visitor who types nothing reads one complete result on arrival", async (
   // The benchmark carries the figure, the band it sits in, and the confidence
   // the figure is allowed to claim — one text, graded in this tab.
   const benchmark = regionText(document, "benchmark");
-  assert.match(benchmark, /Composite/, "the benchmark must name the metric");
+  assert.match(benchmark, /Prompt score/, "the benchmark must name the metric");
   assert.match(benchmark, /this text only/, "the benchmark must state what it may not be read as");
   assert.match(benchmark, /in this browser tab/, "the benchmark must say where it was computed");
 
@@ -720,5 +720,34 @@ test("one name per concept: the example, the grade button, and the clear button"
     assert.match(textOf(line), /^Do this in the prompt field, then grade again\.$/,
       "a result names a control by its label, not by its element id");
     assert.equal(line.dataset.control, "prompt-coaching-input");
+  }
+});
+
+test("sample and pasted prompt explain the same prompt score beside the result", async () => {
+  const page = await openCoach();
+  try {
+    const { document } = page;
+    await waitFor(() => sampleBody(document).dataset.loadState === "ready", "sample score");
+    const benchmark = sampleResult(document).querySelector(".coaching-result-benchmark");
+    const explanation = benchmark.querySelector(".coaching-result-score-explanation");
+    // Written out, not imported: this is the copy a first-time visitor reads, so
+    // the test has to disagree with the module when the wording changes.
+    const expected = "Prompt scores range from 0 to 100. Higher scores mean the prompt better satisfies the bundled rubric. "
+      + "Grade bands: A = 90–100; B = 80–89; C = 70–79; D = 60–69; F = 0–59. "
+      + "Only a change of letter counts as a better result; points inside one band are movement, not progress.";
+    assert.equal(textOf(explanation), expected);
+    assert.equal(explanation.hidden, false);
+    assert.equal(sampleSection(document).hidden, false);
+    assert.equal(textOf(benchmark.querySelector("dt")), "Prompt score");
+
+    gradeText(document, OWN_PROMPT);
+    const ownBenchmark = document.querySelector(".prompt-coaching-benchmark");
+    const ownExplanation = ownBenchmark.querySelector(".prompt-coaching-score-explanation");
+    assert.equal(textOf(ownExplanation), expected);
+    assert.equal(ownExplanation.hidden, false);
+    assert.equal(byId(document, "prompt-coaching-result").hidden, false);
+    assert.match(textOf(ownBenchmark.querySelector(".prompt-coaching-benchmark-text")), /^Prompt score:/);
+  } finally {
+    page.restore();
   }
 });

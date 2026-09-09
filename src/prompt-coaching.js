@@ -547,6 +547,27 @@ const NOTHING_TO_IMPROVE = Object.freeze({
 // ---------------------------------------------------------------------------
 
 /**
+ * What the number means, for a reader who has met it for the first time: the
+ * scale, its direction, and the band each letter covers.
+ *
+ * Derived from the rubric, never transcribed from it. A prose band table is a
+ * second copy of `grades`, and the copy that is prose is the one that goes
+ * stale: a cutoff moved in the rubric JSON would leave the page confidently
+ * printing the old ranges beside the new letters. Each band runs from its own
+ * `minimumScore` up to one point below the band above, and the top band ends at
+ * the published maximum — the same high-to-low reading `letterGradeForScore`
+ * uses, so the text cannot describe a grade the engine would not award.
+ */
+const BAND_RANGES = GRADES.map((grade, at) => `${grade.letter} = ${grade.minimumScore}–`
+  + `${at === 0 ? PROMPT_LITERACY_RUBRIC.scale.maximum : GRADES[at - 1].minimumScore - 1}`).join("; ");
+
+export const PROMPT_SCORE_EXPLANATION =
+  `Prompt scores range from ${PROMPT_LITERACY_RUBRIC.scale.minimum} to ${PROMPT_LITERACY_RUBRIC.scale.maximum}. `
+  + "Higher scores mean the prompt better satisfies the bundled rubric. "
+  + `Grade bands: ${BAND_RANGES}. `
+  + "Only a change of letter counts as a better result; points inside one band are movement, not progress.";
+
+/**
  * The score, the letter, and the one comparison that makes them mean something:
  * the next band up and the distance to it. One benchmark, because deciding
  * which of two headline figures matters is this composition's job, not the
@@ -562,6 +583,7 @@ export function composeBenchmark(composite) {
     score,
     grade: letter,
     scoreText: `${score} / 100`,
+    explanation: PROMPT_SCORE_EXPLANATION,
     gradeText: `Grade ${letter}`,
     bandRule: `${letter} starts at ${band.minimumScore}.`,
     next: next ? Object.freeze({
@@ -570,10 +592,10 @@ export function composeBenchmark(composite) {
       pointsAway: roundTo(next.minimumScore - score, 0),
     }) : null,
     text: next
-      ? `${score} / 100 · grade ${letter}. ${next.letter} starts at ${next.minimumScore}: `
+      ? `Prompt score: ${score} / 100 · grade ${letter}. ${next.letter} starts at ${next.minimumScore}: `
         + `${roundTo(next.minimumScore - score, 0)} point`
         + `${roundTo(next.minimumScore - score, 0) === 1 ? "" : "s"} away.`
-      : `${score} / 100 · grade ${letter}. Nothing above this band.`,
+      : `Prompt score: ${score} / 100 · grade ${letter}. Nothing above this band.`,
   });
 }
 

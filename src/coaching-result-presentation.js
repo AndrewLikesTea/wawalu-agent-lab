@@ -144,10 +144,10 @@ const number = (value) => (Number.isFinite(value) ? value.toLocaleString("en-US"
 const FIGURE_BOUNDS = Object.freeze([
   Object.freeze({
     code: "score_out_of_range",
-    label: "Composite score",
+    label: "Prompt score",
     read: (session) => session.result?.benchmark?.score,
     ok: (value) => Number.isFinite(value) && value >= 0 && value <= 100,
-    guidance: "The composite is a 0–100 scale. This figure is outside it, so the letter beside it is not trustworthy either.",
+    guidance: "The prompt score is a 0–100 scale. This figure is outside it, so the letter beside it is not trustworthy either.",
   }),
   Object.freeze({
     code: "band_distance_negative",
@@ -265,7 +265,7 @@ function benchmarkRegion(status, session, notices) {
     return Object.freeze({
       ...region,
       facts: Object.freeze([
-        fact("Composite", "", { pending: true }),
+        fact("Prompt score", "", { pending: true }),
         fact("Grade band", "", { pending: true }),
       ]),
       noteLabel: "Waiting",
@@ -290,14 +290,14 @@ function benchmarkRegion(status, session, notices) {
       ...region,
       facts: Object.freeze(facts),
       noteLabel: "Not scored",
-      note: "No composite, no letter, and no partial grade — you get the reason it was not graded and what to do next.",
+      note: "No prompt score, no letter, and no partial grade — you get the reason it was not graded and what to do next.",
     });
   }
   const { benchmark, basis } = session.result;
   return Object.freeze({
     ...region,
     facts: Object.freeze([
-      auditedFact("Composite", benchmark.scoreText, notices, "score_out_of_range"),
+      auditedFact("Prompt score", benchmark.scoreText, notices, "score_out_of_range"),
       fact("Grade band", `${benchmark.gradeText} · ${benchmark.bandRule}`),
       benchmark.next
         ? auditedFact(`To grade ${benchmark.next.letter}`,
@@ -305,6 +305,7 @@ function benchmarkRegion(status, session, notices) {
           notices, "band_distance_negative")
         : fact("Above this band", "nothing — this is the top of the scale"),
     ]),
+    explanation: benchmark.explanation,
     noteLabel: basis.label,
     note: basis.text,
   });

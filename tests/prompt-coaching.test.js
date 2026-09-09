@@ -17,7 +17,8 @@ import assert from "node:assert/strict";
 import {
   COACHING_ANSWER, COACHING_INPUT_LIMITS, COACHING_QUESTION, COACHING_REASON,
   COACHING_RECOVERY, IMPROVEMENT_COPY, MODEL_TIER_EXAMPLES, PROMPT_COACHING_VERSION,
-  composeBenchmark, gradeMyPrompt, parseCoachingInput, rankImprovements,
+  PROMPT_SCORE_EXPLANATION, composeBenchmark, gradeMyPrompt, parseCoachingInput,
+  rankImprovements,
 } from "../src/prompt-coaching.js";
 import { PROSE_SIGNALS, classifyConversation } from "../src/prompt-prose-classification.js";
 import { PROMPT_LITERACY_RUBRIC, letterGradeForScore } from "../src/prompt-literacy-scoring.js";
@@ -196,6 +197,27 @@ test("the benchmark names the next band up and how far away it is", () => {
   // The top band has nothing above it, and says so rather than inventing one.
   assert.equal(composeBenchmark(95).next, null);
   assert.match(composeBenchmark(95).text, /Nothing above this band/);
+});
+
+// The explanation is the only place the page writes the band table out in prose.
+// Read it back and hold every printed range to the engine that awards the
+// letters: a cutoff edited in the rubric must move this sentence with it, or
+// fail here rather than mislead a first-time reader.
+test("the score explanation prints the scale and bands the grader actually uses", () => {
+  const { minimum, maximum } = PROMPT_LITERACY_RUBRIC.scale;
+  assert.ok(PROMPT_SCORE_EXPLANATION.includes(`range from ${minimum} to ${maximum}`),
+    "the explanation must name the rubric's own scale");
+  const printed = [...PROMPT_SCORE_EXPLANATION.matchAll(/([A-F]) = (\d+)–(\d+)/g)]
+    .map(([, letter, low, high]) => ({ letter, low: Number(low), high: Number(high) }));
+  assert.equal(printed.length, PROMPT_LITERACY_RUBRIC.grades.length,
+    "every grade the rubric publishes needs a printed range");
+  assert.equal(printed[0].high, maximum, "the top band must end at the published maximum");
+  assert.equal(printed[printed.length - 1].low, minimum, "the bottom band must reach the floor");
+  for (const [at, band] of printed.entries()) {
+    assert.equal(letterGradeForScore(band.low), band.letter, `${band.letter} does not start at ${band.low}`);
+    assert.equal(letterGradeForScore(band.high), band.letter, `${band.letter} does not end at ${band.high}`);
+    if (at > 0) assert.equal(band.high + 1, printed[at - 1].low, "the printed bands must leave no gap");
+  }
 });
 
 test("a measured debit outranks a projected credit worth the same, and the order is stable", () => {
