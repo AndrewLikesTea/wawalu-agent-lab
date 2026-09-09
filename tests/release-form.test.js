@@ -164,16 +164,41 @@ test("createRelease refuses an incomplete, oversized, or dangling record", () =>
   rejects({ ...VALID, decisionIds: ["d-queue", "ghost"] }, unknownDecision);
 });
 
-test("the recorded announcement names the release and what it linked", () => {
+test("the recorded announcement names the release, its status, and what it linked", () => {
   assert.equal(
-    recordedSummaryText({ version: "v1.4.0", decisionIds: ["d-queue"] }),
-    "Recorded v1.4.0 with 1 linked decision.",
+    recordedSummaryText({ version: "v1.4.0", status: "completed", decisionIds: ["d-queue"] }),
+    "Recorded “v1.4.0” as a completed release, with 1 linked decision.",
   );
   assert.equal(
-    recordedSummaryText({ version: "v1.4.0", decisionIds: ["d-queue", "d-cache"] }),
-    "Recorded v1.4.0 with 2 linked decisions.",
+    recordedSummaryText({ version: "v1.4.0", status: "completed", decisionIds: ["d-queue", "d-cache"] }),
+    "Recorded “v1.4.0” as a completed release, with 2 linked decisions.",
   );
-  assert.equal(recordedSummaryText({ version: "v2.0.0", decisionIds: [] }), "Recorded v2.0.0 with no linked decisions.");
+  assert.equal(
+    recordedSummaryText({ version: "v2.0.0", status: "completed", decisionIds: [] }),
+    "Recorded “v2.0.0” as a completed release, with no linked decisions.",
+  );
+});
+
+// The two fields whose value the sentence has to carry rather than assume. A
+// title, when one was given, is how the row and the detail view head the same
+// record; the status is the one submitted choice with no other trace in the
+// sentence. Both are read back off the record, so an announcement that
+// disagrees with what was stored is not expressible here.
+test("the recorded announcement carries the submitted title and status", () => {
+  assert.equal(
+    recordedSummaryText({ version: "v1.4.0", title: "Throughput work", status: "planned", decisionIds: [] }),
+    "Recorded “Throughput work” as a planned release, with no linked decisions.",
+  );
+  assert.equal(
+    recordedSummaryText({ version: "v1.4.0", title: "Throughput work", status: "cancelled", decisionIds: ["d-queue"] }),
+    "Recorded “Throughput work” as a cancelled release, with 1 linked decision.",
+  );
+  // A blank title is the absent title the record treats it as, not an empty
+  // pair of quotation marks where the release's name should be.
+  assert.equal(
+    recordedSummaryText({ version: "v1.4.0", title: "   ", status: "completed", decisionIds: [] }),
+    "Recorded “v1.4.0” as a completed release, with no linked decisions.",
+  );
 });
 
 // --- the picker ------------------------------------------------------------

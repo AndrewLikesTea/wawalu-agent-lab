@@ -305,7 +305,7 @@ test("a release manager records a decision, ships it, and reaches it again from 
   );
   assert.equal(
     textOf(recorder.document.querySelector("#release-record-status")),
-    `Recorded ${RELEASE.version} with 1 linked decision.`,
+    `Recorded “${RELEASE.title}” as a completed release, with 1 linked decision.`,
     "recording the release was not announced",
   );
 

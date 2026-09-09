@@ -891,9 +891,16 @@ function renderReleaseBody(release) {
 // gets one name per destination instead of "View release details" four times.
 // It is an aria-label rather than longer visible text because the row's own
 // heading already names the release directly above it.
+//
+// The name is exported because the recorder's success state offers the same
+// destination for the release it has just written, and two places building the
+// same accessible name from two string literals is two places that can drift.
+export const DETAIL_LINK_TEXT = "View release details";
+export const releaseDetailLinkLabel = (release) => `${DETAIL_LINK_TEXT} for ${releaseTitle(release)}`;
+
 function renderDetailLink(release) {
-  const link = el("a", "release-detail-link", "View release details");
-  link.setAttribute("aria-label", `View release details for ${releaseTitle(release)}`);
+  const link = el("a", "release-detail-link", DETAIL_LINK_TEXT);
+  link.setAttribute("aria-label", releaseDetailLinkLabel(release));
   link.href = releaseDetailHref(release.id);
   link.append(el("span", "release-detail-arrow", "→"));
   link.querySelector(".release-detail-arrow").setAttribute("aria-hidden", "true");

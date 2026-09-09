@@ -10,6 +10,8 @@ import {
   loadReleases,
   mountReleaseList,
   releaseSummarySentence,
+  releaseDetailHref,
+  releaseDetailLinkLabel,
   releaseFollowUp,
   renderReleaseFollowUp,
   renderReleaseListState,
@@ -81,6 +83,8 @@ function initReleaseRecorder(root, storage, options = {}) {
   if (!form || !decisionField) return null;
   const error = root.querySelector("#release-form-error");
   const status = root.querySelector("#release-record-status");
+  const success = root.querySelector("#release-record-next");
+  const detailLink = root.querySelector("#release-record-detail");
   const notice = root.querySelector("#release-storage-notice");
   const decisionGroup = root.querySelector("#release-decisions-field");
   const picker = mountDecisionPicker(decisionField, {
@@ -113,9 +117,44 @@ function initReleaseRecorder(root, storage, options = {}) {
     error.hidden = true;
   };
 
+  // The success state belongs to exactly one release: the last one this browser
+  // actually stored. Withdrawing it is therefore a single operation over both
+  // halves — the announced sentence and the region that offers the record — so
+  // neither can survive the other and leave the page half-claiming a record.
+  const clearRecorded = () => {
+    if (status) status.textContent = "";
+    if (success) success.hidden = true;
+  };
+
+  // Touching the form is composing the next release, so the previous one's
+  // ending is withdrawn on the first keystroke or tick. This is not a
+  // convenience: a browser refuses a form that fails native validation *before*
+  // dispatching submit, so the handler below never runs on the invalid submit
+  // that most needs the stale success gone. Clearing on the way in covers it.
+  // form.reset() and the picker's own re-render raise neither event, so the
+  // state this sets on a successful record survives the reset that follows it.
+  form.addEventListener("input", clearRecorded);
+  form.addEventListener("change", clearRecorded);
+
+  const showRecorded = (release) => {
+    if (status) status.textContent = recordedSummaryText(release);
+    if (detailLink) {
+      detailLink.setAttribute("href", releaseDetailHref(release.id));
+      detailLink.setAttribute("aria-label", releaseDetailLinkLabel(release));
+    }
+    if (success) success.hidden = false;
+  };
+
   form.addEventListener("submit", (event) => {
     event.preventDefault();
-    if (!form.reportValidity()) return;
+    clearRecorded();
+    // A submit the browser refused is a submit that recorded nothing, and it
+    // has to say so where the form's other failures say so. The native bubble
+    // names the field but does not persist; this does.
+    if (!form.reportValidity()) {
+      showError(RELEASE_FORM_ERRORS.incomplete);
+      return;
+    }
 
     let release;
     try {
@@ -152,7 +191,7 @@ function initReleaseRecorder(root, storage, options = {}) {
       return;
     }
     options.onRecorded?.(release);
-    if (status) status.textContent = recordedSummaryText(release);
+    showRecorded(release);
     form.reset();
     picker.clear();
     form.elements.version?.focus?.();

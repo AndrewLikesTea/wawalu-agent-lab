@@ -140,7 +140,7 @@ test("a release is recorded from the page with the decisions it carried", async 
   assert.equal(textOf(page.document.querySelector("#release-count")), "Showing 1 release, newest first.");
   assert.equal(
     textOf(page.document.querySelector("#release-record-status")),
-    "Recorded v1.4.0 with 1 linked decision.",
+    "Recorded “Throughput work” as a completed release, with 1 linked decision.",
   );
 
   // The form is ready for the next release rather than still holding the last.
@@ -149,6 +149,187 @@ test("a release is recorded from the page with the decisions it carried", async 
   assert.equal(page.document.querySelector("#release-description").value, "");
   assert.equal(optionFor(page, QUEUE_DECISION.title).checked, false);
   assert.equal(summaryText(page), "No decisions linked yet. 2 available.");
+});
+
+// --- the ending a recorded release gets (issue #2220) -----------------------
+//
+// The recorder used to stop at one announced sentence, which left the demo's
+// last step — record a release — with no verifiable end: nothing named the
+// status that was chosen, nothing offered the record that was written, and
+// nothing said where it had gone. These tests hold that ending to the record
+// actually stored, not to a string, so the success state cannot claim a
+// release, a status, or a destination the browser is not holding.
+
+const successRegion = (page) => page.document.querySelector("#release-record-next");
+const successDetailLink = (page) => page.document.querySelector("#release-record-detail");
+
+test("a recorded release is announced by name and status, and the record is offered", async (t) => {
+  const page = await openReleases(t, { decisions: [QUEUE_DECISION] });
+
+  // Before anything is recorded there is no ending to show.
+  assert.equal(successRegion(page).hidden, true, "the success state is painted before anything was recorded");
+  assert.equal(textOf(page.document.querySelector("#release-record-status")), "");
+
+  optionFor(page, QUEUE_DECISION.title).click();
+  fillRequired(page, { version: "v4.0.0" });
+  fill(page, "release-title", "Queue rollout");
+  submit(page);
+
+  // The sentence names this release the way the log names it — by its title,
+  // since one was given — and states the status it was filed under.
+  const [saved] = stored(page);
+  assert.equal(saved.status, "completed");
+  assert.equal(
+    textOf(page.document.querySelector("#release-record-status")),
+    "Recorded “Queue rollout” as a completed release, with 1 linked decision.",
+  );
+
+  // The ending is on screen, and the control it offers opens *this* record: the
+  // address carries the id that was stored, not a page-level guess.
+  assert.equal(successRegion(page).hidden, false, "a stored release left no success state");
+  const link = successDetailLink(page);
+  assert.equal(link.getAttribute("href"), `/release.html?id=${saved.id}`);
+  assert.equal(link.getAttribute("aria-label"), "View release details for Queue rollout");
+  assert.equal(textOf(link), "View release details→");
+  link.click();
+  assert.deepEqual(page.navigations, [`/release.html?id=${saved.id}`], "the success control opened somewhere else");
+});
+
+test("the announced status is the one submitted, not the one the form opened on", async (t) => {
+  const page = await openReleases(t);
+
+  // Planned, and no title: the sentence falls back to the version the same way
+  // every row on this page does.
+  page.document.querySelector("#release-form-status").value = "planned";
+  fillRequired(page, { version: "v5.0.0", description: "The queue rewrite is scheduled." });
+  submit(page);
+
+  assert.equal(stored(page)[0].status, "planned", "the submitted status was not stored");
+  assert.equal(
+    textOf(page.document.querySelector("#release-record-status")),
+    "Recorded “v5.0.0” as a planned release, with no linked decisions.",
+    "the announcement told a planned release it had shipped",
+  );
+  // And the row the visitor can now see agrees with the sentence they were told.
+  assert.match(textOf(page.document.querySelectorAll(".release-toggle")[0]), /planned/);
+});
+
+test("the success state says the record is browser-only and names the way out", async (t) => {
+  const page = await openReleases(t);
+  fillRequired(page, { version: "v6.0.0" });
+  submit(page);
+
+  const kept = page.document.querySelector("#release-record-kept");
+  assert.equal(successRegion(page).hidden, false);
+  assert.equal(
+    textOf(kept),
+    "This release is stored in this browser only. “Export releases as JSON” above takes it with you.",
+  );
+  // Its own sentence, not the pre-submit scope line reprinted: that one is a
+  // promise about any release this form takes, this one is a fact about the
+  // record that now exists, and the panel should not say either one twice.
+  assert.notEqual(textOf(kept), RECORD_SCOPE);
+  assert.equal(
+    textOf(page.document.querySelector("#record-release")).split(RECORD_SCOPE).length - 1,
+    1,
+    "the recorder states where a release is kept twice in the same words",
+  );
+  // The way out is the control this page actually offers, named in the words on
+  // its face rather than a synonym this sentence invented for it.
+  const exportButton = page.document.querySelector("#release-export");
+  assert.equal(textOf(exportButton), RELEASE_EXPORT_BUTTON_LABEL);
+  assert.ok(
+    textOf(kept).includes(`“${textOf(exportButton)}”`),
+    "the success state names an export control the page does not show",
+  );
+  // The claim is checked against the behaviour: the record is in this browser's
+  // one storage key, and the run completed — an upload would have thrown.
+  assert.equal(stored(page).length, 1);
+  assert.equal(JSON.parse(page.storage.getItem(RELEASE_STORAGE_KEY))[0].version, "v6.0.0");
+  // No promise beyond the storage.
+  assert.doesNotMatch(textOf(kept), /account|sign in|sync|back(ed)? up|backup|forever|permanent|always/i);
+});
+
+test("a submit the browser refuses leaves an error and no success state", async (t) => {
+  const page = await openReleases(t, { decisions: [QUEUE_DECISION] });
+
+  // Everything except the required version, so the form is refused rather than
+  // rejected by createRelease.
+  fill(page, "release-owner", "Priya");
+  fill(page, "release-released-on", "2026-07-02");
+  fill(page, "release-description", "The queue shipped.");
+  submit(page);
+
+  assert.deepEqual(stored(page), [], "an invalid release was written anyway");
+  assert.equal(successRegion(page).hidden, true, "a refused submit painted the success state");
+  assert.equal(textOf(page.document.querySelector("#release-record-status")), "");
+  // Visible and actionable: it says nothing was recorded and what to do next.
+  assert.equal(formError(page).hidden, false, "a refused submit was silent");
+  assert.equal(
+    textOf(formError(page)),
+    "This release was not recorded. Complete every required field in the format its hint describes,"
+      + " then record the release again.",
+  );
+  assert.equal(formError(page).getAttribute("role"), "alert");
+});
+
+test("a later invalid submit withdraws the previous release's success state", async (t) => {
+  const page = await openReleases(t, { decisions: [QUEUE_DECISION] });
+
+  fillRequired(page, { version: "v7.0.0" });
+  submit(page);
+  assert.equal(successRegion(page).hidden, false);
+  const [first] = stored(page);
+  assert.equal(successDetailLink(page).getAttribute("href"), `/release.html?id=${first.id}`);
+
+  // Composing the next release withdraws the last one's ending on the first
+  // keystroke, before any submit — which is what a browser that refuses an
+  // invalid form outright would otherwise leave standing.
+  fill(page, "release-owner", "Mina");
+  assert.equal(successRegion(page).hidden, true, "the previous release's success state survived the next keystroke");
+  assert.equal(textOf(page.document.querySelector("#release-record-status")), "");
+
+  // And the refused submit that follows adds an error rather than restoring it.
+  fill(page, "release-released-on", "2026-07-09");
+  fill(page, "release-description", "The cache shipped.");
+  submit(page);
+  assert.equal(successRegion(page).hidden, true, "a refused submit re-showed the previous release's ending");
+  assert.equal(stored(page).length, 1, "the refused submit wrote a second release");
+  assert.equal(formError(page).hidden, false);
+
+  // Completing it gives the *new* release its own ending, pointing at the new
+  // record rather than the one before it.
+  fill(page, "release-version", "v7.0.1");
+  submit(page);
+  assert.equal(stored(page).length, 2);
+  const [second] = stored(page);
+  assert.equal(successRegion(page).hidden, false);
+  assert.equal(successDetailLink(page).getAttribute("href"), `/release.html?id=${second.id}`);
+  assert.equal(
+    textOf(page.document.querySelector("#release-record-status")),
+    "Recorded “v7.0.1” as a completed release, with no linked decisions.",
+  );
+  assert.equal(formError(page).hidden, true, "the error from the refused submit outlived the record that fixed it");
+});
+
+test("a failed save leaves no success state to open a record that was not written", async (t) => {
+  const page = await openReleases(t);
+
+  fillRequired(page, { version: "v8.0.0" });
+  submit(page);
+  assert.equal(successRegion(page).hidden, false);
+
+  page.storage.setItem = () => { throw new Error("quota"); };
+  fill(page, "release-version", "v8.0.1");
+  fill(page, "release-released-on", "2026-07-09");
+  fill(page, "release-description", "The retry shipped.");
+  fill(page, "release-owner", "Priya");
+  submit(page);
+
+  assert.equal(page.document.querySelector("#release-storage-notice").hidden, false);
+  assert.equal(successRegion(page).hidden, true, "a release that failed to save was offered as a record");
+  assert.equal(textOf(page.document.querySelector("#release-record-status")), "");
+  assert.equal(stored(page).length, 1, "the failed write appeared to persist");
 });
 
 // Where a recorded release goes, and how to take it elsewhere. Asserted on the
@@ -257,7 +438,7 @@ test("a release with no decision linked is recorded with an explicit empty assoc
 
   assert.equal(stored(page).length, 1);
   assert.deepEqual(stored(page)[0].decisionIds, []);
-  assert.equal(textOf(page.document.querySelector("#release-record-status")), "Recorded v3.0.0 with no linked decisions.");
+  assert.equal(textOf(page.document.querySelector("#release-record-status")), "Recorded “v3.0.0” as a completed release, with no linked decisions.");
   const group = page.document.querySelector("#release-decisions-field");
   assert.equal(group.hasAttribute("aria-invalid"), false);
   assert.equal(stored(page)[0].createdAt, "2026-07-02T00:00:00.000Z");
@@ -367,7 +548,7 @@ test("a browser that refuses storage still settles the picker off its loading cl
   // recordable when the log behind the picker could not be read.
   fillRequired(page, { version: "v0.2.0" });
   submit(page);
-  assert.equal(textOf(page.document.querySelector("#release-record-status")), "Recorded v0.2.0 with no linked decisions.");
+  assert.equal(textOf(page.document.querySelector("#release-record-status")), "Recorded “v0.2.0” as a completed release, with no linked decisions.");
 });
 
 test("with no decisions to link, the picker says so and offers the way out", async (t) => {
@@ -388,7 +569,7 @@ test("with no decisions to link, the picker says so and offers the way out", asy
   submit(page);
   assert.equal(stored(page).length, 1);
   assert.deepEqual(stored(page)[0].decisionIds, []);
-  assert.equal(textOf(page.document.querySelector("#release-record-status")), "Recorded v0.1.0 with no linked decisions.");
+  assert.equal(textOf(page.document.querySelector("#release-record-status")), "Recorded “v0.1.0” as a completed release, with no linked decisions.");
 });
 
 test("the picker is a keyboard-reachable group inside the form's tab order", async (t) => {
