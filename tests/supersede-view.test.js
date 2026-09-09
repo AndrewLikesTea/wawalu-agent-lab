@@ -277,7 +277,11 @@ test("a supersede link that no longer exists is refused inline, and nothing is w
   page.document.querySelector("#context").value = "Why this happened.";
   page.document.querySelector("#alternatives").value = "Leaving the earlier call in place.";
   page.document.querySelector("#owner").value = "Mina";
-  page.document.querySelector("#status").value = "approved";
+  // One of the two the select offers. The stored fixtures above still carry the
+  // legacy "approved", which storage accepts and every screen reads as
+  // "accepted" — but the recorder will not mint it, so a form-driven entry uses
+  // the word the control actually produces.
+  page.document.querySelector("#status").value = "accepted";
   form.querySelector('button[type="submit"]').click();
 
   const error = page.document.querySelector("#supersedes-error");
@@ -300,7 +304,7 @@ test("recording a decision that replaces an existing one links both directions",
   page.document.querySelector("#context").value = "Latency across regions.";
   page.document.querySelector("#alternatives").value = "A single region with a read replica.";
   page.document.querySelector("#owner").value = "Mina";
-  page.document.querySelector("#status").value = "approved";
+  page.document.querySelector("#status").value = "accepted";
   form.querySelector('button[type="submit"]').click();
 
   assert.equal(page.document.querySelector("#supersedes-error").hidden, true);
