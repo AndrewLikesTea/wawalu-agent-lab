@@ -410,18 +410,23 @@ test("the composer describes no failure that has not happened yet", async (t) =>
 //
 // The approved name for this flow is "Publish a post", on both the opener and
 // heading, and the shared post page links here by those exact words. The submit
-// button says "Publish this post" (#2173): the flow's name was on three strings
-// for two different acts, so a reader pressed "Publish a post", nothing
-// published, and met the same three words at the foot of the form with no way
-// to tell re-opening from committing. The button now names the post being
-// written, which is the one it cannot take back. The arrow remains absent:
-// every other arrow on this site decorates a route, and this button moves the
-// reader nowhere.
+// button says something else (#2173): the flow's name was on three strings for
+// two different acts, so a reader pressed "Publish a post", nothing published,
+// and met the same three words at the foot of the form with no way to tell
+// re-opening from committing.
+//
+// That something else is "Publish post" (#2252). It read "Publish this post"
+// while three other strings already called the same button "Publish post" —
+// People's empty-state action, this form's image-description refusal, and the
+// last of the Paint steps — so the one press had two names and the refusal
+// named a control the page did not carry. One name for the act, and it stays
+// distinct from the opener's. The arrow remains absent: every other arrow on
+// this site decorates a route, and this button moves the reader nowhere.
 //
 // The same pass pins the destination for image posts: this site has no page
 // called Profile, so "profile" survives on Social only as the People page's URL
 // and the class that styles its nav item, never as a word a reader sees.
-test("the opener and heading use Publish a post, and the submit names this post", async (t) => {
+test("the opener and heading use Publish a post, and the submit reads Publish post", async (t) => {
   const markup = await readFile(new URL("../src/social.html", import.meta.url), "utf8");
   const page = await loadPage(new URL("../src/social.html", import.meta.url), {});
   t.after(() => page.restore());
@@ -440,10 +445,11 @@ test("the opener and heading use Publish a post, and the submit names this post"
   assert.equal(page.document.querySelector("#post-compose-panel").hidden, true);
   assert.equal(textOf(page.document.querySelector("#post-form-title")), "Publish a post",
     "the composer heading does not match the control that opens it");
-  // The one press that publishes, named after the post it publishes. It keeps
-  // the flow's verb and nothing else, so it cannot be mistaken for the opener.
-  // "Create" survives on this page for images only, in the first Paint step.
-  assert.equal(textOf(page.document.querySelector("#post-submit")), "Publish this post",
+  // The one press that publishes, in the words every other string on the site
+  // uses for it. It is the bare act and the opener is the flow, so the two
+  // labels stay apart. "Create" survives on this page for images only, in the
+  // first Paint step.
+  assert.equal(textOf(page.document.querySelector("#post-submit")), "Publish post",
     "the submit control drifted from its own label, or grew an arrow back");
   const panelWords = textOf(page.document.querySelector("#post-compose-panel"))
     .replaceAll("Create or open an image in Paint", "");
@@ -508,7 +514,7 @@ test("the composer calls its required 280-character text a post throughout", asy
   const postField = composer.querySelector('label[for="post-body"]').parentNode;
   assert.equal(textOf(postField).toLowerCase().split("required").length - 1, 1,
     `the post field states that it is required more than once: ${textOf(postField)}`);
-  assert.equal(textOf(composer.querySelector("#post-submit")), "Publish this post");
+  assert.equal(textOf(composer.querySelector("#post-submit")), "Publish post");
   assert.equal(PUBLISH_FAILED_NOTE,
     "Your post, image, and image description are still in the composer, exactly as you left them.");
   // The two sentences the composer's notice can carry from createPost. They are
@@ -1596,7 +1602,7 @@ const foldedAway = (node) => {
 // opener and the final submit action are on screen at once — and the state in
 // which #2173 bit: two controls, one name, and the reader guessing which press
 // was the public and permanent one.
-test("with the composer open, one control reads Publish a post and the submit names this post", async (t) => {
+test("with the composer open, one control reads Publish a post and the submit reads Publish post", async (t) => {
   const { document, id } = await socialDisclosure(t);
   id("post-compose-open").click();
 
@@ -1606,14 +1612,34 @@ test("with the composer open, one control reads Publish a post and the submit na
 
   // Every control that says "Publish" anything, in document order. Exactly one
   // of them reads the flow's name, and it is the one that only opens the form;
-  // the other names the post it will publish.
+  // the other reads the act, in the one wording the rest of the site uses for
+  // it (#2252).
   const publishing = document.querySelectorAll("a,button,summary,label")
     .filter((node) => /Publish/.test(textOf(node)));
-  assert.deepEqual(publishing.map((node) => textOf(node)), ["Publish a post", "Publish this post"],
+  assert.deepEqual(publishing.map((node) => textOf(node)), ["Publish a post", "Publish post"],
     "a control on Social names the publishing flow a second time");
   assert.deepEqual(publishing.map((node) => node.getAttribute("id")), ["post-compose-open", "post-submit"]);
   assert.equal(publishing.filter((node) => textOf(node) === "Publish a post").length, 1,
     "exactly one control may read Publish a post: the one that opens the composer");
+
+  // #2252: the instruction that sends a reader to that press says the button's
+  // own words, so the Paint sequence and the control it ends on cannot drift
+  // into two names for one act. Read here, with the panel actually open, and
+  // not only off the shipped markup.
+  const steps = id("post-image-steps").querySelectorAll("li");
+  assert.equal(textOf(steps[steps.length - 1]), textOf(id("post-submit")),
+    "the last Paint step names the publish control in words the control does not use");
+  assert.doesNotMatch(textOf(id("post-compose-panel")), /Publish this post/,
+    "the composer carries a second name for the one press that publishes");
+
+  // And the three outcomes stay apart in the open composer: publishing, closing
+  // without publishing, and what closing does to the draft. The rename touches
+  // the first of them and may not blur the other two into it.
+  assert.equal(textOf(id("post-compose-cancel")), "Close");
+  assert.equal(textOf(id("post-keyboard-hint")),
+    "Escape or Close hides this form and keeps your draft in this tab. While publishing, wait for the result before closing.");
+  assert.equal(textOf(id("post-draft-note")),
+    "Anything you have already typed is kept here while you are in the other tab, and while this panel is closed.");
 
   // The heading the opener reveals keeps the flow's name. It is a heading and
   // not a control, so a reader never presses it and the pair above stays a pair.
