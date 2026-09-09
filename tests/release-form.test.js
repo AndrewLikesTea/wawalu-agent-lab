@@ -342,10 +342,13 @@ test("the recorder markup groups the picker and never builds HTML from stored te
   // One name for the relationship, page-wide: the recorder, the filters and the
   // list all say "linked decision", and no reader meets a second word for it.
   assert.doesNotMatch(page, /governing/i, "the Releases page reintroduces a second name for a linked decision");
-  // "names", not "links": a completed release links its decisions too, so the
-  // contrast the sentence draws is implemented-versus-only-named. It is the
-  // same split releaseLinkPhrase() prints on both detail views.
-  assert.match(page, /A completed release implemented its linked decisions\. A planned or cancelled release only names them\./);
+  // The status is about the release's own shipping, and Planned states intent
+  // rather than only the absence of a ship. Linking is a separate claim: the
+  // picker offers every decision status, so the association cannot imply that
+  // the decision was accepted, let alone built.
+  assert.match(page, /Completed means the release shipped\. Planned means the release is intended to ship in the future\. Cancelled means the release will not ship\. The status describes the release, not the decisions linked to it\./);
+  assert.match(page, /A decision can be linked at any status — Proposed, Pending, Accepted, or Superseded\. Linking records the association only; it does not mean the decision was accepted or implemented\./);
+  assert.doesNotMatch(page, /A completed release implemented its linked decisions|Planned has not shipped yet/);
   assert.doesNotMatch(page, /Only a completed release shipped what it carried/);
   assert.doesNotMatch(page, /Tick every decision this release carried/);
   // The three required fields issue #533 adds. The date is a native date

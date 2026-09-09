@@ -434,7 +434,7 @@
                 <option value="planned">Planned</option>
                 <option value="cancelled">Cancelled</option>
               </select>
-              <span class="hint" id="release-form-status-hint">A completed release implemented its linked decisions. A planned or cancelled release only names them.</span>
+              <span class="hint" id="release-form-status-hint">Completed means the release shipped. Planned means the release is intended to ship in the future. Cancelled means the release will not ship. The status describes the release, not the decisions linked to it.</span>
             </div>
 
             <div class="field field-wide">
@@ -452,7 +452,7 @@
                  verifies that it still exists before saving the association. -->
             <fieldset class="field field-wide decision-picker-field" id="release-decisions-field" aria-describedby="release-decisions-hint release-decisions-summary">
               <legend>Linked decisions <span class="label-optional">(optional)</span></legend>
-              <p class="hint" id="release-decisions-hint">Link decisions to this release, or leave all unchecked. The first decision you link is summarised in its own section on the release page, above the other linked decisions. Tab moves through the list; Space ticks or clears the decision in focus.</p>
+              <p class="hint" id="release-decisions-hint">Link decisions to this release, or leave all unchecked. A decision can be linked at any status — Proposed, Pending, Accepted, or Superseded. Linking records the association only; it does not mean the decision was accepted or implemented. The first decision you link is summarised in its own section on the release page, above the other linked decisions. Tab moves through the list; Space ticks or clears the decision in focus.</p>
               <p class="decision-picker-summary" id="release-decisions-summary" role="status" aria-live="polite" aria-atomic="true">No decisions can be linked until the list loads.</p>
               <div class="decision-picker" id="release-decisions">
                 <div class="decision-picker-empty decision-picker-loading" aria-hidden="true">

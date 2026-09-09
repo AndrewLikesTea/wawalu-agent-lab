@@ -20,6 +20,7 @@ import {
   GOVERNING_DECISION_MISSING_TEXT,
   NO_RATIONALE_TEXT,
   RATIONALE_PREVIEW_LENGTH,
+  RELEASE_DECISION_STATUSES,
   RELEASE_STORAGE_KEY,
   decisionFilterSearch,
   decisionIdFilter,
@@ -388,7 +389,21 @@ test("the Releases page renders linked-decision copy from markup and the list re
   // The keyboard line describes the control, not the record: nothing is linked
   // until the release is recorded, so Space ticks a box — it does not link.
   assert.match(textOf(page.document.querySelector("#release-decisions-hint")), /Space ticks or clears the decision in focus/);
-  assert.equal(textOf(page.document.querySelector("#release-form-status-hint")), "A completed release implemented its linked decisions. A planned or cancelled release only names them.");
+  // Both halves of the guidance are read from the field they explain, not from
+  // anywhere on the page: the status hint out of the Status field, the link
+  // hint out of the Linked decisions fieldset. Status is about the release; the
+  // sentence that says so is what stops a Completed release from being read as
+  // a claim about the decisions hanging off it.
+  const statusControl = page.document.querySelector("#release-form-status");
+  assert.equal(statusControl.getAttribute("aria-describedby"), "release-form-status-hint");
+  assert.equal(textOf(statusControl.parentNode.querySelector("#release-form-status-hint")), "Completed means the release shipped. Planned means the release is intended to ship in the future. Cancelled means the release will not ship. The status describes the release, not the decisions linked to it.");
+  const linkHint = textOf(page.document.querySelector("#release-decisions-field").querySelector("#release-decisions-hint"));
+  assert.match(linkHint, /Linking records the association only; it does not mean the decision was accepted or implemented\./);
+  // The hint names the statuses the picker can actually offer. If the log grows
+  // a status, this fails rather than letting the sentence quietly go stale.
+  for (const status of RELEASE_DECISION_STATUSES) {
+    assert.match(linkHint, new RegExp(`\\b${status[0].toUpperCase()}${status.slice(1)}\\b`), `the link hint omits the ${status} status`);
+  }
   assert.match(textOf(page.document.querySelector(".release-summary")), /^Linked decisions/);
   assert.match(textOf(page.document.querySelector("#release-followup")), /“Old approach” is linked to Old release, and a later decision replaced it/);
   assert.match(textOf(page.document.querySelector("#site-footer-topic-note")), /Releases page — every release and its linked decisions/);
