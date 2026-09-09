@@ -762,6 +762,17 @@
                between weeks, Enter or Space to filter to that week. -->
           <div id="history-trend"></div>
           <div id="history-release-followup" hidden></div>
+          <!-- WHAT HAPPENED TO EACH DECISION, ABOVE THE LIST.
+               One strip per decision in this view that a release carried, plus
+               an open-ended strip for each accepted decision no release carries
+               yet, drawn by decision-timeline-view.js from the same filtered set
+               as the list. The strip is a canvas element sized in device pixels;
+               every fact it draws — both dates, the status, the release, the
+               span in days — is also written as a visible caption, so a browser
+               with no drawing surface loses the picture and none of the answer.
+               No control is added here: the panel is text and pictures only, so
+               the tab order of this page is exactly what it was. -->
+          <div id="history-timelines"></div>
           <div id="decision-list" aria-busy="true">
             <div class="list-state list-state-loading" role="status">
               <h3>Loading decisions</h3>

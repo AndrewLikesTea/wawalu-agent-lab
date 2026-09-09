@@ -28,6 +28,7 @@ import {
 } from "./history-filters.js";
 import { copyHistoryLink, renderHistoryFilterChips, renderHistorySummary } from "./history-filter-view.js";
 import { renderHistoryTrend } from "./history-trend-view.js";
+import { renderDecisionTimelines } from "./decision-timeline-view.js";
 import { publishHistoryScope } from "./history-scope.js";
 import { initDeploymentStatus } from "./deployment-status-view.js";
 import { initLeadCapture } from "./lead-capture.js";
@@ -1089,6 +1090,7 @@ export async function initDecisionLog(root = document, storage = localStorage, o
   const toFilter = root.querySelector("#filter-to");
   const filterSummary = root.querySelector("#history-filter-summary");
   const trend = root.querySelector("#history-trend");
+  const timelines = root.querySelector("#history-timelines");
   const filterChips = root.querySelector("#history-filter-chips");
   const copyLink = root.querySelector("#copy-history-link");
   // A live region of its own, so "Link copied" and "Showing 3 of 41 records"
@@ -1421,7 +1423,13 @@ export async function initDecisionLog(root = document, storage = localStorage, o
     // The shape of the same view, from the same selection rule: the chart is
     // drawn here rather than from a listener of its own, so a filter can never
     // move the list without moving the trend above it.
-    renderHistoryTrend(trend, { records: selectHistory(records, view), onSelectWeek: selectWeek });
+    const selected = selectHistory(records, view);
+    renderHistoryTrend(trend, { records: selected, onSelectWeek: selectWeek });
+    // What became of each decision in the same view. Release dates are looked up
+    // in the whole log rather than the filtered set: hiding the release rows
+    // changes which decisions are listed and must not change how long any one of
+    // them took to ship.
+    renderDecisionTimelines(timelines, { records: selected, releases: records });
     renderHistoryReleaseFollowUp(
       releaseFollowUp,
       releases.find(({ id }) => id === view.releaseId),
