@@ -40,8 +40,8 @@ test("renders one clearly disclosed synthetic proof connecting decision, owner, 
   // records: the share controls name what they open, and the button's
   // accessible name is its visible text rather than a differing aria-label.
   assert.doesNotMatch(textOf(proof), /proof/i);
-  assert.equal(textOf(page.document.querySelector(".shiplog-proof-link")), "Open this example");
-  assert.equal(textOf(copy), "Copy link to this example");
+  assert.equal(textOf(page.document.querySelector(".shiplog-proof-link")), "Open this example release");
+  assert.equal(textOf(copy), "Copy link to this example release");
   assert.equal(copy.getAttribute("aria-label"), null);
   assert.equal(page.document.querySelector(".shiplog-proof-link").getAttribute("href"), `/releases.html?focus=${SAMPLE_RELEASE_ID}#shiplog-proof`);
 });
@@ -268,6 +268,13 @@ test("copy announces success and keeps a usable share link when clipboard is una
   unavailable.document.querySelector("#shiplog-proof-copy").click();
   await Promise.resolve();
   await Promise.resolve();
-  assert.match(textOf(unavailable.document.querySelector("#shiplog-proof-copy-status")), /Clipboard unavailable/);
-  assert.equal(unavailable.document.querySelector(".shiplog-proof-link").tagName, "A");
+  // The fallback sends a visitor to a control by name, so it is held to the name
+  // that control actually carries rather than to a copy of it written here: a
+  // rename of the link that leaves this sentence behind tells a visitor whose
+  // clipboard just failed to look for a control the page does not have.
+  const fallbackLink = unavailable.document.querySelector(".shiplog-proof-link");
+  assert.equal(fallbackLink.tagName, "A");
+  const fallback = textOf(unavailable.document.querySelector("#shiplog-proof-copy-status"));
+  assert.match(fallback, /^Clipboard unavailable\./);
+  assert.ok(fallback.includes(textOf(fallbackLink)), `the clipboard fallback ${JSON.stringify(fallback)} names a control this page does not have`);
 });
