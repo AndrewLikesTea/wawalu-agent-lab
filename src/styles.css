@@ -649,10 +649,14 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 /* Image posts lead with their caption in both visual and DOM order. */
 .post-figure { display:flex; flex-direction:column; margin:2px 0 0; }
 .post-media { position:relative; overflow:hidden; aspect-ratio:4/3; display:grid; place-items:center; border-radius:10px; background:#eeece5; }
-.post-image { display:block; width:100%; height:100%; object-fit:cover; }
+/* Fitted, not cropped: `scale-down` is `contain` with a stop at the image's own
+   size, so a wide, tall or square upload is letterboxed in the 4:3 frame rather
+   than losing its edges, and a small one is not stretched. Same on People. */
+.post-image { display:block; max-width:100%; max-height:100%; object-fit:scale-down; }
 /* The tile reserves its space before the image arrives, so a slow load never
-   pushes the caption — or the cards below it — down the page. */
-.post-media[data-state="loading"] { background:linear-gradient(100deg,#eeece5 30%,#f7f6f2 50%,#eeece5 70%) #eeece5; background-size:220% 100%; animation:shiplog-shimmer 1.4s linear infinite; }
+   pushes the caption — or the cards below it — down the page. One wait, drawn
+   once for all three surfaces that hold an image. */
+.post-media[data-state="loading"],.profile-media[data-state="loading"],.detail-media[data-state="loading"] { background:linear-gradient(100deg,#eeece5 30%,#f7f6f2 50%,#eeece5 70%) #eeece5; background-size:220% 100%; animation:shiplog-shimmer 1.4s linear infinite; }
 .post-media[data-state="error"] { background:#f8f1ef; box-shadow:inset 0 0 0 1px #dcc2be; }
 /* The clamp is on the description, not on the placeholder around it: the chip
    above it must stay a chip. Shared by both tile surfaces (feed and People). */
@@ -710,8 +714,7 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .profile-tile:focus-visible { outline:3px solid var(--focus-ring); outline-offset:2px; border-color:#1f70c1; }
 .profile-figure { display:flex; flex-direction:column; flex:1; margin:0; }
 .profile-media { position:relative; overflow:hidden; aspect-ratio:1/1; display:grid; place-items:center; background:#eeece5; }
-.profile-image { display:block; width:100%; height:100%; object-fit:cover; }
-.profile-media[data-state="loading"] { background:linear-gradient(100deg,#eeece5 30%,#f7f6f2 50%,#eeece5 70%) #eeece5; background-size:220% 100%; animation:shiplog-shimmer 1.4s linear infinite; }
+.profile-image { display:block; max-width:100%; max-height:100%; object-fit:scale-down; }
 .profile-media[data-state="error"] { background:#f8f1ef; box-shadow:inset 0 0 0 1px #dcc2be; }
 .profile-media-fallback { padding:0 12px; color:#7c3f3a; font:650 12px/1.5 ui-monospace,monospace; text-align:center; }
 /* The caption is clamped, not truncated mid-thought: two lines keep every tile
@@ -759,7 +762,6 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
    width and height stay auto the browser keeps the aspect ratio in either case.
    Nothing here can push the page wider than the container it sits in. */
 .detail-image { display:block; max-width:100%; max-height:min(70vh,620px); width:auto; height:auto; }
-.detail-media[data-state="loading"] { background:linear-gradient(100deg,#eeece5 30%,#f7f6f2 50%,#eeece5 70%) #eeece5; background-size:220% 100%; animation:shiplog-shimmer 1.4s linear infinite; }
 .detail-media[data-state="error"] { background:#f8f1ef; box-shadow:inset 0 0 0 1px #dcc2be; }
 .detail-media-fallback { width:100%; margin:0; padding:24px 16px; color:#555550; text-align:center; }
 .detail-media-fallback p { margin:0 auto; max-width:58ch; font-size:14px; line-height:1.55; overflow-wrap:anywhere; }
