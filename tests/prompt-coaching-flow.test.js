@@ -421,7 +421,7 @@ test("the model select describes each tier by what the model is at its provider"
     // asking for the model sent a reader looking for a model name that is not in
     // the list, and the optional marker stays part of the label.
     assert.equal(document.querySelector('label[for="prompt-coaching-model"]').textContent.trim(),
-      "Model tier you used (optional)");
+      "Model tier you used or plan to use (optional)");
 
     // Every offered label is still offered, against the value it grades as: the
     // guidance explains the choices, it does not rename them.
@@ -466,7 +466,7 @@ test("the boundary is stated in the markup, before any script runs", async () =>
     const preview = byId(document, "prompt-coaching-preview");
     assert.ok(preview, "the preview must ship in the page markup");
     const claim = textOf(preview.querySelector(".prompt-coaching-preview-static"));
-    assert.match(claim, /reads only the text you paste and the optional model choice/);
+    assert.match(claim, /reads only the text you paste and the optional model tier/);
     assert.match(claim, /does not access your accounts, files, or customer data/);
     // Where the text stays is promised once, in the sentence under the page's
     // heading, and this block does not say it a second time in different
