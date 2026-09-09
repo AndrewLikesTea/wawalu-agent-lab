@@ -39,26 +39,54 @@ const POSSIBLE_RESULTS_FAILURE = "Possible results could not be loaded. You can 
  * sentence is read out of the shipped markup once, before anything is painted,
  * so what a retry re-shows is the page's own text and never content a loader
  * drew — and it travels by textContent both ways, so it can never become markup.
+ *
+ * WHERE THAT SENTENCE GOES, AND WHY IT IS SAID ONCE. A region may ship a
+ * permanent polite status node (`statusId`) that is empty in the markup and
+ * carries its wording in `data-loading`. When it does, the sentence is written
+ * into that node here — a mutation of a live region assistive technology is
+ * already watching, which is what makes it announced, and announced once. A
+ * sentence that shipped already populated is not a change to anything and is
+ * never announced; a fresh node built with its text already in it is not
+ * reliably one either. The node is the region's ONLY loading status: the body
+ * is emptied rather than given a second copy of the same sentence, and the
+ * status empties on every settled outcome so a loading claim never stands over
+ * a painted result or a failure. A region without a status node keeps the older
+ * shape — the sentence drawn into the body — which is what the possible-results
+ * disclosure wants: it is closed by default, and nothing should be announced
+ * over a visitor who never asked to look.
+ *
+ * A settled outcome is applied only if it belongs to the newest run. Retrying
+ * makes a second request while the first may still be in flight, and a stale
+ * one resolving afterwards would report "ready" over a load still running and
+ * announce a state that is no longer the region's.
  */
-function initBundledRegion(doc, { bodyId, sectionId, titleId, loadingClass, loader, failureCopy, retryLabel }) {
+function initBundledRegion(doc, { bodyId, sectionId, titleId, statusId, loadingClass, loader, failureCopy, retryLabel }) {
   const body = doc?.getElementById?.(bodyId);
   if (!body) return;
   const section = doc.getElementById(sectionId);
-  const loadingCopy = body.textContent;
+  const status = statusId ? doc.getElementById(statusId) : null;
+  const loadingCopy = status ? status.dataset.loading ?? "" : body.textContent;
   // The heading, read the same way and for the same reason: what ships is the
   // wording of the state this region starts in, so every return to that state
   // returns to it. A loader is what replaces it, and only once it has painted
   // the thing the replacement claims.
   const title = titleId ? doc.getElementById(titleId) : null;
   const loadingTitle = title?.textContent;
+  let generation = 0;
 
   const run = () => {
+    const attempt = (generation += 1);
     if (title) title.textContent = loadingTitle;
     body.replaceChildren();
-    const loading = doc.createElement("p");
-    loading.className = loadingClass;
-    loading.textContent = loadingCopy;
-    body.append(loading);
+    let loading = null;
+    if (status) {
+      status.textContent = loadingCopy;
+    } else {
+      loading = doc.createElement("p");
+      loading.className = loadingClass;
+      loading.textContent = loadingCopy;
+      body.append(loading);
+    }
     body.dataset.loadState = "loading";
     body.setAttribute("aria-busy", "true");
 
@@ -76,15 +104,22 @@ function initBundledRegion(doc, { bodyId, sectionId, titleId, loadingClass, load
     }
 
     Promise.resolve(request).then(() => {
-      // Both real loaders replace the body, which takes this line with it. It is
-      // dropped explicitly anyway, so a loader that resolves without painting
-      // cannot leave "Loading the bundled example." standing under a state
-      // attribute that says the load is done.
-      loading.remove();
+      if (attempt !== generation) return;
+      // Both real loaders replace the body, which takes an in-body line with it.
+      // It is dropped explicitly anyway, and the status node is emptied on the
+      // same beat, so a loader that resolves without painting cannot leave
+      // "Loading the bundled example." standing under a state attribute that
+      // says the load is done.
+      loading?.remove();
+      if (status) status.textContent = "";
       body.dataset.loadState = "ready";
       body.removeAttribute("aria-busy");
       if (section) section.dataset.loadState = "ready";
     }, () => {
+      if (attempt !== generation) return;
+      // The failure is announced by the alert below, so the polite status stands
+      // down rather than leaving a second, contradictory sentence beside it.
+      if (status) status.textContent = "";
       body.replaceChildren();
       const message = doc.createElement("p");
       message.className = "prompt-coaching-load-error";
@@ -129,6 +164,9 @@ export function initPromptCoaching(doc = globalThis.document, {
     bodyId: "prompt-coach-sample-body",
     sectionId: "prompt-coach-sample",
     titleId: FIRST_RUN_TITLE_ID,
+    // The permanent polite status node this region announces its loading state
+    // through. It is the only loading sentence the region draws.
+    statusId: "prompt-coach-sample-status",
     loadingClass: "prompt-coach-sample-lead",
     loader: loadBundledExample,
     failureCopy: BUNDLED_EXAMPLE_FAILURE,

@@ -3132,7 +3132,12 @@ section[data-workspace-current="true"] { box-shadow:-6px 0 0 0 var(--import-wash
 .prompt-coach-sample { display:grid; gap:10px; border:1px dashed var(--import-line); border-radius:12px; padding:16px; }
 .prompt-coach-sample[hidden] { display:none; }
 .prompt-coach-sample-static,.prompt-coach-sample-lead { margin:0; max-width:70ch; color:var(--ink-muted); font-size:13px; line-height:1.6; }
+/* The status line keeps its node across every load so it can announce, and
+   takes no row in the grid while it has nothing to say — same treatment the
+   copy control's status line already gets. */
+.prompt-coach-sample-lead:empty { display:none; }
 .prompt-coach-sample-body { display:grid; gap:12px; }
+.prompt-coach-sample-body:empty { display:none; }
 .prompt-coach-sample-attribution { margin:0; max-width:70ch; border-left:5px solid var(--import-line); padding:2px 0 2px 12px; font-size:13px; line-height:1.6; }
 /* The neighbouring surface, at the foot of the coach and at the foot of the
    dashboard: the same card, so the pair reads as two destinations rather than

@@ -368,8 +368,8 @@ export function buildRevisionChange({ comparisonId, baseline, revision } = {}) {
  * @param {object} result from `gradeMyPrompt`.
  * @param {{change?: object|null}} options `change` is a model from
  *   `buildRevisionChange`; pass it on a re-grade and the change hierarchy is
- *   painted above the result, focus moves to it, and the result's own next move
- *   stands down in favour of the comparison's.
+ *   painted above the result, and the result's own next move stands down in
+ *   favour of the comparison's.
  * @returns the result that was painted, so a caller asserts on the state it
  *   asked for rather than on the DOM it got.
  */
@@ -385,9 +385,15 @@ export function applyPromptCoaching(doc, result, { change = null } = {}) {
   // answer to it is three lines, not a rubric.
   section.dataset.expanded = "false";
   section.dataset.changeExpanded = "false";
-  // Where a keyboard or screen-reader user lands after re-grading: on what
-  // changed, which is the thing they pressed the button to find out.
-  if (store.change) section.dataset.focusTarget = CHANGE_ID;
+  // A completed grade moves nobody's focus, and that includes the second one.
+  // The reader activated a control; the result of activating it is announced by
+  // the live region and drawn where they can read it, and taking the caret off
+  // the control they are still standing on is how a keyboard reader loses their
+  // place mid-task. Focus is moved on this surface for exactly one reason —
+  // a disclosure the reader themself toggled has to hand the toggle back — and
+  // the change region is reached the same way every other region is: by reading
+  // on. Its tabindex="-1" keeps it addressable without putting it in the tab
+  // sequence.
   paint(doc, section);
   return result;
 }
@@ -483,9 +489,10 @@ function paint(doc, section) {
  * visitor who has not re-graded yet is told they can, and a visitor who has is
  * shown what moved instead of being told again.
  *
- * The region carries `tabindex="-1"` in the markup so focus can land on it after
- * a re-grade; it is never in the tab sequence, so a reader who did not re-grade
- * never tabs through an empty landmark.
+ * The region carries `tabindex="-1"` in the markup so it stays an addressable
+ * destination for a skip or a fragment link; it is never in the tab sequence, so
+ * a reader who did not re-grade never tabs through an empty landmark, and
+ * nothing here moves focus into it — see `applyPromptCoaching`.
  */
 function paintChange(doc, section) {
   const { change: model, result } = state(section);

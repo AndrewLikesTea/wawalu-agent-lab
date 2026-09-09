@@ -128,13 +128,26 @@
              "already graded" in the same breath as the result that makes it
              true. It used to ship "already graded" over "Loading the bundled
              example", which told a first-time visitor a score was on screen
-             before one was. -->
+             before one was.
+
+             The status line below is this region's single loading sentence and
+             the only place it is written. It is a permanent polite status node
+             that ships EMPTY, and the page entry writes the sentence into it
+             after load: a live region that arrives with its final text already
+             in it is not a change to anything assistive technology was
+             watching, so it would never be announced. The wording still ships
+             in these bytes — on the node, as data-loading — so what the entry
+             introduces, and what a retry re-shows, is the page's own text and
+             never content a loader drew, and it travels by textContent both
+             ways so it can never become markup. It empties itself the moment
+             the load settles: the result underneath is the answer by then, and
+             a loading sentence standing over a painted grade is a claim the
+             page can already see is false. -->
         <section class="prompt-coach-sample" id="prompt-coach-sample" data-sample-state="static" aria-labelledby="prompt-coach-sample-title">
           <h3 class="eyebrow" id="prompt-coach-sample-title">Bundled synthetic example, grading now</h3>
           <p class="prompt-coach-sample-static">This result uses a bundled synthetic example written for this page, not your prompt or anyone else’s real prompt.</p>
-          <div class="prompt-coach-sample-body" id="prompt-coach-sample-body">
-            <p class="prompt-coach-sample-lead">Loading the bundled example. You can paste your own prompt below now.</p>
-          </div>
+          <p class="prompt-coach-sample-lead" id="prompt-coach-sample-status" role="status" aria-live="polite" aria-atomic="true" data-loading="Loading the bundled example. You can paste your own prompt below now."></p>
+          <div class="prompt-coach-sample-body" id="prompt-coach-sample-body"></div>
         </section>
         <!-- The first-time cue. Static, so it is readable before any script
              runs, and hidden by the view once a comparison is on screen: by
@@ -179,10 +192,14 @@
         </form>
         <p class="prompt-coaching-live" id="prompt-coaching-live" role="status" aria-live="polite" aria-atomic="true"></p>
         <!-- What changed between two grades, above the result it is a change to.
-             Empty and hidden until a second grade exists; tabindex="-1" keeps it
-             out of the tab sequence while letting focus land here after a
-             re-grade, which is what the reader pressed the button to find out.
-             Its accessible name is set with the heading the view renders. -->
+             Empty and hidden until a second grade exists. Nothing moves focus
+             here: a reader who pressed Grade keeps their place on Grade, and
+             the live region below the form carries what moved to them without
+             taking the caret out of their hands. tabindex="-1" stays so the
+             region remains an addressable destination for a skip or a fragment
+             link, and it keeps the region out of the tab sequence so a reader
+             who never re-graded never tabs through an empty landmark. Its
+             accessible name is set with the heading the view renders. -->
         <section class="prompt-coaching-change" id="prompt-coaching-change" tabindex="-1" hidden></section>
         <!-- The copyable record of that comparison. This block is permanent
              markup rather than rendered nodes because the change region above is

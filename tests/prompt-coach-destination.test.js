@@ -214,19 +214,26 @@ test("while the example is loading, the heading says it is being graded, not tha
 
   const title = () => textOf(byId(page.document, "prompt-coach-sample-title"));
   const body = sampleBody(page.document);
+  const status = byId(page.document, "prompt-coach-sample-status");
   assert.equal(body.dataset.loadState, "loading");
-  assert.match(textOf(body), /Loading the bundled example/, "the region must be in its loading state");
+  // The loading state is the status line and nothing else: the sentence was
+  // introduced into the live region by the entry, and the body holds no second
+  // copy of it and no half-drawn result.
+  assert.match(textOf(status), /Loading the bundled example/, "the region must be in its loading state");
+  assert.equal(textOf(body).trim(), "");
   assert.doesNotMatch(title(), /already graded/,
     "the heading claims a grade over a region that has not been graded yet");
   assert.equal(title(), "Bundled synthetic example, grading now");
   // And the invitation that stands while it loads is still standing: a visitor
   // with a prompt of their own never has to wait for the example.
-  assert.match(textOf(body), /paste your own prompt below now/);
+  assert.match(textOf(status), /paste your own prompt below now/);
 
   paint();
   await waitFor(() => sampleBody(page.document).dataset.loadState === "ready",
     "the bundled example to finish grading");
   assert.equal(title(), FIRST_RUN_GRADED_TITLE);
+  // The loading claim stands down the moment the grade is on screen.
+  assert.equal(textOf(status), "");
   // The sentence that separates the example from the visitor's own prompt is
   // the page's own, in both states, and this paint does not touch it.
   assert.match(textOf(page.document.querySelector(".prompt-coach-sample-static")),
@@ -665,9 +672,22 @@ test("the first screen names the result and the next action, before any script r
   assert.ok(byId(document, "prompt-coaching-input") && byId(document, "prompt-coaching-grade"),
     "the field and the button the static copy names are in the shipped markup");
 
-  const sampleFallback = textOf(document.querySelector(".prompt-coach-sample-lead"));
+  // The loading sentence ships in these bytes, on the permanent polite status
+  // node that announces it — but as `data-loading` rather than as the node's
+  // text. A live region that arrives with its final wording already in it is not
+  // a change to anything assistive technology was watching, so the page entry
+  // has to be what introduces it. What ships is still the page's own wording,
+  // which is what a retry re-shows.
+  const sampleStatus = byId(document, "prompt-coach-sample-status");
+  assert.equal(sampleStatus.getAttribute("role"), "status");
+  assert.equal(sampleStatus.getAttribute("aria-live"), "polite");
+  assert.equal(textOf(sampleStatus), "",
+    "a status node that ships populated is a status node that never announces");
+  const sampleFallback = sampleStatus.dataset.loading;
   assert.match(sampleFallback, /Loading the bundled example/);
   assert.match(sampleFallback, /paste your own prompt below now/);
+  // And it is said once: no second copy of the sentence anywhere in the region.
+  assert.equal(textOf(byId(document, "prompt-coach-sample-body")).trim(), "");
 
   // The heading over that line is the loading state's too, because that is the
   // state these bytes are read in. A reader whose script never runs is told the
