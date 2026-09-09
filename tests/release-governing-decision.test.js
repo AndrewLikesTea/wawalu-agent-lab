@@ -388,7 +388,16 @@ test("the Releases page renders linked-decision copy from markup and the list re
   // The keyboard line describes the control, not the record: nothing is linked
   // until the release is recorded, so Space ticks a box — it does not link.
   assert.match(textOf(page.document.querySelector("#release-decisions-hint")), /Space ticks or clears the decision in focus/);
-  assert.equal(textOf(page.document.querySelector("#release-form-status-hint")), "A completed release implemented its linked decisions. A planned or cancelled release only names them.");
+  // The guidance is visible prose in the Status field itself, not a tooltip or
+  // a collapsed panel: same parent as the select, described by it, not hidden.
+  // Identity is compared with === rather than assert.equal, because a failing
+  // assert.equal would try to render two parsed page nodes as a diff.
+  const statusControl = page.document.querySelector("#release-form-status");
+  const statusHint = page.document.querySelector("#release-form-status-hint");
+  assert.equal(statusControl.getAttribute("aria-describedby"), statusHint.id);
+  assert.ok(statusControl.parentNode === statusHint.parentNode, "guidance stays beside Status");
+  assert.ok(!statusHint.hasAttribute("hidden"), "the status guidance is hidden");
+  assert.equal(textOf(page.document.querySelector("#release-form-status-hint")), "The status describes the release, not the decisions linked to it: Completed means it shipped, Planned means it has not shipped yet, Cancelled means it never will. Linking records that the release refers to a decision — the decision keeps its own status, so a completed release does not mean every decision it links was accepted or implemented.");
   assert.match(textOf(page.document.querySelector(".release-summary")), /^Linked decisions/);
   assert.match(textOf(page.document.querySelector("#release-followup")), /“Old approach” is linked to Old release, and a later decision replaced it/);
   assert.match(textOf(page.document.querySelector("#site-footer-topic-note")), /Releases page — every release and its linked decisions/);
