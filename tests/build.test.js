@@ -159,7 +159,7 @@ test("the homepage leads with the decision-to-release benefit and a primary demo
   const buttons = document.querySelectorAll(".button-link").map(({ textContent }) => textContent.trim());
   assert.equal(new Set(buttons).size, buttons.length, `two calls to action read the same: ${buttons}`);
   const secondary = document.querySelector("#additional-capability");
-  assert.match(secondary.textContent, /Additional capability/);
+  assert.match(secondary.textContent, /Runs on your own work/);
   assert.ok(secondary.querySelector('a[href="/evolution.html"]'));
   // Counted, not compared: `assert.equal(node, null)` on a regression makes the
   // harness stringify a whole parsed subtree and the run hangs past its timeout
