@@ -1421,7 +1421,9 @@ export function mountSocialFeed(root, options = {}) {
     if (!submit) return;
     submit.disabled = submitting;
     submit.setAttribute("aria-busy", String(submitting));
-    if (submitLabel) submitLabel.textContent = submitting ? "Publishing…" : "Publish this post";
+    // The same two words the button ships with in src/social.html, so a publish
+    // that settles hands the control back under the act's one name.
+    if (submitLabel) submitLabel.textContent = submitting ? "Publishing…" : "Publish post";
   };
 
   if (bodyInput) {

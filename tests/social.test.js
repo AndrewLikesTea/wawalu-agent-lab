@@ -410,18 +410,21 @@ test("the composer describes no failure that has not happened yet", async (t) =>
 //
 // The approved name for this flow is "Publish a post", on both the opener and
 // heading, and the shared post page links here by those exact words. The submit
-// button says "Publish this post" (#2173): the flow's name was on three strings
-// for two different acts, so a reader pressed "Publish a post", nothing
+// button says "Publish post" (#2173, #2252): the flow's name was on three
+// strings for two different acts, so a reader pressed "Publish a post", nothing
 // published, and met the same three words at the foot of the form with no way
-// to tell re-opening from committing. The button now names the post being
-// written, which is the one it cannot take back. The arrow remains absent:
-// every other arrow on this site decorates a route, and this button moves the
-// reader nowhere.
+// to tell re-opening from committing. #2173 moved the button to "Publish this
+// post", which told the two presses apart but left the act with three names on
+// one page — the prose about it, People's route into it and the step list all
+// say "Publish post". Those two words are now the label, and the opener is the
+// only string that varies, because it is the only one that has to. The arrow
+// remains absent: every other arrow on this site decorates a route, and this
+// button moves the reader nowhere.
 //
 // The same pass pins the destination for image posts: this site has no page
 // called Profile, so "profile" survives on Social only as the People page's URL
 // and the class that styles its nav item, never as a word a reader sees.
-test("the opener and heading use Publish a post, and the submit names this post", async (t) => {
+test("the opener and heading use Publish a post, and the submit reads Publish post", async (t) => {
   const markup = await readFile(new URL("../src/social.html", import.meta.url), "utf8");
   const page = await loadPage(new URL("../src/social.html", import.meta.url), {});
   t.after(() => page.restore());
@@ -440,10 +443,11 @@ test("the opener and heading use Publish a post, and the submit names this post"
   assert.equal(page.document.querySelector("#post-compose-panel").hidden, true);
   assert.equal(textOf(page.document.querySelector("#post-form-title")), "Publish a post",
     "the composer heading does not match the control that opens it");
-  // The one press that publishes, named after the post it publishes. It keeps
-  // the flow's verb and nothing else, so it cannot be mistaken for the opener.
+  // The one press that publishes, under the act's own name. It is shorter than
+  // the opener's label rather than a variation on it, so the two cannot be
+  // mistaken for each other when both are on screen.
   // "Create" survives on this page for images only, in the first Paint step.
-  assert.equal(textOf(page.document.querySelector("#post-submit")), "Publish this post",
+  assert.equal(textOf(page.document.querySelector("#post-submit")), "Publish post",
     "the submit control drifted from its own label, or grew an arrow back");
   const panelWords = textOf(page.document.querySelector("#post-compose-panel"))
     .replaceAll("Create or open an image in Paint", "");
@@ -508,7 +512,7 @@ test("the composer calls its required 280-character text a post throughout", asy
   const postField = composer.querySelector('label[for="post-body"]').parentNode;
   assert.equal(textOf(postField).toLowerCase().split("required").length - 1, 1,
     `the post field states that it is required more than once: ${textOf(postField)}`);
-  assert.equal(textOf(composer.querySelector("#post-submit")), "Publish this post");
+  assert.equal(textOf(composer.querySelector("#post-submit")), "Publish post");
   assert.equal(PUBLISH_FAILED_NOTE,
     "Your post, image, and image description are still in the composer, exactly as you left them.");
   // The two sentences the composer's notice can carry from createPost. They are
@@ -1596,7 +1600,7 @@ const foldedAway = (node) => {
 // opener and the final submit action are on screen at once — and the state in
 // which #2173 bit: two controls, one name, and the reader guessing which press
 // was the public and permanent one.
-test("with the composer open, one control reads Publish a post and the submit names this post", async (t) => {
+test("with the composer open, one control reads Publish a post and the submit reads Publish post", async (t) => {
   const { document, id } = await socialDisclosure(t);
   id("post-compose-open").click();
 
@@ -1605,15 +1609,19 @@ test("with the composer open, one control reads Publish a post and the submit na
   assert.equal(id("post-compose-open").getAttribute("aria-expanded"), "true");
 
   // Every control that says "Publish" anything, in document order. Exactly one
-  // of them reads the flow's name, and it is the one that only opens the form;
-  // the other names the post it will publish.
+  // of them reads the flow's opener wording; the other is the act itself, under
+  // the two words every sentence about it uses.
   const publishing = document.querySelectorAll("a,button,summary,label")
     .filter((node) => /Publish/.test(textOf(node)));
-  assert.deepEqual(publishing.map((node) => textOf(node)), ["Publish a post", "Publish this post"],
+  assert.deepEqual(publishing.map((node) => textOf(node)), ["Publish a post", "Publish post"],
     "a control on Social names the publishing flow a second time");
   assert.deepEqual(publishing.map((node) => node.getAttribute("id")), ["post-compose-open", "post-submit"]);
   assert.equal(publishing.filter((node) => textOf(node) === "Publish a post").length, 1,
     "exactly one control may read Publish a post: the one that opens the composer");
+  // #2252: with both controls on screen, the two labels may not be the same
+  // bytes — that is the one thing the opener's extra word is there to prevent.
+  assert.notEqual(textOf(publishing[0]), textOf(publishing[1]),
+    "the opener and the submit now carry identical labels, so neither says which press publishes");
 
   // The heading the opener reveals keeps the flow's name. It is a heading and
   // not a control, so a reader never presses it and the pair above stays a pair.

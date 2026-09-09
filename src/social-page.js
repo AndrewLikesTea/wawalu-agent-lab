@@ -203,7 +203,10 @@ function mountMediaComposer(root, description) {
     // publish ready to describe and post." This is also the one moment a
     // visitor who never went near Paint is told where the file is — said once,
     // here, rather than repeated beside every control.
-    setStatus("Image ready to describe and post. Nothing is sent until you publish.");
+    // It names the control rather than the act in general: this line used to end
+    // "until you publish", which was a fourth wording of one press (#2252). The
+    // reader is told what is still theirs to press, in the words on it.
+    setStatus("Image ready to describe and post. Nothing is sent until you select Publish post.");
     description.setAttached(true);
     alt.focus();
   };

@@ -484,7 +484,7 @@
                 <li><a class="secondary-button paint-link" href="/paint/" target="_blank" rel="noopener">Create or open an image in Paint <span class="new-tab-note">(opens in a new tab)</span> <span aria-hidden="true">↗</span></a></li>
                 <li>Export it as a PNG, then select that PNG using “Choose image” above</li>
                 <li>Fill in the required image description</li>
-                <li>Publish this post</li>
+                <li>Publish post</li>
               </ol>
               <!-- Said beside the step that sends the visitor away, because that
                    is where the question arises: the step above opens a second
@@ -623,12 +623,20 @@
             <p class="hint publish-consequence" id="post-consequence">Anyone who visits Shiplog can read your post, its image, and the display name you publish it with. You cannot edit or delete a post after you publish it, so post nothing you would not put on a public page.</p>
             <p class="field-error compose-error" id="post-publish-blocker" hidden></p>
             <!-- The only control on this page that makes a post public, and the
-                 only one whose label names the post being written rather than
-                 the act in general. The hero's opener keeps "Publish a post" —
-                 the site-wide name for this flow, and the words the shared post
-                 page links here by — so this button says "this post": one press
-                 opens the composer, the other is the irreversible one, and a
-                 reader who hears both labels can tell them apart.
+                 one whose label is the act's name: "Publish post". Everything
+                 that speaks about the act uses those two words — the step list
+                 above, the refusal a missing image description gets, People's
+                 own route into this form — so the reader meets one name for one
+                 act. Until #2252 this page named it three ways in the state a
+                 visitor writing a post is actually in: "Publish a post" on the
+                 opener, "Publish this post" here and on the closing step, and a
+                 bare "until you publish" in the status line an attached image
+                 gets. Naming the draft was one more wording of one press.
+                 The hero's opener keeps "Publish a post" and cannot take this
+                 label, because both controls are on screen once the composer is
+                 open and two identical labels would leave a reader guessing
+                 which press is the irreversible one. It reads as an opener and
+                 carries the act's verb; this one is the act.
                  No arrow after the words. Every other arrow on this site
                  decorates a route — it means "this moves you somewhere" — and
                  this button moves the reader nowhere: it publishes, in place,
@@ -639,7 +647,7 @@
                  and the arrow could never have been part of the word swapped
                  in there. -->
             <button id="post-submit" type="submit" aria-describedby="post-consequence post-publish-blocker social-notice">
-              <span class="submit-label">Publish this post</span>
+              <span class="submit-label">Publish post</span>
             </button>
             <!-- The way out, in the word the footer's panel already uses for
                  the same act. It collapses the composer and puts focus back on

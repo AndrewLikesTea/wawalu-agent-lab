@@ -55,8 +55,8 @@ import { normalizeImage } from "./social.js";
 // the control that opens the composer and the composer's own heading, so the
 // link and the thing it lands on say one string. A third phrasing for the same
 // act would be a third thing to learn. (The composer's submit button reads
-// "Publish this post": it names the draft in front of the reader, because it is
-// the press that cannot be taken back.)
+// "Publish post": the act's own name, kept apart from this link's opener
+// wording because that button and the opener stand on screen together.)
 //
 // The place is named the way the rest of the site names it: "Open Social to read
 // the whole feed", People's own words for that destination. It replaced "Open

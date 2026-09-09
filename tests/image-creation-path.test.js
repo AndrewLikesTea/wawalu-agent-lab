@@ -388,7 +388,7 @@ test("the composer numbers the round trip and puts the rule beside the control",
     "Create or open an image in Paint (opens in a new tab) ↗",
     "Export it as a PNG, then select that PNG using “Choose image” above",
     "Fill in the required image description",
-    "Publish this post",
+    "Publish post",
   ]);
   assert.equal(textOf(documents.Social.querySelector("body")).split("Select Choose image").length - 1, 0,
     "the composer still instructs the reader to select the button beside the instruction");
@@ -508,13 +508,13 @@ test("the composer names the round trip in the order it is taken, once", () => {
     "the composer asks for the export before the drawing");
   assert.ok(at("Export it as a PNG") < at("select that PNG using “Choose image” above"),
     "the composer asks for the file before it has been exported");
-  assert.ok(at("select that PNG using “Choose image” above") < at("Publish this post"),
+  assert.ok(at("select that PNG using “Choose image” above") < at("Publish post"),
     "the composer asks the visitor to publish before selecting the file");
   // #2170: the description is a step, in the place it is actually taken —
   // after the file it describes exists, before the publishing it blocks.
   assert.ok(at("select that PNG using “Choose image” above") < at("Fill in the required image description"),
     "the composer asks for the description before there is an image to describe");
-  assert.ok(at("Fill in the required image description") < at("Publish this post"),
+  assert.ok(at("Fill in the required image description") < at("Publish post"),
     "the composer asks the visitor to publish before writing the description publishing requires");
   // The sequence identifies the picker by its rendered label.
   assert.match(steps, /Choose image/,
@@ -570,7 +570,7 @@ test("the sequence names the image picker and ends with publishing", () => {
   assert.equal(label, "Choose image");
   assert.ok(textOf(items[1]).includes(label));
   assert.match(textOf(items[1]), /that PNG using “Choose image” above/);
-  assert.equal(last, "Publish this post");
+  assert.equal(last, "Publish post");
   assert.equal(textOf(documents.Social.querySelector('button[type="submit"]')), last);
   assert.doesNotMatch(textOf(documents.Social.querySelector("body")), /Publish your post/);
 

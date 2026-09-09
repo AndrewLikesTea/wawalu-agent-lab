@@ -222,7 +222,7 @@ test("the image field states the formats and the size exactly once, in plain sen
   assert.equal(textOf(steps),
     "Create or open an image in Paint (opens in a new tab) ↗"
     + " Export it as a PNG, then select that PNG using “Choose image” above"
-    + " Fill in the required image description Publish this post");
+    + " Fill in the required image description Publish post");
   const paint = steps.querySelector("a");
   assert.equal(paint.getAttribute("href"), "/paint/");
   assert.equal(paint.getAttribute("target"), "_blank");
@@ -324,6 +324,12 @@ test("the refusal goes when a file the field accepts arrives", async (t) => {
   assert.equal(document.querySelector("#compose-media").hidden, false);
   assert.equal(removeImageControls(document).length, 1);
   assert.equal(document.querySelector("#post-submit").disabled, false);
+  // #2252: the line saying the file has not gone anywhere yet names the press
+  // that would send it, in the bytes on that button — it used to end "until you
+  // publish", a third wording of one act on one screen.
+  assert.equal(textOf(document.querySelector("#post-media-status")),
+    "Image ready to describe and post. Nothing is sent until you select Publish post.");
+  assert.equal(textOf(document.querySelector("#post-submit")), "Publish post");
 });
 
 // Placement is the criterion, not decoration: a refusal a reader meets after the
