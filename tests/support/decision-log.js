@@ -94,6 +94,7 @@ export function createHistoryHarness(data, { search = "", clipboard } = {}) {
     "#filter-release": select(),
     "#filter-release-hint": createElement("span"),
     "#history-release-followup": createElement("div"),
+    "#history-timelines": createElement("div"),
     "#sort-by": select("newest"),
     "#decision-search": control({ value: "" }),
     "#clear-decision-filters": control(),
