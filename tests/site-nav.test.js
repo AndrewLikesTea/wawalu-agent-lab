@@ -19,7 +19,7 @@ import { DEFAULT_DESTINATION, DESTINATION_FRAGMENT } from "../src/finops-workspa
 // `title` is the browser title, listed here so it cannot drift from the name
 // the nav gives the same surface.
 const PAGES = [
-  { file: "index.html", current: "/", title: "Shiplog · one site for AI spend, decisions, and releases" },
+  { file: "index.html", current: "/", title: "Shiplog · decisions linked to releases" },
   { file: "decision.html", current: "/", title: "Decision · Shiplog" },
   { file: "workspace.html", current: "/", title: "Local workspace · Shiplog" },
   { file: "social.html", current: "/social.html", title: "Social · Shiplog" },
@@ -179,12 +179,12 @@ test("the home page names the product and what it is for, not just its first sec
   // list further down the page, and it named the decision detail too.
   assert.ok(title.startsWith("Shiplog · "), `the home page is titled "${title}"`);
   assert.notEqual(title, "Shiplog", "the bare product name says nothing about what it is for");
+  // Both halves of the charter, in the string a search result shows before a
+  // prospect ever reaches the page: #2219 moved the decision-to-release story to
+  // the top of the document, and a title that named neither noun would have left
+  // the strongest sales surface on the site describing the wrong product.
   assert.match(title, /decision/i);
   assert.match(title, /release/i);
-  // And it reads as one product with parts, not as a menu of three things to
-  // pick between: "Shiplog · AI FinOps, decisions, and releases" listed them as
-  // alternatives, which is the reading this phrasing removes.
-  assert.match(title, /one site for/i, `the home page is titled "${title}"`);
 });
 
 test("no two pages share a document title, and none is longer than a tab can show", async () => {

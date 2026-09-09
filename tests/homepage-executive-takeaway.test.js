@@ -98,8 +98,8 @@ test("the value, qualification, action, and decision link form a semantic readin
   const action = region.querySelector(".executive-takeaway-action");
   const link = action.querySelector("a");
 
-  assert.equal(document.getElementById("executive-takeaway-title").tagName, "H2");
-  assert.equal(document.getElementById("executive-takeaway-action-title").tagName, "H3");
+  assert.equal(document.getElementById("executive-takeaway-title").tagName, "H3");
+  assert.equal(document.getElementById("executive-takeaway-action-title").tagName, "H4");
   assert.ok(order.indexOf(value) < order.indexOf(qualification));
   assert.ok(order.indexOf(qualification) < order.indexOf(action));
   assert.ok(at("executive-takeaway-action-title") < order.indexOf(link));
@@ -167,21 +167,21 @@ test("with no nameable period the takeaway degrades to its wording rather than a
   }
 });
 
-test("the recoverable figure is stated once on the first screen, and it is stated here", async (t) => {
+test("the recoverable figure is stated once on the secondary FinOps region, and it is stated here", async (t) => {
   const document = await openTakeaway(t, { writeText: async () => {} });
-  const hero = textOf(document.getElementById("top"));
+  const hero = textOf(document.getElementById("additional-capability"));
   const intro = textOf(document.querySelector(".hero-proof-point"));
   const takeaway = textOf(document.getElementById("executive-takeaway-text"));
   const times = (text, figure) => text.split(figure).length - 1;
 
   // #1544: the paragraph above the takeaway used to state the same pair and the
-  // same rate a line before it, so the first screen made one claim twice and a
+  // same rate a line before it, so the secondary FinOps region made one claim twice and a
   // reader had to compare two sentences to find out it was one claim. The
   // takeaway is the copyable, qualified version, so it keeps the money.
   // #1768: the follow-up form under the takeaway restated $51,254 to caveat it a
-  // second time. Each figure now reads once on the first screen, in the takeaway.
+  // second time. Each figure now reads once on the secondary FinOps region, in the takeaway.
   for (const figure of ["$51,254", "$154,500", "33%"]) {
-    assert.equal(times(hero, figure), 1, `the first screen states ${figure} ${times(hero, figure)} times`);
+    assert.equal(times(hero, figure), 1, `the secondary FinOps region states ${figure} ${times(hero, figure)} times`);
     assert.equal(times(takeaway, figure), 1, `the takeaway must be where ${figure} is stated`);
   }
 
@@ -198,7 +198,7 @@ test("the recoverable figure is stated once on the first screen, and it is state
 /** Everything a visitor reads above the "Executive takeaway" heading. */
 function leadOf(document) {
   const read = [];
-  for (const child of document.getElementById("top").childElements) {
+  for (const child of document.getElementById("additional-capability").childElements) {
     if (child.classList.contains("executive-takeaway")) break;
     read.push(textOf(child));
   }
@@ -216,7 +216,7 @@ test("the lead above the takeaway states the question, once, with no figure in i
   assert.doesNotMatch(lead, /driving the increase/);
   assert.doesNotMatch(lead, /the (?:rise|growth|spike|trend|increase)\b/i,
     "no sentence in the lead may refer to a change this page has not described");
-  const question = sentences.find((sentence) => sentence.includes("AI FinOps"));
+  const question = sentences.find((sentence) => sentence.includes("AI FinOps publishes"));
   assert.ok(question, "one sentence in the lead must name the page the decision lives on");
   assert.ok(question.split(/\s+/).length <= 30,
     `the question runs to ${question.split(/\s+/).length} words`);
@@ -294,17 +294,17 @@ test("the adjacent CTA opens a contextual work-email request that says what is s
     "a claim a reader meets after pressing the button is not one they got to weigh");
   // Once. Two sentences making the same promise is how a reader ends up
   // deciding whether two wordings mean two promises. Counted over the whole
-  // first screen since #1974 moved the panel below the worked-decision link:
+  // secondary FinOps region since #1974 moved the panel below the worked-decision link:
   // the takeaway card no longer contains it, and a scope that stopped at the
   // card would count zero and pass.
-  assert.equal(textOf(document.getElementById("top")).split("are sent").length - 1, 1,
+  assert.equal(textOf(document.getElementById("additional-capability")).split("are sent").length - 1, 1,
     "the panel states what is sent exactly once");
 });
 
 test("the takeaway and the form under it state the sample-data fact once between them", async (t) => {
   const document = await openContextualFollowUp(t, async () => reply({ captured: true, created: true }));
   document.getElementById("finops-example-follow-up-open").click();
-  const screen = textOf(document.getElementById("top"));
+  const screen = textOf(document.getElementById("additional-capability"));
   const times = (text, phrase) => text.split(phrase).length - 1;
 
   // Once, in the paragraph the figure is written in, so it travels with the
@@ -313,7 +313,7 @@ test("the takeaway and the form under it state the sample-data fact once between
   // screen rather than to the takeaway card, because #1974 moved the panel out
   // of the card and below the worked-decision link.
   assert.equal(times(screen, "not visitor data"), 1,
-    `the first screen states the sample-data fact ${times(screen, "not visitor data")} times`);
+    `the secondary FinOps region states the sample-data fact ${times(screen, "not visitor data")} times`);
   assert.match(textOf(document.getElementById("executive-takeaway-text")),
     /Figures are from a bundled synthetic example and are not visitor data\./);
   // One name for one thing: "bundled synthetic data" was the fourth vocabulary.
@@ -337,11 +337,11 @@ function inReadingOrder(root, found = []) {
 
 test("the worked decision is offered before the work email is asked for", async (t) => {
   // #1974: the follow-up panel sat between the takeaway and the AI FinOps link,
-  // so the first screen asked a visitor for their work email before it had shown
+  // so the secondary FinOps region asked a visitor for their work email before it had shown
   // them anything the product does. The block moved whole — same copy, same ids,
   // same submit label, same controls — to below the two entry points.
   const document = await openContextualFollowUp(t, async () => reply({ captured: true, created: true }));
-  const order = inReadingOrder(document.getElementById("top"));
+  const order = inReadingOrder(document.getElementById("additional-capability"));
   const at = (id) => order.findIndex((node) => node.getAttribute("id") === id);
   const linkTo = (href) => order.findIndex((node) => node.tagName === "A" && node.getAttribute("href") === href);
   const worked = linkTo("/evolution.html");
@@ -358,7 +358,7 @@ test("the worked decision is offered before the work email is asked for", async 
     ["executive-takeaway-title", "executive-takeaway-text", "executive-takeaway-value", null,
       "executive-takeaway-qualification", null, "executive-takeaway-action",
       "executive-takeaway-action-title", "executive-takeaway-detail",
-      "executive-takeaway-owner", null, "button-link", null,
+      "executive-takeaway-owner", null, "text-link", null,
       "executive-takeaway-source", "executive-takeaway-actions", "copy-executive-takeaway",
       "executive-takeaway-status"],
   );
@@ -393,17 +393,19 @@ test("the worked decision is offered before the work email is asked for", async 
     "the work-email ask is still read before the worked decision");
 });
 
-test("the closed first screen spends four tab stops, and nothing added may spend a fifth", async (t) => {
+test("the closed secondary FinOps region spends four tab stops, and nothing added may spend a fifth", async (t) => {
   const document = await openContextualFollowUp(t, async () => reply({ captured: true, created: true }));
-  const inHero = new Set(inReadingOrder(document.getElementById("top")));
+  const inHero = new Set(inReadingOrder(document.getElementById("additional-capability")));
 
-  // Four stops, and this count may not grow. The home page's tab order is
-  // spent: the coach entry point sits at press 30 of the 30 that
-  // prompt-coach-destination.test.js will spend reaching it, so a focusable
-  // added anywhere above it fails there — by hanging on a deep-equal of two
-  // parsed nodes, not by reporting this line. That is why the source is cited
-  // as an address rather than linked: the worked decision is already the first
-  // stop below, and the copied payload carries the address either way.
+  // Four stops, and this count may not grow. #2219 put the decision-to-release
+  // hero above this region and spent a stop of its own on the primary demo
+  // action, so every focusable here is now one more press between a keyboard
+  // reader and the coach entry point that prompt-coach-destination.test.js
+  // walks to at the foot of the page. That check bounds itself by the page's
+  // own tab sequence, so it no longer hangs on an added stop — but the reader
+  // still pays. That is why the source below is cited as an address rather than
+  // linked: the worked decision is already the first stop here, and the copied
+  // payload carries the address either way.
   const stops = tabSequence(document).filter((stop) => inHero.has(stop));
   assert.deepEqual(stops.map((stop) => stop.getAttribute("id") ?? stop.getAttribute("href")),
     ["/evolution.html", "copy-executive-takeaway", "#landing-decision", "finops-example-follow-up-open"]);
@@ -417,7 +419,7 @@ test("the closed first screen spends four tab stops, and nothing added may spend
   assert.equal(opened.length, stops.length + 4,
     "the open panel offers the topic, the message, the field, and one send control");
   assert.equal(opened.indexOf(document.getElementById("finops-example-follow-up-open")), 3,
-    "the disclosure must still be the last stop the closed first screen offers");
+    "the disclosure must still be the last stop the closed secondary FinOps region offers");
 });
 
 test("the contextual request validates locally and never shows success for a failed response", async (t) => {
@@ -751,7 +753,7 @@ test("a failed request keeps both typed values, and the retry resends the messag
 test("every authored claim in the takeaway is one AI FinOps still publishes", () => {
   // The takeaway is prose typed into a document, which makes it a second source
   // of truth for figures the composer owns. It is allowed to be — the import
-  // graph behind `buildStandHeadline()` is not something the first screen can
+  // graph behind `buildStandHeadline()` is not something the secondary FinOps region can
   // afford to load — but it is not allowed to drift. Every claim is held here
   // against the composer that paints it on AI FinOps, so a rename in the
   // example data, a re-ranked action, or a re-modelled rate fails the build.

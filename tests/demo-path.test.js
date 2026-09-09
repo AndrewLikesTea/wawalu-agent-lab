@@ -146,8 +146,11 @@ test("the static markup already states the count a cold visitor will see", async
   assert.equal(before, `${SEED_RECORD_COUNT} records`);
   assert.doesNotMatch(before, /^0 records$/);
 
-  // And the hero's demo call to action lands on the list that shows them.
-  assert.match(html, /href="#record-history">Explore the decision and release log/);
+  // And the log entry's call to action lands on the list that shows them. Its
+  // words say "on this page" because #2219 gave the hero above it a demo button
+  // that leaves for Releases: two buttons named the same thing, landing in two
+  // places, is a buyer clicking the wrong one.
+  assert.match(html, /href="#record-history">Record and search the log on this page/);
   assert.match(html, /id="record-history"/);
   // The sample links agree with the ids the seed data uses.
   assert.ok(html.includes(`href="/decision.html?id=${SAMPLE_DECISION_ID}"`));

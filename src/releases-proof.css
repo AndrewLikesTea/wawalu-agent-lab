@@ -15,5 +15,11 @@
 .shiplog-proof-facts a,.shiplog-proof-link { color:#14568f; }
 .shiplog-proof-share { display:flex; align-items:center; flex-wrap:wrap; gap:10px 14px; padding-top:14px; border-top:1px solid #cbdcd3; }
 .shiplog-proof-link { font-size:13px; font-weight:700; }
+/* The recorder's success region is a `.share-control`, which is a centred flex
+ * row. A sentence introducing the link has to break the row and drop its
+ * default block margins, or it reads inline with the link and the storage hint
+ * as one run-on line and the row grows an em of dead space above and below.
+ * No new hue and no new type scale — the site's own body ink. */
+#release-record-next>p { flex:1 1 100%; margin:0; font-size:14px; line-height:1.5; }
 @media(max-width:760px) { .shiplog-proof-facts{grid-template-columns:repeat(2,minmax(0,1fr))} }
 @media(max-width:520px) { .shiplog-proof-heading{align-items:stretch;flex-direction:column}.shiplog-proof-facts{grid-template-columns:1fr}.shiplog-proof-share{align-items:stretch;flex-direction:column}.shiplog-proof-share .share-button{width:100%} }

@@ -19,7 +19,7 @@ import { initReleasesPage } from "../src/releases-page.js";
 import { initReleaseDetail } from "../src/release-page.js";
 import { buildShiplogExport } from "../src/shiplog-export.js";
 import { shiplogExportViolations } from "../src/shiplog-export-schema.js";
-import { loadPage, pressSpace, pressTab, textOf, typeText } from "./support/browser.js";
+import { loadPage, pressEnter, pressSpace, pressTab, textOf, typeText } from "./support/browser.js";
 
 const RELEASES_PAGE = new URL("../src/releases.html", import.meta.url);
 const RELEASE_DETAIL_PAGE = new URL("../src/release.html", import.meta.url);
@@ -191,7 +191,12 @@ test("a recorded release is announced by name and status, and the record is offe
   assert.equal(link.getAttribute("href"), `/release.html?id=${saved.id}`);
   assert.equal(link.getAttribute("aria-label"), "View release details for Queue rollout");
   assert.equal(textOf(link), "View release details→");
-  link.click();
+  // By id, not by node. `assert.equal` over two parsed elements makes the
+  // harness stringify both subtrees when they differ, so the regression this
+  // guards would hang the run past its timeout instead of naming itself.
+  assert.equal(page.document.activeElement?.getAttribute("id"), "release-record-detail",
+    "success focuses the saved release, not the empty form");
+  pressEnter(page.document);
   assert.deepEqual(page.navigations, [`/release.html?id=${saved.id}`], "the success control opened somewhere else");
 });
 
@@ -700,4 +705,39 @@ test("a release with nothing linked says so on its detail page", async (t) => {
   const detail = page.document.querySelector("#release-detail");
   assert.equal(textOf(detail.querySelector(".release-empty")), "No decisions linked to this release.");
   assert.equal(detail.querySelectorAll(".detail-decision").length, 0);
+});
+
+
+test("the homepage primary demo reaches Releases and a saved, inspectable outcome", async (t) => {
+  const home = await loadPage(new URL("../src/index.html", import.meta.url));
+  const action = home.document.querySelector("#core-demo-link");
+  action.focus();
+  pressEnter(home.document);
+  const destination = new URL(home.navigations[0], "https://shiplog.test");
+  home.restore();
+  assert.equal(destination.pathname, "/releases.html");
+  const page = await loadPage(new URL(`../src${destination.pathname}`, import.meta.url));
+  t.after(() => page.restore());
+  initReleasesPage(page.document, page.storage);
+  assert.ok(page.document.querySelector(destination.hash), "the demo fragment resolves");
+  assert.match(textOf(page.document.querySelector(destination.hash)), /Example|example/);
+  optionFor(page, "Adopt a durable job queue").click();
+  fillRequired(page, { version: "v2219.0.0" });
+  submit(page);
+  const saved = stored(page)[0];
+  assert.equal(saved.decisionIds.length, 1);
+  assert.equal(page.document.activeElement?.getAttribute("id"), "release-record-detail");
+  pressEnter(page.document);
+  const detailUrl = new URL(page.navigations[0], "https://shiplog.test");
+  const storage = { [RELEASE_STORAGE_KEY]: page.storage.getItem(RELEASE_STORAGE_KEY) };
+  page.restore();
+  const detail = await loadPage(new URL(`../src${detailUrl.pathname}`, import.meta.url), {
+    storage, location: { search: detailUrl.search },
+  });
+  t.after(() => detail.restore());
+  initReleaseDetail();
+  const content = textOf(detail.document.querySelector("#release-detail"));
+  assert.match(content, /v2219.0.0/);
+  assert.match(content, /Adopt a durable job queue/);
+  assert.match(content, /Background work was lost on deploys/);
 });

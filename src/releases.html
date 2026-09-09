@@ -495,10 +495,13 @@
                stays hidden until there is an id to point at. The storage
                sentence claims only what saveReleases in releases.js does — one
                key in this browser's local storage, no request — and names the
-               way out in the words on that control's face. Deliberately no new
-               CSS: the wrapper and the link reuse the share control and detail
-               link rules the page already ships. -->
+               way out in the words on that control's face. The wrapper and the
+               link reuse the share control and detail link rules the page
+               already ships; the one added rule is in releases-proof.css and
+               only breaks the flex row so the sentence below reads above the
+               link rather than beside it. -->
           <div class="share-control" id="release-record-next" hidden>
+            <p>Open the release to inspect its summary and linked decisions.</p>
             <a class="release-detail-link" id="release-record-detail" href="/release.html">View release details<span class="release-detail-arrow" aria-hidden="true">→</span></a>
             <span class="hint" id="release-record-kept">This release is stored in this browser only. “Export releases as JSON” above takes it with you.</span>
           </div>

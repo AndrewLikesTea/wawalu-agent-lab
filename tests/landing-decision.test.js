@@ -165,7 +165,7 @@ test("the first screen makes its privacy promise at most twice, beside the link 
   // string below, because the rest of what they say about provenance is the
   // shared executive briefing's own and reads the same on
   // /executive-briefing.html; trimming it would rewrite that page from here.
-  const hero = document.getElementById("top");
+  const hero = document.getElementById("additional-capability");
   const section = document.getElementById("landing-decision");
   const mounted = (node) => node === mount || node.getAttribute("id") === LANDING_DECISION_IDS.actions;
   const found = [
@@ -209,7 +209,7 @@ test("the first screen makes its privacy promise at most twice, beside the link 
   const takeaway = blocks.findIndex((node) => node.getAttribute("class") === "executive-takeaway");
   assert.ok(takeaway >= 0 && takeaway < actions,
     "the block holding the AI FinOps link must read above the promise, not below it");
-  assert.match(textOf(hero.querySelector('a[href="/evolution.html"].button-link')),
+  assert.match(textOf(hero.querySelector('a[href="/evolution.html"].text-link')),
     /Read the worked decision in AI FinOps/);
 });
 
