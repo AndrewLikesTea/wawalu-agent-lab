@@ -31,6 +31,26 @@
 
 import { STORED_DECISION_STATUSES, canonicalDecisionStatus } from "./decision-status.js";
 
+// The only two statuses the recorder may mint, and the allow-list the form
+// checks a submitted status against — not "non-empty", and not the wider set a
+// stored record may legally carry.
+//
+// The select offers exactly these two and the hint beside it says so: "Records
+// can also read Proposed or Superseded; this form does not set those." The
+// checking used to be the wider STORED_DECISION_STATUSES, so a submit that did
+// not come from the select — a scripted post, a devtools edit of the option
+// value, a replayed form body — could mint "superseded" or the legacy
+// "approved" straight into the log. Superseded is the state the supersede path
+// owns: it means some other record replaced this one, and validateSupersedes()
+// is what proves that record exists. A status typed past the select claims that
+// relationship with nothing behind it, and no screen on this site can produce
+// it. So the form is held to what the form offers.
+//
+// A caller that legitimately needs the wider set (the importer, createDecision
+// reading an existing record) keeps passing its own `options.statuses`. This is
+// the recorder's list, not the vocabulary.
+export const DECISION_ENTRY_STATUSES = Object.freeze(["pending", "accepted"]);
+
 // The bound on each free-text field. app.js re-exports these under the
 // MAX_*_LENGTH names that shiplog-import.js and the FinOps commitment path
 // already import, and index.html mirrors them as maxlength attributes — so the

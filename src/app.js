@@ -1,6 +1,7 @@
 import {
   DECISION_ENTRY_FIELDS,
   DECISION_ENTRY_LIMITS,
+  DECISION_ENTRY_STATUSES,
   decisionEntrySummary,
   decisionRecordedSummary,
   validateDecision,
@@ -1664,7 +1665,12 @@ export async function initDecisionLog(root = document, storage = localStorage, o
     // `novalidate` so the browser's one-bubble-at-a-time report never runs
     // first, and every failure is stated inline on the field it belongs to
     // instead. Nothing is written while any of them stands.
-    const errors = validateDecisionEntry(values);
+    //
+    // Status is checked against the two the select offers, not against every
+    // value a stored record may carry: a submitted status that did not come
+    // from this control is refused rather than minted. See
+    // DECISION_ENTRY_STATUSES.
+    const errors = validateDecisionEntry(values, { statuses: DECISION_ENTRY_STATUSES });
     if (errors.length > 0) {
       showEntryErrors(errors);
       return;

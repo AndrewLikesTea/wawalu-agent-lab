@@ -13,7 +13,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { STORAGE_KEY, initDecisionLog } from "../src/app.js";
-import { DECISION_ENTRY_ERRORS } from "../src/decision-entry.js";
+import {
+  DECISION_ENTRY_ERRORS,
+  DECISION_ENTRY_LIMITS,
+  DECISION_ENTRY_STATUSES,
+} from "../src/decision-entry.js";
 import { RELEASE_STORAGE_KEY } from "../src/releases.js";
 import { createShiplogExport } from "../src/shiplog-export.js";
 import {
@@ -253,6 +257,84 @@ test("an over-long paste is refused inline instead of throwing", async (t) => {
   );
   assert.equal(textOf(fieldError(page, "context")), DECISION_ENTRY_ERRORS.context.tooLong(1001));
   assert.deepEqual(stored(page), [], "an over-long entry reached storage");
+});
+
+test("the status control offers exactly the statuses the recorder will accept", async (t) => {
+  const page = await openHistory(t);
+  // The markup and the allow-list are two places one list is written down, and
+  // the failure mode of a drift between them is silent in both directions: an
+  // option nobody can submit, or a status the validator would refuse. Neither
+  // is visible to a person operating the page, so it is pinned here.
+  assert.deepEqual(
+    byId(page, "status").options.map((option) => option.value),
+    [...DECISION_ENTRY_STATUSES],
+    "the select offers a status the recorder does not accept, or is missing one it does",
+  );
+});
+
+test("a status the form does not offer is refused, whatever set it", async (t) => {
+  const page = await openHistory(t);
+
+  // The select cannot produce this. A scripted submit, a devtools edit of an
+  // option's value, or a replayed form body can — and "superseded" is the state
+  // the supersede path owns, where validateSupersedes proves the replacing
+  // record exists. Set this way it claims that relationship with nothing behind
+  // it, so the recorder has to turn it away rather than mint it.
+  fill(page, ENTRY);
+  byId(page, "status").value = "superseded";
+  submitButton(page).click();
+
+  assert.deepEqual(
+    shownErrors(page).map(({ field }) => field),
+    ["status"],
+    "a status the form does not offer was recorded, or the wrong field was blamed",
+  );
+  assert.equal(textOf(fieldError(page, "status")), DECISION_ENTRY_ERRORS.status.invalid);
+  assert.equal(page.document.activeElement, byId(page, "status"), "focus is not on the field to fix");
+  assert.deepEqual(stored(page), [], "a status the form does not offer reached storage");
+  // The refusal costs the visitor nothing they typed.
+  assert.equal(byId(page, "title").value, ENTRY.title, "the refused submit cleared the draft");
+  assert.equal(byId(page, "context").value, ENTRY.context);
+  assert.equal(byId(page, "alternatives").value, ENTRY.alternatives);
+  assert.equal(byId(page, "owner").value, ENTRY.owner);
+
+  // Choosing one the form does offer records it.
+  byId(page, "status").value = "pending";
+  submitButton(page).click();
+  assert.deepEqual(rowTitles(page), [ENTRY.title]);
+  assert.equal(stored(page)[0].status, "pending");
+});
+
+test("a field exactly at its limit is recorded whole, and one character more is refused", async (t) => {
+  const page = await openHistory(t);
+
+  // The two sides of the same bound, driven through the form. What matters on
+  // the accepting side is the length that reached storage: a recorder that
+  // trimmed to fit would pass every over-limit test in this file.
+  const atLimit = "x".repeat(DECISION_ENTRY_LIMITS.context);
+  fill(page, ENTRY);
+  byId(page, "context").value = atLimit;
+  submitButton(page).click();
+
+  assert.deepEqual(shownErrors(page), [], "an entry at its limit was refused");
+  const [record] = stored(page);
+  assert.ok(record, "an entry at its limit was not recorded");
+  assert.equal(
+    record.context.length,
+    DECISION_ENTRY_LIMITS.context,
+    "the recorded context was shortened instead of being kept whole",
+  );
+  assert.equal(record.context, atLimit);
+
+  fill(page, ENTRY);
+  byId(page, "context").value = `${atLimit}x`;
+  submitButton(page).click();
+  assert.deepEqual(shownErrors(page).map(({ field }) => field), ["context"]);
+  assert.equal(
+    textOf(fieldError(page, "context")),
+    DECISION_ENTRY_ERRORS.context.tooLong(DECISION_ENTRY_LIMITS.context + 1),
+  );
+  assert.equal(stored(page).length, 1, "an entry one character over its limit reached storage");
 });
 
 test("a refused submit keeps the whole draft, and fixing one field records it", async (t) => {
