@@ -552,7 +552,7 @@ test("the privacy promise is made once, in one wording, before the field", async
   assert.equal(textOf(byId(document, "prompt-coaching-preview-summary")),
     "What the coach reads and keeps");
   const reads = textOf(document.querySelector(".prompt-coaching-preview-static"));
-  assert.match(reads, /reads only the text you paste and the optional model choice/);
+  assert.match(reads, /reads only the text you paste and the optional model tier/);
   assert.match(reads, /does not access your accounts, files, or customer data/);
   assert.doesNotMatch(reads, /stays in this browser/,
     "the disclosure must not restate where the text stays");
