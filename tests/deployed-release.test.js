@@ -422,11 +422,11 @@ test("the invented example keeps its marking, its controls, and the link they co
   // so it can never take that URL over.
   const links = page.document.querySelectorAll(".shiplog-proof-link");
   assert.equal(links.length, 1, "a second element claimed the example's link class");
-  assert.equal(textOf(links[0]), "Open this example");
+  assert.equal(textOf(links[0]), "Open this example release");
   assert.equal(links[0].getAttribute("href"), "/releases.html?focus=demo-r-1-3-0#shiplog-proof");
 
   const copy = page.document.querySelector("#shiplog-proof-copy");
-  assert.equal(textOf(copy), "Copy link to this example");
+  assert.equal(textOf(copy), "Copy link to this example release");
   copy.click();
   await Promise.resolve();
   await Promise.resolve();

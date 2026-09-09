@@ -46,7 +46,7 @@ export function initShiplogProof(root, options = {}) {
     const copied = await copyRecordUrl(clipboard, url);
     status.textContent = copied
       ? "Example link copied to clipboard."
-      : "Clipboard unavailable. Use the Open this example link to open or copy it.";
+      : "Clipboard unavailable. Use the “Open this example release” link beside this button to open or copy its address.";
     button.disabled = false;
   });
 }
