@@ -209,8 +209,8 @@ export const FOLLOW_UP_REDIRECT = Object.freeze({
  * page says who runs Shiplog and where.
  *
  * `collapsedDemos` folds the destination list into a disclosure that ships
- * closed. Only /post.html asks for it: a forwarded link is opened to read one
- * post, and the map of everywhere else was the larger half of that page.
+ * closed, below the follow-up block rather than above it. The five task pages
+ * set it: the same nine doors are in the navigation at the top of the page.
  *
  * `askMessage` adds the home page's optional question field above the work-email
  * field, and switches the privacy sentence with it: a form carrying a message
@@ -229,6 +229,7 @@ export function siteFooterMarkup(indent = "    ", {
   const contact = redirect ? [
     `    <a class="site-footer-redirect-link" href="${redirect.href}">${redirect.label}</a>`,
   ] : contactFormLines(followUpType, followUpTopic, askMessage, offer);
+  const directory = demoListLines(collapsedDemos);
   const lines = [
     '<footer class="site-footer" id="site-footer" aria-labelledby="site-footer-title">',
     '  <div class="site-footer-inner">',
@@ -236,8 +237,9 @@ export function siteFooterMarkup(indent = "    ", {
     `    <p class="site-footer-identity">${IDENTITY}</p>`,
     `    <p class="site-footer-identity site-footer-pitch">${PITCH} See <a href="${PITCH_HREF}">${PITCH_LINK}</a>.</p>`,
     `    <p class="site-footer-identity"><a id="site-footer-source" href="${REPOSITORY_URL}">${SOURCE_LINK_LABEL}</a></p>`,
-    ...demoListLines(collapsedDemos),
+    ...(collapsedDemos ? [] : directory),
     ...contact,
+    ...(collapsedDemos ? directory : []),
     "  </div>",
     "</footer>",
   ];

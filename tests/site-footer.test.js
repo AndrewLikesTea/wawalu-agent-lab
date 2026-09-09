@@ -103,27 +103,32 @@ const FOOTER_VARIANT = new Map([
   ["executive-briefing.html", { redirect: FOLLOW_UP_REDIRECT.briefing }],
   ["coach.html", {
     followUpType: "follow_up_coach", followUpTopic: FOLLOW_UP_TOPICS.follow_up_coach,
-    askMessage: true, offer: true,
+    collapsedDemos: true, askMessage: true, offer: true,
   }],
-  // `collapsedDemos` is the third shape, and one page carries it: /post.html is
-  // opened from a forwarded link to read one post, so its directory ships behind
-  // a closed disclosure. Recorded here rather than inferred, for the same reason
-  // the redirect is: a page cannot quietly fold its site map away.
+  // `collapsedDemos` is the third shape, and issue #2250 gave it to the five
+  // pages a visitor is on to do one thing — read a post, read the feed, pick a
+  // display name, grade a prompt, scan the releases. It folds the directory into
+  // a closed disclosure AND moves it below the follow-up block, so the page's own
+  // follow-up is reached before a map of nine destinations the navigation at the
+  // top of the page already offers. Recorded here rather than inferred, for the
+  // same reason the redirect is: a page cannot quietly fold its site map away.
+  // tests/footer-directory-order.test.js holds the order and the survival of
+  // every row; the twelve remaining pages keep the open list.
   ["post.html", {
     followUpType: "follow_up_social", followUpTopic: FOLLOW_UP_TOPICS.follow_up_social,
     collapsedDemos: true, askMessage: true, offer: true,
   }],
   ["releases.html", {
     followUpType: "follow_up_releases", followUpTopic: FOLLOW_UP_TOPICS.follow_up_releases,
-    askMessage: true, offer: true,
+    collapsedDemos: true, askMessage: true, offer: true,
   }],
   ["social.html", {
     followUpType: "follow_up_social", followUpTopic: FOLLOW_UP_TOPICS.follow_up_social,
-    askMessage: true, offer: true,
+    collapsedDemos: true, askMessage: true, offer: true,
   }],
   ["profile.html", {
     followUpType: "follow_up_people", followUpTopic: FOLLOW_UP_TOPICS.follow_up_people,
-    askMessage: true, offer: true,
+    collapsedDemos: true, askMessage: true, offer: true,
   }],
   ["agents.html", {
     followUpType: "follow_up_agents", followUpTopic: FOLLOW_UP_TOPICS.follow_up_agents,

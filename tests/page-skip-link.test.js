@@ -377,16 +377,17 @@ test("the post page's loading tab order reaches Social without a placeholder Peo
   const afterExit = sequence.slice(FRAME_STOPS).map((stop) => textOf(stop) || stop.id);
   // The band opens on the sentence that says who Shiplog is for, so its pointer
   // at the worked decision is the first footer stop, and the repository link
-  // #2152 put in the shared block is the second — both ahead of the site map.
-  // On this page the map is folded away, so the summary that names it stands
-  // between them and the rows. The rows are still listed here because this
-  // harness keeps a closed disclosure's contents in the sequence — a stated gap
-  // in tests/support/browser.js — and the assertion below walks parentNode to
-  // drop them, which is the sequence a browser actually gives.
+  // #2152 put in the shared block is the second. On this page the map is folded
+  // away and, since #2250, sits after the follow-up form rather than before it,
+  // so the summary that names it is the last stop on the page. The rows are
+  // still listed here because this harness keeps a closed disclosure's contents
+  // in the sequence — a stated gap in tests/support/browser.js — and the
+  // assertion below walks parentNode to drop them, which is the sequence a
+  // browser actually gives.
   assert.deepEqual(
     afterExit.slice(0, bandStops.length + 6),
-    [PITCH_LINK, SOURCE_LINK_LABEL, DIRECTORY_SUMMARY, ...bandStops,
-      "site-footer-message", "site-footer-email", "Request a follow-up"],
+    [PITCH_LINK, SOURCE_LINK_LABEL, "site-footer-message", "site-footer-email", "Request a follow-up",
+      DIRECTORY_SUMMARY, ...bandStops],
   );
   // A disclosure's own summary is its handle, not something inside it, so the
   // walk starts above the element it opens.
@@ -399,9 +400,9 @@ test("the post page's loading tab order reaches Social without a placeholder Peo
   };
   assert.deepEqual(
     afterExit.filter((_, index) => !closed(sequence[FRAME_STOPS + index])).slice(0, 6),
-    [PITCH_LINK, SOURCE_LINK_LABEL, DIRECTORY_SUMMARY,
-      "site-footer-message", "site-footer-email", "Request a follow-up"],
-    "with the directory closed, the form must still be six stops from the exit",
+    [PITCH_LINK, SOURCE_LINK_LABEL,
+      "site-footer-message", "site-footer-email", "Request a follow-up", DIRECTORY_SUMMARY],
+    "with the directory closed, the form must still be five stops from the exit",
   );
   assert.ok(
     sequence.slice(FRAME_STOPS).every((stop) => stop.closest("#site-footer")),
