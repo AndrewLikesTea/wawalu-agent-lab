@@ -173,7 +173,7 @@ test("a second grade reads baseline, revised, delta, provenance, then one move",
   }
 });
 
-test("re-grading moves focus to what changed and announces it before the answer", async () => {
+test("re-grading keeps focus on Grade and announces what changed before the answer", async () => {
   const page = await openCoachingPage();
   try {
     const { document } = page;
@@ -182,8 +182,13 @@ test("re-grading moves focus to what changed and announces it before the answer"
     assert.equal(document.activeElement.id, "prompt-coaching-grade");
 
     gradeText(document, STRONG);
-    assert.equal(document.activeElement.id, "prompt-coaching-change",
-      "a reader who pressed Grade a second time asked what moved; focus lands there");
+    // And so does the second. A completed grade is announced and drawn; it does
+    // not take the caret off the control the reader is still standing on, and
+    // the change region is reached by reading on rather than by being thrown at.
+    assert.equal(document.activeElement.id, "prompt-coaching-grade",
+      "grading completion must not move focus into the result region");
+    assert.equal(tabSequence(document).includes(changeRegion(document)), false,
+      "the change region stays out of the tab sequence even once it has content");
 
     const live = textOf(byId(document, "prompt-coaching-live"));
     assert.match(live, /^(Material change|Within the same grade band|No change), improved\./);

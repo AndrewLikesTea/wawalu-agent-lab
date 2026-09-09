@@ -162,7 +162,7 @@ DOM order **is** focus order; nothing on this surface uses a positive
 | 11 | `button#prompt-coaching-grade` (submit) | yes | |
 | 12 | `button#prompt-coaching-clear` | yes | |
 | 13 | `p#prompt-coaching-live` (`role="status"`) | no | permanent |
-| 14 | `section#prompt-coaching-change[tabindex="-1"]` | no (programmatic) | focus destination after a re-grade |
+| 14 | `section#prompt-coaching-change[tabindex="-1"]` | no | addressable (skip/fragment target); nothing moves focus here |
 | 15 | `button#prompt-coaching-copy-button` | yes | only while `#prompt-coaching-copy` is unhidden |
 | 16 | `textarea#prompt-coaching-copy-text` | yes | only while the fallback is unhidden |
 | 17 | `#prompt-coaching-result` — answer, benchmark, action, then `button.coaching-result-toggle` / `.prompt-coaching-disclosure-toggle` | yes (toggles) | disclosure panels follow their own toggle in DOM |
@@ -177,7 +177,7 @@ only by the workflow's own existing rules, restated here so they are testable:
 | --- | --- | --- |
 | Press "Grade the worked example" | `#prompt-coaching-input` (caret at the loaded sample) | `prompt-coaching-page.js:91` |
 | Grade succeeds, no baseline yet | stays on the submit button; the live region announces | `prompt-coaching-view.js:467` |
-| Re-grade produces a comparison | `#prompt-coaching-change` (`tabindex="-1"`, visible ring on plain `:focus` — `evolution.css:1526`) | `prompt-coaching-view.js:390` |
+| Re-grade produces a comparison | stays on the submit button; the live region announces what moved, and the comparison is read by reading on | `prompt-coaching-view.js` `applyPromptCoaching` |
 | Grade refuses | `#prompt-coaching-input`, marked `aria-invalid="true"` and re-described to the recovery text | `prompt-coaching-view.js:106–111` |
 | Clear | `#prompt-coaching-input` | `prompt-coaching-page.js:134` |
 | Copy falls back to manual | `#prompt-coaching-copy-text`, selected | `coaching-summary-view.js:118–125` |
@@ -501,8 +501,10 @@ Focus expectations:
 - The ring is never the *only* indication of the current control on a surface
   where a control also changes label ("Show/Hide …", `coaching-result-view.js:233`).
 - `#prompt-coaching-change` draws its ring on plain `:focus` as well as
-  `:focus-visible`, because focus arrives there programmatically after a
-  mouse-driven re-grade (`evolution.css:1526`).
+  `:focus-visible` (`evolution.css:1526`). Grading no longer sends focus there —
+  the reader keeps the control they pressed — but the region stays an
+  addressable destination, and a destination that can be reached without a
+  keypress has to show where it landed.
 - Reduced motion: `html { scroll-behavior:smooth }` (`styles.css:4`) is already
   reverted under `prefers-reduced-motion`, so the scroll that follows a
   programmatic focus is instant for a reader who asked for less motion. This
