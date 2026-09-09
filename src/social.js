@@ -1421,7 +1421,7 @@ export function mountSocialFeed(root, options = {}) {
     if (!submit) return;
     submit.disabled = submitting;
     submit.setAttribute("aria-busy", String(submitting));
-    if (submitLabel) submitLabel.textContent = submitting ? "Publishing…" : "Publish this post";
+    if (submitLabel) submitLabel.textContent = submitting ? "Publishing…" : "Publish post";
   };
 
   if (bodyInput) {

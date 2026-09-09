@@ -222,7 +222,7 @@ test("the image field states the formats and the size exactly once, in plain sen
   assert.equal(textOf(steps),
     "Create or open an image in Paint (opens in a new tab) ↗"
     + " Export it as a PNG, then select that PNG using “Choose image” above"
-    + " Fill in the required image description Publish this post");
+    + " Fill in the required image description Publish post");
   const paint = steps.querySelector("a");
   assert.equal(paint.getAttribute("href"), "/paint/");
   assert.equal(paint.getAttribute("target"), "_blank");
