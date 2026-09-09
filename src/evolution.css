@@ -2808,6 +2808,7 @@ section[data-workspace-current="true"] { box-shadow:-6px 0 0 0 var(--import-wash
 .prompt-coaching-benchmark-text { margin:0; font:750 14px/1.5 ui-monospace,monospace; overflow-wrap:anywhere; }
 .prompt-coaching-basis { display:grid; gap:3px; margin:0; color:var(--ink-muted); font-size:12px; line-height:1.55; overflow-wrap:anywhere; }
 .prompt-coaching-basis-label { color:var(--import-ink); font:700 12px/1.5 ui-monospace,monospace; }
+.prompt-coaching-score-explanation,.coaching-result-score-explanation { margin:0; max-width:70ch; color:var(--ink-muted); font-size:12px; line-height:1.55; overflow-wrap:anywhere; }
 .prompt-coaching-improvement { border-left:5px solid var(--import-accent); padding:2px 0 2px 12px; }
 .prompt-coaching-improvement[data-available="false"] { border-left-style:dashed; border-left-color:var(--state-warn-line); }
 .prompt-coaching-improvement-title { display:flex; gap:8px; margin:0; font-size:15px; font-weight:700; line-height:1.5; overflow-wrap:anywhere; }

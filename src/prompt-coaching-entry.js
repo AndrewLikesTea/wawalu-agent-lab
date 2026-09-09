@@ -99,7 +99,7 @@ export const COACHING_ENTRY_VALUE = Object.freeze({
  */
 export const COACHING_ENTRY_BENCHMARK = Object.freeze({
   metric: "result.benchmark.score",
-  label: "Composite prompt score",
+  label: "Prompt score",
   scale: Object.freeze({
     minimum: PROMPT_LITERACY_RUBRIC.scale.minimum,
     maximum: PROMPT_LITERACY_RUBRIC.scale.maximum,

@@ -114,6 +114,7 @@ function gradeBlock(doc, region, level) {
 function benchmarkBlock(doc, region, level) {
   const section = regionSection(doc, region, level);
   section.append(factList(doc, region.facts));
+  if (region.explanation) section.append(element(doc, "p", "coaching-result-score-explanation", region.explanation));
   const note = element(doc, "p", "coaching-result-note");
   note.append(
     element(doc, "strong", "coaching-result-note-label", region.noteLabel),

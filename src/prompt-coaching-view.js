@@ -688,7 +688,8 @@ function benchmarkBlock(doc, result) {
   const basis = element(doc, "p", "prompt-coaching-basis");
   basis.append(element(doc, "strong", "prompt-coaching-basis-label", result.basis.label),
     element(doc, "span", "prompt-coaching-basis-text", result.basis.text));
-  block.append(figure, basis);
+  block.append(figure,
+    element(doc, "p", "prompt-coaching-score-explanation", result.benchmark.explanation), basis);
   return block;
 }
 

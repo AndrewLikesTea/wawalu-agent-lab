@@ -180,7 +180,7 @@ test("the implausible case withholds the letter and marks the figure that broke"
 
   const notices = node.querySelector(".coaching-result-notices").querySelectorAll("li");
   assert.equal(notices.length, 4);
-  assert.match(textOf(notices[0]), /Check this figure — Composite score: 4,200\./);
+  assert.match(textOf(notices[0]), /Check this figure — Prompt score: 4,200\./);
   const marked = node.querySelectorAll('dd[data-implausible="true"]');
   assert.ok(marked.length >= 1);
   assert.ok(marked.every((value) => textOf(value).includes("out of range")),
