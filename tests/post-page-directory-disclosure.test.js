@@ -18,13 +18,15 @@
 //   3. Every destination survives and is keyboard-reachable once expanded.
 //      A disclosure that loses rows is a deletion wearing a summary.
 //   4. The follow-up form — its field and its action — is OUTSIDE the disclosure
-//      and in the tab order with nothing expanded, so a reader can still reach a
-//      person without opening a site map first.
+//      and BEFORE it, so a reader reaches a person without meeting a site map on
+//      the way. #2250 moved the fold below the form; it used to sit above it.
 //   5. Every live region on the page is outside the disclosure. Folding a status
 //      region away is how a page goes silent for a screen reader while every
 //      visual test still passes.
-//   6. This page and no other. The directory is the point of the footer on the
-//      fifteen pages a reader arrives at from inside the site.
+//   6. These five pages and no others (#2250): the shared post, Social, People,
+//      Prompt coach and Releases, where a visitor came to do one thing. The
+//      directory is still the point of the footer on the twelve pages a reader
+//      arrives at from inside the site, and stays open there.
 //
 // HARNESS NOTES, all of them load-bearing:
 //   * textOf reads straight through a closed disclosure, so "is it inside the
@@ -53,6 +55,12 @@ const SRC = new URL("../src/", import.meta.url);
 
 const DIRECTORY = "#site-footer-directory";
 const SUMMARY = "#site-footer-directory-summary";
+
+// The pages whose footer folds the directory away and puts it last (#2250).
+// Hand-kept and named, the same discipline FOOTER_VARIANT in
+// tests/site-footer.test.js follows: a page cannot join or leave this set
+// without a reviewer reading the line that says so.
+const FOLDED = ["post.html", "social.html", "profile.html", "coach.html", "releases.html"];
 
 // The retrieval line the page ships in its markup, character for character.
 const LOADING = "The public shared post is loading.";
@@ -137,7 +145,7 @@ test("the post is the first thing in the content region, under the heading that 
 
 /* ------------------------ the directory, folded away ---------------------- */
 
-test("the site directory ships closed, and it is the only page that folds it", async (t) => {
+test("the site directory ships closed, and only the task pages fold it", async (t) => {
   const page = await loadPage(POST_PAGE, {});
   t.after(() => page.restore());
   const { document } = page;
@@ -170,16 +178,17 @@ test("the site directory ships closed, and it is the only page that folds it", a
   // control in it that is neither a link, a button nor a field.
   assert.match(css, /\.site-footer summary:focus-visible[^{]*\{ outline:3px solid var\(--focus-ring\)/);
 
-  // One page. Every other page of the site meets its directory open, because a
+  // Five pages, named rather than counted: the ones a visitor is on to do one
+  // thing. Every other page of the site meets its directory open, because a
   // reader who arrived from inside the site is there to go somewhere else.
   const files = (await readdir(SRC, { withFileTypes: true }))
     .filter((entry) => entry.isFile() && entry.name.endsWith(".html"))
     .map((entry) => entry.name);
   for (const file of files) {
-    if (file === "post.html") continue;
     const html = await readFile(new URL(file, SRC), "utf8");
     if (!html.includes('class="site-footer-demos"')) continue;
-    assert.ok(!html.includes('id="site-footer-directory"'), `${file} folded its directory away too`);
+    assert.equal(html.includes('id="site-footer-directory"'), FOLDED.includes(file),
+      FOLDED.includes(file) ? `${file} left its directory open` : `${file} folded its directory away too`);
   }
 });
 
@@ -283,7 +292,7 @@ test("every live region on the page renders outside the disclosure", async (t) =
 
 /* ------------------------------- tab order -------------------------------- */
 
-test("the permalink's tab order runs skip, nav, post, exits, directory, follow-up", async (t) => {
+test("the permalink's tab order runs skip, nav, post, exits, follow-up, directory", async (t) => {
   const page = await loadPage(POST_PAGE, {});
   t.after(() => page.restore());
   const { document } = page;
@@ -303,25 +312,27 @@ test("the permalink's tab order runs skip, nav, post, exits, directory, follow-u
   const nav = stops.slice(2, 2 + SITE_NAV.length).map(textOf);
   assert.deepEqual(nav, SITE_NAV.map((link) => link.label), "the site nav follows the skip link");
 
-  // The post region, then the routes off the page, then the folded directory,
-  // then the way to reach a person. Nothing from the directory is in between.
+  // The post region, then the routes off the page, then the way to reach a
+  // person, and only then the folded directory. #2250 moved the map behind the
+  // follow-up: a reader who came for one post should finish the page's own
+  // errand before meeting a list of everywhere else.
   const exits = ["#post-back", "#post-people", "#post-publish"].map(at);
   assert.deepEqual(exits.slice().sort((a, b) => a - b), exits, "the exits keep their reading order");
   assert.equal(exits[0], 2 + SITE_NAV.length, "the first exit follows the nav directly");
   assert.ok(at(SUMMARY) > exits[2], "the directory summary comes after the page's own routes out");
-  assert.ok(at(SUMMARY) < at("#site-footer-email"), "the summary is reached before the follow-up field");
-  assert.ok(at("#site-footer-email") < stops.length - 1);
+  assert.ok(at(SUMMARY) > at("#site-footer-email"), "the follow-up field is reached before the summary");
+  assert.equal(at(SUMMARY), stops.length - 1, "the folded map is the last stop on the page");
 
-  // Two stops between the last exit and the summary, and both belong to the
-  // shared block rather than to this page: its pointer at the worked decision,
-  // and the repository link #2152 added beneath it. Neither was moved here.
-  const between = stops.slice(exits[2] + 1, at(SUMMARY)).map(textOf);
+  // Two stops between the last exit and the follow-up block, and both belong to
+  // the shared band rather than to this page: its pointer at the worked
+  // decision, and the repository link #2152 added beneath it.
+  const between = stops.slice(exits[2] + 1, at("#site-footer-message")).map(textOf);
   assert.deepEqual(between, [PITCH_LINK, SOURCE_LINK_LABEL]);
 
   // The whole sequence, end to end, with the directory shut. The block's two
   // fields carry no text of their own — the optional question #2153 added, then
   // the work email — so they are named here by id rather than by an empty string.
-  assert.deepEqual(stops.slice(at(SUMMARY)).map((stop) => textOf(stop) || stop.id),
-    [DIRECTORY_SUMMARY, "site-footer-message", "site-footer-email", "Request a follow-up"],
-    "with nothing expanded the page ends on the summary and the follow-up form");
+  assert.deepEqual(stops.slice(at("#site-footer-message")).map((stop) => textOf(stop) || stop.id),
+    ["site-footer-message", "site-footer-email", "Request a follow-up", DIRECTORY_SUMMARY],
+    "with nothing expanded the page ends on the follow-up form and then the summary");
 });

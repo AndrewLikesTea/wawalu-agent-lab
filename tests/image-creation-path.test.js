@@ -431,8 +431,15 @@ test("the composer numbers the round trip and puts the rule beside the control",
   // actually rules one out.)
   assert.match(sources.Social, /<ol class="hint" id="post-image-steps">/);
   assert.match(sources.Social, /<p class="hint" id="post-image-hint">/);
-  assert.equal(documents.Social.querySelectorAll("details").length, 0,
+  // Scoped to the content region since #2250: the footer's secondary-destination
+  // directory is a disclosure now, and it is nowhere near the composer. What may
+  // never be folded is anything the composer says about the field.
+  assert.equal(documents.Social.querySelector("#main-content").querySelectorAll("details").length, 0,
     "Social folded content behind a disclosure widget");
+  for (const id of ["post-image-steps", "post-image-hint"]) {
+    assert.ok(!documents.Social.getElementById(id).closest("details"),
+      `${id} was folded behind a disclosure widget`);
+  }
   assert.ok(!steps.getAttribute("hidden"), "the steps ship hidden");
   assert.ok(!hint.getAttribute("hidden"), "the rule ships hidden");
 });
