@@ -58,21 +58,35 @@ test("each failed bundled region has concise accessible fallback copy and its ow
   page.restore();
 });
 
-// A loader is trusted to paint; it is not trusted to have painted. A region
-// that reports "ready" over the sentence it was meant to replace is a state
-// attribute contradicting the only thing a visitor actually reads.
-test("a loader that settles without painting leaves no loading line behind it", async () => {
+// A loader is trusted to paint; it is not trusted to have painted. A request
+// that settles with nothing usable in the region is the empty result, and a
+// blank frame under a state attribute claiming "ready" is not a state a reader
+// can do anything with — so it recovers the way a failure does.
+test("a loader that settles without painting lands on the recoverable empty state", async () => {
   const page = await loadPage(PAGE);
   const { initPromptCoaching } = await importPageModule("/prompt-coaching-page.js");
+  let requests = 0;
   initPromptCoaching(page.document, {
-    loadBundledExample: () => Promise.resolve(null),
+    loadBundledExample(document) {
+      requests += 1;
+      return Promise.resolve(requests === 1 ? null : applyCoachingFirstRun(document));
+    },
     loadPossibleResults: applyCoachingSpecimen,
   });
 
   const sample = page.document.getElementById("prompt-coach-sample-body");
-  await waitFor(() => sample.dataset.loadState === "ready", "the bundled example to settle");
-  assert.doesNotMatch(textOf(sample), /Loading the bundled example/i);
-  assert.equal(textOf(sample).trim(), "");
+  await waitFor(() => sample.dataset.loadState === "error", "the bundled example to settle");
+  // The loading line is gone, and what stands in its place is a sentence and a
+  // way out rather than an empty region.
+  assert.equal(textOf(page.document.getElementById("prompt-coach-sample-status")), "");
+  assert.match(textOf(sample), /bundled example could not be loaded/i);
+  assert.match(textOf(sample), /still paste and grade your own prompt/i);
+
+  // And the way out works: the retry paints the grade the first request did not.
+  sample.querySelector("button").click();
+  await waitFor(() => sample.dataset.loadState === "ready", "the retry to paint the example");
+  assert.equal(sample.querySelectorAll(".coaching-result").length, 1);
+  assert.equal(textOf(page.document.getElementById("prompt-coach-sample-status")), "");
   page.restore();
 });
 

@@ -132,9 +132,16 @@
         <section class="prompt-coach-sample" id="prompt-coach-sample" data-sample-state="static" aria-labelledby="prompt-coach-sample-title">
           <h3 class="eyebrow" id="prompt-coach-sample-title">Bundled synthetic example, grading now</h3>
           <p class="prompt-coach-sample-static">This result uses a bundled synthetic example written for this page, not your prompt or anyone else’s real prompt.</p>
-          <div class="prompt-coach-sample-body" id="prompt-coach-sample-body">
-            <p class="prompt-coach-sample-lead">Loading the bundled example. You can paste your own prompt below now.</p>
-          </div>
+          <!-- One status line for the whole load, and a permanent node rather
+               than a line the entry builds and throws away: assistive
+               technology watches a node, and a fresh node that arrives with its
+               text already in it is not a change to anything it was watching.
+               It ships carrying the state the region starts in, so a reader
+               whose script never runs is told the example is loading, and the
+               entry reads its wording from here rather than transcribing it.
+               Emptied — never replaced — once the grade below it exists. -->
+          <p class="prompt-coach-sample-lead" id="prompt-coach-sample-status" role="status" aria-live="polite" aria-atomic="true">Loading the bundled example. You can paste your own prompt below now.</p>
+          <div class="prompt-coach-sample-body" id="prompt-coach-sample-body"></div>
         </section>
         <!-- The first-time cue. Static, so it is readable before any script
              runs, and hidden by the view once a comparison is on screen: by
@@ -184,16 +191,29 @@
              re-grade, which is what the reader pressed the button to find out.
              Its accessible name is set with the heading the view renders. -->
         <section class="prompt-coaching-change" id="prompt-coaching-change" tabindex="-1" hidden></section>
-        <!-- The copyable record of that comparison. This block is permanent
-             markup rather than rendered nodes because the change region above is
-             replaced wholesale on every repaint, and a status region that is
-             replaced may never announce: assistive technology watches a node,
-             and a new node that arrives with its text already in it is not a
-             change to anything it was watching. The textarea is both the manual
-             fallback a reader selects from and the single place the current
-             summary text lives, so the button and the box cannot disagree. It
-             holds figures, grades, and the rubric's own words — never pasted
-             prompt text — and nothing here is saved, sent, or downloaded. -->
+        <div class="prompt-coaching-result" id="prompt-coaching-result" hidden></div>
+        <!-- The copyable record of that comparison, last: it is what a reader
+             leaves with, so it comes after everything it is a record of — the
+             comparison above and the grade it is a comparison of. Reading order
+             is tab order here, and an action over content a reader has not
+             reached yet is an action they cannot judge.
+
+             This block is permanent markup rather than rendered nodes because
+             the change region above is replaced wholesale on every repaint, and
+             a status region that is replaced may never announce: assistive
+             technology watches a node, and a new node that arrives with its text
+             already in it is not a change to anything it was watching. The
+             textarea is both the manual fallback a reader selects from and the
+             single place the current summary text lives, so the button and the
+             box cannot disagree. It holds figures, grades, and the rubric's own
+             words — never pasted prompt text — and nothing here is saved, sent,
+             or downloaded.
+
+             Hidden until a comparison exists, and hidden in this file's own
+             stylesheet as well as by the attribute: the display rules these
+             blocks carry outrank the browser's [hidden], so the guard is what
+             keeps the heading, the control, and the empty box off the page and
+             out of the tab order until there is a summary to copy. -->
         <div class="prompt-coaching-copy" id="prompt-coaching-copy" hidden>
           <!-- One name for the thing a reader leaves with: the heading, the
                button and the box below all call it a coaching summary. -->
@@ -206,7 +226,6 @@
             <textarea id="prompt-coaching-copy-text" rows="9" readonly spellcheck="false"></textarea>
           </div>
         </div>
-        <div class="prompt-coaching-result" id="prompt-coaching-result" hidden></div>
 
         <!-- Before you paste: what this reads, what it returns, and what it
              never does. The two sentences below are static because a claim

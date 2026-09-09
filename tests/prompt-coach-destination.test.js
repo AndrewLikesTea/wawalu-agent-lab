@@ -214,14 +214,17 @@ test("while the example is loading, the heading says it is being graded, not tha
 
   const title = () => textOf(byId(page.document, "prompt-coach-sample-title"));
   const body = sampleBody(page.document);
+  // The loading line is the region's permanent status node beside the body, so
+  // it is written into rather than replaced and the body holds only a result.
+  const status = () => textOf(byId(page.document, "prompt-coach-sample-status"));
   assert.equal(body.dataset.loadState, "loading");
-  assert.match(textOf(body), /Loading the bundled example/, "the region must be in its loading state");
+  assert.match(status(), /Loading the bundled example/, "the region must be in its loading state");
   assert.doesNotMatch(title(), /already graded/,
     "the heading claims a grade over a region that has not been graded yet");
   assert.equal(title(), "Bundled synthetic example, grading now");
   // And the invitation that stands while it loads is still standing: a visitor
   // with a prompt of their own never has to wait for the example.
-  assert.match(textOf(body), /paste your own prompt below now/);
+  assert.match(status(), /paste your own prompt below now/);
 
   paint();
   await waitFor(() => sampleBody(page.document).dataset.loadState === "ready",

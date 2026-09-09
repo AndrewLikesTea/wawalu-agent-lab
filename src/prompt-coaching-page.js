@@ -39,12 +39,24 @@ const POSSIBLE_RESULTS_FAILURE = "Possible results could not be loaded. You can 
  * sentence is read out of the shipped markup once, before anything is painted,
  * so what a retry re-shows is the page's own text and never content a loader
  * drew — and it travels by textContent both ways, so it can never become markup.
+ *
+ * `statusId` names a permanent status line the region ships — the sample region
+ * has one — and that node is written into rather than replaced, for the reason
+ * the copy control's status line is permanent too: assistive technology watches
+ * a node, and a fresh node arriving with its text already in it is not a change
+ * to anything it was watching. It is emptied when the load settles, so the
+ * region announces once per load and never over a repaint it did not cause. A
+ * region without one keeps the line built and dropped with the load, which is
+ * what a disclosure nobody has opened wants.
  */
-function initBundledRegion(doc, { bodyId, sectionId, titleId, loadingClass, loader, failureCopy, retryLabel }) {
+function initBundledRegion(doc, {
+  bodyId, sectionId, titleId, statusId, loadingClass, loader, failureCopy, retryLabel,
+}) {
   const body = doc?.getElementById?.(bodyId);
   if (!body) return;
   const section = doc.getElementById(sectionId);
-  const loadingCopy = body.textContent;
+  const permanent = statusId ? doc.getElementById(statusId) : null;
+  const loadingCopy = (permanent ?? body).textContent;
   // The heading, read the same way and for the same reason: what ships is the
   // wording of the state this region starts in, so every return to that state
   // returns to it. A loader is what replaces it, and only once it has painted
@@ -54,11 +66,26 @@ function initBundledRegion(doc, { bodyId, sectionId, titleId, loadingClass, load
 
   const run = () => {
     if (title) title.textContent = loadingTitle;
+    // Exactly one thing to read while this loads: the status line, and no
+    // heading, figure, or control belonging to a result that does not exist.
     body.replaceChildren();
-    const loading = doc.createElement("p");
-    loading.className = loadingClass;
-    loading.textContent = loadingCopy;
-    body.append(loading);
+    let loading = permanent;
+    if (loading) {
+      loading.textContent = loadingCopy;
+    } else {
+      loading = doc.createElement("p");
+      loading.className = loadingClass;
+      loading.textContent = loadingCopy;
+      body.append(loading);
+    }
+    // Standing the status down, once per load and whichever way it ends.
+    let settled = false;
+    const settle = () => {
+      if (settled) return;
+      settled = true;
+      if (permanent) permanent.textContent = "";
+      else loading.remove();
+    };
     body.dataset.loadState = "loading";
     body.setAttribute("aria-busy", "true");
 
@@ -75,16 +102,8 @@ function initBundledRegion(doc, { bodyId, sectionId, titleId, loadingClass, load
       request = Promise.reject(error);
     }
 
-    Promise.resolve(request).then(() => {
-      // Both real loaders replace the body, which takes this line with it. It is
-      // dropped explicitly anyway, so a loader that resolves without painting
-      // cannot leave "Loading the bundled example." standing under a state
-      // attribute that says the load is done.
-      loading.remove();
-      body.dataset.loadState = "ready";
-      body.removeAttribute("aria-busy");
-      if (section) section.dataset.loadState = "ready";
-    }, () => {
+    const fail = () => {
+      settle();
       body.replaceChildren();
       const message = doc.createElement("p");
       message.className = "prompt-coaching-load-error";
@@ -106,7 +125,23 @@ function initBundledRegion(doc, { bodyId, sectionId, titleId, loadingClass, load
       body.dataset.loadState = "error";
       body.removeAttribute("aria-busy");
       if (section) section.dataset.loadState = "error";
-    });
+    };
+
+    Promise.resolve(request).then(() => {
+      // A loader is trusted to paint; it is not trusted to have painted. A
+      // request that settles with nothing usable in the region is the empty
+      // result, not a ready one, and it recovers the way a failure does: one
+      // sentence and a retry, rather than a blank frame under a state attribute
+      // claiming the load is done.
+      settle();
+      if (!body.children.length) {
+        fail();
+        return;
+      }
+      body.dataset.loadState = "ready";
+      body.removeAttribute("aria-busy");
+      if (section) section.dataset.loadState = "ready";
+    }, fail);
   };
 
   run();
@@ -129,6 +164,10 @@ export function initPromptCoaching(doc = globalThis.document, {
     bodyId: "prompt-coach-sample-body",
     sectionId: "prompt-coach-sample",
     titleId: FIRST_RUN_TITLE_ID,
+    // The one line a visitor reads while this loads, and the only thing
+    // announced from this region: the result below it is revealed, never
+    // narrated, and nothing here moves focus off whatever they are using.
+    statusId: "prompt-coach-sample-status",
     loadingClass: "prompt-coach-sample-lead",
     loader: loadBundledExample,
     failureCopy: BUNDLED_EXAMPLE_FAILURE,

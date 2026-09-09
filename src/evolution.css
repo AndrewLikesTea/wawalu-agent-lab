@@ -2797,6 +2797,11 @@ section[data-workspace-current="true"] { box-shadow:-6px 0 0 0 var(--import-wash
 #prompt-coaching-clear { border:1px solid var(--import-line); background:#fff; color:var(--import-ink); }
 .prompt-coaching-live { margin:0; color:var(--ink-muted); font-size:12px; }
 .prompt-coaching-result { display:grid; gap:14px; }
+/* A block that sets its own display outranks the browser's [hidden] and pays for
+   its own guard, or it paints an empty card and a copy control with nothing to
+   copy. By id where /evolution.html reuses the class. */
+.prompt-coaching-result[hidden],.prompt-coaching-change[hidden],
+#prompt-coaching-copy[hidden],#prompt-coaching-copy-fallback[hidden] { display:none; }
 .prompt-coaching-answer { display:flex; gap:8px; margin:0; font-size:17px; font-weight:750; line-height:1.45; overflow-wrap:anywhere; }
 .prompt-coaching-shape { flex:none; font-weight:750; }
 .prompt-coaching-benchmark {
@@ -3132,6 +3137,8 @@ section[data-workspace-current="true"] { box-shadow:-6px 0 0 0 var(--import-wash
 .prompt-coach-sample { display:grid; gap:10px; border:1px dashed var(--import-line); border-radius:12px; padding:16px; }
 .prompt-coach-sample[hidden] { display:none; }
 .prompt-coach-sample-static,.prompt-coach-sample-lead { margin:0; max-width:70ch; color:var(--ink-muted); font-size:13px; line-height:1.6; }
+/* Emptied, never replaced, so a settled region keeps no gap for the line. */
+.prompt-coach-sample-lead:empty { display:none; }
 .prompt-coach-sample-body { display:grid; gap:12px; }
 .prompt-coach-sample-attribution { margin:0; max-width:70ch; border-left:5px solid var(--import-line); padding:2px 0 2px 12px; font-size:13px; line-height:1.6; }
 /* The neighbouring surface, at the foot of the coach and at the foot of the
