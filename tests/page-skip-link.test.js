@@ -353,7 +353,7 @@ test("the post page's loading tab order reaches Social without a placeholder Peo
       "Shiplog",
       ...SITE_NAV.map((link) => link.label),
       "Open Social to read the whole feed",
-      "Publish a post",
+      "Open Social to publish a post",
     ],
     "the post page's tab order changed",
   );
@@ -442,7 +442,7 @@ test("the post page withholds People until it can name the loaded display name",
     [
       ["/social.html", "Open Social to read the whole feed"],
       ["/profile.html", ""],
-      ["/social.html#post-form", "Publish a post"],
+      ["/social.html#post-form", "Open Social to publish a post"],
     ],
   );
   // People alone is withheld in the shipped markup, which is the loading state:
