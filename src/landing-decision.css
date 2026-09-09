@@ -11,11 +11,15 @@
 
 /* ------------------------------- the hero ---------------------------------- */
 
-/* The checkable fact under the promise. `.hero > p` is margin-free, so the
- * proof point needs its own space to read as a second paragraph rather than as
- * more of the first. No new hue and no new type scale: it inherits the hero's
- * own body ink. */
-.hero > p.hero-proof-point { margin-top:18px; }
+/* AI FinOps, below the fold the decision-to-release hero owns (#2219). It is a
+ * demoted section, not an unstyled one: `.hero-finops` used to ride on `.hero`
+ * and inherit `.hero>p:not(.eyebrow)` from styles.css, and dropping that class
+ * dropped the body ink, the measure, and the margin reset with it — leaving the
+ * proof point at the browser's own 16px with an em of default margin. The rule
+ * below restates exactly what it lost, scoped so `.hero-boundary` and the
+ * eyebrow keep their own smaller scales. No new hue and no new type scale. */
+.hero-finops { max-width:940px; padding:28px 0; border-top:1px solid #b9cec4; overflow-wrap:anywhere; }
+.hero-finops>p.hero-proof-point { max-width:760px; margin:18px 0 0; color:#555550; font-size:19px; line-height:1.6; }
 
 .executive-takeaway {
   max-width:760px; margin:22px 0 0; border:1px solid #b9cec4; border-left:5px solid #315f50;
@@ -31,7 +35,7 @@
   margin:18px 0 0; border:1px solid #c8d7d0; border-radius:10px; padding:14px;
   background:#fff;
 }
-.executive-takeaway-action h3 { margin:0; color:#245643; font-size:13px; line-height:1.4; letter-spacing:.04em; text-transform:uppercase; }
+.executive-takeaway-action h4 { margin:0; color:#245643; font-size:13px; line-height:1.4; letter-spacing:.04em; text-transform:uppercase; }
 .executive-takeaway-action p { margin:6px 0 0; font-size:17px; line-height:1.45; }
 .executive-takeaway-action .executive-takeaway-owner { color:#55554f; font-size:13px; }
 /* Spacing only. `.button-link` is an inline-flex box that pushes its arrow to
@@ -61,7 +65,13 @@
 /* The privacy boundary is a claim a reader checks before they decide to try
  * anything, so it is stated in the hero rather than beside the picker a page
  * away. Bordered, not tinted: the words carry it in greyscale too. */
-.hero-boundary {
+/* The second selector is not decoration. styles.css sets `.hero>p:not(.eyebrow)`
+ * — two classes to this rule's one — so inside a `.hero` it was winning the
+ * size, the ink and the margin here, and the box rendered at lead size flush
+ * against the control above it. #2219 put a boundary in the hero and left the
+ * other one outside it, which is how one page ended up drawing the same box at
+ * two sizes. Both are held to this rule now. */
+.hero-boundary,.hero>p.hero-boundary {
   max-width:760px; margin:26px 0 0; border-left:4px solid #315f50; border-radius:0 10px 10px 0;
   padding:12px 16px; background:#eef6f2; font-size:13px; line-height:1.55;
 }

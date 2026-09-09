@@ -194,7 +194,7 @@ function initReleaseRecorder(root, storage, options = {}) {
     showRecorded(release);
     form.reset();
     picker.clear();
-    form.elements.version?.focus?.();
+    detailLink?.focus?.();
   });
 
   return picker;
