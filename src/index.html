@@ -286,23 +286,27 @@
            what Social, People, Paint, the Prompt coach, or the Agent
            observatory are. The labels and hrefs must stay identical to the
            navigation module's link set; a test pins them.
-           One flat list of eight made a reader work out for themselves which
-           destinations read a file of theirs and which are furnished with
-           invented data. It is two groups now, each under its own heading, and
-           the section opens by saying what Shiplog does before it says where
-           anything is. The tools group is first in the markup and first on the
-           screen: the stylesheet stacks this section in source order and sets
-           no order, float, or absolute position, so a buyer meets AI FinOps
-           before the demonstrations either way.
-           None may be dropped or renamed to fit a group.
+           THREE GROUPS, AND THE PRODUCT IS THE FIRST ONE (#2239). Eight
+           destinations under two headings could not answer the question a buyer
+           arrives with: what would I be getting? The nav's own group name, Runs
+           on your own work, is equally true of AI FinOps and of the log, so the
+           two browser tools read as Shiplog capabilities. The log is its own
+           group now and says plainly that it is the product; the browser tools
+           say they are separate and not required; the demonstrations keep the
+           nav's group name, character for character, because that family did
+           not change and the site names it once.
+           Product first in the markup and first on the screen: the stylesheet
+           stacks this section in source order and sets no order, float, or
+           absolute position, so a reader meets the log before the tools and the
+           tools before the demonstrations either way.
+           None may be dropped or renamed to fit a group, and no group label is
+           a link or a disclosure: they are headings, because the link above
+           this section is the last tab stop this page can spare.
            Each sentence names what a visitor can do at that destination. The
-           two group
-           headings are the nav's group names from src/site-nav.js, character
-           for character — the site names these two families once, and the
-           invented-content disclosure sits in the sentence under it. It names
-           the existing Social and People content, plus the observatory content,
-           and draws the line through the observatory instead of around it
-           (#1891): its personas and its prompt trace are invented, but the
+           invented-content disclosure sits under the demonstrations heading. It
+           names the existing Social and People content, plus the observatory
+           content, and draws the line through the observatory instead of around
+           it (#1891): its personas and its prompt trace are invented, but the
            merged pull request count beside them is the one
            figure on this page nobody made up, and a blanket sentence filed
            that number under sample data. The entry itself still opens by
@@ -310,24 +314,29 @@
            tests/site-footer.test.js and tests/build.test.js pin both. -->
       <section class="site-guide" aria-labelledby="site-guide-title">
         <h2 id="site-guide-title">Where everything is</h2>
-        <p class="site-guide-intro">Shiplog names what your AI spend is buying and keeps the reasoning behind what your team shipped — all on this one site.</p>
-        <h3 id="site-guide-tools-title">Runs on your own work</h3>
+        <p class="site-guide-intro">Shiplog is the decision and release log. The browser tools and demonstrations listed below share this site but are not part of it.</p>
+        <h3 id="site-guide-product-title">The Shiplog product</h3>
+        <p>These two pages are Shiplog itself: the log of decisions, and the record of the releases those decisions produced. Asking Wawalu about getting Shiplog means asking for these. Everything else on this site runs beside them, not inside them.</p>
+        <ul aria-labelledby="site-guide-product-title">
+          <li><a href="/">Decisions</a> Record a decision with its context, alternatives, and owner, then search and filter the history.</li>
+          <li><a href="/releases.html">Releases</a> Every release, newest first, with its linked decisions.</li>
+        </ul>
+        <h3 id="site-guide-tools-title">Browser tools</h3>
+        <p>Two separate tools. Each one runs in this browser tab on what you give it, each is useful on its own, and neither is part of Shiplog: you can keep a decision and release log without them.</p>
         <ul aria-labelledby="site-guide-tools-title">
           <li><a href="/evolution.html">AI FinOps</a> Find where to act first on your AI spend: score your provider export in this browser tab.</li>
           <li><a href="/coach.html">Prompt coach</a> Grade a prompt against a bundled rubric in your browser tab, then revise and grade again.</li>
-          <li><a href="/">Decisions</a> Record a decision with its context, alternatives, and owner, then search and filter the history.</li>
-          <li><a href="/releases.html">Releases</a> Every release, newest first, with its linked decisions.</li>
         </ul>
         <h3 id="site-guide-demos-title">Demos, sample data</h3>
         <!-- The last sentence is Social's own promise, said where a visitor
              meets these surfaces first: the seeded posts are invented, a post
-             the visitor publishes is not. -->
-        <p>The posts and images already published on Social and People are invented sample content, as are the Agent observatory’s personas and prompt trace. The observatory’s merged pull request count is the exception: it is counted, not invented. A post you publish on Social is real: anyone who visits Shiplog can read it.</p>
+             the visitor publishes is not. It carries its own class rather than
+             a position, because tests/demo-path.test.js used to read it as the
+             section's second paragraph and the groups above it moved. -->
+        <p class="site-guide-sample-note">The posts and images already published on Social and People are invented sample content, as are the Agent observatory’s personas and prompt trace. The observatory’s merged pull request count is the exception: it is counted, not invented. A post you publish on Social is real: anyone who visits Shiplog can read it.</p>
         <!-- Sample content, not sample software: the line below says what these
-             four demonstrate (#2169). It sits after the disclosure, not before,
-             so the section's second paragraph is still the invented-content one
-             that tests/demo-path.test.js reads by index. -->
-        <p>We designed, built and shipped Social, People, Paint and Agent observatory, and recorded the decisions and releases behind them here: they demonstrate the build-and-ship loop this site is for.</p>
+             four demonstrate (#2169), and then what they are not. -->
+        <p>We designed, built and shipped Social, People, Paint and Agent observatory, and recorded the decisions and releases behind them here: they demonstrate the build-and-ship loop this site is for. They are demonstrations, not features of Shiplog.</p>
         <ul aria-labelledby="site-guide-demos-title">
           <li><a href="/social.html">Social</a> Read posts and images, or publish your own post under a display name.</li>
           <li><a href="/profile.html">People</a> Pick a display name, see its image posts, newest first.</li>
