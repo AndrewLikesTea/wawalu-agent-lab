@@ -310,16 +310,30 @@ test("the home page names every nav destination and says what each one does", as
     assert.ok(!opener.includes(label), `the opening sentence enumerates ${label} instead of saying what Shiplog does`);
   }
 
-  // Two groups, each under a real heading one level below the section's own:
-  // the surfaces that read a visitor's own material, then the ones furnished
-  // with invented data. The site names these two families in the nav as well,
-  // and a reader who meets both must not have to work out that they are the
-  // same two families — so these headings are the nav's group names, character
-  // for character, rather than a second wording that means the same thing.
+  // Three groups, each under a real heading one level below the section's own:
+  // the product itself, the tools that merely run in the same browser, then the
+  // surfaces furnished with invented data. The nav files the first two families
+  // together under one name, which is true of both and tells a buyer nothing
+  // about what "getting Shiplog" would get them — so the directory draws the
+  // product boundary the nav does not (#2239). The demonstrations are the one
+  // family the nav does name on its own terms, and this heading is that name
+  // character for character rather than a second wording for the same thing.
   const headings = [...guide.querySelectorAll("h3")];
-  assert.equal(headings.length, 2, "the destinations must be split into exactly two groups");
-  assert.deepEqual(headings.map(textOf), NAV_SETS.map((set) => set.label),
-    "the group headings must be the nav's group names, word for word and in the nav's order");
+  assert.deepEqual(headings.map(textOf), ["The Shiplog product", "Browser tools", "Demos, sample data"],
+    "the destinations must be split into product, browser tools, and demonstrations, in that order");
+  assert.equal(textOf(headings[2]), NAV_SETS[1].label,
+    "the demonstration group must keep the nav's name for that family, word for word");
+  // The product group answers "what would I be buying" without a click, and the
+  // tools group says it is neither part of that product nor required by it.
+  const boundary = textOf(guide);
+  assert.match(boundary, /These two pages are Shiplog itself/,
+    "the product group must say which pages are the product");
+  assert.match(boundary, /Asking Wawalu about getting Shiplog means asking for these\./,
+    "the product group must connect the log to the one way a team gets it");
+  assert.match(boundary, /neither is part of Shiplog: you can keep a decision and release log without them/,
+    "the browser tools must say they are separate from the product and not required");
+  assert.match(boundary, /They are demonstrations, not features of Shiplog\./,
+    "the demonstration group must say these are not product capabilities");
   // The directory distinguishes invented content from visitor-published work,
   // and the two publishing surfaces state what a visitor can add.
   const guideText = textOf(guide);
@@ -342,9 +356,12 @@ test("the home page names every nav destination and says what each one does", as
 
   const lists = [...guide.querySelectorAll("ul")].map((list) =>
     [...list.querySelectorAll("li")].map((entry) => entry.querySelector("a").getAttribute("href")));
-  assert.equal(lists.length, 2, "each group needs its own list");
-  assert.deepEqual([...lists[0]].sort(), ["/", "/coach.html", "/evolution.html", "/releases.html"]);
-  assert.deepEqual([...lists[1]].sort(), ["/agents.html", "/paint/", "/profile.html", "/social.html"]);
+  assert.equal(lists.length, 3, "each group needs its own list");
+  // Every destination keeps the href it had before the regrouping; only which
+  // group it sits in changed.
+  assert.deepEqual([...lists[0]].sort(), ["/", "/releases.html"]);
+  assert.deepEqual([...lists[1]].sort(), ["/coach.html", "/evolution.html"]);
+  assert.deepEqual([...lists[2]].sort(), ["/agents.html", "/paint/", "/profile.html", "/social.html"]);
 
   // Reading order, in the source and on the screen: the tools group is first in
   // the markup, and nothing in the stylesheet may move it after the demos.

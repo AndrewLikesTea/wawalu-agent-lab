@@ -180,7 +180,9 @@ test("the loaded home page scopes the sample-content claim and says a published 
   const page = await openHome(t);
 
   const guide = page.document.querySelector(".site-guide");
-  const description = textOf(guide.querySelectorAll("p")[1]);
+  // Read by class, not by position: the directory carries three groups now and
+  // the disclosure is no longer the section's second paragraph (#2239).
+  const description = textOf(guide.querySelector(".site-guide-sample-note"));
   assert.match(description, /posts and images already published on Social and People are invented sample content/,
     "the demonstration group stopped saying which content is invented");
   assert.match(description, /A post you publish on Social is real: anyone who visits Shiplog can read it\./,
