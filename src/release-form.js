@@ -21,7 +21,7 @@
 // in a group a user can also reach by clicking its label.
 
 import { canonicalDecisionStatus } from "./decision-status.js";
-import { RELEASE_STATUSES, decisionRationalePreview } from "./releases.js";
+import { RELEASE_STATUSES, decisionRationalePreview, releaseStatus, releaseTitle } from "./releases.js";
 
 // Mirror the form's maxlength attributes so a value written straight through
 // this core (a test, a future importer) is bounded the same way the form is.
@@ -42,6 +42,13 @@ export const DECISION_PICKER_LOADING_STATUS_TEXT = "No decisions can be linked u
 
 export const RELEASE_FORM_ERRORS = {
   required: "A release needs a version, an owner, a status, a release date, and a summary.",
+  // What a submit the browser itself refused leaves behind. The native bubble
+  // names the one field it stopped on and then disappears; this stays on the
+  // page, so a recorder who dismissed it — or never saw it — is not left with a
+  // form that simply did nothing. Worded for every native rejection this form
+  // can raise (a required field left empty, a date that is not a real calendar
+  // day, a value past its maximum length) rather than guessing which one fired.
+  incomplete: "This release was not recorded. Complete every required field in the format its hint describes, then record the release again.",
   length: "A release field exceeds its maximum length.",
   invalidDate: "A release date must be a real calendar day written as YYYY-MM-DD.",
   unknownDecision: "A decision you linked is no longer in this log. Review the linked decisions and record the release again.",
@@ -160,12 +167,21 @@ export function createRelease(values = {}, options = {}) {
   return release;
 }
 
+// What was just written, named the way the log names it everywhere else.
+//
+// Three facts, all read back off the stored record rather than off the fields
+// that produced it: which release (releaseTitle — the title if one was given,
+// the version otherwise, exactly as the row and the detail view head it), which
+// status it was filed under, and what it carried. A recorder who picked
+// "Planned" has to be told the log holds a planned release, because that is the
+// one field whose effect is invisible in the sentence otherwise — and because
+// the row this sentence announces badges that status a moment later.
 export function recordedSummaryText(release) {
   const count = release.decisionIds.length;
   const linked = count === 0
     ? "no linked decisions"
     : `${count} linked ${count === 1 ? "decision" : "decisions"}`;
-  return `Recorded ${release.version} with ${linked}.`;
+  return `Recorded “${releaseTitle(release)}” as a ${releaseStatus(release)} release, with ${linked}.`;
 }
 
 // ---------------------------------------------------------------------------

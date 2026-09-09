@@ -482,6 +482,26 @@
           </form>
 
           <p class="hint release-record-status" id="release-record-status" role="status" aria-live="polite"></p>
+
+          <!-- The end of the recording path. The line above announces what was
+               written; this region is where a recorder goes next, and it is
+               revealed by releases-page.js only after the record is actually in
+               storage, so it can never offer to open a release that was not
+               saved. It is withdrawn again the moment the form is touched, so a
+               later submit can never inherit the previous release's ending.
+               The link is the same destination and the same words the list's
+               own per row control uses, addressed at the new release's id: the
+               placeholder address here is never reachable, because the region
+               stays hidden until there is an id to point at. The storage
+               sentence claims only what saveReleases in releases.js does — one
+               key in this browser's local storage, no request — and names the
+               way out in the words on that control's face. Deliberately no new
+               CSS: the wrapper and the link reuse the share control and detail
+               link rules the page already ships. -->
+          <div class="share-control" id="release-record-next" hidden>
+            <a class="release-detail-link" id="release-record-detail" href="/release.html">View release details<span class="release-detail-arrow" aria-hidden="true">→</span></a>
+            <span class="hint" id="release-record-kept">This release is stored in this browser only. “Export releases as JSON” above takes it with you.</span>
+          </div>
         </div>
       </section>
       </main>
