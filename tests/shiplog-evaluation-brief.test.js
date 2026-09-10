@@ -26,7 +26,7 @@ test("homepage renders the complete product brief between its explanation and AI
     "context, alternatives, and owner", "links it to the release it shaped",
     "Decisions and releases you add stay in this browser; they are not shared hosted records.",
     "Availability and pricing are provided on request.",
-    "synthetic, use no customer or production data, and are not customer results",
+    "invented, use no customer or production data, and are not customer results",
     "manager or procurement stakeholder",
   ]) assert.ok(text.includes(wording), wording);
   const link = brief.querySelector("a");
@@ -101,10 +101,15 @@ test("the copied brief carries its own boundaries and claims nothing it cannot s
   for (const wording of [
     "Decisions and releases you add stay in this browser; they are not shared hosted records.",
     "Availability and pricing are provided on request.",
-    "The example decisions and releases are synthetic",
+    "The example decisions and releases are invented",
+    "use no customer or production data",
     "are not customer results",
     "Verification: https://preview.example/releases.html#shipped-build",
   ]) assert.ok(copied.includes(wording), wording);
+  // One word for the example records on every homepage surface (#2284): the
+  // opening section says "invented", so a pasted brief may not say "synthetic".
+  assert.equal(copied.split("invented").length - 1, 1);
+  assert.doesNotMatch(copied, /synthetic/i);
   for (const claim of UNSUPPORTED_CLAIMS) assert.doesNotMatch(copied, claim);
 });
 
