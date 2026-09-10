@@ -68,7 +68,7 @@
 // names are spans, so the row still holds exactly eight tab stops.
 export const NAV_SETS = [
   { key: "own", id: "nav-set-own", label: "Runs on your own work" },
-  { key: "demo", id: "nav-set-demo", label: "Demos, sample data" },
+  { key: "demo", id: "nav-set-demo", label: "Demos" },
 ];
 
 export const SITE_NAV = [

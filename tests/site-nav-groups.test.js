@@ -59,13 +59,16 @@ function groupsOf(nav, file) {
 // The two names, as the reader sees them. Written out here rather than only
 // imported, so a rename that empties the promise is a visible diff in this file.
 const OWN = "Runs on your own work";
-const DEMO = "Demos, sample data";
+// "Demos", not "Demos, sample data" (#2277): a post published on Social or
+// People is real and public, and the old name told the visitor otherwise.
+const DEMO = "Demos";
 
 test("the two group names say which doors run on your own work and which are demonstrations", () => {
   assert.deepEqual(NAV_SETS.map((set) => set.label), [OWN, DEMO], "the nav's own group names");
   // The demonstration group has to say the word, in the rendered text, with no
-  // reading between lines: "sample data" alone leaves a visitor guessing.
+  // reading between lines.
   assert.match(DEMO, /demo/i, "the demonstration group must call itself a demo");
+  assert.doesNotMatch(DEMO, /sample/i, "the demonstration group must not call what a visitor publishes sample data");
   // And the other one has to say whose material it runs on. "Tools" would name
   // a category; this names the reader.
   assert.match(OWN, /your own work/i, "the tools group must say it runs on the reader's own work");
@@ -155,6 +158,36 @@ test("every page puts every destination in its declared group, and leaves none u
     }
     // The first door after the site name is still AI FinOps.
     assert.equal(textOf(nav.querySelectorAll("a")[0]), "AI FinOps", `${file}: another destination opens the row`);
+  }
+});
+
+test("every page names the demonstration group Demos, visibly and to assistive tech, and no group name says sample data", () => {
+  for (const { file, html } of PAGES) {
+    const document = parseHtml(html);
+    const groups = groupsOf(document.querySelector(".site-nav"), file);
+    const demo = groups.find((group) => group.name.getAttribute("id") === "nav-set-demo");
+    assert.ok(demo, `${file}: the demonstration group lost its id`);
+    assert.equal(textOf(demo.name), "Demos", `${file}: the demonstration group's visible name`);
+
+    // The name a screen reader announces for the list is whatever its
+    // aria-labelledby resolves to, so resolve it rather than trusting the span.
+    const lists = demo.box.querySelectorAll("ul");
+    assert.equal(lists.length, 1, `${file}: the demonstration group holds ${lists.length} lists`);
+    const named = document.querySelectorAll(`#${lists[0].getAttribute("aria-labelledby")}`);
+    assert.equal(named.length, 1, `${file}: the demonstration list's aria-labelledby resolves to ${named.length} elements`);
+    assert.equal(textOf(named[0]), "Demos", `${file}: the demonstration list's accessible name`);
+
+    for (const { name } of groups) {
+      assert.doesNotMatch(textOf(name), /sample data/i, `${file}: a nav group is named "${textOf(name)}"`);
+    }
+    // The footer's directory is the other place a page groups its destinations.
+    for (const footer of document.querySelectorAll(".site-footer")) {
+      for (const tag of ["h2", "h3", "summary"]) {
+        for (const label of footer.querySelectorAll(tag)) {
+          assert.doesNotMatch(textOf(label), /sample data/i, `${file}: a footer ${tag} reads "${textOf(label)}"`);
+        }
+      }
+    }
   }
 });
 
