@@ -499,6 +499,30 @@ for (const [file, purpose, topic] of REVIEWED) {
   });
 }
 
+// Personal AI history states no topic and sends the generic purpose, so it is not
+// in REVIEWED; its directory row was reworded, and its request must still land.
+test("personal-history.html: a follow-up request reaches the real endpoint and lands a row", async (t) => {
+  const db = await createTestD1();
+  t.after(() => db.close());
+  const page = await loadPage(pageUrl("personal-history.html"));
+  const { document } = page;
+  const calls = [];
+  initSiteFooter(document, endpointTransport(db, calls));
+  try {
+    assert.equal(byId(document, "site-footer-topic-note"), null);
+    openAndSubmit(document);
+    await settled(document);
+
+    assert.equal(byId(document, "site-footer-form").dataset.state, "success");
+    assert.deepEqual(JSON.parse(calls[0].options.body), { email: TYPED_EMAIL, purpose: "follow_up" });
+    const rows = db.raw.prepare("SELECT email, purpose FROM lead_submissions").all()
+      .map(({ email, purpose }) => ({ email, purpose }));
+    assert.deepEqual(rows, [{ email: TYPED_EMAIL, purpose: "follow_up" }]);
+  } finally {
+    page.restore();
+  }
+});
+
 test("a write the live schema refuses fails out loud instead of reporting a duplicate", async (t) => {
   // The database as it stands before an operator applies migration 0008: the
   // purpose CHECK still knows only field_notes and follow_up.

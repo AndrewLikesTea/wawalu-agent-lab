@@ -656,7 +656,7 @@ test("a page the navigation files under a destination still gets a door of its o
     for (const file of PAGES) {
       const html = await read(file);
       assert.ok(html.includes(
-        '<li><a href="/personal-history.html">Personal AI history</a> — grades your assistant export in this browser tab</li>'),
+        '<li><a href="/personal-history.html">Personal AI history</a> — grade your assistant export in this browser tab</li>'),
       `${file} is missing the "Personal AI history" row`);
       assert.ok(html.includes(
         '<li><a href="/coach.html">Prompt coach</a> — grade a prompt, then revise and grade again</li>'),
@@ -700,6 +700,32 @@ test("the About Shiplog band names a different file for each surface that reads 
     assert.equal(new Set(named).size, named.length,
       `${file} calls two different files "${named.join('" and "')}"`);
     assert.ok(band.includes(history.purpose), `${file} is missing the Personal AI history clause`);
+  }
+});
+
+// One name per concept, one sentence shape. The home page and Releases call the
+// decision record "the log", so the Decisions row does too, and "history" is left
+// naming the one destination that has it in its name. Every row this issue
+// touched opens on what a visitor does there, like the rows around it.
+test("the directory says history only in the Personal AI history row, and each row opens on a verb", async () => {
+  const verbs = { "Personal AI history": "grade ", Decisions: "record ", Releases: "see " };
+  for (const [label, verb] of Object.entries(verbs)) {
+    const { purpose } = DEMOS.find((demo) => demo.label === label);
+    assert.ok(purpose.startsWith(verb), `the ${label} row opens "${purpose}" instead of "${verb}…"`);
+  }
+  assert.equal(DEMOS.find((demo) => demo.label === "Decisions").purpose, "record a decision, then search the log");
+  // The Releases follow-up names its page in the directory's words, word for word.
+  assert.equal(FOLLOW_UP_TOPICS.follow_up_releases,
+    `Releases page — ${DEMOS.find((demo) => demo.label === "Releases").purpose}`);
+
+  for (const file of PAGES) {
+    const html = await read(file);
+    const rows = [...parseHtml(html).querySelector(".site-footer-demos").querySelectorAll("li")].map(textOf);
+    const saying = rows.filter((row) => /\bhistory\b/i.test(row)).map((row) => row.split(" — ")[0]);
+    assert.deepEqual(saying, ["Personal AI history"], `${file}: "history" names more than one directory row`);
+    for (const retired of ["search the history", "grades your assistant export", "— every release and its linked"]) {
+      assert.ok(!html.includes(retired), `${file} still says "${retired}"`);
+    }
   }
 });
 
