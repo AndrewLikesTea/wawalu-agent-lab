@@ -42,6 +42,10 @@ const DISPLAY_NAME_SENTENCE = "Display names are invented for this demo or chose
 // The wording the feed list carried before, kept here so the test that forbids
 // it names what it is forbidding.
 const RETIRED_FEED_VARIANT = "Every display name below is invented for this demo or a name a visitor published under.";
+// The composer's display-name hint. The name is fixed on the one post it is
+// published with (#2270) — not a rule about a profile or account, which a bare
+// "cannot be changed after publishing" let a first-time publisher read into it.
+const AUTHOR_HINT = "The display name appears with this post in the Social feed and defaults to “Guest.” You cannot change it on this post after you publish.";
 
 // Tag-balance check for the hand-authored SVG assets. A mismatched or unclosed
 // tag makes a browser drop the image, which would silently demote every seeded
@@ -952,8 +956,7 @@ test("the display name field explains where the name appears and that it cannot 
     "the input names its Social and People hints in reading order");
 
   const socialHelp = textOf(page.document.querySelector("#post-author-hint"));
-  assert.equal(socialHelp,
-    "The display name appears on your post in the Social feed, defaults to “Guest,” and cannot be changed after publishing.");
+  assert.equal(socialHelp, AUTHOR_HINT);
   const text = textOf(identity[0]);
   assert.equal(text, "People groups image posts under this display name.");
   // What a display name is not is the feed note's sentence, said once on the
@@ -1814,7 +1817,7 @@ test("the composer's three cautions still read word for word once it is open", a
 
   const cautions = {
     "post-image-alt-hint": "Describe what matters in the image for people who cannot see it. Up to 200 characters.",
-    "post-author-hint": "The display name appears on your post in the Social feed, defaults to “Guest,” and cannot be changed after publishing.",
+    "post-author-hint": AUTHOR_HINT,
     "post-author-identity": "People groups image posts under this display name.",
     "post-consequence": "Anyone who visits Shiplog can read your post, its image, and the display name you publish it with. You cannot edit or delete a post after you publish it, so post nothing you would not put on a public page.",
   };
@@ -1827,6 +1830,64 @@ test("the composer's three cautions still read word for word once it is open", a
   // The requirement marker beside the image description, in its own words.
   assert.equal(textOf(id("post-image-alt-required")), "(required with an image)");
   assert.equal(id("post-compose-panel").hidden, false);
+});
+
+// The hint is authored markup, so a text wait would pass before any script ran.
+// This reads it after the page's own module has loaded and painted a real post,
+// with the composer opened the way a publisher opens it (#2270).
+test("once Social has loaded, the display name hint fixes the name on this post, not on an account", async (t) => {
+  const page = await loadPage(new URL("../src/social.html", import.meta.url), {
+    routes: {
+      "/social-demo-data.json": { posts: [] },
+      // `source` or the row is dropped and the feed lands in its empty state.
+      "/api/social-posts?limit=100": {
+        posts: [{
+          id: "hint-2270", author: "Mina", content: "Shipped the reorder.",
+          timestamp: "2026-08-17T09:00:00.000Z", source: "human",
+        }],
+      },
+    },
+  });
+  // The feed polls on a timer; a live interval would outlast the test.
+  const timers = [];
+  const realSetInterval = globalThis.setInterval;
+  globalThis.setInterval = (...args) => {
+    const handle = realSetInterval(...args);
+    timers.push(handle);
+    return handle;
+  };
+  t.after(() => {
+    globalThis.setInterval = realSetInterval;
+    for (const handle of timers) clearInterval(handle);
+    page.restore();
+  });
+  const { document } = page;
+  await importPageModule("/social-page.js");
+  await waitFor(() => document.documentElement.dataset.shiplogSocial === "ready",
+    "the social page finished its first load");
+  // Skeletons carry the card class too, so count only the painted post.
+  const painted = () => [...document.querySelectorAll(".post-card")]
+    .filter((card) => !card.classList.contains("post-card-skeleton")).length;
+  await waitFor(() => painted() === 1, "the seeded post painted");
+
+  document.querySelector("#post-compose-open").click();
+  const hint = document.querySelector("#post-author-hint");
+  assert.equal(foldedAway(hint), false, "the hint is inside something hidden once the composer is open");
+  const text = textOf(hint);
+  assert.equal(text, AUTHOR_HINT);
+  // All three facts, each in its own words.
+  assert.match(text, /defaults to “Guest\.”/, "the hint dropped the Guest default");
+  assert.match(text, /appears with this post/, "the hint no longer says where the name appears");
+  assert.match(text, /cannot change it on this post after you publish/,
+    "the hint no longer ties permanence to this post");
+  // Nothing a publisher could read as owning or keeping the name.
+  assert.doesNotMatch(text, /profile|account|username|claim|reserve|permanent|verif/i);
+  assert.doesNotMatch(text, /this browser|this device/);
+
+  const main = textOf(document.querySelector("#main-content"));
+  assert.equal(main.split(AUTHOR_HINT).length - 1, 1, "the hint is said more than once on the page");
+  assert.equal(main.includes("cannot be changed after publishing"), false,
+    "the account-sounding wording survives somewhere on the page");
 });
 
 // ---------------------------------------------------------------------------
