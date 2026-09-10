@@ -9,6 +9,7 @@
 // tests/history-filter-flow.test.js.
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import {
   DEFAULT_HISTORY_FILTERS,
   absoluteHistoryUrl,
@@ -182,6 +183,25 @@ test("nothing about a hostile or absent query string throws", () => {
     assert.doesNotThrow(() => selectHistory(records, parseHistoryFilters(search)));
   }
   assert.deepEqual(parseHistoryFilters(undefined), { ...DEFAULT_HISTORY_FILTERS });
+});
+
+test("a markup-like search term survives the link as the same plain string", () => {
+  const hostile = `<img src=x onerror=alert(1)> "double" 'single'`;
+  const filters = parseHistoryFilters(`?q=${encodeURIComponent(hostile)}`);
+  assert.equal(filters.query, hostile);
+  assert.equal(parseHistoryFilters(historyFilterSearch(filters)).query, hostile, "the round trip changed the term");
+  // A term that is only whitespace is no search at all, and leaves no parameter.
+  assert.equal(parseHistoryFilters("?q=%20%09%20").query, "");
+  assert.equal(historyFilterSearch({ query: "   " }), "");
+});
+
+// The DOM harness parses no markup, so a page-level test cannot fail if a value
+// from the address ever reaches an HTML sink. Pin the render path at the source.
+test("the history's render path has no HTML sink a query-string value could reach", async () => {
+  for (const file of ["../src/app.js", "../src/history-filter-view.js"]) {
+    const source = await readFile(new URL(file, import.meta.url), "utf8");
+    assert.doesNotMatch(source, /innerHTML|outerHTML|insertAdjacentHTML|createContextualFragment|document\.write/, `${file} writes markup`);
+  }
 });
 
 /* --------------------------------- the words ---------------------------------- */

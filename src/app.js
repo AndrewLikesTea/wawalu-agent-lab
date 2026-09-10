@@ -1211,7 +1211,8 @@ export async function initDecisionLog(root = document, storage = localStorage, o
     queryString = next;
     const target = historyFilterPath(locationRef ?? {}, view);
     if (push) historyRef?.pushState?.(null, "", target);
-    else historyRef?.replaceState?.(null, "", target);
+    // A rewrite is the same entry, so it keeps whatever state that entry holds.
+    else historyRef?.replaceState?.(historyRef.state ?? null, "", target);
     return true;
   };
 

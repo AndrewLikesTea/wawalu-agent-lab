@@ -361,6 +361,67 @@ test("a filter change that changes nothing does not stack a history entry", asyn
   assert.deepEqual(harness.entries, ["?type=decision"], "Back would appear to do nothing");
 });
 
+/* ------------------------------ sharing a view -------------------------------- */
+
+test("a view narrowed through the controls reopens identically from its address", async () => {
+  const sender = await open();
+  sender.chooseStatus("pending");
+  sender.elements["#filter-owner"].value = "Mina";
+  sender.elements["#filter-owner"].dispatch("change");
+  sender.type("edge");
+  const address = sender.url;
+  assert.equal(address, "?q=edge&status=pending&owner=Mina");
+
+  const teammate = await open(address);
+  assert.deepEqual(titles(teammate), ["Approve edge cache"]);
+  assert.deepEqual(titles(teammate), titles(sender));
+  assert.equal(teammate.search.value, "edge");
+  assert.equal(teammate.status.value, "pending");
+  assert.equal(teammate.elements["#filter-owner"].value, "Mina");
+  assert.equal(teammate.summary.textContent, "1 of 3 records");
+  assert.equal(teammate.summary.textContent, sender.summary.textContent);
+  assert.deepEqual(teammate.entries, [address], "opening a shared link must not write to the history");
+});
+
+test("a shared link that matches nothing offers Reset, which restores the log and the clean address", async () => {
+  const harness = await open("?q=nothing+matches+this&owner=Kai");
+  assert.equal(byClass(harness.list, "history-card").length, 0);
+  assert.match(harness.list.textContent, /No records match your filters/);
+  assert.equal(harness.summary.textContent, "0 of 3 records");
+
+  const reset = first(harness.list, "history-reset-action");
+  assert.equal(reset.type, "button");
+  harness.click(reset);
+
+  assert.equal(harness.url, "", "no filter parameter may survive the reset");
+  assert.deepEqual(titles(harness), [
+    "v1.3.0 · Throughput and latency",
+    "Approve edge cache",
+    "Adopt a durable queue",
+  ]);
+  assert.equal(harness.search.value, "");
+  assert.equal(harness.elements["#filter-owner"].value, "all");
+  assert.equal(harness.summary.textContent, "3 records");
+  assert.equal(harness.search.focused, 1, "focus cannot stay on the removed Reset button");
+});
+
+test("rewriting the address keeps the state the current history entry holds", async () => {
+  const harness = createHistoryHarness(demo, { search: "?owner=Nobody" });
+  const held = { scrollY: 480 };
+  const writes = [];
+  const history = {
+    state: held,
+    pushState: (state, title, url) => { writes.push(["push", state]); harness.browser.history.pushState(state, title, url); },
+    replaceState: (state, title, url) => { writes.push(["replace", state]); harness.browser.history.replaceState(state, title, url); },
+  };
+  await initDecisionLog(harness.root, harness.storage, { announceDelay: 0, seed: demo, ...harness.browser, history });
+  harness.type("queue");
+
+  assert.equal(harness.url, "?q=queue");
+  assert.deepEqual(writes.map(([method]) => method), ["replace", "replace"]);
+  assert.ok(writes.every(([, state]) => state === held), "a rewrite discarded the entry's state");
+});
+
 /* -------------------------------- copy the link ------------------------------- */
 
 test("copying the link writes the absolute filtered URL and confirms in its own region", async () => {
