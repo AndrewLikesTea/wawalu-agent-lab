@@ -30,7 +30,7 @@ Buyer target: ________
 Observed result: ________
 Owner: ________
 
-The example decisions and releases are synthetic, use no customer or production data, and are not customer results.
+The example decisions and releases are invented, use no customer or production data, and are not customer results.
 
 Page: https://labs.wawalu.org/`;
 

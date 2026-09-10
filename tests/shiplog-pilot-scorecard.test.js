@@ -34,7 +34,7 @@ test("homepage places four blank buyer measurements immediately after the evalua
   const paragraphs = card.querySelectorAll("p");
   const expected = [textOf(card.querySelector("h2")), textOf(paragraphs[0]),
     ...rows.map((row, i) => `${i + 1}. ${textOf(row.querySelector("h3"))}\n${textOf(row.querySelector("p"))}\nBuyer target: ________\nObserved result: ________\nOwner: ________`),
-    "The example decisions and releases are synthetic, use no customer or production data, and are not customer results.",
+    "The example decisions and releases are invented, use no customer or production data, and are not customer results.",
     "Page: https://labs.wawalu.org/"].join("\n\n");
   assert.equal(PILOT_SCORECARD_TEXT, expected);
   assert.ok(textOf(card).includes("No pilot outcome is claimed."));
@@ -76,6 +76,9 @@ test("keyboard copy awaits success, preserves focus, and excludes even mutated p
   assert.equal(status.getAttribute("aria-atomic"), "true");
   assert.equal(button.getAttribute("aria-describedby"), status.id);
   assert.doesNotMatch(writes[0], /PRIVATE|\?|#|achieved|testimonial/i);
+  // The same word the opening section and the brief use (#2284), with both claims intact.
+  assert.ok(writes[0].includes("The example decisions and releases are invented, use no customer or production data, and are not customer results."));
+  assert.doesNotMatch(writes[0], /synthetic/i);
   // The only dependency is the clipboard helper; document access is limited to controls.
   const source = await readFile(new URL("../src/shiplog-pilot-scorecard.js", import.meta.url), "utf8");
   assert.doesNotMatch(source, /localStorage|sessionStorage|location\.|querySelector|fetch\(|JSON\.parse/);
@@ -95,6 +98,8 @@ for (const [name, clipboard] of [
   assert.match(textOf(doc.getElementById("pilot-scorecard-status")), /^Could not copy.*manual copying text box/);
   assert.equal(doc.getElementById("pilot-scorecard-fallback").hidden, false);
   assert.equal(manual.value, PILOT_SCORECARD_TEXT);
+  assert.ok(manual.value.includes("are invented, use no customer or production data, and are not customer results."));
+  assert.doesNotMatch(manual.value, /synthetic/i);
   assert.equal(manual.hasAttribute("readonly"), true);
   assert.equal(doc.activeElement, manual);
   assert.equal(manual.selected, true);
