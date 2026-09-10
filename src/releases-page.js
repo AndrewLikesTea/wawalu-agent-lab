@@ -7,8 +7,9 @@
 import {
   ALL_DECISIONS_FILTER,
   focusRelease,
-  loadReleases,
   mountReleaseList,
+  readReleases,
+  releaseListStateCopy,
   releaseSummarySentence,
   releaseDetailHref,
   releaseDetailLinkLabel,
@@ -28,6 +29,7 @@ import { copyRecordUrl } from "./share-link.js";
 import { initReleaseExport } from "./release-export.js";
 
 const SAVE_FAILED = "This release could not be saved in this browser. Your entries are still here; free some browser storage and try again.";
+export const LOG_UNREAD = "Couldn’t save: the release log didn’t load. Retry loading releases, then record again.";
 
 export function initShiplogProof(root, options = {}) {
   const button = root.querySelector("#shiplog-proof-copy");
@@ -177,8 +179,19 @@ function initReleaseRecorder(root, storage, options = {}) {
     }
     clearError();
 
+    // The log the new record joins is read strictly. The tolerant loader turns a
+    // refused read into an empty log, and saving over that would erase every
+    // release already stored — so an unread log refuses the save instead, and
+    // every typed field stays for the record after a retry.
+    let existing;
     try {
-      saveReleases(storage, [release, ...loadReleases(storage)]);
+      existing = readReleases(storage);
+    } catch {
+      showError(LOG_UNREAD);
+      return;
+    }
+    try {
+      saveReleases(storage, [release, ...existing]);
       if (notice) notice.hidden = true;
     } catch {
       if (notice) {
@@ -230,31 +243,35 @@ export function initReleasesPage(root = document, storage = localStorage, option
     : deployedReleaseRecord(buildStamp);
   renderShippedBuild(root, deployedRelease, options);
 
-  // Every early return below leaves the page in a stated end state: the list
-  // shows why it is empty, the count says so, and no stale follow-up survives
-  // pointing at releases this page never managed to load.
-  const clearFollowUp = () => {
-    if (followUpSlot) renderReleaseFollowUp(followUpSlot, null);
+  // The log's one live region. Loading, empty, no-match and failed-load are all
+  // announced here and nowhere else, and none of them moves focus on its own.
+  const listStatus = root.querySelector("#release-list-status");
+  const announce = (state) => {
+    if (listStatus) listStatus.textContent = releaseListStateCopy(state)[0];
+  };
+  const seed = options.seed ?? {};
+  // The strict read, or null when the store refused it.
+  const readLog = () => {
+    try {
+      return loadReleaseData(storage, seed, { strict: true });
+    } catch {
+      return null;
+    }
   };
 
   container.setAttribute("aria-busy", "true");
-  let data;
-  try {
-    data = loadReleaseData(storage, options.seed ?? {});
-  } catch {
-    renderReleaseListState(container, "error");
-    if (count) count.textContent = "Unavailable";
-    clearFollowUp();
-    return;
-  }
-  const { decisions, unavailable, exampleReleaseIds } = data;
+  announce("loading");
+  let data = readLog();
+  // An unread log is a state of the list, not of the page: the filters and the
+  // recorder still work from what did load, and the recorder refuses to save
+  // over a log it could not read.
+  let unread = data === null;
+  data ??= loadReleaseData(storage, seed);
+  const { decisions } = data;
   let releases = data.releases;
-  if (unavailable && releases.length === 0) {
-    renderReleaseListState(container, "error");
-    if (count) count.textContent = "Unavailable";
-    clearFollowUp();
-    return;
-  }
+  // One set for the page's lifetime, refilled by a successful retry, so the
+  // list and the export keep reading the same answer without being re-bound.
+  const exampleReleaseIds = new Set(data.exampleReleaseIds);
 
   // The same example ids the decisions history badges its rows from, so a
   // shipped example says so here too and a release the visitor recorded (or
@@ -281,7 +298,7 @@ export function initReleasesPage(root = document, storage = localStorage, option
   const view = mountReleaseList(
     container,
     { releases, decisions, exampleIds: exampleReleaseIds },
-    { clipboard: options.clipboard ?? globalThis.navigator?.clipboard },
+    { clipboard: options.clipboard ?? globalThis.navigator?.clipboard, status: listStatus },
   );
   // The one selection this page holds: whatever the last render actually drew.
   // The export reads it rather than filtering a second time, so the file a
@@ -289,6 +306,14 @@ export function initReleasesPage(root = document, storage = localStorage, option
   // by two implementations agreeing.
   let shown = [];
   const update = () => {
+    if (unread) {
+      // Nothing is shown, so nothing is counted, exported or followed up.
+      shown = [];
+      renderReleaseListState(container, "error", { actions: true, status: listStatus });
+      if (count) count.textContent = "";
+      if (followUpSlot) renderReleaseFollowUp(followUpSlot, null);
+      return;
+    }
     const filters = {
       query: search?.value ?? "",
       status: statusFilter?.value ?? "all",
@@ -317,10 +342,28 @@ export function initReleasesPage(root = document, storage = localStorage, option
     clipboard: options.clipboard ?? globalThis.navigator?.clipboard, update,
   });
 
-  // The next step each empty state offers. Delegated to the list container so it
+  // Read the log again, announcing the wait. Returns whether it loaded; a failed
+  // read re-announces the error and leaves the panel, and its Retry, in place.
+  const reload = () => {
+    announce("loading");
+    const next = readLog();
+    if (!next) {
+      announce("error");
+      return false;
+    }
+    unread = false;
+    releases = next.releases;
+    exampleReleaseIds.clear();
+    for (const id of next.exampleReleaseIds) exampleReleaseIds.add(id);
+    update();
+    return true;
+  };
+
+  // The next step each state offers. Delegated to the list container so it
   // survives the re-render that removes the button, and focus is moved off that
-  // button before it disappears: resetting returns focus to the filter group it
-  // just cleared, recording moves it to the first field of the form it names.
+  // button before it disappears: resetting returns focus to the search it just
+  // cleared, recording moves it to the first field of the form it names, and a
+  // retry that loaded lands on the log's heading.
   container.addEventListener("click", (event) => {
     const action = event.target.closest?.("[data-action]");
     if (!action) return;
@@ -330,18 +373,26 @@ export function initReleasesPage(root = document, storage = localStorage, option
       if (decisionFilter) decisionFilter.value = ALL_DECISIONS_FILTER;
       for (const input of decisionStatusInputs) input.checked = input.value === "all";
       filtersChanged();
-      decisionStatusInputs.find((input) => input.value === "all")?.focus?.();
+      search?.focus?.();
     } else if (action.dataset.action === "record-release") {
       root.querySelector("#release-version")?.focus?.();
+    } else if (action.dataset.action === "retry" && reload()) {
+      root.querySelector("#releases-title")?.focus?.();
     }
   });
 
   // A successfully recorded release joins the composed list in memory rather
   // than through a re-read of storage. initReleaseRecorder calls this only
   // after persistence succeeds, so history never contains a phantom record.
+  // On an unread log the save itself proved the log readable again, so the
+  // list is read back instead of joined to a list it never loaded.
   initReleaseRecorder(root, storage, {
     decisions,
     onRecorded: (release) => {
+      if (unread) {
+        reload();
+        return;
+      }
       releases = [release, ...releases];
       update();
     },

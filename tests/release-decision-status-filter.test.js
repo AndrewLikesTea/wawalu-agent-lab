@@ -372,7 +372,10 @@ test("the list state before the page boots is a loading state", async (t) => {
   assert.equal(list.getAttribute("aria-busy"), "true");
   const loading = page.document.querySelector(".list-state-loading");
   assert.ok(loading, "the shipped markup carries a loading state");
-  assert.equal(loading.getAttribute("role"), "status");
+  // The wait is announced by the log's one status region; the panel is not a
+  // second live region saying it again.
+  assert.equal(loading.getAttribute("role"), null);
+  assert.equal(textOf(page.document.querySelector("#release-list-status")), "Loading releases…");
   assert.equal(textOf(loading.querySelector("h3")), "Loading releases…");
   // The count is the other half of the same answer: while the list says it is
   // loading, the count may not say how many releases there are — and it does
@@ -481,25 +484,28 @@ test("a no-match view says so and offers a next step that clears the filters", a
   assert.equal(countText(page), "");
   assert.equal(followUp(page).hidden, true, "nothing on screen means nothing to follow up");
   const state = page.document.querySelector(".list-state-empty");
-  assert.equal(textOf(state.querySelector("h3")), "No matching releases");
-  assert.equal(state.getAttribute("role"), "status");
+  assert.equal(textOf(state.querySelector("h3")), "No releases match your search and filters");
+  // Announced by the log's one status region, not by the panel.
+  assert.equal(state.getAttribute("role"), null);
+  assert.equal(textOf(page.document.querySelector("#release-list-status")), "No releases match your search and filters");
 
   const reset = state.querySelector(".release-reset-action");
-  assert.equal(textOf(reset), "Clear filters");
+  assert.equal(textOf(reset), "Clear search and filters");
   assert.equal(reset.getAttribute("aria-controls"), "release-list");
   reset.click();
 
   assert.equal(statusRadio(page, "all").checked, true);
   assert.equal(countText(page), "Showing 1 release, newest first.");
-  // Focus cannot be left on a button the reset removed from the page.
-  assert.equal(page.document.activeElement, statusRadio(page, "all"));
+  // Focus cannot be left on a button the reset removed from the page: it lands
+  // on the search the reset emptied. By id, because comparing nodes can hang.
+  assert.equal(page.document.activeElement?.getAttribute("id"), "release-search");
 });
 
 test("an empty log offers a different next step from a no-match view", async (t) => {
   const page = await bootedReleases(t, { releases: [] });
   assert.equal(countText(page), "");
   const state = page.document.querySelector(".list-state-empty");
-  assert.equal(textOf(state.querySelector("h3")), "No releases have been recorded yet");
+  assert.equal(textOf(state.querySelector("h3")), "No releases recorded yet");
   assert.match(textOf(state), /Record a release, with or without linked decisions\./);
   assert.equal(state.querySelector(".release-reset-action"), null, "nothing to clear in a first-run state");
 

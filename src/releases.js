@@ -82,12 +82,26 @@ function isRelease(value) {
     && value.decisionIds.every((id) => typeof id === "string");
 }
 
+// The strict read, for every caller that is about to write the log. A store
+// that refuses the read throws here instead of reading as an empty log: saving
+// a new record over that "empty" log would erase every release already stored.
+// A value that was read is tolerated the way loadReleases tolerates it.
+export function readReleases(storage) {
+  const raw = storage.getItem(RELEASE_STORAGE_KEY);
+  try {
+    const value = JSON.parse(raw ?? "[]");
+    return Array.isArray(value) ? value.filter(isRelease) : [];
+  } catch {
+    return [];
+  }
+}
+
 // Mirrors loadDecisions: tolerant of malformed storage, never throws, and drops
-// entries that do not satisfy the release shape.
+// entries that do not satisfy the release shape. For reading only — never as
+// the base of a write (see readReleases).
 export function loadReleases(storage) {
   try {
-    const value = JSON.parse(storage.getItem(RELEASE_STORAGE_KEY) ?? "[]");
-    return Array.isArray(value) ? value.filter(isRelease) : [];
+    return readReleases(storage);
   } catch {
     return [];
   }
@@ -994,9 +1008,11 @@ export function renderReleaseList(container, resolvedReleases, options = {}) {
   container.setAttribute("aria-busy", "false");
 
   if (resolvedReleases.length === 0) {
-    renderReleaseListState(container, "empty", { filtered: options.filtered, actions: true });
+    renderReleaseListState(container, "empty", { filtered: options.filtered, actions: true, status: options.status });
     return;
   }
+  // Rows are not a state to announce: the count sentence says what is shown.
+  if (options.status) options.status.textContent = "";
 
   const list = el("ol", "release-list");
   const expandedIds = new Set(options.expandedIds ?? []);
@@ -1010,26 +1026,44 @@ export function renderReleaseList(container, resolvedReleases, options = {}) {
   container.append(list);
 }
 
-export function renderReleaseListState(container, state, options = {}) {
-  container.replaceChildren();
-  container.setAttribute("aria-busy", String(state === "loading"));
-  const panel = el("div", `list-state list-state-${state}`);
-  panel.setAttribute("role", state === "error" ? "alert" : "status");
+// The heading and guidance of each list state. One table, so the heading a
+// sighted reader meets and the sentence the page's status region announces are
+// the same words by construction.
+export function releaseListStateCopy(state, options = {}) {
   const noun = options.singular ? "release" : "releases";
-  const copy = {
+  return {
     // One line, not two: a wait is stated once. The wording matches the loading
     // state shipped in src/releases.html character for character, so the markup
     // a visitor reads before this script runs and the markup it draws after are
     // the same sentence.
     loading: [`Loading ${noun}…`],
-    error: [`${options.singular ? "Release" : "Releases"} could not be loaded`, "Try reloading this page. Your saved records have not been changed."],
+    error: [`Couldn’t load ${noun}`, "This browser’s release log could not be read. Your saved records have not been changed."],
     // Two empty states, kept distinct on purpose: "nothing recorded yet" is a
     // first-run state whose one next step is recording a release, while "no
     // release matches" is a filter state whose one next step is clearing them.
     empty: options.filtered
-      ? ["No matching releases", "No release matches the current search, release status, linked decision, and linked decision status together."]
-      : ["No releases have been recorded yet", "Record a release, with or without linked decisions."],
+      ? ["No releases match your search and filters", "No release matches the current search, release status, linked decision, and linked decision status together."]
+      : ["No releases recorded yet", "Record a release, with or without linked decisions."],
   }[state];
+}
+
+// The next step each state offers: class, visible label, and what it controls.
+const LIST_STATE_ACTIONS = {
+  "reset-filters": ["release-reset-action", "Clear search and filters", "release-list"],
+  "record-release": ["release-empty-action", "Record a release", "release-form"],
+  retry: ["release-retry-action", "Retry", "release-list"],
+};
+
+export function renderReleaseListState(container, state, options = {}) {
+  container.replaceChildren();
+  container.setAttribute("aria-busy", String(state === "loading"));
+  const panel = el("div", `list-state list-state-${state}`);
+  const copy = releaseListStateCopy(state, options);
+  // A page with its own status region announces the state there, and the panel
+  // stays quiet: two live regions would say the same words twice. A surface
+  // without one — the homepage sample — keeps the panel's own role.
+  if (options.status) options.status.textContent = copy[0];
+  else panel.setAttribute("role", state === "error" ? "alert" : "status");
   panel.append(el("h3", undefined, copy[0]));
   // A state with nothing to add beyond its heading says only that; an empty
   // paragraph would take a line and be read out as one.
@@ -1037,15 +1071,15 @@ export function renderReleaseListState(container, state, options = {}) {
   // The next step is offered only where one exists to take. The homepage sample
   // panel renders this same state without controls to reset or a form to fill,
   // so it opts out rather than showing an action that would go nowhere.
-  if (state === "empty" && options.actions) {
-    const action = el(
-      "button",
-      `empty-action ${options.filtered ? "release-reset-action" : "release-empty-action"}`,
-      options.filtered ? "Clear filters" : "Record a release",
-    );
+  const kind = !options.actions ? null
+    : state === "error" ? "retry"
+      : state === "empty" ? (options.filtered ? "reset-filters" : "record-release") : null;
+  if (kind) {
+    const [className, label, controls] = LIST_STATE_ACTIONS[kind];
+    const action = el("button", `empty-action ${className}`, label);
     action.type = "button";
-    action.dataset.action = options.filtered ? "reset-filters" : "record-release";
-    action.setAttribute("aria-controls", options.filtered ? "release-list" : "release-form");
+    action.dataset.action = kind;
+    action.setAttribute("aria-controls", controls);
     panel.append(action);
   }
   container.append(panel);
@@ -1144,6 +1178,7 @@ export function mountReleaseList(container, data = {}, options = {}) {
       filtered,
       expandedIds: state.expandedIds,
       exampleIds: current.exampleIds,
+      status: options.status,
     });
     return shown;
   };

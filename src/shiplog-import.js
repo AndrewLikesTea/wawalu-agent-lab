@@ -32,7 +32,7 @@ import {
   COMMITMENT_METADATA_FIELD,
   commitmentMetadataErrors,
 } from "./finops-commitment-decision.js";
-import { RELEASE_STORAGE_KEY, loadReleases, saveReleases } from "./releases.js";
+import { RELEASE_STORAGE_KEY, readReleases, saveReleases } from "./releases.js";
 import { SHIPLOG_EXPORT_SCHEMA, SHIPLOG_EXPORT_VERSION } from "./shiplog-export.js";
 import { envelopeCountMismatches } from "./shiplog-export-schema.js";
 
@@ -449,7 +449,9 @@ export function mergeImport(parsed, existing = {}) {
 export function prepareShiplogImport(storage, text) {
   const existing = {
     decisions: loadDecisions(storage),
-    releases: loadReleases(storage),
+    // Strict: the merged set is written over the log on commit, and a refused
+    // read taken as an empty log would erase every release already stored.
+    releases: readReleases(storage),
   };
   const parsed = parseImport(text, {
     existingDecisionIds: existing.decisions.map((decision) => decision.id),
