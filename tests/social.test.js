@@ -1601,6 +1601,12 @@ const foldedAway = (node) => {
   return false;
 };
 
+// #2278: the composer called itself "this form", "here" and "this panel", and
+// promised twice that the draft is kept. One noun, one sentence, both exits.
+const COMPOSER_KEPT_HINT = "Escape or Close hides the composer, and your draft stays in this tab "
+  + "while the composer is closed or you work in another tab, such as Paint. "
+  + "While publishing, wait for the result before closing.";
+
 // Read with the composer open because that is the state in which both the flow
 // opener and the final submit action are on screen at once — and the state in
 // which #2173 bit: two controls, one name, and the reader guessing which press
@@ -1639,10 +1645,7 @@ test("with the composer open, one control reads Publish a post and the submit re
   // without publishing, and what closing does to the draft. The rename touches
   // the first of them and may not blur the other two into it.
   assert.equal(textOf(id("post-compose-cancel")), "Close");
-  assert.equal(textOf(id("post-keyboard-hint")),
-    "Escape or Close hides this form and keeps your draft in this tab. While publishing, wait for the result before closing.");
-  assert.equal(textOf(id("post-draft-note")),
-    "Anything you have already typed is kept here while you are in the other tab, and while this panel is closed.");
+  assert.equal(textOf(id("post-keyboard-hint")), COMPOSER_KEPT_HINT);
 
   // The heading the opener reveals keeps the flow's name. It is a heading and
   // not a control, so a reader never presses it and the pair above stays a pair.
@@ -2163,38 +2166,47 @@ test("publishing the drawing empties the composer, and reopening it offers no le
   assert.equal(id("post-image").value, "");
 });
 
-test("the composer tells the visitor its draft is kept, in the help style, beside the step that sends them away", async (t) => {
+test("the composer says once, in its own name and where it opens, that the draft is kept", async (t) => {
   const { document, id } = await socialDisclosure(t);
   id("post-compose-open").click();
-  const note = id("post-draft-note");
+  const note = id("post-keyboard-hint");
 
-  assert.equal(textOf(note),
-    "Anything you have already typed is kept here while you are in the other tab, and while this panel is closed.");
-  assert.equal(document.querySelectorAll("#post-draft-note").length, 1);
-  // The shipped help style, not a new one: the same class every other line in
-  // this form wears, which is what keeps this off styles.css.
+  assert.equal(textOf(note), COMPOSER_KEPT_HINT);
+  assert.equal(document.querySelectorAll("#post-draft-note").length, 0,
+    "the second draft note came back beside the Paint steps");
+  // The shipped help style, not a new one, which is what keeps this off
+  // styles.css.
   assert.equal(note.getAttribute("class"), "hint");
   assert.equal(note.tagName, "P");
   assert.equal(foldedAway(note), false, "the sentence only renders inside something collapsed");
 
-  // Beside the numbered steps it answers for, after them, and inside the same
-  // field: a reader meets it as they are deciding whether to leave for Paint.
-  const order = documentOrder(document);
-  assert.ok(order.indexOf(id("post-image-steps")) < order.indexOf(note),
-    "the sentence is read before the steps it answers for");
-  assert.ok(order.indexOf(note) < order.indexOf(id("post-image-alt")),
-    "the sentence has drifted past the image description field");
+  // Inside the composer, and in its reading order: announced with the form, and
+  // printed between the composer's heading and its first field.
   for (let cursor = note; ; cursor = cursor.parentNode) {
-    assert.ok(cursor, "the sentence is not inside the image field it belongs to");
-    if (cursor.getAttribute?.("class")?.includes("media-picker")) break;
+    assert.ok(cursor, "the sentence is not inside the composer");
+    if (cursor.getAttribute?.("id") === "post-compose-panel") break;
   }
+  assert.deepEqual(id("post-form").getAttribute("aria-describedby").split(" "),
+    ["post-form-hint", "post-keyboard-hint"]);
+  const order = documentOrder(document);
+  assert.ok(order.indexOf(id("post-form-title")) < order.indexOf(note),
+    "the sentence is read before the composer's heading");
+  assert.ok(order.indexOf(note) < order.indexOf(id("post-body")),
+    "the sentence has drifted past the composer's first field");
 
-  // It adds no tab stop and no rival instruction: the steps stay the sequence,
-  // this is the reassurance beside them.
+  // Said once on the page, and the composer makes the draft promise in exactly
+  // one sentence, under exactly one name.
+  const page = textOf(document.body);
+  assert.equal(page.split(COMPOSER_KEPT_HINT).length - 1, 1,
+    "the draft sentence renders somewhere other than the composer");
+  const composer = textOf(id("post-compose-panel"));
+  assert.equal(composer.split("your draft stays in this tab").length - 1, 1,
+    "the composer promises its draft is kept more than once");
+  assert.doesNotMatch(composer, /hides this form|kept here|\bpanel\b/i,
+    `the composer calls itself by a second name: ${composer}`);
+
   assert.equal(note.querySelectorAll("a,button,input").length, 0,
     "the sentence grew a focusable element");
-  assert.doesNotMatch(textOf(note), /return to this tab/i,
-    "the sentence restates a numbered step instead of answering it");
   // And it promises no more than the composer does: nothing is written to
   // storage, so it must not tell a reader their post is saved.
   assert.doesNotMatch(textOf(note), /\bsaved?\b|\bstored?\b|\bdraft is safe\b/i,
