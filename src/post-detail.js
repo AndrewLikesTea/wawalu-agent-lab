@@ -328,8 +328,8 @@ function renderFailed(container, onRetry) {
 // The wait, in one place, because src/post.html ships this same line in its
 // markup so the region is never blank before this module runs. Two spellings of
 // one sentence would flash a rewrite at the reader on every visit; one exported
-// string cannot. It names the product doing the work, the one public post being
-// retrieved, its source, and the shared link it comes from.
+// string cannot. It names the one thing being retrieved, by the page's own name:
+// "post", the noun in the Open post control that leads here.
 //
 // It is the one wait on this site that offers no next action (#2034). Social
 // and People each name the control that publishes, because they are waits on a
@@ -338,7 +338,7 @@ function renderFailed(container, onRetry) {
 // link, and the reader does not yet know what a Shiplog link is, that one post
 // is coming rather than a feed, or that it is public. Naming a composer to a
 // reader in that position would be an instruction before an orientation.
-export const POST_LOADING_STATUS = "The public shared post is loading.";
+export const POST_LOADING_STATUS = "The post is loading.";
 
 // What the wait above promised, kept: the two parts of a post this page can
 // always point to, in the order the article renders them. Only the loaded state
@@ -350,7 +350,7 @@ export const POST_LOADING_STATUS = "The public shared post is loading.";
 // cannot arrive, and the byline's `if (author)` guard below is boundary defence
 // rather than a case a reader meets. Loosen that filter and this sentence starts
 // describing a name the page did not draw.
-export const POST_LOADED_DESCRIPTION = "This shared post shows the display name used to publish it and the post content.";
+export const POST_LOADED_DESCRIPTION = "This post shows the display name used to publish it and the post content.";
 
 // The one act this page can perform on the post it is showing: hand over the
 // address that reopens it. A permalink is the surface a link gets *shared* from
@@ -604,17 +604,16 @@ export function renderPostDetail(container, post, options = {}) {
 // thing. The date and caption sit in the article underneath.
 //
 // With no author to name — while the lookup is still running, and afterwards if
-// it found nothing — the heading names the page instead of standing as the bare
-// word "Post", which says only what a reader can already see. "Post from Social"
-// says which surface this one post came out of, which is the thing a visitor
-// arriving on a pasted link does not know yet.
+// it found nothing — the heading is the page's name, "Post": the noun in the
+// Open post control on Social and People that leads here. The eyebrow above it
+// says Social, so the surface is named without repeating it in the heading.
 export function postDisplayName(post) {
   return String(post?.author ?? "").trim();
 }
 
 export function postPageHeading(post) {
   const displayName = postDisplayName(post);
-  return displayName ? `${displayName}'s shared post` : "Shared post";
+  return displayName ? `${displayName}'s post` : "Post";
 }
 
 // Same shape as the decision detail's title — the record, then the surface the

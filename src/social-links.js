@@ -12,8 +12,8 @@
 
 // What both feeds print on the control that opens a post, owned here because
 // both of them already import this module for the URL that control points at.
-// The pages say these two words back to the reader ("Select Open post to read a
-// post in full."), so a second wording on one surface would leave that sentence
+// The pages say these two words back to the reader ("Select Open post to see a
+// post on its own page…"), so a second wording on one surface would leave that sentence
 // naming a control the reader cannot find.
 export const OPEN_POST_LABEL = "Open post";
 
