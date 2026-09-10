@@ -710,9 +710,16 @@ test("one name per concept: the example, the grade button, and the clear button"
   assert.match(textOf(byId(document, "prompt-coaching-example")), /Grade the bundled synthetic example/);
 
   // The clear control is referred to by its own label wherever copy points at
-  // it, rather than by a name for the region it clears.
-  assert.equal(textOf(byId(document, "prompt-coaching-clear")), "Clear and start over");
-  assert.doesNotMatch(text, /clear the panel/i);
+  // it, rather than by a name for the region it clears. The label is read after
+  // the page module has run, so it is the one a visitor sees, and it names what
+  // pressing it discards: the prompt and its grades, never a vague "start over".
+  const clearLabel = textOf(byId(document, "prompt-coaching-clear"));
+  assert.equal(clearLabel, "Clear prompt and grades");
+  assert.doesNotMatch(clearLabel, /start over/i,
+    "a reset that does not say what it discards cannot be judged before it is pressed");
+  assert.doesNotMatch(clearLabel, /^Grade/,
+    "the reset must not open on the grade button's verb");
+  assert.doesNotMatch(text, /clear the panel|start over/i);
 
   // And a result that points at a control names it by what a reader sees on the
   // page. The id stays in data, where a consumer reads it, and out of the prose.
