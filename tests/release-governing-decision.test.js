@@ -406,5 +406,5 @@ test("the Releases page renders linked-decision copy from markup and the list re
   }
   assert.match(textOf(page.document.querySelector(".release-summary")), /^Linked decisions/);
   assert.match(textOf(page.document.querySelector("#release-followup")), /“Old approach” is linked to Old release, and a later decision replaced it/);
-  assert.match(textOf(page.document.querySelector("#site-footer-topic-note")), /Releases page — every release and its linked decisions/);
+  assert.match(textOf(page.document.querySelector("#site-footer-topic-note")), /Releases page — see every release and its linked decisions/);
 });
