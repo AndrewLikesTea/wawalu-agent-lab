@@ -20,8 +20,7 @@ import {
   absoluteHistoryUrl,
   currentOnlySearch,
   historyFilterChips,
-  historyFilterPath,
-  historyFilterSearch,
+  historyAddressSearch,
   normalizeHistoryRange,
   parseHistoryFilters,
   readCurrentOnly,
@@ -1153,8 +1152,8 @@ export async function initDecisionLog(root = document, storage = localStorage, o
     currentOnly: false,
   };
 
-  // The query string this page owns, tracked locally because pushState does not
-  // report back through the same object in every environment.
+  // The query string this page owns, tracked locally because replaceState does
+  // not report back through the same object in every environment.
   let queryString = locationRef?.search ?? "";
 
   // Reflect the filter state into the controls. Called on boot, on Back, and
@@ -1198,31 +1197,29 @@ export async function initDecisionLog(root = document, storage = localStorage, o
   /**
    * Write the filters back to the URL and re-render.
    *
-   * `push: true` (a discrete filter change, a dismissed chip) leaves an entry
-   * the Back button can return to; `push: false` (a keystroke in the search
-   * box) rewrites the current one, because stepping back through twenty
-   * keystrokes is not history a person wants. A change that produces the same
-   * query string writes nothing at all — a no-op must not stack a duplicate
-   * entry that Back appears to ignore.
+   * Always replaceState, never pushState: a filter is a view of this page, not
+   * a place a person went, so a shared or reloaded address describes the view
+   * without Back replaying every status tried on the way to it. Parameters the
+   * log does not own stay in the address. A change that produces the same query
+   * string writes nothing at all.
    */
-  const syncUrl = ({ push = true } = {}) => {
-    const next = historyFilterSearch(view);
+  const syncUrl = () => {
+    const next = historyAddressSearch(queryString, view);
     if (next === queryString) return false;
     queryString = next;
-    const target = historyFilterPath(locationRef ?? {}, view);
-    if (push) historyRef?.pushState?.(null, "", target);
-    else historyRef?.replaceState?.(null, "", target);
+    // A rewrite is the same entry, so it keeps whatever state that entry holds.
+    historyRef?.replaceState?.(historyRef.state ?? null, "", `${locationRef?.pathname || "/"}${next}`);
     return true;
   };
 
-  const commit = (options) => {
-    syncUrl(options);
+  const commit = () => {
+    syncUrl();
     render();
   };
 
-  // Going Back is a filter change like any other: re-derive the state from the
-  // URL the browser restored, put it back on the controls, and re-render. The
-  // URL is already correct at this point, so nothing is written.
+  // Back or Forward onto an entry this page did not write (a record's deep
+  // link, a page before it): re-derive the state from the URL the browser
+  // restored, put it back on the controls, and re-render. Nothing is written.
   windowRef?.addEventListener?.("popstate", () => {
     queryString = locationRef?.search ?? "";
     adoptFilters(parseHistoryFilters(queryString));
@@ -1530,10 +1527,10 @@ export async function initDecisionLog(root = document, storage = localStorage, o
   render();
   focusLinkedDecision(root);
   // Canonicalize what the address bar says, without a history entry: a link
-  // carrying `status=approved`, an owner this log has never held, or a
-  // parameter nothing here reads now shows the state actually on screen. Silent
-  // when the link was already canonical, which is the ordinary case.
-  syncUrl({ push: false });
+  // carrying `status=approved` or an owner this log has never held now shows the
+  // state actually on screen. Silent when the link was already canonical, which
+  // is the ordinary case.
+  syncUrl();
 
   // The "Representative release" panel. It used to feature releases[0], which is
   // whatever sorts first in the composed log — the newest planned example for a
@@ -1595,16 +1592,12 @@ export async function initDecisionLog(root = document, storage = localStorage, o
     view.sort = sortBy.value;
     render();
   });
-  // Typing rewrites the current history entry rather than stacking one per
-  // keystroke; the committed value (blur, or Enter) is what Back steps through.
-  search?.addEventListener("input", () => {
-    view.query = search.value;
-    commit({ push: false });
-  });
-  search?.addEventListener("change", () => {
-    view.query = search.value;
-    commit();
-  });
+  for (const type of ["input", "change"]) {
+    search?.addEventListener(type, () => {
+      view.query = search.value;
+      commit();
+    });
+  }
   for (const control of [fromFilter, toFilter]) {
     control?.addEventListener("change", () => {
       view.from = fromFilter?.value ?? "";

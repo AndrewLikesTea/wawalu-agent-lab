@@ -223,6 +223,21 @@ test("a keyboard-created zero-result state clears predictably and returns focus 
   ]);
 });
 
+test("a shared link that matches nothing is cleared from the keyboard to the whole log and a clean address", async (t) => {
+  const page = await openHistory(t, { search: "?utm_source=chat&q=feature+flags&owner=Ari" });
+  assert.deepEqual(titles(page), []);
+  assert.equal(count(page), "0 of 5 records");
+
+  const reset = tabTo(page, ".history-reset-action");
+  assert.equal(textOf(reset), "Reset filters");
+  pressEnter(page.document);
+  assert.equal(page.location.search, "?utm_source=chat", "a filter parameter survived the reset");
+  assert.equal(count(page), "5 records");
+  assert.equal(page.document.querySelector("#filter-owner").value, "all");
+  assert.equal(page.document.activeElement, page.document.querySelector("#decision-search"));
+  assert.deepEqual(page.writes.map(({ method }) => method), ["replace"], "the reset stacked a history entry");
+});
+
 // Clearing every filter at once is one of two ways out, and the coarser one. The
 // chips are the other: they drop one criterion and leave the rest composed, which
 // is what an engineering lead narrowing a release review actually reaches for.

@@ -9,10 +9,12 @@
 // tests/history-filter-flow.test.js.
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import {
   DEFAULT_HISTORY_FILTERS,
   absoluteHistoryUrl,
   activeHistoryFilters,
+  historyAddressSearch,
   historyFilterChips,
   historyFilterSearch,
   historyFiltersActive,
@@ -182,6 +184,34 @@ test("nothing about a hostile or absent query string throws", () => {
     assert.doesNotThrow(() => selectHistory(records, parseHistoryFilters(search)));
   }
   assert.deepEqual(parseHistoryFilters(undefined), { ...DEFAULT_HISTORY_FILTERS });
+});
+
+test("the address keeps every parameter the log does not own and drops every stale filter", () => {
+  assert.equal(historyAddressSearch("?utm_source=slack&owner=Mina", { owner: "Kai" }), "?utm_source=slack&owner=Kai");
+  assert.equal(historyAddressSearch("?owner=Kai&owner=Mina&id=7", {}), "?id=7", "a repeated filter parameter survived");
+  assert.equal(historyAddressSearch("?q=queue&status=accepted", {}), "", "a cleared view left a stray ?");
+  assert.equal(historyAddressSearch("?", {}), "");
+  assert.equal(historyAddressSearch(undefined, { status: "bogus", owner: "Kai" }), "?owner=Kai");
+});
+
+test("a markup and quote search term round-trips through the address byte for byte", () => {
+  const hostile = `<img src=x onerror=1> "q'`;
+  const search = historyAddressSearch("?utm_source=slack", { query: hostile });
+  assert.equal(new URLSearchParams(search).get("q"), hostile);
+  assert.equal(parseHistoryFilters(search).query, hostile, "the round trip changed the term");
+  assert.equal(historyAddressSearch(search, parseHistoryFilters(search)), search, "a parsed address did not serialize back to itself");
+  // A term that is only whitespace is no search at all, and leaves no parameter.
+  assert.equal(parseHistoryFilters("?q=%20%09%20").query, "");
+  assert.equal(historyAddressSearch("?q=%20%09%20", { query: "   " }), "");
+});
+
+// The DOM harness parses no markup, so a page-level test cannot fail if a value
+// from the address ever reaches an HTML sink. Pin the render path at the source.
+test("the history's render path has no HTML sink a query-string value could reach", async () => {
+  for (const file of ["../src/app.js", "../src/history-filter-view.js"]) {
+    const source = await readFile(new URL(file, import.meta.url), "utf8");
+    assert.doesNotMatch(source, /innerHTML|outerHTML|insertAdjacentHTML|createContextualFragment|document\.write/, `${file} writes markup`);
+  }
 });
 
 /* --------------------------------- the words ---------------------------------- */

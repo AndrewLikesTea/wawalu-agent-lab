@@ -4,6 +4,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { initDecisionLog } from "../src/app.js";
+import { DEFAULT_HISTORY_FILTERS, parseHistoryFilters } from "../src/history-filters.js";
 import { createHistoryHarness } from "./support/decision-log.js";
 import { byClass, first } from "./support/dom.js";
 
@@ -260,8 +261,9 @@ test("a malformed link renders the nearest valid view, not a crash or an empty o
   assert.equal(harness.elements["#filter-to"].value, "", "an end before the start is not a window");
   // And the address bar is corrected to the state actually on screen, without
   // a history entry standing between the visitor and the page they came from.
-  assert.equal(harness.url, "?owner=Kai&from=2026-01-01");
-  assert.deepEqual(harness.entries, ["?owner=Kai&from=2026-01-01"]);
+  // The parameters this view does not own are not its to drop.
+  assert.equal(harness.url, "?bad=2026-13-45&utm_source=slack&owner=Kai&from=2026-01-01");
+  assert.deepEqual(harness.entries, ["?bad=2026-13-45&utm_source=slack&owner=Kai&from=2026-01-01"]);
 });
 
 test("an owner this log has never held falls back to the whole history", async () => {
@@ -332,25 +334,35 @@ test("clear all returns to the clean base path and the unfiltered history", asyn
 
 /* ---------------------------------- history ---------------------------------- */
 
-test("Back steps through the prior filter states and re-renders each one", async () => {
-  const harness = await open();
+// A filter is a view of this page, not a place a person went: every change
+// rewrites the one entry the page was opened on, so Back leaves the log rather
+// than replaying each status tried on the way. The spy also holds entry state,
+// which a rewrite must hand back rather than discard.
+test("a filter change rewrites the current entry and keeps the parameters the log does not own", async () => {
+  const harness = createHistoryHarness(demo, { search: "?utm_source=slack" });
+  const held = { scrollY: 480 };
+  const writes = [];
+  const history = {
+    state: held,
+    pushState: (state, title, url) => { writes.push(["push", state]); harness.browser.history.pushState(state, title, url); },
+    replaceState: (state, title, url) => { writes.push(["replace", state]); harness.browser.history.replaceState(state, title, url); },
+  };
+  await initDecisionLog(harness.root, harness.storage, { announceDelay: 0, seed: demo, ...harness.browser, history });
+  assert.deepEqual(writes, [], "an address with no filter in it is not rewritten on open");
+
   harness.chooseType("decision");
   harness.chooseStatus("pending");
-  assert.deepEqual(harness.entries, ["", "?type=decision", "?type=decision&status=pending"]);
+  harness.type("cache");
+  assert.equal(harness.url, "?utm_source=slack&q=cache&type=decision&status=pending");
   assert.deepEqual(titles(harness), ["Approve edge cache"]);
+  assert.equal(harness.entries.length, 1, "a filter change stacked a history entry");
+  assert.equal(harness.back(), false);
 
-  harness.back();
-  assert.equal(harness.url, "?type=decision");
-  assert.equal(harness.status.value, "all", "the controls step back with the results");
-  assert.deepEqual(titles(harness), ["Approve edge cache", "Adopt a durable queue"]);
-  assert.equal(harness.count.textContent, "2 of 3 records");
-  assert.deepEqual(chipText(harness), ["Record type: Decisions"]);
-
-  harness.back();
-  assert.equal(harness.url, "");
-  assert.equal(harness.radios.find((radio) => radio.checked).value, "all");
+  harness.elements["#clear-decision-filters"].dispatch("click");
+  assert.equal(harness.url, "?utm_source=slack", "clearing left a filter parameter behind");
   assert.equal(harness.count.textContent, "3 records");
-  assert.deepEqual(chipText(harness), []);
+  assert.deepEqual(writes.map(([method]) => method), ["replace", "replace", "replace", "replace"]);
+  assert.ok(writes.every(([, state]) => state === held), "a rewrite discarded the entry's state");
 });
 
 test("a filter change that changes nothing does not stack a history entry", async () => {
@@ -359,6 +371,65 @@ test("a filter change that changes nothing does not stack a history entry", asyn
   harness.chooseStatus("all");
   harness.type("");
   assert.deepEqual(harness.entries, ["?type=decision"], "Back would appear to do nothing");
+});
+
+/* ------------------------------ sharing a view -------------------------------- */
+
+test("a view narrowed through the controls reopens identically from its address", async () => {
+  const sender = await open();
+  sender.chooseStatus("pending");
+  sender.elements["#filter-owner"].value = "Mina";
+  sender.elements["#filter-owner"].dispatch("change");
+  sender.type("edge");
+  const address = sender.url;
+  assert.equal(address, "?q=edge&status=pending&owner=Mina");
+  assert.deepEqual(sender.entries, [address], "narrowing the view stacked history entries");
+
+  // A reload is opening the same address again. The select double takes any
+  // value, so the view's own state is read back from the address it kept.
+  const teammate = await open(address);
+  assert.deepEqual(parseHistoryFilters(teammate.url), { ...DEFAULT_HISTORY_FILTERS, query: "edge", status: "pending", owner: "Mina" });
+  assert.deepEqual(titles(teammate), ["Approve edge cache"]);
+  assert.deepEqual(titles(teammate), titles(sender));
+  assert.equal(teammate.search.value, "edge");
+  assert.equal(teammate.status.value, "pending");
+  assert.equal(teammate.elements["#filter-owner"].value, "Mina");
+  assert.equal(teammate.summary.textContent, "1 of 3 records");
+  assert.equal(teammate.summary.textContent, sender.summary.textContent);
+  assert.deepEqual(teammate.entries, [address], "opening a shared link must not write to the history");
+});
+
+test("a shared link that matches nothing offers Reset, which restores the log and the clean address", async () => {
+  const harness = await open("?q=nothing+matches+this&owner=Kai");
+  assert.equal(byClass(harness.list, "history-card").length, 0);
+  assert.match(harness.list.textContent, /No records match your filters/);
+  assert.equal(harness.summary.textContent, "0 of 3 records");
+
+  const reset = first(harness.list, "history-reset-action");
+  assert.equal(reset.type, "button");
+  harness.click(reset);
+
+  assert.equal(harness.url, "", "no filter parameter may survive the reset");
+  assert.deepEqual(titles(harness), [
+    "v1.3.0 · Throughput and latency",
+    "Approve edge cache",
+    "Adopt a durable queue",
+  ]);
+  assert.equal(harness.search.value, "");
+  assert.equal(harness.elements["#filter-owner"].value, "all");
+  assert.equal(harness.summary.textContent, "3 records");
+  assert.equal(harness.search.focused, 1, "focus cannot stay on the removed Reset button");
+  assert.deepEqual(harness.entries, [""], "the reset stacked a history entry");
+});
+
+test("a link naming an undefined status or an owner no record holds applies neither", async () => {
+  const harness = await open("?status=bogus&owner=Nobody&q=queue");
+  assert.deepEqual(titles(harness), ["v1.3.0 · Throughput and latency", "Adopt a durable queue"]);
+  assert.equal(harness.summary.textContent, "2 of 3 records");
+  assert.equal(harness.status.value, "all");
+  assert.equal(harness.elements["#filter-owner"].value, "all");
+  assert.deepEqual(parseHistoryFilters(harness.url), { ...DEFAULT_HISTORY_FILTERS, query: "queue" });
+  assert.deepEqual(harness.entries, ["?q=queue"], "correcting the link stacked an entry");
 });
 
 /* -------------------------------- copy the link ------------------------------- */
