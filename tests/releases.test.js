@@ -292,13 +292,17 @@ test("releases page is wired and linked from the decisions page", async () => {
   assert.match(page, /id="release-list"/);
   assert.match(page, /id="release-search"/);
   assert.match(page, /id="release-status"/);
-  assert.match(page, /id="release-list" aria-live="polite" aria-busy="true"/);
+  assert.match(page, /id="release-list" aria-busy="true"/);
   // One loading message on the page: the list states the wait, and the summary
   // ships empty rather than repeating it or claiming a number it cannot know.
   assert.match(page, /id="release-count" aria-live="polite"><\/p>/);
   assert.doesNotMatch(page, /id="release-count"[^>]*>[^<]*releases?[^<]*<\/p>[\s\S]*?<h3>Loading releases…<\/h3>/);
   assert.match(page, /<h3>Loading releases…<\/h3>/);
-  assert.equal(page.match(/Loading releases/g).length, 1, "the wait is stated once");
+  // Stated once to each reader: the log's status region says it to assistive
+  // technology, and the visible panel is hidden from it.
+  assert.equal(page.match(/Loading releases/g).length, 2, "the wait is stated once per reader");
+  assert.match(page, /id="release-list-status" role="status">Loading releases…<\/p>/);
+  assert.match(page, /class="list-state list-state-loading" aria-hidden="true">\s*<h3>Loading releases…<\/h3>/);
   assert.match(page, /src="\/releases-page\.js"/);
   // No innerHTML anywhere in the interactive layers (no user-generated HTML).
   const component = await read("src/releases.js");
@@ -338,7 +342,8 @@ test("the releases page states its order in the site's words and repeats no head
   // is the line that also carries the count — one line, both facts, the shape
   // Social's feed summary already uses. The heading names the panel, once, and
   // the eyebrow that named it a second time is gone.
-  assert.match(page, /<h2 id="releases-title">Release log<\/h2>/);
+  // Focusable by script only (tabindex="-1"): a successful Retry lands on it.
+  assert.match(page, /<h2 id="releases-title" tabindex="-1">Release log<\/h2>/);
   assert.doesNotMatch(page, /<p class="eyebrow">Release log<\/p>/);
   const { releaseSummarySentence } = await import("../src/releases.js");
   assert.equal(releaseSummarySentence(4, 4), "Showing 4 releases, newest first.");

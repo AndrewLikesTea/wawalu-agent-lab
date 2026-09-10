@@ -15,7 +15,7 @@ import assert from "node:assert/strict";
 import { STORAGE_KEY } from "../src/app.js";
 import { RELEASE_STORAGE_KEY } from "../src/releases.js";
 import { RELEASE_EXPORT_BUTTON_LABEL } from "../src/release-export.js";
-import { initReleasesPage } from "../src/releases-page.js";
+import { LOG_UNREAD, initReleasesPage } from "../src/releases-page.js";
 import { initReleaseDetail } from "../src/release-page.js";
 import { buildShiplogExport } from "../src/shiplog-export.js";
 import { shiplogExportViolations } from "../src/shiplog-export-schema.js";
@@ -549,11 +549,14 @@ test("a browser that refuses storage still settles the picker off its loading cl
   assert.equal(page.document.querySelectorAll(".decision-picker-loading").length, 0);
   assert.match(textOf(page.document.querySelector(".decision-picker-empty")), /No decisions to link yet\./);
 
-  // And the recorder is live rather than a dead form: a release is still
-  // recordable when the log behind the picker could not be read.
+  // The recorder stays live — every field takes input — but a store that
+  // refuses to read the release log is a log a save would erase (#2268). The
+  // submit is refused inline and the typed release is kept for after a retry.
   fillRequired(page, { version: "v0.2.0" });
   submit(page);
-  assert.equal(textOf(page.document.querySelector("#release-record-status")), "Recorded “v0.2.0” as a completed release, with no linked decisions.");
+  assert.equal(textOf(formError(page)), LOG_UNREAD);
+  assert.equal(page.document.querySelector("#release-version").value, "v0.2.0");
+  assert.equal(textOf(page.document.querySelector("#release-record-status")), "");
 });
 
 test("with no decisions to link, the picker says so and offers the way out", async (t) => {

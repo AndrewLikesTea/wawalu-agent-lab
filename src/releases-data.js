@@ -14,7 +14,7 @@
 // a pure, DOM-and-fetch-free component: data sourcing stays out of the renderer.
 
 import { loadDecisions } from "./app.js";
-import { loadReleases } from "./releases.js";
+import { loadReleases, readReleases } from "./releases.js";
 import { dedupeById } from "./demo-data.js";
 import { SEED_DECISIONS, SEED_RELEASES } from "./seed-records.js";
 
@@ -25,11 +25,14 @@ import { SEED_DECISIONS, SEED_RELEASES } from "./seed-records.js";
 // `seed` exists for the same reason initDecisionLog's does: a test needs a
 // composed picture containing nothing but its own fixtures. Production callers
 // pass nothing and get the shipped examples.
-export function loadReleaseData(storage, seed = {}) {
+//
+// `strict` throws when the store refuses to read the release log, so the
+// releases page can show that failure instead of an empty log.
+export function loadReleaseData(storage, seed = {}, { strict = false } = {}) {
   const seedDecisions = Array.isArray(seed.decisions) ? seed.decisions : SEED_DECISIONS;
   const seedReleases = Array.isArray(seed.releases) ? seed.releases : SEED_RELEASES;
   const recordedDecisions = loadDecisions(storage);
-  const recordedReleases = loadReleases(storage);
+  const recordedReleases = strict ? readReleases(storage) : loadReleases(storage);
   const recordedIds = new Set([...recordedDecisions, ...recordedReleases].map(({ id }) => id));
   // Which seed ids are still examples for this visitor: a record they stored
   // wins on id, so it is theirs and is not labelled as an example.

@@ -243,7 +243,7 @@
                  the name twice and the order twice on one screen. The heading
                  names the panel; the sentence below carries the order, because
                  it is the line that also carries the count. -->
-            <h2 id="releases-title">Release log</h2>
+            <h2 id="releases-title" tabindex="-1">Release log</h2>
           </div>
         </div>
         <!-- How many releases are on screen and in what order, in one sentence.
@@ -379,11 +379,17 @@
              it is not a live region, because #release-count already announces
              that the view changed. -->
         <div class="release-followup-slot" id="release-followup" hidden></div>
-        <div id="release-list" aria-live="polite" aria-busy="true" aria-describedby="release-count">
-          <!-- The one loading message on this page, and the wording
-               renderReleaseListState draws in releases.js, character for
-               character. -->
-          <div class="list-state list-state-loading" role="status">
+        <!-- The log's one live region. Loading, empty, no-match and a failed
+             load are all announced here, in the words each state's heading
+             uses, and it ships holding the wait so a reader is told before any
+             module runs. The list below is not live and its panels carry no
+             role, so no state is announced twice. -->
+        <p class="visually-hidden" id="release-list-status" role="status">Loading releases…</p>
+        <div id="release-list" aria-busy="true" aria-describedby="release-count">
+          <!-- The visible loading message, in the wording renderReleaseListState
+               draws in releases.js, character for character. Hidden from
+               assistive technology because the region above already says it. -->
+          <div class="list-state list-state-loading" aria-hidden="true">
             <h3>Loading releases…</h3>
           </div>
         </div>
