@@ -711,7 +711,16 @@ test("one name per concept: the example, the grade button, and the clear button"
 
   // The clear control is referred to by its own label wherever copy points at
   // it, rather than by a name for the region it clears.
-  assert.equal(textOf(byId(document, "prompt-coaching-clear")), "Clear and start over");
+  // That label names what the control discards before anyone presses it: the
+  // typed prompt and the grades. It is read here after the page module loads,
+  // so the painted DOM is what is held, not only the authored fallback.
+  const clearLabel = textOf(byId(document, "prompt-coaching-clear"));
+  assert.equal(clearLabel, "Clear prompt and grades");
+  assert.match(clearLabel, /\bprompt\b/);
+  assert.match(clearLabel, /\bgrades\b/);
+  assert.doesNotMatch(clearLabel, /^Grade|start over/i,
+    "the clear control must not read like the grade button or say only \"start over\"");
+  assert.equal((text.match(/start over/gi) ?? []).length, 0);
   assert.doesNotMatch(text, /clear the panel/i);
 
   // And a result that points at a control names it by what a reader sees on the
