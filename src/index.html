@@ -13,6 +13,7 @@
          adds only what is specific to sharing a page with the rest of this
          site. -->
     <link rel="stylesheet" href="/executive-briefing.css" />
+    <link rel="stylesheet" href="/shiplog-pilot-scorecard.css" />
     <link rel="stylesheet" href="/landing-decision.css" />
   </head>
   <body>
@@ -75,6 +76,61 @@
         <div class="share-control">
           <button class="share-button" id="copy-shiplog-evaluation-brief" type="button" aria-describedby="shiplog-evaluation-brief-status">Copy Shiplog evaluation brief</button>
           <span class="share-status" id="shiplog-evaluation-brief-status" role="status" aria-live="polite" aria-atomic="true"></span>
+        </div>
+      </section>
+
+      <section class="hero-proof" id="shiplog-pilot-scorecard" aria-labelledby="shiplog-pilot-scorecard-title">
+        <h2 id="shiplog-pilot-scorecard-title">Shiplog pilot scorecard</h2>
+        <p>For your evaluating team to complete during a pilot and share with a manager. Set your own targets before measuring; all targets, results, and owners below are blank. No pilot outcome is claimed.</p>
+        <ol class="pilot-scorecard-criteria">
+          <li>
+            <h3>Release reasoning retrieval</h3>
+            <p>Your evaluating team must time how long it takes to find a selected release’s linked decision and identify its context and alternatives.</p>
+            <dl class="pilot-scorecard-fields">
+              <div><dt>Buyer target</dt><dd>________</dd></div>
+              <div><dt>Observed result</dt><dd>________</dd></div>
+              <div><dt>Owner</dt><dd>________</dd></div>
+            </dl>
+          </li>
+          <li>
+            <h3>Record completeness</h3>
+            <p>Your evaluating team must count sampled decisions with context, alternatives, owner, and status, and sampled releases with the expected decision links; record counts and sample sizes.</p>
+            <dl class="pilot-scorecard-fields">
+              <div><dt>Buyer target</dt><dd>________</dd></div>
+              <div><dt>Observed result</dt><dd>________</dd></div>
+              <div><dt>Owner</dt><dd>________</dd></div>
+            </dl>
+          </li>
+          <li>
+            <h3>Team handoff</h3>
+            <p>Your evaluating team must ask a teammate to review a handed-off record and count unanswered questions about why the work shipped and who owns it.</p>
+            <dl class="pilot-scorecard-fields">
+              <div><dt>Buyer target</dt><dd>________</dd></div>
+              <div><dt>Observed result</dt><dd>________</dd></div>
+              <div><dt>Owner</dt><dd>________</dd></div>
+            </dl>
+          </li>
+          <li>
+            <h3>Data-handling requirements</h3>
+            <p>Your evaluating team must compare browser-local storage, retention controls, and export behavior with your data-handling requirements; record requirements checked and any gaps.</p>
+            <dl class="pilot-scorecard-fields">
+              <div><dt>Buyer target</dt><dd>________</dd></div>
+              <div><dt>Observed result</dt><dd>________</dd></div>
+              <div><dt>Owner</dt><dd>________</dd></div>
+            </dl>
+          </li>
+        </ol>
+        <p>The example decisions and releases are synthetic, use no customer or production data, and are not customer results.</p>
+        <p>Page: <a href="https://labs.wawalu.org/">https://labs.wawalu.org/</a></p>
+        <p class="hint">Copy this blank template, then fill it in with your team outside Shiplog. Copying includes no visitor records or form entries.</p>
+        <div class="share-control">
+          <button class="share-button" id="copy-pilot-scorecard" type="button" aria-describedby="pilot-scorecard-status">Copy pilot scorecard</button>
+          <span class="share-status" id="pilot-scorecard-status" role="status" aria-live="polite" aria-atomic="true"></span>
+        </div>
+        <div id="pilot-scorecard-fallback" hidden>
+          <label for="pilot-scorecard-manual">Pilot scorecard for manual copying</label>
+          <p id="pilot-scorecard-manual-help">Select the text and use your device’s copy command. Fill in the blanks in your shared copy.</p>
+          <textarea id="pilot-scorecard-manual" rows="12" readonly aria-describedby="pilot-scorecard-manual-help"></textarea>
         </div>
       </section>
 
@@ -912,6 +968,7 @@
     <script type="module" src="/landing-decision-page.js"></script>
     <script type="module" src="/homepage-executive-takeaway.js"></script>
     <script type="module" src="/shiplog-evaluation-brief.js"></script>
+    <script type="module" src="/shiplog-pilot-scorecard.js"></script>
     <script type="module" src="/app.js"></script>
     <script type="module" src="/shiplog-export-page.js"></script>
     <script type="module" src="/shiplog-import-page.js"></script>
