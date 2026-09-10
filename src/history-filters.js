@@ -221,6 +221,20 @@ export function historyFilterSearch(filters = {}) {
   return query ? `?${query}` : "";
 }
 
+/**
+ * The address bar's query string for a filter state: every parameter this view
+ * does not own stays where it was (`?utm_source=slack&owner=Kai`), and every
+ * filter parameter is dropped and rewritten canonically after them. "" when
+ * nothing is left, never a bare "?".
+ */
+export function historyAddressSearch(search = "", filters = {}) {
+  const params = new URLSearchParams(typeof search === "string" ? search : "");
+  for (const name of Object.values(HISTORY_FILTER_PARAMS)) params.delete(name);
+  for (const [name, value] of new URLSearchParams(historyFilterSearch(filters))) params.append(name, value);
+  const query = params.toString();
+  return query ? `?${query}` : "";
+}
+
 /** Is any filter active? Drives the summary line's wording and clear-all. */
 export function historyFiltersActive(filters = {}) {
   return historyFilterSearch(filters) !== "";
