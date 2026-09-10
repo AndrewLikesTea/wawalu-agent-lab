@@ -176,7 +176,7 @@ export const COACHING_ENTRY_EXAMPLE = Object.freeze({
   }),
   transition: Object.freeze({
     onEdit: "Editing or replacing the text in the field ends the bundled synthetic example: the next grade is classified as your text, and the example attribution comes off the result.",
-    onClear: "Clear and start over empties the field and returns the front door to its zero-input state, where the bundled synthetic example is offered again.",
+    onClear: "Clear prompt and grades empties the field and returns the front door to its zero-input state, where the bundled synthetic example is offered again.",
     editControl: "prompt-coaching-input",
     loadControl: "prompt-coaching-example",
   }),
