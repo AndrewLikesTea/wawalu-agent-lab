@@ -379,8 +379,17 @@
                  them. Naming it here and not on Close is deliberate: the
                  sentence is about the whole form, and repeating it on the one
                  control whose label already says "Close" spends a second
-                 announcement on news the reader has had. -->
-            <p class="hint" id="post-keyboard-hint">Escape or Close hides this form and keeps your draft in this tab. While publishing, wait for the result before closing.</p>
+                 announcement on news the reader has had.
+                 It is also the one place the draft promise is made (#2278). A
+                 second note beside the Paint steps made it again in other nouns
+                 — "here", "this panel" — so the composer had three names for
+                 itself and two copies of one promise. One sentence now covers
+                 both exits, closing and leaving for Paint, because both are the
+                 same mechanism: the composer is hidden, never rebuilt, so its
+                 fields keep what is in them while this tab is open. It says
+                 "stays in this tab" and not "saved": nothing is written to
+                 storage, and a reload starts a fresh draft. -->
+            <p class="hint" id="post-keyboard-hint">Escape or Close hides the composer, and your draft stays in this tab while the composer is closed or you work in another tab, such as Paint. While publishing, wait for the result before closing.</p>
 
             <div class="field field-wide">
               <!-- First, because the hint above says "Write your post. Add an
@@ -486,20 +495,6 @@
                 <li>Fill in the required image description</li>
                 <li>Publish post</li>
               </ol>
-              <!-- Said beside the step that sends the visitor away, because that
-                   is where the question arises: the step above opens a second
-                   tab, and what stops a reader taking it is not knowing whether
-                   the post they have half written will still be here. It
-                   answers for the other exit too, the Close control at the foot
-                   of this panel, because both are the same mechanism — the
-                   composer is revealed and hidden, never rebuilt, so the fields
-                   keep what is in them for as long as this tab is open. It
-                   promises no more than that: nothing is written to storage, so
-                   a reload starts a fresh draft, and the sentence says "here"
-                   and "this panel" rather than claiming the post is saved.
-                   The same help class every other line in this form wears, so
-                   it costs no new rule and no new type or colour scale. -->
-              <p class="hint" id="post-draft-note">Anything you have already typed is kept here while you are in the other tab, and while this panel is closed.</p>
               <!-- The requirement moved to the field it is about (#1967). It
                    stood here, before the picker, and had to spend half a
                    sentence saying where the field it named would turn up — a

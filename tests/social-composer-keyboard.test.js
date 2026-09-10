@@ -53,7 +53,8 @@ test("closing a dirty draft preserves every field and returns to the actual open
   for (const name of ["post-body", "post-author", "post-image-alt"]) assert.equal(id(name).value, `Draft ${name}`);
   id("post-compose-cancel").click();
   assert.equal(document.activeElement, origin);
-  assert.match(textOf(id("post-keyboard-hint")), /keeps your draft in this tab/);
+  assert.equal(textOf(id("post-keyboard-hint")),
+    "Escape or Close hides the composer, and your draft stays in this tab while the composer is closed or you work in another tab, such as Paint. While publishing, wait for the result before closing.");
 });
 
 test("Escape and other close paths cannot hide an active submission, including a failed request", async (t) => {

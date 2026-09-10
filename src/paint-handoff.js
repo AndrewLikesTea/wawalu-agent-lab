@@ -34,7 +34,7 @@ export const PAINT_HANDOFF_COPY = Object.freeze({
     detail: "Paint uploaded and posted nothing. Open Social to check the preview, describe it, and publish it yourself.",
     action: "Open the post preview on Social",
     arrivalTitle: "Your drawing is attached to this draft only",
-    arrivalDetail: "Paint handed the drawing to this form as a preview. It has not been uploaded or published.",
+    arrivalDetail: "Paint handed the drawing to the composer as a preview. It has not been uploaded or published.",
     arrivalStep: "Describe the image, then publish the post to share it.",
   }),
 });
