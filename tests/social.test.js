@@ -613,7 +613,7 @@ test("the feed says who wrote the posts, where the posts are", async (t) => {
     "the intro calls the feed a demo one, a line under an eyebrow that already does");
   // Removing the word did not cost the sentence what it was for: the feed is
   // still shared, the posts short, the images optional.
-  assert.match(intro, /^Social is a shared feed of short posts about what the team ships, images optional\./,
+  assert.match(intro, /^Social is a shared feed of short posts about shipped work, images optional\./,
     "the intro stopped saying what the feed holds");
 });
 

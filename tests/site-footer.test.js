@@ -584,7 +584,7 @@ test("Social's homepage directory explains publishing, while a permalink explain
 
   // But it says it once per page. The band used to carry that intro sentence
   // byte for byte, so Social's own page printed it twice, one screen apart.
-  const PASTED = "is a shared feed of short posts about what the team ships";
+  const PASTED = "is a shared feed of short posts about shipped work";
   for (const file of PAGES) {
     const times = (await read(file)).split(PASTED).length - 1;
     assert.ok(times <= 1, `${file} carries the same Social sentence ${times} times`);
@@ -600,6 +600,80 @@ test("Social's homepage directory explains publishing, while a permalink explain
       "crop or draw, then export a PNG", "hand it to a Social post yourself",
       "about the work the team ships",
     ]) assert.ok(!html.includes(retired), `${file} still says "${retired}"`);
+  }
+});
+
+// #2288: Social said its posts were about "what the team ships" and never said
+// which team. The invented example posts and a post a visitor publishes are both
+// about shipped work, so the three places Social is described say that, in the
+// same two words, on the pages as a visitor is served them — scripts and all.
+test("Social's description, its directory row and its follow-up topic all say shipped work", async () => {
+  const PHRASE = "shipped work";
+  const RETIRED = "the team ships";
+  const PURPOSE = DEMOS.find((demo) => demo.label === "Social").purpose;
+  const TOPIC_LINE = `This request is sent about the ${FOLLOW_UP_TOPICS.follow_up_social}.`;
+  assert.ok(PURPOSE.includes(PHRASE), "the directory's Social row must say what the posts are about");
+  assert.ok(FOLLOW_UP_TOPICS.follow_up_social.endsWith(`— ${PURPOSE}`),
+    "after the dash, the Social follow-up topic must be the directory's Social row word for word");
+
+  // Every page's directory, as authored: the source row, and never the old words.
+  for (const file of PAGES) {
+    const html = await read(file);
+    assert.ok(html.includes(`<a href="/social.html">Social</a> — ${PURPOSE}</li>`), `${file}: the directory's Social row`);
+    assert.equal(html.includes(RETIRED), false, `${file} still says "${RETIRED}"`);
+  }
+
+  const paintedFooter = (document, file) => {
+    const row = [...document.querySelector(".site-footer-demos").querySelectorAll("li")]
+      .find((item) => item.querySelector('a[href="/social.html"]'));
+    assert.ok(Boolean(row) && textOf(row).includes(PURPOSE), `${file}: the painted directory's Social row`);
+    assert.equal(shownText(document, "site-footer-topic-note"), TOPIC_LINE, `${file}: the painted follow-up topic line`);
+    assert.ok(TOPIC_LINE.includes(PHRASE));
+    assert.equal(textOf(document.documentElement).includes(RETIRED), false, `${file} paints "${RETIRED}"`);
+  };
+
+  const social = await loadPage(pageUrl("social.html"), {
+    routes: { "/social-demo-data.json": { posts: [] }, "/api/social-posts?limit=100": { posts: [] } },
+  });
+  // The feed polls on a timer that would outlast the test.
+  const timers = [];
+  const realSetInterval = globalThis.setInterval;
+  globalThis.setInterval = (...args) => {
+    const handle = realSetInterval(...args);
+    timers.push(handle);
+    return handle;
+  };
+  try {
+    await importPageModule("/social-page.js");
+    await importPageModule("/site-footer-page.js");
+    const { document } = social;
+    await waitFor(() => document.documentElement.dataset.shiplogSocial === "ready", "Social finished its first load");
+    assert.match(textOf(document.querySelector(".social-feed-intro")),
+      /^Social is a shared feed of short posts about shipped work, images optional\. Open People when you want the image posts published under one display name instead\./);
+    assert.ok(document.querySelector('meta[name="description"]').getAttribute("content").includes(`about ${PHRASE}, images optional`));
+    paintedFooter(document, "social.html");
+  } finally {
+    globalThis.setInterval = realSetInterval;
+    for (const handle of timers) clearInterval(handle);
+    social.restore();
+  }
+
+  const post = await loadPage(pageUrl("post.html"), { location: { search: "?id=p-image" } });
+  try {
+    globalThis.fetch = async (url) => {
+      if (String(url) !== "/social-demo-data.json") throw new Error(`Unexpected request: ${url}`);
+      return { ok: true, status: 200, json: async () => ({ posts: [{
+        id: "p-image", author: "Mina Okafor", body: "Focus rings landed everywhere.", caption: "The middle card, ringed.",
+        createdAt: "2026-07-14T09:00:00.000Z", likes: 3, comments: 1,
+        image: { src: "/media/focus-ring.svg", alt: "A card wrapped in a blue focus ring", width: 1200, height: 900 },
+      }] }) };
+    };
+    await importPageModule("/post-page.js");
+    await importPageModule("/site-footer-page.js");
+    await waitFor(() => post.document.documentElement.dataset.shiplogPostDetail === "ready", "the post page settled");
+    paintedFooter(post.document, "post.html");
+  } finally {
+    post.restore();
   }
 });
 
