@@ -711,7 +711,7 @@ test("one name per concept: the example, the grade button, and the clear button"
 
   // The clear control is referred to by its own label wherever copy points at
   // it, rather than by a name for the region it clears.
-  assert.equal(textOf(byId(document, "prompt-coaching-clear")), "Clear and start over");
+  assert.equal(textOf(byId(document, "prompt-coaching-clear")), "Clear prompt and results");
   assert.doesNotMatch(text, /clear the panel/i);
 
   // And a result that points at a control names it by what a reader sees on the
