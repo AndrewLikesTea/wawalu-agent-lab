@@ -319,7 +319,7 @@ test("the home page names every nav destination and says what each one does", as
   // family the nav does name on its own terms, and this heading is that name
   // character for character rather than a second wording for the same thing.
   const headings = [...guide.querySelectorAll("h3")];
-  assert.deepEqual(headings.map(textOf), ["The Shiplog product", "Browser tools", "Demos, sample data"],
+  assert.deepEqual(headings.map(textOf), ["The Shiplog product", "Browser tools", "Demos"],
     "the destinations must be split into product, browser tools, and demonstrations, in that order");
   assert.equal(textOf(headings[2]), NAV_SETS[1].label,
     "the demonstration group must keep the nav's name for that family, word for word");
