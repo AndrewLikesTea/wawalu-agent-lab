@@ -49,8 +49,8 @@ const TEXT_POST = {
 // The headline each state puts on screen. Whichever one is active, the other
 // three of these must not appear anywhere in the page's text.
 const STATE_HEADLINES = {
-  loading: "The public shared post is loading.",
-  loaded: "Mina Okafor's shared post",
+  loading: "The post is loading.",
+  loaded: "Mina Okafor's post",
   "not-found": "Post unavailable",
   error: "Post could not be opened",
 };
@@ -390,7 +390,7 @@ test("retry re-attempts the fetch and can take the page from error to loaded", a
     assert.ok(page.requests.length > attempts, "the retry must re-run the fetch, not redraw the last answer");
     // error → loaded, with nothing of the failure left standing.
     assertOneState(page, "loaded", "after a retry that worked");
-    assert.equal(textOf(page.document.querySelector("#page-title")), "Mina Okafor's shared post");
+    assert.equal(textOf(page.document.querySelector("#page-title")), "Mina Okafor's post");
     assert.equal(page.panel.getAttribute("aria-busy"), "false");
   } finally {
     page.restore();
@@ -643,7 +643,7 @@ const DATA_SENTENCE = "Posts use no customer or production data.";
 // context about the page, not about this post — which is also why it holds in
 // the states where the lookup found nothing — so it reads after the post
 // rather than in front of it.
-const CONTEXT_SENTENCE = "Shared posts may be invented demos or real, public posts published by visitors.";
+const CONTEXT_SENTENCE = "The posts already on Social are invented to demonstrate Shiplog; a post a visitor publishes is real.";
 
 test("the words of a route out never change, and the post provenance survives every state", async () => {
   const cases = [
@@ -879,7 +879,7 @@ test("every state the page can reach puts exactly one of the four on screen", as
     assert.equal(panel.getAttribute("aria-busy"), "true");
     // The wait carries visible words, not a bare spinner: the dot is aria-hidden
     // decoration and the sentence is the state.
-    assert.equal(textOf(panel.querySelector(".detail-loading-text")), "The public shared post is loading.");
+    assert.equal(textOf(panel.querySelector(".detail-loading-text")), "The post is loading.");
     assert.equal(panel.querySelector(".detail-loading-dot").getAttribute("aria-hidden"), "true");
 
     release();
@@ -912,7 +912,7 @@ test("every state the page can reach puts exactly one of the four on screen", as
 // an icon to be understood. Asserted on text with every class name ignored.
 test("all four states carry a visible text label, not colour alone", async () => {
   const labels = {
-    loading: /The public shared post is loading\./,
+    loading: /The post is loading\./,
     loaded: /Rowan Diaz/,
     "not-found": /Post unavailable/,
     error: /Post could not be opened/,
@@ -1104,7 +1104,7 @@ test("a permalink built the old way still resolves to the same post", async () =
     try {
       assertOneState(page, "loaded", `a permalink at ${search}`);
       assert.equal(textOf(page.panel.querySelector(".detail-author-link")), IMAGE_POST.author);
-      assert.equal(textOf(page.document.querySelector("#page-title")), `${IMAGE_POST.author}'s shared post`);
+      assert.equal(textOf(page.document.querySelector("#page-title")), `${IMAGE_POST.author}'s post`);
       assert.equal(textOf(page.panel.querySelector("figcaption")), IMAGE_POST.caption);
     } finally {
       page.restore();
@@ -1127,6 +1127,14 @@ test("a permalink built the old way still resolves to the same post", async () =
 // Assembled from parts so this file can name the retired line without becoming
 // the place it survives.
 const RETIRED_WAIT = ["Shiplog is opening a single", "shared post from Social…"].join(" ");
+// The page's second name and the wordings that came with it (#2283). The page is
+// "Post", the noun on the Open post control that leads here.
+const RETIRED_NAMES = [
+  ["Shared", "post"].join(" "),
+  ["public shared", "post"].join(" "),
+  ["invented", "demos"].join(" "),
+  ["A shared link opens", "one post"].join(" "),
+];
 const times = (haystack, needle) => haystack.split(needle).length - 1;
 
 // Every file the site ships, not just the two that carried the old wait: a
@@ -1139,10 +1147,13 @@ async function shippedSources() {
   return Promise.all(wanted.map(async (name) => [`src/${name}`, await readFile(new URL(name, root), "utf8")]));
 }
 
-test("the shared-post page introduces itself once, answering what a cold visitor cannot know", async () => {
+test("the post page introduces itself once, answering what a cold visitor cannot know", async () => {
   const sources = new Map(await shippedSources());
   for (const [name, source] of sources) {
     assert.equal(times(source, RETIRED_WAIT), 0, `${name} still ships the retired wait`);
+    for (const retired of RETIRED_NAMES) {
+      assert.equal(times(source, retired), 0, `${name} still ships "${retired}"`);
+    }
   }
 
   // The two feed waits name what is loading and the next publishing step. The
@@ -1163,9 +1174,9 @@ test("the shared-post page introduces itself once, answering what a cold visitor
     await waitFor(() => panel.querySelectorAll(".detail-loading").length === 1, "the loading state rendered");
 
     const wait = textOf(panel.querySelector(".detail-loading-text"));
-    assert.equal(wait, "The public shared post is loading.");
-    assert.match(wait, /^The public shared post is loading/,
-      "the wait names the public shared post and says it is loading");
+    assert.equal(wait, "The post is loading.");
+    assert.doesNotMatch(wait, /public|shared/,
+      "the wait names the post by the page's one name and nothing else");
     assertSaidOnce(waiting.document, "while the lookup runs");
 
     release();
@@ -1196,11 +1207,12 @@ test("the shared-post page introduces itself once, answering what a cold visitor
 function assertSaidOnce(document, where) {
   const main = textOf(document.querySelector("#main-content"));
   assert.equal(times(main, RETIRED_WAIT), 0, `${where}: the retired wait is back on the page`);
-  assert.equal(times(main, CONTEXT_SENTENCE), 1, `${where}: what a shared link opens is said ${times(main, CONTEXT_SENTENCE)} times`);
+  assert.equal(times(main, CONTEXT_SENTENCE), 1, `${where}: the provenance is said ${times(main, CONTEXT_SENTENCE)} times`);
   assert.equal(times(main, DATA_SENTENCE), 1, `${where}: the data boundary is said ${times(main, DATA_SENTENCE)} times`);
   // And no second wording of the same fact anywhere in the page's content: one
-  // mention of a post coming from Social, the one in the sentence above.
-  assert.equal(times(main, "invented demo"), 1, `${where}: invented provenance is said a second way`);
+  // mention of invented posts, the one in the sentence above. The display-name
+  // sentence a loaded post adds is a different fact and is not counted.
+  assert.equal(times(main, "invented to demonstrate"), 1, `${where}: invented provenance is said a second way`);
   // The claim this page must not make, in any wording: that a shared link is
   // demo content by virtue of being a shared link. A reader forwarded a post a
   // visitor published is one of the readers this page has to be true for, so
@@ -1215,21 +1227,16 @@ function assertSaidOnce(document, where) {
 
 /* ------------- what the page is, before it says it is loading ------------- */
 
-// A stranger reaches this page from a link pasted somewhere else, so it is the
-// one surface on the site that gets no run-up: no nav they chose, no page they
-// came from. It used to read eyebrow, heading, then straight into "The public
-// shared post is loading." — a page saying it was busy before it had said what
-// it was. This is the sentence that answers the question the loading line
-// assumes has already been answered, and it stands above that line.
+// A reader reaches this page two ways: by selecting Open post on Social or
+// People, or from a link somebody sent. It used to read eyebrow, heading, then
+// straight into the loading line — a page saying it was busy before it had said
+// what it was. This is the sentence that answers that, and it stands above the
+// loading line.
 //
-// It is the only place on this page the reader is told what Social is, so it
-// says it in Social's own words rather than in a second description invented
-// here. The clause after the comma is the predicate of the intro paragraph in
-// /social.html's hero, so the two pages describe one thing one way.
-const LEAD_SENTENCE = "A shared link opens one post from Social, a shared feed of short posts about what the team ships, images optional.";
-// Lifted, not paraphrased: the same words, checked against the page they came
-// from, so the two cannot drift into two names for one feed.
-const SOCIAL_PREDICATE = "a shared feed of short posts about what the team ships, images optional.";
+// It has to be true for both readers and in all four states, so it says what
+// the page is for rather than what it shows, and it names what this page gives
+// that a card does not: an address that links to this one post.
+const LEAD_SENTENCE = "This page is for one post from Social; its address links to that post alone, so you can copy it to share the post.";
 
 // Where the lead has to be, in every state: after the heading, before the
 // region that carries the loading line, and outside that region — which is what
@@ -1258,7 +1265,7 @@ function assertLeadReads(document, where) {
   assert.ok(found[0].closest(".hero-post"), `${where}: the lead must sit in the hero beside the heading`);
 }
 
-test("the shared post page says what it is before it says it is loading", async () => {
+test("the post page says what it is before it says it is loading", async () => {
   const html = await readFile(new URL("../src/post.html", import.meta.url), "utf8");
   // Shipped in the markup, so it is on screen at first paint — before this
   // page's script has been fetched, and for a reader whose script never runs.
@@ -1277,14 +1284,20 @@ test("the shared post page says what it is before it says it is loading", async 
   assert.equal(LEAD_SENTENCE.split(/[.!?]/).filter((part) => part.trim()).length, 1, "one sentence, not two");
   assert.ok(LEAD_SENTENCE.split(/\s+/).length <= 25, "the lead stays at 25 words or fewer");
 
-  // Social's own vocabulary, read from Social's own page: one name per concept.
-  const social = await readFile(new URL("../src/social.html", import.meta.url), "utf8");
-  assert.ok(social.includes(SOCIAL_PREDICATE), "Social must still describe itself in the words this lead borrows");
-  assert.ok(LEAD_SENTENCE.endsWith(SOCIAL_PREDICATE), "the lead must describe Social in Social's own words");
-  // Borrowed, not pasted: Social's paragraph opens by naming itself as its
-  // subject, and this page has already named Social in its eyebrow.
+  // True for a reader who selected Open post as much as for one who was sent a
+  // link: it names the address, not a "shared link" only one of them followed.
+  assert.doesNotMatch(LEAD_SENTENCE, /shared link/i, "the lead only fits a reader who was sent a link");
+  assert.match(LEAD_SENTENCE, /address links to that post alone/, "the lead must say the address is this post's own");
   assert.equal(content.includes("Social is a shared feed of short posts"), false,
     "the permalink must not restate Social's whole intro sentence");
+
+  // Social's provenance sentence, with the only two words a one-post page cannot
+  // say: "on Social" for "here", and "a visitor" for "you".
+  const social = await readFile(new URL("../src/social.html", import.meta.url), "utf8");
+  assert.ok(social.includes("The posts already here are invented to demonstrate Shiplog; a post you publish is real."),
+    "Social no longer says the provenance sentence this page follows");
+  assert.equal(CONTEXT_SENTENCE.replace("on Social", "here").replace("a visitor publishes", "you publish"),
+    "The posts already here are invented to demonstrate Shiplog; a post you publish is real.");
 
   // The four strings this page already owns are untouched, byte for byte.
   assert.ok(html.includes(`<span class="detail-loading-text">${STATE_HEADLINES.loading}</span>`), "the loading line is unchanged");

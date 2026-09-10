@@ -224,7 +224,7 @@ test("a first-time visitor lands on a display name that has image posts", async 
     // rather than telling a reader to "select a post" and leaving them to guess
     // what part of one is selectable.
     assert.match(textOf(document.querySelectorAll(".profile-lede")[1]),
-      /Select Open post to read a post in full\./);
+      /Select Open post to see a post on its own page, with a link you can share\./);
     // What a reader who scrolled straight to the grid meets: the heading counts
     // image posts, the eyebrow above it orders them. Neither repeats the other.
     const panelHeading = document.querySelector(".list-heading");

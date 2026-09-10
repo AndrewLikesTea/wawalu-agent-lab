@@ -3,8 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="A shared post from Shiplog Social" />
-    <title>Shared post · Social · Shiplog</title>
+    <meta name="description" content="A post from Shiplog Social" />
+    <title>Post · Social · Shiplog</title>
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
@@ -43,8 +43,8 @@
         <!-- The surface this post came out of, and nothing else. /social.html
              reads "Social · demo" and /profile.html reads "People · demo"
              because each of those is a demo feed a visitor chose to open. This
-             page is not: a shared link can open an invented demo post or a real,
-             public post a visitor published, and this eyebrow paints before the
+             page is not: its address can open a post invented to demonstrate
+             Shiplog or a real post a visitor published, and this eyebrow paints before the
              lookup has read either. So it names the surface and classifies
              nothing; the sentence under the post region states both
              provenances once, honestly, for the page.
@@ -55,39 +55,22 @@
              for a forwarded link to a post a visitor really published. Both
              went. -->
         <p class="eyebrow">Social</p>
-        <!-- What ships is what post-page.js writes while the lookup runs, and
-             what it leaves standing when there is no display name to name: the
-             page, not the bare word "Post". A loaded post renames it after the
-             display name it was published under. -->
-        <h1 id="page-title">Shared post</h1>
+        <!-- The page's name is the noun in "Open post", the control on every
+             Social card and People tile that leads here. It used to be "Shared
+             post", a second name for the same page that only fit a reader who
+             arrived from a link someone sent. post-page.js writes the same word
+             while the lookup runs and when there is no display name, and a
+             loaded post renames it after the display name it was published
+             under. -->
+        <h1 id="page-title">Post</h1>
 
-        <!-- What the reader is looking at, before the page says it is busy.
-             This is the one surface a stranger meets first, forwarded from
-             outside, and it used to go from the heading straight into "The
-             public shared post is loading." — a page announcing that it is
-             working before it had said what it is. Every other page on the site
-             describes itself first.
-
-             It names the surface in Social's own words: the clause after the
-             comma is lifted from the intro paragraph in the hero of
-             /social.html, so a reader who follows the route out at the foot of
-             this page meets the same description of the same thing rather than
-             a second one written for here. Lifted, not quoted whole — the
-             opening of that paragraph names Social as its subject, and a page
-             that has already said Social in its eyebrow, its heading's tab
-             title and this sentence does not need it a fourth time.
-
-             The subject is the shared link, not the panel below. "This page
-             shows one post" would be a claim about something on screen, and
-             this sentence outlives the two states where nothing is: not-found
-             and error have no post for it to be about. What a shared link opens
-             is true in all four states, which is what lets the sentence stand
-             in the hero rather than inside the region every render empties.
-
-             It says what the page is; the sentence under the post says what a
-             shared post may be. Neither repeats the other, and both ship in the
-             markup so a reader whose script never runs still gets them. -->
-        <p>A shared link opens one post from Social, a shared feed of short posts about what the team ships, images optional.</p>
+        <!-- What the page is, before it says it is busy, for both readers it
+             has: one who selected Open post and one who followed a link someone
+             sent. It says the page is for one post rather than that it shows
+             one, because not-found and error have no post on screen, and it
+             names the address as the thing to share. It ships in the markup so
+             a reader whose script never runs still gets it. -->
+        <p>This page is for one post from Social; its address links to that post alone, so you can copy it to share the post.</p>
 
         <!-- The post itself, directly under the heading that names it and above
              everything the page says about the surface it came from.
@@ -137,32 +120,21 @@
                  is hidden from assistive technology, which is told the sentence
                  rather than the shape of a post that has not arrived. -->
             <div id="post-detail" data-post-state="loading" aria-busy="true" role="status" aria-live="polite" aria-atomic="true">
-              <div class="detail-loading detail-state-panel" data-post-state-panel="loading"><p class="detail-loading-line"><span class="detail-loading-dot" aria-hidden="true"></span><span class="detail-loading-text">The public shared post is loading.</span></p><article class="detail-skeleton detail-post" aria-hidden="true" inert><div class="detail-skeleton-metadata" data-post-skeleton-slot="author-metadata"><span class="skeleton-line skeleton-line-short"></span><span class="skeleton-line skeleton-line-short"></span></div><div class="detail-caption" data-post-skeleton-slot="caption"><span class="skeleton-line"></span><span class="skeleton-line"></span></div><figure class="detail-figure" data-post-skeleton-slot="optional-image"><div class="skeleton-media"></div></figure></article></div>
+              <div class="detail-loading detail-state-panel" data-post-state-panel="loading"><p class="detail-loading-line"><span class="detail-loading-dot" aria-hidden="true"></span><span class="detail-loading-text">The post is loading.</span></p><article class="detail-skeleton detail-post" aria-hidden="true" inert><div class="detail-skeleton-metadata" data-post-skeleton-slot="author-metadata"><span class="skeleton-line skeleton-line-short"></span><span class="skeleton-line skeleton-line-short"></span></div><div class="detail-caption" data-post-skeleton-slot="caption"><span class="skeleton-line"></span><span class="skeleton-line"></span></div><figure class="detail-figure" data-post-skeleton-slot="optional-image"><div class="skeleton-media"></div></figure></article></div>
             </div>
           </div>
         </section>
 
-        <!-- Standing copy: it sits in the frame, not in #post-detail, so a
-             visitor who arrived from a shared link is told what this page is
-             whatever the lookup did — while it runs, and still if it never
-             finds a post. It reads after the post rather than before it: a
-             reader who followed a shared link already knows they wanted this
-             post, and what the page is only becomes a question once they have
-             read it. The heading above is rewritten by JS; this sentence is
-             not.
+        <!-- Standing copy: it sits in the frame, not in #post-detail, so it
+             holds whatever the lookup did, and no script rewrites it. It reads
+             after the post rather than before it.
 
-             It describes the link, not the panel. "This is one post from…"
-             would be a claim about something on screen, and this sentence
-             outlives the two states where nothing is: not-found and error have
-             no post for it to be about. Saying what a shared link opens is true
-             in all four states, and it is the fact a cold visitor is missing —
-             that they are on a one-post page and the rest is a feed away.
-
-             It names both provenances because a shared link can carry either.
-             A visitor who lands here may never open /social.html, and one who
-             was forwarded a post a visitor published must not be told that
-             every shared link opens invented demo content. -->
-        <p>Shared posts may be invented demos or real, public posts published by visitors.</p>
+             Social's own provenance sentence, with the two words this page
+             cannot say: there is no "here" feed on a one-post page, and the
+             reader may be looking at a post somebody else published, so "you"
+             becomes "a visitor". A reader forwarded a real post must not be told
+             every post on Social was invented. -->
+        <p>The posts already on Social are invented to demonstrate Shiplog; a post a visitor publishes is real.</p>
         <!-- The data boundary, kept as its own sentence: it holds whichever of
              the two provenances above this particular link turned out to open. -->
         <p>Posts use no customer or production data.</p>
