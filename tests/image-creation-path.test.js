@@ -386,9 +386,7 @@ test("the composer numbers the round trip and puts the rule beside the control",
   const items = steps.querySelectorAll("li");
   assert.deepEqual(items.map(textOf), [
     "Create or open an image in Paint (opens in a new tab) ↗",
-    "Export it as a PNG, then select that PNG using “Choose image” above",
-    "Fill in the required image description",
-    "Publish post",
+    "Export it as a PNG, then select that PNG using “Choose image”",
   ]);
   assert.equal(textOf(documents.Social.querySelector("body")).split("Select Choose image").length - 1, 0,
     "the composer still instructs the reader to select the button beside the instruction");
@@ -413,7 +411,9 @@ test("the composer numbers the round trip and puts the rule beside the control",
     "the refusal for a rejected file is not the element next to Choose image");
   assert.equal(blocks.indexOf(hint), blocks.indexOf(refusal) + 1,
     "the format and size rule is not the element next to Choose image");
-  assert.ok(blocks.indexOf(hint) < blocks.indexOf(steps), "the rule reads after the steps again");
+  // #2294: the Paint steps are taken before a file is chosen, so they read
+  // before the picker and the rule beside it.
+  assert.ok(blocks.indexOf(steps) < blocks.indexOf(control.parentNode), "the Paint steps read after Choose image again");
   assert.equal(items.filter((item) => /512 KB|WebP/.test(textOf(item))).length, 0,
     "the rule is back inside the step list");
 
@@ -464,9 +464,9 @@ test("the numbered Paint step keeps its new-tab words and its external indicatio
   assert.equal(textOf(first), textOf(link));
 });
 
-// (d) The numbered list and the relocated rule are text, so the keyboard walks
-// the composer in exactly the order it did before #1818.
-test("the composer's focusable sequence is unchanged by the numbered steps", async () => {
+// (d) The numbered list and the relocated rule are text, so the only stop they
+// add is the Paint link, which comes before Choose image since #2294.
+test("the composer's focusable sequence takes the Paint step before Choose image", async () => {
   const page = await loadPage(PAGES.Social);
   try {
     page.document.getElementById("post-compose-panel").hidden = false;
@@ -479,8 +479,8 @@ test("the composer's focusable sequence is unchanged by the numbered steps", asy
     const named = stops.map((node) => node.getAttribute("id") ?? textOf(node));
     assert.deepEqual(named, [
       "post-body",
-      "post-image",
       "Create or open an image in Paint (opens in a new tab) ↗",
+      "post-image",
       "remove-image",
       "post-image-alt",
       "post-author",
@@ -513,16 +513,12 @@ test("the composer names the round trip in the order it is taken, once", () => {
   };
   assert.ok(at("Create or open an image in Paint") < at("Export it as a PNG"),
     "the composer asks for the export before the drawing");
-  assert.ok(at("Export it as a PNG") < at("select that PNG using “Choose image” above"),
+  assert.ok(at("Export it as a PNG") < at("select that PNG using “Choose image”"),
     "the composer asks for the file before it has been exported");
-  assert.ok(at("select that PNG using “Choose image” above") < at("Publish post"),
-    "the composer asks the visitor to publish before selecting the file");
-  // #2170: the description is a step, in the place it is actually taken —
-  // after the file it describes exists, before the publishing it blocks.
-  assert.ok(at("select that PNG using “Choose image” above") < at("Fill in the required image description"),
-    "the composer asks for the description before there is an image to describe");
-  assert.ok(at("Fill in the required image description") < at("Publish post"),
-    "the composer asks the visitor to publish before writing the description publishing requires");
+  // #2294: the list ends on the picker it leads into and no longer points back
+  // "above" at it. Describing the image and publishing it are said at the
+  // description field and beside Publish post, where they happen.
+  assert.doesNotMatch(steps, /\babove\b/, "the steps send the reader back up the form");
   // The sequence identifies the picker by its rendered label.
   assert.match(steps, /Choose image/,
     "the steps must name the image control");
@@ -568,17 +564,20 @@ test("the image section holds exactly one step list, and it is the Paint one", (
   }
 });
 
-test("the sequence names the image picker and ends with publishing", () => {
+test("the sequence names the image picker and leaves publishing to the button", () => {
   const items = documents.Social.getElementById("post-image-steps").querySelectorAll("li");
   const last = textOf(items[items.length - 1]);
 
-  // The sequence names the exported file and the exact rendered control labels.
+  // The sequence names the exported file and the exact rendered control label,
+  // and ends on that control (#2294): "Publish post" is said once, by the
+  // button, not in a list read before the fields it follows.
   const label = textOf(documents.Social.querySelector('label[for="post-image"]'));
   assert.equal(label, "Choose image");
-  assert.ok(textOf(items[1]).includes(label));
-  assert.match(textOf(items[1]), /that PNG using “Choose image” above/);
-  assert.equal(last, "Publish post");
-  assert.equal(textOf(documents.Social.querySelector('button[type="submit"]')), last);
+  assert.ok(last.includes(label));
+  assert.equal(last, "Export it as a PNG, then select that PNG using “Choose image”");
+  assert.doesNotMatch(textOf(documents.Social.getElementById("post-image-steps")), /Publish/,
+    "the steps name the publish press ahead of the fields again");
+  assert.equal(textOf(documents.Social.querySelector('button[type="submit"]')), "Publish post");
   assert.doesNotMatch(textOf(documents.Social.querySelector("body")), /Publish your post/);
 
   // It is prose in the list, not a second route to the same control: the tab
@@ -641,37 +640,30 @@ test("the description requirement is stated once, at the field it is about", () 
   assert.match(sources.Social, /<p class="hint" id="post-image-alt-requirement">/);
 });
 
-// #2170: the step list walked a visitor to the publish step and let them press
-// it, because it never mentioned the one field the composer refuses a post over.
-// The step names the act; the rule beside the field still owns the consequence.
-test("the step list names the description as a step, in Social's own term, once", () => {
-  const items = documents.Social.getElementById("post-image-steps").querySelectorAll("li")
-    .map(textOf);
-  const step = "Fill in the required image description";
-  assert.equal(items.filter((item) => item === step).length, 1,
-    `the step list states the description step ${items.filter((item) => item === step).length} times: ${items.join(" | ")}`);
-  assert.equal(items.indexOf(step), items.length - 2,
-    "the description step is not the step before publishing");
-
-  // Social's term for the field, the one People borrows: not a second name for
-  // it, and not the label of a control the reader has to hunt for.
+// #2170 put the description in the step list, ahead of the publish it blocks.
+// #2294 moves it to that press: a list read before Choose image named a field
+// and a button the reader had not reached. src/social.js writes the step beside
+// Publish post while an image waits on one; the keyboard test pins that half.
+test("the description step is said beside Publish post, not in the step list", () => {
   const steps = textOf(documents.Social.getElementById("post-image-steps"));
-  assert.doesNotMatch(steps, /caption|alt text/i,
-    "the step list invents a second name for the image description");
+  assert.doesNotMatch(steps, /image description|caption|alt text/i,
+    "the step list names the description field again, ahead of the picker");
   assert.ok(textOf(documents.Social.querySelector('label[for="post-image-alt"]'))
     .toLowerCase().startsWith("image description"),
-    "the step no longer uses the field's own label words");
+    "the field no longer uses its own label words");
 
-  // The consequence is still stated exactly once, at the field, and the step
-  // does not carry a copy of it up here where there is nothing to fill in yet.
+  // The slot ships empty and hidden, immediately before the button it is about.
+  const reason = documents.Social.getElementById("post-publish-reason");
+  assert.equal(textOf(reason), "", "the missing-step slot ships with words in it");
+  assert.notEqual(reason.getAttribute("hidden"), null, "the missing-step slot ships visible");
+  const siblings = documents.Social.getElementById("post-form").children
+    .filter((node) => node.dataset).map((node) => node.getAttribute("id"));
+  assert.equal(siblings[siblings.indexOf("post-submit") - 1], "post-publish-reason");
+
+  // The consequence is still stated exactly once, at the field.
   assert.equal(sources.Social.split(ALT_REQUIREMENT).length - 1, 1);
   assert.equal(steps.split("will not publish until").length - 1, 0,
     "the step list restates the rule the field already carries");
-  // Prose, not a second route to the field: the list still contributes the one
-  // tab stop the Paint link has always been.
-  const item = documents.Social.getElementById("post-image-steps").querySelectorAll("li")[items.indexOf(step)];
-  assert.equal(item.querySelectorAll("a,button,input").length, 0,
-    "the description step grew a focusable element");
 });
 
 test("with no image chosen, nothing in the composer describes the Image description field", async () => {
@@ -779,17 +771,17 @@ test("the steps are the image field's own description, so focusing it reads them
   const input = documents.Social.getElementById("post-image");
   const described = (input.getAttribute("aria-describedby") ?? "").split(/\s+/);
   assert.ok(described.includes("post-image-steps"), "Choose image is not described by the steps");
-  // The mechanism the other fields already use, and the order it is read in —
-  // the same order the eye meets it in since #1818: the file constraint standing
-  // beside the control, then the round trip, then the live status.
+  // The mechanism the other fields already use. The file constraint that binds
+  // the focused control is read first, then the round trip that led to it
+  // (above it since #2294), then the live status.
   assert.deepEqual(described, ["post-image-hint", "post-image-steps", "post-media-status"]);
 });
 
-test("the composer's Paint link sits between Choose image and Image description", async () => {
+test("the composer's Paint link comes before Choose image and Image description", async () => {
   // Source order, which is what the task is: no tabindex anywhere near it.
   const html = sources.Social;
-  assert.ok(html.indexOf('id="post-image"') < html.indexOf('class="secondary-button paint-link"'));
-  assert.ok(html.indexOf('class="secondary-button paint-link"') < html.indexOf('id="post-image-alt"'));
+  assert.ok(html.indexOf('class="secondary-button paint-link"') < html.indexOf('id="post-image"'));
+  assert.ok(html.indexOf('id="post-image"') < html.indexOf('id="post-image-alt"'));
   assert.ok(!composerPaintLink().getAttribute("tabindex"), "the order is faked with tabindex");
 
   // And the sequence a keyboard actually walks, with the media panel open —
@@ -803,8 +795,8 @@ test("the composer's Paint link sits between Choose image and Image description"
     const paint = sequence.indexOf(page.document.querySelector("#post-image-steps").querySelector("a"));
     assert.ok(at("post-image") >= 0 && paint >= 0 && at("post-image-alt") >= 0,
       "one of the composer's image controls is not keyboard reachable");
-    assert.ok(at("post-image") < paint, "the Paint link comes before Choose image");
-    assert.ok(paint < at("post-image-alt"), "the Paint link comes after Image description");
+    assert.ok(paint < at("post-image"), "the Paint link comes after Choose image");
+    assert.ok(at("post-image") < at("post-image-alt"), "Choose image comes after Image description");
   } finally {
     page.restore();
   }

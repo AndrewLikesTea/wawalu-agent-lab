@@ -221,8 +221,7 @@ test("the image field states the formats and the size exactly once, in plain sen
   // remains declared in the link's own text.
   assert.equal(textOf(steps),
     "Create or open an image in Paint (opens in a new tab) ↗"
-    + " Export it as a PNG, then select that PNG using “Choose image” above"
-    + " Fill in the required image description Publish post");
+    + " Export it as a PNG, then select that PNG using “Choose image”");
   const paint = steps.querySelector("a");
   assert.equal(paint.getAttribute("href"), "/paint/");
   assert.equal(paint.getAttribute("target"), "_blank");
@@ -340,4 +339,25 @@ test("the rejected-file message is the next thing after the control that took th
   assert.equal(document.querySelector("#post-image-error").hidden, true);
   assert.equal(textOf(document.querySelector("#post-image-error")), "");
   assert.equal(document.querySelectorAll("#post-image-error").length, 1);
+});
+
+// #2294, through the shipped wiring. Focus starts on the post, not on Choose
+// image, so a focus() call anywhere on the accepted-file path shows up here.
+test("choosing an image moves no focus, and Remove image returns it to Choose image", async (t) => {
+  const { document } = await openComposer(t);
+  const submitDescribedBy = () => document.querySelector("#post-submit").getAttribute("aria-describedby") ?? "";
+  document.querySelector("#post-body").focus();
+
+  await chooseValid(t, document, { name: "ring.png", type: "image/png", size: 4_000 });
+
+  assert.equal(document.activeElement?.id, "post-body", "choosing an image moved focus");
+  // The image is here and undescribed, so Publish post names the missing step.
+  assert.equal(submitDescribedBy().split(/\s+/).includes("post-publish-reason"), true);
+
+  document.querySelector("#post-image-alt").focus();
+  document.querySelector("#remove-image").click();
+
+  assert.equal(document.querySelector("#compose-media").hidden, true);
+  assert.equal(document.activeElement?.id, "post-image", "Remove image did not return focus to Choose image");
+  assert.equal(submitDescribedBy().split(/\s+/).includes("post-publish-reason"), false);
 });
