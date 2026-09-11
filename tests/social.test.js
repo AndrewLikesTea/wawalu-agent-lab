@@ -1633,13 +1633,11 @@ test("with the composer open, one control reads Publish a post and the submit re
   assert.equal(publishing.filter((node) => textOf(node) === "Publish a post").length, 1,
     "exactly one control may read Publish a post: the one that opens the composer");
 
-  // #2252: the instruction that sends a reader to that press says the button's
-  // own words, so the Paint sequence and the control it ends on cannot drift
-  // into two names for one act. Read here, with the panel actually open, and
-  // not only off the shipped markup.
-  const steps = id("post-image-steps").querySelectorAll("li");
-  assert.equal(textOf(steps[steps.length - 1]), textOf(id("post-submit")),
-    "the last Paint step names the publish control in words the control does not use");
+  // #2294: the Paint steps used to end on "Publish post", a press listed ahead
+  // of the fields it follows. The button is now the only thing in the open
+  // composer that names it.
+  const saying = id("post-image-steps").querySelectorAll("li").filter((item) => /Publish/.test(textOf(item)));
+  assert.equal(saying.length, 0, "the Paint steps name the publish press ahead of the fields again");
   assert.doesNotMatch(textOf(id("post-compose-panel")), /Publish this post/,
     "the composer carries a second name for the one press that publishes");
 
@@ -1666,11 +1664,13 @@ test("with the composer open, one control reads Publish a post and the submit re
     "the consequence moved below the button that costs it");
   // Immediately above it: the only thing the rename may not have pushed between
   // the two sentences and the press they are about is the refusal slot, which
-  // ships empty and hidden.
+  // ships empty and hidden, and the missing-step slot (#2294), which does too
+  // until an image waits on a description.
   assert.deepEqual(siblings.slice(siblings.indexOf("post-consequence") + 1, siblings.indexOf("post-submit")),
-    ["post-publish-blocker"],
+    ["post-publish-blocker", "post-publish-reason"],
     "something now renders between the publish consequence and the button it is about");
   assert.equal(id("post-publish-blocker").hidden, true);
+  assert.equal(id("post-publish-reason").hidden, true);
   assert.equal(textOf(id("post-consequence")), PUBLISH_CONSEQUENCE,
     "the consequence beside the renamed button was rewritten");
   assert.match(textOf(id("post-consequence")), /^Anyone who visits Shiplog can read your post/);

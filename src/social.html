@@ -443,6 +443,17 @@
 
             <fieldset class="media-picker">
               <legend>Image <span class="label-optional">(optional)</span></legend>
+              <!-- The Paint round trip comes before Choose image because it is
+                   done first (#2294). It used to follow the picker and say
+                   "above", so a reader who took it in order tabbed back up the
+                   form. It ends at the picker: describing the image and
+                   publishing are said at the description field and beside
+                   Publish post, where they happen. The input's aria-describedby
+                   still names these steps. -->
+              <ol class="hint" id="post-image-steps">
+                <li><a class="secondary-button paint-link" href="/paint/" target="_blank" rel="noopener">Create or open an image in Paint <span class="new-tab-note">(opens in a new tab)</span> <span aria-hidden="true">↗</span></a></li>
+                <li>Export it as a PNG, then select that PNG using “Choose image”</li>
+              </ol>
               <div class="media-source-actions">
                 <label class="secondary-button file-button" for="post-image">Choose image
                   <input id="post-image" name="image" type="file"
@@ -475,26 +486,6 @@
                    file has actually been chosen. -->
               <p class="hint" id="post-image-hint"><span class="detail-state-chip">PNG, JPEG, GIF, or WebP up to 512 KB</span> Reduce or re-export a larger image before you choose it.</p>
               <p class="media-status" id="post-media-status" role="status" aria-live="polite" aria-atomic="true"></p>
-              <!-- One ordered sequence carries the complete Paint-to-post path:
-                   make or open the image, select its exported PNG here, write
-                   the description that image costs, then publish. The
-                   description step is the one this list used to leave out
-                   (#2170): a reader who took these steps in order reached the
-                   final one and was refused, because the composer will not
-                   publish a post that carries an image and no description. It
-                   names the field in Social's own term and in People's words
-                   for the same step, so the two routes into this form do not
-                   invent two names for one field. The rule itself still stands
-                   once, beside Image description, where it binds; this step
-                   only puts the act in the sequence. The file rule above and
-                   these steps are both named by the input's aria-describedby,
-                   in the order they appear. -->
-              <ol class="hint" id="post-image-steps">
-                <li><a class="secondary-button paint-link" href="/paint/" target="_blank" rel="noopener">Create or open an image in Paint <span class="new-tab-note">(opens in a new tab)</span> <span aria-hidden="true">↗</span></a></li>
-                <li>Export it as a PNG, then select that PNG using “Choose image” above</li>
-                <li>Fill in the required image description</li>
-                <li>Publish post</li>
-              </ol>
               <!-- The requirement moved to the field it is about (#1967). It
                    stood here, before the picker, and had to spend half a
                    sentence saying where the field it named would turn up — a
@@ -617,10 +608,14 @@
                  the name a visitor picked instead of the post they published. -->
             <p class="hint publish-consequence" id="post-consequence">Anyone who visits Shiplog can read your post, its image, and the display name you publish it with. You cannot edit or delete a post after you publish it, so post nothing you would not put on a public page.</p>
             <p class="field-error compose-error" id="post-publish-blocker" hidden></p>
+            <!-- Ships empty. src/social.js writes the one step Publish post is
+                 still waiting for here while a chosen image has no description,
+                 and names it on the button's aria-describedby only then (#2294). -->
+            <p class="hint" id="post-publish-reason" hidden></p>
             <!-- The only control on this page that makes a post public, and the
                  one name the rest of the site already gives that act: People's
-                 empty-state action, this form's own image-description refusal
-                 and the steps above all say "Publish post", so the button says
+                 empty-state action and this form's own image-description
+                 refusal both say "Publish post", so the button says
                  it too (#2252). It used to read "Publish this post" while three
                  strings named it "Publish post" — one press, named two ways, and
                  a reader who met the refusal had to work out which control it

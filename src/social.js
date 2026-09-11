@@ -817,11 +817,21 @@ export function renderPosts(container, posts, options = {}) {
 // The counter is the post field's counter — same counterState math, same
 // "Characters remaining:" wording, same near/over classes — pointed at a
 // different budget. There is deliberately no second mechanism.
+//
+// It also says what Publish post is still waiting for (#2294): while an image
+// is attached and this field is empty, the step is written beside the button
+// and named by its aria-describedby, and both go when either stops being true.
+// It describes the press and never disables it; the submit refusal is unchanged.
+export const PUBLISH_REASON_ID = "post-publish-reason";
+export const PUBLISH_REASON = "Fill in the required image description before you publish.";
+
 export function mountImageDescription(root) {
   const input = root.querySelector("#post-image-alt");
   const marker = root.querySelector("#post-image-alt-required");
   const errorNode = root.querySelector("#post-image-alt-error");
   const counter = root.querySelector("#post-image-alt-counter");
+  const submit = root.querySelector("#post-submit");
+  const reason = root.querySelector(`#${PUBLISH_REASON_ID}`);
   // The description the field carries when nothing is wrong. The error id is
   // added to it only while the error is showing: a hidden node named by
   // aria-describedby is still read, so leaving it there permanently would
@@ -858,14 +868,27 @@ export function mountImageDescription(root) {
     input.focus();
   };
 
+  // Token by token, so whatever else names Publish post is left in place.
+  const updateReason = () => {
+    if (!submit || !reason) return;
+    const waiting = attached && !String(input?.value ?? "").trim();
+    reason.textContent = waiting ? PUBLISH_REASON : "";
+    reason.hidden = !waiting;
+    const others = (submit.getAttribute("aria-describedby") ?? "").split(/\s+/)
+      .filter((token) => token && token !== PUBLISH_REASON_ID);
+    submit.setAttribute("aria-describedby", (waiting ? [PUBLISH_REASON_ID, ...others] : others).join(" "));
+  };
+
   input?.addEventListener("input", () => {
     updateCounter();
+    updateReason();
     // Clear the refusal the moment the reason for it is gone. A field that
     // stays marked invalid while it holds a valid value is a lie.
     if (input.getAttribute("aria-invalid") === "true" && !imageDescriptionProblem(input.value, { attached })) clearError();
   });
 
   updateCounter();
+  updateReason();
   return {
     // There is nothing to describe until an image is attached, so the marker
     // arrives with the image and leaves with it.
@@ -878,6 +901,7 @@ export function mountImageDescription(root) {
       input?.setAttribute("aria-required", String(attached));
       if (!attached) clearError();
       updateCounter();
+      updateReason();
     },
     // `required` overrides the marker's state at submit time, where the truth is
     // whether the composer actually handed over an image.
@@ -887,12 +911,14 @@ export function mountImageDescription(root) {
       });
       if (problem) showError(problem);
       else clearError();
+      updateReason();
       return problem;
     },
     clear() {
       if (input) input.value = "";
       clearError();
       updateCounter();
+      updateReason();
     },
   };
 }

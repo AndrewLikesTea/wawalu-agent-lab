@@ -184,7 +184,7 @@ function mountMediaComposer(root, description) {
     if (focus) input.focus();
   };
 
-  const show = (next) => {
+  const show = (next, { focus = false } = {}) => {
     media = next;
     // A file this field accepts is the answer to the refusal, so the refusal
     // goes as the image arrives.
@@ -205,7 +205,10 @@ function mountMediaComposer(root, description) {
     // here, rather than repeated beside every control.
     setStatus("Image ready to describe and post. Nothing is sent until you publish.");
     description.setAttached(true);
-    alt.focus();
+    // Choosing a file moves nothing (#2294): the reader is on Choose image and
+    // Tabs on through the preview to the description. Only an arrival from
+    // Paint, where nothing on this page was pressed, lands on the field.
+    if (focus) alt.focus();
   };
 
   preview.addEventListener("load", () => { frame.dataset.state = "ready"; });
@@ -264,7 +267,7 @@ function mountMediaComposer(root, description) {
   // otherwise focus lands on the explanation.
   const arrival = renderPaintArrival(root.querySelector("#paint-arrival"), paintHandoffIntent(globalThis.location?.search));
   const paint = takePaintHandoff(globalThis.sessionStorage);
-  if (paint) show(paint);
+  if (paint) show(paint, { focus: true });
   else arrival?.focus?.();
 
   return {
