@@ -424,8 +424,11 @@ test("the footer is a site map: every destination the navigation offers, each on
       assert.equal(link.getAttribute("href"), demo.href);
       assert.ok(stops.includes(link), `${demo.label} must be keyboard reachable`);
     }
-    assert.match(textOf(items[0]), /start here/i, "the list must say where to start");
-    assert.match(textOf(items[0]), /^AI FinOps/, "the site leads with AI FinOps, so the list does too");
+    // The home page, the evaluation brief and the scorecard all sell the log, so
+    // that is where the list starts a reader; the row order stays the navigation's.
+    const starts = items.map(textOf).filter((row) => /start here/i.test(row));
+    assert.deepEqual(starts.map((row) => row.split(" — ")[0]), ["Decisions"], "the list must say where to start, once");
+    assert.match(textOf(items[0]), /^AI FinOps/, "the list keeps the navigation's order");
 
     // A site map, not an essay. The rule used to be a flat eight-word cap, which
     // said "shorter" by picking a number; it is stated against the thing it
@@ -433,8 +436,8 @@ test("the footer is a site map: every destination the navigation offers, each on
     // row may never be longer than the home page's sentence for that surface.
     // Two rows carry more words than they used to because the facts they had
     // dropped belong in both maps: where Paint's PNG goes, and what order
-    // People's posts come in. The marker on the first row is the order signal,
-    // not purpose copy, so it is counted separately.
+    // People's posts come in. The marker on the Decisions row says where to
+    // start, not what the page does, so it is not counted.
     const guideRows = [...document.querySelector(".site-guide").querySelectorAll("li")];
     // The page the navigation files under Prompt coach is explained on the home
     // page too, in the coach entry's companion paragraph rather than in the
@@ -486,6 +489,9 @@ test("the footer is a site map: every destination the navigation offers, each on
         assert.ok(html.includes(`<a href="${demo.href}">${demo.label}</a> — `), `${file} is missing "${demo.label}"`);
       }
       assert.ok(html.includes('<li><a href="/evolution.html">AI FinOps</a>'), `${file} is missing the way in`);
+      const rows = [...parseHtml(html).querySelector(".site-footer-demos").querySelectorAll("li")].map(textOf);
+      assert.deepEqual(rows.filter((row) => /start here/i.test(row)).map((row) => row.split(" — ")[0]), ["Decisions"],
+        `${file} must say "start here" on the Decisions row and nowhere else in its directory`);
     }
 
     // Neither surface may sell the analysis without saying where it happens.
@@ -787,7 +793,7 @@ test("the directory says history only in the Personal AI history row, and each r
     const { purpose } = DEMOS.find((demo) => demo.label === label);
     assert.ok(purpose.startsWith(verb), `the ${label} row opens "${purpose}" instead of "${verb}…"`);
   }
-  assert.equal(DEMOS.find((demo) => demo.label === "Decisions").purpose, "record a decision, then search the log");
+  assert.equal(DEMOS.find((demo) => demo.label === "Decisions").purpose, "record a decision and link it to the release it shaped");
   // The Releases follow-up names its page in the directory's words, word for word.
   assert.equal(FOLLOW_UP_TOPICS.follow_up_releases,
     `Releases page — ${DEMOS.find((demo) => demo.label === "Releases").purpose}`);
