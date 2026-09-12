@@ -7,7 +7,7 @@
 // it is for, and the composer's own image button sat several screens above them.
 //
 // One action, one name: every route into Paint from either page is labelled
-// "Create an image in Paint", opens a new tab, and says so in its own text.
+// "Create or open an image in Paint", opens a new tab, and says so in its own text.
 //
 // What is pinned is what a keyboard user actually gets: a real anchor, in
 // document order, inside the panel where the browsing happens, carrying a text
@@ -104,14 +104,11 @@ for (const [name, document] of Object.entries(NEARBY_INVITATION)) {
       `${name}'s helper still routes the reader back to a page with no composer`);
     assert.doesNotMatch(sentence, /publish it on this page|publish it here/i,
       `${name}'s helper asks the reader to publish on the page they are reading`);
-    // Named before the steps, not after them: the reader is told what publishing
-    // does before being asked to open two tools, and the paragraph opens on a
-    // sentence rather than on a link with nothing in front of it.
-    assert.match(sentence.trim(),
-      /^A published post with an image appears on People, under the display name you publish it with\./,
-      `${name}'s helper does not open by naming where a published image lands: ${sentence.trim()}`);
-    assert.equal(sentence.trim().endsWith("and publish it."), true,
-      `${name}'s helper does not end on the publishing step: ${sentence.trim()}`);
+    // The result follows the steps, in the order the visitor experiences them.
+    assert.match(sentence.trim(), /^To add yours: Create or open an image in Paint/);
+    assert.equal(sentence.trim().endsWith(
+      "A published post with an image appears on People, under the display name you publish it with."), true,
+      `${name}'s helper does not end by explaining where the post appears`);
   });
 
   test(`${name} offers the publishing step as a link that names it and reaches the composer`, () => {
@@ -219,7 +216,7 @@ test("People routes to Social from its entry point and to Paint beside its grid"
 
   const toPaint = entryPointsOn("People");
   assert.equal(toPaint.length, 1, "People offers Paint more than once again");
-  assert.match(textOf(toPaint[0]), /^Create an image in Paint/);
+  assert.match(textOf(toPaint[0]), /^Create or open an image in Paint/);
   assert.equal(documents.People.querySelectorAll("#profile-paint-cta").length, 0,
     "People's hero offers Paint a second time again");
 
@@ -722,12 +719,13 @@ test("nothing in the image section says Paint delivers the file", () => {
     `the image section makes the draft promise a second time: ${section}`);
 });
 
-test("People names the same steps in the same words as the composer", () => {
+test("People names the same steps in the same words as the composer", async () => {
   const invitation = textOf(documents.People.querySelector(".feed-create")).trim();
   assert.equal(invitation,
-    "A published post with an image appears on People, under the display name you publish it with. "
-    + "To add yours: Create an image in Paint (opens in a new tab), export the PNG, "
-    + "then Publish a post on Social, fill in the required image description, and publish it.");
+    "To add yours: Create or open an image in Paint (opens in a new tab). "
+    + "Select “Use this image in a Social post”, then fill in the required image description. "
+    + "Publish a post on Social. A published post with an image appears on People, "
+    + "under the display name you publish it with.");
 
   // The composer refuses a post that carries an image and no description, so the
   // steps that lead a reader to that composer name the field before the step it
@@ -737,7 +735,7 @@ test("People names the same steps in the same words as the composer", () => {
   const DESCRIPTION_FIELD = "image description";
   assert.ok(invitation.includes(`the required ${DESCRIPTION_FIELD}`),
     `People does not name the description as required: ${invitation}`);
-  assert.ok(invitation.indexOf(DESCRIPTION_FIELD) < invitation.indexOf("and publish it."),
+  assert.ok(invitation.indexOf(DESCRIPTION_FIELD) < invitation.indexOf("Publish a post on Social."),
     "People names the description after the publishing step it is required for");
   assert.doesNotMatch(invitation, /caption|alt text/i,
     "People invents a second name for the field Social calls the image description");
@@ -757,16 +755,20 @@ test("People names the same steps in the same words as the composer", () => {
   assert.ok(textOf(documents.Social.getElementById("post-form-hint")).includes(RESULT),
     "the composer no longer states the result in the words People borrows from it");
 
-  // One name per concept across the two pages: the same tool, the same export,
-  // the same file. People stops at the composer rather than naming Choose image,
-  // because the composer is a page away and names it itself.
   const composer = textOf(documents.Social.getElementById("post-image-steps"));
-  for (const step of ["Paint", "PNG"]) {
-    assert.match(invitation, new RegExp(step, "i"), `People does not name "${step}"`);
-    assert.match(composer, new RegExp(step, "i"), `the composer does not name "${step}"`);
-  }
-  assert.doesNotMatch(invitation, /save|download|upload/i,
-    "People invents a second verb for the export the composer already names");
+  const paint = parseHtml(await readFile(new URL("../src/paint/index.html", import.meta.url), "utf8"));
+  const handoff = "Use this image in a Social post";
+  assert.equal(textOf(paint.getElementById("publish-button")), `${handoff} →`);
+  assert.ok(composer.includes(`“${handoff}”`));
+  assert.ok(invitation.includes(`“${handoff}”`));
+  assert.ok(invitation.indexOf(handoff) < invitation.indexOf(DESCRIPTION_FIELD));
+  assert.ok(invitation.indexOf("Publish a post on Social.") < invitation.indexOf(RESULT));
+  const paintLink = documents.People.getElementById("profile-paint-route");
+  assert.equal(textOf(paintLink), "Create or open an image in Paint (opens in a new tab)");
+  assert.equal(textOf(composerPaintLink()).replace(/ ↗$/, ""), textOf(paintLink));
+  assert.equal(paintLink.getAttribute("target"), "_blank");
+  assert.doesNotMatch(invitation, /PNG|export|save|download|upload/i,
+    "People should describe the direct handoff without requiring an exported file");
 });
 
 test("the steps are the image field's own description, so focusing it reads them", () => {
