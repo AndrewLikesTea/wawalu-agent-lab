@@ -526,28 +526,21 @@ function renderPostCard(post, { index }) {
   const avatar = el("span", "post-avatar", initials(post.author));
   avatar.setAttribute("aria-hidden", "true");
 
-  // People holds image posts and nothing else, so the display name is a link
-  // exactly when there is something at the other end of it: an image post's
-  // byline opens that name's People view, and a text-only post prints the same
-  // name as text. This is the rule showConfirmation() below already follows for
-  // the link it offers after publishing — a link to a view the destination
-  // cannot fill is a promise, not a path, and the two surfaces make the same one.
+  // People holds image posts and nothing else, so a card links there exactly
+  // when there is something at the other end of it: an image post offers "See
+  // Ari’s image posts on People", and a text-only post offers nothing. This is
+  // the rule showConfirmation() below already follows for the link it offers
+  // after publishing, in the same words — a link to a view the destination
+  // cannot fill is a promise, not a path.
   //
-  // The name keeps its place either way: same element, same slot in the byline,
-  // same reading order. A text post loses a tab stop it should not have had; no
-  // card gains one, and nothing moves to make room.
+  // The display name is prose on every card; .post-author marks an image post's.
+  // The link is its own element after the time, never the name itself, so
+  // whatever reads a card's name reads only the name, and the words on the link,
+  // not an aria-label, say where it goes. It follows the post it belongs to and
+  // precedes Open post, in DOM and therefore Tab order.
   const image = normalizeImage(post.image);
   const byline = el("div", "post-byline");
-  const author = image
-    ? el("a", "post-author", post.author)
-    : el("span", "post-name", post.author);
-  if (image) {
-    author.href = profileHref(post.author);
-    // Both halves of the destination in the accessible name: whose posts, and
-    // which page. Position and ink are not the difference between this link and
-    // the card's other one.
-    author.setAttribute("aria-label", peopleImagePostsLabel(post.author));
-  }
+  const author = el("span", image ? "post-author" : "post-name", post.author);
   // Ids are minted from the render index, never from post.id — a post id is
   // arbitrary text and must not be spliced into an id/IDREF list.
   author.id = `post-${index}-author`;
@@ -555,6 +548,11 @@ function renderPostCard(post, { index }) {
   const time = el("time", "post-date", formatDateTime(post.createdAt));
   time.dateTime = post.createdAt;
   byline.append(time);
+  if (image) {
+    const people = el("a", "post-people", peopleImagePostsLabel(post.author));
+    people.href = profileHref(post.author);
+    byline.append(people);
+  }
 
   header.append(avatar, byline);
   if (post.title) article.append(el("h3", "post-title", post.title));
@@ -1278,12 +1276,12 @@ export function mountSocialFeed(root, options = {}) {
   // document.body and back to the top of the page. It lands on the first
   // restored post — the thing the reader asked for — and falls back to the list
   // heading, which is the panel's own accessible name and always present.
-  // Where focus lands when the page puts a reader on a card. The byline is a
-  // control only on an image post, so a text post hands focus to the one stop it
-  // does have — the card's way into the post — rather than to a span, which in a
-  // browser drops the reader on <body> and back to the top of the page.
+  // Where focus lands when the page puts a reader on a card: its first stop.
+  // Only an image post has a People link, so a text post hands focus to the one
+  // stop it does have — the card's way into the post — rather than to a span,
+  // which in a browser drops the reader on <body> and back to the top of the page.
   const cardFocusTarget = (card) =>
-    card?.querySelector(".post-author") ?? card?.querySelector(".release-detail-link") ?? null;
+    card?.querySelector(".post-people") ?? card?.querySelector(".release-detail-link") ?? null;
 
   const recoverFromNoMatch = () => {
     clearBothFilters();

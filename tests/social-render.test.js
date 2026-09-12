@@ -97,10 +97,14 @@ test("an image post renders as a figure with the caption as its figcaption", () 
   assert.equal(img.width, 1200);
   assert.equal(img.height, 900);
 
+  // The name is prose; the way to People is its own link beside it, in words.
   const author = first(card, "post-author");
-  assert.equal(author.tagName, "A");
-  assert.equal(author.href, "/profile.html?author=Mina");
-  assert.equal(author.getAttribute("aria-label"), "See Mina’s image posts on People");
+  assert.equal(author.tagName, "SPAN");
+  assert.equal(author.textContent, "Mina");
+  const people = first(card, "post-people");
+  assert.equal(people.tagName, "A");
+  assert.equal(people.href, "/profile.html?author=Mina");
+  assert.equal(people.textContent, "See Mina’s image posts on People");
   assert.equal(first(card, "post-image-description").textContent,
     "Image description: A card wrapped in a blue focus ring");
   assert.equal(img.getAttribute("aria-describedby"), first(card, "post-image-description").id);
@@ -165,7 +169,7 @@ test("the grid keeps list semantics and leaves focus on native links", () => {
   const cards = byClass(container, "post-card");
   assert.equal(cards.length, 2);
   assert.deepEqual(cards.map((card) => card.tabIndex), [undefined, undefined]);
-  assert.equal(first(cards[0], "post-author").tagName, "A");
+  assert.equal(first(cards[0], "post-people").tagName, "A");
   // Newest first, regardless of input order.
   assert.deepEqual(cards.map((card) => card.dataset.postId), ["p-image", "p-text"]);
 });

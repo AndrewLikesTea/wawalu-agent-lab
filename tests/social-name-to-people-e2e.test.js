@@ -222,12 +222,13 @@ test("a settled Social post carries its display name as a link to People, in the
   // holds image posts only, so a link from one of them would arrive at nothing
   // (#2149); tests/social-image-post-people-link.test.js pins that half.
   const withImage = FEED.filter((entry) => entry.image);
-  const names = document.querySelectorAll(".post-author");
-  assert.equal(names.length, withImage.length);
+  const links = document.querySelectorAll(".post-people");
+  assert.equal(links.length, withImage.length);
+  assert.equal(document.querySelectorAll(".post-author").length, withImage.length);
   assert.equal(document.querySelectorAll(".post-name").length, FEED.length - withImage.length);
-  for (const link of names) {
-    assert.equal(link.tagName, "A", "the display name is not an anchor, so it cannot be forwarded or copied");
-    assert.ok(link.href, "the display name is an anchor with no destination");
+  for (const link of links) {
+    assert.equal(link.tagName, "A", "the People link is not an anchor, so it cannot be forwarded or copied");
+    assert.ok(link.href, "the People link is an anchor with no destination");
   }
 
   // The newest post is Tess's text post; the one under test here is the newest
@@ -235,35 +236,39 @@ test("a settled Social post carries its display name as a link to People, in the
   // control must not jump in front of.
   const card = cards.find((node) => node.dataset?.postId === "p-06");
   assert.ok(card, "the fixture's newest image post did not render");
-  const link = card.querySelectorAll(".post-author")[0];
+  const link = card.querySelectorAll(".post-people")[0];
+  const name = card.querySelectorAll(".post-author")[0];
 
   // A real destination, in People's own URL shape — built by the function
-  // src/social.js itself calls, so the two cannot drift apart — and the display
-  // name is in the accessible name rather than only in the ink.
+  // src/social.js itself calls, so the two cannot drift apart — named in visible
+  // words for the display name and the destination, beside a name that is only
+  // the name.
   assert.equal(link.getAttribute("href"), profileHref(IRIS));
   assert.equal(link.href, "/profile.html?author=Iris%20Vale");
-  assert.ok(link.getAttribute("aria-label").includes(IRIS),
-    `the control's accessible name does not contain the display name: ${link.getAttribute("aria-label")}`);
-  assert.equal(textOf(link), IRIS, "the visible text is not the display name it links to");
+  assert.equal(textOf(link), `See ${IRIS}’s image posts on People`);
+  assert.equal(link.getAttribute("aria-label"), null, "an aria-label stands in for words the eye cannot read");
+  assert.equal(name.tagName, "SPAN");
+  assert.equal(textOf(name), IRIS, "the display name holds more than the name");
 
-  // Tabbable, and the first of the card's two stops: the display name, then the
-  // card's one route into the post itself. The caption and the image description
-  // stay ordinary prose, so nothing else was inserted into the reading order to
-  // carry either control.
+  // Tabbable, and the first of the card's two stops: the People link, then the
+  // card's one route into the post itself. The caption, the image description
+  // and the name stay ordinary prose, so nothing else was inserted into the
+  // reading order to carry either control.
   const stops = tabSequence(document).filter((element) => within(element, card));
-  assert.deepEqual(stops.map((element) => element.className), ["post-author", "release-detail-link"],
+  assert.deepEqual(stops.map((element) => element.className), ["post-people", "release-detail-link"],
     "the post grew a tab stop of its own, or lost one it had");
   assert.equal(link.getAttribute("tabindex"), null, "the stop is markup order, not a tabindex trick");
 
-  // And it sits where the name already sat: behind the caption and the image
-  // description, so a reader walking the card meets the post before the byline.
+  // And it follows the post it belongs to: behind the caption, the image
+  // description and the name, so a reader walking the card meets the post first.
   const order = documentOrder(card);
   const at = (node) => order.indexOf(node);
   const caption = card.querySelectorAll(".post-caption")[0];
   const description = card.querySelectorAll(".post-image-description")[0];
   assert.equal(textOf(caption), "p-06 from Iris Vale");
   assert.ok(at(caption) < at(description), "the image description was reordered ahead of the caption");
-  assert.ok(at(description) < at(link), "the display name jumped ahead of the post it belongs to");
+  assert.ok(at(description) < at(name), "the display name jumped ahead of the post it belongs to");
+  assert.ok(at(name) < at(link), "the People link jumped ahead of the name it is about");
 
   // The card's second stop, on the real page rather than in a render stub: one
   // named anchor per card, last in the card, opening that card's own post.
@@ -280,10 +285,12 @@ test("a settled Social post carries its display name as a link to People, in the
   // rule already gives every link. No rule of its own, because styles.css has no
   // room for one and this control needs nothing the site does not already ship.
   const css = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
-  assert.match(css, /\.post-author[^{]*\{[^}]*text-decoration:underline/);
+  assert.match(css, /\.post-people[^{]*\{[^}]*text-decoration:underline/);
   assert.match(css, /button:focus-visible,a:focus-visible \{[^}]*outline:3px solid var\(--focus-ring\)/);
-  assert.equal(/outline\s*:\s*(none|0)/.test(css.match(/\.post-author[^{]*\{[^}]*\}/g)?.join("") ?? ""), false,
-    "no rule may take the focus outline off the display name");
+  assert.equal(/outline\s*:\s*(none|0)/.test(css.match(/\.post-people[^{]*\{[^}]*\}/g)?.join("") ?? ""), false,
+    "no rule may take the focus outline off the People link");
+  // A name that is not a link is not drawn as one.
+  assert.doesNotMatch(css, /\.post-author[^{]*\{[^}]*text-decoration:underline/);
 });
 
 /* ---------------------------- 2. the cold open ----------------------------- */

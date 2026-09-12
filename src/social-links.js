@@ -70,6 +70,11 @@ export function requestedFeedAuthor(search) {
   return String(new URLSearchParams(String(search ?? "")).get(FEED_AUTHOR_PARAM) ?? "").trim();
 }
 
+// People's address carries the name under the same parameter, so People reads
+// it with the same function. profileHref above is the write half, and the two
+// must round-trip every display name a card can link to.
+export const requestedProfileAuthor = requestedFeedAuthor;
+
 // What that link is called on People, owned here beside the label Social's own
 // links to People use. It names the display name and the destination, because a
 // link that said only the name would not say where activating it goes, and it
