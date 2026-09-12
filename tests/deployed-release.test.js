@@ -413,7 +413,7 @@ test("the invented example keeps its marking, its controls, and the link they co
   const proof = page.document.querySelector("#shiplog-proof");
   // Its own words are untouched: nothing about this change may let a reader
   // take an invented record for a real deployment.
-  assert.match(textOf(proof), /These invented records demonstrate Shiplog\. They use no customer or production data, and no such decision or release shipped\./);
+  assert.match(textOf(proof), /These example records are invented: no such decision or release shipped\. They use no customer or production data\./);
   assert.match(textOf(proof), /Example records/);
   assert.doesNotMatch(textOf(proof), new RegExp(REAL_LABEL));
 
