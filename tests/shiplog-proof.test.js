@@ -23,11 +23,18 @@ test("renders one clearly disclosed synthetic proof connecting decision, owner, 
   const copy = page.document.querySelector("#shiplog-proof-copy");
   assert.match(textOf(proof), /Example records/);
   // The panel says in a sentence what the badge says in a label: the records
-  // are invented, and the two links are what a reader follows next. It opens
-  // with the home page's sentence for the same idea, then carries the one fact
-  // the home page has no reason to state, so a reader moving between pages
-  // meets one wording for it.
-  assert.match(textOf(proof), /These invented records demonstrate Shiplog\. They use no customer or production data, and no such decision or release shipped\./);
+  // are invented, and the two links are what a reader follows next. The
+  // records have one name, the badge's, and "invented" only describes them.
+  // It used to call them "invented records" and "demonstration data, not live
+  // release-log data" too, three names in three lines.
+  assert.match(textOf(proof), /These example records are invented: no such decision or release shipped\. They use no customer or production data\./);
+  assert.doesNotMatch(textOf(proof), /demonstration data/i);
+  assert.doesNotMatch(textOf(proof), /live release-log data/i);
+  assert.doesNotMatch(textOf(proof), /invented records/i);
+  assert.equal(textOf(proof.querySelector(".badge-example")), "Example records");
+  // The deployment check below names these records with the same noun.
+  assert.match(textOf(page.document.querySelector("#deployment-status-proof")),
+    /The example decision and release above are invented;/);
   assert.match(textOf(proof), /Open either link below to read the full record/);
   assert.doesNotMatch(textOf(proof), /[Rr]epresentative/);
   assert.match(textOf(proof), /Adopt a durable job queue/);
@@ -74,7 +81,7 @@ test("the example-records caveat is stated once above the record form", async (t
   assert.equal(reachedForm, true, "the walk never reached the record form");
   above = above.replace(/\s+/g, " ");
   assert.equal((above.match(/no customer or production data/g) ?? []).length, 1);
-  assert.equal((above.match(/These invented records demonstrate Shiplog\./g) ?? []).length, 1);
+  assert.equal((above.match(/These example records are invented:/g) ?? []).length, 1);
   // Said where the example records are, not in the page intro above it.
   assert.doesNotMatch(textOf(page.document.querySelector(".hero")), /example records/i);
 });

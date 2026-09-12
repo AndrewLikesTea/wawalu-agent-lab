@@ -271,17 +271,20 @@ test("releases page is wired and linked from the decisions page", async () => {
   assert.match(home, /id="sample-release-list"/);
   assert.match(home, /Representative release/);
   assert.match(home, /use no customer or production data/);
-  // One description of what these records are, in the same words on both
-  // surfaces, and said once per page. The Releases page says it beside the
-  // worked example it describes, so a visitor reads it where the example
-  // records are; the intro no longer says the same thing a second way.
-  const provenance = "These invented records demonstrate Shiplog. "
-    + "They use no customer or production data";
-  assert.ok(home.includes(`${provenance}.`), "the home page's provenance sentence moved");
+  // One description of what these records are, said once per page. The
+  // Releases page says it beside the worked example it describes, so a visitor
+  // reads it where the example records are; the intro no longer says the same
+  // thing a second way. The homepage's existing copy remains unchanged.
   assert.ok(
-    page.includes(`${provenance}, and no such decision or release shipped.`),
+    home.includes("These invented records demonstrate Shiplog. They use no customer or production data."),
+    "the home page's provenance sentence moved",
+  );
+  assert.ok(
+    page.includes("These example records are invented: no such decision or release shipped. "
+      + "They use no customer or production data."),
     "the releases example dropped the provenance sentence",
   );
+  assert.doesNotMatch(page, /demonstration data|live release-log data/i);
   assert.doesNotMatch(page, /Includes example records to demonstrate Shiplog/);
   assert.doesNotMatch(page, /shipping history of this Shiplog demo/);
   assert.match(page, /<title>Releases · Shiplog<\/title>/);
@@ -729,8 +732,8 @@ test("the loading page clearly discloses one actionable invented release with bo
   assert.equal(demo.getAttribute("aria-labelledby"), "shiplog-proof-title");
   assert.equal(demo.getAttribute("aria-describedby"), "shiplog-proof-note");
   assert.match(textOf(demo), /Example records/);
-  assert.match(textOf(demo), /invented records demonstrate Shiplog/);
-  assert.match(textOf(demo), /demonstration data, not live release-log data/i);
+  assert.match(textOf(demo), /These example records are invented: no such decision or release shipped\./);
+  assert.doesNotMatch(textOf(demo), /demonstration data|live release-log data|invented records/i);
   for (const value of ["Versionv1.3.0", "Release statusCompleted", "Release ownerKai", "SummaryThroughput and latency", "Linked decisionAdopt a durable job queue"]) {
     assert.match(textOf(demo), new RegExp(value));
   }
