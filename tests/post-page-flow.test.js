@@ -416,7 +416,7 @@ test("the loading state is one announced line in the post's region, and takes no
     // The frame around it still says what the page is, so the region is never
     // an unexplained blank.
     assert.match(textOf(page.document.querySelector(".hero-post")),
-      /The posts already on Social are invented to demonstrate Shiplog; a post a visitor publishes is real\./);
+      /The posts already on Social are invented to demonstrate Shiplog and use no customer or production data; a post a visitor publishes is real\./);
     assertExits(page, null, "loading");
     assert.equal(textOf(page.document.querySelector("#post-people")), "", "loading must not expose an empty or placeholder display name");
     assert.equal(page.document.querySelector("#post-people").hidden, true);

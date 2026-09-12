@@ -14,6 +14,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { loadPage, textOf, tabSequence, pressKey, pressTab } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
+import { bootSocial } from "./support/social-paint-arrival.js";
 
 const PAGE_URL = new URL("../src/profile.html", import.meta.url);
 const SEED_ROUTE = "/social-demo-data.json";
@@ -1443,15 +1444,18 @@ test("People claims no result before its first image post, and the loaded page i
 
 // What the pictures on this page are made of, said before a reader has seen one.
 //
-// "Posts use no customer or production data." was the only thing People said
-// about its own contents, and on its own it reads as a promise about the whole
-// page — a first-time visitor takes it to mean nothing here is real, including
-// the image post they are about to publish from Social. Two true statements
-// about two different sets of posts. The intro now names the set it means, in
-// Social's sentence with People's noun in it, and both claims stand.
-const PEOPLE_PROVENANCE = "The image posts already here are invented to demonstrate Shiplog; an image post you publish is real.";
-const DEMO_DATA = "Posts use no customer or production data.";
-const PEOPLE_CONSEQUENCE = "Anyone who visits Shiplog can read your post, its image, and the display name you publish it with. You cannot edit or delete a post after you publish it.";
+// "Posts use no customer or production data." once stood alone here, and read as
+// a promise about the whole page — the image post a visitor is about to publish
+// from Social included — that nothing on Shiplog enforces. The claim now lives
+// inside the sentence naming the invented image posts, in Social's sentence with
+// People's noun in it, and the consequences end on the instruction Social's
+// composer gives, in the same bytes (#2296).
+const PEOPLE_PROVENANCE = "The image posts already here are invented to demonstrate Shiplog and use no customer or production data; an image post you publish is real.";
+const RETIRED_DATA_SENTENCE = "Posts use no customer or production data.";
+const PUBLISH_INSTRUCTION = "Do not include customer or production data.";
+const SHARED_CONSEQUENCE = "Anyone who visits Shiplog can read your post, its image, and the display name you publish it with. You cannot edit or delete a post after you publish it";
+const PEOPLE_CONSEQUENCE = `${SHARED_CONSEQUENCE}. ${PUBLISH_INSTRUCTION}`;
+const instructionsIn = (text) => text.match(/Do not include[^.]*\./g) ?? [];
 
 test("the intro says the image posts on this page are invented, before any of them load", async (t) => {
   // Served, not hydrated: what a reader receives from the markup, ahead of the
@@ -1462,20 +1466,22 @@ test("the intro says the image posts on this page are invented, before any of th
 
   assert.equal(main.split(PEOPLE_PROVENANCE).length - 1, 1,
     "the provenance sentence is not in People's served markup exactly once");
-  // Keep the existing provenance and demo-data statements together, followed
-  // by the consequences a visitor needs before leaving for Social.
-  assert.match(textOf(served.document.querySelectorAll(".profile-lede")[1]),
-    /The image posts already here are invented to demonstrate Shiplog; an image post you publish is real\. Posts use no customer or production data\./,
-    "the two claims are no longer adjacent, in that order, in the intro");
-  assert.equal(main.split(DEMO_DATA).length - 1, 1, "the demo-data sentence was replaced or repeated");
+  assert.equal(main.includes(RETIRED_DATA_SENTENCE), false,
+    "People still says every post carries no customer or production data");
+  assert.equal(main.split("no customer or production data").length - 1, 1,
+    "People makes the demo-data claim outside the provenance sentence");
 
+  // The provenance leads straight into the consequences a visitor needs before
+  // leaving for Social, and those end on the instruction.
   const intro = textOf(served.document.querySelectorAll(".profile-lede")[1]);
+  assert.ok(intro.includes(`${PEOPLE_PROVENANCE} ${SHARED_CONSEQUENCE}.`),
+    "the provenance and the consequences are no longer adjacent, in that order, in the intro");
   assert.ok(intro.endsWith(PEOPLE_CONSEQUENCE));
   assert.doesNotMatch(intro, /published as|Showing \d+ image post/i);
   const social = await loadPage(new URL("../src/social.html", import.meta.url), {});
   try {
     const composer = textOf(social.document.querySelector("#post-consequence"));
-    assert.ok(composer.startsWith(PEOPLE_CONSEQUENCE.slice(0, -1) + ","),
+    assert.ok(composer.startsWith(SHARED_CONSEQUENCE + ","),
       "People's consequences drifted from Social's composer terminology");
   } finally {
     social.restore();
@@ -1489,16 +1495,42 @@ test("the intro says the image posts on this page are invented, before any of th
     "the intro now reads after the display-name picker");
 
   // And the loaded page still carries both: nothing the module paints may drop
-  // or double either claim.
+  // or double either claim. The authored intro fakes hydration, so the wait is
+  // on painted image posts, not on text; skeleton tiles carry the tile class.
   const page = await people();
+  let peopleInstructions;
   try {
+    await waitFor(() => [...page.document.querySelectorAll(".profile-tile")]
+      .filter((tile) => !tile.classList.contains("profile-tile-skeleton")).length > 0, "People painted image posts");
     const hydrated = textOf(page.document.querySelector("#main-content"));
     assert.equal(hydrated.split(PEOPLE_PROVENANCE).length - 1, 1,
       "the loaded page lost the provenance sentence or states it twice");
-    assert.equal(hydrated.split(DEMO_DATA).length - 1, 1);
-    assert.ok(textOf(page.document.querySelectorAll(".profile-lede")[1]).endsWith(PEOPLE_CONSEQUENCE),
+    assert.equal(hydrated.includes(RETIRED_DATA_SENTENCE), false,
+      "the loaded page still says every post carries no customer or production data");
+    const loadedIntro = textOf(page.document.querySelectorAll(".profile-lede")[1]);
+    assert.ok(loadedIntro.endsWith(PEOPLE_CONSEQUENCE),
       "the loaded People intro lost the publishing consequences");
+    peopleInstructions = instructionsIn(loadedIntro);
   } finally {
     page.restore();
   }
+
+  // Social's composer, loaded, gives the instruction in the same bytes. The two
+  // pages author it separately, so this is what keeps them from drifting.
+  const loadedSocial = await bootSocial(t, {
+    routes: {
+      "/api/social-posts?limit=100": {
+        posts: [{
+          id: "visitor-2296", author: "Zed", content: "Shipped the export.",
+          timestamp: "2026-09-10T09:00:00.000Z", source: "shiplog-web",
+        }],
+      },
+    },
+  });
+  await waitFor(() => [...loadedSocial.document.querySelectorAll(".post-card")]
+    .filter((card) => !card.classList.contains("post-card-skeleton")).length === 1, "Social painted the visitor's post");
+  const composerInstructions = instructionsIn(textOf(loadedSocial.id("post-consequence")));
+  assert.deepEqual(peopleInstructions, [PUBLISH_INSTRUCTION], "People's intro does not give the instruction exactly once");
+  assert.deepEqual(composerInstructions, peopleInstructions,
+    "Social's composer and People's intro no longer give the same instruction");
 });

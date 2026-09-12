@@ -591,8 +591,8 @@ test("the feed says who wrote the posts, where the posts are", async (t) => {
   const intro = textOf(page.document.querySelector(".hero-social").querySelectorAll("p")[2]);
   assert.doesNotMatch(intro, /invented for this demo/,
     "the intro says who wrote the posts a second time, four screens from a card");
-  assert.match(intro, /Posts use no customer or production data\.$/,
-    "the demo-data sentence must stay the intro's last words");
+  assert.match(intro, /The posts already here are invented to demonstrate Shiplog and use no customer or production data; a post you publish is real\.$/,
+    "the provenance sentence, with the demo-data claim inside it, must stay the intro's last words");
   // One sentence, word for word People's, naming the control both feeds print
   // on every card. Social had no such control and said nothing about opening a
   // post; People told a reader to "select a post" and named nothing.
@@ -611,7 +611,7 @@ test("the feed says who wrote the posts, where the posts are", async (t) => {
     "Social · demo", "the page eyebrow stopped naming this a demo");
   assert.equal(hero.match(/\bdemo\b/gi)?.length, 1,
     `the hero says "demo" ${hero.match(/\bdemo\b/gi)?.length} times, not once`);
-  assert.equal(hero.split("Posts use no customer or production data.").length - 1, 1,
+  assert.equal(hero.split("no customer or production data").length - 1, 1,
     "the hero states the demo-data fact more than once");
   assert.doesNotMatch(intro, /demo feed/,
     "the intro calls the feed a demo one, a line under an eyebrow that already does");
@@ -669,8 +669,13 @@ test("who wrote the posts survives loading, populated, empty, and no-match", asy
 // it means — the ones already in the feed, which the site invented — and hands
 // the visitor's own post to the consequence at the Publish post button, which
 // stays the one and only place that cost is stated.
-const PROVENANCE_SENTENCE = "The posts already here are invented to demonstrate Shiplog; a post you publish is real.";
-const PUBLISH_CONSEQUENCE = "Anyone who visits Shiplog can read your post, its image, and the display name you publish it with. You cannot edit or delete a post after you publish it, so post nothing you would not put on a public page.";
+// The demo-data claim now sits inside the provenance sentence, so it covers only
+// the invented posts. Nothing checks what a visitor publishes, so the consequence
+// asks them not to include that data instead of promising it is absent (#2296).
+const PROVENANCE_SENTENCE = "The posts already here are invented to demonstrate Shiplog and use no customer or production data; a post you publish is real.";
+const RETIRED_DATA_SENTENCE = "Posts use no customer or production data.";
+const PUBLISH_INSTRUCTION = "Do not include customer or production data.";
+const PUBLISH_CONSEQUENCE = "Anyone who visits Shiplog can read your post, its image, and the display name you publish it with. You cannot edit or delete a post after you publish it, so post nothing you would not put on a public page. " + PUBLISH_INSTRUCTION;
 
 test("the intro scopes the demo promise to the seeded posts, and the composer states the cost once", async (t) => {
   const { document, id } = await socialDisclosure(t);
@@ -679,8 +684,10 @@ test("the intro scopes the demo promise to the seeded posts, and the composer st
   id("post-compose-open").click();
 
   const intro = textOf(document.querySelector(".hero-social").querySelectorAll("p")[2]);
-  assert.match(intro, /The posts already here are invented to demonstrate Shiplog; a post you publish is real\. Posts use no customer or production data\.$/,
-    "the intro stopped saying which posts its demo promise covers, or stopped ending on the demo-data sentence");
+  assert.ok(intro.endsWith(PROVENANCE_SENTENCE),
+    "the intro stopped saying which posts its demo promise covers, or stopped ending on it");
+  assert.equal(intro.includes(RETIRED_DATA_SENTENCE), false,
+    "the intro still promises that every post, a visitor's own included, carries no customer data");
   // The word the eyebrow owns is still said once in the hero: "demonstrate" is
   // the site's verb on the homepage and Releases, and it is not a fourth badge.
   const hero = textOf(document.querySelector(".hero-social"));
@@ -873,29 +880,60 @@ test("the Posts panel opens on the feed's own heading, not on the display-name c
   opensOn("populated", feedHeading({ shown: 1 }));
 });
 
-// One fact, one wording, on all three pages that show a published post. Social
-// and the permalink already agreed; People — the page a reader can land on
-// straight from the nav, and the only one that is nothing but pictures — said
-// nothing about it at all. Compared as rendered text rather than as markup,
-// because that is what a reader receives, and byte-for-byte rather than by a
-// pattern: a sentence that agrees in substance and differs in a comma reads as
-// two claims, and this test is the thing that stops the third page drifting.
-test("Social, People, and a post permalink say the demo-data fact in the same bytes", async (t) => {
-  const SENTENCE = "Posts use no customer or production data.";
-  const found = [];
-  for (const file of ["social.html", "profile.html", "post.html"]) {
+// All three pages that show a published post used to end on "Posts use no
+// customer or production data.", a promise about every post, a visitor's own
+// included, that nothing on Shiplog enforces. Each now makes the claim once,
+// inside the sentence naming the invented posts, in that page's own noun and
+// point of view.
+test("Social, People, and a post permalink claim no customer data only for the invented posts", async (t) => {
+  const scoped = {
+    "social.html": PROVENANCE_SENTENCE,
+    "profile.html": "The image posts already here are invented to demonstrate Shiplog and use no customer or production data; an image post you publish is real.",
+    "post.html": "The posts already on Social are invented to demonstrate Shiplog and use no customer or production data; a post a visitor publishes is real.",
+  };
+  for (const [file, sentence] of Object.entries(scoped)) {
     const page = await loadPage(new URL(`../src/${file}`, import.meta.url), {});
     t.after(() => page.restore());
     const rendered = textOf(page.document.querySelector("#main-content"));
-    const sentence = rendered.match(/[A-Z][^.]*customer or production data[^.]*\./)?.[0];
-    assert.ok(sentence, `${file} does not tell a reader the posts carry nothing real`);
-    assert.equal(sentence, SENTENCE, `${file} states the demo-data fact in its own words`);
-    // Once per page: a fact repeated on one screen is a fact a reader skips.
-    assert.equal(rendered.split(SENTENCE).length - 1, 1,
-      `${file} repeats the demo-data sentence`);
-    found.push(sentence);
+    assert.equal(rendered.includes(RETIRED_DATA_SENTENCE), false,
+      `${file} still says every post carries no customer or production data`);
+    assert.equal(rendered.split(sentence).length - 1, 1,
+      `${file} does not scope the demo-data claim to the invented posts exactly once`);
+    assert.equal(rendered.split("no customer or production data").length - 1, 1,
+      `${file} makes the demo-data claim somewhere else too`);
   }
-  assert.equal(new Set(found).size, 1, "the three pages no longer share one wording");
+});
+
+// The same claims once Social's own module has loaded and painted a post a
+// visitor published. The intro is authored markup, so the wait is on a painted
+// card rather than on its text.
+test("once Social has loaded a visitor's post, only the invented posts carry the demo-data claim", async (t) => {
+  const { document, id } = await bootSocial(t, {
+    routes: {
+      // `source` or the row is dropped and the feed lands in its empty state.
+      "/api/social-posts?limit=100": {
+        posts: [{
+          id: "visitor-2296", author: "Mina", content: "Shipped the export.",
+          timestamp: "2026-09-10T09:00:00.000Z", source: "shiplog-web",
+        }],
+      },
+    },
+  });
+  await waitFor(() => [...document.querySelectorAll(".post-card")]
+    .filter((card) => !card.classList.contains("post-card-skeleton")).length === 1, "the visitor's post painted");
+  id("post-compose-open").click();
+
+  const main = textOf(document.querySelector("#main-content"));
+  assert.equal(main.includes(RETIRED_DATA_SENTENCE), false,
+    "the loaded page still says every post carries no customer or production data");
+  assert.equal(main.split(PROVENANCE_SENTENCE).length - 1, 1,
+    "the loaded page does not scope the demo-data claim to the invented posts exactly once");
+  assert.equal(main.split("no customer or production data").length - 1, 1,
+    "the loaded page makes the demo-data claim outside the provenance sentence");
+  // The instruction is part of the consequence at Publish post, and nowhere else.
+  assert.equal(textOf(id("post-consequence")), PUBLISH_CONSEQUENCE);
+  assert.equal(main.split(PUBLISH_INSTRUCTION).length - 1, 1,
+    "the loaded page gives the instruction somewhere other than the composer");
 });
 
 // What a display name is used to be explained three ways in three places: the
@@ -931,8 +969,7 @@ test("Social and People define a display name once, in the same words", async (t
   // The composer's publish consequence is out of this change and unchanged.
   const social = await loadPage(new URL("../src/social.html", import.meta.url), {});
   t.after(() => social.restore());
-  assert.equal(textOf(social.document.querySelector("#post-consequence")),
-    "Anyone who visits Shiplog can read your post, its image, and the display name you publish it with. You cannot edit or delete a post after you publish it, so post nothing you would not put on a public page.");
+  assert.equal(textOf(social.document.querySelector("#post-consequence")), PUBLISH_CONSEQUENCE);
 });
 
 // The opened composer pins both sentences beneath the display name field: what
@@ -1828,7 +1865,7 @@ test("the composer's three cautions still read word for word once it is open", a
     "post-image-alt-hint": "Describe what matters in the image for people who cannot see it. Up to 200 characters.",
     "post-author-hint": AUTHOR_HINT,
     "post-author-identity": "People groups image posts under this display name.",
-    "post-consequence": "Anyone who visits Shiplog can read your post, its image, and the display name you publish it with. You cannot edit or delete a post after you publish it, so post nothing you would not put on a public page.",
+    "post-consequence": PUBLISH_CONSEQUENCE,
   };
   for (const [id_, wording] of Object.entries(cautions)) {
     const node = document.querySelector(`#${id_}`);
