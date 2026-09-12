@@ -120,7 +120,7 @@ test("live public activity replaces the representative fallback", async () => {
   assert.equal(byClass(root.nodes["#activity-list"], "activity-item-representative").length, 0);
   assert.equal(byClass(root.nodes["#activity-list"], "activity-item").length, 2);
   assert.equal(root.nodes["#activity-list"].getAttribute("aria-label"), "Recent public GitHub events");
-  assert.equal(root.nodes["#connection-label"].textContent, "Live signal");
+  assert.equal(root.nodes["#connection-label"].textContent, "Live GitHub events");
 });
 
 test("an empty public response uses the labelled representative sequence", async () => {

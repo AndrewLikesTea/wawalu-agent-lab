@@ -380,10 +380,12 @@ export function renderRepresentativeActivity(list, { reason = "loading" } = {}) 
 // page the control belonged to. The labels are otherwise one word apart, and
 // that word is the state: only the state a second request could fix says
 // "Retry", so the label and `recovery` never disagree.
+//
+// Loading has no chip: its heading already starts with the word, and the two
+// together read, and were announced, as "Loading Loading public GitHub activity".
 export const ACTIVITY_STATES = Object.freeze({
   loading: Object.freeze({
     shape: "loading",
-    chip: "Loading",
     title: "Loading public GitHub activity",
     detail: "Nothing is needed from you. Until GitHub answers, the steps below are a synthetic example rather than live events.",
     keptDetail: "Nothing is needed from you. The events below are from the last successful update until GitHub answers again.",
@@ -459,7 +461,7 @@ export function renderActivityState(root, state, { count = 0, keptEvents = false
   icon.setAttribute("aria-hidden", "true");
   const body = document.createElement("div");
   body.className = "activity-state-copy";
-  appendText(body, "p", "activity-state-chip", copy.chip);
+  if (copy.chip) appendText(body, "p", "activity-state-chip", copy.chip);
   appendText(body, "h3", "activity-state-title", copy.title);
   const detail = appendText(body, "p", "activity-state-detail", name === "live"
     ? liveDetail(count)
@@ -486,14 +488,15 @@ export function renderActivityState(root, state, { count = 0, keptEvents = false
 // for when data last arrived. It is read before the panel below it and must not
 // repeat the panel's heading, so it stays short — but "Checking" alone left the
 // reader to guess what was being checked, and "Synthetic example shown" left out
-// that GitHub had in fact answered. Each label now names the signal, and the two
-// states that always show the four synthetic rows say so here as well, for a
-// reader who never scrolls as far as the banner above them. The failed check is
-// the exception: it can keep the last live events on screen, so it reports the
-// failure and lets the panel say what the rows are.
+// that GitHub had in fact answered. Each label now names the GitHub events it
+// reports on, and the two states that always show the four synthetic rows say so
+// here as well, for a reader who never scrolls as far as the banner above them.
+// The failed check is the exception: it can keep the last live events on screen,
+// so it reports the failure and lets the panel say what the rows are. While
+// loading, the second line stays hidden rather than repeating "Loading…".
 export const CONNECTION_LABELS = Object.freeze({
-  loading: "Loading the GitHub signal",
-  live: "Live signal",
+  loading: "Loading GitHub events",
+  live: "Live GitHub events",
   empty: "No GitHub events · synthetic example",
   error: "Public GitHub activity unavailable",
 });
@@ -600,7 +603,7 @@ const unavailableCopy = (reason) => {
 
 export const MERGED_FIGURE_COPY = Object.freeze({
   loading: Object.freeze({
-    value: "Loading…",
+    value: "Loading the merged pull request count",
     source: "Counted from public GitHub activity, once GitHub answers.",
   }),
   // The default reading of the empty state, for a render that was told nothing
@@ -713,7 +716,7 @@ function paintRecordedFigure(root, record) {
   return renderMergedFigure(root, "recorded", record);
 }
 
-// How long the headline figure will sit on "Loading…" before it says something
+// How long the headline figure will sit on its loading line before it says something
 // true instead. The request behind it is unauthenticated and cross-origin, so
 // "slow" and "never" look identical from here, and neither is a state a reader
 // may be parked in indefinitely — that is the whole of issue #1774. Overridable
@@ -737,7 +740,8 @@ export async function loadActivity(root = document, fetcher = fetch, storage = b
   label.textContent = CONNECTION_LABELS.loading;
   if (!hasLiveEvents) {
     renderRepresentativeActivity(list, { reason: "loading" });
-    updated.textContent = "Loading…";
+    updated.textContent = "";
+    updated.hidden = true;
   }
   // The record is requested first and awaited by nothing on this path. It is a
   // static same-origin file that cannot be rate-limited, so it normally lands
@@ -806,6 +810,7 @@ export async function loadActivity(root = document, fetcher = fetch, storage = b
     // The card and the figure below it report the same response, so they read
     // the same arrival time in the same format rather than two clocks.
     updated.textContent = `Updated ${formatClockTime(asOf)}`;
+    updated.hidden = false;
   } catch (error) {
     renderActivityState(root, "error", { keptEvents: hasLiveEvents });
     // Why there is no count, in the reader's terms rather than the transport's,
@@ -816,6 +821,7 @@ export async function loadActivity(root = document, fetcher = fetch, storage = b
     signal.dataset.connected = "false";
     label.textContent = CONNECTION_LABELS.error;
     updated.textContent = "Not updated";
+    updated.hidden = false;
     if (!hasLiveEvents) renderRepresentativeActivity(list, { reason: "unavailable" });
   } finally {
     // The figure has settled one way or the other by here, so the deadline has
@@ -894,7 +900,8 @@ export function renderDemoData(root, data, { fallback = false } = {}) {
 // Each panel now keeps its heading and carries one compact status block instead:
 // a chip word, a state heading, and one sentence of its own. The three states
 // are told apart by that word and by the glyph geometry `data-shape` selects
-// before they are told apart by colour.
+// before they are told apart by colour. Loading carries no chip word, because
+// its heading already starts with "Loading".
 //
 // `recovery` is what the panel's control is for, held here rather than read back
 // off a label. Only a failed request is a recovery — the file is read over the
@@ -902,7 +909,7 @@ export function renderDemoData(root, data, { fallback = false } = {}) {
 // carried nothing is a successful read, and no button is offered for it: a Retry
 // that cannot change the answer is a promise the page cannot keep.
 export const DEMO_DATA_STATES = Object.freeze({
-  loading: Object.freeze({ shape: "loading", chip: "Loading", role: "status", recovery: "none" }),
+  loading: Object.freeze({ shape: "loading", role: "status", recovery: "none" }),
   empty: Object.freeze({ shape: "empty", chip: "No records", role: "status", recovery: "none" }),
   error: Object.freeze({ shape: "error", chip: "Request failed", role: "alert", recovery: "retry" }),
 });
@@ -942,7 +949,7 @@ export const DEMO_DATA_PANELS = Object.freeze([
     content: "#prompt-trace",
     copy: Object.freeze({
       loading: Object.freeze({
-        title: "Loading the published prompt trace",
+        title: "Loading the prompt trace",
         detail: "The trace comes from the same static demo file as the personas.",
       }),
       empty: Object.freeze({
@@ -1006,7 +1013,7 @@ export function renderDemoDataState(root = document, state = "loading") {
     icon.setAttribute("aria-hidden", "true");
     const body = document.createElement("div");
     body.className = "activity-state-copy";
-    appendText(body, "p", "activity-state-chip", copy.chip);
+    if (copy.chip) appendText(body, "p", "activity-state-chip", copy.chip);
     appendText(body, "h3", "activity-state-title", words.title);
     const detail = appendText(body, "p", "activity-state-detail", words.detail);
     // The control's aria-describedby names this sentence, so the id has to

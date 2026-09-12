@@ -223,7 +223,7 @@ test("loading says it is loading, without a number and without claiming failure"
   const readout = root.nodes["#merged-figure-readout"];
 
   assert.equal(root.nodes["#merged-figure"].dataset.state, "loading");
-  assert.match(readout.textContent, /Loading/);
+  assert.match(readout.textContent, /^Loading the merged pull request count/, "the wait names the count");
   assert.doesNotMatch(readout.textContent, /\d/, "loading may say so, but must not show a number");
   assert.doesNotMatch(readout.textContent, /did not answer/i);
 });

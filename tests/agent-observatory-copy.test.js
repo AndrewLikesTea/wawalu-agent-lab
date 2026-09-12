@@ -119,10 +119,10 @@ test("the three regions that speak at once during a check each say something dif
   const spoken = [card, freshness, status, detail];
   assert.equal(new Set(spoken).size, spoken.length, `a loading message is shown twice: ${spoken.join(" | ")}`);
   assert.equal(card, CONNECTION_LABELS.loading);
-  // "Not updated yet" read as a verdict on stale data in the one state where
-  // nothing had been fetched yet. The line reports freshness, so while the
-  // request is in flight it reports the request, in the page's one loading verb.
-  assert.equal(freshness, "Loading…", "the freshness line says a fetch is in flight, not that the data is stale");
+  // "Not updated yet" read as a verdict on stale data, and "Loading…" under the
+  // card's own "Loading" line said the wait twice. With nothing fetched yet,
+  // there is no freshness to report, so the line says nothing.
+  assert.equal(freshness, "", "the freshness line neither judges the data nor repeats the wait");
   assert.notEqual(card, status, "the hero card must not repeat the panel heading");
   // The banner answers "what are these rows", so it must not restate the
   // request status the block above it already gave.
@@ -137,7 +137,7 @@ test("the three regions that speak at once during a check each say something dif
 // The card is the shortest thing on the page and the first thing read, so it is
 // where a vague word does the most damage. "Checking" did not say what was being
 // checked, and "Synthetic example shown" did not say that GitHub had answered.
-test("the hero card names the signal, and says when the rows are a synthetic example", () => {
+test("the hero card names what it checks, and says when the rows are a synthetic example", () => {
   const labels = Object.values(CONNECTION_LABELS);
   assert.equal(new Set(labels).size, labels.length, "two states share a card label");
   for (const label of labels) {
@@ -162,12 +162,13 @@ test("the served markup is the loading state the script would render", async () 
   const page = parseHtml(await readFile(PAGE_URL, "utf8"));
   const status = page.querySelector("#activity-status");
 
-  assert.equal(textOf(status.querySelector(".activity-state-chip")), ACTIVITY_STATES.loading.chip);
+  assert.equal(status.querySelectorAll(".activity-state-chip").length, 0, "the served loading state has no chip");
   assert.equal(textOf(status.querySelector(".activity-state-title")), ACTIVITY_STATES.loading.title);
   assert.equal(textOf(status.querySelector(".activity-state-detail")), ACTIVITY_STATES.loading.detail);
   assert.equal(textOf(page.querySelector("#refresh-activity")), ACTIVITY_STATES.loading.action);
   assert.equal(textOf(page.querySelector("#connection-label")), CONNECTION_LABELS.loading);
-  assert.equal(textOf(page.querySelector("#last-updated")), "Loading…");
+  assert.equal(textOf(page.querySelector("#last-updated")), "");
+  assert.notEqual(page.querySelector("#last-updated").getAttribute("hidden"), null);
 });
 
 test("every section label describes what is in the section", async () => {
@@ -205,7 +206,7 @@ test("no two states reuse a chip, a heading, or a sentence", () => {
     const root = activityRoot();
     renderActivityState(root, state, { count: 2 });
     const panel = root.nodes["#activity-status"];
-    rendered.chip.add(byClass(panel, "activity-state-chip")[0].textContent);
+    rendered.chip.add(byClass(panel, "activity-state-chip")[0]?.textContent ?? "");
     rendered.title.add(byClass(panel, "activity-state-title")[0].textContent);
     rendered.detail.add(byClass(panel, "activity-state-detail")[0].textContent);
   }

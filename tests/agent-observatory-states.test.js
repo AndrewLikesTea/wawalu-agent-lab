@@ -64,7 +64,10 @@ test("loading, no activity, and a failed request each get their own heading and 
     assert.equal(heading.tagName, "H3", `${state}: the state names itself with a heading`);
 
     seen.title.add(heading.textContent);
-    seen.chip.add(byClass(panel, "activity-state-chip")[0].textContent);
+    // Loading names itself in its heading alone: a chip beside it read "Loading Loading".
+    const chips = byClass(panel, "activity-state-chip");
+    assert.equal(chips.length, state === "loading" ? 0 : 1, `${state}: chip count`);
+    seen.chip.add(chips[0]?.textContent ?? "");
     seen.shape.add(icon.dataset.shape);
     const detail = byClass(panel, "activity-state-detail")[0].textContent;
     seen.detail.add(detail);
@@ -159,8 +162,8 @@ test("a refresh over live events never claims the live rows are synthetic", asyn
   let rejectRefresh;
   const refresh = loadActivity(root, () => new Promise((resolve, reject) => { rejectRefresh = reject; }));
 
-  assert.equal(root.nodes["#connection-label"].textContent, "Loading the GitHub signal",
-    "the top-level status must not claim a live signal while a refresh is in flight");
+  assert.equal(root.nodes["#connection-label"].textContent, "Loading GitHub events",
+    "the top-level status must not claim live events while a refresh is in flight");
   assert.match(stateOf(root).textContent, /last successful update/i);
 
   rejectRefresh(new Error("offline"));
@@ -233,7 +236,7 @@ test("the shipped page reaches the error state and recovers through a keyboard r
     const live = document.querySelectorAll(".activity-item")
       .filter((item) => !item.classList.contains("activity-item-representative"));
     assert.equal(live.length, 1);
-    assert.match(textOf(document.querySelector("#connection-label")), /Live signal/);
+    assert.match(textOf(document.querySelector("#connection-label")), /Live GitHub events/);
   } finally {
     page.restore();
   }
