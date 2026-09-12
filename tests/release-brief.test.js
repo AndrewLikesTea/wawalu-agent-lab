@@ -88,10 +88,12 @@ test("a record with several linked decisions names every one of them, with its s
   );
 });
 
-test("a linked decision this log does not hold is reported, never quietly dropped", () => {
+test("a missing linked decision is reported, never quietly dropped", () => {
   const brief = briefFor({ ...RECORDED, decisionIds: ["d-queue", "d-gone"] });
   assert.match(brief, /^Linked decisions \(2\):$/m);
-  assert.match(brief, /^- Linked decision d-gone is not in this log\.$/m);
+  // The words the Releases page's expanded row and its filter option use.
+  assert.match(brief, /^- Linked decision d-gone is missing\.$/m);
+  assert.doesNotMatch(brief, /this log/);
 });
 
 test("a release with nothing linked still produces a whole, honest brief", () => {

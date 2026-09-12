@@ -399,8 +399,10 @@ test("the filter group is one keyboard stop and the arrow keys change the view",
   const hint = page.document.getElementById(fieldset.getAttribute("aria-describedby"));
   assert.equal(
     textOf(hint),
-    "A release appears when at least one linked decision has the selected status. “Decision not in this log” shows releases linked to a decision this log does not hold. Arrow keys move between the options.",
+    "A release appears when at least one linked decision has the selected status. “Linked decision missing” shows releases linked to a decision that isn’t among the decisions saved in this browser or the example records. Arrow keys move between the options.",
   );
+  assert.match(textOf(hint), /releases linked to a decision that isn’t among the decisions saved in this browser/);
+  assert.doesNotMatch(textOf(hint), /this log does not hold/);
   for (const radio of group) {
     const label = page.document.querySelectorAll("label").find((node) => node.getAttribute("for") === radio.id);
     assert.ok(label && textOf(label) !== "", `${radio.value} is labelled`);
@@ -474,6 +476,10 @@ test("every displayed release discloses its linked decisions and their status ev
   assert.match(textOf(panel.querySelector(".release-decision")), /accepted/);
   // The dangling reference is named rather than dropped.
   assert.match(textOf(panel.querySelector(".release-decision-missing")), /d-gone/);
+  assert.equal(
+    textOf(panel.querySelector(".release-decision-missing").querySelector(".release-decision-title")),
+    "Linked decision d-gone is missing.",
+  );
 });
 
 test("a no-match view says so and offers a next step that clears the filters", async (t) => {
@@ -532,4 +538,103 @@ test("a release whose decisions are all missing is still listed and still filter
   statusRadio(page, "accepted").click();
   assert.equal(countText(page), "");
   assert.ok(page.document.querySelector(".release-reset-action"));
+});
+
+// --- the missing-decision option's words (issue #2317) --------------------
+
+// One release linked to a decision the page holds and one linked to a decision
+// it does not, newest first: Settled, then Imported.
+const MISSING_FIXTURES = {
+  decisions: [DECISIONS[0]],
+  releases: [
+    { id: "r-orphan", version: "v9.0.0", title: "Imported", status: "completed", owner: "Rowan", createdAt: "2026-02-01T00:00:00.000Z", decisionIds: ["d-absent"] },
+    { id: "r-settled", version: "v9.1.0", title: "Settled", status: "completed", owner: "Kai", createdAt: "2026-03-01T00:00:00.000Z", decisionIds: ["d-queue"] },
+  ],
+};
+
+// The label a reader sees beside each radio, read from the page's own labels.
+// A radio accepts any value a test assigns, so the options are read, not set.
+const optionLabels = (page) => page.document.querySelectorAll('input[name="release-decision-status"]').map((radio) => {
+  const label = page.document.querySelectorAll("label").find((node) => node.getAttribute("for") === radio.id);
+  return [radio.value, label ? textOf(label) : ""];
+});
+
+test("the missing-decision option reads “Linked decision missing”, and the old label is gone", async (t) => {
+  const page = await openReleases(t);
+  const expected = RELEASE_DECISION_STATUS_FILTERS.map(({ value, label }) => [value, label]);
+  // The shipped markup a visitor reads before the script runs, and the page
+  // after it boots, carry the same six labels as the filter vocabulary.
+  assert.deepEqual(optionLabels(page), expected);
+  initReleasesPage(page.document, page.storage, { seed: NO_SEED });
+  assert.deepEqual(optionLabels(page), expected);
+
+  assert.deepEqual(
+    optionLabels(page).map(([, label]) => label),
+    ["Any status", "Proposed", "Pending", "Accepted", "Superseded", "Linked decision missing"],
+  );
+  assert.deepEqual(optionLabels(page).find(([, label]) => label === "Linked decision missing"), [MISSING_DECISION_FILTER, "Linked decision missing"]);
+  assert.equal(optionLabels(page).filter(([, label]) => /not in this log/.test(label)).length, 0);
+});
+
+test("choosing “Linked decision missing” shows only the release whose linked decision is missing", async (t) => {
+  assert.deepEqual(ids(filterReleases(MISSING_FIXTURES.releases, MISSING_FIXTURES.decisions, { decisionStatus: MISSING_DECISION_FILTER })), ["r-orphan"]);
+
+  const page = await bootedReleases(t, MISSING_FIXTURES);
+  assert.deepEqual(rowTitles(page), ["Settled", "Imported"]);
+  assert.equal(textOf(followUp(page).querySelector(".release-followup-lead")), "Imported has a linked decision missing.");
+
+  statusRadio(page, "missing").click();
+  assert.deepEqual(rowTitles(page), ["Imported"]);
+  assert.equal(countText(page), "Showing 1 of 2 releases, newest first.");
+
+  const toggle = page.document.querySelector(".release-toggle");
+  toggle.click();
+  const panel = page.document.getElementById(toggle.getAttribute("aria-controls"));
+  assert.equal(textOf(panel.querySelector(".release-decision-missing").querySelector(".release-decision-title")), "Linked decision d-absent is missing.");
+  assert.doesNotMatch(textOf(panel), /this log/);
+
+  statusRadio(page, "accepted").click();
+  assert.deepEqual(rowTitles(page), ["Settled"]);
+});
+
+test("a copied link with “Linked decision missing” chosen reopens with that option applied", async (t) => {
+  const storage = {
+    [STORAGE_KEY]: JSON.stringify(MISSING_FIXTURES.decisions),
+    [RELEASE_STORAGE_KEY]: JSON.stringify(MISSING_FIXTURES.releases),
+  };
+  const location = { pathname: "/releases.html", search: "", hash: "", origin: "https://labs.wawalu.org" };
+  const move = (state, title, url) => { location.search = new URL(url, location.origin).search; };
+  let address = "";
+
+  // Closed before the second page opens, so its globals never outlive it.
+  const sharing = await loadPage(RELEASES_PAGE, { storage });
+  try {
+    initReleasesPage(sharing.document, sharing.storage, {
+      seed: NO_SEED,
+      location,
+      history: { state: null, pushState: move, replaceState: move },
+      clipboard: { writeText: async (url) => { address = url; } },
+    });
+    statusRadio(sharing, "missing").click();
+    sharing.document.querySelector("#release-copy-link").click();
+    await new Promise((resolve) => setImmediate(resolve));
+  } finally {
+    sharing.restore();
+  }
+  // The parameter and its value are unchanged, so links copied before the
+  // rename still open this view.
+  assert.equal(address, "https://labs.wawalu.org/releases.html?decision-status=missing");
+
+  const reopened = await loadPage(RELEASES_PAGE, { storage });
+  t.after(() => reopened.restore());
+  const url = new URL(address);
+  initReleasesPage(reopened.document, reopened.storage, {
+    seed: NO_SEED,
+    location: { pathname: url.pathname, search: url.search, hash: url.hash, origin: url.origin },
+    history: { state: null, pushState() {}, replaceState() {} },
+  });
+  assert.equal(statusRadio(reopened, "missing").checked, true);
+  assert.equal(statusRadio(reopened, "all").checked, false);
+  assert.deepEqual(rowTitles(reopened), ["Imported"]);
+  assert.equal(countText(reopened), "Showing 1 of 2 releases, newest first.");
 });

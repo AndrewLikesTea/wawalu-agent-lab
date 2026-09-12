@@ -52,7 +52,7 @@ export const RELEASE_DECISION_STATUS_FILTERS = Object.freeze([
   { value: "pending", label: "Pending" },
   { value: "accepted", label: "Accepted" },
   { value: "superseded", label: "Superseded" },
-  { value: MISSING_DECISION_FILTER, label: "Decision not in this log" },
+  { value: MISSING_DECISION_FILTER, label: "Linked decision missing" },
 ]);
 
 // URL builders are the single seam between views. They are pure and unit-tested
@@ -398,7 +398,7 @@ function decisionLabel(decision) {
 // where the link goes and what is waiting there.
 const FOLLOW_UP_COPY = {
   [MISSING_DECISION_FILTER]: {
-    lead: (release) => `${releaseTitle(release)} links a decision that is not in this log.`,
+    lead: (release) => `${releaseTitle(release)} has a linked decision missing.`,
     action: (release) => `Check the reference on ${releaseTitle(release)}`,
     target: (release) => `Opens the release detail for ${releaseTitle(release)}, where the decision id that did not resolve is listed.`,
   },
@@ -766,7 +766,7 @@ export function buildReleaseBrief(release, decisions = release?.decisions ?? [],
     // than it recorded — the same reason the export reports them.
     for (const association of resolved.associations) {
       lines.push(association.missing
-        ? `- Linked decision ${association.id} is not in this log.`
+        ? `- Linked decision ${association.id} is missing.`
         : `- ${decisionLabel(association.decision)} — ${capitalized(canonicalDecisionStatus(association.decision.status))}`);
     }
   }
@@ -888,7 +888,7 @@ function renderReleaseBody(release) {
     const label = el("span", "release-decision-title");
     label.append(document.createTextNode("Linked decision "));
     label.append(el("code", undefined, id));
-    label.append(document.createTextNode(" is not in this log."));
+    label.append(document.createTextNode(" is missing."));
     row.append(label);
     list.append(row);
   }
