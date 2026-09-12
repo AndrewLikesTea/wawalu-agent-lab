@@ -76,7 +76,10 @@ async function observatory(t) {
       content: document.querySelector(panel.content),
       get title() { return textOf(document.querySelector(panel.status).querySelector(".activity-state-title")); },
       get detail() { return textOf(document.querySelector(panel.status).querySelector(".activity-state-detail")); },
-      get chip() { return textOf(document.querySelector(panel.status).querySelector(".activity-state-chip")); },
+      get chip() {
+        const chip = document.querySelector(panel.status).querySelector(".activity-state-chip");
+        return chip ? textOf(chip) : "";
+      },
       get shape() { return document.querySelector(panel.status).querySelector(".activity-state-icon").dataset.shape; },
     };
   };
@@ -105,7 +108,7 @@ test("a pending read keeps every heading, and each panel says so where it sits",
     assert.equal(panel.status.getAttribute("aria-live"), "polite", "a wait that ends is announced politely");
     assert.equal(panel.status.hidden, false);
     assert.equal(panel.content.getAttribute("aria-busy"), "true");
-    assert.equal(panel.chip, DEMO_DATA_STATES.loading.chip);
+    assert.equal(panel.chip, "", "the heading already says Loading, so no chip says it again");
     assert.equal(panel.shape, "loading");
     // Nothing promises a recovery from a failure that has not happened.
     assert.equal(panel.actions.hidden, true);

@@ -80,7 +80,7 @@ test("each rendered state carries exactly one heading, so there is one primary m
     assert.equal(headings[0].tagName, "H3", `${state}: it sits under the panel's own h2`);
     assert.equal(headings[0].className, "activity-state-title");
     // The chip is a word beside the heading, not a second heading.
-    assert.equal(byClass(root.nodes["#activity-status"], "activity-state-chip")[0].tagName, "P", state);
+    for (const chip of byClass(root.nodes["#activity-status"], "activity-state-chip")) assert.equal(chip.tagName, "P", state);
   }
 });
 

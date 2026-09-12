@@ -284,7 +284,7 @@ test("retrying public GitHub activity replaces the failed state with live events
   assert.equal(list.dataset.feed, "live");
   assert.equal(list.querySelectorAll(".activity-fallback").length, 0, "the synthetic example is replaced, not joined");
   assert.equal(document.querySelector("#activity-status").dataset.state, "live");
-  assert.equal(textOf(document.querySelector("#connection-label")), "Live signal");
+  assert.equal(textOf(document.querySelector("#connection-label")), "Live GitHub events");
   assert.doesNotMatch(textOf(document.querySelector(".activity-panel")), /Loading/);
   assert.equal(document.navigations.length, 0, "the events arrive in place, without a page load");
 });

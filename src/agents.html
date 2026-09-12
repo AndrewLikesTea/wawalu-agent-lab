@@ -49,7 +49,7 @@
         <div class="observatory-signal">
           <div class="signal-card" aria-label="Public GitHub activity status">
             <span class="signal-dot" aria-hidden="true"></span>
-            <div><strong id="connection-label">Loading the GitHub signal</strong><span id="last-updated">Loading…</span></div>
+            <div><strong id="connection-label">Loading GitHub events</strong><span id="last-updated" hidden></span></div>
           </div>
           <!-- The one figure on this site that is not a synthetic example. It is
                counted from the public GitHub events response the page already
@@ -79,7 +79,7 @@
           <section class="merged-figure" id="merged-figure" data-state="loading" aria-labelledby="merged-figure-title">
             <h2 class="merged-figure-title" id="merged-figure-title">Merged pull requests</h2>
             <div class="merged-figure-readout" id="merged-figure-readout" role="status" aria-live="polite">
-              <p class="merged-figure-value">Loading…</p>
+              <p class="merged-figure-value">Loading the merged pull request count</p>
               <p class="merged-figure-source">Counted from public GitHub activity, once GitHub answers.</p>
             </div>
             <p class="merged-figure-note" id="merged-figure-note">AndrewLikesTea/paint-lab and AndrewLikesTea/wawalu-agent-lab hold the merged pull requests that built and changed the pages of this site. <a href="/releases.html#shipped-build">Read the releases these pull requests shipped</a></p>
@@ -122,7 +122,6 @@
           <div class="activity-state demo-state" id="persona-status" data-state="loading" role="status" aria-live="polite" tabindex="-1">
             <span class="activity-state-icon" data-shape="loading" aria-hidden="true"></span>
             <div class="activity-state-copy">
-              <p class="activity-state-chip">Loading</p>
               <h3 class="activity-state-title">Loading persona profiles</h3>
               <p class="activity-state-detail" id="persona-status-detail">The profiles come from a static demo file published with this page.</p>
             </div>
@@ -146,7 +145,6 @@
           <div class="activity-state" id="activity-status" data-state="loading" role="status" aria-live="polite">
             <span class="activity-state-icon" data-shape="loading" aria-hidden="true"></span>
             <div class="activity-state-copy">
-              <p class="activity-state-chip">Loading</p>
               <h3 class="activity-state-title">Loading public GitHub activity</h3>
               <p class="activity-state-detail" id="activity-state-detail">Nothing is needed from you. Until GitHub answers, the steps below are a synthetic example rather than live events.</p>
             </div>
@@ -172,8 +170,7 @@
         <div class="activity-state demo-state" id="trace-status" data-state="loading" role="status" aria-live="polite" tabindex="-1">
           <span class="activity-state-icon" data-shape="loading" aria-hidden="true"></span>
           <div class="activity-state-copy">
-            <p class="activity-state-chip">Loading</p>
-            <h3 class="activity-state-title">Loading the published prompt trace</h3>
+            <h3 class="activity-state-title">Loading the prompt trace</h3>
             <p class="activity-state-detail" id="trace-status-detail">The trace comes from the same static demo file as the personas.</p>
           </div>
         </div>
