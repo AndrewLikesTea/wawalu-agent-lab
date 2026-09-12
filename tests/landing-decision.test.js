@@ -498,3 +498,30 @@ test("every Shiplog workflow is still on the front door and still works", async 
     "the AI FinOps door must open the answer destination");
   assert.ok(nav.some((link) => link.getAttribute("href") === "/"));
 });
+
+test("the hero's first step records a decision before its release, in the directory's order", async (t) => {
+  const { document } = await openFrontDoor(t);
+
+  // #2316: the sentence under the demo link said to record a release and then
+  // inspect its decisions, while the site directory on the same page says
+  // "Decisions — start here: record a decision, then link it to the release it
+  // shaped". Two orders for one workflow on one page; the directory's is the
+  // one every other page carries, so the hero follows it.
+  const step = textOf(document.getElementById("top").querySelector(".hero-boundary"));
+  assert.doesNotMatch(step, /record a release and inspect its linked decisions/i);
+  assert.match(step, /^Record a decision, then link it to the release it shaped\./);
+  const directory = document.querySelectorAll("li").map(textOf)
+    .find((text) => text.startsWith("Decisions — start here"));
+  assert.match(directory, /record a decision, then link it to the release it shaped/,
+    "the hero's order is only right while the directory still says the same thing");
+
+  // The reorder keeps all three boundaries, in plain words.
+  assert.match(step, /The example records are invented/);
+  assert.match(step, /use no customer or production data/);
+  assert.match(step, /Records you add stay in this browser\./);
+
+  // And the link the step sits under is unchanged.
+  const demo = document.getElementById("core-demo-link");
+  assert.equal(textOf(demo), "Explore the decision and release log demo →");
+  assert.equal(demo.getAttribute("href"), "/releases.html#shiplog-proof");
+});
