@@ -111,8 +111,6 @@ export const DEMOS = Object.freeze([
     label: "AI FinOps",
     href: "/evolution.html",
     purpose: "score your provider export in this browser tab",
-    // The only row that says where to start: a list with no order is no list.
-    note: "start here:",
   }),
   Object.freeze({ label: "Prompt coach", href: "/coach.html", purpose: "grade a prompt, then revise and grade again" }),
   // Beneath Prompt coach in the navigation, beside it here. Its browser-tab
@@ -123,7 +121,13 @@ export const DEMOS = Object.freeze([
     purpose: "grade your assistant export in this browser tab",
     filedUnder: "Prompt coach",
   }),
-  Object.freeze({ label: "Decisions", href: "/", purpose: "record a decision, then search the log" }),
+  Object.freeze({
+    label: "Decisions",
+    href: "/",
+    purpose: "record a decision and link it to the release it shaped",
+    // The only row that says where to start.
+    note: "start here:",
+  }),
   Object.freeze({ label: "Releases", href: "/releases.html", purpose: "see every release and its linked decisions" }),
   Object.freeze({ label: "Social", href: "/social.html", purpose: "read short posts about shipped work, or publish one" }),
   Object.freeze({ label: "People", href: "/profile.html", purpose: "pick a display name, see its image posts, newest first" }),

@@ -424,7 +424,9 @@ test("the footer is a site map: every destination the navigation offers, each on
       assert.equal(link.getAttribute("href"), demo.href);
       assert.ok(stops.includes(link), `${demo.label} must be keyboard reachable`);
     }
-    assert.match(textOf(items[0]), /start here/i, "the list must say where to start");
+    const marked = items.filter((row) => /start here/i.test(textOf(row)));
+    assert.equal(marked.length, 1, "the list must say where to start, once");
+    assert.match(textOf(marked[0]), /^Decisions\s*—\s*start here:/, "the list must start a visitor at the decision log");
     assert.match(textOf(items[0]), /^AI FinOps/, "the site leads with AI FinOps, so the list does too");
 
     // A site map, not an essay. The rule used to be a flat eight-word cap, which
@@ -433,8 +435,8 @@ test("the footer is a site map: every destination the navigation offers, each on
     // row may never be longer than the home page's sentence for that surface.
     // Two rows carry more words than they used to because the facts they had
     // dropped belong in both maps: where Paint's PNG goes, and what order
-    // People's posts come in. The marker on the first row is the order signal,
-    // not purpose copy, so it is counted separately.
+    // People's posts come in. The marker on the Decisions row says where to
+    // start, not what the page is for, so it is counted separately.
     const guideRows = [...document.querySelector(".site-guide").querySelectorAll("li")];
     // The page the navigation files under Prompt coach is explained on the home
     // page too, in the coach entry's companion paragraph rather than in the
@@ -532,6 +534,32 @@ test("the About Shiplog band reads the same on every page of the site", async ()
   // And it is the band, not an empty one that trivially matches everywhere.
   for (const demo of DEMOS) assert.ok(expected.includes(demo.purpose), `the band lost "${demo.label}"`);
   assert.ok(expected.includes(PITCH), "the band lost the sentence that says who Shiplog is for");
+});
+
+// The one row that says where to start is the decision log's (#2295). The home
+// page's headline, the evaluation brief and the pilot scorecard all sell the
+// decision and release log, so the band at the bottom of every page may not
+// send a prospect to a different product first. Read from the shipped markup of
+// pages that carry the list open and folded alike; the order is unchanged, so
+// the marker moved rows rather than the rows moving.
+test("the directory says to start at Decisions, and only there", async () => {
+  for (const file of ["index.html", "coach.html", "releases.html", "social.html", "profile.html", "agents.html"]) {
+    const rows = [...parseHtml(await read(file)).querySelector(".site-footer-demos").querySelectorAll("li")];
+    assert.equal(rows.length, 9, `${file}: the directory no longer lists nine destinations`);
+
+    const marked = rows.filter((row) => /start here/i.test(textOf(row)));
+    assert.equal(marked.length, 1, `${file}: ${marked.length} rows say where to start`);
+    const link = marked[0].querySelector("a");
+    assert.equal(link.getAttribute("href"), "/", `${file}: "start here" is not on the Decisions link`);
+    assert.equal(textOf(link), "Decisions", `${file}: "start here" is not on the Decisions link`);
+    assert.match(textOf(marked[0]), /record a decision and link it to the release it shaped/,
+      `${file}: the Decisions row no longer says what a visitor starts by doing`);
+
+    const finops = rows.filter((row) => row.querySelector("a").getAttribute("href") === "/evolution.html");
+    assert.equal(finops.length, 1, `${file}: the directory lost AI FinOps`);
+    assert.doesNotMatch(textOf(finops[0]), /start here/i, `${file}: AI FinOps still says to start there`);
+    assert.match(textOf(finops[0]), /score your provider export/, `${file}: AI FinOps lost what it does`);
+  }
 });
 
 // The description a fragment and a card may differ in, and nothing else: the
@@ -787,7 +815,8 @@ test("the directory says history only in the Personal AI history row, and each r
     const { purpose } = DEMOS.find((demo) => demo.label === label);
     assert.ok(purpose.startsWith(verb), `the ${label} row opens "${purpose}" instead of "${verb}…"`);
   }
-  assert.equal(DEMOS.find((demo) => demo.label === "Decisions").purpose, "record a decision, then search the log");
+  assert.equal(DEMOS.find((demo) => demo.label === "Decisions").purpose,
+    "record a decision and link it to the release it shaped");
   // The Releases follow-up names its page in the directory's words, word for word.
   assert.equal(FOLLOW_UP_TOPICS.follow_up_releases,
     `Releases page — ${DEMOS.find((demo) => demo.label === "Releases").purpose}`);
