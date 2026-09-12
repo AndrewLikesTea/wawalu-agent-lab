@@ -187,8 +187,9 @@
           </div>
           <div class="prompt-coaching-actions">
             <button type="submit" id="prompt-coaching-grade">Grade this prompt</button>
-            <button type="button" id="prompt-coaching-clear">Clear prompt and grades</button>
+            <button type="button" id="prompt-coaching-clear" aria-describedby="prompt-coaching-clear-hint">Delete prompt and grades</button>
           </div>
+          <p class="prompt-coaching-hint" id="prompt-coaching-clear-hint">Empties the prompt field and removes your grades from this page — the result, both scores after a revision, and the coaching summary. There is no undo.</p>
         </form>
         <p class="prompt-coaching-live" id="prompt-coaching-live" role="status" aria-live="polite" aria-atomic="true"></p>
         <!-- What changed between two grades, above the result it is a change to.

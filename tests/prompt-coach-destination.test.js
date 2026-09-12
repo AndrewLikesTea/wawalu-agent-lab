@@ -714,7 +714,7 @@ test("one name per concept: the example, the grade button, and the clear button"
   // the page module has run, so it is the one a visitor sees, and it names what
   // pressing it discards: the prompt and its grades, never a vague "start over".
   const clearLabel = textOf(byId(document, "prompt-coaching-clear"));
-  assert.equal(clearLabel, "Clear prompt and grades");
+  assert.equal(clearLabel, "Delete prompt and grades");
   assert.doesNotMatch(clearLabel, /start over/i,
     "a reset that does not say what it discards cannot be judged before it is pressed");
   assert.doesNotMatch(clearLabel, /^Grade/,
