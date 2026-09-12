@@ -112,11 +112,12 @@ test("the post is the first thing in the content region, under the heading that 
   // thing the link promised was the sixth block a reader reached.
   //
   // The third block is the concession #2179 asked for, and it is bounded here
-  // rather than left open: exactly one paragraph, exactly one sentence. This
-  // page is met cold by someone who has never seen Social, and it used to go
-  // from the heading straight into its loading line — busy
-  // before it had said what it was. One line of orientation is not the intro
-  // block that was removed; the count is what keeps the two apart.
+  // rather than left open: exactly one paragraph, exactly two short sentences —
+  // what Social is, and how to share this post. This page is met cold by
+  // someone who has never seen Social, and it used to go from the heading
+  // straight into its loading line — busy before it had said what it was. Two
+  // lines of orientation are not the intro block that was removed; the count is
+  // what keeps the two apart.
   const frame = elementChildren(main)[0];
   assert.equal(frame.tagName, "SECTION");
   const blocks = elementChildren(frame);
@@ -125,10 +126,11 @@ test("the post is the first thing in the content region, under the heading that 
   assert.deepEqual(blocks.slice(0, post).map((node) => node.tagName), ["P", "H1", "P"]);
   assert.equal(textOf(blocks[post - 2]), "Post");
   const lead = textOf(blocks[post - 1]);
-  assert.equal(lead.split(/[.!?]/).filter((part) => part.trim()).length, 1,
-    "one sentence stands between the heading and the post, not a paragraph of them");
-  // It says what the page is for: one post, at an address a reader can share.
-  assert.match(lead, /^This page is for one post from Social; /);
+  assert.equal(lead.split(/[.!?]/).filter((part) => part.trim()).length, 2,
+    "two short sentences stand between the heading and the post, not a paragraph of them");
+  // It says what the page is for: one post from Social, at an address a reader
+  // can copy to share it.
+  assert.match(lead, /^This page is for one post from Social, /);
   assert.equal(lead.includes(LOADING), false, "the lead must not restate the retrieval line above it");
 
   // And it is the region that holds the post slot, the retrieval line included.

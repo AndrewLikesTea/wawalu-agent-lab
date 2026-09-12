@@ -1235,13 +1235,22 @@ function assertSaidOnce(document, where) {
 // A reader reaches this page two ways: by selecting Open post on Social or
 // People, or from a link somebody sent. It used to read eyebrow, heading, then
 // straight into the loading line — a page saying it was busy before it had said
-// what it was. This is the sentence that answers that, and it stands above the
+// what it was. This is the lead that answers that, and it stands above the
 // loading line.
 //
 // It has to be true for both readers and in all four states, so it says what
-// the page is for rather than what it shows, and it names what this page gives
-// that a card does not: an address that links to this one post.
-const LEAD_SENTENCE = "This page is for one post from Social; its address links to that post alone, so you can copy it to share the post.";
+// the page is for rather than what it shows. #2308: it names Social in Social's
+// own words for itself, for a reader who has never seen the feed, and gives what
+// this page offers that a card does not — an address to copy — a short sentence
+// of its own.
+const SOCIAL_DESCRIPTION = "shared feed of short posts about shipped work";
+const ADDRESS_SENTENCE = "Copy this page’s address to share this post.";
+const LEAD_SENTENCE = `This page is for one post from Social, Shiplog’s ${SOCIAL_DESCRIPTION}. ${ADDRESS_SENTENCE}`;
+const RETIRED_LEAD = "This page is for one post from Social; its address links to that post alone, so you can copy it to share the post.";
+const sentencesOf = (text) => text.split(/(?<=[.!?])\s+/).filter((part) => part.trim());
+// "post" and "posts" both count: a sentence that leans on the word three times
+// reads as the page repeating itself.
+const postWordsIn = (sentence) => (sentence.match(/\bposts?\b/gi) ?? []).length;
 
 // Where the lead has to be, in every state: after the heading, before the
 // region that carries the loading line, and outside that region — which is what
@@ -1285,20 +1294,31 @@ test("the post page says what it is before it says it is loading", async () => {
   assert.ok(at(LEAD_SENTENCE) < at(STATE_HEADLINES.loading), "the lead precedes the line saying the page is busy");
   assert.ok(at(LEAD_SENTENCE) < at(CONTEXT_SENTENCE), "the page says what it is before it hedges what a post may be");
 
-  // One sentence, plain and short enough to read at a glance.
-  assert.equal(LEAD_SENTENCE.split(/[.!?]/).filter((part) => part.trim()).length, 1, "one sentence, not two");
+  // Two short sentences, plain enough to read at a glance: what Social is, then
+  // how to share this post.
+  const sentences = sentencesOf(LEAD_SENTENCE);
+  assert.equal(sentences.length, 2, "two short sentences, not one long one");
+  assert.equal(sentences[1], ADDRESS_SENTENCE, "copying the address must be a sentence of its own");
+  for (const sentence of sentences) {
+    assert.ok(postWordsIn(sentence) <= 2, `"${sentence}" says post more than twice`);
+  }
   assert.ok(LEAD_SENTENCE.split(/\s+/).length <= 25, "the lead stays at 25 words or fewer");
 
   // True for a reader who selected Open post as much as for one who was sent a
   // link: it names the address, not a "shared link" only one of them followed.
   assert.doesNotMatch(LEAD_SENTENCE, /shared link/i, "the lead only fits a reader who was sent a link");
-  assert.match(LEAD_SENTENCE, /address links to that post alone/, "the lead must say the address is this post's own");
+  assert.equal(html.includes(RETIRED_LEAD), false, "the one-sentence lead this replaced is gone");
   assert.equal(content.includes("Social is a shared feed of short posts"), false,
     "the permalink must not restate Social's whole intro sentence");
 
+  // Social's description of itself, byte for byte: the lead borrows the phrase,
+  // not a paraphrase of it.
+  const social = await readFile(new URL("../src/social.html", import.meta.url), "utf8");
+  assert.ok(social.includes(`Social is a ${SOCIAL_DESCRIPTION}, images optional.`),
+    "Social no longer describes itself in the words this lead borrows");
+
   // Social's provenance sentence, with the only two words a one-post page cannot
   // say: "on Social" for "here", and "a visitor" for "you".
-  const social = await readFile(new URL("../src/social.html", import.meta.url), "utf8");
   assert.ok(social.includes("The posts already here are invented to demonstrate Shiplog and use no customer or production data; a post you publish is real."),
     "Social no longer says the provenance sentence this page follows");
   assert.equal(CONTEXT_SENTENCE.replace("on Social", "here").replace("a visitor publishes", "you publish"),
@@ -1355,5 +1375,46 @@ test("the lead stands once, in the same place, through loading, a loaded post, a
     } finally {
       page.restore();
     }
+  }
+});
+
+test("the painted page tells a cold visitor what Social is and how to share the post, once", async () => {
+  const page = await loadPage(new URL("../src/post.html", import.meta.url), { location: { search: "?id=p-image" } });
+  try {
+    const { document } = page;
+    let release;
+    globalThis.fetch = () => new Promise((resolve) => { release = () => resolve(seedResponse([IMAGE_POST])); });
+    await importPageModule("/post-page.js");
+    const panel = document.querySelector("#post-detail");
+    await waitFor(() => panel.querySelectorAll(".detail-loading").length === 1, "the loading state rendered");
+
+    // The frame around the lead is unchanged while the page waits: a loaded post
+    // renames the title and the heading after its display name, so they are read
+    // here, before it arrives.
+    assert.equal(textOf(document.querySelector("title")), "Post · Social · Shiplog");
+    assert.equal(document.title, "Post · Social · Shiplog");
+    assert.equal(textOf(document.querySelector("#page-title")), "Post");
+    assert.equal(textOf(panel.querySelector(".detail-loading-text")), STATE_HEADLINES.loading);
+
+    release();
+    await waitFor(() => panel.querySelectorAll(".detail-author-link").length === 1, "the post arrived");
+
+    // Read off the live document, not the markup: the block under the heading.
+    const blocks = document.querySelector(".hero-post").querySelectorAll("h1,p");
+    const lead = textOf(blocks[blocks.findIndex((node) => node.id === "page-title") + 1]);
+    assert.equal(lead, LEAD_SENTENCE);
+    assert.ok(lead.includes(`Social, Shiplog’s ${SOCIAL_DESCRIPTION}.`), "the lead must describe Social in Social's own words");
+    assert.ok(lead.includes(ADDRESS_SENTENCE), "the lead must say how to share the post");
+    for (const sentence of sentencesOf(lead)) {
+      assert.ok(postWordsIn(sentence) <= 2, `"${sentence}" says post more than twice`);
+    }
+
+    const body = textOf(document.body);
+    assert.equal(body.split(ADDRESS_SENTENCE).length - 1, 1, "the address sentence must be said once on the page");
+    assert.equal(body.includes(RETIRED_LEAD), false, "the one-sentence lead this replaced is gone");
+    assert.equal(textOf(document.querySelector("#post-back")), SOCIAL_LINK);
+    assert.equal(textOf(document.querySelector("#post-publish")), PUBLISH_LINK);
+  } finally {
+    page.restore();
   }
 });
