@@ -1,6 +1,6 @@
 import { fitBitmapSize, FRAME_BUDGET_MS, PixelDocument, WebGLPresenter } from "./paint-engine.js";
-import { dataUrlPayload, writePaintHandoff } from "../publishing-media.js";
-import { paintHandoffCopy, paintHandoffHref } from "../paint-handoff.js";
+import { PAINT_HANDOFF_KEY, writePaintHandoff } from "../publishing-media.js";
+import { EXPORT_FILE_NAME, paintHandoffCopy, paintHandoffHref } from "../paint-handoff.js";
 import { SITE_NAV } from "../site-nav.js";
 
 export const THEME_KEY = "paint.theme.v1";
@@ -75,10 +75,9 @@ export function normalizedBlendMode(value) {
   return supportedBlendModes.has(value) ? value : "normal";
 }
 
-export function paintHandoffFromDataUrl(dataUrl, { width, height, size }) {
-  const payload = dataUrlPayload(dataUrl);
-  return payload ? { ...payload, width, height, size, preview: dataUrl, source: "paint" } : null;
-}
+// How long Paint waits for an open Social composer to claim the image before it
+// opens Social itself. A claim is a storage event between tabs: milliseconds.
+export const PAINT_HANDOFF_CLAIM_MS = 400;
 
 export function applyTheme(root, button, theme) {
   const dark = theme === "dark";
@@ -426,34 +425,31 @@ export function initEditor(root = document, environment = globalThis) {
       showHandoff("exported", exportButton);
     }, "image/png");
   });
+  // The same PNG the export downloads, left for the Social composer
+  // (src/publishing-media.js). A composer already open in another tab claims it
+  // within a moment, and then the draft there is where it belongs; otherwise
+  // this tab opens Social, which claims it on load. A store that will not hold
+  // it keeps the visitor here with the manual route.
   publishButton?.addEventListener("click", () => {
     publishButton.disabled = true;
-    publishStatus.textContent = "Preparing a preview for your post…";
-    const exportCanvas = flattenedCanvas();
-    exportCanvas.toBlob((blob) => {
-      if (!blob) {
-        publishStatus.textContent = "The drawing could not be prepared. Export it and upload the file from Social.";
+    publishStatus.textContent = "Sending the image to Social…";
+    flattenedCanvas().toBlob(async (blob) => {
+      const result = blob
+        ? await writePaintHandoff(environment.localStorage, blob, { name: EXPORT_FILE_NAME })
+        : { ok: false, error: "The drawing could not be exported. Try again after another edit." };
+      if (!result.ok) {
+        publishStatus.textContent = result.error;
         publishButton.disabled = false;
         return;
       }
-      const reader = new FileReader();
-      reader.addEventListener("load", () => {
-        const handoff = paintHandoffFromDataUrl(reader.result, { width: image.width, height: image.height, size: blob.size });
-        const result = writePaintHandoff(environment.sessionStorage, handoff);
-        if (!result.ok) {
-          publishStatus.textContent = result.error;
-          publishButton.disabled = false;
-          return;
-        }
-        publishStatus.textContent = "";
-        publishButton.disabled = false;
-        showHandoff("prepared", publishButton);
-      }, { once: true });
-      reader.addEventListener("error", () => {
-        publishStatus.textContent = "The drawing could not be read. Export it and upload the file from Social.";
-        publishButton.disabled = false;
-      }, { once: true });
-      reader.readAsDataURL(blob);
+      await new Promise((resolve) => (environment.setTimeout ?? setTimeout)(resolve, PAINT_HANDOFF_CLAIM_MS));
+      publishButton.disabled = false;
+      if (environment.localStorage.getItem(PAINT_HANDOFF_KEY) === null) {
+        publishStatus.textContent = "Added to the post you are writing on Social. Switch to that tab to describe and publish it.";
+        return;
+      }
+      publishStatus.textContent = "";
+      environment.location.assign(paintHandoffHref("prepared"));
     }, "image/png");
   });
   environment.addEventListener?.("resize", scheduleRender);

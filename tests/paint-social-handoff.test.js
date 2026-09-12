@@ -22,6 +22,7 @@ import {
   paintHandoffIntent,
   renderPaintArrival,
 } from "../src/paint-handoff.js";
+import { PAINT_HANDOFF_KEY, PAINT_HANDOFF_STORAGE_ERROR } from "../src/publishing-media.js";
 import { createPaintHarness } from "./support/paint-editor.js";
 import { byClass, createElement, installDocument } from "./support/dom.js";
 
@@ -29,17 +30,21 @@ installDocument();
 
 const read = (path) => readFile(new URL(`../src/${path}`, import.meta.url), "utf8");
 
-function editorHarness() {
+function editorHarness(environment = {}) {
   const paint = createPaintHarness({ exportBlob: new Blob(["png"], { type: "image/png" }) });
   const stored = new Map();
-  paint.environment.sessionStorage = {
-    getItem: (key) => stored.get(key) ?? null,
-    setItem: (key, value) => stored.set(key, value),
-    removeItem: (key) => stored.delete(key),
-  };
-  paint.environment.location = {
-    assign() { throw new Error("the editor must not navigate on its own"); },
-  };
+  paint.navigations = [];
+  Object.assign(paint.environment, {
+    localStorage: {
+      getItem: (key) => stored.get(key) ?? null,
+      setItem: (key, value) => stored.set(key, value),
+      removeItem: (key) => stored.delete(key),
+    },
+    location: { assign: (href) => paint.navigations.push(href) },
+    // The window an open Social composer has to claim the image, passed at
+    // once: nothing here waits in real time.
+    setTimeout: (resolve) => resolve(),
+  }, environment);
   paint.stored = stored;
   paint.editor = initEditor(paint.root, paint.environment);
   return paint;
@@ -97,6 +102,7 @@ test("exporting a PNG reveals a labelled handoff and puts focus on the way out",
   assert.match(control(paint, "#paint-handoff-detail").textContent, /uploaded nothing/i);
   assert.match(control(paint, "#paint-handoff-detail").textContent, new RegExp(EXPORT_FILE_NAME));
   assert.equal(paint.exports.length, 1, "the file itself still downloads");
+  assert.deepEqual(paint.navigations, [], "exporting left the editor on its own");
 });
 
 test("dismissing the handoff returns focus to the control that opened it", async () => {
@@ -116,37 +122,64 @@ test("dismissing the handoff returns focus to the control that opened it", async
   assert.equal(control(paint, "#export-button").focused, true, "focus must not be dropped on the document");
 });
 
-// The prepare path reads the flattened canvas through a FileReader, which this
-// runtime does not ship as a global. The stub does exactly what the browser
-// does with a blob: hand back a base64 data URL of its bytes.
-class StubFileReader {
-  #handlers = {};
-  addEventListener(type, handler) { this.#handlers[type] = handler; }
-  readAsDataURL(blob) {
-    blob.arrayBuffer().then((buffer) => {
-      this.result = `data:${blob.type};base64,${Buffer.from(buffer).toString("base64")}`;
-      this.#handlers.load?.();
-    });
-  }
-}
-
-test("preparing a drawing offers the handoff instead of navigating for the reader", async (context) => {
-  const original = globalThis.FileReader;
-  globalThis.FileReader = StubFileReader;
-  context.after(() => { globalThis.FileReader = original; });
+// #2298: “Use this image in a Social post” (#publish-button) is one press. It
+// leaves the PNG Export PNG would download in storage for the composer, and
+// either an open composer claims it or Paint opens Social itself.
+test("the Social post action is enabled exactly when Export PNG is", () => {
   const paint = editorHarness();
-  await paint.canvas.dispatch("pointerdown", { pointerId: 1, clientX: 20, clientY: 20 });
-  await paint.canvas.dispatch("pointerup", { pointerId: 1, clientX: 20, clientY: 20 });
+  assert.equal(control(paint, "#export-button").disabled, false);
+  assert.equal(control(paint, "#publish-button").disabled, false);
+
+  // The one state that takes Export PNG away takes this action with it.
+  const blind = createPaintHarness();
+  blind.canvas.getContext = () => null;
+  assert.equal(initEditor(blind.root, blind.environment), null);
+  assert.equal(blind.selectors.get("#export-button").disabled, true);
+  assert.equal(blind.selectors.get("#publish-button").disabled, true);
+});
+
+test("sending the image leaves the exported PNG for Social and opens the composer", async () => {
+  const paint = editorHarness();
   await control(paint, "#publish-button").dispatch("click");
   await settle();
 
-  const card = control(paint, "#paint-handoff");
-  assert.equal(card.hidden, false, "the prepared drawing must announce itself");
-  assert.equal(card.dataset.handoff, "prepared");
-  assert.equal(control(paint, "#paint-handoff-link").href, paintHandoffHref("prepared"));
-  assert.equal(control(paint, "#paint-handoff-link").focused, true);
-  assert.equal(control(paint, "#publish-button").disabled, false, "the editor stays usable after a prepare");
-  assert.equal(paint.stored.size, 1, "the drawing is waiting in this tab for the composer");
+  assert.deepEqual(paint.navigations, [paintHandoffHref("prepared")]);
+  const record = JSON.parse(paint.stored.get(PAINT_HANDOFF_KEY));
+  assert.equal(record.dataUrl, `data:image/png;base64,${Buffer.from("png").toString("base64")}`);
+  assert.equal(record.type, "image/png");
+  assert.equal(record.name, EXPORT_FILE_NAME);
+  assert.equal(paint.exports.length, 0, "the action downloaded a file as well");
+  assert.equal(control(paint, "#paint-handoff").hidden, true, "the action asked for a second press");
+  assert.equal(control(paint, "#publish-button").disabled, false);
+});
+
+test("an open Social composer that claims the image keeps the visitor in Paint, told where it went", async () => {
+  const paint = editorHarness({
+    setTimeout: (resolve) => {
+      paint.stored.delete(PAINT_HANDOFF_KEY);
+      resolve();
+    },
+  });
+  await control(paint, "#publish-button").dispatch("click");
+  await settle();
+
+  assert.deepEqual(paint.navigations, [], "Paint opened a second Social beside the one that took the image");
+  assert.match(control(paint, "#publish-status").textContent, /Switch to that tab/);
+});
+
+test("a store that will not hold the image keeps the visitor in Paint and says why", async () => {
+  const paint = editorHarness({
+    localStorage: {
+      getItem: () => null,
+      setItem() { throw new DOMException("The quota has been exceeded.", "QuotaExceededError"); },
+    },
+  });
+  await control(paint, "#publish-button").dispatch("click");
+  await settle();
+
+  assert.deepEqual(paint.navigations, []);
+  assert.equal(control(paint, "#publish-status").textContent, PAINT_HANDOFF_STORAGE_ERROR);
+  assert.equal(control(paint, "#publish-button").disabled, false);
 });
 
 test("the editor markup ships the handoff hidden, labelled, and keyboard-operable", async () => {
@@ -212,8 +245,8 @@ test("Social ships the arrival region and wires it to the query the handoff send
   );
 
   const wiring = await read("social-page.js");
-  assert.match(wiring, /renderPaintArrival\(root\.querySelector\("#paint-arrival"\), paintHandoffIntent\(/);
-  assert.match(wiring, /arrival\?\.focus\?\.\(\)/);
+  assert.match(wiring, /const arrivalPanel = root\.querySelector\("#paint-arrival"\);/);
+  assert.match(wiring, /renderPaintArrival\(arrivalPanel, intent\)\?\.focus\?\.\(\)/);
 
   const css = await read("styles.css");
   assert.match(css, /\.paint-arrival:focus-visible \{ outline:3px solid var\(--focus-ring\)/);

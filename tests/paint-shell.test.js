@@ -28,7 +28,7 @@ test("paint shell has semantic navigation and an accessible canvas", async () =>
   assert.match(html, /id="layer-visibility" type="button" aria-label="Hide Bitmap layer" aria-pressed="true"/);
   assert.match(html, /class="layer-empty" hidden/);
   assert.match(html, /class="layer-error" role="status" hidden/);
-  assert.match(html, /id="publish-button"[^>]*>Use in post/);
+  assert.match(html, /id="publish-button"[^>]*>Use this image in a Social post </);
   assert.match(html, /id="publish-status" role="status" aria-live="polite"/);
   assert.doesNotMatch(html, /https?:\/\//);
 });
