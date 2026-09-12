@@ -590,10 +590,9 @@ export function renderPostDetail(container, post, options = {}) {
   const permalink = postPermalink(post.id ?? id, (options.location ?? globalThis.window?.location)?.origin);
   container.append(article);
   if (permalink) container.append(renderPostCopyControl(permalink, { clipboard: options.clipboard }));
-  container.append(
-    el("p", "hint detail-post-description", POST_LOADED_DESCRIPTION),
-    el("p", "hint detail-identity", "Display names are invented for this demo or chosen by whoever published the post — nobody owns or verifies one, and anyone can publish under any name."),
-  );
+  // What a display name is is not said here: src/post.html states it once in
+  // its standing frame, so it holds in every state rather than only this one.
+  container.append(el("p", "hint detail-post-description", POST_LOADED_DESCRIPTION));
 }
 
 // The page heading names the post the way a reader would: by who wrote it. The
