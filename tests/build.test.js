@@ -49,7 +49,7 @@ test("product has a health endpoint and accessible title", async () => {
     { status: "healthy", version: "unstamped" },
   );
   const html = await readFile(new URL("../src/index.html", import.meta.url), "utf8");
-  assert.match(html, /<title>Shiplog · decisions linked to releases<\/title>/);
+  assert.match(html, /<title>Shiplog · decision and release log<\/title>/);
   // The landmark the skip link targets — header and nav sit outside it.
   assert.match(html, /<main id="main-content" tabindex="-1">/);
   assert.match(html, /<label for="title">Title<\/label>/);
@@ -144,8 +144,15 @@ test("the homepage leads with the decision-to-release benefit and a primary demo
   const html = await readFile(new URL("../src/index.html", import.meta.url), "utf8");
   const document = parseHtml(html);
   const hero = document.querySelector(".hero");
-  assert.match(hero.textContent, /links engineering decisions to releases, preserving the reasoning behind shipped work/);
   assert.equal(document.querySelectorAll("h1").length, 1);
+  assert.equal(document.querySelector("h1").textContent.trim(), "Keep the reasoning behind what shipped.");
+  // The lede says what gets recorded instead of restating the h1's point.
+  const lede = hero.querySelectorAll("p").filter((p) => !p.getAttribute("class"));
+  assert.equal(lede.length, 1);
+  const ledeText = lede[0].textContent;
+  assert.doesNotMatch(ledeText, /reasoning behind shipped work/);
+  assert.doesNotMatch(ledeText, /reasoning/);
+  for (const term of ["context", "alternatives", "owner", "release"]) assert.match(ledeText, new RegExp(term));
   const primary = hero.querySelector(".button-link");
   assert.equal(primary.getAttribute("href"), "/releases.html#shiplog-proof");
   assert.match(primary.textContent, /Explore the decision and release log demo/);

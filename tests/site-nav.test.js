@@ -19,7 +19,7 @@ import { DEFAULT_DESTINATION, DESTINATION_FRAGMENT } from "../src/finops-workspa
 // `title` is the browser title, listed here so it cannot drift from the name
 // the nav gives the same surface.
 const PAGES = [
-  { file: "index.html", current: "/", title: "Shiplog · decisions linked to releases" },
+  { file: "index.html", current: "/", title: "Shiplog · decision and release log" },
   { file: "decision.html", current: "/", title: "Decision · Shiplog" },
   { file: "workspace.html", current: "/", title: "Local workspace · Shiplog" },
   { file: "social.html", current: "/social.html", title: "Social · Shiplog" },
