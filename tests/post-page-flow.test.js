@@ -125,7 +125,7 @@ test("a post that loads is headed by its display name and reads description, ima
       "the routed page preserves the valid-post reading order",
     );
     assert.equal(page.panel.getAttribute("aria-busy"), "false");
-    assert.ok(textOf(page.panel).includes(IDENTITY),
+    assert.ok(textOf(document.querySelector("#main-content")).includes(IDENTITY),
       "a stranger arriving on this link is not told what a display name is");
 
     // The post named its author, so the People link now points at that one
@@ -160,6 +160,7 @@ test("the permalink says what a display name is in Social's and People's own byt
     const html = (await readFile(new URL(`../src/${file}`, import.meta.url), "utf8")).replace(/<!--[\s\S]*?-->/g, "");
     const clause = html.match(/Display names are invented[^.<]*\./)?.[0];
     assert.ok(clause, `${file} no longer tells a reader what a display name is`);
+    assert.equal(html.split(clause).length - 1, 1, `${file} says what a display name is other than exactly once`);
     shipped.push(clause);
   }
   assert.equal(new Set(shipped).size, 1, "Social and People drifted into two ways of saying it");
@@ -167,7 +168,7 @@ test("the permalink says what a display name is in Social's and People's own byt
 
   const page = await openPostPage("?id=p-image", seedOnly([SEED_POST]));
   try {
-    const rendered = textOf(page.panel);
+    const rendered = textOf(page.document.querySelector("#main-content"));
     // Once. A fact stated twice on one screen is a fact a reader skips.
     assert.equal(rendered.split(IDENTITY).length - 1, 1, "the permalink states it other than exactly once");
     // The page's other "signed-in" sentence is about Social, not about a name,
@@ -176,6 +177,62 @@ test("the permalink says what a display name is in Social's and People's own byt
     assert.doesNotMatch(rendered, /not a signed-in account/);
   } finally {
     page.restore();
+  }
+});
+
+// Issue #2300. The sentence stands in the page's own frame rather than in the
+// region the lookup repaints, so a reader whose link fails or names a missing
+// post is told it too. Counted over the whole body, located by one combined
+// query (document order), and compared as booleans, never as nodes.
+function assertIdentityStands(document, where) {
+  assert.equal(textOf(document.body).split(IDENTITY).length - 1, 1,
+    `${where}: the page says what a display name is other than exactly once`);
+  const flow = document.querySelector("#main-content").querySelectorAll("h1,p,a");
+  const heading = flow.findIndex((node) => node.id === "page-title");
+  const note = flow.findIndex((node) => node.tagName === "P" && textOf(node) === IDENTITY);
+  const social = flow.findIndex((node) => node.id === "post-back");
+  assert.ok(heading >= 0 && note >= 0 && social >= 0, `${where}: the heading, the sentence or the Social link left the page's content`);
+  assert.ok(heading < note && note < social, `${where}: the sentence must read after the heading and before "${SOCIAL.label}"`);
+  assert.equal(flow[note].getAttribute("class"), "hint", `${where}: the sentence lost the class Social's feed note uses`);
+  for (const region of ["#post-detail", "#site-footer"]) {
+    assert.equal(Boolean(flow[note].closest(region)), false, `${where}: the sentence sits inside ${region}`);
+  }
+}
+
+test("the permalink says what a display name is once in every state, between its heading and the feed link", async () => {
+  const cold = await loadPage(new URL("../src/post.html", import.meta.url), { location: { search: "?id=p-image" } });
+  try {
+    assertIdentityStands(cold.document, "before the script runs");
+
+    let release;
+    globalThis.fetch = () => new Promise((resolve) => { release = () => resolve(seedResponse([SEED_POST])); });
+    await importPageModule("/post-page.js");
+    await waitFor(() => cold.document.documentElement.dataset.shiplogPostDetail === "loading", "the script took the region");
+    assertIdentityStands(cold.document, "while the lookup runs");
+
+    release();
+    await waitFor(() => cold.document.documentElement.dataset.shiplogPostDetail === "ready", "the post arrived");
+    const panel = cold.document.querySelector("#post-detail");
+    await waitFor(() => panel.querySelectorAll(".detail-post").filter((node) => !node.classList.contains("detail-skeleton")).length === 1,
+      "the real post replaced the placeholder");
+    assert.equal(panel.dataset.postState, "loaded");
+    assertIdentityStands(cold.document, "once the post rendered");
+  } finally {
+    cold.restore();
+  }
+
+  const unresolved = [
+    ["not-found", "?id=p-gone", seedOnly([SEED_POST])],
+    ["error", "?id=p-image", () => { throw new TypeError("Failed to fetch"); }],
+  ];
+  for (const [state, search, answer] of unresolved) {
+    const page = await openPostPage(search, answer);
+    try {
+      assert.equal(page.panel.dataset.postState, state, `the page landed in ${page.panel.dataset.postState}, not ${state}`);
+      assertIdentityStands(page.document, state);
+    } finally {
+      page.restore();
+    }
   }
 });
 
