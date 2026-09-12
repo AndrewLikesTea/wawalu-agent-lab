@@ -69,25 +69,25 @@ function exits(document) {
     || link.classList.contains("detail-back")));
 }
 
-// Social in every state, People wherever there is a post to belong to one.
-// Nothing rewrites either label; the People link's destination may narrow to a
-// display name the page can actually name, which is what the label promises,
-// and a state with no post withdraws the link rather than softening its words.
-// `peopleHref` of null asserts that withdrawal — counted through the list, so
-// no node is ever compared against null.
+// Social in every state, and nothing rewrites its label. Publish is the second,
+// and it belongs to the reader rather than to the post, so every state offers
+// it — the loading one included. Nothing a lookup can answer decides whether a
+// visitor may write a post of their own.
 //
-// Publish is the third, and it belongs to the reader rather than to the post,
-// so every state offers it — the loading one included. Nothing a lookup can
-// answer decides whether a visitor may write a post of their own.
+// The way to People is not a route out: a loaded image post draws it inside
+// itself. `peopleHref` names the link the post should carry, and null asserts
+// there is none — counted through the list, so no node is compared against null.
 function assertExits(page, peopleHref, where) {
   const links = exits(page.document);
-  const expected = [[SOCIAL.label, SOCIAL.href]];
-  if (peopleHref) expected.push([PEOPLE.label, peopleHref]);
-  expected.push([PUBLISH.label, PUBLISH.href]);
   assert.deepEqual(
     links.map((link) => [textOf(link), link.href]),
-    expected,
+    [[SOCIAL.label, SOCIAL.href], [PUBLISH.label, PUBLISH.href]],
     `${where}: the page's routes out`,
+  );
+  assert.deepEqual(
+    page.document.querySelectorAll(".detail-author-link").map((link) => [textOf(link), link.getAttribute("href")]),
+    peopleHref ? [[PEOPLE.label, peopleHref]] : [],
+    `${where}: the post's link to People`,
   );
 }
 
@@ -100,7 +100,7 @@ function assertExits(page, peopleHref, where) {
 const IDENTITY = "Display names are invented for this demo or chosen by whoever published the post — nobody owns or verifies one, and anyone can publish under any name.";
 
 const SOCIAL = { label: "Open Social to read the whole feed", href: "/social.html" };
-const PEOPLE = { label: "Open People to see Mina Okafor’s other image posts", href: "/profile.html" };
+const PEOPLE = { label: "See Mina Okafor’s image posts on People" };
 const PUBLISH = { label: "Open Social to publish a post", href: "/social.html#post-form" };
 const MINA = "/profile.html?author=Mina%20Okafor";
 
@@ -128,8 +128,8 @@ test("a post that loads is headed by its display name and reads description, ima
     assert.ok(textOf(page.panel).includes(IDENTITY),
       "a stranger arriving on this link is not told what a display name is");
 
-    // The post named its author, so the People link now points at that one
-    // display name's view — which is what its words promised all along.
+    // An image post, so it carries its own link to that one display name's
+    // People view, in the words Social's card uses.
     assertExits(page, MINA, "loaded");
   } finally {
     page.restore();
@@ -140,7 +140,10 @@ test("the loaded heading and title safely reuse the card's exact display name", 
   const displayName = `Ada <Admin> "Q"`;
   const page = await openPostPage("?id=p-image", seedOnly([{ ...SEED_POST, author: displayName }]));
   try {
-    assert.equal(textOf(page.panel.querySelector(".detail-author-link")), displayName);
+    assert.equal(textOf(page.panel.querySelector(".post-name")), displayName);
+    const people = page.panel.querySelector(".detail-author-link");
+    assert.equal(textOf(people), `See ${displayName}’s image posts on People`);
+    assert.equal(new URL(people.getAttribute("href"), "https://labs.wawalu.org").searchParams.get("author"), displayName);
     assert.equal(textOf(page.document.querySelector("#page-title")), `${displayName}'s post`);
     assert.equal(page.document.title, `${displayName}'s post · Social · Shiplog`);
     assert.equal(page.document.querySelectorAll("admin").length, 0, "angle brackets must remain text");
@@ -418,8 +421,6 @@ test("the loading state is one announced line in the post's region, and takes no
     assert.match(textOf(page.document.querySelector(".hero-post")),
       /The posts already on Social are invented to demonstrate Shiplog and use no customer or production data; a post a visitor publishes is real\./);
     assertExits(page, null, "loading");
-    assert.equal(textOf(page.document.querySelector("#post-people")), "", "loading must not expose an empty or placeholder display name");
-    assert.equal(page.document.querySelector("#post-people").hidden, true);
     // Nothing inside the waiting region is tabbable, so the exit stays the
     // first thing on the page a keyboard reader reaches after the site frame.
     assert.equal(tabSequence(page.document).filter((node) => node.closest("#post-detail")).length, 0);
@@ -609,7 +610,7 @@ test("a loaded post can hand over its own link, and says so where the post is", 
     assert.ok(sequence.includes(copy), "the control is reachable by keyboard");
     assert.ok(sequence.indexOf(page.panel.querySelector(".detail-author-link")) < sequence.indexOf(copy),
       "the post's own content is reached before the control that copies its link");
-    for (const id of ["#post-back", "#post-people", "#post-publish"]) {
+    for (const id of ["#post-back", "#post-publish"]) {
       assert.ok(sequence.indexOf(copy) < sequence.indexOf(page.document.querySelector(id)),
         `the copy control precedes ${id}`);
     }

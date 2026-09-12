@@ -297,11 +297,8 @@ test("the permalink's tab order runs skip, nav, post, exits, follow-up, director
   t.after(() => page.restore());
   const { document } = page;
 
-  // Every exit the page can offer, not only the one the loading state shows:
-  // post-page.js reveals the other two once it knows whose post this is, and the
-  // order they land in is the claim being made.
-  for (const id of ["#post-people", "#post-publish"]) document.querySelector(id).removeAttribute("hidden");
-
+  // Both exits stand in every state, and the order they land in is the claim
+  // being made.
   const stops = browserTabSequence(document);
   const at = (selector) => stops.indexOf(document.querySelector(selector));
 
@@ -316,17 +313,17 @@ test("the permalink's tab order runs skip, nav, post, exits, follow-up, director
   // person, and only then the folded directory. #2250 moved the map behind the
   // follow-up: a reader who came for one post should finish the page's own
   // errand before meeting a list of everywhere else.
-  const exits = ["#post-back", "#post-people", "#post-publish"].map(at);
+  const exits = ["#post-back", "#post-publish"].map(at);
   assert.deepEqual(exits.slice().sort((a, b) => a - b), exits, "the exits keep their reading order");
   assert.equal(exits[0], 2 + SITE_NAV.length, "the first exit follows the nav directly");
-  assert.ok(at(SUMMARY) > exits[2], "the directory summary comes after the page's own routes out");
+  assert.ok(at(SUMMARY) > exits[1], "the directory summary comes after the page's own routes out");
   assert.ok(at(SUMMARY) > at("#site-footer-email"), "the follow-up field is reached before the summary");
   assert.equal(at(SUMMARY), stops.length - 1, "the folded map is the last stop on the page");
 
   // Two stops between the last exit and the follow-up block, and both belong to
   // the shared band rather than to this page: its pointer at the worked
   // decision, and the repository link #2152 added beneath it.
-  const between = stops.slice(exits[2] + 1, at("#site-footer-message")).map(textOf);
+  const between = stops.slice(exits[1] + 1, at("#site-footer-message")).map(textOf);
   assert.deepEqual(between, [PITCH_LINK, SOURCE_LINK_LABEL]);
 
   // The whole sequence, end to end, with the directory shut. The block's two

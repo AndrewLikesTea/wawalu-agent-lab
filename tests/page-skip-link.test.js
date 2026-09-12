@@ -338,8 +338,8 @@ test("the main landmark rings for keyboard focus only, never for a mouse click",
 /* --------------------------- the post page's order ------------------------ */
 
 // The skip link, the wordmark, the nav, and the two onward routes the page
-// offers before its lookup has answered. People is the only exit missing here:
-// it needs a display name nobody has yet.
+// offers before its lookup has answered. The way to People is drawn inside a
+// loaded image post, so the frame has none.
 const FRAME_STOPS = SITE_NAV.length + 4;
 
 test("the post page's loading tab order reaches Social without a placeholder People link", async () => {
@@ -420,10 +420,9 @@ test("the post page's exit reads after the site header, in the document, not in 
   // Document order inside the landmark: the heading, then the post itself, then
   // the routes off the page. A permalink is opened to read one post, so the
   // post is what follows the heading that names it; the ways onward come after
-  // it rather than in front of it. Social still comes before People, the order
-  // the site nav names them in.
-  const order = landmark.querySelectorAll("#post-back,#post-people,#post-publish,#page-title,#post-detail").map((node) => node.id);
-  assert.deepEqual(order, ["page-title", "post-detail", "post-back", "post-people", "post-publish"]);
+  // it rather than in front of it.
+  const order = landmark.querySelectorAll("#post-back,#post-publish,#page-title,#post-detail").map((node) => node.id);
+  assert.deepEqual(order, ["page-title", "post-detail", "post-back", "post-publish"]);
 
   // No CSS trick may stand in for that order — reading order is the point.
   const css = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
@@ -433,26 +432,25 @@ test("the post page's exit reads after the site header, in the document, not in 
   assert.doesNotMatch(html.match(/<p class="detail-page-exits">[\s\S]*?<\/p>/)[0], /style=/);
 });
 
-test("the post page withholds People until it can name the loaded display name", async () => {
+test("the post page ships no People link before it can name the loaded display name", async () => {
   const document = await load("post.html");
   const exits = document.querySelector("#main-content").querySelectorAll(".detail-back");
-  assert.equal(exits.length, 3, "the permalink's three destinations, and no fourth");
+  assert.equal(exits.length, 2, "the permalink's two destinations, and no third");
   assert.deepEqual(
     exits.map((link) => [link.href, textOf(link)]),
     [
       ["/social.html", "Open Social to read the whole feed"],
-      ["/profile.html", ""],
       ["/social.html#post-form", "Open Social to publish a post"],
     ],
   );
-  // People alone is withheld in the shipped markup, which is the loading state:
-  // it has no display name yet. The two onward routes to Social both stand,
-  // with two hrefs and two labels — a place and an act — so a cold visitor is
-  // offered both before the lookup answers and after it.
-  assert.equal(exits[1].hidden, true);
-  assert.ok(!exits[2].hidden, "the publish route is withheld while the lookup runs");
-  assert.notEqual(exits[0].href, exits[2].href);
-  assert.notEqual(textOf(exits[0]), textOf(exits[2]));
+  // The shipped markup is the loading state, which has no display name, so it
+  // carries no link to People at all: a loaded image post draws its own. The
+  // two onward routes to Social both stand, with two hrefs and two labels — a
+  // place and an act — so a cold visitor is offered both before the lookup
+  // answers and after it.
+  assert.ok(!exits[1].hidden, "the publish route is withheld while the lookup runs");
+  assert.notEqual(exits[0].href, exits[1].href);
+  assert.notEqual(textOf(exits[0]), textOf(exits[1]));
 
   // The visible text carries the destination, so no aria-label may hold a word
   // the eye cannot read.

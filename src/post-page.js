@@ -6,7 +6,7 @@
 // asked first, and the seed is still consulted when the API has no answer.
 
 import { normalizeProfileApiPosts, normalizeSeedPosts } from "/profile.js";
-import { POST_EXITS, findPostById, postDetailTitle, postPageHeading, postPeopleHref, postPeopleLabel, renderPostDetail } from "/post-detail.js";
+import { POST_EXITS, findPostById, postDetailTitle, postPageHeading, renderPostDetail } from "/post-detail.js";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -31,48 +31,10 @@ async function init() {
   const id = params.get("id") ?? "";
   const requestedAuthor = (params.get("author") ?? "").trim();
   // Both routes out ship as words in src/post.html and nothing here rewrites
-  // them, so a label never changes under a reader mid-visit: whatever a link
-  // says when it is on the page is what it said a moment ago. The Social link
-  // is complete as shipped. Only the People link's destination is refined, and
-  // only ever narrowed to the display name the words already promise — first
-  // from the ?author= the arriving link carried, then from the post itself once
-  // one loads. A name that never resolves leaves it on People plainly.
-  const people = document.querySelector("#post-people");
-  const exits = people?.parentNode ?? null;
-  const aimPeople = (author) => {
-    if (!people) return;
-    people.href = postPeopleHref(window.location.search, author);
-    people.textContent = postPeopleLabel(author);
-  };
-  // …and whether it is offered at all. Its words promise "this display name's
-  // other image posts", which only means something while there is a post, or
-  // while one may still arrive. When the lookup settles on not-found or error
-  // there is no post and therefore no display name this page can point at — an
-  // ?author= in the URL is what the arriving link claimed, not a name the page
-  // resolved — so the link is removed from the document rather than left
-  // pointing at People-in-general under words that promise one person. Removed,
-  // not dimmed and not left in place: a link that is on the page is a promise
-  // the page can keep, and this one it cannot.
+  // them, so a label never changes under a reader mid-visit. The way to People
+  // is not one of them: it belongs to a loaded image post's display name, so
+  // renderPostDetail() draws it inside the post and every other state has none.
   //
-  // It comes back on the next attempt. A retry re-enters the loading state,
-  // where a post may yet arrive, so the link is restored to the exits paragraph
-  // in its shipped position — Social first, People second — before every load.
-  //
-  // A reader can be standing on that link at the moment it goes — they tabbed
-  // to it while the lookup was still running, and the lookup then failed.
-  // Removing the focused element would drop focus to the document and cost them
-  // their place, so focus moves one stop back first, to the exit that is still
-  // there and sits beside it in the same paragraph.
-  const offerPeople = (offered) => {
-    if (!people || !exits) return;
-    if (offered) {
-      people.hidden = false;
-      return;
-    }
-    if (document.activeElement === people) document.querySelector("#post-back")?.focus?.();
-    people.hidden = true;
-  };
-  aimPeople("");
   // The publish route is not about this post at all, so nothing here narrows
   // it, rewrites it, or withdraws it: it ships standing in src/post.html and
   // this module never touches it. It used to be withheld while the lookup ran,
@@ -96,7 +58,6 @@ async function init() {
     document.documentElement.dataset.shiplogPostDetail = "loading";
     nameHeading(null);
     document.title = postDetailTitle(null, "loading");
-    offerPeople(false);
     renderPostDetail(container, null, { state: "loading", id, author: requestedAuthor, returnHref: POST_EXITS.social.href });
     let post = null;
     let failed = false;
@@ -132,8 +93,6 @@ async function init() {
       onRetry: () => load({ fromRetry: true }),
     });
     nameHeading(post);
-    aimPeople(post?.author ?? "");
-    offerPeople(Boolean(post));
     document.title = postDetailTitle(post, state);
     document.documentElement.dataset.shiplogPostDetail = "ready";
 

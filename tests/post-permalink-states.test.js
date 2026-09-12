@@ -243,12 +243,11 @@ test("a link with no id, or a truncated one, lands in the same not-found state a
   }
 });
 
-// The People link's words are about one display name's other posts. On a state
-// with no post there is no such name — not even when the arriving URL claimed
-// one, because a claim is not a name this page resolved — so the link is gone
-// from the document rather than left pointing at People-in-general under words
-// that promise a person. Social stays: the feed is true either way.
-test("the states with no post withdraw the People link and keep the one to Social", async () => {
+// The way to People is about one post's display name. On a state with no post
+// there is no such name — not even when the arriving URL claimed one, because a
+// claim is not a name this page resolved — so no link to People is drawn at all.
+// Social stays: the feed is true either way.
+test("the states with no post offer no way to People and keep the ones to Social", async () => {
   const cases = [
     ["not-found", "?id=p-never-existed", seedOnly([IMAGE_POST])],
     ["not-found, with an author in the URL", "?id=p-gone&author=Mina%20Okafor", seedOnly([IMAGE_POST])],
@@ -265,45 +264,15 @@ test("the states with no post withdraw the People link and keep the one to Socia
       assert.deepEqual(exits.map(textOf), NO_POST_EXITS, `${where}: the routes out`);
       assert.equal(exits[0].getAttribute("href"), "/social.html");
       assert.equal(exits[1].getAttribute("href"), "/social.html#post-form");
-      // Withdrawn from the document, not hidden: a hidden link still reads to a
-      // screen reader in this harness, which models no layout at all.
-      assert.equal(page.document.querySelector("#post-people").hidden, true, `${where}: the People link is rendered`);
-      assert.equal(textOf(page.document.querySelector("main")).includes(PEOPLE_LINK), false, `${where}: its words are still on the page`);
-      // And it is not merely out of the tab order while still being read.
-      assert.equal(tabSequence(page.document).filter((stop) => textOf(stop) === PEOPLE_LINK).length, 0);
+      // Absent, not hidden: this harness models no layout, so only a count of
+      // the links themselves says nothing on the page leads to People.
+      const toPeople = page.document.querySelector("main").querySelectorAll("a")
+        .filter((link) => (link.getAttribute("href") ?? "").startsWith("/profile.html"));
+      assert.equal(toPeople.length, 0, `${where}: a People link with no post behind it`);
+      assert.equal(textOf(page.document.querySelector("main")).includes("image posts on People"), false, `${where}: its words are on the page`);
     } finally {
       page.restore();
     }
-  }
-});
-
-// Withdrawing a link is fine. Withdrawing the link a reader is standing on,
-// and saying nothing about where they now are, is not: focus would fall to the
-// document and a keyboard reader would restart from the top of the page.
-test("a reader standing on the People link keeps their place when it is withdrawn", async () => {
-  const page = await loadPage(new URL("../src/post.html", import.meta.url), { location: { search: "?id=p-gone" } });
-  try {
-    let release;
-    globalThis.fetch = () => new Promise((resolve) => { release = () => resolve(seedResponse([IMAGE_POST])); });
-    await importPageModule("/post-page.js");
-    const panel = page.document.querySelector("#post-detail");
-    await waitFor(() => panel.querySelectorAll(".detail-loading").length === 1, "the loading state rendered");
-
-    // Standing on it while the lookup is still open, which is when it is still
-    // offered — a post may yet arrive.
-    const people = page.document.querySelector("#post-people");
-    people.focus();
-    assert.equal(page.document.activeElement, people);
-
-    release();
-    await waitFor(() => page.document.documentElement.dataset.shiplogPostDetail === "ready", "the lookup settled");
-
-    // The post was not there, so the link is gone — and focus is on the exit
-    // beside it rather than nowhere.
-    assert.equal(page.document.querySelector("#post-people").hidden, true);
-    assert.equal(page.document.activeElement, page.document.querySelector("#post-back"));
-  } finally {
-    page.restore();
   }
 });
 
@@ -401,7 +370,7 @@ test("retry re-attempts the fetch and can take the page from error to loaded", a
 // press Enter. Nothing here calls click() — the point is that a reader who
 // never touches a pointer can get out of the error state, and that the page
 // re-attempts the load in place rather than reloading itself.
-test("the retry is reached by Tab and fired by Enter, and the People link returns with the post", async () => {
+test("the retry is reached by Tab and fired by Enter, and the post's People link comes with it", async () => {
   let failing = true;
   const page = await openPostPage("?id=p-image", (url) => {
     if (failing) throw new TypeError("Failed to fetch");
@@ -430,9 +399,9 @@ test("the retry is reached by Tab and fired by Enter, and the People link return
     // No reload: the same document is still standing, which is the only reason
     // the assertions above can see the page at all.
     assert.equal(page.document.querySelectorAll("h1").length, 1);
-    // A post again, so the link whose words are about its author comes back.
+    // A post again, so the link whose words are about its author is drawn.
     assert.deepEqual(page.document.querySelectorAll(".detail-back").map(textOf), CHROME_LINKS);
-    assert.equal(page.document.querySelector("#post-people").getAttribute("href"), "/profile.html?author=Mina%20Okafor");
+    assert.equal(page.panel.querySelector(".detail-author-link").getAttribute("href"), "/profile.html?author=Mina%20Okafor");
   } finally {
     page.restore();
   }
@@ -440,36 +409,48 @@ test("the retry is reached by Tab and fired by Enter, and the People link return
 
 /* -------------------------------- loaded ---------------------------------- */
 
-test("a loaded post links its display name to that name's People view", async () => {
+test("a loaded image post links to its display name's People view, after its text and image", async () => {
   const page = await openPostPage("?id=p-image", seedOnly([IMAGE_POST]));
   try {
     assertOneState(page, "loaded", "a post that loaded");
 
-    const link = page.panel.querySelector(".detail-author-link");
+    const links = page.panel.querySelectorAll(".detail-author-link");
+    assert.equal(links.length, 1);
+    const link = links[0];
     assert.equal(link.tagName, "A");
-    // The link's text is the name. "Profile" or "View profile" would leave a
-    // screen reader's list of links unable to say whose profile any of them is.
-    assert.equal(textOf(link), "Mina Okafor");
-    // The People view's own URL shape (profile.js's profileHref), not a second
+    // The words Social's card prints: the display name and the page it opens.
+    assert.equal(textOf(link), PEOPLE_LINK);
+    // The People view's own URL shape (src/social-links.js), not a second
     // vocabulary invented for this one page.
     assert.equal(link.getAttribute("href"), "/profile.html?author=Mina%20Okafor");
-    assert.ok(tabSequence(page.document).includes(link), "the name is reachable by keyboard");
+    assert.ok(tabSequence(page.document).includes(link), "the link is reachable by keyboard");
+    // The name itself is prose in the byline.
+    assert.equal(textOf(page.panel.querySelector(".post-name")), "Mina Okafor");
 
-    // The permalink is no longer a dead end: there is a way onward as well as
-    // a way back.
-    assert.equal(page.panel.querySelectorAll(".detail-author-link").length, 1);
+    // After the image and its caption, read off one combined query in document order.
+    const order = page.panel.querySelectorAll(".detail-image,figcaption,.detail-author-link").map((node) => node.id || node.className);
+    assert.deepEqual(order, ["detail-image", "detail-caption", "detail-author-link"]);
+
+    // And the only other links the page's own content offers are the Social ones.
+    const main = page.document.querySelector("#main-content");
+    assert.deepEqual(main.querySelectorAll("a").map((node) => [textOf(node), node.getAttribute("href")]), [
+      [PEOPLE_LINK, "/profile.html?author=Mina%20Okafor"],
+      [SOCIAL_LINK, "/social.html"],
+      [PUBLISH_LINK, "/social.html#post-form"],
+    ]);
   } finally {
     page.restore();
   }
 });
 
-test("a name with characters that need encoding still reaches its People view", async () => {
+test("a post with no image prints its display name as text and links nowhere near People", async () => {
   const post = { ...TEXT_POST, author: "Ada Ø’Neil & Co" };
   const page = await openPostPage("?id=p-text", seedOnly([post]));
   try {
-    const link = page.panel.querySelector(".detail-author-link");
-    assert.equal(textOf(link), "Ada Ø’Neil & Co");
-    assert.equal(link.getAttribute("href"), `/profile.html?author=${encodeURIComponent("Ada Ø’Neil & Co")}`);
+    assertOneState(page, "loaded", "a text-only post");
+    assert.equal(textOf(page.panel.querySelector(".post-name")), "Ada Ø’Neil & Co");
+    assert.equal(page.panel.querySelectorAll("a").length, 0, "a text-only post links to a People view that holds nothing");
+    assert.equal(textOf(page.document.querySelector("main")).includes("image posts on People"), false);
   } finally {
     page.restore();
   }
@@ -578,7 +559,7 @@ test("an image that cannot be shown is replaced by its description and a sentenc
 
     // The post is still a post: the display name, the timestamp and the caption
     // all survive the image, and so does the labelled description under it.
-    assert.equal(textOf(page.panel.querySelector(".detail-author-link")), IMAGE_POST.author);
+    assert.equal(textOf(page.panel.querySelector(".post-name")), IMAGE_POST.author);
     assert.equal(textOf(page.panel.querySelector("figcaption")), IMAGE_POST.caption);
     assert.equal(textOf(page.panel.querySelector(".detail-image-description-text")), IMAGE_POST.image.alt);
     assert.equal(page.panel.querySelectorAll("time").length, 1);
@@ -602,7 +583,7 @@ test("a post with no image renders no image element and no empty frame to hold o
 
     // The post itself still reads in full.
     assert.match(textOf(page.panel), /Shipped the retry path today\./);
-    assert.equal(textOf(page.panel.querySelector(".detail-author-link")), "Rowan Diaz");
+    assert.equal(textOf(page.panel.querySelector(".post-name")), "Rowan Diaz");
     assertOneState(page, "loaded", "a post with no image");
   } finally {
     page.restore();
@@ -617,24 +598,22 @@ test("a post with no image renders no image element and no empty frame to hold o
 // either way — so this is asserted in the missing state as well as the loaded
 // one, not just in the state that happens to work.
 const SOCIAL_LINK = "Open Social to read the whole feed";
-const PEOPLE_LINK = "Open People to see Mina Okafor’s other image posts";
+// Not a route out of the page: the link a loaded image post draws inside itself.
+const PEOPLE_LINK = "See Mina Okafor’s image posts on People";
 // Both routes name Social; their labels explain whether to read or publish.
 const PUBLISH_LINK = "Open Social to publish a post";
-const CHROME_LINKS = [SOCIAL_LINK, PEOPLE_LINK, PUBLISH_LINK];
+const CHROME_LINKS = [SOCIAL_LINK, PUBLISH_LINK];
 // What each state offers. Social is true whatever the lookup did — the feed
-// exists either way — so it stands in all four. People is offered only where
-// there is a post, because its words are about that post's display name and a
-// state with no post has no name to put behind them. Publish is about the
-// reader rather than about this post, so it stands in all four states too —
-// nothing a lookup can answer decides whether a visitor may write one of their
-// own, and the reader who wants to write rather than read should not have to
-// sit out a fetch they have no stake in to be offered it.
-const NO_POST_EXITS = [SOCIAL_LINK, PUBLISH_LINK];
+// exists either way — so it stands in all four. Publish is about the reader
+// rather than about this post, so it stands in all four states too — nothing a
+// lookup can answer decides whether a visitor may write one of their own. The
+// way to People is not a route out: it belongs to a loaded image post.
+const NO_POST_EXITS = CHROME_LINKS;
 const EXITS_BY_STATE = {
-  loading: NO_POST_EXITS,
+  loading: CHROME_LINKS,
   loaded: CHROME_LINKS,
-  "not-found": NO_POST_EXITS,
-  error: NO_POST_EXITS,
+  "not-found": CHROME_LINKS,
+  error: CHROME_LINKS,
 };
 // The data boundary used to stand as its own sentence, a promise about the post
 // a link opened even when a visitor published it. Only the invented posts can
@@ -717,24 +696,21 @@ const offeredRow = (document) => {
   return links;
 };
 
-test("the onward row offers the feed, the display name and a post of your own", async () => {
-  // Loaded: all three, in reading order, each carrying its own words.
+test("the onward row offers the feed and a post of your own", async () => {
+  // Loaded: both, in reading order, each carrying its own words. The way to
+  // People is inside the post, not in this row.
   const loaded = await openPostPage("?id=p-image", seedOnly([IMAGE_POST]));
   try {
     const row = offeredRow(loaded.document);
-    assert.equal(row.length, 3, "a loaded permalink offers exactly three controls");
+    assert.equal(row.length, 2, "a loaded permalink offers exactly two controls");
     assert.deepEqual(row.map(textOf), CHROME_LINKS, "the row's reading order");
     assert.deepEqual(row.map((link) => link.getAttribute("href")), [
       "/social.html",
-      `/profile.html?author=${encodeURIComponent(IMAGE_POST.author)}`,
       "/social.html#post-form",
     ], "each control's destination");
-    // The People link's words and its filter are one claim about one display
-    // name, so the name has to be readable in the label as well as in the URL.
-    assert.ok(textOf(row[1]).includes(IMAGE_POST.author), "the People link must name the display name it filters to");
 
     // Nothing distinguishing them is colour: each carries its own text, no
-    // aria-label stands in for words the eye cannot read, and all three share
+    // aria-label stands in for words the eye cannot read, and both share
     // the one focus-ring rule this site declares for `.detail-back`.
     for (const link of row) {
       assert.equal(link.getAttribute("aria-label"), null, `${link.id} must name its destination in visible text`);
@@ -752,9 +728,7 @@ test("the onward row offers the feed, the display name and a post of your own", 
   }
 
   // Loading: the feed and a post of your own — two onward destinations, neither
-  // of which depends on this lookup. Only People is missing, because a link
-  // here would have to guess at a name, and a stub or a disabled control would
-  // promise one the page does not have.
+  // of which depends on this lookup.
   const waiting = await loadPage(new URL("../src/post.html", import.meta.url), { location: { search: "?id=p-image" } });
   try {
     let release;
@@ -768,10 +742,8 @@ test("the onward row offers the feed, the display name and a post of your own", 
     // Two destinations, not one said twice: different hrefs and different
     // words, in the state a cold visitor meets first.
     assert.deepEqual(row.map((link) => link.getAttribute("href")), ["/social.html", "/social.html#post-form"]);
-    assert.equal(row.filter((link) => link.id === "post-people").length, 0, "no People link before the display name is known");
-    // Withheld, not stubbed: the withheld link holds no placeholder name for a
-    // later render to have to correct.
-    assert.equal(textOf(waiting.document.querySelector("#post-people")), "");
+    assert.equal(waiting.document.querySelector("#post-detail").querySelectorAll("a").length, 0,
+      "no People link before the display name is known");
 
     release();
     await waitFor(() => waiting.document.documentElement.dataset.shiplogPostDetail === "ready", "the lookup settled");
@@ -789,7 +761,6 @@ test("the onward row offers the feed, the display name and a post of your own", 
     try {
       const row = offeredRow(page.document);
       assert.deepEqual(row.map(textOf), NO_POST_EXITS, `${state}: the feed and a post of your own`);
-      assert.equal(row.filter((link) => link.id === "post-people").length, 0, `${state}: no People link without a post`);
       assert.equal(row.filter((link) => link.id === "post-publish").length, 1, `${state}: the publish route survives`);
       const sequence = tabSequence(page.document);
       for (const link of row) assert.ok(sequence.includes(link), `${state}: ${link.id} must stay reachable by keyboard`);
@@ -960,8 +931,8 @@ test("all four states carry a visible text label, not colour alone", async () =>
 function assertLeadsWithThePost(document, where) {
   const main = document.querySelector("#main-content");
 
-  const order = main.querySelectorAll("#page-title,#post-detail,#post-back,#post-people,#post-publish").map((node) => node.id);
-  assert.deepEqual(order, ["page-title", "post-detail", "post-back", "post-people", "post-publish"],
+  const order = main.querySelectorAll("#page-title,#post-detail,#post-back,#post-publish").map((node) => node.id);
+  assert.deepEqual(order, ["page-title", "post-detail", "post-back", "post-publish"],
     `${where}: the permalink must name the post, then show it, then offer a way onward`);
 
   // The whole page sequence: eyebrow, heading, the post's own region, what
@@ -982,22 +953,20 @@ function assertLeadsWithThePost(document, where) {
   // They live in the standing block that carries the eyebrow and the heading —
   // not inside #post-detail, which every render empties. The post's own slot
   // sits in that same block, above them.
-  for (const id of ["#post-back", "#post-people", "#post-publish", "#post-detail"]) {
+  for (const id of ["#post-back", "#post-publish", "#post-detail"]) {
     assert.ok(main.querySelector(id).closest(".hero-post"), `${where}: ${id} must sit in the standing block`);
   }
   // Asserted as a boolean, never as a node compared against null: a failing
   // node comparison serialises the whole parsed page and outlives the timeout.
-  for (const id of ["#post-back", "#post-people", "#post-publish"]) {
+  for (const id of ["#post-back", "#post-publish"]) {
     assert.equal(Boolean(main.querySelector(id).closest("#post-detail")), false, `${where}: ${id} must survive a re-render`);
   }
 
   // Only links valid for this state are offered and reachable.
   const sequence = tabSequence(document);
   const offered = main.querySelectorAll(".detail-back").filter((link) => !link.hidden);
-  // Every state offers the feed and the reader's own next post; only a loaded
-  // one adds the display name it can now name.
-  const expected = main.querySelector("#post-people").hidden ? NO_POST_EXITS : CHROME_LINKS;
-  assert.deepEqual(offered.map(textOf), expected, `${where}: a route out changed`);
+  // Every state offers the feed and the reader's own next post.
+  assert.deepEqual(offered.map(textOf), CHROME_LINKS, `${where}: a route out changed`);
   for (const id of offered.map((link) => `#${link.id}`)) {
     assert.ok(sequence.includes(main.querySelector(id)), `${where}: ${id} must stay reachable by keyboard`);
   }
@@ -1039,7 +1008,7 @@ test("the permalink leads with the post and puts the feed context under it, load
   assert.ok(at('<h1 id="page-title">') < at('id="post-detail"'), "the heading precedes the post's own region");
   assert.ok(at('id="post-detail"') < at(`<p>${CONTEXT_SENTENCE}</p>`), "the post precedes what the page says about Social");
   assert.ok(at(`<p>${CONTEXT_SENTENCE}</p>`) < at(`>${SOCIAL_LINK}</a>`), "the intro precedes the Social route out");
-  assert.ok(at(`>${SOCIAL_LINK}</a>`) < at('id="post-people"'), "Social precedes People, the order the nav names them in");
+  assert.equal(at('id="post-people"'), -1, "the frame ships no People link; a loaded image post draws its own");
   // Moved in the markup, not turned around in CSS: a stylesheet reorder would
   // leave reading order and tab order in the order this change exists to end.
   const css = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
@@ -1063,9 +1032,9 @@ test("a loaded post's caption, name, time and image all read before the feed con
     const main = page.document.querySelector("#main-content");
     // One combined query, which comes back in document order. Everything the
     // post is made of, then the context sentence, then the two routes out.
-    const flow = main.querySelectorAll(".detail-author-link,.detail-date,.detail-image,figcaption,#post-back,#post-people");
+    const flow = main.querySelectorAll(".post-name,.detail-author-link,.detail-date,.detail-image,figcaption,#post-back,#post-publish");
     const names = flow.map((node) => node.id || node.className);
-    assert.deepEqual(names, ["detail-image", "detail-caption", "detail-author-link", "post-date detail-date", "post-back", "post-people"],
+    assert.deepEqual(names, ["detail-image", "detail-caption", "post-name", "post-date detail-date", "detail-author-link", "post-back", "post-publish"],
       "the post's parts must all precede the routes off the page");
 
     // The image is announced by the description the poster stored, in the post
@@ -1106,7 +1075,7 @@ test("a permalink built the old way still resolves to the same post", async () =
     const page = await openPostPage(search, seedOnly([IMAGE_POST, TEXT_POST]));
     try {
       assertOneState(page, "loaded", `a permalink at ${search}`);
-      assert.equal(textOf(page.panel.querySelector(".detail-author-link")), IMAGE_POST.author);
+      assert.equal(textOf(page.panel.querySelector(".post-name")), IMAGE_POST.author);
       assert.equal(textOf(page.document.querySelector("#page-title")), `${IMAGE_POST.author}'s post`);
       assert.equal(textOf(page.panel.querySelector("figcaption")), IMAGE_POST.caption);
     } finally {
@@ -1332,7 +1301,7 @@ test("the lead stands once, in the same place, through loading, a loaded post, a
     // display name is drawn by post-detail.js and appears nowhere in the markup,
     // so this cannot pass on turn zero.
     await waitFor(() => panel.querySelectorAll(".detail-author-link").length === 1, "the post arrived");
-    assert.equal(textOf(panel.querySelector(".detail-author-link")), IMAGE_POST.author);
+    assert.equal(textOf(panel.querySelector(".post-name")), IMAGE_POST.author);
     assertLeadReads(waiting.document, "once the post arrived");
   } finally {
     waiting.restore();

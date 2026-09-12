@@ -526,28 +526,12 @@ function renderPostCard(post, { index }) {
   const avatar = el("span", "post-avatar", initials(post.author));
   avatar.setAttribute("aria-hidden", "true");
 
-  // People holds image posts and nothing else, so the display name is a link
-  // exactly when there is something at the other end of it: an image post's
-  // byline opens that name's People view, and a text-only post prints the same
-  // name as text. This is the rule showConfirmation() below already follows for
-  // the link it offers after publishing — a link to a view the destination
-  // cannot fill is a promise, not a path, and the two surfaces make the same one.
-  //
-  // The name keeps its place either way: same element, same slot in the byline,
-  // same reading order. A text post loses a tab stop it should not have had; no
-  // card gains one, and nothing moves to make room.
+  // The display name is prose on every card. The route to People is its own
+  // link further down (see below), so the byline reads the same on an image post
+  // and a text post.
   const image = normalizeImage(post.image);
   const byline = el("div", "post-byline");
-  const author = image
-    ? el("a", "post-author", post.author)
-    : el("span", "post-name", post.author);
-  if (image) {
-    author.href = profileHref(post.author);
-    // Both halves of the destination in the accessible name: whose posts, and
-    // which page. Position and ink are not the difference between this link and
-    // the card's other one.
-    author.setAttribute("aria-label", peopleImagePostsLabel(post.author));
-  }
+  const author = el("span", "post-name", post.author);
   // Ids are minted from the render index, never from post.id — a post id is
   // arbitrary text and must not be spliced into an id/IDREF list.
   author.id = `post-${index}-author`;
@@ -583,6 +567,18 @@ function renderPostCard(post, { index }) {
     const body = el("p", "post-body", post.body);
     body.id = textId;
     article.append(body);
+  }
+  // People holds image posts and nothing else, so only a card with an image
+  // offers the way there: a text-only post would link to a view with nothing in
+  // it. showConfirmation() below follows the same rule after publishing. The
+  // words name the display name and the page, in visible text, and the link sits
+  // after the post's words and picture and before Open post, so Tab meets it in
+  // reading order. `post.image` decides, never imageDescription(), which invents
+  // a description for posts that have no image.
+  if (image) {
+    const people = el("a", "post-author", peopleImagePostsLabel(post.author));
+    people.href = profileHref(post.author);
+    article.append(people);
   }
   // The card's own way into the post, last in the card so the action follows the
   // picture and the words it acts on. A plain anchor in the link shape the

@@ -20,8 +20,6 @@ const {
   postDetailTitle,
   postImageAlt,
   postPageHeading,
-  postPeopleHref,
-  postPeopleLabel,
   postPermalink,
   renderPostDetail,
 } = await import("../src/post-detail.js");
@@ -111,14 +109,29 @@ test("the post reads in one order: description, image, caption, name, then time"
   );
   assert.ok(tags(figure, "IMG").length === 1, "the image sits inside the figure");
 
-  // The byline is the name itself, linked — never "profile" or "view profile",
-  // which would leave a screen reader's link list unable to say whose.
+  // The byline is the name as prose. The way to People is a link of its own,
+  // after the post's text and image, in the words Social's card prints.
   const byline = first(article, "detail-byline");
   assert.equal(article.children[2], byline, "the byline follows the image caption");
-  const link = first(byline, "detail-author-link");
-  assert.equal(link.tagName, "A");
-  assert.equal(link.textContent, "Mina Okafor");
-  assert.equal(link.href, "/profile.html?author=Mina%20Okafor");
+  assert.equal(first(byline, "post-name").textContent, "Mina Okafor");
+  assert.equal(tags(byline, "A").length, 0, "the name itself is not a link");
+  const links = tags(article, "A");
+  assert.equal(links.length, 1, "an image post offers one link, to People");
+  assert.equal(links[0].textContent, "See Mina Okafor’s image posts on People");
+  assert.equal(links[0].href, "/profile.html?author=Mina%20Okafor");
+  assert.ok(article.children.indexOf(first(article, "detail-people")) > article.children.indexOf(figure),
+    "the People link comes after the image and its caption");
+});
+
+test("a post with no image prints its display name as text and offers no People link", () => {
+  const container = createElement("div");
+  renderPostDetail(container, { ...post, image: null, caption: null });
+  const article = first(container, "detail-post");
+  assert.equal(first(article, "post-name").textContent, "Mina Okafor");
+  // People holds image posts and nothing else, so a link from here would open
+  // a view with nothing in it.
+  assert.equal(tags(article, "A").length, 0);
+  assert.equal(byClass(article, "detail-people").length, 0);
 });
 
 /* --------------------- the image's accessible name ------------------------ */
@@ -418,10 +431,10 @@ test("the post page's two routes out sit after the site frame, and name where th
   // the routes onward are what a reader wants after it, not instead of it.
   assert.ok(content < exit, "the post content precedes the exits");
 
-  // Social ships in visible text. People waits for the loaded display name, so
-  // loading cannot expose an empty or placeholder name.
+  // Social ships in visible text. The way to People belongs to a loaded image
+  // post, so the frame ships none that loading could expose without a name.
   assert.match(html, /<a class="detail-back detail-page-back" id="post-back" href="\/social\.html">Open Social to read the whole feed<\/a>/);
-  assert.match(html, /<a class="detail-back detail-page-back" id="post-people" href="\/profile\.html" hidden><\/a>/);
+  assert.doesNotMatch(html, /id="post-people"/);
   // Publishing opens Social's composer; the visible label names that destination.
   assert.match(html, /<a class="detail-back detail-page-back" id="post-publish" href="\/social\.html#post-form">Open Social to publish a post<\/a>/);
   assert.equal(html.includes("post-back-feed"), false, "the old stacked exit is gone");
@@ -448,12 +461,11 @@ test("the post page's two routes out sit after the site frame, and name where th
 
 /* --------------------------- where the exits go --------------------------- */
 
-test("both destinations ship as constants, and only the People link's target narrows", () => {
+test("both destinations ship as constants", () => {
   // The words are fixed. Nothing about a lookup may rewrite them, because they
   // have to read the same before, during and after it.
   assert.deepEqual(POST_EXITS, {
     social: { href: "/social.html", label: "Open Social to read the whole feed" },
-    people: { href: "/profile.html" },
     publish: { href: "/social.html#post-form", label: "Open Social to publish a post" },
   });
   // Both name a destination the nav offers: this site has a People page and no
@@ -463,32 +475,6 @@ test("both destinations ship as constants, and only the People link's target nar
   // The two Social routes name their different purposes and keep distinct targets.
   assert.notEqual(POST_EXITS.social.href, POST_EXITS.publish.href);
   assert.equal(POST_EXITS.publish.label, "Open Social to publish a post");
-
-  // The loaded post's own author wins, then the ?author= profile.js writes into
-  // its tiles.
-  assert.equal(postPeopleHref("?id=p-image&from=profile&author=Mina%20Okafor"), "/profile.html?author=Mina%20Okafor");
-  assert.equal(postPeopleHref("?id=p-image&author=Someone%20Else", "Mina Okafor"), "/profile.html?author=Mina%20Okafor");
-
-  // No name, a name longer than a display name can be, and a value shaped like
-  // an injection all land on the same honest default: People, unfiltered.
-  for (const search of ["", "?id=p-image", "?id=p-image&author=", `?author=${"n".repeat(61)}`, "?author=%20%20"]) {
-    assert.equal(postPeopleHref(search), POST_EXITS.people.href, `"${search}" must fall back to People`);
-  }
-
-  // The label carries the display name the destination narrows to, so the two
-  // have to refuse the same names. A name good enough for one and not the other
-  // is a link with words about a person and a destination about nobody, or —
-  // worse, because a screen reader has nothing at all to announce — a link on
-  // the page with no words in it. post-page.js only offers the link where there
-  // is a post, and the normalizers drop a post whose author is unusable, so
-  // neither shape is reachable today; this is what keeps that true if the
-  // display-name limit these two both hard-code ever moves in one of them.
-  assert.equal(postPeopleLabel("Mina Okafor"), "Open People to see Mina Okafor’s other image posts");
-  assert.equal(postPeopleLabel("  Mina Okafor  "), postPeopleLabel("Mina Okafor"), "a padded name is the same name");
-  for (const author of ["", "   ", "n".repeat(61)]) {
-    assert.equal(postPeopleLabel(author), "", `"${author.slice(0, 12)}" is not a name this link can promise`);
-    assert.equal(postPeopleHref("", author), POST_EXITS.people.href, "the destination must refuse what the label refuses");
-  }
 });
 
 /* ------------------------- the page's standing frame ---------------------- */
@@ -682,9 +668,9 @@ test("the post region holds exactly one state, and names it on one attribute", (
 test("the standing exits remain while unavailable states add a clear feed action", async () => {
   const html = await postPageHtml();
   assert.equal([...html.matchAll(/id="post-back"/g)].length, 1, "one Social exit in the markup");
-  assert.equal([...html.matchAll(/id="post-people"/g)].length, 1, "one People exit in the markup");
+  assert.equal([...html.matchAll(/id="post-people"/g)].length, 0, "no People exit in the markup");
   assert.equal([...html.matchAll(/id="post-publish"/g)].length, 1, "one publish entry point in the markup");
-  assert.equal([...html.matchAll(/class="detail-back detail-page-back"/g)].length, 3, "the row, and only the row");
+  assert.equal([...html.matchAll(/class="detail-back detail-page-back"/g)].length, 2, "the row, and only the row");
   assert.equal([...html.matchAll(/<a [^>]*>Open Social to read the whole feed<\/a>/g)].length, 1, "the standing Social label appears once");
 
   for (const [name, value, options] of PANEL_STATES) {

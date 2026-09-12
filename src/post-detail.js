@@ -18,29 +18,28 @@
 
 // Relative, not root-absolute: this module is imported by `node --test` as well
 // as by the browser, and only a relative specifier resolves in both.
-import { captionFor, countLabel, profileHref } from "./profile.js";
+import { captionFor, countLabel } from "./profile.js";
+import { peopleImagePostsLabel, profileHref } from "./social-links.js";
 import { renderImageUnavailable } from "./image-description.js";
 import { pageTitle } from "./page-title.js";
 import { postPermalink, renderPostCopyControl } from "./post-share.js";
 import { normalizeImage } from "./social.js";
 
-// The three routes out of a permalink, named once and shipped in src/post.html.
+// The routes out of a permalink, named once and shipped in src/post.html.
 //
 // Neither is a "back". A permalink is the one page in this product a visitor can
 // meet cold — pasted into a chat window, opened by someone who has never seen
 // Social — and there is nothing behind them to return to. So both links point
 // forward, name their destination, and say what is there, in the verb the two
 // feed pages already use for each other ("Open People when you want…", "Open
-// Social when you want…"). The label says People, not Profile: this site has a
-// People page and no page called Profile.
+// Social when you want…").
 //
 // The labels are constants because nothing may rewrite them mid-visit. They are
-// pinned against src/post.html, which ships both links. Social stands in all
-// four states. People is withdrawn by post-page.js in not-found and error,
-// where there is no post and so no display name its words can be about — the
-// label is never softened to fit a state, it is simply not offered in one.
+// pinned against src/post.html, which ships both links, and both stand in all
+// four states. The way to People is not one of them: it is about one post's
+// display name, so renderPostDetail() draws it inside a loaded image post.
 //
-// `publish` is the third, and the one act this page cannot perform: it goes to
+// `publish` is the second, and the one act this page cannot perform: it goes to
 // the fragment src/social-page.js already opens the composer on, so a reader who
 // wants to write their own post lands in that form rather than beside a
 // collapsed panel. Its words are about the reader, not about this post, so it
@@ -54,27 +53,8 @@ import { normalizeImage } from "./social.js";
 // the full Social feed", whose "the full Social feed" appeared on no other page.
 export const POST_EXITS = {
   social: { href: "/social.html", label: "Open Social to read the whole feed" },
-  people: { href: "/profile.html" },
   publish: { href: "/social.html#post-form", label: "Open Social to publish a post" },
 };
-const MAX_RETURN_AUTHOR_LENGTH = 60;
-
-export function postPeopleLabel(author = "") {
-  const name = String(author).trim();
-  return name && name.length <= MAX_RETURN_AUTHOR_LENGTH ? `Open People to see ${name}’s other image posts` : "";
-}
-
-// Where the People link goes. The words promise one display name's image posts,
-// so the destination narrows to that name whenever the page can honestly name
-// one — from the loaded post first, and otherwise from the ?author= that
-// profile.js writes into its tiles. With no usable name it is People plainly,
-// rather than a filter parameter standing for a name nobody supplied. An author
-// string longer than a display name can be is not a name.
-export function postPeopleHref(search = "", author = "") {
-  const params = new URLSearchParams(String(search).replace(/^\?/, ""));
-  const name = String(author || params.get("author") || "").trim();
-  return name && name.length <= MAX_RETURN_AUTHOR_LENGTH ? profileHref(name) : POST_EXITS.people.href;
-}
 
 export function findPostById(posts, id) {
   const wanted = String(id ?? "").trim();
@@ -549,15 +529,13 @@ export function renderPostDetail(container, post, options = {}) {
     article.append(body);
   }
 
-  // The name is a link to that person's People view, and its text is the name
-  // itself — not a generic "profile" label. It follows the post content so the
-  // permalink leads with the material the reader opened.
+  // The name is prose, and it follows the post content so the permalink leads
+  // with the material the reader opened. The way to People is a link of its own
+  // below, offered only where People has something to show.
   const author = postDisplayName(post);
   if (author) {
     const byline = el("p", "detail-byline");
-    const link = el("a", "detail-author-link", author);
-    link.href = profileHref(author);
-    byline.append(link);
+    byline.append(el("span", "post-name", author));
     article.append(byline);
   }
 
@@ -568,6 +546,18 @@ export function renderPostDetail(container, post, options = {}) {
   // A dedicated caption does not replace the post body, so show the body too
   // when they differ — otherwise the detail view would hide text the feed shows.
   if (image && post.caption && post.body && post.body !== post.caption) article.append(el("p", "detail-body", post.body));
+
+  // The same link, in the same words, that the post's card on Social offers:
+  // after the post's text and image, and only for an image post, because People
+  // holds image posts and nothing else. Both surfaces build it from
+  // src/social-links.js, so the address and the label cannot drift apart.
+  if (image && author) {
+    const people = el("p", "detail-byline detail-people");
+    const link = el("a", "detail-author-link", peopleImagePostsLabel(author));
+    link.href = profileHref(author);
+    people.append(link);
+    article.append(people);
+  }
 
   const stats = el("p", "detail-stats");
   stats.append(el("span", "detail-stat", countLabel(post.likes ?? 0, "like")));

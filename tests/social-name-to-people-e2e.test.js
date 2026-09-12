@@ -5,10 +5,10 @@
 // they paste that URL to someone else, whose tab has never been to this site.
 // Three properties have to hold across that walk, and each is one test here:
 //
-//   1. On a SETTLED Social feed the name is a real control — an anchor with a
-//      href, the display name in its accessible name — and it is reachable by Tab
-//      in the post's own reading order, behind the caption and the image
-//      description rather than in front of them.
+//   1. On a SETTLED Social feed an image post offers a real control — an anchor
+//      with a href, naming the display name and People in visible text — and it
+//      is reachable by Tab in the post's own reading order, behind the caption
+//      and the image description rather than in front of them.
 //   2. That URL, opened COLD, resolves to the forwarded name and not to the
 //      landing default: the picker is already on it, the active-filter line names
 //      it, and the tiles are newest first. No second selection step.
@@ -209,7 +209,7 @@ const pressedChip = (document) => chips(document).find((chip) => chip.getAttribu
 
 /* ------------------------------ 1. the control ----------------------------- */
 
-test("a settled Social post carries its display name as a link to People, in the post's own reading order", async (t) => {
+test("a settled Social image post links to its display name's People view, in the post's own reading order", async (t) => {
   const page = await openSocial(t);
   const { document } = page;
 
@@ -218,16 +218,17 @@ test("a settled Social post carries its display name as a link to People, in the
 
   // Every image card, not a lucky first one: the two image posts lay their
   // insides out differently from the text posts, and each image card has to
-  // carry the control. The text posts carry the same name as prose — People
-  // holds image posts only, so a link from one of them would arrive at nothing
-  // (#2149); tests/social-image-post-people-link.test.js pins that half.
+  // carry the control. Every card prints the name as prose, and the text posts
+  // carry no link — People holds image posts only, so a link from one of them
+  // would arrive at nothing (#2149); tests/social-image-post-people-link.test.js
+  // pins that half.
   const withImage = FEED.filter((entry) => entry.image);
   const names = document.querySelectorAll(".post-author");
   assert.equal(names.length, withImage.length);
-  assert.equal(document.querySelectorAll(".post-name").length, FEED.length - withImage.length);
+  assert.equal(document.querySelectorAll(".post-name").length, FEED.length);
   for (const link of names) {
-    assert.equal(link.tagName, "A", "the display name is not an anchor, so it cannot be forwarded or copied");
-    assert.ok(link.href, "the display name is an anchor with no destination");
+    assert.equal(link.tagName, "A", "the People route is not an anchor, so it cannot be forwarded or copied");
+    assert.ok(link.href, "the People route is an anchor with no destination");
   }
 
   // The newest post is Tess's text post; the one under test here is the newest
@@ -238,15 +239,15 @@ test("a settled Social post carries its display name as a link to People, in the
   const link = card.querySelectorAll(".post-author")[0];
 
   // A real destination, in People's own URL shape — built by the function
-  // src/social.js itself calls, so the two cannot drift apart — and the display
-  // name is in the accessible name rather than only in the ink.
+  // src/social.js itself calls, so the two cannot drift apart — and visible
+  // words that name both the display name and the page, with no aria-label
+  // standing in for them.
   assert.equal(link.getAttribute("href"), profileHref(IRIS));
   assert.equal(link.href, "/profile.html?author=Iris%20Vale");
-  assert.ok(link.getAttribute("aria-label").includes(IRIS),
-    `the control's accessible name does not contain the display name: ${link.getAttribute("aria-label")}`);
-  assert.equal(textOf(link), IRIS, "the visible text is not the display name it links to");
+  assert.equal(textOf(link), `See ${IRIS}’s image posts on People`);
+  assert.equal(link.getAttribute("aria-label"), null);
 
-  // Tabbable, and the first of the card's two stops: the display name, then the
+  // Tabbable, and the first of the card's two stops: the People route, then the
   // card's one route into the post itself. The caption and the image description
   // stay ordinary prose, so nothing else was inserted into the reading order to
   // carry either control.
@@ -255,15 +256,16 @@ test("a settled Social post carries its display name as a link to People, in the
     "the post grew a tab stop of its own, or lost one it had");
   assert.equal(link.getAttribute("tabindex"), null, "the stop is markup order, not a tabindex trick");
 
-  // And it sits where the name already sat: behind the caption and the image
-  // description, so a reader walking the card meets the post before the byline.
+  // And it sits behind the caption, the image description and the byline, so a
+  // reader walking the card meets the post before the route off it.
   const order = documentOrder(card);
   const at = (node) => order.indexOf(node);
   const caption = card.querySelectorAll(".post-caption")[0];
   const description = card.querySelectorAll(".post-image-description")[0];
   assert.equal(textOf(caption), "p-06 from Iris Vale");
   assert.ok(at(caption) < at(description), "the image description was reordered ahead of the caption");
-  assert.ok(at(description) < at(link), "the display name jumped ahead of the post it belongs to");
+  assert.ok(at(description) < at(link), "the People route jumped ahead of the post it belongs to");
+  assert.ok(at(card.querySelectorAll(".post-name")[0]) < at(link), "the People route jumped ahead of the byline");
 
   // The card's second stop, on the real page rather than in a render stub: one
   // named anchor per card, last in the card, opening that card's own post.

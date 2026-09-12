@@ -193,19 +193,23 @@ test("an image post carries one link to People, named for the name and the desti
   assert.equal(link.getAttribute("href"), profileHref(ARI));
   assert.equal(link.href, "/profile.html?author=Ari%20Mensah");
 
-  // The accessible name carries the display name AND where activating it goes.
-  // Position and ink say neither, and the card's other link is two words that
-  // say nothing about People.
-  assert.equal(link.getAttribute("aria-label"), `See ${ARI}’s image posts on People`);
-  assert.equal(link.getAttribute("aria-label"), peopleImagePostsLabel(ARI));
-  // The visible words are inside the accessible name, so a reader who says
-  // "Ari Mensah" is speaking a name the control answers to.
-  assert.equal(textOf(link), ARI);
-  assert.ok(link.getAttribute("aria-label").includes(textOf(link)));
+  // The visible words carry the display name AND where activating it goes, so
+  // no aria-label holds a word the eye cannot read. The card's other link is two
+  // words that say nothing about People.
+  assert.equal(textOf(link), `See ${ARI}’s image posts on People`);
+  assert.equal(textOf(link), peopleImagePostsLabel(ARI));
+  assert.equal(link.getAttribute("aria-label"), null);
+  // The name itself stays in the byline, as prose.
+  assert.deepEqual(card.querySelectorAll(".post-name").map(textOf), [ARI]);
 
-  // Keyboard-reachable as markup, not as a tabindex trick, and the card still
-  // reads in the order it read before: the name, then the card's way into the
-  // post. Focusables in the card, not a screenshot of it.
+  // After the post's words and picture and the byline, before Open post, in DOM
+  // order. Text nodes have no className, so they drop out of this list.
+  assert.deepEqual(card.children.map((node) => node.className).filter(Boolean),
+    ["post-figure", "post-head", "post-author", "release-detail-link"]);
+
+  // Keyboard-reachable as markup, not as a tabindex trick, and in reading
+  // order: the People route, then the card's way into the post. Focusables in
+  // the card, not a screenshot of it.
   const stops = tabSequence(document).filter((element) => within(element, card));
   assert.deepEqual(stops.map((element) => element.className), ["post-author", "release-detail-link"],
     "the card grew a tab stop of its own, or lost one it had");
@@ -247,7 +251,7 @@ test("across the whole settled feed, exactly the image posts link to People", as
   assert.equal(withImage.length, 4, "this fixture stopped covering both kinds of post");
   assert.equal(FEED.length - withImage.length, 2, "this fixture stopped covering text-only posts");
   assert.equal(document.querySelectorAll(".post-author").length, withImage.length);
-  assert.equal(document.querySelectorAll(".post-name").length, FEED.length - withImage.length);
+  assert.equal(document.querySelectorAll(".post-name").length, FEED.length);
 
   // Every minted href belongs to a name that has pictures. This is the property
   // the whole change exists for, checked against the data rather than a list.
