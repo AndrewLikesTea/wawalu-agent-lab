@@ -399,7 +399,7 @@ test("the filter group is one keyboard stop and the arrow keys change the view",
   const hint = page.document.getElementById(fieldset.getAttribute("aria-describedby"));
   assert.equal(
     textOf(hint),
-    "A release appears when at least one linked decision has the selected status. “Decision not in this log” shows releases linked to a decision this log does not hold. Arrow keys move between the options.",
+    "A release appears when at least one linked decision has the selected status. “Linked decision missing” shows releases that link to a decision this browser does not hold. Arrow keys move between the options.",
   );
   for (const radio of group) {
     const label = page.document.querySelectorAll("label").find((node) => node.getAttribute("for") === radio.id);
@@ -532,4 +532,70 @@ test("a release whose decisions are all missing is still listed and still filter
   statusRadio(page, "accepted").click();
   assert.equal(countText(page), "");
   assert.ok(page.document.querySelector(".release-reset-action"));
+});
+
+// Issue #2317: the last option's words now say what is true — the release links
+// a decision this browser does not hold. Only the words changed. The value, the
+// URL token and the releases it selects are the ones a link copied before the
+// rename carries, so that link must still reopen on the same view.
+test("the missing-decision option names what is missing and keeps its value, its selection and its link", async (t) => {
+  const copied = [];
+  const location = { pathname: "/releases.html", search: "", hash: "", origin: "https://labs.wawalu.org" };
+  const write = (url) => { location.search = new URL(url, location.origin).search; };
+  const boot = async (search) => {
+    location.search = search;
+    const page = await loadPage(RELEASES_PAGE, {
+      storage: { [STORAGE_KEY]: JSON.stringify(DECISIONS), [RELEASE_STORAGE_KEY]: JSON.stringify(RELEASES) },
+    });
+    initReleasesPage(page.document, page.storage, {
+      seed: NO_SEED,
+      location,
+      history: { state: null, pushState: (state, title, url) => write(url), replaceState: (state, title, url) => write(url) },
+      navigation: { addEventListener() {} },
+      clipboard: { writeText: async (url) => { copied.push(url); } },
+    });
+    assert.equal(page.document.documentElement.dataset.shiplogReleases, "ready");
+    return page;
+  };
+  const labelOf = (page, input) => textOf(page.document.querySelectorAll("label").find((node) => node.getAttribute("for") === input.id));
+
+  const page = await boot("");
+  try {
+    // (a) Read from the rendered group, not by setting a value the harness would
+    // accept whether or not an option carries it.
+    const group = page.document.querySelectorAll('input[name="release-decision-status"]');
+    assert.deepEqual(group.map((input) => labelOf(page, input)), RELEASE_DECISION_STATUS_FILTERS.map((option) => option.label));
+    const named = group.filter((input) => labelOf(page, input) === "Linked decision missing");
+    assert.equal(named.length, 1);
+    assert.equal(named[0].value, "missing");
+    assert.equal(group.filter((input) => /this log/.test(labelOf(page, input))).length, 0);
+
+    // (b) The hint, as painted after the page script ran.
+    const hint = textOf(page.document.querySelector("#release-decision-status-hint"));
+    assert.match(hint, /“Linked decision missing” shows releases that link to a decision this browser does not hold\./);
+    assert.doesNotMatch(hint, /this log does not hold/);
+
+    // (c) The same releases the filter selected before the rename.
+    assert.deepEqual(ids(filterReleases(RELEASES, DECISIONS, { decisionStatus: "missing" })), ["r-repair"]);
+    named[0].click();
+    assert.deepEqual(rowTitles(page), ["Import repair"]);
+    assert.equal(countText(page), "Showing 1 of 4 releases, newest first.");
+    assert.equal(location.search, "?decision-status=missing");
+
+    // (d) The copied view link carries the unchanged token.
+    page.document.querySelector("#release-copy-link").click();
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(copied.length, 1);
+    assert.equal(copied[0], "https://labs.wawalu.org/releases.html?decision-status=missing");
+  } finally {
+    // Closed before the second page opens, so each page restores its own globals.
+    page.restore();
+  }
+
+  const reopened = await boot(new URL(copied[0]).search);
+  t.after(() => reopened.restore());
+  assert.equal(statusRadio(reopened, "missing").checked, true);
+  assert.equal(labelOf(reopened, statusRadio(reopened, "missing")), "Linked decision missing");
+  assert.deepEqual(rowTitles(reopened), ["Import repair"]);
+  assert.equal(countText(reopened), "Showing 1 of 4 releases, newest first.");
 });

@@ -52,7 +52,7 @@ export const RELEASE_DECISION_STATUS_FILTERS = Object.freeze([
   { value: "pending", label: "Pending" },
   { value: "accepted", label: "Accepted" },
   { value: "superseded", label: "Superseded" },
-  { value: MISSING_DECISION_FILTER, label: "Decision not in this log" },
+  { value: MISSING_DECISION_FILTER, label: "Linked decision missing" },
 ]);
 
 // URL builders are the single seam between views. They are pure and unit-tested
