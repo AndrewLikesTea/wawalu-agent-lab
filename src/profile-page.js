@@ -21,6 +21,7 @@ import {
   distinctAuthors,
 } from "/profile.js";
 import { readStoredAuthor, rememberAuthor } from "/social-identity.js";
+import { requestedProfileAuthor } from "/social-links.js";
 import { recordTitle } from "/page-title.js";
 
 const REFRESH_INTERVAL = 30_000;
@@ -51,7 +52,7 @@ async function init() {
   if (!document.querySelector("#profile-grid")) return;
 
   const seeds = await fetchSeedPosts();
-  const param = new URLSearchParams(window.location.search).get("author");
+  const param = requestedProfileAuthor(window.location.search);
   const stored = readStoredAuthor(globalThis.localStorage);
   // A shared link or a remembered name is a choice and wins outright, empty
   // profile included. Only a visitor who chose nothing gets the landing default,
