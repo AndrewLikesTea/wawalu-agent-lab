@@ -315,9 +315,9 @@ test("People states the images-only rule once and offers each route once", async
 
     // One route into Paint, beside the pictures that prompt it, still saying
     // what the tab does in its own text.
-    const toPaint = anchors.filter((anchor) => textOf(anchor).startsWith("Create an image in Paint"));
+    const toPaint = anchors.filter((anchor) => textOf(anchor).startsWith("Create or open an image in Paint"));
     assert.equal(toPaint.length, 1, "the main content offers Paint more than once");
-    assert.equal(textOf(toPaint[0]), "Create an image in Paint (opens in a new tab)");
+    assert.equal(textOf(toPaint[0]), "Create or open an image in Paint (opens in a new tab)");
     assert.equal(toPaint[0].getAttribute("target"), "_blank");
     assert.equal(toPaint[0].getAttribute("rel"), "noopener");
     assert.equal(toPaint[0].getAttribute("id"), "profile-paint-route");

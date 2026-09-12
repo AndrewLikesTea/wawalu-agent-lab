@@ -162,7 +162,7 @@ test("a feed with no pictures under any name offers Publish post", async () => {
     // The page states the path from a blank grid to a picture on it, in the
     // order the steps happen, beside the state that needs it.
     assert.match(textOf(document.querySelector(".feed-create")),
-      /A published post with an image appears on People, under the display name you publish it with\. To add yours: Create an image in Paint .*, export the PNG, then Publish a post on Social, fill in the required image description, and publish it\./);
+      /To add yours: Create or open an image in Paint \(opens in a new tab\)\. Select “Use this image in a Social post”, then fill in the required image description\. Publish a post on Social\. A published post with an image appears on People, under the display name you publish it with\./);
   } finally {
     page.restore();
   }
