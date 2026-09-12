@@ -23,6 +23,7 @@ import { readFile } from "node:fs/promises";
 
 import { initDecisionLog, STORAGE_KEY } from "../src/app.js";
 import { RELEASE_STORAGE_KEY } from "../src/releases.js";
+import { DEMOS } from "../src/site-footer.js";
 import { loadPage, pressEnter, tabSequence, textOf } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
 import {
@@ -497,4 +498,26 @@ test("every Shiplog workflow is still on the front door and still works", async 
   assert.ok(nav.some((link) => link.getAttribute("href") === "/evolution.html#workspace-answer"),
     "the AI FinOps door must open the answer destination");
   assert.ok(nav.some((link) => link.getAttribute("href") === "/"));
+});
+
+// #2316: the hero told a first-time visitor to record a release first while the
+// directory's Decisions row said to record a decision first. A release links
+// decisions that already exist, so the hero now uses the directory's own words.
+test("the hero's first step records a decision before its release, in the directory's words", async (t) => {
+  const { document } = await openFrontDoor(t);
+  assert.doesNotMatch(textOf(document.body), /record a release and inspect its linked decisions/);
+
+  const boundary = textOf(document.getElementById("top").querySelector(".hero-boundary"));
+  const { purpose } = DEMOS.find((demo) => demo.label === "Decisions");
+  assert.ok(boundary.includes(purpose), `the hero's first step must read "${purpose}": ${boundary}`);
+  assert.ok(boundary.indexOf("decision") >= 0 && boundary.indexOf("decision") < boundary.indexOf("release"),
+    `the hero must name the decision before the release: ${boundary}`);
+
+  // The rewrite keeps both boundaries the sentence carried.
+  assert.match(boundary, /The example records are invented and use no customer or production data\./);
+  assert.match(boundary, /Records you add stay in this browser\./);
+
+  const link = document.getElementById("core-demo-link");
+  assert.equal(link.getAttribute("href"), "/releases.html#shiplog-proof");
+  assert.equal(textOf(link).replace(/\s+/g, " ").trim(), "Explore the decision and release log demo →");
 });
