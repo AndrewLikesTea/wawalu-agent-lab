@@ -1122,7 +1122,7 @@ test("a permalink built the old way still resolves to the same post", async () =
 // eyebrow read "Social · post · demo", the h1 reads "Post from Social", the wait
 // was a whole sentence about the product opening a single shared post from
 // Social, and the standing sentence under the post says it again. The eyebrow
-// now carries the surface alone — the demo marker the feed pages carry went
+// now carries the surface alone — the demo marker the feed pages then had went
 // with it, because this page paints before its lookup has read the post — the
 // wait joins the loading voice used on Social and People, and the one sentence
 // that explains what a shared link opens is left to do the explaining alone.
