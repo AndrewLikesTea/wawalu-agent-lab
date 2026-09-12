@@ -35,7 +35,7 @@ const REPLACEABLE = [
 const REGIONS = [
   { name: "Personas", panel: ".team-panel", status: "#persona-status", content: "#persona-list" },
   { name: "Recent activity", panel: ".activity-panel", status: "#activity-status", content: "#activity-list" },
-  { name: "Published prompt trace", panel: ".prompt-panel", status: "#trace-status", content: "#prompt-trace" },
+  { name: "Sample prompt trace", panel: ".prompt-panel", status: "#trace-status", content: "#prompt-trace" },
 ];
 
 // Descendant selectors are not available here, so containment is read upward
@@ -177,7 +177,7 @@ test("with the published file and GitHub both blocked, all three regions settle 
   const personas = textOf(document.querySelector("#persona-status"));
   const trace = textOf(document.querySelector("#trace-status"));
   const activity = textOf(document.querySelector("#activity-status"));
-  for (const [name, text] of [["Personas", personas], ["Published prompt trace", trace]]) {
+  for (const [name, text] of [["Personas", personas], ["Sample prompt trace", trace]]) {
     assert.match(text, /published demo file is unavailable/i, `${name}: it names the file that did not load`);
     assert.doesNotMatch(text, /GitHub/i, `${name}: this panel never asked GitHub for anything`);
   }

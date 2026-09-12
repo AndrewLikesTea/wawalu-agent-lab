@@ -16,8 +16,10 @@ import {
   ACTIVITY_FALLBACK_REASONS,
   ACTIVITY_STATES,
   CONNECTION_LABELS,
+  DEMO_DATA_PANELS,
   loadActivity,
   renderActivityState,
+  SYNTHETIC_FALLBACK_DATA,
 } from "../src/agents.js";
 import { byClass, createElement, installDocument } from "./support/dom.js";
 import { parseHtml, textOf } from "./support/browser.js";
@@ -174,8 +176,27 @@ test("every section label describes what is in the section", async () => {
 
   // "On the floor" was a metaphor for a list of persona profiles, and
   // "Repository signal" named a mechanism rather than what the panel holds.
-  assert.deepEqual(eyebrows, ["Synthetic engineering team", "Synthetic team", "Public GitHub activity", "Two-layer handoff"]);
+  assert.deepEqual(eyebrows, ["Synthetic engineering team", "Synthetic team", "Public GitHub activity", "Prompt trace"]);
   for (const label of eyebrows) assert.doesNotMatch(label, /on the floor|repository signal/i);
+});
+
+// The trace was a "prompt handoff" in the intro, a "Two-layer handoff" above its
+// heading, and a "representative trace" in the link to it: three names for one
+// sample. It is a prompt trace everywhere, and its description says who does what.
+test("the prompt trace has one name, in the served markup and in every painted state", async () => {
+  const page = parseHtml(await readFile(PAGE_URL, "utf8"));
+  const intro = textOf(page.querySelector(".observatory-hero"));
+  const panel = textOf(page.querySelector(".prompt-panel"));
+  const trace = DEMO_DATA_PANELS.find((entry) => entry.key === "trace").copy;
+
+  assert.match(intro, /a sample prompt trace\./);
+  assert.equal(textOf(page.querySelector("#prompt-title")), "Sample prompt trace");
+  assert.match(textOf(page.querySelector(".trace-link")), /^Read the full prompt trace/);
+  assert.match(panel,
+    /Qwen plans the task for one persona, Codex or Claude writes the code, and Qwen reviews the result before it ships\./);
+  const painted = Object.values(trace).flatMap(({ title, detail }) => [title, detail]);
+  for (const text of [intro, panel, ...painted, ...Object.values(SYNTHETIC_FALLBACK_DATA.run)])
+    assert.doesNotMatch(text, /prompt handoff|two-layer|representative (trace|run)|persona-aware/i, text);
 });
 
 test("no two states reuse a chip, a heading, or a sentence", () => {

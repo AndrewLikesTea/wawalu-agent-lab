@@ -35,7 +35,7 @@ const PAGES = [
   { file: "coach.html", current: "/coach.html", title: "Prompt coach · Shiplog" },
   { file: "personal-history.html", current: "/coach.html", title: "Personal AI history · Shiplog" },
   { file: "agents.html", current: "/agents.html", title: "Agent observatory · Shiplog" },
-  { file: "agent-trace.html", current: "/agents.html", title: "Published prompt trace · Wawalu Labs" },
+  { file: "agent-trace.html", current: "/agents.html", title: "Sample prompt trace · Shiplog" },
 ];
 
 const pageUrl = (file) => new URL(`../src/${file}`, import.meta.url);

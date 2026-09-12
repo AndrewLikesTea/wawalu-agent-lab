@@ -42,7 +42,7 @@ const PAGES = [
   { file: "evolution.html", surface: "AI FinOps" },
   { file: "coach.html", surface: "prompt coach" },
   { file: "personal-history.html", surface: "personal AI history" },
-  { file: "agent-trace.html", surface: "published prompt trace" },
+  { file: "agent-trace.html", surface: "sample prompt trace" },
 ];
 
 const SKIP_TEXT = "Skip to main content";

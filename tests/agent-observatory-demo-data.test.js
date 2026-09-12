@@ -92,7 +92,7 @@ test("a pending read keeps every heading, and each panel says so where it sits",
   // The page's own hierarchy is untouched while its data is pending.
   assert.equal(textOf(document.querySelector("#page-title")), "Agent observatory");
   assert.equal(textOf(document.querySelector("#persona-title")), "Personas");
-  assert.equal(textOf(document.querySelector("#prompt-title")), "Published prompt trace");
+  assert.equal(textOf(document.querySelector("#prompt-title")), "Sample prompt trace");
   assert.ok(document.querySelector(".site-nav").querySelectorAll("a").length >= 5,
     "the navigation is still there to leave by");
   assert.ok(document.querySelector(".trace-link"), "the safe action beside the pending panel is kept");
@@ -149,7 +149,7 @@ test("a file that answered with nothing is empty, and is offered no retry", asyn
     "the empty file still leaves a useful synthetic team summary");
   assert.equal(page.trace.content.dataset.source, "synthetic-fallback");
   assert.equal(page.trace.content.querySelectorAll(".prompt-step").length, 4,
-    "the empty file still leaves a representative synthetic handoff");
+    "the empty file still leaves a synthetic prompt trace");
 });
 
 /* ------------------------------- error, with a way out --------------------- */
@@ -186,7 +186,7 @@ test("a failed read names each panel's own loss and offers an explicit retry", a
   assert.equal(page.personas.content.getAttribute("aria-label"), "Synthetic fallback persona summary");
   assert.equal(page.personas.content.querySelectorAll("li").length, 4);
   assert.equal(page.trace.content.dataset.source, "synthetic-fallback");
-  assert.equal(page.trace.content.getAttribute("aria-label"), "Synthetic fallback representative handoff");
+  assert.equal(page.trace.content.getAttribute("aria-label"), "Synthetic fallback prompt trace");
   assert.equal(page.trace.content.querySelectorAll(".prompt-step").length, 4);
 });
 
