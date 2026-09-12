@@ -10,7 +10,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { loadPage, tabSequence, textOf } from "./support/browser.js";
+import { loadPage, pressTab, tabSequence, textOf } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
 
 const SEED_URL = "/social-demo-data.json";
@@ -29,8 +29,8 @@ const SEED_POST = {
 // One page, one scripted network. `answer` is called for every request the page
 // makes, so a test can change its mind between attempts — which is the only way
 // to assert that a retry recovers rather than re-rendering the same failure.
-async function openPostPage(search, answer) {
-  const page = await loadPage(new URL("../src/post.html", import.meta.url), { location: { search } });
+async function openPostPage(search, answer, hash = "") {
+  const page = await loadPage(new URL("../src/post.html", import.meta.url), { location: { search, hash } });
   const requests = [];
   globalThis.fetch = async (url) => {
     requests.push(String(url));
@@ -627,11 +627,16 @@ test("a retry that succeeds puts the reader on the post, not back at the top", a
 // The clipboard the shipped page reaches for. post-page.js injects nothing —
 // the browser's own clipboard is read at press time — so a test that wants to
 // watch the write has to stand one on the global and put it back afterwards.
+// With no writeText at all, the browser has no clipboard to offer.
 function installClipboard(writeText) {
   const saved = Object.getOwnPropertyDescriptor(globalThis, "navigator");
-  Object.defineProperty(globalThis, "navigator", { value: { clipboard: { writeText } }, configurable: true });
+  const clipboard = writeText ? { writeText } : undefined;
+  Object.defineProperty(globalThis, "navigator", { value: { clipboard }, configurable: true });
   return () => Object.defineProperty(globalThis, "navigator", saved);
 }
+
+const PERMALINK = "https://labs.wawalu.org/post.html?id=p-image";
+const RETIRED_ADDRESS_SENTENCE = "Copy this page’s address to share this post.";
 
 // The one act this page can perform on the post it is showing. Asserted end to
 // end because both halves of it are only true together: the page reads its id
@@ -641,9 +646,11 @@ test("a loaded post can hand over its own link, and says so where the post is", 
   let copied = null;
   const restoreClipboard = installClipboard(async (value) => { copied = value; });
   // Opened the way a feed links here: with the author and provenance those
-  // surfaces add. What is copied is the post, not this reader's route to it.
-  const page = await openPostPage("?id=p-image&author=Mina%20Okafor&from=profile", seedOnly([SEED_POST]));
+  // surfaces add, and a fragment. What is copied is the post, not this reader's
+  // route to it.
+  const page = await openPostPage("?id=p-image&author=Mina%20Okafor&from=profile", seedOnly([SEED_POST]), "#comments");
   try {
+    assert.equal(page.document.querySelectorAll(".share-button").length, 1, "one copy control on the page");
     const copy = page.panel.querySelector(".share-button");
     assert.equal(textOf(copy), "Copy link to this post");
     assert.equal(copy.tagName, "BUTTON");
@@ -654,9 +661,15 @@ test("a loaded post can hand over its own link, and says so where the post is", 
 
     copy.click();
     await waitFor(() => copied !== null, "the clipboard was written");
-    assert.equal(copied, "https://labs.wawalu.org/post.html?id=p-image");
+    assert.equal(copied, PERMALINK);
     await waitFor(() => textOf(page.panel.querySelector(".share-status")) !== "", "the control reported what happened");
-    assert.equal(textOf(page.panel.querySelector(".share-status")), "Link copied to clipboard.");
+    const status = page.panel.querySelector(".share-status");
+    assert.equal(textOf(status), "Link copied.");
+    assert.equal(status.getAttribute("role"), "status");
+    assert.equal(status.getAttribute("aria-live"), "polite");
+    assert.equal(page.panel.querySelectorAll("input").length, 0, "a copy that worked draws no manual field");
+    // The button replaced the sentence that sent readers to the address bar.
+    assert.equal(textOf(page.document.body).includes(RETIRED_ADDRESS_SENTENCE), false);
 
     // Reading order, and so tab order: the post, then the control that copies
     // it, then the page's standing routes out — by document position, with no
@@ -678,6 +691,68 @@ test("a loaded post can hand over its own link, and says so where the post is", 
   }
 });
 
+// Tab order by pressing Tab, not only by index: from the post's last stop, one
+// press reaches the control and the next reaches the feed link.
+test("Tab moves from the post to its copy control, then straight to the feed", async () => {
+  const page = await openPostPage("?id=p-image", seedOnly([SEED_POST]));
+  try {
+    const sequence = tabSequence(page.document);
+    const copy = page.panel.querySelector(".share-button");
+    const before = sequence[sequence.indexOf(copy) - 1];
+    assert.ok(before.closest(".detail-post"), "the stop before the control is the post's own content");
+    before.focus();
+    // pressTab restarts at the first stop when nothing is focused, so the start
+    // is confirmed before stepping.
+    assert.ok(page.document.activeElement === before, "Tab starts from the post");
+    assert.equal(textOf(pressTab(page.document)), "Copy link to this post");
+    const next = pressTab(page.document);
+    assert.equal(next.id, "post-back");
+    assert.equal(textOf(next), "Open Social to read the whole feed");
+  } finally {
+    page.restore();
+  }
+});
+
+// A refused write and a browser with no clipboard end the same way: the link in a
+// read-only field, focused and selected, with the instruction and no success.
+test("a clipboard that refuses or is missing hands over the link to copy by hand", async () => {
+  const cases = [
+    ["refused", async () => { throw new Error("denied"); }],
+    ["missing", undefined],
+  ];
+  for (const [name, writeText] of cases) {
+    const restoreClipboard = installClipboard(writeText);
+    const page = await openPostPage("?id=p-image&from=profile", seedOnly([SEED_POST]));
+    // The harness models no text selection, so select() is counted instead.
+    const proto = Object.getPrototypeOf(page.document.createElement("input"));
+    proto.select = function () { this.selected = (this.selected ?? 0) + 1; };
+    try {
+      const copy = page.panel.querySelector(".share-button");
+      const status = page.panel.querySelector(".share-status");
+      for (const press of [1, 2]) {
+        copy.click();
+        await waitFor(() => textOf(status) !== "", `${name}: the control reported the refusal`);
+        const fields = page.panel.querySelectorAll("input");
+        assert.equal(fields.length, 1, `${name}, press ${press}: one manual field, never a second`);
+        const field = fields[0];
+        assert.equal(field.value, PERMALINK);
+        assert.equal(field.getAttribute("readonly"), "", "read as the attribute the control sets");
+        const labels = page.panel.querySelectorAll(`label[for="${field.id}"]`);
+        assert.equal(labels.length, 1);
+        assert.equal(textOf(labels[0]), "Link to this post for manual copying");
+        assert.ok(page.document.activeElement === field, `${name}: focus moved to the field`);
+        assert.equal(field.selected, press, `${name}: the field's text was selected`);
+        assert.ok(textOf(status).includes("Select the text and use your device’s copy command."));
+        assert.equal(textOf(page.panel).includes("Link copied."), false, `${name}: a refusal said it copied`);
+      }
+    } finally {
+      delete proto.select;
+      page.restore();
+      restoreClipboard();
+    }
+  }
+});
+
 // The states with no post: a control offering to copy a link to a post that is
 // not there would hand over an address for a page that says the same nothing.
 test("no state without a post offers to copy a link to one", async () => {
@@ -690,6 +765,7 @@ test("no state without a post offers to copy a link to one", async () => {
     try {
       assert.equal(page.panel.querySelectorAll(".share-button").length, 0, `${state}: a link to copy without a post`);
       assert.equal(page.panel.querySelectorAll(".share-status").length, 0, `${state}: a confirmation with nothing to confirm`);
+      assert.equal(page.panel.querySelectorAll("input").length, 0, `${state}: a manual-copy field with no post`);
       assert.equal(textOf(page.document.getElementById("main-content")).includes("Copy link to this post"), false,
         `${state}: the label survived into a state with no post`);
     } finally {
@@ -711,6 +787,7 @@ test("the wait a cold visitor meets offers no link to copy", async () => {
     await waitFor(() => page.document.documentElement.dataset.shiplogPostDetail === "loading", "the script took the region");
     const panel = page.document.querySelector("#post-detail");
     assert.equal(panel.querySelectorAll(".share-button").length, 0, "the wait offers a copy before a post exists");
+    assert.equal(panel.querySelectorAll("input").length, 0, "the wait draws a manual-copy field before a post exists");
     // Which is also why nothing inside the waiting region is tabbable yet.
     assert.equal(tabSequence(page.document).filter((node) => node.closest("#post-detail")).length, 0);
 
