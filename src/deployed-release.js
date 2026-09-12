@@ -137,6 +137,30 @@ export function commitLinkText(sha) {
 }
 
 /**
+ * The public page for one pull request, or null when the number is not one.
+ * Under the same repository as `commitUrl`, so the two links the real record
+ * offers cannot name two repositories.
+ */
+export function pullRequestUrl(number) {
+  return Number.isSafeInteger(number) && number > 0 ? `${REPOSITORY_URL}/pull/${number}` : null;
+}
+
+/**
+ * Why this build shipped, read off the subject line of its commit, or null
+ * when the build recorded none.
+ *
+ * The text is kept verbatim: it is the repository's words, not this page's.
+ * The pull request is the LAST "(#digits)" in it, because a squash merge
+ * appends its own number after any number the title already quoted.
+ */
+export function parseShipReason(subject) {
+  if (typeof subject !== "string" || subject.trim() === "") return null;
+  const last = [...subject.matchAll(/\(#(\d{1,9})\)/g)].at(-1);
+  const pullNumber = last ? Number(last[1]) : 0;
+  return Object.freeze({ text: subject, pullNumber: pullNumber > 0 ? pullNumber : null });
+}
+
+/**
  * A link into this same site, or "" when the value is anything else.
  *
  * `detailHref` is the one href on the real-record block that is read off the
@@ -159,9 +183,11 @@ export function sameSiteHref(value) {
  * The real record of this deployment, or null when the build is unstamped.
  *
  * Release-record shaped, so every surface that already knows how to read a
- * release record can read this one. Three fields are additions the seed records
+ * release record can read this one. Four fields are additions the seed records
  * do not carry:
  *
+ *   commitSubject the subject line of that commit, verbatim, which the build
+ *                 wrote beside the sha; null when git could not read one
  *   sourceUrl     the public commit a visitor opens to check the record
  *   detailHref    where "open this record" goes. This record does not live in
  *                 the visitor's log, so /release.html?id=… would resolve to
@@ -190,6 +216,7 @@ export function deployedReleaseRecord(stamp) {
     owner: "Wawalu",
     createdAt: builtAt,
     commitSha,
+    commitSubject: typeof stamp.commitSubject === "string" ? stamp.commitSubject : null,
     sourceUrl: commitUrl(commitSha),
     detailHref: "/releases.html#shipped-build",
     actionLabel: REAL_RECORD_LINK_LABEL,

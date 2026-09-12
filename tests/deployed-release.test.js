@@ -31,9 +31,19 @@ import {
   REPOSITORY_URL,
   commitUrl,
   deployedReleaseRecord,
+  parseShipReason,
+  pullRequestUrl,
   sameSiteHref,
 } from "../src/deployed-release.js";
-import { NO_RECORD_TITLE, UNSTAMPED_NOTE, renderShippedBuild } from "../src/deployed-release-view.js";
+import {
+  NO_RECORD_TITLE,
+  REAL_NOTE,
+  SHIP_REASON_LABEL,
+  SHIP_REASON_NOTE,
+  SHIP_REASON_NOT_RECORDED,
+  UNSTAMPED_NOTE,
+  renderShippedBuild,
+} from "../src/deployed-release-view.js";
 import { healthContract } from "../src/health-contract.js";
 import { parseHealthBody } from "../src/deployment-status-view.js";
 import { loadPage, textOf } from "./support/browser.js";
@@ -472,4 +482,131 @@ test("the committed stamp is either a real commit sha or the explicit unstamped 
   assert.ok(commitSha === null || /^[0-9a-f]{40}$/.test(commitSha), "the build stamp holds something that is not a commit sha");
   const record = deployedReleaseRecord(BUILD_STAMP);
   if (record) assert.equal(record.sourceUrl, `${REPOSITORY_URL}/commit/${commitSha}`);
+  // The subject goes with the sha: no commit, no subject; otherwise a string or
+  // the null the build writes when git could not read one.
+  const { commitSubject } = BUILD_STAMP;
+  assert.ok(commitSubject === null || (commitSha !== null && typeof commitSubject === "string"));
+});
+
+/* ------------------------- why this build shipped ------------------------- */
+
+// (#2313) The record named the commit a build was made from but not why it
+// shipped. The build now writes that commit's subject line beside the sha, and
+// the block reads it back from that one field, so these tests hand the page a
+// stamp the way the build does.
+const SUBJECT = "Stop promising that visitor-published posts contain no customer or production data (#2310)";
+
+test("parseShipReason keeps the subject verbatim and takes its last pull request number", () => {
+  assert.deepEqual({ ...parseShipReason(SUBJECT) }, { text: SUBJECT, pullNumber: 2310 });
+  assert.deepEqual({ ...parseShipReason("Tidy the footer") }, { text: "Tidy the footer", pullNumber: null });
+  assert.equal(parseShipReason('Revert "Cut the eyebrow (#2201)" (#2230)').pullNumber, 2230);
+  assert.equal(parseShipReason("Number the list (#0)").pullNumber, null);
+  for (const missing of [null, undefined, "", "   ", 2310]) assert.equal(parseShipReason(missing), null);
+
+  assert.equal(pullRequestUrl(2310), `${REPOSITORY_URL}/pull/2310`);
+  assert.equal(pullRequestUrl(null), null);
+  assert.equal(deployedReleaseRecord({ ...STAMPED, commitSubject: SUBJECT }).commitSubject, SUBJECT);
+  assert.equal(deployedReleaseRecord(STAMPED).commitSubject, null);
+});
+
+// The page's tab stops in document order, by id. Walked through children
+// because the harness rejects `*`; text nodes have no getAttribute.
+function tabStops(node, stops = []) {
+  if (typeof node.getAttribute !== "function" || node.hidden === true) return stops;
+  const tabindex = node.getAttribute("tabindex");
+  const natural = node.tagName === "A"
+    ? node.getAttribute("href") !== null
+    : ["BUTTON", "INPUT", "SELECT", "TEXTAREA", "SUMMARY"].includes(node.tagName);
+  if (tabindex === null ? natural : Number(tabindex) >= 0) stops.push(node.getAttribute("id") ?? node.tagName);
+  for (const child of node.children ?? []) tabStops(child, stops);
+  return stops;
+}
+
+function shipReason(page) {
+  const list = page.document.querySelector("#shipped-build-reason");
+  return {
+    list,
+    labels: list.querySelectorAll("dt").map(textOf),
+    values: list.querySelectorAll("dd").map(textOf),
+    note: page.document.querySelector("#shipped-build-reason-note"),
+    pulls: page.document.querySelectorAll("#shipped-build-pull"),
+  };
+}
+
+// What the block said before it gave a reason, still said beside the reason.
+function assertRecordUnchanged(page) {
+  assert.equal(textOf(page.document.querySelector("#shipped-build-note")), REAL_NOTE);
+  const source = page.document.querySelector("#shipped-build-source");
+  assert.equal(source.hidden, false);
+  assert.equal(source.getAttribute("href"), `${REPOSITORY_URL}/commit/${SHA}`);
+  assert.equal(textOf(source), "Open commit 0123456789ab in the public repository");
+  assert.equal(page.document.querySelector("#shipped-build-copy").hidden, false);
+}
+
+test("the real record says why the build shipped and links the pull request its subject names", async (t) => {
+  const page = await open(t, { buildStamp: { ...STAMPED, commitSubject: SUBJECT } });
+  const reason = shipReason(page);
+  assert.equal(SHIP_REASON_LABEL, "Why this build shipped");
+  assert.deepEqual(reason.labels, [SHIP_REASON_LABEL]);
+  assert.deepEqual(reason.values, [SUBJECT]);
+
+  assert.equal(reason.pulls.length, 1);
+  const pull = reason.pulls[0];
+  assert.equal(textOf(pull), "Pull request #2310");
+  const repository = page.document.querySelector("#shipped-build-source").getAttribute("href")
+    .replace(/\/commit\/[0-9a-f]{40}$/, "");
+  assert.equal(repository, REPOSITORY_URL);
+  assert.equal(pull.href, `${repository}/pull/2310`);
+  assert.equal(pull.getAttribute("href"), pull.href);
+
+  assert.equal(reason.note.hidden, false);
+  assert.equal(SHIP_REASON_NOTE, "Taken from this build’s commit message. This is not an example record.");
+  assert.ok(textOf(reason.note).endsWith(SHIP_REASON_NOTE), textOf(reason.note));
+  for (const copy of [SHIP_REASON_LABEL, SHIP_REASON_NOTE, SHIP_REASON_NOT_RECORDED]) {
+    assert.doesNotMatch(copy, /customer|result|invented|sample/i);
+  }
+  assertRecordUnchanged(page);
+
+  // Tab reaches the pull request straight after the block's existing controls,
+  // in block order, and it carries no tabindex to get there.
+  const stops = tabStops(page.document.querySelector("#main-content"));
+  const at = (id) => stops.indexOf(id);
+  assert.ok(at("shipped-build-copy") >= 0 && at("shipped-build-copy") < at("shipped-build-source"), stops.join(" "));
+  assert.equal(at("shipped-build-pull"), at("shipped-build-source") + 1, stops.join(" "));
+  assert.equal(pull.getAttribute("tabindex"), null);
+});
+
+test("a subject that names no pull request still shows, as text, with no pull request link", async (t) => {
+  const subject = 'Render <b>markup</b>, "quotes" and \\ as the words they are';
+  const page = await open(t, { buildStamp: { ...STAMPED, commitSubject: subject } });
+  const reason = shipReason(page);
+  assert.deepEqual(reason.labels, [SHIP_REASON_LABEL]);
+  assert.deepEqual(reason.values, [subject]);
+  assert.equal(reason.pulls.length, 0);
+  assert.equal(textOf(reason.note), SHIP_REASON_NOTE);
+  assertRecordUnchanged(page);
+  // The harness parses no markup, so writing the subject as text is pinned at
+  // the source rather than by looking for a stray element.
+  const view = await readFile(new URL("../src/deployed-release-view.js", import.meta.url), "utf8");
+  assert.doesNotMatch(view, /innerHTML|outerHTML|insertAdjacentHTML/);
+});
+
+test("a build that recorded no subject says so, with no link and no stand-in reason", async (t) => {
+  const page = await open(t, { buildStamp: { ...STAMPED, commitSubject: null } });
+  const reason = shipReason(page);
+  assert.deepEqual(reason.labels, [SHIP_REASON_LABEL]);
+  assert.deepEqual(reason.values, ["The reason this build shipped was not recorded for this build."]);
+  assert.equal(reason.pulls.length, 0);
+  assert.equal(reason.note.hidden, true);
+  assert.equal(textOf(reason.note), "");
+  assert.doesNotMatch(reason.values.join(" "), /example|sample|customer|result|invented|#\d/i);
+  assertRecordUnchanged(page);
+});
+
+test("an unstamped build gives no reason, even when a subject reached the stamp", async (t) => {
+  const page = await open(t, { buildStamp: { ...UNSTAMPED, commitSubject: SUBJECT } });
+  const reason = shipReason(page);
+  assert.equal(reason.list.children.length, 0);
+  assert.equal(reason.pulls.length, 0);
+  assert.equal(reason.note.hidden, true);
 });
