@@ -6,6 +6,6 @@
 .pilot-scorecard-fields dt { font-weight:700; }
 .pilot-scorecard-fields dd { margin:4px 0 0; }
 #shiplog-pilot-scorecard { overflow-wrap:anywhere; }
-#pilot-scorecard-fallback { margin-top:16px; }
-#pilot-scorecard-manual { width:100%; box-sizing:border-box; }
+#pilot-scorecard-fallback, #shiplog-evaluation-brief-fallback { margin-top:16px; }
+#pilot-scorecard-manual, #shiplog-evaluation-brief-manual { width:100%; box-sizing:border-box; }
 @media(max-width:520px) { .pilot-scorecard-fields { grid-template-columns:1fr; } }

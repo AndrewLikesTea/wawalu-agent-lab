@@ -77,6 +77,11 @@
           <button class="share-button" id="copy-shiplog-evaluation-brief" type="button" aria-describedby="shiplog-evaluation-brief-status">Copy Shiplog evaluation brief</button>
           <span class="share-status" id="shiplog-evaluation-brief-status" role="status" aria-live="polite" aria-atomic="true"></span>
         </div>
+        <div id="shiplog-evaluation-brief-fallback" hidden>
+          <label for="shiplog-evaluation-brief-manual">Shiplog evaluation brief for manual copying</label>
+          <p id="shiplog-evaluation-brief-manual-help">Select the text and use your device’s copy command.</p>
+          <textarea id="shiplog-evaluation-brief-manual" rows="12" readonly aria-describedby="shiplog-evaluation-brief-manual-help"></textarea>
+        </div>
       </section>
 
       <section class="hero-proof" id="shiplog-pilot-scorecard" aria-labelledby="shiplog-pilot-scorecard-title">
