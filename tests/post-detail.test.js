@@ -26,7 +26,7 @@ const {
   renderPostDetail,
 } = await import("../src/post-detail.js");
 
-const { SHARE_COPIED_STATUS, SHARE_COPY_FAILED_STATUS } = await import("../src/share-link.js");
+const { POST_COPIED_STATUS, POST_COPY_FAILED_STATUS, POST_MANUAL_COPY_LABEL } = await import("../src/post-share.js");
 
 // The copy handler is async twice over — the listener awaits the clipboard write
 // — so a click is followed by a turn of the loop rather than by a fixed number
@@ -909,9 +909,10 @@ test("a loaded post offers one control that copies its own link", async () => {
   await settled();
   assert.equal(copied, `${ORIGIN}/post.html?id=p-image`);
   assert.equal(copied, postPermalink(post.id, ORIGIN));
-  // The confirmation is the site's existing one, not a second wording of it.
-  assert.equal(status.textContent, "Link copied to clipboard.");
-  assert.equal(status.textContent, SHARE_COPIED_STATUS);
+  // The confirmation is words, not a colour change.
+  assert.equal(status.textContent, "Link copied.");
+  assert.equal(status.textContent, POST_COPIED_STATUS);
+  assert.equal(tags(container, "INPUT").length, 0, "a copy that worked draws nothing to copy by hand");
   assert.equal(status.getAttribute("role"), "status");
   assert.equal(status.getAttribute("aria-live"), "polite");
   assert.equal(button.getAttribute("aria-describedby"), status.id);
@@ -919,14 +920,46 @@ test("a loaded post offers one control that copies its own link", async () => {
 });
 
 // A browser that refuses the clipboard is a state, not a silence: the control
-// says so and names what to do instead, in the words share-link.js already uses.
-test("a refused clipboard is reported where the confirmation would have been", async () => {
-  const container = createElement("div");
-  renderPostDetail(container, post, copying(null));
-  tags(container, "BUTTON")[0].dispatch("click");
-  await settled();
-  assert.equal(first(container, "share-status").textContent, SHARE_COPY_FAILED_STATUS);
-  assert.match(first(container, "share-status").textContent, /Could not copy the link/);
+// says so, and hands over the link itself in a field to copy by hand. The stub
+// has no select(), so one is counted onto every element this render creates.
+test("a refused clipboard draws the link in one field to copy by hand", async () => {
+  const make = globalThis.document.createElement;
+  let selections = 0;
+  globalThis.document.createElement = (tagName) => Object.assign(make(tagName), { select: () => { selections += 1; } });
+  try {
+    const container = createElement("div");
+    let refuse = true;
+    renderPostDetail(container, post, copying(async () => { if (refuse) throw new Error("denied"); }));
+    const button = tags(container, "BUTTON")[0];
+    const status = first(container, "share-status");
+    for (const press of [1, 2]) {
+      button.dispatch("click");
+      await settled();
+      assert.equal(status.textContent, POST_COPY_FAILED_STATUS);
+      assert.match(status.textContent, /Select the text and use your device’s copy command\./);
+      assert.equal(container.textContent.includes("Link copied."), false, `press ${press}: a refusal said it copied`);
+      const fields = tags(container, "INPUT");
+      assert.equal(fields.length, 1, `press ${press}: one field, never a second`);
+      assert.equal(fields[0].value, `${ORIGIN}/post.html?id=p-image`);
+      assert.equal(fields[0].getAttribute("readonly"), "");
+      assert.equal(fields[0].getAttribute("aria-describedby"), status.id);
+      assert.equal(fields[0].focused, press, "the field takes focus");
+      assert.equal(selections, press, "and its text is selected");
+      const labels = tags(container, "LABEL");
+      assert.equal(labels.length, 1);
+      assert.equal(labels[0].textContent, POST_MANUAL_COPY_LABEL);
+      assert.equal(labels[0].getAttribute("for"), fields[0].id);
+    }
+    // A later copy that works takes the fallback away again.
+    refuse = false;
+    button.dispatch("click");
+    await settled();
+    assert.equal(status.textContent, POST_COPIED_STATUS);
+    assert.equal(tags(container, "INPUT").length, 0);
+    assert.equal(tags(container, "LABEL").length, 0);
+  } finally {
+    globalThis.document.createElement = make;
+  }
 });
 
 // The one guard that matters: three of this page's four states have no post, so
@@ -961,8 +994,9 @@ test("the copy control follows the post's content in the region's document order
   assert.ok(order.indexOf(first(article, "detail-byline")) < order.indexOf(control));
   assert.ok(order.indexOf(first(article, "detail-stats")) < order.indexOf(control));
   // And it belongs to the post's region rather than to the page frame, so every
-  // re-render takes it with the post it was about.
-  assert.equal(control.parent, container);
+  // re-render takes it with the post it was about. One wrapper sits between, the
+  // one a refused copy draws its manual field into.
+  assert.equal(control.parent.parent, container);
   // The confirmation lands in that same region, beside the control.
   assert.equal(first(container, "share-status").parent, control);
 });

@@ -20,8 +20,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { PERMALINK_UNAVAILABLE_NOTE, mountSocialFeed } from "../src/social.js";
-import { POST_COPY_LABEL, postPermalink } from "../src/post-share.js";
-import { SHARE_COPIED_STATUS, SHARE_COPY_FAILED_STATUS } from "../src/share-link.js";
+import { POST_COPIED_STATUS, POST_COPY_FAILED_STATUS, POST_COPY_LABEL, postPermalink } from "../src/post-share.js";
 import { postDetailHref } from "../src/social-links.js";
 import { loadPage, tabSequence, textOf } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
@@ -119,9 +118,9 @@ test("the receipt hands over the same address the permalink page copies", async 
   assert.equal(offered.pathname, canonical.pathname);
   assert.equal(offered.searchParams.get("id"), canonical.searchParams.get("id"));
 
-  // Reported in the site's existing words, not a second wording of them.
-  assert.equal(textOf(copyStatus(region)), SHARE_COPIED_STATUS);
-  assert.equal(textOf(copyStatus(region)), "Link copied to clipboard.");
+  // Reported in the permalink page's words, not a second wording of them.
+  assert.equal(textOf(copyStatus(region)), POST_COPIED_STATUS);
+  assert.equal(textOf(copyStatus(region)), "Link copied.");
   assert.equal(copyStatus(region).getAttribute("role"), "status");
   assert.equal(copyStatus(region).getAttribute("aria-live"), "polite");
   assert.equal(buttons[0].disabled, false, "pressable again once it has reported");
@@ -131,17 +130,26 @@ test("the receipt hands over the same address the permalink page copies", async 
   assert.equal(textOf(links[0]), "Open the post’s permalink");
 });
 
-test("a browser that refuses the clipboard is reported, in the words the site already uses", async (t) => {
+test("a browser that refuses the clipboard is handed the link to copy by hand", async (t) => {
   const harness = await composer(t, { clipboard: { writeText: async () => { throw new Error("denied"); } } });
   t.after(() => harness.page.restore());
+  // The harness models no text selection, so select() is stood in for.
+  const proto = Object.getPrototypeOf(harness.document.createElement("input"));
+  proto.select = () => {};
+  t.after(() => { delete proto.select; });
 
   await harness.publish({ body: "The clipboard says no.", author: "Remy" });
   const region = harness.notice();
   copyButtons(region)[0].click();
   await harness.settle();
 
-  assert.equal(textOf(copyStatus(region)), SHARE_COPY_FAILED_STATUS);
-  assert.match(textOf(copyStatus(region)), /Could not copy the link\. Copy it from the address bar\./);
+  assert.equal(textOf(copyStatus(region)), POST_COPY_FAILED_STATUS);
+  // Not the address bar: on Social that holds the feed's address, not the post's.
+  assert.equal(textOf(region).includes("address bar"), false);
+  const fields = region.querySelectorAll("input");
+  assert.equal(fields.length, 1, "one field holding the link");
+  assert.equal(fields[0].value, postPermalink(SAVED_ID, ORIGIN));
+  assert.equal(fields[0].getAttribute("readonly"), "");
   assert.equal(copyButtons(region)[0].disabled, false, "a refusal is not a dead control");
   // A failure to copy is not a failure to publish: the receipt still stands.
   assert.match(textOf(region), /^Published “The clipboard says no\.” as Remy\./);

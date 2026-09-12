@@ -1240,12 +1240,12 @@ function assertSaidOnce(document, where) {
 //
 // It has to be true for both readers and in all four states, so it says what
 // the page is for rather than what it shows. #2308: it names Social in Social's
-// own words for itself, for a reader who has never seen the feed, and gives what
-// this page offers that a card does not — an address to copy — a short sentence
-// of its own.
+// own words for itself, for a reader who has never seen the feed. #2329: the
+// sentence telling readers to copy the address went, because the loaded post now
+// carries a Copy link to this post button that copies the post's own link.
 const SOCIAL_DESCRIPTION = "shared feed of short posts about shipped work";
 const ADDRESS_SENTENCE = "Copy this page’s address to share this post.";
-const LEAD_SENTENCE = `This page is for one post from Social, Shiplog’s ${SOCIAL_DESCRIPTION}. ${ADDRESS_SENTENCE}`;
+const LEAD_SENTENCE = `This page is for one post from Social, Shiplog’s ${SOCIAL_DESCRIPTION}.`;
 const RETIRED_LEAD = "This page is for one post from Social; its address links to that post alone, so you can copy it to share the post.";
 const sentencesOf = (text) => text.split(/(?<=[.!?])\s+/).filter((part) => part.trim());
 // "post" and "posts" both count: a sentence that leans on the word three times
@@ -1294,11 +1294,11 @@ test("the post page says what it is before it says it is loading", async () => {
   assert.ok(at(LEAD_SENTENCE) < at(STATE_HEADLINES.loading), "the lead precedes the line saying the page is busy");
   assert.ok(at(LEAD_SENTENCE) < at(CONTEXT_SENTENCE), "the page says what it is before it hedges what a post may be");
 
-  // Two short sentences, plain enough to read at a glance: what Social is, then
-  // how to share this post.
+  // One short sentence, plain enough to read at a glance: what Social is. The
+  // address sentence is gone from the markup, not only from the lead.
   const sentences = sentencesOf(LEAD_SENTENCE);
-  assert.equal(sentences.length, 2, "two short sentences, not one long one");
-  assert.equal(sentences[1], ADDRESS_SENTENCE, "copying the address must be a sentence of its own");
+  assert.equal(sentences.length, 1, "one short sentence, not a paragraph");
+  assert.equal(html.includes(ADDRESS_SENTENCE), false, "the copy button replaced the address sentence");
   for (const sentence of sentences) {
     assert.ok(postWordsIn(sentence) <= 2, `"${sentence}" says post more than twice`);
   }
@@ -1378,7 +1378,7 @@ test("the lead stands once, in the same place, through loading, a loaded post, a
   }
 });
 
-test("the painted page tells a cold visitor what Social is and how to share the post, once", async () => {
+test("the painted page tells a cold visitor what Social is, once, and no longer points at the address bar", async () => {
   const page = await loadPage(new URL("../src/post.html", import.meta.url), { location: { search: "?id=p-image" } });
   try {
     const { document } = page;
@@ -1404,13 +1404,13 @@ test("the painted page tells a cold visitor what Social is and how to share the 
     const lead = textOf(blocks[blocks.findIndex((node) => node.id === "page-title") + 1]);
     assert.equal(lead, LEAD_SENTENCE);
     assert.ok(lead.includes(`Social, Shiplog’s ${SOCIAL_DESCRIPTION}.`), "the lead must describe Social in Social's own words");
-    assert.ok(lead.includes(ADDRESS_SENTENCE), "the lead must say how to share the post");
     for (const sentence of sentencesOf(lead)) {
       assert.ok(postWordsIn(sentence) <= 2, `"${sentence}" says post more than twice`);
     }
 
     const body = textOf(document.body);
-    assert.equal(body.split(ADDRESS_SENTENCE).length - 1, 1, "the address sentence must be said once on the page");
+    assert.equal(body.includes(ADDRESS_SENTENCE), false, "no state may send a reader to the address bar");
+    assert.equal(panel.querySelectorAll(".share-button").length, 1, "the loaded post carries the copy button instead");
     assert.equal(body.includes(RETIRED_LEAD), false, "the one-sentence lead this replaced is gone");
     assert.equal(textOf(document.querySelector("#post-back")), SOCIAL_LINK);
     assert.equal(textOf(document.querySelector("#post-publish")), PUBLISH_LINK);
