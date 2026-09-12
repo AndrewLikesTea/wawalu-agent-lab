@@ -601,20 +601,17 @@ test("the feed says who wrote the posts, where the posts are", async (t) => {
   assert.match(intro, /Select Open post to see a post on its own page, with a link you can share\./,
     "the intro never says what Open post leads to");
 
-  // And the demo status is stated once above the feed. The hero used to say it
-  // twice within one paragraph break — an eyebrow reading "Social · demo", then
-  // "a shared demo feed", then the demo-data sentence — so a reader met the
-  // same fact three times before a post. The eyebrow keeps the word; the
-  // sentence keeps the meaning; the intro stops repeating either.
+  // The eyebrow describes public posts; the provenance sentence distinguishes
+  // invented posts from real visitor posts.
   const hero = textOf(page.document.querySelector(".hero-social"));
   assert.equal(textOf(page.document.querySelector(".hero-social").querySelector(".eyebrow")),
-    "Social · demo", "the page eyebrow stopped naming this a demo");
-  assert.equal(hero.match(/\bdemo\b/gi)?.length, 1,
-    `the hero says "demo" ${hero.match(/\bdemo\b/gi)?.length} times, not once`);
+    "Social · public posts", "the page eyebrow must identify public posts");
+  assert.doesNotMatch(hero, /\bdemo\b/i,
+    "the hero must not classify visitor posts as demos");
   assert.equal(hero.split("no customer or production data").length - 1, 1,
     "the hero states the demo-data fact more than once");
   assert.doesNotMatch(intro, /demo feed/,
-    "the intro calls the feed a demo one, a line under an eyebrow that already does");
+    "the intro must not classify the shared feed as a demo");
   // Removing the word did not cost the sentence what it was for: the feed is
   // still shared, the posts short, the images optional.
   assert.match(intro, /^Social is a shared feed of short posts about shipped work, images optional\./,
@@ -688,10 +685,9 @@ test("the intro scopes the demo promise to the seeded posts, and the composer st
     "the intro stopped saying which posts its demo promise covers, or stopped ending on it");
   assert.equal(intro.includes(RETIRED_DATA_SENTENCE), false,
     "the intro still promises that every post, a visitor's own included, carries no customer data");
-  // The word the eyebrow owns is still said once in the hero: "demonstrate" is
-  // the site's verb on the homepage and Releases, and it is not a fourth badge.
+  // The public-post eyebrow must not call real visitor posts demos.
   const hero = textOf(document.querySelector(".hero-social"));
-  assert.equal(hero.match(/\bdemo\b/gi)?.length, 1, "the hero says \"demo\" more than once again");
+  assert.doesNotMatch(hero, /\bdemo\b/i, "the hero must not call public posts demos");
 
   const main = textOf(document.querySelector("#main-content"));
   // Once each, on the whole page. Both sentences are the kind a later change

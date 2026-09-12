@@ -723,14 +723,10 @@ test("the nav is reached by keyboard in the order it is displayed", async () => 
 });
 
 test("the feed has one name: no page still says Team feed in its nav, eyebrow, or title", async () => {
-  // The feed's name comes first on both pages. /social.html ends on the "demo"
-  // marker every demo feed page ends on; the permalink does not, because it
-  // paints before its lookup has read the post and a shared link can carry a
-  // real, public post a visitor published. The permalink also used to slot
-  // "post" in the middle, which its own h1 and its own standing sentence
-  // already say.
-  const EYEBROW = { "social.html": "Social · demo", "post.html": "Social" };
-  for (const file of ["social.html", "post.html"]) {
+  // Both feeds say their posts are public, a real visitor's included (#2335);
+  // the permalink paints before its lookup, so it names the surface alone.
+  const EYEBROW = { "social.html": "Social · public posts", "profile.html": "People · public image posts", "post.html": "Social" };
+  for (const file of Object.keys(EYEBROW)) {
     const html = await readFile(pageUrl(file), "utf8");
     assert.ok(html.includes(`<p class="eyebrow">${EYEBROW[file]}</p>`),
       `${file} eyebrow must read "${EYEBROW[file]}"`);
