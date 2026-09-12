@@ -21,7 +21,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
 import {
-  DEMOS, FOLLOW_UP_REDIRECT, IDENTITY, INVITATION, PITCH, PITCH_HREF, PITCH_LINK,
+  DEMOS, DIRECTORY_SUMMARY, FOLLOW_UP_REDIRECT, IDENTITY, INVITATION, PITCH, PITCH_HREF, PITCH_LINK,
   REPOSITORY_LINK_LABEL, siteFooterMarkup, SOURCE_LINK_LABEL,
 } from "../src/site-footer.js";
 import { REPOSITORY_URL } from "../src/repository-url.js";
@@ -424,8 +424,9 @@ test("the footer is a site map: every destination the navigation offers, each on
       assert.equal(link.getAttribute("href"), demo.href);
       assert.ok(stops.includes(link), `${demo.label} must be keyboard reachable`);
     }
-    assert.match(textOf(items[0]), /start here/i, "the list must say where to start");
-    assert.match(textOf(items[0]), /^AI FinOps/, "the site leads with AI FinOps, so the list does too");
+    const decisionsRow = items[DEMOS.findIndex((demo) => demo.label === "Decisions")];
+    assert.match(textOf(decisionsRow), /^Decisions — start here: /, "the list must say where to start");
+    assert.match(textOf(items[0]), /^AI FinOps/, "the rows keep the navigation's order");
 
     // A site map, not an essay. The rule used to be a flat eight-word cap, which
     // said "shorter" by picking a number; it is stated against the thing it
@@ -433,7 +434,7 @@ test("the footer is a site map: every destination the navigation offers, each on
     // row may never be longer than the home page's sentence for that surface.
     // Two rows carry more words than they used to because the facts they had
     // dropped belong in both maps: where Paint's PNG goes, and what order
-    // People's posts come in. The marker on the first row is the order signal,
+    // People's posts come in. The marker on the Decisions row is the order signal,
     // not purpose copy, so it is counted separately.
     const guideRows = [...document.querySelector(".site-guide").querySelectorAll("li")];
     // The page the navigation files under Prompt coach is explained on the home
@@ -787,7 +788,8 @@ test("the directory says history only in the Personal AI history row, and each r
     const { purpose } = DEMOS.find((demo) => demo.label === label);
     assert.ok(purpose.startsWith(verb), `the ${label} row opens "${purpose}" instead of "${verb}…"`);
   }
-  assert.equal(DEMOS.find((demo) => demo.label === "Decisions").purpose, "record a decision, then search the log");
+  assert.equal(DEMOS.find((demo) => demo.label === "Decisions").purpose,
+    "record a decision, then link it to the release it shaped");
   // The Releases follow-up names its page in the directory's words, word for word.
   assert.equal(FOLLOW_UP_TOPICS.follow_up_releases,
     `Releases page — ${DEMOS.find((demo) => demo.label === "Releases").purpose}`);
@@ -799,6 +801,50 @@ test("the directory says history only in the Personal AI history row, and each r
     assert.deepEqual(saying, ["Personal AI history"], `${file}: "history" names more than one directory row`);
     for (const retired of ["search the history", "grades your assistant export", "— every release and its linked"]) {
       assert.ok(!html.includes(retired), `${file} still says "${retired}"`);
+    }
+  }
+});
+
+// #2295: the home page, the evaluation brief and the pilot scorecard all sell a
+// decision and release log, and this band told every page's reader to begin with
+// AI FinOps. One answer about where to begin, on every page, as authored and as
+// painted once the footer entry has run. Only the marker moved.
+test("every page's directory says start here once, on Decisions, and AI FinOps still says what it does", async () => {
+  const decisions = DEMOS.find((demo) => demo.label === "Decisions");
+  const finops = DEMOS.find((demo) => demo.label === "AI FinOps");
+  assert.deepEqual(DEMOS.filter((demo) => demo.note).map((demo) => demo.label), ["Decisions"]);
+  assert.equal(decisions.purpose, "record a decision, then link it to the release it shaped");
+  assert.equal(finops.purpose, "score your provider export in this browser tab");
+  const HREFS = ["/evolution.html", "/coach.html", "/personal-history.html", "/", "/releases.html",
+    "/social.html", "/profile.html", "/paint/", "/agents.html"];
+  assert.deepEqual(DEMOS.map((demo) => demo.href), HREFS, "the directory's doors changed");
+  assert.equal(DIRECTORY_SUMMARY, "Where else to go on Shiplog — all 9 destinations");
+
+  const directory = (document, where) => {
+    const lists = document.querySelectorAll(".site-footer-demos");
+    assert.equal(lists.length, 1, `${where}: one directory`);
+    const rows = [...lists[0].querySelectorAll("li")];
+    assert.deepEqual(rows.map((row) => row.querySelectorAll("a")[0].getAttribute("href")), HREFS,
+      `${where}: the directory's doors changed`);
+    assert.equal((textOf(lists[0]).match(/start here/gi) ?? []).length, 1, `${where}: "start here" is not said exactly once`);
+    const marked = rows.filter((row) => /start here/i.test(textOf(row)));
+    assert.equal(textOf(marked[0]), `Decisions — start here: ${decisions.purpose}`, `${where}: the marker is not on Decisions`);
+    assert.equal(textOf(rows[HREFS.indexOf("/evolution.html")]), `AI FinOps — ${finops.purpose}`, `${where}: the AI FinOps row`);
+    const summary = document.querySelectorAll("#site-footer-directory-summary");
+    if (summary.length) assert.equal(textOf(summary[0]), DIRECTORY_SUMMARY, `${where}: the folded directory's count`);
+  };
+
+  for (const file of PAGES) {
+    const html = await read(file);
+    assert.ok(html.includes(`<a href="/">Decisions</a> — start here: ${decisions.purpose}</li>`), `${file}: the authored Decisions row`);
+    assert.ok(!html.includes("AI FinOps</a> — start here"), `${file} still starts a visitor at AI FinOps`);
+    directory(parseHtml(html), `${file} as authored`);
+
+    const page = await openFooterPage(file);
+    try {
+      directory(page.document, `${file} as painted`);
+    } finally {
+      page.restore();
     }
   }
 });
