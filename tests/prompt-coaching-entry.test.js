@@ -82,7 +82,7 @@ test("the example is explicitly distinct from anything a visitor types", () => {
   // The transition out of the example is stated, with the control that does it.
   assert.match(transition.onEdit, /next grade is classified as your text/);
   // Clearing is named by the control's label, which says what it discards.
-  assert.match(transition.onClear, /^Clear prompt and grades empties the field/);
+  assert.match(transition.onClear, /^Delete prompt and grades empties the field/);
   assert.equal(transition.editControl, "prompt-coaching-input");
   assert.equal(transition.loadControl, "prompt-coaching-example");
   // Both classifications are announceable, so a result can always say whose it is.

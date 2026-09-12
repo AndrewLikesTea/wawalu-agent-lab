@@ -286,6 +286,36 @@ test("a refusal claims no movement and leaves the baseline standing", async () =
   }
 });
 
+test("the delete control says what it removes, and after a revision it removes all of it", async () => {
+  const page = await openCoachingPage();
+  try {
+    const { document } = page;
+    const hint = "Empties the prompt field and removes your grades from this page — the result, "
+      + "both scores after a revision, and the coaching summary. There is no undo.";
+    const control = byId(document, "prompt-coaching-clear");
+    const description = () => textOf(byId(document, control.getAttribute("aria-describedby")));
+    gradeText(document, WEAK);
+    assert.equal(textOf(control), "Delete prompt and grades");
+    assert.equal(description(), hint);
+
+    // Every region the hint names is on screen before the control is pressed...
+    gradeText(document, STRONG);
+    assert.equal(changeRegion(document).querySelector(".prompt-coaching-change-scores").querySelectorAll("dd").length, 2);
+    assert.equal(description(), hint);
+    const named = ["prompt-coaching-result", "prompt-coaching-change", "prompt-coaching-copy"];
+    for (const id of named) assert.equal(byId(document, id).hidden, false, `${id} is not on screen to remove`);
+
+    tabTo(document, "prompt-coaching-clear");
+    pressEnter(document);
+    // ...and gone after it, while the bundled example, which is not the visitor's grade, comes back.
+    assert.equal(byId(document, "prompt-coaching-input").value, "");
+    for (const id of named) assert.equal(byId(document, id).hidden, true, `${id} outlived the delete`);
+    assert.equal(byId(document, "prompt-coach-sample").hidden, false);
+  } finally {
+    page.restore();
+  }
+});
+
 test("clearing drops the baseline, restores the cue, and empties the change region", async () => {
   const page = await openCoachingPage();
   try {
