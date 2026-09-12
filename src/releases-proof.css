@@ -13,6 +13,8 @@
 .shiplog-proof-facts dt { color:#4c5650; font:700 9px/1.4 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; }
 .shiplog-proof-facts dd { margin:4px 0 0; font-size:14px; font-weight:700; line-height:1.45; overflow-wrap:anywhere; }
 .shiplog-proof-facts a,.shiplog-proof-link { color:#14568f; }
+/* A commit subject is a sentence, not a short fact: give it the whole row. */
+#shipped-build-reason { grid-template-columns:1fr; }
 .shiplog-proof-share { display:flex; align-items:center; flex-wrap:wrap; gap:10px 14px; padding-top:14px; border-top:1px solid #cbdcd3; }
 .shiplog-proof-link { font-size:13px; font-weight:700; }
 /* The recorder's success region is a `.share-control`, which is a centred flex

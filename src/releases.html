@@ -122,6 +122,13 @@
                look, one owner each. -->
           <a class="shiplog-real-link" id="shipped-build-source" href="https://github.com/AndrewLikesTea/wawalu-agent-lab">Open the public repository this site is built from</a>
         </div>
+        <!-- Why this build shipped: the subject line of the commit named above,
+             which the build wrote beside its sha, and the pull request that
+             subject names. It follows the commit link, so Tab reaches the pull
+             request straight after it. A build that recorded no subject says so
+             and offers no link; an unstamped build leaves both empty. -->
+        <dl class="shiplog-proof-facts" id="shipped-build-reason"></dl>
+        <p class="shiplog-proof-note" id="shipped-build-reason-note" hidden></p>
       </section>
 
       <section class="shiplog-proof shiplog-demo" id="shiplog-proof" aria-labelledby="shiplog-proof-title" aria-describedby="shiplog-proof-note" tabindex="-1">

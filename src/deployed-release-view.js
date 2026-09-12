@@ -15,7 +15,15 @@
 //
 // The block writes nothing: no form, no submit, no storage.
 
-import { NO_RECORD_LABEL, REAL_LABEL, REAL_MARKING, commitLinkText, sameSiteHref } from "./deployed-release.js";
+import {
+  NO_RECORD_LABEL,
+  REAL_LABEL,
+  REAL_MARKING,
+  commitLinkText,
+  parseShipReason,
+  pullRequestUrl,
+  sameSiteHref,
+} from "./deployed-release.js";
 import { copyRecordUrl } from "./share-link.js";
 
 export const SHIPPED_BUILD_IDS = Object.freeze({
@@ -27,7 +35,16 @@ export const SHIPPED_BUILD_IDS = Object.freeze({
   source: "shipped-build-source",
   copy: "shipped-build-copy",
   copyStatus: "shipped-build-copy-status",
+  reason: "shipped-build-reason",
+  reasonNote: "shipped-build-reason-note",
+  pull: "shipped-build-pull",
 });
+
+export const SHIP_REASON_LABEL = "Why this build shipped";
+
+export const SHIP_REASON_NOTE = "Taken from this build’s commit message. This is not an example record.";
+
+export const SHIP_REASON_NOT_RECORDED = "The reason this build shipped was not recorded for this build.";
 
 export const REAL_NOTE = "This record is not an example. The build that produced the page you are reading wrote it, from the commit that build was made from. Open that commit below and check it against the public repository.";
 
@@ -59,6 +76,33 @@ function fact(doc, label, value) {
 }
 
 /**
+ * Why the build shipped: its commit's subject, and the pull request that
+ * subject names. The subject is the repository's text, so it is only written
+ * as text, and the one href is composed from the repository the commit link
+ * above opens. A build that recorded no subject says so, with no link and no
+ * note — there is no commit message the note could be taken from.
+ */
+function renderShipReason(doc, list, note, subject) {
+  const reason = parseShipReason(subject);
+  if (list) list.replaceChildren(fact(doc, SHIP_REASON_LABEL, reason ? reason.text : SHIP_REASON_NOT_RECORDED));
+  if (!note) return;
+  note.hidden = !reason;
+  note.replaceChildren();
+  if (!reason) return;
+  const href = pullRequestUrl(reason.pullNumber);
+  if (href) {
+    const link = doc.createElement("a");
+    link.setAttribute("id", SHIPPED_BUILD_IDS.pull);
+    link.setAttribute("class", "shiplog-real-link");
+    link.href = href;
+    link.setAttribute("href", href);
+    link.textContent = `Pull request #${reason.pullNumber}`;
+    note.append(link, doc.createTextNode(" "));
+  }
+  note.append(doc.createTextNode(SHIP_REASON_NOTE));
+}
+
+/**
  * Paint the block. Synchronous and side-effect free apart from the DOM it is
  * handed, so a test can render a record object directly.
  *
@@ -77,6 +121,8 @@ export function renderShippedBuild(root, record, options = {}) {
   const source = byId(root, SHIPPED_BUILD_IDS.source);
   const copy = byId(root, SHIPPED_BUILD_IDS.copy);
   const copyStatus = byId(root, SHIPPED_BUILD_IDS.copyStatus);
+  const reason = byId(root, SHIPPED_BUILD_IDS.reason);
+  const reasonNote = byId(root, SHIPPED_BUILD_IDS.reasonNote);
 
   if (!record) {
     panel.dataset.shippedBuild = "unstamped";
@@ -90,6 +136,12 @@ export function renderShippedBuild(root, record, options = {}) {
     if (source) source.hidden = true;
     if (copy) copy.hidden = true;
     if (copyStatus) copyStatus.textContent = "";
+    // No commit, so no commit message to give a reason from.
+    if (reason) reason.replaceChildren();
+    if (reasonNote) {
+      reasonNote.hidden = true;
+      reasonNote.replaceChildren();
+    }
     return null;
   }
 
@@ -112,6 +164,7 @@ export function renderShippedBuild(root, record, options = {}) {
     source.setAttribute("href", record.sourceUrl);
     source.textContent = commitLinkText(record.commitSha);
   }
+  renderShipReason(doc, reason, reasonNote, record.commitSubject);
   // Checked, not trusted: a record whose detailHref is not a link into this
   // site gets no copy button, the same way a record whose sha is not a commit
   // gets no repository link above. A withdrawn control is a state the block
