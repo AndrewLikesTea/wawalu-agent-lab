@@ -386,7 +386,7 @@ test("the composer numbers the round trip and puts the rule beside the control",
   const items = steps.querySelectorAll("li");
   assert.deepEqual(items.map(textOf), [
     "Create or open an image in Paint (opens in a new tab) ↗",
-    "Export it as a PNG, then select that PNG using “Choose image”",
+    "Select “Use this image in a Social post” in Paint, or export a PNG and select it using “Choose image”",
   ]);
   assert.equal(textOf(documents.Social.querySelector("body")).split("Select Choose image").length - 1, 0,
     "the composer still instructs the reader to select the button beside the instruction");
@@ -511,10 +511,12 @@ test("the composer names the round trip in the order it is taken, once", () => {
     assert.ok(index >= 0, `the composer never says "${fragment}": ${steps}`);
     return index;
   };
-  assert.ok(at("Create or open an image in Paint") < at("Export it as a PNG"),
-    "the composer asks for the export before the drawing");
-  assert.ok(at("Export it as a PNG") < at("select that PNG using “Choose image”"),
-    "the composer asks for the file before it has been exported");
+  assert.ok(at("Create or open an image in Paint") < at("Use this image in a Social post"),
+    "the composer asks for the Paint action before the drawing");
+  // #2298: the one-step action from Paint leads, and exporting and choosing the
+  // file by hand is the fallback after it.
+  assert.ok(at("Use this image in a Social post") < at("export a PNG and select it using “Choose image”"),
+    "the manual route is offered ahead of the one-step action");
   // #2294: the list ends on the picker it leads into and no longer points back
   // "above" at it. Describing the image and publishing it are said at the
   // description field and beside Publish post, where they happen.
@@ -526,8 +528,8 @@ test("the composer names the round trip in the order it is taken, once", () => {
 
   // Once, in the field where the file is chosen — not restated elsewhere.
   const page = textOf(documents.Social.querySelector("main"));
-  assert.equal(page.split("Export it as a PNG").length - 1, 1,
-    "the export step is stated more than once on Social");
+  assert.equal(page.split("Use this image in a Social post").length - 1, 1,
+    "the Paint action is named more than once on Social");
 });
 
 /* --------------------- #1869: finishing the step list --------------------- */
@@ -574,7 +576,7 @@ test("the sequence names the image picker and leaves publishing to the button", 
   const label = textOf(documents.Social.querySelector('label[for="post-image"]'));
   assert.equal(label, "Choose image");
   assert.ok(last.includes(label));
-  assert.equal(last, "Export it as a PNG, then select that PNG using “Choose image”");
+  assert.equal(last, "Select “Use this image in a Social post” in Paint, or export a PNG and select it using “Choose image”");
   assert.doesNotMatch(textOf(documents.Social.getElementById("post-image-steps")), /Publish/,
     "the steps name the publish press ahead of the fields again");
   assert.equal(textOf(documents.Social.querySelector('button[type="submit"]')), "Publish post");

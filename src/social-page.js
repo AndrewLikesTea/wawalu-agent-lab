@@ -9,6 +9,7 @@
 import { connectionStatusLine, mountSocialFeed, normalizeSocialApiPosts, renderFieldError } from "/social.js";
 import {
   MAX_PUBLISH_IMAGE_BYTES,
+  PAINT_HANDOFF_KEY,
   PUBLISH_IMAGE_TYPES,
   UNSUPPORTED_TYPE_ERROR,
   dataUrlPayload,
@@ -16,7 +17,7 @@ import {
   takePaintHandoff,
   validatePublishImage,
 } from "/publishing-media.js";
-import { paintHandoffIntent, renderPaintArrival } from "/paint-handoff.js";
+import { PAINT_HANDOFF_COPY, paintHandoffIntent, renderPaintArrival } from "/paint-handoff.js";
 
 const REFRESH_INTERVAL = 10_000;
 
@@ -105,7 +106,7 @@ async function fileToPublishImage(file) {
 // src/social.js because the refusal it owns is what decides whether a post is
 // created. This half owns the bytes and tells that half when they arrive or
 // leave; neither reaches into the other's DOM.
-function mountMediaComposer(root, description) {
+function mountMediaComposer(root, description, composer) {
   const input = root.querySelector("#post-image");
   const panel = root.querySelector("#compose-media");
   const frame = root.querySelector("#compose-preview-frame");
@@ -219,9 +220,11 @@ function mountMediaComposer(root, description) {
     fallback.hidden = false;
     setStatus(PREVIEW_FAILURE, true);
   });
-  input.addEventListener("change", async () => {
+  // One path for a file however it arrived — chosen with Choose image or handed
+  // over from Paint — so the type and size rules, the preview, Remove image and
+  // the refusal are the same for both. Resolves whether the file was taken.
+  const accept = async (file, { focus = false } = {}) => {
     const generation = ++selectionGeneration;
-    const file = input.files?.[0];
     const problem = !file ? "Choose an image to continue."
       : !PUBLISH_IMAGE_TYPES.has(file.type) ? UNSUPPORTED_TYPE_ERROR
         : file.size > MAX_PUBLISH_IMAGE_BYTES ? overLimitError(file.size) : "";
@@ -238,37 +241,64 @@ function mountMediaComposer(root, description) {
       setStatus("");
       setSelectionProblem(problem);
       input.focus();
-      return;
+      return false;
     }
     clearRejection();
     setStatus("Preparing image preview…");
     panel.hidden = true;
     try {
       const next = await fileToPublishImage(file);
-      if (generation !== selectionGeneration) return;
-      show(next);
+      if (generation !== selectionGeneration) return false;
+      show(next, { focus });
+      return true;
     } catch (error) {
-      if (generation !== selectionGeneration) return;
+      if (generation !== selectionGeneration) return false;
       // clear() empties the field and the refusal slot with it, so the sentence
       // for the file that just failed is written after it, not before.
       clear();
       showRejection(error.message);
       setSelectionProblem(error.message);
       input.focus();
+      return false;
     }
-  });
+  };
+  input.addEventListener("change", () => accept(input.files?.[0]));
   remove.addEventListener("click", () => clear({ focus: true }));
 
-  // Arrival from Paint. The panel explains the handoff whether or not an image
-  // came with it, because the honest answer differs: an exported file is still
-  // only on the device and the visitor attaches it, while a prepared drawing is
-  // in this draft and still unpublished. When there is an image to describe the
-  // alt field keeps focus — that is the field the visitor has to fill — and
-  // otherwise focus lands on the explanation.
-  const arrival = renderPaintArrival(root.querySelector("#paint-arrival"), paintHandoffIntent(globalThis.location?.search));
-  const paint = takePaintHandoff(globalThis.sessionStorage);
-  if (paint) show(paint, { focus: true });
-  else arrival?.focus?.();
+  // Arrival from Paint. An exported file is still only on the device, so the
+  // panel says so and takes focus. A prepared drawing goes through accept() with
+  // focus on the description, the one field left to fill, and the panel speaks
+  // for it only once it was taken — a refused image is not "attached".
+  const arrivalPanel = root.querySelector("#paint-arrival");
+  const intent = paintHandoffIntent(globalThis.location?.search);
+  const takeFromPaint = () => {
+    const file = takePaintHandoff(globalThis.localStorage);
+    if (!file) return;
+    composer.open({ focus: false });
+    accept(file, { focus: true }).then((taken) => {
+      if (taken) renderPaintArrival(arrivalPanel, PAINT_HANDOFF_COPY.prepared);
+    });
+  };
+  if (intent?.kind === "prepared") {
+    // Off the address first, so a reload does not ask again — and so a second
+    // boot of this page, which reads the address it leaves, cannot take twice.
+    const params = new URLSearchParams(globalThis.location.search);
+    params.delete("from");
+    params.delete("image");
+    const query = params.toString();
+    const { pathname = "", hash = "" } = globalThis.location;
+    globalThis.history?.replaceState?.(globalThis.history.state, "", `${pathname}${query ? `?${query}` : ""}${hash}`);
+    takeFromPaint();
+  } else {
+    renderPaintArrival(arrivalPanel, intent)?.focus?.();
+  }
+  // Paint left the record from its own tab. Only a composer that is open or
+  // holds a draft claims it — the draft Paint was opened from lives only in this
+  // tab — and Paint, seeing the record gone, stays put instead of opening Social.
+  globalThis.addEventListener?.("storage", (event) => {
+    if (event.key !== PAINT_HANDOFF_KEY || !event.newValue) return;
+    if (composer.isOpen || root.querySelector("#post-body")?.value.trim()) takeFromPaint();
+  });
 
   return {
     // Handed over as-is, description and all. Whether the description is good
@@ -356,7 +386,7 @@ async function init() {
   const fromPaint = Boolean(paintHandoffIntent(globalThis.location?.search));
   const wantsComposer = fromPaint || globalThis.location?.hash === "#post-form";
   if (wantsComposer) feed.composer.open({ focus: !fromPaint });
-  const media = mountMediaComposer(root, feed.description);
+  const media = mountMediaComposer(root, feed.description, feed.composer);
 
   const fallback = dedupeById(await fetchDemoPosts());
   if (fallback.length) feed.seed(fallback);

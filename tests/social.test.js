@@ -26,6 +26,7 @@ import {
 import { loadPage, pressKey, tabSequence, textOf, typeText } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
 import { PAINT_HANDOFF_KEY } from "../src/publishing-media.js";
+import { bootSocial, handoffRecord } from "./support/social-paint-arrival.js";
 
 const sample = [
   { id: "p-old", author: "Kai",  body: "first",  createdAt: "2026-07-10T00:00:00.000Z" },
@@ -290,7 +291,10 @@ test("social page is wired, labeled, and linked from the other pages", async () 
   assert.match(wiring, /connection\.dataset\.state = "degraded"/);
   assert.match(styles, /\.feed-connection\[data-state="degraded"\] \.live-dot \{[^}]*border-radius:1px;[^}]*transform:rotate\(45deg\)/,
     "an unavailable live service changes the connection marker's shape, not only its colour");
-  assert.doesNotMatch(wiring, /localStorage/);
+  // Posts come from the API, never from browser storage. The one storage read is
+  // the image Paint hands to the composer (#2298), taken once and then removed.
+  assert.deepEqual((wiring.match(/.*localStorage.*/g) ?? []).map((line) => line.trim()),
+    ["const file = takePaintHandoff(globalThis.localStorage);"]);
   assert.match(page, /src="\/social-page\.js"/);
   // Compose inputs carry explicit labels + describedby wiring.
   assert.match(page, /<label for="post-author">/);
@@ -2041,21 +2045,15 @@ test("a publish that lands empties the draft, and reopening the composer shows a
 // second tab hands one over. Nothing here fakes the preview state — a test that
 // sets `#compose-media` visible itself can only prove that a hidden panel stays
 // hidden.
-const PAINT_DRAWING = {
-  content_type: "image/png",
-  data: "iVBORw0KGgo=",
-  preview: "data:image/png;base64,iVBORw0KGgo=",
-  size: 12,
-  width: 1,
-  height: 1,
-  source: "paint",
-};
+const PAINT_DRAWING = { preview: "data:image/png;base64,iVBORw0KGgo=" };
 
 async function socialPageFromPaint(t) {
-  const page = await loadPage(new URL("../src/social.html", import.meta.url), {
+  // The drawing Paint left in storage, arriving on the address Paint opens.
+  const session = await bootSocial(t, {
+    search: "?from=paint&image=prepared",
+    hash: "#post-form",
+    storage: { [PAINT_HANDOFF_KEY]: handoffRecord(Buffer.from("iVBORw0KGgo=", "base64")) },
     routes: {
-      "/social-demo-data.json": { posts: [] },
-      "/api/social-posts?limit=100": { posts: [] },
       // `source` or the row is dropped as invalid and the publish is reported as
       // a failure that never happened.
       "/api/social-posts": {
@@ -2066,47 +2064,16 @@ async function socialPageFromPaint(t) {
       },
     },
   });
-  // The drawing Paint left in this tab. src/social-page.js reads it off
-  // sessionStorage, which this runtime does not ship as a global.
-  const handed = new Map([[PAINT_HANDOFF_KEY, JSON.stringify(PAINT_DRAWING)]]);
-  const savedSession = Object.getOwnPropertyDescriptor(globalThis, "sessionStorage");
-  Object.defineProperty(globalThis, "sessionStorage", {
-    value: {
-      getItem: (key) => handed.get(key) ?? null,
-      setItem: (key, value) => handed.set(key, String(value)),
-      removeItem: (key) => handed.delete(key),
-    },
-    configurable: true,
-    writable: true,
-  });
-  // The feed polls on a timer; nothing here waits on a refresh and a live
-  // interval would outlast the test.
-  const timers = [];
-  const realSetInterval = globalThis.setInterval;
-  globalThis.setInterval = (...args) => {
-    const handle = realSetInterval(...args);
-    timers.push(handle);
-    return handle;
-  };
-  await importPageModule("/social-page.js");
-  await waitFor(() => page.document.documentElement.dataset.shiplogSocial === "ready",
-    "the social page finished its first load");
-  globalThis.setInterval = realSetInterval;
-  t.after(() => {
-    for (const handle of timers) clearInterval(handle);
-    if (savedSession) Object.defineProperty(globalThis, "sessionStorage", savedSession);
-    else delete globalThis.sessionStorage;
-    page.restore();
-  });
-  const id = (name) => page.document.querySelector(`#${name}`);
-  return { page, document: page.document, id };
+  await waitFor(() => !session.id("compose-media").hidden, "the drawing from Paint reached the composer");
+  return session;
 }
 
 test("the image, its description, and both counters survive a close and a reopen", async (t) => {
   const { document, id } = await socialPageFromPaint(t);
   const trigger = id("post-compose-open");
 
-  trigger.click();
+  // Arriving from Paint opens the composer with the drawing already in it.
+  assert.equal(id("post-compose-panel").hidden, false, "the arrival from Paint left the composer shut");
   assert.equal(id("compose-media").hidden, false, "the drawing from Paint never reached the composer");
   // The property, not the attribute: this harness reflects neither onto the
   // other, and `src` is set as a property by the page.
@@ -2143,7 +2110,6 @@ test("publishing the drawing empties the composer, and reopening it offers no le
   const { document, id } = await socialPageFromPaint(t);
   const trigger = id("post-compose-open");
 
-  trigger.click();
   id("post-body").focus();
   typeText(document, DRAFT);
   id("post-image-alt").focus();

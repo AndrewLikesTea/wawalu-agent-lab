@@ -1,7 +1,7 @@
 // One vocabulary for the route out of Paint and into a Social post.
 //
-// Paint is a local editor: it writes a file to the device or a preview into
-// this tab's sessionStorage, and it uploads nothing. Two surfaces have to agree
+// Paint is a local editor: it writes a file to the device or leaves the image in
+// this browser's storage for the composer, and it uploads nothing. Two surfaces have to agree
 // about that — the card Paint shows when the work is ready, and the panel
 // Social shows when the visitor arrives — so the promise made at the departure
 // is the promise kept at the destination. Both read the same copy from here,
@@ -9,9 +9,9 @@
 // a store, so a reload, a new tab, or a bookmark still explains itself.
 //
 // "exported" is the file the browser downloaded; nothing is attached at the
-// destination and the visitor picks the file. "prepared" is the in-tab preview
-// handed to the composer by src/publishing-media.js; it is attached to the
-// draft, and still nothing has been uploaded or posted.
+// destination and the visitor picks the file. "prepared" is the image handed to
+// the composer by src/publishing-media.js; it is attached to the draft, and
+// still nothing has been uploaded or posted.
 
 export const SOCIAL_COMPOSER_PATH = "/social.html";
 export const EXPORT_FILE_NAME = "paint-export.png";
