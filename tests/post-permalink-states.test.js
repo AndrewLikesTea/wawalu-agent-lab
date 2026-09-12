@@ -440,38 +440,45 @@ test("the retry is reached by Tab and fired by Enter, and the People link return
 
 /* -------------------------------- loaded ---------------------------------- */
 
-test("a loaded post links its display name to that name's People view", async () => {
+test("a loaded image post names its author as text and links to that name's People view once", async () => {
   const page = await openPostPage("?id=p-image", seedOnly([IMAGE_POST]));
   try {
     assertOneState(page, "loaded", "a post that loaded");
 
-    const link = page.panel.querySelector(".detail-author-link");
-    assert.equal(link.tagName, "A");
-    // The link's text is the name. "Profile" or "View profile" would leave a
-    // screen reader's list of links unable to say whose profile any of them is.
-    assert.equal(textOf(link), "Mina Okafor");
-    // The People view's own URL shape (profile.js's profileHref), not a second
-    // vocabulary invented for this one page.
-    assert.equal(link.getAttribute("href"), "/profile.html?author=Mina%20Okafor");
-    assert.ok(tabSequence(page.document).includes(link), "the name is reachable by keyboard");
+    // The byline is prose, so it is not a second route to the same place.
+    assert.equal(textOf(page.panel.querySelector(".post-name")), "Mina Okafor");
+    assert.equal(page.panel.querySelectorAll("a").filter((link) => String(link.href ?? "").startsWith("/profile.html")).length, 0);
 
-    // The permalink is no longer a dead end: there is a way onward as well as
-    // a way back.
-    assert.equal(page.panel.querySelectorAll(".detail-author-link").length, 1);
+    // The one link is the exit beside the Social links, named for the display
+    // name and the destination, in the People view's own URL shape.
+    const link = page.document.querySelector("#post-people");
+    assert.equal(link.hidden, false);
+    assert.equal(textOf(link), PEOPLE_LINK);
+    assert.equal(link.getAttribute("href"), "/profile.html?author=Mina%20Okafor");
+    assert.ok(tabSequence(page.document).includes(link), "the link is reachable by keyboard");
   } finally {
     page.restore();
   }
 });
 
-test("a name with characters that need encoding still reaches its People view", async () => {
-  const post = { ...TEXT_POST, author: "Ada Ø’Neil & Co" };
-  const page = await openPostPage("?id=p-text", seedOnly([post]));
+test("a name with characters that need encoding still reaches its People view, and a text post offers none", async () => {
+  const page = await openPostPage("?id=p-image", seedOnly([{ ...IMAGE_POST, author: "Ada Ø’Neil & Co" }]));
   try {
-    const link = page.panel.querySelector(".detail-author-link");
-    assert.equal(textOf(link), "Ada Ø’Neil & Co");
+    const link = page.document.querySelector("#post-people");
+    assert.equal(textOf(link), "See Ada Ø’Neil & Co’s image posts on People");
     assert.equal(link.getAttribute("href"), `/profile.html?author=${encodeURIComponent("Ada Ø’Neil & Co")}`);
   } finally {
     page.restore();
+  }
+
+  const text = await openPostPage("?id=p-text", seedOnly([TEXT_POST]));
+  try {
+    assertOneState(text, "loaded", "a text-only post");
+    assert.equal(textOf(text.panel.querySelector(".post-name")), "Rowan Diaz");
+    assert.equal(text.document.querySelector("#post-people").hidden, true,
+      "a text-only post links to a People view that can hold nothing");
+  } finally {
+    text.restore();
   }
 });
 
@@ -578,7 +585,7 @@ test("an image that cannot be shown is replaced by its description and a sentenc
 
     // The post is still a post: the display name, the timestamp and the caption
     // all survive the image, and so does the labelled description under it.
-    assert.equal(textOf(page.panel.querySelector(".detail-author-link")), IMAGE_POST.author);
+    assert.equal(textOf(page.panel.querySelector(".post-name")), IMAGE_POST.author);
     assert.equal(textOf(page.panel.querySelector("figcaption")), IMAGE_POST.caption);
     assert.equal(textOf(page.panel.querySelector(".detail-image-description-text")), IMAGE_POST.image.alt);
     assert.equal(page.panel.querySelectorAll("time").length, 1);
@@ -602,7 +609,7 @@ test("a post with no image renders no image element and no empty frame to hold o
 
     // The post itself still reads in full.
     assert.match(textOf(page.panel), /Shipped the retry path today\./);
-    assert.equal(textOf(page.panel.querySelector(".detail-author-link")), "Rowan Diaz");
+    assert.equal(textOf(page.panel.querySelector(".post-name")), "Rowan Diaz");
     assertOneState(page, "loaded", "a post with no image");
   } finally {
     page.restore();
@@ -617,7 +624,7 @@ test("a post with no image renders no image element and no empty frame to hold o
 // either way — so this is asserted in the missing state as well as the loaded
 // one, not just in the state that happens to work.
 const SOCIAL_LINK = "Open Social to read the whole feed";
-const PEOPLE_LINK = "Open People to see Mina Okafor’s other image posts";
+const PEOPLE_LINK = "See Mina Okafor’s image posts on People";
 // Both routes name Social; their labels explain whether to read or publish.
 const PUBLISH_LINK = "Open Social to publish a post";
 const CHROME_LINKS = [SOCIAL_LINK, PEOPLE_LINK, PUBLISH_LINK];
@@ -1063,9 +1070,9 @@ test("a loaded post's caption, name, time and image all read before the feed con
     const main = page.document.querySelector("#main-content");
     // One combined query, which comes back in document order. Everything the
     // post is made of, then the context sentence, then the two routes out.
-    const flow = main.querySelectorAll(".detail-author-link,.detail-date,.detail-image,figcaption,#post-back,#post-people");
+    const flow = main.querySelectorAll(".post-name,.detail-date,.detail-image,figcaption,#post-back,#post-people");
     const names = flow.map((node) => node.id || node.className);
-    assert.deepEqual(names, ["detail-image", "detail-caption", "detail-author-link", "post-date detail-date", "post-back", "post-people"],
+    assert.deepEqual(names, ["detail-image", "detail-caption", "post-name", "post-date detail-date", "post-back", "post-people"],
       "the post's parts must all precede the routes off the page");
 
     // The image is announced by the description the poster stored, in the post
@@ -1080,11 +1087,12 @@ test("a loaded post's caption, name, time and image all read before the feed con
     const context = blocks.findIndex((node) => textOf(node) === CONTEXT_SENTENCE);
     assert.ok(slot >= 0 && context > slot, "the paragraph describing Social must follow the post");
 
-    // Tab order agrees with reading order: the post's own link to its author is
-    // reached before either cross-link.
+    // Tab order agrees with reading order: the post's own control is reached
+    // before either cross-link.
     const sequence = tabSequence(page.document);
-    const author = main.querySelector(".detail-author-link");
-    assert.ok(sequence.indexOf(author) < sequence.indexOf(main.querySelector("#post-back")),
+    const control = main.querySelector(".share-button");
+    assert.ok(sequence.indexOf(control) >= 0);
+    assert.ok(sequence.indexOf(control) < sequence.indexOf(main.querySelector("#post-back")),
       "a focusable inside the post region must precede the cross-links");
   } finally {
     page.restore();
@@ -1106,7 +1114,7 @@ test("a permalink built the old way still resolves to the same post", async () =
     const page = await openPostPage(search, seedOnly([IMAGE_POST, TEXT_POST]));
     try {
       assertOneState(page, "loaded", `a permalink at ${search}`);
-      assert.equal(textOf(page.panel.querySelector(".detail-author-link")), IMAGE_POST.author);
+      assert.equal(textOf(page.panel.querySelector(".post-name")), IMAGE_POST.author);
       assert.equal(textOf(page.document.querySelector("#page-title")), `${IMAGE_POST.author}'s post`);
       assert.equal(textOf(page.panel.querySelector("figcaption")), IMAGE_POST.caption);
     } finally {
@@ -1331,8 +1339,8 @@ test("the lead stands once, in the same place, through loading, a loaded post, a
     // Waited on the post's own content rather than on any authored string: the
     // display name is drawn by post-detail.js and appears nowhere in the markup,
     // so this cannot pass on turn zero.
-    await waitFor(() => panel.querySelectorAll(".detail-author-link").length === 1, "the post arrived");
-    assert.equal(textOf(panel.querySelector(".detail-author-link")), IMAGE_POST.author);
+    await waitFor(() => panel.querySelectorAll(".post-name").length === 1, "the post arrived");
+    assert.equal(textOf(panel.querySelector(".post-name")), IMAGE_POST.author);
     assertLeadReads(waiting.document, "once the post arrived");
   } finally {
     waiting.restore();

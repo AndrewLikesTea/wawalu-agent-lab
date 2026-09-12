@@ -282,7 +282,7 @@ test("Social opened at that URL is already filtered, and Clear filters puts ever
   // The cards on screen are that name's, text post included: the whole reason
   // the link exists is the post People could not show.
   const cards = document.querySelectorAll(".post-card");
-  const bylines = cards.map((card) => textOf(card.querySelector(".post-author") ?? card.querySelector(".post-name")));
+  const bylines = cards.map((card) => textOf(card.querySelector(".post-name")));
   assert.equal(bylines.length, 2, "the feed is not showing the forwarded name's posts");
   assert.deepEqual([...new Set(bylines)], [BEA]);
 

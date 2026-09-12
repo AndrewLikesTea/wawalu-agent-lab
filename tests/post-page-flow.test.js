@@ -100,7 +100,7 @@ function assertExits(page, peopleHref, where) {
 const IDENTITY = "Display names are invented for this demo or chosen by whoever published the post — nobody owns or verifies one, and anyone can publish under any name.";
 
 const SOCIAL = { label: "Open Social to read the whole feed", href: "/social.html" };
-const PEOPLE = { label: "Open People to see Mina Okafor’s other image posts", href: "/profile.html" };
+const PEOPLE = { label: "See Mina Okafor’s image posts on People", href: "/profile.html" };
 const PUBLISH = { label: "Open Social to publish a post", href: "/social.html#post-form" };
 const MINA = "/profile.html?author=Mina%20Okafor";
 
@@ -140,12 +140,53 @@ test("the loaded heading and title safely reuse the card's exact display name", 
   const displayName = `Ada <Admin> "Q"`;
   const page = await openPostPage("?id=p-image", seedOnly([{ ...SEED_POST, author: displayName }]));
   try {
-    assert.equal(textOf(page.panel.querySelector(".detail-author-link")), displayName);
+    assert.equal(textOf(page.panel.querySelector(".post-name")), displayName);
     assert.equal(textOf(page.document.querySelector("#page-title")), `${displayName}'s post`);
     assert.equal(page.document.title, `${displayName}'s post · Social · Shiplog`);
     assert.equal(page.document.querySelectorAll("admin").length, 0, "angle brackets must remain text");
   } finally {
     page.restore();
+  }
+});
+
+// People holds image posts only, so the permalink's one People link follows the
+// image: an image post offers it beside the two Social links, and a text-only
+// post names its author as prose with no route to a view that would be empty.
+test("a text-only post names its author as text and offers no People link", async () => {
+  const textOnly = { id: "p-text", author: "Rowan Diaz", body: "Shipped the retry path today.", createdAt: "2026-07-15T11:30:00.000Z" };
+  const page = await openPostPage("?id=p-text", seedOnly([textOnly]));
+  try {
+    // The fixture reached the render: the byline carries its name.
+    assert.equal(textOf(page.panel.querySelector(".post-name")), "Rowan Diaz");
+    assert.equal(page.panel.querySelectorAll("a").filter((link) => String(link.href ?? "").startsWith("/profile.html")).length, 0);
+    assert.equal(page.document.querySelector("#post-people").hidden, true);
+    assertExits(page, null, "a text-only post");
+  } finally {
+    page.restore();
+  }
+});
+
+test("an image post's People link carries any display name as text, to an address that reads back to it", async () => {
+  for (const name of ["Ari Lee", "José", "Ada & #? <Co>"]) {
+    const page = await openPostPage("?id=p-image", seedOnly([{ ...SEED_POST, author: name }]));
+    try {
+      assert.equal(textOf(page.panel.querySelector(".post-name")), name);
+      const people = page.document.querySelector("#post-people");
+      assert.equal(people.hidden, false, `${name}: the image post withheld its People link`);
+      assert.equal(textOf(people), `See ${name}’s image posts on People`);
+      assert.equal(people.href, `/profile.html?author=${encodeURIComponent(name)}`);
+      assert.equal(new URLSearchParams(people.href.split("?")[1]).get("author"), name);
+      // One link to that view on the page, and its only sibling links are the
+      // two Social routes: the byline is prose, not a second way to People.
+      const toPeople = page.document.querySelectorAll("a")
+        .filter((link) => !link.hidden && String(link.href ?? "").startsWith("/profile.html?"));
+      assert.equal(toPeople.length, 1, `${name}: the page links to this People view more than once`);
+      assert.deepEqual(people.parentNode.children.filter((node) => node.tagName === "A").map((link) => link.id),
+        ["post-back", "post-people", "post-publish"]);
+      assert.ok(tabSequence(page.document).includes(people), `${name}: the People link is not reachable by keyboard`);
+    } finally {
+      page.restore();
+    }
   }
 });
 
@@ -607,8 +648,8 @@ test("a loaded post can hand over its own link, and says so where the post is", 
     const sequence = tabSequence(page.document);
     assert.equal(copy.getAttribute("tabindex"), null);
     assert.ok(sequence.includes(copy), "the control is reachable by keyboard");
-    assert.ok(sequence.indexOf(page.panel.querySelector(".detail-author-link")) < sequence.indexOf(copy),
-      "the post's own content is reached before the control that copies its link");
+    assert.deepEqual(page.panel.querySelectorAll(".detail-byline,.share-button").map((node) => node.classList.contains("share-button")),
+      [false, true], "the post's own content is read before the control that copies its link");
     for (const id of ["#post-back", "#post-people", "#post-publish"]) {
       assert.ok(sequence.indexOf(copy) < sequence.indexOf(page.document.querySelector(id)),
         `the copy control precedes ${id}`);

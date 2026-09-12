@@ -2,14 +2,12 @@
 // display name's image posts on People, in one activation — and no such link
 // anywhere it would arrive at nothing.
 //
-// WHAT WAS MISSING. The walk itself already existed (#1649): the byline is an
-// anchor at /profile.html?author=…, and People reads that parameter at boot. But
-// every card carried it, image or not, and People holds image posts and nothing
-// else — so a text-only post offered a one-click route to a view that could only
-// answer "this name has no image posts yet". The link now belongs to the posts
-// that put something at the other end of it, and it says so: "See Ari's image
-// posts on People" names the display name and the destination, not just the
-// name. tests/social-name-to-people-e2e.test.js walks the same seam for the
+// WHAT WAS MISSING. The walk itself already existed (#1649), and People reads
+// ?author= at boot. The link now belongs to the posts that put something at the
+// other end of it, and since #2312 its visible words say so: "See Ari's image
+// posts on People" follows the post and precedes "Open post", while the byline
+// names the poster as prose on every card.
+// tests/social-name-to-people-e2e.test.js walks the same seam for the
 // forwarded-URL half; this file is about which cards mint the link at all.
 //
 // THE INVARIANT, not three examples: every href the settled feed renders is
@@ -25,6 +23,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { loadPage, tabSequence, textOf } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
 import { peopleImagePostsLabel, profileHref } from "../src/social-links.js";
@@ -134,10 +133,10 @@ function holdTimers(t, page) {
  * render in flight that resolves after the globals are torn down — green here,
  * an unhandled rejection on a loaded CI box.
  */
-async function openSocial(t) {
+async function openSocial(t, feed = FEED) {
   const page = await loadPage(SOCIAL_PAGE, {
     storage: {},
-    routes: { [SEED_ROUTE]: { posts: [] }, [LIVE_ROUTE]: { posts: FEED.map(asApiPost) } },
+    routes: { [SEED_ROUTE]: { posts: [] }, [LIVE_ROUTE]: { posts: feed.map(asApiPost) } },
   });
   const release = holdTimers(t, page);
   await importPageModule("/social-page.js");
@@ -155,13 +154,17 @@ async function openSocial(t) {
  * on body text — People's authored markup already prints profile prose before a
  * single post has arrived, so a text-based wait returns on turn zero.
  */
-async function openPeople(t, { search = "" } = {}) {
+async function openPeople(t, { search = "", feed = FEED } = {}) {
   const page = await loadPage(PEOPLE_PAGE, {
     storage: {},
     location: { search },
-    routes: { [SEED_ROUTE]: { posts: FEED }, [LIVE_ROUTE]: { posts: [] } },
+    routes: { [SEED_ROUTE]: { posts: feed }, [LIVE_ROUTE]: { posts: [] } },
   });
   const release = holdTimers(t, page);
+  // Every address People writes for itself, in order, so a filter change can be
+  // followed by a reload at exactly the address it left behind.
+  page.replaced = [];
+  globalThis.window.history = { replaceState: (...args) => page.replaced.push(args) };
   await importPageModule("/profile-page.js");
   const { document } = page;
   await waitFor(() => document.documentElement.dataset.shiplogProfile === "ready", "the People page finished its first load");
@@ -193,19 +196,26 @@ test("an image post carries one link to People, named for the name and the desti
   assert.equal(link.getAttribute("href"), profileHref(ARI));
   assert.equal(link.href, "/profile.html?author=Ari%20Mensah");
 
-  // The accessible name carries the display name AND where activating it goes.
-  // Position and ink say neither, and the card's other link is two words that
-  // say nothing about People.
-  assert.equal(link.getAttribute("aria-label"), `See ${ARI}’s image posts on People`);
-  assert.equal(link.getAttribute("aria-label"), peopleImagePostsLabel(ARI));
-  // The visible words are inside the accessible name, so a reader who says
-  // "Ari Mensah" is speaking a name the control answers to.
-  assert.equal(textOf(link), ARI);
-  assert.ok(link.getAttribute("aria-label").includes(textOf(link)));
+  // The visible words carry the display name AND where activating it goes, so
+  // no aria-label has to say what the ink does not.
+  assert.equal(textOf(link), `See ${ARI}’s image posts on People`);
+  assert.equal(textOf(link), peopleImagePostsLabel(ARI));
+  assert.equal(link.getAttribute("aria-label"), null);
 
-  // Keyboard-reachable as markup, not as a tabindex trick, and the card still
-  // reads in the order it read before: the name, then the card's way into the
-  // post. Focusables in the card, not a screenshot of it.
+  // The byline still names the poster, as prose rather than as a second link.
+  const names = card.querySelectorAll(".post-name");
+  assert.equal(names.length, 1);
+  assert.equal(names[0].tagName, "SPAN");
+  assert.equal(textOf(names[0]), ARI);
+
+  // After the post's text and image, before the card's way into the post.
+  const flow = card.querySelectorAll(".post-caption,.post-image-description,.post-author,.release-detail-link");
+  assert.deepEqual(flow.map((node) => node.className),
+    ["post-caption", "post-image-description", "post-author", "release-detail-link"]);
+
+  // Keyboard-reachable as markup, not as a tabindex trick: the People link,
+  // then the card's way into the post. Focusables in the card, not a
+  // screenshot of it.
   const stops = tabSequence(document).filter((element) => within(element, card));
   assert.deepEqual(stops.map((element) => element.className), ["post-author", "release-detail-link"],
     "the card grew a tab stop of its own, or lost one it had");
@@ -247,7 +257,8 @@ test("across the whole settled feed, exactly the image posts link to People", as
   assert.equal(withImage.length, 4, "this fixture stopped covering both kinds of post");
   assert.equal(FEED.length - withImage.length, 2, "this fixture stopped covering text-only posts");
   assert.equal(document.querySelectorAll(".post-author").length, withImage.length);
-  assert.equal(document.querySelectorAll(".post-name").length, FEED.length - withImage.length);
+  // Every byline names its poster as prose, image post or not.
+  assert.equal(document.querySelectorAll(".post-name").length, FEED.length);
 
   // Every minted href belongs to a name that has pictures. This is the property
   // the whole change exists for, checked against the data rather than a list.
@@ -321,6 +332,14 @@ test("a display name People does not hold is not an error", async (t) => {
   // Nothing in the product sends a reader here: no card in the feed mints a link
   // to a name without pictures, which is the whole point of the change above.
   assert.equal(textOf(document.querySelector("#grid-title")), `${NOBODY} · 0 image posts`);
+
+  // The selection is the name that was asked for — not Guest, not the busiest
+  // name — and the explanation offers a way back to Social.
+  assert.equal(pressedChip(document)?.dataset.author, NOBODY, "the unknown name was traded for another");
+  assert.doesNotMatch(textOf(document.getElementById("main-content")), /Guest/);
+  const routes = document.querySelector(".empty-state").querySelectorAll("a");
+  assert.ok(routes.some((route) => String(route.href ?? "").startsWith("/social.html")),
+    "the empty state offers no way to Social");
 });
 
 test("no display name at all lands on People's own default, unchanged", async (t) => {
@@ -335,4 +354,73 @@ test("no display name at all lands on People's own default, unchanged", async (t
   assert.deepEqual(tiles.map((tile) => tile.dataset?.postId), imagePostIds(ARI));
   assert.equal(document.querySelectorAll(".empty-state").length, 0);
   assert.equal(document.querySelectorAll(".empty-state-error").length, 0);
+});
+
+/* ------------- 4. names that need encoding, from the card to the grid ------ */
+
+// Names a string-built address would break: a space, letters outside ASCII, and
+// the characters that end or restart a query (`&`, `#`, `?`) or open markup.
+const ODD_NAMES = ["Ari Lee", "Zoë", "José", "Ada & #? <Co>"];
+const ODD_FEED = ODD_NAMES.map((name, at) => ({
+  ...post(`r-0${at + 1}`, name, `0${at + 1}`),
+  image: { ...image(name), src: `/media/round-trip-${at + 1}.svg` },
+}));
+
+test("each display name survives the trip from its Social link to People's selection, as literal text", async (t) => {
+  const social = await openSocial(t, ODD_FEED);
+  const cards = drawnCards(social.document);
+  assert.equal(cards.length, ODD_FEED.length, "a round-trip post was dropped before it rendered");
+
+  const hrefs = ODD_FEED.map((entry) => {
+    const card = cards.find((node) => node.dataset?.postId === entry.id);
+    const links = card.querySelectorAll(".post-author");
+    assert.equal(links.length, 1, `${entry.author}: the card offers no People link, or two`);
+    assert.equal(textOf(links[0]), `See ${entry.author}’s image posts on People`);
+    assert.equal(links[0].href, profileHref(entry.author));
+    assert.equal(new URLSearchParams(links[0].href.split("?")[1]).get("author"), entry.author,
+      `${entry.author}: the address does not read back to the name`);
+    return links[0].href;
+  });
+
+  for (const [at, href] of hrefs.entries()) {
+    const name = ODD_NAMES[at];
+    const { document } = await openPeople(t, { search: href.slice(href.indexOf("?")), feed: ODD_FEED });
+    assert.equal(pressedChip(document)?.dataset.author, name, `${name}: People selected another display name`);
+    assert.equal(textOf(document.querySelector("#grid-title")), `${name} · 1 image post`);
+    assert.deepEqual(drawnTiles(document).map((tile) => tile.dataset?.postId), [ODD_FEED[at].id]);
+  }
+});
+
+test("choosing a name on People rewrites the address, and a reload there keeps that name", async (t) => {
+  const ADA = ODD_NAMES[3];
+  const first = await openPeople(t, { search: "?author=Ari%20Lee", feed: ODD_FEED });
+  assert.equal(pressedChip(first.document)?.dataset.author, "Ari Lee");
+  chips(first.document).find((chip) => chip.dataset.author === ADA).click();
+  assert.equal(pressedChip(first.document)?.dataset.author, ADA);
+  const address = first.replaced.at(-1)?.[2];
+  assert.equal(address, profileHref(ADA), "the filter change did not write People's shared address");
+
+  // Cold, with nothing remembered: only the address can carry the name back.
+  const reloaded = await openPeople(t, { search: address.slice(address.indexOf("?")), feed: ODD_FEED });
+  assert.equal(pressedChip(reloaded.document)?.dataset.author, ADA, "the reload lost the chosen display name");
+  assert.equal(textOf(reloaded.document.querySelector("#grid-title")), `${ADA} · 1 image post`);
+  assert.deepEqual(drawnTiles(reloaded.document).map((tile) => tile.dataset?.postId), ["r-04"]);
+  assert.equal(reloaded.storage.getItem("shiplog.social.author"), null);
+});
+
+// The harness parses no markup, so a page-level test cannot fail on an
+// innerHTML regression. The render half is pinned at the source instead.
+test("both surfaces write the People link's name as text, never as markup", async () => {
+  const read = (file) => readFile(new URL(`../src/${file}`, import.meta.url), "utf8");
+  const [social, detail, wiring] = await Promise.all([read("social.js"), read("post-detail.js"), read("post-page.js")]);
+  const textOnlyEl = /function el\(tag, className, text\) \{\s*const node = document\.createElement\(tag\);\s*if \(className\) node\.className = className;\s*if \(text !== undefined\) node\.textContent = text;/;
+  for (const [file, source] of [["social.js", social], ["post-detail.js", detail], ["post-page.js", wiring]]) {
+    assert.doesNotMatch(source, /innerHTML|outerHTML|insertAdjacentHTML/, `${file} writes markup`);
+  }
+  assert.match(social, textOnlyEl);
+  assert.match(detail, textOnlyEl);
+  assert.match(social, /el\("a", "post-author", peopleImagePostsLabel\(post\.author\)\)/);
+  assert.match(social, /people\.href = profileHref\(post\.author\);/);
+  assert.match(detail, /byline\.append\(el\("span", "post-name", author\)\)/);
+  assert.match(wiring, /people\.textContent = postPeopleLabel\(author\);/);
 });

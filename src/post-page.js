@@ -6,7 +6,9 @@
 // asked first, and the seed is still consulted when the API has no answer.
 
 import { normalizeProfileApiPosts, normalizeSeedPosts } from "/profile.js";
-import { POST_EXITS, findPostById, postDetailTitle, postPageHeading, postPeopleHref, postPeopleLabel, renderPostDetail } from "/post-detail.js";
+import {
+  POST_EXITS, findPostById, postDetailTitle, postHasPeopleView, postPageHeading, postPeopleHref, postPeopleLabel, renderPostDetail,
+} from "/post-detail.js";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -44,9 +46,10 @@ async function init() {
     people.href = postPeopleHref(window.location.search, author);
     people.textContent = postPeopleLabel(author);
   };
-  // …and whether it is offered at all. Its words promise "this display name's
-  // other image posts", which only means something while there is a post, or
-  // while one may still arrive. When the lookup settles on not-found or error
+  // …and whether it is offered at all. Its words promise a display name's image
+  // posts, which only means something for a post with an image: People holds
+  // nothing else, so a text-only post is not offered the link, and neither is
+  // a page still waiting for its post. When the lookup settles on not-found or error
   // there is no post and therefore no display name this page can point at — an
   // ?author= in the URL is what the arriving link claimed, not a name the page
   // resolved — so the link is removed from the document rather than left
@@ -132,8 +135,9 @@ async function init() {
       onRetry: () => load({ fromRetry: true }),
     });
     nameHeading(post);
-    aimPeople(post?.author ?? "");
-    offerPeople(Boolean(post));
+    const person = postHasPeopleView(post) && postPeopleLabel(post.author) ? post.author : "";
+    aimPeople(person);
+    offerPeople(Boolean(person));
     document.title = postDetailTitle(post, state);
     document.documentElement.dataset.shiplogPostDetail = "ready";
 

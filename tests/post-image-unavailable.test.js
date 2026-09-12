@@ -108,7 +108,7 @@ test("Social feed: a post whose image dies still shows the label and the descrip
   // Reading order: caption, display name and timestamp all still present, and
   // the placeholder sits where the image was rather than after the card.
   const caption = first(container, "post-caption");
-  const author = first(container, "post-author");
+  const author = first(container, "post-name");
   const time = tags(container, "TIME")[0];
   assert.equal(caption.textContent, "Focus rings landed everywhere.");
   assert.equal(author.textContent, "Mina Okafor");

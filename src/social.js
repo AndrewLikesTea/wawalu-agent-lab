@@ -526,28 +526,11 @@ function renderPostCard(post, { index }) {
   const avatar = el("span", "post-avatar", initials(post.author));
   avatar.setAttribute("aria-hidden", "true");
 
-  // People holds image posts and nothing else, so the display name is a link
-  // exactly when there is something at the other end of it: an image post's
-  // byline opens that name's People view, and a text-only post prints the same
-  // name as text. This is the rule showConfirmation() below already follows for
-  // the link it offers after publishing — a link to a view the destination
-  // cannot fill is a promise, not a path, and the two surfaces make the same one.
-  //
-  // The name keeps its place either way: same element, same slot in the byline,
-  // same reading order. A text post loses a tab stop it should not have had; no
-  // card gains one, and nothing moves to make room.
+  // The byline's display name is prose on every card. The route to that name's
+  // People view is drawn below, after the post, and only on image posts.
   const image = normalizeImage(post.image);
   const byline = el("div", "post-byline");
-  const author = image
-    ? el("a", "post-author", post.author)
-    : el("span", "post-name", post.author);
-  if (image) {
-    author.href = profileHref(post.author);
-    // Both halves of the destination in the accessible name: whose posts, and
-    // which page. Position and ink are not the difference between this link and
-    // the card's other one.
-    author.setAttribute("aria-label", peopleImagePostsLabel(post.author));
-  }
+  const author = el("span", "post-name", post.author);
   // Ids are minted from the render index, never from post.id — a post id is
   // arbitrary text and must not be spliced into an id/IDREF list.
   author.id = `post-${index}-author`;
@@ -583,6 +566,17 @@ function renderPostCard(post, { index }) {
     const body = el("p", "post-body", post.body);
     body.id = textId;
     article.append(body);
+  }
+  // People holds image posts and nothing else, so only an image post links to
+  // its display name's People view — the rule showConfirmation() below follows
+  // for the link it offers after publishing. The visible words say whose posts
+  // and which page, because a bare name does not say where activating it goes.
+  // It follows the post and precedes "Open post" in DOM and so in tab order. The
+  // name goes in through textContent (el) and the address through profileHref.
+  if (image) {
+    const people = el("a", "post-author", peopleImagePostsLabel(post.author));
+    people.href = profileHref(post.author);
+    article.append(people);
   }
   // The card's own way into the post, last in the card so the action follows the
   // picture and the words it acts on. A plain anchor in the link shape the
@@ -1278,8 +1272,8 @@ export function mountSocialFeed(root, options = {}) {
   // document.body and back to the top of the page. It lands on the first
   // restored post — the thing the reader asked for — and falls back to the list
   // heading, which is the panel's own accessible name and always present.
-  // Where focus lands when the page puts a reader on a card. The byline is a
-  // control only on an image post, so a text post hands focus to the one stop it
+  // Where focus lands when the page puts a reader on a card. The People link is
+  // drawn only on an image post, so a text post hands focus to the one stop it
   // does have — the card's way into the post — rather than to a span, which in a
   // browser drops the reader on <body> and back to the top of the page.
   const cardFocusTarget = (card) =>

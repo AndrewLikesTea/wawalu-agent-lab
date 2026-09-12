@@ -19,6 +19,7 @@ const {
   resolvePostState,
   postDetailTitle,
   postImageAlt,
+  postHasPeopleView,
   postPageHeading,
   postPeopleHref,
   postPeopleLabel,
@@ -111,14 +112,12 @@ test("the post reads in one order: description, image, caption, name, then time"
   );
   assert.ok(tags(figure, "IMG").length === 1, "the image sits inside the figure");
 
-  // The byline is the name itself, linked — never "profile" or "view profile",
-  // which would leave a screen reader's link list unable to say whose.
+  // The byline is the name itself, as prose. The page's one link to that name's
+  // People view is the #post-people exit post-page.js offers for image posts.
   const byline = first(article, "detail-byline");
   assert.equal(article.children[2], byline, "the byline follows the image caption");
-  const link = first(byline, "detail-author-link");
-  assert.equal(link.tagName, "A");
-  assert.equal(link.textContent, "Mina Okafor");
-  assert.equal(link.href, "/profile.html?author=Mina%20Okafor");
+  assert.equal(first(byline, "post-name").textContent, "Mina Okafor");
+  assert.equal(tags(byline, "A").length, 0, "the byline became a second link to People");
 });
 
 /* --------------------- the image's accessible name ------------------------ */
@@ -483,7 +482,14 @@ test("both destinations ship as constants, and only the People link's target nar
   // is a post, and the normalizers drop a post whose author is unusable, so
   // neither shape is reachable today; this is what keeps that true if the
   // display-name limit these two both hard-code ever moves in one of them.
-  assert.equal(postPeopleLabel("Mina Okafor"), "Open People to see Mina Okafor’s other image posts");
+  assert.equal(postPeopleLabel("Mina Okafor"), "See Mina Okafor’s image posts on People");
+
+  // Offered for exactly the posts People can show: the image decides, and an
+  // image the renderer would refuse to draw does not count.
+  assert.equal(postHasPeopleView(post), true);
+  assert.equal(postHasPeopleView({ ...post, image: undefined }), false);
+  assert.equal(postHasPeopleView({ ...post, image: { src: "https://cdn.example.com/x.png", alt: "x" } }), false);
+  assert.equal(postHasPeopleView(null), false);
   assert.equal(postPeopleLabel("  Mina Okafor  "), postPeopleLabel("Mina Okafor"), "a padded name is the same name");
   for (const author of ["", "   ", "n".repeat(61)]) {
     assert.equal(postPeopleLabel(author), "", `"${author.slice(0, 12)}" is not a name this link can promise`);

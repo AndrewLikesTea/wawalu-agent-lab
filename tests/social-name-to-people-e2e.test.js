@@ -224,7 +224,8 @@ test("a settled Social post carries its display name as a link to People, in the
   const withImage = FEED.filter((entry) => entry.image);
   const names = document.querySelectorAll(".post-author");
   assert.equal(names.length, withImage.length);
-  assert.equal(document.querySelectorAll(".post-name").length, FEED.length - withImage.length);
+  // Every byline names its poster as prose; the link is a separate line.
+  assert.equal(document.querySelectorAll(".post-name").length, FEED.length);
   for (const link of names) {
     assert.equal(link.tagName, "A", "the display name is not an anchor, so it cannot be forwarded or copied");
     assert.ok(link.href, "the display name is an anchor with no destination");
@@ -238,13 +239,12 @@ test("a settled Social post carries its display name as a link to People, in the
   const link = card.querySelectorAll(".post-author")[0];
 
   // A real destination, in People's own URL shape — built by the function
-  // src/social.js itself calls, so the two cannot drift apart — and the display
-  // name is in the accessible name rather than only in the ink.
+  // src/social.js itself calls, so the two cannot drift apart — and the visible
+  // words name both the display name and the destination.
   assert.equal(link.getAttribute("href"), profileHref(IRIS));
   assert.equal(link.href, "/profile.html?author=Iris%20Vale");
-  assert.ok(link.getAttribute("aria-label").includes(IRIS),
-    `the control's accessible name does not contain the display name: ${link.getAttribute("aria-label")}`);
-  assert.equal(textOf(link), IRIS, "the visible text is not the display name it links to");
+  assert.equal(textOf(link), `See ${IRIS}’s image posts on People`,
+    "the visible text does not name the display name and where the link goes");
 
   // Tabbable, and the first of the card's two stops: the display name, then the
   // card's one route into the post itself. The caption and the image description

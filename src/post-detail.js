@@ -23,6 +23,7 @@ import { renderImageUnavailable } from "./image-description.js";
 import { pageTitle } from "./page-title.js";
 import { postPermalink, renderPostCopyControl } from "./post-share.js";
 import { normalizeImage } from "./social.js";
+import { peopleImagePostsLabel } from "./social-links.js";
 
 // The three routes out of a permalink, named once and shipped in src/post.html.
 //
@@ -59,9 +60,18 @@ export const POST_EXITS = {
 };
 const MAX_RETURN_AUTHOR_LENGTH = 60;
 
+// The same words Social's image cards print on the same link (social-links.js).
 export function postPeopleLabel(author = "") {
   const name = String(author).trim();
-  return name && name.length <= MAX_RETURN_AUTHOR_LENGTH ? `Open People to see ${name}’s other image posts` : "";
+  return name && name.length <= MAX_RETURN_AUTHOR_LENGTH ? peopleImagePostsLabel(name) : "";
+}
+
+// People holds image posts and nothing else, so the People exit is offered for
+// exactly the posts it can show. The guard is the image itself, through the same
+// check the article draws its figure on — never imageDescription(), which
+// invents a description for a text-only post.
+export function postHasPeopleView(post) {
+  return Boolean(post && normalizeImage(post.image));
 }
 
 // Where the People link goes. The words promise one display name's image posts,
@@ -549,15 +559,14 @@ export function renderPostDetail(container, post, options = {}) {
     article.append(body);
   }
 
-  // The name is a link to that person's People view, and its text is the name
-  // itself — not a generic "profile" label. It follows the post content so the
-  // permalink leads with the material the reader opened.
+  // The name is prose. The page's one link to that name's People view is the
+  // #post-people exit beside the Social links, offered by post-page.js only for
+  // an image post. It follows the post content so the permalink leads with the
+  // material the reader opened.
   const author = postDisplayName(post);
   if (author) {
     const byline = el("p", "detail-byline");
-    const link = el("a", "detail-author-link", author);
-    link.href = profileHref(author);
-    byline.append(link);
+    byline.append(el("span", "post-name", author));
     article.append(byline);
   }
 
