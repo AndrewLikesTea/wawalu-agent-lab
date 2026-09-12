@@ -500,7 +500,7 @@ test("both destinations ship as constants, and only the People link's target nar
 // It describes what a shared link opens rather than what is on screen, which is
 // why it can outlive not-found and error: those states have no post, so a
 // sentence beginning "This is one post…" would be describing an empty panel.
-const STANDING_SENTENCE = "The posts already on Social are invented to demonstrate Shiplog; a post a visitor publishes is real.";
+const STANDING_SENTENCE = "The posts already on Social are invented to demonstrate Shiplog and use no customer or production data; a post a visitor publishes is real.";
 
 // Every state the panel can be in, named the way a reader would name it.
 const PANEL_STATES = [

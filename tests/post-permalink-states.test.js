@@ -636,14 +636,15 @@ const EXITS_BY_STATE = {
   "not-found": NO_POST_EXITS,
   error: NO_POST_EXITS,
 };
-// The shared page makes the boundary explicit because a visitor who lands here
-// may never open /social.html.
-const DATA_SENTENCE = "Posts use no customer or production data.";
+// The data boundary used to stand as its own sentence, a promise about the post
+// a link opened even when a visitor published it. Only the invented posts can
+// make it, so it now lives inside CONTEXT_SENTENCE (#2296).
+const RETIRED_DATA_SENTENCE = "Posts use no customer or production data.";
 // What a pasted link opens, for a reader who has never seen the feed. It is
 // context about the page, not about this post — which is also why it holds in
 // the states where the lookup found nothing — so it reads after the post
 // rather than in front of it.
-const CONTEXT_SENTENCE = "The posts already on Social are invented to demonstrate Shiplog; a post a visitor publishes is real.";
+const CONTEXT_SENTENCE = "The posts already on Social are invented to demonstrate Shiplog and use no customer or production data; a post a visitor publishes is real.";
 
 test("the words of a route out never change, and the post provenance survives every state", async () => {
   const cases = [
@@ -668,6 +669,10 @@ test("the words of a route out never change, and the post provenance survives ev
 
       assert.equal(textOf(main).includes(CONTEXT_SENTENCE), true,
         `the ${state} state lost the post provenance`);
+      assert.equal(textOf(main).includes(RETIRED_DATA_SENTENCE), false,
+        `the ${state} state still says every post carries no customer or production data`);
+      assert.equal(textOf(main).split("customer or production data").length - 1, 1,
+        `the ${state} state makes the demo-data claim outside the provenance sentence`);
 
       // And none of it lives in the region the fetch replaces — which is the
       // whole reason it survives. renderPostDetail() empties #post-detail on
@@ -686,7 +691,7 @@ test("the words of a route out never change, and the post provenance survives ev
   const html = await readFile(new URL("../src/post.html", import.meta.url), "utf8");
   assert.ok(html.includes(`>${SOCIAL_LINK}</a>`), `${SOCIAL_LINK} must ship in the markup`);
   assert.ok(html.includes(`<p>${CONTEXT_SENTENCE}</p>`), "the post provenance must ship in the markup");
-  assert.ok(html.includes(`<p>${DATA_SENTENCE}</p>`), "the data boundary must ship in the markup");
+  assert.equal(html.includes(RETIRED_DATA_SENTENCE), false, "the unscoped data boundary must not ship in the markup");
   // The eyebrow names the surface the post came out of and stops there. It no
   // longer says "post" a line above the h1 that says it and two lines above the
   // sentence that says it again, and it no longer says "demo": this page paints
@@ -811,7 +816,7 @@ test("the onward row offers the feed, the display name and a post of your own", 
 // stops reading, and it was spent before it could cost anything. It is now said
 // exactly once, at the Publish post button, which names it as its own
 // accessible description so it is announced at the moment of the act.
-const CONSEQUENCE = "Anyone who visits Shiplog can read your post, its image, and the display name you publish it with. You cannot edit or delete a post after you publish it, so post nothing you would not put on a public page.";
+const CONSEQUENCE = "Anyone who visits Shiplog can read your post, its image, and the display name you publish it with. You cannot edit or delete a post after you publish it, so post nothing you would not put on a public page. Do not include customer or production data.";
 const consequencesIn = (html) => [...html.matchAll(/<p class="[^"]*publish-consequence[^"]*"[^>]*>([^<]*)<\/p>/g)].map((match) => match[1]);
 
 test("the publication consequence is said once, at the button that publishes", async () => {
@@ -961,17 +966,16 @@ function assertLeadsWithThePost(document, where) {
 
   // The whole page sequence: eyebrow, heading, the post's own region, what
   // Social is, then the links. The context paragraph is the standing sentence
-  // about the shared post; the data sentence follows it, and neither precedes the post.
+  // about the shared post, carrying the data claim, and it does not precede the post.
   const flow = main.querySelectorAll("h1,p,div");
   const eyebrow = flow.findIndex((node) => node.classList.contains("eyebrow"));
   const heading = flow.findIndex((node) => node.id === "page-title");
   const slot = flow.findIndex((node) => node.id === "post-detail");
   const context = flow.findIndex((node) => textOf(node) === CONTEXT_SENTENCE);
-  const intro = flow.findIndex((node) => textOf(node) === DATA_SENTENCE);
   const exits = flow.findIndex((node) => node.classList.contains("detail-page-exits"));
-  assert.ok(eyebrow >= 0 && slot >= 0 && context >= 0 && intro >= 0 && exits >= 0,
+  assert.ok(eyebrow >= 0 && slot >= 0 && context >= 0 && exits >= 0,
     `${where}: the page lost a part of its sequence`);
-  const reading = [eyebrow, heading, slot, context, intro, exits];
+  const reading = [eyebrow, heading, slot, context, exits];
   assert.deepEqual(reading.slice().sort((a, b) => a - b), reading,
     `${where}: eyebrow, heading, the post, what Social is, then the routes out`);
 
@@ -1034,8 +1038,7 @@ test("the permalink leads with the post and puts the feed context under it, load
   assert.ok(at('<p class="eyebrow">Social</p>') < at('<h1 id="page-title">'), "the eyebrow precedes the heading");
   assert.ok(at('<h1 id="page-title">') < at('id="post-detail"'), "the heading precedes the post's own region");
   assert.ok(at('id="post-detail"') < at(`<p>${CONTEXT_SENTENCE}</p>`), "the post precedes what the page says about Social");
-  assert.ok(at(`<p>${CONTEXT_SENTENCE}</p>`) < at(`<p>${DATA_SENTENCE}</p>`), "the two standing sentences keep their order");
-  assert.ok(at(`<p>${DATA_SENTENCE}</p>`) < at(`>${SOCIAL_LINK}</a>`), "the intro precedes the Social route out");
+  assert.ok(at(`<p>${CONTEXT_SENTENCE}</p>`) < at(`>${SOCIAL_LINK}</a>`), "the intro precedes the Social route out");
   assert.ok(at(`>${SOCIAL_LINK}</a>`) < at('id="post-people"'), "Social precedes People, the order the nav names them in");
   // Moved in the markup, not turned around in CSS: a stylesheet reorder would
   // leave reading order and tab order in the order this change exists to end.
@@ -1208,7 +1211,9 @@ function assertSaidOnce(document, where) {
   const main = textOf(document.querySelector("#main-content"));
   assert.equal(times(main, RETIRED_WAIT), 0, `${where}: the retired wait is back on the page`);
   assert.equal(times(main, CONTEXT_SENTENCE), 1, `${where}: the provenance is said ${times(main, CONTEXT_SENTENCE)} times`);
-  assert.equal(times(main, DATA_SENTENCE), 1, `${where}: the data boundary is said ${times(main, DATA_SENTENCE)} times`);
+  assert.equal(times(main, RETIRED_DATA_SENTENCE), 0, `${where}: the unscoped data boundary is back on the page`);
+  assert.equal(times(main, "customer or production data"), 1,
+    `${where}: the data boundary is said ${times(main, "customer or production data")} times`);
   // And no second wording of the same fact anywhere in the page's content: one
   // mention of invented posts, the one in the sentence above. The display-name
   // sentence a loaded post adds is a different fact and is not counted.
@@ -1294,15 +1299,15 @@ test("the post page says what it is before it says it is loading", async () => {
   // Social's provenance sentence, with the only two words a one-post page cannot
   // say: "on Social" for "here", and "a visitor" for "you".
   const social = await readFile(new URL("../src/social.html", import.meta.url), "utf8");
-  assert.ok(social.includes("The posts already here are invented to demonstrate Shiplog; a post you publish is real."),
+  assert.ok(social.includes("The posts already here are invented to demonstrate Shiplog and use no customer or production data; a post you publish is real."),
     "Social no longer says the provenance sentence this page follows");
   assert.equal(CONTEXT_SENTENCE.replace("on Social", "here").replace("a visitor publishes", "you publish"),
-    "The posts already here are invented to demonstrate Shiplog; a post you publish is real.");
+    "The posts already here are invented to demonstrate Shiplog and use no customer or production data; a post you publish is real.");
 
-  // The four strings this page already owns are untouched, byte for byte.
+  // The strings this page already owns are untouched, byte for byte.
   assert.ok(html.includes(`<span class="detail-loading-text">${STATE_HEADLINES.loading}</span>`), "the loading line is unchanged");
   assert.ok(html.includes(`<p>${CONTEXT_SENTENCE}</p>`), "the provenance sentence is unchanged");
-  assert.ok(html.includes(`<p>${DATA_SENTENCE}</p>`), "the data boundary is unchanged");
+  assert.equal(html.includes(RETIRED_DATA_SENTENCE), false, "the unscoped data boundary stays retired");
   for (const label of CHROME_LINKS.filter((text) => text !== PEOPLE_LINK)) {
     assert.ok(html.includes(`>${label}</a>`), `${label} is unchanged`);
   }
