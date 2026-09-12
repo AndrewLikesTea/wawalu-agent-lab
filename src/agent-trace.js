@@ -5,7 +5,7 @@ const DATA_URL = "/agent-demo-data.json";
 
 export async function loadPublishedTrace(root = document, fetcher = fetch) {
   const trace = root.querySelector("#published-trace");
-  renderState(trace, { state: "loading", title: "Loading representative prompt trace…" });
+  renderState(trace, { state: "loading", title: "Loading the prompt trace…" });
   trace.setAttribute("aria-busy", "true");
   try {
     const response = await fetcher(DATA_URL);
@@ -19,10 +19,10 @@ export async function loadPublishedTrace(root = document, fetcher = fetch) {
     status.className = "trace-fallback-status";
     renderState(status, {
       state: "error",
-      label: "Published trace unavailable",
-      value: "Showing a built-in synthetic handoff.",
+      label: "Published prompt trace unavailable",
+      value: "Showing a built-in synthetic prompt trace.",
       description: "This fallback is not customer activity, private-repository activity, or hidden instructions. You can retry the published static demo request.",
-      action: { label: "Retry trace", onClick: () => loadPublishedTrace(root, fetcher) },
+      action: { label: "Retry the prompt trace", onClick: () => loadPublishedTrace(root, fetcher) },
     });
     trace.prepend(status);
   }

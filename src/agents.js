@@ -71,7 +71,7 @@ export const SYNTHETIC_FALLBACK_DATA = Object.freeze({
     scenarioTitle: "Keep the observatory useful when data is unavailable",
     worker: "Codex",
     qwenPlanningPrompt: "Synthetic planning summary: preserve a useful team view, explicit data boundaries, and recovery controls.",
-    qwenHandoff: "Synthetic handoff: build labelled fallback personas and a representative trace without presenting either as live activity.",
+    qwenHandoff: "Synthetic handoff: build labelled fallback personas and a sample prompt trace without presenting either as live activity.",
     workerPrompt: "Synthetic worker summary: implement accessible unavailable and retry states, trace navigation, and focused automated tests.",
     qwenReview: "Synthetic review summary: verify disclosure, separation from public GitHub activity, keyboard recovery, and the return route.",
   }),
@@ -881,7 +881,7 @@ export function renderDemoData(root, data, { fallback = false } = {}) {
 
   renderPromptTrace(trace, data);
   trace.dataset.source = fallback ? "synthetic-fallback" : "published-demo";
-  trace.setAttribute("aria-label", fallback ? "Synthetic fallback representative handoff" : "Published representative prompt trace");
+  trace.setAttribute("aria-label", fallback ? "Synthetic fallback prompt trace" : "Published prompt trace");
 }
 
 // The personas and the prompt trace come from one published file, and before
@@ -947,11 +947,11 @@ export const DEMO_DATA_PANELS = Object.freeze([
       }),
       empty: Object.freeze({
         title: "No published prompt trace yet",
-        detail: "The demo file carried no run. A built-in synthetic handoff is shown below and on the representative trace page linked above.",
+        detail: "The demo file carried no run. A built-in synthetic prompt trace is shown below and on its full page, linked above.",
       }),
       error: Object.freeze({
         title: "The published prompt trace could not be loaded",
-        detail: "The published demo file is unavailable. The handoff below is a built-in synthetic fallback, not customer or private-repository activity; its full-page route remains available above.",
+        detail: "The published demo file is unavailable. The prompt trace below is a built-in synthetic fallback, not customer or private-repository activity; its full page is still linked above.",
       }),
     }),
   }),

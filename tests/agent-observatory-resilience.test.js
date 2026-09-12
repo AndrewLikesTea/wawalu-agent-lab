@@ -8,6 +8,7 @@ import {
 } from "../src/agents.js";
 import { loadPublishedTrace } from "../src/agent-trace.js";
 import { byClass, createElement, installDocument, tags } from "./support/dom.js";
+import { parseHtml, textOf } from "./support/browser.js";
 
 installDocument();
 
@@ -163,16 +164,27 @@ test("trace page exposes semantic navigation, synthetic disclosure, and error bo
   assert.match(page, /Synthetic example\./);
   assert.match(page, /not live customer activity, a private repository transcript, or a record of hidden instructions/i);
   assert.match(page, /href="\/agents\.html#prompt-title"/);
-  assert.match(page, /aria-label="Representative prompt trace steps"/);
+  assert.match(page, /aria-label="Prompt trace steps"/);
+
+  // Same name as the observatory heading that links here, and the page says it is
+  // a synthetic example exactly once.
+  const parsed = parseHtml(page);
+  const article = textOf(parsed.querySelector(".trace-page"));
+  assert.match(page, /<title>Sample prompt trace · Shiplog<\/title>/);
+  assert.equal(textOf(parsed.querySelector("#trace-page-title")), "Sample prompt trace");
+  assert.equal(textOf(parsed.querySelector(".back-link")), "← Back to the Agent observatory");
+  assert.doesNotMatch(article, /demo artifact|representative|handoff|Wawalu Labs/i);
+  assert.equal(article.match(/synthetic/gi)?.length, 1, "one statement that the trace is a synthetic example");
 
   const trace = createElement("div");
   const root = { querySelector: () => trace };
   await loadPublishedTrace(root, async () => ({ ok: false, status: 500 }));
   assert.equal(trace.getAttribute("aria-busy"), "false");
   assert.equal(trace.dataset.source, "synthetic-fallback");
-  assert.match(trace.textContent, /showing a built-in synthetic handoff/i);
+  assert.match(trace.textContent, /showing a built-in synthetic prompt trace/i);
   assert.match(trace.textContent, /not customer activity, private-repository activity, or hidden instructions/i);
+  assert.doesNotMatch(trace.textContent, /representative/i);
   assert.equal(byClass(trace, "prompt-step").length, 4,
-    "a failed static request leaves the complete representative handoff readable");
-  assert.equal(tags(trace, "BUTTON")[0].textContent, "Retry trace");
+    "a failed static request leaves the complete prompt trace readable");
+  assert.equal(tags(trace, "BUTTON")[0].textContent, "Retry the prompt trace");
 });
