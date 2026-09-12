@@ -399,7 +399,7 @@ test("the filter group is one keyboard stop and the arrow keys change the view",
   const hint = page.document.getElementById(fieldset.getAttribute("aria-describedby"));
   assert.equal(
     textOf(hint),
-    "A release appears when at least one linked decision has the selected status. “Decision not in this log” shows releases linked to a decision this log does not hold. Arrow keys move between the options.",
+    "A release appears when at least one linked decision has the selected status. “Linked decision missing” shows releases that link to a decision not recorded in this browser. Arrow keys move between the options.",
   );
   for (const radio of group) {
     const label = page.document.querySelectorAll("label").find((node) => node.getAttribute("for") === radio.id);
@@ -474,6 +474,10 @@ test("every displayed release discloses its linked decisions and their status ev
   assert.match(textOf(panel.querySelector(".release-decision")), /accepted/);
   // The dangling reference is named rather than dropped.
   assert.match(textOf(panel.querySelector(".release-decision-missing")), /d-gone/);
+  assert.equal(
+    textOf(panel.querySelector(".release-decision-missing").querySelector(".release-decision-title")),
+    "Linked decision d-gone is not recorded in this browser.",
+  );
 });
 
 test("a no-match view says so and offers a next step that clears the filters", async (t) => {
@@ -532,4 +536,33 @@ test("a release whose decisions are all missing is still listed and still filter
   statusRadio(page, "accepted").click();
   assert.equal(countText(page), "");
   assert.ok(page.document.querySelector(".release-reset-action"));
+});
+
+// Renamed from "Decision not in this log" (#2317) without changing what it
+// selects. The harness accepts any radio value, so the option is found by its
+// visible label and the value is read from the page rather than assumed: an
+// address copied before the rename must still reopen this view.
+test("the “Linked decision missing” option carries the value an address copied before the rename restores", async (t) => {
+  const page = await openReleases(t);
+  const labels = page.document.querySelectorAll("label");
+  assert.equal(labels.filter((node) => /not in this log/.test(textOf(node))).length, 0);
+  const label = labels.find((node) => textOf(node) === "Linked decision missing");
+  assert.ok(label, "an option is labelled “Linked decision missing”");
+  const radio = page.document.getElementById(label.getAttribute("for"));
+  assert.equal(radio.name, "release-decision-status");
+  assert.equal(radio.value, MISSING_DECISION_FILTER);
+  assert.equal(RELEASE_DECISION_STATUS_FILTERS.find((option) => option.value === radio.value).label, textOf(label));
+
+  const writes = [];
+  const location = { pathname: "/releases.html", search: "?decision-status=missing", hash: "", origin: "https://labs.wawalu.org" };
+  const history = { state: null, pushState: (state, title, url) => writes.push(url), replaceState: (state, title, url) => writes.push(url) };
+  initReleasesPage(page.document, page.storage, { seed: NO_SEED, location, history, navigation: { addEventListener() {} } });
+  assert.equal(radio.checked, true, "the old address restores this option");
+  assert.equal(writes.length, 0, "the old address is still canonical");
+  assert.deepEqual(rowTitles(page), ["Import repair"]);
+
+  statusRadio(page, "all").click();
+  radio.click();
+  assert.deepEqual(rowTitles(page), ["Import repair"]);
+  assert.match(writes.at(-1), /[?&]decision-status=missing(?:[&#]|$)/);
 });

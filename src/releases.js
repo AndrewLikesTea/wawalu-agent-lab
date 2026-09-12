@@ -52,7 +52,7 @@ export const RELEASE_DECISION_STATUS_FILTERS = Object.freeze([
   { value: "pending", label: "Pending" },
   { value: "accepted", label: "Accepted" },
   { value: "superseded", label: "Superseded" },
-  { value: MISSING_DECISION_FILTER, label: "Decision not in this log" },
+  { value: MISSING_DECISION_FILTER, label: "Linked decision missing" },
 ]);
 
 // URL builders are the single seam between views. They are pure and unit-tested
@@ -888,7 +888,7 @@ function renderReleaseBody(release) {
     const label = el("span", "release-decision-title");
     label.append(document.createTextNode("Linked decision "));
     label.append(el("code", undefined, id));
-    label.append(document.createTextNode(" is not in this log."));
+    label.append(document.createTextNode(" is not recorded in this browser."));
     row.append(label);
     list.append(row);
   }
