@@ -671,7 +671,7 @@ test("the post region holds exactly one state, and names it on one attribute", (
     if (name !== "loading") assert.doesNotMatch(container.textContent, /Loading this post/);
     // What a display name is belongs to src/post.html's standing frame, not to
     // any one state: a panel that painted it too would say it twice once loaded.
-    assert.doesNotMatch(container.textContent, /Display names are invented/,
+    assert.doesNotMatch(container.textContent, /Display names on the posts/,
       `the ${name} state paints its own display-name explanation`);
     assert.equal(byClass(container, "detail-post-description").length, name === "loaded" ? 1 : 0,
       `the ${name} state's post-content explanation`);
