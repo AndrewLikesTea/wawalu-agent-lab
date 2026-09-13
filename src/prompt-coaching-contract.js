@@ -198,12 +198,12 @@ export const REFUSAL_RESULT_FIELDS = Object.freeze([
  */
 export const RESULT_FIELD_MEANINGS = Object.freeze([
   Object.freeze({ field: "answer", meaning: "The plain answer to the one question, before any figure." }),
-  Object.freeze({ field: "benchmark", meaning: "Composite score out of 100, the letter grade, and the distance to the next band." }),
+  Object.freeze({ field: "benchmark", meaning: "Overall score out of 100, the letter grade, and the distance to the next letter grade." }),
   Object.freeze({ field: "improvement", meaning: "The single highest-value change, its guidance, a ready-to-edit rewrite, and what it is worth." }),
   Object.freeze({ field: "recommendation", meaning: "A model-tier reading, or an explicit abstention when no model-fit signal fired." }),
-  Object.freeze({ field: "basis", meaning: "What this grade may be used for: one text, in this tab, never an organization's grade." }),
+  Object.freeze({ field: "basis", meaning: "What this result may be used for: one text, in this tab, never an organization's grade." }),
   Object.freeze({ field: "observed", meaning: "Counts about the submission: turns read, turns scored, whether roles were labelled, tier named." }),
-  Object.freeze({ field: "detail", meaning: "The dispute material: axis subscores and weights, per-turn reason codes, ranked runners-up, rubric version." }),
+  Object.freeze({ field: "detail", meaning: "The dispute material: component scores and weights, per-turn reason codes, ranked runners-up, rubric version." }),
   Object.freeze({ field: "recovery", meaning: "Refusals only: what to do about this reason code, and the control that acts on it." }),
 ]);
 

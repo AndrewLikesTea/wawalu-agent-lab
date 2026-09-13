@@ -117,7 +117,7 @@ const PENDING = "—";
  * letter is withheld rather than printed with a caveat beside it: a caveat is
  * cropped by every skim, and a grade nobody can trust is worse than no grade.
  */
-const WITHHELD_ANSWER = "A figure behind this grade is outside the scale it is measured on, "
+const WITHHELD_ANSWER = "A figure behind this result is outside the scale it is measured on, "
   + "so the letter is not shown. The evidence below is unchanged and still readable.";
 
 const plural = (count, word) => `${count} ${word}${count === 1 ? "" : "s"}`;
@@ -144,10 +144,10 @@ const number = (value) => (Number.isFinite(value) ? value.toLocaleString("en-US"
 const FIGURE_BOUNDS = Object.freeze([
   Object.freeze({
     code: "score_out_of_range",
-    label: "Prompt score",
+    label: "Overall score",
     read: (session) => session.result?.benchmark?.score,
     ok: (value) => Number.isFinite(value) && value >= 0 && value <= 100,
-    guidance: "The prompt score is a 0–100 scale. This figure is outside it, so the letter beside it is not trustworthy either.",
+    guidance: "The overall score is on a 0–100 scale. This figure is outside it, so the letter grade beside it is not trustworthy either.",
   }),
   Object.freeze({
     code: "band_distance_negative",
@@ -161,7 +161,7 @@ const FIGURE_BOUNDS = Object.freeze([
     label: "What the change is worth",
     read: (session) => session.result?.improvement?.points,
     ok: (value) => value === undefined || (Number.isFinite(value) && value >= 0 && value <= 100),
-    guidance: "An estimate is a share of the same 0–100 composite, so it cannot exceed it. The change may still be the right one; the figure is not.",
+    guidance: "An estimate is a share of the same 0–100 overall score, so it cannot exceed it. The change may still be the right one; the figure is not.",
   }),
   Object.freeze({
     code: "turns_over_ceiling",
@@ -265,8 +265,8 @@ function benchmarkRegion(status, session, notices) {
     return Object.freeze({
       ...region,
       facts: Object.freeze([
-        fact("Prompt score", "", { pending: true }),
-        fact("Grade band", "", { pending: true }),
+        fact("Overall score", "", { pending: true }),
+        fact("Letter grade", "", { pending: true }),
       ]),
       noteLabel: "Waiting",
       note: "The scale is 0–100 and the bands are the rubric's; neither depends on what you pasted.",
@@ -290,17 +290,17 @@ function benchmarkRegion(status, session, notices) {
       ...region,
       facts: Object.freeze(facts),
       noteLabel: "Not scored",
-      note: "No prompt score, no letter, and no partial grade — you get the reason it was not graded and what to do next.",
+      note: "No overall score, no letter grade, and no partial result — you get the reason it was not graded and what to do next.",
     });
   }
   const { benchmark, basis } = session.result;
   return Object.freeze({
     ...region,
     facts: Object.freeze([
-      auditedFact("Prompt score", benchmark.scoreText, notices, "score_out_of_range"),
-      fact("Grade band", `${benchmark.gradeText} · ${benchmark.bandRule}`),
+      auditedFact("Overall score", benchmark.scoreText, notices, "score_out_of_range"),
+      fact("Letter grade", `${benchmark.gradeText} · ${benchmark.bandRule}`),
       benchmark.next
-        ? auditedFact(`To grade ${benchmark.next.letter}`,
+        ? auditedFact(`To reach letter grade ${benchmark.next.letter}`,
           `${plural(benchmark.next.pointsAway, "point")} away (${benchmark.next.letter} starts at ${benchmark.next.minimumScore})`,
           notices, "band_distance_negative")
         : fact("Above this band", "nothing — this is the top of the scale"),
@@ -324,7 +324,7 @@ function actionRegion(status, session) {
       ...region,
       available: false,
       shape: "◌",
-      title: "Waiting for the grade before naming a first move.",
+      title: "Waiting for the overall score before naming a first move.",
       guidance: "The rubric ranks every available change and names one. Naming a move before it has ranked them would be a guess.",
       rewrite: null,
       worth: null,
@@ -355,7 +355,7 @@ function actionRegion(status, session) {
     // "About", and rounded: the estimate does not model the score clamp, and
     // two decimals would claim it did.
     worth: improvement.available
-      ? `${improvement.axis} axis · worth about ${plural(Math.round(improvement.points), "point")} of the 0–100 composite`
+      ? `${improvement.axis} score · worth about ${plural(Math.round(improvement.points), "point")} of the overall score`
       : null,
     control: null,
   });
@@ -422,12 +422,12 @@ function rubricRegion(status, session) {
     id: "rubric",
     kind: "rubric",
     rank: 5,
-    heading: "How this grade was reached",
+    heading: "How the overall score was reached",
     disclosure: true,
-    summary: `${detail.axes.length} ${detail.axes.length === 1 ? "axis" : "axes"}, `
+    summary: `${plural(detail.axes.length, "component score")}, `
       + `${plural(detail.turns.length, "turn")}`,
     axes: Object.freeze(detail.axes.map((axis) => Object.freeze({
-      label: `${axis.label} · ${axis.weightPercent}% of the composite`,
+      label: `${axis.label} score · ${axis.weightPercent}% of the overall score`,
       value: `${axis.score} / 100`,
       assumption: axis.assumption,
     }))),
@@ -456,7 +456,7 @@ function rubricRegion(status, session) {
     }))),
     runnersUp: Object.freeze(detail.improvements.slice(1).map((entry) => Object.freeze({
       title: entry.title,
-      worth: `${entry.axis} · about ${plural(Math.round(entry.points), "point")}`,
+      worth: `${entry.axis} score · about ${plural(Math.round(entry.points), "point")} of the overall score`,
     }))),
     version: `Rubric ${detail.rubricVersionId} · aggregation ${detail.aggregation.rule}`,
   });

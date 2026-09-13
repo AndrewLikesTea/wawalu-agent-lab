@@ -147,7 +147,9 @@ export const REVISION_STATUS = Object.freeze({
   error: "error",
 });
 
-const CHANGE_HEADING = "What changed since your last grade";
+const CHANGE_HEADING = "What changed since your previous prompt";
+const PREVIOUS_LABEL = "Previous prompt · overall score";
+const REVISED_LABEL = "Revised prompt · overall score";
 
 /** Direction as a word and as a silhouette, so no tint carries the delta alone. */
 const DIRECTION_SHAPE = Object.freeze({ improved: "▲", regressed: "▼", unchanged: "=" });
@@ -165,11 +167,11 @@ export const REVISION_PENDING = Object.freeze({
   statusWord: "Grading the revision",
   reason: null,
   scores: Object.freeze([
-    Object.freeze({ label: "Baseline", value: "—", pending: true }),
-    Object.freeze({ label: "Revised", value: "—", pending: true }),
+    Object.freeze({ label: PREVIOUS_LABEL, value: "—", pending: true }),
+    Object.freeze({ label: REVISED_LABEL, value: "—", pending: true }),
   ]),
   delta: Object.freeze({
-    label: "Waiting for the revised grade",
+    label: "Waiting for the revised overall score",
     direction: null,
     material: false,
     withheld: false,
@@ -179,7 +181,7 @@ export const REVISION_PENDING = Object.freeze({
   basis: null,
   provenance: null,
   action: Object.freeze({
-    title: "Waiting for the grade before naming a next move.",
+    title: "Waiting for the overall score before naming a next move.",
     guidance: "The rubric ranks every available change and names one. Naming a move before it has ranked them would be a guess.",
     rewrite: null,
     control: null,
@@ -201,7 +203,7 @@ function deltaBounds(delta) {
     code: "delta_out_of_range",
     label: "Points moved",
     value: String(delta),
-    guidance: "Two 0–100 composites cannot differ by more than 100 points.",
+    guidance: "Two overall scores out of 100 cannot differ by more than 100 points.",
   })];
 }
 
@@ -213,20 +215,22 @@ function criteriaRows(baseline, revision) {
     const moved = Number.isFinite(from) ? axis.score - from : null;
     if (moved === null) {
       return Object.freeze({
-        label: `${axis.label} · ${axis.weightPercent}% of the composite`,
-        value: `${axis.score} / 100 · no baseline for this criterion`,
+        label: componentLabel(axis),
+        value: `${axis.score} / 100 · no previous score for this component`,
       });
     }
     const word = moved > 0 ? `up ${moved}` : moved < 0 ? `down ${Math.abs(moved)}` : "unchanged";
     return Object.freeze({
-      label: `${axis.label} · ${axis.weightPercent}% of the composite`,
+      label: componentLabel(axis),
       value: `${from} → ${axis.score} / 100 · ${word}`,
     });
   }));
 }
 
+const componentLabel = (axis) => `${axis.label} score · ${axis.weightPercent}% of the overall score`;
+
 const criteriaSummary = (rows) => Object.freeze({
-  summary: `${rows.length} ${rows.length === 1 ? "criterion" : "criteria"}`,
+  summary: `${rows.length} ${rows.length === 1 ? "component" : "components"}`,
   rows,
 });
 
@@ -248,15 +252,15 @@ function comparedChange(comparison) {
   const label = notices.length
     ? "Movement not claimed"
     : material ? "Material change"
-      : headline.delta === 0 ? "No change" : "Within the same grade band";
+      : headline.delta === 0 ? "No change" : "Within the same letter grade";
   return Object.freeze({
     status: REVISION_STATUS.compared,
     shape: notices.length ? "!" : DIRECTION_SHAPE[headline.direction],
-    statusWord: "Compared with your last grade",
+    statusWord: "Compared with your previous prompt",
     reason: null,
     scores: Object.freeze([
-      Object.freeze({ label: "Baseline", value: gradeLine(baseline), pending: false }),
-      Object.freeze({ label: "Revised", value: gradeLine(revision), pending: false }),
+      Object.freeze({ label: PREVIOUS_LABEL, value: gradeLine(baseline), pending: false }),
+      Object.freeze({ label: REVISED_LABEL, value: gradeLine(revision), pending: false }),
     ]),
     delta: Object.freeze({
       label,
@@ -269,8 +273,8 @@ function comparedChange(comparison) {
       band: notices.length
         ? "The letters below are unchanged and still readable."
         : material
-          ? `Grade band moved ${grade.from} → ${grade.to}.`
-          : `Grade band unchanged at ${grade.to}.`,
+          ? `Letter grade moved ${grade.from} → ${grade.to}.`
+          : `Letter grade unchanged at ${grade.to}.`,
     }),
     basis: Object.freeze({
       label: revision.result.basis.label, text: revision.result.basis.text,
@@ -290,7 +294,7 @@ function comparedChange(comparison) {
       ? `${label}. A figure behind this delta is outside the 0–100 scale. `
         + `Do this next: ${nextAction.title}`
       : `${label}, ${headline.direction}. ${headline.text} `
-        + `${material ? `Grade band moved ${grade.from} to ${grade.to}.` : "Grade band unchanged."} `
+        + `${material ? `Letter grade moved ${grade.from} to ${grade.to}.` : "Letter grade unchanged."} `
         + `Do this next: ${nextAction.title}`,
   });
 }
@@ -302,7 +306,7 @@ function abstainedChange(comparison) {
     status: REVISION_STATUS.abstained,
     shape: "◆",
     statusWord: "Not compared",
-    reason: `Reason code ${comparison.reason}. No movement is claimed between two grades `
+    reason: `Reason code ${comparison.reason}. No movement is claimed between two overall scores `
       + "this workflow cannot line up.",
     scores: Object.freeze([]),
     delta: null,
@@ -325,7 +329,7 @@ const REVISION_ERROR = Object.freeze({
   status: REVISION_STATUS.error,
   shape: "■",
   statusWord: "Not compared",
-  reason: "The two grades could not be lined up, so no movement is claimed. "
+  reason: "The two overall scores could not be lined up, so no movement is claimed. "
     + "The result below is still the rubric's reading of what is in the box.",
   scores: Object.freeze([]),
   delta: null,
@@ -339,7 +343,7 @@ const REVISION_ERROR = Object.freeze({
   }),
   criteria: null,
   notices: Object.freeze([]),
-  announcement: "Not compared. The two grades could not be lined up, so no movement is claimed.",
+  announcement: "Not compared. The two overall scores could not be lined up, so no movement is claimed.",
 });
 
 /**
@@ -552,7 +556,7 @@ function changeNodes(doc, section, model) {
 /** Baseline, then revised. Labelled figures, so the pair survives being read. */
 function changeScores(doc, scores) {
   const list = element(doc, "dl", "prompt-coaching-change-scores");
-  list.setAttribute("aria-label", "The baseline grade and the revised grade");
+  list.setAttribute("aria-label", "Overall scores of the previous prompt and the revised prompt");
   for (const score of scores) {
     const value = element(doc, "dd", undefined, score.value);
     if (score.pending) value.dataset.pending = "true";
@@ -636,7 +640,7 @@ function criteriaDisclosure(doc, section, criteria) {
   toggle.setAttribute("type", "button");
   toggle.setAttribute("aria-expanded", expanded ? "true" : "false");
   toggle.setAttribute("aria-controls", CRITERIA_PANEL_ID);
-  toggle.textContent = `${expanded ? "Hide" : "Show"} what moved criterion by criterion `
+  toggle.textContent = `${expanded ? "Hide" : "Show"} component scores, previous beside revised `
     + `(${criteria.summary})`;
   toggle.addEventListener("click", () => {
     section.dataset.changeExpanded = expanded ? "false" : "true";
@@ -648,10 +652,10 @@ function criteriaDisclosure(doc, section, criteria) {
   panel.id = CRITERIA_PANEL_ID;
   panel.hidden = !expanded;
   panel.setAttribute("role", "region");
-  panel.setAttribute("aria-label", "What moved on each rubric criterion");
+  panel.setAttribute("aria-label", "What moved in each component score");
   if (expanded) {
     const rows = element(doc, "dl", "prompt-coaching-axes");
-    rows.setAttribute("aria-label", "Criterion subscores, baseline beside revised");
+    rows.setAttribute("aria-label", "Component scores, previous prompt beside revised prompt");
     for (const row of criteria.rows) {
       rows.append(element(doc, "dt", undefined, row.label),
         element(doc, "dd", undefined, row.value));
@@ -715,8 +719,8 @@ function improvementBlock(doc, improvement) {
     // The estimate, with the word "about" in it. The contract does not model
     // the score clamp, and a figure printed to two decimals would claim it did.
     block.append(element(doc, "p", "prompt-coaching-improvement-worth",
-      `${improvement.axis} axis · worth about ${Math.round(improvement.points)} `
-      + `point${Math.round(improvement.points) === 1 ? "" : "s"} of the 0–100 composite`));
+      `${improvement.axis} score · worth about ${Math.round(improvement.points)} `
+      + `point${Math.round(improvement.points) === 1 ? "" : "s"} of the overall score`));
   }
   return block;
 }
@@ -797,8 +801,8 @@ function disclosure(doc, section, result) {
   toggle.setAttribute("type", "button");
   toggle.setAttribute("aria-expanded", expanded ? "true" : "false");
   toggle.setAttribute("aria-controls", PANEL_ID);
-  toggle.textContent = `${expanded ? "Hide" : "Show"} how this grade was reached `
-    + `(${result.detail.axes.length} axes, ${result.detail.turns.length} `
+  toggle.textContent = `${expanded ? "Hide" : "Show"} how the overall score was reached `
+    + `(${result.detail.axes.length} component scores, ${result.detail.turns.length} `
     + `turn${result.detail.turns.length === 1 ? "" : "s"})`;
   toggle.addEventListener("click", () => {
     section.dataset.expanded = expanded ? "false" : "true";
@@ -810,7 +814,7 @@ function disclosure(doc, section, result) {
   panel.id = PANEL_ID;
   panel.hidden = !expanded;
   panel.setAttribute("role", "region");
-  panel.setAttribute("aria-label", "The rubric detail behind this grade");
+  panel.setAttribute("aria-label", "The rubric detail behind the overall score");
   if (expanded) panel.append(...detailNodes(doc, result.detail));
   wrap.append(toggle, panel);
   return wrap;
@@ -818,10 +822,10 @@ function disclosure(doc, section, result) {
 
 function detailNodes(doc, detail) {
   const axes = element(doc, "dl", "prompt-coaching-axes");
-  axes.setAttribute("aria-label", "Axis subscores");
+  axes.setAttribute("aria-label", "Component scores");
   for (const axis of detail.axes) {
     axes.append(
-      element(doc, "dt", undefined, `${axis.label} · ${axis.weightPercent}% of the composite`),
+      element(doc, "dt", undefined, componentLabel(axis)),
       element(doc, "dd", undefined, `${axis.score} / 100`),
     );
   }
@@ -858,13 +862,13 @@ function detailNodes(doc, detail) {
     item.append(
       element(doc, "span", "prompt-coaching-runner-title", entry.title),
       element(doc, "span", "prompt-coaching-runner-points",
-        `${entry.axis} · about ${Math.round(entry.points)} points`),
+        `${entry.axis} score · about ${Math.round(entry.points)} points of the overall score`),
     );
     runnersUp.append(item);
   }
 
   const nodes = [
-    element(doc, "h3", "eyebrow", "Axis subscores"), axes,
+    element(doc, "h3", "eyebrow", "Component scores"), axes,
     element(doc, "h3", "eyebrow", "What was read"), turns,
   ];
   if (detail.improvements.length > 1) {

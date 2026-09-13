@@ -94,7 +94,7 @@ function benchmarkBlock(doc, journey) {
       `${benchmark.label}: ${benchmark.scale.minimum}–${benchmark.scale.maximum} in `
       + `${benchmark.scale.unit}, from rubric ${benchmark.rubricId}.`),
     definitions(doc, "prompt-coaching-entry-benchmark", [
-      ["Bands", benchmark.bands.map((band) => `${band.letter} from ${band.minimumScore}`).join(" · ")],
+      ["Letter grades", benchmark.bands.map((band) => `${band.letter} from ${band.minimumScore}`).join(" · ")],
       ["How it is computed", benchmark.computedAs],
       ["What counts as a real change", `${benchmark.material.rule} ${benchmark.material.notMaterial}`],
       ["What it may not be used for", `${benchmark.ceiling.claim} It is not ${benchmark.ceiling.refuses} — that needs ${benchmark.ceiling.floorInstead}`],

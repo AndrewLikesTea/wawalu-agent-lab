@@ -72,7 +72,7 @@ test("the workflow is discoverable and idle before anything is pasted", async ()
     // grade answers, which the page's own h1 had already promised an answer to
     // thirty lines above it.
     assert.equal(textOf(byId(document, "prompt-coaching-question")),
-      "Your prompt and its grade");
+      "Your prompt and its score");
     // The guidance says what the grade is measured against and names that
     // rubric as this page's own. What may be pasted is said once, in the block
     // immediately before the field, rather than a second time here. It is the
@@ -176,7 +176,7 @@ test("pasting a weak prompt returns an answer, one benchmark, and one move", asy
     assert.equal(moves.length, 1, "a ranked backlog is not a next step");
     assert.equal(moves[0].dataset.available, "true");
     assert.match(textOf(result.querySelector(".prompt-coaching-improvement-worth")),
-      /worth about \d+ points? of the 0–100 composite/);
+      /worth about \d+ points? of the overall score/);
     const rewrite = result.querySelector(".prompt-coaching-rewrite");
     assert.match(textOf(rewrite.querySelector(".prompt-coaching-rewrite-label")),
       /Ready-to-edit rewrite/);
@@ -225,14 +225,14 @@ test("the rubric detail starts closed and the toggle keeps focus when it opens",
     assert.equal(toggle.getAttribute("aria-controls"), "prompt-coaching-detail-panel");
     assert.equal(byId(document, "prompt-coaching-detail-panel").hidden, true,
       "rubric detail must not be in the headline");
-    assert.match(textOf(toggle), /^Show how this grade was reached/);
+    assert.match(textOf(toggle), /^Show how the overall score was reached/);
 
     toggle.focus();
     pressEnter(document);
 
     const opened = byId(document, "prompt-coaching-detail-toggle");
     assert.equal(opened.getAttribute("aria-expanded"), "true");
-    assert.match(textOf(opened), /^Hide how this grade was reached/);
+    assert.match(textOf(opened), /^Hide how the overall score was reached/);
     assert.equal(document.activeElement.id, "prompt-coaching-detail-toggle",
       "focus must come back to the control the reader pressed");
 
@@ -445,7 +445,7 @@ test("the model select describes each tier by what the model is at its provider"
 
     // And picking nothing still reads as the consequence of picking nothing.
     assert.match(description,
-      /Left as Not specified, this grade makes no routing recommendation rather than assuming a tier\./);
+      /Left as Not specified, the result makes no routing recommendation rather than assuming a tier\./);
   } finally {
     page.restore();
   }
@@ -665,7 +665,7 @@ test("grading the supplied example is classified bundled_sample and said so on t
     const attribution = byId(document, "prompt-coaching-entry-source");
     assert.equal(attribution.hidden, false);
     assert.equal(attribution.getAttribute("role"), "status");
-    assert.match(textOf(attribution), /bundled synthetic example, not of your text/);
+    assert.match(textOf(attribution), /bundled synthetic example, not your text/);
 
     // And the result is the real one the example grades to, not a canned figure.
     assert.equal(byId(document, "prompt-coaching").dataset.grade,
@@ -695,7 +695,7 @@ test("editing the supplied example makes the next grade the visitor's own text",
     pressEnter(document);
     assert.equal(entry.dataset.gradedSource, COACHING_INPUT_SOURCE.readerText,
       "edited text is the reader's, however it started");
-    assert.match(textOf(byId(document, "prompt-coaching-entry-source")), /grade is of your text/);
+    assert.match(textOf(byId(document, "prompt-coaching-entry-source")), /result is for your text/);
   } finally {
     page.restore();
   }

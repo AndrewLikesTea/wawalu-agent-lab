@@ -195,7 +195,7 @@ test("a usable grade reveals the score, the summary, the guidance and an enabled
     const change = byId(document, "prompt-coaching-change");
     assert.equal(change.hidden, false);
     const scores = change.querySelector(".prompt-coaching-change-scores");
-    assert.deepEqual(scores.querySelectorAll("dt").map(textOf), ["Baseline", "Revised"]);
+    assert.deepEqual(scores.querySelectorAll("dt").map(textOf), ["Previous prompt · overall score", "Revised prompt · overall score"]);
 
     // The comparison guidance: exactly one move, and it is the comparison's.
     assert.equal(document.querySelectorAll(".prompt-coaching-change-action").length, 1);

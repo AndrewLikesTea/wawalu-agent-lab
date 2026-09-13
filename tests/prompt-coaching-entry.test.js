@@ -89,7 +89,7 @@ test("the example is explicitly distinct from anything a visitor types", () => {
   assert.deepEqual(Object.keys(COACHING_INPUT_SOURCE_LABELS).sort(),
     Object.values(COACHING_INPUT_SOURCE).sort());
   assert.match(COACHING_INPUT_SOURCE_LABELS[COACHING_INPUT_SOURCE.bundledSample],
-    /not of your text/);
+    /not your text/);
 });
 
 test("every state names exactly one next action, and the control that performs it", () => {

@@ -84,7 +84,7 @@ test("before a second grade the cue offers re-grading and nothing claims a chang
     // focused on the revision workflow instead of repeating that disclosure.
     // The steps are stated once there too — paste, grade, revise, grade again —
     // so this cue says only what the second grade will show.
-    assert.match(words, /A second grade shows both scores and what changed\./);
+    assert.match(words, /A second grade sets the previous overall score beside the new one and shows what moved\./);
     assert.doesNotMatch(words, /paste|revise|edit it|grade it again/i,
       "the steps belong to the block before the field, not to this cue");
     assert.doesNotMatch(words, /model|memory|text you pasted|saved|stored|history|account|upload/i);
@@ -119,7 +119,7 @@ test("a second grade reads baseline, revised, delta, provenance, then one move",
     assert.equal(region.dataset.status, REVISION_STATUS.compared);
     assert.equal(region.getAttribute("aria-labelledby"), "prompt-coaching-change-heading");
     assert.equal(textOf(byId(document, "prompt-coaching-change-heading")),
-      "What changed since your last grade");
+      "What changed since your previous prompt");
 
     // The reading order, as the DOM: the answer to "did that help" first, the
     // dispute material last.
@@ -136,7 +136,7 @@ test("a second grade reads baseline, revised, delta, provenance, then one move",
     // Baseline before revised, each labelled, so the pair survives being read
     // aloud and out of position.
     const scores = region.querySelector(".prompt-coaching-change-scores");
-    assert.deepEqual(scores.querySelectorAll("dt").map(textOf), ["Baseline", "Revised"]);
+    assert.deepEqual(scores.querySelectorAll("dt").map(textOf), ["Previous prompt · overall score", "Revised prompt · overall score"]);
     const values = scores.querySelectorAll("dd").map(textOf);
     assert.match(values[0], /^\d+ \/ 100 · grade [A-F]$/);
     assert.match(values[1], /^\d+ \/ 100 · grade [A-F]$/);
@@ -147,13 +147,13 @@ test("a second grade reads baseline, revised, delta, provenance, then one move",
     const delta = region.querySelector(".prompt-coaching-change-delta");
     assert.equal(delta.dataset.direction, "improved");
     assert.match(textOf(delta.querySelector(".prompt-coaching-change-delta-label")),
-      /^(Material change|Within the same grade band|No change)$/);
+      /^(Material change|Within the same letter grade|No change)$/);
     assert.equal(textOf(delta.querySelector(".prompt-coaching-change-delta-direction")),
       "improved");
     assert.match(textOf(delta.querySelector(".prompt-coaching-change-delta-value")),
       /^\+\d+ points · \d+ → \d+ of 100\.$/);
     assert.match(textOf(delta.querySelector(".prompt-coaching-change-delta-band")),
-      /^Grade band (moved [A-F] → [A-F]|unchanged at [A-F])\.$/);
+      /^Letter grade (moved [A-F] → [A-F]|unchanged at [A-F])\.$/);
 
     // The rubric's own confidence qualifier and the versions both grades ran on.
     assert.match(textOf(region.querySelector(".prompt-coaching-basis")), /Partial result/);
@@ -191,8 +191,8 @@ test("re-grading keeps focus on Grade and announces what changed before the answ
       "the change region stays out of the tab sequence even once it has content");
 
     const live = textOf(byId(document, "prompt-coaching-live"));
-    assert.match(live, /^(Material change|Within the same grade band|No change), improved\./);
-    assert.match(live, /Grade band/);
+    assert.match(live, /^(Material change|Within the same letter grade|No change), improved\./);
+    assert.match(live, /Letter grade/);
     assert.match(live, /Do this next:/);
     // The change leads, and the revised answer follows it in the same breath.
     assert.ok(live.indexOf("Do this next:") < live.length - 1);
@@ -215,7 +215,7 @@ test("criterion-level movement is disclosed, keyboard-operable, and keeps focus"
     assert.equal(toggle.getAttribute("aria-controls"), "prompt-coaching-criteria-panel");
     assert.equal(byId(document, "prompt-coaching-criteria-panel").hidden, true,
       "the answer to 'did that help' is not four axis rows");
-    assert.match(textOf(toggle), /^Show what moved criterion by criterion \(\d+ criteria\)$/);
+    assert.match(textOf(toggle), /^Show component scores, previous beside revised \(\d+ components\)$/);
 
     tabTo(document, "prompt-coaching-criteria-toggle");
     pressSpace(document);
@@ -291,7 +291,7 @@ test("the delete control says what it removes, and after a revision it removes a
   try {
     const { document } = page;
     const hint = "Empties the prompt field and removes your grades from this page — the result, "
-      + "both scores after a revision, and the coaching summary. There is no undo.";
+      + "the previous and revised overall scores, and the coaching summary. There is no undo.";
     const control = byId(document, "prompt-coaching-clear");
     const description = () => textOf(byId(document, control.getAttribute("aria-describedby")));
     gradeText(document, WEAK);

@@ -97,7 +97,7 @@ test("every displayed rubric weight and ranked claim carries its stated assumpti
     const rubric = regionNamed(entry.model, "rubric");
     const assumptions = new Map(rubric.assumptions.map((item) => [item.key, item.text]));
     for (const axis of rubric.axes) {
-      assert.match(axis.label, /\d+% of the composite$/);
+      assert.match(axis.label, /\d+% of the overall score$/);
       assert.ok(axis.assumption?.length, `${entry.id} displays a weight without its assumption`);
     }
     for (const axis of entry.model.regions.find((region) => region.id === "rubric").axes) {
