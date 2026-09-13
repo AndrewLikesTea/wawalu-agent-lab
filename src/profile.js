@@ -29,6 +29,7 @@ import {
 import { imageDescription, renderDescriptionNote, renderImageUnavailable } from "./image-description.js";
 import { renderFeedStatus, feedPhase, feedPresence, setFilterAvailability } from "./feed-status.js";
 import { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH } from "./social-identity.js";
+import { mountPostReport, renderReportButton } from "./post-report.js";
 
 // Social's three connection sentences with the noun this page shows, so the two
 // pages differ in one word and nowhere else. Exported because profile-page.js
@@ -542,7 +543,7 @@ function renderTileMedia(image, description) {
   return frame;
 }
 
-function renderTile(post, index) {
+function renderTile(post, index, onReport = null) {
   const item = el("li", "profile-cell");
   const link = el("a", "profile-tile");
   link.href = postDetailHref(post.id, post.author, "profile");
@@ -580,6 +581,9 @@ function renderTile(post, index) {
   // so a reader who hears the name can find the control by sight.
   link.setAttribute("aria-label", `${captionFor(post)} — ${OPEN_POST_LABEL}`);
   item.append(link);
+  // Beside the tile, never inside it: a button nested in the link would be a
+  // control inside a control. Only drawn where the page mounted the panel.
+  if (onReport) item.append(renderReportButton(post, formatDate(post.createdAt), onReport));
   return item;
 }
 
@@ -658,7 +662,7 @@ function renderError(container, onRetry) {
 // over content the reader could already see.
 export function renderProfileGrid(container, posts, options = {}) {
   const {
-    state = "ready", onRetry = null, author = DEFAULT_AUTHOR, statusRegion = container,
+    state = "ready", onRetry = null, author = DEFAULT_AUTHOR, statusRegion = container, onReport = null,
   } = options;
   const ordered = sortNewestFirst(posts ?? []);
   container.replaceChildren();
@@ -703,7 +707,7 @@ export function renderProfileGrid(container, posts, options = {}) {
   // list semantics in some Safari/VoiceOver combinations.
   const list = el("ul", "profile-grid");
   list.setAttribute("role", "list");
-  ordered.forEach((post, index) => list.append(renderTile(post, index)));
+  ordered.forEach((post, index) => list.append(renderTile(post, index, onReport)));
   container.append(list);
 }
 
@@ -943,6 +947,7 @@ export function mountProfile(root, options = {}) {
   // name, and only choose() below can clear it: a landing name that moves when
   // the live feed answers is still a name nobody picked.
   let preselected = options.preselected ?? false;
+  const report = mountPostReport(root, { send: options.sendReport });
 
   const render = () => {
     const mine = selectProfilePosts(posts, author);
@@ -1007,6 +1012,7 @@ export function mountProfile(root, options = {}) {
       onRetry: options.onRetry,
       author,
       statusRegion: elements.feedStatus ?? grid,
+      onReport: report ? (post, button) => report.open(post, button) : null,
     });
     const phase = feedPhase({
       state, total: filtered ? posts.length : mine.length, visible: mine.length, filtering: filtered,

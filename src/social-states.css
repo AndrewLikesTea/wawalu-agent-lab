@@ -1,5 +1,8 @@
 /* Empty recovery stays readable with long display names on narrow screens. */
 #feed-state .empty-state, #profile-feed-status .empty-state { min-width:0; overflow-wrap:anywhere; }
 #profile-feed-status .empty-actions .empty-action { max-width:100%; box-sizing:border-box; line-height:1.4; }
+/* A tile's Report post button sits under the tile, not beside it. */
+.profile-cell { flex-direction:column; align-items:flex-start; }
+.profile-cell > .profile-tile { align-self:stretch; }
 #profile-name-picker:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
 #feed-state .feed-status-summary h3 { margin:0; font:650 14px/1.4 system-ui,sans-serif; }
