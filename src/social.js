@@ -235,7 +235,7 @@ export function noMatchMessage({ range = "", author = "" } = {}) {
 }
 
 export function noMatchGuidance(total = 0) {
-  return `Select ${CLEAR_FILTERS_LABEL} to see all ${total} ${total === 1 ? "post" : "posts"}.`;
+  return `The current filters produced zero matches. Select ${CLEAR_FILTERS_LABEL} to see all ${total} ${total === 1 ? "post" : "posts"}.`;
 }
 
 export const CLEAR_FILTERS_LABEL = "Clear filters";
@@ -717,7 +717,7 @@ export function connectionStatusLine(state, noun = "posts") {
 // Posts always win over a pending or failed refresh: stale content beats a
 // spinner over content the reader could already see.
 export function renderPosts(container, posts, options = {}) {
-  const { noMatch = null, state = "ready", statusRegion = container, onRetry = null } = options;
+  const { noMatch = null, state = "ready", statusRegion = container, onRetry = null, onPublish = null } = options;
   const ordered = sortPostsNewestFirst(posts);
   container.replaceChildren();
   container.setAttribute("aria-busy", state === "loading" && ordered.length === 0 ? "true" : "false");
@@ -770,7 +770,7 @@ export function renderPosts(container, posts, options = {}) {
       // <button> (the shared status builds one whenever an action can run),
       // after the message in DOM order, so Tab from the message reaches it.
       const panel = renderFeedStatus(statusRegion, {
-        state: "filtered",
+        state: "filtered", heading: true,
         label: "Social filter result",
         text: noMatchMessage(noMatch),
         detail: noMatchGuidance(noMatch.total),
@@ -781,10 +781,12 @@ export function renderPosts(container, posts, options = {}) {
       panel.classList.add("empty-state", "empty-state-filtered");
     } else {
       const panel = renderFeedStatus(statusRegion, {
-        state: "empty",
+        state: "empty", heading: true,
         label: "Social feed status",
         text: "No posts on Social yet.",
         detail: NO_POSTS_GUIDANCE,
+        actionLabel: PUBLISH_POST_LABEL,
+        onAction: onPublish,
         append: statusRegion === container,
       });
       panel.classList.add("empty-state");
@@ -1089,6 +1091,7 @@ export function mountSocialFeed(root, options = {}) {
       : null;
     renderPosts(feed, visible, {
       state, noMatch, statusRegion: feedState ?? feed, onRetry: options.onRetry,
+      onPublish: () => composer.open(),
     });
     // The same machine renderPosts just branched on, so the count, the filters
     // and the connection line are describing the state the status region drew.

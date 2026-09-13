@@ -466,9 +466,11 @@ test("a completed empty profile names the selected display name and routes to Pu
   assert.equal(first(empty, "empty-title").textContent,
     "The display name “Mina” has no image posts yet.");
   const actions = byClass(empty, "empty-action");
-  assert.equal(actions.length, 1, "the empty state offers more than one next step");
-  const action = actions[0];
-  assert.equal(action.textContent, "Publish post");
+  assert.equal(actions.length, 3);
+  assert.equal(actions[0].href, "#profile-name-picker");
+  assert.equal(actions[2].href, profilePaintHref("Mina"));
+  const action = actions[1];
+  assert.equal(action.textContent, "Publish an image post on Social");
   assert.equal(action.href, "/social.html#post-form");
   assert.equal(action.tagName, "A");
 });
@@ -516,7 +518,7 @@ test("the profile and post pages are wired, labelled, and reachable", async () =
   // The group is what the hint describes, and the container profile.js fills is
   // inside it, so the instruction is attached to the controls rather than to one
   // of them.
-  assert.match(profile, /<fieldset class="filter-group" aria-describedby="profile-author-hint">/);
+  assert.match(profile, /<fieldset class="filter-group"[^>]*aria-describedby="profile-author-hint">/);
   // And the hint says what the grid below holds, then what choosing an entry
   // does. It used to define the term instead — "The display name is the name
   // shown on each post." — and after that it defined the filter as itself,
@@ -775,9 +777,9 @@ test("the zero state does not vary with what the rest of the feed holds", () => 
   });
   assert.equal(first(withFilter, "empty-title").textContent, profileEmptyText("Ari"));
   const actions = byClass(withFilter, "empty-action");
-  assert.equal(actions.length, 1, "the zero state offers more than one next step");
-  assert.equal(actions[0].textContent, PROFILE_EMPTY_COPY.actionLabel);
-  assert.equal(actions[0].href, PROFILE_EMPTY_COPY.actionHref);
+  assert.equal(actions.length, 3);
+  assert.equal(actions[1].textContent, PROFILE_EMPTY_COPY.actionLabel);
+  assert.equal(actions[1].href, PROFILE_EMPTY_COPY.actionHref);
   // No button anywhere: the way back to a populated view is the picker above,
   // which is on screen in both of these situations.
   assert.equal(tags(withFilter, "BUTTON").length, 0);
@@ -885,4 +887,40 @@ test("the profile page's static copy does not drift from the module's", async ()
   // heading's own text now, where the region it names carries it.
   assert.doesNotMatch(html, /id="profile-count"/);
   assert.doesNotMatch(html, /Start by sharing an image/);
+});
+
+
+test("empty People recovery follows safely interpolated names and replaces pending/error states", () => {
+  const container = createElement("div");
+  for (const author of ['<img src=x onerror=alert(1)> & “Mina”', null, ""]) {
+    renderProfileGrid(container, [], { state: "loading", author });
+    assert.equal(byClass(container, "empty-state").length, 0);
+    renderProfileGrid(container, [], { state: "error", author, onRetry() {} });
+    assert.equal(tags(container, "A").length, 0);
+    renderProfileGrid(container, [], { state: "ready", author });
+    const panel = first(container, "empty-state");
+    assert.equal(panel.children[0].tagName, "H3");
+    assert.equal(panel.children[0].textContent, profileEmptyText(author));
+    assert.equal(tags(panel, "IMG").length, 0);
+    assert.equal(byClass(container, "feed-status-error").length, 0);
+    assert.equal(byClass(container, "profile-skeleton").length, 0);
+    assert.deepEqual(tags(panel, "A").map(link => link.href), [
+      "#profile-name-picker", "/social.html#post-form", profilePaintHref(author),
+    ]);
+    assert.equal(panel.children[1].className, "empty-actions");
+  }
+});
+
+
+test("People recovery has a focusable picker destination and wrapping narrow-layout rules", async () => {
+  // The repository DOM harness does not calculate layout; pin the CSS safeguards
+  // rather than claiming a measured browser viewport assertion.
+  const html = await readFile(new URL("../src/profile.html", import.meta.url), "utf8");
+  const css = await readFile(new URL("../src/styles.css", import.meta.url), "utf8")
+    + await readFile(new URL("../src/social-states.css", import.meta.url), "utf8");
+  assert.match(html, /id="profile-name-picker" tabindex="-1"/);
+  assert.match(css, /#profile-name-picker:focus-visible\s*\{[^}]*outline:3px solid var\(--focus-ring\)/);
+  assert.match(css, /#profile-feed-status \.empty-state\s*\{[^}]*overflow-wrap:anywhere/);
+  assert.match(css, /\.empty-actions\s*\{[^}]*flex-wrap:wrap/);
+  assert.match(css, /#profile-feed-status \.empty-actions \.empty-action\s*\{[^}]*max-width:100%;[^}]*box-sizing:border-box/);
 });

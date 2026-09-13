@@ -1137,8 +1137,8 @@ test("the no-match copy names the filters and cannot be confused with the never-
 
   // The way out names the control by the exact words printed on it, so a reader
   // can go looking for the thing they were just told to press.
-  assert.equal(noMatchGuidance(12), "Select Clear filters to see all 12 posts.");
-  assert.equal(noMatchGuidance(1), "Select Clear filters to see all 1 post.");
+  assert.equal(noMatchGuidance(12), "The current filters produced zero matches. Select Clear filters to see all 12 posts.");
+  assert.equal(noMatchGuidance(1), "The current filters produced zero matches. Select Clear filters to see all 1 post.");
   assert.match(noMatchGuidance(4), new RegExp(`Select ${CLEAR_FILTERS_LABEL} `));
 
   for (const text of [noMatchMessage({ author: "Ari" }), noMatchGuidance(3)]) {
@@ -2212,4 +2212,48 @@ test("the composer says once, in its own name and where it opens, that the draft
   // storage, so it must not tell a reader their post is saved.
   assert.doesNotMatch(textOf(note), /\bsaved?\b|\bstored?\b|\bdraft is safe\b/i,
     "the sentence promises storage the composer does not have");
+});
+
+
+test("empty Social offers a keyboard-reachable Publish a post action that opens and focuses the composer", async (t) => {
+  const page = await loadPage(new URL("../src/social.html", import.meta.url), {});
+  t.after(() => page.restore());
+  const feed = mountSocialFeed(page.document, { posts: [], state: "loading" });
+  const region = page.document.querySelector("#feed-state");
+  assert.equal(region.querySelectorAll("button").length, 0);
+  feed.setState("error");
+  assert.doesNotMatch(textOf(region), /No posts on Social yet/);
+  feed.seed([]);
+  const action = region.querySelector("button");
+  assert.equal(textOf(action), "Publish a post");
+  assert.equal(action.type, "button");
+  assert.ok(tabSequence(page.document).includes(action));
+  assert.ok(region.querySelector("h3"));
+  assert.doesNotMatch(textOf(region), /filters|could not be loaded|loading/i);
+  assert.equal(region.querySelectorAll("h3,button").at(-1), action);
+  action.focus();
+  action.click();
+  assert.equal(page.document.querySelector("#post-compose-panel").hidden, false);
+  assert.equal(page.document.activeElement, page.document.querySelector("#post-body"));
+});
+
+test("People empty recovery links follow its message in keyboard order on the shipped page", async (t) => {
+  const page = await loadPage(new URL("../src/profile.html", import.meta.url), {});
+  t.after(() => page.restore());
+  const { mountProfile, profilePaintHref } = await import("../src/profile.js");
+  const author = '<Mina> & friends';
+  mountProfile(page.document, { posts: [], author, state: "ready" });
+  const region = page.document.querySelector("#profile-feed-status");
+  const links = region.querySelectorAll("a");
+  assert.equal(links.length, 3);
+  assert.deepEqual(links.map(link => link.href), [
+    "#profile-name-picker", "/social.html#post-form", profilePaintHref(author),
+  ]);
+  assert.match(textOf(region.querySelector("h3")), /<Mina> & friends/);
+  assert.equal(region.querySelectorAll("img").length, 0);
+  assert.deepEqual(tabSequence(page.document).filter(node => links.includes(node)), links);
+  const picker = page.document.querySelector("#profile-name-picker");
+  assert.equal(picker.getAttribute("tabindex"), "-1");
+  picker.focus();
+  assert.equal(page.document.activeElement, picker);
 });

@@ -6,6 +6,7 @@
     <meta name="description" content="Image posts published under one display name in the Shiplog Social feed" />
     <title>People · Shiplog</title>
     <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/social-states.css" />
   </head>
   <body>
     <a class="skip-link" href="#main-content">Skip to main content</a>
@@ -118,7 +119,7 @@
                filters and on the composer's field is what a test here pins, and
                an abbreviation in the one sentence that explains the control is
                where a second word starts. -->
-          <fieldset class="filter-group" aria-describedby="profile-author-hint">
+          <fieldset class="filter-group" id="profile-name-picker" tabindex="-1" aria-describedby="profile-author-hint">
             <legend id="profile-author-label">Filter by display name</legend>
             <p class="hint profile-toolbar-hint" id="profile-author-hint">
               The list below shows only the image posts published under the selected display name. Choose another display name to update the image-post list.

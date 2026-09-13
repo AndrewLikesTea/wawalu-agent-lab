@@ -175,7 +175,7 @@ test("the picker says what choosing a name does, and the line over the grid says
     assert.equal(document.querySelectorAll(".profile-tile").length, 0);
     assert.equal(textOf(document.querySelector("#profile-name")), "Ari has no image posts yet.");
     assert.match(textOf(document.querySelector("#profile-feed-status")),
-      /The display name “Ari” has no image posts yet\.Publish post/);
+      /The display name “Ari” has no image posts yet\.Choose another display namePublish an image post on Social/);
 
     // The retired sentence is gone from every render path, not just the first
     // one, and no page state brings it back.
@@ -493,8 +493,8 @@ test("a name whose posts are all gone is offered the publishing flow", async () 
     assert.equal(document.querySelectorAll(".empty-state").length, 1);
     const panel = document.querySelector(".empty-state");
     assert.equal(document.querySelectorAll(".empty-state-filtered").length, 0);
-    assert.match(textOf(panel), /The display name “Bea” has no image posts yet\.Publish post/);
-    assert.equal(panel.querySelector("a").getAttribute("href"), "/social.html#post-form");
+    assert.match(textOf(panel), /The display name “Bea” has no image posts yet\.Choose another display namePublish an image post on Social/);
+    assert.equal(panel.querySelectorAll("a")[1].getAttribute("href"), "/social.html#post-form");
   } finally {
     page.restore();
   }
@@ -529,7 +529,7 @@ test("an empty display name is named in prose once and counted once", async () =
     // feed holds image posts under other display names, so it is the filter that
     // emptied the view. Guidance rather than a second telling of the count.
     assert.equal(document.querySelectorAll(".empty-state").length, 1);
-    assert.match(textOf(document.querySelector(".empty-state")), /The display name “Nova” has no image posts yet\.Publish post/);
+    assert.match(textOf(document.querySelector(".empty-state")), /The display name “Nova” has no image posts yet\.Choose another display namePublish an image post on Social/);
   } finally {
     page.restore();
   }
@@ -1157,11 +1157,11 @@ test("a selected name with no image posts offers Publish post", async () => {
     // One region, not two, and not an empty list.
     assert.equal(document.querySelectorAll(".empty-state").length, 1);
     const empty = document.querySelector(".empty-state");
-    assert.match(textOf(empty), /The display name “Nova” has no image posts yet\.Publish post/);
+    assert.match(textOf(empty), /The display name “Nova” has no image posts yet\.Choose another display namePublish an image post on Social/);
     assert.equal(document.querySelector("#profile-grid").querySelectorAll(".profile-grid").length, 0,
       "the grid drew an empty list beside the region that explains it");
-    assert.equal(textOf(empty.querySelector("a")), "Publish post");
-    assert.equal(empty.querySelector("a").getAttribute("href"), "/social.html#post-form");
+    assert.equal(textOf(empty.querySelectorAll("a")[1]), "Publish an image post on Social");
+    assert.equal(empty.querySelectorAll("a")[1].getAttribute("href"), "/social.html#post-form");
     // The panel the guidance lands in speaks as content: the polite region is
     // the page's one voice, so this is not announced a second time from here.
     const status = document.querySelector("#profile-feed-status");
@@ -1252,7 +1252,7 @@ test("the grid and the status region are read before the demo disclaimer", async
     // state the caveat is most likely to be the only thing on screen.
     chipFor(page, "Ari").click();
     assertPicturesBeforeProvenance(page.document, "filtered-empty", {
-      tiles: 0, status: /The display name “Ari” has no image posts yet\.Publish post/,
+      tiles: 0, status: /The display name “Ari” has no image posts yet\.Choose another display namePublish an image post on Social/,
     });
   } finally {
     page.restore();
