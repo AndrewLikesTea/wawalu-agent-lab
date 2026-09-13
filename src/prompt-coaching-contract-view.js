@@ -69,7 +69,7 @@ function analyzedBlock(doc, sample, session) {
       ["Model tier named", session.input.modelTier ?? "not specified"],
     ]),
     element(doc, "p", "prompt-coaching-preview-note",
-      "The grade uses these counts, but does not keep your pasted text. Your text remains in the field."),
+      "The overall score uses these counts, but does not keep your pasted text. Your text remains in the field."),
   );
   return block;
 }

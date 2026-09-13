@@ -116,7 +116,7 @@ const FIXTURES = Object.freeze([
       text: "You named a premium model, and this request is at or above the rubric's "
         + "substantive-work threshold of 150 prose units. That fired "
         + "model-fit-substantive-on-premium, the one routing credit the rubric awards, "
-        + "worth 20 points on the Model fit axis. No routing change is evidenced.",
+        + "worth 20 points on the Model fit score. No routing change is evidenced.",
     },
   },
   {
@@ -144,8 +144,8 @@ const FIXTURES = Object.freeze([
       direction: "none",
       signalId: null,
       text: "The model-fit signals read the tier you name beside the box. Without one they "
-        + "abstain rather than assume, so this grade carries no routing recommendation and "
-        + "the model-fit axis kept its baseline of 80.",
+        + "abstain rather than assume, so this result carries no routing recommendation and "
+        + "the Model fit score kept its baseline of 80.",
     },
   },
   {
@@ -167,7 +167,7 @@ const FIXTURES = Object.freeze([
       direction: "none",
       signalId: null,
       text: "You named an economy model and no model-fit signal fired on this text, so the "
-        + "Model fit axis kept its baseline of 80. This workflow names a tier only when a "
+        + "Model fit score kept its baseline of 80. This workflow names a tier only when a "
         + "model-fit signal fired, never on the shape of a request alone.",
     },
   },
@@ -191,7 +191,7 @@ const FIXTURES = Object.freeze([
       text: "You named an economy model, and this request is at or above the rubric's "
         + "substantive-work threshold of 150 prose units, or the pasted-code equivalent. "
         + "That fired model-fit-substantive-on-economy, which took 25 points off the "
-        + `Model fit axis. standard is the smallest move that stops the signal reading `
+        + `Model fit score. standard is the smallest move that stops the signal reading `
         + `this turn. ${ROUTING_CLAIM_LIMIT}`,
     },
   },
@@ -222,7 +222,7 @@ const FIXTURES = Object.freeze([
       text: "You named a premium model, and this request is at or below the rubric's "
         + "mechanical-errand threshold of 60 prose units with a mechanical-edit phrasing "
         + "in it. That fired model-fit-trivial-on-premium, which took 60 points off the "
-        + `Model fit axis. standard is the smallest move that stops the signal reading `
+        + `Model fit score. standard is the smallest move that stops the signal reading `
         + `this turn. ${ROUTING_CLAIM_LIMIT}`,
     },
   },

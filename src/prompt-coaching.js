@@ -293,7 +293,7 @@ export const IMPROVEMENT_COPY = Object.freeze({
   "intent-states-context": Object.freeze({
     add: Object.freeze({
       title: "State the setting before the ask.",
-      guidance: "One line of context — what you are building, what is already true, what broke — is the largest single move available on the axis worth half the grade.",
+      guidance: "One line of context — what you are building, what is already true, what broke — is the largest single move available on the Intent score, which is half the overall score.",
     }),
   }),
   "intent-states-constraints": Object.freeze({
@@ -329,7 +329,7 @@ export const IMPROVEMENT_COPY = Object.freeze({
   "intent-out-of-scope": Object.freeze({
     fix: Object.freeze({
       title: "This reads as personal, not work.",
-      guidance: "The rubric scores work traffic. Non-business requests earn no credit on any axis, so grade a work prompt here — and keep personal use off the corporate gateway.",
+      guidance: "The rubric scores work traffic. Non-business requests earn no credit on any component score, so grade a work prompt here — and keep personal use off the corporate gateway.",
     }),
   }),
   "efficiency-repeated-request": Object.freeze({
@@ -353,7 +353,7 @@ export const IMPROVEMENT_COPY = Object.freeze({
   "model-fit-trivial-on-premium": Object.freeze({
     fix: Object.freeze({
       title: "Send mechanical edits to a smaller model.",
-      guidance: "A rename, a reformat, a typo fix does not need a frontier model. This is the routing error the model-fit axis exists to name, and it is the largest debit on it.",
+      guidance: "A rename, a reformat, a typo fix does not need a frontier model. This is the routing error the Model fit score exists to name, and it is the largest debit on it.",
     }),
   }),
   "model-fit-substantive-on-economy": Object.freeze({
@@ -562,9 +562,9 @@ const BAND_RANGES = GRADES.map((grade, at) => `${grade.letter} = ${grade.minimum
   + `${at === 0 ? PROMPT_LITERACY_RUBRIC.scale.maximum : GRADES[at - 1].minimumScore - 1}`).join("; ");
 
 export const PROMPT_SCORE_EXPLANATION =
-  `Prompt scores range from ${PROMPT_LITERACY_RUBRIC.scale.minimum} to ${PROMPT_LITERACY_RUBRIC.scale.maximum}. `
+  `Overall scores range from ${PROMPT_LITERACY_RUBRIC.scale.minimum} to ${PROMPT_LITERACY_RUBRIC.scale.maximum}. `
   + "Higher scores mean the prompt better satisfies the bundled rubric. "
-  + `Grade bands: ${BAND_RANGES}. `
+  + `Letter grades: ${BAND_RANGES}. `
   + "Only a change of letter counts as a better result; points inside one band are movement, not progress.";
 
 /**
@@ -592,10 +592,10 @@ export function composeBenchmark(composite) {
       pointsAway: roundTo(next.minimumScore - score, 0),
     }) : null,
     text: next
-      ? `Prompt score: ${score} / 100 · grade ${letter}. ${next.letter} starts at ${next.minimumScore}: `
+      ? `Overall score: ${score} / 100 · grade ${letter}. ${next.letter} starts at ${next.minimumScore}: `
         + `${roundTo(next.minimumScore - score, 0)} point`
         + `${roundTo(next.minimumScore - score, 0) === 1 ? "" : "s"} away.`
-      : `Prompt score: ${score} / 100 · grade ${letter}. Nothing above this band.`,
+      : `Overall score: ${score} / 100 · grade ${letter}. Nothing above this band.`,
   });
 }
 
@@ -741,7 +741,7 @@ function firedRecommendation(entry, tier, turn, fired) {
       text: `You named ${article(tier)} ${tier} model, and this request is at or below the rubric's `
         + `mechanical-errand threshold of ${TRIVIAL_PROSE_UNITS} prose units with a `
         + `mechanical-edit phrasing in it. That fired ${entry.id}, which took ${points} `
-        + `points off the ${AXIS_LABEL.get(MODEL_FIT_AXIS)} axis. ${to} is the smallest `
+        + `points off the ${AXIS_LABEL.get(MODEL_FIT_AXIS)} score. ${to} is the smallest `
         + `move that stops the signal reading this turn. ${ROUTING_CLAIM_LIMIT}`,
     }
     : entry.state === RECOMMENDATION_STATE.routeUp
@@ -750,7 +750,7 @@ function firedRecommendation(entry, tier, turn, fired) {
         text: `You named ${article(tier)} ${tier} model, and this request is at or above the rubric's `
           + `substantive-work threshold of ${SUBSTANTIVE_PROSE_UNITS} prose units, or the `
           + `pasted-code equivalent. That fired ${entry.id}, which took ${points} points `
-          + `off the ${AXIS_LABEL.get(MODEL_FIT_AXIS)} axis. ${to} is the smallest move `
+          + `off the ${AXIS_LABEL.get(MODEL_FIT_AXIS)} score. ${to} is the smallest move `
           + `that stops the signal reading this turn. ${ROUTING_CLAIM_LIMIT}`,
       }
       : {
@@ -758,7 +758,7 @@ function firedRecommendation(entry, tier, turn, fired) {
         text: `You named ${article(tier)} ${tier} model, and this request is at or above the rubric's `
           + `substantive-work threshold of ${SUBSTANTIVE_PROSE_UNITS} prose units. That `
           + `fired ${entry.id}, the one routing credit the rubric awards, worth `
-          + `${points} points on the ${AXIS_LABEL.get(MODEL_FIT_AXIS)} axis. No routing `
+          + `${points} points on the ${AXIS_LABEL.get(MODEL_FIT_AXIS)} score. No routing `
           + "change is evidenced.",
       };
   return Object.freeze({
@@ -790,14 +790,14 @@ function abstained(state, tier) {
       ? {
         title: "No tier was named, so none is recommended.",
         text: "The model-fit signals read the tier you name beside the box. Without one "
-          + "they abstain rather than assume, so this grade carries no routing "
-          + "recommendation and the model-fit axis kept its baseline of "
+          + "they abstain rather than assume, so this result carries no routing "
+          + "recommendation and the Model fit score kept its baseline of "
           + `${DIMENSION_BASELINES.modelFit}.`,
       }
       : {
         title: "No routing change is evidenced.",
         text: `You named ${article(tier)} ${tier} model and no model-fit signal fired on this text, so `
-          + `the ${AXIS_LABEL.get(MODEL_FIT_AXIS)} axis kept its baseline of `
+          + `the ${AXIS_LABEL.get(MODEL_FIT_AXIS)} score kept its baseline of `
           + `${DIMENSION_BASELINES.modelFit}. This workflow names a tier only when a `
           + "model-fit signal fired, never on the shape of a request alone.",
       }),

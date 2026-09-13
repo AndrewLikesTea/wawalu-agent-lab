@@ -71,8 +71,8 @@ export function buildCoachingSummary({ change = null, result = null } = {}) {
 
   const [baseline, revised] = change.scores;
   const lines = [SUMMARY_TITLE];
-  if (baseline) lines.push(line("Baseline", baseline.value));
-  if (revised) lines.push(line("Revised", revised.value));
+  if (baseline) lines.push(line(baseline.label, baseline.value));
+  if (revised) lines.push(line(revised.label, revised.value));
   if (change.delta) {
     // The label carries the materiality judgement the panel already made, so a
     // reader of the pasted lines ranks the movement the same way the reader of
@@ -80,7 +80,7 @@ export function buildCoachingSummary({ change = null, result = null } = {}) {
     // exactly as it does on screen.
     const direction = change.delta.direction ? ` · ${change.delta.direction}` : "";
     lines.push(line("Change", `${change.delta.label}${direction} · ${change.delta.value}`));
-    lines.push(line("Grade band", change.delta.band));
+    lines.push(line("Letter grade", change.delta.band));
   }
   lines.push(line("Answer", result.answer));
   lines.push(line("Do this next", `${change.action.title} ${change.action.guidance}`));

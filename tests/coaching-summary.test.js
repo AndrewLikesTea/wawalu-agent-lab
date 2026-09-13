@@ -41,12 +41,12 @@ test("a compared revision summarises both grades, the movement, and the next mov
 
   // Both figures, each labelled, so the pair survives being pasted into a
   // ticket where nothing around it explains which is which.
-  assert.match(summary.text, /^Baseline: \d+ \/ 100 · grade [A-F]$/m);
-  assert.match(summary.text, /^Revised: \d+ \/ 100 · grade [A-F]$/m);
+  assert.match(summary.text, /^Previous prompt · overall score: \d+ \/ 100 · grade [A-F]$/m);
+  assert.match(summary.text, /^Revised prompt · overall score: \d+ \/ 100 · grade [A-F]$/m);
   // The materiality judgement travels with the numbers rather than leaving the
   // reader of the paste to rank a signed integer the panel already ranked.
-  assert.match(summary.text, /^Change: (Material change|Within the same grade band|No change) · improved · \+\d+ points · \d+ → \d+ of 100\.$/m);
-  assert.match(summary.text, /^Grade band: Grade band (moved [A-F] → [A-F]|unchanged at [A-F])\.$/m);
+  assert.match(summary.text, /^Change: (Material change|Within the same letter grade|No change) · improved · \+\d+ points · \d+ → \d+ of 100\.$/m);
+  assert.match(summary.text, /^Letter grade: Letter grade (moved [A-F] → [A-F]|unchanged at [A-F])\.$/m);
   assert.match(summary.text, /^Answer: /m);
   assert.match(summary.text, /^Do this next: /m);
   assert.match(summary.text, /^Both grades: rubric \S+ · classifier \S+ · model tier/m);

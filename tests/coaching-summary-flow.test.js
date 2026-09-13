@@ -153,8 +153,8 @@ test("a successful copy reports success and asks nothing further of the reader",
     assert.equal(written.length, 1, "the summary must reach the clipboard exactly once");
     assert.equal(written[0], copyText(document).value);
     assert.match(written[0], /^Prompt coaching — did my revised prompt improve\?$/m);
-    assert.match(written[0], /^Baseline: /m);
-    assert.match(written[0], /^Revised: /m);
+    assert.match(written[0], /^Previous prompt · overall score: /m);
+    assert.match(written[0], /^Revised prompt · overall score: /m);
 
     const status = copyStatus(document);
     assert.equal(status.dataset.outcome, "copied");
@@ -194,7 +194,7 @@ test("a browser with no clipboard says so and hands over selectable text", async
     assert.equal(box.getAttribute("readonly"), "");
     assert.equal(document.querySelector('label[for="prompt-coaching-copy-text"]')
       .textContent.trim(), "Coaching summary to copy by hand");
-    assert.ok(box.value.includes("Baseline:"));
+    assert.ok(box.value.includes("Previous prompt · overall score:"));
     // Focus follows the instruction: the status line just said to press Ctrl+C,
     // and the keystroke has to land on the thing that has the text in it.
     assert.equal(document.activeElement, box);

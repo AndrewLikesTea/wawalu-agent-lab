@@ -64,7 +64,7 @@ export const COACHING_ENTRY_QUESTION = Object.freeze({
  * arrives, when, computed by what, and what it costs the visitor to obtain.
  */
 export const COACHING_ENTRY_VALUE = Object.freeze({
-  headline: "A grade for one prompt, and the single change worth making first.",
+  headline: "An overall score for one prompt, and the single change worth making first.",
   arrivesWhen: "you press Grade this prompt. The answer comes back in the same page view — there is nothing to wait for and no queue.",
   computedBy: "a rubric bundled with this page, run in this browser tab.",
   costsVisitor: "nothing: no sign-in, no email address, no file, no upload, no payment, and no wait.",
@@ -99,14 +99,14 @@ export const COACHING_ENTRY_VALUE = Object.freeze({
  */
 export const COACHING_ENTRY_BENCHMARK = Object.freeze({
   metric: "result.benchmark.score",
-  label: "Prompt score",
+  label: "Overall score",
   scale: Object.freeze({
     minimum: PROMPT_LITERACY_RUBRIC.scale.minimum,
     maximum: PROMPT_LITERACY_RUBRIC.scale.maximum,
     unit: "whole points",
   }),
   rubricId: `${PROMPT_LITERACY_RUBRIC.rubricId}/${PROMPT_LITERACY_RUBRIC.rubricVersion}`,
-  computedAs: "the rubric's axis subscores combined at the published axis weights, on one 0–100 scale. The axes, their weightPercent, and their subscores are printed with every graded result, so the composite can be re-added by hand.",
+  computedAs: "three component scores — Intent, Efficiency, and Model fit, each 0–100 — combined at the rubric's published weights into one 0–100 overall score. Every graded result prints each component score and its weight, so the overall score can be re-added by hand.",
   bands: Object.freeze(PROMPT_LITERACY_RUBRIC.grades.map((grade) => Object.freeze({
     letter: grade.letter,
     minimumScore: grade.minimumScore,
@@ -188,8 +188,8 @@ export const COACHING_ENTRY_EXAMPLE = Object.freeze({
  * theirs. Total over `COACHING_INPUT_SOURCE`, asserted at load.
  */
 export const COACHING_INPUT_SOURCE_LABELS = Object.freeze({
-  [COACHING_INPUT_SOURCE.bundledSample]: "This grade is of the bundled synthetic example, not of your text. Replace it in the field to grade your own prompt.",
-  [COACHING_INPUT_SOURCE.readerText]: "This grade is of your text, read in this tab and kept nowhere.",
+  [COACHING_INPUT_SOURCE.bundledSample]: "This result is for the bundled synthetic example, not your text. Replace it in the field to grade your own prompt.",
+  [COACHING_INPUT_SOURCE.readerText]: "This result is for your text, read in this tab and kept nowhere.",
 });
 
 for (const source of Object.values(COACHING_INPUT_SOURCE)) {
@@ -239,14 +239,14 @@ export const COACHING_ENTRY_NEXT_ACTION = Object.freeze({
   [COACHING_ENTRY_STATE.visitorText]: Object.freeze({
     id: "grade_own",
     label: "Grade this prompt",
-    instruction: "Your text is in the field. Press Grade this prompt: the answer, the score, and one change come back in this tab.",
+    instruction: "Your text is in the field. Press Grade this prompt: the answer, the overall score, and one change come back in this tab.",
     control: "prompt-coaching-grade",
     alternative: null,
   }),
   [COACHING_ENTRY_STATE.answered]: Object.freeze({
     id: "apply_one_change",
     label: "Apply the one change, then grade again",
-    instruction: "The result names one change and what it is worth. Make it in the field, then press Grade this prompt again to see whether the band moved.",
+    instruction: "The result names one change and what it is worth. Make it in the field, then press Grade this prompt again to see whether the letter grade moved.",
     control: COACHING_ENTRY_EXAMPLE.transition.editControl,
     alternative: null,
   }),

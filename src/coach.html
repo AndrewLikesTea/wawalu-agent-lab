@@ -90,7 +90,7 @@
                session it returns; a reader does not need it asked twice above
                one text box. The id is historical and load-bearing: the section
                is labelled by it. -->
-          <h2 id="prompt-coaching-question">Your prompt and its grade</h2>
+          <h2 id="prompt-coaching-question">Your prompt and its score</h2>
           <p>Your text is graded against the prompt rubric bundled with this page.</p>
         </div>
         <!-- The front door: what a visitor gets here, what it is measured
@@ -104,9 +104,9 @@
              landmark, and no longer a visible heading: it sat directly under the
              section heading above and competed with it for the same job. -->
         <section class="prompt-coaching-entry" id="prompt-coaching-entry" data-entry-state="empty" aria-label="Start here">
-          <p class="prompt-coaching-entry-static"><strong>Paste a prompt or short conversation, then select “Grade this prompt”</strong> to get a score out of 100 and the first change to make. Revise it and grade it again to compare the results.</p>
+          <p class="prompt-coaching-entry-static"><strong>Paste a prompt or short conversation, then select “Grade this prompt”</strong> to get an overall score out of 100 and the first change to make. Revise it and grade it again to compare the results.</p>
           <div class="prompt-coaching-entry-body" id="prompt-coaching-entry-body">
-            <p class="prompt-coaching-entry-lead">See how the score is measured and what to do first.</p>
+            <p class="prompt-coaching-entry-lead">See how the overall score is measured and what to do first.</p>
           </div>
         </section>
         <!-- The first-run sample: a real, complete result on arrival, graded
@@ -158,7 +158,7 @@
              only what this workflow does — a second grade from the same bundled
              rubric, in this tab — and never a live provider reading or a record
              that outlives the tab. -->
-        <p class="prompt-coaching-cue" id="prompt-coaching-cue"><strong>Compare a revision.</strong> A second grade shows both scores and what changed.</p>
+        <p class="prompt-coaching-cue" id="prompt-coaching-cue"><strong>Compare a revision.</strong> A second grade sets the previous overall score beside the new one and shows what moved.</p>
         <form class="prompt-coaching-form" id="prompt-coaching-form" novalidate>
           <div class="prompt-coaching-field">
             <label for="prompt-coaching-input">Your prompt or short conversation</label>
@@ -183,13 +183,13 @@
               <option value="standard">Standard</option>
               <option value="economy">Economy or small</option>
             </select>
-            <p class="prompt-coaching-hint" id="prompt-coaching-model-hint">Model fit is one of the three scores. Pick the tier by what the model is at its provider: Premium or frontier is the most capable model a provider sells, Standard is a provider’s general-purpose default, and Economy or small is a provider’s small or cheap model. Left as Not specified, this grade makes no routing recommendation rather than assuming a tier.</p>
+            <p class="prompt-coaching-hint" id="prompt-coaching-model-hint">Model fit is one of the three component scores. Pick the tier by what the model is at its provider: Premium or frontier is the most capable model a provider sells, Standard is a provider’s general-purpose default, and Economy or small is a provider’s small or cheap model. Left as Not specified, the result makes no routing recommendation rather than assuming a tier.</p>
           </div>
           <div class="prompt-coaching-actions">
             <button type="submit" id="prompt-coaching-grade">Grade this prompt</button>
             <button type="button" id="prompt-coaching-clear" aria-describedby="prompt-coaching-clear-hint">Delete prompt and grades</button>
           </div>
-          <p class="prompt-coaching-hint" id="prompt-coaching-clear-hint">Empties the prompt field and removes your grades from this page — the result, both scores after a revision, and the coaching summary. There is no undo.</p>
+          <p class="prompt-coaching-hint" id="prompt-coaching-clear-hint">Empties the prompt field and removes your grades from this page — the result, the previous and revised overall scores, and the coaching summary. There is no undo.</p>
         </form>
         <p class="prompt-coaching-live" id="prompt-coaching-live" role="status" aria-live="polite" aria-atomic="true"></p>
         <!-- What changed between two grades, above the result it is a change to.
@@ -216,7 +216,7 @@
           <!-- One name for the thing a reader leaves with: the heading, the
                button and the box below all call it a coaching summary. -->
           <h3 class="eyebrow">Coaching summary</h3>
-          <p class="prompt-coaching-copy-lead" id="prompt-coaching-copy-lead">A short summary of both grades, what moved, and the next step — figures and rubric wording only, never your prompt text.</p>
+          <p class="prompt-coaching-copy-lead" id="prompt-coaching-copy-lead">A short summary of the previous and revised overall scores, what moved, and the next step — figures and rubric wording only, never your prompt text.</p>
           <button type="button" id="prompt-coaching-copy-button" aria-describedby="prompt-coaching-copy-lead prompt-coaching-copy-status">Copy this coaching summary</button>
           <p class="prompt-coaching-copy-status" id="prompt-coaching-copy-status" role="status" aria-live="polite" aria-atomic="true"></p>
           <div class="prompt-coaching-copy-fallback" id="prompt-coaching-copy-fallback" hidden>

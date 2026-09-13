@@ -78,7 +78,7 @@ export const SPECIMEN_CASES = Object.freeze([
     id: "graded-strong",
     sample: "well-formed-request",
     label: "Graded — a request that states its context",
-    purpose: "A strong prompt with no higher grade band to reach.",
+    purpose: "A strong prompt with no higher letter grade to reach.",
   }),
   Object.freeze({
     id: "loading",

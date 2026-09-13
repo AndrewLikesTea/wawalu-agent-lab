@@ -744,7 +744,7 @@ test("Noor's comparison contract compares the example with its edit and abstains
   assert.equal(change.status, REVISION_STATUS.compared);
   assert.equal(change.delta.direction, "improved");
   assert.equal(change.delta.value, "+33 points · 56 → 89 of 100.");
-  assert.equal(change.delta.band, "Grade band moved F → B.");
+  assert.equal(change.delta.band, "Letter grade moved F → B.");
   assert.deepEqual([...change.notices], [], "a first-run comparison withholds nothing");
   assert.equal(change.provenance,
     `Both grades: rubric ${PINNED_VERSIONS.rubricVersionId} · `
@@ -814,10 +814,10 @@ test("the share summary is text only, and every line is a labelled figure", () =
   // test noticing is a share record nobody can audit twice.
   assert.deepEqual([...summary.lines], [
     SUMMARY_TITLE,
-    "Baseline: 56 / 100 · grade F",
-    "Revised: 89 / 100 · grade B",
+    "Previous prompt · overall score: 56 / 100 · grade F",
+    "Revised prompt · overall score: 89 / 100 · grade B",
     "Change: Material change · improved · +33 points · 56 → 89 of 100.",
-    "Grade band: Grade band moved F → B.",
+    "Letter grade: Letter grade moved F → B.",
     "Answer: Yes, with one thing left implicit.",
     "Do this next: Paste the material you are talking about. The error, the row, the paragraph. "
       + "It is worth less than saying what the material is for, so pair it with a sentence naming the question.",
@@ -831,8 +831,8 @@ test("every figure in the share summary traces to a figure in the fixture", () =
   const edited = fixture("first-run-example-edited").expected;
   const { summary } = summaryFor(EDITED_TEXT);
 
-  assert.ok(summary.text.includes(`Baseline: ${example.composite} / 100 · grade ${example.grade}`));
-  assert.ok(summary.text.includes(`Revised: ${edited.composite} / 100 · grade ${edited.grade}`));
+  assert.ok(summary.text.includes(`Previous prompt · overall score: ${example.composite} / 100 · grade ${example.grade}`));
+  assert.ok(summary.text.includes(`Revised prompt · overall score: ${edited.composite} / 100 · grade ${edited.grade}`));
   assert.ok(summary.text.includes(`+${edited.composite - example.composite} points`));
   assert.ok(summary.text.includes(`${example.grade} → ${edited.grade}`));
   assert.ok(summary.text.includes(COACHING_ANSWER[edited.grade]));

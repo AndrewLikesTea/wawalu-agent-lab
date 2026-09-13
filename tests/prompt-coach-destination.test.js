@@ -167,7 +167,7 @@ test("a visitor who types nothing reads one complete result on arrival", async (
   // The benchmark carries the figure, the band it sits in, and the confidence
   // the figure is allowed to claim — one text, graded in this tab.
   const benchmark = regionText(document, "benchmark");
-  assert.match(benchmark, /Prompt score/, "the benchmark must name the metric");
+  assert.match(benchmark, /Overall score/, "the benchmark must name the metric");
   assert.match(benchmark, /this text only/, "the benchmark must state what it may not be read as");
   assert.match(benchmark, /in this browser tab/, "the benchmark must say where it was computed");
 
@@ -176,7 +176,7 @@ test("a visitor who types nothing reads one complete result on arrival", async (
 
   // Whose text it is, beside the figures rather than under them.
   const attribution = textOf(document.querySelector(".prompt-coach-sample-attribution"));
-  assert.match(attribution, /bundled synthetic example, not of your text/);
+  assert.match(attribution, /bundled synthetic example, not your text/);
 
   // And the heading over the figures says the grade exists, because by now it
   // does: it names the example in the page's own words and states its state.
@@ -578,7 +578,7 @@ test("each invitation names only what it reveals, and no two name the same thing
   const reads = textOf(document.querySelector(".prompt-coaching-preview-lead"));
   const results = textOf(byId(document, "coaching-specimen-summary"));
 
-  assert.equal(before, "See how the score is measured and what to do first.");
+  assert.equal(before, "See how the overall score is measured and what to do first.");
   assert.equal(reads, "See the bundled example text and the counts read from it.");
   assert.equal(results, "See bundled examples of a graded prompt, a prompt that needs changes, and text the coach cannot grade, none taken from text you paste.");
   // Said once, and in one block. The paragraph that used to sit under this
@@ -739,13 +739,13 @@ test("sample and pasted prompt explain the same prompt score beside the result",
     const explanation = benchmark.querySelector(".coaching-result-score-explanation");
     // Written out, not imported: this is the copy a first-time visitor reads, so
     // the test has to disagree with the module when the wording changes.
-    const expected = "Prompt scores range from 0 to 100. Higher scores mean the prompt better satisfies the bundled rubric. "
-      + "Grade bands: A = 90–100; B = 80–89; C = 70–79; D = 60–69; F = 0–59. "
+    const expected = "Overall scores range from 0 to 100. Higher scores mean the prompt better satisfies the bundled rubric. "
+      + "Letter grades: A = 90–100; B = 80–89; C = 70–79; D = 60–69; F = 0–59. "
       + "Only a change of letter counts as a better result; points inside one band are movement, not progress.";
     assert.equal(textOf(explanation), expected);
     assert.equal(explanation.hidden, false);
     assert.equal(sampleSection(document).hidden, false);
-    assert.equal(textOf(benchmark.querySelector("dt")), "Prompt score");
+    assert.equal(textOf(benchmark.querySelector("dt")), "Overall score");
 
     gradeText(document, OWN_PROMPT);
     const ownBenchmark = document.querySelector(".prompt-coaching-benchmark");
@@ -753,7 +753,7 @@ test("sample and pasted prompt explain the same prompt score beside the result",
     assert.equal(textOf(ownExplanation), expected);
     assert.equal(ownExplanation.hidden, false);
     assert.equal(byId(document, "prompt-coaching-result").hidden, false);
-    assert.match(textOf(ownBenchmark.querySelector(".prompt-coaching-benchmark-text")), /^Prompt score:/);
+    assert.match(textOf(ownBenchmark.querySelector(".prompt-coaching-benchmark-text")), /^Overall score:/);
   } finally {
     page.restore();
   }

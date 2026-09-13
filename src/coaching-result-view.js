@@ -172,7 +172,7 @@ function evidenceBody(doc, region) {
 
 function rubricBody(doc, region) {
   const axes = element(doc, "dl", "coaching-result-facts");
-  axes.setAttribute("aria-label", "Axis subscores");
+  axes.setAttribute("aria-label", "Component scores");
   for (const axis of region.axes) {
     axes.append(element(doc, "dt", undefined, axis.label), element(doc, "dd", undefined, axis.value));
   }
