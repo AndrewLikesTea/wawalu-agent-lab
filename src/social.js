@@ -1,3 +1,4 @@
+import { renderReportLink } from "./post-report-link.js";
 // Social feed view component (demo only).
 //
 // Structured like releases.js and app.js: a pure, DOM-free core (validation,
@@ -596,7 +597,7 @@ function renderPostCard(post, { index }) {
   const open = el("a", "release-detail-link", OPEN_POST_LABEL);
   open.href = postDetailHref(post.id, post.author);
   open.setAttribute("aria-describedby", textId);
-  article.append(open);
+  article.append(open, renderReportLink(post, textId));
   item.append(article);
   return item;
 }

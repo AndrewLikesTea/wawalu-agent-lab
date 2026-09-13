@@ -241,7 +241,7 @@ test("an image post carries one link to People, named for the name and the desti
   // Keyboard-reachable as markup, not as a tabindex trick: the People link, then
   // the card's way into the post. Focusables in the card, not a screenshot of it.
   const stops = tabSequence(document).filter((element) => within(element, card));
-  assert.deepEqual(stops.map((element) => element.className), ["post-people", "release-detail-link"],
+  assert.deepEqual(stops.map((element) => element.className), ["post-people", "release-detail-link", "text-button post-report-link"],
     "the card grew a tab stop of its own, or lost one it had");
   assert.equal(link.getAttribute("tabindex"), null);
 });
@@ -269,7 +269,7 @@ test("a text-only post offers no People link at all, and keeps its remaining tab
   // One stop left — the card's way into the post — and nothing was moved to
   // make room for the stop this card does not have.
   const stops = tabSequence(document).filter((element) => within(element, card));
-  assert.deepEqual(stops.map((element) => element.className), ["release-detail-link"]);
+  assert.deepEqual(stops.map((element) => element.className), ["release-detail-link", "text-button post-report-link"]);
 });
 
 test("across the whole settled feed, exactly the image posts link to People", async (t) => {

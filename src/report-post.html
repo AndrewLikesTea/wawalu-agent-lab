@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="referrer" content="no-referrer" />
+  <title>Report post · Shiplog</title>
+  <link rel="stylesheet" href="/styles.css" />
+  <link rel="stylesheet" href="/post-report.css" />
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to main content</a>
+  <div class="page">
+    <header class="site-header"><a class="brand" href="/">Shiplog</a><nav aria-label="Site"><a href="/social.html">Social</a> · <a href="/profile.html">People</a></nav></header>
+    <main id="main-content" tabindex="-1">
+      <h1>Report post</h1>
+      <p>A report goes to the Wawalu team for review. It does not delete the post, and not every report leads to removal.</p>
+      <p id="selected-post" role="status">Choose “Report post” on a post in <a href="/social.html">Social</a> or <a href="/profile.html">People</a>.</p>
+      <button id="load-retry" type="button" hidden>Retry loading post</button>
+      <form id="report-form" hidden>
+        <p id="report-disclosure">We send the selected post’s ID, your reason, optional context, follow-up email, and a random submission ID to Wawalu. We also store the receipt time. Your report and email are stored privately for team review, never in public posts or People listings. No image bytes or other posts are included. Standard connection metadata is received by the hosting service.</p>
+        <fieldset id="report-reason"><legend>Reason (required)</legend>
+          <label><input type="radio" name="reason" value="harmful" required /> Harmful or abusive</label>
+          <label><input type="radio" name="reason" value="sensitive" /> Shares private or sensitive information</label>
+          <label><input type="radio" name="reason" value="mistaken" /> Mistaken or misleading</label>
+          <label><input type="radio" name="reason" value="impersonation" /> Uses someone else’s name</label>
+          <label><input type="radio" name="reason" value="other" /> Something else (describe it under Context)</label>
+        </fieldset>
+        <p><label for="report-context">Context (optional unless you chose Something else, up to 2000 characters)</label><textarea id="report-context" name="context" maxlength="2000"></textarea></p>
+        <p><label for="report-email">Email for follow-up (required)</label><input id="report-email" name="email" type="email" required maxlength="254" autocomplete="email" /></p>
+        <button id="report-submit" type="submit" aria-describedby="report-disclosure">Submit report</button>
+      </form>
+      <p id="report-status" role="status" aria-live="polite" tabindex="-1"></p>
+      <noscript>Enable JavaScript to select and submit a report.</noscript>
+    </main>
+  </div>
+  <script type="module" src="/report-post-page.js"></script>
+</body>
+</html>

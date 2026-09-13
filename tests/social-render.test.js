@@ -199,9 +199,8 @@ test("every card carries one control named Open post, pointing at that post", ()
     // Named by the action; the post it opens is the description, so the two are
     // announced together without the body being read into the link's name.
     assert.equal(open.getAttribute("aria-describedby"), first(card, post.image ? "post-caption" : "post-body").id);
-    // Last child, by index rather than by node identity: a failed identity
-    // comparison would print the whole parsed card.
-    assert.equal(card.children.indexOf(open), card.children.length - 1,
+    // Both actions follow the post copy. Reporting follows Open post.
+    assert.equal(card.children.indexOf(open), card.children.length - 2,
       "the action is offered before the reader has the post it acts on");
   }
 });

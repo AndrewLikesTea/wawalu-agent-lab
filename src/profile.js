@@ -1,3 +1,4 @@
+import { renderReportLink } from "./post-report-link.js";
 // Profile view: one author's image posts as a grid of linked tiles.
 //
 // Same shape as the rest of Shiplog — a pure, DOM-free core (normalization,
@@ -580,7 +581,7 @@ function renderTile(post, index) {
   // Which post first, then what the tile does, quoting the words printed on it
   // so a reader who hears the name can find the control by sight.
   link.setAttribute("aria-label", `${captionFor(post)} — ${OPEN_POST_LABEL}`);
-  item.append(link);
+  item.append(link, renderReportLink(post, caption.id));
   return item;
 }
 

@@ -149,7 +149,7 @@ test("People tile: a post whose image dies still shows the label and the descrip
   // The tile is one link before and one link after; the placeholder is text
   // inside it, so the grid's tab order is untouched.
   assert.equal(tabStops(container), loadedStops);
-  assert.equal(tabStops(container), 1);
+  assert.equal(tabStops(container), 2);
 });
 
 /* ------------------------------- permalink -------------------------------- */
@@ -237,8 +237,8 @@ test("the placeholder introduces no focusable element on any surface", () => {
   // The counts are the card's own shipped stops, not a round number: a feed card
   // offers the display name and then Open post, and a People tile is one link.
   for (const [name, render, expected] of [
-    ["feed", (container) => renderPosts(container, [post]), 2],
-    ["people", (container) => renderProfileGrid(container, [post], { author: "Mina Okafor" }), 1],
+    ["feed", (container) => renderPosts(container, [post]), 3],
+    ["people", (container) => renderProfileGrid(container, [post], { author: "Mina Okafor" }), 2],
   ]) {
     const container = createElement("div");
     render(container);

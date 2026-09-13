@@ -1,0 +1,6 @@
+.profile-cell { flex-direction:column; }
+.post-report-link { display:inline-block; align-self:flex-start; margin:6px 0; }
+#report-form textarea, #report-email { display:block; width:100%; max-width:42rem; box-sizing:border-box; }
+#report-form textarea { min-height:7rem; }
+#report-reason { margin:0 0 12px; padding:0; border:0; }
+#report-reason label { display:block; padding:6px 0; }
