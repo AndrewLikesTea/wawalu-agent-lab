@@ -1428,8 +1428,10 @@ test("a filter combination matching nothing reads as a dead end with its own rec
   assert.equal(landed.tagName, "A", "focus lands on the first restored native link");
   assert.equal(landed.classList.contains("release-detail-link"), true);
   assert.equal(landed.closest(".post-card").dataset.postId, "ari-recent");
-  // Only the dead end's own control was ever added to the tab sequence.
-  assert.equal(feed.querySelectorAll("button").length, 0);
+  // Only the dead end's own control was ever added to the tab sequence. Each
+  // restored card's Report post button (#2343) belongs to its card, not to it.
+  assert.equal(feed.querySelectorAll("button").filter((node) => !node.classList.contains("post-report-button")).length, 0);
+  assert.equal(feed.querySelectorAll(".post-report-button").length, 3);
 });
 
 // The dead end belongs to the filters, not to an empty feed: with nothing

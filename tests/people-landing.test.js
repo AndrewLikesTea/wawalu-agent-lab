@@ -874,7 +874,8 @@ test("tabbing from the top reaches the picker, then the posts under the header",
     document.querySelectorAll(".profile-lede")[1].querySelectorAll("a")[0].focus();
     const tiles = drawnTiles(document);
     const walked = [];
-    for (let step = 0; step < 4 + tiles.length + 2; step += 1) walked.push(pressTab(document));
+    // Two stops per post: the tile, then its Report post button (#2343).
+    for (let step = 0; step < 4 + tiles.length * 2 + 2; step += 1) walked.push(pressTab(document));
     assert.deepEqual(walked.slice(0, 3).map((node) => node.dataset?.author), ["Ari", "Bea", "Zed"],
       "the display-name picker is not the first thing a keyboard reaches in main");
     // Then the way out of the filter the reader has just set: the selected
@@ -896,11 +897,13 @@ test("tabbing from the top reaches the picker, then the posts under the header",
     // walks the whole parsed page.
     assert.ok(tiles.length > 0, "the grid drew no posts to tab through");
     for (const [index, tile] of tiles.entries()) {
-      assert.equal(walked[4 + index] === tile, true,
-        `stop ${5 + index} is not post ${index + 1}, in the order the grid drew them`);
+      assert.equal(walked[4 + index * 2] === tile, true,
+        `stop ${5 + index * 2} is not post ${index + 1}, in the order the grid drew them`);
+      assert.equal(walked[5 + index * 2].dataset?.postId, tile.dataset.postId,
+        `the stop after post ${index + 1} is not that post's Report post button`);
     }
-    assert.equal(walked[4 + tiles.length].getAttribute("id"), "profile-paint-route");
-    assert.equal(walked[5 + tiles.length].getAttribute("id"), "profile-publish-route");
+    assert.equal(walked[4 + tiles.length * 2].getAttribute("id"), "profile-paint-route");
+    assert.equal(walked[5 + tiles.length * 2].getAttribute("id"), "profile-publish-route");
 
     // And the visual order the tab order is supposed to match: every one of
     // those stops comes after the heading, the posts come after the label, and
@@ -911,7 +914,7 @@ test("tabbing from the top reaches the picker, then the posts under the header",
     assert.ok(at(document.querySelector("#grid-title")) < at(document.querySelector("#profile-order")));
     assert.ok(at(document.querySelector("#profile-social-route")) < at(document.querySelector("#grid-title")));
     assert.ok(at(document.querySelector("#profile-order")) < at(walked[4]));
-    assert.ok(at(walked[4 + tiles.length - 1]) < at(document.querySelector("#profile-paint-route")));
+    assert.ok(at(walked[3 + tiles.length * 2]) < at(document.querySelector("#profile-paint-route")));
     // Nothing above the results region but the filter region itself: the intro's
     // link to Social, the picker, and the picker's own way out of the filter it
     // sets. Every one of them belongs to choosing a display name, and none of

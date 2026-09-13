@@ -27,6 +27,7 @@ import {
   OPEN_POST_LABEL, PUBLISH_POST_LABEL, peopleImagePostsLabel, postDetailHref, profileHref, requestedFeedAuthor,
 } from "./social-links.js";
 import { postPermalink, renderPostCopyControl } from "./post-share.js";
+import { mountPostReport, renderReportButton } from "./post-report.js";
 import { renderFeedStatus, feedPhase, feedPresence, filtersAvailable, setFilterAvailability, FILTERS_UNAVAILABLE_HINT } from "./feed-status.js";
 
 export { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH };
@@ -517,7 +518,7 @@ function renderMedia(image, description, descriptionId) {
   return frame;
 }
 
-function renderPostCard(post, { index }) {
+function renderPostCard(post, { index, onReport = null }) {
   const item = el("li");
   const article = el("article", "post-card");
   article.dataset.postId = post.id;
@@ -597,6 +598,10 @@ function renderPostCard(post, { index }) {
   open.href = postDetailHref(post.id, post.author);
   open.setAttribute("aria-describedby", textId);
   article.append(open);
+  // After Open post, because it asks about the post the reader has just read
+  // (src/post-report.js). Drawn only where a page mounted the report panel, so
+  // no card offers a button that opens nothing.
+  if (onReport) article.append(renderReportButton(post, formatDateTime(post.createdAt), onReport));
   item.append(article);
   return item;
 }
@@ -717,7 +722,7 @@ export function connectionStatusLine(state, noun = "posts") {
 // Posts always win over a pending or failed refresh: stale content beats a
 // spinner over content the reader could already see.
 export function renderPosts(container, posts, options = {}) {
-  const { noMatch = null, state = "ready", statusRegion = container, onRetry = null, onPublish = null } = options;
+  const { noMatch = null, state = "ready", statusRegion = container, onRetry = null, onPublish = null, onReport = null } = options;
   const ordered = sortPostsNewestFirst(posts);
   container.replaceChildren();
   container.setAttribute("aria-busy", state === "loading" && ordered.length === 0 ? "true" : "false");
@@ -804,7 +809,7 @@ export function renderPosts(container, posts, options = {}) {
   const list = el("ol", "post-grid");
   list.setAttribute("role", "list");
   ordered.forEach((post, index) => {
-    list.append(renderPostCard(post, { index }));
+    list.append(renderPostCard(post, { index, onReport }));
   });
   container.append(list);
 }
@@ -1030,6 +1035,7 @@ export function mountSocialFeed(root, options = {}) {
   const description = options.description ?? mountImageDescription(root);
   let publishing = false;
   const composer = mountComposerDisclosure(root, { isSubmitting: () => publishing });
+  const report = mountPostReport(root, { send: options.sendReport });
 
   // The two lines that may only speak once a fetch has answered. The count is a
   // number the page has not got yet, and the connection line is a promise about
@@ -1092,6 +1098,7 @@ export function mountSocialFeed(root, options = {}) {
     renderPosts(feed, visible, {
       state, noMatch, statusRegion: feedState ?? feed, onRetry: options.onRetry,
       onPublish: () => composer.open(),
+      onReport: report ? (post, button) => report.open(post, button) : null,
     });
     // The same machine renderPosts just branched on, so the count, the filters
     // and the connection line are describing the state the status region drew.

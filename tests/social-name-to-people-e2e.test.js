@@ -255,7 +255,8 @@ test("a settled Social post carries its display name as a link to People, in the
   // and the name stay ordinary prose, so nothing else was inserted into the
   // reading order to carry either control.
   const stops = tabSequence(document).filter((element) => within(element, card));
-  assert.deepEqual(stops.map((element) => element.className), ["post-people", "release-detail-link"],
+  // Report post (#2343) is the card's last stop, after its route into the post.
+  assert.deepEqual(stops.map((element) => element.className), ["post-people", "release-detail-link", "text-button post-report-button"],
     "the post grew a tab stop of its own, or lost one it had");
   assert.equal(link.getAttribute("tabindex"), null, "the stop is markup order, not a tabindex trick");
 
