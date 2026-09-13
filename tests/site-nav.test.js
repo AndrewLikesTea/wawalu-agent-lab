@@ -278,7 +278,8 @@ test("the profile page defines the selected name as a display name", async () =>
   // name is established once above it, by the heading that opens the profile
   // header this paragraph closes; it used to open on that name, which made it a
   // third visible copy of something the reader had just been told twice.
-  assert.match(role[1], /^Display names are invented for this demo or chosen by whoever published the post/);
+  assert.match(role[1], /^Display names on the posts already on Social are invented\. On any other post, whoever published it chose the name\./);
+  assert.doesNotMatch(role[1], /\bdemo\b/i, "the caveat calls a feed of real posts a demo");
   assert.equal(role[1].includes("Ari"), false, "the caveat restates the selected display name");
   assert.doesNotMatch(html, /id="profile-role-name"/, "the caveat still holds a slot for the name");
   // One term, and "persona" is not it. This sentence used to say "demo
@@ -293,7 +294,7 @@ test("the profile page defines the selected name as a display name", async () =>
   // The definition Social renders at its feed note, made here in the same bytes
   // for the reader who arrives from a shared link and never opens Social: where
   // the names come from, and that nobody owns or reserves one.
-  assert.match(role[1], /nobody owns or verifies one, and anyone can publish under any name/);
+  assert.match(role[1], /Nobody owns or verifies a display name, and anyone can publish under any name/);
   // The scope is not restated here. This paragraph used to add "This view shows
   // image posts only. See every post on Social, including the ones published
   // without an image", which is the intro sentence in different words and the
