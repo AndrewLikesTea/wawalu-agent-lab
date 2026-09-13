@@ -12,6 +12,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { loadPage, pressTab, tabSequence, textOf } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
+import { assertDisplayNameNotice } from "./support/display-name-notice.js";
 
 const SEED_URL = "/social-demo-data.json";
 
@@ -97,7 +98,7 @@ function assertExits(page, peopleHref, where) {
 // the three can drift — a claim that agrees in substance and differs in a comma
 // reads as two claims to anyone who meets both. It carries both halves of the
 // definition: where the names come from, and that nobody owns one.
-const IDENTITY = "Display names are invented for this demo or chosen by whoever published the post — nobody owns or verifies one, and anyone can publish under any name.";
+const IDENTITY = "The posts already on Social carry invented display names. On any other post, whoever published it chose the name. Nobody owns or verifies a display name, so anyone can publish under any name.";
 
 const SOCIAL = { label: "Open Social to read the whole feed", href: "/social.html" };
 const PEOPLE = { label: "Open People to see Mina Okafor’s other image posts", href: "/profile.html" };
@@ -158,7 +159,7 @@ test("the permalink says what a display name is in Social's and People's own byt
   const shipped = [];
   for (const file of ["social.html", "profile.html"]) {
     const html = (await readFile(new URL(`../src/${file}`, import.meta.url), "utf8")).replace(/<!--[\s\S]*?-->/g, "");
-    const clause = html.match(/Display names are invented[^.<]*\./)?.[0];
+    const clause = html.match(/The posts already on Social carry invented display names\.[^<]*/)?.[0];
     assert.ok(clause, `${file} no longer tells a reader what a display name is`);
     assert.equal(html.split(clause).length - 1, 1, `${file} says what a display name is other than exactly once`);
     shipped.push(clause);
@@ -217,6 +218,12 @@ test("the permalink says what a display name is once in every state, between its
       "the real post replaced the placeholder");
     assert.equal(panel.dataset.postState, "loaded");
     assertIdentityStands(cold.document, "once the post rendered");
+    // Found by its ownership clause rather than by IDENTITY, so this reads the
+    // painted notice itself: both cases of who chose a name, and no "demo".
+    const notices = [...cold.document.querySelector("#main-content").querySelectorAll("p")]
+      .filter((node) => /verifies a display name/.test(textOf(node)));
+    assert.equal(notices.length, 1, "the loaded permalink carries the display-name notice other than once");
+    assertDisplayNameNotice(textOf(notices[0]), "loaded permalink");
   } finally {
     cold.restore();
   }
@@ -254,7 +261,7 @@ test("an unknown id is named as a missing post, with the feed still the way out"
     assert.match(textOf(page.panel), /Post unavailable/);
     assert.match(textOf(page.panel), /This shared link may be unavailable, or the post may no longer be in Social\./);
     assert.doesNotMatch(textOf(page.panel), /removed|private|signed-in|your post/i);
-    assert.doesNotMatch(textOf(page.panel), /Display names are invented for this demo/);
+    assert.doesNotMatch(textOf(page.panel), /invented display names/);
     // No post, no author: the h1 is the page's name, the noun on Open post.
     assert.equal(textOf(page.document.querySelector("#page-title")), "Post");
     assert.doesNotMatch(textOf(page.panel), /Try again/);
@@ -449,7 +456,7 @@ test("the loading state is one announced line in the post's region, and takes no
     assert.equal(state.getAttribute("role"), null, "the update uses the page's persistent live region");
     assert.equal(page.document.activeElement, null, "nothing may take focus on load");
     assert.equal(textOf(state.querySelector(".detail-loading-text")), "The post is loading.");
-    assert.doesNotMatch(textOf(panel), /Display names are invented for this demo/);
+    assert.doesNotMatch(textOf(panel), /invented display names/);
     // Nothing is named yet, so the h1 names the page — the same words a reader
     // sees in the shipped markup before any script runs.
     assert.equal(textOf(page.document.querySelector("#page-title")), "Post");

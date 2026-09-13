@@ -27,6 +27,7 @@ import { loadPage, pressKey, tabSequence, textOf, typeText } from "./support/bro
 import { importPageModule, waitFor } from "./support/page-module.js";
 import { PAINT_HANDOFF_KEY } from "../src/publishing-media.js";
 import { bootSocial, handoffRecord } from "./support/social-paint-arrival.js";
+import { assertDisplayNameNotice } from "./support/display-name-notice.js";
 
 const sample = [
   { id: "p-old", author: "Kai",  body: "first",  createdAt: "2026-07-10T00:00:00.000Z" },
@@ -39,7 +40,7 @@ const ids = (posts) => posts.map((post) => post.id);
 // The site's one definition of a display name. It carries both facts that used
 // to be split — where the names come from, and that nobody owns one — and
 // Social and People render it in the same bytes.
-const DISPLAY_NAME_SENTENCE = "Display names are invented for this demo or chosen by whoever published the post — nobody owns or verifies one, and anyone can publish under any name.";
+const DISPLAY_NAME_SENTENCE = "The posts already on Social carry invented display names. On any other post, whoever published it chose the name. Nobody owns or verifies a display name, so anyone can publish under any name.";
 // The wording the feed list carried before, kept here so the test that forbids
 // it names what it is forbidding.
 const RETIRED_FEED_VARIANT = "Every display name below is invented for this demo or a name a visitor published under.";
@@ -553,8 +554,8 @@ test("the feed says who wrote the posts, where the posts are", async (t) => {
     "the feed states who wrote the posts exactly once");
   assert.equal(textOf(note), DISPLAY_NAME_SENTENCE,
     "the feed stopped disclosing who wrote the posts");
-  assert.match(textOf(note), /invented for this demo/,
-    "the bundled names keep the site's one phrase for what it made up");
+  assert.match(textOf(note), /invented display names/,
+    "the bundled names keep the site's one word for what it made up");
   // And they keep it exclusively: every earlier word for the same thing is a
   // second name for one concept, which is what this sentence exists to end.
   for (const rival of [/persona/i, /synthetic/i, /representative example/i])
@@ -589,7 +590,7 @@ test("the feed says who wrote the posts, where the posts are", async (t) => {
   assert.equal(textOf(page.document.querySelector("#page-tagline")),
     "Read every post, and publish your own.");
   const intro = textOf(page.document.querySelector(".hero-social").querySelectorAll("p")[2]);
-  assert.doesNotMatch(intro, /invented for this demo/,
+  assert.doesNotMatch(intro, /invented display names|owns or verifies/,
     "the intro says who wrote the posts a second time, four screens from a card");
   assert.match(intro, /The posts already here are invented to demonstrate Shiplog and use no customer or production data; a post you publish is real\.$/,
     "the provenance sentence, with the demo-data claim inside it, must stay the intro's last words");
@@ -768,7 +769,7 @@ function insideDisclosure(node) {
 // the states a reader waits longest in — an open fetch, a failed one, a feed
 // the filters emptied — are exactly the ones where the ordering would rot
 // unnoticed.
-test("the status region and the posts are read before the demo disclaimer, in every feed state", async (t) => {
+test("the status region and the posts are read before the display-name caveat, in every feed state", async (t) => {
   const page = await loadPage(new URL("../src/social.html", import.meta.url), {});
   t.after(() => page.restore());
   const { document } = page;
@@ -930,6 +931,10 @@ test("once Social has loaded a visitor's post, only the invented posts carry the
   assert.equal(textOf(id("post-consequence")), PUBLISH_CONSEQUENCE);
   assert.equal(main.split(PUBLISH_INSTRUCTION).length - 1, 1,
     "the loaded page gives the instruction somewhere other than the composer");
+  // With a visitor's post on screen, the notice under it still separates the
+  // invented names from the one this visitor chose, and calls nothing a demo.
+  assert.equal(document.querySelectorAll("#feed-source-note").length, 1);
+  assertDisplayNameNotice(textOf(document.querySelector("#feed-source-note")), "loaded Social");
 });
 
 // What a display name is used to be explained three ways in three places: the
@@ -954,9 +959,9 @@ test("Social and People define a display name once, in the same words", async (t
     assert.equal(text.includes(RETIRED_FEED_VARIANT), false,
       `${file} still carries the retired feed-list wording`);
     // Both halves, not one: this is the whole point of merging the three.
-    assert.match(text, /invented for this demo/, `${file} dropped where the names come from`);
-    assert.match(text, /nobody owns or verifies one/, `${file} dropped that nobody owns a name`);
-    rendered.push(text.match(/Display names are[^.]*\./)?.[0]);
+    assert.match(text, /carry invented display names/, `${file} dropped where the names come from`);
+    assert.match(text, /Nobody owns or verifies a display name/, `${file} dropped that nobody owns a name`);
+    rendered.push(textOf(page.document.querySelector(file === "social.html" ? "#feed-source-note" : ".profile-role")));
   }
   assert.equal(new Set(rendered).size, 1,
     `Social and People drifted apart: ${rendered.join(" / ")}`);
@@ -1001,7 +1006,7 @@ test("the display name field explains where the name appears and that it cannot 
   // What a display name is not is the feed note's sentence, said once on the
   // page. Repeating it here would put the definition in two wordings again, and
   // the second copy would sit behind a panel a reader has to open.
-  assert.doesNotMatch(text, /not a signed-in user|owns or verifies|invented for this demo/,
+  assert.doesNotMatch(text, /not a signed-in user|owns or verifies|invented display names/,
     "the field states the display-name definition a second time");
 
   // Help text, not a control: the composer gains no tab stop and no widget.

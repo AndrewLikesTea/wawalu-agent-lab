@@ -15,6 +15,7 @@ import assert from "node:assert/strict";
 import { loadPage, textOf, tabSequence, pressKey, pressTab } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
 import { bootSocial } from "./support/social-paint-arrival.js";
+import { assertDisplayNameNotice } from "./support/display-name-notice.js";
 
 const PAGE_URL = new URL("../src/profile.html", import.meta.url);
 const SEED_ROUTE = "/social-demo-data.json";
@@ -210,7 +211,7 @@ test("a first-time visitor lands on a display name that has image posts", async 
     assert.equal(textOf(document.querySelector("#profile-name")), "Showing 2 image posts published as Zed.",
       "the header names someone other than the picker's own value");
     assert.match(textOf(document.querySelector(".profile-role")),
-      /^Display names are invented for this demo[\s\S]*anyone can publish under any name\.$/,
+      /^The posts already on Social carry invented display names\.[\s\S]*anyone can publish under any name\.$/,
       "the display-name caveat is not the general one");
     assert.equal(textOf(document.querySelector(".profile-role")).includes("Zed"), false,
       "the caveat spends a third visible copy of the display name");
@@ -839,7 +840,7 @@ test("the display name is visible twice in the results region, and no more", asy
     // The lines that gave up their copy still say their own thing: Ari has
     // posted, just never a picture, and the counts carry that without a name.
     assert.match(textOf(document.querySelector("#profile-summary")), /^0 image posts · 1 post in total · last posted /);
-    assert.match(textOf(document.querySelector(".profile-role")), /^Display names are invented for this demo/);
+    assert.match(textOf(document.querySelector(".profile-role")), /^The posts already on Social carry invented display names\./);
     // The announcement keeps the name, because it is heard away from the page.
     assert.match(textOf(document.querySelector("#profile-announcer")), /Ari/);
   } finally {
@@ -1191,7 +1192,7 @@ function insideDisclosure(node) {
 
 // The site's one definition of a display name, in the bytes Social's feed note
 // and the post permalink render.
-const CAVEAT = "Display names are invented for this demo or chosen by whoever published the post — nobody owns or verifies one, and anyone can publish under any name.";
+const CAVEAT = "The posts already on Social carry invented display names. On any other post, whoever published it chose the name. Nobody owns or verifies a display name, so anyone can publish under any name.";
 
 // The reported defect (issue #1789): the display-name caveat closed the profile
 // header at the top of this panel, above the ordering line, above the status
@@ -1503,6 +1504,10 @@ test("the intro says the image posts on this page are invented, before any of th
     await waitFor(() => [...page.document.querySelectorAll(".profile-tile")]
       .filter((tile) => !tile.classList.contains("profile-tile-skeleton")).length > 0, "People painted image posts");
     const hydrated = textOf(page.document.querySelector("#main-content"));
+    // The display-name notice under those tiles, as painted: both cases of who
+    // chose a name, the ownership clause, and no "demo" (#2348).
+    assert.equal(page.document.querySelectorAll(".profile-role").length, 1);
+    assertDisplayNameNotice(textOf(page.document.querySelector(".profile-role")), "loaded People");
     assert.equal(hydrated.split(PEOPLE_PROVENANCE).length - 1, 1,
       "the loaded page lost the provenance sentence or states it twice");
     assert.equal(hydrated.includes(RETIRED_DATA_SENTENCE), false,
