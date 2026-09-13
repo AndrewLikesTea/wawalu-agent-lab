@@ -355,14 +355,14 @@ test("a forwarded name with no image posts is named, and offered the whole feed"
   // This feed has image posts, under other display names, so the region says
   // the filter emptied the view rather than that there is nothing to see. The
   // genuinely-empty invitation belongs to a feed with no images at all.
-  assert.match(textOf(empty), new RegExp(`The display name “${TESS}” has no image posts yet\\.Publish post`));
+  assert.match(textOf(empty), new RegExp(`The display name “${TESS}” has no image posts yet\\.Choose another display namePublish an image post on Social`));
 
   // The way back to the whole feed is the reset that undoes the filter, in the
   // one label this site uses for it.
   const back = empty.querySelectorAll("a");
-  assert.equal(back.length, 1, "the filtered view offers recovery no times, or twice");
-  assert.equal(textOf(back[0]), "Publish post");
-  assert.equal(back[0].getAttribute("href"), "/social.html#post-form");
+  assert.equal(back.length, 3);
+  assert.equal(textOf(back[1]), "Publish an image post on Social");
+  assert.equal(back[1].getAttribute("href"), "/social.html#post-form");
 
   // And the name is spoken as well as shown, so a reader who arrived by link is
   // told whose posts are missing rather than that some feature is empty.

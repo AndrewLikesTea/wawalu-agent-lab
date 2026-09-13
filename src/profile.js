@@ -330,10 +330,9 @@ export function formatDate(iso) {
 
 /* --------------------------- first-run copy ------------------------------- */
 
-// One settled zero state for every selected display name. Its single action uses
-// Social's submit label and opens the composer that owns that action.
+// Recovery follows the selected-name message and uses the existing publishing routes.
 export const PROFILE_EMPTY_COPY = {
-  actionLabel: "Publish post",
+  actionLabel: "Publish an image post on Social",
   actionHref: "/social.html#post-form",
 };
 
@@ -623,10 +622,18 @@ function renderSkeleton(container, count = 6) {
 
 function renderEmpty(container, author) {
   const empty = el("div", "empty-state");
-  empty.append(el("p", "empty-title", profileEmptyText(author)));
+  empty.append(el("h3", "empty-title", profileEmptyText(author)));
+  const actions = el("div", "empty-actions");
+  const choose = el("a", "empty-action empty-action-secondary", "Choose another display name");
+  choose.href = "#profile-name-picker";
+  actions.append(choose);
   const link = el("a", "empty-action", PROFILE_EMPTY_COPY.actionLabel);
   link.href = PROFILE_EMPTY_COPY.actionHref;
-  empty.append(link);
+  actions.append(link);
+  const paint = el("a", "empty-action empty-action-secondary", "Create an image in Paint");
+  paint.href = profilePaintHref(author);
+  actions.append(paint);
+  empty.append(actions);
   container.append(empty);
 }
 

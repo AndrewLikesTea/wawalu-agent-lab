@@ -191,7 +191,7 @@ export function renderFeedStatus(container, options = {}) {
   container.classList?.remove?.("feed-status");
   const {
     state = "ready", label = "Feed status", text = "", detail = "",
-    actionLabel = "", onAction = null, append = false,
+    actionLabel = "", onAction = null, append = false, heading = false,
   } = options;
   const status = element("div", `feed-status feed-status-${state}`);
   status.dataset.state = state;
@@ -201,10 +201,10 @@ export function renderFeedStatus(container, options = {}) {
     status.setAttribute("aria-label", label);
     status.append(element("span", "feed-status-value state-title", text));
   } else {
-    const summary = element("p", "feed-status-summary");
+    const summary = element(heading ? "div" : "p", "feed-status-summary");
     summary.append(
       element("span", "feed-status-label", `${label}:`),
-      element("strong", "feed-status-value", text),
+      element(heading ? "h3" : "strong", "feed-status-value", text),
     );
     status.append(summary);
     if (detail) status.append(element("p", "feed-status-detail", detail));

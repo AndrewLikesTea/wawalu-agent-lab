@@ -126,9 +126,9 @@ test("a display name with zero image posts is answered under that name, with a s
     // is the reset rather than the editor.
     assert.equal(document.querySelectorAll(".empty-state").length, 1);
     const panel = document.querySelector("#profile-feed-status").querySelector(".empty-state");
-    assert.match(textOf(panel), /The display name “Ari” has no image posts yet\.Publish post/);
-    assert.equal(textOf(panel.querySelector("a")), "Publish post");
-    assert.equal(panel.querySelector("a").getAttribute("href"), "/social.html#post-form");
+    assert.match(textOf(panel), /The display name “Ari” has no image posts yet\.Choose another display namePublish an image post on Social/);
+    assert.equal(textOf(panel.querySelectorAll("a")[1]), "Publish an image post on Social");
+    assert.equal(panel.querySelectorAll("a")[1].getAttribute("href"), "/social.html#post-form");
     // And the page's one voice names the display name, because an announcement
     // has no page around it to borrow a subject from.
     assert.equal(textOf(document.querySelector("#profile-announcer")), "The display name “Ari” has no image posts yet.");
@@ -149,10 +149,10 @@ test("a feed with no pictures under any name offers Publish post", async () => {
     const { document } = page;
     assertStatedZero(document, "Ari");
     const panel = document.querySelector("#profile-feed-status").querySelector(".empty-state");
-    assert.match(textOf(panel), /The display name “Ari” has no image posts yet\.Publish post/);
+    assert.match(textOf(panel), /The display name “Ari” has no image posts yet\.Choose another display namePublish an image post on Social/);
     const routes = panel.querySelectorAll("a");
-    assert.deepEqual(routes.map((route) => textOf(route)), ["Publish post"]);
-    assert.equal(routes[0].getAttribute("href"), "/social.html#post-form");
+    assert.deepEqual(routes.map((route) => textOf(route)), ["Choose another display name", "Publish an image post on Social", "Create an image in Paint"]);
+    assert.equal(routes[1].getAttribute("href"), "/social.html#post-form");
     // Both are real links, so both are a tab stop and neither needs a handler to
     // be reachable from the keyboard.
     for (const route of routes) {

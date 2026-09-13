@@ -527,7 +527,7 @@ test("People gives every completed selected-name zero the publishing next step",
   const profile = mountProfile(document, { posts: [post("p-11", "Ari", "11")], author: "Ari", state: "ready" });
 
   assert.equal(document.querySelectorAll(".empty-state").length, 1);
-  assert.match(textOf(document.querySelector(".empty-state")), /The display name “Ari” has no image posts yet\.Publish post/);
+  assert.match(textOf(document.querySelector(".empty-state")), /The display name “Ari” has no image posts yet\.Choose another display namePublish an image post on Social/);
   assert.equal(document.querySelectorAll(".empty-state-filtered").length, 0);
   assert.doesNotMatch(textOf(document.body), /No image posts match the selected display name/);
 
@@ -536,8 +536,8 @@ test("People gives every completed selected-name zero the publishing next step",
   profile.seed(MIXED);
   const filtered = document.querySelector(".empty-state");
   assert.equal(document.querySelectorAll(".empty-state").length, 1);
-  assert.match(textOf(filtered), /The display name “Ari” has no image posts yet\.Publish post/);
-  assert.equal(filtered.querySelector("a").getAttribute("href"), "/social.html#post-form");
+  assert.match(textOf(filtered), /The display name “Ari” has no image posts yet\.Choose another display namePublish an image post on Social/);
+  assert.equal(filtered.querySelectorAll("a")[1].getAttribute("href"), "/social.html#post-form");
   // And the promise about image posts arriving on their own is not standing over
   // a grid the picker emptied: it would answer "why is this empty?" with the
   // wrong reason.
@@ -548,8 +548,8 @@ test("People gives every completed selected-name zero the publishing next step",
   // away from the heading and the chips that carry them on screen.
   assert.equal(textOf(document.querySelector("#profile-announcer")),
     "The display name “Ari” has no image posts yet.");
-  assert.equal(filtered.querySelectorAll("a").length, 1);
-  assert.equal(textOf(filtered.querySelector("a")), "Publish post");
+  assert.equal(filtered.querySelectorAll("a").length, 3);
+  assert.equal(textOf(filtered.querySelector("a")), "Choose another display name");
 });
 
 test("People's chooser is inoperable until there is something to choose between", async (t) => {
