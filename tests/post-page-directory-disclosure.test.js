@@ -310,7 +310,7 @@ test("the permalink's tab order runs skip, nav, post, exits, follow-up, director
   // the parsed document and hang the run.
   assert.equal(at(".skip-link"), 0, "the skip link opens the page");
   assert.equal(at(".brand"), 1);
-  const nav = stops.slice(2, 2 + SITE_NAV.length).map(textOf);
+  const nav = stops.slice(2, 3 + SITE_NAV.length).filter((node) => node.tagName === "A").map(textOf);
   assert.deepEqual(nav, SITE_NAV.map((link) => link.label), "the site nav follows the skip link");
 
   // The post region, then the routes off the page, then the way to reach a
@@ -319,7 +319,7 @@ test("the permalink's tab order runs skip, nav, post, exits, follow-up, director
   // errand before meeting a list of everywhere else.
   const exits = ["#post-back", "#post-people", "#post-publish"].map(at);
   assert.deepEqual(exits.slice().sort((a, b) => a - b), exits, "the exits keep their reading order");
-  assert.equal(exits[0], 2 + SITE_NAV.length, "the first exit follows the nav directly");
+  assert.equal(exits[0], 3 + SITE_NAV.length, "the first exit follows the nav directly");
   assert.ok(at(SUMMARY) > exits[2], "the directory summary comes after the page's own routes out");
   assert.ok(at(SUMMARY) > at("#site-footer-email"), "the follow-up field is reached before the summary");
   assert.equal(at(SUMMARY), stops.length - 1, "the folded map is the last stop on the page");

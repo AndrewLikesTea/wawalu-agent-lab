@@ -119,7 +119,7 @@
 .prompt-trace-full .prompt-copy { max-height:none; overflow:visible; font-size:12px; }
 @media(max-width:850px) { .observatory-hero{grid-template-columns:1fr}.observatory-signal{width:min(100%,320px)}.observatory-grid{grid-template-columns:1fr}.team-panel{order:2} }
 @media(max-width:700px) { .prompt-trace{grid-template-columns:1fr}.trace-heading{align-items:flex-start;flex-direction:column;gap:5px} }
-@media(max-width:560px) { main,.page{width:calc(100% - 24px);padding-top:18px}.site-header{align-items:flex-start;gap:18px}.site-nav{align-items:flex-end;flex-direction:column}.activity-panel,.prompt-panel{padding:21px}.activity-item{grid-template-columns:1fr auto;gap:8px 14px}.activity-persona{grid-column:1/-1;width:max-content}.activity-heading{align-items:start}.activity-state{gap:12px;padding:14px 15px}.activity-state-links{gap:2px 16px}.observatory-refresh{width:100%}.observatory-hero{padding-top:60px} }
+@media(max-width:560px) { main,.page{width:calc(100% - 24px);padding-top:18px}.site-header{align-items:flex-start;gap:18px}.site-nav{align-items:flex-start;flex-direction:column;width:100%}.activity-panel,.prompt-panel{padding:21px}.activity-item{grid-template-columns:1fr auto;gap:8px 14px}.activity-persona{grid-column:1/-1;width:max-content}.activity-heading{align-items:start}.activity-state{gap:12px;padding:14px 15px}.activity-state-links{gap:2px 16px}.observatory-refresh{width:100%}.observatory-hero{padding-top:60px} }
 @media(prefers-reduced-motion:reduce) { *{scroll-behavior:auto!important}.activity-state-icon[data-shape="loading"]{animation:none;border-color:#33495c;border-right-color:transparent} }
 :root { color-scheme:light; font-family:Inter,ui-sans-serif,system-ui,sans-serif; background:#f3f1eb; color:#171713; }
 * { box-sizing:border-box; }
@@ -153,10 +153,7 @@ main,.page { width:min(1180px,calc(100% - 40px)); margin:auto; padding:24px 0 80
 .nav-group { display:flex; align-items:center; gap:0; padding-left:2px; }
 .nav-group .nav-profile { font-size:.92em; }
 .nav-group .nav-profile::before { content:"\21B3"; margin-right:4px; color:#8b8b84; font-size:.95em; }
-/* Mirrors the rules in styles.css: the row is two named groups (#1537), the
-   name is plain text above its group, and both wrap so naming them costs no
-   door. The observatory pages carry the same nav, so they carry the same
-   grouping — a page where the row is ungrouped is a page that disagrees. */
+/* The observatory uses the same named navigation groups as styles.css. */
 .nav-set { display:flex; flex-direction:column; gap:3px; }
 .nav-set ul { display:flex; align-items:center; flex-wrap:wrap; gap:6px; margin:0; padding:0; list-style:none; }
 .nav-set-name { padding-left:10px; color:#171713; font-size:11px; }
@@ -209,3 +206,21 @@ button:focus-visible,.brand:focus-visible { outline:3px solid #155f9e; outline-o
 .site-footer button:focus-visible,.site-footer input:focus-visible,.site-footer a:focus-visible { outline:3px solid #155f9e; outline-offset:3px; }
 @media(max-width:520px) { .site-footer-inner{width:calc(100% - 24px);padding:24px 0 32px}.site-footer-trigger{width:100%}.site-footer-panel{padding:15px}.site-footer-actions button{flex:1 1 auto} }
 @media(prefers-reduced-motion:reduce) { .site-footer-panel{animation:none} }
+
+/* Mirrors the nav disclosure in styles.css: the tools open downward in place. */
+.site-header { align-items:flex-start; }
+.site-nav { flex-direction:column; align-items:flex-end; gap:0; }
+.site-nav a { display:inline-flex; align-items:center; min-height:44px; box-sizing:border-box; }
+.site-nav > .nav-set:first-child a { color:#171713; font-size:14px; }
+.site-nav details.nav-set { display:block; text-align:right; }
+.site-nav summary.nav-set-name { display:list-item; cursor:pointer; font-size:12px; padding:16px 10px; min-height:44px; box-sizing:border-box; }
+.site-nav summary:focus-visible { outline:3px solid #155f9e; outline-offset:3px; border-radius:7px; }
+.site-nav details ul { justify-content:flex-end; max-width:32rem; }
+.nav-group { flex-wrap:wrap; }
+@media(max-width:600px) {
+  .site-header { flex-wrap:wrap; }
+  .site-nav { width:100%; align-items:flex-start; gap:10px; }
+  .site-nav details.nav-set { width:100%; border-top:1px solid #aaa99f; text-align:left; }
+  .site-nav details ul { justify-content:flex-start; }
+  .site-nav details a { overflow-wrap:anywhere; }
+}
