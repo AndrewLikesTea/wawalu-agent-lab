@@ -2,9 +2,12 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { loadPage, pressEnter, textOf, typeText } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
-import { handleLeadRequest, POST_FOLLOW_UP_TOPIC, FOLLOW_UP_TOPICS } from "../src/leads.js";
+import { handleLeadRequest, MAX_FOLLOW_UP_MESSAGE_LENGTH, POST_FOLLOW_UP_TOPIC, FOLLOW_UP_TOPICS } from "../src/leads.js";
+import { FOLLOW_UP_PRIVACY_WITH_MESSAGE } from "../src/lead-capture.js";
 
-const invitation = "Questions about this post from Social? Send the Wawalu team that operates Shiplog a follow-up request. The post text, display name, URL, and identifier are not included automatically.";
+// The request carries no post, so both lines tell the visitor how to name it themselves.
+const invitation = "Questions about this post from Social? Send the Wawalu team that operates Shiplog a follow-up request. The request does not include the post. Paste its link in your message so we know which post you mean.";
+const hint = "Paste the post’s link, or its display name and a few of its words. Up to 200 characters.";
 const post = { id: "p-copy", author: "Mina Okafor", body: "Focus rings landed everywhere.", createdAt: "2026-07-14T09:00:00.000Z", likes: 0, comments: 0 };
 
 for (const state of ["loading", "loaded"]) {
@@ -43,6 +46,10 @@ for (const state of ["loading", "loaded"]) {
       assert.equal(textOf(document.querySelector(".site-footer-invitation")), invitation);
       assert.equal(textOf(byId("site-footer-topic-note")), "This request is sent about the post from Social.");
       assert.equal(byId("site-footer-topic-note").hidden, false);
+      assert.equal(textOf(byId("site-footer-message-hint")), hint);
+      assert.ok(byId("site-footer-message").getAttribute("aria-describedby").split(" ").includes("site-footer-message-hint"));
+      assert.equal(textOf(byId("site-footer-message-counter")), String(MAX_FOLLOW_UP_MESSAGE_LENGTH));
+      assert.equal(textOf(byId("site-footer-note")), FOLLOW_UP_PRIVACY_WITH_MESSAGE);
       byId("site-footer-email").focus();
       typeText(document, "reader@example.com");
       pressEnter(document);
@@ -63,28 +70,44 @@ for (const state of ["loading", "loaded"]) {
 
 // The privacy sentence under this form says the typed message is sent, so a question
 // must survive the real endpoint, not only a stubbed transport.
-test("a question typed on the post page reaches the team with the post topic", async () => {
+test("a post link pasted on the post page reaches the team with the post topic", async () => {
   const page = await loadPage(new URL("../src/post.html", import.meta.url));
   const { document } = page;
   const byId = (id) => document.getElementById(id);
   const rows = [];
+  const question = "Is this the focus-ring release? https://labs.wawalu.org/post.html?id=p-copy";
   try {
     globalThis.fetch = async (url, options) => handleLeadRequest(new Request(`https://example.test${url}`, options), {
       store: { capture: async (...args) => { rows.push(args); return true; } },
     });
     await importPageModule("/site-footer-page.js");
     byId("site-footer-message").focus();
-    typeText(document, "Is this the focus-ring release?");
+    typeText(document, question);
     byId("site-footer-email").focus();
     typeText(document, "reader@example.com");
     pressEnter(document);
     await waitFor(() => ["success", "error"].includes(byId("site-footer-form").dataset.state), "request settled");
     assert.equal(byId("site-footer-form").dataset.state, "success", textOf(byId("site-footer-status")));
     assert.deepEqual(rows.map((row) => [row[1], row[3], row[4]]),
-      [["follow_up_social", POST_FOLLOW_UP_TOPIC, "Is this the focus-ring release?"]]);
+      [["follow_up_social", POST_FOLLOW_UP_TOPIC, question]]);
   } finally {
     page.restore();
   }
+});
+
+// The hint's number is the endpoint's. The field has no maxlength on purpose:
+// that would silently cut a pasted link short, so an over-long message is refused whole.
+test("the post request accepts a 200-character message and refuses 201", async () => {
+  const send = (message) => handleLeadRequest(new Request("https://example.test/api/leads", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ email: "reader@example.com", purpose: "follow_up_social", topic: POST_FOLLOW_UP_TOPIC, message }),
+  }), { store: { capture: async () => true } });
+  assert.equal(MAX_FOLLOW_UP_MESSAGE_LENGTH, 200);
+  assert.equal((await send("x".repeat(200))).status, 201);
+  const refused = await send("x".repeat(201));
+  assert.equal(refused.status, 422);
+  assert.equal((await refused.json()).error.code, "invalid_message");
 });
 
 test("Social feed keeps its general invitation and fixed topic", async () => {

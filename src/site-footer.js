@@ -220,11 +220,11 @@ export const FOLLOW_UP_REDIRECT = Object.freeze({
  */
 export function siteFooterMarkup(indent = "    ", {
   redirect = null, followUpType = null, followUpTopic = null,
-  collapsedDemos = false, askMessage = false, offer = false, invitation = INVITATION,
+  collapsedDemos = false, askMessage = false, offer = false, invitation = INVITATION, messageHint,
 } = {}) {
   const contact = redirect ? [
     `    <a class="site-footer-redirect-link" href="${redirect.href}">${redirect.label}</a>`,
-  ] : contactFormLines(followUpType, followUpTopic, askMessage, offer, invitation);
+  ] : contactFormLines(followUpType, followUpTopic, askMessage, offer, invitation, messageHint);
   const directory = demoListLines(collapsedDemos);
   const lines = [
     '<footer class="site-footer" id="site-footer" aria-labelledby="site-footer-title">',
@@ -274,13 +274,13 @@ function demoListLines(collapsed = false) {
 // Above the address on purpose: a visitor decides what to ask before deciding
 // whether to hand over a work address for the answer, and keyboard order is
 // reading order. Every class and string here is the home page field's.
-function messageFieldLines() {
+function messageFieldLines(hint = `Up to ${MAX_FOLLOW_UP_MESSAGE_LENGTH} characters.`) {
   return [
     '        <div class="site-footer-field">',
     '          <label for="site-footer-message">What do you want to know? <span class="label-optional">(optional)</span></label>',
     '          <input id="site-footer-message" name="message" type="text" autocomplete="off" aria-describedby="site-footer-message-hint site-footer-message-counter-label site-footer-message-counter" />',
     '          <p class="site-footer-error" id="site-footer-message-error" role="alert" hidden></p>',
-    `          <span class="hint" id="site-footer-message-hint">Up to ${MAX_FOLLOW_UP_MESSAGE_LENGTH} characters.</span>`,
+    `          <span class="hint" id="site-footer-message-hint">${hint}</span>`,
     '          <p class="counter-row">',
     '            <span id="site-footer-message-counter-label">Characters remaining:</span>',
     `            <span id="site-footer-message-counter" aria-live="polite" aria-atomic="true">${MAX_FOLLOW_UP_MESSAGE_LENGTH}</span>`,
@@ -289,7 +289,7 @@ function messageFieldLines() {
   ];
 }
 
-function contactFormLines(followUpType, followUpTopic, askMessage = false, offer = false, invitation = INVITATION) {
+function contactFormLines(followUpType, followUpTopic, askMessage = false, offer = false, invitation = INVITATION, messageHint) {
   return [
     `    <p class="site-footer-invitation">${invitation}</p>`,
     '    <div class="site-footer-panel" id="site-footer-panel">',
@@ -300,7 +300,7 @@ function contactFormLines(followUpType, followUpTopic, askMessage = false, offer
     ...(followUpTopic ? [
       `        <p class="site-footer-note" id="site-footer-topic-note">This request is sent about the ${followUpTopic}.</p>`,
     ] : []),
-    ...(askMessage ? messageFieldLines() : []),
+    ...(askMessage ? messageFieldLines(messageHint) : []),
     '        <div class="site-footer-field">',
     '          <label for="site-footer-email">Work email for your follow-up</label>',
     "          <!-- Only the note is named here. The inline error and the recovery",

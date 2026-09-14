@@ -159,8 +159,9 @@ for (const [file, purpose, topic] of REVIEWED) {
       if (asked) {
         assert.equal(asked.getAttribute("required"), null, `${file}: the question must never be required`);
         assert.equal(shownText(document, "site-footer-message-counter"), `${MAX_FOLLOW_UP_MESSAGE_LENGTH}`);
-        assert.equal(shownText(document, "site-footer-message-hint"),
-          `Up to ${MAX_FOLLOW_UP_MESSAGE_LENGTH} characters.`);
+        // The post page's request carries no post, so its hint says how to name one.
+        assert.equal(shownText(document, "site-footer-message-hint"), `${file === "post.html"
+          ? "Paste the post’s link, or its display name and a few of its words. " : ""}Up to ${MAX_FOLLOW_UP_MESSAGE_LENGTH} characters.`);
         assert.equal(byId(document, "site-footer-message-error").hidden, true,
           `${file}: nothing has been typed, so nothing is refused`);
       }

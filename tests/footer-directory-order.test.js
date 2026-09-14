@@ -95,7 +95,7 @@ test("on every task page the follow-up block is read before the directory", asyn
     // Last, not merely late: nothing of the band follows the map.
     assert.equal(directory, band.length - 1, `${file}: something was added after the directory`);
     assert.equal(textOf(band[invitation]), file === "post.html"
-      ? "Questions about this post from Social? Send the Wawalu team that operates Shiplog a follow-up request. The post text, display name, URL, and identifier are not included automatically."
+      ? "Questions about this post from Social? Send the Wawalu team that operates Shiplog a follow-up request. The request does not include the post. Paste its link in your message so we know which post you mean."
       : INVITATION, `${file}: the follow-up heading line changed`);
   }
 });
