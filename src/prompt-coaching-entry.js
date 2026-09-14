@@ -188,8 +188,8 @@ export const COACHING_ENTRY_EXAMPLE = Object.freeze({
  * theirs. Total over `COACHING_INPUT_SOURCE`, asserted at load.
  */
 export const COACHING_INPUT_SOURCE_LABELS = Object.freeze({
-  [COACHING_INPUT_SOURCE.bundledSample]: "This result is for the bundled synthetic example, not your text. Replace it in the field to grade your own prompt.",
-  [COACHING_INPUT_SOURCE.readerText]: "This result is for your text, read in this tab and kept nowhere.",
+  [COACHING_INPUT_SOURCE.bundledSample]: "This result is for the bundled synthetic example. Paste your prompt in the field to get its score.",
+  [COACHING_INPUT_SOURCE.readerText]: "This result is for your prompt, read in this tab and kept nowhere.",
 });
 
 for (const source of Object.values(COACHING_INPUT_SOURCE)) {

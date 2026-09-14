@@ -176,7 +176,7 @@ test("a visitor who types nothing reads one complete result on arrival", async (
 
   // Whose text it is, beside the figures rather than under them.
   const attribution = textOf(document.querySelector(".prompt-coach-sample-attribution"));
-  assert.match(attribution, /bundled synthetic example, not your text/);
+  assert.match(attribution, /result is for the bundled synthetic example\./);
 
   // And the heading over the figures says the grade exists, because by now it
   // does: it names the example in the page's own words and states its state.
