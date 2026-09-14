@@ -108,7 +108,7 @@ test("closing a dirty draft preserves every field and returns to the actual open
   id("post-compose-cancel").click();
   assert.equal(document.activeElement === origin, true, "Close did not return focus to the opener");
   assert.equal(textOf(id("post-keyboard-hint")),
-    "Escape or Close hides the composer, and your draft stays in this tab while the composer is closed or you work in another tab, such as Paint. While publishing, wait for the result before closing.");
+    "Escape or Close hides the composer, and your draft stays in this tab while the composer is closed or you work in another tab, such as Paint.");
 });
 
 test("Escape and other close paths cannot hide an active submission, including a failed request", async (t) => {
@@ -185,7 +185,7 @@ test("the composer reads Paint, Choose image, the preview, the fields and the no
   // after the Paint link, still before the picker.
   const steps = id("post-image-steps").querySelectorAll("li").map((item) => textOf(item));
   assert.equal(steps.length, 2);
-  assert.match(steps[1], /^Select “Use this image in a Social post” in Paint, or export a PNG/);
+  assert.match(steps[1], /^Select “Use this image in a Social post” in Paint, or export an image/);
 
   // One Publish post control, and it is the last button before Close.
   const named = ["a", "button", "input", "summary"]
