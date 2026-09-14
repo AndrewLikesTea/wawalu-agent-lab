@@ -40,6 +40,7 @@ for (const [name, failure, diagnostic] of [
       assert.equal(status.getAttribute("role"), "status");
       assert.equal(status.getAttribute("aria-live"), "polite");
       assert.equal(status.getAttribute("aria-atomic"), "true");
+      get("intent-pilot").click();
       email.focus();
       typeText(document, "person@example.com");
       submit.focus();

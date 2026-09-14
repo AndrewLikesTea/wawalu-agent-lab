@@ -31,12 +31,14 @@
 
 import { createFollowUpConfirmation } from "./follow-up-confirmation.js";
 import {
-  CONTACT_COPY, describeWith, emailFieldError, FOLLOW_UP_PRIVACY, FOLLOW_UP_PRIVACY_WITH_MESSAGE,
+  CONTACT_COPY, describeWith, emailFieldError, FOLLOW_UP_INTENTS, FOLLOW_UP_PRIVACY, FOLLOW_UP_PRIVACY_WITH_MESSAGE,
   FOLLOW_UP_USE, knownNotSent, looksLikeEmail, MAX_FOLLOW_UP_MESSAGE_LENGTH, overLengthMessage,
   postLeadEmail, SubmissionError,
 } from "./lead-capture.js";
 import { REPOSITORY_URL } from "./repository-url.js";
 
+export const INTENT_QUESTION = "What do you want to discuss?";
+const INTENT_ERROR_ID = "site-footer-intent-error";
 const ERROR_ID = "site-footer-error";
 const RECOVERY_ID = "site-footer-recovery";
 const REPOSITORY_ID = "site-footer-repository";
@@ -271,6 +273,18 @@ function demoListLines(collapsed = false) {
   ];
 }
 
+// One required choice, one click: the release recorder's fieldset and the
+// decision filter's radio rows, so no rule is added for it.
+function intentFieldLines() {
+  return [
+    `        <fieldset class="decision-picker-field" id="site-footer-intent">`,
+    `          <legend>${INTENT_QUESTION}</legend>`,
+    `          <p class="site-footer-error" id="${INTENT_ERROR_ID}" role="alert" hidden></p>`,
+    ...Object.entries(FOLLOW_UP_INTENTS).map(([value, label]) => `          <div class="filter-option"><input id="site-footer-intent-${value}" name="intent" type="radio" value="${value}" required /><label for="site-footer-intent-${value}">${label}</label></div>`),
+    "        </fieldset>",
+  ];
+}
+
 // Above the address on purpose: a visitor decides what to ask before deciding
 // whether to hand over a work address for the answer, and keyboard order is
 // reading order. Every class and string here is the home page field's.
@@ -300,7 +314,7 @@ function contactFormLines(followUpType, followUpTopic, askMessage = false, offer
     ...(followUpTopic ? [
       `        <p class="site-footer-note" id="site-footer-topic-note">This request is sent about the ${followUpTopic}.</p>`,
     ] : []),
-    ...(askMessage ? messageFieldLines() : []),
+    ...(askMessage ? [...intentFieldLines(), ...messageFieldLines()] : []),
     '        <div class="site-footer-field">',
     '          <label for="site-footer-email">Work email for your follow-up</label>',
     "          <!-- Only the note is named here. The inline error and the recovery",
@@ -345,6 +359,9 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
   const message = form.elements.message ?? null;
   const messageError = root.querySelector("#site-footer-message-error");
   const counter = root.querySelector("#site-footer-message-counter");
+  const intentGroup = root.querySelector("#site-footer-intent");
+  const intentError = root.querySelector(`#${INTENT_ERROR_ID}`);
+  const intents = intentGroup ? [...intentGroup.querySelectorAll('input[name="intent"]')] : [];
   const submit = form.querySelector('button[type="submit"]');
   const fieldError = root.querySelector(`#${ERROR_ID}`);
   const status = root.querySelector("#site-footer-status");
@@ -382,6 +399,16 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
     if (message) email.setAttribute("aria-invalid", "true");
     else email.removeAttribute("aria-invalid");
   }
+
+  function setIntentError(message) {
+    if (!intentGroup) return;
+    intentError.textContent = message ?? "";
+    intentError.hidden = !message;
+    describeWith(intentGroup, INTENT_ERROR_ID, Boolean(message));
+    if (message) intentGroup.setAttribute("aria-invalid", "true");
+    else intentGroup.removeAttribute("aria-invalid");
+  }
+  for (const radio of intents) radio.addEventListener("change", () => setIntentError(null));
 
   // Failure swaps request for retry and hands a hidden button's focus to the
   // retained field. During retry, preserve the active button until settlement.
@@ -485,6 +512,19 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
       message.focus();
       return;
     }
+    // A required radio group is refused here, not by the browser: the form is
+    // `novalidate`, and the request would only come back as `invalid_intent`.
+    const chosen = intents.find((radio) => radio.checked);
+    if (intentGroup && !chosen) {
+      form.dataset.requestState = "idle";
+      form.dataset.state = "invalid";
+      setFieldError(null);
+      setRecoveryVisible(false);
+      status.textContent = "";
+      setIntentError(CONTACT_COPY.emptyIntent);
+      intents[0].focus();
+      return;
+    }
 
     form.dataset.requestState = "submitting";
     form.dataset.state = "submitting";
@@ -508,14 +548,16 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
       // Blank stays off the wire: an empty optional field sends exactly the
       // request this form sent before it existed.
       const note = message?.value.trim() || null;
-      const body = await postLeadEmail(request, email.value, form.dataset.followUpType || "follow_up", CONTACT_COPY, topic, note);
+      const body = await postLeadEmail(request, email.value, form.dataset.followUpType || "follow_up", CONTACT_COPY, topic, note,
+        chosen?.value ?? null);
       form.dataset.requestState = "success";
       form.dataset.state = "success";
       setRecoveryVisible(false);
       status.textContent = body.created ? CAPTURED : ALREADY_CAPTURED;
       // The form is replaced from here, so the control that would send again is
-      // gone before the `finally` below could bring it back.
-      confirmation.show(address, topic, Boolean(note));
+      // gone before the `finally` below could bring it back. The intent named is
+      // the endpoint's stored one, never the radio still checked above.
+      confirmation.show(address, topic, Boolean(note), body.intent ? FOLLOW_UP_INTENTS[body.intent] : "");
     } catch (error) {
       // Copy this repository owns, never a string an intermediary supplied, and
       // never a claim that the address was lost when that is not known.

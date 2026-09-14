@@ -341,6 +341,8 @@ test("the main landmark rings for keyboard focus only, never for a mouse click",
 // offers before its lookup has answered. People is the only exit missing here:
 // it needs a display name nobody has yet.
 const FRAME_STOPS = SITE_NAV.length + 5;
+// The follow-up's required intent group (#2365): one stop, its first radio.
+const INTENT_STOP = "site-footer-intent-availability_pricing";
 
 test("the post page's loading tab order reaches Social without a placeholder People link", async () => {
   const document = await load("post.html");
@@ -387,8 +389,8 @@ test("the post page's loading tab order reaches Social without a placeholder Peo
   // assertion below walks parentNode to drop them, which is the sequence a
   // browser actually gives.
   assert.deepEqual(
-    afterExit.slice(0, bandStops.length + 6),
-    [PITCH_LINK, SOURCE_LINK_LABEL, "site-footer-message", "site-footer-email", "Request a follow-up",
+    afterExit.slice(0, bandStops.length + 7),
+    [PITCH_LINK, SOURCE_LINK_LABEL, INTENT_STOP, "site-footer-message", "site-footer-email", "Request a follow-up",
       DIRECTORY_SUMMARY, ...bandStops],
   );
   // A disclosure's own summary is its handle, not something inside it, so the
@@ -401,8 +403,8 @@ test("the post page's loading tab order reaches Social without a placeholder Peo
     return false;
   };
   assert.deepEqual(
-    afterExit.filter((_, index) => !closed(sequence[FRAME_STOPS + index])).slice(0, 6),
-    [PITCH_LINK, SOURCE_LINK_LABEL,
+    afterExit.filter((_, index) => !closed(sequence[FRAME_STOPS + index])).slice(0, 7),
+    [PITCH_LINK, SOURCE_LINK_LABEL, INTENT_STOP,
       "site-footer-message", "site-footer-email", "Request a follow-up", DIRECTORY_SUMMARY],
     "with the directory closed, the form must still be five stops from the exit",
   );

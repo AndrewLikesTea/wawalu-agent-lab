@@ -532,6 +532,14 @@
           <form id="site-footer-form" class="site-footer-form" data-follow-up-type="follow_up_releases" data-follow-up-topic="Releases page — see every release and its linked decisions" novalidate>
             <p class="site-footer-note" id="site-footer-offer">There is no self-serve signup and no published price. Whether Shiplog is available for your team and what it would cost are both answered on request.</p>
             <p class="site-footer-note" id="site-footer-topic-note">This request is sent about the Releases page — see every release and its linked decisions.</p>
+            <fieldset class="decision-picker-field" id="site-footer-intent">
+              <legend>What do you want to discuss?</legend>
+              <p class="site-footer-error" id="site-footer-intent-error" role="alert" hidden></p>
+              <div class="filter-option"><input id="site-footer-intent-availability_pricing" name="intent" type="radio" value="availability_pricing" required /><label for="site-footer-intent-availability_pricing">Availability or pricing</label></div>
+              <div class="filter-option"><input id="site-footer-intent-demo" name="intent" type="radio" value="demo" required /><label for="site-footer-intent-demo">A product demonstration</label></div>
+              <div class="filter-option"><input id="site-footer-intent-pilot" name="intent" type="radio" value="pilot" required /><label for="site-footer-intent-pilot">A pilot evaluation</label></div>
+              <div class="filter-option"><input id="site-footer-intent-security_data" name="intent" type="radio" value="security_data" required /><label for="site-footer-intent-security_data">Security or data handling</label></div>
+            </fieldset>
             <div class="site-footer-field">
               <label for="site-footer-message">What do you want to know? <span class="label-optional">(optional)</span></label>
               <input id="site-footer-message" name="message" type="text" autocomplete="off" aria-describedby="site-footer-message-hint site-footer-message-counter-label site-footer-message-counter" />
@@ -552,7 +560,7 @@
               <input id="site-footer-email" name="email" type="email" maxlength="254" inputmode="email" autocomplete="email" placeholder="you@company.com" required aria-describedby="site-footer-note" />
             </div>
             <p class="site-footer-error" id="site-footer-error" hidden></p>
-            <p class="site-footer-note" id="site-footer-note">The work email address you type here goes to the Wawalu team that operates Shiplog; only that address, this fixed follow-up topic, and the message you type are sent.</p>
+            <p class="site-footer-note" id="site-footer-note">The work email address you type here goes to the Wawalu team that operates Shiplog; only that address, this fixed follow-up topic, what you want to discuss, and the message you type are sent.</p>
             <p class="site-footer-note" id="site-footer-use">We use your address to reply to this request and for nothing else.</p>
             <p class="site-footer-recovery" id="site-footer-recovery" hidden></p>
             <div class="site-footer-actions">

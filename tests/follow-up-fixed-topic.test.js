@@ -57,7 +57,10 @@ const ASKS_MESSAGE = new Set([
   "releases.html", "social.html", "post.html", "profile.html", "coach.html", "agents.html",
 ]);
 const MESSAGE_FIELD = "INPUT#site-footer-message";
-const withMessage = (baseline) => [MESSAGE_FIELD, ...baseline];
+// The required intent radios (#2365) stand above the question on the same pages.
+const INTENT_FIELDS = ["availability_pricing", "demo", "pilot", "security_data"]
+  .map((value) => `INPUT#site-footer-intent-${value}`);
+const withMessage = (baseline) => [...INTENT_FIELDS, MESSAGE_FIELD, ...baseline];
 const expectedStops = (file, baseline) => (ASKS_MESSAGE.has(file) ? withMessage(baseline) : baseline);
 
 const SENTENCE_LEAD = "This request is sent about the ";
@@ -89,6 +92,7 @@ async function openPage(file) {
 }
 
 function submit(document, value = TYPED_EMAIL) {
+  byId(document, "site-footer-intent-pilot")?.click();
   const field = byId(document, "site-footer-email");
   field.value = "";
   field.focus();
@@ -154,8 +158,8 @@ for (const file of STATED) {
       // request carried, and what the shared map holds are one string.
       assert.equal(named, payload.topic, `${file}: the sentence names a topic the request did not send`);
       assert.equal(named, expected, `${file}: the sentence has drifted from the shared topic list`);
-      assert.deepEqual(payload, { email: TYPED_EMAIL, purpose, topic: expected },
-        `${file}: the fixed topic is all that accompanies the address`);
+      assert.deepEqual(payload, { email: TYPED_EMAIL, purpose, topic: expected, ...(ASKS_MESSAGE.has(file) && { intent: "pilot" }) },
+        `${file}: the fixed topic and the chosen intent are all that accompany the address`);
 
       // And the receipt reads back the same string, so a visitor can check the
       // page's claim against what was submitted.

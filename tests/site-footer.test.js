@@ -939,6 +939,7 @@ const jsonReply = (body, status = 201) => new Response(JSON.stringify(body), {
 
 /** Type an address into the form and submit it from the keyboard. */
 function submitEmail(document, value) {
+  byId(document, "site-footer-intent-pilot")?.click();
   const field = byId(document, "site-footer-email");
   field.value = "";
   field.focus();
@@ -1115,7 +1116,7 @@ test("a failed submission keeps the typed address, says it can be retried, and t
       "the retry to succeed");
     assert.equal(calls.length, 2, "the retry must make its own request");
     assert.deepEqual(JSON.parse(calls[1].options.body), {
-      email: TYPED_EMAIL, purpose: "follow_up_social", topic: POST_FOLLOW_UP_TOPIC,
+      email: TYPED_EMAIL, purpose: "follow_up_social", topic: POST_FOLLOW_UP_TOPIC, intent: "pilot",
     });
     assert.match(shownText(document, "site-footer-status"), /^Request sent to the Wawalu team\./);
 
@@ -1238,7 +1239,7 @@ test("a failed request offers its retry in place: named, keyboard-reachable, ann
     assert.equal(calls.length, 2, "retry must re-attempt the same submission");
     assert.deepEqual(JSON.parse(calls[1].options.body), JSON.parse(calls[0].options.body));
     assert.deepEqual(JSON.parse(calls[1].options.body), {
-      email: TYPED_EMAIL, purpose: "follow_up_social", topic: FOLLOW_UP_TOPICS.follow_up_social,
+      email: TYPED_EMAIL, purpose: "follow_up_social", topic: FOLLOW_UP_TOPICS.follow_up_social, intent: "pilot",
     });
     assert.deepEqual(focused, [], "and the retry must not move focus either");
   } finally {
@@ -1506,6 +1507,7 @@ test("the send/retry swap never hides the control a reader is standing on", asyn
     const submit = byId(document, "site-footer-form").querySelector('button[type="submit"]');
     const retry = byId(document, "site-footer-retry");
 
+    byId(document, "site-footer-intent-pilot").click();
     field.focus();
     typeText(document, TYPED_EMAIL);
     submit.focus();

@@ -94,7 +94,11 @@ async function mountFooter(file, request) {
   return { page, document: page.document, calls };
 }
 
+// The pages that ask what to discuss refuse a submit without it (#2365), so the
+// state-machine tests below choose one first; tests/follow-up-intent.test.js
+// holds the refusal itself.
 function openAndSubmit(document, value = TYPED_EMAIL) {
+  byId(document, "site-footer-intent-pilot")?.click();
   const field = byId(document, "site-footer-email");
   field.value = "";
   field.focus();
@@ -200,7 +204,7 @@ test("a valid work email and a successful transport reach the success state, whi
     assert.equal(calls.length, 1);
     assert.equal(calls[0].url, "/api/leads");
     assert.deepEqual(JSON.parse(calls[0].options.body), {
-      email: TYPED_EMAIL, purpose: "follow_up_coach", topic: FOLLOW_UP_TOPICS.follow_up_coach,
+      email: TYPED_EMAIL, purpose: "follow_up_coach", topic: FOLLOW_UP_TOPICS.follow_up_coach, intent: "pilot",
     });
     assert.equal(byId(document, "site-footer-form").dataset.state, "success");
 
@@ -247,7 +251,7 @@ test("a typed question rides along with the address and the page's fixed topic",
     assert.equal(byId(document, "site-footer-form").dataset.state, "success");
     assert.deepEqual(JSON.parse(calls[0].options.body), {
       email: TYPED_EMAIL, purpose: "follow_up_releases", topic: FOLLOW_UP_TOPICS.follow_up_releases,
-      message: question,
+      message: question, intent: "pilot",
     });
     // And the receipt says a message went, rather than repeating the sentence
     // for a request that carried only an address.
@@ -270,7 +274,7 @@ test("the question is optional: left empty it sends the request it always sent",
     await settled(document);
 
     assert.equal(byId(document, "site-footer-form").dataset.state, "success");
-    assert.deepEqual(Object.keys(JSON.parse(calls[0].options.body)), ["email", "purpose", "topic"]);
+    assert.deepEqual(Object.keys(JSON.parse(calls[0].options.body)), ["email", "purpose", "topic", "intent"]);
     assert.match(shownText(document, "site-footer-confirmation"),
       /Only that work email was entered by you and sent/);
   } finally {
@@ -419,6 +423,7 @@ test("the whole panel is operable from the keyboard, including the retry after a
   });
   try {
     // The form is present at first paint; Tab reaches its field directly.
+    byId(document, "site-footer-intent-pilot").click();
     let guard = 0;
     while (document.activeElement?.id !== "site-footer-email" && guard < 200) { pressTab(document); guard += 1; }
     assert.equal(document.activeElement?.id, "site-footer-email");
@@ -474,9 +479,10 @@ for (const [file, purpose, topic] of REVIEWED) {
       await settled(document);
 
       assert.equal(byId(document, "site-footer-form").dataset.state, "success", `${file} must reach success`);
-      assert.deepEqual(JSON.parse(calls[0].options.body), topic
-        ? { email: TYPED_EMAIL, purpose, topic }
-        : { email: TYPED_EMAIL, purpose });
+      // The pages that ask what to discuss send the choice too (#2365).
+      assert.deepEqual(JSON.parse(calls[0].options.body), {
+        email: TYPED_EMAIL, purpose, topic, ...(ASKS_MESSAGE.has(file) && { intent: "pilot" }),
+      });
 
       // node:sqlite hands back null-prototype rows; the values are what matter.
       const rows = db.raw.prepare("SELECT email, purpose, topic FROM lead_submissions").all()
@@ -557,19 +563,14 @@ test("a genuine duplicate is still a duplicate, not an error", async (t) => {
   t.after(() => db.close());
   const calls = [];
   const transport = endpointTransport(db, calls);
-  const first = await transport("/api/leads", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ email: TYPED_EMAIL, purpose: "follow_up_people", topic: FOLLOW_UP_TOPICS.follow_up_people }),
+  const body = JSON.stringify({
+    email: TYPED_EMAIL, purpose: "follow_up_people", topic: FOLLOW_UP_TOPICS.follow_up_people, intent: "demo",
   });
+  const first = await transport("/api/leads", { method: "POST", headers: { "content-type": "application/json" }, body });
   assert.equal(first.status, 201);
-  const second = await transport("/api/leads", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ email: TYPED_EMAIL, purpose: "follow_up_people", topic: FOLLOW_UP_TOPICS.follow_up_people }),
-  });
+  const second = await transport("/api/leads", { method: "POST", headers: { "content-type": "application/json" }, body });
   assert.equal(second.status, 200);
-  assert.deepEqual(await second.json(), { captured: true, created: false, purpose: "follow_up_people" });
+  assert.deepEqual(await second.json(), { captured: true, created: false, purpose: "follow_up_people", intent: "demo" });
   assert.equal(db.raw.prepare("SELECT count(*) AS count FROM lead_submissions").get().count, 1);
 });
 

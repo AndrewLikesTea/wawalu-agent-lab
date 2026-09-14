@@ -112,9 +112,10 @@ test("the shared sentence is one sentence, under 25 words, and names all three t
 
 test("the message form's sentence is one sentence too, and lists everything that goes", () => {
   const words = FOLLOW_UP_PRIVACY_WITH_MESSAGE.split(/\s+/).filter(Boolean);
-  // A longer budget than the sentence above, because it names three things
-  // rather than one. Still one sentence, and still short enough to read once.
-  assert.ok(words.length <= 32, `the sentence is ${words.length} words; the budget is 32`);
+  // A longer budget than the sentence above, because it names four things
+  // rather than one (#2365 added what you want to discuss). Still one sentence.
+  assert.ok(words.length <= 34, `the sentence is ${words.length} words; the budget is 34`);
+  assert.match(FOLLOW_UP_PRIVACY_WITH_MESSAGE, /what you want to discuss/, "it must name the intent it sends");
   assert.equal(FOLLOW_UP_PRIVACY_WITH_MESSAGE.at(-1), ".");
   assert.equal((FOLLOW_UP_PRIVACY_WITH_MESSAGE.match(/[.!?]/g) ?? []).length, 1,
     "one sentence, not two joined by a full stop");

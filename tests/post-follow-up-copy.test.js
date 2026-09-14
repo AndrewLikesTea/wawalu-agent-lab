@@ -27,7 +27,7 @@ for (const state of ["loading", "loaded"]) {
         assert.equal(url, "/api/leads");
         calls.push(JSON.parse(options.body));
         return handleLeadRequest(new Request("https://example.test/api/leads", options), {
-          store: { capture: async (...args) => { rows.push(args); return true; } },
+          store: { capture: async (...args) => { rows.push(args); return { created: true, intent: args[5] }; } },
         });
       };
       await importPageModule("/site-footer-page.js");
@@ -43,11 +43,12 @@ for (const state of ["loading", "loaded"]) {
       assert.equal(textOf(document.querySelector(".site-footer-invitation")), invitation);
       assert.equal(textOf(byId("site-footer-topic-note")), "This request is sent about the post from Social.");
       assert.equal(byId("site-footer-topic-note").hidden, false);
+      byId("site-footer-intent-demo").click();
       byId("site-footer-email").focus();
       typeText(document, "reader@example.com");
       pressEnter(document);
       await waitFor(() => byId("site-footer-form").dataset.state === "success", "request saved");
-      assert.deepEqual(calls, [{ email: "reader@example.com", purpose: "follow_up_social", topic: POST_FOLLOW_UP_TOPIC }]);
+      assert.deepEqual(calls, [{ email: "reader@example.com", purpose: "follow_up_social", topic: POST_FOLLOW_UP_TOPIC, intent: "demo" }]);
       assert.equal(rows[0][3], POST_FOLLOW_UP_TOPIC);
       assert.ok(textOf(byId("site-footer-confirmation")).includes(`Fixed page topic: ${POST_FOLLOW_UP_TOPIC}.`));
     } finally {
@@ -70,9 +71,10 @@ test("a question typed on the post page reaches the team with the post topic", a
   const rows = [];
   try {
     globalThis.fetch = async (url, options) => handleLeadRequest(new Request(`https://example.test${url}`, options), {
-      store: { capture: async (...args) => { rows.push(args); return true; } },
+      store: { capture: async (...args) => { rows.push(args); return { created: true, intent: args[5] }; } },
     });
     await importPageModule("/site-footer-page.js");
+    byId("site-footer-intent-pilot").click();
     byId("site-footer-message").focus();
     typeText(document, "Is this the focus-ring release?");
     byId("site-footer-email").focus();
