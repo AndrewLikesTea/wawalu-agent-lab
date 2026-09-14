@@ -25,7 +25,7 @@ import {
   REPOSITORY_LINK_LABEL, siteFooterMarkup, SOURCE_LINK_LABEL,
 } from "../src/site-footer.js";
 import { REPOSITORY_URL } from "../src/repository-url.js";
-import { FOLLOW_UP_TOPICS } from "../src/leads.js";
+import { FOLLOW_UP_TOPICS, POST_FOLLOW_UP_TOPIC } from "../src/leads.js";
 import { FOLLOW_UP_PRIVACY } from "../src/lead-capture.js";
 import { SITE_NAV } from "../src/site-nav.js";
 import { loadPage, parseHtml, pressEnter, tabSequence, textOf, typeText } from "./support/browser.js";
@@ -115,7 +115,8 @@ const FOOTER_VARIANT = new Map([
   // tests/footer-directory-order.test.js holds the order and the survival of
   // every row; the twelve remaining pages keep the open list.
   ["post.html", {
-    followUpType: "follow_up_social", followUpTopic: FOLLOW_UP_TOPICS.follow_up_social,
+    followUpType: "follow_up_social", followUpTopic: POST_FOLLOW_UP_TOPIC,
+    invitation: 'Questions about this post from Social? Send the Wawalu team that operates Shiplog a follow-up request. The post text, display name, URL, and identifier are not included automatically.',
     collapsedDemos: true, askMessage: true, offer: true,
   }],
   ["releases.html", {
@@ -150,7 +151,7 @@ test("no page states its follow-up topic in a control instead of a sentence", as
     assert.doesNotMatch(html, /<label for="site-footer-topic">Follow-up topic<\/label>/,
       `${file}: a bare "Follow-up topic" label names no topic at all`);
     // ...and a page that sends a topic still says which one, in the one sentence.
-    const topic = FOLLOW_UP_TOPICS[FOOTER_VARIANT.get(file)?.followUpType];
+    const topic = FOOTER_VARIANT.get(file)?.followUpTopic;
     if (topic) {
       assert.ok(html.includes(`This request is sent about the ${topic}.`),
         `${file}: sends a fixed topic the page never names`);
@@ -628,7 +629,7 @@ test("Social's description, its directory row and its follow-up topic all say sh
     const row = [...document.querySelector(".site-footer-demos").querySelectorAll("li")]
       .find((item) => item.querySelector('a[href="/social.html"]'));
     assert.ok(Boolean(row) && textOf(row).includes(PURPOSE), `${file}: the painted directory's Social row`);
-    assert.equal(shownText(document, "site-footer-topic-note"), TOPIC_LINE, `${file}: the painted follow-up topic line`);
+    assert.equal(shownText(document, "site-footer-topic-note"), file === "post.html" ? `This request is sent about the ${POST_FOLLOW_UP_TOPIC}.` : TOPIC_LINE, `${file}: the painted follow-up topic line`);
     assert.ok(TOPIC_LINE.includes(PHRASE));
     assert.equal(textOf(document.documentElement).includes(RETIRED), false, `${file} paints "${RETIRED}"`);
   };
@@ -1114,7 +1115,7 @@ test("a failed submission keeps the typed address, says it can be retried, and t
       "the retry to succeed");
     assert.equal(calls.length, 2, "the retry must make its own request");
     assert.deepEqual(JSON.parse(calls[1].options.body), {
-      email: TYPED_EMAIL, purpose: "follow_up_social", topic: FOLLOW_UP_TOPICS.follow_up_social,
+      email: TYPED_EMAIL, purpose: "follow_up_social", topic: POST_FOLLOW_UP_TOPIC,
     });
     assert.match(shownText(document, "site-footer-status"), /^Request sent to the Wawalu team\./);
 
