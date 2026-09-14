@@ -116,11 +116,9 @@ test("persists every reviewed follow-up request type independently", async () =>
   const store = createMemoryLeadStore();
   for (const purpose of ["follow_up_coach", "follow_up_releases", "follow_up_social", "follow_up_people", "follow_up_agents"]) {
     const topic = FOLLOW_UP_TOPICS[purpose];
-    const response = await handleLeadRequest(request(topic
-      ? { email: "rowan@example.com", purpose, topic }
-      : { email: "rowan@example.com", purpose }), { store });
+    const response = await handleLeadRequest(request({ email: "rowan@example.com", purpose, topic, intent: "demo" }), { store });
     assert.equal(response.status, 201, purpose);
-    assert.deepEqual(await response.json(), { captured: true, created: true, purpose });
+    assert.deepEqual(await response.json(), { captured: true, created: true, purpose, intent: "demo" });
     assert.equal(store.has("rowan@example.com", purpose), true);
   }
 });
@@ -144,10 +142,11 @@ test("D1 store persists normalized leads and deduplicates atomically", async (t)
   const db = await createTestD1();
   t.after(() => db.close());
   const store = createD1LeadStore(db);
-  assert.equal(await store.capture("mina@example.com", "field_notes", "2026-07-25T12:00:00.000Z"), true);
-  assert.equal(await store.capture("mina@example.com", "follow_up", "2026-07-25T12:01:00.000Z"), true);
-  assert.equal(await store.capture("mina@example.com", "follow_up", "2026-07-25T12:02:00.000Z"), false);
-  assert.equal(await store.capture("mina@example.com", "follow_up_agents", "2026-07-25T12:03:00.000Z"), true);
+  const created = async (...args) => (await store.capture(...args)).created;
+  assert.equal(await created("mina@example.com", "field_notes", "2026-07-25T12:00:00.000Z"), true);
+  assert.equal(await created("mina@example.com", "follow_up", "2026-07-25T12:01:00.000Z"), true);
+  assert.equal(await created("mina@example.com", "follow_up", "2026-07-25T12:02:00.000Z"), false);
+  assert.equal(await created("mina@example.com", "follow_up_agents", "2026-07-25T12:03:00.000Z"), true);
   assert.equal(db.raw.prepare("SELECT count(*) AS count FROM lead_submissions").get().count, 3);
 });
 
@@ -435,6 +434,10 @@ test("the endpoint still returns every response the published contract documents
       purpose: "follow_up_finops_example",
       topic: FOLLOW_UP_TOPICS.follow_up_finops_example,
       message: "x".repeat(MAX_FOLLOW_UP_MESSAGE_LENGTH + 1),
+    }), { store: createMemoryLeadStore() })],
+    // A purpose whose form asks what to discuss, sent without an answer.
+    ["invalid_intent", () => handleLeadRequest(request({
+      email: "mina@example.com", purpose: "follow_up_coach", topic: FOLLOW_UP_TOPICS.follow_up_coach,
     }), { store: createMemoryLeadStore() })],
     ["storage_error", () => handleLeadRequest(request({ email: "mina@example.com", purpose: "field_notes" }), {
       store: { capture: async () => { throw new Error("database password"); } },

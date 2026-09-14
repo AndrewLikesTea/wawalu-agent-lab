@@ -7,9 +7,11 @@
     "content_type": "application/json",
     "body": {
       "email": "string, trimmed and lowercased server-side, max 254 chars",
-      "purpose": "field_notes, legacy follow_up, or one bounded follow_up_<surface> request type; no additional fields are accepted"
+      "purpose": "field_notes, legacy follow_up, or one bounded follow_up_<surface> request type; no additional fields are accepted",
+      "intent": "required on, and accepted only for, the purposes in FOLLOW_UP_INTENT_PURPOSES (src/leads.js): one of availability_pricing, demo, pilot, security_data"
     }
   },
+  "intent": "Responses to a purpose that takes an intent also carry `intent`: the value the stored row holds after the write, read back from storage, or null. A repeated address and purpose keeps `created:false` but updates the stored intent to the one just sent. The browser names only this value in its receipt, never the one it sent.",
   "response_headers": {
     "content-type": "application/json; charset=utf-8",
     "cache-control": "no-store",
@@ -108,6 +110,15 @@
       "captured": false,
       "retryable": true,
       "meaning": "The optional follow-up message exceeded the shared length limit. Refused before the insert; shortening the message and resubmitting succeeds."
+    },
+    {
+      "id": "invalid_intent",
+      "code": "invalid_intent",
+      "status": 422,
+      "origin": "application",
+      "captured": false,
+      "retryable": true,
+      "meaning": "A purpose that asks what the visitor wants to discuss arrived with no intent, or with a value outside the four listed. Refused before the insert; choosing one and resubmitting succeeds."
     },
     {
       "id": "storage_error",

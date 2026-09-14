@@ -693,15 +693,15 @@ test("the endpoint refuses the same limit the field states, and stores nothing",
 });
 
 test("a message sent for a purpose whose form has no such field is refused, not stored", async () => {
-  // Only the home page's form offers a message. A `message` key on any other
-  // request type is a field no surface invited, so it is an unsupported body
-  // rather than a column to quietly fill.
+  // The homepage footer's request type has no message field. A `message` key on
+  // it is a field no surface invited, so it is an unsupported body rather than a
+  // column to quietly fill. (Coach's footer does offer one, since #2129.)
   const response = await handleLeadRequest(new Request("https://test.invalid/api/leads", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
-      email: "director@example.com", purpose: "follow_up_coach",
-      topic: FOLLOW_UP_TOPICS.follow_up_coach, message: "Smuggled",
+      email: "director@example.com", purpose: "follow_up_homepage",
+      topic: FOLLOW_UP_TOPICS.follow_up_homepage, message: "Smuggled",
     }),
   }), { store: createMemoryLeadStore() });
   assert.equal(response.status, 400);

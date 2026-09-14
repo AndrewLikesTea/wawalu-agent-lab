@@ -30,7 +30,9 @@
 export const CONFIRMATION_LEAD = "Request received. Submitted work email: ";
 export const CONFIRMATION_DETAIL = "Only that work email was entered by you and sent. The Wawalu team may review the request and reply; a reply is not guaranteed.";
 export const CONFIRMATION_MESSAGE_DETAIL = "Only that work email and the message you entered were entered by you and sent. The Wawalu team may review the request and reply; a reply is not guaranteed.";
+export const CONFIRMATION_INTENT_DETAIL = "Your discussion choice has been saved. The Wawalu team may review the request and reply; a reply is not guaranteed.";
 export const TOPIC_LEAD = "Fixed page topic: ";
+export const INTENT_LEAD = "What you want to discuss: ";
 export const REOPEN_LABEL = "Request another follow-up";
 
 /**
@@ -85,7 +87,10 @@ export function createFollowUpConfirmation({ form, status, submit, email, onReop
   // Empty unless the surface sent a topic. See `show`.
   const topic = document.createElement("strong");
   topic.className = `${base}-confirmation-topic`;
-  detail.append(topic);
+  const intent = document.createElement("strong");
+  intent.className = topic.className;
+  const explanation = document.createElement("span");
+  detail.append(topic, intent, explanation);
 
   const again = document.createElement("button");
   again.className = `${base}-confirmation-again`;
@@ -110,12 +115,15 @@ export function createFollowUpConfirmation({ form, status, submit, email, onReop
    * `submittedTopic` is the surface's readonly topic field, which most surfaces
    * do not ship. A default here would read a topic back to a visitor whose
    * request carried none — untrue the way a promised reply is untrue — so the
-   * sentence appears only where the field does.
+   * sentence appears only where the field does. `storedIntent` is the label for
+   * the intent the endpoint read back, so it too is empty unless one is known.
    */
-  function show(value, submittedTopic = "", messageProvided = false) {
+  function show(value, submittedTopic = "", messageProvided = false, storedIntent = "") {
     address.textContent = value;
     topic.textContent = submittedTopic ? `${TOPIC_LEAD}${submittedTopic}. ` : "";
-    detail.append(messageProvided ? CONFIRMATION_MESSAGE_DETAIL : CONFIRMATION_DETAIL);
+    intent.textContent = storedIntent ? `${INTENT_LEAD}${storedIntent}. ` : "";
+    explanation.textContent = storedIntent ? CONFIRMATION_INTENT_DETAIL
+      : messageProvided ? CONFIRMATION_MESSAGE_DETAIL : CONFIRMATION_DETAIL;
     if (!region.parentNode) form.parentNode.insertBefore(region, form);
     // Hiding the form takes the field and both of its buttons out of the tab
     // order; disabling submit means even a stray click on it does nothing.

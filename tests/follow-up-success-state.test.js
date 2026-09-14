@@ -62,6 +62,7 @@ const failureReply = () => jsonReply({ error: { code: "storage_unavailable", mes
 
 /** Type an address into a disclosed form and submit it from the keyboard. */
 function submitEmail(document, prefix, value) {
+  byId(document, `${prefix}-intent-pilot`)?.click();
   const field = byId(document, `${prefix}-email`);
   field.value = "";
   field.focus();
@@ -140,9 +141,9 @@ test("Coach, Releases, Social, People, and Agents send one bounded request and s
       const payload = JSON.parse(calls[0].options.body);
       const topic = FOLLOW_UP_TOPICS[requestType];
       assert.deepEqual(payload, topic
-        ? { email: LONG_EMAIL, purpose: requestType, topic }
-        : { email: LONG_EMAIL, purpose: requestType }, `${file}: bounded payload`);
-      assert.deepEqual(Object.keys(payload), topic ? ["email", "purpose", "topic"] : ["email", "purpose"],
+        ? { email: LONG_EMAIL, purpose: requestType, topic, intent: "pilot" }
+        : { email: LONG_EMAIL, purpose: requestType, intent: "pilot" }, `${file}: bounded payload`);
+      assert.deepEqual(Object.keys(payload), topic ? ["email", "purpose", "topic", "intent"] : ["email", "purpose", "intent"],
         `${file}: only fixed routing context can accompany the email`);
       assert.doesNotMatch(calls[0].options.body, new RegExp(pageContent, "i"), `${file}: page content stays local`);
       assert.equal(byId(page.document, "site-footer-form").dataset.state, "success", `${file}: success state`);

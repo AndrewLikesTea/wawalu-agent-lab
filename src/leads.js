@@ -1,4 +1,4 @@
-import { MAX_FOLLOW_UP_MESSAGE_LENGTH } from "./lead-capture.js";
+import { isFollowUpIntent, MAX_FOLLOW_UP_MESSAGE_LENGTH } from "./lead-capture.js";
 
 export { MAX_FOLLOW_UP_MESSAGE_LENGTH };
 export const MAX_EMAIL_LENGTH = 254;
@@ -9,9 +9,23 @@ export const MAX_EMAIL_LENGTH = 254;
  * It is a list rather than a flag on every follow-up type because the other
  * forms do not ship the field: a `message` sent for one of them is a key the
  * page cannot have produced, and the strict body check below refuses it rather
- * than storing text no surface invited.
+ * than storing text no surface invited. The five footer purposes are the ones
+ * whose forms render the optional question (`askMessage` in src/site-footer.js);
+ * until #2365 only Social was listed, so a question typed on coach, releases,
+ * People or agents was refused as an unreadable request.
  */
-export const FOLLOW_UP_MESSAGE_PURPOSES = Object.freeze(["follow_up_finops_example", "follow_up_social"]);
+export const FOLLOW_UP_MESSAGE_PURPOSES = Object.freeze([
+  "follow_up_finops_example", "follow_up_coach", "follow_up_releases", "follow_up_social", "follow_up_people",
+  "follow_up_agents",
+]);
+/**
+ * The request types whose form asks what the visitor wants to discuss, and
+ * therefore the only ones that must send an `intent` — and the only ones that
+ * may. Exactly the footer forms that render the radio group.
+ */
+export const FOLLOW_UP_INTENT_PURPOSES = Object.freeze([
+  "follow_up_coach", "follow_up_releases", "follow_up_social", "follow_up_people", "follow_up_agents",
+]);
 export const FOLLOW_UP_REQUEST_TYPES = Object.freeze([
   "follow_up_homepage",
   "follow_up_finops_example",
@@ -87,14 +101,19 @@ function json(body, status, requestId, headers = {}) {
   });
 }
 
+// Both stores answer `{ created, intent }`: whether a row was inserted, and the
+// intent the row holds once the write is done. A repeat request keeps its first
+// topic and message but takes the new intent — the latest answer is the one the
+// team needs, and the receipt names the stored value rather than the sent one.
 export function createMemoryLeadStore() {
   const submissions = new Map();
   return {
-    async capture(email, purpose, createdAt = null, topic = null, message = null) {
+    async capture(email, purpose, createdAt = null, topic = null, message = null, intent = null) {
       const key = `${purpose}:${email}`;
       const created = !submissions.has(key);
-      if (created) submissions.set(key, { topic, message });
-      return created;
+      if (created) submissions.set(key, { topic, message, intent });
+      else if (intent !== null) submissions.get(key).intent = intent;
+      return { created, intent: submissions.get(key).intent };
     },
     has: (email, purpose = "field_notes") => submissions.has(`${purpose}:${email}`),
     // What was stored, not merely that something was: a test that can only ask
@@ -121,15 +140,32 @@ export function createMemoryLeadStore() {
  * The `ON CONFLICT (email, purpose)` form ignores exactly the primary-key
  * conflict it means to ignore. Anything else raises, and `handleLeadRequest`
  * turns it into a truthful `storage_error` the visitor can act on.
+ *
+ * A request carrying an intent is the one exception to "do nothing": on conflict
+ * it saves the new intent and reads it back with `RETURNING`. An upsert changes
+ * a row either way, so `changes` can no longer tell insert from conflict; the
+ * lookup batched before it can, because a D1 batch is one transaction. Requests
+ * without an intent keep the statement above untouched, so a database that has
+ * not had migration 0014 applied still takes every other purpose.
  */
 export function createD1LeadStore(db) {
   return {
-    async capture(email, purpose, createdAt, topic = null, message = null) {
-      const result = await db.prepare(
-        "INSERT INTO lead_submissions (email, purpose, created_at, topic, message) VALUES (?, ?, ?, ?, ?)"
-        + " ON CONFLICT (email, purpose) DO NOTHING",
-      ).bind(email, purpose, createdAt, topic, message).run();
-      return Number(result.meta?.changes ?? 0) > 0;
+    async capture(email, purpose, createdAt, topic = null, message = null, intent = null) {
+      if (intent === null) {
+        const result = await db.prepare(
+          "INSERT INTO lead_submissions (email, purpose, created_at, topic, message) VALUES (?, ?, ?, ?, ?)"
+          + " ON CONFLICT (email, purpose) DO NOTHING",
+        ).bind(email, purpose, createdAt, topic, message).run();
+        return { created: Number(result.meta?.changes ?? 0) > 0, intent: null };
+      }
+      const [existing, written] = await db.batch([
+        db.prepare("SELECT 1 AS found FROM lead_submissions WHERE email = ? AND purpose = ?").bind(email, purpose),
+        db.prepare(
+          "INSERT INTO lead_submissions (email, purpose, created_at, topic, message, intent) VALUES (?, ?, ?, ?, ?, ?)"
+          + " ON CONFLICT (email, purpose) DO UPDATE SET intent = excluded.intent RETURNING intent",
+        ).bind(email, purpose, createdAt, topic, message, intent),
+      ]);
+      return { created: (existing.results ?? []).length === 0, intent: written.results?.[0]?.intent ?? null };
     },
   };
 }
@@ -158,11 +194,15 @@ export async function handleLeadRequest(request, {
     ? POST_FOLLOW_UP_TOPIC
     : isObject ? FOLLOW_UP_TOPICS[input.purpose] : null;
   const expectedKeys = expectedTopic ? ["email", "purpose", "topic"] : ["email", "purpose"];
-  // `message` is the one key that may be present or absent, and only on a
-  // purpose whose form offers the field. Everything else is still exact.
-  const allowedKeys = isObject && FOLLOW_UP_MESSAGE_PURPOSES.includes(input.purpose)
-    ? [...expectedKeys, "message"]
-    : expectedKeys;
+  // `message` may be present or absent, and only on a purpose whose form offers
+  // the field; `intent` may arrive only where the form asks for it, and its
+  // absence there is refused below as `invalid_intent`. Everything else is exact.
+  const asksIntent = isObject && FOLLOW_UP_INTENT_PURPOSES.includes(input.purpose);
+  const allowedKeys = [
+    ...expectedKeys,
+    ...(isObject && FOLLOW_UP_MESSAGE_PURPOSES.includes(input.purpose) ? ["message"] : []),
+    ...(asksIntent ? ["intent"] : []),
+  ];
   if (!isObject || !keys.every((key) => allowedKeys.includes(key)) || !expectedKeys.every((key) => keys.includes(key))) {
     return json({ error: { code: "invalid_request", message: "Body contains unsupported or missing fields.", request_id: requestId } }, 400, requestId);
   }
@@ -181,9 +221,17 @@ export async function handleLeadRequest(request, {
     return json({ error: { code: "invalid_message", message: `Your message must be ${MAX_FOLLOW_UP_MESSAGE_LENGTH} characters or fewer.`, request_id: requestId } }, 422, requestId);
   }
 
+  if (asksIntent && !isFollowUpIntent(input.intent)) {
+    return json({ error: { code: "invalid_intent", message: "Choose one of the listed things to discuss.", request_id: requestId } }, 422, requestId);
+  }
+
   try {
-    const created = await store.capture(email, input.purpose, now(), expectedTopic ?? null, message ?? null);
-    return json({ captured: true, created, purpose: input.purpose }, created ? 201 : 200, requestId);
+    const stored = await store.capture(email, input.purpose, now(), expectedTopic ?? null, message ?? null,
+      asksIntent ? input.intent : null);
+    // `intent` is what the row holds after the write, read back by the store.
+    const body = { captured: true, created: stored.created, purpose: input.purpose };
+    if (asksIntent) body.intent = isFollowUpIntent(stored.intent) ? stored.intent : null;
+    return json(body, stored.created ? 201 : 200, requestId);
   } catch {
     // Correlatable in platform logs without copying a driver message that may
     // contain connection or schema detail into the event.

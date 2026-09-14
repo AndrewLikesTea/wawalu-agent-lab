@@ -26,10 +26,19 @@ const TIMEOUT_MS = 10000;
  * same questions in the same order: what to type, what a rejection means, and
  * what is and is not known when nothing answered.
  */
-const UNREADABLE_CODES = ["invalid_request", "invalid_purpose", "invalid_json", "unsupported_media_type", "method_not_allowed", "invalid_message", "invalid_topic"];
+const UNREADABLE_CODES = ["invalid_request", "invalid_purpose", "invalid_json", "unsupported_media_type", "method_not_allowed", "invalid_message", "invalid_topic", "invalid_intent"];
 
 // One limit for both halves: src/leads.js imports it rather than repeating it.
 export const MAX_FOLLOW_UP_MESSAGE_LENGTH = 200;
+
+// What a visitor wants to discuss, value to label, for both halves as well.
+export const FOLLOW_UP_INTENTS = Object.freeze({
+  availability_pricing: "Availability or pricing",
+  demo: "A product demonstration",
+  pilot: "A pilot evaluation",
+  security_data: "Security or data handling",
+});
+export const isFollowUpIntent = (value) => typeof value === "string" && Object.hasOwn(FOLLOW_UP_INTENTS, value);
 
 // Keyed by the contract's application `error.code` enum. Every one of these
 // means the address is definitely not stored, so the copy can say so.
@@ -74,6 +83,7 @@ export const FIELD_NOTE_COPY = Object.freeze({
 export const CONTACT_COPY = Object.freeze({
   emptyEmail: "Enter your work email to request a Shiplog follow-up.",
   invalidEmail: "Enter a valid work email address to request a Shiplog follow-up.",
+  emptyIntent: "Choose what you want to discuss to request a Shiplog follow-up.",
   rejected: rejectedCopy({
     invalidEmail: "No request was sent: that address wasn’t accepted. Check it and submit again.",
     unreadable: "No request was sent because it couldn’t be read. Reload the page and try again.",
@@ -103,11 +113,11 @@ export const CONTACT_COPY = Object.freeze({
 export const FOLLOW_UP_PRIVACY = "The work email address you type here goes to the Wawalu team that "
   + "operates Shiplog; nothing else on this page is sent.";
 
-// The same claim on a form that also offers a message box, which cannot say
-// nothing else is sent. It lists the three arguments `postLeadEmail` builds the
-// body from instead, which is still everything with a route to the wire.
-export const FOLLOW_UP_PRIVACY_WITH_MESSAGE = "The work email address you type here goes to the Wawalu "
-  + "team that operates Shiplog; only that address, this fixed follow-up topic, and the message you type are sent.";
+// The same claim on a form that also asks what to discuss and offers a message
+// box, which cannot say nothing else is sent. It lists the four arguments
+// `postLeadEmail` builds the body from instead: everything with a route to the wire.
+export const FOLLOW_UP_PRIVACY_WITH_MESSAGE = "The work email address you type here goes to the Wawalu team that "
+  + "operates Shiplog; only that address, this fixed follow-up topic, what you want to discuss, and the message you type are sent.";
 
 // One refusal for both message fields: how long, how far over, and the limit.
 export function overLengthMessage(length, max = MAX_FOLLOW_UP_MESSAGE_LENGTH) {
@@ -161,12 +171,12 @@ export function resolveFailure(response, body, copy) {
   return { message: copy.unconfirmed, reason: "unconfirmed" };
 }
 
-// Sends the address, routing label, optional fixed topic, optional message.
-export async function postLeadEmail(request, email, purpose, copy, topic = null, message = null) {
+// Sends the address, routing label, optional fixed topic, message and intent.
+export async function postLeadEmail(request, email, purpose, copy, topic = null, message = null, intent = null) {
   const response = await request(ENDPOINT, {
     method: "POST",
     headers: { "content-type": "application/json", accept: "application/json" },
-    body: JSON.stringify({ email, purpose, ...(topic && { topic }), ...(message && { message }) }),
+    body: JSON.stringify({ email, purpose, ...(topic && { topic }), ...(message && { message }), ...(intent && { intent }) }),
     // Without this a hung request strands the visitor on "Submitting…"
     // with the control disabled and no way to recover.
     signal: globalThis.AbortSignal?.timeout?.(TIMEOUT_MS),
@@ -184,7 +194,9 @@ export async function postLeadEmail(request, email, purpose, copy, topic = null,
   const legacy = typeof body?.subscribed === "boolean" ? body.subscribed : null;
   const confirmed = body?.captured === true && typeof body.created === "boolean";
   if (!confirmed && legacy === null) throw new SubmissionError(copy.unconfirmed, "unconfirmed");
-  return { captured: true, created: confirmed ? body.created : legacy, purpose };
+  // The intent the row holds after the write, never the one this call sent: a
+  // resubmission updates the row, and a receipt may name only what was stored.
+  return { captured: true, created: confirmed ? body.created : legacy, purpose, intent: isFollowUpIntent(body?.intent) ? body.intent : null };
 }
 
 // The browser's own shape check, for forms that cannot lean on the control's
