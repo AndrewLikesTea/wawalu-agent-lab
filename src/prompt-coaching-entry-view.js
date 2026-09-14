@@ -280,6 +280,12 @@ export function announceCoachingEntrySource(doc, source) {
   const section = byId(doc, SECTION_ID);
   const node = byId(doc, SOURCE_ID);
   if (!section || !node) return null;
+  const subject = !source || source === COACHING_ENTRY_EXAMPLE.source
+    ? "Bundled synthetic example" : "Your prompt";
+  const heading = byId(doc, "prompt-coaching-question");
+  if (heading) heading.textContent = `${subject} and its score`;
+  const guidance = byId(doc, "prompt-coaching-result-guidance");
+  if (guidance) guidance.textContent = `${subject === "Your prompt" ? subject : "The bundled synthetic example"} is graded against the prompt rubric bundled with this page.`;
   if (!source) {
     delete section.dataset.gradedSource;
     node.textContent = "";
