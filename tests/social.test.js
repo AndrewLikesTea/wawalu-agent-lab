@@ -1673,8 +1673,7 @@ const foldedAway = (node) => {
 // #2278: the composer called itself "this form", "here" and "this panel", and
 // promised twice that the draft is kept. One noun, one sentence, both exits.
 const COMPOSER_KEPT_HINT = "Escape or Close hides the composer, and your draft stays in this tab "
-  + "while the composer is closed or you work in another tab, such as Paint. "
-  + "While publishing, wait for the result before closing.";
+  + "while the composer is closed or you work in another tab, such as Paint.";
 
 // Read with the composer open because that is the state in which both the flow
 // opener and the final submit action are on screen at once — and the state in
@@ -2197,7 +2196,7 @@ test("publishing the drawing empties the composer, and reopening it offers no le
   assert.equal(id("post-image").value, "");
 });
 
-test("the composer says once, in its own name and where it opens, that the draft is kept", async (t) => {
+test("the composer says once, in its own name and beside Close, that the draft is kept", async (t) => {
   const { document, id } = await socialDisclosure(t);
   id("post-compose-open").click();
   const note = id("post-keyboard-hint");
@@ -2211,19 +2210,30 @@ test("the composer says once, in its own name and where it opens, that the draft
   assert.equal(note.tagName, "P");
   assert.equal(foldedAway(note), false, "the sentence only renders inside something collapsed");
 
-  // Inside the composer, and in its reading order: announced with the form, and
-  // printed between the composer's heading and its first field.
+  // Inside the composer, after the fields and described by Close.
   for (let cursor = note; ; cursor = cursor.parentNode) {
     assert.ok(cursor, "the sentence is not inside the composer");
     if (cursor.getAttribute?.("id") === "post-compose-panel") break;
   }
   assert.deepEqual(id("post-form").getAttribute("aria-describedby").split(" "),
-    ["post-form-hint", "post-keyboard-hint"]);
+    ["post-form-hint"]);
   const order = documentOrder(document);
   assert.ok(order.indexOf(id("post-form-title")) < order.indexOf(note),
     "the sentence is read before the composer's heading");
-  assert.ok(order.indexOf(note) < order.indexOf(id("post-body")),
-    "the sentence has drifted past the composer's first field");
+  assert.ok(order.indexOf(id("post-author")) < order.indexOf(note),
+    "close guidance must follow the fields");
+  const siblings = id("post-form").childElements;
+  assert.ok(siblings[siblings.indexOf(id("post-compose-cancel")) + 1] === note,
+    "the sentence parts Publish post from Close instead of following Close");
+  assert.equal(id("post-compose-cancel").getAttribute("aria-describedby"), "post-keyboard-hint");
+  const opening = textOf(id("post-compose-panel")).split("Your post (required)")[0]
+    .replace("Publish a post", "").trim();
+  assert.equal(opening, textOf(id("post-form-hint")));
+  assert.equal(opening.match(/[.!?](?:\s|$)/g).length, 2);
+  assert.doesNotMatch(opening, /Escape|Close|tabs?|draft|wait/i);
+  for (const format of ["PNG", "JPEG", "GIF", "WebP"]) {
+    assert.equal(textOf(id("post-compose-panel")).split(format).length - 1, 1);
+  }
 
   // Said once on the page, and the composer makes the draft promise in exactly
   // one sentence, under exactly one name.

@@ -383,7 +383,7 @@ test("the composer numbers the round trip and puts the rule beside the control",
   const items = steps.querySelectorAll("li");
   assert.deepEqual(items.map(textOf), [
     "Create or open an image in Paint (opens in a new tab) ↗",
-    "Select “Use this image in a Social post” in Paint, or export a PNG and select it using “Choose image”",
+    "Select “Use this image in a Social post” in Paint, or export an image and select it using “Choose image”",
   ]);
   assert.equal(textOf(documents.Social.querySelector("body")).split("Select Choose image").length - 1, 0,
     "the composer still instructs the reader to select the button beside the instruction");
@@ -512,7 +512,7 @@ test("the composer names the round trip in the order it is taken, once", () => {
     "the composer asks for the Paint action before the drawing");
   // #2298: the one-step action from Paint leads, and exporting and choosing the
   // file by hand is the fallback after it.
-  assert.ok(at("Use this image in a Social post") < at("export a PNG and select it using “Choose image”"),
+  assert.ok(at("Use this image in a Social post") < at("export an image and select it using “Choose image”"),
     "the manual route is offered ahead of the one-step action");
   // #2294: the list ends on the picker it leads into and no longer points back
   // "above" at it. Describing the image and publishing it are said at the
@@ -573,7 +573,7 @@ test("the sequence names the image picker and leaves publishing to the button", 
   const label = textOf(documents.Social.querySelector('label[for="post-image"]'));
   assert.equal(label, "Choose image");
   assert.ok(last.includes(label));
-  assert.equal(last, "Select “Use this image in a Social post” in Paint, or export a PNG and select it using “Choose image”");
+  assert.equal(last, "Select “Use this image in a Social post” in Paint, or export an image and select it using “Choose image”");
   assert.doesNotMatch(textOf(documents.Social.getElementById("post-image-steps")), /Publish/,
     "the steps name the publish press ahead of the fields again");
   assert.equal(textOf(documents.Social.querySelector('button[type="submit"]')), "Publish post");
@@ -710,11 +710,11 @@ test("nothing in the image section says Paint delivers the file", () => {
   // section never says the file arrives, is attached, or is waiting.
   assert.doesNotMatch(section, /\b(from Paint|your image) is (attached|ready|waiting)\b/i, section);
 
-  // The reassurance about the round trip is made once, where the composer opens,
+  // The reassurance about the round trip is made once, beside Close,
   // and still covers both the other tab and the closed composer (#2278). The
   // image section no longer repeats it.
   assert.equal(textOf(documents.Social.getElementById("post-keyboard-hint")),
-    "Escape or Close hides the composer, and your draft stays in this tab while the composer is closed or you work in another tab, such as Paint. While publishing, wait for the result before closing.");
+    "Escape or Close hides the composer, and your draft stays in this tab while the composer is closed or you work in another tab, such as Paint.");
   assert.doesNotMatch(section, /draft|kept here|other tab/i,
     `the image section makes the draft promise a second time: ${section}`);
 });

@@ -961,8 +961,8 @@ export function mountImageDescription(root) {
 // reader left it. Nothing is written down: this is memory for this tab, so the
 // panel's own state is the whole mechanism and there is no second store to keep
 // in step with it, no storage promise to answer for, and no draft waiting on a
-// shared machine after the visitor closes the tab. The sentence beside the
-// Paint steps in src/social.html is this paragraph, said to the visitor.
+// shared machine after the visitor closes the tab. The sentence after Close in
+// src/social.html is this paragraph, said to the visitor.
 export function mountComposerDisclosure(root, { isSubmitting = () => false } = {}) {
   const trigger = root.querySelector("#post-compose-open");
   const panel = root.querySelector("#post-compose-panel");

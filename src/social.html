@@ -376,27 +376,8 @@
                the explanation rather than in the middle of the form. -->
           <div class="paint-arrival" id="paint-arrival" role="status" tabindex="-1" hidden></div>
 
-          <form id="post-form" aria-labelledby="post-form-title" aria-describedby="post-form-hint post-keyboard-hint">
+          <form id="post-form" aria-labelledby="post-form-title" aria-describedby="post-form-hint">
             <p class="hint" id="post-form-hint">Write your post. Add an image if you want one — a post with an image also appears on People, under the display name you publish it with.</p>
-            <!-- The escape route, said once, at the top, where the reader is
-                 standing when the composer opens. It is the second half of this
-                 form's aria-describedby, so the order it is announced in is the
-                 order it is printed in, and the two action buttons at the foot
-                 stay next to each other instead of having a paragraph between
-                 them. Naming it here and not on Close is deliberate: the
-                 sentence is about the whole form, and repeating it on the one
-                 control whose label already says "Close" spends a second
-                 announcement on news the reader has had.
-                 It is also the one place the draft promise is made (#2278). A
-                 second note beside the Paint steps made it again in other nouns
-                 — "here", "this panel" — so the composer had three names for
-                 itself and two copies of one promise. One sentence now covers
-                 both exits, closing and leaving for Paint, because both are the
-                 same mechanism: the composer is hidden, never rebuilt, so its
-                 fields keep what is in them while this tab is open. It says
-                 "stays in this tab" and not "saved": nothing is written to
-                 storage, and a reload starts a fresh draft. -->
-            <p class="hint" id="post-keyboard-hint">Escape or Close hides the composer, and your draft stays in this tab while the composer is closed or you work in another tab, such as Paint. While publishing, wait for the result before closing.</p>
 
             <div class="field field-wide">
               <!-- First, because the hint above says "Write your post. Add an
@@ -459,7 +440,7 @@
                    still names these steps. -->
               <ol class="hint" id="post-image-steps">
                 <li><a class="secondary-button paint-link" href="/paint/" target="_blank" rel="noopener">Create or open an image in Paint <span class="new-tab-note">(opens in a new tab)</span> <span aria-hidden="true">↗</span></a></li>
-                <li>Select “Use this image in a Social post” in Paint, or export a PNG and select it using “Choose image”</li>
+                <li>Select “Use this image in a Social post” in Paint, or export an image and select it using “Choose image”</li>
               </ol>
               <div class="media-source-actions">
                 <label class="secondary-button file-button" for="post-image">Choose image
@@ -649,8 +630,11 @@
                  unless a submission is in flight — closing then would hide the
                  only region that is going to say how it ended. A publish that
                  succeeds does NOT close the panel either: the receipt below is
-                 where focus goes, and it lives in here. -->
-            <button class="text-button" id="post-compose-cancel" type="button">Close</button>
+                 where focus goes, and it lives in here. Its sentence follows it,
+                 as every hint in this form follows its control, so the one-column
+                 layout never parts Publish post from Close (#2349). -->
+            <button class="text-button" id="post-compose-cancel" type="button" aria-describedby="post-keyboard-hint">Close</button>
+            <p class="hint" id="post-keyboard-hint">Escape or Close hides the composer, and your draft stays in this tab while the composer is closed or you work in another tab, such as Paint.</p>
             <p class="notice submit-feedback" id="social-notice" role="status" aria-live="polite" aria-atomic="true" hidden></p>
           </form>
         </div>
