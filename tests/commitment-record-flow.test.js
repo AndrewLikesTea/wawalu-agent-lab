@@ -339,7 +339,7 @@ test("the entry point is keyboard-reachable, labelled, and responsive", async ()
   try {
     // The disclosures are native details with named summaries, so they are
     // operable from the keyboard and exposed with their own state.
-    const summaries = page.document.querySelectorAll("summary");
+    const summaries = page.document.querySelectorAll("summary").filter((node) => !node.closest(".site-nav"));
     assert.deepEqual(summaries.map((node) => textOf(node)), [
       "Inspect confidence and the supporting calculation",
       "Inspect provenance and what was set aside",

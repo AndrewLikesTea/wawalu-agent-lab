@@ -19,7 +19,7 @@ import { DEFAULT_DESTINATION, DESTINATION_FRAGMENT } from "../src/finops-workspa
 // `title` is the browser title, listed here so it cannot drift from the name
 // the nav gives the same surface.
 const PAGES = [
-  { file: "index.html", current: "/", title: "Shiplog · decision and release log" },
+  { file: "index.html", current: "/index.html", title: "Shiplog · decision and release log" },
   { file: "decision.html", current: "/", title: "Decision · Shiplog" },
   { file: "workspace.html", current: "/", title: "Local workspace · Shiplog" },
   { file: "social.html", current: "/social.html", title: "Social · Shiplog" },
@@ -450,8 +450,8 @@ test("a detail page marks the section it belongs to, and the root marks only its
   assert.equal(navCurrentFor("/post.html?id=p-2"), "/social.html");
   assert.equal(navCurrentFor("/agent-trace.html?trace=t-1"), "/agents.html");
   assert.equal(navCurrentFor("/paint/"), "/paint/", "a directory destination owns its subtree");
-  assert.equal(navCurrentFor("/"), "/");
-  assert.equal(navCurrentFor("/index.html"), "/");
+  assert.equal(navCurrentFor("/"), "/index.html");
+  assert.equal(navCurrentFor("/index.html"), "/index.html");
   // "/" is a prefix of every path on this site. Matching it as one would mark
   // Decisions current on all eight destinations.
   for (const path of ["/social.html", "/releases.html", "/evolution.html", "/coach.html", "/agents.html"]) {
@@ -665,7 +665,7 @@ test("at 390px the nav still shows the mark, and the page does not scroll sidewa
   assert.match(phone, /main,\.page\{width:calc\(100% - 24px\)/, "the page column must stay inside a 390px viewport");
   const nav = phone.match(/\.site-nav\{([^}]*)\}/)[1];
   assert.match(nav, /width:100%/);
-  assert.match(nav, /overflow-x:auto/, "the row scrolls rather than pushing the page wide");
+  assert.doesNotMatch(nav, /overflow-x:auto/, "the groups wrap without a horizontal scroll region");
   assert.doesNotMatch(nav, /overflow:hidden|text-overflow|white-space:nowrap/, "the row must not clip what it cannot fit");
   // The mark is an *inset* shadow, so it scrolls with its item and no overflow
   // container can cut it off. What a scroll container can cut off is the focus

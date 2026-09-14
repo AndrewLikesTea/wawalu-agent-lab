@@ -35,48 +35,22 @@
 // carries no prefix of its own on purpose — "/" is a prefix of every path on
 // the site, so matching it that way would mark Decisions current everywhere.
 //
-// The order below is DEMOS in src/site-footer.js, destination for destination.
-// It used to lead with Decisions while the footer band led with AI FinOps and
-// the home page's hero named AI FinOps as where to start, so the two lists of
-// the same eight doors disagreed about priority on every page — and the reader
-// who read both had no way to tell which one meant it. There is one priority
-// here now, stated once at the top of the page and again at the bottom: the
-// surfaces that run on a visitor's own material first, the demonstrations after
-// them. tests/site-footer.test.js compares the two tables, and the ordering is
-// the footer's because that is the list the home page's "start here" points at.
-// THE ROW SAYS WHICH DOORS ARE FOR THE READER'S OWN WORK (#1537). Eight names
-// in one flat row said nothing about the one difference that decides where a
-// visitor should start: four of these surfaces run on material the reader
-// brings — a spend export, their own prompts, their own decisions and releases
-// — and four are demonstrations on sample data. A reader scanning the row had
-// to open a destination to find out which kind it was, and the ones who opened
-// Social first concluded the whole site was a demo.
-//
-// So the row is two named groups now, in the order the site already ranks them:
-// the surfaces that run on your own work, then the demonstrations. `set` on
-// each destination below says which group it is in, which means a new
-// destination cannot be added without deciding — the generator renders nothing
-// for a destination whose `set` matches no group.
-//
-// The names are plain text in the row: no hover, no summary element to open, no
-// title attribute, and no screen-reader-only class. A grouping a sighted
-// scanning reader cannot see is not the grouping this issue asked for. Each
-// group's list carries `aria-labelledby` pointing at its name, so a screen
-// reader announces the same two groups rather than one list of eight.
-//
-// What did not change: the order, the labels, the hrefs, and the tab order. The
-// names are spans, so the row still holds exactly eight tab stops.
+// Shiplog's path stays visible; unrelated lab tools use a native disclosure.
+// Static HTML keeps both groups usable when scripts fail or are disabled.
 export const NAV_SETS = [
-  { key: "own", id: "nav-set-own", label: "Runs on your own work" },
-  { key: "demo", id: "nav-set-demo", label: "Demos" },
+  { key: "primary", id: "nav-set-own", label: "Shiplog" },
+  { key: "secondary", id: "nav-set-demo", label: "More lab tools" },
 ];
 
 export const SITE_NAV = [
+  { href: "/index.html", label: "Home", set: "primary" },
+  { href: "/", label: "Decisions", fragment: "decisions-title", set: "primary", section: ["/decision.html", "/workspace.html"] },
+  { href: "/releases.html", label: "Releases", set: "primary", section: ["/release.html"] },
   {
     href: "/evolution.html",
     label: "AI FinOps",
     className: "nav-evolution",
-    set: "own",
+    set: "secondary",
     // One door, and it opens on the answer rather than on the way to it. The
     // page's top is a hero and a five-destination rail, so a reader who clicked
     // "AI FinOps" arrived at a choice; `fragment` lands them on the answer.
@@ -110,13 +84,11 @@ export const SITE_NAV = [
   // sits beside AI FinOps because that is the surface it is closest to, and it
   // is a peer rather than a subordinate because neither one is a view of the
   // other.
-  { href: "/coach.html", label: "Prompt coach", className: "nav-coach", set: "own", section: ["/personal-history.html"] },
-  { href: "/", label: "Decisions", set: "own", section: ["/index.html", "/decision.html", "/workspace.html"] },
-  { href: "/releases.html", label: "Releases", set: "own", section: ["/release.html"] },
-  { href: "/social.html", label: "Social", className: "nav-social", group: "social", set: "demo", section: ["/post.html"] },
-  { href: "/profile.html", label: "People", className: "nav-profile", group: "social", set: "demo", subordinate: true },
-  { href: "/paint/", label: "Paint", set: "demo" },
-  { href: "/agents.html", label: "Agent observatory", set: "demo", section: ["/agent-trace.html"] },
+  { href: "/coach.html", label: "Prompt coach", className: "nav-coach", set: "secondary", section: ["/personal-history.html"] },
+  { href: "/social.html", label: "Social", className: "nav-social", group: "social", set: "secondary", section: ["/post.html"] },
+  { href: "/profile.html", label: "People", className: "nav-profile", group: "social", set: "secondary", subordinate: true },
+  { href: "/paint/", label: "Paint", set: "secondary" },
+  { href: "/agents.html", label: "Agent observatory", set: "secondary", section: ["/agent-trace.html"] },
 ];
 
 export const SITE_NAV_LABELS = SITE_NAV.map((link) => link.label);
@@ -141,6 +113,7 @@ export function navParentOf(href) {
 // better than marking the front door.
 export function navCurrentFor(url) {
   const path = String(url ?? "/").split(/[?#]/)[0] || "/";
+  if (path === "/" || path === "/index.html") return "/index.html";
   const owns = (link) => {
     if (path === link.href) return true;
     if (link.href.endsWith("/") && link.href !== "/") return path.startsWith(link.href);
@@ -188,14 +161,20 @@ export function siteNavMarkup(current = null, indent = "        ") {
   // `role="list"` is not redundant: the group lists carry list-style:none, which
   // is enough for Safari to drop the list role and with it the count and the
   // group's announced name.
-  const lines = NAV_SETS.flatMap(({ key, id, label }) => [
-    `${pad(1)}<div class="nav-set">`,
-    `${pad(2)}<span class="nav-set-name" id="${id}">${label}</span>`,
-    `${pad(2)}<ul role="list" aria-labelledby="${id}">`,
-    ...SITE_NAV.filter((link) => link.set === key && !link.subordinate).flatMap((link) => item(link, 3)),
-    `${pad(2)}</ul>`,
-    `${pad(1)}</div>`,
-  ]);
+  const lines = NAV_SETS.flatMap(({ key, id, label }) => {
+    const secondary = key === "secondary";
+    const container = secondary ? "details" : "div";
+    const name = secondary ? "summary" : "span";
+    const expanded = secondary && SITE_NAV.some((link) => link.set === key && link.href === current);
+    return [
+      `${pad(1)}<${container}${expanded ? " open" : ""} class="nav-set">`,
+      `${pad(2)}<${name} class="nav-set-name" id="${id}">${label}</${name}>`,
+      `${pad(2)}<ul role="list" aria-labelledby="${id}">`,
+      ...SITE_NAV.filter((link) => link.set === key && !link.subordinate).flatMap((link) => item(link, 3)),
+      `${pad(2)}</ul>`,
+      `${pad(1)}</${container}>`,
+    ];
+  });
   return [
     // "Site", not the product name: these pages also carry in-page navigation
     // (the AI FinOps workspace rail) and tab-like controls, and a reader

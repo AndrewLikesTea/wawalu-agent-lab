@@ -143,7 +143,7 @@ test("activating the skip link goes to the landmark, past every site-frame tab s
     // Counted from the nav itself rather than written down: a destination added
     // to the link set changes what one press is worth, and this number moving
     // with it is the point.
-    assert.equal(skipped.length, SITE_NAV.length + 1,
+    assert.equal(skipped.length, SITE_NAV.length + 2,
       `${file}: expected the wordmark and every nav link to be skipped`);
     assert.ok(skipped.every((stop) => stop.closest(".site-header")), `${file}: a content control sits outside <main>`);
 
@@ -340,7 +340,7 @@ test("the main landmark rings for keyboard focus only, never for a mouse click",
 // The skip link, the wordmark, the nav, and the two onward routes the page
 // offers before its lookup has answered. People is the only exit missing here:
 // it needs a display name nobody has yet.
-const FRAME_STOPS = SITE_NAV.length + 4;
+const FRAME_STOPS = SITE_NAV.length + 5;
 
 test("the post page's loading tab order reaches Social without a placeholder People link", async () => {
   const document = await load("post.html");
@@ -351,7 +351,9 @@ test("the post page's loading tab order reaches Social without a placeholder Peo
     [
       SKIP_TEXT,
       "Shiplog",
-      ...SITE_NAV.map((link) => link.label),
+      ...SITE_NAV.slice(0, 3).map((link) => link.label),
+      "More lab tools",
+      ...SITE_NAV.slice(3).map((link) => link.label),
       "Open Social to read the whole feed",
       "Open Social to publish a post",
     ],

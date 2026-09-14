@@ -149,7 +149,7 @@ test("each wait names a control that is on the page while its fetch is open", as
   // destination half rather than a second literal.
   const route = people.document.querySelector(".nav-social");
   assert.equal(route.getAttribute("href"), "/social.html");
-  assert.equal(collapsibleAncestor(route), null, "the wait names a route folded inside a disclosure");
+  assert.equal(route.closest("details").hasAttribute("open"), true, "the secondary navigation starts open on People, keeping Social visible during loading");
   const routeLabel = textOf(route);
   assert.ok(routeLabel.length > 0, "the route the wait names renders no label");
   assert.ok(loadingSummaryText().includes(`${composeLabel} on ${routeLabel}`),

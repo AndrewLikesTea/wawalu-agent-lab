@@ -14,7 +14,7 @@ import {
   SEED_DECISIONS,
   SEED_RELEASES,
 } from "../src/seed-records.js";
-import { NAV_SETS, SITE_NAV } from "../src/site-nav.js";
+import { SITE_NAV } from "../src/site-nav.js";
 import { buildStandHeadline } from "../src/finops-stand.js";
 import { parseHtml, pressEnter, pressTab, textOf } from "./support/browser.js";
 
@@ -290,8 +290,8 @@ test("the home page names every nav destination and says what each one does", as
   // found by its href instead of by its position — but the count still has to
   // match, so a regrouping cannot quietly drop one.
   const entries = [...guide.querySelectorAll("li")];
-  assert.equal(entries.length, SITE_NAV.length);
-  for (const { href, label } of SITE_NAV) {
+  assert.equal(entries.length, SITE_NAV.length - 1);
+  for (const { href, label } of SITE_NAV.filter((link) => link.label !== "Home")) {
     const matches = entries.filter((entry) => entry.querySelector("a").getAttribute("href") === href);
     assert.equal(matches.length, 1, `"${label}" must appear exactly once, linking to ${href}`);
     const link = matches[0].querySelector("a");
@@ -328,7 +328,7 @@ test("the home page names every nav destination and says what each one does", as
   const headings = [...guide.querySelectorAll("h3")];
   assert.deepEqual(headings.map(textOf), ["The Shiplog product", "Browser tools", "Demos"],
     "the destinations must be split into product, browser tools, and demonstrations, in that order");
-  assert.equal(textOf(headings[2]), NAV_SETS[1].label,
+  assert.equal(textOf(headings[2]), "Demos",
     "the demonstration group must keep the nav's name for that family, word for word");
   // The product group answers "what would I be buying" without a click, and the
   // tools group says it is neither part of that product nor required by it.

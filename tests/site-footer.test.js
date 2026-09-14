@@ -377,7 +377,7 @@ test("the footer is a site map: every destination the navigation offers, each on
     // A row the navigation has no door for is the one exception, and it has to
     // declare itself: `filedUnder` names the destination src/site-nav.js files
     // it inside, and the two tables are checked against each other there too.
-    const navLabels = SITE_NAV.map((link) => link.label);
+    const navLabels = SITE_NAV.filter((link) => link.label !== "Home").map((link) => link.label);
     const sorted = (labels) => [...labels].sort();
     const filed = DEMOS.filter((demo) => demo.filedUnder);
     assert.deepEqual(sorted(DEMOS.filter((demo) => !demo.filedUnder).map((demo) => demo.label)), sorted(navLabels),
