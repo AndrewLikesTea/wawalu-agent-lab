@@ -108,8 +108,8 @@ test("a post that loads is headed by its display name and reads description, ima
   const page = await openPostPage("?id=p-image", seedOnly([SEED_POST]));
   try {
     const { document } = page;
-    assert.equal(textOf(document.querySelector("#page-title")), "Mina Okafor's post");
-    assert.equal(document.title, "Mina Okafor's post · Social · Shiplog");
+    assert.equal(textOf(document.querySelector("#page-title")), "Mina Okafor's Social post");
+    assert.equal(document.title, "Mina Okafor's Social post · Social · Shiplog");
 
     const article = page.panel.querySelector("article");
     const time = article.querySelector("time");
@@ -144,14 +144,27 @@ test("a post that loads is headed by its display name and reads description, ima
 
 test("the loaded heading and title safely reuse the card's exact display name", async () => {
   const displayName = `Ada <Admin> "Q"`;
-  const page = await openPostPage("?id=p-image", seedOnly([{ ...SEED_POST, author: displayName }]));
+  const page = await openPostPage("?id=p-image", seedOnly([{ ...SEED_POST, author: `  ${displayName}  ` }]));
   try {
     assert.equal(textOf(page.panel.querySelector(".detail-author-link")), displayName);
-    assert.equal(textOf(page.document.querySelector("#page-title")), `${displayName}'s post`);
-    assert.equal(page.document.title, `${displayName}'s post · Social · Shiplog`);
+    assert.equal(textOf(page.document.querySelector("#page-title")), `${displayName}'s Social post`);
+    assert.equal(page.document.title, `${displayName}'s Social post · Social · Shiplog`);
     assert.equal(page.document.querySelectorAll("admin").length, 0, "angle brackets must remain text");
   } finally {
     page.restore();
+  }
+});
+
+test("unusable publisher names leave a generic heading and title", async () => {
+  for (const author of [undefined, null, "", "   ", 42, {}]) {
+    const page = await openPostPage("?id=p-image", seedOnly([{ ...SEED_POST, author }]));
+    try {
+      assert.equal(textOf(page.document.querySelector("#page-title")), "Social post");
+      assert.equal(page.document.title, "Social post · Social · Shiplog");
+      assertIdentityStands(page.document, "unusable publisher name");
+    } finally {
+      page.restore();
+    }
   }
 });
 
@@ -248,7 +261,7 @@ test("arriving from a profile narrows the People link, and changes no words", as
     assertExits(page, MINA, "from a profile");
     // Where the reader came from does not rename anything. The labels are the
     // same two the page ships for a visitor who has never seen either surface.
-    assert.equal(textOf(page.document.querySelector("#page-title")), "Mina Okafor's post");
+    assert.equal(textOf(page.document.querySelector("#page-title")), "Mina Okafor's Social post");
   } finally {
     page.restore();
   }
@@ -261,13 +274,13 @@ test("an unknown id is named as a missing post, with the feed still the way out"
     assert.match(textOf(page.panel), /This shared link may be unavailable, or the post may no longer be in Social\./);
     assert.doesNotMatch(textOf(page.panel), /removed|private|signed-in|your post/i);
     assert.doesNotMatch(textOf(page.panel), /Display names on the posts/);
-    // No post, no author: the h1 is the page's name, the noun on Open post.
-    assert.equal(textOf(page.document.querySelector("#page-title")), "Post");
+    // No post, no author: the h1 keeps the generic label it shipped with.
+    assert.equal(textOf(page.document.querySelector("#page-title")), "Social post");
     assert.doesNotMatch(textOf(page.panel), /Try again/);
     assert.equal(page.panel.getAttribute("role"), "status");
     assert.equal(page.panel.getAttribute("aria-live"), "polite");
     assert.equal(page.panel.querySelector(".detail-state-message").getAttribute("role"), null);
-    assert.equal(page.document.title, "Post · Social · Shiplog");
+    assert.equal(page.document.title, "Social post · Social · Shiplog");
     // No post, so no display name the People link's words could be about: the
     // feed is the one route this state offers.
     assertExits(page, null, "not found");
@@ -332,7 +345,7 @@ test("a failed lookup names the feed it could not reach, and retry can recover",
     assert.deepEqual(errorFeed.map(textOf), ["Go to the Social feed", SOCIAL.label]);
     assert.doesNotMatch(textOf(page.panel), /private|signed-in|your post/i);
     assertExits(page, null, "failed");
-    assert.equal(page.document.title, "Post · Social · Shiplog");
+    assert.equal(page.document.title, "Social post · Social · Shiplog");
 
     const retry = page.panel.querySelector("button");
     assert.equal(textOf(retry), "Retry the shared post");
@@ -347,7 +360,7 @@ test("a failed lookup names the feed it could not reach, and retry can recover",
     await waitFor(page.settled, "the retry finished");
 
     assert.ok(page.requests.length > before, "the retry must actually re-run the fetch");
-    assert.equal(textOf(page.document.querySelector("#page-title")), "Mina Okafor's post");
+    assert.equal(textOf(page.document.querySelector("#page-title")), "Mina Okafor's Social post");
     assert.equal(textOf(page.panel.querySelector("figcaption")), "The middle card, ringed.");
     assert.doesNotMatch(textOf(page.panel), /could not be reached/);
     assert.equal(page.panel.dataset.postState, "loaded");
@@ -458,8 +471,8 @@ test("the loading state is one announced line in the post's region, and takes no
     assert.doesNotMatch(textOf(panel), /Display names on the posts/);
     // Nothing is named yet, so the h1 names the page — the same words a reader
     // sees in the shipped markup before any script runs.
-    assert.equal(textOf(page.document.querySelector("#page-title")), "Post");
-    assert.equal(page.document.title, "Post · Social · Shiplog");
+    assert.equal(textOf(page.document.querySelector("#page-title")), "Social post");
+    assert.equal(page.document.title, "Social post · Social · Shiplog");
     // The state says the wait once, in words, and holds the post's shape under
     // it: no chip, no heading, no second explanation.
     assert.equal(panel.querySelectorAll(".detail-state-message").length, 0);
@@ -549,7 +562,7 @@ test("the page opens already saying it is loading, and the post replaces that li
     assert.equal(panel.querySelectorAll(".detail-post").length, 1);
     assert.equal(panel.getAttribute("aria-busy"), "false");
     assert.doesNotMatch(textOf(panel), /Loading this post/);
-    assert.equal(textOf(page.document.querySelector("#page-title")), "Mina Okafor's post");
+    assert.equal(textOf(page.document.querySelector("#page-title")), "Mina Okafor's Social post");
   } finally {
     page.restore();
   }

@@ -124,7 +124,7 @@ test("the post is the first thing in the content region, under the heading that 
   const post = blocks.findIndex((node) => node.getAttribute("aria-label") === "Post");
   assert.ok(post >= 0, "the content region has no post region");
   assert.deepEqual(blocks.slice(0, post).map((node) => node.tagName), ["P", "H1", "P"]);
-  assert.equal(textOf(blocks[post - 2]), "Post");
+  assert.equal(textOf(blocks[post - 2]), "Social post");
   const lead = textOf(blocks[post - 1]);
   assert.equal(lead.split(/[.!?]/).filter((part) => part.trim()).length, 1,
     "one short sentence stands between the heading and the post, not a paragraph");

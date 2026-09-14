@@ -597,31 +597,23 @@ export function renderPostDetail(container, post, options = {}) {
 
 // The page heading names the post the way a reader would: by who wrote it. The
 // post record carries no title of its own, so the poster's display name is the
-// only durable name it has. The possessive phrase makes clear that this is a
-// post, not the display name's People page. It is also the exact phrase
-// postDetailTitle() puts in the tab, so the heading and the tab name the same
-// thing. The date and caption sit in the article underneath.
-//
-// With no author to name — while the lookup is still running, and afterwards if
-// it found nothing — the heading is the page's name, "Post": the noun in the
-// Open post control on Social and People that leads here. The eyebrow above it
-// says Social, so the surface is named without repeating it in the heading.
+// only durable name it has. The heading and tab identify it as a Social post.
+// Until a usable display name is available, both use the generic page name.
 export function postDisplayName(post) {
-  return String(post?.author ?? "").trim();
+  return typeof post?.author === "string" ? post.author.trim() : "";
 }
 
 export function postPageHeading(post) {
   const displayName = postDisplayName(post);
-  return displayName ? `${displayName}'s post` : "Post";
+  return displayName ? `${displayName}'s Social post` : "Social post";
 }
 
 // Same shape as the decision detail's title — the record, then the surface the
-// nav names, then the product. src/post.html ships titled "Post · Social ·
+// nav names, then the product. src/post.html ships titled "Social post · Social ·
 // Shiplog", which is what a reader sees until this runs.
 //
 // Until a post loads, every state keeps the shipped fallback title. Once it
 // loads, the same display-name value rendered in the byline names the tab.
 export function postDetailTitle(post) {
-  const displayName = postDisplayName(post);
   return pageTitle(postPageHeading(post), "Social");
 }

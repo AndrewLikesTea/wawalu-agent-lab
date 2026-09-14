@@ -50,7 +50,7 @@ const TEXT_POST = {
 // three of these must not appear anywhere in the page's text.
 const STATE_HEADLINES = {
   loading: "The post is loading.",
-  loaded: "Mina Okafor's post",
+  loaded: "Mina Okafor's Social post",
   "not-found": "Post unavailable",
   error: "Post could not be opened",
 };
@@ -390,7 +390,7 @@ test("retry re-attempts the fetch and can take the page from error to loaded", a
     assert.ok(page.requests.length > attempts, "the retry must re-run the fetch, not redraw the last answer");
     // error → loaded, with nothing of the failure left standing.
     assertOneState(page, "loaded", "after a retry that worked");
-    assert.equal(textOf(page.document.querySelector("#page-title")), "Mina Okafor's post");
+    assert.equal(textOf(page.document.querySelector("#page-title")), "Mina Okafor's Social post");
     assert.equal(page.panel.getAttribute("aria-busy"), "false");
   } finally {
     page.restore();
@@ -1107,7 +1107,7 @@ test("a permalink built the old way still resolves to the same post", async () =
     try {
       assertOneState(page, "loaded", `a permalink at ${search}`);
       assert.equal(textOf(page.panel.querySelector(".detail-author-link")), IMAGE_POST.author);
-      assert.equal(textOf(page.document.querySelector("#page-title")), `${IMAGE_POST.author}'s post`);
+      assert.equal(textOf(page.document.querySelector("#page-title")), `${IMAGE_POST.author}'s Social post`);
       assert.equal(textOf(page.panel.querySelector("figcaption")), IMAGE_POST.caption);
     } finally {
       page.restore();
@@ -1130,8 +1130,7 @@ test("a permalink built the old way still resolves to the same post", async () =
 // Assembled from parts so this file can name the retired line without becoming
 // the place it survives.
 const RETIRED_WAIT = ["Shiplog is opening a single", "shared post from Social…"].join(" ");
-// The page's second name and the wordings that came with it (#2283). The page is
-// "Post", the noun on the Open post control that leads here.
+// Retired shared-post labels and the wordings that came with them (#2283).
 const RETIRED_NAMES = [
   ["Shared", "post"].join(" "),
   ["public shared", "post"].join(" "),
@@ -1391,9 +1390,9 @@ test("the painted page tells a cold visitor what Social is, once, and no longer 
     // The frame around the lead is unchanged while the page waits: a loaded post
     // renames the title and the heading after its display name, so they are read
     // here, before it arrives.
-    assert.equal(textOf(document.querySelector("title")), "Post · Social · Shiplog");
-    assert.equal(document.title, "Post · Social · Shiplog");
-    assert.equal(textOf(document.querySelector("#page-title")), "Post");
+    assert.equal(textOf(document.querySelector("title")), "Social post · Social · Shiplog");
+    assert.equal(document.title, "Social post · Social · Shiplog");
+    assert.equal(textOf(document.querySelector("#page-title")), "Social post");
     assert.equal(textOf(panel.querySelector(".detail-loading-text")), STATE_HEADLINES.loading);
 
     release();
