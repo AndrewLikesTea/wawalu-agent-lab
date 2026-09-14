@@ -2,9 +2,11 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { loadPage, pressEnter, textOf, typeText } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
-import { handleLeadRequest, POST_FOLLOW_UP_TOPIC, FOLLOW_UP_TOPICS } from "../src/leads.js";
+import { handleLeadRequest, MAX_FOLLOW_UP_MESSAGE_LENGTH, POST_FOLLOW_UP_TOPIC, FOLLOW_UP_TOPICS } from "../src/leads.js";
+import { POST_COPY_LABEL, postPermalink } from "../src/post-share.js";
 
-const invitation = "Questions about this post from Social? Send the Wawalu team that operates Shiplog a follow-up request. The post text, display name, URL, and identifier are not included automatically.";
+// The copy control, not the address bar: from People the bar adds ?author=&from=, which passes 200 characters for a long accented name.
+const invitation = `Questions about this post from Social? Send the Wawalu team that operates Shiplog a follow-up request. The post is not attached to your request. In your message, paste the link from “${POST_COPY_LABEL}” above, or briefly identify the post.`;
 const post = { id: "p-copy", author: "Mina Okafor", body: "Focus rings landed everywhere.", createdAt: "2026-07-14T09:00:00.000Z", likes: 0, comments: 0 };
 
 for (const state of ["loading", "loaded"]) {
@@ -37,12 +39,15 @@ for (const state of ["loading", "loaded"]) {
         release();
         await waitFor(() => document.documentElement.dataset.shiplogPostDetail === "ready", "post loaded");
         assert.ok(textOf(byId("post-detail")).includes(post.body));
+        assert.equal(textOf(byId("post-copy")), POST_COPY_LABEL, "the control the invitation names is on the page");
       }
       assert.equal(byId("post-detail").dataset.postState, state);
       assert.match(textOf(byId("page-title")), /post/i);
       assert.equal(textOf(document.querySelector(".site-footer-invitation")), invitation);
       assert.equal(textOf(byId("site-footer-topic-note")), "This request is sent about the post from Social.");
       assert.equal(byId("site-footer-topic-note").hidden, false);
+      assert.equal(textOf(byId("site-footer-message-hint")), "Up to 200 characters.");
+      assert.equal(textOf(byId("site-footer-note")), "The work email address you type here goes to the Wawalu team that operates Shiplog; only that address, this fixed follow-up topic, and the message you type are sent.");
       byId("site-footer-email").focus();
       typeText(document, "reader@example.com");
       pressEnter(document);
@@ -72,16 +77,20 @@ test("a question typed on the post page reaches the team with the post topic", a
     globalThis.fetch = async (url, options) => handleLeadRequest(new Request(`https://example.test${url}`, options), {
       store: { capture: async (...args) => { rows.push(args); return true; } },
     });
+    // What the copy control hands over for a stored post: a UUID id on the production origin.
+    const link = postPermalink("3f2b8c1e-7a4d-4e9b-9c2a-1d5e6f708192", "https://labs.wawalu.org");
+    assert.ok(link.length <= MAX_FOLLOW_UP_MESSAGE_LENGTH / 2, `the pasted link leaves room for a question (${link.length})`);
+    const question = `About ${link}: is this the focus-ring release?`;
     await importPageModule("/site-footer-page.js");
     byId("site-footer-message").focus();
-    typeText(document, "Is this the focus-ring release?");
+    typeText(document, question);
     byId("site-footer-email").focus();
     typeText(document, "reader@example.com");
     pressEnter(document);
     await waitFor(() => ["success", "error"].includes(byId("site-footer-form").dataset.state), "request settled");
     assert.equal(byId("site-footer-form").dataset.state, "success", textOf(byId("site-footer-status")));
     assert.deepEqual(rows.map((row) => [row[1], row[3], row[4]]),
-      [["follow_up_social", POST_FOLLOW_UP_TOPIC, "Is this the focus-ring release?"]]);
+      [["follow_up_social", POST_FOLLOW_UP_TOPIC, question]]);
   } finally {
     page.restore();
   }
