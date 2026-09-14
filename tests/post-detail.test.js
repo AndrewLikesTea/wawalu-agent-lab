@@ -90,7 +90,7 @@ test("the post reads in one order: description, image, caption, name, then time"
   // The poster's name heads the page as its h1 (src/post-page.js writes it into
   // the hero above this panel) and opens the article as a link to that person's
   // People view — the page's one forward step out of a shared link.
-  assert.equal(postPageHeading(post), "Mina Okafor's post");
+  assert.equal(postPageHeading(post), "Mina Okafor's Social post");
 
   const time = tags(article, "TIME")[0];
   assert.equal(time.textContent.length > 0, true, "the timestamp needs human-readable text");
@@ -378,13 +378,19 @@ test("no slot of the placeholder survives into a state that resolved", () => {
 // A permalink is the one page a visitor can land on with no context, so its h1
 // says what the page holds — a post — and who wrote it. The bare display name
 // used to read as that person's profile, which is a different page here.
-// And with no author to name, it is the page's name, "Post": the noun in the
-// Open post control that leads here, under an eyebrow that already says Social.
+// Without a usable display name, the page keeps its generic Social post label.
 test("the loaded page is headed by the display name on the post", () => {
-  assert.equal(postPageHeading(post), "Mina Okafor's post");
-  assert.equal(postPageHeading(null), "Post");
-  assert.equal(postPageHeading({ ...post, author: "" }), "Post");
-  assert.equal(postPageHeading({ ...post, author: "  Mina Okafor  " }), "Mina Okafor's post");
+  assert.equal(postPageHeading(post), "Mina Okafor's Social post");
+  assert.equal(postPageHeading(null), "Social post");
+  assert.equal(postPageHeading({ ...post, author: "" }), "Social post");
+  assert.equal(postPageHeading({ ...post, author: "  Mina Okafor  " }), "Mina Okafor's Social post");
+});
+
+test("missing or non-text display names use the generic fallback", () => {
+  for (const author of [undefined, null, "", "   ", 42, {}]) {
+    assert.equal(postPageHeading({ ...post, author }), "Social post");
+    assert.equal(postDetailTitle({ ...post, author }), "Social post · Social · Shiplog");
+  }
 });
 
 // The heading and the tab name the same thing, so a visitor scanning open tabs
@@ -395,12 +401,12 @@ test("the permalink heading matches the phrase in the document title", () => {
 });
 
 test("the document title names the post, the feed, and the product", () => {
-  assert.equal(postDetailTitle(post), "Mina Okafor's post · Social · Shiplog");
-  assert.equal(postDetailTitle(null), "Post · Social · Shiplog");
-  assert.equal(postDetailTitle(null, "not-found"), "Post · Social · Shiplog");
-  assert.equal(postDetailTitle(null, "error"), "Post · Social · Shiplog");
+  assert.equal(postDetailTitle(post), "Mina Okafor's Social post · Social · Shiplog");
+  assert.equal(postDetailTitle(null), "Social post · Social · Shiplog");
+  assert.equal(postDetailTitle(null, "not-found"), "Social post · Social · Shiplog");
+  assert.equal(postDetailTitle(null, "error"), "Social post · Social · Shiplog");
   // A state name never overrides a post that actually loaded.
-  assert.equal(postDetailTitle(post, "error"), "Mina Okafor's post · Social · Shiplog");
+  assert.equal(postDetailTitle(post, "error"), "Mina Okafor's Social post · Social · Shiplog");
 });
 
 test("the post page's two routes out sit after the site frame, and name where they go", async () => {
