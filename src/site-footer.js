@@ -132,12 +132,8 @@ export const DEMOS = Object.freeze([
 ]);
 
 /**
- * The context the controls do not carry.
- *
- * The button beside it names the errand — a follow-up — but not what the
- * follow-up would be about, or who is on the other end. That is this sentence's
- * job, and it stands above the form because a visitor reads it before deciding
- * whether to type an address into anything.
+ * Default introduction above the form. The post page supplies its own
+ * invitation to name the individual post and explain what is not sent.
  */
 export const INVITATION = "Questions about Shiplog? Send the Wawalu team that operates it a follow-up request.";
 
@@ -224,11 +220,11 @@ export const FOLLOW_UP_REDIRECT = Object.freeze({
  */
 export function siteFooterMarkup(indent = "    ", {
   redirect = null, followUpType = null, followUpTopic = null,
-  collapsedDemos = false, askMessage = false, offer = false,
+  collapsedDemos = false, askMessage = false, offer = false, invitation = INVITATION,
 } = {}) {
   const contact = redirect ? [
     `    <a class="site-footer-redirect-link" href="${redirect.href}">${redirect.label}</a>`,
-  ] : contactFormLines(followUpType, followUpTopic, askMessage, offer);
+  ] : contactFormLines(followUpType, followUpTopic, askMessage, offer, invitation);
   const directory = demoListLines(collapsedDemos);
   const lines = [
     '<footer class="site-footer" id="site-footer" aria-labelledby="site-footer-title">',
@@ -293,9 +289,9 @@ function messageFieldLines() {
   ];
 }
 
-function contactFormLines(followUpType, followUpTopic, askMessage = false, offer = false) {
+function contactFormLines(followUpType, followUpTopic, askMessage = false, offer = false, invitation = INVITATION) {
   return [
-    `    <p class="site-footer-invitation">${INVITATION}</p>`,
+    `    <p class="site-footer-invitation">${invitation}</p>`,
     '    <div class="site-footer-panel" id="site-footer-panel">',
     `      <form id="site-footer-form" class="site-footer-form"${followUpType ? ` data-follow-up-type="${followUpType}"` : ""}${followUpTopic ? ` data-follow-up-topic="${followUpTopic}"` : ""} novalidate>`,
     // Why to ask, then what this request is about, then the fields: a visitor

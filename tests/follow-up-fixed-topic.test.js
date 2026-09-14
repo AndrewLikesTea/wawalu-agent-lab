@@ -31,7 +31,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { loadPage, parseHtml, pressEnter, tabSequence, textOf, typeText } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
-import { FOLLOW_UP_TOPICS } from "../src/leads.js";
+import { FOLLOW_UP_TOPICS, POST_FOLLOW_UP_TOPIC } from "../src/leads.js";
 
 // The pages under test, and a page with the plain footer to measure them
 // against. The baseline is what the follow-up block looks like with no topic of
@@ -133,7 +133,7 @@ for (const file of STATED) {
     // The page's own declaration of what it sends. Everything below is derived
     // from it, so this test cannot agree with a page that changed surface.
     const purpose = form.getAttribute("data-follow-up-type");
-    const expected = FOLLOW_UP_TOPICS[purpose];
+    const expected = file === "post.html" ? POST_FOLLOW_UP_TOPIC : FOLLOW_UP_TOPICS[purpose];
     const lead = interceptLeads(() => jsonReply({ captured: true, created: true, purpose }));
     try {
       assert.ok(expected, `${file}: purpose ${purpose} has no entry in FOLLOW_UP_TOPICS`);
@@ -182,7 +182,7 @@ test("every follow-up type these pages send has an entry in the shared topic lis
       `${file}: sends ${purpose}, which has no FOLLOW_UP_TOPICS entry, so no topic reaches the wire`);
     // The wire value travels on the form, not in a control the visitor could
     // edit, and it is the same string the map holds.
-    assert.equal(form.getAttribute("data-follow-up-topic"), FOLLOW_UP_TOPICS[purpose]);
+    assert.equal(form.getAttribute("data-follow-up-topic"), file === "post.html" ? POST_FOLLOW_UP_TOPIC : FOLLOW_UP_TOPICS[purpose]);
   }
 });
 
@@ -296,7 +296,7 @@ for (const file of STATED) {
       // The sentence is a statement about the request, not about its outcome, so
       // a failure neither withdraws it nor turns it into a claim of receipt.
       assert.equal(textOf(byId(document, "site-footer-topic-note")),
-        `${SENTENCE_LEAD}${FOLLOW_UP_TOPICS[byId(document, "site-footer-form").getAttribute("data-follow-up-type")]}.`,
+        `${SENTENCE_LEAD}${file === "post.html" ? POST_FOLLOW_UP_TOPIC : FOLLOW_UP_TOPICS[byId(document, "site-footer-form").getAttribute("data-follow-up-type")]}.`,
         `${file}: the stated topic must survive a failed send unchanged`);
       assert.ok(!tabSequence(document).some((node) => node.id === "site-footer-topic-note"),
         `${file}: the sentence must not become a tab stop when the block changes state`);

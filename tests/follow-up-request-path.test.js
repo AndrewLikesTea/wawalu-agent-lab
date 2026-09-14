@@ -29,7 +29,7 @@ import { MIGRATIONS, createTestD1 } from "./support/d1-sqlite.js";
 import { initSiteFooter } from "../src/site-footer.js";
 import { CONFIRMATION_DETAIL, CONFIRMATION_LEAD } from "../src/follow-up-confirmation.js";
 import { onRequest } from "../functions/api/leads.js";
-import { createMemoryLeadStore, FOLLOW_UP_TOPICS, handleLeadRequest } from "../src/leads.js";
+import { createMemoryLeadStore, FOLLOW_UP_TOPICS, POST_FOLLOW_UP_TOPIC, handleLeadRequest } from "../src/leads.js";
 import {
   CONTACT_COPY, FOLLOW_UP_PRIVACY, FOLLOW_UP_PRIVACY_WITH_MESSAGE, knownNotSent, MAX_FOLLOW_UP_MESSAGE_LENGTH,
   resolveFailure, SubmissionError,
@@ -51,7 +51,7 @@ import {
 const REVIEWED = [
   ["index.html", "follow_up_homepage", FOLLOW_UP_TOPICS.follow_up_homepage],
   ["coach.html", "follow_up_coach", FOLLOW_UP_TOPICS.follow_up_coach],
-  ["post.html", "follow_up_social", FOLLOW_UP_TOPICS.follow_up_social],
+  ["post.html", "follow_up_social", POST_FOLLOW_UP_TOPIC],
   ["releases.html", "follow_up_releases", FOLLOW_UP_TOPICS.follow_up_releases],
   ["social.html", "follow_up_social", FOLLOW_UP_TOPICS.follow_up_social],
   ["profile.html", "follow_up_people", FOLLOW_UP_TOPICS.follow_up_people],

@@ -11,7 +11,7 @@ export const MAX_EMAIL_LENGTH = 254;
  * page cannot have produced, and the strict body check below refuses it rather
  * than storing text no surface invited.
  */
-export const FOLLOW_UP_MESSAGE_PURPOSES = Object.freeze(["follow_up_finops_example"]);
+export const FOLLOW_UP_MESSAGE_PURPOSES = Object.freeze(["follow_up_finops_example", "follow_up_social"]);
 export const FOLLOW_UP_REQUEST_TYPES = Object.freeze([
   "follow_up_homepage",
   "follow_up_finops_example",
@@ -28,6 +28,8 @@ export const LEAD_PURPOSES = Object.freeze(["field_notes", "follow_up", ...FOLLO
 // a surface the footer, the home page, and the navigation already describe, and
 // a visitor comparing the follow-up block against the footer above it would find
 // two accounts of the same page.
+// The individual post shares Social’s request type; its fixed topic identifies the surface, not a post.
+export const POST_FOLLOW_UP_TOPIC = "post from Social";
 export const FOLLOW_UP_TOPICS = Object.freeze({
   follow_up_homepage: "Homepage — record a decision and explore Shiplog",
   follow_up_finops_example: "Bundled AI FinOps example — lower-cost routing in Atlas Platform",
@@ -152,7 +154,9 @@ export async function handleLeadRequest(request, {
   }
   const isObject = input !== null && typeof input === "object" && !Array.isArray(input);
   const keys = isObject ? Object.keys(input) : [];
-  const expectedTopic = isObject ? FOLLOW_UP_TOPICS[input.purpose] : null;
+  const expectedTopic = isObject && input.purpose === "follow_up_social" && input.topic === POST_FOLLOW_UP_TOPIC
+    ? POST_FOLLOW_UP_TOPIC
+    : isObject ? FOLLOW_UP_TOPICS[input.purpose] : null;
   const expectedKeys = expectedTopic ? ["email", "purpose", "topic"] : ["email", "purpose"];
   // `message` is the one key that may be present or absent, and only on a
   // purpose whose form offers the field. Everything else is still exact.
