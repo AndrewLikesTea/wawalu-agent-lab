@@ -364,11 +364,12 @@ test("while a publish is in flight the button carries the state alone, and a sec
   assert.match(textOf(submit), /Publishing…/, "the control names what it is doing");
   assert.doesNotMatch(textOf(submit), /Publish post/);
   assert.equal(submit.getAttribute("aria-busy"), "true");
-  assert.equal(submit.disabled, true);
+  // Not disabled (#2370): a disabled button would drop the focus it was pressed
+  // with, and the in-flight guard is the handler, not the attribute.
+  assert.equal(submit.disabled, false);
 
   // Two more ways to press Publish, neither of which reaches the API: the button
-  // itself, and implicit submission from a single-line field, which in a browser
-  // does not care that the button is disabled.
+  // itself, and implicit submission from a single-line field.
   submit.click();
   await harness.settle();
   await harness.submitFromField();

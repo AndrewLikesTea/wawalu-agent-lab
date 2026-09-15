@@ -311,6 +311,14 @@ export const NO_IMAGE_NOTE = "This post carries no image, so it appears on Socia
 export const PERMALINK_UNAVAILABLE_NOTE = "This post has no link of its own to open, so find it in the feed below.";
 export const PUBLISH_FAILED_NOTE = "Your post, image, and image description are still in the composer, exactly as you left them.";
 
+// #2370. The composer validates in page code (the form is `novalidate`): an
+// empty post is refused with this sentence, every refusal is listed under the
+// summary title, and a publish that lands after the draft was edited says the
+// edits were kept instead of emptying them.
+export const BLANK_POST_MESSAGE = "Your post is empty. Write something to publish.";
+export const ERROR_SUMMARY_TITLE = "Your post was not published";
+export const DRAFT_KEPT_NOTE = "What you changed after pressing Publish post is still in the composer.";
+
 // …and the sentence that says what to do with them. Said only where it is true:
 // a publish the server refused can be sent again unchanged, so this names the
 // control that sends it. The composer's own refusals — a blank post, a
@@ -866,11 +874,10 @@ export function mountImageDescription(root) {
     renderFieldError(errorNode, message);
     input.setAttribute("aria-invalid", "true");
     input.setAttribute("aria-describedby", `${described} ${IMAGE_DESCRIPTION_ERROR_ID}`.trim());
-    // Both halves of the same instruction. focus() moves the caret on the live
-    // page; `autofocus` is carried by the input itself, so it still names the
-    // field to land on if the composer is re-rendered around it.
+    // `autofocus` is carried by the input itself, so it names the field to land
+    // on if the composer is re-rendered around it. Focus itself goes to the
+    // composer's error summary, which lists this refusal (#2370).
     input.setAttribute("autofocus", "");
-    input.focus();
   };
 
   // Token by token, so whatever else names Publish post is left in place.
@@ -931,7 +938,9 @@ export function mountImageDescription(root) {
 // The composer as a disclosure, wired the way this site already wires its other
 // one (src/site-footer.js): a trigger that carries `aria-expanded`, a panel that
 // carries `hidden`, Escape from inside the panel, and focus that returns to the
-// actual opener on close. In-flight submissions keep the panel open.
+// actual opener on close. Closing during an in-flight publish is allowed: the
+// publish is settled against a snapshot of the draft (mountSocialFeed), so the
+// panel no longer has to be held open for the completion to land safely.
 //
 // Why the panel is `hidden` rather than moved with CSS: the point of the reorder
 // is that the feed comes first in the order a keyboard reader and a screen
@@ -940,9 +949,10 @@ export function mountImageDescription(root) {
 // composer fields out of the tab sequence until somebody asks for them.
 //
 // Focus is the half that makes it usable, so it is stated once here and holds
-// for every route: open puts the caret in the post field, because revealing a
-// form and leaving focus on the trigger above it strands the reader at the exact
-// moment they asked for the form; close puts it back on the trigger, because
+// for every route: open puts focus on the panel's heading (#2370), because
+// revealing a form and leaving focus on the trigger above it strands the reader
+// at the exact moment they asked for the form, and the heading announces which
+// form it is before the first field; close puts it back on the trigger, because
 // anything else drops them at the top of the document, above everything they
 // have already read.
 //
@@ -963,10 +973,10 @@ export function mountImageDescription(root) {
 // in step with it, no storage promise to answer for, and no draft waiting on a
 // shared machine after the visitor closes the tab. The sentence after Close in
 // src/social.html is this paragraph, said to the visitor.
-export function mountComposerDisclosure(root, { isSubmitting = () => false } = {}) {
+export function mountComposerDisclosure(root) {
   const trigger = root.querySelector("#post-compose-open");
   const panel = root.querySelector("#post-compose-panel");
-  const caption = root.querySelector("#post-body");
+  const title = root.querySelector("#post-form-title");
   const cancel = root.querySelector("#post-compose-cancel");
   const closed = { open() {}, close() {}, get isOpen() { return false; } };
   if (!trigger || !panel) return closed;
@@ -988,10 +998,10 @@ export function mountComposerDisclosure(root, { isSubmitting = () => false } = {
     }
     panel.hidden = false;
     trigger.setAttribute("aria-expanded", "true");
-    if (focus) caption?.focus();
+    if (focus) title?.focus();
   };
   const close = () => {
-    if (panel.hidden || isSubmitting()) return;
+    if (panel.hidden) return;
     panel.hidden = true;
     trigger.setAttribute("aria-expanded", "false");
     if (opener && isWithin(opener, root.ownerDocument ?? root)) opener.focus();
@@ -1024,7 +1034,6 @@ export function mountSocialFeed(root, options = {}) {
   const bodyError = root.querySelector("#post-body-error");
   const notice = root.querySelector("#social-notice");
   const submit = root.querySelector("#post-submit") ?? form?.querySelector("button[type=submit]");
-  const composeCancel = root.querySelector("#post-compose-cancel");
   const submitLabel = submit?.querySelector(".submit-label");
   const count = root.querySelector("#post-count");
   const heading = root.querySelector("#feed-title");
@@ -1032,9 +1041,24 @@ export function mountSocialFeed(root, options = {}) {
   const nameFilter = root.querySelector("#post-name-filter");
   const timeFilter = root.querySelector("#post-time-filter");
   const clearFilters = root.querySelector("#post-filter-clear");
-  const description = options.description ?? mountImageDescription(root);
+  const errorSummary = root.querySelector("#post-error-summary");
+  const announcer = root.querySelector("#feed-announcer");
+  // Bumped by every edit to the draft: typing in any field, and an image being
+  // attached, replaced or removed (the media half reports those through
+  // setAttached). A publish remembers the revision it was sent from, and its
+  // completion clears only a draft that is still that revision (#2370).
+  let draftRevision = 0;
+  const fieldDescription = options.description ?? mountImageDescription(root);
+  const description = {
+    ...fieldDescription,
+    setAttached(next) {
+      draftRevision += 1;
+      fieldDescription.setAttached(next);
+    },
+  };
+  form?.addEventListener("input", () => { draftRevision += 1; });
   let publishing = false;
-  const composer = mountComposerDisclosure(root, { isSubmitting: () => publishing });
+  const composer = mountComposerDisclosure(root);
   const report = mountPostReport(root, { send: options.sendReport });
 
   // The two lines that may only speak once a fetch has answered. The count is a
@@ -1245,9 +1269,9 @@ export function mountSocialFeed(root, options = {}) {
     bodyError.hidden = true;
   };
 
-  const showBodyError = (length) => {
+  const showBodyError = (message) => {
     if (!bodyInput || !bodyError) return;
-    renderFieldError(bodyError, overLengthPostMessage(length));
+    renderFieldError(bodyError, message);
     bodyInput.setAttribute("aria-invalid", "true");
     bodyInput.setAttribute("aria-describedby", `${bodyDescribed} ${POST_BODY_ERROR_ID}`.trim());
   };
@@ -1264,8 +1288,26 @@ export function mountSocialFeed(root, options = {}) {
     // back under — the same moment the counter's own class flips, from the same
     // measurement, so the two cannot disagree about which side of 280 the post
     // is on.
-    if (state.over) showBodyError(state.length);
+    if (state.over) showBodyError(overLengthPostMessage(state.length));
     else clearBodyError();
+  };
+
+  // The one list of everything a Publish post press was refused for, in field
+  // order, each item naming its field. Empty and hidden whenever nothing is.
+  const renderErrorSummary = (problems) => {
+    if (!errorSummary) return;
+    errorSummary.hidden = problems.length === 0;
+    if (problems.length === 0) {
+      errorSummary.replaceChildren();
+      return;
+    }
+    const title = el("h3", "", ERROR_SUMMARY_TITLE);
+    title.id = "post-error-summary-title";
+    const list = el("ul", "");
+    for (const { label, message } of problems) {
+      list.append(el("li", "", message.startsWith(label) ? message : `${label}: ${message}`));
+    }
+    errorSummary.replaceChildren(title, list);
   };
 
   // The one reset on this page. Both Clear filters controls — the one in the
@@ -1317,7 +1359,7 @@ export function mountSocialFeed(root, options = {}) {
   //
   // Deliberately not folded into a <details>: this is the announcement, and a
   // live region behind a closed disclosure is silent.
-  const showConfirmation = (saved, { hasImage, focus = true }) => {
+  const showConfirmation = (saved, { hasImage, focus = true, draftKept = false }) => {
     if (!notice) return;
     const hiddenByFilters = !postMatchesFilters(saved, { author: nameFilter?.value, range: timeFilter?.value });
 
@@ -1357,6 +1399,7 @@ export function mountSocialFeed(root, options = {}) {
     } else {
       notice.append(document.createTextNode(NO_IMAGE_NOTE));
     }
+    if (draftKept) notice.append(document.createTextNode(` ${DRAFT_KEPT_NOTE}`));
 
     if (hiddenByFilters) {
       notice.append(
@@ -1371,7 +1414,7 @@ export function mountSocialFeed(root, options = {}) {
         // Re-stated without the notice that is no longer true, then focus goes
         // to the card the reader asked to see — not back to this control, which
         // this render is about to remove.
-        showConfirmation(saved, { hasImage, focus: false });
+        showConfirmation(saved, { hasImage, focus: false, draftKept });
         focusPostCard(saved.id);
       });
       notice.append(reveal);
@@ -1403,15 +1446,12 @@ export function mountSocialFeed(root, options = {}) {
     if (focus) notice.focus();
   };
 
-  // `focus` is false for the refusals validate() has already marked and focused
-  // a field for, and true for the one failure that costs the reader their place:
-  // a request that comes back with an error. Pressing Publish disables the
-  // button under the reader's own focus, so by the time the request settles the
-  // browser has dropped them on <body> — outside the panel, out of reach of the
-  // Escape binding, and above everything they have read. Success already lands
-  // them on this region; failure now lands them on the same one, next to the
-  // Retry the failure just grew. Nothing else moves focus, so the rule is one
-  // sentence: after a publish settles, the reader is on the notice.
+  // `focus` is false for the refusals the error summary has already taken focus
+  // for, and true for a request that comes back with an error while the reader
+  // is still where they pressed Publish post. Success lands them on this region
+  // under the same condition; failure lands them on the same one, next to the
+  // Retry it just grew. A reader who closed the panel or moved on keeps their
+  // place (#2370).
   const showFailure = (message, { retry = false, focus = false } = {}) => {
     if (!notice) return;
     notice.classList.remove("is-success");
@@ -1442,18 +1482,15 @@ export function mountSocialFeed(root, options = {}) {
     notice.hidden = true;
   };
 
-  // True from the moment a request leaves until it comes back. `disabled` on the
-  // submit button is the visible half and it is not the whole guard: Enter in a
-  // single-line field, and the post field's Cmd/Ctrl+Enter shortcut, both submit
-  // the form without going through that button. This is what makes a second press
-  // impossible rather than merely inconvenient.
+  // True from the moment a request leaves until it comes back, and the whole
+  // guard against a second request: the button, Enter in a single-line field and
+  // the post field's Cmd/Ctrl+Enter shortcut all reach the handler that reads it.
+  // Nothing is disabled (#2370): the button keeps the focus it was pressed with,
+  // Close stays usable, and the "Publishing…" label is the status a reader finds
+  // on the button, including after closing and reopening the composer.
   const setSubmitting = (submitting) => {
     publishing = submitting;
-    // Close is refused by the disclosure itself while this is true; disabling it
-    // is the half a reader can see, so the control does not look available.
-    if (composeCancel) composeCancel.disabled = submitting;
     if (!submit) return;
-    submit.disabled = submitting;
     submit.setAttribute("aria-busy", String(submitting));
     if (submitLabel) submitLabel.textContent = submitting ? "Publishing…" : "Publish post";
   };
@@ -1478,33 +1515,53 @@ export function mountSocialFeed(root, options = {}) {
       // flight is dropped here rather than queued: the composer still holds the
       // same draft, so queuing it would publish the same post twice.
       if (publishing) return;
-      if (!form.reportValidity()) return;
 
-      // Over the budget, refused here rather than by createPost below. The
-      // sentence is already beside the field — the counter's own input handler
-      // put it there as the post crossed 280 — so this press only has to make
-      // the refusal true: no post is created, and the reader is put on the
-      // field to cut down. Announcing it a second time in the notice at the foot
-      // of the form would answer one press twice, in two places, and `maxlength`
-      // is not the guard: it stops a key press, not a paste, a restored draft,
-      // or a handoff, and this is the check that decides whether a post exists.
+      let media = null;
+      let mediaProblem = "";
+      try {
+        media = options.getMedia?.() ?? null;
+      } catch (error) {
+        mediaProblem = error?.message || "Choose a supported image, or select Remove image.";
+      }
+
+      // Every refusal is decided here, not by the browser: the form is
+      // `novalidate`. Each problem is marked on its own field (aria-invalid and
+      // the error slot after it), listed by field in the summary above the
+      // fields, and focus goes to that summary. A field that is fine again loses
+      // its mark on this press. `maxlength` is not the length guard: it stops a
+      // key press, not a paste, a restored draft, or a handoff.
+      const problems = [];
       const budget = counterState(bodyInput?.value);
-      if (budget.over) {
-        showBodyError(budget.length);
-        bodyInput?.focus();
+      const bodyProblem = !String(bodyInput?.value ?? "").trim() ? BLANK_POST_MESSAGE
+        : budget.over ? overLengthPostMessage(budget.length) : "";
+      if (bodyProblem) {
+        showBodyError(bodyProblem);
+        problems.push({ label: "Your post", message: bodyProblem });
+      } else {
+        clearBodyError();
+      }
+      if (mediaProblem) problems.push({ label: "Image", message: mediaProblem });
+      const descriptionProblem = description.validate(Boolean(media));
+      if (descriptionProblem) problems.push({ label: "Image description", message: descriptionProblem });
+      renderErrorSummary(problems);
+      if (problems.length > 0) {
+        // The missing description is still said in the composer's status region
+        // too, where every other outcome of the press is announced, when it is
+        // the one thing wrong.
+        if (problems.length === 1 && descriptionProblem && !String(descriptionInput?.value ?? "").trim()) {
+          showFailure(IMAGE_DESCRIPTION_REFUSAL_NOTE);
+        }
+        errorSummary?.focus();
         return;
       }
 
       let post;
-      let media;
       try {
         post = createPost({ author: authorInput?.value, body: bodyInput?.value });
-        media = options.getMedia?.() ?? null;
       } catch (error) {
-        // reportValidity()/maxlength catch the empty and the over-long body, but
-        // not a body of spaces — `required` is satisfied by whitespace — so the
-        // blank refusal reaches this notice for real. The fallback is the belt:
-        // an error that arrives with no message still says what happened.
+        // The checks above catch the blank and the over-long post, so what
+        // reaches this notice is a display name over its limit. The fallback is
+        // the belt: an error that arrives with no message still says what happened.
         // Not "Publish a post within the limit": "Publish a post" is the label on
         // the control that opens this composer, so that sentence read as an
         // instruction to press a button the reader is already past. This one
@@ -1514,28 +1571,18 @@ export function mountSocialFeed(root, options = {}) {
         return;
       }
 
-      // The one field the composer will not publish an image without. Refusing
-      // here means no post is created and nothing else is touched: the post,
-      // the byline, and the encoded image all stay exactly where the poster left
-      // them, the image in the same composer store the success path reads from.
-      //
-      // The refusal is said twice on purpose, in the two places a reader could
-      // be: on the field, which is where validate() marks and focuses, and in
-      // the composer's own status region, which is where every other outcome of
-      // pressing Publish post is already announced. Same region, same failure
-      // rendering as a save that did not land — no second live region, no colour
-      // carrying the news, no new rule in styles.css. validate() runs first, so
-      // focus is already on the field to fix and writing the notice does not
-      // move it.
-      if (description.validate(Boolean(media))) {
-        if (!String(descriptionInput?.value ?? "").trim()) showFailure(IMAGE_DESCRIPTION_REFUSAL_NOTE);
-        return;
-      }
-
+      // The snapshot this publish is settled against (#2370). The request carries
+      // only `post` and `media`, read above from the draft as it is now. The
+      // panel may be closed, reopened and edited while the request is out, so
+      // the completion compares revisions before it empties anything, and moves
+      // focus only for a reader still open on the element they pressed from.
+      const doc = root.ownerDocument ?? root;
+      const snapshot = { revision: draftRevision, hasImage: Boolean(media), focused: doc.activeElement };
       try {
         clearNotice();
         setSubmitting(true);
         const saved = options.create ? await options.create(post, media) : post;
+        const focus = composer.isOpen && doc.activeElement === snapshot.focused;
         // The byline is what the profile view treats as "you" (src/
         // social-identity.js). Remembered only after a post actually lands, so a
         // failed submit cannot rewrite who this browser thinks it is.
@@ -1545,27 +1592,29 @@ export function mountSocialFeed(root, options = {}) {
         // The feed is redrawn before the confirmation is written, so the
         // "is it visible?" question is asked of the feed that now exists.
         render();
-        showConfirmation(saved, { hasImage: Boolean(media) });
+        // Only the draft that was published is spent. The display name is not
+        // one of the emptied fields — it is who this browser is, and it was just
+        // remembered. A draft edited since the press is left exactly as it is:
+        // its text, its image and its errors.
+        const edited = draftRevision !== snapshot.revision;
+        if (!edited) {
+          if (bodyInput) bodyInput.value = "";
+          options.clearMedia?.();
+          description.clear();
+          updateCounter();
+        }
+        showConfirmation(saved, { hasImage: snapshot.hasImage, focus, draftKept: edited });
+        if (!composer.isOpen && announcer) announcer.textContent = "Post published.";
       } catch (error) {
         // The failure arrives here as a value the composer can draw, never as an
-        // exception that escapes into the console: the draft is untouched above
-        // this line, so the same post can be sent again from where the reader
-        // is standing.
-        showFailure(error?.message || "This post could not be saved. Check the live connection.", { retry: true, focus: true });
-        return;
+        // exception that escapes into the console. No field is touched, so the
+        // draft — the one sent, or the one it was edited into — can be sent again.
+        const focus = composer.isOpen && doc.activeElement === snapshot.focused;
+        showFailure(error?.message || "This post could not be saved. Check the live connection.", { retry: true, focus });
+        if (!composer.isOpen && announcer) announcer.textContent = "Your post was not published. Open Publish a post to try again.";
       } finally {
         setSubmitting(false);
       }
-      // Only now, and only here: everything below runs on the confirmed-success
-      // path, so a failed publish never costs a reader the post they wrote.
-      // The three fields the post consumed are emptied; the display name is not
-      // one of them — it is who this browser is, and it was just remembered.
-      if (bodyInput) bodyInput.value = "";
-      options.clearMedia?.();
-      description.clear();
-      updateCounter();
-      // Focus is already on the confirmation (showConfirmation put it there);
-      // clearing the fields above must not pull it back to the composer.
     });
   }
 

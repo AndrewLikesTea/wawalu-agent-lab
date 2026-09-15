@@ -376,9 +376,9 @@ async function init() {
   // fragment jump scrolls the panel into view without moving the keyboard
   // anywhere: a keyboard reader would land looking at a form whose first field
   // is still several tab stops away, behind the whole page header. So this
-  // arrival opens the way the trigger does — open() puts the caret in the post
-  // field, the composer's first field, which is the one focus idiom this
-  // disclosure has and the same one Escape reverses.
+  // arrival opens the way the trigger does — open() puts focus on the
+  // composer's heading, the one focus idiom this disclosure has and the same one
+  // Escape reverses; the post field is the next Tab.
   //
   // Nothing here binds a key. Tab and Shift+Tab stay the browser's, so the
   // reader carries on into the rest of the fields and back out of the panel

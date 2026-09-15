@@ -184,8 +184,9 @@ test("publishing an image with a blank description creates nothing and keeps eve
   assert.ok(described.includes("post-image-alt-hint"));
   assert.ok(described.includes("post-image-alt-counter"));
 
-  // Focus lands on the field to fix, and says so in a way a re-render carries.
-  assert.equal(harness.document.activeElement?.id, "post-image-alt");
+  // Focus lands on the summary that names the field (#2370), and the field still
+  // says it is the one to fix in a way a re-render carries.
+  assert.equal(harness.document.activeElement?.id, "post-error-summary");
   assert.equal(input.getAttribute("autofocus"), "");
 
   // Nothing the poster typed or attached was spent on the refusal.
@@ -237,13 +238,13 @@ test("the missing-description refusal is announced where every other publish out
   const captionHint = textOf(harness.document.querySelector("#post-body-hint"));
   assert.equal(captionHint, "Up to 280 characters.");
 
-  // Announced, and then the reader is put where the fix is.
-  assert.equal(harness.document.activeElement?.id, "post-image-alt");
+  // Announced, and then the reader is put on the summary naming the fix.
+  assert.equal(harness.document.activeElement?.id, "post-error-summary");
 });
 
-// Two refusals, one at a time. The caption is `required`, so the browser answers
-// first and the submit handler returns before the description is consulted.
-test("an empty caption and a described-nothing image are not both reported", async (t) => {
+// Two refusals, reported together (#2370): the form is `novalidate`, so page code
+// marks both fields and lists both in the summary, and the notice stays quiet.
+test("an empty caption and a described-nothing image are both reported, in the summary", async (t) => {
   const harness = await composer(t);
   harness.fill({ body: "   ", author: "Mina", description: "" });
 
@@ -251,9 +252,11 @@ test("an empty caption and a described-nothing image are not both reported", asy
 
   assert.equal(harness.published.length, 0);
   assert.equal(harness.document.querySelector("#social-notice").hidden, true,
-    "the description refusal spoke over the caption's native one");
-  assert.equal(harness.document.querySelector(`#${IMAGE_DESCRIPTION_ERROR_ID}`).hidden, true);
-  assert.equal(harness.document.querySelector("#post-image-alt").getAttribute("aria-invalid"), null);
+    "the description refusal spoke in the notice as well as the summary");
+  assert.equal(harness.document.querySelector(`#${IMAGE_DESCRIPTION_ERROR_ID}`).hidden, false);
+  assert.equal(harness.document.querySelector("#post-image-alt").getAttribute("aria-invalid"), "true");
+  assert.equal(harness.document.querySelector("#post-body").getAttribute("aria-invalid"), "true");
+  assert.equal(harness.document.querySelector("#post-error-summary").querySelectorAll("li").length, 2);
 });
 
 test("an over-length description is refused through the same path as a missing one", async (t) => {
@@ -272,7 +275,7 @@ test("an over-length description is refused through the same path as a missing o
     new RegExp(`${MAX_IMAGE_ALT_LENGTH} characters or fewer\\. Remove 12\\.`),
   );
   assert.ok((input.getAttribute("aria-describedby") ?? "").includes(IMAGE_DESCRIPTION_ERROR_ID));
-  assert.equal(harness.document.activeElement?.id, "post-image-alt");
+  assert.equal(harness.document.activeElement?.id, "post-error-summary");
   assert.equal(harness.document.querySelector("#post-body").value, "Caption.");
   assert.equal(harness.preview.src, "data:image/png;base64,carried");
 });

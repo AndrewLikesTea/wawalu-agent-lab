@@ -119,8 +119,8 @@ test("an over-length post is named beside the field, and publishes nothing", asy
   await settle();
 
   assert.equal(harness.published.length, 0, "an over-length post was published anyway");
-  // And the reader is put on the field to cut down.
-  assert.equal(harness.document.activeElement?.id, "post-body");
+  // And the reader is put on the error summary that names the field (#2370).
+  assert.equal(harness.document.activeElement?.id, "post-error-summary");
   assert.equal(input.value.length, 312, "the over-length text is left there to be cut down");
   // The refusal is said once, at the field. The notice at the foot of the form
   // is where an outcome is announced, and no post was attempted.
@@ -156,7 +156,7 @@ test("the over-length message clears when the post comes back under the limit", 
   assert.equal(harness.document.querySelector(`#${POST_BODY_ERROR_ID}`).hidden, true);
 });
 
-test("an empty image description is answered at its own field, and takes focus there", async (t) => {
+test("an empty image description is answered at its own field, and focus goes to the summary", async (t) => {
   const harness = await composer(t, { attached: true });
   harness.document.querySelector("#post-body").value = "Ring landed on every control.";
 
@@ -169,7 +169,7 @@ test("an empty image description is answered at its own field, and takes focus t
   assert.equal(error.getAttribute("role"), "alert");
   assert.match(textOf(error), /Add a description of the image before posting/);
   assert.equal(harness.document.querySelector("#post-image-alt").getAttribute("aria-invalid"), "true");
-  assert.equal(harness.document.activeElement?.id, "post-image-alt");
+  assert.equal(harness.document.activeElement?.id, "post-error-summary");
 
   // Typing one clears it, and nothing is left marked invalid.
   type(harness.document.querySelector("#post-image-alt"), "A card wrapped in a blue focus ring.");

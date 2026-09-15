@@ -183,26 +183,24 @@ test("arriving on Social at the publish fragment lands the reader in the open co
   assert.ok(!panel.hidden, "the composer stayed collapsed under the fragment that names it");
   assert.equal(trigger.getAttribute("aria-expanded"), "true");
 
-  // Focus is inside the composer — the post field, which is what open() does
-  // for the trigger too, so a link into the form and a press of the button
+  // Focus is on the composer's heading, which is what open() does for the
+  // trigger too (#2370), so a link into the form and a press of the button
   // leave the reader in the same place.
-  const focused = document.activeElement;
-  assert.equal(focused.id, "post-body", "the arrival left the caret outside the composer");
+  assert.equal(document.activeElement?.id, "post-form-title", "the arrival left focus outside the composer");
   let inside = false;
-  for (let cursor = focused; cursor; cursor = cursor.parentNode) if (cursor === panel) inside = true;
+  for (let cursor = document.activeElement; cursor; cursor = cursor.parentNode) if (cursor === panel) inside = true;
   assert.equal(inside, true, "the focused element is not inside the composer panel");
 
   // And the fragment names something that is actually there.
   assert.equal(document.querySelectorAll("#post-form").length, 1, "the fragment names no element on this page");
-  let inForm = false;
-  for (let cursor = focused; cursor; cursor = cursor.parentNode) if (cursor.id === "post-form") inForm = true;
-  assert.equal(inForm, true, "the caret landed outside the form the fragment names");
 
-  // No trap. Tab moves on to the next field in the natural order and Shift+Tab
-  // comes back to where it started — nothing here redirects either.
+  // No trap. From the post field — the next Tab after the heading — Tab moves on
+  // in the natural order and Shift+Tab comes back; nothing redirects either.
+  const focused = document.querySelector("#post-body");
+  focused.focus();
   const sequence = tabSequence(document);
   const start = sequence.indexOf(focused);
-  assert.ok(start >= 0, "the focused field is not in the tab sequence");
+  assert.ok(start >= 0, "the post field is not in the tab sequence");
   // Identity checked as a boolean, for the same reason: a failed node
   // comparison serialises the parsed page rather than reporting.
   assert.equal(pressTab(document) === sequence[start + 1], true, "something intercepted Tab out of the first field");
