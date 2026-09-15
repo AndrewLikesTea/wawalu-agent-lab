@@ -12,6 +12,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { STORAGE_KEY, initDecisionLog } from "../src/app.js";
 import {
   DECISION_ENTRY_ERRORS,
@@ -116,9 +117,11 @@ test("a complete entry is recorded, listed immediately, and reported once", asyn
   assert.equal(record.alternatives, ENTRY.alternatives);
   assert.equal(record.status, "accepted");
 
-  // The form is empty and focused, ready for the next one.
+  // The form is empty, and focus is on the evaluation path's next step (#2371).
+  // By id, not by node: a failing equal() over two parsed elements hangs.
   assert.equal(byId(page, "title").value, "", "the form kept the entry it just recorded");
-  assert.equal(page.document.activeElement, byId(page, "title"), "focus did not return to the form");
+  assert.equal(page.document.activeElement?.getAttribute("id"), "decision-record-release",
+    "focus did not move to the next step of the evaluation path");
 });
 
 test("an empty submit reports every field at once, writes nothing, and focuses the first", async (t) => {
@@ -520,6 +523,155 @@ test("a decision that could not be saved is not announced as recorded", async (t
     "",
     "an unsaved decision was announced as recorded, contradicting the notice",
   );
+});
+
+// --- the evaluation path (#2371) --------------------------------------------
+//
+// One complete demo, decision to release, guided from this page: four ordered
+// steps above the recorder, and a link to Releases that only a kept decision
+// earns. Everything below is asserted on the booted page.
+
+const nextStep = (page) => byId(page, "decision-record-next");
+const nextLink = (page) => byId(page, "decision-record-release");
+const pathSteps = (page) => byId(page, "evaluation-path-steps").querySelectorAll("li").map(textOf);
+const focusedId = (page) => page.document.activeElement?.getAttribute("id") ?? null;
+
+test("the painted page lists the four-step evaluation path above the recorder", async (t) => {
+  const page = await openHistory(t);
+
+  const list = byId(page, "evaluation-path-steps");
+  assert.equal(list.tagName, "OL", "the path is not an ordered list");
+  assert.deepEqual(pathSteps(page), [
+    "Record a decision with the form below.",
+    "Continue to Releases from the link that appears once it is saved.",
+    "Record a release there and link that decision to it.",
+    "Open the release you recorded and check its summary and linked decision.",
+  ]);
+  // A subsection of "Record a decision", so one level below that heading.
+  const title = byId(page, "evaluation-path-title");
+  assert.equal(title.tagName, "H3");
+  assert.equal(textOf(title), "Try the whole demo in four steps");
+  const panel = byId(page, "decision-form-title").parentNode.parentNode;
+  let inside = false;
+  for (let cursor = list; cursor; cursor = cursor.parentNode) if (cursor === panel) inside = true;
+  assert.ok(inside, "the path is not inside the recorder panel");
+
+  const scope = textOf(byId(page, "evaluation-path-scope"));
+  assert.match(scope, /stay in this browser only/);
+  assert.match(scope, /demo workflow, not a customer result/);
+  assert.doesNotMatch(scope, /customers (use|trust)|\d+%|saved \$|teams report/i, "the path claims an outcome");
+  // It spends no tab stop: the only link the path needs is revealed by a save.
+  assert.equal(list.parentNode.querySelectorAll("a").length, 0, "the path list added a focusable");
+  assert.equal(nextStep(page).hidden, true, "the next step is offered before anything was recorded");
+});
+
+test("a saved decision offers Releases for that decision, described and focused", async (t) => {
+  const page = await openHistory(t);
+  fill(page, ENTRY);
+  submitButton(page).click();
+
+  const [record] = stored(page);
+  assert.equal(nextStep(page).hidden, false, "a kept decision left no next step");
+  const href = `/releases.html?link=${encodeURIComponent(record.id)}#record-release`;
+  assert.equal(nextLink(page).getAttribute("href"), href, "the link does not carry the saved decision");
+  assert.equal(nextLink(page).tagName, "A");
+  assert.equal(focusedId(page), "decision-record-release");
+  // The confirmation is announced politely by the status line; the linking
+  // sentence is read with the link that focus just landed on.
+  const status = byId(page, "decision-record-status");
+  assert.equal(status.getAttribute("aria-live"), "polite");
+  assert.match(textOf(status), /^Recorded “Adopt a durable job queue”/);
+  assert.equal(nextLink(page).getAttribute("aria-describedby"), "decision-record-next-lead");
+  assert.match(textOf(byId(page, "decision-record-next-lead")), /listed under Linked decisions there/);
+  const kept = textOf(byId(page, "decision-record-kept"));
+  assert.match(kept, /stored in this browser only/);
+  assert.match(kept, /not a customer result/);
+
+  pressEnter(page.document);
+  assert.deepEqual(page.navigations, [href], "Enter on the next step opened somewhere else");
+});
+
+test("Tab from the recorder's last control reaches the next step", async (t) => {
+  const page = await openHistory(t);
+  fill(page, ENTRY);
+  submitButton(page).click();
+
+  byId(page, "exit-decision-recorder").focus();
+  assert.equal(pressTab(page.document)?.getAttribute("id"), "decision-record-release",
+    "the next step is not the tab stop after the recorder");
+  assert.equal(page.document.querySelectorAll('[tabindex="1"]').length, 0);
+});
+
+test("a failed save, a refusal, or the next edit never leaves the next step standing", async (t) => {
+  const page = await openHistory(t);
+
+  // Refused: nothing is offered.
+  submitButton(page).click();
+  assert.equal(nextStep(page).hidden, true, "a refused submit offered the next step");
+
+  // Kept, then the next edit withdraws it.
+  fill(page, ENTRY);
+  submitButton(page).click();
+  assert.equal(nextStep(page).hidden, false);
+  fill(page, { title: "Cache the read path" });
+  assert.equal(nextStep(page).hidden, true, "typing the next decision left the last one's link");
+
+  // Not kept: the decision shows for the session, no link, focus on the form.
+  page.storage.setItem = () => { throw new Error("QuotaExceededError"); };
+  fill(page, { context: ENTRY.context, alternatives: ENTRY.alternatives, owner: ENTRY.owner });
+  submitButton(page).click();
+  assert.equal(byId(page, "storage-notice").hidden, false);
+  assert.equal(nextStep(page).hidden, true, "an unsaved decision offered a link to record its release");
+  assert.equal(focusedId(page), "title");
+});
+
+test("after a reload the path is back and the one-time next step is not", async (t) => {
+  const first = await openHistory(t);
+  fill(first, ENTRY);
+  submitButton(first).click();
+  const decisions = stored(first);
+  first.restore();
+
+  // The link belonged to the save, not to the record: a reloaded page offers the
+  // path from the top and the saved decision in the history.
+  const page = await openHistory(t, { decisions });
+  assert.equal(pathSteps(page).length, 4);
+  assert.equal(nextStep(page).hidden, true, "the next step survived a reload");
+  assert.deepEqual(rowTitles(page), [ENTRY.title]);
+});
+
+test("malformed or empty stored records still paint the path without throwing", async (t) => {
+  for (const storage of [
+    { [STORAGE_KEY]: "{not json", [RELEASE_STORAGE_KEY]: "[{" },
+    { [STORAGE_KEY]: JSON.stringify([null, 7, { id: 3 }]), [RELEASE_STORAGE_KEY]: "{}" },
+    {},
+  ]) {
+    const page = await loadPage(DECISIONS_PAGE, { storage });
+    try {
+      await initDecisionLog(page.document, page.storage, {
+        seed: NO_DEMO_DATA,
+        location: { pathname: "/", search: "", hash: "" },
+        history: { replaceState() {} },
+      });
+      assert.equal(pathSteps(page).length, 4, `the path did not paint over ${JSON.stringify(storage)}`);
+      assert.equal(nextStep(page).hidden, true);
+    } finally {
+      page.restore();
+    }
+  }
+});
+
+test("the next step wraps at a phone width instead of overflowing", async () => {
+  // The harness models no layout, so the rule itself is what is pinned.
+  const css = await readFile(new URL("../src/landing-decision.css", import.meta.url), "utf8");
+  assert.match(css, /\.decision-record-next \.button-link \{[^}]*max-width:100%/);
+  assert.match(css, /\.evaluation-path \{[^}]*overflow-wrap:anywhere/);
+  const narrow = css.match(/@media \(max-width:520px\) \{\s*\.decision-record-next \.button-link \{([^}]*)\}/);
+  assert.ok(narrow, "no narrow-width rule for the next-step link");
+  assert.match(narrow[1], /white-space:normal/);
+  assert.match(narrow[1], /overflow-wrap:anywhere/);
+  const html = await readFile(DECISIONS_PAGE, "utf8");
+  assert.doesNotMatch(html, /tabindex="[1-9]/, "a positive tabindex reorders the page");
 });
 
 test("a record the active filters hide is reported as hidden, not as listed", async (t) => {

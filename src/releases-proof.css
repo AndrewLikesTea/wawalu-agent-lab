@@ -29,4 +29,7 @@
 #release-list .list-state { min-width:0; overflow-wrap:anywhere; }
 #release-list .empty-action { max-width:100%; line-height:1.3; }
 @media(max-width:760px) { .shiplog-proof-facts{grid-template-columns:repeat(2,minmax(0,1fr))} }
+/* The end of the evaluation path at a phone width (#2371): the link to the
+ * release just recorded and the sentences around it wrap in the column. */
+@media(max-width:520px) { #release-record-next>*{min-width:0;max-width:100%;overflow-wrap:anywhere} }
 @media(max-width:520px) { .shiplog-proof-heading{align-items:stretch;flex-direction:column}.shiplog-proof-facts{grid-template-columns:1fr}.shiplog-proof-share{align-items:stretch;flex-direction:column}.shiplog-proof-share .share-button{width:100%} }

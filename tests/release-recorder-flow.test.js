@@ -12,7 +12,9 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { STORAGE_KEY } from "../src/app.js";
+import { readFile } from "node:fs/promises";
+import { STORAGE_KEY, initDecisionLog } from "../src/app.js";
+import { decisionToLink } from "../src/decision-entry.js";
 import { RELEASE_STORAGE_KEY } from "../src/releases.js";
 import { RELEASE_EXPORT_BUTTON_LABEL } from "../src/release-export.js";
 import { LOG_UNREAD, initReleasesPage } from "../src/releases-page.js";
@@ -228,7 +230,8 @@ test("the success state says the record is browser-only and names the way out", 
   assert.equal(successRegion(page).hidden, false);
   assert.equal(
     textOf(kept),
-    "This release is stored in this browser only. “Export releases as JSON” above takes it with you.",
+    "This release is stored in this browser only. “Export releases as JSON” above takes it with you."
+      + " It is a demo record, not a customer result.",
   );
   // Its own sentence, not the pre-submit scope line reprinted: that one is a
   // promise about any release this form takes, this one is a fact about the
@@ -710,6 +713,144 @@ test("a release with nothing linked says so on its detail page", async (t) => {
   assert.equal(detail.querySelectorAll(".detail-decision").length, 0);
 });
 
+
+// --- the evaluation path, end to end (#2371) --------------------------------
+
+const DECISIONS_PAGE = new URL("../src/index.html", import.meta.url);
+const checkedIds = (page) => page.document.querySelectorAll(".decision-picker-check")
+  .filter((check) => check.checked).map((check) => check.dataset.decisionId);
+
+async function openReleasesAt(search, { decisions = [QUEUE_DECISION, CACHE_DECISION] } = {}) {
+  const page = await loadPage(RELEASES_PAGE, {
+    storage: { [STORAGE_KEY]: JSON.stringify(decisions) },
+    location: { search },
+  });
+  initReleasesPage(page.document, page.storage, {
+    seed: NO_DEMO_DATA,
+    location: { pathname: "/releases.html", search, hash: "#record-release" },
+    history: { replaceState() {} },
+  });
+  return page;
+}
+
+test("a decision id in the address arrives ticked in the release recorder", async (t) => {
+  const page = await openReleasesAt(`?link=${QUEUE_DECISION.id}`);
+  t.after(() => page.restore());
+  assert.deepEqual(checkedIds(page), [QUEUE_DECISION.id]);
+  assert.equal(summaryText(page), "1 of 2 decisions linked. “Adopt a durable job queue” is the first linked decision.");
+  // Still the visitor's choice: unticking it records a release without it.
+  optionFor(page, QUEUE_DECISION.title).click();
+  fillRequired(page, { version: "v10.0.0" });
+  submit(page);
+  assert.deepEqual(stored(page)[0].decisionIds, []);
+});
+
+test("a missing, malformed, stale, or deleted decision id is ignored without an error", async () => {
+  const cases = [
+    ["missing", "", undefined],
+    ["empty", "?link=", undefined],
+    ["malformed", "?link=%E0%A4%A&link=%", undefined],
+    ["markup", "?link=%3Cimg%20src%3Dx%3E", undefined],
+    ["stale", "?link=d-never-recorded", undefined],
+    ["deleted", `?link=${QUEUE_DECISION.id}`, [CACHE_DECISION]],
+  ];
+  for (const [label, search, decisions] of cases) {
+    const page = await openReleasesAt(search, { decisions });
+    try {
+      assert.equal(page.document.documentElement.dataset.shiplogReleases, "ready", `${label}: the page did not boot`);
+      assert.deepEqual(checkedIds(page), [], `${label}: a decision was ticked`);
+      assert.match(summaryText(page), /^No decisions linked yet\./, `${label}: the picker reports a selection`);
+      assert.equal(formError(page).hidden, true, `${label}: an error was shown`);
+      assert.equal(page.document.querySelector("#release-list").querySelectorAll("img").length, 0);
+    } finally {
+      page.restore();
+    }
+  }
+  assert.deepEqual(decisionToLink(undefined, [QUEUE_DECISION]), []);
+  assert.deepEqual(decisionToLink("?link=seed-queue", null), []);
+  assert.deepEqual(decisionToLink("?link=seed-queue", [null, QUEUE_DECISION]), [QUEUE_DECISION.id]);
+});
+
+test("the evaluation path runs from a saved decision to a release that still opens after a reload", async (t) => {
+  // Step 1: record a decision on Decisions.
+  const home = await loadPage(DECISIONS_PAGE, { storage: {} });
+  await initDecisionLog(home.document, home.storage, {
+    seed: NO_DEMO_DATA,
+    location: { pathname: "/", search: "", hash: "" },
+    history: { replaceState() {} },
+  });
+  for (const [id, value] of Object.entries({
+    title: "Adopt a durable job queue", context: "Background work was lost on deploys.",
+    alternatives: "Database polling.", owner: "Kai",
+  })) fill(home, id, value);
+  home.document.querySelector("#decision-form").querySelector('button[type="submit"]').click();
+  const [decision] = JSON.parse(home.storage.getItem(STORAGE_KEY));
+
+  // Step 2: continue to Releases with Enter on the focused next step.
+  assert.equal(home.document.activeElement?.getAttribute("id"), "decision-record-release");
+  pressEnter(home.document);
+  const next = new URL(home.navigations[0], "https://shiplog.test");
+  const decisionsStored = home.storage.getItem(STORAGE_KEY);
+  home.restore();
+  assert.equal(next.pathname, "/releases.html");
+  assert.equal(next.hash, "#record-release");
+
+  // Step 3: that decision arrives ticked; record the release.
+  const page = await openReleasesAt(next.search, { decisions: JSON.parse(decisionsStored) });
+  assert.deepEqual(checkedIds(page), [decision.id], "the saved decision did not arrive ticked");
+  fillRequired(page,{ version: "v9.0.0", description: "The durable queue shipped." });
+  submit(page);
+  const [saved] = stored(page);
+  assert.deepEqual(saved.decisionIds, [decision.id]);
+
+  // Step 4: the success state opens exactly that release and says what to check.
+  const detailHref = `/release.html?id=${saved.id}`;
+  assert.equal(successDetailLink(page).getAttribute("href"), detailHref);
+  assert.equal(page.document.activeElement?.getAttribute("id"), "release-record-detail");
+  assert.equal(textOf(successRegion(page).querySelector("p")),
+    "Open the release you just recorded and check its summary and linked decisions.");
+  assert.match(textOf(page.document.querySelector("#release-record-kept")), /browser only.*not a customer result/);
+  // Reachable by Tab too, straight after the button that recorded it.
+  page.document.querySelectorAll("button").find((button) => textOf(button) === "Record release").focus();
+  assert.equal(pressTab(page.document)?.getAttribute("id"), "release-record-detail");
+  pressEnter(page.document);
+  assert.deepEqual(page.navigations, [detailHref]);
+  const after = { [STORAGE_KEY]: decisionsStored, [RELEASE_STORAGE_KEY]: page.storage.getItem(RELEASE_STORAGE_KEY) };
+  page.restore();
+
+  // Reloading Releases drops the one-time ending and keeps the record.
+  const reloaded = await loadPage(RELEASES_PAGE, { storage: after });
+  try {
+    initReleasesPage(reloaded.document, reloaded.storage, { seed: NO_DEMO_DATA });
+    assert.equal(successRegion(reloaded).hidden, true, "the success state survived a reload");
+    assert.match(textOf(reloaded.document.querySelectorAll(".release-toggle")[0]), /v9\.0\.0/);
+  } finally {
+    reloaded.restore();
+  }
+
+  // The permalink resolves to the saved release on arrival and on a reload.
+  for (const visit of ["arrival", "reload"]) {
+    const detail = await loadPage(RELEASE_DETAIL_PAGE, { storage: after, location: { search: `?id=${saved.id}` } });
+    try {
+      initReleaseDetail();
+      const content = textOf(detail.document.querySelector("#release-detail"));
+      assert.match(content, /v9\.0\.0/, `${visit}: not the saved release`);
+      assert.match(content, /The durable queue shipped\./, `${visit}: the summary is missing`);
+      assert.match(content, /Adopt a durable job queue/, `${visit}: the linked decision is missing`);
+    } finally {
+      detail.restore();
+    }
+  }
+});
+
+test("the release success state wraps at a phone width", async () => {
+  const css = await readFile(new URL("../src/releases-proof.css", import.meta.url), "utf8");
+  const narrow = css.match(/@media\(max-width:520px\) \{ #release-record-next>\*\{([^}]*)\}/);
+  assert.ok(narrow, "no narrow-width rule for the release success state");
+  assert.match(narrow[1], /overflow-wrap:anywhere/);
+  assert.match(narrow[1], /max-width:100%/);
+  assert.doesNotMatch(await readFile(RELEASES_PAGE, "utf8"), /tabindex="[1-9]/);
+});
 
 test("the homepage primary demo reaches Releases and a saved, inspectable outcome", async (t) => {
   const home = await loadPage(new URL("../src/index.html", import.meta.url));
