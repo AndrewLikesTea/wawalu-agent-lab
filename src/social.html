@@ -367,8 +367,11 @@
              an announcement fires into a region the reader can already see. -->
         <div class="form-panel" id="post-compose-panel" aria-labelledby="post-form-title" hidden>
           <div class="section-heading">
-            <h2 id="post-form-title">Publish a post</h2>
+            <h2 id="post-form-title" tabindex="-1">Publish a post</h2>
           </div>
+          <!-- Ships empty. src/social.js lists every refusal of a Publish post
+               press here, each naming its field, and moves focus here (#2370). -->
+          <div class="form-error-summary" id="post-error-summary" role="group" aria-labelledby="post-error-summary-title" tabindex="-1" hidden></div>
 
           <!-- Filled by src/paint-handoff.js when the visitor arrives from the
                Paint handoff, and empty otherwise. It says what did and did not
@@ -377,7 +380,7 @@
                the explanation rather than in the middle of the form. -->
           <div class="paint-arrival" id="paint-arrival" role="status" tabindex="-1" hidden></div>
 
-          <form id="post-form" aria-labelledby="post-form-title" aria-describedby="post-form-hint">
+          <form id="post-form" aria-labelledby="post-form-title" aria-describedby="post-form-hint" novalidate>
             <p class="hint" id="post-form-hint">Write your post. Add an image if you want one — a post with an image also appears on People, under the display name you publish it with.</p>
 
             <div class="field field-wide">
@@ -627,9 +630,9 @@
             <!-- The way out, in the word the footer's panel already uses for
                  the same act. It collapses the composer and puts focus back on
                  the control that opened it, which is not always the hero's
-                 opener. Escape from inside this panel does the same thing,
-                 unless a submission is in flight — closing then would hide the
-                 only region that is going to say how it ended. A publish that
+                 opener. Escape from inside this panel does the same thing, also
+                 while a publish is in flight: the draft stays, and a request
+                 that returns to a closed panel is announced outside it. A publish that
                  succeeds does NOT close the panel either: the receipt below is
                  where focus goes, and it lives in here. Its sentence follows it,
                  as every hint in this form follows its control, so the one-column

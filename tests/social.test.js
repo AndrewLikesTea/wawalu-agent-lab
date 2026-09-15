@@ -1717,8 +1717,11 @@ test("with the composer open, one control reads Publish a post and the submit re
   // not a control, so a reader never presses it and the pair above stays a pair.
   assert.equal(textOf(id("post-form-title")), "Publish a post");
   assert.equal(id("post-form-title").tagName, "H2");
-  assert.equal(id("post-form-title").getAttribute("tabindex"), null,
-    "the composer heading became focusable, so the page now offers its name on three stops");
+  // Focusable by script only (#2370: open() lands on it), never a tab stop, so
+  // the page still offers the name on two stops.
+  assert.equal(id("post-form-title").getAttribute("tabindex"), "-1");
+  assert.equal(tabSequence(document).filter((node) => node.id === "post-form-title").length, 0,
+    "the composer heading became a tab stop, so the page now offers its name on three stops");
 
   // The consequence is untouched and still stands between the last field and the
   // button, named by the button that costs it. Order by walk, because the
@@ -1804,7 +1807,7 @@ test("the first-visit publish action is primary and precedes feed guidance and f
   assert.equal(action.getAttribute("aria-expanded"), "false");
 });
 
-test("the trigger reveals the composer and puts focus in the post field", async (t) => {
+test("the trigger reveals the composer and puts focus on its heading", async (t) => {
   const { document, id } = await socialDisclosure(t);
   const trigger = id("post-compose-open");
   const panel = id("post-compose-panel");
@@ -1817,8 +1820,8 @@ test("the trigger reveals the composer and puts focus in the post field", async 
 
   assert.equal(panel.hidden, false, "activating the trigger did not reveal the composer");
   assert.equal(trigger.getAttribute("aria-expanded"), "true");
-  assert.equal(document.activeElement?.id, "post-body",
-    "focus did not land in the post field the trigger promised");
+  assert.equal(document.activeElement?.id, "post-form-title",
+    "focus did not land on the heading of the composer the trigger revealed");
   // And the fields a keyboard reader now walks are the composer's, in order.
   const revealed = tabSequence(document).map((node) => node.id);
   assert.ok(revealed.indexOf("post-body") > revealed.indexOf("post-compose-open"));
@@ -1871,7 +1874,8 @@ test("the character counter still announces in the composer the trigger revealed
 
   // Typed into after the reveal, the way a reader reaches it — not into a
   // composer that was never hidden.
-  assert.equal(document.activeElement?.id, "post-body");
+  assert.equal(document.activeElement?.id, "post-form-title");
+  document.querySelector("#post-body").focus();
   typeText(document, "Shipped the reorder.");
   assert.equal(textOf(counter), String(MAX_POST_LENGTH - "Shipped the reorder.".length));
   assert.equal(feed.getPosts().length, 0);
@@ -2005,7 +2009,7 @@ test("the composer keeps the post and the display name across a close and a reop
   const panel = id("post-compose-panel");
 
   trigger.click();
-  assert.equal(document.activeElement?.id, "post-body");
+  assert.equal(document.activeElement?.id, "post-form-title");
   typeInto("post-body", DRAFT);
   typeInto("post-author", "Mina");
 
@@ -2020,8 +2024,8 @@ test("the composer keeps the post and the display name across a close and a reop
   assert.equal(id("post-author").value, "Mina", "the display name was thrown away by a close");
   assert.equal(textOf(id("post-counter")), String(MAX_POST_LENGTH - DRAFT.length),
     "the counter went back to its empty-form maximum over a field that still holds a post");
-  assert.equal(document.activeElement?.id, "post-body",
-    "reopening did not put the caret in the first field");
+  assert.equal(document.activeElement?.id, "post-form-title",
+    "reopening did not put focus on the composer heading");
 
   // (b) Closed with Escape from inside the panel, which is the keyboard exit —
   // and the one a visitor is most likely to hit by accident.
@@ -2035,7 +2039,7 @@ test("the composer keeps the post and the display name across a close and a reop
   assert.equal(id("post-body").value, DRAFT, "the post was thrown away by Escape");
   assert.equal(id("post-author").value, "Mina", "the display name was thrown away by Escape");
   assert.equal(textOf(id("post-counter")), String(MAX_POST_LENGTH - DRAFT.length));
-  assert.equal(document.activeElement?.id, "post-body");
+  assert.equal(document.activeElement?.id, "post-form-title");
 
   // Nothing left this tab to hold it. The draft is kept by the panel that is
   // still standing, not by anything written down: browser storage is untouched
@@ -2153,7 +2157,7 @@ test("the image, its description, and both counters survive a close and a reopen
     "Escape dropped focus somewhere other than the control that opened the panel");
 
   trigger.click();
-  assert.equal(document.activeElement?.id, "post-body", "reopening skipped the first field");
+  assert.equal(document.activeElement?.id, "post-form-title", "reopening did not land on the composer heading");
   assert.equal(id("post-body").value, DRAFT);
   assert.equal(id("post-image-alt").value, ALT_TEXT, "the image description was thrown away by the close");
   // The preview still renders, and the control that takes the image back out is
@@ -2274,7 +2278,7 @@ test("empty Social offers a keyboard-reachable Publish a post action that opens 
   action.focus();
   action.click();
   assert.equal(page.document.querySelector("#post-compose-panel").hidden, false);
-  assert.equal(page.document.activeElement, page.document.querySelector("#post-body"));
+  assert.equal(page.document.activeElement?.id, "post-form-title");
 });
 
 test("People empty recovery links follow its message in keyboard order on the shipped page", async (t) => {

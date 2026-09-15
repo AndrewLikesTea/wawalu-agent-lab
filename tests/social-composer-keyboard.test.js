@@ -75,7 +75,8 @@ test("keyboard activation names and expands the composer, focuses its required f
   trigger.focus();
   pressKey(document, "Enter");
   assert.equal(trigger.getAttribute("aria-expanded"), "true");
-  assert.equal(document.activeElement?.id, "post-body");
+  assert.equal(document.activeElement?.id, "post-form-title");
+  id("post-body").focus();
   // The name is on the <form> landmark and on nothing else. A second element
   // around it carrying the same name — the panel, as a role="region" — is two
   // nested landmarks both called "Publish a post", so opening the composer
@@ -109,38 +110,6 @@ test("closing a dirty draft preserves every field and returns to the actual open
   assert.equal(document.activeElement === origin, true, "Close did not return focus to the opener");
   assert.equal(textOf(id("post-keyboard-hint")),
     "Escape or Close hides the composer, and your draft stays in this tab while the composer is closed or you work in another tab, such as Paint.");
-});
-
-test("Escape and other close paths cannot hide an active submission, including a failed request", async (t) => {
-  let reject;
-  const pending = new Promise((_, fail) => { reject = fail; });
-  const { document, feed, id } = await setup(t, { create: () => pending });
-  id("post-compose-open").click();
-  id("post-body").value = "Keep this draft";
-  id("post-submit").click();
-  assert.equal(id("post-submit").getAttribute("aria-busy"), "true");
-  assert.equal(id("post-compose-cancel").disabled, true);
-  id("post-body").focus();
-  pressKey(document, "Escape");
-  feed.composer.close();
-  id("post-compose-open").click();
-  assert.equal(feed.composer.isOpen, true);
-  assert.equal(id("post-compose-open").getAttribute("aria-expanded"), "true");
-  assert.equal(document.activeElement?.id, "post-body");
-  reject(new Error("Offline"));
-  await new Promise((resolve) => setImmediate(resolve));
-  assert.equal(id("post-compose-cancel").disabled, false);
-  assert.equal(id("post-body").value, "Keep this draft");
-  // Where the reader is standing when the request comes back. Pressing Publish
-  // disables the button under their own focus, so a real browser has already
-  // dropped them on <body> — outside the panel, where Escape is not bound and
-  // Tab restarts at the top of the document. Both outcomes now end on this one
-  // region: success for its receipt, failure for its Retry.
-  assert.equal(document.activeElement?.id, "social-notice");
-  assert.equal(id("social-notice").getAttribute("tabindex"), "-1");
-  id("post-body").focus();
-  pressKey(document, "Escape");
-  assert.equal(feed.composer.isOpen, false);
 });
 
 test("composer tab order follows its fields and actions without positive tabindex", async (t) => {
@@ -207,7 +176,11 @@ test("the composer reads Paint, Choose image, the preview, the fields and the no
 test("with a described image, Tab walks Paint, Choose image, Remove image, the fields, Publish post, then Close", async (t) => {
   const { document, id } = await withImage(t, "A card wrapped in a blue focus ring.");
   assert.equal(id("post-submit").disabled, false);
-  assert.equal(document.activeElement?.id, "post-body");
+  // open() lands on the heading, which is not itself a tab stop; this harness
+  // would restart Tab at stop 0 from there, so the walk starts on the field a
+  // browser's next Tab reaches (tests/social-composer-publish-race.test.js).
+  assert.equal(document.activeElement?.id, "post-form-title");
+  id("post-body").focus();
   const walked = [];
   for (let press = 0; press < 12; press += 1) {
     const name = nameOf(pressTab(document));
