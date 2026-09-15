@@ -4,6 +4,7 @@ import {
   DECISION_ENTRY_STATUSES,
   decisionEntrySummary,
   decisionRecordedSummary,
+  recordReleaseHref,
   validateDecision,
   validateDecisionEntry,
 } from "./decision-entry.js";
@@ -1101,6 +1102,14 @@ export async function initDecisionLog(root = document, storage = localStorage, o
   const supersedesError = root.querySelector("#supersedes-error");
   const formError = root.querySelector("#decision-form-error");
   const recordStatus = root.querySelector("#decision-record-status");
+  // The evaluation path's next step, offered only for a decision that is in
+  // storage. Withdrawn by every refusal and by the next edit, like the status
+  // line above it, so it can never point a visitor at a record that was not kept.
+  const recordNext = root.querySelector("#decision-record-next");
+  const recordReleaseLink = root.querySelector("#decision-record-release");
+  const withdrawRecordNext = () => {
+    if (recordNext) recordNext.hidden = true;
+  };
   // Each required field paired with the paragraph that reports its failure. A
   // surface that mounts the recorder without those paragraphs still validates
   // and still refuses a bad entry; it just cannot show the message, so every
@@ -1237,6 +1246,7 @@ export async function initDecisionLog(root = document, storage = localStorage, o
     // success line, so the last thing said about this form is what just
     // happened to it.
     if (recordStatus) recordStatus.textContent = "";
+    withdrawRecordNext();
   };
 
   const clearSupersedesError = () => {
@@ -1312,6 +1322,7 @@ export async function initDecisionLog(root = document, storage = localStorage, o
     // A fresh failure retires the previous success line: the last thing said
     // about this form must be the thing that just happened to it.
     if (recordStatus) recordStatus.textContent = "";
+    withdrawRecordNext();
     // Focus the first failure in form order — where a reader would start — not
     // the last one found. Every other message is already on its own field.
     const first = entryFields.get(errors[0]?.field)?.control;
@@ -1658,6 +1669,11 @@ export async function initDecisionLog(root = document, storage = localStorage, o
   });
   exitRecorder?.addEventListener("click", () => exitDecisionRecorder(root));
 
+  // Typing the next decision retires the last one's next step. form.reset()
+  // raises neither event, so the step a save reveals survives that save.
+  form.addEventListener("input", withdrawRecordNext);
+  form.addEventListener("change", withdrawRecordNext);
+
   form.addEventListener("submit", (event) => {
     event.preventDefault();
     const values = Object.fromEntries(new FormData(form));
@@ -1731,7 +1747,19 @@ export async function initDecisionLog(root = document, storage = localStorage, o
       recordStatus.textContent = saved ? decisionRecordedSummary(decision, { visible }) : "";
     }
     form.reset();
-    form.elements.title.focus();
+    // A kept decision moves focus to the next step of the evaluation path, as
+    // the releases recorder moves it to the release it kept: the next thing to
+    // do is on another page, and the link is described by the sentence that
+    // says the decision will be waiting there. An unkept one offers nothing and
+    // returns focus to the form.
+    if (saved && recordNext && recordReleaseLink) {
+      recordReleaseLink.setAttribute("href", recordReleaseHref(decision.id));
+      recordNext.hidden = false;
+      recordReleaseLink.focus();
+    } else {
+      withdrawRecordNext();
+      form.elements.title.focus();
+    }
   });
 
   // The live deployment self-check (#1791), which is the releases page's band

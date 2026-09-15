@@ -109,6 +109,23 @@
 .shiplog-entry h2 { margin:8px 0 12px; font-size:clamp(24px,3.6vw,36px); line-height:1.1; letter-spacing:-.03em; }
 .shiplog-entry > p:not(.eyebrow) { max-width:70ch; margin:0; color:#555550; font-size:17px; line-height:1.6; }
 
+/* ------------------------- the evaluation path ----------------------------- */
+
+/* The four steps above the decision recorder, and the step a saved decision
+ * reveals under it (#2371). Links and step text wrap inside a narrow column
+ * rather than widening the page; the next-step link takes the full width on a
+ * phone so its label breaks onto a second line instead of overflowing. The
+ * focus ring is the global a:focus-visible rule in styles.css. */
+.evaluation-path { margin:0 0 18px; border-left:4px solid #1f70c1; padding:2px 0 2px 14px; overflow-wrap:anywhere; }
+.evaluation-path h3 { margin:0 0 6px; font-size:16px; }
+.evaluation-path ol { margin:0 0 6px; padding-left:20px; line-height:1.5; }
+.decision-record-next { display:grid; gap:8px; margin-top:12px; overflow-wrap:anywhere; }
+.decision-record-next p { margin:0; }
+.decision-record-next .button-link { max-width:100%; justify-self:start; }
+@media (max-width:520px) {
+  .decision-record-next .button-link { justify-self:stretch; gap:12px; white-space:normal; overflow-wrap:anywhere; }
+}
+
 /* --------------------------------- print ----------------------------------- */
 
 /* What a reader gets when they print the front door: the briefing, alone.

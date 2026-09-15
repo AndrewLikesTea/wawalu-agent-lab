@@ -26,6 +26,7 @@ import { renderShippedBuild } from "./deployed-release-view.js";
 import { initDeploymentStatus } from "./deployment-status-view.js";
 import { RELEASE_FORM_ERRORS, createRelease, mountDecisionPicker, recordedSummaryText } from "./release-form.js";
 import { copyRecordUrl } from "./share-link.js";
+import { decisionToLink } from "./decision-entry.js";
 import { initReleaseExport } from "./release-export.js";
 
 const SAVE_FAILED = "This release could not be saved in this browser. Your entries are still here; free some browser storage and try again.";
@@ -91,6 +92,7 @@ function initReleaseRecorder(root, storage, options = {}) {
   const decisionGroup = root.querySelector("#release-decisions-field");
   const picker = mountDecisionPicker(decisionField, {
     decisions: options.decisions ?? [],
+    selected: options.selected ?? [],
     summary: root.querySelector("#release-decisions-summary"),
     // Ticking anything answers the only complaint this group can raise, so the
     // alert and the invalid marking clear as soon as the user acts on them
@@ -388,6 +390,9 @@ export function initReleasesPage(root = document, storage = localStorage, option
   // list is read back instead of joined to a list it never loaded.
   initReleaseRecorder(root, storage, {
     decisions,
+    // The decision the Decisions page just saved arrives ticked (#2371). Any id
+    // this log does not hold is dropped silently rather than reported.
+    selected: decisionToLink(locationRef?.search, decisions),
     onRecorded: (release) => {
       if (unread) {
         reload();

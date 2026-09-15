@@ -572,6 +572,21 @@
             <h2 id="decision-form-title">Record a decision</h2>
           </div>
 
+          <!-- THE WHOLE DEMO, IN ORDER (#2371). Plain text with no links, so it
+               adds no tab stop to a page whose first screen has none to spare;
+               the one link the path needs appears under the button once a
+               decision is actually saved. Static markup that no module repaints. -->
+          <section class="evaluation-path" aria-labelledby="evaluation-path-title">
+            <h3 id="evaluation-path-title">Try the whole demo in four steps</h3>
+            <ol id="evaluation-path-steps">
+              <li>Record a decision with the form below.</li>
+              <li>Continue to Releases from the link that appears once it is saved.</li>
+              <li>Record a release there and link that decision to it.</li>
+              <li>Open the release you recorded and check its summary and linked decision.</li>
+            </ol>
+            <p class="hint" id="evaluation-path-scope">Records you add stay in this browser only. This is a demo workflow, not a customer result.</p>
+          </section>
+
           <!-- novalidate, and validated by decision-entry.js instead. A native
                bubble reports one empty field at a time, in the browser's words,
                and takes it away again on the next keystroke; the inline errors
@@ -665,6 +680,18 @@
                #storage-notice in the list panel, which reports a save failing,
                and from the debounced result count, which reports the list. -->
           <p class="hint decision-record-status" id="decision-record-status" role="status" aria-live="polite"></p>
+
+          <!-- Step two of the path. The status line above is the announcement;
+               this is where to go next, revealed by app.js only after the
+               decision is in storage and withdrawn on the next edit or refusal.
+               Focus moves to the link, which is described by the sentence
+               above it, so the next step is one Enter away. The placeholder
+               address is narrowed to carry the saved decision's id. -->
+          <div class="decision-record-next" id="decision-record-next" hidden>
+            <p id="decision-record-next-lead">Next, record the release this decision shaped. The new decision will be listed under Linked decisions there, already ticked.</p>
+            <a class="button-link" id="decision-record-release" href="/releases.html#record-release" aria-describedby="decision-record-next-lead">Record a release on Releases <span aria-hidden="true">→</span></a>
+            <p class="hint" id="decision-record-kept">This decision is stored in this browser only. It is a demo record, not a customer result.</p>
+          </div>
         </div>
 
         <div class="list-panel" aria-labelledby="decisions-title">

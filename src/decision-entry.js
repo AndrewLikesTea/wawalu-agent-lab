@@ -200,3 +200,21 @@ export function decisionRecordedSummary(decision, options = {}) {
     : "It is in the history below.";
   return `Recorded “${title}” as ${status}. ${where}`;
 }
+
+// Where a saved decision goes next on the evaluation path (#2371): the releases
+// recorder, carrying the decision's id so it arrives already ticked. The id is
+// only ever a hint. Releases reads it through decisionToLink(), which answers
+// with nothing unless the id names a decision that log holds right now, so a
+// missing, malformed, stale, or deleted id costs a visitor an unticked box and
+// never an error.
+export const LINK_DECISION_PARAM = "link";
+
+export function recordReleaseHref(decisionId) {
+  return `/releases.html?${LINK_DECISION_PARAM}=${encodeURIComponent(String(decisionId ?? ""))}#record-release`;
+}
+
+export function decisionToLink(search, decisions = []) {
+  const id = new URLSearchParams(typeof search === "string" ? search : "").get(LINK_DECISION_PARAM);
+  if (!id || !Array.isArray(decisions)) return [];
+  return decisions.some((decision) => decision?.id === id) ? [id] : [];
+}
