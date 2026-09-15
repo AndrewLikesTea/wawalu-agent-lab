@@ -28,5 +28,16 @@
  * may break onto a second line rather than overflow. */
 #release-list .list-state { min-width:0; overflow-wrap:anywhere; }
 #release-list .empty-action { max-width:100%; line-height:1.3; }
+/* The always-present, selectable copy of a release brief, under its copy
+ * button. `.share-control` is a centred flex row, so this takes the whole row
+ * and drops the centring — it is a block of text, not a control beside one.
+ * The <pre> keeps the brief's line breaks (a reader pasting it gets the same
+ * shape they can see) while wrapping long decision context instead of scrolling
+ * sideways, and is capped in height so four expanded releases do not become
+ * four screens of plain text. These rules live here rather than in styles.css,
+ * which is at its measured size budget; this file is not in that graph. */
+.release-brief-fallback { flex:1 1 100%; min-width:0; }
+.release-brief-text-label { margin:0 0 6px; color:#4c5650; font-size:13px; font-weight:700; }
+.release-brief-text { max-height:16em; overflow:auto; margin:0; padding:10px 12px; border:1px solid #cbdcd3; border-radius:8px; background:#fff; color:#28332e; font:13px/1.5 ui-monospace,monospace; white-space:pre-wrap; overflow-wrap:anywhere; }
 @media(max-width:760px) { .shiplog-proof-facts{grid-template-columns:repeat(2,minmax(0,1fr))} }
 @media(max-width:520px) { .shiplog-proof-heading{align-items:stretch;flex-direction:column}.shiplog-proof-facts{grid-template-columns:1fr}.shiplog-proof-share{align-items:stretch;flex-direction:column}.shiplog-proof-share .share-button{width:100%} }

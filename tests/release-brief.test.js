@@ -25,6 +25,7 @@ import {
   RELEASE_BRIEF_COPIED_STATUS,
   RELEASE_BRIEF_COPY_FAILED_STATUS,
   RELEASE_BRIEF_EXAMPLE_LINE,
+  RELEASE_BRIEF_TEXT_LABEL,
   RELEASE_STORAGE_KEY,
   buildReleaseBrief,
   summarizeReleases,
@@ -316,6 +317,104 @@ test("the control reuses the classes styles.css already narrows", async (t) => {
   assert.match(narrow, /\.share-control\{[^}]*flex-direction:column/);
   assert.match(narrow, /\.share-button\{width:100%\}/);
   assert.match(narrow, /\.share-status\{max-width:none\}/);
+});
+
+// --- the fallback that is rendered, not promised ---------------------------
+//
+// The clipboard is the convenience; the brief itself has to be on the page
+// either way. `textContent` rather than `textOf` throughout: the helper
+// collapses whitespace, and the whole point of these is that the reader can
+// select the brief exactly as the clipboard would have written it, line breaks
+// and all.
+
+const briefTextAt = (page, index) => page.document.getElementById(`release-brief-text-${index}`);
+
+test("the brief is on the page as selectable text before anything is pressed", async (t) => {
+  const page = await bootedReleases(t);
+  const block = briefTextAt(page, 0);
+  assert.equal(block.tagName, "PRE", "a block that preserves the brief's line breaks, and is not a tab stop");
+  assert.equal(block.dataset.releaseId, "r-read");
+  // Byte-for-byte the brief, not a summary of it or a transcription of the row.
+  assert.equal(block.textContent, buildReleaseBrief(RECORDED, DECISIONS));
+  assert.match(block.textContent, /^Release brief: v1\.2\.0 — Read path$/m);
+  assert.ok(block.textContent.includes(RELEASE_BRIEF_BROWSER_LINE), "the disclosure travels with the text");
+
+  // One per record, like the control, and named by the sentence above it.
+  assert.equal(page.document.querySelectorAll(".release-brief-text").length, 2);
+  const label = page.document.getElementById("release-brief-text-0-label");
+  assert.equal(textOf(label), RELEASE_BRIEF_TEXT_LABEL);
+  assert.equal(block.getAttribute("aria-labelledby"), "release-brief-text-0-label");
+});
+
+test("the confirmation and the fallback sit with the control, not inside something it can collapse", async (t) => {
+  const page = await bootedReleases(t);
+  const [button] = briefButtons(page);
+  // The live region is the control's own sibling: a reader who can see the
+  // button can see the answer, whatever is folded away elsewhere on the row.
+  assert.equal(statusAt(page, 0).parentNode, button.parentNode);
+  // The fallback is one step down from that same group, so the failure
+  // sentence's "below this button" is true of the rendered order.
+  assert.equal(briefTextAt(page, 0).parentNode.parentNode, button.parentNode);
+});
+
+test("what the clipboard receives is exactly what stays on the page", async (t) => {
+  const written = [];
+  const page = await bootedReleases(t, { clipboard: { writeText: async (text) => { written.push(text); } } });
+  toggles(page)[1].click();
+  briefButtons(page)[1].click();
+  await settle();
+
+  assert.equal(written.length, 1);
+  // The example row: the copied text and the rendered text must agree about
+  // provenance as well as about the record.
+  assert.equal(written[0], briefTextAt(page, 1).textContent);
+  assert.ok(written[0].includes(RELEASE_BRIEF_EXAMPLE_LINE));
+  assert.equal(textOf(statusAt(page, 1)), RELEASE_BRIEF_COPIED_STATUS);
+});
+
+test("with no clipboard at all, the whole brief is still there to select by hand", async (t) => {
+  const page = await bootedReleases(t, { clipboard: undefined });
+  toggles(page)[0].click();
+  briefButtons(page)[0].click();
+  await settle();
+
+  // The failure names the fallback rather than sending the reader elsewhere…
+  assert.equal(textOf(statusAt(page, 0)), RELEASE_BRIEF_COPY_FAILED_STATUS);
+  assert.match(textOf(statusAt(page, 0)), /copy it by hand/);
+  // …and the fallback it names is the complete brief, unchanged by the failure.
+  const block = briefTextAt(page, 0);
+  assert.equal(block.textContent, buildReleaseBrief(RECORDED, DECISIONS));
+  assert.match(block.textContent, /^Owner: Ari$/m);
+  assert.match(block.textContent, /^ {2}Decision owner: Ari$/m, "the reasoning is in the fallback too");
+  assert.match(block.textContent, /^ {2}Context: Read latency spikes\.$/m);
+});
+
+test("a clipboard that rejects is caught, and leaves the page in the same usable state", async (t) => {
+  const page = await bootedReleases(t, {
+    clipboard: { writeText: async () => { throw new Error("denied"); } },
+  });
+  toggles(page)[0].click();
+  const before = briefTextAt(page, 0).textContent;
+  briefButtons(page)[0].click();
+  // A rejection that escaped the handler would surface here as an unhandled
+  // rejection rather than as a sentence on the page.
+  await settle();
+
+  assert.equal(textOf(statusAt(page, 0)), RELEASE_BRIEF_COPY_FAILED_STATUS);
+  assert.equal(briefTextAt(page, 0).textContent, before, "a refused write must not disturb the fallback");
+  assert.equal(briefButtons(page)[0].disabled, false);
+});
+
+test("the shipped page's linked decisions carry their owner and context into the brief", async (t) => {
+  const page = await bootedReleases(t);
+  const text = briefTextAt(page, 0).textContent;
+  // Both linked decisions, each with the two fields a reader signing off needs.
+  assert.match(text, /^- Cache the read path — Pending$/m);
+  assert.match(text, /^ {2}Decision owner: Ari$/m);
+  assert.match(text, /^ {2}Context: Read latency spikes\.$/m);
+  assert.match(text, /^- Adopt a durable queue — Accepted$/m);
+  assert.match(text, /^ {2}Decision owner: Kai$/m);
+  assert.match(text, /^ {2}Context: Retries are required\.$/m);
 });
 
 test("a filter change re-renders the rows and the control still works", async (t) => {

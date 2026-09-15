@@ -16,6 +16,21 @@ import { DECISION_STATUSES, canonicalDecisionStatus } from "./decision-status.js
 import { retentionDeclined, retentionRefusal } from "./local-retention.js";
 import { copyText, createShareControl } from "./share-link.js";
 import { EXAMPLE_LABEL } from "./seed-records.js";
+import { buildReleaseRationale, decisionLabel } from "./release-rationale.js";
+
+// The brief's words live in release-rationale.js; this module resolves the
+// record and hands it there. Re-exported so every existing caller keeps its one
+// import of "./releases.js" and no page has to learn where the words moved to.
+export {
+  EXAMPLE_DECISION_NOTE,
+  NO_CONTEXT_TEXT,
+  NO_SUMMARY_TEXT,
+  RELEASE_BRIEF_BROWSER_LINE,
+  RELEASE_BRIEF_EXAMPLE_LINE,
+  UNRESOLVED_DECISION_NOTE,
+  buildReleaseRationale,
+  decisionLabel,
+} from "./release-rationale.js";
 
 export const RELEASE_STORAGE_KEY = "shiplog.releases.v1";
 export const RELEASE_STATUSES = ["planned", "completed", "cancelled"];
@@ -383,16 +398,6 @@ export function releaseAttentionKind(resolved, kinds = RELEASE_ATTENTION_KINDS) 
   return kinds.find((kind) => (resolved?.counts?.[kind] ?? 0) > 0) ?? null;
 }
 
-// Linked-decision fields arrive from storage and from imports, so a decision
-// may reach here without a usable title. Naming it by id keeps the follow-up
-// specific — "resolve d-queue" is still actionable; "resolve a decision" is not.
-function decisionLabel(decision) {
-  for (const value of [decision?.title, decision?.id]) {
-    if (typeof value === "string" && value.trim() !== "") return value.trim();
-  }
-  return "an untitled decision";
-}
-
 // Copy per kind. Each entry states what is outstanding, what the action does,
 // and — separately, so it can describe the link rather than replace its label —
 // where the link goes and what is waiting there.
@@ -676,50 +681,26 @@ export function statusSummaryText(resolved) {
 // The buyer brief: one release as plain text, for the mail, ticket, or board
 // pack a reader is going to paste it into.
 //
-// Pure and exported, because the words are the product here and the control
-// below is only the thing that hands them to the clipboard. Asserting the text
-// through a rendered row would test the renderer; asserting it here tests what
-// a reader receives.
-//
-// TWO DISCLOSURES, NEVER BOTH, NEVER NEITHER. A brief leaves this page and
-// arrives somewhere with none of the page's framing around it, so it has to
-// carry its own provenance. Which line a record gets is decided from the
-// distinction the page already draws — `exampleIds`, the same set that badges a
-// row "Example record" — rather than from a new field or a guess: a seeded
-// example cannot be described as something written in this browser, and a
-// release the visitor recorded cannot be described as a demonstration of the
-// product. The browser-local line is deliberately not Social's wording. Social's
-// posts are hosted records; these are in this browser's storage and nowhere
-// else, and saying otherwise would promise a reader durability they do not have.
+// The words are in release-rationale.js, which is pure and knows nothing about
+// releases: this is the adapter that resolves a record against the log and
+// normalises its fields with the same fallbacks the rest of this module uses,
+// so what a reader pastes and what the page shows can never disagree about who
+// owns a release or what its status is.
 // ---------------------------------------------------------------------------
 
 /** The visible words on the control, which say what pressing it produces. */
 export const RELEASE_BRIEF_BUTTON_LABEL = "Copy release brief";
 
-export const RELEASE_BRIEF_EXAMPLE_LINE =
-  "Example record: invented to demonstrate Shiplog. It uses no customer or production data, and it is not a customer result.";
-export const RELEASE_BRIEF_BROWSER_LINE =
-  "Recorded in this browser: this release is stored only in this browser, and it is not a shared hosted record.";
-
 export const RELEASE_BRIEF_COPIED_STATUS = "Release brief copied to clipboard.";
+// The failure names the fallback that is actually on the page, a few pixels
+// below this line: the same brief, in a selectable block, put there by the same
+// render rather than promised by this sentence. A clipboard that is absent or
+// refuses costs a reader a drag and a Ctrl-C, not the brief.
 export const RELEASE_BRIEF_COPY_FAILED_STATUS =
-  "Could not copy the release brief. The same details are on this release’s page.";
+  "Could not copy the release brief. Select the brief below this button and copy it by hand.";
 
-export const NO_SUMMARY_TEXT = "No summary recorded.";
-
-// The calendar day, not a formatted one. formatDate() above is for the screen,
-// where the reader's locale is this browser's; a brief is read somewhere else
-// entirely, and YYYY-MM-DD is the one shape that means the same day to everyone.
-// It is also the shape the recorder's own date field writes.
-function briefDate(iso) {
-  const day = typeof iso === "string" ? iso.slice(0, 10) : "";
-  return /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : "Unknown";
-}
-
-// Status words in the casing the recorder's own options and the hero sentence
-// use ("Completed, Planned, or Cancelled"), because the brief is prose. The
-// vocabulary is unchanged — only the first letter.
-const capitalized = (word) => word.charAt(0).toUpperCase() + word.slice(1);
+/** The heading over the always-present, selectable copy of the brief. */
+export const RELEASE_BRIEF_TEXT_LABEL = "Release brief text — select and copy:";
 
 /**
  * One release as plain text.
@@ -730,6 +711,11 @@ const capitalized = (word) => word.charAt(0).toUpperCase() + word.slice(1);
  *   alone; a caller holding the whole log passes it and gets the same answer.
  * @param options.example whether this record is one of the shipped examples the
  *   visitor has not taken over. Decides which disclosure line the brief ends on.
+ * @param options.exampleDecisionIds the seeded decision ids the visitor has not
+ *   taken over, so a linked example decision is labelled as one too. A real
+ *   release may link an invented decision, and a brief that named only the
+ *   release's own provenance would let that decision's context read as
+ *   something a customer actually decided.
  *
  * No clock, no DOM, no storage: the same record and the same decisions produce
  * the same string every time, which is what makes the wording testable at all.
@@ -737,42 +723,25 @@ const capitalized = (word) => word.charAt(0).toUpperCase() + word.slice(1);
 export function buildReleaseBrief(release, decisions = release?.decisions ?? [], options = {}) {
   const ids = Array.isArray(release?.decisionIds) ? release.decisionIds : [];
   const resolved = resolveRelease({ ...release, decisionIds: ids }, decisions);
-  const version = typeof release?.version === "string" && release.version.trim() !== ""
-    ? release.version.trim()
-    : "Unknown version";
-  // The title the record carries itself, not releaseTitle()'s screen fallback:
-  // on a row that fallback IS the heading, but here the version is already on
-  // the line, and "v1.2.0 — v1.2.0" names one release twice.
-  const title = typeof release?.title === "string" ? release.title.trim() : "";
-  const summary = releaseDescription(resolved).replace(/\s+/g, " ").trim();
-
-  const lines = [
-    // Version and title on one line, the way the row heads itself.
-    title === "" || title === version ? `Release brief: ${version}` : `Release brief: ${version} — ${title}`,
-    `Release date: ${briefDate(release?.createdAt)}`,
-    `Status: ${capitalized(releaseStatus(release))}`,
-    `Owner: ${releaseOwner(release)}`,
-    `Summary: ${summary === "" ? NO_SUMMARY_TEXT : summary}`,
-  ];
-
-  if (resolved.counts.total === 0) {
-    // The sentence the collapsed row and the detail view both use, so the brief
-    // reads the same as the page it came from.
-    lines.push("No decisions linked to this release.");
-  } else {
-    lines.push(`Linked decisions (${resolved.counts.total}):`);
-    // Association order, dangling references included and in place. A brief
-    // that quietly dropped them would claim the release carried fewer decisions
-    // than it recorded — the same reason the export reports them.
-    for (const association of resolved.associations) {
-      lines.push(association.missing
-        ? `- Linked decision ${association.id} is not in this log.`
-        : `- ${decisionLabel(association.decision)} — ${capitalized(canonicalDecisionStatus(association.decision.status))}`);
-    }
-  }
-
-  lines.push("", options.example === true ? RELEASE_BRIEF_EXAMPLE_LINE : RELEASE_BRIEF_BROWSER_LINE);
-  return lines.join("\n");
+  const exampleDecisions = idSet(options.exampleDecisionIds);
+  return buildReleaseRationale(
+    {
+      version: release?.version,
+      title: release?.title,
+      createdAt: release?.createdAt,
+      status: releaseStatus(release),
+      owner: releaseOwner(release),
+      summary: releaseDescription(resolved),
+    },
+    // Association order, dangling references included and in place — the same
+    // order the recorder ticked them in. A brief that quietly dropped them
+    // would claim the release carried fewer decisions than it recorded.
+    resolved.associations.map((association) => ({
+      ...association,
+      example: association.decision ? exampleDecisions.has(association.decision.id) : false,
+    })),
+    { example: options.example === true },
+  );
 }
 
 // Focus math for the release controls. Arrow/Home/End move focus and clamp at
@@ -939,24 +908,51 @@ function renderDetailLink(release) {
 // aria-live="polite", aria-atomic="true"), rendered per row rather than once
 // per page: it sits beside the control it belongs to, so "copied" is heard next
 // to the release it is about rather than in a shared region at the top of a log
-// that may hold four of these.
-function renderBriefControl(release, index) {
+// that may hold four of these. It is a sibling of the button, not a descendant
+// of anything the button can collapse, so the confirmation is visible wherever
+// the control is.
+//
+// THE FALLBACK IS RENDERED, NOT PROMISED. The same brief is written into a
+// <pre> under the control on every render, whether or not the clipboard works
+// and whether or not the button is ever pressed. A <pre> rather than a
+// read-only <textarea> on purpose: the text is selectable either way, but a
+// textarea is a tab stop and a form control, and this log already has a roving
+// keyboard order through its toggles and a recorder form further down the page
+// — neither of which should grow an entry per release for a block nobody types
+// into. It is written with textContent, like every other field here, so stored
+// decision text can never execute.
+function renderBriefControl(release, index, briefText) {
   const group = el("div", "share-control release-brief");
   const button = el("button", "share-button release-brief-copy", RELEASE_BRIEF_BUTTON_LABEL);
   button.type = "button";
   button.dataset.releaseId = release.id;
   const statusId = `release-brief-status-${index}`;
+  const textId = `release-brief-text-${index}`;
   button.setAttribute("aria-describedby", statusId);
   const status = el("span", "share-status release-brief-status");
   status.id = statusId;
   status.setAttribute("role", "status");
   status.setAttribute("aria-live", "polite");
   status.setAttribute("aria-atomic", "true");
-  group.append(button, status);
+
+  const fallback = el("div", "release-brief-fallback");
+  const label = el("p", "release-brief-text-label", RELEASE_BRIEF_TEXT_LABEL);
+  label.id = `${textId}-label`;
+  const block = el("pre", "release-brief-text", briefText);
+  block.id = textId;
+  block.dataset.releaseId = release.id;
+  // A region rather than a bare block, named by the sentence above it: a reader
+  // navigating by landmark can find the copyable text without hearing the whole
+  // brief read out as part of the release's panel.
+  block.setAttribute("role", "region");
+  block.setAttribute("aria-labelledby", label.id);
+  fallback.append(label, block);
+
+  group.append(button, status, fallback);
   return group;
 }
 
-function renderReleaseItem(release, index, expanded = false, example = false) {
+function renderReleaseItem(release, index, expanded = false, example = false, exampleDecisionIds) {
   const item = el("li", "release-item");
   // Render-local ids keep arbitrary stored release ids out of ARIA IDREFs.
   const toggleId = `release-toggle-${index}`;
@@ -997,7 +993,13 @@ function renderReleaseItem(release, index, expanded = false, example = false) {
   panel.setAttribute("aria-labelledby", toggleId);
   panel.append(renderReleaseBody(release));
   panel.append(renderDetailLink(release));
-  panel.append(renderBriefControl(release, index));
+  // Built from the resolved record this row was drawn from, by the same
+  // function the copy handler calls, so the selectable block and the clipboard
+  // can never hold two different briefs for one release.
+  panel.append(renderBriefControl(release, index, buildReleaseBrief(release, release.decisions, {
+    example,
+    exampleDecisionIds,
+  })));
 
   item.append(heading, panel);
   return item;
@@ -1020,8 +1022,17 @@ export function renderReleaseList(container, resolvedReleases, options = {}) {
   // records. Absent by default, so a caller that has no such distinction to
   // draw renders exactly what it did before.
   const exampleIds = idSet(options.exampleIds);
+  // The same distinction, for the decisions a row's brief quotes. Absent by
+  // default, like `exampleIds` above.
+  const exampleDecisionIds = idSet(options.exampleDecisionIds);
   resolvedReleases.forEach((release, index) => {
-    list.append(renderReleaseItem(release, index, expandedIds.has(release.id), exampleIds.has(release.id)));
+    list.append(renderReleaseItem(
+      release,
+      index,
+      expandedIds.has(release.id),
+      exampleIds.has(release.id),
+      exampleDecisionIds,
+    ));
   });
   container.append(list);
 }
@@ -1178,6 +1189,7 @@ export function mountReleaseList(container, data = {}, options = {}) {
       filtered,
       expandedIds: state.expandedIds,
       exampleIds: current.exampleIds,
+      exampleDecisionIds: current.exampleDecisionIds,
       status: options.status,
     });
     return shown;
@@ -1216,6 +1228,7 @@ export function mountReleaseList(container, data = {}, options = {}) {
     if (status) status.textContent = "";
     const copied = await copyText(clipboard(), buildReleaseBrief(release, current.decisions ?? [], {
       example: idSet(current.exampleIds).has(release.id),
+      exampleDecisionIds: current.exampleDecisionIds,
     }));
     if (status) status.textContent = copied ? RELEASE_BRIEF_COPIED_STATUS : RELEASE_BRIEF_COPY_FAILED_STATUS;
     button.disabled = false;

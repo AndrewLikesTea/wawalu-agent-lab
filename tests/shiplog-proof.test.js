@@ -53,6 +53,20 @@ test("renders one clearly disclosed synthetic proof connecting decision, owner, 
   assert.equal(page.document.querySelector(".shiplog-proof-link").getAttribute("href"), `/releases.html?focus=${SAMPLE_RELEASE_ID}#shiplog-proof`);
 });
 
+// The page's own words, with the records' words left out.
+//
+// Each expanded release renders a selectable copy of its brief, and a brief
+// about a seeded release carries its own provenance line — which contains the
+// same phrase the caveat below counts. That is the record speaking about
+// itself, in a block a reader has to open a row to see, not the page stating a
+// caveat twice; counting it would make the guard below fail on the number of
+// examples in the seed rather than on anything anybody wrote.
+function authoredText(node) {
+  if (node?.nodeType === 3) return node.data ?? "";
+  if (/(^|\s)release-brief-text(\s|$)/.test(node?.getAttribute?.("class") ?? "")) return "";
+  return [...(node?.children ?? [])].map(authoredText).join("");
+}
+
 // The caveat used to be printed twice above the form — once in the page intro
 // and once here — in two different sets of words. Counted by walking the
 // rendered text of every block above the record form, so a caveat reintroduced
@@ -72,11 +86,11 @@ test("the example-records caveat is stated once above the record form", async (t
     if ([...(block.children ?? [])].includes(form)) {
       for (const part of block.children) {
         if (part === form) { reachedForm = true; break; }
-        above += ` ${part.textContent ?? ""}`;
+        above += ` ${authoredText(part)}`;
       }
       break;
     }
-    above += ` ${block.textContent ?? ""}`;
+    above += ` ${authoredText(block)}`;
   }
   assert.equal(reachedForm, true, "the walk never reached the record form");
   above = above.replace(/\s+/g, " ");
