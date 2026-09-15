@@ -23,6 +23,9 @@
  * as one run-on line and the row grows an em of dead space above and below.
  * No new hue and no new type scale — the site's own body ink. */
 #release-record-next>p { flex:1 1 100%; margin:0; font-size:14px; line-height:1.5; }
+/* An expanded release's rationale box takes a whole row of its `.share-control`
+ * under the copy button and its status, rather than squeezing in beside them. */
+#release-list .release-rationale-field { flex:1 1 100%; max-width:none; }
 /* The log's empty, no-match and error panels at a phone width: a long heading
  * wraps inside its panel instead of widening the page, and an action's label
  * may break onto a second line rather than overflow. */

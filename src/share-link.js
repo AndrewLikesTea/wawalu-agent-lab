@@ -43,7 +43,7 @@ export const SHARE_COPY_FAILED_STATUS = "Could not copy the link. Copy it from t
  * reader's clipboard is empty either way.
  *
  * Generic because the second thing this site copies is not an address: the
- * release log's brief (see buildReleaseBrief in releases.js) is a paragraph of
+ * release log's rationale (see buildReleaseRationale in releases.js) is a page of
  * record text. Two spellings of "guard, await, report" is how one of them stops
  * guarding, so there is one, and `copyRecordUrl` below is its URL-shaped name.
  */

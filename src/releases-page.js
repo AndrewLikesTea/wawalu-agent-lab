@@ -272,6 +272,9 @@ export function initReleasesPage(root = document, storage = localStorage, option
   // One set for the page's lifetime, refilled by a successful retry, so the
   // list and the export keep reading the same answer without being re-bound.
   const exampleReleaseIds = new Set(data.exampleReleaseIds);
+  // The decision half of the same answer, so a release rationale marks an
+  // invented linked decision with the ids the decisions history badges it by.
+  const exampleDecisionIds = new Set(data.exampleDecisionIds);
 
   // The same example ids the decisions history badges its rows from, so a
   // shipped example says so here too and a release the visitor recorded (or
@@ -292,12 +295,12 @@ export function initReleasesPage(root = document, storage = localStorage, option
     }
   }
 
-  // The clipboard the expanded rows' "Copy release brief" controls write
+  // The clipboard the expanded rows' "Copy release rationale" controls write
   // through, from the same option the share and export controls above read, so
   // a test drives one writer rather than patching a global.
   const view = mountReleaseList(
     container,
-    { releases, decisions, exampleIds: exampleReleaseIds },
+    { releases, decisions, exampleIds: exampleReleaseIds, exampleDecisionIds },
     { clipboard: options.clipboard ?? globalThis.navigator?.clipboard, status: listStatus },
   );
   // The one selection this page holds: whatever the last render actually drew.
@@ -320,7 +323,7 @@ export function initReleasesPage(root = document, storage = localStorage, option
       decisionStatus: decisionStatusInputs.find((input) => input.checked)?.value ?? "all",
       decisionId: decisionFilter?.value ?? ALL_DECISIONS_FILTER,
     };
-    shown = view.render({ releases, decisions, exampleIds: exampleReleaseIds }, filters);
+    shown = view.render({ releases, decisions, exampleIds: exampleReleaseIds, exampleDecisionIds }, filters);
     // One count, from the same computation that rendered the rows, and one
     // follow-up derived from exactly those rows — so the callout can never
     // point at a release the active filter has hidden.
@@ -355,6 +358,8 @@ export function initReleasesPage(root = document, storage = localStorage, option
     releases = next.releases;
     exampleReleaseIds.clear();
     for (const id of next.exampleReleaseIds) exampleReleaseIds.add(id);
+    exampleDecisionIds.clear();
+    for (const id of next.exampleDecisionIds) exampleDecisionIds.add(id);
     update();
     return true;
   };
