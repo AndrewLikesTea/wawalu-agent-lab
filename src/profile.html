@@ -67,17 +67,19 @@
              customer or production data." read as a promise about the
              visitor's own picture too, and nothing checks what a visitor
              publishes.
-             The publishing consequences follow in Social’s composer terminology,
-             ending on the same instruction Social's composer gives, word for
-             word, so a visitor learns what “real” means before leaving People.
-             They name whose act each one is (#2373): a publisher cannot take
-             their own post down, and removal runs through Report post and the
-             Wawalu team's review, which every tile on this page offers. Said
-             only one of those, the page read as a flat "nothing here can ever
-             come down" beside a reporting panel that promises a review. -->
+             Where it stops is the publishing consequences (#2390). They are
+             second-person warnings about an act this page cannot perform — no
+             composer, no field, no button — so on the first screen they answered
+             a question nobody reading a directory of pictures had asked, and
+             pushed the answer to "what am I looking at?" into the fourth
+             sentence. They are stated once now, in Social's composer
+             terminology and the same bytes they had here, in the helper beside
+             the grid that carries the link to the composer: the paragraph a
+             reader meets on the way to publishing, which is when knowing what
+             publishing costs is worth something. -->
         <h1 id="page-title">People</h1>
         <p class="profile-lede" id="page-tagline">See the image posts published under one display name.</p>
-        <p class="profile-lede">Open <a class="text-link" href="/social.html">Social</a> when you want the whole feed, including posts with no image. Select Open post to see a post on its own page, with a link you can share. The image posts already here are invented to demonstrate Shiplog and use no customer or production data; an image post you publish is real. Anyone who visits Shiplog can read your post, its image, and the display name you publish it with. You cannot edit or delete your own post after you publish it. Anyone can select Report post on a published post, and the Wawalu team may remove it after review. Do not include customer or production data.</p>
+        <p class="profile-lede">Open <a class="text-link" href="/social.html">Social</a> when you want the whole feed, including posts with no image. Select Open post to see a post on its own page, with a link you can share. The image posts already here are invented to demonstrate Shiplog and use no customer or production data; an image post you publish is real.</p>
 
         <!-- The picker comes before the answer, in the markup and not merely in
              the layout: it is the first control in the main content — only the
@@ -375,13 +377,25 @@
                this site does, and its own text says so in the same five words
                Social's composer uses: a disclosure that sits outside the link is
                a disclosure the accessible name does not carry.
+               The publishing consequences close it (#2390), in Social's
+               composer terminology and ending on the same instruction Social's
+               composer gives, word for word. They moved down from the intro at
+               the top of the page, unchanged: they are about an act that
+               happens on Social, so they belong to the sentence that sends a
+               reader there rather than to the first screen of a page with no
+               composer on it. They name whose act each one is (#2373): a
+               publisher cannot take their own post down, and removal runs
+               through Report post and the Wawalu team's review, which every
+               tile on this page offers. Said only one of those, the page read
+               as a flat "nothing here can ever come down" beside a reporting
+               panel that promises a review.
                `from=profile` is provenance, not state: it is what lets Paint's
                one back link say "Back to People" and mean it. profile.js adds
                the selected display name to it so the return lands on the exact
                profile that was being read; this static href is the
                pre-hydration render and returns to People either way. -->
           <p class="feed-create hint">
-            To add yours: <a class="text-link paint-link" id="profile-paint-route" href="/paint/?from=profile" target="_blank" rel="noopener">Create or open an image in Paint <span class="new-tab-note">(opens in a new tab)</span></a>. Select “Use this image in a Social post”, then fill in the required image description. <a class="text-link" id="profile-publish-route" href="/social.html#post-form">Publish a post on Social</a>. A published post with an image appears on People, under the display name you publish it with.
+            To add yours: <a class="text-link paint-link" id="profile-paint-route" href="/paint/?from=profile" target="_blank" rel="noopener">Create or open an image in Paint <span class="new-tab-note">(opens in a new tab)</span></a>. Select “Use this image in a Social post”, then fill in the required image description. <a class="text-link" id="profile-publish-route" href="/social.html#post-form">Publish a post on Social</a>. A published post with an image appears on People, under the display name you publish it with. Anyone who visits Shiplog can read your post, its image, and the display name you publish it with. You cannot edit or delete your own post after you publish it. Anyone can select Report post on a published post, and the Wawalu team may remove it after review. Do not include customer or production data.
           </p>
           <!-- People is a filtered view of Social, and the nav says so by
                nesting them. This is where People defines the thing its picker

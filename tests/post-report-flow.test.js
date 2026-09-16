@@ -215,7 +215,15 @@ test("People: the publication warning gives the same two acts, once the tiles ar
   // module ran. Wait on drawn tiles instead; skeletons carry the tile class.
   await waitFor(() => realCards(document, ".profile-tile", "profile-tile-skeleton").length > 0, "People drew an image post");
 
-  statesTheDistinction(textOf(document.querySelectorAll(".profile-lede")[1]), "People's publication warning");
+  // The helper beside the grid, not the intro at the top of the page: the
+  // warning is about publishing, which happens on Social, so it moved down to
+  // the paragraph carrying the link to the composer (#2390). Same bytes, and
+  // still on the painted DOM — src/profile.js takes that paragraph out of the
+  // document while the first fetch is open and puts it back, so a wait on
+  // drawn tiles is also the wait for this region.
+  statesTheDistinction(textOf(document.querySelector(".feed-create")), "People's publication warning");
+  assert.doesNotMatch(textOf(document.querySelectorAll(".profile-lede")[1]), SELF_SERVICE,
+    "People's first screen warns again about publishing a post it has no composer for");
   assert.equal(document.querySelectorAll(".post-report-button").length,
     realCards(document, ".profile-tile", "profile-tile-skeleton").length);
 });

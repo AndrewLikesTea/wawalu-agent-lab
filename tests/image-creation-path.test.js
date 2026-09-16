@@ -104,11 +104,23 @@ for (const [name, document] of Object.entries(NEARBY_INVITATION)) {
       `${name}'s helper still routes the reader back to a page with no composer`);
     assert.doesNotMatch(sentence, /publish it on this page|publish it here/i,
       `${name}'s helper asks the reader to publish on the page they are reading`);
-    // The result follows the steps, in the order the visitor experiences them.
+    // The result follows the steps, in the order the visitor experiences them,
+    // and the publishing consequences follow the result (#2390): they moved
+    // here from the top of the page, where they warned about an act this page
+    // cannot perform. So this paragraph no longer ends on the result — it ends
+    // where Social's composer ends, on the instruction — and what is pinned is
+    // that the result is still stated, still after the steps, and still before
+    // the consequences of carrying them out.
     assert.match(sentence.trim(), /^To add yours: Create or open an image in Paint/);
-    assert.equal(sentence.trim().endsWith(
-      "A published post with an image appears on People, under the display name you publish it with."), true,
-      `${name}'s helper does not end by explaining where the post appears`);
+    const result = "A published post with an image appears on People, under the display name you publish it with.";
+    assert.equal(sentence.split(result).length - 1, 1,
+      `${name}'s helper does not explain where the post appears exactly once`);
+    assert.ok(sentence.indexOf("Publish a post on Social.") < sentence.indexOf(result),
+      `${name}'s helper states the result before the step that produces it`);
+    assert.ok(sentence.indexOf(result) < sentence.indexOf("Anyone who visits Shiplog"),
+      `${name}'s helper warns about publishing before it says what publishing does`);
+    assert.equal(sentence.trim().endsWith("Do not include customer or production data."), true,
+      `${name}'s helper does not end on the instruction Social's composer ends on`);
   });
 
   test(`${name} offers the publishing step as a link that names it and reaches the composer`, () => {
@@ -725,7 +737,13 @@ test("People names the same steps in the same words as the composer", async () =
     "To add yours: Create or open an image in Paint (opens in a new tab). "
     + "Select “Use this image in a Social post”, then fill in the required image description. "
     + "Publish a post on Social. A published post with an image appears on People, "
-    + "under the display name you publish it with.");
+    + "under the display name you publish it with. "
+    // The publishing consequences, verbatim from the intro they used to open the
+    // page with (#2390), ending on the instruction Social's composer ends on.
+    + "Anyone who visits Shiplog can read your post, its image, and the display name you publish it with. "
+    + "You cannot edit or delete your own post after you publish it. "
+    + "Anyone can select Report post on a published post, and the Wawalu team may remove it after review. "
+    + "Do not include customer or production data.");
 
   // The composer refuses a post that carries an image and no description, so the
   // steps that lead a reader to that composer name the field before the step it

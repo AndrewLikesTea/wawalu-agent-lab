@@ -1495,13 +1495,26 @@ test("the intro says the image posts on this page are invented, before any of th
   assert.equal(main.split("no customer or production data").length - 1, 1,
     "People makes the demo-data claim outside the provenance sentence");
 
-  // The provenance leads straight into the consequences a visitor needs before
-  // leaving for Social, and those end on the instruction.
+  // The intro ends on the provenance, and stops there (#2390). It used to run
+  // on into four second-person warnings about publishing — an act this page
+  // offers no control for — so the first screen of a directory of pictures
+  // answered "what happens when you publish?" before it finished answering
+  // "what am I looking at?". The consequences are in the helper beside the
+  // grid now, in the paragraph that carries the link to Social's composer,
+  // and they end there on the instruction.
   const intro = textOf(served.document.querySelectorAll(".profile-lede")[1]);
-  assert.ok(intro.includes(`${PEOPLE_PROVENANCE} ${SHARED_CONSEQUENCE}.`),
-    "the provenance and the consequences are no longer adjacent, in that order, in the intro");
-  assert.ok(intro.endsWith(PEOPLE_CONSEQUENCE));
+  assert.ok(intro.endsWith(PEOPLE_PROVENANCE),
+    "the intro no longer ends on what the image posts already on the page are made of");
+  assert.doesNotMatch(intro, /you publish it|Report post|Do not include/,
+    "People's first screen warns about publishing again");
   assert.doesNotMatch(intro, /published as|Showing \d+ image post/i);
+  const helper = textOf(served.document.querySelector(".feed-create"));
+  assert.ok(helper.trim().endsWith(PEOPLE_CONSEQUENCE),
+    "the helper beside the grid does not close on the publishing consequences");
+  // Each consequence once on the whole page, wherever it is read from.
+  for (const sentence of [SHARED_CONSEQUENCE, SHARED_REMOVAL, PUBLISH_INSTRUCTION])
+    assert.equal(main.split(sentence).length - 1, 1,
+      `People states a publishing consequence twice or not at all: ${sentence}`);
   const social = await loadPage(new URL("../src/social.html", import.meta.url), {});
   try {
     const composer = textOf(social.document.querySelector("#post-consequence"));
@@ -1531,10 +1544,15 @@ test("the intro says the image posts on this page are invented, before any of th
       "the loaded page lost the provenance sentence or states it twice");
     assert.equal(hydrated.includes(RETIRED_DATA_SENTENCE), false,
       "the loaded page still says every post carries no customer or production data");
-    const loadedIntro = textOf(page.document.querySelectorAll(".profile-lede")[1]);
-    assert.ok(loadedIntro.endsWith(PEOPLE_CONSEQUENCE),
-      "the loaded People intro lost the publishing consequences");
-    peopleInstructions = instructionsIn(loadedIntro);
+    assert.ok(textOf(page.document.querySelectorAll(".profile-lede")[1]).endsWith(PEOPLE_PROVENANCE),
+      "the loaded People intro no longer ends on the provenance");
+    // src/profile.js takes the helper out of the document while the first fetch
+    // is open and puts it back, so this is the frame that proves the
+    // consequences came back with it rather than only shipping in the markup.
+    const loadedHelper = textOf(page.document.querySelector(".feed-create"));
+    assert.ok(loadedHelper.trim().endsWith(PEOPLE_CONSEQUENCE),
+      "the loaded People helper lost the publishing consequences");
+    peopleInstructions = instructionsIn(loadedHelper);
   } finally {
     page.restore();
   }
@@ -1554,7 +1572,7 @@ test("the intro says the image posts on this page are invented, before any of th
   await waitFor(() => [...loadedSocial.document.querySelectorAll(".post-card")]
     .filter((card) => !card.classList.contains("post-card-skeleton")).length === 1, "Social painted the visitor's post");
   const composerInstructions = instructionsIn(textOf(loadedSocial.id("post-consequence")));
-  assert.deepEqual(peopleInstructions, [PUBLISH_INSTRUCTION], "People's intro does not give the instruction exactly once");
+  assert.deepEqual(peopleInstructions, [PUBLISH_INSTRUCTION], "People's helper does not give the instruction exactly once");
   assert.deepEqual(composerInstructions, peopleInstructions,
-    "Social's composer and People's intro no longer give the same instruction");
+    "Social's composer and People's helper no longer give the same instruction");
 });
