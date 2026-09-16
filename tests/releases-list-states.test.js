@@ -236,6 +236,60 @@ test("rows clear the region, and a filter that empties the view announces no-mat
   assert.equal(textOf(page.document.querySelector(".release-reset-action")), "Clear search and filters");
 });
 
+// --- #2377: the wait is stated once, and only while the log is loading ------
+
+// What the whole document says at the moment the log is read — the one point in
+// the page's life when the loading state is on screen. Counted across every
+// element rather than read off the region, so a second copy drawn anywhere is
+// caught: authored markup the module never clears, or a second render painting
+// its own wait beside the one that shipped.
+function loadingCountsDuringRead(page) {
+  const counts = [];
+  const read = page.storage.getItem;
+  page.storage.getItem = (key) => {
+    if (key === RELEASE_STORAGE_KEY) counts.push(countText(page.document.body, LOADING));
+    return read(key);
+  };
+  return counts;
+}
+
+test("the wait is stated exactly once while the log loads, and not at all once it has", async (t) => {
+  const { page } = await openPage(t, { boot: false });
+  // As parsed, before any module runs: the shipped wait, stated once, in the
+  // Release log section and immediately before the list it describes.
+  assert.equal(countText(page.document.body, LOADING), 1);
+  const status = region(page);
+  assert.equal(textOf(status.querySelector("h3")), LOADING);
+  const log = status.parentNode;
+  const ids = [...log.children].filter((child) => child.getAttribute).map((child) => child.getAttribute("id"));
+  const at = (id) => ids.indexOf(id);
+  assert.equal(at("release-list") - at("release-list-status"), 1, "the wait is not immediately before the results it describes");
+
+  const counts = loadingCountsDuringRead(page);
+  initReleasesPage(page.document, page.storage, { seed: NO_SEED });
+  assert.ok(counts.length > 0, "boot did not read the release log");
+  assert.deepEqual([...new Set(counts)], [1], `the wait was stated ${counts} times while the log loaded`);
+
+  // Settled on rows, so the wait is over: gone from the document rather than
+  // left standing in a second region the ready state never reaches.
+  assert.equal(rows(page), 2);
+  assert.equal(countText(page.document.body, LOADING), 0, "the wait is still on the page after the log loaded");
+  assert.equal(page.document.querySelectorAll(".list-state-loading").length, 0);
+});
+
+test("a retry states the wait once more, in the same region, and clears it when the log returns", async (t) => {
+  const { page, control } = await openPage(t, { refuse: true });
+  assert.equal(countText(page.document.body, LOADING), 0, "a failed load left the wait on the page");
+
+  control.refuse = false;
+  const counts = loadingCountsDuringRead(page);
+  page.document.querySelector(".release-retry-action").click();
+  assert.deepEqual([...new Set(counts)], [1], `the wait was stated ${counts} times during the retry`);
+
+  assert.equal(rows(page), 2);
+  assert.equal(countText(page.document.body, LOADING), 0, "the wait survived the retry that loaded the log");
+});
+
 // --- acceptance 2: clearing search and filters -----------------------------
 
 test("no-match clears the search and every filter, announces the count, and lands on the search", async (t) => {
