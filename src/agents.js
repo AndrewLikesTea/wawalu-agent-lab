@@ -554,6 +554,17 @@ export const liveGithubEvents = (records = []) => liveEvents(records, SYNTHETIC_
 export const countMergedPullRequests = (records = []) => countMerged(records, SYNTHETIC_RECORDS);
 
 const formatClockTime = (date) => new Intl.DateTimeFormat(undefined, { timeStyle: "short" }).format(date);
+/**
+ * When a live response was retrieved, as one thing a reader can quote.
+ *
+ * The calendar date as well as the clock, in the reader's own locale: a figure
+ * stamped "14:32" is one a reader can repeat but cannot place, and the window
+ * this count covers is exactly what they are being asked to repeat. The whole
+ * instant is on the time element's `datetime` either way, so the readable half
+ * may be the locale's and the machine-readable half stays unambiguous.
+ */
+const formatRetrievedAt = (date) =>
+  new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(date);
 // The recorded count's date, as the calendar date it was taken on, and the clock
 // it was taken at. ISO-8601 and UTC rather than a locale format: they are the
 // same strings the record itself holds, so what a reader sees and what the
@@ -659,10 +670,16 @@ export function renderMergedFigure(root = document, state = "loading",
 
   if (name === "live") {
     appendCount(value, count);
-    appendText(source, "span", "", `Counted from ${total} public GitHub ${total === 1 ? "event" : "events"} in `
-      + `${SOURCE_REPOSITORIES.join(" and ")}, as of `);
-    const time = appendText(source, "time", "merged-figure-time", formatClockTime(asOf));
+    // The scope is in the label, not in a reader's head: how many events were
+    // returned, which repositories they were returned for, when they were
+    // retrieved, and — because this is the number a reader will quote out of
+    // here — that it is the merges in that one response rather than everything
+    // these repositories have ever merged.
+    appendText(source, "span", "", `Counted from ${total} public GitHub ${total === 1 ? "event" : "events"} `
+      + `returned for ${SOURCE_REPOSITORIES.join(" and ")}, as of `);
+    const time = appendText(source, "time", "merged-figure-time", formatRetrievedAt(asOf));
     time.dateTime = asOf.toISOString();
+    appendText(source, "span", "", ". Merged pull requests in that returned activity, not an all-time total.");
   } else if (name === "recorded") {
     appendCount(value, count);
     appendText(source, "span", "", RETAINED_LEAD);
@@ -808,7 +825,10 @@ export async function loadActivity(root = document, fetcher = fetch, storage = b
     }
     signal.dataset.connected = "true";
     // The card and the figure below it report the same response, so they read
-    // the same arrival time in the same format rather than two clocks.
+    // the same arrival time from the same instant rather than two clocks. The
+    // card says only the clock because it is answering "is this panel fresh";
+    // the figure carries the date as well, because its number is the one a
+    // reader quotes elsewhere and a quoted figure needs its window with it.
     updated.textContent = `Updated ${formatClockTime(asOf)}`;
     updated.hidden = false;
   } catch (error) {
