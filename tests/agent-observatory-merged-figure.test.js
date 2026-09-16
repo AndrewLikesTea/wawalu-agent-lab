@@ -115,8 +115,14 @@ test("a public GitHub response produces the headline count, its unit, and its so
   const [time] = tags(readout, "TIME");
   assert.equal(time.dateTime, new Date(RESPONSE_DATE).toISOString(), "the as-of time is this response's own");
   assert.ok(source.includes(time.textContent), "the readable time is part of the source sentence");
-  // The status card beside it reports the same response, in the same format.
-  assert.equal(root.nodes["#last-updated"].textContent, `Updated ${time.textContent}`);
+  // The status card beside it reports the same response, off the same instant.
+  // It prints the clock alone — it answers "is this panel fresh" — while the
+  // figure's stamp carries the date too, so the clock a reader sees on the card
+  // is the clock inside the stamp rather than a second, unrelated one.
+  const card = root.nodes["#last-updated"].textContent;
+  assert.match(card, /^Updated /);
+  assert.ok(time.textContent.includes(card.replace("Updated ", "")),
+    `the card's clock is not the figure's: ${card} vs ${time.textContent}`);
 });
 
 test("the unit agrees with the quantity when a single pull request merged", async () => {
