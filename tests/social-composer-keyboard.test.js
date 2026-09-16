@@ -79,11 +79,11 @@ test("keyboard activation names and expands the composer, focuses its required f
   id("post-body").focus();
   // The name is on the <form> landmark and on nothing else. A second element
   // around it carrying the same name — the panel, as a role="region" — is two
-  // nested landmarks both called "Publish a post", so opening the composer
+  // nested landmarks both called "Write a post", so opening the composer
   // announces the name twice on a page Iris already flagged for having several
   // similarly named publish controls. The <form> is the native landmark and it
   // is the thing with controls in it, so it is the one that keeps the name.
-  assert.equal(textOf(id(id("post-form").getAttribute("aria-labelledby"))), "Publish a post");
+  assert.equal(textOf(id(id("post-form").getAttribute("aria-labelledby"))), "Write a post");
   assert.ok(!id("post-compose-panel").getAttribute("role"), "the panel must not be a second landmark with the form's name");
   assert.notEqual(textOf(trigger), textOf(id("post-submit")));
   // From the post, Tab reaches the Paint step before the picker it leads to.

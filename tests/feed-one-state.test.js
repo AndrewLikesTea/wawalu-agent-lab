@@ -39,7 +39,7 @@ import assert from "node:assert/strict";
 import { loadPage, textOf } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
 import { mountSocialFeed, FEED_LOADING_LINE } from "../src/social.js";
-import { mountProfile, loadingSummaryText } from "../src/profile.js";
+import { mountProfile, loadingSummaryText, PUBLISH_ON_SOCIAL } from "../src/profile.js";
 import { feedPhase } from "../src/feed-status.js";
 
 const SOCIAL_PAGE = new URL("../src/social.html", import.meta.url);
@@ -142,18 +142,30 @@ test("each wait names a control that is on the page while its fetch is open", as
   t.after(() => people.restore());
   mountProfile(people.document, { posts: [], author: "Zed", state: "loading" });
 
-  // People has no composer, so its wait names Social's — by the label that
-  // control actually prints, and by the destination, because a control on
-  // another page is only findable if the reader is told which page. The nav link
-  // is the copy of that route which survives the fetch, and it supplies the
-  // destination half rather than a second literal.
+  // People has no composer, so its wait names the act and the page that can
+  // perform it. It used to name Social's composer control by the label that
+  // control prints; #2389 renamed that control to "Write a post" so that
+  // "Publish" names only the button which publishes, and People's phrase stayed
+  // "Publish a post on Social" — a destination and an act, not a control label.
+  //
+  // So what this half can still check is the destination: the page named in the
+  // wait is a page this one links to, by a link that survives the fetch. The nav
+  // link supplies that name rather than a second literal. The composer label is
+  // deliberately NOT required here any more; a reader following this wait lands
+  // on /social.html#post-form with the composer already open, and completes the
+  // act at the button that does say "Publish post".
   const route = people.document.querySelector(".nav-social");
   assert.equal(route.getAttribute("href"), "/social.html");
   assert.equal(route.closest("details").hasAttribute("open"), true, "the secondary navigation starts open on People, keeping Social visible during loading");
   const routeLabel = textOf(route);
   assert.ok(routeLabel.length > 0, "the route the wait names renders no label");
-  assert.ok(loadingSummaryText().includes(`${composeLabel} on ${routeLabel}`),
-    `the wait does not name the composer control on ${routeLabel}, which reads "${composeLabel}"`);
+  assert.ok(loadingSummaryText().includes(` on ${routeLabel} `),
+    `the wait does not name ${routeLabel}, the page a visitor has to go to`);
+  assert.ok(loadingSummaryText().includes(PUBLISH_ON_SOCIAL),
+    "the wait stopped using People's one phrase for the trip to Social");
+  // And it names that trip once: two offers in one sentence is the failure
+  // #2181 fixed, whichever words each one used.
+  assert.equal((loadingSummaryText().match(new RegExp(`on ${routeLabel}`, "g")) ?? []).length, 1);
 
   // The wait says the words itself rather than leaning on the .feed-create link
   // that also carries them: feedPresence() takes that paragraph out of the
@@ -172,7 +184,7 @@ test("Social says one thing while it loads, and the other three lines are not on
 
   const status = document.querySelector("#feed-state");
   assert.equal(status.querySelectorAll(".state-title").length, 1);
-  assert.equal(textOf(status.querySelector(".state-title")), "Existing posts are still loading. Select Publish a post.");
+  assert.equal(textOf(status.querySelector(".state-title")), "Existing posts are still loading. Select Write a post.");
 
   // Removed, not hidden. Each of these would otherwise be a second description
   // of the one open fetch, and neither is a claim the page can support yet.
@@ -182,7 +194,7 @@ test("Social says one thing while it loads, and the other three lines are not on
   const body = textOf(document.body);
   assert.doesNotMatch(body, /Counting posts/);
   assert.doesNotMatch(body, /New posts will appear here on their own/);
-  assert.equal((body.match(/Existing posts are still loading\. Select Publish a post\./g) ?? []).length, 1);
+  assert.equal((body.match(/Existing posts are still loading\. Select Write a post\./g) ?? []).length, 1);
 
   // The wait reserves both kinds of post card, including their metadata and
   // eventual action position, without inventing anything a keyboard can reach.
@@ -252,7 +264,7 @@ test("Social names its failure, retries it by keyboard, and comes back", async (
     { id: "back-2", author: "Ari", content: "Also here.", timestamp: "2026-07-17T12:00:00.000Z" },
   ] };
   retry.click();
-  assert.equal(textOf(status.querySelector(".state-title")), "Existing posts are still loading. Select Publish a post.",
+  assert.equal(textOf(status.querySelector(".state-title")), "Existing posts are still loading. Select Write a post.",
     "retry did not put the page back into the loading state");
   assert.equal(document.querySelectorAll("#post-count").length, 0, "the count outlived the state that has no count");
   await waitFor(() => document.querySelectorAll("#post-count").length === 1, "the retried request settled");
@@ -334,7 +346,7 @@ test("Social's promise about new posts is said only where there is a feed for th
   // authored directly above "Loading the Social feed…", which is the whole of
   // #1772: two statuses at once, and the one that could not be true yet first.
   assert.equal(promiseCount(document, promise), 0);
-  assert.equal((textOf(document.body).match(/Existing posts are still loading\. Select Publish a post\./g) ?? []).length, 1);
+  assert.equal((textOf(document.body).match(/Existing posts are still loading\. Select Write a post\./g) ?? []).length, 1);
 
   // Loading: still one statement, and it is the wait.
   // A retry the panel can offer, so the failed state below is the one a reader
@@ -343,7 +355,7 @@ test("Social's promise about new posts is said only where there is a feed for th
   const feed = mountSocialFeed(document, { posts: [], state: "loading", onRetry: () => {} });
   assert.equal(promiseCount(document, promise), 0);
   assert.equal(document.querySelectorAll(".feed-connection").length, 0);
-  assert.equal(textOf(document.querySelector("#feed-state").querySelector(".state-title")), "Existing posts are still loading. Select Publish a post.");
+  assert.equal(textOf(document.querySelector("#feed-state").querySelector(".state-title")), "Existing posts are still loading. Select Write a post.");
 
   // Failed: the panel's message and its Retry are the page's whole status. A
   // connection line here would be a second instruction — reload the page —

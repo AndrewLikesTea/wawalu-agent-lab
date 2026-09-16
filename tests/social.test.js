@@ -332,7 +332,7 @@ test("social page is wired, labeled, and linked from the other pages", async () 
   // tests/live-connection-copy.test.js owns the three states it can be in.
   assert.match(page, /id="feed-status"><\/span>/);
   assert.doesNotMatch(page, /will appear here on their own/);
-  assert.equal((page.match(/Existing posts are still loading\. Select Publish a post\./g) ?? []).length, 1);
+  assert.equal((page.match(/Existing posts are still loading\. Select Write a post\./g) ?? []).length, 1);
   assert.doesNotMatch(page, /id="post-count"[^>]*>0 posts<\/span>/);
   // One announced region for a filter change, and it is the summary: the count
   // beside the heading says a thinner version of the same news, so announcing
@@ -424,12 +424,16 @@ test("the composer describes no failure that has not happened yet", async (t) =>
 // second one is the verb this page keeps for images. "Create" on Social means
 // an image and nothing else.
 //
-// The approved name for this flow is "Publish a post", on both the opener and
-// heading, and the shared post page links here by those exact words. The submit
-// button says something else (#2173): the flow's name was on three strings for
-// two different acts, so a reader pressed "Publish a post", nothing published,
-// and met the same three words at the foot of the form with no way to tell
-// re-opening from committing.
+// The approved name for the entry into this flow is "Write a post", on both the
+// opener and heading. The submit button says something else (#2173): the name
+// was on three strings for two different acts, so a reader pressed the opener,
+// nothing published, and met near-identical words at the foot of the form with
+// no way to tell re-opening from committing.
+//
+// Both halves used to lead on "Publish" — "Publish a post" and "Publish post" —
+// which left one word naming two controls, only one of which publishes
+// anything (#2389). The opener names the writing that comes first and "Publish"
+// is now the submit's alone.
 //
 // That something else is "Publish post" (#2252). It read "Publish this post"
 // while three other strings already called the same button "Publish post" —
@@ -442,7 +446,7 @@ test("the composer describes no failure that has not happened yet", async (t) =>
 // The same pass pins the destination for image posts: this site has no page
 // called Profile, so "profile" survives on Social only as the People page's URL
 // and the class that styles its nav item, never as a word a reader sees.
-test("the opener and heading use Publish a post, and the submit reads Publish post", async (t) => {
+test("the opener and heading use Write a post, and the submit reads Publish post", async (t) => {
   const markup = await readFile(new URL("../src/social.html", import.meta.url), "utf8");
   const page = await loadPage(new URL("../src/social.html", import.meta.url), {});
   t.after(() => page.restore());
@@ -450,8 +454,8 @@ test("the opener and heading use Publish a post, and the submit reads Publish po
   const entry = page.document.querySelector(".hero-actions")
     .querySelectorAll("#post-compose-open");
   assert.equal(entry.length, 1, "the hero offers exactly one route into the composer");
-  assert.equal(textOf(entry[0]), "Publish a post",
-    "the control that opens the composer does not use the approved publishing term");
+  assert.equal(textOf(entry[0]), "Write a post",
+    "the control that opens the composer does not use the approved writing term");
   // A disclosure, told the way this site's other one is told: the button owns
   // the state, the panel it names is the composer, and it starts collapsed.
   assert.equal(entry[0].tagName, "BUTTON");
@@ -459,7 +463,7 @@ test("the opener and heading use Publish a post, and the submit reads Publish po
   assert.equal(entry[0].getAttribute("aria-expanded"), "false");
   assert.equal(entry[0].getAttribute("aria-controls"), "post-compose-panel");
   assert.equal(page.document.querySelector("#post-compose-panel").hidden, true);
-  assert.equal(textOf(page.document.querySelector("#post-form-title")), "Publish a post",
+  assert.equal(textOf(page.document.querySelector("#post-form-title")), "Write a post",
     "the composer heading does not match the control that opens it");
   // The one press that publishes, in the words every other string on the site
   // uses for it. It is the bare act and the opener is the flow, so the two
@@ -823,7 +827,7 @@ test("the status region and the posts are read before the demo disclaimer, in ev
   };
 
   const feed = mountSocialFeed(document, { posts: [], state: "loading" });
-  invariant("loading", { status: /Existing posts are still loading\. Select Publish a post\./ });
+  invariant("loading", { status: /Existing posts are still loading\. Select Write a post\./ });
 
   feed.setState("error");
   invariant("error", { status: /Social posts could not be loaded\./ });
@@ -1562,7 +1566,7 @@ test("the post count never claims zero posts before the feed has any answer", as
   assert.equal(page.document.querySelectorAll(".empty-state").length, 0, "loading copy never shares the page with empty-state guidance");
   const status = page.document.querySelector("#feed-state");
   assert.equal(status.querySelectorAll(".state-title").length, 1);
-  assert.equal(textOf(status.querySelector(".state-title")), "Existing posts are still loading. Select Publish a post.");
+  assert.equal(textOf(status.querySelector(".state-title")), "Existing posts are still loading. Select Write a post.");
 
   feed.setState("error");
   assert.equal(textOf(count), "Unavailable", "a failed fetch is not a count of zero");
@@ -1572,7 +1576,7 @@ test("the post count never claims zero posts before the feed has any answer", as
   assert.equal(textOf(count), "0 posts", "an answered fetch with nothing in it is a real zero");
   const empty = page.document.querySelector(".empty-state");
   assert.match(textOf(empty), /No posts on Social yet\./);
-  assert.match(textOf(empty), /Publish a post, or create an image in Paint first\./);
+  assert.match(textOf(empty), /Write a post, or create an image in Paint first\./);
 
   feed.seed([{ id: "now-populated", author: "Mina", body: "Ready.", createdAt: new Date().toISOString() }]);
   assert.equal(status.hidden, true, "a populated feed hides the reused status region");
@@ -1648,7 +1652,7 @@ test("every global social destination link uses the Social label", async () => {
 // A first-time visitor used to land on Social and meet a caption box, a file
 // picker, a name field and a Publish button before a single post — the page
 // asked them to write before it let them read. The feed comes first now and the
-// composer is one keystroke away behind the hero's Publish a post control.
+// composer is one keystroke away behind the hero's Write a post control.
 //
 // Every assertion below reads the disclosure's own state alongside the text,
 // because this harness models no layout: textOf reads straight through a
@@ -1684,7 +1688,7 @@ const COMPOSER_KEPT_HINT = "Escape or Close hides the composer, and your draft s
 // opener and the final submit action are on screen at once — and the state in
 // which #2173 bit: two controls, one name, and the reader guessing which press
 // was the public and permanent one.
-test("with the composer open, one control reads Publish a post and the submit reads Publish post", async (t) => {
+test("with the composer open, only the submit says Publish and the opener says Write a post", async (t) => {
   const { document, id } = await socialDisclosure(t);
   id("post-compose-open").click();
 
@@ -1692,17 +1696,22 @@ test("with the composer open, one control reads Publish a post and the submit re
   assert.equal(panel.hidden, false, "the composer did not open, so this proves nothing");
   assert.equal(id("post-compose-open").getAttribute("aria-expanded"), "true");
 
-  // Every control that says "Publish" anything, in document order. Exactly one
-  // of them reads the flow's name, and it is the one that only opens the form;
-  // the other reads the act, in the one wording the rest of the site uses for
-  // it (#2252).
+  // Every control that says "Publish" anything, in document order. Exactly one,
+  // and it is the one that makes a post public — the opener used to be in this
+  // list under "Publish a post", so the word named a control that publishes
+  // nothing (#2389). The opener is checked separately below, on the verb it
+  // uses instead.
   const publishing = document.querySelectorAll("a,button,summary,label")
     .filter((node) => /Publish/.test(textOf(node)));
-  assert.deepEqual(publishing.map((node) => textOf(node)), ["Publish a post", "Publish post"],
-    "a control on Social names the publishing flow a second time");
-  assert.deepEqual(publishing.map((node) => node.getAttribute("id")), ["post-compose-open", "post-submit"]);
-  assert.equal(publishing.filter((node) => textOf(node) === "Publish a post").length, 1,
-    "exactly one control may read Publish a post: the one that opens the composer");
+  assert.deepEqual(publishing.map((node) => textOf(node)), ["Publish post"],
+    "a control on Social says Publish without being the one that publishes");
+  assert.deepEqual(publishing.map((node) => node.getAttribute("id")), ["post-submit"]);
+  assert.equal(textOf(id("post-compose-open")), "Write a post",
+    "the control that opens the composer stopped inviting the writing it opens");
+  // And the retired name is gone from the whole rendered page, not just from
+  // the controls: the states, the waits and the guidance all cited it.
+  assert.doesNotMatch(textOf(document.body), /Publish a post/,
+    "a rendered string on Social still names the retired opener");
 
   // #2294: the Paint steps used to end on "Publish post", a press listed ahead
   // of the fields it follows. The button is now the only thing in the open
@@ -1718,9 +1727,10 @@ test("with the composer open, one control reads Publish a post and the submit re
   assert.equal(textOf(id("post-compose-cancel")), "Close");
   assert.equal(textOf(id("post-keyboard-hint")), COMPOSER_KEPT_HINT);
 
-  // The heading the opener reveals keeps the flow's name. It is a heading and
-  // not a control, so a reader never presses it and the pair above stays a pair.
-  assert.equal(textOf(id("post-form-title")), "Publish a post");
+  // The heading the opener reveals says the opener's words back. It is a
+  // heading and not a control, so a reader never presses it and the count
+  // above stays a count of controls.
+  assert.equal(textOf(id("post-form-title")), "Write a post");
   assert.equal(id("post-form-title").tagName, "H2");
   // Focusable by script only (#2370: open() lands on it), never a tab stop, so
   // the page still offers the name on two stops.
@@ -1801,7 +1811,7 @@ test("the first-visit publish action is primary and precedes feed guidance and f
 
   assert.equal(action.getAttribute("class"), "button-link",
     "the first-visit publishing route no longer uses the primary action pattern");
-  assert.equal(textOf(action), "Publish a post");
+  assert.equal(textOf(action), "Write a post");
   assert.ok(hero.childElements.indexOf(action.parentNode) < hero.childElements.indexOf(intro),
     "feed guidance appears before the primary publishing action");
 
@@ -2236,7 +2246,7 @@ test("the composer says once, in its own name and beside Close, that the draft i
     "the sentence parts Publish post from Close instead of following Close");
   assert.equal(id("post-compose-cancel").getAttribute("aria-describedby"), "post-keyboard-hint");
   const opening = textOf(id("post-compose-panel")).split("Your post (required)")[0]
-    .replace("Publish a post", "").trim();
+    .replace("Write a post", "").trim();
   assert.equal(opening, textOf(id("post-form-hint")));
   assert.equal(opening.match(/[.!?](?:\s|$)/g).length, 2);
   assert.doesNotMatch(opening, /Escape|Close|tabs?|draft|wait/i);
@@ -2264,7 +2274,7 @@ test("the composer says once, in its own name and beside Close, that the draft i
 });
 
 
-test("empty Social offers a keyboard-reachable Publish a post action that opens and focuses the composer", async (t) => {
+test("empty Social offers a keyboard-reachable Write a post action that opens and focuses the composer", async (t) => {
   const page = await loadPage(new URL("../src/social.html", import.meta.url), {});
   t.after(() => page.restore());
   const feed = mountSocialFeed(page.document, { posts: [], state: "loading" });
@@ -2274,7 +2284,7 @@ test("empty Social offers a keyboard-reachable Publish a post action that opens 
   assert.doesNotMatch(textOf(region), /No posts on Social yet/);
   feed.seed([]);
   const action = region.querySelector("button");
-  assert.equal(textOf(action), "Publish a post");
+  assert.equal(textOf(action), "Write a post");
   assert.equal(action.type, "button");
   assert.ok(tabSequence(page.document).includes(action));
   assert.ok(region.querySelector("h3"));

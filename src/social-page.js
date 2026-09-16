@@ -371,8 +371,8 @@ async function init() {
   // the post field would skip it — so it opens without taking focus.
   //
   // A plain #post-form arrival has no such panel and no such explanation. It is
-  // somebody who followed a link that named the act ("Publish a post" on the
-  // shared post page) and asked for this form by name, and the browser's own
+  // somebody who followed a link that named the act ("Open Social to publish a
+  // post" on the shared post page) and asked for this form by name, and the browser's own
   // fragment jump scrolls the panel into view without moving the keyboard
   // anywhere: a keyboard reader would land looking at a form whose first field
   // is still several tab stops away, behind the whole page header. So this

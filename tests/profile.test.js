@@ -6,8 +6,9 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { byClass, createElement, first, ids, installDocument, tags, walk } from "./support/dom.js";
 // The one owner of the label Social prints on the control that opens its
-// composer, and the source both of People's offers of that trip are built from.
-import { PUBLISH_POST_LABEL } from "../src/social-links.js";
+// composer. People's own offers of that trip are no longer built from it
+// (#2389), so the tests below read it to check what a visitor arrives at.
+import { COMPOSE_POST_LABEL } from "../src/social-links.js";
 
 installDocument();
 
@@ -791,14 +792,20 @@ test("the waiting line names image posts once without duplicating the selected d
 });
 
 // People cannot publish anything, so both places it sends a visitor to Social —
-// the wait over the grid and the publishing step in the helper beside it — name
-// a control that is declared in another file. They used to name two, and neither
-// was on Social: the wait said "Open Social to publish an image post" and the
-// step said "Write a post on Social", while the button that opens the composer
-// read something else again (#2181). Comparing People's two strings to each
-// other would not have caught that, so the label is read off Social's own
-// control and the assertions run against what that control prints.
-test("People names Social's composer control in the words Social prints on it", async () => {
+// the wait over the grid and the publishing step in the helper beside it — offer
+// one trip. They used to name two, and neither was a control Social had: the
+// wait said "Open Social to publish an image post" and the step said "Write a
+// post on Social", while the button that opens the composer read something else
+// again (#2181). Comparing People's two strings to each other would not have
+// caught that, so both are read off the one exported phrase.
+//
+// That phrase used to be built from Social's composer label, so People's words
+// were the words on the button a reader arrived at. Social's trigger is "Write a
+// post" now and its submit is "Publish post" (#2389), and People's phrase is
+// deliberately neither: it names the act and the page that can perform it. What
+// keeps the promise is the href — /social.html#post-form opens the composer on
+// arrival — so this test pins the destination rather than a shared label.
+test("People offers the trip to Social's composer in one phrase, in both places", async () => {
   const social = await readFile(new URL("../src/social.html", import.meta.url), "utf8");
   const opener = social.match(/<button[^>]*id="post-compose-open"[^>]*>([^<]*)<\/button>/);
   assert.notEqual(opener, null, "Social ships no control that opens the composer");
@@ -806,13 +813,15 @@ test("People names Social's composer control in the words Social prints on it", 
   // Both halves, so a control that renders nothing cannot satisfy this on an
   // empty string that every sentence contains.
   assert.ok(composerLabel.length > 0, "Social's composer control renders no label");
-  assert.equal(PUBLISH_POST_LABEL, composerLabel,
-    "the shared publish label drifted from the button Social renders");
+  assert.equal(composerLabel, COMPOSE_POST_LABEL,
+    "the shared compose label drifted from the button Social renders");
+  assert.equal(COMPOSE_POST_LABEL, "Write a post",
+    "Social's composer trigger drifted, so People's route may name the wrong act");
 
-  // People's one phrase for the trip is that label plus the page it is on: the
-  // destination is named because the control is on another page, and nothing
-  // else is added, so a reader who follows either offer meets those words.
-  assert.equal(PUBLISH_ON_SOCIAL, `${composerLabel} on Social`);
+  // People's one phrase for the trip names the act and the page it happens on,
+  // and nothing else is added, so a reader who follows either offer meets the
+  // same words.
+  assert.equal(PUBLISH_ON_SOCIAL, "Publish a post on Social");
   assert.equal(loadingSummaryText(), `Image posts are loading. ${PUBLISH_ON_SOCIAL} to add one.`);
 
   const html = await readFile(new URL("../src/profile.html", import.meta.url), "utf8");
@@ -828,8 +837,9 @@ test("People names Social's composer control in the words Social prints on it", 
   // And the retired name is gone from both of People's layers: the paragraph a
   // visitor reads before hydration, and the sentence the module renders.
   const invitation = html.match(/<p class="feed-create hint">([\s\S]*?)<\/p>/)[1];
-  assert.doesNotMatch(invitation, /Write a post/, "People still names a control Social does not have");
-  assert.doesNotMatch(loadingSummaryText(), /Write a post|Open Social/,
+  assert.equal((invitation.match(/on Social/g) ?? []).length, 1,
+    "People offers the trip to Social more than once in the one paragraph");
+  assert.doesNotMatch(loadingSummaryText(), /Open Social/,
     "the wait still names the trip a second way");
 });
 
