@@ -19,12 +19,16 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import {
+  NO_DECISION_CONTEXT_TEXT,
+  NO_DECISION_OWNER_TEXT,
   NO_SUMMARY_TEXT,
   RELEASE_BRIEF_BROWSER_LINE,
   RELEASE_BRIEF_BUTTON_LABEL,
   RELEASE_BRIEF_COPIED_STATUS,
   RELEASE_BRIEF_COPY_FAILED_STATUS,
   RELEASE_BRIEF_EXAMPLE_LINE,
+  RELEASE_BRIEF_TEXT_HINT,
+  RELEASE_BRIEF_TEXT_LABEL,
   RELEASE_STORAGE_KEY,
   buildReleaseBrief,
   summarizeReleases,
@@ -92,6 +96,47 @@ test("a linked decision this log does not hold is reported, never quietly droppe
   const brief = briefFor({ ...RECORDED, decisionIds: ["d-queue", "d-gone"] });
   assert.match(brief, /^Linked decisions \(2\):$/m);
   assert.match(brief, /^- Linked decision d-gone is not in this log\.$/m);
+});
+
+// --- what each linked decision contributes (issue #2372) -------------------
+
+// A manager reading this asks two questions past "what shipped": who decided
+// it, and what were they deciding against. Both come off the decision record —
+// never off the release — so they are asserted against the log's own fields.
+test("each linked decision carries its owner and the context it was taken in", () => {
+  const brief = briefFor(RECORDED);
+  // Indented under the bullet they belong to, so a release with two decisions
+  // does not read as one decision with two owners.
+  assert.match(brief, /^- Cache the read path — Pending\n {2}Owner: Ari\n {2}Context: Read latency spikes\.$/m);
+  assert.match(brief, /^- Adopt a durable queue — Accepted\n {2}Owner: Kai\n {2}Context: Retries are required\.$/m);
+  // The release's own owner is still its own line, not one of these.
+  assert.match(brief, /^Owner: Ari$/m);
+});
+
+test("a dangling reference gets no owner, status, or context invented for it", () => {
+  const brief = briefFor({ ...RECORDED, decisionIds: ["d-gone"] });
+  assert.match(brief, /^- Linked decision d-gone is not in this log\.$/m);
+  // The one line, and nothing under it: this log holds no record to read these
+  // from, so printing them would be fabrication rather than a gap.
+  assert.doesNotMatch(brief, /^ {2}Owner:/m, "a missing decision has no owner to name");
+  assert.doesNotMatch(brief, /^ {2}Context:/m, "a missing decision has no context to state");
+  assert.equal(brief.split("\n").filter((line) => line.startsWith("- ")).length, 1);
+});
+
+test("a stored decision with no owner or context says so rather than printing a blank", () => {
+  const bare = { id: "d-bare", title: "Sparse record", status: "accepted" };
+  const brief = buildReleaseBrief({ ...RECORDED, decisionIds: ["d-bare"] }, [bare]);
+  assert.match(brief, new RegExp(`^ {2}Owner: ${NO_DECISION_OWNER_TEXT}$`, "m"));
+  assert.match(brief, new RegExp(`^ {2}Context: ${NO_DECISION_CONTEXT_TEXT}$`, "m"));
+});
+
+// A decision's context is a multi-line textarea field. Left as typed it would
+// split one fact across several of the brief's lines, and the continuation
+// lines would stop saying which decision they belong to.
+test("a context typed across several lines is folded onto one", () => {
+  const wrapped = { id: "d-wrap", title: "Wrapped", status: "accepted", owner: "Ari", context: "First line.\n\nSecond line." };
+  const brief = buildReleaseBrief({ ...RECORDED, decisionIds: ["d-wrap"] }, [wrapped]);
+  assert.match(brief, /^ {2}Context: First line\. Second line\.$/m);
 });
 
 test("a release with nothing linked still produces a whole, honest brief", () => {
@@ -316,6 +361,94 @@ test("the control reuses the classes styles.css already narrows", async (t) => {
   assert.match(narrow, /\.share-control\{[^}]*flex-direction:column/);
   assert.match(narrow, /\.share-button\{width:100%\}/);
   assert.match(narrow, /\.share-status\{max-width:none\}/);
+
+  // The selectable brief is the same bargain: the field's size, border and
+  // focus ring come from styles.css's existing input/textarea rules, and the
+  // little that is new is written in releases-proof.css — this page's own
+  // sheet, which is not on the measured initial-payload budget styles.css is.
+  const proof = await readFile(new URL("../src/releases-proof.css", import.meta.url), "utf8");
+  assert.match(proof, /\.release-brief-textarea\s*\{/);
+  assert.doesNotMatch(css, /release-brief/, "styles.css is at its budget; this change must not spend from it");
+  assert.match(css, /input,textarea,select\s*\{[^}]*border:1px solid/, "the field is bordered by the sheet that already styles every field");
+  assert.match(css, /input:focus-visible,textarea:focus-visible[^{]*\{[^}]*outline:3px solid var\(--focus-ring\)/);
+});
+
+// --- the brief as selectable text (issue #2372) ----------------------------
+//
+// The clipboard is a shortcut. A view with no clipboard API, an insecure
+// origin, or a browser that refuses the write all leave `copyText` reporting
+// false, and the artifact has to survive that — so the brief is on the page as
+// text before anything is pressed, and these read it the way a reader would.
+
+const briefFields = (page) => page.document.querySelectorAll(".release-brief-textarea");
+const fieldAt = (page, index) => page.document.getElementById(`release-brief-text-${index}`);
+
+test("every release carries its brief as selectable text in the panel it belongs to", async (t) => {
+  const page = await bootedReleases(t);
+  assert.equal(briefFields(page).length, 2, "one selectable brief per record — no more, no fewer");
+
+  const field = fieldAt(page, 0);
+  assert.equal(field.tagName, "TEXTAREA", "a paragraph is not focusable, and selection from the keyboard needs it to be");
+  // Readonly, not disabled: a disabled field can be neither focused nor
+  // selected, which is the entire job of this one.
+  assert.equal(field.getAttribute("readonly"), "");
+  assert.equal(field.disabled, false);
+
+  // Named by a real label, and described by the sentence that says what to do
+  // with it when the button cannot reach the clipboard.
+  const label = page.document.querySelector(".release-brief-text-label");
+  assert.equal(label.getAttribute("for"), "release-brief-text-0");
+  assert.equal(textOf(label), RELEASE_BRIEF_TEXT_LABEL);
+  assert.equal(field.getAttribute("aria-describedby"), "release-brief-text-0-hint");
+  assert.equal(textOf(page.document.getElementById("release-brief-text-0-hint")), RELEASE_BRIEF_TEXT_HINT);
+
+  // It lives in the panel expanding reveals, beside the control it backs, so it
+  // is neither focusable nor read out until the reader has opened the record.
+  const panel = page.document.getElementById("release-panel-0");
+  assert.equal(panel.hidden, true);
+  toggles(page)[0].click();
+  assert.equal(panel.hidden, false);
+});
+
+test("the text a reader can select is the same string the button writes", async (t) => {
+  const written = [];
+  const page = await bootedReleases(t, { clipboard: { writeText: async (text) => { written.push(text); } } });
+  toggles(page)[0].click();
+  briefButtons(page)[0].click();
+  await settle();
+
+  assert.equal(written.length, 1);
+  // Not "close enough": one builder, one record, one string. A second rendering
+  // that agreed today is a second rendering that can drift tomorrow.
+  assert.equal(fieldAt(page, 0).value, written[0]);
+  assert.match(fieldAt(page, 0).value, /^Release brief: v1\.2\.0 — Read path$/m);
+  assert.match(fieldAt(page, 0).value, /^ {2}Owner: Ari$/m, "the manager-facing fields are in the text too");
+  // Each row shows its own record, never the row above it.
+  assert.match(fieldAt(page, 1).value, /^Release brief: v0\.9\.0 — Sample rollout$/m);
+});
+
+test("the example row's selectable text says it is invented, not a customer result", async (t) => {
+  const page = await bootedReleases(t);
+  const seeded = fieldAt(page, 1).value;
+  assert.ok(seeded.includes(RELEASE_BRIEF_EXAMPLE_LINE), "text a reader may paste elsewhere carries its own provenance");
+  assert.ok(!seeded.includes(RELEASE_BRIEF_BROWSER_LINE));
+  // The visitor's own record gets the other disclosure, and claims nothing
+  // about customers either way.
+  assert.ok(fieldAt(page, 0).value.includes(RELEASE_BRIEF_BROWSER_LINE));
+  assert.doesNotMatch(fieldAt(page, 0).value, /customer/i);
+});
+
+test("a refused clipboard points at the text that is already on the page", async (t) => {
+  const page = await bootedReleases(t, { clipboard: { writeText: async () => { throw new Error("denied"); } } });
+  toggles(page)[0].click();
+  briefButtons(page)[0].click();
+  await settle();
+
+  const said = textOf(statusAt(page, 0));
+  assert.equal(said, RELEASE_BRIEF_COPY_FAILED_STATUS);
+  assert.match(said, /copy it by hand/, "a stated failure with no next step is half an answer");
+  // The next step it names is really there, and really holds the brief.
+  assert.match(fieldAt(page, 0).value, /^Release brief: v1\.2\.0 — Read path$/m);
 });
 
 test("a filter change re-renders the rows and the control still works", async (t) => {
@@ -331,4 +464,8 @@ test("a filter change re-renders the rows and the control still works", async (t
   // release the filtered list actually drew rather than a stale selection.
   assert.match(written[0], /^Release brief: v0\.9\.0 — Sample rollout$/m);
   assert.equal(textOf(statusAt(page, 0)), RELEASE_BRIEF_COPIED_STATUS);
+  // The selectable copy was rebuilt with the row, so the text under the control
+  // is the release that row now shows rather than the one it showed before.
+  assert.equal(briefFields(page).length, 1);
+  assert.equal(fieldAt(page, 0).value, written[0]);
 });

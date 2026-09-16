@@ -702,10 +702,25 @@ export const RELEASE_BRIEF_BROWSER_LINE =
   "Recorded in this browser: this release is stored only in this browser, and it is not a shared hosted record.";
 
 export const RELEASE_BRIEF_COPIED_STATUS = "Release brief copied to clipboard.";
+// The failure names the fallback that is already on screen rather than the
+// cause. The brief is rendered below this control as selectable text on every
+// expanded release, so a browser with no clipboard — or one that refused the
+// write — has not lost the artifact, only the shortcut to it.
 export const RELEASE_BRIEF_COPY_FAILED_STATUS =
-  "Could not copy the release brief. The same details are on this release’s page.";
+  "Could not copy the release brief. Select the release brief text below this button and copy it by hand.";
+
+/** The label on the selectable copy of the brief, and the hint beside it. */
+export const RELEASE_BRIEF_TEXT_LABEL = "Release brief, as text";
+export const RELEASE_BRIEF_TEXT_HINT =
+  "The same brief the button copies. Select it and copy it by hand if the clipboard is unavailable.";
 
 export const NO_SUMMARY_TEXT = "No summary recorded.";
+// The two fields a linked decision contributes beyond its name and its status.
+// Stated rather than left blank, for the same reason the release's own missing
+// fields are: a brief read somewhere else cannot distinguish "nothing recorded"
+// from "the line was dropped on the way here".
+export const NO_DECISION_OWNER_TEXT = "Unknown";
+export const NO_DECISION_CONTEXT_TEXT = "No context recorded.";
 
 // The calendar day, not a formatted one. formatDate() above is for the screen,
 // where the reader's locale is this browser's; a brief is read somewhere else
@@ -720,6 +735,16 @@ function briefDate(iso) {
 // use ("Completed, Planned, or Cancelled"), because the brief is prose. The
 // vocabulary is unchanged — only the first letter.
 const capitalized = (word) => word.charAt(0).toUpperCase() + word.slice(1);
+
+// One stored field as one line of the brief. Runs of whitespace collapse for the
+// same reason the release summary's do: a decision's context is a textarea field
+// and may carry the line breaks its author typed, which would otherwise split
+// one fact across several of the brief's lines and break the indentation that
+// says which decision it belongs to.
+function briefField(value, fallback) {
+  const text = typeof value === "string" ? value.replace(/\s+/g, " ").trim() : "";
+  return text === "" ? fallback : text;
+}
 
 /**
  * One release as plain text.
@@ -764,10 +789,26 @@ export function buildReleaseBrief(release, decisions = release?.decisions ?? [],
     // Association order, dangling references included and in place. A brief
     // that quietly dropped them would claim the release carried fewer decisions
     // than it recorded — the same reason the export reports them.
+    //
+    // A resolved decision contributes four facts — name, status, owner, and the
+    // context it was taken in — because that is the question a manager reading
+    // this brief is actually asking: not only what shipped, but who decided it
+    // and what they were deciding against. The last two are indented
+    // continuation lines rather than more of the bullet, so the bullet stays one
+    // scannable line and the brief stays readable pasted into plain text.
+    //
+    // A dangling id gets the one line that says it is missing and nothing else.
+    // An owner or a context printed under it would be invented: this log does
+    // not hold that record, so it cannot say who owned it or why.
     for (const association of resolved.associations) {
-      lines.push(association.missing
-        ? `- Linked decision ${association.id} is not in this log.`
-        : `- ${decisionLabel(association.decision)} — ${capitalized(canonicalDecisionStatus(association.decision.status))}`);
+      if (association.missing) {
+        lines.push(`- Linked decision ${association.id} is not in this log.`);
+        continue;
+      }
+      const { decision } = association;
+      lines.push(`- ${decisionLabel(decision)} — ${capitalized(canonicalDecisionStatus(decision.status))}`);
+      lines.push(`  Owner: ${briefField(decision.owner, NO_DECISION_OWNER_TEXT)}`);
+      lines.push(`  Context: ${briefField(decision.context, NO_DECISION_CONTEXT_TEXT)}`);
     }
   }
 
@@ -956,6 +997,50 @@ function renderBriefControl(release, index) {
   return group;
 }
 
+// The brief itself, on the page, as text a reader can select.
+//
+// The clipboard is a shortcut, not the artifact. An embedded view, an insecure
+// origin, or a browser that refuses the write all leave `copyText` reporting
+// false — and until now that left the reader with a sentence about a failure and
+// no brief. This renders the brief where the control is, so the manual path
+// exists before anything is pressed rather than being conjured by a failure.
+//
+// A readonly textarea rather than a paragraph: it is focusable and selectable
+// from the keyboard, it scrolls rather than stretching the row, and the browser
+// preserves the brief's own line breaks without a white-space rule. Readonly,
+// not disabled — a disabled field is neither focusable nor selectable, which is
+// the whole point of this one.
+//
+// The value is written as a property, never as markup or a text child: a brief
+// is built from stored decision and release text (PRODUCT.md: no user-generated
+// HTML), and a textarea's content is parsed as markup when it is written that
+// way.
+function renderBriefText(release, index, example) {
+  const wrap = el("div", "release-brief-text");
+  const fieldId = `release-brief-text-${index}`;
+  const hintId = `${fieldId}-hint`;
+
+  const label = el("label", "release-brief-text-label", RELEASE_BRIEF_TEXT_LABEL);
+  label.setAttribute("for", fieldId);
+
+  const field = el("textarea", "release-brief-textarea");
+  field.id = fieldId;
+  field.setAttribute("readonly", "");
+  field.setAttribute("rows", "10");
+  field.setAttribute("spellcheck", "false");
+  field.setAttribute("aria-describedby", hintId);
+  // The same builder the copy control calls, on the same resolved record this
+  // row was drawn from — so what a reader selects and what the button writes are
+  // one string produced once, not two renderings that can drift apart.
+  field.value = buildReleaseBrief(release, release.decisions ?? [], { example });
+
+  const hint = el("p", "release-brief-hint", RELEASE_BRIEF_TEXT_HINT);
+  hint.id = hintId;
+
+  wrap.append(label, field, hint);
+  return wrap;
+}
+
 function renderReleaseItem(release, index, expanded = false, example = false) {
   const item = el("li", "release-item");
   // Render-local ids keep arbitrary stored release ids out of ARIA IDREFs.
@@ -998,6 +1083,7 @@ function renderReleaseItem(release, index, expanded = false, example = false) {
   panel.append(renderReleaseBody(release));
   panel.append(renderDetailLink(release));
   panel.append(renderBriefControl(release, index));
+  panel.append(renderBriefText(release, index, example));
 
   item.append(heading, panel);
   return item;
