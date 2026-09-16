@@ -13,7 +13,7 @@ import { loadPage, pressKey, textOf } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
 import { bootSocial } from "./support/social-paint-arrival.js";
 import { renderPosts } from "../src/social.js";
-import { REPORT_RECEIVED, REPORT_REVIEW_NOTE } from "../src/post-report.js";
+import { REPORT_POST_LABEL, REPORT_RECEIVED, REPORT_REVIEW_NOTE } from "../src/post-report.js";
 
 const ARI_POST = "55555555-5555-4555-8555-555555555555";
 const BEA_POST = "66666666-6666-4666-8666-666666666666";
@@ -158,4 +158,64 @@ test("People: every drawn tile has a Report post button that opens the same pane
   assert.equal(document.activeElement?.id, "post-report-title");
   document.querySelector("#post-report-close").click();
   assert.equal(document.activeElement === buttons[0], true, "Close did not return focus to the tile's Report post");
+});
+
+// #2373: the two publication warnings and the reporting explanation used to
+// contradict each other. The warnings said a published post could not be
+// deleted, full stop; the reporting copy on the same pages says the Wawalu team
+// reviews reported posts and may take one down. Both warnings now name whose act
+// each one is — you cannot take your own post down, anyone can report it, the
+// team may remove it after review — in the reporting panel's own terms.
+//
+// Asserted on the painted DOM of both pages, not on the markup: each page could
+// hydrate over its own warning.
+const SELF_SERVICE = /You cannot edit or delete your own post after you publish it/;
+const REMOVAL_PATH = /Anyone can select Report post on a published post, and the Wawalu team may remove it after review\./;
+// A promise of removal, and a second name for the one actor the site has.
+const OVERPROMISES = [/will be removed/i, /will remove/i, /we remove/i, /guarantee/i];
+const RIVAL_ACTORS = [/moderator/i, /\badmin\b/i, /support team/i, /\bstaff\b/i];
+
+const statesTheDistinction = (copy, surface) => {
+  assert.match(copy, SELF_SERVICE, `${surface} no longer says the publisher cannot take their own post down`);
+  assert.match(copy, REMOVAL_PATH, `${surface} no longer points at Report post and the Wawalu team's review`);
+  assert.ok(copy.includes(REPORT_POST_LABEL), `${surface} names the reporting control something other than "${REPORT_POST_LABEL}"`);
+  for (const promise of OVERPROMISES)
+    assert.doesNotMatch(copy, promise, `${surface} promises a reported post comes down (${promise})`);
+  for (const rival of RIVAL_ACTORS)
+    assert.doesNotMatch(copy, rival, `${surface} names the reviewing team a second way (${rival})`);
+};
+
+test("Social: the composer says the publisher cannot delete a post and reporting may", async (t) => {
+  const { document, id } = await bootSocial(t, { routes: { "/api/social-posts?limit=100": LIVE } });
+  // Open, because this is what a visitor reads while deciding to publish.
+  id("post-compose-open").click();
+  await waitFor(() => realCards(document, ".post-card", "post-card-skeleton").length === 2, "Social painted its posts");
+  assert.equal(id("post-compose-panel").hidden, false);
+
+  statesTheDistinction(textOf(id("post-consequence")), "Social's composer");
+  // The control it sends a reader to is on the page it sends them from.
+  assert.equal(document.querySelectorAll(".post-report-button").length, 2);
+  assert.equal(textOf(document.querySelectorAll(".post-report-button")[0]), REPORT_POST_LABEL);
+});
+
+test("People: the publication warning gives the same two acts, once the tiles are drawn", async (t) => {
+  const page = await loadPage(new URL("../src/profile.html", import.meta.url), {
+    routes: {
+      "/social-demo-data.json": { posts: [] },
+      "/api/social-posts?limit=100": { posts: [{ ...apiPost(ARI_POST, "Ari", "A drawing of the release train.", 3), image_url: "/media/ari.svg", image_alt: "A train drawn in pencil", image_width: 10, image_height: 10 }] },
+    },
+  });
+  const savedInterval = globalThis.setInterval;
+  globalThis.setInterval = () => 0;
+  globalThis.window.history = { replaceState() {} };
+  t.after(() => { globalThis.setInterval = savedInterval; page.restore(); });
+  await importPageModule("/profile-page.js");
+  const { document } = page;
+  // The intro is authored markup, so a wait on its text would return before the
+  // module ran. Wait on drawn tiles instead; skeletons carry the tile class.
+  await waitFor(() => realCards(document, ".profile-tile", "profile-tile-skeleton").length > 0, "People drew an image post");
+
+  statesTheDistinction(textOf(document.querySelectorAll(".profile-lede")[1]), "People's publication warning");
+  assert.equal(document.querySelectorAll(".post-report-button").length,
+    realCards(document, ".profile-tile", "profile-tile-skeleton").length);
 });

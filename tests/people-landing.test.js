@@ -1473,8 +1473,12 @@ test("People claims no result before its first image post, and the loaded page i
 const PEOPLE_PROVENANCE = "The image posts already here are invented to demonstrate Shiplog and use no customer or production data; an image post you publish is real.";
 const RETIRED_DATA_SENTENCE = "Posts use no customer or production data.";
 const PUBLISH_INSTRUCTION = "Do not include customer or production data.";
-const SHARED_CONSEQUENCE = "Anyone who visits Shiplog can read your post, its image, and the display name you publish it with. You cannot edit or delete a post after you publish it";
-const PEOPLE_CONSEQUENCE = `${SHARED_CONSEQUENCE}. ${PUBLISH_INSTRUCTION}`;
+const SHARED_CONSEQUENCE = "Anyone who visits Shiplog can read your post, its image, and the display name you publish it with. You cannot edit or delete your own post after you publish it";
+// Both pages name the removal path in the same terms, so neither reads as "a
+// published post can never come down" beside a Report post button that promises
+// the Wawalu team a review (#2373).
+const SHARED_REMOVAL = "Anyone can select Report post on a published post, and the Wawalu team may remove it after review.";
+const PEOPLE_CONSEQUENCE = `${SHARED_CONSEQUENCE}. ${SHARED_REMOVAL} ${PUBLISH_INSTRUCTION}`;
 const instructionsIn = (text) => text.match(/Do not include[^.]*\./g) ?? [];
 
 test("the intro says the image posts on this page are invented, before any of them load", async (t) => {
