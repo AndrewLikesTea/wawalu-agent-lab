@@ -679,7 +679,12 @@ test("who wrote the posts survives loading, populated, empty, and no-match", asy
 const PROVENANCE_SENTENCE = "The posts already here are invented to demonstrate Shiplog and use no customer or production data; a post you publish is real.";
 const RETIRED_DATA_SENTENCE = "Posts use no customer or production data.";
 const PUBLISH_INSTRUCTION = "Do not include customer or production data.";
-const PUBLISH_CONSEQUENCE = "Anyone who visits Shiplog can read your post, its image, and the display name you publish it with. You cannot edit or delete a post after you publish it, so post nothing you would not put on a public page. " + PUBLISH_INSTRUCTION;
+// The two acts are named apart (#2373): a publisher cannot take their own post
+// down, and removal runs through Report post and the Wawalu team's review. Said
+// only the first, the composer contradicted the reporting explanation below the
+// feed, which promises that review.
+const PUBLISH_REMOVAL = "Anyone can select Report post on a published post, and the Wawalu team may remove it after review.";
+const PUBLISH_CONSEQUENCE = "Anyone who visits Shiplog can read your post, its image, and the display name you publish it with. You cannot edit or delete your own post after you publish it, so post nothing you would not put on a public page. " + PUBLISH_REMOVAL + " " + PUBLISH_INSTRUCTION;
 
 test("the intro scopes the demo promise to the seeded posts, and the composer states the cost once", async (t) => {
   const { document, id } = await socialDisclosure(t);
@@ -1743,7 +1748,7 @@ test("with the composer open, one control reads Publish a post and the submit re
   assert.equal(textOf(id("post-consequence")), PUBLISH_CONSEQUENCE,
     "the consequence beside the renamed button was rewritten");
   assert.match(textOf(id("post-consequence")), /^Anyone who visits Shiplog can read your post/);
-  assert.match(textOf(id("post-consequence")), /You cannot edit or delete a post after you publish it/);
+  assert.match(textOf(id("post-consequence")), /You cannot edit or delete your own post after you publish it/);
   assert.ok(id("post-submit").getAttribute("aria-describedby").split(/\s+/).includes("post-consequence"));
 });
 

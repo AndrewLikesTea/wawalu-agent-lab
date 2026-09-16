@@ -33,7 +33,7 @@ const SAVED_ID = "5b91d0c4-2f7a-4c31-9b6e-1d0a7c4e8f22";
 // The sentence the composer has always carried about what publishing costs. It
 // is authored in src/social.html, said exactly once, and this file's stake in it
 // is only that nothing here quietly moved or reworded it.
-const CONSEQUENCE = "Anyone who visits Shiplog can read your post, its image, and the display name you publish it with. You cannot edit or delete a post after you publish it, so post nothing you would not put on a public page. Do not include customer or production data.";
+const CONSEQUENCE = "Anyone who visits Shiplog can read your post, its image, and the display name you publish it with. You cannot edit or delete your own post after you publish it, so post nothing you would not put on a public page. Anyone can select Report post on a published post, and the Wawalu team may remove it after review. Do not include customer or production data.";
 
 // The composer on the shipped markup, with the API and the clipboard replaced by
 // values the test owns. `saved` is what the publish response resolves to — the
@@ -260,8 +260,8 @@ test("the composer still says, once, what publishing costs", async (t) => {
   assert.equal(document.querySelector("#post-compose-panel").hidden, false);
   const consequence = document.querySelector("#post-consequence");
   assert.equal(textOf(consequence), CONSEQUENCE);
-  assert.match(textOf(consequence), /You cannot edit or delete a post after you publish it/);
+  assert.match(textOf(consequence), /You cannot edit or delete your own post after you publish it/);
   assert.ok(document.querySelector("#post-submit").getAttribute("aria-describedby").split(/\s+/).includes("post-consequence"));
   // Once. The receipt does not restate it beside the link it now offers.
-  assert.equal(textOf(harness.notice()).includes("You cannot edit or delete a post"), false);
+  assert.equal(textOf(harness.notice()).includes("You cannot edit or delete your own post"), false);
 });
