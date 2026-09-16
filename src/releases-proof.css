@@ -23,11 +23,26 @@
  * as one run-on line and the row grows an em of dead space above and below.
  * No new hue and no new type scale — the site's own body ink. */
 #release-record-next>p { flex:1 1 100%; margin:0; font-size:14px; line-height:1.5; }
-/* The log's empty, no-match and error panels at a phone width: a long heading
- * wraps inside its panel instead of widening the page, and an action's label
- * may break onto a second line rather than overflow. */
-#release-list .list-state { min-width:0; overflow-wrap:anywhere; }
-#release-list .empty-action { max-width:100%; line-height:1.3; }
+/* The log's one status region — loading, nothing recorded yet, no match, failed
+ * load — at a phone width: a long heading wraps inside the panel instead of
+ * widening the page, and the one action's label may break onto a second line
+ * rather than overflow. This is what keeps the state readable at 390px; nothing
+ * on this page measures the viewport in script, so the narrow-width behaviour
+ * lives here and is asserted here. */
+#release-list-status { min-width:0; overflow-wrap:anywhere; }
+#release-list-status .empty-action { max-width:100%; line-height:1.3; }
+/* The decorative shape each state carries above its heading, so which state the
+ * log is in is told by a silhouette as well as by words — never by colour
+ * alone. It takes the panel's own ink (the .list-state colours in styles.css),
+ * so no new hue enters the palette, and it is aria-hidden where it is drawn
+ * because the heading beside it already says what it stands for. The loading
+ * state ships an empty one: its glyph is the ring styles.css spins on the
+ * heading, and :empty keeps the blank span from taking a line. */
+.list-state-glyph { display:block; margin-bottom:10px; font-size:26px; line-height:1; }
+.list-state-glyph:empty { display:none; }
+/* At a phone width the one action fills the column, so its target is the width
+ * of the panel rather than a short label adrift in the middle of it. */
+@media(max-width:520px) { #release-list-status .empty-action{width:100%} }
 @media(max-width:760px) { .shiplog-proof-facts{grid-template-columns:repeat(2,minmax(0,1fr))} }
 /* The end of the evaluation path at a phone width (#2371): the link to the
  * release just recorded and the sentences around it wrap in the column. */

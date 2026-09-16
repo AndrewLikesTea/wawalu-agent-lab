@@ -372,11 +372,14 @@ test("the list state before the page boots is a loading state", async (t) => {
   assert.equal(list.getAttribute("aria-busy"), "true");
   const loading = page.document.querySelector(".list-state-loading");
   assert.ok(loading, "the shipped markup carries a loading state");
-  // The wait is announced by the log's one status region; the panel is not a
-  // second live region saying it again.
-  assert.equal(loading.getAttribute("role"), null);
-  assert.equal(textOf(page.document.querySelector("#release-list-status")), "Loading releases…");
+  // The panel a reader sees IS the log's status region: one node, shown and
+  // announced, rather than a hidden announcer beside a visible copy of it.
+  assert.equal(loading.getAttribute("id"), "release-list-status");
+  assert.equal(loading.getAttribute("role"), "status");
+  assert.equal(loading.getAttribute("aria-live"), "polite");
   assert.equal(textOf(loading.querySelector("h3")), "Loading releases…");
+  assert.equal(page.document.querySelector("#release-list").children.length, 0,
+    "the list shipped a second copy of the wait");
   // The count is the other half of the same answer: while the list says it is
   // loading, the count may not say how many releases there are — and it does
   // not restate the wait the list already states.
@@ -483,11 +486,13 @@ test("a no-match view says so and offers a next step that clears the filters", a
   // The summary stands down and the panel below says what happened, once.
   assert.equal(countText(page), "");
   assert.equal(followUp(page).hidden, true, "nothing on screen means nothing to follow up");
-  const state = page.document.querySelector(".list-state-empty");
+  // A narrowed view is its own state, distinct from the first-run empty one.
+  const state = page.document.querySelector(".list-state-no-match");
   assert.equal(textOf(state.querySelector("h3")), "No releases match your search and filters");
-  // Announced by the log's one status region, not by the panel.
-  assert.equal(state.getAttribute("role"), null);
-  assert.equal(textOf(page.document.querySelector("#release-list-status")), "No releases match your search and filters");
+  assert.equal(page.document.querySelectorAll(".list-state-empty").length, 0);
+  // Shown and announced by the same node, so it is said once.
+  assert.equal(state.getAttribute("id"), "release-list-status");
+  assert.equal(state.getAttribute("role"), "status");
 
   const reset = state.querySelector(".release-reset-action");
   assert.equal(textOf(reset), "Clear search and filters");
