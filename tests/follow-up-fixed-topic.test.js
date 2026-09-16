@@ -196,8 +196,9 @@ test("the stated topic is prose in the existing hint style, and costs no tab sto
   const baseline = parseHtml(await read(BASELINE));
   const baselineStops = focusables(baseline.getElementById("site-footer-panel"));
   // An empty baseline would make the comparison below pass without looking at
-  // anything: the plain block has a field and two submit controls.
-  assert.equal(baselineStops.length, 3, `${BASELINE}: the plain follow-up block did not parse`);
+  // anything: the plain block has a field and the one control that sends. The
+  // retry is not among them — an unattempted form ships no retry at all.
+  assert.equal(baselineStops.length, 2, `${BASELINE}: the plain follow-up block did not parse`);
 
   for (const file of STATED) {
     const html = await read(file);
@@ -237,7 +238,7 @@ test("the topic sentence sits with the work-email field, above the control that 
   // Derived from the plain block rather than typed here, for the reason the test
   // above derives it: a shape this file invented is a shape no page has to keep.
   const baselineStops = focusables(parseHtml(await read(BASELINE)).getElementById("site-footer-panel"));
-  assert.deepEqual(baselineStops, ["INPUT#site-footer-email", "BUTTON#", "BUTTON#site-footer-retry"],
+  assert.deepEqual(baselineStops, ["INPUT#site-footer-email", "BUTTON#"],
     `${BASELINE}: the plain follow-up block did not parse`);
 
   for (const file of STATED) {
@@ -253,8 +254,8 @@ test("the topic sentence sits with the work-email field, above the control that 
     const field = document.getElementById("site-footer-email");
     const asked = document.getElementById("site-footer-message");
     assert.ok(order.includes(note) && order.includes(field));
-    // Every control the block ships, and no fourth one: the work-email field,
-    // its two submit controls, and — where the page offers it — the optional
+    // Every control the block ships, and no extra one: the work-email field,
+    // the one control that sends, and — where the page offers it — the optional
     // question field, which is asked before the address rather than after it.
     assert.deepEqual(focusables(form), expectedStops(file, baselineStops),
       `${file}: the follow-up block offers a control neither shape declares`);
@@ -291,7 +292,9 @@ for (const file of STATED) {
       assert.equal(textOf(byId(document, "site-footer-recovery")),
         "No request was sent. Retry the same request from this page. If it keeps failing, wait a few minutes and retry.",
         `${file}: the recovery copy has drifted`);
-      assert.equal(byId(document, "site-footer-retry").hidden, false, `${file}: a failure offers a retry`);
+      // The retry is built by the failure, so its presence is the assertion:
+      // before this submission the page carried no such control at all.
+      assert.ok(byId(document, "site-footer-retry"), `${file}: a failure offers a retry`);
       assert.equal(textOf(byId(document, "site-footer-status")),
         "No request was sent because follow-up requests are temporarily offline.");
       assert.equal(byId(document, "site-footer-email").value, TYPED_EMAIL,

@@ -22,7 +22,7 @@ import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
 import {
   DEMOS, DIRECTORY_SUMMARY, FOLLOW_UP_REDIRECT, IDENTITY, INVITATION, PITCH, PITCH_HREF, PITCH_LINK,
-  REPOSITORY_LINK_LABEL, siteFooterMarkup, SOURCE_LINK_LABEL,
+  REPOSITORY_LINK_LABEL, RETRY_LABEL, siteFooterMarkup, SOURCE_LINK_LABEL,
 } from "../src/site-footer.js";
 import { REPOSITORY_URL } from "../src/repository-url.js";
 import { FOLLOW_UP_TOPICS, POST_FOLLOW_UP_TOPIC } from "../src/leads.js";
@@ -1089,7 +1089,7 @@ test("a failed submission keeps the typed address, says it can be retried, and t
     const field = byId(document, "site-footer-email");
     const submit = byId(document, "site-footer-panel").querySelector('button[type="submit"]');
     assert.equal(byId(document, "site-footer-recovery").hidden, true, "recovery copy must not exist before an attempt");
-    assert.equal(byId(document, "site-footer-retry").hidden, true, "nothing has failed, so there is nothing to retry");
+    assert.ok(!byId(document, "site-footer-retry"), "nothing has failed, so there is nothing to retry");
     assert.doesNotMatch(describedBy(document), /site-footer-recovery/);
 
     submitEmail(document, TYPED_EMAIL);
@@ -1128,7 +1128,7 @@ test("a failed submission keeps the typed address, says it can be retried, and t
     assert.ok(byId(document, "site-footer-confirmation"), "the landed retry leaves a receipt");
     assert.equal(byId(document, "site-footer-form").hidden, true, "the failed form is not still standing");
     assert.equal(byId(document, "site-footer-recovery").hidden, true, "the recovery paragraph is withdrawn");
-    assert.equal(byId(document, "site-footer-retry").hidden, true, "nothing is left to retry");
+    assert.ok(!byId(document, "site-footer-retry"), "nothing is left to retry");
     assert.doesNotMatch(shownText(document, "site-footer-status"), /didn’t get your request/);
     assert.doesNotMatch(describedBy(document), /site-footer-recovery/);
     assert.equal(field.getAttribute("aria-invalid"), null, "the field no longer reads as the one that failed");
@@ -1148,8 +1148,8 @@ const IN_SCOPE = ["social.html", "profile.html", "post.html", "coach.html", "rel
 test("every in-scope page ships the same in-place recovery, and none of them points at another page's form", async () => {
   const shared = siteFooterMarkup("    ");
   assert.ok(!shared.includes(RECOVERY_COPY), "the shared footer must not carry failure copy on initial load");
-  assert.ok(shared.includes('<button id="site-footer-retry" type="submit" hidden>Retry your follow-up request</button>'),
-    "the shared footer must carry the retry control");
+  assert.ok(!shared.includes(RETRY_LABEL),
+    "the shared footer must not carry a retry control before anything has failed");
 
   for (const file of IN_SCOPE) {
     const html = await read(file);
@@ -1164,13 +1164,13 @@ test("every in-scope page ships the same in-place recovery, and none of them poi
       assert.doesNotMatch(html, /site-footer-recovery[^\n]*executive-briefing/,
         `${file}: the failure copy still links the executive briefing's form`);
 
-      const retry = byId(page.document, "site-footer-retry");
-      assert.equal(retry.tagName, "BUTTON");
-      assert.equal(retry.type, "submit", `${file}: retry must resubmit this form, not navigate`);
-      assert.equal(retry.hidden, true, `${file}: nothing has failed yet`);
-      // It belongs to the form it retries, so the value it sends is the value
-      // still in the field beside it.
-      assert.equal(retry.closest("form")?.id, "site-footer-form");
+      // The retry belongs to the failure, not to the page: before a request is
+      // made there is no such control, and the row offers exactly one action.
+      assert.ok(!byId(page.document, "site-footer-retry"), `${file}: nothing has failed yet`);
+      assert.doesNotMatch(html, new RegExp(RETRY_LABEL),
+        `${file}: a retry a reader can read is a retry the page is offering`);
+      assert.equal(byId(page.document, "site-footer-form").querySelectorAll('button[type="submit"]').length, 1,
+        `${file}: an unattempted follow-up form has one primary action`);
     } finally {
       page.restore();
     }
@@ -1188,10 +1188,19 @@ test("a failed request offers its retry in place: named, keyboard-reachable, ann
   // Anything that grabs focus from the field a reader is standing in is the
   // defect; the harness would not otherwise show a stolen focus as a failure.
   const focused = [];
-  for (const id of ["site-footer-recovery", "site-footer-status", "site-footer-retry"]) {
+  for (const id of ["site-footer-recovery", "site-footer-status"]) {
     const node = byId(document, id);
     node.focus = () => focused.push(id);
   }
+  // The retry does not exist yet, so it is patched through the factory that
+  // builds it — the same watch, on a node the failure is about to create.
+  const createElement = document.createElement.bind(document);
+  document.createElement = (tag) => {
+    const node = createElement(tag);
+    const focus = node.focus.bind(node);
+    node.focus = () => { if (node.id === "site-footer-retry") focused.push(node.id); else focus(); };
+    return node;
+  };
 
   try {
     const field = byId(document, "site-footer-email");
@@ -1505,7 +1514,6 @@ test("the send/retry swap never hides the control a reader is standing on", asyn
   try {
     const field = byId(document, "site-footer-email");
     const submit = byId(document, "site-footer-form").querySelector('button[type="submit"]');
-    const retry = byId(document, "site-footer-retry");
 
     byId(document, "site-footer-intent-pilot").click();
     field.focus();
@@ -1518,10 +1526,13 @@ test("the send/retry swap never hides the control a reader is standing on", asyn
       "hiding the pressed control must hand focus to the field, not to the document");
 
     // Sending again preserves the active retry control until the outcome.
+    const retry = byId(document, "site-footer-retry");
+    assert.ok(retry, "the failure is what puts a retry on the page");
     failNext = false;
     retry.focus();
     pressEnter(document);
     assert.equal(retry.hidden, false, "retry stays visible while in flight");
+    assert.ok(byId(document, "site-footer-retry"), "retry stays on the page while in flight");
     assert.equal(document.activeElement, retry);
 
     await waitFor(() => byId(document, "site-footer-form").dataset.state === "success", "the retry to land");

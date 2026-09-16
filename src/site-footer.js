@@ -59,6 +59,17 @@ const STATUS_ID = "site-footer-status";
  */
 export const REPOSITORY_LINK_LABEL = "Open an issue on the public GitHub repository";
 
+/**
+ * The failure state's control, built by the failure rather than shipped hidden.
+ *
+ * `hidden` removes a control from the screen and from the accessibility tree,
+ * not from the document: every page's source used to offer a retry for a
+ * request nobody had made, to anything reading the markup. It is created and
+ * removed like the repository link beside it, and `.site-footer-actions button`
+ * already styles whatever is in that row, so it costs no new rule.
+ */
+export const RETRY_LABEL = "Retry your follow-up request";
+
 // The provenance signal, on every page rather than two: the repository the site
 // is built from, so the claim below can be checked from outside. Word for word
 // the link /index.html and /releases.html publish, at the same one address.
@@ -330,7 +341,6 @@ function contactFormLines(followUpType, followUpTopic, askMessage = false, offer
     '        <p class="site-footer-recovery" id="site-footer-recovery" hidden></p>',
     '        <div class="site-footer-actions">',
     '          <button type="submit">Request a follow-up</button>',
-    `          <button id="${RETRY_ID}" type="submit" hidden>Retry your follow-up request</button>`,
     "        </div>",
     "      </form>",
     '      <p class="site-footer-status" id="site-footer-status" role="status" aria-live="polite"></p>',
@@ -366,7 +376,6 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
   const fieldError = root.querySelector(`#${ERROR_ID}`);
   const status = root.querySelector("#site-footer-status");
   const recovery = root.querySelector(`#${RECOVERY_ID}`);
-  const retry = root.querySelector(`#${RETRY_ID}`);
   const actions = form.querySelector(".site-footer-actions");
   // Request lifecycle is separate from the existing field-validation state.
   form.dataset.requestState = "idle";
@@ -410,6 +419,30 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
   }
   for (const radio of intents) radio.addEventListener("change", () => setIntentError(null));
 
+  // Built on the first failure, out of the document again the moment there is
+  // nothing to retry. The node is kept across appearances so a listener on it
+  // survives the round trip. See RETRY_LABEL.
+  let retry = null;
+  function setRetryVisible(visible) {
+    // Focus may not leave with a control that is about to go, nor stay on one
+    // about to be replaced. Read before the swap, never against a null.
+    const active = form.ownerDocument.activeElement;
+    const stranded = visible ? active === submit : Boolean(retry) && active === retry;
+    if (visible) {
+      if (!retry) {
+        retry = form.ownerDocument.createElement("button");
+        retry.id = RETRY_ID;
+        retry.setAttribute("type", "submit");
+        retry.textContent = RETRY_LABEL;
+      }
+      if (!retry.parentNode && actions) actions.append(retry);
+    } else {
+      retry?.remove();
+    }
+    submit.hidden = visible;
+    if (stranded) email.focus();
+  }
+
   // Failure swaps request for retry and hands a hidden button's focus to the
   // retained field. During retry, preserve the active button until settlement.
   // Recovery copy distinguishes a confirmed refusal from unknown delivery.
@@ -419,12 +452,7 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
     }
     recovery.hidden = !visible;
     setRepositoryLinkVisible(visible);
-    if (retry && !preserveAction) {
-      const stranded = form.ownerDocument.activeElement === (visible ? submit : retry);
-      retry.hidden = !visible;
-      submit.hidden = visible;
-      if (stranded) email.focus();
-    }
+    if (!preserveAction) setRetryVisible(visible);
     describeWith(email, RECOVERY_ID, visible);
   }
 
@@ -528,7 +556,7 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
 
     form.dataset.requestState = "submitting";
     form.dataset.state = "submitting";
-    pendingControl = retry && !retry.hidden ? retry : submit;
+    pendingControl = retry?.parentNode ? retry : submit;
     const idleLabel = pendingControl.textContent;
     setFieldError(null);
     setRecoveryVisible(false, false, true);

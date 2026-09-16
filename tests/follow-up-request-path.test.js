@@ -177,15 +177,16 @@ for (const [file, purpose, topic] of REVIEWED) {
       }
 
       // The recovery ships with the page and stays on it: a paragraph that
-      // leaves for no other form, and a retry control inside this very form.
+      // leaves for no other form. The retry it introduces is not here yet —
+      // an unattempted form offers exactly one action, the one that sends.
       const recovery = byId(document, "site-footer-recovery");
       assert.equal(textOf(recovery), "", `${file}: no failed-request guidance belongs in the initial state`);
       assert.equal(recovery.children.filter((child) => child.tagName === "A").length, 0,
         `${file}: a failure here must be recovered here, not on another page`);
-      const retry = byId(document, "site-footer-retry");
-      assert.equal(retry.type, "submit");
-      assert.equal(retry.hidden, true, `${file}: nothing has failed, so nothing offers a retry`);
-      assert.equal(retry.closest("form")?.id, "site-footer-form");
+      assert.ok(!byId(document, "site-footer-retry"),
+        `${file}: nothing has failed, so nothing offers a retry`);
+      assert.equal(byId(document, "site-footer-form").querySelectorAll('button[type="submit"]').length, 1,
+        `${file}: one unattempted form, one primary action`);
     } finally {
       page.restore();
     }
@@ -380,7 +381,9 @@ for (const [name, transport] of [
       assert.match(textOf(recovery), /Retry the same request from this page/);
       assert.doesNotMatch(textOf(recovery), /briefing/i);
       const retry = byId(document, "site-footer-retry");
-      assert.equal(retry.hidden, false, "a failure must offer a retry where it happened");
+      assert.ok(retry, "a failure must offer a retry where it happened");
+      assert.equal(retry.type, "submit");
+      assert.equal(retry.closest("form")?.id, "site-footer-form");
       assert.equal(textOf(retry), "Retry your follow-up request");
 
       // The outcome is wired to the field a reader has to come back to.

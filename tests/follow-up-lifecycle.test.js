@@ -29,11 +29,12 @@ for (const [name, failure, diagnostic] of [
       await importPageModule("/site-footer-page.js");
       const { document } = page;
       const get = (suffix) => document.getElementById(`site-footer-${suffix}`);
-      const form = get("form"), email = get("email"), status = get("status"), retry = get("retry");
+      const form = get("form"), email = get("email"), status = get("status");
       const submit = form.querySelector('button[type="submit"]');
       assert.equal(form.dataset.requestState, "idle");
       assert.equal(textOf(status), "");
-      assert.equal(retry.hidden, true);
+      // Nothing has been attempted, so the page carries no retry to find.
+      assert.ok(!get("retry"));
       assert.equal(submit.hidden, false);
       assert.equal(submit.getAttribute("aria-disabled"), null);
       assert.equal(get("recovery").hidden, true);
@@ -63,7 +64,8 @@ for (const [name, failure, diagnostic] of [
       await waitFor(() => form.dataset.requestState === "failure", "failure");
       assert.match(textOf(status), diagnostic);
       assert.equal(get("confirmation"), null);
-      assert.equal(retry.hidden, false);
+      const retry = get("retry");
+      assert.ok(retry, "the failure builds the retry it says is available");
       // Iris's defect: the retry may not stand beside the action it replaces.
       assert.equal(submit.hidden, true);
       assert.equal(retry.getAttribute("aria-disabled"), null);
@@ -78,7 +80,7 @@ for (const [name, failure, diagnostic] of [
       assert.deepEqual(calls[1], calls[0]);
       finish();
       await waitFor(() => form.dataset.requestState === "success", "success");
-      assert.equal(retry.hidden, true);
+      assert.ok(!get("retry"), "a landed request takes the retry back off the page");
       assert.equal(form.hidden, true);
       assert.match(textOf(get("confirmation")), /Request received/);
       assert.equal(document.activeElement, get("confirmation"));
@@ -90,7 +92,7 @@ for (const [name, failure, diagnostic] of [
       assert.equal(form.dataset.requestState, "idle");
       assert.equal(document.activeElement, email);
       assert.equal(textOf(status), "");
-      assert.equal(retry.hidden, true);
+      assert.ok(!get("retry"));
       // And no control carries the last attempt's pending state into the next.
       assert.equal(submit.getAttribute("aria-disabled"), null);
       assert.equal(retry.getAttribute("aria-disabled"), null);

@@ -6,9 +6,9 @@
 // reports with reason `no_build_stamp`.
 export const BUILD_STAMP = Object.freeze({
   schemaVersion: 1,
-  commitSha: "7116424cd525853c939540c26b4a1bdaed4015a9",
-  commitSubject: "Agent: Mina — Guide evaluators through one complete decision-to-release demo (#2380)",
-  builtAt: "2026-09-16T00:05:13.287Z",
+  commitSha: "58f5bc1790a7ca94d64fc5df5939adbffbf7bf13",
+  commitSubject: "Agent: Distinguish self-service deletion from reported-post removal (#2382)",
+  builtAt: "2026-09-16T01:34:45.720Z",
 });
 
 export default BUILD_STAMP;
