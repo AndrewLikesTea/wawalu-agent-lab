@@ -116,7 +116,7 @@ const FOOTER_VARIANT = new Map([
   // every row; the twelve remaining pages keep the open list.
   ["post.html", {
     followUpType: "follow_up_social", followUpTopic: POST_FOLLOW_UP_TOPIC,
-    invitation: 'Questions about this post from Social? Send the Wawalu team that operates Shiplog a follow-up request. The post text, display name, URL, and identifier are not included automatically.',
+    invitation: 'Questions about this post from Social? Send the Wawalu team that operates Shiplog a follow-up request. Nothing about the post is attached to the request automatically. Select Copy link to this post and paste the link into your message so the team knows which post you mean.',
     collapsedDemos: true, askMessage: true, offer: true,
   }],
   ["releases.html", {
