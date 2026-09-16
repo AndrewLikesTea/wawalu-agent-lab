@@ -9,13 +9,12 @@ import {
   focusRelease,
   mountReleaseList,
   readReleases,
-  releaseListStateCopy,
   releaseSummarySentence,
   releaseDetailHref,
   releaseDetailLinkLabel,
   releaseFollowUp,
   renderReleaseFollowUp,
-  renderReleaseListState,
+  renderReleaseListStatus,
   saveReleases,
 } from "./releases.js";
 import { bindReleaseFilterUrl } from "./release-filter-url.js";
@@ -245,11 +244,12 @@ export function initReleasesPage(root = document, storage = localStorage, option
     : deployedReleaseRecord(buildStamp);
   renderShippedBuild(root, deployedRelease, options);
 
-  // The log's one live region. Loading, empty, no-match and failed-load are all
-  // announced here and nowhere else, and none of them moves focus on its own.
+  // The log's one live region, and the only place any of its five states is
+  // drawn. Loading, empty, no-match and failed-load are shown and announced by
+  // this node; a list with rows hides it. None of them moves focus on its own.
   const listStatus = root.querySelector("#release-list-status");
   const announce = (state) => {
-    if (listStatus) listStatus.textContent = releaseListStateCopy(state)[0];
+    if (listStatus) renderReleaseListStatus(listStatus, state, { actions: true });
   };
   const seed = options.seed ?? {};
   // The strict read, or null when the store refused it.
@@ -311,7 +311,9 @@ export function initReleasesPage(root = document, storage = localStorage, option
     if (unread) {
       // Nothing is shown, so nothing is counted, exported or followed up.
       shown = [];
-      renderReleaseListState(container, "error", { actions: true, status: listStatus });
+      container.replaceChildren();
+      container.setAttribute("aria-busy", "false");
+      announce("error");
       if (count) count.textContent = "";
       if (followUpSlot) renderReleaseFollowUp(followUpSlot, null);
       return;
@@ -361,14 +363,20 @@ export function initReleasesPage(root = document, storage = localStorage, option
     return true;
   };
 
-  // The next step each state offers. Delegated to the list container so it
-  // survives the re-render that removes the button, and focus is moved off that
-  // button before it disappears: resetting returns focus to the search it just
-  // cleared, recording moves it to the first field of the form it names, and a
-  // retry that loaded lands on the log's heading.
-  container.addEventListener("click", (event) => {
+  // The next step each state offers. Delegated to the status region rather than
+  // bound to a button, because the button is relabelled from state to state; and
+  // focus is moved off it before the state that offers it goes away. Resetting
+  // returns focus to the search it just cleared, recording moves it to the first
+  // field of the form it names, and a retry that loaded lands on the log's
+  // heading. A retry that failed again says so and leaves focus where it is.
+  //
+  // The filters the retry re-reads come from the controls above the list, which
+  // no state render can replace — the region below them holds the whole state
+  // and the list holds nothing but rows — so a recovered log comes back narrowed
+  // exactly the way the reader left it.
+  listStatus?.addEventListener("click", (event) => {
     const action = event.target.closest?.("[data-action]");
-    if (!action) return;
+    if (!action || action.hidden) return;
     if (action.dataset.action === "reset-filters") {
       if (search) search.value = "";
       if (statusFilter) statusFilter.value = "all";

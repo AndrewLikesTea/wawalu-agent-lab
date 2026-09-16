@@ -301,11 +301,10 @@ test("releases page is wired and linked from the decisions page", async () => {
   assert.match(page, /id="release-count" aria-live="polite"><\/p>/);
   assert.doesNotMatch(page, /id="release-count"[^>]*>[^<]*releases?[^<]*<\/p>[\s\S]*?<h3>Loading releases…<\/h3>/);
   assert.match(page, /<h3>Loading releases…<\/h3>/);
-  // Stated once to each reader: the log's status region says it to assistive
-  // technology, and the visible panel is hidden from it.
-  assert.equal(page.match(/Loading releases/g).length, 2, "the wait is stated once per reader");
-  assert.match(page, /id="release-list-status" role="status">Loading releases…<\/p>/);
-  assert.match(page, /class="list-state list-state-loading" aria-hidden="true">\s*<h3>Loading releases…<\/h3>/);
+  // Stated once, full stop. One visible live region shows the wait and
+  // announces it, so there is no second copy to keep in step with the first.
+  assert.equal(page.match(/Loading releases/g).length, 1, "the wait is stated more than once");
+  assert.match(page, /<div class="list-state list-state-loading" id="release-list-status" role="status" aria-live="polite">/);
   assert.match(page, /src="\/releases-page\.js"/);
   // No innerHTML anywhere in the interactive layers (no user-generated HTML).
   const component = await read("src/releases.js");

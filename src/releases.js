@@ -1007,12 +1007,22 @@ export function renderReleaseList(container, resolvedReleases, options = {}) {
   container.replaceChildren();
   container.setAttribute("aria-busy", "false");
 
-  if (resolvedReleases.length === 0) {
-    renderReleaseListState(container, "empty", { filtered: options.filtered, actions: true, status: options.status });
+  // A caller that owns a status region gets every non-ready state rendered into
+  // that one node, and the container holds nothing but rows. A caller without
+  // one — the homepage sample — keeps the self-contained panel below.
+  if (options.status) {
+    const state = resolvedReleases.length === 0
+      ? (options.filtered ? "no-match" : "empty")
+      : "ready";
+    renderReleaseListStatus(options.status, state, {
+      actions: options.actions !== false,
+      singular: options.singular,
+    });
+    if (state !== "ready") return;
+  } else if (resolvedReleases.length === 0) {
+    renderReleaseListState(container, "empty", { filtered: options.filtered, actions: true });
     return;
   }
-  // Rows are not a state to announce: the count sentence says what is shown.
-  if (options.status) options.status.textContent = "";
 
   const list = el("ol", "release-list");
   const expandedIds = new Set(options.expandedIds ?? []);
@@ -1031,21 +1041,43 @@ export function renderReleaseList(container, resolvedReleases, options = {}) {
 // the same words by construction.
 export function releaseListStateCopy(state, options = {}) {
   const noun = options.singular ? "release" : "releases";
+  // "no-match" is the state's own name. `{ filtered: true }` on "empty" is the
+  // older spelling of the same thing and still resolves here, so a caller that
+  // knows only "is this view narrowed" keeps working.
+  const key = state === "empty" && options.filtered ? "no-match" : state;
   return {
     // One line, not two: a wait is stated once. The wording matches the loading
-    // state shipped in src/releases.html character for character, so the markup
-    // a visitor reads before this script runs and the markup it draws after are
-    // the same sentence.
+    // state shipped in src/releases.html character for character, so the
+    // sentence a visitor reads before this script runs is the sentence still
+    // standing in that same node after it.
     loading: [`Loading ${noun}…`],
     error: [`Couldn’t load ${noun}`, "This browser’s release log could not be read. Your saved records have not been changed."],
     // Two empty states, kept distinct on purpose: "nothing recorded yet" is a
     // first-run state whose one next step is recording a release, while "no
     // release matches" is a filter state whose one next step is clearing them.
-    empty: options.filtered
-      ? ["No releases match your search and filters", "No release matches the current search, release status, linked decision, and linked decision status together."]
-      : ["No releases recorded yet", "Record a release, with or without linked decisions."],
-  }[state];
+    // The second sentence of the filter state names the log it did not empty, so
+    // a narrowed view can never be read as "there are no releases".
+    "no-match": [
+      "No releases match your search and filters",
+      "The log still holds releases; none of them matches the current search, release status, linked decision, and linked decision status together.",
+    ],
+    empty: ["No releases recorded yet", "Record a release, with or without linked decisions."],
+    // A list with rows is not a state to announce: the count sentence above the
+    // rows already says how many there are and which way they run.
+    ready: ["", ""],
+  }[key];
 }
+
+// The decorative shape each settled state carries beside its heading, so the
+// state is told by words and a silhouette rather than by colour. `aria-hidden`
+// where it is drawn: the heading already says what the shape stands for.
+//
+// `loading` has no entry because its glyph is the spinning ring styles.css
+// already draws on `.list-state-loading h3`, and `ready` shows no panel at all.
+const LIST_STATE_GLYPHS = { empty: "+", "no-match": "⊘", error: "⚠" };
+
+// The one next step each state offers, by state.
+const LIST_STATE_ACTION_FOR = { empty: "record-release", "no-match": "reset-filters", error: "retry" };
 
 // The next step each state offers: class, visible label, and what it controls.
 const LIST_STATE_ACTIONS = {
@@ -1053,6 +1085,96 @@ const LIST_STATE_ACTIONS = {
   "record-release": ["release-empty-action", "Record a release", "release-form"],
   retry: ["release-retry-action", "Retry", "release-list"],
 };
+
+// ---------------------------------------------------------------------------
+// THE LOG'S ONE STATUS REGION.
+//
+// WHY ONE NODE. This used to be two: a visually-hidden `role="status"` that
+// announced the state, and a visible panel that showed it. That works only while
+// the panel is inert. The moment it grew the control each dead end needs —
+// Retry, Clear search and filters, Record a release — neither half could be
+// right. Leaving the panel in the accessibility tree said every state twice,
+// once from each node; taking it out with `aria-hidden` orphaned the only
+// control that could recover the page, which is a focusable element inside a
+// hidden subtree. One visible live region says the state once and offers the way
+// out of it in the same breath.
+//
+// WHY IN PLACE. A live region has to be in the document before its content
+// changes for that change to be announced, so the node ships in the markup and
+// is only ever updated. Its four children are permanent for the same reason in
+// miniature: the action is relabelled, never replaced, so the button a reader is
+// standing on cannot be removed out from under their focus.
+// ---------------------------------------------------------------------------
+
+const STATUS_PARTS = new WeakMap();
+
+function statusParts(node) {
+  const existing = STATUS_PARTS.get(node);
+  if (existing) return existing;
+  const glyph = el("span", "list-state-glyph");
+  glyph.setAttribute("aria-hidden", "true");
+  const heading = el("h3");
+  const body = el("p");
+  const action = el("button", "empty-action");
+  action.type = "button";
+  action.hidden = true;
+  node.replaceChildren(glyph, heading, body, action);
+  const parts = { glyph, heading, body, action };
+  STATUS_PARTS.set(node, parts);
+  return parts;
+}
+
+/**
+ * Put the log's status region into one of `loading | ready | empty | no-match |
+ * error`. `ready` hides it: rows are the answer, and the count sentence above
+ * them says how many.
+ *
+ * `options.actions` opts into the next step each state offers.
+ */
+export function renderReleaseListStatus(node, state, options = {}) {
+  const parts = statusParts(node);
+  const [heading, body] = releaseListStateCopy(state, options);
+  if (state === "ready") {
+    // Emptied as well as hidden. A region that kept its last sentence would
+    // announce that sentence again the moment the next state unhid it.
+    node.className = "list-state";
+    parts.glyph.textContent = "";
+    parts.heading.textContent = "";
+    parts.body.textContent = "";
+    parts.body.hidden = true;
+    // Stripped back to the bare control, not merely hidden: a page that still
+    // held a "Clear search and filters" in its markup would answer a search for
+    // one, and the reset it names has already happened.
+    parts.action.className = "empty-action";
+    parts.action.textContent = "";
+    parts.action.hidden = true;
+    node.hidden = true;
+    return;
+  }
+  node.className = `list-state list-state-${state}`;
+  parts.glyph.textContent = LIST_STATE_GLYPHS[state] ?? "";
+  parts.heading.textContent = heading;
+  parts.body.textContent = body ?? "";
+  // A state with nothing to add beyond its heading says only that; an empty
+  // paragraph would take a line and be read out as one.
+  parts.body.hidden = !body;
+  // `loading` leaves the action exactly as it stands. On boot there is none, and
+  // on a retry it is the button under the reader's finger: hiding it would blur
+  // that button in a real browser, and the focus would not come back when the
+  // failure re-drew a moment later.
+  if (state !== "loading") {
+    const kind = options.actions ? LIST_STATE_ACTION_FOR[state] ?? null : null;
+    if (kind) {
+      const [className, label, controls] = LIST_STATE_ACTIONS[kind];
+      parts.action.className = `empty-action ${className}`;
+      parts.action.textContent = label;
+      parts.action.dataset.action = kind;
+      parts.action.setAttribute("aria-controls", controls);
+    }
+    parts.action.hidden = !kind;
+  }
+  node.hidden = false;
+}
 
 export function renderReleaseListState(container, state, options = {}) {
   container.replaceChildren();
