@@ -355,13 +355,15 @@
                plain text, which asked the reader to come back to the one page
                on this site that has no composer, and then named the place that
                does have one without offering a way to reach it. The second link
-               carries Social's own control label, "Publish a post", and its
-               href opens the composer rather than the top of the feed:
-               social-page.js reveals the collapsed panel for the #post-form
-               hash. It has to name the button the reader arrives at, not the
-               one at the far end of the form, so the label is owned once in
-               src/social-links.js (PUBLISH_POST_LABEL) and the loading status
-               above the grid says the same three words. This link used to open
+               names the act and the page that can perform it, "Publish a post
+               on Social", and its href opens the composer rather than the top
+               of the feed: social-page.js reveals the collapsed panel for the
+               #post-form hash. It used to be built from Social's composer label
+               so the words matched the button the reader arrived at; that
+               trigger reads "Write a post" now and the submit reads "Publish
+               post" (#2389), so this phrase names a destination and an act
+               instead, owned once in src/profile.js (PUBLISH_ON_SOCIAL) with
+               the loading status above the grid. This link used to open
                on a third verb, "Write", while that status sent the same reader
                to "Open Social to publish an image post": one trip under two
                names, neither of them a control Social renders (#2181).

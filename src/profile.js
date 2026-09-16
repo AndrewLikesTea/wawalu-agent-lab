@@ -24,7 +24,7 @@
 
 import { connectionStatusLine, normalizeImage } from "./social.js";
 import {
-  OPEN_POST_LABEL, PUBLISH_POST_LABEL, postDetailHref, profileHref, socialAllPostsLabel, socialFeedHref,
+  OPEN_POST_LABEL, postDetailHref, profileHref, socialAllPostsLabel, socialFeedHref,
 } from "./social-links.js";
 import { imageDescription, renderDescriptionNote, renderImageUnavailable } from "./image-description.js";
 import { renderFeedStatus, feedPhase, feedPresence, setFilterAvailability } from "./feed-status.js";
@@ -344,12 +344,20 @@ export function profileEmptyText(author) {
 
 // The one phrase People uses for the trip to Social's composer, in both places
 // it offers that trip: this status while the grid loads, and the publishing step
-// in the .feed-create hint (src/profile.html). It is Social's own control label
-// plus the page that renders it, so a reader who follows either one arrives at a
-// button reading exactly those words. People used to send the same reader twice
-// under two names — "Open Social to publish an image post" here and "Write a
-// post on Social" in the hint — and neither was a control Social has.
-export const PUBLISH_ON_SOCIAL = `${PUBLISH_POST_LABEL} on Social`;
+// in the .feed-create hint (src/profile.html). It names the act and the page
+// that can perform it, because People cannot. People used to send the same
+// reader twice under two names — "Open Social to publish an image post" here and
+// "Write a post on Social" in the hint — and this is the one wording.
+//
+// It used to be built from Social's composer label, so the words a reader was
+// sent to were the words on the control they arrived at. Social's trigger is
+// "Write a post" now and its submit is "Publish post" (#2389), and this phrase
+// is deliberately neither: it describes the destination and the act, not a
+// control. The href is what keeps the promise — /social.html#post-form opens
+// the composer on arrival — and the reader completes the act at the button that
+// still says "Publish post". If this phrase is ever re-read as a control label,
+// it is "Write a post on Social" that would name one.
+export const PUBLISH_ON_SOCIAL = "Publish a post on Social";
 
 // The grid's first-load status says exactly what People is retrieving, and then
 // where a visitor publishes one of them — this page has no composer, so the next

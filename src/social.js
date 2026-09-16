@@ -24,7 +24,7 @@
 import { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH, readStoredAuthor, rememberAuthor } from "./social-identity.js";
 import { imageDescription, renderDescriptionNote, renderImageUnavailable } from "./image-description.js";
 import {
-  OPEN_POST_LABEL, PUBLISH_POST_LABEL, peopleImagePostsLabel, postDetailHref, profileHref, requestedFeedAuthor,
+  COMPOSE_POST_LABEL, OPEN_POST_LABEL, peopleImagePostsLabel, postDetailHref, profileHref, requestedFeedAuthor,
 } from "./social-links.js";
 import { postPermalink, renderPostCopyControl } from "./post-share.js";
 import { mountPostReport, renderReportButton } from "./post-report.js";
@@ -683,7 +683,7 @@ function renderSkeleton(container, count = 3) {
 //
 // It names the hero's control in that control's own words, so a reader can find
 // the action the empty state points to.
-const NO_POSTS_GUIDANCE = `${PUBLISH_POST_LABEL}, or create an image in Paint first.`;
+const NO_POSTS_GUIDANCE = `${COMPOSE_POST_LABEL}, or create an image in Paint first.`;
 
 // One wait, one sentence — on this page. Social used to describe it twice at
 // once: a visible line ("Loading posts…") beside a live region that said
@@ -696,7 +696,7 @@ const NO_POSTS_GUIDANCE = `${PUBLISH_POST_LABEL}, or create an image in Paint fi
 // People is not one of them. It waits on the same fetch but shows one display
 // name's image posts, so it says that instead (loadingSummaryText,
 // src/profile.js); this sentence stays Social's.
-export const FEED_LOADING_LINE = `Existing posts are still loading. Select ${PUBLISH_POST_LABEL}.`;
+export const FEED_LOADING_LINE = `Existing posts are still loading. Select ${COMPOSE_POST_LABEL}.`;
 
 // The connection line under the filters, on Social and on People, from one
 // source so the same fact never gets two phrasings. `noun` is the only
@@ -798,7 +798,7 @@ export function renderPosts(container, posts, options = {}) {
         label: "Social feed status",
         text: "No posts on Social yet.",
         detail: NO_POSTS_GUIDANCE,
-        actionLabel: PUBLISH_POST_LABEL,
+        actionLabel: COMPOSE_POST_LABEL,
         onAction: onPublish,
         append: statusRegion === container,
       });
@@ -1562,10 +1562,11 @@ export function mountSocialFeed(root, options = {}) {
         // The checks above catch the blank and the over-long post, so what
         // reaches this notice is a display name over its limit. The fallback is
         // the belt: an error that arrives with no message still says what happened.
-        // Not "Publish a post within the limit": "Publish a post" is the label on
-        // the control that opens this composer, so that sentence read as an
-        // instruction to press a button the reader is already past. This one
-        // names the field and the number instead.
+        // Not "Publish a post within the limit": that read as an instruction to
+        // press a control, and the two this page carries — Write a post, which
+        // opens the composer, and Publish post, which the reader has just
+        // pressed — are both the wrong answer to a display name over its limit.
+        // This one names the field and the number instead.
         showFailure(error?.message
           || `That post could not be published. Enter a post of ${MAX_POST_LENGTH} characters or fewer.`);
         return;
@@ -1611,7 +1612,7 @@ export function mountSocialFeed(root, options = {}) {
         // draft — the one sent, or the one it was edited into — can be sent again.
         const focus = composer.isOpen && doc.activeElement === snapshot.focused;
         showFailure(error?.message || "This post could not be saved. Check the live connection.", { retry: true, focus });
-        if (!composer.isOpen && announcer) announcer.textContent = "Your post was not published. Open Publish a post to try again.";
+        if (!composer.isOpen && announcer) announcer.textContent = "Your post was not published. Select Write a post to try again.";
       } finally {
         setSubmitting(false);
       }

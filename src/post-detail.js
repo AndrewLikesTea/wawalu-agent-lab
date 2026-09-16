@@ -47,7 +47,8 @@ import { normalizeImage } from "./social.js";
 // stands in every state, including the one where the lookup is still running.
 //
 // The label names Social so readers know this link opens another page to publish.
-// Social's in-place composer control remains "Publish a post".
+// It names the destination and the act, not a control: Social's own composer
+// trigger reads "Write a post" and its submit reads "Publish post" (#2389).
 //
 // The place is named the way the rest of the site names it: "Open Social to read
 // the whole feed", People's own words for that destination. It replaced "Open

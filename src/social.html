@@ -87,7 +87,7 @@
              visual and DOM order; detailed publishing guidance stays inside
              the composer. -->
         <div class="hero-actions section-heading">
-          <button class="button-link" id="post-compose-open" type="button" aria-expanded="false" aria-controls="post-compose-panel">Publish a post</button>
+          <button class="button-link" id="post-compose-open" type="button" aria-expanded="false" aria-controls="post-compose-panel">Write a post</button>
         </div>
         <p class="social-feed-intro">Social is a shared feed of short posts about shipped work, images optional. Open People when you want the image posts published under one display name instead. Select Open post to see a post on its own page, with a link you can share. The posts already here are invented to demonstrate Shiplog and use no customer or production data; a post you publish is real.</p>
         <!-- What publishing costs is not said here any more. It used to be: the
@@ -111,14 +111,19 @@
              footer's follow-up panel already uses: a button carrying
              aria-expanded, a panel carrying hidden, Escape from inside it, and
              focus that comes back to this control on every close.
-             It used to read "Write a post without an image", which contradicted
+             It once read "Write a post without an image", which contradicted
              the form it opens: that form's own image field is labelled
              "(optional)", so the composer takes a post with an image or
              without one and the control that opens it may not promise
-             otherwise. It claims nothing about images in either direction now.
-             It names the publishing flow, while the button at the end of the
-             form names the final action. The opener and heading use "Publish a
-             post"; the submit button uses "Publish post". The composer heading used to read "Create a
+             otherwise. The qualifier is what went; the verb is back without it,
+             and the control claims nothing about images in either direction.
+             It names the writing, while the button at the end of the
+             form names the publishing. The opener and heading use "Write a
+             post"; the submit button uses "Publish post". They used to read
+             "Publish a post" and "Publish post" — one word over two controls,
+             one of which publishes nothing (#2389). "Publish" now names the
+             submit and nothing else on this page, and the opener invites the
+             writing that comes first. The composer heading used to read "Create a
              Social post", which named the act with a second verb — the one the
              page keeps for images, at "Create an image in Paint". The third
              name went too — an eyebrow read "New post" above the heading.
@@ -308,7 +313,7 @@
                silent, and a reader who needs this sentence needs it before the
                cards. -->
           <p class="feed-summary" id="feed-summary" aria-live="polite"></p>
-          <div class="feed-status" id="feed-state" role="status" aria-label="Social feed loading" aria-live="polite" aria-atomic="true">Existing posts are still loading. Select Publish a post.</div>
+          <div class="feed-status" id="feed-state" role="status" aria-label="Social feed loading" aria-live="polite" aria-atomic="true">Existing posts are still loading. Select Write a post.</div>
           <div id="post-feed" aria-describedby="feed-summary" aria-busy="true">
             <!-- Keep first paint structurally honest before the module mounts.
                  These are presentation-only reservations: the status immediately
@@ -354,7 +359,7 @@
           <p class="hint" id="post-report-route">To ask the Wawalu team to review a post, select Report post on it. <a class="text-link" href="#post-report-about">How reporting works</a></p>
         </div>
 
-        <!-- Ships collapsed, and is revealed by the hero's Publish a post
+        <!-- Ships collapsed, and is revealed by the hero's Write a post
              control. `hidden` and not a CSS reordering: the acceptance
              criterion is rendered order and tab order, and a panel that is only
              visually moved still stands between the heading and the first post
@@ -367,7 +372,7 @@
              an announcement fires into a region the reader can already see. -->
         <div class="form-panel" id="post-compose-panel" aria-labelledby="post-form-title" hidden>
           <div class="section-heading">
-            <h2 id="post-form-title" tabindex="-1">Publish a post</h2>
+            <h2 id="post-form-title" tabindex="-1">Write a post</h2>
           </div>
           <!-- Ships empty. src/social.js lists every refusal of a Publish post
                press here, each naming its field, and moves focus here (#2370). -->
@@ -617,10 +622,10 @@
                  it too (#2252). It used to read "Publish this post" while three
                  strings named it "Publish post" — one press, named two ways, and
                  a reader who met the refusal had to work out which control it
-                 meant. The hero's opener keeps "Publish a post", the site-wide
-                 name for this flow and the words the shared post page links here
-                 by: it reveals the form, this one publishes, and only this one
-                 carries the consequence below.
+                 meant. The hero's opener reads "Write a post": it reveals the
+                 form, this one publishes, and only this one carries the
+                 consequence below. Those are two acts and they now have two
+                 verbs, so "Publish" on this page names this button alone.
                  No arrow after the words. Every other arrow on this site
                  decorates a route — it means "this moves you somewhere" — and
                  this button moves the reader nowhere: it publishes, in place,
