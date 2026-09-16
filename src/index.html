@@ -111,7 +111,7 @@
           </li>
           <li>
             <h3>Team handoff</h3>
-            <p>Your evaluating team must hand a record to a teammate as a file: press “Download JSON” to export it, send the file to your teammate, and have them open it with “Choose JSON file” in their own browser and confirm the summary. Count their unanswered questions about why the work shipped and who owns it.</p>
+            <p>Your evaluating team must hand a record to a teammate as a file: press “Download JSON” on this page to export it, send the file to your teammate, and have them open it here with “Choose JSON file” in their own browser and confirm the summary. Both controls are on this page only: the Releases page has a separate “Export releases as JSON” button and no import control. Count their unanswered questions about why the work shipped and who owns it.</p>
             <dl class="pilot-scorecard-fields">
               <div><dt>Buyer target</dt><dd>________</dd></div>
               <div><dt>Observed result</dt><dd>________</dd></div>
@@ -139,6 +139,86 @@
           <label for="pilot-scorecard-manual">Pilot scorecard for manual copying</label>
           <p id="pilot-scorecard-manual-help">Select the text and use your device’s copy command. Fill in the blanks in your shared copy.</p>
           <textarea id="pilot-scorecard-manual" rows="12" readonly aria-describedby="pilot-scorecard-manual-help"></textarea>
+        </div>
+      </section>
+
+      <!-- THE LOG, WHOLE, AND BEFORE THE SECOND CAPABILITY.
+           Every Shiplog workflow stays on this page and keeps its own ids: the
+           call to action below still lands on the populated record list at
+           #record-history, and the story, the recorder, the filters, the
+           export, and the import all follow it unchanged.
+           The proof point quotes the sample decision and the release that
+           carried it from seed-records.js, so this block, the story cards
+           below, and the record list all describe the same two records.
+           Change the seed and change these words with it. The
+           synthetic-data line is part of this block and stays inside it: the
+           records may never appear without it.
+           Keep raw tag markup and double hyphens out of this note. Either one
+           ends the comment early and paints the rest of the paragraph, and its
+           closing marker, as visitor copy. -->
+      <section class="shiplog-entry" id="shiplog-entry" aria-labelledby="shiplog-entry-title">
+        <p class="eyebrow">The decision and release log · the product this page carries</p>
+        <h2 id="shiplog-entry-title">Know why it shipped. Decide what’s next.</h2>
+        <p>Shiplog records decisions, tracks the releases they shape, and keeps the link between them. A teammate who arrives six months late opens the release and reads the reasoning behind it, instead of reconstructing it from chat history. Recording, searching, filtering, exporting, and importing the log are all further down this page.</p>
+        <p>How a team gets Shiplog: by asking the team that operates it. There is no self-serve signup and no published price — Shiplog is a demonstration product built and operated by Wawalu, so whether it is available for your team and what it would cost are both answered on request. <a href="#site-footer-email">Ask Wawalu about getting Shiplog</a>: the follow-up form at the foot of this page, which sends your work email to that team and nothing else.</p>
+        <div class="hero-proof">
+          <p class="eyebrow">One recorded decision, and the release that shipped it</p>
+          <dl class="hero-proof-facts">
+            <div><dt>Decision</dt><dd>Adopt a durable job queue · Accepted</dd></div>
+            <div><dt>Shipped in</dt><dd>Release v1.3.0 · Completed</dd></div>
+            <div><dt>Owner</dt><dd>Kai</dd></div>
+          </dl>
+          <p class="hero-proof-boundary"><strong>Example records</strong> <span>These invented records demonstrate Shiplog. They use no customer or production data.</span></p>
+        </div>
+
+        <!-- THE ONE CLAIM IN THIS SECTION THAT IS NOT AN EXAMPLE.
+             The records above are invented; this block reads the deployment
+             that is serving this page and compares what it reports against the
+             newest release record in the log. It is the SAME check the releases
+             page runs, not a second opinion about the same question: the ids
+             below are the ones src/deployment-status-view.js fills, the
+             sentence is written by verdictSentence() in src/deployment-status.js,
+             and the metric under it by verdictMetricText(), so the two pages
+             given one reading cannot word one answer two ways. src/app.js boots
+             it from the composed log, so both pages also compare against the
+             same newest record. No second network read: the check reads the
+             same health endpoint it already reads on releases.html, and nothing
+             on this page waits for it.
+             THE WAITING LINE IS AUTHORED AND THE ANSWER IS NOT. The document
+             ships one waiting sentence and no verdict, because a verdict in
+             these bytes would be a comparison nobody ran. Every settled state,
+             including a check that could not complete, replaces that sentence
+             with a full sentence naming both versions.
+             THE CAVEAT IS SAID ONCE IN THIS SECTION. The panel above states
+             that the records are invented; this one states only the contrast
+             the check needs, so a reader is not told the same thing twice in
+             two sets of words.
+             THE COMMIT LINK IS AUTHORED AS THE REPOSITORY AND NARROWED BY THE
+             MODULE, the way the releases page authors the same link: the
+             repository is true whatever the stamp says, and
+             src/deployment-status-view.js narrows it to the exact commit this
+             build was made from and names it in the words that page names it
+             in. It is painted before the check runs and no verdict rewrites it,
+             so it is there while the check is still working and there when the
+             check could not complete. An unstamped build withdraws it rather
+             than pointing at a commit nobody made.
+             Every class here already ships and NO RULE was added: styles.css is
+             at its measured size budget. The one stylesheet change is a single
+             declaration on the metric line's existing class, so a long build
+             identifier wraps instead of running off a 360px screen. -->
+        <section class="hero-proof" id="deployment-status" aria-labelledby="deployment-status-title">
+          <h3 id="deployment-status-title">Deployment check</h3>
+          <p class="release-followup-lead" id="deployment-status-proof">Does the real record of this deployment name the running build’s version?</p>
+          <p class="release-followup-lead" id="deployment-verdict" role="status">Checking the running build now…</p>
+          <p class="detail-summary" id="deployment-metric"></p>
+          <p class="hero-proof-boundary"><span>It reads the running build when the page loads. The example decision and release above are invented; this answer is not.</span></p>
+          <p><a class="text-link" id="deployment-commit" href="https://github.com/AndrewLikesTea/wawalu-agent-lab">Open the public repository this site is built from</a></p>
+          <p><a class="text-link" href="/releases.html#deployment-status">See the deployment check on Releases</a></p>
+        </section>
+
+        <div class="hero-actions">
+          <a class="button-link" href="#record-history">Record and search the log on this page <span aria-hidden="true">→</span></a>
+          <a class="text-link" href="#decision-to-release">See how a decision reaches a release</a>
         </div>
       </section>
 
@@ -276,86 +356,6 @@
              Neither sentence claims a saving, an accuracy, or a coverage
              figure, and the synthetic disclosures on both pages are untouched. -->
         <p class="landing-decision-next">AI FinOps reads a provider export from OpenAI, Anthropic, Azure OpenAI, Google Vertex AI, or AWS Bedrock, as CSV, TSV, JSON, or JSONL. No export to hand? The <a href="/evolution.html#workspace-answer">bundled synthetic example</a> opens on a finished result, so you can read the whole analysis before you find a file.</p>
-      </section>
-
-      <!-- THE LOG, WHOLE, ONE SECTION DOWN.
-           Every Shiplog workflow stays on this page and keeps its own ids: the
-           call to action below still lands on the populated record list at
-           #record-history, and the story, the recorder, the filters, the
-           export, and the import all follow it unchanged.
-           The proof point quotes the sample decision and the release that
-           carried it from seed-records.js, so this block, the story cards
-           below, and the record list all describe the same two records.
-           Change the seed and change these words with it. The
-           synthetic-data line is part of this block and stays inside it: the
-           records may never appear without it.
-           Keep raw tag markup and double hyphens out of this note. Either one
-           ends the comment early and paints the rest of the paragraph, and its
-           closing marker, as visitor copy. -->
-      <section class="shiplog-entry" id="shiplog-entry" aria-labelledby="shiplog-entry-title">
-        <p class="eyebrow">The decision and release log · further down this page</p>
-        <h2 id="shiplog-entry-title">Know why it shipped. Decide what’s next.</h2>
-        <p>Shiplog records decisions, tracks the releases they shape, and keeps the link between them. A teammate who arrives six months late opens the release and reads the reasoning behind it, instead of reconstructing it from chat history. Recording, searching, filtering, exporting, and importing the log are all further down this page.</p>
-        <p>How a team gets Shiplog: by asking the team that operates it. There is no self-serve signup and no published price — Shiplog is a demonstration product built and operated by Wawalu, so whether it is available for your team and what it would cost are both answered on request. <a href="#site-footer-email">Ask Wawalu about getting Shiplog</a>: the follow-up form at the foot of this page, which sends your work email to that team and nothing else.</p>
-        <div class="hero-proof">
-          <p class="eyebrow">One recorded decision, and the release that shipped it</p>
-          <dl class="hero-proof-facts">
-            <div><dt>Decision</dt><dd>Adopt a durable job queue · Accepted</dd></div>
-            <div><dt>Shipped in</dt><dd>Release v1.3.0 · Completed</dd></div>
-            <div><dt>Owner</dt><dd>Kai</dd></div>
-          </dl>
-          <p class="hero-proof-boundary"><strong>Example records</strong> <span>These invented records demonstrate Shiplog. They use no customer or production data.</span></p>
-        </div>
-
-        <!-- THE ONE CLAIM IN THIS SECTION THAT IS NOT AN EXAMPLE.
-             The records above are invented; this block reads the deployment
-             that is serving this page and compares what it reports against the
-             newest release record in the log. It is the SAME check the releases
-             page runs, not a second opinion about the same question: the ids
-             below are the ones src/deployment-status-view.js fills, the
-             sentence is written by verdictSentence() in src/deployment-status.js,
-             and the metric under it by verdictMetricText(), so the two pages
-             given one reading cannot word one answer two ways. src/app.js boots
-             it from the composed log, so both pages also compare against the
-             same newest record. No second network read: the check reads the
-             same health endpoint it already reads on releases.html, and nothing
-             on this page waits for it.
-             THE WAITING LINE IS AUTHORED AND THE ANSWER IS NOT. The document
-             ships one waiting sentence and no verdict, because a verdict in
-             these bytes would be a comparison nobody ran. Every settled state,
-             including a check that could not complete, replaces that sentence
-             with a full sentence naming both versions.
-             THE CAVEAT IS SAID ONCE IN THIS SECTION. The panel above states
-             that the records are invented; this one states only the contrast
-             the check needs, so a reader is not told the same thing twice in
-             two sets of words.
-             THE COMMIT LINK IS AUTHORED AS THE REPOSITORY AND NARROWED BY THE
-             MODULE, the way the releases page authors the same link: the
-             repository is true whatever the stamp says, and
-             src/deployment-status-view.js narrows it to the exact commit this
-             build was made from and names it in the words that page names it
-             in. It is painted before the check runs and no verdict rewrites it,
-             so it is there while the check is still working and there when the
-             check could not complete. An unstamped build withdraws it rather
-             than pointing at a commit nobody made.
-             Every class here already ships and NO RULE was added: styles.css is
-             at its measured size budget. The one stylesheet change is a single
-             declaration on the metric line's existing class, so a long build
-             identifier wraps instead of running off a 360px screen. -->
-        <section class="hero-proof" id="deployment-status" aria-labelledby="deployment-status-title">
-          <h3 id="deployment-status-title">Deployment check</h3>
-          <p class="release-followup-lead" id="deployment-status-proof">Does the real record of this deployment name the running build’s version?</p>
-          <p class="release-followup-lead" id="deployment-verdict" role="status">Checking the running build now…</p>
-          <p class="detail-summary" id="deployment-metric"></p>
-          <p class="hero-proof-boundary"><span>It reads the running build when the page loads. The example decision and release above are invented; this answer is not.</span></p>
-          <p><a class="text-link" id="deployment-commit" href="https://github.com/AndrewLikesTea/wawalu-agent-lab">Open the public repository this site is built from</a></p>
-          <p><a class="text-link" href="/releases.html#deployment-status">See the deployment check on Releases</a></p>
-        </section>
-
-        <div class="hero-actions">
-          <a class="button-link" href="#record-history">Record and search the log on this page <span aria-hidden="true">→</span></a>
-          <a class="text-link" href="#decision-to-release">See how a decision reaches a release</a>
-        </div>
       </section>
 
       <!-- The nav offers eight destinations and the hero can only describe two

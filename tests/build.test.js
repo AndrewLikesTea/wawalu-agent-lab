@@ -136,9 +136,13 @@ const heroOf = (html) =>
 const heroLeadOf = (html) =>
   heroOf(html).split('<aside class="executive-takeaway"')[0];
 
-// The log's own entry: from its heading down to the destination list.
+// The log's own entry: from its heading down to the section that follows it.
+// Since #2394 that neighbour is the AI FinOps block rather than the destination
+// list, because the log leads and AI FinOps reads below it. The slice ends at
+// the next section either way, so nothing in this file reads the wrong block's
+// markup as the log's.
 const logEntryOf = (html) =>
-  html.slice(html.indexOf('<section class="shiplog-entry"'), html.indexOf('<section class="site-guide"'));
+  html.slice(html.indexOf('<section class="shiplog-entry"'), html.indexOf('<section class="hero-finops"'));
 
 test("the homepage leads with the decision-to-release benefit and a primary demo action", async () => {
   const html = await readFile(new URL("../src/index.html", import.meta.url), "utf8");

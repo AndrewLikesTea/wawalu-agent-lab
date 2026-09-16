@@ -119,7 +119,12 @@ test("no summary figure on the front door is authored in its markup", async () =
   // caveat it a second time. The takeaway carries the synthetic qualifier, and
   // build.test.js pins the figures against the composer that paints them on AI
   // FinOps.
-  const beforeLog = html.slice(0, html.indexOf("record-history"));
+  // Everything above the record panels. Anchored on the section's own id
+  // attribute, not on the bare string: since #2394 the log's entry section
+  // leads the page and its call to action carries `href="#record-history"`
+  // above the takeaway, so matching the fragment would cut the slice short of
+  // the very figures this guard counts.
+  const beforeLog = html.slice(0, html.indexOf('id="record-history"'));
   assert.deepEqual(beforeLog.match(/\$[\d,]+/g), ["$51,254", "$154,500"]);
   const start = beforeLog.indexOf('<p class="hero-proof-point">');
   const proofPoint = beforeLog.slice(start, beforeLog.indexOf("</p>", start));
