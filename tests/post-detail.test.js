@@ -675,9 +675,11 @@ test("the post region holds exactly one state, and names it on one attribute", (
     // The wait never survives into a resolved state, whatever the region held
     // before: the shipped line and the unavailable panel are never both on screen.
     if (name !== "loading") assert.doesNotMatch(container.textContent, /Loading this post/);
-    // What a display name is belongs to src/post.html's standing frame, not to
-    // any one state: a panel that painted it too would say it twice once loaded.
-    assert.doesNotMatch(container.textContent, /Display names on the posts/,
+    // Who chose the display name belongs to src/post.html's standing frame, not
+    // to any one state: a panel that painted it too would say it twice once
+    // loaded. Both wordings are refused — the page's own sentence (#2408) and
+    // the feed note it replaced, which must not come back through the panel.
+    assert.doesNotMatch(container.textContent, /Display names on the posts|owns or verifies/,
       `the ${name} state paints its own display-name explanation`);
     assert.equal(byClass(container, "detail-post-description").length, name === "loaded" ? 1 : 0,
       `the ${name} state's post-content explanation`);
