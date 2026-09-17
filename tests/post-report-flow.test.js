@@ -160,15 +160,19 @@ test("People: every drawn tile has a Report post button that opens the same pane
   assert.equal(document.activeElement === buttons[0], true, "Close did not return focus to the tile's Report post");
 });
 
-// #2373: the two publication warnings and the reporting explanation used to
-// contradict each other. The warnings said a published post could not be
-// deleted, full stop; the reporting copy on the same pages says the Wawalu team
-// reviews reported posts and may take one down. Both warnings now name whose act
+// #2373: the publication warning and the reporting explanation used to
+// contradict each other. The warning said a published post could not be
+// deleted, full stop; the reporting copy on the same page says the Wawalu team
+// reviews reported posts and may take one down. The warning now names whose act
 // each one is — you cannot take your own post down, anyone can report it, the
 // team may remove it after review — in the reporting panel's own terms.
 //
-// Asserted on the painted DOM of both pages, not on the markup: each page could
-// hydrate over its own warning.
+// It is stated once, beside the composer that performs the act (#2401). People
+// used to carry a second copy on a page with no composer; it points at Social's
+// now, and the test below pins that it kept neither half.
+//
+// Asserted on the painted DOM, not on the markup: a page could hydrate over its
+// own warning.
 const SELF_SERVICE = /You cannot edit or delete your own post after you publish it/;
 const REMOVAL_PATH = /Anyone can select Report post on a published post, and the Wawalu team may remove it after review\./;
 // A promise of removal, and a second name for the one actor the site has.
@@ -198,7 +202,7 @@ test("Social: the composer says the publisher cannot delete a post and reporting
   assert.equal(textOf(document.querySelectorAll(".post-report-button")[0]), REPORT_POST_LABEL);
 });
 
-test("People: the publication warning gives the same two acts, once the tiles are drawn", async (t) => {
+test("People: the helper points at the terms instead of restating them, once the tiles are drawn", async (t) => {
   const page = await loadPage(new URL("../src/profile.html", import.meta.url), {
     routes: {
       "/social-demo-data.json": { posts: [] },
@@ -215,13 +219,29 @@ test("People: the publication warning gives the same two acts, once the tiles ar
   // module ran. Wait on drawn tiles instead; skeletons carry the tile class.
   await waitFor(() => realCards(document, ".profile-tile", "profile-tile-skeleton").length > 0, "People drew an image post");
 
-  // The helper beside the grid, not the intro at the top of the page: the
-  // warning is about publishing, which happens on Social, so it moved down to
-  // the paragraph carrying the link to the composer (#2390). Same bytes, and
-  // still on the painted DOM — src/profile.js takes that paragraph out of the
-  // document while the first fetch is open and puts it back, so a wait on
+  // People states neither act now (#2401). The distinction is about publishing,
+  // which happens on Social, and the terms live beside the composer that
+  // performs it; People has no composer, so its helper closes on the
+  // consequence and a link to the terms rather than a second copy of them. What
+  // is pinned here is that the page carries no orphaned half of the pair — the
+  // failure this test was written for was one warning without the other.
+  //
+  // On the painted DOM, not the markup: src/profile.js takes that paragraph out
+  // of the document while the first fetch is open and puts it back, so a wait on
   // drawn tiles is also the wait for this region.
-  statesTheDistinction(textOf(document.querySelector(".feed-create")), "People's publication warning");
+  const helper = textOf(document.querySelector(".feed-create"));
+  assert.doesNotMatch(helper, SELF_SERVICE,
+    "People restates the rule that a publisher cannot take their own post down");
+  assert.doesNotMatch(helper, REMOVAL_PATH,
+    "People restates the removal path that belongs beside Social's composer");
+  assert.ok(helper.trim().endsWith(
+    "A published post is public and cannot be edited or deleted; Social’s publishing terms state the rest."),
+  `People's helper no longer routes a reader to the terms it stopped restating: ${helper}`);
+  const readable = textOf(document.getElementById("main-content"));
+  for (const promise of OVERPROMISES)
+    assert.doesNotMatch(readable, promise, `People promises a reported post comes down (${promise})`);
+  for (const rival of RIVAL_ACTORS)
+    assert.doesNotMatch(readable, rival, `People names the reviewing team a second way (${rival})`);
   assert.doesNotMatch(textOf(document.querySelectorAll(".profile-lede")[1]), SELF_SERVICE,
     "People's first screen warns again about publishing a post it has no composer for");
   assert.equal(document.querySelectorAll(".post-report-button").length,
