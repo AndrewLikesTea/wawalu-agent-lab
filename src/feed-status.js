@@ -123,9 +123,10 @@ function existingHint(host, id) {
 // Unless the caller has something true to say in every state. `hintPersists`
 // keeps the node and swaps only its text, which is what a surface needs when the
 // line is the filter row's own status — Social's says what the menus are
-// currently set to, not only why they are shut — and what a live region needs to
-// announce once: a region that arrives with its news is announced unreliably, if
-// at all. Such a line is authored in the markup, so this only ever rewrites it.
+// currently set to, not only why they are shut. Such a line is authored in the
+// markup, so this only ever rewrites it. It is not a live region on either page:
+// describing the controls beside it is read out when one of them is reached, and
+// the feed's own status region is the single node that speaks for a load.
 // People passes nothing and keeps the removal behaviour.
 //
 // And focus. Disabling the control a keyboard reader is standing on drops focus
@@ -191,14 +192,24 @@ export function renderFeedStatus(container, options = {}) {
   container.classList?.remove?.("feed-status");
   const {
     state = "ready", label = "Feed status", text = "", detail = "",
-    actionLabel = "", onAction = null, append = false, heading = false,
+    actionLabel = "", onAction = null, append = false, heading = false, quiet = false,
   } = options;
   const status = element("div", `feed-status feed-status-${state}`);
   status.dataset.state = state;
 
   if (state === "loading") {
-    status.setAttribute("role", "status");
-    status.setAttribute("aria-label", label);
+    // `quiet` is for the surfaces that hand this renderer a status region of
+    // their own — Social's #feed-state, People's #profile-feed-status. That
+    // region is where the page has already decided whether the wait is spoken
+    // and by which node, so a second `role="status"` drawn inside it is a live
+    // region nested in a live region: the same open fetch announced twice, from
+    // two nodes one of which the page never authored. It stays the default off,
+    // because a caller that appends into the feed container itself has no such
+    // region and this panel is the only thing that can speak for the wait.
+    if (!quiet) {
+      status.setAttribute("role", "status");
+      status.setAttribute("aria-label", label);
+    }
     status.append(element("span", "feed-status-value state-title", text));
   } else {
     const summary = element(heading ? "div" : "p", "feed-status-summary");

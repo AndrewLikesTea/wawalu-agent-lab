@@ -260,9 +260,20 @@
                  themselves, so the sentence and a closed menu cannot drift.
                  It ships carrying the waiting sentence because the frame before
                  hydration is the loading frame and that is the true one; from
-                 there src/social.js replaces only its text, which is what makes
-                 an update announce once and is why the element is authored here
-                 rather than written in and taken away again.
+                 there src/social.js replaces only its text, which is why the
+                 element is authored here rather than written in and taken away
+                 again.
+                 It does not announce. It used to be `aria-live="polite"`, which
+                 made it the second region speaking for the first fetch: it ships
+                 saying the display-name menu is waiting on posts, directly above
+                 a status region that ships saying the posts are still loading,
+                 so one open fetch was narrated from two nodes. What this line is
+                 for is describing the controls beside it — the menus name it
+                 through `aria-describedby` while they are shut — and a
+                 description is read when the control it describes is reached,
+                 not shouted when it changes. The filter change itself is already
+                 announced, once, by #feed-summary below, which names the menus
+                 that narrowed the feed along with the count they produced.
                  It is the state cue as well as the sentence: Clear filters goes
                  `disabled` when there is nothing set to clear, and a fill change
                  is the one signal a low-vision reader is least likely to get, so
@@ -270,7 +281,7 @@
                  It states no count and no order. That is the summary sentence's
                  job, one region down and inside the list panel, and this line is
                  outside that panel on purpose. -->
-            <p class="hint" id="post-filter-hint" aria-live="polite">Display name options become available when posts load.</p>
+            <p class="hint" id="post-filter-hint">Display name options become available when posts load.</p>
           </div>
           <div class="feed-connection" hidden>
             <span class="live-dot" aria-hidden="true"></span>
@@ -320,7 +331,22 @@
                silent, and a reader who needs this sentence needs it before the
                cards. -->
           <p class="feed-summary" id="feed-summary" aria-live="polite"></p>
-          <div class="feed-status" id="feed-state" role="status" aria-label="Social feed loading" aria-live="polite" aria-atomic="true">Existing posts are still loading. Select Write a post.</div>
+          <!-- The feed's one status region: the only place the wait, an empty
+               Social, a filtered dead end and a failed load are ever drawn, and
+               the one node that speaks for the first fetch. It ships holding the
+               wait so a cold visitor is told before any module runs, and
+               src/social.js only ever replaces what is inside it — a live region
+               has to be in the document before its content changes for that
+               change to be announced.
+               It carries no aria-label. It used to be named "Social feed
+               loading", which is a name for one of its four states written onto
+               the node that outlives all four: with aria-atomic="true" the
+               answer to the fetch was then announced as "Social feed loading:
+               No posts on Social yet.", so the wait and the empty feed — the two
+               states this page most needs to tell apart — were read out as one
+               sentence. The words inside are the whole announcement now, and
+               those words change with the state. -->
+          <div class="feed-status" id="feed-state" role="status" aria-live="polite" aria-atomic="true">Existing posts are still loading. Select Write a post.</div>
           <div id="post-feed" aria-describedby="feed-summary" aria-busy="true">
             <!-- Keep first paint structurally honest before the module mounts.
                  These are presentation-only reservations: the status immediately

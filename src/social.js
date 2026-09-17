@@ -762,6 +762,11 @@ export function renderPosts(container, posts, options = {}) {
       renderFeedStatus(statusRegion, {
         state: "loading", label: "Social feed loading", text: FEED_LOADING_LINE,
         append: statusRegion === container,
+        // src/social.html's #feed-state is itself `role="status"`, polite and
+        // atomic, and it is the node this panel is drawn into. It already says
+        // the wait; a panel that claimed the role again would nest one live
+        // region inside another and announce one open fetch twice.
+        quiet: statusRegion !== container,
       });
       return;
     }
