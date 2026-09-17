@@ -248,21 +248,32 @@ const choose = (control, value) => {
   control.dispatchEvent({ type: "change" });
 };
 
-test("the filter row's status line is one live region inside the group it describes", async (t) => {
+// #2413 changed this line's contract from announcing to describing. It used to
+// be `aria-live="polite"`, which made it the SECOND region speaking for the first
+// fetch: it ships saying the display-name menu is waiting on posts, and the feed's
+// status region one block down ships saying the posts are still loading, so one
+// open fetch was narrated from two nodes before a single module had run. Nothing
+// is lost by taking the role away. What this line is for is saying why the
+// controls beside it cannot be used, and a description is read when the control
+// it describes is reached; the filter CHANGE it also reports is already
+// announced, once and with the count attached, by #feed-summary below.
+// Still authored rather than written in on demand — the reason has to be in the
+// frame a reader meets before hydration — and still one line, not two.
+test("the filter row's status line describes the controls beside it without announcing over the feed", async (t) => {
   const page = await loadPage(SOCIAL_PAGE, {});
   t.after(() => page.restore());
   const { document } = page;
 
-  // Authored, not written in on demand: a live region that arrives carrying its
-  // news announces unreliably, if at all.
   const line = hintIn(document.querySelector(".social-toolbar"), "post-filter-hint");
   assert.equal(line.tagName, "P");
-  assert.equal(line.getAttribute("aria-live"), "polite");
+  assert.equal(line.getAttribute("aria-live"), null, "the filter row is a second voice for one fetch");
+  assert.equal(line.getAttribute("role"), null);
   assert.equal(classesOf(line).includes("hint"), true, "the line is set above caption weight");
 
-  // A child of the group itself, which is what associates it with the controls
-  // without a describedby on each of them. Read by walking up, because the
-  // harness rejects a descendant selector.
+  // A child of the group itself, which is what places it with the controls it is
+  // about; each of them names it through `aria-describedby` while it is shut
+  // (pinned above). Read by walking up, because the harness rejects a descendant
+  // selector.
   const toolbar = document.querySelector(".social-toolbar");
   assert.ok(line.parentNode === toolbar, "the status line left the filter group");
   assert.equal(toolbar.getAttribute("role"), "group");
