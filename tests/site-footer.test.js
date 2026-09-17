@@ -124,7 +124,13 @@ const FOOTER_VARIANT = new Map([
   // every row; the twelve remaining pages keep the open list.
   ["post.html", {
     followUpType: "follow_up_social", followUpTopic: POST_FOLLOW_UP_TOPIC,
-    invitation: 'Questions about this post from Social? Send the Wawalu team that operates Shiplog a follow-up request. Nothing about the post is attached to the request automatically. Select Copy link to this post and paste the link into your message so the team knows which post you mean.',
+    // #2436: the block used to be headed "Questions about this post from
+    // Social?" while every topic under it is about Shiplog, so it promised
+    // answers the form cannot route. It opens with INVITATION's two sentences
+    // now — the same words Social and People carry — then says what the topics
+    // cover and sends a question about the post itself to Report post, which is
+    // the path that does answer it. The last two sentences are unchanged.
+    invitation: 'Questions about Shiplog? Send the Wawalu team that operates it a follow-up request. The topics below are about Shiplog — whether it is available for your team, a demonstration, a pilot, and security and data handling — not about this post. If your question is about this post itself, select Report post instead. Nothing about the post is attached to the request automatically. Select Copy link to this post and paste the link into your message so the team knows which post you mean.',
     collapsedDemos: true, askMessage: true, offer: true,
   }],
   ["releases.html", {
