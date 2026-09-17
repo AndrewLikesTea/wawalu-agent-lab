@@ -291,14 +291,16 @@ test("People states the images-only rule once and offers each route once", async
     // a tail on the end of it.
     assert.equal(textOf(main.querySelector(".list-heading").querySelectorAll(".eyebrow")[0]), "Newest first");
 
-    // Three routes to Social, and they go to different places for different
+    // Four routes to Social, and they go to different places for different
     // reasons: the intro's states the rule and opens the whole feed, the
     // picker's opens that feed already filtered to the display name being read
-    // (#2193), and the helper beside the grid opens the composer, because
-    // publishing is the one thing People cannot do. None is a spare copy of
-    // another, so each is pinned to its own sentence and its own destination.
+    // (#2193), the helper beside the grid opens the composer, because
+    // publishing is the one thing People cannot do, and the sentence that
+    // closes that helper opens the publishing terms beside it (#2401). None is
+    // a spare copy of another, so each is pinned to its own sentence, its own
+    // destination and its own words.
     const toSocial = anchors.filter((anchor) => (anchor.getAttribute("href") ?? "").startsWith("/social.html"));
-    assert.equal(toSocial.length, 3, "the main content changed how many times it routes to Social");
+    assert.equal(toSocial.length, 4, "the main content changed how many times it routes to Social");
     assert.equal(toSocial[0].getAttribute("href"), "/social.html");
     assert.equal(toSocial[0].parentNode?.classList?.contains("profile-lede"), true,
       "the link to the whole feed is not in the sentence that states the rule");
@@ -312,6 +314,13 @@ test("People states the images-only rule once and offers each route once", async
     assert.equal(textOf(toSocial[2]), "Publish a post on Social");
     assert.equal(toSocial[2].parentNode?.classList?.contains("feed-create"), true,
       "the route to the composer is not in the helper beside the grid");
+    // The terms, in the same helper and after the step whose consequence names
+    // them. Same destination as the step because the terms are beside the
+    // composer; different words, because it is a different thing to go and read.
+    assert.equal(toSocial[3].getAttribute("href"), "/social.html#post-form");
+    assert.equal(textOf(toSocial[3]), "Social’s publishing terms");
+    assert.equal(toSocial[3].parentNode?.classList?.contains("feed-create"), true,
+      "the route to the publishing terms is not in the helper beside the grid");
 
     // One route into Paint, beside the pictures that prompt it, still saying
     // what the tab does in its own text.
@@ -1473,13 +1482,23 @@ test("People claims no result before its first image post, and the loaded page i
 const PEOPLE_PROVENANCE = "The image posts already here are invented to demonstrate Shiplog and use no customer or production data; an image post you publish is real.";
 const RETIRED_DATA_SENTENCE = "Posts use no customer or production data.";
 const PUBLISH_INSTRUCTION = "Do not include customer or production data.";
-const SHARED_CONSEQUENCE = "Anyone who visits Shiplog can read your post, its image, and the display name you publish it with. You cannot edit or delete your own post after you publish it";
-// Both pages name the removal path in the same terms, so neither reads as "a
-// published post can never come down" beside a Report post button that promises
-// the Wawalu team a review (#2373).
-const SHARED_REMOVAL = "Anyone can select Report post on a published post, and the Wawalu team may remove it after review.";
-const PEOPLE_CONSEQUENCE = `${SHARED_CONSEQUENCE}. ${SHARED_REMOVAL} ${PUBLISH_INSTRUCTION}`;
-const instructionsIn = (text) => text.match(/Do not include[^.]*\./g) ?? [];
+// The publishing contract, sentence by sentence. It is Social's: the composer
+// that publishes a post is the surface that states what publishing costs, and
+// People has no composer (#2401). These four used to be recited at the tail of
+// People's helper as well, which is one contract in two places — and the copy
+// on this page could drift from the copy on the form it describes.
+const PUBLISH_CONTRACT = [
+  "Anyone who visits Shiplog can read your post, its image, and the display name you publish it with.",
+  "You cannot edit or delete your own post after you publish it",
+  // The removal path, so the terms never read as "a published post can never
+  // come down" beside a Report post button that promises a review (#2373).
+  "Anyone can select Report post on a published post, and the Wawalu team may remove it after review.",
+  PUBLISH_INSTRUCTION,
+];
+// What People says instead: the consequence in one sentence, and the route to
+// the rest. It ends the helper, next to the step that sends a reader to the
+// composer, because that is where the terms are.
+const PEOPLE_CONSEQUENCE = "A published post is public and cannot be edited or deleted; Social’s publishing terms state the rest.";
 
 test("the intro says the image posts on this page are invented, before any of them load", async (t) => {
   // Served, not hydrated: what a reader receives from the markup, ahead of the
@@ -1499,9 +1518,10 @@ test("the intro says the image posts on this page are invented, before any of th
   // on into four second-person warnings about publishing — an act this page
   // offers no control for — so the first screen of a directory of pictures
   // answered "what happens when you publish?" before it finished answering
-  // "what am I looking at?". The consequences are in the helper beside the
-  // grid now, in the paragraph that carries the link to Social's composer,
-  // and they end there on the instruction.
+  // "what am I looking at?". Those warnings moved to the helper beside the
+  // grid, and then off the page entirely (#2401): they are the composer's
+  // terms, and the helper closes on one sentence that names the consequence
+  // and routes to them.
   const intro = textOf(served.document.querySelectorAll(".profile-lede")[1]);
   assert.ok(intro.endsWith(PEOPLE_PROVENANCE),
     "the intro no longer ends on what the image posts already on the page are made of");
@@ -1510,16 +1530,21 @@ test("the intro says the image posts on this page are invented, before any of th
   assert.doesNotMatch(intro, /published as|Showing \d+ image post/i);
   const helper = textOf(served.document.querySelector(".feed-create"));
   assert.ok(helper.trim().endsWith(PEOPLE_CONSEQUENCE),
-    "the helper beside the grid does not close on the publishing consequences");
-  // Each consequence once on the whole page, wherever it is read from.
-  for (const sentence of [SHARED_CONSEQUENCE, SHARED_REMOVAL, PUBLISH_INSTRUCTION])
-    assert.equal(main.split(sentence).length - 1, 1,
-      `People states a publishing consequence twice or not at all: ${sentence}`);
+    "the helper beside the grid does not close on the consequence and the route to the terms");
+  // And nowhere on the page does it recite what it points at.
+  for (const sentence of PUBLISH_CONTRACT)
+    assert.equal(main.includes(sentence), false,
+      `People recites a publishing rule that belongs beside Social's composer: ${sentence}`);
+  assert.equal(main.split(PEOPLE_CONSEQUENCE).length - 1, 1,
+    "People states the publishing consequence twice or not at all");
   const social = await loadPage(new URL("../src/social.html", import.meta.url), {});
   try {
+    // The other side of the move: the contract People points at is on the page
+    // People points at, whole, in the paragraph beside the composer.
     const composer = textOf(social.document.querySelector("#post-consequence"));
-    assert.ok(composer.startsWith(SHARED_CONSEQUENCE + ","),
-      "People's consequences drifted from Social's composer terminology");
+    for (const sentence of PUBLISH_CONTRACT)
+      assert.ok(composer.includes(sentence),
+        `Social's composer no longer states the rule People sends a reader for: ${sentence}`);
   } finally {
     social.restore();
   }
@@ -1535,7 +1560,6 @@ test("the intro says the image posts on this page are invented, before any of th
   // or double either claim. The authored intro fakes hydration, so the wait is
   // on painted image posts, not on text; skeleton tiles carry the tile class.
   const page = await people();
-  let peopleInstructions;
   try {
     await waitFor(() => [...page.document.querySelectorAll(".profile-tile")]
       .filter((tile) => !tile.classList.contains("profile-tile-skeleton")).length > 0, "People painted image posts");
@@ -1548,17 +1572,20 @@ test("the intro says the image posts on this page are invented, before any of th
       "the loaded People intro no longer ends on the provenance");
     // src/profile.js takes the helper out of the document while the first fetch
     // is open and puts it back, so this is the frame that proves the
-    // consequences came back with it rather than only shipping in the markup.
+    // consequence came back with it rather than only shipping in the markup.
     const loadedHelper = textOf(page.document.querySelector(".feed-create"));
     assert.ok(loadedHelper.trim().endsWith(PEOPLE_CONSEQUENCE),
-      "the loaded People helper lost the publishing consequences");
-    peopleInstructions = instructionsIn(loadedHelper);
+      "the loaded People helper lost the publishing consequence");
+    for (const sentence of PUBLISH_CONTRACT)
+      assert.equal(hydrated.includes(sentence), false,
+        `the loaded People page recites a rule that belongs beside Social's composer: ${sentence}`);
   } finally {
     page.restore();
   }
 
-  // Social's composer, loaded, gives the instruction in the same bytes. The two
-  // pages author it separately, so this is what keeps them from drifting.
+  // Social's composer, loaded, still gives the instruction People stopped
+  // giving. The two pages author their copy separately, so this is what keeps
+  // the one surface that has to state it from quietly losing it.
   const loadedSocial = await bootSocial(t, {
     routes: {
       "/api/social-posts?limit=100": {
@@ -1571,8 +1598,7 @@ test("the intro says the image posts on this page are invented, before any of th
   });
   await waitFor(() => [...loadedSocial.document.querySelectorAll(".post-card")]
     .filter((card) => !card.classList.contains("post-card-skeleton")).length === 1, "Social painted the visitor's post");
-  const composerInstructions = instructionsIn(textOf(loadedSocial.id("post-consequence")));
-  assert.deepEqual(peopleInstructions, [PUBLISH_INSTRUCTION], "People's helper does not give the instruction exactly once");
-  assert.deepEqual(composerInstructions, peopleInstructions,
-    "Social's composer and People's helper no longer give the same instruction");
+  const composerInstructions = (textOf(loadedSocial.id("post-consequence")).match(/Do not include[^.]*\./g) ?? []);
+  assert.deepEqual(composerInstructions, [PUBLISH_INSTRUCTION],
+    "Social's composer does not give the instruction exactly once");
 });
