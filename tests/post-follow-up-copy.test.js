@@ -1,10 +1,21 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { loadPage, pressEnter, textOf, typeText } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
 import { handleLeadRequest, POST_FOLLOW_UP_TOPIC, FOLLOW_UP_TOPICS } from "../src/leads.js";
+import { REPORT_POST_LABEL } from "../src/post-report.js";
+import { INVITATION } from "../src/site-footer.js";
 
-const invitation = "Questions about this post from Social? Send the Wawalu team that operates Shiplog a follow-up request. Nothing about the post is attached to the request automatically. Select Copy link to this post and paste the link into your message so the team knows which post you mean.";
+// The block a shared link lands a stranger on. It used to be headed "Questions
+// about this post from Social?" above four topics that are all about Shiplog —
+// availability, a demonstration, a pilot, security and data handling — so it
+// promised answers the form cannot route, and never named the control that does
+// answer a question about the post. It carries Social's heading line now, says
+// what the topics cover, and sends a question about the post itself to Report
+// post (#2436). The two sentences about naming the post in a message are
+// unchanged: a Shiplog question prompted by this post still has to say which.
+const invitation = "Questions about Shiplog? Send the Wawalu team that operates it a follow-up request. The topics below are about Shiplog — whether it is available for your team, a demonstration, a pilot, and security and data handling — not about this post. If your question is about this post itself, select Report post instead. Nothing about the post is attached to the request automatically. Select Copy link to this post and paste the link into your message so the team knows which post you mean.";
 const post = { id: "p-copy", author: "Mina Okafor", body: "Focus rings landed everywhere.", createdAt: "2026-07-14T09:00:00.000Z", likes: 0, comments: 0 };
 
 for (const state of ["loading", "loaded"]) {
@@ -99,6 +110,32 @@ test("Social feed keeps its general invitation and fixed topic", async () => {
     assert.equal(document.getElementById("site-footer-form").dataset.followUpTopic, topic);
     assert.equal(textOf(document.getElementById("site-footer-topic-note")), `This request is sent about the ${topic}.`);
     assert.equal(textOf(document.querySelector(".site-footer-invitation")), "Questions about Shiplog? Send the Wawalu team that operates it a follow-up request.");
+  } finally {
+    page.restore();
+  }
+});
+
+// The two halves of #2436, held to their sources rather than to a second copy
+// of the words: the block opens on the heading line Social and People render,
+// and it names the reporting control exactly as src/post-report.js does. The
+// pointer is in the invitation, which every task page reads before the panel
+// (tests/footer-directory-order.test.js), so it is above the topic choices.
+test("the post page opens on Social's heading line and points a post question at Report post", async () => {
+  const page = await loadPage(new URL("../src/post.html", import.meta.url));
+  try {
+    const paragraph = textOf(page.document.querySelector(".site-footer-invitation"));
+    assert.ok(paragraph.startsWith(`${INVITATION} `),
+      "the post page no longer opens on the invitation every other page carries");
+    assert.ok(paragraph.includes(`select ${REPORT_POST_LABEL} instead`),
+      `the post page names the reporting control something other than "${REPORT_POST_LABEL}"`);
+    const markup = await readFile(new URL("../src/post.html", import.meta.url), "utf8");
+    assert.ok(markup.indexOf('class="site-footer-invitation"') < markup.indexOf('id="site-footer-intent"'),
+      "the pointer to Report post is read after the topic choices");
+    // The form's own copy is untouched: same four topics, same action.
+    for (const label of ["Availability or pricing", "A product demonstration", "A pilot evaluation", "Security or data handling"])
+      assert.ok(markup.includes(`>${label}</label>`), `the post page stopped offering "${label}"`);
+    assert.ok(markup.includes('<button type="submit">Request a follow-up</button>'),
+      "the post page changed the submit label the privacy invariant discovers forms by");
   } finally {
     page.restore();
   }
