@@ -57,7 +57,7 @@ function analyzedBlock(doc, sample, session) {
   block.append(
     element(doc, "h3", "eyebrow", "What text is analyzed"),
     element(doc, "p", "prompt-coaching-preview-lead",
-      `${sample.label} — bundled synthetic text written for this preview, not anyone's prompt. `
+      `${sample.label} — the bundled synthetic example, written for this page and not anyone's real prompt. `
       + "Grading your own text measures exactly the same things about it."),
     element(doc, "pre", "prompt-coaching-preview-sample", sample.text),
     definitions(doc, "prompt-coaching-preview-measures", [
@@ -126,7 +126,7 @@ function statesBlock(doc, outcomes) {
   block.append(
     element(doc, "h3", "eyebrow", "Possible results"),
     element(doc, "p", "prompt-coaching-preview-lead",
-      "Each result below comes from a bundled example, not text you pasted."),
+      "Each result below comes from text written for this page, not text you pasted."),
     list,
   );
   return block;

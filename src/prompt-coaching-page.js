@@ -29,7 +29,7 @@ import { applyCoachingPreview } from "./prompt-coaching-contract-view.js";
 import { applyCoachingSpecimen } from "./coaching-specimen-view.js";
 import { initCoachingSummaryCopy } from "./coaching-summary-view.js";
 
-const BUNDLED_EXAMPLE_FAILURE = "The bundled example could not be loaded. You can still paste and grade your own prompt.";
+const BUNDLED_EXAMPLE_FAILURE = "The bundled synthetic example could not be loaded. You can still paste and grade your own prompt.";
 const POSSIBLE_RESULTS_FAILURE = "Possible results could not be loaded. You can still paste and grade your own prompt.";
 
 /**
@@ -108,7 +108,7 @@ function initBundledRegion(doc, { bodyId, sectionId, titleId, statusId, loadingC
       // Both real loaders replace the body, which takes an in-body line with it.
       // It is dropped explicitly anyway, and the status node is emptied on the
       // same beat, so a loader that resolves without painting cannot leave
-      // "Loading the bundled example." standing under a state attribute that
+      // "Loading the bundled synthetic example." standing under a state attribute that
       // says the load is done.
       loading?.remove();
       if (status) status.textContent = "";
@@ -170,7 +170,7 @@ export function initPromptCoaching(doc = globalThis.document, {
     loadingClass: "prompt-coach-sample-lead",
     loader: loadBundledExample,
     failureCopy: BUNDLED_EXAMPLE_FAILURE,
-    retryLabel: "Retry bundled example",
+    retryLabel: "Retry the bundled synthetic example",
   });
   // The preview is painted before the form is wired, and independently of it:
   // a reader deciding whether to type anything into the box needs the boundary
@@ -187,7 +187,7 @@ export function initPromptCoaching(doc = globalThis.document, {
     loadingClass: "coaching-specimen-lead",
     loader: loadPossibleResults,
     failureCopy: POSSIBLE_RESULTS_FAILURE,
-    retryLabel: "Retry possible results",
+    retryLabel: "Retry the possible results",
   });
   // The copy control is wired before the form and independently of it, for the
   // same reason: its markup is already in the document, and a button that is

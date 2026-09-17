@@ -45,7 +45,7 @@ test("each failed bundled region has concise accessible fallback copy and its ow
 
   assert.equal(sample.dataset.loadState, "error");
   assert.equal(results.dataset.loadState, "error");
-  assert.match(textOf(sample), /bundled example could not be loaded/i);
+  assert.match(textOf(sample), /bundled synthetic example could not be loaded/i);
   assert.match(textOf(results), /possible results could not be loaded/i);
   for (const region of [sample, results]) {
     const announced = region.querySelector("[role=alert]");
@@ -71,7 +71,7 @@ test("a loader that settles without painting leaves no loading line behind it", 
 
   const sample = page.document.getElementById("prompt-coach-sample-body");
   await waitFor(() => sample.dataset.loadState === "ready", "the bundled example to settle");
-  assert.doesNotMatch(textOf(sample), /Loading the bundled example/i);
+  assert.doesNotMatch(textOf(sample), /Loading the bundled synthetic example/i);
   assert.equal(textOf(sample).trim(), "");
   page.restore();
 });
