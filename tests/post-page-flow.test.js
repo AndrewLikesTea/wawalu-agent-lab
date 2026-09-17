@@ -91,13 +91,17 @@ function assertExits(page, peopleHref, where) {
   );
 }
 
-// What a display name is, in the bytes Social's feed note and People's role line
-// already ship. Written out here so the permalink's own sentence is readable in
-// the test that asserts it, and pinned against those two pages below so none of
-// the three can drift — a claim that agrees in substance and differs in a comma
-// reads as two claims to anyone who meets both. It carries both halves of the
-// definition: where the names come from, and that nobody owns one.
-const IDENTITY = "Display names on the posts already on Social are invented. On any other post, whoever published it chose the name. Nobody owns or verifies a display name, and anyone can publish under any name.";
+// Who chose the name in the byline, in one sentence (#2408). This page used to
+// ship Social's whole feed note — the three sentences in FEED_NOTE below — which
+// is written for a reader scrolling many posts by many names. A permalink holds
+// one post, and the sentence above it has already named the invented posts, so
+// the block spent forty words to leave one fact this page's reader needs.
+const IDENTITY = "Whoever published this post chose the display name on it; nobody owns or verifies a display name on Social.";
+
+// Social's and People's version, which this page no longer carries. Those two
+// pages keep it and are asserted on elsewhere; here it is the string that must
+// not come back.
+const FEED_NOTE = "Display names on the posts already on Social are invented. On any other post, whoever published it chose the name. Nobody owns or verifies a display name, and anyone can publish under any name.";
 
 const SOCIAL = { label: "Open Social to read the whole feed", href: "/social.html" };
 const PEOPLE = { label: "Open People to see Mina Okafor’s other image posts", href: "/profile.html" };
@@ -127,12 +131,13 @@ test("a post that loads is headed by its display name and reads description, ima
     assert.equal(page.panel.getAttribute("aria-busy"), "false");
     const main = textOf(document.querySelector("#main-content"));
     assert.ok(main.includes(IDENTITY),
-      "a stranger arriving on this link is not told what a display name is");
-    // Painted, not just authored: both cases, and no "demo" for a real post.
+      "a stranger arriving on this link is not told who chose the name in the byline");
+    // Painted, not just authored: one sentence, no "demo" for a real post, and
+    // no trace of the three-sentence feed note it replaced.
     const notice = main.slice(main.indexOf(IDENTITY), main.indexOf(IDENTITY) + IDENTITY.length);
     assert.doesNotMatch(notice, /\bdemo\b/i, "the notice calls a real post a demo");
-    assert.match(notice, /on the posts already on Social are invented\./);
-    assert.match(notice, /On any other post, whoever published it chose the name\./);
+    assert.equal(notice.split(". ").length, 1, `the caveat is more than one sentence: ${notice}`);
+    assert.equal(main.includes(FEED_NOTE), false, "Social's three-sentence feed note is back on the permalink");
 
     // The post named its author, so the People link now points at that one
     // display name's view — which is what its words promised all along.
@@ -168,28 +173,35 @@ test("unusable publisher names leave a generic heading and title", async () => {
   }
 });
 
-// Read out of the two pages that already ship the sentence rather than typed
-// again here, so this fails the moment any of the three surfaces rewords it. All
-// three carry the whole sentence now: it used to be split, with the feed saying
-// where the names came from and the other two saying nobody owned one, which
-// left a reader assembling one definition out of three partial ones.
-test("the permalink says what a display name is in Social's and People's own bytes", async () => {
+// Issue #2408. The permalink names who chose the display name in a sentence of
+// its own rather than in Social's three. Social and People keep the feed note —
+// read out of those two pages here so this test fails if the block quietly
+// migrates back — and this page's markup must carry neither it nor any other
+// second telling of the same fact.
+test("the permalink names who chose the display name in one sentence, not Social's three", async () => {
   const shipped = [];
   for (const file of ["social.html", "profile.html"]) {
     const html = (await readFile(new URL(`../src/${file}`, import.meta.url), "utf8")).replace(/<!--[\s\S]*?-->/g, "");
     const clause = html.match(/Display names on the posts[^<]*anyone can publish under any name\./)?.[0];
     assert.ok(clause, `${file} no longer tells a reader what a display name is`);
-    assert.equal(html.split(clause).length - 1, 1, `${file} says what a display name is other than exactly once`);
     shipped.push(clause);
   }
   assert.equal(new Set(shipped).size, 1, "Social and People drifted into two ways of saying it");
-  assert.equal(IDENTITY, shipped[0], `the permalink does not ship the other two's sentence: ${shipped[0]}`);
+  assert.equal(FEED_NOTE, shipped[0], `the feed note the permalink dropped was reworded: ${shipped[0]}`);
+
+  const post = (await readFile(new URL("../src/post.html", import.meta.url), "utf8")).replace(/<!--[\s\S]*?-->/g, "");
+  assert.equal(post.split(IDENTITY).length - 1, 1, "the permalink's markup carries its own sentence other than exactly once");
+  assert.equal(post.includes("Display names on the posts"), false, "the permalink still ships Social's feed note");
+  assert.equal(post.includes("anyone can publish under any name"), false, "the permalink still ships the feed note's last clause");
 
   const page = await openPostPage("?id=p-image", seedOnly([SEED_POST]));
   try {
     const rendered = textOf(page.document.querySelector("#main-content"));
     // Once. A fact stated twice on one screen is a fact a reader skips.
     assert.equal(rendered.split(IDENTITY).length - 1, 1, "the permalink states it other than exactly once");
+    // And the claim inside it is made once, not restated by a second telling:
+    // the block this replaced said a name proves nothing twice over.
+    assert.equal(rendered.split("owns or verifies").length - 1, 1, "the permalink says a name is unverified more than once");
     // The page's other "signed-in" sentence is about Social, not about a name,
     // and it belongs to the states with no post. Both on one screen would read
     // as two claims about the same thing.
@@ -203,22 +215,32 @@ test("the permalink says what a display name is in Social's and People's own byt
 // region the lookup repaints, so a reader whose link fails or names a missing
 // post is told it too. Counted over the whole body, located by one combined
 // query (document order), and compared as booleans, never as nodes.
+//
+// Issue #2408 adds the position it reads from: after the post region, never in
+// front of it. The order asserted is the rendered one — #post-detail is in the
+// same combined query, so a module that moved a block on load would be caught
+// here rather than passing on authored markup order.
 function assertIdentityStands(document, where) {
   assert.equal(textOf(document.body).split(IDENTITY).length - 1, 1,
-    `${where}: the page says what a display name is other than exactly once`);
-  const flow = document.querySelector("#main-content").querySelectorAll("h1,p,a");
+    `${where}: the page says who chose the display name other than exactly once`);
+  assert.equal(textOf(document.body).includes(FEED_NOTE), false,
+    `${where}: Social's three-sentence feed note is back on the permalink`);
+  const flow = document.querySelector("#main-content").querySelectorAll("h1,p,a,#post-detail");
   const heading = flow.findIndex((node) => node.id === "page-title");
+  const detail = flow.findIndex((node) => node.id === "post-detail");
   const note = flow.findIndex((node) => node.tagName === "P" && textOf(node) === IDENTITY);
   const social = flow.findIndex((node) => node.id === "post-back");
-  assert.ok(heading >= 0 && note >= 0 && social >= 0, `${where}: the heading, the sentence or the Social link left the page's content`);
-  assert.ok(heading < note && note < social, `${where}: the sentence must read after the heading and before "${SOCIAL.label}"`);
+  assert.ok(heading >= 0 && detail >= 0 && note >= 0 && social >= 0,
+    `${where}: the heading, the post region, the sentence or the Social link left the page's content`);
+  assert.ok(heading < detail && detail < note && note < social,
+    `${where}: the sentence must read after the post and before "${SOCIAL.label}"`);
   assert.equal(flow[note].getAttribute("class"), "hint", `${where}: the sentence lost the class Social's feed note uses`);
   for (const region of ["#post-detail", "#site-footer"]) {
     assert.equal(Boolean(flow[note].closest(region)), false, `${where}: the sentence sits inside ${region}`);
   }
 }
 
-test("the permalink says what a display name is once in every state, between its heading and the feed link", async () => {
+test("the permalink says who chose the display name once in every state, after the post and before the feed link", async () => {
   const cold = await loadPage(new URL("../src/post.html", import.meta.url), { location: { search: "?id=p-image" } });
   try {
     assertIdentityStands(cold.document, "before the script runs");
@@ -249,6 +271,65 @@ test("the permalink says what a display name is once in every state, between its
     try {
       assert.equal(page.panel.dataset.postState, state, `the page landed in ${page.panel.dataset.postState}, not ${state}`);
       assertIdentityStands(page.document, state);
+    } finally {
+      page.restore();
+    }
+  }
+});
+
+// Issue #2408. What a reader meets above the post, which on a page reached from
+// a pasted link is all they have agreed to read: the surface the post came out
+// of, and one sentence saying what the page is. Everything the page has to say
+// about invented posts, display names and reporting reads under the post.
+const PAGE_LEDE = "This page is for one post from Social, Shiplog’s shared feed of short posts about shipped work.";
+const CAVEAT_WORDS = /invented|display name|customer or production data|Report post|reporting/i;
+
+// Rendered order, not authored order: the post region is in the same combined
+// query as the paragraphs, so a module that moved a block on load is caught
+// here. Compared as text and counts — no node is ever asserted against.
+function assertOpensWithThePost(document, where) {
+  const flow = document.querySelector("#main-content").querySelectorAll("p,#post-detail");
+  const detail = flow.findIndex((node) => node.id === "post-detail");
+  assert.ok(detail >= 0, `${where}: the post region left the page's content`);
+
+  const above = flow.slice(0, detail).map(textOf);
+  assert.deepEqual(above, ["Social", PAGE_LEDE],
+    `${where}: a reader meets something other than the eyebrow and the page's own sentence before the post`);
+  for (const paragraph of above) {
+    assert.doesNotMatch(paragraph, CAVEAT_WORDS, `${where}: a caveat reads before the post`);
+  }
+  // The measure the issue was written about: the page used to spend about sixty
+  // words on caveats before the thing the link promised.
+  const words = above.join(" ").split(/\s+/).filter(Boolean).length;
+  assert.ok(words <= 25, `${where}: ${words} words stand between the reader and the post`);
+}
+
+test("the permalink opens with the post in every state, not with its caveats", async () => {
+  const cold = await loadPage(new URL("../src/post.html", import.meta.url), { location: { search: "?id=p-image" } });
+  try {
+    assertOpensWithThePost(cold.document, "before the script runs");
+
+    let release;
+    globalThis.fetch = () => new Promise((resolve) => { release = () => resolve(seedResponse([SEED_POST])); });
+    await importPageModule("/post-page.js");
+    await waitFor(() => cold.document.documentElement.dataset.shiplogPostDetail === "loading", "the script took the region");
+    assertOpensWithThePost(cold.document, "while the lookup runs");
+
+    release();
+    await waitFor(() => cold.document.documentElement.dataset.shiplogPostDetail === "ready", "the post arrived");
+    assertOpensWithThePost(cold.document, "once the post rendered");
+  } finally {
+    cold.restore();
+  }
+
+  for (const [state, search, answer] of [
+    ["not-found", "?id=p-gone", seedOnly([SEED_POST])],
+    ["error", "?id=p-image", () => { throw new TypeError("Failed to fetch"); }],
+  ]) {
+    const page = await openPostPage(search, answer);
+    try {
+      assert.equal(page.panel.dataset.postState, state, `the page landed in ${page.panel.dataset.postState}, not ${state}`);
+      assertOpensWithThePost(page.document, state);
     } finally {
       page.restore();
     }
