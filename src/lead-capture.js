@@ -42,7 +42,7 @@ export const isFollowUpIntent = (value) => typeof value === "string" && Object.h
 
 // Keyed by the contract's application `error.code` enum. Every one of these
 // means the address is definitely not stored, so the copy can say so.
-function rejectedCopy({ invalidEmail, unreadable, storageError, storageUnavailable }) {
+function rejectedCopy({ invalidEmail, unreadable, storageError, storageUnavailable, invalidMessage = null }) {
   const byCode = {
     invalid_email: invalidEmail,
     storage_error: storageError,
@@ -53,6 +53,7 @@ function rejectedCopy({ invalidEmail, unreadable, storageError, storageUnavailab
   // from here degrades to `unconfirmed` below, which tells a visitor we cannot
   // say whether their request landed when the origin has just said it did not.
   for (const code of UNREADABLE_CODES) byCode[code] = unreadable;
+  if (invalidMessage) byCode.invalid_message = invalidMessage;
   return Object.freeze(byCode);
 }
 
@@ -89,6 +90,7 @@ export const CONTACT_COPY = Object.freeze({
     unreadable: "No request was sent because it couldn’t be read. Reload the page and try again.",
     storageError: "No request was sent — something went wrong at our end. Please try again.",
     storageUnavailable: "No request was sent because follow-up requests are temporarily offline.",
+    invalidMessage: `No request was sent: your message is over the ${MAX_FOLLOW_UP_MESSAGE_LENGTH}-character limit. Shorten it and submit again.`,
   }),
   rateLimited: "No request was sent — too many attempts. Please wait a moment and try again.",
   unconfirmed: "We couldn’t send your request, so we can’t confirm it reached us. Please try again in a few minutes.",
