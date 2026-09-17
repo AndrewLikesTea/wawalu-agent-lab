@@ -32,7 +32,7 @@
 import { createFollowUpConfirmation } from "./follow-up-confirmation.js";
 import {
   CONTACT_COPY, describeWith, emailFieldError, FOLLOW_UP_INTENTS, FOLLOW_UP_PRIVACY, FOLLOW_UP_PRIVACY_WITH_MESSAGE,
-  FOLLOW_UP_USE, knownNotSent, looksLikeEmail, MAX_FOLLOW_UP_MESSAGE_LENGTH, overLengthMessage,
+  FOLLOW_UP_REPLY, FOLLOW_UP_USE, knownNotSent, looksLikeEmail, MAX_FOLLOW_UP_MESSAGE_LENGTH, overLengthMessage,
   postLeadEmail, SubmissionError,
 } from "./lead-capture.js";
 import { REPOSITORY_URL } from "./repository-url.js";
@@ -159,10 +159,6 @@ export const INVITATION = "Questions about Shiplog? Send the Wawalu team that op
  */
 export const OFFER = "There is no self-serve signup and no published price. Whether Shiplog is available "
   + "for your team and what it would cost are both answered on request.";
-
-// What the field sends is not this footer's sentence to write: all three
-// follow-up forms render FOLLOW_UP_PRIVACY from src/lead-capture.js, beside
-// the transport that makes it true.
 
 // What a visitor is told once the address is stored.
 //
@@ -341,6 +337,7 @@ function contactFormLines(followUpType, followUpTopic, askMessage = false, offer
     `        <p class="site-footer-error" id="site-footer-error" hidden></p>`,
     `        <p class="site-footer-note" id="site-footer-note">${askMessage ? FOLLOW_UP_PRIVACY_WITH_MESSAGE : FOLLOW_UP_PRIVACY}</p>`,
     `        <p class="site-footer-note" id="site-footer-use">${FOLLOW_UP_USE}</p>`,
+    `        <p class="site-footer-note" id="site-footer-reply">${FOLLOW_UP_REPLY}</p>`,
     '        <p class="site-footer-recovery" id="site-footer-recovery" hidden></p>',
     '        <div class="site-footer-actions">',
     '          <button type="submit">Request a follow-up</button>',

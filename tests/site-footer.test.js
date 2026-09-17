@@ -27,7 +27,7 @@ import {
 } from "../src/site-footer.js";
 import { REPOSITORY_URL } from "../src/repository-url.js";
 import { FOLLOW_UP_TOPICS, POST_FOLLOW_UP_TOPIC } from "../src/leads.js";
-import { FOLLOW_UP_PRIVACY } from "../src/lead-capture.js";
+import { FOLLOW_UP_PRIVACY, FOLLOW_UP_REPLY, FOLLOW_UP_USE } from "../src/lead-capture.js";
 import { SITE_NAV } from "../src/site-nav.js";
 import { loadPage, parseHtml, pressEnter, tabSequence, textOf, typeText } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
@@ -1047,6 +1047,82 @@ test("the privacy sentence beside the field is what the request body actually do
     for (const secret of ["evolution", "savings", "7,430", "5,200", "760", "baseline"]) {
       assert.ok(!transmitted.includes(secret), `"${secret}" is page state and must never be in the request`);
     }
+  } finally {
+    page.restore();
+  }
+});
+
+/* ------------------------- who answers, and when not ---------------------- */
+
+// Read off the painted page rather than the source, because the source is not
+// what a visitor gets: every page embeds this band, and a page whose modules
+// rewrite part of it on load would ship a different one to a reader than the
+// one tests/follow-up-privacy.test.js reads out of the file. Four pages — the
+// home page, the prompt coach (whose entry copy really is replaced on load),
+// the page with the most script on it, and a permalink.
+const REPLY_PAGES = ["index.html", "coach.html", "evolution.html", "post.html"];
+
+const carryingReply = (root) => root.querySelectorAll("p").filter((node) => textOf(node) === FOLLOW_UP_REPLY);
+
+test("the painted follow-up block says who answers, once, above the button", async () => {
+  for (const file of REPLY_PAGES) {
+    const page = await openFooterPage(file);
+    const { document } = page;
+    try {
+      const footer = byId(document, "site-footer");
+      const painted = carryingReply(footer);
+      assert.equal(painted.length, 1, `${file}: the reply sentence is painted ${painted.length} times`);
+
+      // Before the control, so it is read while a visitor is still deciding
+      // whether to type an address rather than after they have handed one over.
+      const form = byId(document, "site-footer-form");
+      const order = form.querySelectorAll("input,p,button");
+      const submit = form.querySelector('button[type="submit"]');
+      assert.ok(order.indexOf(painted[0]) < order.indexOf(submit),
+        `${file}: the reply sentence is painted below the button it should precede`);
+
+      // And beside the sentence it must not have eaten.
+      assert.equal(shownText(document, "site-footer-use"), FOLLOW_UP_USE,
+        `${file}: the use sentence has drifted on the painted page`);
+    } finally {
+      page.restore();
+    }
+  }
+});
+
+test("neither a failure nor a receipt says who answers a second time", async () => {
+  const page = await openFooterPage("index.html");
+  const { document } = page;
+  let failNext = true;
+  const calls = interceptLeads(() => (failNext
+    ? jsonReply({ error: { code: "storage_unavailable" } }, 503)
+    : jsonReply({ captured: true, created: true, purpose: "follow_up_homepage" })));
+  try {
+    const footer = byId(document, "site-footer");
+    assert.equal(carryingReply(footer).length, 1, "the sentence must be there before anything is sent");
+
+    submitEmail(document, TYPED_EMAIL);
+    await settled(document);
+    assert.equal(byId(document, "site-footer-form").dataset.state, "error");
+
+    // A failure adds a paragraph about what to do next. It says nothing about
+    // who answers: that request did not land, so there is nobody to answer it.
+    assert.doesNotMatch(shownText(document, "site-footer-recovery"), /automated reply|A person from the Wawalu team/);
+    assert.equal(carryingReply(footer).length, 1, "the failure state repeats the sentence");
+
+    failNext = false;
+    byId(document, "site-footer-email").focus();
+    pressEnter(document);
+    await waitFor(() => byId(document, "site-footer-form").dataset.state === "success", "the retry to succeed");
+
+    // The receipt owns what happens after a request lands, in its own words.
+    // Two sentences about a reply, in the same band, would be a reader's
+    // second question rather than an answer to their first.
+    const receipt = textOf(byId(document, "site-footer-confirmation"));
+    assert.doesNotMatch(receipt, /automated reply|A person from the Wawalu team/,
+      "the receipt restates who answers");
+    assert.equal(carryingReply(footer).length, 1, "the success state repeats the sentence");
+    assert.equal(calls.length, 2);
   } finally {
     page.restore();
   }
