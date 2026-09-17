@@ -27,7 +27,7 @@ Observed result: ________
 Owner: ________
 
 3. Team handoff
-Your evaluating team must hand a record to a teammate as a file: press “Download JSON” on this page to export it, send the file to your teammate, and have them open it here with “Choose JSON file” in their own browser and confirm the summary. Both controls are on this page only: the Releases page has a separate “Export releases as JSON” button and no import control. Count their unanswered questions about why the work shipped and who owns it.
+Your evaluating team must hand a record to a teammate as a file: press “Download JSON” on the Home page to export it, send the file to your teammate, and have them open it with “Choose JSON file” on the Home page in their own browser and confirm the summary. Both controls are on the Home page only: the Releases page has a separate “Export releases as JSON” button and no import control. Count their unanswered questions about why the work shipped and who owns it.
 Buyer target: ________
 Observed result: ________
 Owner: ________

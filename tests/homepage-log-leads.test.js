@@ -28,10 +28,14 @@ import { importPageModule, waitFor } from "./support/page-module.js";
 import { EXPORT_BUTTON_LABEL } from "../src/shiplog-export.js";
 import { RELEASE_EXPORT_BUTTON_LABEL } from "../src/release-export.js";
 import { PILOT_TEAM_HANDOFF } from "../src/shiplog-pilot-scorecard.js";
+import { SITE_NAV } from "../src/site-nav.js";
 
 const PAGE = new URL("../src/index.html", import.meta.url);
 const RELEASES = new URL("../src/releases.html", import.meta.url);
 const IMPORT_CONTROL_LABEL = "Choose JSON file";
+// The page name is the destination label a reader can click in the nav, not a
+// second word for the same surface invented by the scorecard.
+const HOME_PAGE_NAME = SITE_NAV.find((item) => item.href === "/index.html").label;
 
 /**
  * Stand the front door up and let everything that paints on load finish.
@@ -224,10 +228,17 @@ test("the pilot scorecard's Team handoff names the real controls and the page ea
   // Both labels are read off the homepage's own rendered controls, not retyped.
   assert.equal(textOf(document.getElementById("export-shiplog")), EXPORT_BUTTON_LABEL);
   assert.equal(textOf(document.querySelector('label[for="import-shiplog-file"]')), IMPORT_CONTROL_LABEL);
-  assert.ok(PILOT_TEAM_HANDOFF.includes(`“${EXPORT_BUTTON_LABEL}” on this page`),
+  assert.ok(PILOT_TEAM_HANDOFF.includes(`“${EXPORT_BUTTON_LABEL}” on the ${HOME_PAGE_NAME} page`),
     "the export control must be named with the page it is on");
-  assert.ok(PILOT_TEAM_HANDOFF.includes(`here with “${IMPORT_CONTROL_LABEL}”`),
+  assert.ok(PILOT_TEAM_HANDOFF.includes(`“${IMPORT_CONTROL_LABEL}” on the ${HOME_PAGE_NAME} page`),
     "the import control must be named with the page it is on");
+
+  // #2395: this row is copied to a clipboard and downloaded as a file, so it may
+  // not point at a page with a word that only works while standing on it.
+  assert.doesNotMatch(PILOT_TEAM_HANDOFF, /\bthis page\b|\bopen it here\b|\bhere with\b/,
+    "name the page; a deictic does not survive the copy or the download");
+  assert.ok(document.querySelectorAll('a[aria-current="page"]').map(textOf).includes(HOME_PAGE_NAME),
+    "the page the row names must be the destination this page's nav marks as current");
 
   // And the Releases page's own export is named by its own rendered label,
   // stated as the separate control it is rather than as an alternative route.

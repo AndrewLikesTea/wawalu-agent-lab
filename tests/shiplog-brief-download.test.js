@@ -2,12 +2,15 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { loadPage, textOf, tabSequence, pressEnter, pressTab } from "./support/browser.js";
-import { PILOT_SCORECARD_TEXT } from "../src/shiplog-pilot-scorecard.js";
+import { PILOT_SCORECARD_TEXT, PILOT_TEAM_HANDOFF } from "../src/shiplog-pilot-scorecard.js";
 import { SHIPLOG_ORIGIN } from "../src/shiplog-evaluation-brief.js";
+import { EXPORT_BUTTON_LABEL } from "../src/shiplog-export.js";
+import { SITE_NAV } from "../src/site-nav.js";
 
 const root = process.env.SHIPLOG_E2E_BUILD_ROOT || "src";
 const file = (path) => new URL(`../${root}/${path}`, import.meta.url);
 const filename = "shiplog-evaluation-brief.txt";
+const HOME_PAGE_NAME = SITE_NAV.find((item) => item.href === "/index.html").label;
 
 test("native brief download is visible beside the brief and scorecard, with keyboard activation and no scripts", async (t) => {
   const page = await loadPage(file("index.html"));
@@ -89,4 +92,34 @@ test("visitor records, edited editorial DOM and form values never reach the down
   // The captured bytes, not a second read of the file on disk: a click handler
   // that swapped in a Blob composed from this page would deliver the edits above.
   assert.doesNotMatch(doc.downloads[0].text, /PRIVATE/);
+});
+
+// #2395: the third surface. This file is forwarded to a teammate who never saw
+// the page it describes, so "press Download JSON on this page" addressed nobody.
+// The bytes are resolved from the href the activation actually names — this link
+// is a static file, not a Blob, so the harness captures the filename and the
+// destination rather than the content.
+test("the forwarded file tells a teammate which page each handoff control is on", async (t) => {
+  const page = await loadPage(file("index.html"));
+  t.after(() => page.restore());
+  const doc = page.document;
+  const link = doc.getElementById("download-shiplog-evaluation-brief");
+  link.focus();
+  pressEnter(doc);
+  assert.equal(doc.downloads[0].filename, filename);
+  const text = await readFile(file(link.href.slice(1)), "utf8");
+
+  const row = text.split("\n\n").find((block) => block.startsWith("3. Team handoff\n"));
+  assert.equal(row, `3. Team handoff\n${PILOT_TEAM_HANDOFF}\nBuyer target: ________\nObserved result: ________\nOwner: ________`);
+  assert.ok(row.includes(`“${EXPORT_BUTTON_LABEL}” on the ${HOME_PAGE_NAME} page`));
+  assert.ok(row.includes(`“Choose JSON file” on the ${HOME_PAGE_NAME} page`));
+  assert.ok(row.includes("the Releases page has a separate “Export releases as JSON” button and no import control."));
+  assert.doesNotMatch(row, /\bthis page\b|\bhere\b/);
+  // The blanks stay blank and the step still claims no outcome.
+  assert.deepEqual(row.split("\n").slice(-3), ["Buyer target: ________", "Observed result: ________", "Owner: ________"]);
+
+  // The three surfaces carry one text, so the page name cannot differ between them.
+  const home = doc.getElementById("shiplog-pilot-scorecard").querySelectorAll("li")[2];
+  assert.equal(textOf(home.querySelector("p")), PILOT_TEAM_HANDOFF);
+  assert.ok(PILOT_SCORECARD_TEXT.includes(row));
 });
