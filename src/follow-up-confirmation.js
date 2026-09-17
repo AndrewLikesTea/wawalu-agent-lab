@@ -31,6 +31,7 @@ export const CONFIRMATION_LEAD = "Request received. Submitted work email: ";
 export const CONFIRMATION_DETAIL = "Only that work email was entered by you and sent. The Wawalu team may review the request and reply; a reply is not guaranteed.";
 export const CONFIRMATION_MESSAGE_DETAIL = "Only that work email and the message you entered were entered by you and sent. The Wawalu team may review the request and reply; a reply is not guaranteed.";
 export const CONFIRMATION_INTENT_DETAIL = "Your discussion choice has been saved. The Wawalu team may review the request and reply; a reply is not guaranteed.";
+export const CONFIRMATION_INTENT_MESSAGE_DETAIL = "Your discussion choice and the message you entered have been saved. The Wawalu team may review the request and reply; a reply is not guaranteed.";
 export const TOPIC_LEAD = "Fixed page topic: ";
 export const INTENT_LEAD = "What you want to discuss: ";
 export const REOPEN_LABEL = "Request another follow-up";
@@ -122,7 +123,8 @@ export function createFollowUpConfirmation({ form, status, submit, email, onReop
     address.textContent = value;
     topic.textContent = submittedTopic ? `${TOPIC_LEAD}${submittedTopic}. ` : "";
     intent.textContent = storedIntent ? `${INTENT_LEAD}${storedIntent}. ` : "";
-    explanation.textContent = storedIntent ? CONFIRMATION_INTENT_DETAIL
+    explanation.textContent = storedIntent
+      ? (messageProvided ? CONFIRMATION_INTENT_MESSAGE_DETAIL : CONFIRMATION_INTENT_DETAIL)
       : messageProvided ? CONFIRMATION_MESSAGE_DETAIL : CONFIRMATION_DETAIL;
     if (!region.parentNode) form.parentNode.insertBefore(region, form);
     // Hiding the form takes the field and both of its buttons out of the tab

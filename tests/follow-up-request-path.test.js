@@ -27,7 +27,9 @@ import { loadPage, pressEnter, pressTab, tabSequence, textOf, typeText } from ".
 import { importPageModule, waitFor } from "./support/page-module.js";
 import { MIGRATIONS, createTestD1 } from "./support/d1-sqlite.js";
 import { initSiteFooter } from "../src/site-footer.js";
-import { CONFIRMATION_DETAIL, CONFIRMATION_LEAD } from "../src/follow-up-confirmation.js";
+import {
+  CONFIRMATION_INTENT_DETAIL, CONFIRMATION_INTENT_MESSAGE_DETAIL, CONFIRMATION_LEAD,
+} from "../src/follow-up-confirmation.js";
 import { onRequest } from "../functions/api/leads.js";
 import { createMemoryLeadStore, FOLLOW_UP_TOPICS, POST_FOLLOW_UP_TOPIC, handleLeadRequest } from "../src/leads.js";
 import {
@@ -194,9 +196,14 @@ for (const [file, purpose, topic] of REVIEWED) {
 
 /* ---------------------------- the state machine ---------------------------- */
 
+// The double answers the way the endpoint answers: a purpose that asks what to
+// discuss comes back with the intent the row holds. A stub that left it out put
+// the receipt on a branch no visitor of these pages can reach, which is how a
+// typed question came to be dropped from the receipt in production while these
+// tests stayed green — see tests/follow-up-message-delivery.test.js.
 test("a valid work email and a successful transport reach the success state, which says all three things", async () => {
   const { page, document, calls } = await mountFooter("coach.html",
-    () => jsonReply({ captured: true, created: true, purpose: "follow_up_coach" }));
+    () => jsonReply({ captured: true, created: true, purpose: "follow_up_coach", intent: "pilot" }));
   try {
     openAndSubmit(document);
     await settled(document);
@@ -214,10 +221,12 @@ test("a valid work email and a successful transport reach the success state, whi
     assert.ok(receipt.includes(TYPED_EMAIL), "the receipt must name the address itself");
     // 2. The exact fixed topic that was submitted.
     assert.match(receipt, new RegExp(FOLLOW_UP_TOPICS.follow_up_coach));
-    // 3. What did not go with it, without an unguaranteed next-step promise.
-    assert.match(receipt, /Only that work email was entered by you and sent/);
+    // 3. What was stored with it, without an unguaranteed next-step promise.
+    assert.match(receipt, /What you want to discuss: A pilot evaluation\./);
     assert.doesNotMatch(receipt, /will reply|within two business days/i);
-    assert.ok(receipt.includes(CONFIRMATION_DETAIL));
+    assert.ok(receipt.includes(CONFIRMATION_INTENT_DETAIL));
+    // No message was typed, so none is claimed.
+    assert.doesNotMatch(receipt, /the message you entered/);
   } finally {
     page.restore();
   }
@@ -236,7 +245,7 @@ function ask(document, text) {
 
 test("a typed question rides along with the address and the page's fixed topic", async () => {
   const { page, document, calls } = await mountFooter("releases.html",
-    () => jsonReply({ captured: true, created: true, purpose: "follow_up_releases" }));
+    () => jsonReply({ captured: true, created: true, purpose: "follow_up_releases", intent: "pilot" }));
   try {
     const question = "Which release carried the routing decision?";
     ask(document, question);
@@ -253,10 +262,13 @@ test("a typed question rides along with the address and the page's fixed topic",
       email: TYPED_EMAIL, purpose: "follow_up_releases", topic: FOLLOW_UP_TOPICS.follow_up_releases,
       message: question, intent: "pilot",
     });
-    // And the receipt says a message went, rather than repeating the sentence
-    // for a request that carried only an address.
+    // And the receipt says a message went, beside the choice that went with it,
+    // rather than naming only the choice and leaving the question unaccounted
+    // for. tests/follow-up-message-delivery.test.js holds this against the real
+    // endpoint on every page and topic that offers the field.
     const receipt = shownText(document, "site-footer-confirmation");
-    assert.match(receipt, /Only that work email and the message you entered were entered by you and sent/);
+    assert.ok(receipt.includes(CONFIRMATION_INTENT_MESSAGE_DETAIL), receipt);
+    assert.match(receipt, /the message you entered/);
   } finally {
     page.restore();
   }
@@ -264,7 +276,7 @@ test("a typed question rides along with the address and the page's fixed topic",
 
 test("the question is optional: left empty it sends the request it always sent", async () => {
   const { page, document, calls } = await mountFooter("social.html",
-    () => jsonReply({ captured: true, created: true, purpose: "follow_up_social" }));
+    () => jsonReply({ captured: true, created: true, purpose: "follow_up_social", intent: "pilot" }));
   try {
     // Whitespace, not nothing: a visitor who tabbed through the field and hit
     // the space bar has not asked anything, and an empty string on the wire is
@@ -275,8 +287,8 @@ test("the question is optional: left empty it sends the request it always sent",
 
     assert.equal(byId(document, "site-footer-form").dataset.state, "success");
     assert.deepEqual(Object.keys(JSON.parse(calls[0].options.body)), ["email", "purpose", "topic", "intent"]);
-    assert.match(shownText(document, "site-footer-confirmation"),
-      /Only that work email was entered by you and sent/);
+    assert.doesNotMatch(shownText(document, "site-footer-confirmation"), /the message you entered/,
+      "a receipt may not name a message the request did not carry");
   } finally {
     page.restore();
   }

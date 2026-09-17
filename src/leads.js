@@ -218,6 +218,17 @@ export async function handleLeadRequest(request, {
   }
   const { message, invalid: unusableMessage } = normalizeFollowUpMessage(input.message);
   if (unusableMessage) {
+    // The form beside the field counts against this same limit and refuses a
+    // message before sending it, so one arriving here means the page and this
+    // endpoint have drifted apart — a question a prospect typed is being
+    // dropped, and nobody would know. Correlatable by request id, with the
+    // length that was refused and never the text itself.
+    console.warn("lead_follow_up_message_refused", {
+      requestId,
+      purpose: input.purpose,
+      length: typeof input.message === "string" ? input.message.length : null,
+      limit: MAX_FOLLOW_UP_MESSAGE_LENGTH,
+    });
     return json({ error: { code: "invalid_message", message: `Your message must be ${MAX_FOLLOW_UP_MESSAGE_LENGTH} characters or fewer.`, request_id: requestId } }, 422, requestId);
   }
 
