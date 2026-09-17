@@ -1,4 +1,4 @@
-// The typed question in "What do you want to know?" — from the field to the row
+// The text typed in "Anything else we should know?" — from the field to the row
 // and back into the receipt, on every page and topic that renders the field.
 //
 // The message tests that shipped with the field stub the transport, and a stub

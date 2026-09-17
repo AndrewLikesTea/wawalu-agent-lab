@@ -213,9 +213,9 @@ export const FOLLOW_UP_REDIRECT = Object.freeze({
  * closed, below the follow-up block rather than above it. The five task pages
  * set it: the same nine doors are in the navigation at the top of the page.
  *
- * `askMessage` adds the home page's optional question field above the work-email
- * field, and switches the privacy sentence with it: a form carrying a message
- * box cannot claim nothing else on the page is sent.
+ * `askMessage` adds the optional free-text field above the work-email field,
+ * and switches the privacy sentence with it: a form carrying a message box
+ * cannot claim nothing else on the page is sent.
  *
  * `offer` opens the block with OFFER — what asking gets a visitor who never read
  * the home page's answer to the same question.
@@ -297,11 +297,11 @@ function intentFieldLines() {
 
 // Above the address on purpose: a visitor decides what to ask before deciding
 // whether to hand over a work address for the answer, and keyboard order is
-// reading order. Every class and string here is the home page field's.
+// reading order. The label asks what the question above it did not.
 function messageFieldLines() {
   return [
     '        <div class="site-footer-field">',
-    '          <label for="site-footer-message">What do you want to know? <span class="label-optional">(optional)</span></label>',
+    '          <label for="site-footer-message">Anything else we should know? <span class="label-optional">(optional)</span></label>',
     '          <input id="site-footer-message" name="message" type="text" autocomplete="off" aria-describedby="site-footer-message-hint site-footer-message-counter-label site-footer-message-counter" />',
     '          <p class="site-footer-error" id="site-footer-message-error" role="alert" hidden></p>',
     `          <span class="hint" id="site-footer-message-hint">Up to ${MAX_FOLLOW_UP_MESSAGE_LENGTH} characters.</span>`,
