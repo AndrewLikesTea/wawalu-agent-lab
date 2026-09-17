@@ -93,10 +93,24 @@
                only from a response that browser received. -->
 
           <section class="merged-figure" id="merged-figure" data-state="loading" aria-labelledby="merged-figure-title">
-            <h2 class="merged-figure-title" id="merged-figure-title">Merged pull requests</h2>
+            <!-- Focusable, never tabbable: pressing the retry below takes that
+                 button off the page while the request is out, and this heading
+                 is where the press puts the reader instead — above the readout
+                 rather than inside it, so the outcome is announced once by the
+                 live region and not a second time by the focus move. -->
+            <h2 class="merged-figure-title" id="merged-figure-title" tabindex="-1">Merged pull requests</h2>
             <div class="merged-figure-readout" id="merged-figure-readout" role="status" aria-live="polite">
               <p class="merged-figure-value">Loading the merged pull request count</p>
-              <p class="merged-figure-source">Counted from public GitHub activity, once GitHub answers.</p>
+              <p class="merged-figure-source" id="merged-figure-source">Counted from public GitHub activity, once GitHub answers.</p>
+            </div>
+            <!-- The count's own way back, after the status it acts on, the same
+                 order the two panels below use. agents.js unhides it only in the
+                 settled states a second request could change — a count GitHub
+                 never answered for, and a dated earlier count standing in for
+                 one — so the page never offers a retry that cannot help. It
+                 ships hidden and holds no state of its own. -->
+            <div class="activity-actions" id="merged-figure-actions" hidden>
+              <button class="observatory-refresh" id="retry-merged-figure" type="button" data-recovery="none" aria-describedby="merged-figure-source">Retry the merged pull request count</button>
             </div>
             <p class="merged-figure-note" id="merged-figure-note">AndrewLikesTea/paint-lab and AndrewLikesTea/wawalu-agent-lab hold the merged pull requests that built and changed the pages of this site. <a href="/releases.html#shipped-build">Read the releases these pull requests shipped</a></p>
             <!-- The fragment is the point. The Releases log opens on invented

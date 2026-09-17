@@ -28,6 +28,7 @@ const RETRIES = [
   ["#retry-personas", "Retry persona profiles"],
   ["#refresh-activity", "Retry public GitHub activity"],
   ["#retry-trace", "Retry the prompt trace"],
+  ["#retry-merged-figure", "Retry the merged pull request count"],
 ];
 
 async function shippedPage(fetcher) {

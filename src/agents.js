@@ -623,6 +623,25 @@ export const MERGED_FIGURE_COPY = Object.freeze({
   unavailable: Object.freeze(unavailableCopy(UNAVAILABLE_REASONS.unreachable)),
 });
 
+// What the figure's own control is for in each state, held in the model rather
+// than read back off a label — the same rule the activity panel and the two demo
+// panels state for theirs. Only a state with no live count on screen is a
+// recovery: GitHub is what did not answer, so asking it again is what could
+// change the answer. A count that arrived is not a fault, and a request still in
+// flight is not one yet, so neither is offered a way out of itself.
+export const MERGED_FIGURE_RECOVERY = Object.freeze({
+  loading: "none",
+  live: "none",
+  recorded: "retry",
+  unavailable: "retry",
+});
+
+// One label, named for what it asks for again, in the construction the page's
+// other recovery controls already use ("Retry persona profiles", "Retry the
+// prompt trace", "Retry public GitHub activity"): a bare verb leaves a reader to
+// guess which of the four regions on this page the button belongs to.
+export const MERGED_FIGURE_RETRY_LABEL = "Retry the merged pull request count";
+
 /** The count and unit, the two of them always rendered together. */
 function appendCount(value, count) {
   appendText(value, "strong", "merged-figure-count", String(count));
@@ -662,11 +681,22 @@ export function renderMergedFigure(root = document, state = "loading",
   const readout = root.querySelector("#merged-figure-readout");
   if (!section || !readout) return null;
   section.dataset.state = name;
+  // The control before the early return below: a repaint that says exactly what
+  // is already on screen still has to leave the right button on offer.
+  const control = root.querySelector("#retry-merged-figure");
+  const actions = root.querySelector("#merged-figure-actions");
+  const recovery = MERGED_FIGURE_RECOVERY[name] ?? "none";
+  if (control) control.dataset.recovery = recovery;
+  if (actions) actions.hidden = recovery !== "retry";
 
   const value = document.createElement("p");
   value.className = "merged-figure-value";
   const source = document.createElement("p");
   source.className = "merged-figure-source";
+  // The sentence beside the figure is the control's description, so a reader who
+  // tabs straight to the button hears why they are being offered it. The id has
+  // to survive every repaint of the paragraph that carries it.
+  source.id = "merged-figure-source";
 
   if (name === "live") {
     appendCount(value, count);
@@ -850,11 +880,40 @@ export async function loadActivity(root = document, fetcher = fetch, storage = b
   }
 }
 
+/**
+ * Ask GitHub for the count again, from the figure's own control.
+ *
+ * It runs the same load the page runs on mount and on its timer rather than a
+ * second request path of its own, for the reason the count and the activity rows
+ * share one request in the first place: they are the same response, and a retry
+ * that fetched the feeds twice could leave the two regions reporting different
+ * responses. The load repaints the figure to `loading` before it asks, so the
+ * cycle a reader sees is loading, then the count or the sentence saying there is
+ * none — never the previous outcome held on screen while a new request is out.
+ *
+ * Focus moves before the request rather than after it. The load takes the
+ * region back to loading, which takes this control off the page, and a reader
+ * left standing on a button that disappears is a reader dropped at the top of
+ * the document. So the press lands them on the figure's own heading — beside the
+ * readout and not inside it, so the live region still announces each state
+ * exactly once and the move itself repeats none of them. If the second request
+ * fails too, the control is offered again one tab stop away.
+ */
+export async function retryMergedCount(root = document, fetcher, storage) {
+  root.querySelector("#merged-figure-title")?.focus?.();
+  return loadActivity(root, fetcher ?? fetch, storage ?? browserCountStorage());
+}
+
 // Retry runs the same load the page runs on mount and on its timer: one data
 // path, so a retried request cannot reach a different state than a first one.
-export function wireActivityControls(root = document, fetcher) {
-  const refresh = () => loadActivity(root, fetcher ?? fetch);
+// Both controls run it, and each sits in the region whose state it recovers —
+// the figure leads the page and the activity panel is most of a screen below it,
+// so a reader at either one must not have to go looking for the button.
+export function wireActivityControls(root = document, fetcher, storage) {
+  const refresh = () => loadActivity(root, fetcher ?? fetch, storage ?? browserCountStorage());
   root.querySelector("#refresh-activity")?.addEventListener("click", refresh);
+  root.querySelector("#retry-merged-figure")?.addEventListener("click",
+    () => retryMergedCount(root, fetcher, storage));
   return refresh;
 }
 
