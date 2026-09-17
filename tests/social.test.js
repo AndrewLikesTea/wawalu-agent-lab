@@ -2355,3 +2355,132 @@ test("People empty recovery links follow its message in keyboard order on the sh
   picker.focus();
   assert.equal(page.document.activeElement, picker);
 });
+
+// The filter count and the filtered dead end, over the wire (#2427).
+//
+// Both are shipped and covered — but every existing test of them mounts
+// mountSocialFeed() with an already-normalised array, so the figure they pin has
+// never been the figure the API actually yields. That matters because the total
+// is `posts.length` of the set the feed is holding, and on the real boot path
+// that set is whatever survived normalizeSocialApiPosts: a row missing `source`,
+// or carrying an unparseable timestamp, is dropped silently on the way in. So a
+// payload of six rows can paint four cards, and "see all N posts" has to say
+// four. Hand-built fixtures can never catch that number drifting to the row
+// count, because they are already the normalised set.
+//
+// One test, the whole path: boot the page, let it fetch, and drive the two menus
+// to a subset, to zero, and back — reading every expected figure off the cards
+// actually painted rather than writing it as a literal that matches a fixture.
+test("the stated count and the dead end's total are what the wire actually yielded", async (t) => {
+  const minutesAgo = (n) => new Date(Date.now() - n * 60 * 1000).toISOString();
+  const row = (id, author, minutes, extra = {}) => ({
+    id, author, content: `${id} from ${author}`, timestamp: minutesAgo(minutes),
+    source: "shiplog-web", ...extra,
+  });
+  // Four rows that survive and two that cannot. Both casualties are authored
+  // "Ghost", so the display-name menu is the first place a leak would show.
+  const { document } = await bootSocial(t, {
+    routes: {
+      "/api/social-posts?limit=100": {
+        posts: [
+          row("ari-recent", "Ari", 5),
+          row("ari-older", "Ari", 60 * 5),
+          row("bea-older", "Bea", 60 * 24 * 3),
+          row("zed-older", "Zed", 60 * 24 * 3),
+          { ...row("ghost-nosource", "Ghost", 5), source: undefined },
+          { ...row("ghost-badtime", "Ghost", 5), timestamp: "not a date" },
+        ],
+      },
+    },
+  });
+
+  // Skeletons wear .post-card too, so "loaded" is a count of the cards that are
+  // not placeholders — a text wait would return against the authored markup on
+  // turn zero.
+  const loaded = () => document.querySelectorAll(".post-card")
+    .filter((card) => !card.classList.contains("post-card-skeleton")).length;
+  await waitFor(() => loaded() === 4, "the four surviving posts painted");
+  assert.equal(document.querySelectorAll(".post-card-skeleton").length, 0,
+    "counted cards while the feed was still drawing placeholders");
+
+  const summary = document.querySelector("#feed-summary");
+  const nameFilter = document.querySelector("#post-name-filter");
+  const timeFilter = document.querySelector("#post-time-filter");
+  // The harness's select takes any value; a real one refuses an unlisted option,
+  // so every value driven here is checked against what the menu renders.
+  const choose = (control, value) => {
+    const offered = control.options.map((option) => option.getAttribute("value"));
+    assert.ok(offered.includes(value), `${value} must be offered; the menu holds ${offered.join(", ")}`);
+    control.value = value;
+    control.dispatchEvent({ type: "change", bubbles: true });
+  };
+  // The summary is one sentence in one element inside the list panel, on every
+  // path below. Walked by hand: descendant selectors throw in this double, and
+  // an identity assertion on a harness element walks the whole parsed page.
+  const summariesInPanel = () => document.querySelectorAll("#feed-summary").filter((node) => {
+    for (let cursor = node.parentNode; cursor; cursor = cursor.parentNode) {
+      if ((cursor.getAttribute?.("class") ?? "").split(" ").includes("list-panel")) return true;
+    }
+    return false;
+  }).length;
+
+  // The dropped rows reached neither the cards nor the menu that names them.
+  assert.deepEqual(nameFilter.options.map((option) => option.getAttribute("value")),
+    ["all", "Ari", "Bea", "Zed"], "a row the normaliser dropped still named a filter option");
+
+  // Unfiltered: the one total, and it is four rather than the six rows sent.
+  assert.equal(textOf(summary), `Showing ${loaded()} posts, newest first.`);
+  assert.equal(textOf(summary), "Showing 4 posts, newest first.");
+  assert.equal(summariesInPanel(), 1);
+
+  // A filter with matches: shown and total in the same single sentence, keeping
+  // the ordering wording.
+  choose(nameFilter, "Ari");
+  assert.equal(loaded(), 2);
+  assert.equal(textOf(summary), `Showing ${loaded()} of 4 posts by Ari, newest first.`);
+  assert.equal(summariesInPanel(), 1);
+
+  // Narrowed to zero by the two menus together. Each clause is the option text
+  // the control beside it is showing.
+  choose(nameFilter, "Bea");
+  choose(timeFilter, "hour");
+  assert.equal(loaded(), 0);
+  assert.equal(summariesInPanel(), 1, "the dead end is not a second summary element");
+
+  const panel = document.querySelector(".empty-state-filtered");
+  assert.match(textOf(panel), /No posts by Bea from the past hour\./);
+  // The total behind the filters is the surviving set, not the payload's rows.
+  assert.match(textOf(panel), /Select Clear filters to see all 4 posts\./);
+  assert.doesNotMatch(textOf(panel), /see all 6 posts/,
+    "the dead end offered a total that counts rows the feed dropped");
+  // Its own words: neither the never-posted sentence nor the connection promise,
+  // which is not an empty state and would tell a reader to wait for posts that
+  // are already here.
+  assert.doesNotMatch(textOf(panel), /No posts on Social yet/);
+  assert.doesNotMatch(textOf(document.body), /No posts on Social yet/);
+  assert.doesNotMatch(textOf(document.body), /New posts will appear here on their own/);
+
+  // Announced through the region the feed already owns, not a second one added
+  // beside it.
+  const stateRegion = document.querySelector("#feed-state");
+  assert.equal(stateRegion.getAttribute("role"), "status");
+  assert.equal(stateRegion.querySelectorAll("[aria-live]").length, 0,
+    "a nested live region announces the dead end twice");
+
+  // The way out: a real button, in the tab sequence, that restores the feed and
+  // returns the summary to the plain total.
+  const clear = stateRegion.querySelectorAll("button")[0];
+  assert.equal(clear.tagName, "BUTTON");
+  assert.equal(clear.type, "button");
+  assert.equal(textOf(clear), CLEAR_FILTERS_LABEL);
+  assert.equal(tabSequence(document).includes(clear), true, "the dead end's control is not reachable by Tab");
+
+  clear.click();
+  assert.equal(loaded(), 4, "clearing did not restore every post that survived the wire");
+  assert.equal(nameFilter.value, "all");
+  assert.equal(timeFilter.value, "all");
+  assert.equal(textOf(summary), "Showing 4 posts, newest first.");
+  assert.doesNotMatch(textOf(summary), / of /, "the denominator outlived the filter it counted against");
+  assert.equal(summariesInPanel(), 1);
+  assert.equal(document.querySelectorAll(".empty-state").length, 0);
+});
