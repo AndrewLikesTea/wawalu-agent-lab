@@ -24,6 +24,7 @@ import { COACHING_INPUT_SOURCE } from "../src/prompt-coaching-contract.js";
 import { COACHING_ENTRY_EXAMPLE } from "../src/prompt-coaching-entry.js";
 import { FIRST_RUN_GRADED_TITLE, applyCoachingFirstRun } from "../src/prompt-coaching-entry-view.js";
 import { COPY_LABEL } from "../src/coaching-summary-view.js";
+import { SPECIMEN_CASES } from "../src/coaching-specimen.js";
 
 const PAGE = fileURLToPath(new URL("../src/coach.html", import.meta.url));
 const read = (file) => readFile(new URL(`../src/${file}`, import.meta.url), "utf8");
@@ -195,7 +196,7 @@ test("a visitor who types nothing reads one complete result on arrival", async (
 
 // The state every visitor reads first, and the one the heading used to be
 // written for the end of: "Bundled synthetic example, already graded" stood
-// over "Loading the bundled example", so the page claimed a score before there
+// over "Loading the bundled synthetic example", so the page claimed a score before there
 // was one on screen.
 test("while the example is loading, the heading says it is being graded, not that it is graded", async () => {
   // The page entry mounts itself on import, so it is imported against a
@@ -219,7 +220,7 @@ test("while the example is loading, the heading says it is being graded, not tha
   // The loading state is the status line and nothing else: the sentence was
   // introduced into the live region by the entry, and the body holds no second
   // copy of it and no half-drawn result.
-  assert.match(textOf(status), /Loading the bundled example/, "the region must be in its loading state");
+  assert.match(textOf(status), /Loading the bundled synthetic example/, "the region must be in its loading state");
   assert.equal(textOf(body).trim(), "");
   assert.doesNotMatch(title(), /already graded/,
     "the heading claims a grade over a region that has not been graded yet");
@@ -579,8 +580,13 @@ test("each invitation names only what it reveals, and no two name the same thing
   const results = textOf(byId(document, "coaching-specimen-summary"));
 
   assert.equal(before, "See how the overall score is measured and what to do first.");
-  assert.equal(reads, "See the bundled example text and the counts read from it.");
-  assert.equal(results, "See bundled examples of a graded prompt, a prompt that needs changes, and text the coach cannot grade, none taken from text you paste.");
+  assert.equal(reads, "See the bundled synthetic example’s own text and the counts read from it.");
+  assert.equal(results, "See all seven possible results — among them a graded prompt, a prompt that needs changes, and text the coach cannot grade — none taken from text you paste.");
+  // The count is the number of cases the disclosure actually renders, so the
+  // invitation cannot promise a different number of results than it shows.
+  const NUMBER_WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"];
+  assert.ok(results.includes(`all ${NUMBER_WORDS[SPECIMEN_CASES.length]} possible results`),
+    `the invitation must name the ${SPECIMEN_CASES.length} results this disclosure renders`);
   // Said once, and in one block. The paragraph that used to sit under this
   // summary named the same three examples in different words, so counting the
   // summary's own sentence would have let it back in: what is pinned is the
@@ -589,6 +595,14 @@ test("each invitation names only what it reveals, and no two name the same thing
   // the body is script-drawn, and on tag names rather than on the nodes
   // themselves, which the harness cannot inspect without hanging.
   const { document: mounted } = await openCoach();
+  // The lead in the markup is the pre-script fallback — the contract view
+  // replaces the whole preview body on load — so the painted first block is
+  // checked too: the invitation and what it opens must use the one name.
+  const painted = textOf(byId(mounted, "prompt-coaching-preview-body"));
+  assert.match(painted, /the bundled synthetic example, written for this page/,
+    "the disclosure's own first block must name the example its invitation promises");
+  assert.doesNotMatch(painted, /comes from a bundled example/,
+    "“bundled example” names the graded example here, never one of the possible results");
   const section = byId(mounted, "coaching-specimen");
   assert.deepEqual(section.childElements.map((node) => node.tagName), ["SUMMARY", "DIV"],
     "the examples section carries a second block of prose beside its introduction");
@@ -604,13 +618,24 @@ test("each invitation names only what it reveals, and no two name the same thing
   }
   // And no topic noun is offered twice: the score is named where it is
   // measured, the counts where they are read, the results where they are shown.
-  // "Bundled" is the one word both disclosures may use. Each opens material
-  // this build wrote rather than anything a reader typed, and that is owed to
-  // them before they open it, not after — so it is stated on each, and the
-  // rule holds only over the nouns that name a different thing behind a
-  // different invitation.
   assert.doesNotMatch(before, /bundled|result/i);
   assert.doesNotMatch(results, /score|counts/i);
+
+  // One name per concept, which "bundled example" used to break by naming two.
+  // The single prompt this page grades is the bundled synthetic example — the
+  // name every other surface on the site uses for a bundled demonstration — and
+  // the disclosure over its source text names it, so a reader knows which of
+  // the two bundled things they are opening. The demonstrations at the foot of
+  // the page are the possible results, which is what the region already calls
+  // itself in its own failure and retry copy. Neither invitation may borrow the
+  // other's noun. Each still says it opens material this build wrote rather
+  // than anything a reader typed, because that is owed to them before they
+  // open it: "bundled synthetic example" carries it on one, "none taken from
+  // text you paste" on the other.
+  assert.match(reads, /bundled synthetic example/,
+    "the disclosure over the read text must name which bundled thing it opens");
+  assert.doesNotMatch(results, /bundled/i,
+    "“bundled” names the graded example on this page, never the possible results");
   // And the third case is named as the page names it — text the coach cannot
   // grade. Never a refusal: the coach runs in this tab and declines nothing on
   // content grounds, so a reader who reads one would expect a rule that is not
@@ -684,7 +709,7 @@ test("the first screen names the result and the next action, before any script r
   assert.equal(textOf(sampleStatus), "",
     "a status node that ships populated is a status node that never announces");
   const sampleFallback = sampleStatus.dataset.loading;
-  assert.match(sampleFallback, /Loading the bundled example/);
+  assert.match(sampleFallback, /Loading the bundled synthetic example/);
   assert.match(sampleFallback, /paste your own prompt below now/);
   // And it is said once: no second copy of the sentence anywhere in the region.
   assert.equal(textOf(byId(document, "prompt-coach-sample-body")).trim(), "");
