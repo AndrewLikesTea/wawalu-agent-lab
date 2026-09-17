@@ -370,7 +370,7 @@ test("People uses one status node for loading, error, and recovery to live posts
   t.after(() => { globalThis.setInterval = savedInterval; page.restore(); });
 
   const status = page.document.querySelector("#profile-feed-status");
-  assert.equal(textOf(status), "Image posts are loading. Publish a post on Social to add one.");
+  assert.equal(textOf(status), "Image posts are loading.");
   assert.equal(page.document.querySelectorAll("#profile-feed-status").length, 1);
 
   await importPageModule("/profile-page.js");
@@ -1300,7 +1300,7 @@ test("the demo disclaimer stays below the grid while the posts load and when the
   globalThis.fetch = (url, init) => (url === LIVE_ROUTE ? new Promise(() => {}) : routed(url, init));
   try {
     assertPicturesBeforeProvenance(pending.document, "as served", {
-      tiles: 0, status: /^Image posts are loading\. Publish a post on Social to add one\.$/,
+      tiles: 0, status: /^Image posts are loading\.$/,
     });
     await importPageModule("/profile-page.js");
     await waitFor(() => textOf(pending.document.querySelector("#profile-filter-hint")),
@@ -1391,11 +1391,16 @@ function assertClaimsNoResult(document, state) {
   }
 
   // The two lines that must not regress with it: what the filter row is waiting
-  // for, and the next action a reader can actually take from here.
+  // for, and the wait itself. The wait states the wait and stops (#2416) — it
+  // used to offer the trip to Social's composer in the same breath, over a fetch
+  // that had not answered whether there was anything to add to yet.
   assert.equal(textOf(document.querySelector("#profile-filter-hint")),
     "Display names become available when image posts load.", `${state}: the filter hint was reworded`);
   assert.equal(textOf(document.querySelector("#profile-feed-status")),
-    "Image posts are loading. Publish a post on Social to add one.", `${state}: the waiting line lost its next action`);
+    "Image posts are loading.", `${state}: the waiting line stopped stating the wait`);
+  assert.doesNotMatch(textOf(document.querySelector("#profile-feed-status")),
+    /to add one|Publish|Paint/,
+    `${state}: the region reporting the wait also invites a reader to publish`);
 
   // The placeholders and the content-hierarchy preview are untouched: this
   // change takes a claim away, it does not take a shape away. And nothing in the

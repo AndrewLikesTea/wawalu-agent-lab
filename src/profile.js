@@ -337,17 +337,36 @@ export const PROFILE_EMPTY_COPY = {
   actionHref: "/social.html#post-form",
 };
 
+// The last line of the settled empty state: where the whole path is written
+// down. The .feed-create paragraph under the grid already spells the three steps
+// — Paint, the image description, Social's composer — and it is back on the page
+// in exactly this state, because feedPresence() only takes it away while the
+// fetch is open. So this points at it and stops. Restating the steps here would
+// give a reader who has just been told their display name has nothing two
+// copies of one path, in two orders.
+//
+// It quotes the words the paragraph opens on, so the pointer names something a
+// reader can find by sight rather than by position alone. It carries no link:
+// the region's three recovery actions are the links, and a fourth pointing at a
+// paragraph on the same screen would add a tab stop that goes nowhere new.
+export const PROFILE_EMPTY_STEPS_HINT = "The steps for adding one are below, under “To add yours”.";
+
 export function profileEmptyText(author) {
   const name = String(author ?? "").trim() || DEFAULT_AUTHOR;
   return `The display name “${name}” has no image posts yet.`;
 }
 
-// The one phrase People uses for the trip to Social's composer, in both places
-// it offers that trip: this status while the grid loads, and the publishing step
-// in the .feed-create hint (src/profile.html). It names the act and the page
-// that can perform it, because People cannot. People used to send the same
-// reader twice under two names — "Open Social to publish an image post" here and
-// "Write a post on Social" in the hint — and this is the one wording.
+// The one phrase People uses for the trip to Social's composer. It names the act
+// and the page that can perform it, because People cannot. People used to send
+// the same reader twice under two names — "Open Social to publish an image post"
+// here and "Write a post on Social" in the hint — and this is the one wording.
+//
+// It has one render site now: the publishing step in the .feed-create hint
+// (src/profile.html). It used to be said over the grid as well, welded to the
+// loading status, which is how a reader waiting on a fetch was invited to
+// publish — the fourth telling of a path the three steps under the grid already
+// spell out (#2416). The status states the wait and nothing else now, and the
+// steps carry the trip.
 //
 // It used to be built from Social's composer label, so the words a reader was
 // sent to were the words on the control they arrived at. Social's trigger is
@@ -359,11 +378,16 @@ export function profileEmptyText(author) {
 // it is "Write a post on Social" that would name one.
 export const PUBLISH_ON_SOCIAL = "Publish a post on Social";
 
-// The grid's first-load status says exactly what People is retrieving, and then
-// where a visitor publishes one of them — this page has no composer, so the next
-// action it can honestly name is on Social. It names the destination as well as
-// the control because the nav link to Social is on screen in this state, unlike
-// the .feed-create hint, which feedPresence() removes while the fetch is open.
+// The grid's first-load status, and the one thing it is allowed to say: the
+// image posts are still loading. It is a machine state, reported once.
+//
+// It used to carry the trip to Social's composer as a second sentence — "Image
+// posts are loading. Publish a post on Social to add one." — which welded a
+// status to a call to action and, by offering to add one, said the grid was
+// empty while the fetch that decides that was still open (#2416). The three
+// states this region draws are three separate facts now: this wait,
+// profileEmptyText() once the load settles on nothing, and the heading's count
+// once there are tiles. The invitation to publish belongs to the settled ones.
 //
 // `author` is accepted for call-site symmetry with the other status builders and
 // deliberately not used: the heading directly above carries the selected display
@@ -373,7 +397,7 @@ export const PUBLISH_ON_SOCIAL = "Publish a post on Social";
 // the frame before hydration, where it once shipped "Ari hasn't posted an image
 // yet", a verdict that was false for the seeded feed.
 export function loadingSummaryText(author = DEFAULT_AUTHOR) {
-  return `Image posts are loading. ${PUBLISH_ON_SOCIAL} to add one.`;
+  return "Image posts are loading.";
 }
 
 // The counts line when the selected display name has nothing to show. It states
@@ -646,6 +670,7 @@ function renderEmpty(container, author) {
   paint.href = profilePaintHref(author);
   actions.append(paint);
   empty.append(actions);
+  empty.append(el("p", "hint", PROFILE_EMPTY_STEPS_HINT));
   container.append(empty);
 }
 

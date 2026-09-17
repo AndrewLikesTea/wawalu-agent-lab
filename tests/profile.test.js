@@ -15,7 +15,7 @@ installDocument();
 const { FEED_LOADING_LINE } = await import("../src/social.js");
 
 const {
-  EMPTY_SUMMARY_LINE, PENDING_RESULTS_HEADING, PROFILE_EMPTY_COPY, PUBLISH_ON_SOCIAL, authorChipLabel, authorInitials, captionFor, countLabel, defaultProfileAuthor,
+  EMPTY_SUMMARY_LINE, PENDING_RESULTS_HEADING, PROFILE_EMPTY_COPY, PROFILE_EMPTY_STEPS_HINT, PUBLISH_ON_SOCIAL, authorChipLabel, authorInitials, captionFor, countLabel, defaultProfileAuthor,
   distinctAuthors, hasExplicitAuthor, imagePostCounts, loadingSummaryText,
   mergePostsById, normalizeProfileApiPosts, normalizeSeedPosts, pickerEntries, pickerNoteText, postDetailHref,
   singleNameNotice, profileActiveFilterLine,
@@ -439,7 +439,7 @@ test("the first load reserves a skeleton grid instead of a blank panel", () => {
   // caption, metadata, and action hierarchy without claiming six fetched posts.
   assert.equal(skeleton.getAttribute("aria-hidden"), "true");
   assert.equal(skeleton.getAttribute("inert"), "");
-  assert.equal(status.textContent, "Image posts are loading. Publish a post on Social to add one.");
+  assert.equal(status.textContent, "Image posts are loading.");
   assert.equal(byClass(skeleton, "profile-tile-skeleton").length, 6);
   assert.equal(byClass(skeleton, "skeleton-media-square").length, 6);
   assert.equal(byClass(skeleton, "skeleton-meta").length, 6);
@@ -787,17 +787,77 @@ test("the zero state does not vary with what the rest of the feed holds", () => 
 });
 
 test("the waiting line names image posts once without duplicating the selected display name", () => {
-  assert.equal(loadingSummaryText(), "Image posts are loading. Publish a post on Social to add one.");
-  assert.equal(loadingSummaryText("Zed"), "Image posts are loading. Publish a post on Social to add one.");
+  assert.equal(loadingSummaryText(), "Image posts are loading.");
+  assert.equal(loadingSummaryText("Zed"), "Image posts are loading.");
 });
 
-// People cannot publish anything, so both places it sends a visitor to Social —
-// the wait over the grid and the publishing step in the helper beside it — offer
-// one trip. They used to name two, and neither was a control Social had: the
-// wait said "Open Social to publish an image post" and the step said "Write a
-// post on Social", while the button that opens the composer read something else
-// again (#2181). Comparing People's two strings to each other would not have
-// caught that, so both are read off the one exported phrase.
+// The three states of the image-post list region, said in three sentences
+// (#2416). The wait reports a machine state; the settled zero names the selected
+// display name and points at the steps under the grid; a settled grid with tiles
+// in it is named and counted by the heading. The region never invites a reader
+// to publish while the fetch that decides whether there is anything to add to is
+// still open.
+test("People's image-post list states its wait, its zero, and its result separately", () => {
+  assert.equal(loadingSummaryText(), "Image posts are loading.");
+  assert.doesNotMatch(loadingSummaryText(), /Publish|Paint|add one|no image posts/,
+    "the wait is welded to a call to action again");
+  // One sentence, so the wait cannot smuggle a second clause back in.
+  assert.equal(loadingSummaryText().match(/[.!?](?:\s|$)/g).length, 1);
+
+  // The settled zero is a different sentence, and it names the display name the
+  // wait deliberately does not.
+  assert.equal(profileEmptyText("Mina"), "The display name “Mina” has no image posts yet.");
+  assert.notEqual(profileEmptyText("Mina"), loadingSummaryText());
+  assert.match(profileEmptyText("Mina"), /Mina/);
+
+  // And the loaded state names that display name in the heading over the tiles.
+  assert.equal(profileResultsHeading("Mina", 3), "Mina · 3 image posts");
+  assert.match(profileResultsHeading("Mina", 1), /Mina/);
+});
+
+// Each of the three states, rendered, read off the region a visitor actually
+// looks at. The empty one points at the .feed-create steps once and does not
+// repeat them; the loading one holds no invitation at all.
+test("the image-post list region carries at most one invitation to publish in any state", () => {
+  const container = createElement("div");
+  const status = createElement("div");
+
+  renderProfileGrid(container, [], { state: "loading", author: "Mina", statusRegion: status });
+  assert.equal(status.textContent, "Image posts are loading.");
+  assert.equal(tags(status, "A").length, 0, "the wait offers a route out of a fetch it has not finished");
+
+  renderProfileGrid(container, [], { state: "ready", author: "Mina", statusRegion: status });
+  const empty = first(status, "empty-state");
+  assert.equal(first(empty, "empty-title").textContent, profileEmptyText("Mina"));
+  // The pointer is the last thing in the panel, it is not a control, and it
+  // spends none of the three steps' own words on repeating them.
+  const pointer = empty.children.at(-1);
+  assert.equal(pointer.tagName, "P");
+  assert.equal(pointer.textContent, PROFILE_EMPTY_STEPS_HINT);
+  assert.equal(pointer.className, "hint");
+  assert.equal(tags(pointer, "A").length + tags(pointer, "BUTTON").length, 0);
+  assert.doesNotMatch(pointer.textContent, /Paint|image description|Social/,
+    "the pointer restates the steps it is pointing at");
+  // One offer to publish in the region, and it is the recovery link, not the
+  // pointer beside it.
+  assert.equal(status.textContent.split("Publish").length - 1, 1);
+
+  renderProfileGrid(container, [imagePost], { state: "ready", author: "Mina", statusRegion: status });
+  assert.equal(status.children.length, 0, "a loaded grid keeps the zero state's invitation on screen");
+  assert.equal(status.hidden, true);
+  assert.equal(byClass(container, "profile-tile").length, 1);
+});
+
+// People cannot publish anything, so the one place it sends a visitor to Social
+// for that — the publishing step in the helper beside the grid — offers one
+// trip. The page used to name two, and neither was a control Social had: the
+// wait over the grid said "Open Social to publish an image post" and the step
+// said "Write a post on Social", while the button that opens the composer read
+// something else again (#2181). One phrase settled that, and #2416 took the wait
+// out of the argument altogether: a status region reporting an open fetch has no
+// business offering to add to a grid it has not counted yet. The step is the
+// phrase's one render site now, and this reads it off the export rather than
+// off a second literal.
 //
 // That phrase used to be built from Social's composer label, so People's words
 // were the words on the button a reader arrived at. Social's trigger is "Write a
@@ -822,7 +882,10 @@ test("People offers the trip to Social's composer in one phrase, in both places"
   // and nothing else is added, so a reader who follows either offer meets the
   // same words.
   assert.equal(PUBLISH_ON_SOCIAL, "Publish a post on Social");
-  assert.equal(loadingSummaryText(), `Image posts are loading. ${PUBLISH_ON_SOCIAL} to add one.`);
+  // And the wait is out of it: the region that reports an open fetch states the
+  // wait and nothing else (#2416).
+  assert.doesNotMatch(loadingSummaryText(), new RegExp(PUBLISH_ON_SOCIAL),
+    "the wait offers the trip to Social's composer again");
 
   const html = await readFile(new URL("../src/profile.html", import.meta.url), "utf8");
   const step = html.match(/<a class="text-link" id="profile-publish-route" href="([^"]*)">([^<]*)<\/a>/);
@@ -856,9 +919,10 @@ test("the profile page's static copy does not drift from the module's", async ()
   // is gone from the page.
   assert.match(html, /id="profile-summary"><\/p>/);
   assert.doesNotMatch(html, new RegExp(retiredEmptyLine("Ari")));
-  // People's one retrieval status names the content type; the heading already
-  // names the selected display name.
-  assert.equal(loadingSummaryText("Ari"), "Image posts are loading. Publish a post on Social to add one.");
+  // People's one retrieval status names the content type and stops; the heading
+  // already names the selected display name, and the settled zero below the grid
+  // is what offers the way to add one (#2416).
+  assert.equal(loadingSummaryText("Ari"), "Image posts are loading.");
   // And the connection line ships wordless. Its promise used to be authored
   // above the status that says the image posts are still loading, so the frame
   // with nothing in it made a promise and then admitted it had nothing — two

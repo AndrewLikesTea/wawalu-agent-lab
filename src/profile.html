@@ -260,9 +260,9 @@
                having to be a control it is not. It used to carry "· posts
                without images are on Social" as well, which was the third telling
                of a rule the intro had already given.
-               The counts line waits with the same words the connection line
+               The counts line waits with the same words the status region
                below ships (loadingSummaryText() in src/profile.js; a test pins
-               both). The loading status names the selected display name. Once
+               both). That status states the wait and nothing else. Once
                the module runs, this counts line is the
                page's only statement of the image-post total. -->
           <div class="section-heading list-heading">
@@ -303,8 +303,17 @@
                loading, failed, or an empty display name. It is rendered content
                and not an announcement — the polite region above is the page's
                one voice, and while this element was also live a name with no
-               image posts spoke the same guidance twice, from two regions. -->
-          <div class="feed-status" id="profile-feed-status">Image posts are loading. Publish a post on Social to add one.</div>
+               image posts spoke the same guidance twice, from two regions.
+               Three states, three separate sentences, and the authored one is
+               the first of them: the wait, on its own. It used to state the
+               wait and then offer the trip to Social's composer in the same
+               breath, so a reader waiting on a fetch was told the grid was
+               empty before the fetch that decides that had answered, and was
+               invited to publish by a region reporting a wait (#2416). The
+               invitation belongs to the two settled states: the empty one names
+               the selected display name and points at the steps under the grid,
+               and a loaded one has a heading counting tiles instead. -->
+          <div class="feed-status" id="profile-feed-status">Image posts are loading.</div>
           <div id="profile-grid" aria-describedby="profile-order" aria-busy="true">
             <!-- No display name is claimed above these: the heading names the
                  content type and the filled state chip is not on the page yet.
@@ -365,8 +374,10 @@
                so the words matched the button the reader arrived at; that
                trigger reads "Write a post" now and the submit reads "Publish
                post" (#2389), so this phrase names a destination and an act
-               instead, owned once in src/profile.js (PUBLISH_ON_SOCIAL) with
-               the loading status above the grid. This link used to open
+               instead, owned once in src/profile.js (PUBLISH_ON_SOCIAL). This
+               paragraph is its one render site: the status above the grid used
+               to say it too, over a fetch that had not answered yet, and
+               reports only the wait now (#2416). This link used to open
                on a third verb, "Write", while that status sent the same reader
                to "Open Social to publish an image post": one trip under two
                names, neither of them a control Social renders (#2181).

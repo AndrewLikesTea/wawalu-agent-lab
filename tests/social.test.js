@@ -2355,3 +2355,57 @@ test("People empty recovery links follow its message in keyboard order on the sh
   picker.focus();
   assert.equal(page.document.activeElement, picker);
 });
+
+// The image-post list used to report all three of its situations in one welded
+// sentence — "Image posts are loading. Publish a post on Social to add one." —
+// which announced a machine state, claimed the grid was empty before the fetch
+// that decides that had answered, and repeated the invitation the three "To add
+// yours:" steps under the grid already spell out (#2416). Three states, three
+// sentences, read off the shipped page in the order a visitor meets them.
+test("People's image-post list says the wait, the zero and the result as three separate things", async (t) => {
+  const page = await loadPage(new URL("../src/profile.html", import.meta.url), {});
+  t.after(() => page.restore());
+  const { mountProfile } = await import("../src/profile.js");
+  const { document } = page;
+  const author = "Mina Okafor";
+  const post = {
+    id: "p-image-1", author, body: "Focus rings landed everywhere.",
+    caption: "The middle card, ringed.", createdAt: "2026-07-14T09:00:00.000Z",
+    likes: 0, comments: 0,
+    image: { src: "/media/mina.svg", alt: "A card wrapped in a blue focus ring", width: 1200, height: 900 },
+  };
+  const region = () => document.querySelector("#profile-feed-status");
+
+  // 1. Loading: the wait, and only the wait. No route out of a fetch that has
+  // not said yet whether there is anything to add to — and the steps paragraph
+  // is off the page in this state, so nothing else carries the offer either.
+  const profile = mountProfile(document, { posts: [], author, state: "loading" });
+  assert.equal(textOf(region()), "Image posts are loading.");
+  assert.equal(region().querySelectorAll("a").length, 0);
+  assert.equal(region().querySelectorAll("button").length, 0);
+  assert.equal(document.querySelectorAll(".feed-create").length, 0);
+  assert.doesNotMatch(textOf(document.body), /to add one|Publish a post on Social/,
+    "a reader waiting on the first load is invited to publish");
+
+  // 2. Settled on nothing: its own sentence, naming the selected display name,
+  // and one pointer at the steps that were put back under the grid.
+  profile.setState("ready");
+  const empty = textOf(region());
+  assert.match(empty, /^The display name “Mina Okafor” has no image posts yet\./);
+  assert.doesNotMatch(empty, /Image posts are loading/, "the wait outlived the fetch it stood in for");
+  assert.match(empty, /The steps for adding one are below, under “To add yours”\./);
+  assert.equal(document.querySelectorAll(".feed-create").length, 1);
+  // One offer to publish inside the region, and the pointer is not a second one:
+  // it repeats none of the three steps it points at.
+  assert.equal(empty.split("Publish").length - 1, 1);
+  assert.equal(empty.split("The steps for adding one").length - 1, 1);
+
+  // 3. Settled with tiles: the heading over the list names the display name
+  // whose image posts these are, and counts them. The status region is gone.
+  profile.seed([post]);
+  assert.equal(document.querySelectorAll(".profile-tile").filter(
+    (tile) => !(tile.getAttribute("class") ?? "").includes("-skeleton")).length, 1);
+  assert.equal(textOf(document.querySelector("#grid-title")), "Mina Okafor · 1 image post");
+  assert.equal(region().hidden, true);
+  assert.equal(textOf(region()), "");
+});
