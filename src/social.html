@@ -335,22 +335,33 @@
                region and above the first card, so a first-time visitor read a
                screen of provenance before a single post. Same bytes, same
                class, same panel: only its place in the document moved, and it
-               moved below the posts it explains rather than behind a disclosure
-               widget, because a sentence a reader has to open is a sentence
-               they meet too late.
+               moved below the posts it explains.
+               Three sentences of it, three times over, is the length a reader
+               skips (#2412), so the fact itself is the line that stands — a
+               reader who needs no more is done in five words — and the three
+               sentences that qualify it wait in a collapsed disclosure under
+               it. The summary is the claim, not a label for one: it says the
+               thing rather than promising to say it, so closed is a complete
+               read and open is the detail. The same summary bytes and the same
+               shape are on People and on the permalink.
                It is still the feed panel's own markup, outside every branch
                social.js swaps — loading, ready, empty, error, and no-match all
                render it — so the claim about who wrote the posts does not
-               depend on a fetch having answered. Plain prose: no heading,
-               nothing focusable, no live region, and no rule of its own in the
-               stylesheet. People and the permalink render these exact bytes;
-               the composer's field hint keeps only what neither says, which is
-               what the name is used for.
+               depend on a fetch having answered. The disclosure carries the
+               help class this page already ships, on the details element and
+               not on its summary, because the marker, the pointer and the ring
+               are keyed on the parent; it adds no rule to the stylesheet.
+               People and the permalink render these exact bytes; the composer's
+               field hint keeps only what neither says, which is what the name
+               is used for.
                It names the two cases apart (#2348): the posts already on Social
                carry invented names, and every other post carries the name its
                publisher typed. It used to call the whole feed "this demo", which
                a reader of a real, permanent post has no reason to believe. -->
-          <p class="hint" id="feed-source-note">Display names on the posts already on Social are invented. On any other post, whoever published it chose the name. Nobody owns or verifies a display name, and anyone can publish under any name.</p>
+          <details class="hint" id="display-name-caveat">
+            <summary>Nobody verifies a display name.</summary>
+            <p class="hint" id="feed-source-note">Display names on the posts already on Social are invented. On any other post, whoever published it chose the name. Nobody owns or verifies a display name, and anyone can publish under any name.</p>
+          </details>
           <!-- The route to reporting a post (#2343), beside the caveat about who
                publishes here and outside the composer panel on purpose: the
                composer's tab order is pinned stop by stop, and this link is not

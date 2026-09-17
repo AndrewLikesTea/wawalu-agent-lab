@@ -926,8 +926,12 @@ export function mountProfile(root, options = {}) {
     // connection line — which also leaves the document — above it, and an index
     // counted from a panel that is missing a line lands this one past the
     // caveat. The caveat is authored outside every branch rendered here, so it
-    // is the one sibling that is always there to stand in front of.
-    feedPresence(root.querySelector(".feed-create"), root.querySelector(".profile-role")),
+    // is the one sibling that is always there to stand in front of. The anchor
+    // is the caveat's disclosure (#2412), which is the panel-level block: the
+    // paragraph inside it is no longer a sibling of this one, and an anchor in
+    // another parent is silently dropped for the remembered index this exists
+    // to avoid.
+    feedPresence(root.querySelector(".feed-create"), root.querySelector("#display-name-caveat")),
     // The identity line is the fourth: it says what the grid beside it is
     // showing, so a grid with nothing in it has nothing for it to say. It leaves
     // the document while the first load is open — absent rather than emptied,

@@ -337,10 +337,15 @@ test("the main landmark rings for keyboard focus only, never for a mouse click",
 
 /* --------------------------- the post page's order ------------------------ */
 
-// The skip link, the wordmark, the nav, and the two onward routes the page
-// offers before its lookup has answered. People is the only exit missing here:
-// it needs a display name nobody has yet.
-const FRAME_STOPS = SITE_NAV.length + 5;
+// The skip link, the wordmark, the nav, the one stop the standing copy costs,
+// and the two onward routes the page offers before its lookup has answered.
+// People is the only exit missing here: it needs a display name nobody has yet.
+const FRAME_STOPS = SITE_NAV.length + 6;
+// The display-name caveat is a closed disclosure on all three social surfaces
+// (#2412), so its summary is a stop between the post and the way out of it. It
+// is the page's only one: the reporting sentences under it stayed plain
+// paragraphs.
+const CAVEAT_SUMMARY = "Nobody verifies a display name.";
 // The follow-up's required intent group (#2365): one stop, its first radio.
 const INTENT_STOP = "site-footer-intent-availability_pricing";
 
@@ -356,6 +361,7 @@ test("the post page's loading tab order reaches Social without a placeholder Peo
       ...SITE_NAV.slice(0, 3).map((link) => link.label),
       "More lab tools",
       ...SITE_NAV.slice(3).map((link) => link.label),
+      CAVEAT_SUMMARY,
       "Open Social to read the whole feed",
       "Open Social to publish a post",
     ],

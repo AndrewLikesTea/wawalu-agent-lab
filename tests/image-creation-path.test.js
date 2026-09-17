@@ -478,9 +478,18 @@ test("the composer numbers the round trip and puts the rule beside the control",
   assert.match(sources.Social, /<p class="hint" id="post-image-hint">/);
   // Scoped to the content region since #2250: the footer's secondary-destination
   // directory is a disclosure now, and it is nowhere near the composer. What may
-  // never be folded is anything the composer says about the field.
-  assert.equal(documents.Social.querySelector("#main-content").querySelectorAll("details").length, 0,
-    "Social folded content behind a disclosure widget");
+  // never be folded is anything the composer says about the field. Since #2412
+  // the content region holds exactly one disclosure — the display-name caveat,
+  // under the feed — so this names it rather than forbidding the element, and
+  // walks the ancestry of each piece of composer copy to prove none is inside it.
+  const folds = documents.Social.querySelector("#main-content").querySelectorAll("details");
+  assert.equal(folds.length, 1, `Social folded content behind ${folds.length} disclosure widgets`);
+  assert.equal(folds[0].getAttribute("id"), "display-name-caveat",
+    "the one fold in Social's content region is not the display-name caveat");
+  for (const node of [hint, chip, documents.Social.querySelector("#post-image-steps")]) {
+    for (let at = node; at; at = at.parentNode)
+      assert.notEqual(at.tagName, "DETAILS", "the composer's own copy is folded behind a disclosure widget");
+  }
   for (const id of ["post-image-steps", "post-image-hint"]) {
     assert.ok(!documents.Social.getElementById(id).closest("details"),
       `${id} was folded behind a disclosure widget`);

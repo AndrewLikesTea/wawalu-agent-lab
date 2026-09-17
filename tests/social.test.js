@@ -42,6 +42,55 @@ const ids = (posts) => posts.map((post) => post.id);
 // two cases (#2348): invented on the posts already on Social, chosen by the
 // publisher on any other. It used to call the whole feed "this demo".
 const DISPLAY_NAME_SENTENCE = "Display names on the posts already on Social are invented. On any other post, whoever published it chose the name. Nobody owns or verifies a display name, and anyone can publish under any name.";
+// The one line that stands open, in the same bytes on Social, People and the
+// permalink (#2412): the fact itself, short enough to be read rather than
+// skipped, with the three sentences above waiting behind it.
+const CAVEAT_SUMMARY = "Nobody verifies a display name.";
+
+// The shape #2412 asked for, and the shape this harness can actually check: the
+// definition sits inside a details element that ships closed, the summary is the
+// short sentence, and the styling class is on the details rather than on the
+// summary — the marker reset, the pointer and the focus ring are all keyed on
+// the parent, so a class on the summary paints two triangles and no ring.
+//
+// The harness models no layout and reads straight through a closed disclosure,
+// so closure is asserted on the attribute and never on the absence of text; the
+// definition being the disclosure's second block is what "reachable when opened"
+// means here.
+function assertCaveatDisclosure(document, where, sentence = DISPLAY_NAME_SENTENCE) {
+  assert.equal(document.querySelectorAll("#display-name-caveat").length, 1,
+    `${where}: the display-name disclosure is not on the page exactly once`);
+  const caveat = document.querySelector("#display-name-caveat");
+  assert.equal(caveat.tagName, "DETAILS", `${where}: the caveat is not a disclosure`);
+  assert.ok(caveat.classList.contains("hint"),
+    `${where}: the disclosure dropped the help class the page already ships`);
+  assert.equal(caveat.getAttribute("open"), null, `${where}: the disclosure ships open`);
+  assert.ok(!caveat.open, `${where}: the disclosure ships open`);
+  assert.equal(caveat.getAttribute("hidden"), null, `${where}: the disclosure ships hidden`);
+
+  const summaries = caveat.querySelectorAll("summary");
+  assert.equal(summaries.length, 1, `${where}: the disclosure carries ${summaries.length} summaries`);
+  assert.equal(textOf(summaries[0]), CAVEAT_SUMMARY, `${where}: the standing line was reworded`);
+  assert.equal(summaries[0].getAttribute("class"), null,
+    `${where}: the class belongs on the details element, not on its summary`);
+
+  // A summary and the definition, and nothing else. The harness keeps text nodes
+  // in `children`, so this filters on nodeType the way the page walks do.
+  const blocks = caveat.children.filter((node) => node.nodeType === 1);
+  assert.equal(blocks.length, 2,
+    `${where}: the disclosure holds ${blocks.length} blocks rather than its summary and the definition`);
+  assert.equal(blocks[0].tagName, "SUMMARY", `${where}: the disclosure does not open on its summary`);
+  assert.equal(textOf(blocks[1]), sentence, `${where}: the definition behind the summary was rewritten`);
+
+  // Once each over the whole page: the standing line is not a second copy of the
+  // definition, and the definition is not also standing open somewhere else.
+  const page = textOf(document.body);
+  assert.equal(page.split(CAVEAT_SUMMARY).length - 1, 1,
+    `${where}: the standing line is stated other than exactly once`);
+  assert.equal(page.split(sentence).length - 1, 1,
+    `${where}: the definition is stated other than exactly once`);
+}
+
 // Both cases, and never the word that called a feed of real posts a demo.
 function assertBothNameCases(text, where) {
   assert.doesNotMatch(text, /\bdemo\b/i, `${where} calls the posts a demo`);
@@ -584,14 +633,18 @@ test("the feed says who wrote the posts, where the posts are", async (t) => {
     "the panel it sits in is the one the feed heading names");
 
   // Prose, and only prose: a heading would claim a section, a live region would
-  // announce a sentence that never changes, and a tab stop would put a fixed
-  // fact in the keyboard path to the cards.
+  // announce a sentence that never changes, and a tabindex would invent a stop
+  // the disclosure around it already provides.
   assert.equal(note.getAttribute("aria-live"), null);
   assert.equal(note.getAttribute("role"), null);
   assert.equal(note.getAttribute("tabindex"), null);
   assert.equal(note.hasAttribute("hidden"), false);
   assert.ok(note.classList.contains("hint"),
     "the sentence uses the explanatory-prose class the panel already ships");
+
+  // Three sentences of it no longer stand open under the feed (#2412). The line
+  // that stands is the fact; the qualification is one press away.
+  assertCaveatDisclosure(page.document, "the feed");
 
   // Said once on the page. The intro says what the feed is and where to go
   // next, and its last words stay the ones the permalink quotes.
@@ -812,11 +865,14 @@ test("the status region and the posts are read before the demo disclaimer, in ev
     assert.equal(region.getAttribute("role"), "status", `${state}: the status region stopped being a status`);
     assert.equal(region.getAttribute("aria-live"), "polite", `${state}: the status region stopped announcing`);
     assert.equal(insideDisclosure(region), false, `${state}: the status announces from inside a disclosure`);
-    // And neither did the caveat go behind one: it is read without being asked
-    // for, by a keyboard and by a screen reader alike.
-    assert.equal(insideDisclosure(note), false, `${state}: the caveat has to be opened before it can be read`);
-    assert.equal(note.getAttribute("tabindex"), null, `${state}: the caveat grew a tab stop`);
+    // The definition is behind one now (#2412) and the fact it qualifies is not:
+    // the summary states it, in this state and every other, and the reader who
+    // wants the three sentences opens them. The disclosure is the panel's own
+    // markup, outside every branch social.js swaps, so it survives all of them.
+    assert.equal(insideDisclosure(note), true, `${state}: the definition is back open under the feed`);
+    assert.equal(note.getAttribute("tabindex"), null, `${state}: the definition grew a tab stop of its own`);
     assert.equal(note.hasAttribute("hidden"), false, `${state}: the caveat ships hidden`);
+    assertCaveatDisclosure(document, state);
 
     // The state's own words, in the region that has always carried them.
     if (status !== null) assert.match(textOf(region), status, `${state}: the always-visible region lost its status`);

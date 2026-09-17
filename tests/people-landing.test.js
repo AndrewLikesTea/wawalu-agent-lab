@@ -789,8 +789,13 @@ test("one profile header opens the results, above the line that orders them", as
     // paragraph in this panel, and still not in the hero.
     assert.ok(at(".profile-role") > at("#profile-grid"),
       "the display-name caveat is still read before the posts");
-    assert.equal(panel.childElements.at(-1).className, "profile-role",
+    // The block that closes the panel is the caveat's disclosure (#2412): the
+    // definition is the paragraph inside it, so the panel-level child is the
+    // details element carrying the page's help class.
+    assert.equal(panel.childElements.at(-1).getAttribute("id"), "display-name-caveat",
       "something other than the caveat closes the results region");
+    assert.equal(panel.childElements.at(-1).className, "hint",
+      "the caveat's disclosure dropped the help class the page already ships");
     // And the hero it came from keeps no piece of it behind.
     const hero = document.querySelector(".hero-profile");
     assert.equal(hero.querySelectorAll(".profile-identity").length, 0);
@@ -961,7 +966,10 @@ const blockIndex = (document, selector) => {
 function assertListLeadsInvitation(document, when) {
   const blocks = panelBlocks(document);
   const at = (selector) => blockIndex(document, selector);
-  for (const selector of [".section-heading", "#profile-feed-status", "#profile-grid", ".feed-create", ".profile-role"]) {
+  // The caveat is a panel block by its disclosure (#2412), not by the paragraph
+  // inside it: `panelBlocks` is the panel's own element children, and the
+  // definition is one level down now.
+  for (const selector of [".section-heading", "#profile-feed-status", "#profile-grid", ".feed-create", "#display-name-caveat"]) {
     assert.ok(at(selector) > -1, `${when}: the panel is missing ${selector}`);
   }
   // The list slot — the panel that stands in for the grid while it is loading,
@@ -984,7 +992,7 @@ function assertListLeadsInvitation(document, when) {
   // it to, not the end of the panel and not the caveat's place.
   assert.ok(at("#profile-grid") < at(".feed-create"),
     `${when}: the publishing invitation renders above the image posts`);
-  assert.equal(at(".profile-role"), at(".feed-create") + 1,
+  assert.equal(at("#display-name-caveat"), at(".feed-create") + 1,
     `${when}: the invitation and the display-name caveat swapped places`);
 }
 
@@ -1205,6 +1213,57 @@ function insideDisclosure(node) {
 // and the post permalink render.
 const CAVEAT = "Display names on the posts already on Social are invented. On any other post, whoever published it chose the name. Nobody owns or verifies a display name, and anyone can publish under any name.";
 
+// The one line that stands open above it, in the same bytes on all three social
+// surfaces (#2412): the fact itself, short enough to be read rather than
+// skipped, with the definition waiting behind it.
+const CAVEAT_SUMMARY = "Nobody verifies a display name.";
+
+// The shape #2412 asked for, and the shape this harness can actually check: the
+// definition sits inside a details element that ships closed, the summary is the
+// short sentence, and the styling class is on the details rather than on the
+// summary — the marker reset, the pointer and the focus ring are keyed on the
+// parent, so a class on the summary paints two triangles and no ring.
+//
+// The harness models no layout and reads straight through a closed disclosure,
+// so closure is asserted on the attribute and never on the absence of text; the
+// definition being the disclosure's second block is what "reachable when opened"
+// means here.
+function assertCaveatDisclosure(document, where) {
+  assert.equal(document.querySelectorAll("#display-name-caveat").length, 1,
+    `${where}: the display-name disclosure is not on the page exactly once`);
+  const disclosure = document.querySelector("#display-name-caveat");
+  assert.equal(disclosure.tagName, "DETAILS", `${where}: the caveat is not a disclosure`);
+  assert.ok(disclosure.classList.contains("hint"),
+    `${where}: the disclosure dropped the help class the page already ships`);
+  assert.equal(disclosure.getAttribute("open"), null, `${where}: the disclosure ships open`);
+  assert.ok(!disclosure.open, `${where}: the disclosure ships open`);
+  assert.equal(disclosure.getAttribute("hidden"), null, `${where}: the disclosure ships hidden`);
+
+  const summaries = disclosure.querySelectorAll("summary");
+  assert.equal(summaries.length, 1, `${where}: the disclosure carries ${summaries.length} summaries`);
+  assert.equal(textOf(summaries[0]), CAVEAT_SUMMARY, `${where}: the standing line was reworded`);
+  assert.equal(summaries[0].getAttribute("class"), null,
+    `${where}: the class belongs on the details element, not on its summary`);
+
+  // A summary and the definition, and nothing else. The harness keeps text nodes
+  // in `children`, so this filters on nodeType the way the page walks do.
+  const blocks = disclosure.children.filter((node) => node.nodeType === 1);
+  assert.equal(blocks.length, 2,
+    `${where}: the disclosure holds ${blocks.length} blocks rather than its summary and the definition`);
+  assert.equal(blocks[0].tagName, "SUMMARY", `${where}: the disclosure does not open on its summary`);
+  assert.equal(textOf(blocks[1]), CAVEAT, `${where}: the definition behind the summary was rewritten`);
+  assert.equal(blocks[1].className, "profile-role",
+    `${where}: the definition lost this page's own class for it`);
+
+  // Once each over the whole page: the standing line is not a second copy of the
+  // definition, and the definition is not also standing open somewhere else.
+  const page = textOf(document.body);
+  assert.equal(page.split(CAVEAT_SUMMARY).length - 1, 1,
+    `${where}: the standing line is stated other than exactly once`);
+  assert.equal(page.split(CAVEAT).length - 1, 1,
+    `${where}: the definition is stated other than exactly once`);
+}
+
 // The reported defect (issue #1789): the display-name caveat closed the profile
 // header at the top of this panel, above the ordering line, above the status
 // region and above the grid, so the first screen of a page that is nothing but
@@ -1242,11 +1301,14 @@ function assertPicturesBeforeProvenance(document, state, { tiles = null, status 
   assert.equal(announcer.getAttribute("aria-live"), "polite", `${state}: the announcer stopped announcing`);
   assert.equal(insideDisclosure(announcer), false, `${state}: the announcer announces from inside a disclosure`);
 
-  // And the caveat is read without being asked for, by a keyboard and by a
-  // screen reader alike: no disclosure over it, no tab stop, not hidden.
-  assert.equal(insideDisclosure(caveat), false, `${state}: the caveat has to be opened before it can be read`);
-  assert.equal(caveat.getAttribute("tabindex"), null, `${state}: the caveat grew a tab stop`);
+  // The fact is read without being asked for and the three sentences that
+  // qualify it are one press away (#2412): the standing line is the disclosure's
+  // summary, in this state and in every other, and the definition behind it
+  // grows no tab stop of its own and ships visible once opened.
+  assert.equal(insideDisclosure(caveat), true, `${state}: the definition is back open under the grid`);
+  assert.equal(caveat.getAttribute("tabindex"), null, `${state}: the definition grew a tab stop of its own`);
   assert.equal(caveat.hasAttribute("hidden"), false, `${state}: the caveat ships hidden`);
+  assertCaveatDisclosure(document, state);
 
   if (status !== null) assert.match(textOf(region), status, `${state}: the always-visible region lost its status`);
   if (tiles !== null) {

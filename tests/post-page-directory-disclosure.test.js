@@ -321,7 +321,15 @@ test("the permalink's tab order runs skip, nav, post, exits, follow-up, director
   // errand before meeting a list of everywhere else.
   const exits = ["#post-back", "#post-people", "#post-publish"].map(at);
   assert.deepEqual(exits.slice().sort((a, b) => a - b), exits, "the exits keep their reading order");
-  assert.equal(exits[0], 3 + SITE_NAV.length, "the first exit follows the nav directly");
+  // One stop stands between the nav and the first exit since #2412: the summary
+  // of the display-name caveat, which is standing copy the page reads before its
+  // routes out. It is named here so a second fold cannot slip in behind it. The
+  // harness rejects descendant selectors, so the stop is matched by walking up.
+  const caveat = stops.findIndex((node) => node.tagName === "SUMMARY"
+    && Boolean(node.closest("#display-name-caveat")));
+  assert.equal(caveat + 1, exits[0],
+    "something other than the display-name caveat stands between the nav and the first exit");
+  assert.equal(exits[0], 4 + SITE_NAV.length, "the first exit follows the nav and the caveat");
   assert.ok(at(SUMMARY) > exits[2], "the directory summary comes after the page's own routes out");
   assert.ok(at(SUMMARY) > at("#site-footer-email"), "the follow-up field is reached before the summary");
   assert.equal(at(SUMMARY), stops.length - 1, "the folded map is the last stop on the page");

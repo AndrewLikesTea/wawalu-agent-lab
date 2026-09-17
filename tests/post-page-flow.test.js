@@ -185,6 +185,30 @@ test("the permalink says what a display name is in Social's and People's own byt
   assert.equal(new Set(shipped).size, 1, "Social and People drifted into two ways of saying it");
   assert.equal(IDENTITY, shipped[0], `the permalink does not ship the other two's sentence: ${shipped[0]}`);
 
+  // And the line that stands open above it is one sentence in one set of bytes
+  // on all three surfaces (#2412), inside the same markup: the help class on the
+  // details element, never on the summary, because the marker reset, the pointer
+  // and the focus ring are keyed on the parent. Read out of the files rather than
+  // typed three times, so a page that reshapes its disclosure fails here.
+  const summaries = [];
+  for (const file of ["social.html", "profile.html", "post.html"]) {
+    const html = (await readFile(new URL(`../src/${file}`, import.meta.url), "utf8")).replace(/<!--[\s\S]*?-->/g, "");
+    const opened = html.match(/<details class="hint" id="display-name-caveat">\s*<summary>([^<]*)<\/summary>/);
+    assert.ok(opened, `${file} no longer collapses the display-name caveat behind a summary`);
+    assert.equal(html.split('id="display-name-caveat"').length - 1, 1,
+      `${file} carries the display-name disclosure other than exactly once`);
+    assert.equal(html.split(opened[1]).length - 1, 1,
+      `${file} states the standing line other than exactly once`);
+    summaries.push(opened[1]);
+  }
+  assert.equal(new Set(summaries).size, 1,
+    `the three surfaces drifted into ${new Set(summaries).size} standing lines: ${summaries.join(" / ")}`);
+  assert.equal(summaries[0], CAVEAT_SUMMARY, `the standing line was reworded: ${summaries[0]}`);
+  // One sentence, and the fact itself rather than a label for one: a summary a
+  // reader has to open to learn anything is a summary they skip.
+  assert.equal(summaries[0].match(/[.!?](?:\s|$)/g).length, 1, "the standing line grew a second sentence");
+  assert.ok(summaries[0].length <= 40, `the standing line is ${summaries[0].length} characters, not one short line`);
+
   const page = await openPostPage("?id=p-image", seedOnly([SEED_POST]));
   try {
     const rendered = textOf(page.document.querySelector("#main-content"));
@@ -216,6 +240,61 @@ function assertIdentityStands(document, where) {
   for (const region of ["#post-detail", "#site-footer"]) {
     assert.equal(Boolean(flow[note].closest(region)), false, `${where}: the sentence sits inside ${region}`);
   }
+  assertCaveatDisclosure(document, where);
+}
+
+// The one line that stands open, in the same bytes on Social, People and this
+// page (#2412): the fact itself, short enough to be read rather than skipped,
+// with the three sentences that qualify it waiting behind it.
+const CAVEAT_SUMMARY = "Nobody verifies a display name.";
+
+// The shape #2412 asked for, and the shape this harness can actually check: the
+// definition sits inside a details element that ships closed, the summary is the
+// short sentence, and the styling class is on the details rather than on the
+// summary — the marker reset, the pointer and the focus ring are keyed on the
+// parent, so a class on the summary paints two triangles and no ring.
+//
+// The harness models no layout and reads straight through a closed disclosure,
+// so closure is asserted on the attribute and never on the absence of text; the
+// definition being the disclosure's second block is what "reachable when opened"
+// means here.
+function assertCaveatDisclosure(document, where) {
+  assert.equal(document.querySelectorAll("#display-name-caveat").length, 1,
+    `${where}: the display-name disclosure is not on the page exactly once`);
+  const disclosure = document.querySelector("#display-name-caveat");
+  assert.equal(disclosure.tagName, "DETAILS", `${where}: the caveat is not a disclosure`);
+  assert.ok(disclosure.classList.contains("hint"),
+    `${where}: the disclosure dropped the help class the page already ships`);
+  assert.equal(disclosure.getAttribute("open"), null, `${where}: the disclosure ships open`);
+  assert.ok(!disclosure.open, `${where}: the disclosure ships open`);
+  assert.equal(disclosure.getAttribute("hidden"), null, `${where}: the disclosure ships hidden`);
+  // Standing copy, like the sentences it sits between: the lookup empties
+  // #post-detail on every render and must never take this with it.
+  for (const region of ["#post-detail", "#site-footer"]) {
+    assert.equal(Boolean(disclosure.closest(region)), false, `${where}: the disclosure sits inside ${region}`);
+  }
+
+  const summaries = disclosure.querySelectorAll("summary");
+  assert.equal(summaries.length, 1, `${where}: the disclosure carries ${summaries.length} summaries`);
+  assert.equal(textOf(summaries[0]), CAVEAT_SUMMARY, `${where}: the standing line was reworded`);
+  assert.equal(summaries[0].getAttribute("class"), null,
+    `${where}: the class belongs on the details element, not on its summary`);
+
+  // A summary and the definition, and nothing else. The harness keeps text nodes
+  // in `children`, so this filters on nodeType.
+  const blocks = disclosure.children.filter((node) => node.nodeType === 1);
+  assert.equal(blocks.length, 2,
+    `${where}: the disclosure holds ${blocks.length} blocks rather than its summary and the definition`);
+  assert.equal(blocks[0].tagName, "SUMMARY", `${where}: the disclosure does not open on its summary`);
+  assert.equal(textOf(blocks[1]), IDENTITY, `${where}: the definition behind the summary was rewritten`);
+
+  // Once each over the whole page: the standing line is not a second copy of the
+  // definition, and neither is said twice.
+  const page = textOf(document.body);
+  assert.equal(page.split(CAVEAT_SUMMARY).length - 1, 1,
+    `${where}: the standing line is stated other than exactly once`);
+  assert.equal(page.split(IDENTITY).length - 1, 1,
+    `${where}: the definition is stated other than exactly once`);
 }
 
 test("the permalink says what a display name is once in every state, between its heading and the feed link", async () => {
@@ -819,8 +898,12 @@ test("a loaded post can hand over its own link, and says so where the post is", 
 });
 
 // Tab order by pressing Tab, not only by index: from the post's last stop, one
-// press reaches the control and the next reaches the feed link.
-test("Tab moves from the post to its copy control, then straight to the feed", async () => {
+// press reaches the control, the next reaches the caveat the page gained a stop
+// for, and the next reaches the feed link. That middle stop is the whole cost of
+// #2412 on this page — one press, naming the fact it opens, between the post and
+// the way out — and it is asserted rather than assumed so a second one cannot
+// arrive unnoticed.
+test("Tab moves from the post to its copy control, then the caveat, then the feed", async () => {
   const page = await openPostPage("?id=p-image", seedOnly([SEED_POST]));
   try {
     const sequence = tabSequence(page.document);
@@ -832,9 +915,18 @@ test("Tab moves from the post to its copy control, then straight to the feed", a
     // is confirmed before stepping.
     assert.ok(page.document.activeElement === before, "Tab starts from the post");
     assert.equal(textOf(pressTab(page.document)), "Copy link to this post");
+    const caveat = pressTab(page.document);
+    assert.equal(caveat.tagName, "SUMMARY", "the stop after the control is not the caveat's summary");
+    assert.equal(textOf(caveat), CAVEAT_SUMMARY);
+    assert.equal(caveat.closest("#display-name-caveat")?.tagName, "DETAILS");
     const next = pressTab(page.document);
     assert.equal(next.id, "post-back");
     assert.equal(textOf(next), "Open Social to read the whole feed");
+    // And exactly one stop was added: the reporting sentences under it stayed
+    // plain paragraphs, so the standing copy costs one press, not three.
+    assert.equal(tabSequence(page.document).filter((node) => node.tagName === "SUMMARY"
+      && Boolean(node.closest("#main-content"))).length, 1,
+      "the page's standing copy grew a second disclosure");
   } finally {
     page.restore();
   }
