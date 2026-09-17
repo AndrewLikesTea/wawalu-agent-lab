@@ -559,11 +559,28 @@ test("the privacy promise is made once, in one wording, before the field", async
   // coach reads, and what it never reaches.
   assert.equal(textOf(byId(document, "prompt-coaching-preview-summary")),
     "What the coach reads and keeps");
-  const reads = textOf(document.querySelector(".prompt-coaching-preview-static"));
+  const statements = document.querySelectorAll(".prompt-coaching-preview-static")
+    .map((node) => textOf(node));
+  assert.equal(statements.length, 2,
+    "the heading promises what the coach reads and what it keeps; both are answered");
+  const [reads, keeps] = statements;
   assert.match(reads, /reads only the text you paste and the optional model tier/);
   assert.match(reads, /does not access your accounts, files, or customer data/);
   assert.doesNotMatch(reads, /stays in this browser/,
     "the disclosure must not restate where the text stays");
+
+  // The second half of the heading, answered: what is kept, for how long, and
+  // the one control that ends it. The control is named by the label a visitor
+  // reads on the button — asserted here against the rendered button so the
+  // sentence cannot go on quoting a label the page stopped using.
+  assert.match(keeps,
+    /keeps your prompt and grades on this page, in this browser, until you press Delete prompt and grades\./,
+    "the disclosure must say what the coach keeps and what ends it");
+  assert.match(keeps, /Leaving the page clears them too, and nothing is stored elsewhere\./);
+  assert.equal(textOf(byId(document, "prompt-coaching-clear")), "Delete prompt and grades",
+    "the kept-until sentence must quote the clear control by its rendered label");
+  assert.doesNotMatch(keeps, /stays in this browser/,
+    "the keeps half states how long, not a second copy of the privacy promise");
 });
 
 // The three invitations a visitor reads before opening anything, and the one
