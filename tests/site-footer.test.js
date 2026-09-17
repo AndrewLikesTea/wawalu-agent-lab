@@ -21,6 +21,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
 import {
+  ASSETS_HREF, ASSETS_LINK_LABEL,
   DEMOS, DIRECTORY_SUMMARY, FOLLOW_UP_REDIRECT, IDENTITY, INVITATION, PITCH, PITCH_HREF, PITCH_LINK,
   REPOSITORY_LINK_LABEL, siteFooterMarkup, SOURCE_LINK_LABEL,
 } from "../src/site-footer.js";
@@ -88,6 +89,13 @@ const describedBy = (document) => byId(document, "site-footer-email").getAttribu
 // page is deliberately not on it: its footer is unchanged, and the field it
 // already carries belongs to the bundled-example form higher up the page.
 //
+// `assets` is the sixth shape, and the one issue #2414 added: the five pages a
+// reader is on to do one thing get a single route back to the home page's
+// evaluation brief and blank pilot scorecard, which are the two things they
+// forward to whoever has to decide. Neither asset is copied — see
+// ASSETS_LINK_LABEL — so this is a link and nothing else. The home page is
+// deliberately not on it: the section is already on that page.
+//
 // `offer` is the fifth shape, and the one issue #2130 added: the deep pages a
 // shared link lands on open the block with what asking gets a visitor — no
 // self-serve signup, no published price, availability and cost answered on
@@ -103,7 +111,7 @@ const FOOTER_VARIANT = new Map([
   ["executive-briefing.html", { redirect: FOLLOW_UP_REDIRECT.briefing }],
   ["coach.html", {
     followUpType: "follow_up_coach", followUpTopic: FOLLOW_UP_TOPICS.follow_up_coach,
-    collapsedDemos: true, askMessage: true, offer: true,
+    collapsedDemos: true, askMessage: true, offer: true, assets: true,
   }],
   // `collapsedDemos` is the third shape, and issue #2250 gave it to the five
   // pages a visitor is on to do one thing — read a post, read the feed, pick a
@@ -121,19 +129,19 @@ const FOOTER_VARIANT = new Map([
   }],
   ["releases.html", {
     followUpType: "follow_up_releases", followUpTopic: FOLLOW_UP_TOPICS.follow_up_releases,
-    collapsedDemos: true, askMessage: true, offer: true,
+    collapsedDemos: true, askMessage: true, offer: true, assets: true,
   }],
   ["social.html", {
     followUpType: "follow_up_social", followUpTopic: FOLLOW_UP_TOPICS.follow_up_social,
-    collapsedDemos: true, askMessage: true, offer: true,
+    collapsedDemos: true, askMessage: true, offer: true, assets: true,
   }],
   ["profile.html", {
     followUpType: "follow_up_people", followUpTopic: FOLLOW_UP_TOPICS.follow_up_people,
-    collapsedDemos: true, askMessage: true, offer: true,
+    collapsedDemos: true, askMessage: true, offer: true, assets: true,
   }],
   ["agents.html", {
     followUpType: "follow_up_agents", followUpTopic: FOLLOW_UP_TOPICS.follow_up_agents,
-    askMessage: true, offer: true,
+    askMessage: true, offer: true, assets: true,
   }],
 ]);
 
@@ -1454,6 +1462,114 @@ test("a page that already published the repository does not publish it twice in 
     }
   }
 });
+
+/* ------------------- the two things a reader forwards on ------------------ */
+
+// The home page carries an evaluation brief and a blank pilot scorecard, each
+// with its own copy and download controls, and they are what a reader forwards
+// to whoever has to decide. Every other page used to end without a way back to
+// them: a visitor who arrived on a shared release, post or profile link had to
+// go to the home page and find the section for themselves.
+//
+// What #2414 adds is a route and nothing else. Neither asset is copied, no page
+// gains a claim, and the section keeps being the one place their controls are —
+// so these tests are about counts, addresses and order, not about copy.
+const ASSETS_ID = "site-footer-assets";
+const ASSETS_FRAGMENT = ASSETS_HREF.slice(ASSETS_HREF.indexOf("#") + 1);
+// Recorded here rather than inferred, for the same reason the redirect and the
+// folded directory are: a page cannot quietly join or leave this set.
+const ASSET_PAGES = ["releases.html", "coach.html", "social.html", "profile.html", "agents.html"];
+
+test("exactly five pages route a reader to the brief and the scorecard, and the home page is not one", async () => {
+  // One label naming both, because the fragment lands on the brief and the
+  // scorecard is the section directly beneath it — a reader who follows this is
+  // looking at both, and has to know that before they press it.
+  assert.equal(ASSETS_LINK_LABEL, "Evaluation brief and pilot scorecard");
+  for (const asset of [/\bbrief\b/i, /\bscorecard\b/i]) {
+    assert.match(ASSETS_LINK_LABEL, asset, "the label must name both assets");
+  }
+  // Root-relative with the home page's own fragment: the convention every
+  // cross-page link in this band already uses, so it resolves from any depth.
+  assert.equal(ASSETS_HREF, "/#shiplog-evaluation-brief");
+  assert.ok(ASSETS_HREF.startsWith("/"), "the link must resolve from any page depth");
+
+  // And it points at something. The section is the home page's, under the id it
+  // already had — this change renames nothing there.
+  const home = await read("index.html");
+  assert.ok(home.includes(`id="${ASSETS_FRAGMENT}"`), "the home page has no section under that id");
+  assert.ok(home.indexOf(`id="${ASSETS_FRAGMENT}"`) < home.indexOf('id="shiplog-pilot-scorecard"'),
+    "the fragment must land above the scorecard, not below it");
+
+  for (const file of PAGES) {
+    const html = await read(file);
+    const shipped = ASSET_PAGES.includes(file);
+    const footer = html.slice(html.indexOf('<footer class="site-footer"'));
+    assert.equal((footer.match(new RegExp(`id="${ASSETS_ID}"`, "g")) ?? []).length, shipped ? 1 : 0,
+      `${file}: the About block must ship ${shipped ? "exactly one" : "no"} route to the brief and the scorecard`);
+    // One copy of the label on the whole document, or none: a second one would
+    // be a second answer to where those two assets are.
+    assert.equal((html.match(new RegExp(ASSETS_LINK_LABEL, "g")) ?? []).length, shipped ? 1 : 0,
+      `${file}: the label is written ${shipped ? "once" : "nowhere"} on the page`);
+  }
+
+  // The home page keeps its section and its controls, and gains no focusable of
+  // its own: its first screen has no spare tab stop, and a pointer from a page
+  // to a section of itself is a link a reader has to work out.
+  assert.equal((home.match(new RegExp(`id="${ASSETS_ID}"`, "g")) ?? []).length, 0,
+    "the home page must not point at its own section");
+  for (const control of ["copy-shiplog-evaluation-brief", "download-shiplog-evaluation-brief", "copy-pilot-scorecard"]) {
+    assert.ok(home.includes(`id="${control}"`), `the home page lost ${control}`);
+  }
+});
+
+for (const file of ASSET_PAGES) {
+  test(`${file} routes to the brief and the scorecard once, in the About block's reading order`, async () => {
+    const page = await loadPage(pageUrl(file));
+    const { document } = page;
+    try {
+      assert.equal(countOf(document, ASSETS_ID), 1, "one route, and one is enough");
+      const link = byId(document, ASSETS_ID);
+      assert.equal(link.tagName, "A");
+      assert.equal(textOf(link), ASSETS_LINK_LABEL);
+      assert.equal(link.getAttribute("href"), ASSETS_HREF);
+      assert.ok(link.getAttribute("href").endsWith(`#${ASSETS_FRAGMENT}`),
+        "the link must carry the home page section's fragment");
+      assert.equal(link.closest("footer").id, "site-footer",
+        "the route belongs to the shared block, not to the content above it");
+
+      // The band's standalone-link treatment, the one the briefing's pointer and
+      // the failure state's repository link already wear: a 44px tap target, and
+      // the ring .site-footer a:focus-visible gives every link in this block in
+      // both stylesheets. No rule was added for it — asserted in CSS above,
+      // because this harness models no layout and paints no focus ring.
+      assert.equal(link.getAttribute("class"), "site-footer-redirect-link");
+
+      // A real tab stop, taking its place in reading order rather than jumping
+      // the queue, and reached with the block's other pointer rather than after
+      // the form a visitor may never submit.
+      const ids = tabSequence(document).map((node) => node.id);
+      assert.ok(ids.includes(ASSETS_ID), "a link nothing can Tab to is not a route to anything");
+      assert.equal(link.getAttribute("tabindex"), null);
+      assert.ok(ids.indexOf(SOURCE_ID) < ids.indexOf(ASSETS_ID),
+        "the provenance link is read before the route to the assets");
+
+      // Document order, which is what a reader and a screen reader both receive:
+      // after the repository line, before the page's own follow-up block.
+      const html = await read(file);
+      const at = (needle) => html.indexOf(needle);
+      assert.ok(at(`id="${SOURCE_ID}"`) < at(`id="${ASSETS_ID}"`), `${file}: the route precedes the repository line`);
+      assert.ok(at(`id="${ASSETS_ID}"`) < at('class="site-footer-invitation"'),
+        `${file}: the route follows the follow-up block`);
+
+      // Nothing rode in with it: no second window, and no sentence explaining
+      // what the brief contains. The link is the whole line.
+      assert.equal(link.getAttribute("target"), null);
+      assert.equal(link.getAttribute("download"), null);
+    } finally {
+      page.restore();
+    }
+  });
+}
 
 test("a failed request adds one route out, not a second copy of the provenance link", async () => {
   // Both name the same address, and that is not a duplicate: one is provenance,

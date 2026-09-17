@@ -64,6 +64,13 @@ export const REPOSITORY_LINK_LABEL = "Open an issue on the public GitHub reposit
 // the link /index.html and /releases.html publish, at the same one address.
 export const SOURCE_LINK_LABEL = "Open the public repository this site is built from";
 
+// The two things a reader forwards to whoever decides, and where they already
+// are. A route, not a copy: the home page keeps both assets and their copy and
+// download controls. The label names both because the fragment lands on the
+// brief and the scorecard is the section directly beneath it.
+export const ASSETS_LINK_LABEL = "Evaluation brief and pilot scorecard";
+export const ASSETS_HREF = "/#shiplog-evaluation-brief";
+
 /**
  * What a visitor can do here, then who runs it and where — on every page.
  *
@@ -217,12 +224,16 @@ export const FOLLOW_UP_REDIRECT = Object.freeze({
  * `offer` opens the block with OFFER — what asking gets a visitor who never read
  * the home page's answer to the same question.
  *
+ * `assets` adds the one route to the home page's evaluation brief and blank
+ * pilot scorecard. The home page never sets it: that section is already there.
+ *
  * `followUpTopic` is always stated in prose. The read-only control that used to
  * be its other shape lost its last page in #2168; tests hold that shape gone.
  */
 export function siteFooterMarkup(indent = "    ", {
   redirect = null, followUpType = null, followUpTopic = null,
   collapsedDemos = false, askMessage = false, offer = false, invitation = INVITATION,
+  assets = false,
 } = {}) {
   const contact = redirect ? [
     `    <a class="site-footer-redirect-link" href="${redirect.href}">${redirect.label}</a>`,
@@ -235,6 +246,9 @@ export function siteFooterMarkup(indent = "    ", {
     `    <p class="site-footer-identity">${IDENTITY}</p>`,
     `    <p class="site-footer-identity site-footer-pitch">${PITCH} See <a href="${PITCH_HREF}">${PITCH_LINK}</a>.</p>`,
     `    <p class="site-footer-identity"><a id="site-footer-source" href="${REPOSITORY_URL}">${SOURCE_LINK_LABEL}</a></p>`,
+    // Beside the provenance link, in the band's standalone-link treatment: a
+    // 44px tap target with the band's ring, off rules both stylesheets carry.
+    ...(assets ? [`    <a class="site-footer-redirect-link" id="site-footer-assets" href="${ASSETS_HREF}">${ASSETS_LINK_LABEL}</a>`] : []),
     ...(collapsedDemos ? [] : directory),
     ...contact,
     ...(collapsedDemos ? directory : []),
