@@ -15,7 +15,7 @@ installDocument();
 const { FEED_LOADING_LINE } = await import("../src/social.js");
 
 const {
-  EMPTY_SUMMARY_LINE, PENDING_RESULTS_HEADING, PROFILE_EMPTY_COPY, PUBLISH_ON_SOCIAL, authorChipLabel, authorInitials, captionFor, countLabel, defaultProfileAuthor,
+  EMPTY_SUMMARY_LINE, PENDING_RESULTS_HEADING, PROFILE_EMPTY_COPY, PROFILE_EMPTY_STEPS_HINT, PUBLISH_ON_SOCIAL, authorChipLabel, authorInitials, captionFor, countLabel, defaultProfileAuthor,
   distinctAuthors, hasExplicitAuthor, imagePostCounts, loadingSummaryText,
   mergePostsById, normalizeProfileApiPosts, normalizeSeedPosts, pickerEntries, pickerNoteText, postDetailHref,
   singleNameNotice, profileActiveFilterLine,
@@ -439,7 +439,7 @@ test("the first load reserves a skeleton grid instead of a blank panel", () => {
   // caption, metadata, and action hierarchy without claiming six fetched posts.
   assert.equal(skeleton.getAttribute("aria-hidden"), "true");
   assert.equal(skeleton.getAttribute("inert"), "");
-  assert.equal(status.textContent, "Image posts are loading. Publish a post on Social to add one.");
+  assert.equal(status.textContent, "Image posts are loading.");
   assert.equal(byClass(skeleton, "profile-tile-skeleton").length, 6);
   assert.equal(byClass(skeleton, "skeleton-media-square").length, 6);
   assert.equal(byClass(skeleton, "skeleton-meta").length, 6);
@@ -786,18 +786,48 @@ test("the zero state does not vary with what the rest of the feed holds", () => 
   assert.equal(tags(withFilter, "BUTTON").length, 0);
 });
 
-test("the waiting line names image posts once without duplicating the selected display name", () => {
-  assert.equal(loadingSummaryText(), "Image posts are loading. Publish a post on Social to add one.");
-  assert.equal(loadingSummaryText("Zed"), "Image posts are loading. Publish a post on Social to add one.");
+test("the waiting line states the wait, and nothing else", () => {
+  // One clause: what is loading. No display name, because the heading above it
+  // waits as its plain noun over an empty grid, and no call to action, because
+  // the state a reader is in here is "nothing has arrived yet" rather than
+  // "there is nothing to arrive" — the second is the empty state's sentence and
+  // its links (#2416).
+  assert.equal(loadingSummaryText(), "Image posts are loading.");
+  assert.equal(loadingSummaryText("Zed"), "Image posts are loading.");
+  assert.doesNotMatch(loadingSummaryText("Zed"), /Zed/);
+  assert.doesNotMatch(loadingSummaryText(), /Publish|Social|Paint/);
 });
 
-// People cannot publish anything, so both places it sends a visitor to Social —
-// the wait over the grid and the publishing step in the helper beside it — offer
-// one trip. They used to name two, and neither was a control Social had: the
-// wait said "Open Social to publish an image post" and the step said "Write a
-// post on Social", while the button that opens the composer read something else
-// again (#2181). Comparing People's two strings to each other would not have
-// caught that, so both are read off the one exported phrase.
+// The panel that answers a settled zero, read as the reader meets it: what
+// happened, the ways out, and where the procedure is written down. It points at
+// the "To add yours:" paragraph by the words printed on that paragraph, and it
+// does not spell the steps a second time — one instruction, one place.
+test("the empty panel points at the steps instead of repeating them", () => {
+  const container = createElement("div");
+  renderProfileGrid(container, [], { author: "Mina" });
+  const empty = first(container, "empty-state");
+  assert.equal(first(empty, "empty-title").textContent, profileEmptyText("Mina"));
+  const hint = byClass(empty, "hint");
+  assert.equal(hint.length, 1);
+  assert.equal(hint[0].textContent, "The steps for adding an image post are under “To add yours” below.");
+  assert.equal(hint[0].textContent, PROFILE_EMPTY_STEPS_HINT);
+  // A pointer, not a procedure: none of the three steps is restated here.
+  assert.doesNotMatch(PROFILE_EMPTY_STEPS_HINT, /Create or open an image|image description|A published post/);
+  // And not a control either — the panel's routes are the three links above it,
+  // and this sentence must not become a fourth tab stop.
+  assert.equal(tags(hint[0], "A").length + tags(hint[0], "BUTTON").length, 0);
+  // One invitation to publish in the region at this moment: the action link.
+  assert.equal(byClass(empty, "empty-action").filter((node) => node.href === PROFILE_EMPTY_COPY.actionHref).length, 1);
+});
+
+// People cannot publish anything, so the publishing step in the helper beside
+// the grid is where it sends a visitor to Social. The wait over the grid used to
+// send them there too, under a second wording: "Open Social to publish an image
+// post" against the step's "Write a post on Social", while the button that opens
+// the composer read something else again (#2181). One phrase settled that — and
+// #2416 took the trip out of the wait altogether, because a status reporting an
+// open fetch is not the place to ask a reader to leave the page. So the phrase
+// has one place left, and this pins it there and out of the wait.
 //
 // That phrase used to be built from Social's composer label, so People's words
 // were the words on the button a reader arrived at. Social's trigger is "Write a
@@ -805,7 +835,7 @@ test("the waiting line names image posts once without duplicating the selected d
 // deliberately neither: it names the act and the page that can perform it. What
 // keeps the promise is the href — /social.html#post-form opens the composer on
 // arrival — so this test pins the destination rather than a shared label.
-test("People offers the trip to Social's composer in one phrase, in both places", async () => {
+test("People offers the trip to Social's composer in one phrase, in the one place it belongs", async () => {
   const social = await readFile(new URL("../src/social.html", import.meta.url), "utf8");
   const opener = social.match(/<button[^>]*id="post-compose-open"[^>]*>([^<]*)<\/button>/);
   assert.notEqual(opener, null, "Social ships no control that opens the composer");
@@ -819,10 +849,11 @@ test("People offers the trip to Social's composer in one phrase, in both places"
     "Social's composer trigger drifted, so People's route may name the wrong act");
 
   // People's one phrase for the trip names the act and the page it happens on,
-  // and nothing else is added, so a reader who follows either offer meets the
-  // same words.
+  // and nothing else is added, so a reader who follows the offer meets the same
+  // words. The wait is not one of the places that offers it.
   assert.equal(PUBLISH_ON_SOCIAL, "Publish a post on Social");
-  assert.equal(loadingSummaryText(), `Image posts are loading. ${PUBLISH_ON_SOCIAL} to add one.`);
+  assert.ok(!loadingSummaryText().includes(PUBLISH_ON_SOCIAL),
+    "the wait went back to carrying the trip to Social");
 
   const html = await readFile(new URL("../src/profile.html", import.meta.url), "utf8");
   const step = html.match(/<a class="text-link" id="profile-publish-route" href="([^"]*)">([^<]*)<\/a>/);
@@ -856,9 +887,9 @@ test("the profile page's static copy does not drift from the module's", async ()
   // is gone from the page.
   assert.match(html, /id="profile-summary"><\/p>/);
   assert.doesNotMatch(html, new RegExp(retiredEmptyLine("Ari")));
-  // People's one retrieval status names the content type; the heading already
-  // names the selected display name.
-  assert.equal(loadingSummaryText("Ari"), "Image posts are loading. Publish a post on Social to add one.");
+  // People's one retrieval status names the content type and stops; the heading
+  // carries the selected display name once there is a post it can be true of.
+  assert.equal(loadingSummaryText("Ari"), "Image posts are loading.");
   // And the connection line ships wordless. Its promise used to be authored
   // above the status that says the image posts are still loading, so the frame
   // with nothing in it made a promise and then admitted it had nothing — two

@@ -342,12 +342,31 @@ export function profileEmptyText(author) {
   return `The display name “${name}” has no image posts yet.`;
 }
 
-// The one phrase People uses for the trip to Social's composer, in both places
-// it offers that trip: this status while the grid loads, and the publishing step
-// in the .feed-create hint (src/profile.html). It names the act and the page
-// that can perform it, because People cannot. People used to send the same
-// reader twice under two names — "Open Social to publish an image post" here and
+// Where the steps are, for the reader the sentence above has just told there is
+// nothing here. The three-step "To add yours:" paragraph is already on the page,
+// below the grid, and this points at it by the words printed on it rather than
+// spelling the steps a second time: two copies of one instruction is how the two
+// drift apart, and this panel has room for a pointer, not a procedure.
+//
+// A locator, not a second invitation. The region's one invitation to publish is
+// the action link above this line, and it stays the only one: the waiting line
+// no longer carries a call to action (#2416), so at no single moment does this
+// region ask twice.
+export const PROFILE_EMPTY_STEPS_HINT = "The steps for adding an image post are under “To add yours” below.";
+
+// The phrase People uses for the trip to Social's composer, in the publishing
+// step of the .feed-create hint (src/profile.html). It names the act and the
+// page that can perform it, because People cannot. People used to send the same
+// reader twice under two names — "Open Social to publish an image post" and
 // "Write a post on Social" in the hint — and this is the one wording.
+//
+// It used to be welded to the waiting line below as well, so a status reporting
+// a fetch also carried the page's call to action (#2416). A machine state and an
+// invitation are two different sentences addressed to a reader in two different
+// situations, and the wait is not the situation in which somebody decides to
+// publish: there is nothing on screen yet for them to decide against. The
+// invitation now speaks where it is the answer — the settled zero state — and
+// the steps stay here, in the one paragraph that spells them out.
 //
 // It used to be built from Social's composer label, so the words a reader was
 // sent to were the words on the control they arrived at. Social's trigger is
@@ -359,21 +378,25 @@ export function profileEmptyText(author) {
 // it is "Write a post on Social" that would name one.
 export const PUBLISH_ON_SOCIAL = "Publish a post on Social";
 
-// The grid's first-load status says exactly what People is retrieving, and then
-// where a visitor publishes one of them — this page has no composer, so the next
-// action it can honestly name is on Social. It names the destination as well as
-// the control because the nav link to Social is on screen in this state, unlike
-// the .feed-create hint, which feedPresence() removes while the fetch is open.
+// The grid's first-load status says exactly what People is retrieving, and
+// stops there. It used to close on "Publish a post on Social to add one." — a
+// report on an open fetch welded to the page's call to action, so the one line a
+// reader gets while the screen is still empty asked them to leave it (#2416).
+// The invitation is the empty state's job, where it is the answer to what is on
+// screen; this line's job is the wait, and a status that says two things says
+// neither cleanly.
 //
 // `author` is accepted for call-site symmetry with the other status builders and
-// deliberately not used: the heading directly above carries the selected display
-// name already, and saying it here narrated one wait under two names.
+// deliberately not used: naming the selected display name over six placeholders
+// claims a filtered view of a named person over nothing at all (#2043), which is
+// the same reason the heading above waits as its plain noun. The name lands in
+// the heading in the same paint as the first tile it can be true of.
 //
 // It does not guess a count: the page ships this line as static markup for
 // the frame before hydration, where it once shipped "Ari hasn't posted an image
 // yet", a verdict that was false for the seeded feed.
 export function loadingSummaryText(author = DEFAULT_AUTHOR) {
-  return `Image posts are loading. ${PUBLISH_ON_SOCIAL} to add one.`;
+  return "Image posts are loading.";
 }
 
 // The counts line when the selected display name has nothing to show. It states
@@ -646,6 +669,11 @@ function renderEmpty(container, author) {
   paint.href = profilePaintHref(author);
   actions.append(paint);
   empty.append(actions);
+  // After the routes, not between them and the message: the three links are the
+  // recovery this panel offers, and a sentence spliced above them pushes the
+  // first one further from the message it answers. This one closes the panel by
+  // saying where the full procedure is written down.
+  empty.append(el("p", "hint", PROFILE_EMPTY_STEPS_HINT));
   container.append(empty);
 }
 
