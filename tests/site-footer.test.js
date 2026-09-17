@@ -651,7 +651,7 @@ test("Social's description, its directory row and its follow-up topic all say sh
     const { document } = social;
     await waitFor(() => document.documentElement.dataset.shiplogSocial === "ready", "Social finished its first load");
     assert.match(textOf(document.querySelector(".social-feed-intro")),
-      /^Social is a shared feed of short posts about shipped work, images optional\. Open People when you want the image posts published under one display name instead\./);
+      /^Social is a shared feed of short posts about shipped work, images optional\. Open People when you want the image posts from one display name\./);
     assert.ok(document.querySelector('meta[name="description"]').getAttribute("content").includes(`about ${PHRASE}, images optional`));
     paintedFooter(document, "social.html");
   } finally {

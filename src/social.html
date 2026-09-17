@@ -89,7 +89,7 @@
         <div class="hero-actions section-heading">
           <button class="button-link" id="post-compose-open" type="button" aria-expanded="false" aria-controls="post-compose-panel">Write a post</button>
         </div>
-        <p class="social-feed-intro">Social is a shared feed of short posts about shipped work, images optional. Open People when you want the image posts published under one display name instead. Select Open post to see a post on its own page, with a link you can share. The posts already here are invented to demonstrate Shiplog and use no customer or production data; a post you publish is real.</p>
+        <p class="social-feed-intro">Social is a shared feed of short posts about shipped work, images optional. Open People when you want the image posts from one display name. Select Open post to see a post on its own page, with a link you can share. The posts already here are invented to demonstrate Shiplog and use no customer or production data; a post you publish is real.</p>
         <!-- What publishing costs is not said here any more. It used to be: the
              same sentence stood in this intro, again beside Publish post, and
              again in the permalink's hero — one fact in three places, two of
@@ -100,7 +100,14 @@
              once, at #post-consequence below, where the button that publishes
              names it with aria-describedby — so it is read out at the moment of
              the act, to a screen reader and to an eye alike, instead of being
-             offered early and forgotten. -->
+             offered early and forgotten.
+             The People clause here is a destination, not a rule: what that page
+             shows, and when to open it instead of this feed. It used to say the
+             image posts were "published under one display name", which is how a
+             post gets to People and not what People holds — a second telling of
+             the sentence the image field already carries (#2405). How an image
+             post reaches People is said once, in the composer, at the field that
+             attaches the image. -->
 
         <!-- One route out of the hero, and now the control that reveals the
              composer rather than a link that jumps to it. The composer used to
@@ -576,13 +583,17 @@
             <div class="field field-wide">
               <label for="post-author">Display name <span class="label-optional">(optional)</span></label>
               <input id="post-author" name="author" type="text" maxlength="60" autocomplete="off"
-                placeholder="Guest" aria-describedby="post-author-hint post-author-identity" />
-              <!-- The two hints state what the display name does on each
-                   surface, in the order the post reaches them: Social first,
-                   then People. Plain help text in the field group, named by the
-                   input's own aria-describedby: nothing focusable. -->
+                placeholder="Guest" aria-describedby="post-author-hint" />
+              <!-- One hint, saying what the display name does where the reader
+                   is: it rides along with this post in the feed, it falls back
+                   to Guest, and this post keeps it. A second hint beside it
+                   used to add that People groups image posts under the name —
+                   the same rule the image field states at the moment a reader
+                   chooses an image, in a third wording (#2405). The field that
+                   attaches an image is where that fact is now said, once.
+                   Plain help text in the field group, named by the input's own
+                   aria-describedby: nothing focusable. -->
               <span class="hint" id="post-author-hint">The display name appears with this post in the Social feed and defaults to “Guest.” You cannot change it on this post after you publish.</span>
-              <p class="hint" id="post-author-identity">People groups image posts under this display name.</p>
             </div>
 
             <!-- The one place this sentence is said, at the moment it costs
