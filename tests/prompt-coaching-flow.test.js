@@ -473,9 +473,21 @@ test("the boundary is stated in the markup, before any script runs", async () =>
     const { document } = page;
     const preview = byId(document, "prompt-coaching-preview");
     assert.ok(preview, "the preview must ship in the page markup");
-    const claim = textOf(preview.querySelector(".prompt-coaching-preview-static"));
+    const claims = preview.querySelectorAll(".prompt-coaching-preview-static")
+      .map((node) => textOf(node));
+    assert.equal(claims.length, 2, "both halves of the heading ship in the markup");
+    const [claim, keeps] = claims;
     assert.match(claim, /reads only the text you paste and the optional model tier/);
     assert.match(claim, /does not access your accounts, files, or customer data/);
+    // The keeps half is static for the same reason: how long a prompt is kept,
+    // and the control that ends it, are facts a reader needs before pasting —
+    // not once a script has succeeded. The clear control is named by its own
+    // rendered label, which ships in the markup beside it.
+    assert.match(keeps,
+      /keeps your prompt and grades on this page, in this browser, until you press Delete prompt and grades\./);
+    assert.match(keeps, /Leaving the page clears them too, and nothing is stored elsewhere\./);
+    assert.equal(textOf(byId(document, "prompt-coaching-clear")), "Delete prompt and grades");
+    assert.doesNotMatch(keeps, /stays in this browser/);
     // Where the text stays is promised once, in the sentence under the page's
     // heading, and this block does not say it a second time in different
     // punctuation. That statement is static too, so the fact is still readable
