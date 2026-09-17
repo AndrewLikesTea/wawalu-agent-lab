@@ -623,6 +623,54 @@ export const MERGED_FIGURE_COPY = Object.freeze({
   unavailable: Object.freeze(unavailableCopy(UNAVAILABLE_REASONS.unreachable)),
 });
 
+// The states a second request could still fix: the slot settled and it is not
+// holding a count this response returned. `recorded` is one of them — the number
+// beside it is dated and says in words that it is not live, so a reader looking
+// at it is still a reader GitHub did not answer for.
+const RETRIABLE_FIGURE_STATES = new Set(["unavailable", "recorded"]);
+
+/**
+ * The words on this block's control, in one place because it only ever says one
+ * thing.
+ *
+ * Its closer sibling is the persona panel's control, not the activity panel's.
+ * The activity panel is a list that is worth asking for again even when the last
+ * request worked, so its control is always on screen and reads "Refresh public
+ * GitHub activity" until a request fails. This block is like "Retry persona
+ * profiles": there is nothing to refresh about a figure that is already this
+ * response's count, and the activity panel's own timer re-requests the same
+ * response anyway — so the control appears only where there is a failure to
+ * recover, and names what it is asking for again, in that panel's grammar.
+ */
+export const MERGED_FIGURE_RETRY_LABEL = "Retry merged pull request count";
+
+/**
+ * Offer the retry, or take it away, according to what the slot now holds.
+ *
+ * Hidden rather than removed, so the one control keeps its listener across every
+ * repaint and a reader who fails twice presses the same button both times. It
+ * lives outside the readout for the same reason the heading and the feed links
+ * do: the readout is the live region, and a control inside it would be replaced
+ * — and re-announced — by every render.
+ */
+function renderMergedFigureRetry(root, name) {
+  const retriable = RETRIABLE_FIGURE_STATES.has(name);
+  const control = root.querySelector?.("#retry-merged-figure");
+  if (control) {
+    control.textContent = MERGED_FIGURE_RETRY_LABEL;
+    control.dataset.state = name;
+    // What this control is for right now, read the way the activity panel's is:
+    // "is a retry on offer?" is a fact about the state, not a guess at wording.
+    control.dataset.recovery = retriable ? "retry" : "none";
+    // The sentence that explains the state is the button's description, so a
+    // reader who tabs straight to it hears why they are being offered it.
+    control.setAttribute("aria-describedby", "merged-figure-source");
+  }
+  const actions = root.querySelector?.("#merged-figure-actions");
+  if (actions) actions.hidden = !retriable;
+  return control;
+}
+
 /** The count and unit, the two of them always rendered together. */
 function appendCount(value, count) {
   appendText(value, "strong", "merged-figure-count", String(count));
@@ -662,11 +710,18 @@ export function renderMergedFigure(root = document, state = "loading",
   const readout = root.querySelector("#merged-figure-readout");
   if (!section || !readout) return null;
   section.dataset.state = name;
+  // Before the early return below: whether this block is offering a retry is a
+  // fact about the state, and it has to follow the state even on a render whose
+  // words are the ones already on screen.
+  renderMergedFigureRetry(root, name);
 
   const value = document.createElement("p");
   value.className = "merged-figure-value";
   const source = document.createElement("p");
   source.className = "merged-figure-source";
+  // The control's aria-describedby names this sentence, so the id has to survive
+  // every repaint of the readout it lives in.
+  source.id = "merged-figure-source";
 
   if (name === "live") {
     appendCount(value, count);
@@ -855,6 +910,20 @@ export async function loadActivity(root = document, fetcher = fetch, storage = b
 export function wireActivityControls(root = document, fetcher) {
   const refresh = () => loadActivity(root, fetcher ?? fetch);
   root.querySelector("#refresh-activity")?.addEventListener("click", refresh);
+  // The figure's own control runs that same load rather than a second request
+  // path of its own: one response feeds the count and the rows below it, so a
+  // count retried from the top of the page cannot reach a state the panel's
+  // control could not.
+  root.querySelector("#retry-merged-figure")?.addEventListener("click", () => {
+    const started = refresh();
+    // Pressing it hides the button the reader was standing on, so the retry says
+    // where focus goes next: the readout that replaced it, which is where this
+    // attempt's answer — a count, or the same absence again — is about to land.
+    const readout = root.querySelector("#merged-figure-readout");
+    readout?.setAttribute?.("tabindex", "-1");
+    readout?.focus?.();
+    return started;
+  });
   return refresh;
 }
 
