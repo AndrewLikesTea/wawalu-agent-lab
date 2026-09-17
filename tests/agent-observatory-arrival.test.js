@@ -139,9 +139,12 @@ test("the served markup already says what the observatory shows, outside every r
   }
 
   // Present in the raw HTML, so a blocked module or a dead network still leaves
-  // both sentences on screen.
+  // both sentences on screen. The sentence carries an inline link out, so it is
+  // not one unbroken run of text in the file: the tags come out before the
+  // comparison, and what is left still has to be there, contiguous and in order.
   const served = await readFile(OBSERVATORY, "utf8");
-  assert.ok(served.includes(standing[0].textContent.trim()), "the standing sentence is served, not scripted");
+  assert.ok(served.replace(/<[^>]+>/g, "").includes(standing[0].textContent.trim()),
+    "the standing sentence is served, not scripted");
   assert.ok(served.includes("Demo boundary"), "the demo boundary is served, not scripted");
 });
 
