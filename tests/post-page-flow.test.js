@@ -255,6 +255,114 @@ test("the permalink says what a display name is once in every state, between its
   }
 });
 
+// Issue #2397. How to ask for a post to be looked at, in the two paragraphs
+// Social already ships beside its feed: the route to the control, then what a
+// report does and does not do. A reader who opens a forwarded link has never
+// seen that feed panel, so this page named no reporting path at all — it told a
+// stranger nobody verifies the name on the post, and nothing about what to do
+// with a post that needs looking at.
+//
+// Written out here so the two sentences are readable in the tests that assert
+// them, and pinned against src/social.html below so neither page can reword one
+// on its own. The permalink has no Report post button of its own, so it names
+// the control rather than offering it; the words are the same either way.
+const REPORT_ROUTE = "To ask the Wawalu team to review a post, select Report post on it.";
+const REPORT_ABOUT = "How reporting works: Report post opens a short form about that one post. Choose a reason, add a note if you want to, and give your email address. The report goes only to the Wawalu team, who review each one. A report does not remove or hide the post, and not every report leads to removal.";
+
+test("the permalink names the reporting path in Social's own bytes", async () => {
+  const html = (await readFile(new URL("../src/social.html", import.meta.url), "utf8")).replace(/<!--[\s\S]*?-->/g, "");
+  // Anchored on their opening words rather than typed out, so a Social that
+  // rewords either one fails here instead of drifting away from this page.
+  const shipped = {
+    route: html.match(/To ask the Wawalu team[^<]*/)?.[0]?.trim(),
+    about: html.match(/How reporting works: [^<]*not every report leads to removal\./)?.[0],
+  };
+  assert.ok(shipped.route, "Social no longer tells a reader how to ask for a post to be reviewed");
+  assert.ok(shipped.about, "Social no longer explains what reporting does and does not do");
+  assert.equal(REPORT_ROUTE, shipped.route, `the permalink does not ship Social's route sentence: ${shipped.route}`);
+  assert.equal(REPORT_ABOUT, shipped.about, `the permalink does not ship Social's explanation: ${shipped.about}`);
+
+  // And the permalink's markup carries each one exactly once, so the page ships
+  // them to a reader whose script never runs.
+  const post = (await readFile(new URL("../src/post.html", import.meta.url), "utf8")).replace(/<!--[\s\S]*?-->/g, "");
+  for (const [name, clause] of Object.entries({ route: REPORT_ROUTE, explanation: REPORT_ABOUT })) {
+    assert.equal(post.split(clause).length - 1, 1, `the permalink's markup carries the reporting ${name} other than exactly once`);
+  }
+  // Not in the follow-up block: that form's wording is pinned byte for byte
+  // elsewhere, and a sentence about reporting a post is not a step in asking
+  // the team a question about it.
+  assert.equal(post.slice(post.indexOf('<footer class="site-footer"')).includes(REPORT_ROUTE), false,
+    "the reporting route landed in the footer's follow-up block");
+});
+
+// Standing copy, wherever the lookup ended up: it lives in the page's own frame
+// rather than in #post-detail, which every render empties. Counted over the
+// whole body, located by one combined query (document order), and compared as
+// booleans and counts, never as nodes.
+function assertReportingStands(document, where) {
+  const body = textOf(document.body);
+  for (const [name, clause] of Object.entries({ route: REPORT_ROUTE, explanation: REPORT_ABOUT })) {
+    assert.equal(body.split(clause).length - 1, 1,
+      `${where}: the page states the reporting ${name} other than exactly once`);
+  }
+
+  const flow = document.querySelector("#main-content").querySelectorAll("h1,p,a");
+  const at = (text) => flow.findIndex((node) => node.tagName === "P" && textOf(node) === text);
+  const reading = [at(IDENTITY), at(REPORT_ROUTE), at(REPORT_ABOUT), flow.findIndex((node) => node.id === "post-back")];
+  assert.ok(reading.every((index) => index >= 0),
+    `${where}: the display-name caveat, a reporting sentence or the Social link left the page's content`);
+  assert.deepEqual(reading.slice().sort((a, b) => a - b), reading,
+    `${where}: reporting reads after the display-name caveat and before "${SOCIAL.label}"`);
+
+  for (const [name, index] of Object.entries({ route: reading[1], explanation: reading[2] })) {
+    assert.equal(flow[index].getAttribute("class"), "hint",
+      `${where}: the reporting ${name} lost the class the caveat beside it uses`);
+    for (const region of ["#post-detail", "#site-footer"]) {
+      assert.equal(Boolean(flow[index].closest(region)), false, `${where}: the reporting ${name} sits inside ${region}`);
+    }
+  }
+}
+
+test("the permalink states the reporting path while the post loads and once it has loaded", async () => {
+  const cold = await loadPage(new URL("../src/post.html", import.meta.url), { location: { search: "?id=p-image" } });
+  try {
+    assertReportingStands(cold.document, "before the script runs");
+
+    let release;
+    globalThis.fetch = () => new Promise((resolve) => { release = () => resolve(seedResponse([SEED_POST])); });
+    await importPageModule("/post-page.js");
+    await waitFor(() => cold.document.documentElement.dataset.shiplogPostDetail === "loading", "the script took the region");
+    assertReportingStands(cold.document, "while the lookup runs");
+
+    release();
+    await waitFor(() => cold.document.documentElement.dataset.shiplogPostDetail === "ready", "the post arrived");
+    const panel = cold.document.querySelector("#post-detail");
+    // The real post, not the placeholder that ships with the markup: a wait on
+    // text would have returned on turn zero against copy the page authored.
+    await waitFor(() => panel.querySelectorAll(".detail-post").filter((node) => !node.classList.contains("detail-skeleton")).length === 1,
+      "the real post replaced the placeholder");
+    assert.equal(panel.dataset.postState, "loaded");
+    assertReportingStands(cold.document, "once the post rendered");
+  } finally {
+    cold.restore();
+  }
+
+  // A link that resolved to nothing is the state a reader is most likely to
+  // want the team for, so the sentences stand there too.
+  for (const [state, search, answer] of [
+    ["not-found", "?id=p-gone", seedOnly([SEED_POST])],
+    ["error", "?id=p-image", () => { throw new TypeError("Failed to fetch"); }],
+  ]) {
+    const page = await openPostPage(search, answer);
+    try {
+      assert.equal(page.panel.dataset.postState, state, `the page landed in ${page.panel.dataset.postState}, not ${state}`);
+      assertReportingStands(page.document, state);
+    } finally {
+      page.restore();
+    }
+  }
+});
+
 test("arriving from a profile narrows the People link, and changes no words", async () => {
   const page = await openPostPage("?id=p-image&from=profile&author=Mina%20Okafor", seedOnly([SEED_POST]));
   try {
