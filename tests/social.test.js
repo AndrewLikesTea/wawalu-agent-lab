@@ -513,6 +513,41 @@ test("the opener and heading use Write a post, and the submit reads Publish post
     "the word survives outside the People page's own URL and nav class");
 });
 
+// #2405: one rule, one telling. Social stated where a post with an image lands
+// three times in three wordings — in the hero, at the image field, and under
+// the display name — so a reader had to work out whether they were three rules
+// or one, and the telling that matters at the moment of the act was the middle
+// one. The image field's sentence is the survivor, because that is the control
+// the rule depends on: choose an image and it applies, choose none and it does
+// not.
+test("where a post with an image lands is said once, at the field that attaches the image", async (t) => {
+  const page = await loadPage(new URL("../src/social.html", import.meta.url), {});
+  t.after(() => page.restore());
+  mountComposerDisclosure(page.document);
+  page.document.querySelector("#post-compose-open").click();
+
+  const RULE = "appears on People, under the display name you publish it with";
+  const rendered = textOf(page.document.querySelector("#main-content"));
+  assert.equal(rendered.split(RULE).length - 1, 1,
+    "the rule is told more than once, or the one telling of it is gone");
+  assert.match(textOf(page.document.querySelector("#post-form-hint")), new RegExp(RULE),
+    "the surviving telling is not the composer's, beside the image it is about");
+
+  // And no paraphrase of it survives elsewhere on the page: a second wording is
+  // the same defect as a second copy, and harder to notice.
+  assert.doesNotMatch(rendered, /groups image posts/,
+    "the display name field explains People's grouping again");
+  assert.doesNotMatch(rendered, /published under one display name/,
+    "the hero explains how an image post reaches People again");
+
+  // The hero keeps one pointer to People, written as somewhere to go rather
+  // than as a second account of what publishing does.
+  const intro = textOf(page.document.querySelector(".social-feed-intro"));
+  assert.equal(intro.split("People").length - 1, 1,
+    "the intro names People more than once");
+  assert.match(intro, /Open People when you want the image posts from one display name\./);
+});
+
 test("the composer calls its required 280-character text a post throughout", async (t) => {
   const page = await loadPage(new URL("../src/social.html", import.meta.url), {});
   t.after(() => page.restore());
@@ -1005,8 +1040,9 @@ test("once Social has painted a visitor's post, the display-name notice tells bo
   assertBothNameCases(note, "the painted feed note");
 });
 
-// The opened composer pins both sentences beneath the display name field: what
-// publishes to Social and cannot change, then how People groups image posts.
+// The opened composer pins one sentence beneath the display name field: what
+// publishes to Social and cannot change. Where an image post lands is the image
+// field's sentence, said there and nowhere else (#2405).
 test("the display name field explains where the name appears and that it cannot change", async (t) => {
   const page = await loadPage(new URL("../src/social.html", import.meta.url), {});
   t.after(() => page.restore());
@@ -1016,25 +1052,26 @@ test("the display name field explains where the name appears and that it cannot 
   mountComposerDisclosure(page.document);
   page.document.querySelector("#post-compose-open").click();
 
-  const identity = page.document.querySelectorAll("#post-author-identity");
-  assert.equal(identity.length, 1, "the display name field carries exactly one identity hint");
-  assert.equal(identity[0].tagName, "P");
-  assert.ok(identity[0].classList.contains("hint"),
-    "the new text uses the field hint pattern the rest of the composer uses");
+  const hints = page.document.querySelectorAll("#post-author-hint");
+  assert.equal(hints.length, 1, "the display name field carries exactly one hint");
 
   // Attached to the field itself, not floated somewhere in the page: same field
   // group as the input, and named by the input's own aria-describedby.
   const input = page.document.querySelector("#post-author");
-  assert.ok(identity[0].parentNode === input.parentNode,
+  assert.ok(hints[0].parentNode === input.parentNode,
     "the hint left the display name field's own group");
   assert.deepEqual((input.getAttribute("aria-describedby") ?? "").split(" "),
-    ["post-author-hint", "post-author-identity"],
-    "the input names its Social and People hints in reading order");
+    ["post-author-hint"],
+    "the input names a second hint beside its own");
+  assert.equal(page.document.querySelectorAll("#post-author-identity").length, 0,
+    "the People hint is back beside the display name field, in a third wording");
 
-  const socialHelp = textOf(page.document.querySelector("#post-author-hint"));
-  assert.equal(socialHelp, AUTHOR_HINT);
-  const text = textOf(identity[0]);
-  assert.equal(text, "People groups image posts under this display name.");
+  const text = textOf(hints[0]);
+  assert.equal(text, AUTHOR_HINT);
+  // The rule about People belongs to the image field, which is the control it
+  // depends on. Said here too, a reader has to reconcile two tellings of it.
+  assert.doesNotMatch(text, /People/,
+    "the display name hint explains People's grouping a second time");
   // What a display name is not is the feed note's sentence, said once on the
   // page. Repeating it here would put the definition in two wordings again, and
   // the second copy would sit behind a panel a reader has to open.
@@ -1042,13 +1079,13 @@ test("the display name field explains where the name appears and that it cannot 
     "the field states the display-name definition a second time");
 
   // Help text, not a control: the composer gains no tab stop and no widget.
-  assert.equal(identity[0].querySelectorAll("a,button,input,select,textarea,summary").length, 0,
+  assert.equal(hints[0].querySelectorAll("a,button,input,select,textarea,summary").length, 0,
     "the help text grew something focusable");
-  assert.equal(identity[0].getAttribute("tabindex"), null);
+  assert.equal(hints[0].getAttribute("tabindex"), null);
   // Nothing collapses or hides it: the harness models no layout and reads
   // straight through a closed details element, so walk the ancestors instead.
   const folded = [];
-  for (let node = identity[0]; node; node = node.parentNode) {
+  for (let node = hints[0]; node; node = node.parentNode) {
     if (node.tagName === "DETAILS" || node.getAttribute?.("hidden") !== null) folded.push(node.tagName);
   }
   assert.deepEqual(folded, [], "the help text sits inside something hidden or collapsed");
@@ -1908,7 +1945,9 @@ test("the composer's three cautions still read word for word once it is open", a
   const cautions = {
     "post-image-alt-hint": "Describe what matters in the image for people who cannot see it. Up to 200 characters.",
     "post-author-hint": AUTHOR_HINT,
-    "post-author-identity": "People groups image posts under this display name.",
+    // The fourth entry here was #post-author-identity, "People groups image
+    // posts under this display name." It is deleted, not reworded: the image
+    // field already says where a post with an image lands (#2405).
     "post-consequence": PUBLISH_CONSEQUENCE,
   };
   for (const [id_, wording] of Object.entries(cautions)) {
