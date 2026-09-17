@@ -128,7 +128,15 @@ test("the message form's sentence is one sentence too, and lists everything that
 
   // All three things, and the claim it may not make: a form with a message box
   // is a form where something else on the page can reach the wire.
-  assert.match(FOLLOW_UP_PRIVACY_WITH_MESSAGE, /follow-up topic/, "it must name the topic it sends");
+  //
+  // #2407: the topic is named by pointing at the line that states it — "This
+  // request is sent about the Social page — …", or the homepage example form's
+  // read-only topic field — rather than by "this fixed follow-up topic", which
+  // matched no label, heading or control a visitor could find. The old phrase
+  // is held gone, so it cannot come back one page at a time.
+  assert.match(FOLLOW_UP_PRIVACY_WITH_MESSAGE, /the topic shown above/, "it must name the topic it sends");
+  assert.doesNotMatch(FOLLOW_UP_PRIVACY_WITH_MESSAGE, /fixed follow-up topic/,
+    "the topic must be named in words the page carries, not an internal one");
   assert.match(FOLLOW_UP_PRIVACY_WITH_MESSAGE, /message you type/, "it must name the message it sends");
   assert.doesNotMatch(FOLLOW_UP_PRIVACY_WITH_MESSAGE, /nothing else on this page is sent/,
     "a form that carries a message box may not claim nothing else on the page is sent");
@@ -251,6 +259,10 @@ test("no page keeps a fragment of the prose the one sentence replaced", async ()
     "nothing you have read, filtered, imported, or exported",
     "No figure, file name, column value, or department name from your import",
     "This page carries its own follow-up form",
+    // #2407: the one item in the list that was named in the site's own
+    // vocabulary rather than the visitor's. Every page it shipped on now points
+    // at the topic line above the field instead.
+    "this fixed follow-up topic",
   ];
   const files = (await readdir(SRC)).filter((name) => name.endsWith(".html"));
   for (const file of files) {

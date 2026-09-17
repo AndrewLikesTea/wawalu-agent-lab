@@ -29,7 +29,7 @@ const NativeResponse = globalThis.Response;
 // order the controls stand in, and nothing else on the page has a route to the
 // wire — `postLeadEmail` builds the body from these arguments and no others.
 const DISCLOSURE = "The work email address you type here goes to the Wawalu team that operates Shiplog;"
-  + " only that address, this fixed follow-up topic, and the message you type are sent.";
+  + " only that address, the topic shown above, and the message you type are sent.";
 
 async function openTakeaway(t, clipboard) {
   const page = await loadPage(PAGE);
