@@ -96,7 +96,16 @@
             <h2 class="merged-figure-title" id="merged-figure-title">Merged pull requests</h2>
             <div class="merged-figure-readout" id="merged-figure-readout" role="status" aria-live="polite">
               <p class="merged-figure-value">Loading the merged pull request count</p>
-              <p class="merged-figure-source">Counted from public GitHub activity, once GitHub answers.</p>
+              <p class="merged-figure-source" id="merged-figure-source">Counted from public GitHub activity, once GitHub answers.</p>
+            </div>
+            <!-- The action, straight after the status it acts on, which is the
+                 reading order both panels below already use. It ships hidden:
+                 agents.js reveals it only in the two settled states that hold no
+                 live count, because those are the only ones a second request
+                 could fix, and a control offered while the first one is still in
+                 flight asks the reader to fix something that has not failed. -->
+            <div class="activity-actions" id="merged-figure-actions" hidden>
+              <button class="observatory-refresh" id="retry-merged-figure" type="button" data-state="loading" data-recovery="none" aria-describedby="merged-figure-source">Retry merged pull request count</button>
             </div>
             <p class="merged-figure-note" id="merged-figure-note">AndrewLikesTea/paint-lab and AndrewLikesTea/wawalu-agent-lab hold the merged pull requests that built and changed the pages of this site. <a href="/releases.html#shipped-build">Read the releases these pull requests shipped</a></p>
             <!-- The fragment is the point. The Releases log opens on invented
