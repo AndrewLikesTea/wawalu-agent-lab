@@ -322,13 +322,15 @@ test("an unstamped build shows no record and withdraws the real marking", async 
 
 /* ---------------------- the check names a real record --------------------- */
 
-// The line the band shows before the probe answers (#1910). Composed from
-// REAL_RECORD_NAME rather than quoted whole: the waiting line and the settled
-// verdict below name one record, so renaming it has to move both or fail here.
-const WAITING_LINE = "Retrieving the running build’s version…"
-  + ` That version is compared with ${REAL_RECORD_NAME}, not with the invented example records.`;
+// The line the band shows before the probe answers. It is the front door's
+// line, word for word (#2423): this page used to compose a longer one of its
+// own, naming the version being retrieved and the record it would be compared
+// with, which is what the question directly above it already says. One fetch,
+// one sentence, on both pages — and the record's name is asserted where the
+// band actually states it, in the settled verdict below.
+const WAITING_LINE = "Checking the running build now…";
 
-test("the check names the identifier it is retrieving and the record it compares, while it waits", async (t) => {
+test("the check waits in the site's one waiting sentence, and announces the answer in place", async (t) => {
   // A probe that never answers: the state a visitor on a slow network meets,
   // and the one a visitor whose /healthz never returns stays in.
   const page = await open(t, { readHealth: () => new Promise(() => {}), settle: false });

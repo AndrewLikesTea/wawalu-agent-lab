@@ -646,13 +646,60 @@ test("the deployment proof renders one record heading without losing its verific
   );
 });
 
-test("the waiting line names the running build's version, before the check answers", async (t) => {
+// (#2423) One fetch, one waiting sentence — the one the front door already
+// ships. This page used to carry a second, longer one of its own: "Retrieving
+// the running build’s version… That version is compared with the real record of
+// this deployment, not with the invented example records." Every claim in it is
+// made by the question one line above it, so a reader waiting on the probe read
+// the same thing twice in different words, and a reader following the front
+// door's link met a third wording of the wait they had just left.
+const WAITING_LINE = "Checking the running build now…";
+const DELETED_WAITING_LINE = "Retrieving the running build’s version…";
+
+test("the page waits in the site's one waiting sentence, before the check answers", async (t) => {
   const page = await openReleasesPage(t, { settle: false });
+  assert.equal(textOf(page.document.querySelector("#deployment-verdict")), WAITING_LINE);
+
+  // Once, and in the bytes as well as the paint: a second waiting sentence
+  // would be a second account of one fetch, which is what was deleted.
+  const markup = await readFile(RELEASES_PAGE, "utf8");
+  assert.equal((markup.match(/Checking the running build now…/g) ?? []).length, 1);
+  assert.equal(markup.includes(DELETED_WAITING_LINE), false);
+  assert.equal(textOf(page.document.querySelector("#main-content")).includes(DELETED_WAITING_LINE), false);
+
+  // And it is the front door's line, byte for byte, so the two pages cannot
+  // drift into wording the same wait two ways.
+  const home = await readFile(new URL("../src/index.html", import.meta.url), "utf8");
+  assert.equal(home.includes(WAITING_LINE), true, "the front door no longer ships the line this page shares");
+});
+
+// The two names the band is allowed to use, in the five places it names them.
+// The count assertions are the point: a sixth place reaching for a sixth name
+// is what this test exists to catch, and it reads text, never elements.
+test("the deployment check and the record it compares name themselves one way each", async (t) => {
+  const page = await openReleasesPage(t);
+  const doc = page.document;
+  const check = textOf(doc.querySelector("#deployment-status"));
+
+  assert.equal(textOf(doc.querySelector("#deployment-status-title")), "Deployment check");
+  assert.match(textOf(doc.querySelector("#deployment-status-proof")), /^Does the real record of this deployment name/);
   assert.equal(
-    textOf(page.document.querySelector("#deployment-verdict")),
-    "Retrieving the running build’s version… That version is compared with"
-    + " the real record of this deployment, not with the invented example records.",
+    textOf(doc.querySelector("#deployment-copy")),
+    "Copy the deployment check verdict and both versions",
   );
+  assert.equal(
+    textOf(doc.querySelector("#deployment-evidence-summary")),
+    "Evidence: what the running build answered, and the real record of this deployment it was compared with",
+  );
+  assert.equal(textOf(doc.querySelector("#deployment-release-record")), "Open the real record of this deployment");
+
+  // Retired: the labels that named the verdict without naming the check that
+  // produced it, and the deleted waiting line.
+  const rendered = textOf(doc.querySelector("#main-content"));
+  for (const retired of ["Copy verdict and both versions", "Deployment verdict and", DELETED_WAITING_LINE]) {
+    assert.equal(rendered.includes(retired), false, `the rendered page still says "${retired}"`);
+    assert.equal(check.includes(retired), false, `the deployment check still says "${retired}"`);
+  }
 });
 
 test("no label in main content serves two destinations", async (t) => {

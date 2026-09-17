@@ -225,7 +225,7 @@ export function bindDeploymentCopy(root, clipboard = globalThis.navigator?.clipb
     status.textContent = "";
     const copied = await copyRecordUrl(clipboard, button.dataset.copyText);
     status.textContent = copied
-      ? "Deployment verdict and both version values copied to clipboard."
+      ? "Deployment check verdict and both version values copied to clipboard."
       : "Clipboard unavailable. Select the verdict and both version values above to copy them.";
     button.disabled = false;
   });

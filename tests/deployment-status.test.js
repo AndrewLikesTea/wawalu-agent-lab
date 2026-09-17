@@ -281,7 +281,12 @@ test("the visible copy control copies the verdict plus both compared version val
   await waitFor(() => page.document.documentElement.dataset.shiplogDeployment === "ready");
 
   const button = page.document.querySelector("#deployment-copy");
-  assert.equal(textOf(button), "Copy verdict and both versions");
+  // The control names the check it copies the verdict of, in the check's own
+  // name (#2423) — as the copied text has always done: "Deployment check
+  // verdict: …". Before that, the button said "Copy verdict and both versions"
+  // and the success line said "Deployment verdict …", so one band offered a
+  // reader three names for the thing it had just answered.
+  assert.equal(textOf(button), "Copy the deployment check verdict and both versions");
   assert.equal(button.getAttribute("aria-describedby"), "deployment-copy-status");
   button.click();
   await waitFor(() => textOf(page.document.querySelector("#deployment-copy-status")) !== "");
@@ -293,7 +298,7 @@ test("the visible copy control copies the verdict plus both compared version val
   assert.match(copied, /Real deployment-record version: v2\.1\.0/);
   assert.equal(
     textOf(page.document.querySelector("#deployment-copy-status")),
-    "Deployment verdict and both version values copied to clipboard.",
+    "Deployment check verdict and both version values copied to clipboard.",
   );
 });
 
