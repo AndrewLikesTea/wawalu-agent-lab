@@ -24,7 +24,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readdir, readFile } from "node:fs/promises";
-import { FOLLOW_UP_PRIVACY, FOLLOW_UP_PRIVACY_WITH_MESSAGE, FOLLOW_UP_USE } from "../src/lead-capture.js";
+import { FOLLOW_UP_PRIVACY, FOLLOW_UP_PRIVACY_WITH_MESSAGE, FOLLOW_UP_REPLY, FOLLOW_UP_USE } from "../src/lead-capture.js";
 import { parseHtml, pressEnter, pressTab, tabSequence, textOf } from "./support/browser.js";
 
 const SRC = new URL("../src/", import.meta.url);
@@ -81,6 +81,22 @@ const NAMED_PAGES = [
  * whole file exists to catch. `expectedPrivacy` is what every assertion below
  * reads, so a page is never compared against a sentence it does not ship.
  */
+/**
+ * A clock, in any of the shapes one gets quoted in.
+ *
+ * The block below the field now says who answers, and that is the one thing it
+ * is allowed to promise: this repository has no queue, no rota and no way to
+ * hold anybody to a deadline, so a response time here would be a number the
+ * product cannot keep. Held against every follow-up block on the site rather
+ * than against the sentence alone, because "we usually reply within a day" is
+ * the kind of reassurance that gets added to one page at a time.
+ */
+const SPEED = /business day|within \d|\bhours?\b|\bminutes?\b|\bsoon\b|\bquickly\b|\bimmediately\b|\bright away\b/i;
+
+// Neither sentence beside the field may read as a brochure.
+const MARKETING = [/\bwe (?:will )?never\b/i, /\brest assured\b/i, /\bsecurely\b/i, /\bof course\b/i,
+  /\bsimply\b/i, /\bprivacy[- ]first\b/i];
+
 const ASKS_MESSAGE = new Set([
   "agents.html", "coach.html", "post.html", "profile.html", "releases.html", "social.html",
 ]);
@@ -199,6 +215,66 @@ test("every follow-up form renders the use sentence too, byte for byte, beside t
     const note = form.querySelectorAll("p").find((node) => textOf(node) === expectedPrivacy(file));
     assert.equal(uses[0].getAttribute("class"), note.getAttribute("class"),
       `${file}: the use sentence must reuse the form-hint style, not introduce one`);
+  }
+});
+
+test("the reply sentence says who answers, and starts no clock", () => {
+  // The third question a visitor asks at this field, after where the address
+  // goes and what it is used for: what comes back. It was unanswered, and the
+  // answer a first-time reader assumed — an autoresponder — is the one thing
+  // that does not happen. So: a person, named as the team the sentence above
+  // already names, replying to the address being typed.
+  const words = FOLLOW_UP_REPLY.split(/\s+/).filter(Boolean);
+  assert.ok(words.length <= 25, `the sentence is ${words.length} words; the budget is 25`);
+  assert.equal(FOLLOW_UP_REPLY.at(-1), ".");
+  assert.equal((FOLLOW_UP_REPLY.match(/[.!?]/g) ?? []).length, 1, "one sentence, not two");
+
+  assert.match(FOLLOW_UP_REPLY, /A person from the Wawalu team that operates Shiplog/,
+    "it must name a person, on the team the privacy sentence already names");
+  assert.match(FOLLOW_UP_REPLY, /replies by email to the address you give/,
+    "it must say the reply comes by email, to the address being typed");
+  assert.match(FOLLOW_UP_REPLY, /no automated reply/, "it must say that nothing automated answers");
+
+  // A promise about who, never about when. No figure, and no word that reads
+  // as one — see SPEED.
+  assert.doesNotMatch(FOLLOW_UP_REPLY, SPEED, "the sentence must promise a person, not a deadline");
+  assert.doesNotMatch(FOLLOW_UP_REPLY, /\d/, "no number belongs in a promise about who answers");
+  for (const filler of MARKETING) {
+    assert.doesNotMatch(FOLLOW_UP_REPLY, filler, `the sentence must not read as marketing: ${filler}`);
+  }
+});
+
+test("every follow-up form renders the reply sentence too, byte for byte, above the button", async () => {
+  const forms = await followUpForms();
+  assert.ok(forms.length >= NAMED_PAGES.length, "no follow-up form was found at all");
+
+  for (const { file, form, field, submit } of forms) {
+    const order = form.querySelectorAll("input,p,button");
+    const at = (node) => order.indexOf(node);
+    const replies = order.filter((node) => textOf(node) === FOLLOW_UP_REPLY);
+    assert.equal(replies.length, 1, `${file}: the reply sentence renders ${replies.length} times in one form`);
+    assert.ok(at(field) < at(replies[0]), `${file}: the reply sentence is above the field it describes`);
+    assert.ok(at(replies[0]) < at(submit), `${file}: the reply sentence is below the button it should precede`);
+
+    // What a visitor weighs before typing, not something a receipt tells them
+    // afterwards — the same rule the two sentences above it follow.
+    assert.ok(!replies[0].hidden, `${file}: the reply sentence ships hidden`);
+    const note = form.querySelectorAll("p").find((node) => textOf(node) === expectedPrivacy(file));
+    assert.equal(replies[0].getAttribute("class"), note.getAttribute("class"),
+      `${file}: the reply sentence must reuse the form-hint style, not introduce one`);
+
+    // Three sentences, not one long one. The use sentence is a separate claim
+    // about a separate thing, and folding this into it would put a promise
+    // about a person inside a sentence that deliberately makes none.
+    const uses = form.querySelectorAll("p").filter((node) => textOf(node) === FOLLOW_UP_USE);
+    assert.equal(uses.length, 1, `${file}: the use sentence must survive this one, whole and on its own`);
+  }
+});
+
+test("no follow-up block on the site quotes a response time", async () => {
+  for (const { file, form } of await followUpForms()) {
+    assert.doesNotMatch(textOf(form), SPEED,
+      `${file}: the follow-up block quotes a response time nobody here can keep`);
   }
 });
 
