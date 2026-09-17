@@ -25,6 +25,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readdir, readFile } from "node:fs/promises";
 import { FOLLOW_UP_PRIVACY, FOLLOW_UP_PRIVACY_WITH_MESSAGE, FOLLOW_UP_REPLY, FOLLOW_UP_USE } from "../src/lead-capture.js";
+import { INTENT_QUESTION } from "../src/site-footer.js";
 import { parseHtml, pressEnter, pressTab, tabSequence, textOf } from "./support/browser.js";
 
 const SRC = new URL("../src/", import.meta.url);
@@ -153,7 +154,13 @@ test("the message form's sentence is one sentence too, and lists everything that
   assert.match(FOLLOW_UP_PRIVACY_WITH_MESSAGE, /the topic shown above/, "it must name the topic it sends");
   assert.doesNotMatch(FOLLOW_UP_PRIVACY_WITH_MESSAGE, /fixed follow-up topic/,
     "the topic must be named in words the page carries, not an internal one");
-  assert.match(FOLLOW_UP_PRIVACY_WITH_MESSAGE, /message you type/, "it must name the message it sends");
+  // #2431: the optional field is labelled "Anything else we should know?", so
+  // the sentence names it in the visitor's words rather than calling it "the
+  // message you type", which matched no label on the form either.
+  assert.match(FOLLOW_UP_PRIVACY_WITH_MESSAGE, /anything else you type/,
+    "it must name the optional field in the words its label uses");
+  assert.doesNotMatch(FOLLOW_UP_PRIVACY_WITH_MESSAGE, /message you type/,
+    "the sentence must not name the field something no label on the form says");
   assert.doesNotMatch(FOLLOW_UP_PRIVACY_WITH_MESSAGE, /nothing else on this page is sent/,
     "a form that carries a message box may not claim nothing else on the page is sent");
 
@@ -321,6 +328,45 @@ test("the sentence sits between the work-email field and the submit button, once
     assert.ok(at(field) < at(notes[0]), `${file}: the sentence is above the field it describes`);
     assert.ok(at(notes[0]) < at(submit), `${file}: the sentence is below the button it should precede`);
   }
+});
+
+/**
+ * The two questions on a form that asks one, and why they may not rhyme.
+ *
+ * The required fieldset asks what the request is about; the optional field
+ * beneath it asks for everything that choice cannot carry. Both used to open
+ * "What do you want to" — discuss, then know — and a first-time visitor reading
+ * them in order had no way to tell which one wanted what, or why the same
+ * question was being asked twice. The label below is the answer to the second
+ * one, in words the privacy sentence under the address repeats.
+ */
+const OPTIONAL_QUESTION = "Anything else we should know? (optional)";
+
+test("the optional field asks something the question above it did not", async () => {
+  const asked = new Set();
+  for (const { file, form } of await followUpForms()) {
+    // Read out of the shipped markup, like every sentence above: a label only
+    // src/site-footer.js agrees with is not the one a visitor reads.
+    const openings = form.querySelectorAll("label,legend")
+      .filter((node) => textOf(node).startsWith("What do you want to"));
+    if (!form.querySelector("#site-footer-message")) {
+      assert.equal(openings.length, 0, `${file}: a form with no optional field still asks for one`);
+      continue;
+    }
+    asked.add(file);
+
+    const label = form.querySelectorAll("label").find((node) => node.getAttribute("for") === "site-footer-message");
+    assert.equal(textOf(label), OPTIONAL_QUESTION, `${file}: the optional field's label has drifted`);
+
+    // The required question keeps its own words, and is now the only one on the
+    // form that opens this way.
+    assert.equal(textOf(form.querySelector("legend")), INTENT_QUESTION,
+      `${file}: the question about the topic has drifted`);
+    assert.equal(openings.length, 1,
+      `${file}: two questions on one form open "What do you want to" and read as one asked twice`);
+  }
+  assert.deepEqual([...asked].sort(), [...ASKS_MESSAGE].sort(),
+    "every page that ships the optional field must be held to its label");
 });
 
 test("no page keeps a fragment of the prose the one sentence replaced", async () => {
