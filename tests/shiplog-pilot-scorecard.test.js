@@ -6,12 +6,16 @@ import {
 } from "../src/shiplog-pilot-scorecard.js";
 import { buildShiplogEvaluationBrief, BRIEF_FOLLOW_UP_SENTENCE, BRIEF_FOLLOW_UP_URL } from "../src/shiplog-evaluation-brief.js";
 import { EXPORT_BUTTON_LABEL } from "../src/shiplog-export.js";
+import { SITE_NAV } from "../src/site-nav.js";
 import { STORAGE_KEY } from "../src/app.js";
 import { loadPage, textOf, pressEnter, pressSpace, tabSequence, typeText } from "./support/browser.js";
 
 const page = new URL("../src/index.html", import.meta.url);
 const settle = () => new Promise((resolve) => setImmediate(resolve));
 const FOLLOW_UP_LINE = `${BRIEF_FOLLOW_UP_SENTENCE} ${BRIEF_FOLLOW_UP_URL}`;
+// The nav's own label for the destination, so the scorecard cannot drift into a
+// second name for the page it sends an evaluating team to.
+const HOME_PAGE_NAME = SITE_NAV.find((item) => item.href === "/index.html").label;
 const NO_OFFER = /\$|€|£|\bprice[sd]?\b|\bfree\b|sign ?up|\btrial\b|\bavailable\b|achieved|improved|reduced|testimonial/i;
 async function open(t, clipboard, options) {
   const home = await loadPage(page, options);
@@ -90,6 +94,11 @@ test("Team handoff names the page's export and import controls and claims no sha
   assert.ok(handoff.includes(`“${exportLabel}”`), "names the export button");
   assert.ok(handoff.includes(`“${importLabel}”`), "names the import control");
   assert.ok(handoff.indexOf(exportLabel) < handoff.indexOf(importLabel));
+  // #2395: each control carries its address, and no word that resolves only for
+  // a reader already standing on the page. This row is written to leave it.
+  assert.ok(handoff.includes(`“${exportLabel}” on the ${HOME_PAGE_NAME} page`), "addresses the export button");
+  assert.ok(handoff.includes(`“${importLabel}” on the ${HOME_PAGE_NAME} page`), "addresses the import control");
+  assert.doesNotMatch(handoff, /\bthis page\b|\bhere\b/);
   assert.match(handoff, /send the file to your teammate/);
   assert.match(handoff, /in their own browser/);
   assert.doesNotMatch(handoff, /shar|sync|host|upload|cloud|server|online|account|sign.?in|same (log|record)|workspace/i);
@@ -166,6 +175,11 @@ test("the manual copying box holds exactly the text the copy button tried to wri
   assert.equal(manual.value, writes[0]);
   assert.ok(manual.value.includes(PILOT_TEAM_HANDOFF));
   assert.ok(manual.value.includes(FOLLOW_UP_LINE));
+  // #2395: the second surface. A manager pasting this box into a ticket reads
+  // the row away from the page, so the row has to say which page it means.
+  assert.ok(manual.value.includes(`“${EXPORT_BUTTON_LABEL}” on the ${HOME_PAGE_NAME} page`));
+  assert.ok(manual.value.includes(`“Choose JSON file” on the ${HOME_PAGE_NAME} page`));
+  assert.doesNotMatch(manual.value.split("\n\n")[4], /\bthis page\b|\bhere\b/);
 });
 
 for (const [name, clipboard] of [
