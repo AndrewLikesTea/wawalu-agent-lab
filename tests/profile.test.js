@@ -15,7 +15,7 @@ installDocument();
 const { FEED_LOADING_LINE } = await import("../src/social.js");
 
 const {
-  EMPTY_SUMMARY_LINE, PENDING_RESULTS_HEADING, PROFILE_EMPTY_COPY, PUBLISH_ON_SOCIAL, authorChipLabel, authorInitials, captionFor, countLabel, defaultProfileAuthor,
+  EMPTY_SUMMARY_LINE, PENDING_RESULTS_HEADING, PROFILE_EMPTY_COPY, PROFILE_EMPTY_DETAIL, PUBLISH_ON_SOCIAL, authorChipLabel, authorInitials, captionFor, countLabel, defaultProfileAuthor,
   distinctAuthors, hasExplicitAuthor, imagePostCounts, loadingSummaryText,
   mergePostsById, normalizeProfileApiPosts, normalizeSeedPosts, pickerEntries, pickerNoteText, postDetailHref,
   singleNameNotice, profileActiveFilterLine,
@@ -439,7 +439,10 @@ test("the first load reserves a skeleton grid instead of a blank panel", () => {
   // caption, metadata, and action hierarchy without claiming six fetched posts.
   assert.equal(skeleton.getAttribute("aria-hidden"), "true");
   assert.equal(skeleton.getAttribute("inert"), "");
-  assert.equal(status.textContent, "Image posts are loading. Publish a post on Social to add one.");
+  assert.equal(status.textContent, "Image posts are loading.");
+  // The wait states the load and nothing else: no route out of it, and no
+  // verdict on a list that is still filling (#2416).
+  assert.equal(tags(status, "A").length, 0);
   assert.equal(byClass(skeleton, "profile-tile-skeleton").length, 6);
   assert.equal(byClass(skeleton, "skeleton-media-square").length, 6);
   assert.equal(byClass(skeleton, "skeleton-meta").length, 6);
@@ -787,25 +790,29 @@ test("the zero state does not vary with what the rest of the feed holds", () => 
 });
 
 test("the waiting line names image posts once without duplicating the selected display name", () => {
-  assert.equal(loadingSummaryText(), "Image posts are loading. Publish a post on Social to add one.");
-  assert.equal(loadingSummaryText("Zed"), "Image posts are loading. Publish a post on Social to add one.");
+  assert.equal(loadingSummaryText(), "Image posts are loading.");
+  assert.equal(loadingSummaryText("Zed"), "Image posts are loading.");
+  // One clause, one fact. It carried "Publish a post on Social to add one."
+  // until #2416, which told a reader the list was empty while the list was
+  // still loading and repeated the steps under the grid.
+  assert.doesNotMatch(loadingSummaryText(), /Publish|add one/);
 });
 
-// People cannot publish anything, so both places it sends a visitor to Social —
-// the wait over the grid and the publishing step in the helper beside it — offer
-// one trip. They used to name two, and neither was a control Social had: the
-// wait said "Open Social to publish an image post" and the step said "Write a
-// post on Social", while the button that opens the composer read something else
-// again (#2181). Comparing People's two strings to each other would not have
-// caught that, so both are read off the one exported phrase.
+// People cannot publish anything, so it sends a visitor to Social — and it does
+// so from one place, the publishing step in the three-step paragraph under the
+// grid. It used to offer the trip twice under two names, and neither was a
+// control Social had: the wait over the grid said "Open Social to publish an
+// image post" and the step said "Write a post on Social", while the button that
+// opens the composer read something else again (#2181). #2416 took the offer off
+// the wait entirely, so there is one offer left and the step owns it.
 //
-// That phrase used to be built from Social's composer label, so People's words
+// The phrase used to be built from Social's composer label, so People's words
 // were the words on the button a reader arrived at. Social's trigger is "Write a
 // post" now and its submit is "Publish post" (#2389), and People's phrase is
 // deliberately neither: it names the act and the page that can perform it. What
 // keeps the promise is the href — /social.html#post-form opens the composer on
 // arrival — so this test pins the destination rather than a shared label.
-test("People offers the trip to Social's composer in one phrase, in both places", async () => {
+test("People offers the trip to Social's composer in one phrase, in one place", async () => {
   const social = await readFile(new URL("../src/social.html", import.meta.url), "utf8");
   const opener = social.match(/<button[^>]*id="post-compose-open"[^>]*>([^<]*)<\/button>/);
   assert.notEqual(opener, null, "Social ships no control that opens the composer");
@@ -818,11 +825,11 @@ test("People offers the trip to Social's composer in one phrase, in both places"
   assert.equal(COMPOSE_POST_LABEL, "Write a post",
     "Social's composer trigger drifted, so People's route may name the wrong act");
 
-  // People's one phrase for the trip names the act and the page it happens on,
-  // and nothing else is added, so a reader who follows either offer meets the
-  // same words.
+  // People's one phrase for the trip names the act and the page it happens on.
   assert.equal(PUBLISH_ON_SOCIAL, "Publish a post on Social");
-  assert.equal(loadingSummaryText(), `Image posts are loading. ${PUBLISH_ON_SOCIAL} to add one.`);
+  // And the wait does not carry it: a page that has not finished loading its
+  // list is not a place to invite a reader to add to it (#2416).
+  assert.equal(loadingSummaryText().includes(PUBLISH_ON_SOCIAL), false);
 
   const html = await readFile(new URL("../src/profile.html", import.meta.url), "utf8");
   const step = html.match(/<a class="text-link" id="profile-publish-route" href="([^"]*)">([^<]*)<\/a>/);
@@ -858,7 +865,7 @@ test("the profile page's static copy does not drift from the module's", async ()
   assert.doesNotMatch(html, new RegExp(retiredEmptyLine("Ari")));
   // People's one retrieval status names the content type; the heading already
   // names the selected display name.
-  assert.equal(loadingSummaryText("Ari"), "Image posts are loading. Publish a post on Social to add one.");
+  assert.equal(loadingSummaryText("Ari"), "Image posts are loading.");
   // And the connection line ships wordless. Its promise used to be authored
   // above the status that says the image posts are still loading, so the frame
   // with nothing in it made a promise and then admitted it had nothing — two
@@ -911,13 +918,17 @@ test("empty People recovery follows safely interpolated names and replaces pendi
     const panel = first(container, "empty-state");
     assert.equal(panel.children[0].tagName, "H3");
     assert.equal(panel.children[0].textContent, profileEmptyText(author));
+    // The sentence that closes the load sits between the message and the
+    // recovery, and carries no interpolated name and no link of its own.
+    assert.equal(panel.children[1].tagName, "P");
+    assert.equal(panel.children[1].textContent, PROFILE_EMPTY_DETAIL);
     assert.equal(tags(panel, "IMG").length, 0);
     assert.equal(byClass(container, "feed-status-error").length, 0);
     assert.equal(byClass(container, "profile-skeleton").length, 0);
     assert.deepEqual(tags(panel, "A").map(link => link.href), [
       "#profile-name-picker", "/social.html#post-form", profilePaintHref(author),
     ]);
-    assert.equal(panel.children[1].className, "empty-actions");
+    assert.equal(panel.children[2].className, "empty-actions");
   }
 });
 

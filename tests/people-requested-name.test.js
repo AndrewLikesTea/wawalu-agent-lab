@@ -126,7 +126,7 @@ test("a display name with zero image posts is answered under that name, with a s
     // is the reset rather than the editor.
     assert.equal(document.querySelectorAll(".empty-state").length, 1);
     const panel = document.querySelector("#profile-feed-status").querySelector(".empty-state");
-    assert.match(textOf(panel), /The display name “Ari” has no image posts yet\.Choose another display namePublish an image post on Social/);
+    assert.match(textOf(panel), /The display name “Ari” has no image posts yet\.Loading has finished\. The steps below show how to add one\.Choose another display namePublish an image post on Social/);
     assert.equal(textOf(panel.querySelectorAll("a")[1]), "Publish an image post on Social");
     assert.equal(panel.querySelectorAll("a")[1].getAttribute("href"), "/social.html#post-form");
     // And the page's one voice names the display name, because an announcement
@@ -149,7 +149,7 @@ test("a feed with no pictures under any name offers Publish post", async () => {
     const { document } = page;
     assertStatedZero(document, "Ari");
     const panel = document.querySelector("#profile-feed-status").querySelector(".empty-state");
-    assert.match(textOf(panel), /The display name “Ari” has no image posts yet\.Choose another display namePublish an image post on Social/);
+    assert.match(textOf(panel), /The display name “Ari” has no image posts yet\.Loading has finished\. The steps below show how to add one\.Choose another display namePublish an image post on Social/);
     const routes = panel.querySelectorAll("a");
     assert.deepEqual(routes.map((route) => textOf(route)), ["Choose another display name", "Publish an image post on Social", "Create an image in Paint"]);
     assert.equal(routes[1].getAttribute("href"), "/social.html#post-form");

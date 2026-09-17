@@ -262,9 +262,10 @@
                of a rule the intro had already given.
                The counts line waits with the same words the connection line
                below ships (loadingSummaryText() in src/profile.js; a test pins
-               both). The loading status names the selected display name. Once
-               the module runs, this counts line is the
-               page's only statement of the image-post total. -->
+               both). That status says what is loading and nothing else; the
+               heading above names the selected display name once there are
+               image posts to name it over. Once the module runs, this counts
+               line is the page's only statement of the image-post total. -->
           <div class="section-heading list-heading">
             <p class="eyebrow" id="profile-order">Newest first</p>
             <!-- Ships with nothing in it, and profile.js takes the element out of
@@ -304,7 +305,7 @@
                and not an announcement — the polite region above is the page's
                one voice, and while this element was also live a name with no
                image posts spoke the same guidance twice, from two regions. -->
-          <div class="feed-status" id="profile-feed-status">Image posts are loading. Publish a post on Social to add one.</div>
+          <div class="feed-status" id="profile-feed-status">Image posts are loading.</div>
           <div id="profile-grid" aria-describedby="profile-order" aria-busy="true">
             <!-- No display name is claimed above these: the heading names the
                  content type and the filled state chip is not on the page yet.
@@ -365,8 +366,10 @@
                so the words matched the button the reader arrived at; that
                trigger reads "Write a post" now and the submit reads "Publish
                post" (#2389), so this phrase names a destination and an act
-               instead, owned once in src/profile.js (PUBLISH_ON_SOCIAL) with
-               the loading status above the grid. This link used to open
+               instead, owned once in src/profile.js (PUBLISH_ON_SOCIAL). The
+               loading status above the grid used to carry the same offer; it
+               says only that the image posts are loading now (#2416), so this
+               paragraph is the one place these steps are given. This link used to open
                on a third verb, "Write", while that status sent the same reader
                to "Open Social to publish an image post": one trip under two
                names, neither of them a control Social renders (#2181).

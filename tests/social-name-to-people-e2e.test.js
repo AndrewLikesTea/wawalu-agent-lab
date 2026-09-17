@@ -356,7 +356,7 @@ test("a forwarded name with no image posts is named, and offered the whole feed"
   // This feed has image posts, under other display names, so the region says
   // the filter emptied the view rather than that there is nothing to see. The
   // genuinely-empty invitation belongs to a feed with no images at all.
-  assert.match(textOf(empty), new RegExp(`The display name “${TESS}” has no image posts yet\\.Choose another display namePublish an image post on Social`));
+  assert.match(textOf(empty), new RegExp(`The display name “${TESS}” has no image posts yet\\.Loading has finished\\. The steps below show how to add one\\.Choose another display namePublish an image post on Social`));
 
   // The way back to the whole feed is the reset that undoes the filter, in the
   // one label this site uses for it.

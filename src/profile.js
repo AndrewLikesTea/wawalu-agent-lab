@@ -342,12 +342,30 @@ export function profileEmptyText(author) {
   return `The display name “${name}” has no image posts yet.`;
 }
 
-// The one phrase People uses for the trip to Social's composer, in both places
-// it offers that trip: this status while the grid loads, and the publishing step
-// in the .feed-create hint (src/profile.html). It names the act and the page
-// that can perform it, because People cannot. People used to send the same
-// reader twice under two names — "Open Social to publish an image post" here and
-// "Write a post on Social" in the hint — and this is the one wording.
+// The sentence that separates "nothing to show" from "nothing shown yet". The
+// status over the grid now says only that the image posts are loading
+// (loadingSummaryText), so this panel is the page's one statement that the load
+// is over — the answer is in, and it is zero.
+//
+// Then it points at the steps instead of restating them. The three-step "To add
+// yours:" paragraph under the grid is the single place those steps live, and it
+// is back on the page in exactly this state (feedPresence in mountProfile), so a
+// pointer to it is true whenever this line is read. "add one" is that
+// paragraph's own verb, so the reader meets the same word at both ends of the
+// trip, and the sentence carries no second link: the publishing route beside it
+// is the one invitation this panel offers.
+export const PROFILE_EMPTY_DETAIL = "Loading has finished. The steps below show how to add one.";
+
+// The one phrase People uses for the trip to Social's composer, in the one place
+// it offers that trip: the publishing step in the .feed-create hint
+// (src/profile.html). It names the act and the page that can perform it, because
+// People cannot. People used to send the same reader twice under two names —
+// "Open Social to publish an image post" and "Write a post on Social" — and this
+// is the one wording.
+//
+// The loading status used to carry it too (#2416). A wait is not a place to
+// publish from: it said the list was still filling and invited a reader to add
+// to it in the same breath, and the three steps below the grid already say how.
 //
 // It used to be built from Social's composer label, so the words a reader was
 // sent to were the words on the control they arrived at. Social's trigger is
@@ -359,11 +377,13 @@ export function profileEmptyText(author) {
 // it is "Write a post on Social" that would name one.
 export const PUBLISH_ON_SOCIAL = "Publish a post on Social";
 
-// The grid's first-load status says exactly what People is retrieving, and then
-// where a visitor publishes one of them — this page has no composer, so the next
-// action it can honestly name is on Social. It names the destination as well as
-// the control because the nav link to Social is on screen in this state, unlike
-// the .feed-create hint, which feedPresence() removes while the fetch is open.
+// The grid's first-load status says exactly what People is retrieving, and
+// stops. It used to weld a call to action onto that — "Image posts are loading.
+// Publish a post on Social to add one." — which read as a verdict on an empty
+// list while the list was still filling, and offered a second time what the
+// three-step "To add yours:" paragraph below the grid already spells out
+// (#2416). Where a visitor publishes belongs to the state that has finished and
+// found nothing (PROFILE_EMPTY_DETAIL), not to the wait.
 //
 // `author` is accepted for call-site symmetry with the other status builders and
 // deliberately not used: the heading directly above carries the selected display
@@ -373,7 +393,7 @@ export const PUBLISH_ON_SOCIAL = "Publish a post on Social";
 // the frame before hydration, where it once shipped "Ari hasn't posted an image
 // yet", a verdict that was false for the seeded feed.
 export function loadingSummaryText(author = DEFAULT_AUTHOR) {
-  return `Image posts are loading. ${PUBLISH_ON_SOCIAL} to add one.`;
+  return "Image posts are loading.";
 }
 
 // The counts line when the selected display name has nothing to show. It states
@@ -635,6 +655,9 @@ function renderSkeleton(container, count = 6) {
 function renderEmpty(container, author) {
   const empty = el("div", "empty-state");
   empty.append(el("h3", "empty-title", profileEmptyText(author)));
+  // Unclassed on purpose: `.empty-state p` is already the styled body line of
+  // this panel (src/styles.css), so the sentence costs no new rule.
+  empty.append(el("p", "", PROFILE_EMPTY_DETAIL));
   const actions = el("div", "empty-actions");
   const choose = el("a", "empty-action empty-action-secondary", "Choose another display name");
   choose.href = "#profile-name-picker";

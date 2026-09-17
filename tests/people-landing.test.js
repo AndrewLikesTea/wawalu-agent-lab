@@ -175,7 +175,7 @@ test("the picker says what choosing a name does, and the line over the grid says
     assert.equal(document.querySelectorAll(".profile-tile").length, 0);
     assert.equal(textOf(document.querySelector("#profile-name")), "Ari has no image posts yet.");
     assert.match(textOf(document.querySelector("#profile-feed-status")),
-      /The display name “Ari” has no image posts yet\.Choose another display namePublish an image post on Social/);
+      /The display name “Ari” has no image posts yet\.Loading has finished\. The steps below show how to add one\.Choose another display namePublish an image post on Social/);
 
     // The retired sentence is gone from every render path, not just the first
     // one, and no page state brings it back.
@@ -370,7 +370,7 @@ test("People uses one status node for loading, error, and recovery to live posts
   t.after(() => { globalThis.setInterval = savedInterval; page.restore(); });
 
   const status = page.document.querySelector("#profile-feed-status");
-  assert.equal(textOf(status), "Image posts are loading. Publish a post on Social to add one.");
+  assert.equal(textOf(status), "Image posts are loading.");
   assert.equal(page.document.querySelectorAll("#profile-feed-status").length, 1);
 
   await importPageModule("/profile-page.js");
@@ -502,7 +502,7 @@ test("a name whose posts are all gone is offered the publishing flow", async () 
     assert.equal(document.querySelectorAll(".empty-state").length, 1);
     const panel = document.querySelector(".empty-state");
     assert.equal(document.querySelectorAll(".empty-state-filtered").length, 0);
-    assert.match(textOf(panel), /The display name “Bea” has no image posts yet\.Choose another display namePublish an image post on Social/);
+    assert.match(textOf(panel), /The display name “Bea” has no image posts yet\.Loading has finished\. The steps below show how to add one\.Choose another display namePublish an image post on Social/);
     assert.equal(panel.querySelectorAll("a")[1].getAttribute("href"), "/social.html#post-form");
   } finally {
     page.restore();
@@ -538,7 +538,7 @@ test("an empty display name is named in prose once and counted once", async () =
     // feed holds image posts under other display names, so it is the filter that
     // emptied the view. Guidance rather than a second telling of the count.
     assert.equal(document.querySelectorAll(".empty-state").length, 1);
-    assert.match(textOf(document.querySelector(".empty-state")), /The display name “Nova” has no image posts yet\.Choose another display namePublish an image post on Social/);
+    assert.match(textOf(document.querySelector(".empty-state")), /The display name “Nova” has no image posts yet\.Loading has finished\. The steps below show how to add one\.Choose another display namePublish an image post on Social/);
   } finally {
     page.restore();
   }
@@ -1169,7 +1169,7 @@ test("a selected name with no image posts offers Publish post", async () => {
     // One region, not two, and not an empty list.
     assert.equal(document.querySelectorAll(".empty-state").length, 1);
     const empty = document.querySelector(".empty-state");
-    assert.match(textOf(empty), /The display name “Nova” has no image posts yet\.Choose another display namePublish an image post on Social/);
+    assert.match(textOf(empty), /The display name “Nova” has no image posts yet\.Loading has finished\. The steps below show how to add one\.Choose another display namePublish an image post on Social/);
     assert.equal(document.querySelector("#profile-grid").querySelectorAll(".profile-grid").length, 0,
       "the grid drew an empty list beside the region that explains it");
     assert.equal(textOf(empty.querySelectorAll("a")[1]), "Publish an image post on Social");
@@ -1264,7 +1264,7 @@ test("the grid and the status region are read before the demo disclaimer", async
     // state the caveat is most likely to be the only thing on screen.
     chipFor(page, "Ari").click();
     assertPicturesBeforeProvenance(page.document, "filtered-empty", {
-      tiles: 0, status: /The display name “Ari” has no image posts yet\.Choose another display namePublish an image post on Social/,
+      tiles: 0, status: /The display name “Ari” has no image posts yet\.Loading has finished\. The steps below show how to add one\.Choose another display namePublish an image post on Social/,
     });
   } finally {
     page.restore();
@@ -1300,7 +1300,7 @@ test("the demo disclaimer stays below the grid while the posts load and when the
   globalThis.fetch = (url, init) => (url === LIVE_ROUTE ? new Promise(() => {}) : routed(url, init));
   try {
     assertPicturesBeforeProvenance(pending.document, "as served", {
-      tiles: 0, status: /^Image posts are loading\. Publish a post on Social to add one\.$/,
+      tiles: 0, status: /^Image posts are loading\.$/,
     });
     await importPageModule("/profile-page.js");
     await waitFor(() => textOf(pending.document.querySelector("#profile-filter-hint")),
@@ -1395,7 +1395,7 @@ function assertClaimsNoResult(document, state) {
   assert.equal(textOf(document.querySelector("#profile-filter-hint")),
     "Display names become available when image posts load.", `${state}: the filter hint was reworded`);
   assert.equal(textOf(document.querySelector("#profile-feed-status")),
-    "Image posts are loading. Publish a post on Social to add one.", `${state}: the waiting line lost its next action`);
+    "Image posts are loading.", `${state}: the waiting line stopped saying what it is doing`);
 
   // The placeholders and the content-hierarchy preview are untouched: this
   // change takes a claim away, it does not take a shape away. And nothing in the

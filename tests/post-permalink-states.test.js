@@ -1158,15 +1158,16 @@ test("the post page introduces itself once, answering what a cold visitor cannot
     }
   }
 
-  // The two feed waits name what is loading and the next step. The permalink
-  // keeps its own context-setting wait for a cold visitor. Both are read as
-  // values rather than matched as literals in the source.
+  // The two feed waits name what is loading. The permalink keeps its own
+  // context-setting wait for a cold visitor. Both are read as values rather than
+  // matched as literals in the source.
   //
-  // They differ on purpose (#2389): Social's names its own composer trigger,
-  // which reads "Write a post", while People's names the act and the page that
-  // can perform it, because People has no composer to open.
+  // They differ on purpose: Social's names its own composer trigger, which reads
+  // "Write a post" (#2389), while People's names nothing beyond the load — it
+  // has no composer to open, and the steps that lead to one are under its grid
+  // in a paragraph the wait no longer duplicates (#2416).
   assert.equal(FEED_LOADING_LINE, "Existing posts are still loading. Select Write a post.");
-  assert.equal(loadingSummaryText(), "Image posts are loading. Publish a post on Social to add one.");
+  assert.equal(loadingSummaryText(), "Image posts are loading.");
 
   // The wait a cold visitor meets, held open. Read off the rendered page rather
   // than the markup, because this is the state the module redraws.
