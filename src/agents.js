@@ -629,6 +629,59 @@ function appendCount(value, count) {
   appendText(value, "span", "merged-figure-unit", mergedCountUnit(count));
 }
 
+// The two states GitHub has not answered in. Both of them are a request that
+// could genuinely answer differently on a second ask — `unavailable` has no
+// number at all, and `recorded` is standing on a dated one — so both are what
+// the retry is for. `loading` is already asking and `live` has this load's own
+// count, and a control that cannot change either is a promise the page would
+// not be keeping. This is the same rule the panels below hold their own controls
+// to: a recovery is offered only where there is something to recover.
+const MERGED_FIGURE_RECOVERABLE = new Set(["unavailable", "recorded"]);
+
+export const isRecoverableMergedFigureState = (state) => MERGED_FIGURE_RECOVERABLE.has(state);
+
+/**
+ * Whether a live request is in flight, written on the section beside the state
+ * it is painting.
+ *
+ * The two are not the same fact and the page needs both. `recorded` is painted
+ * while the live request is still on its way — that is what it is for, a dated
+ * number instead of a spinner — so the state alone cannot say whether the page
+ * is already asking. Marked `settled` by whichever comes first, the response or
+ * the display deadline that stops waiting for it, because from the reader's side
+ * both mean the same thing: this ask is over, and the next one is theirs.
+ */
+function markMergedRequest(root, phase) {
+  const section = root.querySelector("#merged-figure");
+  if (section) section.dataset.request = phase;
+  return section;
+}
+
+const mergedRequestPending = (root) => root.querySelector("#merged-figure")?.dataset.request === "pending";
+
+/**
+ * Show or withdraw the figure's retry, off the state that was just painted.
+ *
+ * The control lives beside the readout rather than inside it: the readout is the
+ * live region, so a button rendered into it would be part of every announcement
+ * and would be destroyed and rebuilt under a reader standing on it. Hidden, not
+ * removed — its own container carries the `hidden`, exactly as the personas
+ * panel's does, so it leaves the tab order entirely in the states that do not
+ * offer it and comes back in the same place in the ones that do.
+ */
+function offerMergedRetry(root, state) {
+  // Never while the page is already asking: a dated record painted under a live
+  // request in flight is a state a second ask cannot improve on, and offering
+  // one there would put a control in the tab order for the length of a request
+  // and then take it away again.
+  const offered = isRecoverableMergedFigureState(state) && !mergedRequestPending(root);
+  const control = root.querySelector("#retry-merged-count");
+  const actions = root.querySelector("#merged-figure-actions");
+  if (control) control.dataset.recovery = offered ? "retry" : "none";
+  if (actions) actions.hidden = !offered;
+  return offered;
+}
+
 /**
  * Paint the headline figure.
  *
@@ -662,11 +715,15 @@ export function renderMergedFigure(root = document, state = "loading",
   const readout = root.querySelector("#merged-figure-readout");
   if (!section || !readout) return null;
   section.dataset.state = name;
+  offerMergedRetry(root, name);
 
   const value = document.createElement("p");
   value.className = "merged-figure-value";
   const source = document.createElement("p");
   source.className = "merged-figure-source";
+  // The retry's aria-describedby names this sentence — why there is no live
+  // count — so the id has to survive every repaint of the readout it lives in.
+  source.id = "merged-figure-detail";
 
   if (name === "live") {
     appendCount(value, count);
@@ -754,6 +811,7 @@ export async function loadActivity(root = document, fetcher = fetch, storage = b
   // is the state's only undated number, so it may not outlive its response —
   // what replaces it below is either the next response's count or a dated one.
   renderMergedFigure(root, "loading");
+  markMergedRequest(root, "pending");
   label.textContent = CONNECTION_LABELS.loading;
   if (!hasLiveEvents) {
     renderRepresentativeActivity(list, { reason: "loading" });
@@ -790,6 +848,9 @@ export async function loadActivity(root = document, fetcher = fetch, storage = b
     // Only a slot that is still waiting, so a count that did arrive is never
     // taken back off the page by a clock.
     if (root.querySelector("#merged-figure")?.dataset.state !== "loading") return;
+    // Waiting is over even though the request is not, so the slot settles and
+    // the retry it settles on is a real one.
+    markMergedRequest(root, "settled");
     renderFallbackFigure(root, recorded, UNAVAILABLE_REASONS.pending);
   }, settleAfterMs);
   // Never the reason a Node process or a test run stays alive.
@@ -801,6 +862,7 @@ export async function loadActivity(root = document, fetcher = fetch, storage = b
     // them is not a zero — it is nothing to count from, which is the empty
     // headline, not a figure a reader could mistake for a real one.
     const { events, countable, asOf } = await readPublicEvents(fetcher, SYNTHETIC_RECORDS);
+    markMergedRequest(root, "settled");
     if (countable.length) {
       const count = countMergedPullRequests(countable);
       renderMergedFigure(root, "live", { count, total: countable.length, asOf });
@@ -832,6 +894,7 @@ export async function loadActivity(root = document, fetcher = fetch, storage = b
     updated.textContent = `Updated ${formatClockTime(asOf)}`;
     updated.hidden = false;
   } catch (error) {
+    markMergedRequest(root, "settled");
     renderActivityState(root, "error", { keptEvents: hasLiveEvents });
     // Why there is no count, in the reader's terms rather than the transport's,
     // read off what actually failed — the same clause on the same failure the
@@ -852,9 +915,37 @@ export async function loadActivity(root = document, fetcher = fetch, storage = b
 
 // Retry runs the same load the page runs on mount and on its timer: one data
 // path, so a retried request cannot reach a different state than a first one.
+//
+// Both controls run that one load, because there is only one request behind
+// them: the headline count and the rows below it are read out of the same two
+// GitHub responses, so asking again for either is one ask, not two. A press
+// while a load is already in flight joins it rather than starting a second —
+// two responses racing onto one readout is how a figure ends up painted from
+// the older of them — and the load is released again the moment it settles, so
+// the next press is a fresh request however many times it is pressed.
 export function wireActivityControls(root = document, fetcher) {
   const refresh = () => loadActivity(root, fetcher ?? fetch);
   root.querySelector("#refresh-activity")?.addEventListener("click", refresh);
+  // Pressing this one withdraws the button the reader was standing on — the
+  // retry belongs to the states GitHub has not answered in — so the retried load
+  // says where focus goes next: the readout that replaced it, which is either
+  // the count that arrived or the sentence saying none did. It lands there
+  // whichever way the load ended, so a reader is never left on the page body
+  // wondering what their own keypress did.
+  const land = () => {
+    const readout = root.querySelector("#merged-figure-readout");
+    readout?.setAttribute?.("tabindex", "-1");
+    readout?.focus?.();
+  };
+  // A press while the page is already asking is not a second request. It cannot
+  // reach a different answer than the one already on its way, and two loads
+  // racing onto one readout settle in whichever order their responses happen to
+  // land — which is how a figure ends up painted from the older of them. The
+  // guard is the live request's own phase and not a timer, so the display
+  // deadline below, which stops waiting without stopping the request, still
+  // leaves a slow load askable again. That is the whole point of the control.
+  const retry = () => (mergedRequestPending(root) ? null : refresh().then(land, land));
+  root.querySelector("#retry-merged-count")?.addEventListener("click", retry);
   return refresh;
 }
 
