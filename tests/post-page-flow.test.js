@@ -232,8 +232,8 @@ function assertIdentityStands(document, where) {
   const social = flow.findIndex((node) => node.id === "post-back");
   assert.ok(heading >= 0 && detail >= 0 && note >= 0 && social >= 0,
     `${where}: the heading, the post region, the sentence or the Social link left the page's content`);
-  assert.ok(heading < detail && detail < note && note < social,
-    `${where}: the sentence must read after the post and before "${SOCIAL.label}"`);
+  assert.ok(heading < detail && detail < social && social < note,
+    `${where}: the sentence must read after the post and "${SOCIAL.label}"`);
   assert.equal(flow[note].getAttribute("class"), "hint", `${where}: the sentence lost the class Social's feed note uses`);
   for (const region of ["#post-detail", "#site-footer"]) {
     assert.equal(Boolean(flow[note].closest(region)), false, `${where}: the sentence sits inside ${region}`);
@@ -389,13 +389,44 @@ function assertReportingStands(document, where) {
 
   const flow = document.querySelector("#main-content").querySelectorAll("h1,p,a");
   const at = (text) => flow.findIndex((node) => node.tagName === "P" && textOf(node) === text);
-  const reading = [at(IDENTITY), at(REPORT_ROUTE), at(REPORT_ABOUT), flow.findIndex((node) => node.id === "post-back")];
+  const reading = [flow.findIndex((node) => node.id === "post-back"),
+    flow.findIndex((node) => node.id === "post-publish"), at(IDENTITY), at(REPORT_ROUTE), at(REPORT_ABOUT)];
   assert.ok(reading.every((index) => index >= 0),
     `${where}: the display-name caveat, a reporting sentence or the Social link left the page's content`);
   assert.deepEqual(reading.slice().sort((a, b) => a - b), reading,
-    `${where}: reporting reads after the display-name caveat and before "${SOCIAL.label}"`);
+    `${where}: both Social links precede the display-name caveat and reporting explanation`);
 
-  for (const [name, index] of Object.entries({ route: reading[1], explanation: reading[2] })) {
+  const postRegion = document.querySelector("#post-detail").closest("section");
+  const siblings = postRegion.parentNode.children.filter((node) => node.getAttribute);
+  const row = document.querySelector(".detail-page-exits");
+  assert.ok(siblings[siblings.indexOf(postRegion) + 1] === row,
+    `${where}: the onward row immediately follows the post region`);
+  assert.equal(body.split(IDENTITY).length - 1, 1, `${where}: the display-name caveat stays unchanged`);
+
+  const sequence = tabSequence(document);
+  const links = [document.querySelector("#post-back"), document.querySelector("#post-publish")];
+  for (const [index, expected] of [SOCIAL, PUBLISH].entries()) {
+    const link = links[index];
+    assert.equal(document.querySelectorAll(`#${link.id}`).length, 1);
+    assert.equal(textOf(link), expected.label, `${where}: unchanged Social link text`);
+    assert.equal(link.getAttribute("href"), expected.href, `${where}: unchanged destination`);
+    assert.ok(sequence.includes(link), `${where}: Social link is keyboard reachable`);
+    assert.equal(link.getAttribute("tabindex"), null, `${where}: natural focus order`);
+  }
+  assert.ok(sequence.indexOf(links[0]) < sequence.indexOf(links[1]), `${where}: feed before publish`);
+  links[0].focus();
+  let next = pressTab(document);
+  if (next.id === "post-people") next = pressTab(document);
+  assert.ok(next === links[1], `${where}: Tab reaches publish in document order`);
+  // This surface currently explains reporting without rendering a Report post
+  // control. Any reporting control offered in future must follow both links.
+  for (const control of sequence.filter((node) => /report/i.test(
+    `${node.id} ${node.getAttribute("aria-label") || ""} ${textOf(node)}`))) {
+    assert.ok(sequence.indexOf(control) > sequence.indexOf(links[1]),
+      `${where}: both Social links precede reporting controls`);
+  }
+
+  for (const [name, index] of Object.entries({ route: reading[3], explanation: reading[4] })) {
     assert.equal(flow[index].getAttribute("class"), "hint",
       `${where}: the reporting ${name} lost the class the caveat beside it uses`);
     for (const region of ["#post-detail", "#site-footer"]) {
