@@ -964,8 +964,8 @@ function assertLeadsWithThePost(document, where) {
   assert.deepEqual(order, ["page-title", "post-detail", "post-back", "post-people", "post-publish"],
     `${where}: the permalink must name the post, then show it, then offer a way onward`);
 
-  // The whole page sequence: eyebrow, heading, the post's own region, what
-  // Social is, then the links. The context paragraph is the standing sentence
+  // The whole page sequence: eyebrow, heading, the post's own region, the
+  // links, then what Social is. The context paragraph is the standing sentence
   // about the shared post, carrying the data claim, and it does not precede the post.
   const flow = main.querySelectorAll("h1,p,div");
   const eyebrow = flow.findIndex((node) => node.classList.contains("eyebrow"));
@@ -975,9 +975,9 @@ function assertLeadsWithThePost(document, where) {
   const exits = flow.findIndex((node) => node.classList.contains("detail-page-exits"));
   assert.ok(eyebrow >= 0 && slot >= 0 && context >= 0 && exits >= 0,
     `${where}: the page lost a part of its sequence`);
-  const reading = [eyebrow, heading, slot, context, exits];
+  const reading = [eyebrow, heading, slot, exits, context];
   assert.deepEqual(reading.slice().sort((a, b) => a - b), reading,
-    `${where}: eyebrow, heading, the post, what Social is, then the routes out`);
+    `${where}: eyebrow, heading, the post, the routes out, then what Social is`);
 
   // They live in the standing block that carries the eyebrow and the heading —
   // not inside #post-detail, which every render empties. The post's own slot
@@ -1038,7 +1038,7 @@ test("the permalink leads with the post and puts the feed context under it, load
   assert.ok(at('<p class="eyebrow">Social</p>') < at('<h1 id="page-title">'), "the eyebrow precedes the heading");
   assert.ok(at('<h1 id="page-title">') < at('id="post-detail"'), "the heading precedes the post's own region");
   assert.ok(at('id="post-detail"') < at(`<p>${CONTEXT_SENTENCE}</p>`), "the post precedes what the page says about Social");
-  assert.ok(at(`<p>${CONTEXT_SENTENCE}</p>`) < at(`>${SOCIAL_LINK}</a>`), "the intro precedes the Social route out");
+  assert.ok(at(`>${PUBLISH_LINK}</a>`) < at(`<p>${CONTEXT_SENTENCE}</p>`), "both Social routes precede the intro");
   assert.ok(at(`>${SOCIAL_LINK}</a>`) < at('id="post-people"'), "Social precedes People, the order the nav names them in");
   // Moved in the markup, not turned around in CSS: a stylesheet reorder would
   // leave reading order and tab order in the order this change exists to end.
