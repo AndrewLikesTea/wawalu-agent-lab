@@ -234,3 +234,21 @@ test("the deployment address resolves to the record the brief links, on a page t
   assert.ok(record, `${deployment.hash} must exist on ${deployment.pathname}`);
   assert.match(textOf(record), /Real record of this deployment/);
 });
+
+for (const filename of ["releases.html", "coach.html", "social.html", "profile.html", "agents.html"]) {
+  test(`${filename} About Shiplog still links to the visible homepage brief`, async (t) => {
+    const source = await loadPage(built(filename));
+    t.after(() => source.restore());
+    const link = source.document.querySelectorAll("a").find((node) => textOf(node) === "Evaluation brief and pilot scorecard");
+    assert.ok(link);
+    assert.equal(link.getAttribute("href"), "/#shiplog-evaluation-brief");
+    const home = await loadPage(built("index.html"));
+    t.after(() => home.restore());
+    const target = home.document.getElementById(link.getAttribute("href").split("#")[1]);
+    assert.equal(textOf(target.querySelector("h2")), "Shiplog evaluation brief");
+    for (let node = target; node?.tagName; node = node.parentNode) {
+      assert.equal(node.hidden, false);
+      assert.notEqual(node.tagName, "DETAILS");
+    }
+  });
+}

@@ -256,3 +256,26 @@ test("the pilot scorecard's Team handoff names the real controls and the page ea
   assert.equal((await readFile(PAGE, "utf8")).match(/type="file"/g).length, 1,
     "the scorecard sends a teammate to the one file picker this page carries");
 });
+
+test("examples and deployment precede the evaluation assets in reading and keyboard order", async (t) => {
+  const { document } = await openFrontDoor(t);
+  assert.deepEqual(regions(document).slice(0, 5).map((node) => node.id), [
+    "top", "shiplog-entry", "shiplog-evaluation-brief", "shiplog-pilot-scorecard", "additional-capability",
+  ]);
+  const hero = document.getElementById("top");
+  assert.deepEqual(hero.childElements.map((node) => node.tagName), ["P", "H1", "P", "DIV", "P"]);
+  assert.equal(hero.childElements.at(-1).classList.contains("hero-boundary"), true);
+  const entry = document.getElementById("shiplog-entry");
+  const children = entry.childElements;
+  const example = children.findIndex((node) => node.classList.contains("hero-proof"));
+  assert.equal(textOf(children[example].querySelector(".eyebrow")), "One recorded decision, and the release that shipped it");
+  assert.equal(children[example + 1].id, "deployment-status");
+  assert.equal(textOf(entry.querySelector("h2")), "Know why it shipped. Decide what’s next.");
+  const sequence = tabSequence(document);
+  assert.ok(sequence.indexOf(document.getElementById("deployment-commit")) < sequence.indexOf(document.getElementById("copy-shiplog-evaluation-brief")));
+  const demo = document.getElementById("core-demo-link");
+  assert.equal(demo.getAttribute("href"), "/releases.html#shiplog-proof");
+  const releases = await loadPage(RELEASES);
+  t.after(() => releases.restore());
+  assert.ok(releases.document.getElementById("shiplog-proof"));
+});

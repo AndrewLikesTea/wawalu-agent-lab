@@ -203,3 +203,32 @@ for (const [name, clipboard] of [
   assert.equal(doc.querySelector('[for="pilot-scorecard-manual"]').textContent, "Pilot scorecard for manual copying");
   assert.equal(button.getAttribute("aria-disabled"), null);
 });
+
+test("each criterion is an initially closed native disclosure with a visible keyboard summary", async (t) => {
+  const doc = await open(t, {});
+  const rows = doc.getElementById("shiplog-pilot-scorecard").querySelectorAll("li");
+  for (const [index, row] of rows.entries()) {
+    const details = row.querySelector("details");
+    assert.ok(details);
+    assert.equal(details.hasAttribute("open"), false);
+    const summary = details.childElements[0];
+    assert.equal(summary.tagName, "SUMMARY");
+    assert.equal(textOf(summary), PILOT_SCORECARD_CRITERIA[index][0]);
+    assert.equal(summary.hasAttribute("role"), false, "retain native disclosure semantics");
+    assert.equal(summary.hasAttribute("aria-expanded"), false, "browser owns expanded state");
+    assert.equal(summary.hasAttribute("tabindex"), false);
+    assert.ok(tabSequence(doc).includes(summary));
+    assert.equal(textOf(details.querySelector("p")), PILOT_SCORECARD_CRITERIA[index][1]);
+    assert.equal(details.querySelectorAll("dd").length, 3);
+    summary.focus();
+    for (const key of [pressEnter, pressSpace]) {
+      key(doc);
+      assert.equal(details.hasAttribute("open"), true);
+      assert.equal(doc.activeElement === summary, true);
+      key(doc);
+      assert.equal(details.hasAttribute("open"), false);
+    }
+  }
+  const css = await readFile(new URL("../src/shiplog-pilot-scorecard.css", import.meta.url), "utf8");
+  assert.match(css, /summary:focus-visible\s*\{ outline:3px solid var\(--focus-ring\)/);
+});

@@ -66,82 +66,6 @@
              site-footer.test.js forbids on every page. -->
       </section>
 
-      <section class="hero-proof" id="shiplog-evaluation-brief" aria-labelledby="shiplog-evaluation-brief-title">
-        <div id="shiplog-evaluation-brief-text">
-          <h2 id="shiplog-evaluation-brief-title">Shiplog evaluation brief</h2>
-          <p>Engineering teams need to explain why work shipped without reconstructing decisions from chat history. Shiplog records the context, alternatives, and owner of a decision and links it to the release it shaped, so teammates can trace shipped work back to its reasoning.</p>
-          <p>Decisions and releases you add stay in this browser; they are not shared hosted records. Shiplog is a demonstration product built and operated by Wawalu. Availability and pricing are provided on request.</p>
-          <p>The example decisions and releases are invented, use no customer or production data, and are not customer results. To verify what this site shipped, open the <a href="/releases.html#shipped-build">real record of this deployment</a>.</p>
-        </div>
-        <p class="hint">Share this brief and the page link with a manager or procurement stakeholder.</p>
-        <div class="share-control">
-          <button class="share-button" id="copy-shiplog-evaluation-brief" type="button" aria-describedby="shiplog-evaluation-brief-status">Copy Shiplog evaluation brief</button>
-          <span class="share-status" id="shiplog-evaluation-brief-status" role="status" aria-live="polite" aria-atomic="true"></span>
-        </div>
-        <p><a class="share-button" id="download-shiplog-evaluation-brief" href="/shiplog-evaluation-brief.txt" download="shiplog-evaluation-brief.txt" type="text/plain" aria-describedby="shiplog-download-help">Download Shiplog evaluation brief</a></p>
-        <p class="hint" id="shiplog-download-help">One plain-text file with the brief, blank pilot scorecard, and public links, ready to forward. No visitor records or form entries are included. If your browser opens the file, use Save As to keep it.</p>
-        <div id="shiplog-evaluation-brief-fallback" hidden>
-          <label for="shiplog-evaluation-brief-manual">Shiplog evaluation brief for manual copying</label>
-          <p id="shiplog-evaluation-brief-manual-help">Select the text and use your device’s copy command.</p>
-          <textarea id="shiplog-evaluation-brief-manual" rows="12" readonly aria-describedby="shiplog-evaluation-brief-manual-help"></textarea>
-        </div>
-      </section>
-
-      <section class="hero-proof" id="shiplog-pilot-scorecard" aria-labelledby="shiplog-pilot-scorecard-title">
-        <h2 id="shiplog-pilot-scorecard-title">Shiplog pilot scorecard</h2>
-        <p>For your evaluating team to complete during a pilot and share with a manager. Set your own targets before measuring; all targets, results, and owners below are blank. No pilot outcome is claimed.</p>
-        <ol class="pilot-scorecard-criteria">
-          <li>
-            <h3>Release reasoning retrieval</h3>
-            <p>Your evaluating team must time how long it takes to find a selected release’s linked decision and identify its context and alternatives.</p>
-            <dl class="pilot-scorecard-fields">
-              <div><dt>Buyer target</dt><dd>________</dd></div>
-              <div><dt>Observed result</dt><dd>________</dd></div>
-              <div><dt>Owner</dt><dd>________</dd></div>
-            </dl>
-          </li>
-          <li>
-            <h3>Record completeness</h3>
-            <p>Your evaluating team must count sampled decisions with context, alternatives, owner, and status, and sampled releases with the expected decision links; record counts and sample sizes.</p>
-            <dl class="pilot-scorecard-fields">
-              <div><dt>Buyer target</dt><dd>________</dd></div>
-              <div><dt>Observed result</dt><dd>________</dd></div>
-              <div><dt>Owner</dt><dd>________</dd></div>
-            </dl>
-          </li>
-          <li>
-            <h3>Team handoff</h3>
-            <p>Your evaluating team must hand a record to a teammate as a file: press “Download JSON” on the Home page to export it, send the file to your teammate, and have them open it with “Choose JSON file” on the Home page in their own browser and confirm the summary. Both controls are on the Home page only: the Releases page has a separate “Export releases as JSON” button and no import control. Count their unanswered questions about why the work shipped and who owns it.</p>
-            <dl class="pilot-scorecard-fields">
-              <div><dt>Buyer target</dt><dd>________</dd></div>
-              <div><dt>Observed result</dt><dd>________</dd></div>
-              <div><dt>Owner</dt><dd>________</dd></div>
-            </dl>
-          </li>
-          <li>
-            <h3>Data-handling requirements</h3>
-            <p>Your evaluating team must compare browser-local storage, retention controls, and export behavior with your data-handling requirements; record requirements checked and any gaps.</p>
-            <dl class="pilot-scorecard-fields">
-              <div><dt>Buyer target</dt><dd>________</dd></div>
-              <div><dt>Observed result</dt><dd>________</dd></div>
-              <div><dt>Owner</dt><dd>________</dd></div>
-            </dl>
-          </li>
-        </ol>
-        <p>The example decisions and releases are invented, use no customer or production data, and are not customer results.</p>
-        <p>Page: <a href="https://labs.wawalu.org/">https://labs.wawalu.org/</a></p>
-        <p class="hint">Copy this blank template, then fill it in with your team outside Shiplog. The copy also says where to ask about availability and pricing, and includes no visitor records or form entries.</p>
-        <div class="share-control">
-          <button class="share-button" id="copy-pilot-scorecard" type="button" aria-describedby="pilot-scorecard-status">Copy pilot scorecard</button>
-          <span class="share-status" id="pilot-scorecard-status" role="status" aria-live="polite" aria-atomic="true"></span>
-        </div>
-        <div id="pilot-scorecard-fallback" hidden>
-          <label for="pilot-scorecard-manual">Pilot scorecard for manual copying</label>
-          <p id="pilot-scorecard-manual-help">Select the text and use your device’s copy command. Fill in the blanks in your shared copy.</p>
-          <textarea id="pilot-scorecard-manual" rows="12" readonly aria-describedby="pilot-scorecard-manual-help"></textarea>
-        </div>
-      </section>
-
       <!-- THE LOG, WHOLE, AND BEFORE THE SECOND CAPABILITY.
            Every Shiplog workflow stays on this page and keeps its own ids: the
            call to action below still lands on the populated record list at
@@ -219,6 +143,90 @@
         <div class="hero-actions">
           <a class="button-link" href="#record-history">Record and search the log on this page <span aria-hidden="true">→</span></a>
           <a class="text-link" href="#decision-to-release">See how a decision reaches a release</a>
+        </div>
+      </section>
+
+      <section class="hero-proof" id="shiplog-evaluation-brief" aria-labelledby="shiplog-evaluation-brief-title">
+        <div id="shiplog-evaluation-brief-text">
+          <h2 id="shiplog-evaluation-brief-title">Shiplog evaluation brief</h2>
+          <p>Engineering teams need to explain why work shipped without reconstructing decisions from chat history. Shiplog records the context, alternatives, and owner of a decision and links it to the release it shaped, so teammates can trace shipped work back to its reasoning.</p>
+          <p>Decisions and releases you add stay in this browser; they are not shared hosted records. Shiplog is a demonstration product built and operated by Wawalu. Availability and pricing are provided on request.</p>
+          <p>The example decisions and releases are invented, use no customer or production data, and are not customer results. To verify what this site shipped, open the <a href="/releases.html#shipped-build">real record of this deployment</a>.</p>
+        </div>
+        <p class="hint">Share this brief and the page link with a manager or procurement stakeholder.</p>
+        <div class="share-control">
+          <button class="share-button" id="copy-shiplog-evaluation-brief" type="button" aria-describedby="shiplog-evaluation-brief-status">Copy Shiplog evaluation brief</button>
+          <span class="share-status" id="shiplog-evaluation-brief-status" role="status" aria-live="polite" aria-atomic="true"></span>
+        </div>
+        <p><a class="share-button" id="download-shiplog-evaluation-brief" href="/shiplog-evaluation-brief.txt" download="shiplog-evaluation-brief.txt" type="text/plain" aria-describedby="shiplog-download-help">Download Shiplog evaluation brief</a></p>
+        <p class="hint" id="shiplog-download-help">One plain-text file with the brief, blank pilot scorecard, and public links, ready to forward. No visitor records or form entries are included. If your browser opens the file, use Save As to keep it.</p>
+        <div id="shiplog-evaluation-brief-fallback" hidden>
+          <label for="shiplog-evaluation-brief-manual">Shiplog evaluation brief for manual copying</label>
+          <p id="shiplog-evaluation-brief-manual-help">Select the text and use your device’s copy command.</p>
+          <textarea id="shiplog-evaluation-brief-manual" rows="12" readonly aria-describedby="shiplog-evaluation-brief-manual-help"></textarea>
+        </div>
+      </section>
+
+      <section class="hero-proof" id="shiplog-pilot-scorecard" aria-labelledby="shiplog-pilot-scorecard-title">
+        <h2 id="shiplog-pilot-scorecard-title">Shiplog pilot scorecard</h2>
+        <p>For your evaluating team to complete during a pilot and share with a manager. Set your own targets before measuring; all targets, results, and owners below are blank. No pilot outcome is claimed.</p>
+        <ol class="pilot-scorecard-criteria">
+          <li>
+            <details>
+              <summary><h3>Release reasoning retrieval</h3></summary>
+              <p>Your evaluating team must time how long it takes to find a selected release’s linked decision and identify its context and alternatives.</p>
+              <dl class="pilot-scorecard-fields">
+                <div><dt>Buyer target</dt><dd>________</dd></div>
+                <div><dt>Observed result</dt><dd>________</dd></div>
+                <div><dt>Owner</dt><dd>________</dd></div>
+              </dl>
+            </details>
+          </li>
+          <li>
+            <details>
+              <summary><h3>Record completeness</h3></summary>
+              <p>Your evaluating team must count sampled decisions with context, alternatives, owner, and status, and sampled releases with the expected decision links; record counts and sample sizes.</p>
+              <dl class="pilot-scorecard-fields">
+                <div><dt>Buyer target</dt><dd>________</dd></div>
+                <div><dt>Observed result</dt><dd>________</dd></div>
+                <div><dt>Owner</dt><dd>________</dd></div>
+              </dl>
+            </details>
+          </li>
+          <li>
+            <details>
+              <summary><h3>Team handoff</h3></summary>
+              <p>Your evaluating team must hand a record to a teammate as a file: press “Download JSON” on the Home page to export it, send the file to your teammate, and have them open it with “Choose JSON file” on the Home page in their own browser and confirm the summary. Both controls are on the Home page only: the Releases page has a separate “Export releases as JSON” button and no import control. Count their unanswered questions about why the work shipped and who owns it.</p>
+              <dl class="pilot-scorecard-fields">
+                <div><dt>Buyer target</dt><dd>________</dd></div>
+                <div><dt>Observed result</dt><dd>________</dd></div>
+                <div><dt>Owner</dt><dd>________</dd></div>
+              </dl>
+            </details>
+          </li>
+          <li>
+            <details>
+              <summary><h3>Data-handling requirements</h3></summary>
+              <p>Your evaluating team must compare browser-local storage, retention controls, and export behavior with your data-handling requirements; record requirements checked and any gaps.</p>
+              <dl class="pilot-scorecard-fields">
+                <div><dt>Buyer target</dt><dd>________</dd></div>
+                <div><dt>Observed result</dt><dd>________</dd></div>
+                <div><dt>Owner</dt><dd>________</dd></div>
+              </dl>
+            </details>
+          </li>
+        </ol>
+        <p>The example decisions and releases are invented, use no customer or production data, and are not customer results.</p>
+        <p>Page: <a href="https://labs.wawalu.org/">https://labs.wawalu.org/</a></p>
+        <p class="hint">Copy this blank template, then fill it in with your team outside Shiplog. The copy also says where to ask about availability and pricing, and includes no visitor records or form entries.</p>
+        <div class="share-control">
+          <button class="share-button" id="copy-pilot-scorecard" type="button" aria-describedby="pilot-scorecard-status">Copy pilot scorecard</button>
+          <span class="share-status" id="pilot-scorecard-status" role="status" aria-live="polite" aria-atomic="true"></span>
+        </div>
+        <div id="pilot-scorecard-fallback" hidden>
+          <label for="pilot-scorecard-manual">Pilot scorecard for manual copying</label>
+          <p id="pilot-scorecard-manual-help">Select the text and use your device’s copy command. Fill in the blanks in your shared copy.</p>
+          <textarea id="pilot-scorecard-manual" rows="12" readonly aria-describedby="pilot-scorecard-manual-help"></textarea>
         </div>
       </section>
 
