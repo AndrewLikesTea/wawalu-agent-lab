@@ -72,7 +72,7 @@ test("the workflow is discoverable and idle before anything is pasted", async ()
     // grade answers, which the page's own h1 had already promised an answer to
     // thirty lines above it.
     assert.equal(textOf(byId(document, "prompt-coaching-question")),
-      "Bundled synthetic example and its score");
+      "Example prompt and its score");
     // The guidance says what the grade is measured against and names that
     // rubric as this page's own. What may be pasted is said once, in the block
     // immediately before the field, rather than a second time here. It is the
@@ -81,12 +81,12 @@ test("the workflow is discoverable and idle before anything is pasted", async ()
     const paragraphs = section.querySelector(".section-heading").querySelectorAll("p");
     assert.equal(paragraphs.length, 1, "the section heading carries one line of guidance");
     const guidance = textOf(paragraphs[0]);
-    assert.match(guidance, /^The bundled synthetic example is graded against/, guidance);
-    assert.match(guidance, /prompt rubric bundled with this page/, guidance);
+    assert.match(guidance, /^The score measures the example prompt against/, guidance);
+    assert.match(guidance, /this page’s prompt rubric\.$/, guidance);
     assert.doesNotMatch(guidance, /Paste a prompt/, guidance);
 
     assert.equal(textOf(document.querySelector(".prompt-coach-sample-attribution")),
-      "This result is for the bundled synthetic example. Paste your prompt in the field to get its score.");
+      "This result is for the example prompt. Paste your prompt in the field to get its score.");
 
     // No rendered sentence pairs AI FinOps with the rubric. The two surfaces do
     // share scoring code, but a visitor who reads that as one shared grade
@@ -162,7 +162,7 @@ test("pasting a weak prompt returns an answer, one benchmark, and one move", asy
 
     assert.equal(textOf(byId(document, "prompt-coaching-question")), "Your prompt and its score");
     assert.equal(textOf(byId(document, "prompt-coaching-result-guidance")),
-      "Your prompt is graded against the prompt rubric bundled with this page.");
+      "The score measures your prompt against this page’s prompt rubric.");
     assert.equal(textOf(byId(document, "prompt-coaching-entry-source")),
       "This result is for your prompt, read in this tab and kept nowhere.");
     const result = byId(document, "prompt-coaching-result");
@@ -685,7 +685,7 @@ test("grading the supplied example is classified bundled_sample and said so on t
     const attribution = byId(document, "prompt-coaching-entry-source");
     assert.equal(attribution.hidden, false);
     assert.equal(attribution.getAttribute("role"), "status");
-    assert.match(textOf(attribution), /result is for the bundled synthetic example\./);
+    assert.match(textOf(attribution), /result is for the example prompt\./);
 
     // And the result is the real one the example grades to, not a canned figure.
     assert.equal(byId(document, "prompt-coaching").dataset.grade,
@@ -731,7 +731,7 @@ test("a prompt the visitor typed is classified reader_text, and clearing re-offe
 
     tabTo(document, "prompt-coaching-clear");
     pressEnter(document);
-    assert.equal(textOf(byId(document, "prompt-coaching-question")), "Bundled synthetic example and its score");
+    assert.equal(textOf(byId(document, "prompt-coaching-question")), "Example prompt and its score");
     assert.equal(entry.dataset.gradedSource, undefined,
       "a cleared panel attributes nothing, because nothing is on screen");
     assert.equal(byId(document, "prompt-coaching-entry-source").hidden, true);

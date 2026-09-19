@@ -157,16 +157,16 @@ export const COACHING_ENTRY_EXAMPLE = Object.freeze({
   id: "supplied-example",
   sampleId: EXAMPLE_SAMPLE.id,
   source: COACHING_INPUT_SOURCE.bundledSample,
-  label: `Bundled synthetic example — ${EXAMPLE_SAMPLE.label.toLowerCase()}`,
+  label: `Example prompt — ${EXAMPLE_SAMPLE.label.toLowerCase()}`,
   text: EXAMPLE_SAMPLE.text,
   modelTier: EXAMPLE_SAMPLE.modelTier,
   /** Applying the example sets the field AND the tier: a partial submission would grade something the example does not describe. */
   appliesModelTier: true,
-  attribution: "The bundled synthetic example is written for this page — not your prompt, not a customer's, and not anyone's real prompt.",
+  attribution: "The example prompt was written for this page — not your prompt, not a customer's, and not anyone's real prompt.",
   distinct: Object.freeze({
     classifiedAs: COACHING_INPUT_SOURCE.bundledSample,
     visitorTextClassifiedAs: COACHING_INPUT_SOURCE.readerText,
-    rule: "A submission is classified bundled_sample only while the field still holds the bundled synthetic example unedited. Any keystroke in the field makes the next submission reader_text.",
+    rule: "A submission is classified bundled_sample only while the field still holds the example prompt unedited. Any keystroke in the field makes the next submission reader_text.",
     why: "A figure produced from our example must never be readable as a grade of the visitor's own work.",
   }),
   privacy: Object.freeze({
@@ -175,8 +175,8 @@ export const COACHING_ENTRY_EXAMPLE = Object.freeze({
     keeps: "nothing, and it holds no more of a record than a grade of your own text does — which is none.",
   }),
   transition: Object.freeze({
-    onEdit: "Editing or replacing the text in the field ends the bundled synthetic example: the next grade is classified as your text, and the example attribution comes off the result.",
-    onClear: "Delete prompt and grades empties the field and returns the front door to its zero-input state, where the bundled synthetic example is offered again.",
+    onEdit: "Editing or replacing the text in the field ends the example prompt: the next grade is classified as your text, and the example attribution comes off the result.",
+    onClear: "Delete prompt and grades empties the field and returns the front door to its zero-input state, where the example prompt is offered again.",
     editControl: "prompt-coaching-input",
     loadControl: "prompt-coaching-example",
   }),
@@ -188,7 +188,7 @@ export const COACHING_ENTRY_EXAMPLE = Object.freeze({
  * theirs. Total over `COACHING_INPUT_SOURCE`, asserted at load.
  */
 export const COACHING_INPUT_SOURCE_LABELS = Object.freeze({
-  [COACHING_INPUT_SOURCE.bundledSample]: "This result is for the bundled synthetic example. Paste your prompt in the field to get its score.",
+  [COACHING_INPUT_SOURCE.bundledSample]: "This result is for the example prompt. Paste your prompt in the field to get its score.",
   [COACHING_INPUT_SOURCE.readerText]: "This result is for your prompt, read in this tab and kept nowhere.",
 });
 
@@ -224,17 +224,17 @@ export const COACHING_ENTRY_STATE = Object.freeze({
 export const COACHING_ENTRY_NEXT_ACTION = Object.freeze({
   [COACHING_ENTRY_STATE.empty]: Object.freeze({
     id: "try_example",
-    label: "Grade the bundled synthetic example",
-    instruction: "Nothing to paste? Grade the bundled synthetic example instead — one press, no typing, and the result is a demonstration rather than a reading of your work.",
+    label: "Grade the example prompt",
+    instruction: "Nothing to paste? Grade the example prompt instead — one press, no typing, and the result is a demonstration rather than a reading of your work.",
     control: COACHING_ENTRY_EXAMPLE.transition.loadControl,
     alternative: "Or paste your own prompt into the field below.",
   }),
   [COACHING_ENTRY_STATE.exampleLoaded]: Object.freeze({
     id: "grade_example",
     label: "Grade this prompt",
-    instruction: "The bundled synthetic example is in the field. Press Grade this prompt to see what a result contains.",
+    instruction: "The example prompt is in the field. Press Grade this prompt to see what a result contains.",
     control: "prompt-coaching-grade",
-    alternative: "Or edit the field to replace it with your own prompt — the next grade is then yours, not the bundled synthetic example's.",
+    alternative: "Or edit the field to replace it with your own prompt — the next grade is then yours, not the example prompt's.",
   }),
   [COACHING_ENTRY_STATE.visitorText]: Object.freeze({
     id: "grade_own",

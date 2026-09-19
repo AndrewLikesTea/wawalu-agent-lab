@@ -91,8 +91,8 @@
                session it returns; a reader does not need it asked twice above
                one text box. The id is historical and load-bearing: the section
                is labelled by it. -->
-          <h2 id="prompt-coaching-question">Bundled synthetic example and its score</h2>
-          <p id="prompt-coaching-result-guidance">The bundled synthetic example is graded against the prompt rubric bundled with this page.</p>
+          <h2 id="prompt-coaching-question">Example prompt and its score</h2>
+          <p id="prompt-coaching-result-guidance">The score measures the example prompt against this page’s prompt rubric.</p>
         </div>
         <!-- The front door: what a visitor gets here, what it is measured
              against, and the one thing to do first.
@@ -145,9 +145,9 @@
              a loading sentence standing over a painted grade is a claim the
              page can already see is false. -->
         <section class="prompt-coach-sample" id="prompt-coach-sample" data-sample-state="static" aria-labelledby="prompt-coach-sample-title">
-          <h3 class="eyebrow" id="prompt-coach-sample-title">Bundled synthetic example, grading now</h3>
-          <p class="prompt-coach-sample-static">This result uses a bundled synthetic example written for this page, not your prompt or anyone else’s real prompt.</p>
-          <p class="prompt-coach-sample-lead" id="prompt-coach-sample-status" role="status" aria-live="polite" aria-atomic="true" data-loading="Loading the bundled synthetic example. You can paste your own prompt below now."></p>
+          <h3 class="eyebrow" id="prompt-coach-sample-title">Example prompt, grading now</h3>
+          <p class="prompt-coach-sample-static">The example prompt was written for this page, and it is not your prompt or anyone else’s real prompt.</p>
+          <p class="prompt-coach-sample-lead" id="prompt-coach-sample-status" role="status" aria-live="polite" aria-atomic="true" data-loading="Loading the example prompt. You can paste your own prompt below now."></p>
           <div class="prompt-coach-sample-body" id="prompt-coach-sample-body"></div>
         </section>
         <!-- The first-time cue. Static, so it is readable before any script
@@ -241,7 +241,7 @@
           <p class="prompt-coaching-preview-static">The coach reads only the text you paste and the optional model tier. It does not access your accounts, files, or customer data.</p>
           <p class="prompt-coaching-preview-static">It keeps your prompt and grades on this page, in this browser, until you press Delete prompt and grades. Leaving the page clears them too, and nothing is stored elsewhere.</p>
           <div class="prompt-coaching-preview-body" id="prompt-coaching-preview-body">
-            <p class="prompt-coaching-preview-lead">See the bundled synthetic example’s own text and the counts read from it.</p>
+            <p class="prompt-coaching-preview-lead">See the example prompt’s full text and the counts read from it.</p>
           </div>
         </details>
 
@@ -276,7 +276,7 @@
              and change the other: src/index.html, landing-decision-next. The
              providers and formats are the ones the importer resolves to a
              result for, listed there against the modules that read them. -->
-        <p>AI FinOps reads a provider export from OpenAI, Anthropic, Azure OpenAI, Google Vertex AI, or AWS Bedrock, as CSV, TSV, JSON, or JSONL. No export to hand? The <a href="/evolution.html#workspace-answer">bundled synthetic example</a> opens on a finished result, so you can read the whole analysis before you find a file.</p>
+        <p>AI FinOps reads a provider export from OpenAI, Anthropic, Azure OpenAI, Google Vertex AI, or AWS Bedrock, as CSV, TSV, JSON, or JSONL. No export to hand? AI FinOps’s <a href="/evolution.html#workspace-answer">sample export</a> opens on a finished result, so you can read the whole analysis before you find a file.</p>
         <a class="secondary-button" href="/evolution.html">Open AI FinOps</a>
       </section>
       </main>

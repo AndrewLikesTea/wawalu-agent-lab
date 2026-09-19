@@ -117,7 +117,7 @@ test("the loading state is one sentence, announced by one write to a live region
   try {
     const { page, status, writes } = open;
     const shipped = status.dataset.loading;
-    assert.match(shipped, /Loading the bundled synthetic example/);
+    assert.match(shipped, /Loading the example prompt/);
 
     // Introduced after initialization, into the node that shipped empty: one
     // write, with the page's own wording. A region that shipped populated would
@@ -134,7 +134,7 @@ test("the loading state is one sentence, announced by one write to a live region
     assert.equal(body.getAttribute("aria-busy"), "true");
     assert.equal(textOf(body).trim(), "");
     assert.equal(occurrences(byId(page.document, "prompt-coach-sample"),
-      "Loading the bundled synthetic example"), 1);
+      "Loading the example prompt"), 1);
 
     await open.finish();
     // The claim is withdrawn once there is a grade under it, and withdrawing it

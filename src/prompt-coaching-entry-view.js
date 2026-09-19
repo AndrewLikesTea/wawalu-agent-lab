@@ -41,7 +41,7 @@ export const FIRST_RUN_TITLE_ID = "prompt-coach-sample-title";
 // that ships says "grading now", because that is the state the page is in until
 // this module paints; a heading claiming a graded result over a loading line
 // tells a first-time visitor a score is on screen before one is.
-export const FIRST_RUN_GRADED_TITLE = "Bundled synthetic example, already graded";
+export const FIRST_RUN_GRADED_TITLE = "Example prompt, already graded";
 export const EXAMPLE_CONTROL_ID = "prompt-coaching-example";
 export const FIRST_RUN_RESULT_ID = "prompt-coach-sample-result";
 
@@ -281,11 +281,11 @@ export function announceCoachingEntrySource(doc, source) {
   const node = byId(doc, SOURCE_ID);
   if (!section || !node) return null;
   const subject = !source || source === COACHING_ENTRY_EXAMPLE.source
-    ? "Bundled synthetic example" : "Your prompt";
+    ? "Example prompt" : "Your prompt";
   const heading = byId(doc, "prompt-coaching-question");
   if (heading) heading.textContent = `${subject} and its score`;
   const guidance = byId(doc, "prompt-coaching-result-guidance");
-  if (guidance) guidance.textContent = `${subject === "Your prompt" ? subject : "The bundled synthetic example"} is graded against the prompt rubric bundled with this page.`;
+  if (guidance) guidance.textContent = `The score measures ${subject === "Your prompt" ? "your prompt" : "the example prompt"} against this page’s prompt rubric.`;
   if (!source) {
     delete section.dataset.gradedSource;
     node.textContent = "";
