@@ -43,6 +43,14 @@
 /* At a phone width the one action fills the column, so its target is the width
  * of the panel rather than a short label adrift in the middle of it. */
 @media(max-width:520px) { #release-list-status .empty-action{width:100%} }
+/* The linked-decisions control's failed state at a phone width: its Retry fills
+ * the column it stands in and its label wraps onto a second line rather than
+ * overflowing the picker, which scrolls vertically only. Nothing on this page
+ * measures the viewport in script, so the narrow-width behaviour lives here and
+ * is asserted against this rule rather than against a rendered viewport. This
+ * sheet is the releases page's own and is outside the evolution size budget;
+ * styles.css, which is inside it, gained no rule for this state. */
+@media(max-width:520px) { .decision-picker-failed .empty-action{width:100%;line-height:1.3} }
 @media(max-width:760px) { .shiplog-proof-facts{grid-template-columns:repeat(2,minmax(0,1fr))} }
 /* The end of the evaluation path at a phone width (#2371): the link to the
  * release just recorded and the sentences around it wrap in the column. */

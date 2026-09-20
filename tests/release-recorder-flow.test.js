@@ -540,17 +540,24 @@ test("the Summary hint says what to write for each release status", async (t) =>
 // The picker's authored markup now opens on "Loading decisions to link…", so
 // the one thing that must never happen is the boot leaving that claim standing.
 // A browser that refuses storage is the closest a visitor gets to the log not
-// being readable, and it has to settle just like an empty one does.
-test("a browser that refuses storage still settles the picker off its loading claim", async (t) => {
+// being readable, and it has to settle — but onto the failure, not onto the
+// first-run empty state. It used to settle onto "No decisions to link yet." and
+// offer to record one into a log it could not read (#2457).
+test("a browser that refuses storage settles the picker onto the failure, not the empty state", async (t) => {
   const page = await loadPage(RELEASES_PAGE, { storage: {} });
   t.after(() => page.restore());
   page.storage.getItem = () => { throw new Error("storage is blocked"); };
   initReleasesPage(page.document, page.storage, { seed: NO_DEMO_DATA });
 
   assert.doesNotMatch(summaryText(page), /Loading/, "the picker is still claiming it is loading");
-  assert.equal(summaryText(page), "No decisions are available to link yet.");
+  assert.equal(summaryText(page), "No decisions can be linked: the decision log could not be read.");
   assert.equal(page.document.querySelectorAll(".decision-picker-loading").length, 0);
-  assert.match(textOf(page.document.querySelector(".decision-picker-empty")), /No decisions to link yet\./);
+  assert.equal(page.document.querySelectorAll(".decision-picker-failed").length, 1);
+  assert.match(textOf(page.document.querySelector(".decision-picker-failed")), /Couldn’t load decisions to link/);
+  // And never both: the first-run sentence and its "Record a decision" link are
+  // not drawn over a log that could not be read.
+  assert.equal(page.document.querySelectorAll(".decision-picker-empty-action").length, 1);
+  assert.equal(textOf(page.document.querySelector(".decision-picker-empty-action")), "Retry loading decisions");
 
   // The recorder stays live — every field takes input — but a store that
   // refuses to read the release log is a log a save would erase (#2268). The

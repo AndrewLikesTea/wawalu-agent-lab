@@ -40,6 +40,20 @@ export const DECISION_PICKER_LOADING_TEXT = "Loading decisions to link…";
 // tells a screen-reader user the same thing twice.
 export const DECISION_PICKER_LOADING_STATUS_TEXT = "No decisions can be linked until the list loads.";
 
+// The third state of this control, and the one it used to be unable to draw.
+// loadDecisions() turns a store that refused the read into an empty array, so a
+// failure arrived here dressed as "you have not recorded any decisions yet" —
+// with a "Record a decision" link offering to add one to a log that could not be
+// read. These four sentences keep the two apart: the heading states the failure,
+// the body says what it does and does not mean for the records already stored,
+// the status line says why nothing can be ticked, and the retrying line is what
+// the same panel says while it reads again.
+export const DECISION_PICKER_FAILED_TEXT = "Couldn’t load decisions to link";
+export const DECISION_PICKER_FAILED_BODY = "This browser’s decision log could not be read, so there is nothing to choose from here. Your saved decisions have not been changed, and this release can still be recorded without linking any.";
+export const DECISION_PICKER_FAILED_STATUS_TEXT = "No decisions can be linked: the decision log could not be read.";
+export const DECISION_PICKER_RETRYING_BODY = "Reading this browser’s decision log again.";
+export const DECISION_PICKER_RETRY_LABEL = "Retry loading decisions";
+
 export const RELEASE_FORM_ERRORS = {
   required: "A release needs a version, an owner, a status, a release date, and a summary.",
   // What a submit the browser itself refused leaves behind. The native bubble
@@ -273,14 +287,78 @@ function renderPickerLoading() {
   return loading;
 }
 
+// The failure, and the one way out of it. Unlike the other two unavailable
+// states this one holds a focusable control, so it is NOT aria-hidden: a Retry
+// inside a hidden subtree is a button a screen-reader user cannot reach.
+//
+// The chip is a filled wash because the state it names is a dynamic one, per the
+// chip rule in design-system/claude-design/review-08-foundations.html
+// ("filled wash = dynamic signal, outline = static classification"). It carries
+// the word as well as the wash, so the state is never told by colour alone, and
+// it is a div rather than a p so the panel's paragraph rule does not overwrite
+// the chip's own type and spacing. Both classes already ship in styles.css.
+function renderPickerFailed() {
+  const failed = el("div", "decision-picker-empty decision-picker-failed");
+  failed.append(el("div", "detail-state-chip detail-state-chip-error", "Failed"));
+  failed.append(el("p", "decision-picker-empty-title", DECISION_PICKER_FAILED_TEXT));
+  failed.append(el("p", "decision-picker-failed-body", DECISION_PICKER_FAILED_BODY));
+  const action = el("button", "empty-action decision-picker-empty-action decision-picker-retry-action", DECISION_PICKER_RETRY_LABEL);
+  action.type = "button";
+  action.dataset.action = "retry-decisions";
+  action.setAttribute("aria-controls", "release-decisions");
+  failed.append(action);
+  return failed;
+}
+
+// Put the failed panel into `failed` or `retrying` WITHOUT replacing it.
+//
+// Retry is the control under the reader's finger at the moment it runs, and a
+// re-render would remove that button from under their focus — in a real browser
+// focus would fall to the body and would not come back when the next failure
+// drew a moment later. So the panel is built once and only its words change:
+// the same button node survives both outcomes. This is the rule the log's own
+// status region follows, in miniature.
+function paintPickerUnavailable(container, kind) {
+  let panel = container.querySelector(".decision-picker-failed");
+  if (!panel) {
+    panel = renderPickerFailed();
+    container.replaceChildren(panel);
+  }
+  const retrying = kind === "retrying";
+  const chip = panel.querySelector(".detail-state-chip");
+  // Both washes are filled: loading, retrying and failed are all dynamic states.
+  chip.className = `detail-state-chip detail-state-chip-${retrying ? "missing" : "error"}`;
+  chip.textContent = retrying ? "Retrying" : "Failed";
+  panel.querySelector(".decision-picker-empty-title").textContent = retrying
+    ? DECISION_PICKER_LOADING_TEXT
+    : DECISION_PICKER_FAILED_TEXT;
+  panel.querySelector(".decision-picker-failed-body").textContent = retrying
+    ? DECISION_PICKER_RETRYING_BODY
+    : DECISION_PICKER_FAILED_BODY;
+  return container;
+}
+
 export function renderDecisionPicker(container, decisions = [], selected = [], state = "loaded") {
-  container.replaceChildren();
   const chosen = new Set(selected);
 
+  // The two unavailable states render no options at all — not a greyed list, not
+  // a list that silently ignores clicks. There is nothing to tick because there
+  // is nothing the page can honestly offer to link, and `aria-disabled` says so
+  // to a reader who is navigating the group rather than looking at it.
+  if (state === "failed" || state === "retrying") {
+    container.setAttribute("aria-disabled", "true");
+    return paintPickerUnavailable(container, state);
+  }
+
+  container.replaceChildren();
+
   if (state === "loading") {
+    container.setAttribute("aria-disabled", "true");
     container.append(renderPickerLoading());
     return container;
   }
+
+  container.removeAttribute("aria-disabled");
 
   if (decisions.length === 0) {
     container.append(renderPickerEmpty());
@@ -300,7 +378,7 @@ export function renderDecisionPicker(container, decisions = [], selected = [], s
 // it fresh decisions when the data changes, and clear it after a save.
 export function mountDecisionPicker(container, options = {}) {
   let decisions = options.decisions ?? [];
-  let state = options.state === "loading" ? "loading" : "loaded";
+  let state = ["loading", "failed", "retrying"].includes(options.state) ? options.state : "loaded";
   let selected = pruneSelection(options.selected ?? [], decisions);
   const summary = options.summary ?? null;
 
@@ -310,11 +388,19 @@ export function mountDecisionPicker(container, options = {}) {
     return typeof decision?.title === "string" ? decision.title : "";
   };
 
+  // The group's one announcement. It is the live region the fieldset names in
+  // `aria-describedby`, so each state is spoken once, on the transition into it,
+  // rather than on every keystroke that re-renders the list.
+  const STATUS_TEXT = {
+    loading: DECISION_PICKER_LOADING_STATUS_TEXT,
+    retrying: DECISION_PICKER_LOADING_STATUS_TEXT,
+    failed: DECISION_PICKER_FAILED_STATUS_TEXT,
+  };
+
   const syncSummary = () => {
     if (!summary) return;
-    summary.textContent = state === "loading"
-      ? DECISION_PICKER_LOADING_STATUS_TEXT
-      : selectionSummaryText(selected.length, decisions.length, governingTitle());
+    summary.textContent = STATUS_TEXT[state]
+      ?? selectionSummaryText(selected.length, decisions.length, governingTitle());
   };
 
   const render = () => {
@@ -332,6 +418,14 @@ export function mountDecisionPicker(container, options = {}) {
     options.onChange?.(selected);
   });
 
+  // Delegated for the same reason: the panel is repainted around this button
+  // between attempts, and a handler bound to the node would have to be rebound
+  // every time it was.
+  container.addEventListener("click", (event) => {
+    if (!event.target.closest?.(".decision-picker-retry-action")) return;
+    options.onRetry?.();
+  });
+
   render();
 
   return {
@@ -346,6 +440,18 @@ export function mountDecisionPicker(container, options = {}) {
       state = "loading";
       render();
     },
+    // The wait a Retry states, in the panel Retry lives in. Kept apart from
+    // setLoading() because the two are drawn differently on purpose: the first
+    // load has no control to preserve, a retry is standing on one.
+    setRetrying() {
+      state = "retrying";
+      render();
+    },
+    setFailed() {
+      state = "failed";
+      render();
+    },
+    state: () => state,
     clear() {
       selected = [];
       render();

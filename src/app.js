@@ -129,10 +129,25 @@ function isDecision(value) {
     && !Number.isNaN(Date.parse(value.createdAt));
 }
 
+// The strict read, mirroring readReleases: a store that refuses to hand the
+// decisions over throws here instead of reading as "this browser has recorded
+// none". Those are two different states and a surface that offers to link
+// decisions has to be able to tell them apart — an empty list drawn over a
+// refused read is a first-run sentence standing on top of a failure. A value
+// that *was* read is tolerated exactly the way loadDecisions tolerates it.
+export function readDecisions(storage) {
+  const raw = storage.getItem(STORAGE_KEY);
+  try {
+    const value = JSON.parse(raw ?? "[]");
+    return Array.isArray(value) ? value.filter(isDecision) : [];
+  } catch {
+    return [];
+  }
+}
+
 export function loadDecisions(storage) {
   try {
-    const value = JSON.parse(storage.getItem(STORAGE_KEY) ?? "[]");
-    return Array.isArray(value) ? value.filter(isDecision) : [];
+    return readDecisions(storage);
   } catch {
     return [];
   }
