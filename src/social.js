@@ -978,6 +978,86 @@ export function mountImageDescription(root) {
 // in step with it, no storage promise to answer for, and no draft waiting on a
 // shared machine after the visitor closes the tab. The sentence after Close in
 // src/social.html is this paragraph, said to the visitor.
+// The tags that are a tab stop by being themselves, with no tabindex involved.
+// `summary` is deliberately absent: the composer authors no disclosure inside
+// itself, and counting a stray summary as a stop would invent an entry in the
+// ring that no reader can reach.
+const COMPOSER_STOP_TAGS = new Set(["A", "BUTTON", "INPUT", "SELECT", "TEXTAREA"]);
+
+// One node's answer to "is this a tab stop?", asked the way a browser asks it
+// and not the way this project's test harness does — the harness reflects no
+// properties, so the two disagree about a `type` set in script, and the page is
+// the half that has to be right.
+function isComposerStop(node) {
+  if (!COMPOSER_STOP_TAGS.has(node.tagName)) return false;
+  // A disabled control is skipped by Tab. Publish post is disabled while a
+  // rejected file is still selected, so this is a state the ring really enters.
+  if (node.disabled) return false;
+  if (node.getAttribute("tabindex") === "-1") return false;
+  // The panel's two script-focused nodes — the heading and the error summary —
+  // are reached by open() and by a refused publish, never by Tab. The rule above
+  // is what keeps them out of the ring while leaving them focusable.
+  if (node.tagName === "A" && !node.getAttribute("href")) return false;
+  if (node.tagName === "INPUT" && node.getAttribute("type") === "hidden") return false;
+  return true;
+}
+
+/**
+ * Every tab stop inside `panel`, in document order.
+ *
+ * Walked rather than selected: `querySelectorAll("*")` is unavailable in this
+ * project's harness, a comma selector group matches nothing in one of them, and
+ * a descendant selector throws — so a selector-based list would silently answer
+ * "no stops" and a containment test written on it would pass against nothing.
+ *
+ * A `hidden` subtree is not descended into, which is the whole reason Remove
+ * image is absent from the ring until an image is actually attached: it lives
+ * inside #compose-media, which ships hidden.
+ */
+export function composerFocusables(panel) {
+  const stops = [];
+  // The panel's own `hidden` is the composer being closed, and a closed composer
+  // contains nothing. Checked here rather than left to the caller's guard so the
+  // answer is true about the panel, not about who happened to ask.
+  if (!panel || panel.hidden) return stops;
+  const walk = (node) => {
+    for (const child of node.children ?? []) {
+      // Text nodes arrive in `children` carrying a truthy tagName, so the
+      // attribute reader — not the tag name — is what tells an element from a
+      // run of text.
+      if (typeof child.getAttribute !== "function") continue;
+      if (child.hidden) continue;
+      if (isComposerStop(child)) stops.push(child);
+      walk(child);
+    }
+  };
+  walk(panel);
+  return stops;
+}
+
+/**
+ * Where Tab should land, given the composer's stops and where focus is now, or
+ * `null` when the browser's own Tab already lands inside the composer and this
+ * should not interfere.
+ *
+ * Separated from the event so the wrap decision is testable as a decision. The
+ * harness's pressTab silently restarts at stop 0 rather than modelling a ring,
+ * so a containment claim proved only by tabbing is a claim about the harness.
+ *
+ * `active` off the list covers the two nodes script focuses and Tab cannot
+ * reach — the heading open() lands on, and the error summary a refused publish
+ * lands on. Forward from there is the first stop, which is what a browser would
+ * have done anyway; backward is the last, which is the direction that would
+ * otherwise walk straight out of the panel and into the page behind it.
+ */
+export function nextContainedStop(stops, active, shift = false) {
+  if (stops.length === 0) return null;
+  const index = stops.indexOf(active);
+  if (index === -1) return shift ? stops[stops.length - 1] : stops[0];
+  if (shift) return index === 0 ? stops[stops.length - 1] : null;
+  return index === stops.length - 1 ? stops[0] : null;
+}
+
 export function mountComposerDisclosure(root) {
   const trigger = root.querySelector("#post-compose-open");
   const panel = root.querySelector("#post-compose-panel");
@@ -1016,9 +1096,28 @@ export function mountComposerDisclosure(root) {
   trigger.addEventListener("click", () => (panel.hidden ? open({ opener: trigger }) : close()));
   cancel?.addEventListener("click", close);
   panel.addEventListener("keydown", (event) => {
-    if (event.key !== "Escape" || event.defaultPrevented || event.isComposing) return;
+    if (event.defaultPrevented || event.isComposing) return;
+    if (event.key === "Escape") {
+      event.preventDefault();
+      close();
+      return;
+    }
+    // Tab and Shift+Tab cycle within the open composer. The list is recomputed
+    // on every press rather than cached at open: Remove image arrives with an
+    // image, Publish post leaves the ring while a rejected file disables it, and
+    // the receipt's permalink appears inside the panel after a publish lands —
+    // so a list taken once at open would be wrong by the second field.
+    //
+    // Containment here is a decision about a panel that is NOT modal: the feed
+    // behind it stays live and readable. What makes it navigable rather than a
+    // trap is the exit this disclosure already documents in #post-keyboard-hint
+    // — Escape, and the Close control that is the last stop in the ring.
+    if (event.key !== "Tab" || panel.hidden) return;
+    const doc = root.ownerDocument ?? root;
+    const next = nextContainedStop(composerFocusables(panel), doc.activeElement, event.shiftKey);
+    if (!next) return;
     event.preventDefault();
-    close();
+    next.focus();
   });
 
   return { open, close, get isOpen() { return !panel.hidden; } };

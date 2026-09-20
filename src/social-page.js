@@ -33,6 +33,17 @@ export const PREVIEW_FAILURE = "We couldn’t create an image preview. Select Re
 // input's aria-describedby while the message is showing.
 export const REJECTED_FILE_ERROR_ID = "post-image-error";
 
+// What Remove image leaves behind. Removing the image used to empty the status
+// line, so the one control whose whole job is to change the composer's state
+// reported that change as silence — the preview vanished, the description field
+// stopped being required, and a reader who could not see either was told
+// nothing. This is that state, in text, in the region that already announced
+// the image arriving, so arrival and removal are the same line saying opposite
+// things rather than one line and one absence. It names the two consequences a
+// reader cannot otherwise observe: no image will be published, and the
+// description is no longer being waited on.
+export const IMAGE_REMOVED_STATUS = "Image removed. This post will publish without an image, and the image description is no longer required.";
+
 async function fetchLivePosts() {
   const response = await fetch("/api/social-posts?limit=100", { cache: "no-store", headers: { accept: "application/json" } });
   if (!response.ok) throw new Error(`Posts API returned ${response.status}`);
@@ -165,7 +176,11 @@ function mountMediaComposer(root, description, composer) {
     if (submit) submit.disabled = Boolean(message);
   };
 
-  const clear = ({ focus = false } = {}) => {
+  // `announce` defaults to silence because most of the callers are not a reader
+  // removing an image: the failed-decode path clears and then writes its own
+  // sentence, and a landed publish clears the composer behind a receipt that has
+  // already said what happened. Only Remove image passes it.
+  const clear = ({ focus = false, announce = "" } = {}) => {
     selectionGeneration += 1;
     media = null;
     input.value = "";
@@ -177,7 +192,7 @@ function mountMediaComposer(root, description, composer) {
     fallback.textContent = "";
     fallback.hidden = true;
     panel.hidden = true;
-    setStatus("");
+    setStatus(announce);
     // Removing the file takes the refusal with it too: it names a file that is
     // no longer chosen, and the field it marks is empty and ready again.
     clearRejection();
@@ -263,7 +278,11 @@ function mountMediaComposer(root, description, composer) {
     }
   };
   input.addEventListener("change", () => accept(input.files?.[0]));
-  remove.addEventListener("click", () => clear({ focus: true }));
+  // Focus goes back to Choose image, the control that starts the act again, and
+  // the removal is stated in the status line that control is already described
+  // by — so the reader who lands there is told what just happened to the image
+  // they had, rather than arriving at a picker with no account of it.
+  remove.addEventListener("click", () => clear({ focus: true, announce: IMAGE_REMOVED_STATUS }));
 
   // Arrival from Paint. An exported file is still only on the device, so the
   // panel says so and takes focus. A prepared drawing goes through accept() with
