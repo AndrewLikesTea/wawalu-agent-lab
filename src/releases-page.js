@@ -19,6 +19,7 @@ import {
 } from "./releases.js";
 import { bindReleaseFilterUrl } from "./release-filter-url.js";
 import { loadReleaseData } from "./releases-data.js";
+import { readDecisions } from "./app.js";
 import { BUILD_STAMP } from "./build-stamp.js";
 import { deployedReleaseRecord } from "./deployed-release.js";
 import { renderShippedBuild } from "./deployed-release-view.js";
@@ -83,6 +84,10 @@ function initReleaseRecorder(root, storage, options = {}) {
   const form = root.querySelector("#release-form");
   const decisionField = root.querySelector("#release-decisions");
   if (!form || !decisionField) return null;
+  // Read at submit time, never captured at mount: a Retry that recovers the
+  // decision log replaces the list this form validates a selection against, and
+  // a copy taken at boot would reject every decision that retry just restored.
+  const linkable = () => (typeof options.decisions === "function" ? options.decisions() : options.decisions ?? []);
   const error = root.querySelector("#release-form-error");
   const status = root.querySelector("#release-record-status");
   const success = root.querySelector("#release-record-next");
@@ -90,7 +95,9 @@ function initReleaseRecorder(root, storage, options = {}) {
   const notice = root.querySelector("#release-storage-notice");
   const decisionGroup = root.querySelector("#release-decisions-field");
   const picker = mountDecisionPicker(decisionField, {
-    decisions: options.decisions ?? [],
+    decisions: linkable(),
+    state: options.decisionState,
+    onRetry: options.onRetryDecisions,
     selected: options.selected ?? [],
     summary: root.querySelector("#release-decisions-summary"),
     // Ticking anything answers the only complaint this group can raise, so the
@@ -169,7 +176,7 @@ function initReleaseRecorder(root, storage, options = {}) {
         status: form.elements.status?.value,
         releasedOn: form.elements.releasedOn?.value,
         decisionIds: picker.selectedIds(),
-      }, { decisions: options.decisions ?? [] });
+      }, { decisions: linkable() });
     } catch (failure) {
       // A selection that no longer resolves is a failure native form validity
       // cannot express. It is reported inline and nothing is written; any
@@ -269,8 +276,32 @@ export function initReleasesPage(root = document, storage = localStorage, option
   // over a log it could not read.
   let unread = data === null;
   data ??= loadReleaseData(storage, seed);
-  const { decisions } = data;
+  let { decisions } = data;
   let releases = data.releases;
+
+  // The decision log is read a second time, strictly, for the linked-decisions
+  // control alone. loadDecisions() — which the composed read above goes through
+  // — turns a store that refused the read into an empty array, so a failure
+  // reached the picker dressed as "you have not recorded any decisions yet",
+  // complete with a link offering to record one into a log that cannot be read.
+  //
+  // Only the picker acts on it. The list, its filters and its search keep
+  // running off the composed picture, because a decision store that refused a
+  // read is not a reason to stop showing the releases that did load.
+  const decisionLogReadable = () => {
+    try {
+      readDecisions(storage);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  let decisionsRead = decisionLogReadable();
+  // What the recorder may honestly offer to link. Empty while the log is
+  // unread: a composed list whose recorded half is missing cannot be told apart
+  // from one where the visitor has recorded nothing, and linking a release to
+  // the half that survived would record an association the visitor never chose.
+  let linkableDecisions = decisionsRead ? decisions : [];
   // One set for the page's lifetime, refilled by a successful retry, so the
   // list and the export keep reading the same answer without being re-bound.
   const exampleReleaseIds = new Set(data.exampleReleaseIds);
@@ -282,9 +313,15 @@ export function initReleasesPage(root = document, storage = localStorage, option
   // textContent, never markup: a decision title is user-authored (PRODUCT.md:
   // no user-generated HTML), and an <option> is no exception.
   const ownerDocument = root.ownerDocument ?? root;
-  const knownDecisionIds = new Set(decisions.map(({ id }) => id));
-  if (decisionFilter && typeof ownerDocument?.createElement === "function") {
-    for (const decision of decisions) {
+  const knownDecisionIds = new Set();
+  // Appends only the decisions the control does not already offer, so a retry
+  // that recovers the log adds what it recovered instead of listing every
+  // decision twice.
+  const fillDecisionOptions = (list) => {
+    for (const decision of list) {
+      if (knownDecisionIds.has(decision.id)) continue;
+      knownDecisionIds.add(decision.id);
+      if (!decisionFilter || typeof ownerDocument?.createElement !== "function") continue;
       const option = ownerDocument.createElement("option");
       option.setAttribute("value", decision.id);
       option.textContent = typeof decision.title === "string" && decision.title.trim() !== ""
@@ -292,7 +329,8 @@ export function initReleasesPage(root = document, storage = localStorage, option
         : decision.id;
       decisionFilter.append(option);
     }
-  }
+  };
+  fillDecisionOptions(decisions);
 
   // The clipboard the expanded rows' "Copy release brief" controls write
   // through, from the same option the share and export controls above read, so
@@ -396,11 +434,39 @@ export function initReleasesPage(root = document, storage = localStorage, option
   // after persistence succeeds, so history never contains a phantom record.
   // On an unread log the save itself proved the log readable again, so the
   // list is read back instead of joined to a list it never loaded.
-  initReleaseRecorder(root, storage, {
-    decisions,
+  // Read the decision log again, for the linked-decisions control only. The
+  // panel states the wait in place — the same Retry node, relabelled, never
+  // replaced — so the button the reader pressed is still under their focus when
+  // the answer lands. A retry that failed again says so and leaves focus alone;
+  // one that loaded hands the control back and lands focus on the first
+  // decision it can now offer, which is what the press was for.
+  let recorder = null;
+  const retryDecisions = () => {
+    recorder?.setRetrying();
+    if (!decisionLogReadable()) {
+      recorder?.setFailed();
+      return;
+    }
+    decisionsRead = true;
+    const next = loadReleaseData(storage, seed);
+    decisions = next.decisions;
+    linkableDecisions = decisions;
+    fillDecisionOptions(decisions);
+    recorder?.setDecisions(decisions);
+    // The list resolves its rows against these decisions too, so it is redrawn
+    // from the picture the retry just restored rather than left describing the
+    // one that was missing them.
+    update();
+    (root.querySelector(".decision-picker-check") ?? root.querySelector(".decision-picker-empty-action"))?.focus?.();
+  };
+
+  recorder = initReleaseRecorder(root, storage, {
+    decisions: () => linkableDecisions,
+    decisionState: decisionsRead ? "loaded" : "failed",
+    onRetryDecisions: retryDecisions,
     // The decision the Decisions page just saved arrives ticked (#2371). Any id
     // this log does not hold is dropped silently rather than reported.
-    selected: decisionToLink(locationRef?.search, decisions),
+    selected: decisionToLink(locationRef?.search, linkableDecisions),
     onRecorded: (release) => {
       if (unread) {
         reload();

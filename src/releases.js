@@ -319,6 +319,49 @@ export function releaseFiltersActive(filters = {}) {
     || normalized.query !== "";
 }
 
+// Join the narrowings into one readable run. Two are joined with "and"; three
+// or more take commas and a final "and", so the sentence stays a sentence.
+function joinPhrases(parts) {
+  if (parts.length <= 1) return parts[0] ?? "";
+  return `${parts.slice(0, -1).join(", ")} and ${parts.at(-1)}`;
+}
+
+const sentenceCase = (value) => value.charAt(0).toUpperCase() + value.slice(1);
+
+/**
+ * Name the narrowing that is actually in force, in the reader's own terms.
+ *
+ * The no-match state says this back to them. "Nothing matched" is only
+ * actionable if the sentence names *what* the log was matched against: a reader
+ * who forgot they left a status set, or who followed a deep link that carried a
+ * decision id, otherwise reads an empty view as an empty log. The values are the
+ * ones they chose — their search text, their decision's title — so this is a
+ * description of their own state, not a restatement of the control labels.
+ *
+ * Returns "" when nothing is narrowing, which is the caller's cue that this is
+ * the first-run empty state rather than a filtered one.
+ */
+export function releaseFilterSummary(filters = {}, decisions = []) {
+  const { status, decisionStatus, decisionId, query } = normalizeReleaseFilters(filters);
+  const parts = [];
+  if (query !== "") parts.push(`your search for “${query}”`);
+  if (status !== "all") parts.push(`release status ${sentenceCase(status)}`);
+  if (decisionId !== ALL_DECISIONS_FILTER) {
+    // Named by title where the log holds one. A decision this log does not hold
+    // is still a legitimate filter (a deep link can carry any id), so it falls
+    // back to the id rather than to silence.
+    const decision = (decisions ?? []).find((candidate) => candidate?.id === decisionId);
+    const title = typeof decision?.title === "string" && decision.title.trim() !== "" ? decision.title : decisionId;
+    parts.push(`the linked decision “${title}”`);
+  }
+  if (decisionStatus !== "all") {
+    parts.push(decisionStatus === "missing"
+      ? "a linked decision this log does not hold"
+      : `linked decision status ${sentenceCase(decisionStatus)}`);
+  }
+  return joinPhrases(parts);
+}
+
 // The log's one summary line: how many releases are on screen, what they were
 // narrowed from when a filter is set, and the order they are in. Derived once
 // and rendered in exactly one place, so a reader never has to reconcile two
@@ -1017,10 +1060,15 @@ export function renderReleaseList(container, resolvedReleases, options = {}) {
     renderReleaseListStatus(options.status, state, {
       actions: options.actions !== false,
       singular: options.singular,
+      filterSummary: options.filterSummary,
     });
     if (state !== "ready") return;
   } else if (resolvedReleases.length === 0) {
-    renderReleaseListState(container, "empty", { filtered: options.filtered, actions: true });
+    renderReleaseListState(container, "empty", {
+      filtered: options.filtered,
+      filterSummary: options.filterSummary,
+      actions: true,
+    });
     return;
   }
 
@@ -1057,9 +1105,16 @@ export function releaseListStateCopy(state, options = {}) {
     // release matches" is a filter state whose one next step is clearing them.
     // The second sentence of the filter state names the log it did not empty, so
     // a narrowed view can never be read as "there are no releases".
+    // The second sentence names the narrowing that is actually set, so the dead
+    // end is attributable: a reader is told which of their own choices emptied
+    // the view rather than being handed the list of controls to re-check. A
+    // caller that cannot supply it (the homepage sample renders this state from
+    // a flag, not from filter values) keeps the older, general sentence.
     "no-match": [
       "No releases match your search and filters",
-      "The log still holds releases; none of them matches the current search, release status, linked decision, and linked decision status together.",
+      options.filterSummary
+        ? `The log still holds releases; none of them matches ${options.filterSummary}.`
+        : "The log still holds releases; none of them matches the current search, release status, linked decision, and linked decision status together.",
     ],
     empty: ["No releases recorded yet", "Record a release, with or without linked decisions."],
     // A list with rows is not a state to announce: the count sentence above the
@@ -1298,6 +1353,10 @@ export function mountReleaseList(container, data = {}, options = {}) {
     const filtered = releaseFiltersActive(filters);
     renderReleaseList(container, shown, {
       filtered,
+      // Derived from the same filters the rows were drawn with, so the sentence
+      // the no-match state names can never describe a narrowing that is not the
+      // one that emptied the view.
+      filterSummary: filtered ? releaseFilterSummary(filters, current.decisions ?? []) : "",
       expandedIds: state.expandedIds,
       exampleIds: current.exampleIds,
       status: options.status,
