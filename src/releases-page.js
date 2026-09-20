@@ -17,6 +17,7 @@ import {
   renderReleaseListStatus,
   saveReleases,
 } from "./releases.js";
+import { initAskAboutShiplog } from "./ask-about-shiplog.js";
 import { bindReleaseFilterUrl } from "./release-filter-url.js";
 import { loadReleaseData } from "./releases-data.js";
 import { readDecisions } from "./app.js";
@@ -238,6 +239,9 @@ export function initReleasesPage(root = document, storage = localStorage, option
   if (!container) return;
   initShiplogProof(root, options);
   initRecordReleaseJump(root);
+  // The hero's other route: the same landing behaviour, on the follow-up form
+  // at the foot of the page rather than on the recorder below the log.
+  initAskAboutShiplog(root);
 
   // The real record of this deployment, painted before anything else on the
   // page: the observatory's "read the releases these pull requests shipped"

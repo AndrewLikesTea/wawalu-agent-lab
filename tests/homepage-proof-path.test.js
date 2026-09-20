@@ -14,6 +14,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { initDecisionLog, STORAGE_KEY } from "../src/app.js";
+import {
+  ASK_ABOUT_SHIPLOG_HREF, ASK_ABOUT_SHIPLOG_ID, ASK_ABOUT_SHIPLOG_LABEL,
+} from "../src/ask-about-shiplog.js";
 import { initDecisionDetail } from "../src/decision-page.js";
 import { initReleaseDetail } from "../src/release-page.js";
 import { RELEASE_STORAGE_KEY } from "../src/releases.js";
@@ -132,15 +135,22 @@ test("the release that decision links to lists the decision back", async (t) => 
 test("the Shiplog offer states the pricing status and points to its contact path", async (t) => {
   const home = await openHome(t);
   const offer = home.document.getElementById("shiplog-entry");
-  const contact = offer.querySelector('a[href="#site-footer-email"]');
+  const contact = offer.querySelector(`a[href="${ASK_ABOUT_SHIPLOG_HREF}"]`);
 
   assert.match(textOf(offer), /How a team gets Shiplog/);
   assert.match(textOf(offer), /no self-serve signup and no published price/i);
   assert.match(textOf(offer), /what it would cost are both answered on request/i);
-  assert.equal(textOf(contact), "Ask Wawalu about getting Shiplog");
+  // Since #2458 the ask is a control under the answer rather than a clause
+  // inside it, and it lands on the form's container rather than on the field:
+  // the offer and the topic line are read on arrival, not scrolled past.
+  assert.equal(textOf(contact), ASK_ABOUT_SHIPLOG_LABEL);
+  assert.equal(contact.getAttribute("id"), ASK_ABOUT_SHIPLOG_ID);
   // The link names one destination on this page, so the buyer picks no form.
-  assert.equal(offer.querySelectorAll('a[href="#site-footer-email"]').length, 1);
+  assert.equal(offer.querySelectorAll(`a[href="${ASK_ABOUT_SHIPLOG_HREF}"]`).length, 1);
+  assert.equal(offer.querySelectorAll('a[href="#site-footer-email"]').length, 0);
   assert.ok(home.document.getElementById("site-footer-email"),
+    "the offer must point to a rendered follow-up form that asks for a work email");
+  assert.ok(home.document.getElementById("site-footer-panel"),
     "the offer must point to the rendered follow-up form");
   // ...and that destination is the form this page actually submits, so the ask
   // the copy invites is the row the Wawalu team receives.

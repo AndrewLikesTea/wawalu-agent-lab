@@ -32,6 +32,7 @@ import { renderDecisionTimelines } from "./decision-timeline-view.js";
 import { publishHistoryScope } from "./history-scope.js";
 import { initDeploymentStatus } from "./deployment-status-view.js";
 import { initLeadCapture } from "./lead-capture.js";
+import { initAskAboutShiplog } from "./ask-about-shiplog.js";
 import { retentionDeclined, retentionRefusal } from "./local-retention.js";
 import { recordsChanged } from "./shiplog-records.js";
 import { overdueDecisionFinding } from "./overdue-decision.js";
@@ -1085,6 +1086,9 @@ function syncSupersedesOptions(select, decisions) {
 
 export async function initDecisionLog(root = document, storage = localStorage, options = {}) {
   initLeadCapture(root);
+  // The log entry's route to the follow-up form. Guarded inside, so a page that
+  // mounts this log without the route or without the band gets nothing.
+  initAskAboutShiplog(root);
   const form = root.querySelector("#decision-form");
   const list = root.querySelector("#decision-list");
   const count = root.querySelector("#decision-count");
