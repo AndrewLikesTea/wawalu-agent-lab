@@ -195,7 +195,11 @@ test("the log entry's proof point ties a recorded decision to the release that s
   ]);
   const hero = heroOf(html);
   const entry = logEntryOf(html);
-  const proof = entry.slice(entry.indexOf('<div class="hero-proof">'), entry.indexOf('<div class="hero-actions">'));
+  // From the proof panel to the end of the log's entry. The slice used to stop
+  // at an action row this section did not have, so its end bound was -1 and it
+  // read to the end anyway; #2458 gave the section a real action row above the
+  // panel, which would have inverted the two bounds and sliced out nothing.
+  const proof = entry.slice(entry.indexOf('<div class="hero-proof">'));
   const proofDocument = parseHtml(proof);
   const facts = proofDocument.querySelector(".hero-proof-facts")
     .querySelectorAll("dd")
