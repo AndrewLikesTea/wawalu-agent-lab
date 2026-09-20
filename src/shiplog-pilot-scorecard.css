@@ -9,3 +9,10 @@
 #pilot-scorecard-fallback, #shiplog-evaluation-brief-fallback { margin-top:16px; }
 #pilot-scorecard-manual, #shiplog-evaluation-brief-manual { width:100%; box-sizing:border-box; }
 @media(max-width:520px) { .pilot-scorecard-fields { grid-template-columns:1fr; } }
+/* Native summaries keep one keyboard control per instruction disclosure. */
+.pilot-scorecard-criteria summary { min-height:44px; padding:12px 0; cursor:pointer; line-height:1.4; }
+.pilot-scorecard-criteria summary:focus-visible,
+#shiplog-evaluation-brief:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+#shiplog-evaluation-brief { overflow-wrap:anywhere; }
+#shiplog-evaluation-brief .share-button,
+#shiplog-pilot-scorecard .share-button { max-width:100%; min-height:44px; white-space:normal; line-height:1.4; }
