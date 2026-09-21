@@ -60,7 +60,7 @@ const SUMMARY = "#site-footer-directory-summary";
 // Hand-kept and named, the same discipline FOOTER_VARIANT in
 // tests/site-footer.test.js follows: a page cannot join or leave this set
 // without a reviewer reading the line that says so.
-const FOLDED = ["post.html", "social.html", "profile.html", "coach.html", "releases.html"];
+const FOLDED = ["post.html", "social.html", "profile.html", "coach.html", "releases.html", "agents.html"];
 // The follow-up's required intent group (#2365): one tab stop, its first radio.
 const INTENT = "#site-footer-intent-availability_pricing";
 
