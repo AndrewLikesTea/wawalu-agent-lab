@@ -17,7 +17,7 @@ import {
   takePaintHandoff,
   validatePublishImage,
 } from "/publishing-media.js";
-import { PAINT_HANDOFF_COPY, paintHandoffIntent, renderPaintArrival } from "/paint-handoff.js";
+import { PAINT_EDITOR_PATH, PAINT_HANDOFF_COPY, paintHandoffIntent, renderPaintArrival } from "/paint-handoff.js";
 
 const REFRESH_INTERVAL = 10_000;
 
@@ -131,6 +131,7 @@ function mountMediaComposer(root, description, composer) {
   const rejection = root.querySelector(`#${REJECTED_FILE_ERROR_ID}`);
   const publishBlocker = root.querySelector("#post-publish-blocker");
   const submit = root.querySelector("#post-submit");
+  const arrivalPanel = root.querySelector("#paint-arrival");
   let media = null;
   let selectionProblem = "";
   // FileReader and image decoding are asynchronous. A generation token keeps a
@@ -183,6 +184,7 @@ function mountMediaComposer(root, description, composer) {
   const clear = ({ focus = false, announce = "" } = {}) => {
     selectionGeneration += 1;
     media = null;
+    renderPaintArrival(arrivalPanel, null);
     input.value = "";
     description.clear();
     description.setAttached(false);
@@ -200,8 +202,9 @@ function mountMediaComposer(root, description, composer) {
     if (focus) input.focus();
   };
 
-  const show = (next, { focus = false } = {}) => {
+  const show = (next, { focus = false, fromPaint = false } = {}) => {
     media = next;
+    renderPaintArrival(arrivalPanel, fromPaint ? PAINT_HANDOFF_COPY.prepared : null);
     // A file this field accepts is the answer to the refusal, so the refusal
     // goes as the image arrives.
     clearRejection();
@@ -219,7 +222,7 @@ function mountMediaComposer(root, description, composer) {
     // publish ready to describe and post." This is also the one moment a
     // visitor who never went near Paint is told where the file is — said once,
     // here, rather than repeated beside every control.
-    setStatus("Image ready to describe and post. Nothing is sent until you publish.");
+    setStatus(fromPaint ? "" : "Image ready to describe and post. Nothing is sent until you publish.");
     description.setAttached(true);
     // Choosing a file moves nothing (#2294): the reader is on Choose image and
     // Tabs on through the preview to the description. Only an arrival from
@@ -229,6 +232,11 @@ function mountMediaComposer(root, description, composer) {
 
   preview.addEventListener("load", () => { frame.dataset.state = "ready"; });
   preview.addEventListener("error", () => {
+    if (arrivalPanel?.dataset.handoff === "prepared") {
+      clear();
+      failTransfer("The image from Paint could not be previewed. Your text draft is unchanged. Try sending it again.");
+      return;
+    }
     frame.dataset.state = "error";
     preview.hidden = true;
     fallback.textContent = PREVIEW_FAILURE;
@@ -238,7 +246,7 @@ function mountMediaComposer(root, description, composer) {
   // One path for a file however it arrived — chosen with Choose image or handed
   // over from Paint — so the type and size rules, the preview, Remove image and
   // the refusal are the same for both. Resolves whether the file was taken.
-  const accept = async (file, { focus = false } = {}) => {
+  const accept = async (file, { focus = false, fromPaint = false } = {}) => {
     const generation = ++selectionGeneration;
     const problem = !file ? "Choose an image to continue."
       : !PUBLISH_IMAGE_TYPES.has(file.type) ? UNSUPPORTED_TYPE_ERROR
@@ -255,25 +263,25 @@ function mountMediaComposer(root, description, composer) {
       showRejection(recovery);
       setStatus("");
       setSelectionProblem(problem);
-      input.focus();
+      if (!fromPaint) input.focus();
       return false;
     }
     clearRejection();
-    setStatus("Preparing image preview…");
+    setStatus(fromPaint ? "" : "Preparing image preview…");
     panel.hidden = true;
     try {
       const next = await fileToPublishImage(file);
-      if (generation !== selectionGeneration) return false;
-      show(next, { focus });
+      if (generation !== selectionGeneration) return null;
+      show(next, { focus, fromPaint });
       return true;
     } catch (error) {
-      if (generation !== selectionGeneration) return false;
+      if (generation !== selectionGeneration) return null;
       // clear() empties the field and the refusal slot with it, so the sentence
       // for the file that just failed is written after it, not before.
       clear();
       showRejection(error.message);
       setSelectionProblem(error.message);
-      input.focus();
+      if (!fromPaint) input.focus();
       return false;
     }
   };
@@ -284,19 +292,55 @@ function mountMediaComposer(root, description, composer) {
   // they had, rather than arriving at a picker with no account of it.
   remove.addEventListener("click", () => clear({ focus: true, announce: IMAGE_REMOVED_STATUS }));
 
+  // A transfer that could not be read, drawn in the slot a refused file uses
+  // because that is where this field's news goes — but written here rather than
+  // by showRejection(), which also marks the input. The picker is empty and
+  // would take any supported file right now, so aria-invalid for a failure that
+  // happened in storage would leave a control holding nothing invalid marked as
+  // if it were. The other fields still hold a draft, so the route back opens
+  // Paint beside this tab instead of navigating away from it — the same
+  // new-tab shape, note and rel as the Paint link above the picker.
+  // Called with no sentence once accept() has written one: a file Paint sent
+  // that this field would have refused from the picker is refused exactly that
+  // way, marked input and disabled Publish included, and all the transfer adds
+  // is the route back.
+  const failTransfer = (message = "") => {
+    if (!rejection) return;
+    if (message) renderFieldError(rejection, message);
+    const link = document.createElement("a");
+    link.href = PAINT_EDITOR_PATH;
+    link.target = "_blank";
+    link.rel = "noopener";
+    link.textContent = "Back to Paint (opens in a new tab)";
+    rejection.append(" ", link);
+    root.querySelector("#post-form-title")?.focus();
+  };
   // Arrival from Paint. An exported file is still only on the device, so the
-  // panel says so and takes focus. A prepared drawing goes through accept() with
-  // focus on the description, the one field left to fill, and the panel speaks
-  // for it only once it was taken — a refused image is not "attached".
-  const arrivalPanel = root.querySelector("#paint-arrival");
+  // panel says so and takes focus, and nothing is attached. A prepared drawing
+  // goes through accept(): the panel confirms it only once it was taken — a
+  // refused or unreadable image is not "attached" — and the one live sentence
+  // for that arrival is the panel's, not the media status line's, so a single
+  // transfer is not announced twice.
   const intent = paintHandoffIntent(globalThis.location?.search);
-  const takeFromPaint = () => {
-    const file = takePaintHandoff(globalThis.localStorage);
-    if (!file) return;
+  const takeFromPaint = async () => {
     composer.open({ focus: false });
-    accept(file, { focus: true }).then((taken) => {
-      if (taken) renderPaintArrival(arrivalPanel, PAINT_HANDOFF_COPY.prepared);
-    });
+    let file;
+    try { file = takePaintHandoff(globalThis.localStorage); } catch { /* blocked storage */ }
+    if (!file) {
+      renderPaintArrival(arrivalPanel, null);
+      setStatus("");
+      failTransfer("The image from Paint could not be loaded. It may have expired or become unreadable. Your text draft is unchanged. Try sending it again from Paint.");
+      return;
+    }
+    // accept() has already written the refusal naming the file's own size or
+    // type; the route back to Paint is what a transfer adds to it. A stale
+    // generation resolves null — a newer selection or removal owns the UI now,
+    // including focus — and only `false` is this file being turned away.
+    const taken = await accept(file, { focus: true, fromPaint: true });
+    if (taken === false) {
+      renderPaintArrival(arrivalPanel, null);
+      failTransfer();
+    }
   };
   if (intent?.kind === "prepared") {
     // Off the address first, so a reload does not ask again — and so a second
