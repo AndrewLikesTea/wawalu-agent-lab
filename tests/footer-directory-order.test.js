@@ -45,11 +45,12 @@ const SRC = new URL("../src/", import.meta.url);
 // The five, named. A page joins or leaves this list only by a reviewer reading
 // the line — the same hand-kept discipline FOOTER_VARIANT follows in
 // tests/site-footer.test.js, which holds the generated markup to it.
-const TASK_PAGES = ["social.html", "profile.html", "post.html", "coach.html", "releases.html"];
+// The observatory joined in #2470: it already carried the task pages' form.
+const TASK_PAGES = ["social.html", "profile.html", "post.html", "coach.html", "releases.html", "agents.html"];
 
-// Three of the twelve that keep the directory open, spread across the kinds of
-// page they are: the home page, the AI FinOps answer, the observatory.
-const OPEN_PAGES = ["index.html", "evolution.html", "agents.html"];
+// Three of the pages that keep the directory open, spread across the kinds of
+// page they are: the home page, the AI FinOps answer, the observatory's trace.
+const OPEN_PAGES = ["index.html", "evolution.html", "agent-trace.html"];
 
 const read = (file) => readFile(new URL(file, SRC), "utf8");
 const parse = async (file) => parseHtml(await read(file));

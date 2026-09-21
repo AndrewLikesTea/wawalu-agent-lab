@@ -145,9 +145,11 @@ const FOOTER_VARIANT = new Map([
     followUpType: "follow_up_people", followUpTopic: FOLLOW_UP_TOPICS.follow_up_people,
     collapsedDemos: true, askMessage: true, offer: true, assets: true,
   }],
+  // #2470: the observatory carried every other flag the task pages do but this
+  // one, so its open map sat between the evaluation-brief link and the form.
   ["agents.html", {
     followUpType: "follow_up_agents", followUpTopic: FOLLOW_UP_TOPICS.follow_up_agents,
-    askMessage: true, offer: true, assets: true,
+    collapsedDemos: true, askMessage: true, offer: true, assets: true,
   }],
 ]);
 
