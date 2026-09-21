@@ -147,6 +147,8 @@ test("createRelease refuses an incomplete, oversized, or dangling record", () =>
     { message },
   );
   const { required, length, invalidDate, unknownDecision } = RELEASE_FORM_ERRORS;
+  assert.equal(required, "A release needs a version, an owner, a status, a release date, and a summary.");
+  assert.equal(invalidDate, "A release date must be a real calendar day written as YYYY-MM-DD.");
   assert.equal(unknownDecision, "A decision you linked is no longer in this log. Review the linked decisions and record the release again.");
 
   rejects({ ...VALID, version: "   " }, required);
