@@ -354,14 +354,17 @@ test("the permalink names the reporting path in Social's own bytes", async () =>
   const html = (await readFile(new URL("../src/social.html", import.meta.url), "utf8")).replace(/<!--[\s\S]*?-->/g, "");
   // Anchored on their opening words rather than typed out, so a Social that
   // rewords either one fails here instead of drifting away from this page.
+  // Social's explanation drops the "How reporting works:" lead-in, because its
+  // route links there in those words (#2471), and closes on one sentence the
+  // composer's terms used to carry. Everything between is this page's, verbatim.
   const shipped = {
     route: html.match(/To ask the Wawalu team[^<]*/)?.[0]?.trim(),
-    about: html.match(/How reporting works: [^<]*not every report leads to removal\./)?.[0],
+    about: html.match(/Report post opens a short form[^<]*not every report leads to removal\./)?.[0],
   };
   assert.ok(shipped.route, "Social no longer tells a reader how to ask for a post to be reviewed");
   assert.ok(shipped.about, "Social no longer explains what reporting does and does not do");
   assert.equal(REPORT_ROUTE, shipped.route, `the permalink does not ship Social's route sentence: ${shipped.route}`);
-  assert.equal(REPORT_ABOUT, shipped.about, `the permalink does not ship Social's explanation: ${shipped.about}`);
+  assert.equal(REPORT_ABOUT, `How reporting works: ${shipped.about}`, `the permalink does not ship Social's explanation: ${shipped.about}`);
 
   // And the permalink's markup carries each one exactly once, so the page ships
   // them to a reader whose script never runs.

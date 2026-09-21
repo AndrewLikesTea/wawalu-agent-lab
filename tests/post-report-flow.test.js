@@ -129,7 +129,18 @@ test("Social: the reporting route sits outside the composer and points at the ex
   let inComposer = false;
   for (let at = route; at; at = at.parentNode) if (at.id === "post-compose-panel") inComposer = true;
   assert.equal(inComposer, false, "the route is inside the composer, whose tab order is pinned");
-  assert.match(textOf(id("post-report-about")), /reviews? each one\. A report does not remove or hide the post, and not every report leads to removal\.$/);
+  assert.match(textOf(id("post-report-about")), /reviews? each one\. A report does not remove or hide the post, and not every report leads to removal\. The team decides after review whether to remove it\.$/);
+
+  // Explained once (#2471). The route's link text used to open the explanation
+  // as a lead-in too, and the composer's terms restated the review in their own
+  // words, so the painted page said how reporting works three times.
+  // The report panel's own note is the form speaking once it is open, and stays
+  // hidden until then, so it is not counted as a second explanation.
+  const main = textOf(id("main-content")).split(textOf(id("post-report-panel"))).join(" ");
+  assert.ok(main.split("How reporting works").length - 1 <= 1, "Social says \"How reporting works\" more than once");
+  assert.equal(main.split("not every report leads to removal").length - 1, 1, "Social explains what a report leads to other than exactly once");
+  const terms = textOf(id("post-consequence"));
+  assert.doesNotMatch(terms, /after review|may remove|review/i, "the publishing terms restate the reporting explanation's review process");
 });
 
 test("People: every drawn tile has a Report post button that opens the same panel", async (t) => {
@@ -164,8 +175,9 @@ test("People: every drawn tile has a Report post button that opens the same pane
 // contradict each other. The warning said a published post could not be
 // deleted, full stop; the reporting copy on the same page says the Wawalu team
 // reviews reported posts and may take one down. The warning now names whose act
-// each one is — you cannot take your own post down, anyone can report it, the
-// team may remove it after review — in the reporting panel's own terms.
+// each one is — you cannot take your own post down, anyone can report it. What
+// the team does with a report is left to the explanation below the feed, which
+// says it once (#2471).
 //
 // It is stated once, beside the composer that performs the act (#2401). People
 // used to carry a second copy on a page with no composer; it points at Social's
@@ -174,14 +186,14 @@ test("People: every drawn tile has a Report post button that opens the same pane
 // Asserted on the painted DOM, not on the markup: a page could hydrate over its
 // own warning.
 const SELF_SERVICE = /You cannot edit or delete your own post after you publish it/;
-const REMOVAL_PATH = /Anyone can select Report post on a published post, and the Wawalu team may remove it after review\./;
+const REMOVAL_PATH = /Anyone can select Report post on a published post\./;
 // A promise of removal, and a second name for the one actor the site has.
 const OVERPROMISES = [/will be removed/i, /will remove/i, /we remove/i, /guarantee/i];
 const RIVAL_ACTORS = [/moderator/i, /\badmin\b/i, /support team/i, /\bstaff\b/i];
 
 const statesTheDistinction = (copy, surface) => {
   assert.match(copy, SELF_SERVICE, `${surface} no longer says the publisher cannot take their own post down`);
-  assert.match(copy, REMOVAL_PATH, `${surface} no longer points at Report post and the Wawalu team's review`);
+  assert.match(copy, REMOVAL_PATH, `${surface} no longer points at Report post`);
   assert.ok(copy.includes(REPORT_POST_LABEL), `${surface} names the reporting control something other than "${REPORT_POST_LABEL}"`);
   for (const promise of OVERPROMISES)
     assert.doesNotMatch(copy, promise, `${surface} promises a reported post comes down (${promise})`);
