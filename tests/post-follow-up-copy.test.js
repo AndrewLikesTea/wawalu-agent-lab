@@ -52,7 +52,7 @@ for (const state of ["loading", "loaded"]) {
       assert.equal(byId("post-detail").dataset.postState, state);
       assert.match(textOf(byId("page-title")), /post/i);
       assert.equal(textOf(document.querySelector(".site-footer-invitation")), invitation);
-      assert.equal(textOf(byId("site-footer-topic-note")), "This request is sent about the post from Social.");
+      assert.equal(textOf(byId("site-footer-topic-note")), "This request is sent about the Social post page — one post from Social, at its own link.");
       assert.equal(byId("site-footer-topic-note").hidden, false);
       byId("site-footer-intent-demo").click();
       byId("site-footer-email").focus();
@@ -144,7 +144,7 @@ test("the post page opens on Social's heading line and points a post question at
 test("the post topic is accepted only for Social requests; arbitrary topics stay invalid", async () => {
   for (const [purpose, topic] of [
     ["follow_up_people", POST_FOLLOW_UP_TOPIC],
-    ["follow_up_social", "post from Social: p-copy"],
+    ["follow_up_social", `${POST_FOLLOW_UP_TOPIC}: p-copy`],
   ]) {
     const response = await handleLeadRequest(new Request("https://example.test/api/leads", {
       method: "POST",

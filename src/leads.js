@@ -43,7 +43,9 @@ export const LEAD_PURPOSES = Object.freeze(["field_notes", "follow_up", ...FOLLO
 // a visitor comparing the follow-up block against the footer above it would find
 // two accounts of the same page.
 // The individual post shares Social’s request type; its fixed topic identifies the surface, not a post.
-export const POST_FOLLOW_UP_TOPIC = "post from Social";
+// It names the page the way the others do: "post from Social" read as though
+// the request were about the post, right after the invitation says it is not.
+export const POST_FOLLOW_UP_TOPIC = "Social post page — one post from Social, at its own link";
 export const FOLLOW_UP_TOPICS = Object.freeze({
   follow_up_homepage: "Homepage — record a decision and explore Shiplog",
   follow_up_finops_example: "Bundled AI FinOps example — lower-cost routing in Atlas Platform",
