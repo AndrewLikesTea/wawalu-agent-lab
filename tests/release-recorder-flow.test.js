@@ -859,19 +859,23 @@ test("the release success state wraps at a phone width", async () => {
   assert.doesNotMatch(await readFile(RELEASES_PAGE, "utf8"), /tabindex="[1-9]/);
 });
 
-test("the homepage primary demo reaches Releases and a saved, inspectable outcome", async (t) => {
+test("the homepage workspace leads to Releases and a saved, inspectable outcome", async (t) => {
   const home = await loadPage(new URL("../src/index.html", import.meta.url));
   const action = home.document.querySelector("#core-demo-link");
   action.focus();
   pressEnter(home.document);
-  const destination = new URL(home.navigations[0], "https://shiplog.test");
+  assert.equal(home.navigations[0], "#record-history-title");
+  const heading = home.document.querySelector(home.navigations[0]);
+  assert.equal(textOf(heading), "Decision and release workspace");
+  const releases = home.document.querySelector("#record-history").querySelector('a[href="/releases.html"]');
+  releases.focus();
+  pressEnter(home.document);
+  const destination = new URL(home.navigations[1], "https://shiplog.test");
   home.restore();
   assert.equal(destination.pathname, "/releases.html");
   const page = await loadPage(new URL(`../src${destination.pathname}`, import.meta.url));
   t.after(() => page.restore());
   initReleasesPage(page.document, page.storage);
-  assert.ok(page.document.querySelector(destination.hash), "the demo fragment resolves");
-  assert.match(textOf(page.document.querySelector(destination.hash)), /Example|example/);
   optionFor(page, "Adopt a durable job queue").click();
   fillRequired(page, { version: "v2219.0.0" });
   submit(page);

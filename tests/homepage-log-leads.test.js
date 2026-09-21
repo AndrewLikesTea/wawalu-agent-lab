@@ -105,10 +105,8 @@ test("the painted front door reaches the log before the AI FinOps capability", a
   assert.ok(finops < briefing,
     `the example briefing is painted at ${briefing}, above the block it concludes at ${finops}`);
 
-  // The log's own working panels did not move and are still below both, which
-  // is what the section's copy sends a reader down the page for.
-  assert.ok(briefing < positionOf(document, "record-history"),
-    "the record panels must still follow the opening sections");
+  assert.ok(positionOf(document, "record-history") < positionOf(document, "shiplog-evaluation-brief"),
+    "the working panels precede the evaluation brief");
 });
 
 test("the first focusable in the log precedes the first focusable in AI FinOps", async (t) => {

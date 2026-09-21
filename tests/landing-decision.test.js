@@ -119,15 +119,12 @@ test("no summary figure on the front door is authored in its markup", async () =
   // caveat it a second time. The takeaway carries the synthetic qualifier, and
   // build.test.js pins the figures against the composer that paints them on AI
   // FinOps.
-  // Everything above the record panels. Anchored on the section's own id
-  // attribute, not on the bare string: since #2394 the log's entry section
-  // leads the page and its call to action carries `href="#record-history"`
-  // above the takeaway, so matching the fragment would cut the slice short of
-  // the very figures this guard counts.
-  const beforeLog = html.slice(0, html.indexOf('id="record-history"'));
-  assert.deepEqual(beforeLog.match(/\$[\d,]+/g), ["$51,254", "$154,500"]);
-  const start = beforeLog.indexOf('<p class="hero-proof-point">');
-  const proofPoint = beforeLog.slice(start, beforeLog.indexOf("</p>", start));
+  // Count the figures in their own capability region; the workspace now
+  // precedes it, so record-panel position is no longer its boundary.
+  const capability = html.slice(html.indexOf('id="additional-capability"'), html.indexOf('id="landing-decision"'));
+  assert.deepEqual(capability.match(/\$[\d,]+/g), ["$51,254", "$154,500"]);
+  const start = capability.indexOf('<p class="hero-proof-point">');
+  const proofPoint = capability.slice(start, capability.indexOf("</p>", start));
   assert.doesNotMatch(proofPoint, /\$[\d,]+|33%/,
     "the paragraph above the takeaway must not restate the figure the takeaway carries");
   assert.match(proofPoint, /bundled synthetic example/);
@@ -525,8 +522,8 @@ test("the hero's first step records a decision before its release, in the direct
   assert.match(step, /use no customer or production data/);
   assert.match(step, /Records you add stay in this browser\./);
 
-  // And the link the step sits under is unchanged.
+  // The link now opens the interactive workspace on this page.
   const demo = document.getElementById("core-demo-link");
   assert.equal(textOf(demo), "Explore the decision and release log demo →");
-  assert.equal(demo.getAttribute("href"), "/releases.html#shiplog-proof");
+  assert.equal(demo.getAttribute("href"), "#record-history-title");
 });
