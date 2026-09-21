@@ -609,12 +609,12 @@ export function postPageHeading(post) {
   return displayName ? `${displayName}'s Social post` : "Social post";
 }
 
-// Same shape as the decision detail's title — the record, then the surface the
-// nav names, then the product. src/post.html ships titled "Social post · Social ·
-// Shiplog", which is what a reader sees until this runs.
+// The heading, then the product. The heading already says "Social post", so a
+// "Social" surface segment only repeated it. src/post.html ships titled
+// "Social post · Shiplog", which is what a reader sees until this runs.
 //
 // Until a post loads, every state keeps the shipped fallback title. Once it
 // loads, the same display-name value rendered in the byline names the tab.
 export function postDetailTitle(post) {
-  return pageTitle(postPageHeading(post), "Social");
+  return pageTitle(postPageHeading(post));
 }

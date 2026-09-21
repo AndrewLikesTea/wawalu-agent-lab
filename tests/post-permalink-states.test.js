@@ -1393,8 +1393,8 @@ test("the painted page tells a cold visitor what Social is, once, and no longer 
     // The frame around the lead is unchanged while the page waits: a loaded post
     // renames the title and the heading after its display name, so they are read
     // here, before it arrives.
-    assert.equal(textOf(document.querySelector("title")), "Social post · Social · Shiplog");
-    assert.equal(document.title, "Social post · Social · Shiplog");
+    assert.equal(textOf(document.querySelector("title")), "Social post · Shiplog");
+    assert.equal(document.title, "Social post · Shiplog");
     assert.equal(textOf(document.querySelector("#page-title")), "Social post");
     assert.equal(textOf(panel.querySelector(".detail-loading-text")), STATE_HEADLINES.loading);
 
