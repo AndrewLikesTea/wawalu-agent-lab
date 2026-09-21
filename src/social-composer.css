@@ -21,3 +21,17 @@
 /* The two stops script focuses (#2370): the heading open() lands on and the
    error summary a refused press lands on, with the shared ring. */
 #post-form-title:focus-visible, #post-error-summary:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+
+/* Filled wash denotes a changing state; the words carry the meaning without
+   color. Reuse the existing Social success palette and metadata scale. */
+.paint-arrival[data-handoff="prepared"] .paint-arrival-chip {
+  max-width:100%; padding:2px 8px; border-radius:5px;
+  background:#edf7ef; color:#285f35; font-size:11px;
+}
+.paint-arrival[data-handoff="prepared"] .paint-arrival-shape { border-color:currentColor; }
+/* Its own line at 390px: the route back is a second sentence, not a run-on with
+   the refusal above it. The preview needs nothing here — .compose-preview-frame
+   in styles.css is overflow:hidden at a fixed aspect-ratio with the image at
+   100%/100% object-fit:contain, so a tall or wide drawing is already
+   letterboxed rather than clipped at any panel width. */
+#post-image-error a { display:inline-block; margin-top:8px; }

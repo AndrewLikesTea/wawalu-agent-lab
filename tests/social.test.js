@@ -302,7 +302,7 @@ test("social page is wired, labeled, and linked from the other pages", async () 
   // Posts come from the API, never from browser storage. The one storage read is
   // the image Paint hands to the composer (#2298), taken once and then removed.
   assert.deepEqual((wiring.match(/.*localStorage.*/g) ?? []).map((line) => line.trim()),
-    ["const file = takePaintHandoff(globalThis.localStorage);"]);
+    ["try { file = takePaintHandoff(globalThis.localStorage); } catch { /* blocked storage */ }"]);
   assert.match(page, /src="\/social-page\.js"/);
   // Compose inputs carry explicit labels + describedby wiring.
   assert.match(page, /<label for="post-author">/);

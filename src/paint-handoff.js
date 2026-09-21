@@ -14,6 +14,9 @@
 // still nothing has been uploaded or posted.
 
 export const SOCIAL_COMPOSER_PATH = "/social.html";
+// The other end of the same route, for the composer's way back when a transfer
+// could not be read. Same value the nav and the footer link Paint by.
+export const PAINT_EDITOR_PATH = "/paint/";
 export const EXPORT_FILE_NAME = "paint-export.png";
 
 export const PAINT_HANDOFF_COPY = Object.freeze({
@@ -29,7 +32,7 @@ export const PAINT_HANDOFF_COPY = Object.freeze({
   }),
   prepared: Object.freeze({
     kind: "prepared",
-    chip: "Ready for a post",
+    chip: "Image transferred",
     title: "The drawing is ready to attach",
     detail: "Paint uploaded and posted nothing. Open Social to check the preview, describe it, and publish it yourself.",
     action: "Open the post preview on Social",

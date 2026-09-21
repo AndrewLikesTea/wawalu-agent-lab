@@ -15,7 +15,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { DomEvent, textOf, typeText } from "./support/browser.js";
+import { DomEvent, textOf, typeText, pressTab } from "./support/browser.js";
 import { waitFor } from "./support/page-module.js";
 import { bootSocial, handoffRecord } from "./support/social-paint-arrival.js";
 import { PAINT_HANDOFF_COPY } from "../src/paint-handoff.js";
@@ -155,4 +155,133 @@ test("without the marker, and with no draft to join, a waiting record is left al
   dispatchStorage(PAINT_HANDOFF_KEY);
   assert.equal(storage.getItem(PAINT_HANDOFF_KEY), record, "a tab with no draft claimed the image");
   assert.equal(id("post-compose-panel").hidden, true);
+});
+
+test("transfer confirmation is one status, and removal clears it without clearing the text draft", async (t) => {
+  const { document, id, storage, dispatchStorage } = await bootSocial(t);
+  id("post-compose-open").click();
+  typeInto(document, "post-body", DRAFT);
+  typeInto(document, "post-author", "Remy");
+  storage.setItem(PAINT_HANDOFF_KEY, handoffRecord(PNG));
+  dispatchStorage(PAINT_HANDOFF_KEY);
+  await waitFor(() => !id("compose-media").hidden, "preview arrived");
+  assert.equal(id("paint-arrival").getAttribute("role"), "status");
+  assert.match(textOf(id("paint-arrival")), /Image transferred/);
+  assert.equal(id("paint-arrival").querySelector(".paint-arrival-shape").getAttribute("aria-hidden"), "true");
+  assert.equal(textOf(id("post-media-status")), "", "transfer must not have a second live confirmation");
+  id("post-author").value = "";
+  typeInto(document, "post-author", "Remy updated");
+  assert.equal(document.activeElement.id, "post-author", "ordinary edits must not refocus the description");
+  id("remove-image").click();
+  assert.equal(id("paint-arrival").hidden, true);
+  assert.equal(textOf(id("paint-arrival")), "");
+  assert.equal(id("compose-media").hidden, true);
+  assert.equal(id("compose-preview-image").getAttribute("src"), null);
+  assert.equal(id("post-body").value, DRAFT);
+  assert.equal(id("post-author").value, "Remy updated");
+  assert.equal(document.activeElement.id, "post-image");
+  assert.match(textOf(id("post-media-status")), /Image removed.*publish without an image/);
+});
+
+for (const [label, record] of [
+  ["missing", null],
+  ["malformed", "{broken"],
+  ["expired", handoffRecord(PNG, { createdAt: 1 })],
+  ["unreadable", JSON.stringify({ createdAt: Date.now(), dataUrl: "not an image" })],
+]) {
+  test(`${label} transfer opens the composer with a recoverable inline error`, async (t) => {
+    const { document, id } = await bootSocial(t, {
+      ...FROM_PAINT, storage: record ? { [PAINT_HANDOFF_KEY]: record } : {},
+    });
+    assert.equal(id("post-compose-panel").hidden, false);
+    assert.equal(id("compose-media").hidden, true);
+    assert.equal(id("paint-arrival").hidden, true);
+    assert.equal(document.activeElement.id, "post-form-title");
+    assert.equal(id("post-image-error").getAttribute("role"), "alert");
+    assert.match(textOf(id("post-image-error")), /could not be loaded/);
+    const recovery = id("post-image-error").querySelector("a");
+    assert.equal(recovery.href, "/paint/");
+    assert.equal(recovery.target, "_blank", "recovery must keep the draft tab alive");
+    assert.match(textOf(recovery), /Back to Paint.*new tab/);
+    assert.equal(id("post-submit").disabled, false, "text-only publishing remains available");
+    // The failure happened in storage. The picker is empty and would take any
+    // supported file right now, so it is not a control holding something invalid.
+    assert.equal(id("post-image").getAttribute("aria-invalid"), null);
+  });
+}
+
+test("a malformed cross-tab transfer preserves an existing text draft and display name", async (t) => {
+  const { id, document, storage, dispatchStorage } = await bootSocial(t);
+  id("post-compose-open").click();
+  typeInto(document, "post-body", DRAFT);
+  typeInto(document, "post-author", "Remy");
+  storage.setItem(PAINT_HANDOFF_KEY, "null");
+  dispatchStorage(PAINT_HANDOFF_KEY);
+  assert.equal(id("post-body").value, DRAFT);
+  assert.equal(id("post-author").value, "Remy");
+  assert.equal(id("post-image-error").hidden, false);
+  await chooseFile(document, new File([PNG], "replacement.png", { type: "image/png" }));
+  assert.equal(id("post-image-error").hidden, true);
+  assert.equal(id("paint-arrival").hidden, true);
+});
+
+test("a transferred preview decode failure withdraws confirmation and offers Paint recovery", async (t) => {
+  const { id, document } = await bootSocial(t, {
+    ...FROM_PAINT, storage: { [PAINT_HANDOFF_KEY]: handoffRecord(PNG) },
+  });
+  await waitFor(() => !id("compose-media").hidden, "preview arrived");
+  typeInto(document, "post-body", DRAFT);
+  id("compose-preview-image").dispatchEvent(new DomEvent("error"));
+  assert.equal(id("paint-arrival").hidden, true);
+  assert.equal(id("compose-media").hidden, true);
+  assert.equal(id("post-body").value, DRAFT);
+  assert.match(textOf(id("post-image-error")), /could not be previewed/);
+  assert.equal(id("post-image-error").querySelector("a").href, "/paint/");
+});
+
+
+test("arrival keyboard order reaches description, name, publish and close; reverse Tab reaches removal", async (t) => {
+  const { id, document } = await bootSocial(t, {
+    ...FROM_PAINT, storage: { [PAINT_HANDOFF_KEY]: handoffRecord(PNG) },
+  });
+  await waitFor(() => !id("compose-media").hidden, "preview arrived");
+  typeInto(document, "post-image-alt", ALT);
+  assert.equal(pressTab(document).id, "post-author");
+  assert.equal(pressTab(document).id, "post-submit");
+  assert.equal(pressTab(document).id, "post-compose-cancel");
+  id("post-image-alt").focus();
+  assert.equal(pressTab(document, { shift: true }).id, "remove-image");
+});
+
+test("blocked storage reports recovery without losing the draft", async (t) => {
+  const { id, document, dispatchStorage } = await bootSocial(t);
+  id("post-compose-open").click();
+  typeInto(document, "post-body", DRAFT);
+  const storage = globalThis.localStorage;
+  globalThis.localStorage = { getItem() { throw new Error("Storage blocked"); } };
+  try {
+    // Dispatch needs a real record in the harness store to model a cross-tab event.
+    storage.setItem(PAINT_HANDOFF_KEY, handoffRecord(PNG));
+    dispatchStorage(PAINT_HANDOFF_KEY);
+    assert.equal(id("post-body").value, DRAFT);
+    assert.equal(id("post-image-error").hidden, false);
+    assert.equal(id("post-image-error").querySelector("a").href, "/paint/");
+  } finally {
+    globalThis.localStorage = storage;
+  }
+});
+
+test("undecodable transferred bytes retain text and provide Paint recovery", async (t) => {
+  const { id, document, storage, dispatchStorage } = await bootSocial(t);
+  id("post-compose-open").click();
+  typeInto(document, "post-body", DRAFT);
+  globalThis.createImageBitmap = async () => { throw new Error("Cannot decode"); };
+  storage.setItem(PAINT_HANDOFF_KEY, handoffRecord(PNG));
+  dispatchStorage(PAINT_HANDOFF_KEY);
+  await waitFor(() => !id("post-image-error").hidden, "decoder refused transfer");
+  assert.equal(id("post-body").value, DRAFT);
+  assert.equal(id("paint-arrival").hidden, true);
+  assert.equal(id("compose-media").hidden, true);
+  assert.equal(id("post-image-error").querySelector("a").href, "/paint/");
+  assert.equal(document.activeElement.id, "post-form-title");
 });
