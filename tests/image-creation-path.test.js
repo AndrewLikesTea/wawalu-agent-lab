@@ -53,7 +53,7 @@ const PEOPLE_CONSEQUENCE =
 const RETIRED_ON_PEOPLE = [
   "Anyone who visits Shiplog can read your post, its image, and the display name you publish it with.",
   "You cannot edit or delete your own post after you publish it.",
-  "Anyone can select Report post on a published post, and the Wawalu team may remove it after review.",
+  "Anyone can select Report post on a published post.",
   "Do not include customer or production data.",
 ];
 

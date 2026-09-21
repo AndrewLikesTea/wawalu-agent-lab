@@ -719,10 +719,11 @@ const PROVENANCE_SENTENCE = "The posts already here are invented to demonstrate 
 const RETIRED_DATA_SENTENCE = "Posts use no customer or production data.";
 const PUBLISH_INSTRUCTION = "Do not include customer or production data.";
 // The two acts are named apart (#2373): a publisher cannot take their own post
-// down, and removal runs through Report post and the Wawalu team's review. Said
-// only the first, the composer contradicted the reporting explanation below the
-// feed, which promises that review.
-const PUBLISH_REMOVAL = "Anyone can select Report post on a published post, and the Wawalu team may remove it after review.";
+// down, and removal runs through Report post. Said only the first, the composer
+// contradicted the reporting explanation below the feed. The review itself is
+// that explanation's to state, once (#2471), so the composer names the control
+// and stops.
+const PUBLISH_REMOVAL = "Anyone can select Report post on a published post.";
 const PUBLISH_CONSEQUENCE = "Anyone who visits Shiplog can read your post, its image, and the display name you publish it with. You cannot edit or delete your own post after you publish it, so post nothing you would not put on a public page. " + PUBLISH_REMOVAL + " " + PUBLISH_INSTRUCTION;
 
 test("the intro scopes the demo promise to the seeded posts, and the composer states the cost once", async (t) => {
