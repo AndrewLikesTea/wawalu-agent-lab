@@ -1492,7 +1492,8 @@ const PUBLISH_CONTRACT = [
   "You cannot edit or delete your own post after you publish it",
   // The removal path, so the terms never read as "a published post can never
   // come down" beside a Report post button that promises a review (#2373).
-  "Anyone can select Report post on a published post, and the Wawalu team may remove it after review.",
+  // One clause since #2471: the review itself is explained once, below the feed.
+  "The Wawalu team may remove a post that anyone reports with Report post.",
   PUBLISH_INSTRUCTION,
 ];
 // What People says instead: the consequence in one sentence, and the route to

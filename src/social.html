@@ -639,14 +639,15 @@
                  path that does end in removal, because the page also tells
                  readers the Wawalu team reviews reported posts (#2343), and
                  the two read as a contradiction while the warning said a post
-                 could never be deleted at all (#2373). Reporting is stated as
-                 review, never as a guaranteed takedown, in the same terms the
-                 reporting explanation below the feed uses. It names the
+                 could never be deleted at all (#2373). Removal is stated as
+                 something the team may do, never as a guaranteed takedown, and
+                 in one sentence (#2471): what the form asks for and how review
+                 works are said once, in the explanation below the feed. It names the
                  post rather than saying "it": the sentence nearest this one is
                  the display name's, so the pronoun's closest antecedent was the
                  name, and the permanence warning could be read as being about
                  the name a visitor picked instead of the post they published. -->
-            <p class="hint publish-consequence" id="post-consequence">Anyone who visits Shiplog can read your post, its image, and the display name you publish it with. You cannot edit or delete your own post after you publish it, so post nothing you would not put on a public page. Anyone can select Report post on a published post, and the Wawalu team may remove it after review. Do not include customer or production data.</p>
+            <p class="hint publish-consequence" id="post-consequence">Anyone who visits Shiplog can read your post, its image, and the display name you publish it with. You cannot edit or delete your own post after you publish it, so post nothing you would not put on a public page. The Wawalu team may remove a post that anyone reports with Report post. Do not include customer or production data.</p>
             <p class="field-error compose-error" id="post-publish-blocker" hidden></p>
             <!-- Ships empty. src/social.js writes the one step Publish post is
                  still waiting for here while a chosen image has no description,
@@ -693,8 +694,11 @@
       </section>
       <!-- What reporting does and does not do, said before anyone presses the
            button. It promises review, never removal. src/post-report.js mounts
-           the report panel right after this paragraph. -->
-      <p class="hint" id="post-report-about">How reporting works: Report post opens a short form about that one post. Choose a reason, add a note if you want to, and give your email address. The report goes only to the Wawalu team, who review each one. A report does not remove or hide the post, and not every report leads to removal.</p>
+           the report panel right after this paragraph. The one full account
+           on this page (#2471), in the shared post page's words minus its
+           lead-in: here the route's link above the feed already says those
+           three words, and a paragraph opening with them read as an echo. -->
+      <p class="hint" id="post-report-about">Report post opens a short form about that one post. Choose a reason, add a note if you want to, and give your email address. The report goes only to the Wawalu team, who review each one. A report does not remove or hide the post, and not every report leads to removal.</p>
       </main>
     </div>
     <footer class="site-footer" id="site-footer" aria-labelledby="site-footer-title">

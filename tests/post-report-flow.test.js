@@ -9,6 +9,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { loadPage, pressKey, textOf } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
 import { bootSocial } from "./support/social-paint-arrival.js";
@@ -132,6 +133,36 @@ test("Social: the reporting route sits outside the composer and points at the ex
   assert.match(textOf(id("post-report-about")), /reviews? each one\. A report does not remove or hide the post, and not every report leads to removal\.$/);
 });
 
+// #2471: Social explained reporting three times — the route above the feed, the
+// composer's terms, and a paragraph whose lead-in repeated the route's link.
+// It is explained once now, in the shared post page's words, and the words
+// "How reporting works" are the link alone. Counted on the painted page, with
+// the composer open, because the composer and feed are script-drawn.
+const REPORT_EXPLANATION = "Report post opens a short form about that one post. Choose a reason, add a note if you want to, and give your email address. The report goes only to the Wawalu team, who review each one. A report does not remove or hide the post, and not every report leads to removal.";
+
+test("Social: reporting is explained once, and says what the shared post page says", async (t) => {
+  const { document, id } = await bootSocial(t, { routes: { "/api/social-posts?limit=100": LIVE } });
+  id("post-compose-open").click();
+  await waitFor(() => realCards(document, ".post-card", "post-card-skeleton").length === 2, "Social painted its posts");
+
+  assert.equal(textOf(id("post-report-about")), REPORT_EXPLANATION);
+  const main = textOf(id("main-content"));
+  assert.equal(main.split("How reporting works").length - 1, 1, "\"How reporting works\" is visible more than once, or not at all");
+  assert.equal(main.split("opens a short form").length - 1, 1, "the full explanation is given more than once");
+  assert.equal(main.split("after review").length - 1, 0, "the composer restates the review process");
+
+  // The route still renders, ahead of the explanation its link points down to.
+  assert.equal(textOf(id("post-report-route")), "To ask the Wawalu team to review a post, select Report post on it. How reporting works");
+  const routeAt = main.indexOf("select Report post on it.");
+  assert.ok(routeAt >= 0 && routeAt < main.indexOf("opens a short form"),
+    "the reporting route no longer comes before the explanation it links to");
+
+  // The same account the post page gives, minus the lead-in the link says here.
+  const postPage = await readFile(new URL("../src/post.html", import.meta.url), "utf8");
+  assert.ok(postPage.includes(`How reporting works: ${REPORT_EXPLANATION}`),
+    "Social's explanation drifted from the shared post page's");
+});
+
 test("People: every drawn tile has a Report post button that opens the same panel", async (t) => {
   const page = await loadPage(new URL("../src/profile.html", import.meta.url), {
     routes: {
@@ -164,8 +195,9 @@ test("People: every drawn tile has a Report post button that opens the same pane
 // contradict each other. The warning said a published post could not be
 // deleted, full stop; the reporting copy on the same page says the Wawalu team
 // reviews reported posts and may take one down. The warning now names whose act
-// each one is — you cannot take your own post down, anyone can report it, the
-// team may remove it after review — in the reporting panel's own terms.
+// each one is — you cannot take your own post down, the team may remove a post
+// anyone reports — in the reporting panel's own terms. Since #2471 that is one
+// clause: the form and the review are explained once, below the feed.
 //
 // It is stated once, beside the composer that performs the act (#2401). People
 // used to carry a second copy on a page with no composer; it points at Social's
@@ -174,7 +206,7 @@ test("People: every drawn tile has a Report post button that opens the same pane
 // Asserted on the painted DOM, not on the markup: a page could hydrate over its
 // own warning.
 const SELF_SERVICE = /You cannot edit or delete your own post after you publish it/;
-const REMOVAL_PATH = /Anyone can select Report post on a published post, and the Wawalu team may remove it after review\./;
+const REMOVAL_PATH = /The Wawalu team may remove a post that anyone reports with Report post\./;
 // A promise of removal, and a second name for the one actor the site has.
 const OVERPROMISES = [/will be removed/i, /will remove/i, /we remove/i, /guarantee/i];
 const RIVAL_ACTORS = [/moderator/i, /\badmin\b/i, /support team/i, /\bstaff\b/i];

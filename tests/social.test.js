@@ -721,8 +721,9 @@ const PUBLISH_INSTRUCTION = "Do not include customer or production data.";
 // The two acts are named apart (#2373): a publisher cannot take their own post
 // down, and removal runs through Report post and the Wawalu team's review. Said
 // only the first, the composer contradicted the reporting explanation below the
-// feed, which promises that review.
-const PUBLISH_REMOVAL = "Anyone can select Report post on a published post, and the Wawalu team may remove it after review.";
+// feed, which promises that review. It is one clause (#2471): the form and the
+// review are explained once, below the feed, and not restated beside Publish.
+const PUBLISH_REMOVAL = "The Wawalu team may remove a post that anyone reports with Report post.";
 const PUBLISH_CONSEQUENCE = "Anyone who visits Shiplog can read your post, its image, and the display name you publish it with. You cannot edit or delete your own post after you publish it, so post nothing you would not put on a public page. " + PUBLISH_REMOVAL + " " + PUBLISH_INSTRUCTION;
 
 test("the intro scopes the demo promise to the seeded posts, and the composer states the cost once", async (t) => {
