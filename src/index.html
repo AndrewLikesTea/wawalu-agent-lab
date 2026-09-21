@@ -54,7 +54,7 @@
         <h1 id="page-title">Keep the reasoning behind what shipped.</h1>
         <p>Shiplog records each decision's context, alternatives, and owner, and links it to the release it shaped.</p>
         <div class="hero-actions" data-conversion-slot="hero">
-          <a class="button-link" id="core-demo-link" href="/releases.html#shiplog-proof">Explore the decision and release log demo <span aria-hidden="true">→</span></a>
+          <a class="button-link" id="core-demo-link" href="#record-history-title">Explore the decision and release log demo <span aria-hidden="true">→</span></a>
         </div>
         <p class="hero-boundary">Record a decision, then link it to the release it shaped. The example records are invented and use no customer or production data. Records you add stay in this browser.</p>
         <!-- Deliberately no repository or follow-up link here. This page already
@@ -162,6 +162,402 @@
           <a class="button-link" href="#record-history">Record and search the log on this page <span aria-hidden="true">→</span></a>
           <a class="text-link" href="#decision-to-release">See how a decision reaches a release</a>
         </div>
+      </section>
+
+      <section id="record-history" aria-labelledby="record-history-title">
+        <div class="section-heading">
+          <h2 id="record-history-title" tabindex="-1">Decision and release workspace</h2>
+        </div>
+      <div class="workspace">
+        <div class="form-panel" aria-labelledby="decision-form-title">
+          <div class="section-heading">
+            <p class="eyebrow">New record</p>
+            <h2 id="decision-form-title">Record a decision</h2>
+          </div>
+
+          <!-- THE WHOLE DEMO, IN ORDER (#2371). Plain text with no links, so it
+               adds no tab stop to a page whose first screen has none to spare;
+               the one link the path needs appears under the button once a
+               decision is actually saved. Static markup that no module repaints. -->
+          <section class="evaluation-path" aria-labelledby="evaluation-path-title">
+            <h3 id="evaluation-path-title">Try the whole demo in four steps</h3>
+            <ol id="evaluation-path-steps">
+              <li>Record a decision with the form below.</li>
+              <li>Continue to Releases from the link that appears once it is saved.</li>
+              <li>Record a release there and link that decision to it.</li>
+              <li>Open the release you recorded and check its summary and linked decision.</li>
+            </ol>
+            <p class="hint" id="evaluation-path-scope">Records you add stay in this browser only. This is a demo workflow, not a customer result.</p>
+          </section>
+
+          <!-- novalidate, and validated by decision-entry.js instead. A native
+               bubble reports one empty field at a time, in the browser's words,
+               and takes it away again on the next keystroke; the inline errors
+               below report every field at once, in ours, and stay until the
+               field they describe is edited.
+               A field's error paragraph is added to its aria-describedby by
+               app.js when the failure happens and removed again when the field
+               is answered, so an empty paragraph is never part of a control's
+               accessible description. None of them announces itself: the one
+               live region under the button says what is blocking the save, and
+               each message is read with the control it belongs to. -->
+          <form id="decision-form" novalidate>
+            <div class="field field-wide">
+              <label for="title">Title</label>
+              <input id="title" name="title" type="text" maxlength="120" required autocomplete="off" aria-describedby="title-hint" />
+              <span class="hint" id="title-hint">A short name for the decision.</span>
+              <p class="field-error" id="title-error" hidden></p>
+            </div>
+
+            <div class="field field-wide">
+              <label for="context">Context</label>
+              <textarea id="context" name="context" rows="5" maxlength="1000" required aria-describedby="context-hint"></textarea>
+              <span class="hint" id="context-hint">The problem, constraints, and reasoning.</span>
+              <p class="field-error" id="context-error" hidden></p>
+            </div>
+
+            <!-- Required, where it used to be optional. PRODUCT.md's first
+                 outcome is a decision recorded *with* its alternatives, and a
+                 record that omits them is the one a team re-argues from scratch
+                 later. The hint now says what to write when nothing else was
+                 weighed, so the requirement is answerable rather than a wall. -->
+            <div class="field field-wide">
+              <label for="alternatives">Alternatives</label>
+              <textarea id="alternatives" name="alternatives" rows="4" maxlength="1000" required aria-describedby="alternatives-hint"></textarea>
+              <span class="hint" id="alternatives-hint">Other options considered and why they were not chosen. Write “None considered” if there were none.</span>
+              <p class="field-error" id="alternatives-error" hidden></p>
+            </div>
+
+            <div class="field">
+              <label for="owner">Owner</label>
+              <input id="owner" name="owner" type="text" maxlength="80" required autocomplete="name" aria-describedby="owner-hint" />
+              <span class="hint" id="owner-hint">The person responsible for the decision.</span>
+              <p class="field-error" id="owner-error" hidden></p>
+            </div>
+
+            <div class="field">
+              <label for="status">Status</label>
+              <!-- Two of the four statuses. The form cannot set Proposed or
+                   Superseded, and the hint says so rather than letting a
+                   visitor discover it from a filter that offers both. -->
+              <select id="status" name="status" required aria-describedby="status-hint">
+                <option value="pending">Pending</option>
+                <option value="accepted">Accepted</option>
+              </select>
+              <span class="hint" id="status-hint">Set Pending or Accepted. Records can also read Proposed or Superseded; this form does not set those.</span>
+              <p class="field-error" id="status-error" hidden></p>
+            </div>
+
+            <div class="field field-wide">
+              <label for="supersedes">Replaces <span class="label-optional">(optional)</span></label>
+              <select id="supersedes" name="supersedes" aria-describedby="supersedes-hint supersedes-error">
+                <option value="">None</option>
+              </select>
+              <span class="hint" id="supersedes-hint">The decision this one replaces, if any. That decision is marked Superseded by this one, and Current only hides it.</span>
+              <p class="field-error" id="supersedes-error" role="alert" hidden></p>
+            </div>
+
+            <button type="submit">Record decision</button>
+            <button class="recorder-exit" id="exit-decision-recorder" type="button">Back to decision history</button>
+          </form>
+
+          <!-- What is blocking this save: one line, immediately under the button
+               that was pressed, naming the field focus just moved to and how
+               many more are waiting behind it. It never repeats the field
+               messages — each one is already on the field it belongs to, and a
+               summary that restates them reads the whole form twice to a screen
+               reader.
+               The live region is this wrapper, and it ships empty in the markup
+               on every load. A region inserted on failure — or one that is
+               itself toggled hidden — is not in the accessibility tree at the
+               moment its text arrives, so a real screen reader announces
+               nothing. This one is always there, which is what makes the
+               sentence appearing inside it something a reader hears. It is the
+               only thing that announces on a failed submit: the per-field
+               messages are read with their own controls instead. -->
+          <div id="decision-form-live" role="status" aria-live="polite">
+            <p class="field-error form-error-summary" id="decision-form-error" hidden></p>
+          </div>
+
+          <!-- What happened after a successful save, said once. Separate from
+               #storage-notice in the list panel, which reports a save failing,
+               and from the debounced result count, which reports the list. -->
+          <p class="hint decision-record-status" id="decision-record-status" role="status" aria-live="polite"></p>
+
+          <!-- Step two of the path. The status line above is the announcement;
+               this is where to go next, revealed by app.js only after the
+               decision is in storage and withdrawn on the next edit or refusal.
+               Focus moves to the link, which is described by the sentence
+               above it, so the next step is one Enter away. The placeholder
+               address is narrowed to carry the saved decision's id. -->
+          <div class="decision-record-next" id="decision-record-next" hidden>
+            <p id="decision-record-next-lead">Next, record the release this decision shaped. The new decision will be listed under Linked decisions there, already ticked.</p>
+            <a class="button-link" id="decision-record-release" href="/releases.html#record-release" aria-describedby="decision-record-next-lead">Record a release on Releases <span aria-hidden="true">→</span></a>
+            <p class="hint" id="decision-record-kept">This decision is stored in this browser only. It is a demo record, not a customer result.</p>
+          </div>
+        </div>
+
+        <div class="list-panel" aria-labelledby="decisions-title">
+          <div class="section-heading list-heading">
+            <div>
+              <p class="eyebrow">Decisions and releases</p>
+              <h2 id="decisions-title" tabindex="-1">All records</h2>
+            </div>
+            <div class="list-heading-counts">
+              <!-- The count a visitor with nothing stored will see, stated
+                   statically so the first paint is already right. app.js
+                   composes the same history synchronously and overwrites this
+                   with the real total; the number here is pinned to
+                   SEED_RECORD_COUNT in seed-records.js by a test. -->
+              <span class="count" id="decision-count">10 records</span>
+              <!-- States the active "current only" filter and what it removed.
+                   Empty while the filter is off. -->
+              <span class="count supersede-summary" id="history-supersede-summary"></span>
+            </div>
+          </div>
+          <p class="hint sample-disclosure">Includes example records to demonstrate Shiplog. They use no customer or production data.</p>
+          <!-- ONE PRIORITISED REVIEW, ABOVE THE FILTERS.
+               Drawn by overdue-decision-view.js from the whole composed log and
+               not from the filters below it: which open decision is past its
+               review point is a property of the records, and a narrowed view
+               must not be able to make it look as though none is. app.js paints
+               it in the same synchronous turn as the record list, so the line
+               below is only ever read on a page whose script has not run.
+               Deliberately not a live region — see overdue-decision-view.js. -->
+          <div id="overdue-decision" aria-busy="true">
+            <p class="hint overdue-finding-pending">Checking the log for an open decision past its review point…</p>
+          </div>
+          <div class="filters" role="search" aria-label="Search and filter the history">
+            <div class="filter decision-search-filter">
+              <label for="decision-search">Search records</label>
+              <input id="decision-search" type="search" placeholder="Title, context, alternatives, or release notes" autocomplete="off" aria-describedby="decision-filter-hint" />
+            </div>
+            <fieldset class="filter filter-group">
+              <legend>Record type</legend>
+              <div class="filter-options">
+                <span class="filter-option">
+                  <input id="record-type-all" name="record-type" type="radio" value="all" checked />
+                  <label for="record-type-all">All records</label>
+                </span>
+                <span class="filter-option">
+                  <input id="record-type-decision" name="record-type" type="radio" value="decision" />
+                  <label for="record-type-decision">Decisions</label>
+                </span>
+                <span class="filter-option">
+                  <input id="record-type-release" name="record-type" type="radio" value="release" />
+                  <label for="record-type-release">Releases</label>
+                </span>
+              </div>
+            </fieldset>
+            <div class="filter">
+              <label for="filter-status">Decision status:</label>
+              <!-- The four statuses a record can actually carry, in lifecycle
+                   order, matching the glossary below. Every word here is
+                   defined there; no other status word appears in the UI. -->
+              <select id="filter-status" aria-describedby="filter-status-hint">
+                <option value="all">all</option>
+                <option value="proposed">Proposed</option>
+                <option value="pending">Pending</option>
+                <option value="accepted">Accepted</option>
+                <option value="superseded">Superseded</option>
+              </select>
+              <span class="hint" id="filter-status-hint">Applies to decisions. Choosing a status shows decision records only.</span>
+            </div>
+            <div class="filter">
+              <label for="filter-owner">Filter by owner:</label>
+              <select id="filter-owner">
+                <option value="all">all</option>
+              </select>
+            </div>
+            <div class="filter history-release-filter">
+              <label for="filter-release">Decisions in release</label>
+              <select id="filter-release" aria-describedby="filter-release-hint">
+                <option value="all">All releases</option>
+              </select>
+              <span class="hint" id="filter-release-hint">Shows decisions associated with the selected release.</span>
+            </div>
+            <!-- The recorded-on window. Two native date inputs, each with its
+                 own visible label, so the range is keyboard-operable and its
+                 two ends are separately clearable. Both bounds are inclusive
+                 and read as calendar days; an end before the start is repaired
+                 rather than shown as an empty history. -->
+            <fieldset class="filter filter-group filter-dates">
+              <legend>Recorded between</legend>
+              <div class="filter-options filter-date-options">
+                <span class="filter-date">
+                  <label for="filter-from">From</label>
+                  <input id="filter-from" type="date" aria-describedby="filter-date-hint" />
+                </span>
+                <span class="filter-date">
+                  <label for="filter-to">To</label>
+                  <input id="filter-to" type="date" aria-describedby="filter-date-hint" />
+                </span>
+              </div>
+              <span class="hint" id="filter-date-hint">Both days are included. Leave one empty for an open-ended window.</span>
+            </fieldset>
+            <div class="filter">
+              <label for="sort-by">Sort</label>
+              <select id="sort-by">
+                <option value="newest">Newest first</option>
+                <option value="title">Title (A–Z)</option>
+                <option value="owner">Owner (A–Z)</option>
+              </select>
+            </div>
+            <div class="filter">
+              <button class="filter-toggle" id="filter-current-only" type="button" aria-pressed="false">Current only</button>
+            </div>
+            <button class="clear-filters" id="clear-decision-filters" type="button">Clear filters</button>
+          </div>
+          <!-- One line per status the filter offers, in the same order and the
+               same words. "Current only" is defined here too because it is the
+               one control that hides records: it works off the Replaces link,
+               not off the Superseded status, and those are not the same set. -->
+          <dl class="status-glossary" aria-label="What each decision status means">
+            <div><dt>Proposed</dt><dd>Someone wrote it up. The team has not committed to it.</dd></div>
+            <div><dt>Pending</dt><dd>Under review. Waiting on the owner to call it.</dd></div>
+            <div><dt>Accepted</dt><dd>The team committed to it. Build against this one.</dd></div>
+            <div><dt>Superseded</dt><dd>A later decision replaced it. It stays in the log as history.</dd></div>
+            <div><dt>Current only</dt><dd>Hides every decision that another decision names under Replaces, whatever its status.</dd></div>
+          </dl>
+          <p class="hint decision-filter-hint" id="decision-filter-hint">Search updates as you type. Use ↑ and ↓ to move between records, and Home and End to jump. Press Enter to open details. Every row keeps its linked decisions or releases, whatever the filters hide.</p>
+          <p class="notice" id="storage-notice" role="status" hidden></p>
+          <!-- One stable, debounced live region carries the result count. The
+               list itself is deliberately not a live region: re-announcing every
+               matching record on each keystroke floods a screen reader. -->
+          <p class="visually-hidden" id="history-announcement" role="status" aria-live="polite"></p>
+          <!-- WHAT THIS VIEW IS, ABOVE THE RESULTS.
+               The summary is the headline of the list — how many of the log's
+               records survived the filters, over what scope — and the chips
+               below it are the secondary row that says which filters produced
+               that number and lets any one of them go. app.js writes both from
+               the same filter state the URL carries, and writes them as text: a
+               search term is a visitor's string and never markup. The count
+               here is what a visitor whose script has not run sees, and matches
+               the static #decision-count above. -->
+          <div class="filter-summary-panel">
+            <p class="filter-summary" id="history-filter-summary" data-filtered="false">10 records</p>
+            <ul class="filter-chips" id="history-filter-chips" aria-label="Active filters" hidden></ul>
+            <div class="filter-share">
+              <button class="filter-share-action" id="copy-history-link" type="button">Copy link to this view</button>
+              <!-- A live region of its own, present before there is anything to
+                   say, so the copy confirmation is announced without competing
+                   with the record count in #history-announcement. -->
+              <p class="filter-copy-status" id="history-copy-status" role="status" aria-live="polite"></p>
+            </div>
+          </div>
+          <!-- THE SHAPE OF THE VIEW, ABOVE THE LIST.
+               One bar group per ISO week — Monday 00:00 UTC, the same basis the
+               From/To filters read — drawn by history-trend-view.js as an
+               inline svg element whose coordinates are viewBox units, so it
+               scales with this column instead of with a pixel ratio. app.js
+               draws it from the same filtered set as the list, on the same
+               render, so the sentence above it can never describe a different
+               view. The bars are one composite control: one Tab stop, arrows
+               between weeks, Enter or Space to filter to that week. -->
+          <div id="history-trend"></div>
+          <div id="history-release-followup" hidden></div>
+          <!-- WHAT HAPPENED TO EACH DECISION, ABOVE THE LIST.
+               One strip per decision in this view that a release carried, plus
+               an open-ended strip for each accepted decision no release carries
+               yet, drawn by decision-timeline-view.js from the same filtered set
+               as the list. The strip is a canvas element sized in device pixels;
+               every fact it draws — both dates, the status, the release, the
+               span in days — is also written as a visible caption, so a browser
+               with no drawing surface loses the picture and none of the answer.
+               No control is added here: the panel is text and pictures only, so
+               the tab order of this page is exactly what it was. -->
+          <div id="history-timelines"></div>
+          <div id="decision-list" aria-busy="true">
+            <div class="list-state list-state-loading" role="status">
+              <h3>Loading decisions</h3>
+              <p>Loading all decisions…</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <section class="export-panel" aria-labelledby="export-title">
+        <div>
+          <p class="eyebrow">Portable history</p>
+          <h2 id="export-title">Export your Shiplog records</h2>
+          <p id="export-shiplog-counts" class="hint" aria-live="polite">Counting locally stored records…</p>
+          <p class="filter">
+            <label for="export-shiplog-scope">Records to export:</label>
+            <select id="export-shiplog-scope" aria-describedby="export-shiplog-scope-hint">
+              <option value="browsing" selected>The history I am browsing</option>
+              <option value="stored">Everything stored in this browser</option>
+            </select>
+          </p>
+          <span class="hint" id="export-shiplog-scope-hint">The file follows your history filters by default. Choose the second option to export every stored record, whatever the filters hide.</span>
+          <p class="hint">The JSON file includes only decisions, releases, and their preserved links stored in this browser.</p>
+          <p class="hint"><a class="text-link" href="/workspace.html">See what this browser is keeping</a> — the retained records, how sure the page is about them, and how to erase them.</p>
+          <p id="export-shiplog-status" class="notice" role="status" aria-live="polite"></p>
+        </div>
+        <button id="export-shiplog" type="button">Download JSON</button>
+        <!-- Recovery from a filter that matches nothing. Hidden until that
+             happens, so it is not a tab stop on the ordinary path, and it runs
+             the history's own reset rather than a second idea of "clear". The
+             sentence that reveals it is the counts paragraph above, which is
+             outside every disclosure on this panel: a live region inside a
+             closed details element is announced to nobody. -->
+        <button class="clear-filters" id="export-shiplog-clear" type="button" hidden>Clear filters</button>
+        <!-- The same file, checked against the list above without writing it.
+             The answer line stays outside the disclosure below on purpose: a
+             live region inside a closed details element is announced to nobody.
+             No new layout rule, so the panel keeps the single-column stack it
+             already collapses to on a narrow screen. -->
+        <p class="hint" id="verify-shiplog-help">Compare that file against the stored records listed above, in this browser. Example rows are not part of the file, so they are not compared. Nothing is downloaded and nothing is sent.</p>
+        <button id="verify-shiplog" type="button">Check the export against this history</button>
+        <p id="verify-shiplog-result" class="notice" role="status" aria-live="polite">Not checked yet.</p>
+        <details class="import-detail" id="verify-shiplog-detail" hidden>
+          <summary>Which records differ</summary>
+          <ul id="verify-shiplog-differences"></ul>
+        </details>
+      </section>
+
+      <!-- Restore side of the same portable contract. The file is read in this
+           tab: it is never uploaded, and nothing reaches storage until the
+           summary below is confirmed. -->
+      <section class="export-panel" aria-labelledby="import-title">
+        <div>
+          <p class="eyebrow">Portable history</p>
+          <h2 id="import-title">Import from JSON</h2>
+          <p class="hint" id="import-shiplog-help">Choose a file exported from Shiplog. It is read in this browser only — nothing is uploaded, and nothing is saved until you confirm the summary.</p>
+          <p id="import-shiplog-status" class="notice" role="status" aria-live="polite"></p>
+
+          <div class="import-summary" id="import-shiplog-summary" role="group" aria-labelledby="import-title" hidden>
+            <p class="hint" id="import-shiplog-headline" tabindex="-1" role="status"></p>
+            <details class="import-detail">
+              <summary id="import-shiplog-detail-toggle" hidden></summary>
+              <ul id="import-shiplog-detail"></ul>
+            </details>
+            <div class="import-actions">
+              <button id="import-shiplog-commit" type="button">Restore records</button>
+              <button id="import-shiplog-cancel" class="secondary-button" type="button">Cancel</button>
+            </div>
+          </div>
+        </div>
+        <label class="secondary-button file-button" for="import-shiplog-file">Choose JSON file
+          <input id="import-shiplog-file" type="file" accept=".json,application/json" aria-describedby="import-shiplog-help" />
+        </label>
+      </section>
+
+      <section class="list-panel release-panel-wrap" aria-labelledby="sample-releases-title">
+        <div class="section-heading list-heading">
+          <div>
+            <p class="eyebrow">Representative release</p>
+            <h2 id="sample-releases-title">See decisions move into a release</h2>
+          </div>
+          <a class="release-detail-link" href="/releases.html">View release history <span aria-hidden="true">→</span></a>
+        </div>
+        <p class="hint release-hint">This example uses the same release model and linked decision records as the full release history. Expand it to inspect the associated decisions.</p>
+        <div id="sample-release-list" aria-live="polite" aria-busy="true">
+          <div class="list-state list-state-loading" role="status">
+            <h3>Loading release</h3>
+            <p>Finding the latest release…</p>
+          </div>
+        </div>
+      </section>
       </section>
 
       <section class="hero-proof" id="shiplog-evaluation-brief" tabindex="-1" aria-labelledby="shiplog-evaluation-brief-title">
@@ -598,402 +994,6 @@
         </form>
       </section>
 
-      <!-- The hero's primary call to action lands here. It used to point at the
-           sample decision, which is where the story card below already sends a
-           reader, and which is one record rather than the log. This section is
-           the populated record list: it carries the visitor's own records and
-           the example ones together, so the demo is never an empty state, an
-           import prompt, or a spinner. -->
-      <section class="workspace" id="record-history" aria-label="Decision log">
-        <div class="form-panel" aria-labelledby="decision-form-title">
-          <div class="section-heading">
-            <p class="eyebrow">New record</p>
-            <h2 id="decision-form-title">Record a decision</h2>
-          </div>
-
-          <!-- THE WHOLE DEMO, IN ORDER (#2371). Plain text with no links, so it
-               adds no tab stop to a page whose first screen has none to spare;
-               the one link the path needs appears under the button once a
-               decision is actually saved. Static markup that no module repaints. -->
-          <section class="evaluation-path" aria-labelledby="evaluation-path-title">
-            <h3 id="evaluation-path-title">Try the whole demo in four steps</h3>
-            <ol id="evaluation-path-steps">
-              <li>Record a decision with the form below.</li>
-              <li>Continue to Releases from the link that appears once it is saved.</li>
-              <li>Record a release there and link that decision to it.</li>
-              <li>Open the release you recorded and check its summary and linked decision.</li>
-            </ol>
-            <p class="hint" id="evaluation-path-scope">Records you add stay in this browser only. This is a demo workflow, not a customer result.</p>
-          </section>
-
-          <!-- novalidate, and validated by decision-entry.js instead. A native
-               bubble reports one empty field at a time, in the browser's words,
-               and takes it away again on the next keystroke; the inline errors
-               below report every field at once, in ours, and stay until the
-               field they describe is edited.
-               A field's error paragraph is added to its aria-describedby by
-               app.js when the failure happens and removed again when the field
-               is answered, so an empty paragraph is never part of a control's
-               accessible description. None of them announces itself: the one
-               live region under the button says what is blocking the save, and
-               each message is read with the control it belongs to. -->
-          <form id="decision-form" novalidate>
-            <div class="field field-wide">
-              <label for="title">Title</label>
-              <input id="title" name="title" type="text" maxlength="120" required autocomplete="off" aria-describedby="title-hint" />
-              <span class="hint" id="title-hint">A short name for the decision.</span>
-              <p class="field-error" id="title-error" hidden></p>
-            </div>
-
-            <div class="field field-wide">
-              <label for="context">Context</label>
-              <textarea id="context" name="context" rows="5" maxlength="1000" required aria-describedby="context-hint"></textarea>
-              <span class="hint" id="context-hint">The problem, constraints, and reasoning.</span>
-              <p class="field-error" id="context-error" hidden></p>
-            </div>
-
-            <!-- Required, where it used to be optional. PRODUCT.md's first
-                 outcome is a decision recorded *with* its alternatives, and a
-                 record that omits them is the one a team re-argues from scratch
-                 later. The hint now says what to write when nothing else was
-                 weighed, so the requirement is answerable rather than a wall. -->
-            <div class="field field-wide">
-              <label for="alternatives">Alternatives</label>
-              <textarea id="alternatives" name="alternatives" rows="4" maxlength="1000" required aria-describedby="alternatives-hint"></textarea>
-              <span class="hint" id="alternatives-hint">Other options considered and why they were not chosen. Write “None considered” if there were none.</span>
-              <p class="field-error" id="alternatives-error" hidden></p>
-            </div>
-
-            <div class="field">
-              <label for="owner">Owner</label>
-              <input id="owner" name="owner" type="text" maxlength="80" required autocomplete="name" aria-describedby="owner-hint" />
-              <span class="hint" id="owner-hint">The person responsible for the decision.</span>
-              <p class="field-error" id="owner-error" hidden></p>
-            </div>
-
-            <div class="field">
-              <label for="status">Status</label>
-              <!-- Two of the four statuses. The form cannot set Proposed or
-                   Superseded, and the hint says so rather than letting a
-                   visitor discover it from a filter that offers both. -->
-              <select id="status" name="status" required aria-describedby="status-hint">
-                <option value="pending">Pending</option>
-                <option value="accepted">Accepted</option>
-              </select>
-              <span class="hint" id="status-hint">Set Pending or Accepted. Records can also read Proposed or Superseded; this form does not set those.</span>
-              <p class="field-error" id="status-error" hidden></p>
-            </div>
-
-            <div class="field field-wide">
-              <label for="supersedes">Replaces <span class="label-optional">(optional)</span></label>
-              <select id="supersedes" name="supersedes" aria-describedby="supersedes-hint supersedes-error">
-                <option value="">None</option>
-              </select>
-              <span class="hint" id="supersedes-hint">The decision this one replaces, if any. That decision is marked Superseded by this one, and Current only hides it.</span>
-              <p class="field-error" id="supersedes-error" role="alert" hidden></p>
-            </div>
-
-            <button type="submit">Record decision</button>
-            <button class="recorder-exit" id="exit-decision-recorder" type="button">Back to decision history</button>
-          </form>
-
-          <!-- What is blocking this save: one line, immediately under the button
-               that was pressed, naming the field focus just moved to and how
-               many more are waiting behind it. It never repeats the field
-               messages — each one is already on the field it belongs to, and a
-               summary that restates them reads the whole form twice to a screen
-               reader.
-               The live region is this wrapper, and it ships empty in the markup
-               on every load. A region inserted on failure — or one that is
-               itself toggled hidden — is not in the accessibility tree at the
-               moment its text arrives, so a real screen reader announces
-               nothing. This one is always there, which is what makes the
-               sentence appearing inside it something a reader hears. It is the
-               only thing that announces on a failed submit: the per-field
-               messages are read with their own controls instead. -->
-          <div id="decision-form-live" role="status" aria-live="polite">
-            <p class="field-error form-error-summary" id="decision-form-error" hidden></p>
-          </div>
-
-          <!-- What happened after a successful save, said once. Separate from
-               #storage-notice in the list panel, which reports a save failing,
-               and from the debounced result count, which reports the list. -->
-          <p class="hint decision-record-status" id="decision-record-status" role="status" aria-live="polite"></p>
-
-          <!-- Step two of the path. The status line above is the announcement;
-               this is where to go next, revealed by app.js only after the
-               decision is in storage and withdrawn on the next edit or refusal.
-               Focus moves to the link, which is described by the sentence
-               above it, so the next step is one Enter away. The placeholder
-               address is narrowed to carry the saved decision's id. -->
-          <div class="decision-record-next" id="decision-record-next" hidden>
-            <p id="decision-record-next-lead">Next, record the release this decision shaped. The new decision will be listed under Linked decisions there, already ticked.</p>
-            <a class="button-link" id="decision-record-release" href="/releases.html#record-release" aria-describedby="decision-record-next-lead">Record a release on Releases <span aria-hidden="true">→</span></a>
-            <p class="hint" id="decision-record-kept">This decision is stored in this browser only. It is a demo record, not a customer result.</p>
-          </div>
-        </div>
-
-        <div class="list-panel" aria-labelledby="decisions-title">
-          <div class="section-heading list-heading">
-            <div>
-              <p class="eyebrow">Decisions and releases</p>
-              <h2 id="decisions-title" tabindex="-1">All records</h2>
-            </div>
-            <div class="list-heading-counts">
-              <!-- The count a visitor with nothing stored will see, stated
-                   statically so the first paint is already right. app.js
-                   composes the same history synchronously and overwrites this
-                   with the real total; the number here is pinned to
-                   SEED_RECORD_COUNT in seed-records.js by a test. -->
-              <span class="count" id="decision-count">10 records</span>
-              <!-- States the active "current only" filter and what it removed.
-                   Empty while the filter is off. -->
-              <span class="count supersede-summary" id="history-supersede-summary"></span>
-            </div>
-          </div>
-          <p class="hint sample-disclosure">Includes example records to demonstrate Shiplog. They use no customer or production data.</p>
-          <!-- ONE PRIORITISED REVIEW, ABOVE THE FILTERS.
-               Drawn by overdue-decision-view.js from the whole composed log and
-               not from the filters below it: which open decision is past its
-               review point is a property of the records, and a narrowed view
-               must not be able to make it look as though none is. app.js paints
-               it in the same synchronous turn as the record list, so the line
-               below is only ever read on a page whose script has not run.
-               Deliberately not a live region — see overdue-decision-view.js. -->
-          <div id="overdue-decision" aria-busy="true">
-            <p class="hint overdue-finding-pending">Checking the log for an open decision past its review point…</p>
-          </div>
-          <div class="filters" role="search" aria-label="Search and filter the history">
-            <div class="filter decision-search-filter">
-              <label for="decision-search">Search records</label>
-              <input id="decision-search" type="search" placeholder="Title, context, alternatives, or release notes" autocomplete="off" aria-describedby="decision-filter-hint" />
-            </div>
-            <fieldset class="filter filter-group">
-              <legend>Record type</legend>
-              <div class="filter-options">
-                <span class="filter-option">
-                  <input id="record-type-all" name="record-type" type="radio" value="all" checked />
-                  <label for="record-type-all">All records</label>
-                </span>
-                <span class="filter-option">
-                  <input id="record-type-decision" name="record-type" type="radio" value="decision" />
-                  <label for="record-type-decision">Decisions</label>
-                </span>
-                <span class="filter-option">
-                  <input id="record-type-release" name="record-type" type="radio" value="release" />
-                  <label for="record-type-release">Releases</label>
-                </span>
-              </div>
-            </fieldset>
-            <div class="filter">
-              <label for="filter-status">Decision status:</label>
-              <!-- The four statuses a record can actually carry, in lifecycle
-                   order, matching the glossary below. Every word here is
-                   defined there; no other status word appears in the UI. -->
-              <select id="filter-status" aria-describedby="filter-status-hint">
-                <option value="all">all</option>
-                <option value="proposed">Proposed</option>
-                <option value="pending">Pending</option>
-                <option value="accepted">Accepted</option>
-                <option value="superseded">Superseded</option>
-              </select>
-              <span class="hint" id="filter-status-hint">Applies to decisions. Choosing a status shows decision records only.</span>
-            </div>
-            <div class="filter">
-              <label for="filter-owner">Filter by owner:</label>
-              <select id="filter-owner">
-                <option value="all">all</option>
-              </select>
-            </div>
-            <div class="filter history-release-filter">
-              <label for="filter-release">Decisions in release</label>
-              <select id="filter-release" aria-describedby="filter-release-hint">
-                <option value="all">All releases</option>
-              </select>
-              <span class="hint" id="filter-release-hint">Shows decisions associated with the selected release.</span>
-            </div>
-            <!-- The recorded-on window. Two native date inputs, each with its
-                 own visible label, so the range is keyboard-operable and its
-                 two ends are separately clearable. Both bounds are inclusive
-                 and read as calendar days; an end before the start is repaired
-                 rather than shown as an empty history. -->
-            <fieldset class="filter filter-group filter-dates">
-              <legend>Recorded between</legend>
-              <div class="filter-options filter-date-options">
-                <span class="filter-date">
-                  <label for="filter-from">From</label>
-                  <input id="filter-from" type="date" aria-describedby="filter-date-hint" />
-                </span>
-                <span class="filter-date">
-                  <label for="filter-to">To</label>
-                  <input id="filter-to" type="date" aria-describedby="filter-date-hint" />
-                </span>
-              </div>
-              <span class="hint" id="filter-date-hint">Both days are included. Leave one empty for an open-ended window.</span>
-            </fieldset>
-            <div class="filter">
-              <label for="sort-by">Sort</label>
-              <select id="sort-by">
-                <option value="newest">Newest first</option>
-                <option value="title">Title (A–Z)</option>
-                <option value="owner">Owner (A–Z)</option>
-              </select>
-            </div>
-            <div class="filter">
-              <button class="filter-toggle" id="filter-current-only" type="button" aria-pressed="false">Current only</button>
-            </div>
-            <button class="clear-filters" id="clear-decision-filters" type="button">Clear filters</button>
-          </div>
-          <!-- One line per status the filter offers, in the same order and the
-               same words. "Current only" is defined here too because it is the
-               one control that hides records: it works off the Replaces link,
-               not off the Superseded status, and those are not the same set. -->
-          <dl class="status-glossary" aria-label="What each decision status means">
-            <div><dt>Proposed</dt><dd>Someone wrote it up. The team has not committed to it.</dd></div>
-            <div><dt>Pending</dt><dd>Under review. Waiting on the owner to call it.</dd></div>
-            <div><dt>Accepted</dt><dd>The team committed to it. Build against this one.</dd></div>
-            <div><dt>Superseded</dt><dd>A later decision replaced it. It stays in the log as history.</dd></div>
-            <div><dt>Current only</dt><dd>Hides every decision that another decision names under Replaces, whatever its status.</dd></div>
-          </dl>
-          <p class="hint decision-filter-hint" id="decision-filter-hint">Search updates as you type. Use ↑ and ↓ to move between records, and Home and End to jump. Press Enter to open details. Every row keeps its linked decisions or releases, whatever the filters hide.</p>
-          <p class="notice" id="storage-notice" role="status" hidden></p>
-          <!-- One stable, debounced live region carries the result count. The
-               list itself is deliberately not a live region: re-announcing every
-               matching record on each keystroke floods a screen reader. -->
-          <p class="visually-hidden" id="history-announcement" role="status" aria-live="polite"></p>
-          <!-- WHAT THIS VIEW IS, ABOVE THE RESULTS.
-               The summary is the headline of the list — how many of the log's
-               records survived the filters, over what scope — and the chips
-               below it are the secondary row that says which filters produced
-               that number and lets any one of them go. app.js writes both from
-               the same filter state the URL carries, and writes them as text: a
-               search term is a visitor's string and never markup. The count
-               here is what a visitor whose script has not run sees, and matches
-               the static #decision-count above. -->
-          <div class="filter-summary-panel">
-            <p class="filter-summary" id="history-filter-summary" data-filtered="false">10 records</p>
-            <ul class="filter-chips" id="history-filter-chips" aria-label="Active filters" hidden></ul>
-            <div class="filter-share">
-              <button class="filter-share-action" id="copy-history-link" type="button">Copy link to this view</button>
-              <!-- A live region of its own, present before there is anything to
-                   say, so the copy confirmation is announced without competing
-                   with the record count in #history-announcement. -->
-              <p class="filter-copy-status" id="history-copy-status" role="status" aria-live="polite"></p>
-            </div>
-          </div>
-          <!-- THE SHAPE OF THE VIEW, ABOVE THE LIST.
-               One bar group per ISO week — Monday 00:00 UTC, the same basis the
-               From/To filters read — drawn by history-trend-view.js as an
-               inline svg element whose coordinates are viewBox units, so it
-               scales with this column instead of with a pixel ratio. app.js
-               draws it from the same filtered set as the list, on the same
-               render, so the sentence above it can never describe a different
-               view. The bars are one composite control: one Tab stop, arrows
-               between weeks, Enter or Space to filter to that week. -->
-          <div id="history-trend"></div>
-          <div id="history-release-followup" hidden></div>
-          <!-- WHAT HAPPENED TO EACH DECISION, ABOVE THE LIST.
-               One strip per decision in this view that a release carried, plus
-               an open-ended strip for each accepted decision no release carries
-               yet, drawn by decision-timeline-view.js from the same filtered set
-               as the list. The strip is a canvas element sized in device pixels;
-               every fact it draws — both dates, the status, the release, the
-               span in days — is also written as a visible caption, so a browser
-               with no drawing surface loses the picture and none of the answer.
-               No control is added here: the panel is text and pictures only, so
-               the tab order of this page is exactly what it was. -->
-          <div id="history-timelines"></div>
-          <div id="decision-list" aria-busy="true">
-            <div class="list-state list-state-loading" role="status">
-              <h3>Loading decisions</h3>
-              <p>Loading all decisions…</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section class="export-panel" aria-labelledby="export-title">
-        <div>
-          <p class="eyebrow">Portable history</p>
-          <h2 id="export-title">Export your Shiplog records</h2>
-          <p id="export-shiplog-counts" class="hint" aria-live="polite">Counting locally stored records…</p>
-          <p class="filter">
-            <label for="export-shiplog-scope">Records to export:</label>
-            <select id="export-shiplog-scope" aria-describedby="export-shiplog-scope-hint">
-              <option value="browsing" selected>The history I am browsing</option>
-              <option value="stored">Everything stored in this browser</option>
-            </select>
-          </p>
-          <span class="hint" id="export-shiplog-scope-hint">The file follows your history filters by default. Choose the second option to export every stored record, whatever the filters hide.</span>
-          <p class="hint">The JSON file includes only decisions, releases, and their preserved links stored in this browser.</p>
-          <p class="hint"><a class="text-link" href="/workspace.html">See what this browser is keeping</a> — the retained records, how sure the page is about them, and how to erase them.</p>
-          <p id="export-shiplog-status" class="notice" role="status" aria-live="polite"></p>
-        </div>
-        <button id="export-shiplog" type="button">Download JSON</button>
-        <!-- Recovery from a filter that matches nothing. Hidden until that
-             happens, so it is not a tab stop on the ordinary path, and it runs
-             the history's own reset rather than a second idea of "clear". The
-             sentence that reveals it is the counts paragraph above, which is
-             outside every disclosure on this panel: a live region inside a
-             closed details element is announced to nobody. -->
-        <button class="clear-filters" id="export-shiplog-clear" type="button" hidden>Clear filters</button>
-        <!-- The same file, checked against the list above without writing it.
-             The answer line stays outside the disclosure below on purpose: a
-             live region inside a closed details element is announced to nobody.
-             No new layout rule, so the panel keeps the single-column stack it
-             already collapses to on a narrow screen. -->
-        <p class="hint" id="verify-shiplog-help">Compare that file against the stored records listed above, in this browser. Example rows are not part of the file, so they are not compared. Nothing is downloaded and nothing is sent.</p>
-        <button id="verify-shiplog" type="button">Check the export against this history</button>
-        <p id="verify-shiplog-result" class="notice" role="status" aria-live="polite">Not checked yet.</p>
-        <details class="import-detail" id="verify-shiplog-detail" hidden>
-          <summary>Which records differ</summary>
-          <ul id="verify-shiplog-differences"></ul>
-        </details>
-      </section>
-
-      <!-- Restore side of the same portable contract. The file is read in this
-           tab: it is never uploaded, and nothing reaches storage until the
-           summary below is confirmed. -->
-      <section class="export-panel" aria-labelledby="import-title">
-        <div>
-          <p class="eyebrow">Portable history</p>
-          <h2 id="import-title">Import from JSON</h2>
-          <p class="hint" id="import-shiplog-help">Choose a file exported from Shiplog. It is read in this browser only — nothing is uploaded, and nothing is saved until you confirm the summary.</p>
-          <p id="import-shiplog-status" class="notice" role="status" aria-live="polite"></p>
-
-          <div class="import-summary" id="import-shiplog-summary" role="group" aria-labelledby="import-title" hidden>
-            <p class="hint" id="import-shiplog-headline" tabindex="-1" role="status"></p>
-            <details class="import-detail">
-              <summary id="import-shiplog-detail-toggle" hidden></summary>
-              <ul id="import-shiplog-detail"></ul>
-            </details>
-            <div class="import-actions">
-              <button id="import-shiplog-commit" type="button">Restore records</button>
-              <button id="import-shiplog-cancel" class="secondary-button" type="button">Cancel</button>
-            </div>
-          </div>
-        </div>
-        <label class="secondary-button file-button" for="import-shiplog-file">Choose JSON file
-          <input id="import-shiplog-file" type="file" accept=".json,application/json" aria-describedby="import-shiplog-help" />
-        </label>
-      </section>
-
-      <section class="list-panel release-panel-wrap" aria-labelledby="sample-releases-title">
-        <div class="section-heading list-heading">
-          <div>
-            <p class="eyebrow">Representative release</p>
-            <h2 id="sample-releases-title">See decisions move into a release</h2>
-          </div>
-          <a class="release-detail-link" href="/releases.html">View release history <span aria-hidden="true">→</span></a>
-        </div>
-        <p class="hint release-hint">This example uses the same release model and linked decision records as the full release history. Expand it to inspect the associated decisions.</p>
-        <div id="sample-release-list" aria-live="polite" aria-busy="true">
-          <div class="list-state list-state-loading" role="status">
-            <h3>Loading release</h3>
-            <p>Finding the latest release…</p>
-          </div>
-        </div>
-      </section>
       </main>
     </div>
     <footer class="site-footer" id="site-footer" aria-labelledby="site-footer-title">

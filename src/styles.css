@@ -981,3 +981,7 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
   .site-nav details ul { justify-content:flex-start; }
   .site-nav details a { overflow-wrap:anywhere; }
 }
+
+/* Native fragment focus names the workspace without adding a tab stop. */
+#record-history-title { scroll-margin-top:24px; }
+#record-history-title:focus { outline:3px solid var(--focus-ring); outline-offset:4px; }

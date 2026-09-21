@@ -158,15 +158,11 @@ test("the homepage leads with the decision-to-release benefit and a primary demo
   assert.doesNotMatch(ledeText, /reasoning/);
   for (const term of ["context", "alternatives", "owner", "release"]) assert.match(ledeText, new RegExp(term));
   const primary = hero.querySelector(".button-link");
-  assert.equal(primary.getAttribute("href"), "/releases.html#shiplog-proof");
+  assert.equal(primary.getAttribute("href"), "#record-history-title");
   assert.match(primary.textContent, /Explore the decision and release log demo/);
   assert.match(hero.textContent, /invented and use no customer or production data/);
-  // One primary button per destination, and no two of them named the same
-  // thing. The log entry section further down carries the page's other
-  // `.button-link`, pointed at the on-page record list rather than at Releases:
-  // two buttons reading "Explore the decision and release log" and landing in
-  // two different places is a buyer clicking the wrong one and concluding the
-  // demo is the section they were already looking at.
+  // Distinct labels distinguish the hero's demo invitation from the
+  // explanation's record-and-search shortcut to the same workspace.
   const buttons = document.querySelectorAll(".button-link").map(({ textContent }) => textContent.trim());
   assert.equal(new Set(buttons).size, buttons.length, `two calls to action read the same: ${buttons}`);
   const secondary = document.querySelector("#additional-capability");
@@ -495,7 +491,7 @@ test("the core demo call to action is reachable by Tab alone and opens on Enter"
   for (let press = 0; press < 20 && reached !== primary; press += 1) reached = pressTab(document);
   assert.equal(reached, primary, "the core demo link must sit in the natural tab order");
   pressEnter(document);
-  assert.deepEqual(document.navigations, ["/releases.html#shiplog-proof"]);
+  assert.deepEqual(document.navigations, ["#record-history-title"]);
 });
 
 test("security headers ship with the site", async () => {

@@ -14,7 +14,7 @@ test("homepage presents the promise, demo and proof before evaluation material",
   const html = await readFile(file("index.html"), "utf8");
   const markers = ['id="top"', 'id="core-demo-link"', 'class="hero-boundary"',
     'id="shiplog-entry"', 'One recorded decision, and the release that shipped it',
-    'id="deployment-status"', 'id="shiplog-evaluation-brief"',
+    'id="deployment-status"', 'id="record-history"', 'id="shiplog-evaluation-brief"',
     'id="shiplog-pilot-scorecard"', 'id="additional-capability"'];
   let previous = -1;
   for (const marker of markers) {
@@ -24,10 +24,10 @@ test("homepage presents the promise, demo and proof before evaluation material",
   }
   const hero = doc.getElementById("top");
   assert.deepEqual(hero.querySelectorAll("a").map((a) => a.getAttribute("href")),
-    ["/releases.html#shiplog-proof"]);
+    ["#record-history-title"]);
   const sections = doc.getElementById("main-content").children.filter((node) => node.tagName === "SECTION");
-  assert.deepEqual(sections.slice(0, 4).map((node) => node.id),
-    ["top", "shiplog-entry", "shiplog-evaluation-brief", "shiplog-pilot-scorecard"]);
+  assert.deepEqual(sections.slice(0, 5).map((node) => node.id),
+    ["top", "shiplog-entry", "record-history", "shiplog-evaluation-brief", "shiplog-pilot-scorecard"]);
 });
 
 test("scorecard headings stay visible and native instructions toggle with Enter and Space", async (t) => {
@@ -95,4 +95,45 @@ test("evaluation styles retain narrow layouts, wrapping, touch targets and focus
   assert.match(css, /#shiplog-evaluation-brief \{ overflow-wrap:anywhere/);
   assert.match(css, /#shiplog-pilot-scorecard \{ overflow-wrap:anywhere/);
   assert.match(css, /#shiplog-pilot-scorecard \.share-button \{[^}]*max-width:100%;[^}]*min-height:44px;[^}]*white-space:normal/);
+});
+
+test("hero targets a visible native-focus heading before every workspace control", async (t) => {
+  const page = await loadPage(file("index.html"));
+  t.after(() => page.restore());
+  const doc = page.document;
+  const hero = doc.getElementById("core-demo-link");
+  const heading = doc.getElementById(hero.getAttribute("href").slice(1));
+  assert.equal(heading.tagName, "H2");
+  assert.equal(textOf(heading), "Decision and release workspace");
+  assert.equal(heading.getAttribute("tabindex"), "-1");
+  const workspace = doc.getElementById("record-history");
+  assert.equal(workspace.getAttribute("aria-labelledby"), heading.id);
+  for (let node = heading; node; node = node.parentNode) {
+    assert.equal(node.hidden, false);
+    assert.notEqual(node.tagName, "DETAILS");
+  }
+  // The harness records native navigation; real fragment scrolling/focus is
+  // the browser's responsibility, with no script interception or load race.
+  hero.focus();
+  pressEnter(doc);
+  hero.click();
+  assert.deepEqual(doc.navigations, ["#record-history-title", "#record-history-title"]);
+  heading.focus();
+  assert.equal(doc.activeElement.id, heading.id);
+  const sequence = tabSequence(doc);
+  assert.ok(!sequence.includes(heading), "heading adds no sequential tab stop");
+  const controls = workspace.querySelectorAll("input,textarea,select,button,a,summary");
+  const stops = sequence.filter((node) => controls.includes(node));
+  assert.ok(stops.length > 10, "recording and browsing controls remain reachable");
+  const briefCopy = sequence.indexOf(doc.getElementById("copy-shiplog-evaluation-brief"));
+  for (const control of stops) assert.ok(sequence.indexOf(control) < briefCopy);
+  for (const id of ["export-shiplog", "export-shiplog-scope", "import-shiplog-file"]) {
+    const control = doc.getElementById(id);
+    assert.ok(controls.includes(control), `${id} travels with the workspace`);
+    assert.ok(sequence.includes(control), `${id} remains keyboard reachable`);
+  }
+  assert.ok(workspace.querySelector("#sample-release-list"), "linked release experience travels too");
+  const css = await readFile(file("styles.css"), "utf8");
+  assert.match(css, /#record-history-title:focus \{ outline:3px solid var\(--focus-ring\)/);
+  assert.match(css, /#record-history-title \{ scroll-margin-top:24px/);
 });
