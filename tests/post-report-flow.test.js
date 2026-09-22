@@ -231,10 +231,8 @@ test("People: the helper points at the terms instead of restating them, once the
   // module ran. Wait on drawn tiles instead; skeletons carry the tile class.
   await waitFor(() => realCards(document, ".profile-tile", "profile-tile-skeleton").length > 0, "People drew an image post");
 
-  // People states neither act now (#2401). The distinction is about publishing,
-  // which happens on Social, and the terms live beside the composer that
-  // performs it; People has no composer, so its helper closes on the
-  // consequence and a link to the terms rather than a second copy of them. What
+  // People states both halves in its own shorter words (#2484): the post
+  // cannot be edited or deleted, and anyone can select Report post on it. What
   // is pinned here is that the page carries no orphaned half of the pair — the
   // failure this test was written for was one warning without the other.
   //
@@ -243,12 +241,14 @@ test("People: the helper points at the terms instead of restating them, once the
   // drawn tiles is also the wait for this region.
   const helper = textOf(document.querySelector(".feed-create"));
   assert.doesNotMatch(helper, SELF_SERVICE,
-    "People restates the rule that a publisher cannot take their own post down");
+    "People recites the composer's own sentence about taking a post down");
   assert.doesNotMatch(helper, REMOVAL_PATH,
-    "People restates the removal path that belongs beside Social's composer");
+    "People recites the composer's own sentence about the removal path");
   assert.ok(helper.trim().endsWith(
-    "A published post is public and cannot be edited or deleted; Social’s publishing terms state the rest."),
-  `People's helper no longer routes a reader to the terms it stopped restating: ${helper}`);
+    "A published post is public and cannot be edited or deleted, and anyone can select Report post on it. "
+    + "Do not include customer or production data."),
+  `People's helper no longer states both halves of the distinction: ${helper}`);
+  assert.ok(helper.includes(REPORT_POST_LABEL), `People names the reporting control something other than "${REPORT_POST_LABEL}"`);
   const readable = textOf(document.getElementById("main-content"));
   for (const promise of OVERPROMISES)
     assert.doesNotMatch(readable, promise, `People promises a reported post comes down (${promise})`);
