@@ -633,10 +633,10 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
    pushes the caption — or the cards below it — down the page. */
 .post-media[data-state="loading"] { background:linear-gradient(100deg,#eeece5 30%,#f7f6f2 50%,#eeece5 70%) #eeece5; background-size:220% 100%; animation:shiplog-shimmer 1.4s linear infinite; }
 .post-media[data-state="error"] { background:#f8f1ef; box-shadow:inset 0 0 0 1px #dcc2be; }
-/* The clamp is on the description, not on the placeholder around it: the chip
-   above it must stay a chip. Shared by both tile surfaces (feed and People). */
+/* Shared by both tile surfaces (feed and People). The description is never
+   clamped: social-states.css lets a failed tile grow to hold all of it. */
 .post-media-fallback { margin:0; padding:0 14px; color:#7c3f3a; font:650 12px/1.5 ui-monospace,monospace; text-align:center; }
-.media-fallback-text { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:4; overflow:hidden; margin:0; }
+.media-fallback-text { margin:0; }
 .post-caption { margin:0 0 12px; color:#282824; font:700 17px/1.55 system-ui,sans-serif; white-space:pre-wrap; overflow-wrap:anywhere; }
 .post-image-description { margin:9px 0 0; color:#62625d; font:600 11px/1.5 ui-monospace,monospace; overflow-wrap:anywhere; }
 .post-card-media .post-head { margin:14px 0 0; padding-top:12px; border-top:1px solid #d9d7d0; }
@@ -693,9 +693,8 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .profile-media[data-state="loading"] { background:linear-gradient(100deg,#eeece5 30%,#f7f6f2 50%,#eeece5 70%) #eeece5; background-size:220% 100%; animation:shiplog-shimmer 1.4s linear infinite; }
 .profile-media[data-state="error"] { background:#f8f1ef; box-shadow:inset 0 0 0 1px #dcc2be; }
 .profile-media-fallback { padding:0 12px; color:#7c3f3a; font:650 12px/1.5 ui-monospace,monospace; text-align:center; }
-/* The caption is clamped, not truncated mid-thought: two lines keep every tile
-   in a row the same height, and the full text is one click away on the post. */
-.profile-tile-caption { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; margin:0; padding:14px 14px 0; color:#333330; font-size:14px; line-height:1.5; overflow-wrap:anywhere; }
+/* The whole caption shows, wrapped; the grid row keeps tiles level. */
+.profile-tile-caption { margin:0; padding:14px 14px 0; color:#333330; font-size:14px; line-height:1.5; overflow-wrap:anywhere; }
 .profile-tile-meta { display:flex; align-items:center; justify-content:space-between; gap:10px; margin:0; padding:10px 14px 14px; color:#74746e; font:650 11px/1.4 ui-monospace,monospace; }
 .profile-tile-stat { text-align:right; }
 .profile-tile-link-label { margin:0 14px 14px; color:#1f5fa8; font:700 13px/1.4 system-ui,sans-serif; text-decoration:underline; text-underline-offset:3px; }
