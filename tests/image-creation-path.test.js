@@ -44,17 +44,18 @@ const documents = Object.fromEntries(
 // "Social offers Paint exactly once" below.
 const NEARBY_INVITATION = { People: documents.People };
 
-// The one sentence People closes its helper on, and the contract it replaced.
-// People has no composer, so it states the consequence of publishing once and
-// routes to the terms; Social, which does have a composer, states them in full
-// beside it (#2401). tests/social.test.js owns the composer's wording.
+// The conditions People closes its helper on. They are the four Social's
+// composer notice states, in shorter sentences, rather than a pointer to
+// "Social's publishing terms", a name Social never shows (#2484).
+// tests/social.test.js owns the composer's wording.
 const PEOPLE_CONSEQUENCE =
-  "A published post is public and cannot be edited or deleted; Social’s publishing terms state the rest.";
+  "A published post is public and cannot be edited or deleted, and anyone can select Report post on it. "
+  + "Do not include customer or production data.";
+// Social's full sentences, which People does not recite word for word.
 const RETIRED_ON_PEOPLE = [
   "Anyone who visits Shiplog can read your post, its image, and the display name you publish it with.",
   "You cannot edit or delete your own post after you publish it.",
   "Anyone can select Report post on a published post.",
-  "Do not include customer or production data.",
 ];
 
 /** Every anchor on a page that points at the Paint editor. */
@@ -118,10 +119,7 @@ for (const [name, document] of Object.entries(NEARBY_INVITATION)) {
     assert.doesNotMatch(sentence, /publish it on this page|publish it here/i,
       `${name}'s helper asks the reader to publish on the page they are reading`);
     // The result follows the steps, in the order the visitor experiences them,
-    // and one sentence of consequence follows the result (#2401). The four
-    // sentences of the publishing contract used to close this paragraph; they
-    // are Social's now, where the composer that performs the act is, and what
-    // is left here is the consequence plus the route to the rest. What is
+    // and the conditions of publishing follow the result (#2484). What is
     // pinned is that the result is still stated, still after the steps, and
     // still before the consequence of carrying them out.
     assert.match(sentence.trim(), /^To add yours: Create or open an image in Paint/);
@@ -133,9 +131,11 @@ for (const [name, document] of Object.entries(NEARBY_INVITATION)) {
     assert.ok(sentence.indexOf(result) < sentence.indexOf("A published post is public"),
       `${name}'s helper states the consequence before it says what publishing does`);
     assert.equal(sentence.trim().endsWith(PEOPLE_CONSEQUENCE), true,
-      `${name}'s helper does not end on the one sentence that points at Social's terms`);
-    // And it recites none of the contract it points at. Each of these renders
-    // on Social, beside the composer, and nowhere on this page.
+      `${name}'s helper does not end on the conditions of publishing`);
+    assert.doesNotMatch(sentence, /publishing terms/i,
+      `${name}'s helper points at terms instead of stating them`);
+    // It states the conditions in its own shorter sentences, not Social's
+    // second-person ones, which render beside the composer.
     for (const recited of RETIRED_ON_PEOPLE)
       assert.equal(sentence.includes(recited), false,
         `${name}'s helper recites a publishing rule that belongs to Social: ${recited}`);
@@ -147,14 +147,8 @@ for (const [name, document] of Object.entries(NEARBY_INVITATION)) {
     // words on the button it lands next to are the same words.
     const toSocial = invitation.querySelectorAll("a")
       .filter((anchor) => (anchor.getAttribute("href") ?? "").startsWith("/social.html"));
-    // Two, and they are not spare copies of each other: the step, and the terms
-    // the step's consequence points at (#2401). Same page, because the terms sit
-    // beside the composer — so what keeps them apart is their text, which names
-    // what each one is for rather than repeating the other.
-    assert.equal(toSocial.length, 2, `${name}'s helper names Social without linking it, or links it too often`);
-    assert.deepEqual(toSocial.map((anchor) => textOf(anchor)),
-      ["Publish a post on Social", "Social’s publishing terms"],
-      `${name}'s two routes to Social no longer say which is which`);
+    // One: the step. The conditions are stated here, not linked (#2484).
+    assert.equal(toSocial.length, 1, `${name}'s helper names Social without linking it, or links it too often`);
     assert.equal(textOf(toSocial[0]), "Publish a post on Social");
     // The composer, not the top of the feed: src/social-page.js reveals the
     // collapsed panel for this hash, so the reader lands on the field.
@@ -167,15 +161,10 @@ for (const [name, document] of Object.entries(NEARBY_INVITATION)) {
     assert.ok(tabSequence(document).includes(toSocial[0]),
       `${name}'s route to the composer is not keyboard reachable`);
     // And it comes after the editor it depends on, in the order the steps
-    // happen, with the terms last: they are a consequence of the step, so they
-    // are read after it.
+    // happen.
     const order = invitation.querySelectorAll("a");
     assert.deepEqual(order.map((anchor) => anchor.getAttribute("id")),
-      ["profile-paint-route", "profile-publish-route", "profile-terms-route"]);
-    assert.equal(toSocial[1].getAttribute("href"), `${SOCIAL_COMPOSER_PATH}#post-form`);
-    assert.equal(toSocial[1].getAttribute("target"), null);
-    assert.ok(tabSequence(document).includes(toSocial[1]),
-      `${name}'s route to the publishing terms is not keyboard reachable`);
+      ["profile-paint-route", "profile-publish-route"]);
   });
 
   test(`${name} keeps the Paint route in the keyboard sequence, after the browsing panel`, () => {
@@ -197,16 +186,23 @@ for (const [name, document] of Object.entries(NEARBY_INVITATION)) {
   });
 }
 
+// Social's publishing notice has no heading, so a page that names its "publishing
+// terms" sends a reader to look for a title that is not there (#2484).
+test("no reviewed page points at Social's publishing terms", async () => {
+  for (const page of ["profile.html", "social.html", "post.html", "index.html", "releases.html", "coach.html"]) {
+    const html = await readFile(new URL(`../src/${page}`, import.meta.url), "utf8");
+    assert.doesNotMatch(html, /publishing terms/i, `${page} names a notice Social never titles`);
+  }
+});
+
 test("People's nearby helper links to the editor without repeating the empty-state choices", () => {
   const invitation = documents.People.querySelector(".feed-create");
   const hrefs = invitation.querySelectorAll("a").map((anchor) => anchor.href);
-  // The two steps the sentence names, then the terms its closing sentence
-  // points at, and nothing else. The empty state offers the same two
-  // destinations under different labels, for the reader who has no posts to
-  // browse; this paragraph is for the one who does.
+  // The two steps the sentence names, and nothing else. The empty state offers
+  // the same two destinations under different labels, for the reader who has
+  // no posts to browse; this paragraph is for the one who does.
   assert.deepEqual(hrefs, [
     "/paint/?from=profile",
-    `${SOCIAL_COMPOSER_PATH}#post-form`,
     `${SOCIAL_COMPOSER_PATH}#post-form`,
   ]);
 });
@@ -774,9 +770,7 @@ test("People names the same steps in the same words as the composer", async () =
     + "Select “Use this image in a Social post”, then fill in the required image description. "
     + "Publish a post on Social. A published post with an image appears on People, "
     + "under the display name you publish it with. "
-    // One sentence of consequence, and a route to the terms themselves (#2401).
-    // The four sentences that used to close this paragraph recited Social's
-    // publishing contract on a page with no composer to break it on.
+    // The conditions of publishing themselves, not a pointer to them (#2484).
     + PEOPLE_CONSEQUENCE);
 
   // The composer refuses a post that carries an image and no description, so the
