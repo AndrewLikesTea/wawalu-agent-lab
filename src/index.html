@@ -88,7 +88,7 @@
         <!-- THE ASK, AS A CONTROL, DIRECTLY UNDER THE ANSWER IT FOLLOWS FROM.
              It used to be the closing clause of the paragraph above, which is
              where a reader who had already decided to ask had to go looking for
-             it. ONE ROUTE AND NOT TWO: this section is held to its five tab
+             it. ONE ROUTE AND NOT TWO: this section is held to its six tab
              stops by homepage-log-leads.test.js and to a single contact
              destination by homepage-proof-path.test.js, so the buyer picks no
              form and nothing on this page competes with the hero's own call to
@@ -103,15 +103,20 @@
         <div class="hero-actions">
           <a class="text-link" id="ask-about-shiplog" href="#site-footer-panel">Ask about Shiplog</a>
         </div>
-        <div class="hero-proof">
-          <p class="eyebrow">One recorded decision, and the release that shipped it</p>
+        <article class="hero-proof" id="featured-decision" aria-labelledby="featured-decision-title">
+          <h3 class="eyebrow" id="featured-decision-title">One recorded decision, and the release that shipped it</h3>
+          <p class="hero-proof-boundary"><strong>Example records</strong> <span>These invented records demonstrate Shiplog. They use no customer or production data.</span></p>
           <dl class="hero-proof-facts">
             <div><dt>Decision</dt><dd>Adopt a durable job queue · Accepted</dd></div>
-            <div><dt>Shipped in</dt><dd>Release v1.3.0 · Completed</dd></div>
+            <div><dt>Shipped in</dt><dd>Release v1.3.0 · Throughput and latency · Completed</dd></div>
             <div><dt>Owner</dt><dd>Kai</dd></div>
           </dl>
-          <p class="hero-proof-boundary"><strong>Example records</strong> <span>These invented records demonstrate Shiplog. They use no customer or production data.</span></p>
-        </div>
+          <dl class="featured-decision-reasoning">
+            <div><dt>Context</dt><dd>Background work was lost on deploys; move to an at-least-once durable queue.</dd></div>
+            <div><dt>Considered alternatives</dt><dd>Database polling and in-process retries.</dd></div>
+          </dl>
+          <a class="text-link" href="/decision.html?id=demo-queue">Inspect the full decision record: Adopt a durable job queue</a>
+        </article>
 
         <!-- THE ONE CLAIM IN THIS SECTION THAT IS NOT AN EXAMPLE.
              The records above are invented; this block reads the deployment

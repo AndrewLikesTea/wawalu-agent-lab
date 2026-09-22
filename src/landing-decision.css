@@ -142,3 +142,10 @@
   .landing-decision { padding:0; }
   .landing-decision-intro,.landing-decision-next { display:none !important; }
 }
+
+/* Static seed proof stays readable before scripts load, at every width. */
+#featured-decision { overflow-wrap:anywhere; }
+#featured-decision .hero-proof-facts { grid-template-columns:repeat(auto-fit,minmax(min(150px,100%),1fr)); }
+.featured-decision-reasoning { display:grid; gap:14px; margin:20px 0; }
+.featured-decision-reasoning dt { color:#245643; font-size:14px; font-weight:700; }
+.featured-decision-reasoning dd { margin:4px 0 0; font-size:16px; line-height:1.6; }

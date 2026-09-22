@@ -121,15 +121,14 @@ test("the first focusable in the log precedes the first focusable in AI FinOps",
   assert.ok(log < finops,
     `the log's first tab stop is number ${log} and AI FinOps' is ${finops}: reading order and tab order disagree`);
 
-  // A reorder adds no controls. The page's tab budget is full — index.html's
-  // coach link is the second-to-last stop prompt-coach-destination.test.js will
-  // allow — so this counts rather than trusts. The five are the follow-up
+  // Keep the proof’s full-record link in the expected keyboard order.
+  // The six are the full decision record, the follow-up
   // route, the two deployment-check links, the record-list button, and the
   // decision-to-release link.
   assert.equal(
     sequence.filter((element) => ancestorIds(element).includes("shiplog-entry")).length,
-    5,
-    "the log entry section must still offer exactly its five existing tab stops",
+    6,
+    "the log entry section must still offer its six tab stops including the full decision record",
   );
 });
 
