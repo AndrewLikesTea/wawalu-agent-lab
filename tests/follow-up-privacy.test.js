@@ -131,7 +131,8 @@ test("the message form's sentence is one sentence too, and lists everything that
   const words = FOLLOW_UP_PRIVACY_WITH_MESSAGE.split(/\s+/).filter(Boolean);
   // A longer budget than the sentence above, because it names four things
   // rather than one (#2365 added what you want to discuss). Still one sentence.
-  assert.ok(words.length <= 34, `the sentence is ${words.length} words; the budget is 34`);
+  // #2488: 37, because the page is now named by its own line's words.
+  assert.ok(words.length <= 37, `the sentence is ${words.length} words; the budget is 37`);
   assert.match(FOLLOW_UP_PRIVACY_WITH_MESSAGE, /what you want to discuss/, "it must name the intent it sends");
   assert.equal(FOLLOW_UP_PRIVACY_WITH_MESSAGE.at(-1), ".");
   assert.equal((FOLLOW_UP_PRIVACY_WITH_MESSAGE.match(/[.!?]/g) ?? []).length, 1,
@@ -146,12 +147,17 @@ test("the message form's sentence is one sentence too, and lists everything that
   // All three things, and the claim it may not make: a form with a message box
   // is a form where something else on the page can reach the wire.
   //
-  // #2407: the topic is named by pointing at the line that states it — "This
-  // request is sent about the Social page — …", or the homepage example form's
-  // read-only topic field — rather than by "this fixed follow-up topic", which
-  // matched no label, heading or control a visitor could find. The old phrase
-  // is held gone, so it cannot come back one page at a time.
-  assert.match(FOLLOW_UP_PRIVACY_WITH_MESSAGE, /the topic shown above/, "it must name the topic it sends");
+  // #2407: the page is named in words the form carries rather than by "this
+  // fixed follow-up topic", which matched no label, heading or control a visitor
+  // could find. #2488: nor by "the topic shown above" — nothing above is
+  // labelled a topic, and the question "What do you want to discuss?" read as
+  // that topic, so the sentence seemed to list one item twice. It now repeats
+  // the line's own words, "This request is sent about the Social page — …".
+  // Both old phrases are held gone, so neither can come back one page at a time.
+  assert.match(FOLLOW_UP_PRIVACY_WITH_MESSAGE, /the page this request is sent about/,
+    "it must name the page it sends in the words of the line that states it");
+  assert.doesNotMatch(FOLLOW_UP_PRIVACY_WITH_MESSAGE, /\btopic\b/,
+    "no line on the form calls the page a topic");
   assert.doesNotMatch(FOLLOW_UP_PRIVACY_WITH_MESSAGE, /fixed follow-up topic/,
     "the topic must be named in words the page carries, not an internal one");
   // #2431: the optional field is labelled "Anything else we should know?", so
@@ -367,6 +373,24 @@ test("the optional field asks something the question above it did not", async ()
   }
   assert.deepEqual([...asked].sort(), [...ASKS_MESSAGE].sort(),
     "every page that ships the optional field must be held to its label");
+});
+
+test("the footer names the page it sends in the words of the line above it (#2488)", async () => {
+  const footers = (await followUpForms()).filter(({ form }) => form.getAttribute("id") === "site-footer-form");
+  const footerOn = (file) => footers.find((footer) => footer.file === file);
+  assert.ok(footerOn("social.html") && footerOn("index.html"), "Social and the homepage both carry the footer's form");
+
+  for (const { file, form } of footers) {
+    const note = textOf(form.querySelector("#site-footer-note"));
+    assert.ok(!note.includes("the topic shown above"), `${file}: the footer still points at a "topic" nothing is labelled`);
+    if (!ASKS_MESSAGE.has(file)) continue;
+    // The item the sentence names is the line the form shows, word for word.
+    assert.ok(note.includes("the page this request is sent about"), `${file}: the sentence does not name the page`);
+    assert.ok(textOf(form.querySelector("#site-footer-topic-note")).startsWith("This request is sent about the "),
+      `${file}: the sentence names a line the form does not show`);
+  }
+  assert.ok(textOf(footerOn("social.html").form.querySelector("#site-footer-note"))
+    .includes("the page this request is sent about"), "Social's footer names the page it sends");
 });
 
 test("no page keeps a fragment of the prose the one sentence replaced", async () => {
