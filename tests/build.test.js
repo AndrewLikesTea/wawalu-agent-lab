@@ -195,7 +195,7 @@ test("the log entry's proof point ties a recorded decision to the release that s
   // at an action row this section did not have, so its end bound was -1 and it
   // read to the end anyway; #2458 gave the section a real action row above the
   // panel, which would have inverted the two bounds and sliced out nothing.
-  const proof = entry.slice(entry.indexOf('<div class="hero-proof">'));
+  const proof = entry.slice(entry.indexOf('<article class="hero-proof"'));
   const proofDocument = parseHtml(proof);
   const facts = proofDocument.querySelector(".hero-proof-facts")
     .querySelectorAll("dd")
@@ -216,7 +216,7 @@ test("the log entry's proof point ties a recorded decision to the release that s
   // stale fixture now fails the build instead of leaving plausible old copy.
   assert.deepEqual(facts, [
     `${decision.title} · ${decision.status[0].toUpperCase()}${decision.status.slice(1)}`,
-    `Release ${release.version} · ${release.status[0].toUpperCase()}${release.status.slice(1)}`,
+    `Release ${release.version} · ${release.title} · ${release.status[0].toUpperCase()}${release.status.slice(1)}`,
     decision.owner,
   ]);
   assert.equal(release.owner, decision.owner,

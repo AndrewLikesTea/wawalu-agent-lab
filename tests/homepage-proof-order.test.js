@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { loadPage, textOf, pressEnter, pressSpace, tabSequence } from "./support/browser.js";
+import { SEED_DECISIONS, SEED_RELEASES, SAMPLE_DECISION_ID, SAMPLE_RELEASE_ID } from "../src/seed-records.js";
 import { PILOT_SCORECARD_CRITERIA } from "../src/shiplog-pilot-scorecard.js";
 
 const root = process.env.SHIPLOG_E2E_BUILD_ROOT || "src";
@@ -136,4 +137,49 @@ test("hero targets a visible native-focus heading before every workspace control
   const css = await readFile(file("styles.css"), "utf8");
   assert.match(css, /#record-history-title:focus \{ outline:3px solid var\(--focus-ring\)/);
   assert.match(css, /#record-history-title \{ scroll-margin-top:24px/);
+});
+
+
+test("featured proof exposes the seed reasoning and full record without interaction", async (t) => {
+  const page = await loadPage(file("index.html"));
+  t.after(() => page.restore());
+  const doc = page.document;
+  const proof = doc.getElementById("featured-decision");
+  const decision = SEED_DECISIONS.find((record) => record.id === SAMPLE_DECISION_ID);
+  const release = SEED_RELEASES.find((record) => record.id === SAMPLE_RELEASE_ID);
+  assert.equal(proof.tagName, "ARTICLE");
+  assert.equal(doc.getElementById(proof.getAttribute("aria-labelledby")).tagName, "H3");
+  const fields = new Map(proof.querySelectorAll("dl").flatMap((dl) => dl.querySelectorAll("div"))
+    .map((row) => [textOf(row.querySelector("dt")), textOf(row.querySelector("dd"))]));
+  assert.equal(fields.get("Decision"), `${decision.title} · Accepted`);
+  assert.equal(fields.get("Context"), decision.context);
+  assert.equal(fields.get("Considered alternatives"), decision.alternatives);
+  assert.equal(fields.get("Shipped in"), `Release ${release.version} · ${release.title} · Completed`);
+  assert.ok(release.decisionIds.includes(decision.id));
+  const disclosure = proof.querySelector(".hero-proof-boundary");
+  assert.match(textOf(disclosure), /Example records These invented records demonstrate Shiplog. They use no customer or production data./);
+  assert.ok(proof.children.indexOf(disclosure) < proof.children.indexOf(proof.querySelector("dl")));
+  const link = proof.querySelector("a");
+  assert.equal(textOf(link), `Inspect the full decision record: ${decision.title}`);
+  assert.equal(link.getAttribute("href"), `/decision.html?id=${decision.id}`);
+  assert.ok(tabSequence(doc).includes(link));
+  link.focus();
+  pressEnter(doc);
+  assert.deepEqual(doc.navigations, [link.getAttribute("href")]);
+  for (const element of [proof, disclosure, link, ...proof.querySelectorAll("dd")]) {
+    for (let node = element; node; node = node.parentNode) {
+      assert.equal(node.hidden, false);
+      assert.notEqual(node.getAttribute("aria-hidden"), "true");
+      assert.notEqual(node.tagName, "DETAILS");
+    }
+  }
+});
+
+test("featured proof uses fluid wrapping and the shared visible link focus treatment", async () => {
+  const css = await readFile(file("landing-decision.css"), "utf8");
+  assert.match(css, /#featured-decision \{ overflow-wrap:anywhere/);
+  assert.match(css, /minmax\(min\(150px,100%\),1fr\)/);
+  assert.match(css, /\.featured-decision-reasoning \{ display:grid; gap:14px/);
+  const shared = await readFile(file("styles.css"), "utf8");
+  assert.match(shared, /a:focus-visible \{ outline:3px solid var\(--focus-ring\)/);
 });
