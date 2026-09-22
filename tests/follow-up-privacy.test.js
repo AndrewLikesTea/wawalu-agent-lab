@@ -151,7 +151,13 @@ test("the message form's sentence is one sentence too, and lists everything that
   // read-only topic field — rather than by "this fixed follow-up topic", which
   // matched no label, heading or control a visitor could find. The old phrase
   // is held gone, so it cannot come back one page at a time.
-  assert.match(FOLLOW_UP_PRIVACY_WITH_MESSAGE, /the topic shown above/, "it must name the topic it sends");
+  //
+  // #2488: "the topic shown above" matched no label either, and read as the
+  // "What do you want to discuss?" group. It now names the page, which is
+  // what the "This request is sent about the … page" line states.
+  assert.match(FOLLOW_UP_PRIVACY_WITH_MESSAGE, /the page named above/, "it must name the page it sends");
+  assert.doesNotMatch(FOLLOW_UP_PRIVACY_WITH_MESSAGE, /topic shown above/,
+    "no element on the form is labelled topic");
   assert.doesNotMatch(FOLLOW_UP_PRIVACY_WITH_MESSAGE, /fixed follow-up topic/,
     "the topic must be named in words the page carries, not an internal one");
   // #2431: the optional field is labelled "Anything else we should know?", so
@@ -314,6 +320,27 @@ test("every follow-up form on the site renders that sentence, byte for byte", as
     assert.equal(Boolean(form.querySelector("#site-footer-message")), ASKS_MESSAGE.has(file),
       `${file}: the shipped message field disagrees with the sentence it is held to`);
   }
+});
+
+test("the message form's sentence names the page the line above it states", async () => {
+  // #2488: "the topic shown above" pointed at nothing labelled topic. The
+  // sentence now says "the page named above", and on every page that ships it
+  // that page is named above it, by the "This request is sent about the … page"
+  // line, so the pointer lands on words a visitor can find.
+  const seen = new Set();
+  for (const { file, form } of await followUpForms()) {
+    if (!ASKS_MESSAGE.has(file)) continue;
+    seen.add(file);
+    const order = form.querySelectorAll("p");
+    const note = order.find((node) => textOf(node) === expectedPrivacy(file));
+    assert.match(textOf(note), /the page named above/, `${file}: the sentence does not name the page`);
+    assert.doesNotMatch(textOf(note), /topic shown above/, `${file}: the old pointer is back`);
+    const line = form.querySelector("#site-footer-topic-note");
+    assert.ok(line, `${file}: nothing above the sentence names the page`);
+    assert.match(textOf(line), /^This request is sent about the .+ page — /, `${file}: the line names no page`);
+    assert.ok(order.indexOf(line) < order.indexOf(note), `${file}: the page is named below the sentence`);
+  }
+  assert.deepEqual([...seen].sort(), [...ASKS_MESSAGE].sort(), "a page that asks a message was not found");
 });
 
 test("the sentence sits between the work-email field and the submit button, once", async () => {
