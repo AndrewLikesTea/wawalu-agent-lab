@@ -119,7 +119,7 @@ export const FOLLOW_UP_PRIVACY = "The work email address you type here goes to t
 // box, which cannot say nothing else is sent. It lists the four arguments
 // `postLeadEmail` builds the body from instead: everything with a route to the wire.
 export const FOLLOW_UP_PRIVACY_WITH_MESSAGE = "The work email address you type here goes to the Wawalu team that "
-  + "operates Shiplog; only that address, the topic shown above, what you want to discuss, and anything else you type are sent.";
+  + "operates Shiplog; only that address, the page this request is sent about, what you want to discuss, and anything else you type are sent.";
 
 // One refusal for both message fields: how long, how far over, and the limit.
 export function overLengthMessage(length, max = MAX_FOLLOW_UP_MESSAGE_LENGTH) {
