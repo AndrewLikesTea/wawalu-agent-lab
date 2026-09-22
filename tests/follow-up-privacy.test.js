@@ -130,8 +130,9 @@ test("the shared sentence is one sentence, under 25 words, and names all three t
 test("the message form's sentence is one sentence too, and lists everything that goes", () => {
   const words = FOLLOW_UP_PRIVACY_WITH_MESSAGE.split(/\s+/).filter(Boolean);
   // A longer budget than the sentence above, because it names four things
-  // rather than one (#2365 added what you want to discuss). Still one sentence.
-  assert.ok(words.length <= 34, `the sentence is ${words.length} words; the budget is 34`);
+  // rather than one (#2365 added what you want to discuss; #2488 spent three
+  // more naming the page the request is sent about). Still one sentence.
+  assert.ok(words.length <= 37, `the sentence is ${words.length} words; the budget is 37`);
   assert.match(FOLLOW_UP_PRIVACY_WITH_MESSAGE, /what you want to discuss/, "it must name the intent it sends");
   assert.equal(FOLLOW_UP_PRIVACY_WITH_MESSAGE.at(-1), ".");
   assert.equal((FOLLOW_UP_PRIVACY_WITH_MESSAGE.match(/[.!?]/g) ?? []).length, 1,
@@ -151,7 +152,15 @@ test("the message form's sentence is one sentence too, and lists everything that
   // read-only topic field — rather than by "this fixed follow-up topic", which
   // matched no label, heading or control a visitor could find. The old phrase
   // is held gone, so it cannot come back one page at a time.
-  assert.match(FOLLOW_UP_PRIVACY_WITH_MESSAGE, /the topic shown above/, "it must name the topic it sends");
+  //
+  // #2488: nothing above the sentence is labelled a "topic", and the radio group
+  // it followed is headed "What do you want to discuss?", so "the topic shown
+  // above" read as that answer listed twice. It now uses the words of the line
+  // it points at, "This request is sent about the … page".
+  assert.match(FOLLOW_UP_PRIVACY_WITH_MESSAGE, /the page this request is sent about/,
+    "it must name the page the request is sent about in that line's words");
+  assert.doesNotMatch(FOLLOW_UP_PRIVACY_WITH_MESSAGE, /topic shown above/,
+    "no label above the sentence says topic");
   assert.doesNotMatch(FOLLOW_UP_PRIVACY_WITH_MESSAGE, /fixed follow-up topic/,
     "the topic must be named in words the page carries, not an internal one");
   // #2431: the optional field is labelled "Anything else we should know?", so
