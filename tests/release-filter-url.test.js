@@ -2,7 +2,6 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readReleaseFilters, releaseFilterSearch } from "../src/release-filter-url.js";
 import { initReleasesPage } from "../src/releases-page.js";
-import { COPY_LINK_SUCCESS } from "../src/history-filter-view.js";
 import { loadPage, DomEvent, pressKey, textOf } from "./support/browser.js";
 
 const defaults = { query: "", status: "all", decisionStatus: "all", decisionId: "all" };
@@ -80,16 +79,38 @@ test("copy is keyboard operable and copies current canonical filters with access
   const feedback = get(page, "release-copy-status");
   assert.equal(feedback.getAttribute("role"), "status");
   assert.equal(feedback.getAttribute("aria-live"), "polite");
-  // The same sentence the decisions history says for the same control. The page
-  // module cannot import it — history-filter-view.js drags the decisions filter
-  // vocabulary into the releases bundle — so the equality is held here instead,
-  // and the two "Copy link to this view" buttons cannot drift apart unnoticed.
-  assert.equal(textOf(feedback), COPY_LINK_SUCCESS);
+  // Names the view: this page has three other copy buttons, and the decisions
+  // history's bare "Link copied." could confirm any of them.
+  assert.equal(textOf(feedback), "Link to this view copied. It keeps your search and filters.");
   get(page, "release-clear-filters").click();
   assert.equal(textOf(feedback), "");
   button.click();
   await settle();
-  assert.equal(textOf(feedback), "Link copied. It opens the full release log.");
+  assert.equal(textOf(feedback), "Link to this view copied. No search or filters are set, so it opens the full release log.");
+});
+
+test("the view-sharing action has one label, says what its link carries, and confirms in its own words", async (t) => {
+  const page = await boot(t, "?q=queue", { writeText: async () => {} });
+  const button = get(page, "release-copy-link");
+  assert.equal(textOf(button), "Copy link to this view");
+  assert.equal(button.getAttribute("aria-label"), null);
+  assert.equal(button.getAttribute("title"), null);
+  // The hand-copy field is the same action, so it wears the same label.
+  assert.equal(textOf(page.document.querySelector('label[for="release-copy-url"]')), "Copy link to this view");
+  const body = textOf(page.document.body);
+  assert.equal(body.split("Copy link to this view").length - 1, 2, "the button and its fallback field, nothing else");
+  assert.equal(body.split("Link to this view").length - 1, 0, "no competing label for the same action");
+  assert.equal(button.getAttribute("aria-describedby"), "release-share-scope");
+  assert.equal(textOf(get(page, "release-share-scope")),
+    "The link keeps your search and filters. Whoever opens it sees the releases saved in their own browser.");
+  button.click();
+  await settle();
+  const status = textOf(get(page, "release-copy-status"));
+  assert.match(status, /^Link to this view copied\./);
+  // No other copy control on this page claims the view.
+  for (const id of ["shipped-build-copy", "shiplog-proof-copy", "deployment-copy"]) {
+    assert.doesNotMatch(textOf(get(page, id)), /this view/);
+  }
 });
 
 for (const clipboard of [{}, { writeText: async () => { throw new Error("denied"); } }]) {

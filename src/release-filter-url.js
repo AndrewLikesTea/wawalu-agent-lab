@@ -1,20 +1,17 @@
 import { normalizeReleaseFilters } from "./releases.js";
 import { copyRecordUrl } from "./share-link.js";
 
-// The decisions history already carries a "Copy link to this view" control, so
-// this one says what that one says rather than inventing a second vocabulary
-// for the same act. COPY_SUCCESS is history-filter-view.js's COPY_LINK_SUCCESS
-// word for word, copied rather than imported: that module reaches the decisions
-// filter vocabulary behind it, and 18 KB of it does not belong in the releases
-// entry graph for one sentence. tests/release-filter-url.test.js imports the
-// original and asserts the two are equal, so they cannot drift apart in silence.
-// The other two lines say what would be false if they were shared. A copy with
-// no filters set does not open "this filtered view", and the shared failure
-// line sends a reader to the address bar, which is a worse answer than the
-// field this control reveals, fills and focuses for them.
-const COPY_SUCCESS = "Link copied. It opens this filtered view.";
-const COPY_ALL_SUCCESS = "Link copied. It opens the full release log.";
-const COPY_FAILURE = "Could not copy the link automatically. Copy it from the field below instead.";
+// Every line this control writes names "this view", the words on its button.
+// This page carries three other copy buttons — the real deployment record, the
+// example release, the deployment check — and a bare "Link copied." could be
+// any of them. It used to borrow the decisions history's sentence word for
+// word; on that page it is the only copy control, here it is one of four.
+// A copy with no filters set does not open a filtered view, so it says what it
+// does open, and the failure line points at the field this control reveals,
+// fills and focuses rather than at the address bar.
+const COPY_SUCCESS = "Link to this view copied. It keeps your search and filters.";
+const COPY_ALL_SUCCESS = "Link to this view copied. No search or filters are set, so it opens the full release log.";
+const COPY_FAILURE = "Could not copy the link to this view. Copy it from the field below instead.";
 
 const PARAMETERS = { query: "q", status: "status", decisionStatus: "decision-status", decisionId: "decision" };
 
