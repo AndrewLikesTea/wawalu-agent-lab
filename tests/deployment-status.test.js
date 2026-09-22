@@ -135,9 +135,10 @@ test("the band leads with what it compares, then answers, outside every disclosu
   // question is one sentence and the front door renders the same one, so a
   // reader who follows the link from there meets the words they arrived on.
   assert.match(sentence, /^Does the real record of this deployment name the running build’s version\?/);
-  // And the line the rest of the page draws, kept here: the worked example
-  // above is invented, the record this check names and this answer are not.
-  assert.match(sentence, /The example decision and release above are invented; that record and this answer are not\./);
+  // No contrast with the invented example (#2487): the check shares a block
+  // with the record it names, and the example no longer stands between them.
+  assert.doesNotMatch(sentence, /that record and this answer are not/);
+  assert.doesNotMatch(sentence, /example/i);
 
   // The harness reads text through a closed disclosure, so "a reader sees this
   // without expanding anything" is asserted on where the node sits: inside the
@@ -464,7 +465,7 @@ test("an identifier the page cannot show whole is refused, never stripped into a
   assert.equal(copyText.endsWith(identifiers), true, "the copy and the band worded the comparison differently");
 });
 
-test("a record this band cannot route to is not linked, on either link it draws", async (t) => {
+test("a record this band cannot route to is not linked by its next action", async (t) => {
   // A record can be edited outside the recorder, and both of these hrefs are
   // assigned straight to an anchor. Neither may choose a scheme.
   const hostile = { ...NEWEST, detailHref: "javascript:alert(1)" };
@@ -477,9 +478,6 @@ test("a record this band cannot route to is not linked, on either link it draws"
     readHealth: answers({ status: "ok", build: "v9.9.9" }),
   });
   assert.equal(nextActions(page)[0].getAttribute("href"), "/release.html?id=r-2-1-0");
-  // A link is a claim about where it goes, so a record with no usable
-  // destination is not offered as one rather than offered pointing elsewhere.
-  assert.equal(page.document.querySelector("#deployment-release-record").hidden, true);
 });
 
 /* ------------------------------ the pure core ----------------------------- */

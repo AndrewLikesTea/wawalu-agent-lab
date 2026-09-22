@@ -281,8 +281,11 @@ test("the real record precedes the invented example, so the observatory link lan
   const blocks = page.document.getElementById("main-content").children
     .map((node) => node.getAttribute?.("id"))
     .filter(Boolean);
+  // The record sits inside the block it shares with the deployment check.
+  assert.equal(page.document.querySelector("#shipped-build").parentNode.getAttribute("id"), "real-deployment");
+  assert.ok(blocks.indexOf("real-deployment") >= 0, "the real-deployment block left main");
   assert.ok(
-    blocks.indexOf("shipped-build") < blocks.indexOf("shiplog-proof"),
+    blocks.indexOf("real-deployment") < blocks.indexOf("shiplog-proof"),
     "the invented example is rendered above the real record",
   );
 
@@ -313,10 +316,6 @@ test("an unstamped build shows no record and withdraws the real marking", async 
     textOf(page.document.querySelector("#deployment-identifiers")),
     "Running build version: 0123456789abcdef0123456789abcdef01234567. Real deployment-record version: not available.",
   );
-  assert.equal(page.document.querySelector("#deployment-release-record").hidden, true);
-  // With no commit and no record there is nothing to link, so the ruled row the
-  // two links share goes with them instead of painting an empty divider.
-  assert.equal(page.document.querySelector("#deployment-proof-links").hidden, true);
   assert.doesNotMatch(verdictText(page), /^Confirmed:/);
 });
 
@@ -381,19 +380,18 @@ test("a page and a deployment built from different commits read as a mismatch wi
     textOf(page.document.querySelector("#deployment-identifiers")),
     `Running build version: ${other}. Real deployment-record version: ${SHA}.`,
   );
-  assert.equal(page.document.querySelector("#deployment-release-record").hidden, false);
 });
 
-test("the proof names both compared version values and offers the record once", async (t) => {
+test("the proof names both compared version values and sits in the record's own block", async (t) => {
   const page = await open(t);
   assert.equal(
     textOf(page.document.querySelector("#deployment-identifiers")),
     `Running build version: ${SHA}. Real deployment-record version: ${SHA}.`,
   );
-  const record = page.document.querySelector("#deployment-release-record");
-  // The link names the record, and the identifiers line above states its id.
-  assert.equal(textOf(record), REAL_RECORD_LINK_LABEL);
-  assert.equal(record.getAttribute("href"), "/releases.html#shipped-build");
+  // No link back to the record (#2487): the check is a subsection of the block
+  // the record heads, so the record is already beside it.
+  assert.equal(page.document.querySelectorAll("#deployment-release-record").length, 0);
+  assert.equal(page.document.querySelector("#deployment-status").parentNode.getAttribute("id"), "real-deployment");
   // The commit is offered by the record block above, once. This band used to
   // repeat that link — same commit, same words — so one screen offered one
   // destination twice; the front door, where the check stands alone, keeps its

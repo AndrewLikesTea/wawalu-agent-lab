@@ -1,5 +1,9 @@
 .shiplog-proof { display:grid; gap:16px; margin:0 0 24px; border:1px solid #b9cec4; border-left:5px solid #315f50; border-radius:12px; padding:clamp(16px,3vw,22px); background:#eef6f2; }
-.shiplog-proof:target { outline:3px solid var(--focus-ring); outline-offset:3px; }
+/* The real record and the deployment check share one block (#2487); the record
+ * keeps the block's rhythm and is still the target its copied link lands on. */
+.shiplog-real-record { display:grid; gap:16px; }
+.shiplog-real .release-followup-slot { margin:0; }
+.shiplog-proof:target,.shiplog-real-record:target { outline:3px solid var(--focus-ring); outline-offset:3px; }
 .shiplog-demo { border-style:dashed; border-left-style:solid; }
 .shiplog-real { border-color:#9aa8c4; border-left-color:#1f3a6e; background:#eef2fb; }
 .shiplog-real .shiplog-proof-share { border-top-color:#c7d1e6; }
