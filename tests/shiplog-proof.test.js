@@ -32,9 +32,9 @@ test("renders one clearly disclosed synthetic proof connecting decision, owner, 
   assert.doesNotMatch(textOf(proof), /live release-log data/i);
   assert.doesNotMatch(textOf(proof), /invented records/i);
   assert.equal(textOf(proof.querySelector(".badge-example")), "Example records");
-  // The deployment check below names these records with the same noun.
-  assert.match(textOf(page.document.querySelector("#deployment-status-proof")),
-    /The example decision and release above are invented;/);
+  // The deployment check shares the real record's block, above this one, so it
+  // no longer needs a sentence setting itself apart from these records (#2487).
+  assert.doesNotMatch(textOf(page.document.querySelector("#deployment-status-proof")), /example/i);
   assert.match(textOf(proof), /Open either link below to read the full record/);
   assert.doesNotMatch(textOf(proof), /[Rr]epresentative/);
   assert.match(textOf(proof), /Adopt a durable job queue/);
@@ -148,8 +148,9 @@ const isWithin = (node, ancestor) => {
 // What they used to reach, in this order, was the pitch, the example record,
 // the deployment check and then nine fields to fill in, with the log itself at
 // the bottom of the page. The record of this deployment and the check against
-// it still lead — they are what the observatory's link lands on — and the log
-// now stands between them and the recorder.
+// it still lead, together, ahead of the example (#2487) — they are what the
+// observatory's link lands on — and the log now stands between them and the
+// recorder.
 test("the log's heading, count, search, filters, records and export all come before the first form field", async (t) => {
   const page = await open(t);
   const order = page.document
@@ -157,8 +158,8 @@ test("the log's heading, count, search, filters, records and export all come bef
     .map((node) => node.id);
   assert.deepEqual(order, [
     "shipped-build",
-    "shiplog-proof",
     "deployment-status",
+    "shiplog-proof",
     "releases-title",
     "release-count",
     "release-search",

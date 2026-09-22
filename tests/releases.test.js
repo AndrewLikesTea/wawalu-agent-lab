@@ -22,7 +22,7 @@ import {
 import { loadDecisions, STORAGE_KEY } from "../src/app.js";
 import { initReleasesPage } from "../src/releases-page.js";
 import { REAL_RECORD_LINK_LABEL } from "../src/deployed-release.js";
-import { loadPage, textOf } from "./support/browser.js";
+import { loadPage, pressTab, tabSequence, textOf } from "./support/browser.js";
 import { waitFor } from "./support/page-module.js";
 
 function memoryStorage(initial = {}) {
@@ -571,12 +571,13 @@ test("the real record of this deployment has one name everywhere the page names 
     1,
     "the deployment-proof heading is the record block's only full-name occurrence",
   );
-  assert.equal(textOf(page.document.querySelector("#deployment-release-record")), REAL_RECORD_LINK_LABEL);
   assert.equal(
     textOf(page.document.querySelector("#shipped-build-copy")),
     "Copy link to the real record of this deployment",
   );
   assert.equal(REAL_RECORD_LINK_LABEL, "Open the real record of this deployment");
+  // The check no longer links back to the record: they share one block (#2487).
+  assert.equal(page.document.querySelectorAll("#deployment-release-record").length, 0);
 
   // The check keeps its own name and still says in one sentence what it
   // compares — naming the compared-against record in those same words, in its
@@ -631,8 +632,7 @@ test("the deployment proof renders one record heading without losing its verific
   assert.equal(
     textOf(page.document.querySelector("#deployment-status-proof")),
     "Does the real record of this deployment name the running build’s version? It reads the"
-      + " running build when the page loads. The example decision and release above are invented;"
-      + " that record and this answer are not.",
+      + " running build when the page loads.",
   );
 
   // The question is asked once. It now opens the band, which is the place a
@@ -691,7 +691,6 @@ test("the deployment check and the record it compares name themselves one way ea
     textOf(doc.querySelector("#deployment-evidence-summary")),
     "Evidence: what the running build answered, and the real record of this deployment it was compared with",
   );
-  assert.equal(textOf(doc.querySelector("#deployment-release-record")), "Open the real record of this deployment");
 
   // Retired: the labels that named the verdict without naming the check that
   // produced it, and the deleted waiting line.
@@ -756,12 +755,9 @@ test("no destination in the page's authored regions is offered under two labels"
   const hrefs = links.map((link) => link.getAttribute("href"));
   assert.equal(new Set(hrefs).size, hrefs.length, "two links in these regions go to the same place");
 
-  // The record is still offered, once, by the deployment check — the band that
-  // needs to say which record it compared against. Read off the rendered DOM,
-  // because deployment-status-view.js writes that label rather than the markup.
-  const checkRecord = page.document.querySelector("#deployment-release-record");
-  assert.equal(textOf(checkRecord), REAL_RECORD_LINK_LABEL);
-  assert.equal(checkRecord.getAttribute("href"), "/releases.html#shipped-build");
+  // The check does not link to the record it compared against: the record is
+  // the rest of the block the check sits in (#2487).
+  assert.equal(page.document.querySelectorAll("#deployment-release-record").length, 0);
   assert.equal(page.document.querySelectorAll("#shipped-build-detail").length, 0);
   assert.equal(page.document.querySelectorAll("#deployment-commit").length, 0);
 });
@@ -785,7 +781,8 @@ test("the loading page clearly discloses one actionable invented release with bo
   }
 
   assert.ok(demo.classList.contains("shiplog-demo"), "the demonstration has its own visual treatment");
-  assert.ok(real.classList.contains("shiplog-real"), "the running build retains its real-record treatment");
+  // The treatment is on the block the record shares with the deployment check.
+  assert.ok(real.parentNode.classList.contains("shiplog-real"), "the running build retains its real-record treatment");
   assert.equal(demo.classList.contains("shiplog-real"), false);
   const links = demo.querySelectorAll("a");
   assert.ok(links.some((link) => link.getAttribute("href") === "/release.html?id=demo-r-1-3-0"));
@@ -805,4 +802,121 @@ test("the example record's completed status is cased the way its filter option i
   const badge = markup.match(/<dt>Release status<\/dt><dd><span class="badge badge-release-completed">([^<]+)</);
   assert.ok(badge, "the example record no longer renders a release status badge");
   assert.equal(badge[1], textOf(option), "the example record and the filter case the same status differently");
+});
+
+// (#2487) The page's one checkable proof is one block: the real record of this
+// deployment and the deployment check that compares against it, with the
+// invented example wholly outside it. The example used to stand between the
+// two, so the check carried a link back up the page and a sentence telling the
+// two apart. Positions are read off a walk of the rendered tree, because the
+// harness has no compareDocumentPosition and rejects descendant selectors.
+function elementsInOrder(node, found = []) {
+  for (const child of node.children ?? []) {
+    // Text nodes sit in children too; they carry no getAttribute.
+    if (typeof child.getAttribute !== "function") continue;
+    found.push(child);
+    elementsInOrder(child, found);
+  }
+  return found;
+}
+
+function isInside(node, container) {
+  for (let current = node; current; current = current.parentNode) if (current === container) return true;
+  return false;
+}
+
+test("the real record and the deployment check share one block, with the example wholly after it", async (t) => {
+  const page = await openReleasesPage(t);
+  const doc = page.document;
+  await waitFor(() => doc.documentElement.dataset.shiplogReleases === "ready", "the releases page never finished rendering");
+  const block = doc.querySelector("#real-deployment");
+  const example = doc.querySelector("#shiplog-proof");
+  const record = doc.querySelector("#shipped-build");
+  const check = doc.querySelector("#deployment-status");
+  const order = elementsInOrder(doc.querySelector("#main-content"));
+  const span = (node) => {
+    const start = order.indexOf(node);
+    return [start, start + order.filter((element) => element !== node && isInside(element, node)).length];
+  };
+
+  // (a) One container holds both halves, record first, and nothing of the
+  // example between them.
+  assert.equal(isInside(record, block), true, "the record left the real-deployment block");
+  assert.equal(isInside(check, block), true, "the deployment check left the real-deployment block");
+  const [recordStart, recordEnd] = span(record);
+  const [checkStart] = span(check);
+  assert.ok(recordStart >= 0 && recordStart < checkStart, "the check comes before the record it compares against");
+  assert.doesNotMatch(textOf(block), /Example records|From decision to release|invented/);
+  assert.equal(
+    order.slice(recordEnd + 1, checkStart).filter((node) => isInside(node, example)).length,
+    0,
+    "example content stands between the record and the check",
+  );
+
+  // (b) The example is wholly before or wholly after the block — after it.
+  const [blockStart, blockEnd] = span(block);
+  const [exampleStart, exampleEnd] = span(example);
+  assert.equal(isInside(example, block), false);
+  assert.ok(exampleStart > blockEnd || exampleEnd < blockStart, "the example overlaps the real-deployment block");
+  assert.ok(exampleStart > blockEnd, "the example no longer follows the evidence");
+  assert.match(textOf(example), /Example records/);
+
+  // One heading hierarchy: the block's heading, the check one level under it,
+  // and the verdict's live region outside every disclosure.
+  assert.equal(doc.querySelector("#shipped-build-title").tagName, "H2");
+  assert.equal(doc.querySelector("#deployment-status-title").tagName, "H3");
+  assert.equal(block.getAttribute("aria-labelledby"), "shipped-build-title");
+  for (let node = doc.querySelector("#deployment-verdict"); node; node = node.parentNode) {
+    assert.notEqual(node.tagName, "DETAILS", "the verdict's live region is folded inside a disclosure");
+  }
+
+  // (c) All three actions live in the block.
+  const source = doc.querySelector("#shipped-build-source");
+  const copyRecord = doc.querySelector("#shipped-build-copy");
+  const copyVerdict = doc.querySelector("#deployment-copy");
+  assert.match(textOf(source), /^Open commit [0-9a-f]{12} in the public repository$/);
+  assert.equal(textOf(copyRecord), "Copy link to the real record of this deployment");
+  assert.equal(textOf(copyVerdict), "Copy the deployment check verdict and both versions");
+  for (const action of [source, copyRecord, copyVerdict]) {
+    assert.equal(isInside(action, block), true, `${action.getAttribute("id")} left the real-deployment block`);
+  }
+  // The copied link still resolves inside the block.
+  const copiedFragment = copyRecord.dataset.copyUrl.split("#")[1];
+  assert.equal(copiedFragment, "shipped-build");
+  assert.equal(isInside(doc.getElementById(copiedFragment), block), true);
+
+  // (d) No link in the block sends a reader to an anchor outside it, and the
+  // sentence that told the example and the answer apart is gone.
+  const blockLinks = doc.querySelectorAll("a").filter((link) => isInside(link, block));
+  assert.ok(blockLinks.length >= 1, "the block offers no link at all; the markup shape changed");
+  for (const link of blockLinks) {
+    const href = link.getAttribute("href") ?? "";
+    if (!href.startsWith("#") && !href.startsWith("/releases.html")) continue;
+    const fragment = href.split("#")[1];
+    assert.ok(fragment, `${href} leaves the block for the top of this page`);
+    assert.equal(isInside(doc.getElementById(fragment), block), true, `${href} points outside the block`);
+  }
+  assert.equal(doc.querySelectorAll("#deployment-release-record").length, 0);
+  const markup = await readFile(RELEASES_PAGE, "utf8");
+  for (const text of [textOf(doc.querySelector("#main-content")), markup]) {
+    assert.equal(text.includes("that record and this answer are not"), false);
+    assert.equal(text.includes("Open the real record of this deployment"), false);
+  }
+
+  // (e) Tab runs through the block's controls in one unbroken run.
+  const sequence = tabSequence(doc);
+  const stops = sequence.filter((element) => isInside(element, block));
+  assert.ok(stops.length >= 4, `only ${stops.length} tab stops in the block`);
+  for (const action of [source, copyRecord, copyVerdict]) {
+    assert.ok(sequence.includes(action), `${action.getAttribute("id")} is not a tab stop`);
+  }
+  const first = sequence.indexOf(stops[0]);
+  assert.equal(sequence.indexOf(stops.at(-1)) - first + 1, stops.length, "the block's tab stops are interrupted");
+  stops[0].focus();
+  for (let press = 1; press < stops.length; press += 1) {
+    const reached = pressTab(doc);
+    assert.equal(isInside(reached, example), false, "Tab reached an example-record control inside the run");
+    assert.equal(isInside(reached, block), true, "Tab left the block before reaching all of its controls");
+  }
+  assert.equal(isInside(pressTab(doc), block), false, "Tab stayed in the block after its last control");
 });

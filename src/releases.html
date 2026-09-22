@@ -104,8 +104,17 @@
            The link's authored href is the public repository, which is true
            whatever the stamp says; the module narrows it to the exact commit.
            An unstamped build replaces the marking and the note and withdraws
-           the link rather than showing a record it cannot back. -->
-      <section class="shiplog-proof shiplog-real" id="shipped-build" aria-labelledby="shipped-build-title" tabindex="-1">
+           the link rather than showing a record it cannot back.
+
+           ONE BLOCK FOR THE PAGE'S ONE CHECKABLE PROOF (#2487): the record and
+           the deployment check that compares against it share this section,
+           and the invented example stands wholly after it. The example used to
+           sit between the two, so the check needed a link back up the page to
+           the record and a sentence telling the two apart. The record keeps the
+           shipped-build id, which the copy button and the Agent observatory
+           link to, so that address still lands inside this block. -->
+      <section class="shiplog-proof shiplog-real" id="real-deployment" aria-labelledby="shipped-build-title">
+      <div class="shiplog-real-record" id="shipped-build" tabindex="-1">
         <div class="shiplog-proof-heading">
           <div>
             <h2 id="shipped-build-title">Real record of this deployment</h2>
@@ -121,8 +130,7 @@
                words as the deployment check's record link below, so a link list
                showed the same label twice for one address, and the block offered
                a reader a way to arrive where they already were. The button
-               beside this hands over that address, and the check's record link
-               is the one that carries a reader to it. -->
+               beside this hands over that address. -->
           <button class="share-button" id="shipped-build-copy" type="button" aria-describedby="shipped-build-copy-status">Copy link to the real record of this deployment</button>
           <span class="share-status" id="shipped-build-copy-status" role="status" aria-live="polite" aria-atomic="true"></span>
           <!-- Its own class, deliberately not .shiplog-proof-link: that class is
@@ -139,6 +147,50 @@
              and offers no link; an unstamped build leaves both empty. -->
         <dl class="shiplog-proof-facts" id="shipped-build-reason"></dl>
         <p class="shiplog-proof-note" id="shipped-build-reason-note" hidden></p>
+      </div>
+      <!-- Deployment check: does what is running match the real record of this
+           deployment directly above it, in this same block? Read only — it
+           probes /healthz, compares, and links; it never deploys, rolls back,
+           or writes a record. A subsection of the record, so its heading sits
+           one level under the record's.
+
+           The question leads, as it does in the front door's copy of this band
+           (#2122): a reader meets what is being compared before the machinery
+           that compares it. It is static markup, not a slot: what this check
+           proves is true before the probe answers and stays true if it never
+           does. The waiting line under it is the front door's, word for word
+           (#2423), so a reader who follows the front door's link here meets the
+           same words they left.
+
+           No link back to the record: it is the rest of this block. The row
+           that used to carry one also carried the commit link, which the record
+           above already offers under the same words.
+
+           The classes are the release follow-up callout's, reused rather than
+           extended: styles.css is at its measured size budget.
+           deployment-status-view.js fills every slot below through textContent
+           and swaps the callout to the red variant off a match. The verdict's
+           live region stays outside the evidence disclosure, which is a details
+           element so Enter and Space both operate it; the summary's
+           aria-expanded is mirrored from the element's own open state. -->
+      <section class="release-followup-slot" id="deployment-status" aria-labelledby="deployment-status-title">
+        <div class="release-followup" id="deployment-status-callout">
+          <h3 class="release-followup-title" id="deployment-status-title">Deployment check</h3>
+          <p class="release-followup-lead" id="deployment-status-proof">Does the real record of this deployment name the running build’s version? It reads the running build when the page loads.</p>
+          <p class="release-followup-lead" id="deployment-verdict" role="status">Checking the running build now…</p>
+          <p class="detail-summary" id="deployment-identifiers"></p>
+          <div class="shiplog-proof-share">
+            <button class="share-button" id="deployment-copy" type="button" disabled aria-describedby="deployment-copy-status">Copy the deployment check verdict and both versions</button>
+            <span class="share-status" id="deployment-copy-status" role="status" aria-live="polite" aria-atomic="true"></span>
+          </div>
+          <p class="detail-summary" id="deployment-metric"></p>
+          <div id="deployment-next-action"></div>
+          <details class="supersede-disclosure" id="deployment-evidence" data-disclosure="collapsed">
+            <summary class="supersede-disclosure-summary" id="deployment-evidence-summary" aria-expanded="false" aria-controls="deployment-evidence-body">Evidence: what the running build answered, and the real record of this deployment it was compared with</summary>
+            <dl class="supersede-disclosure-body" id="deployment-evidence-body"></dl>
+          </details>
+        </div>
+      </section>
       </section>
 
       <section class="shiplog-proof shiplog-demo" id="shiplog-proof" aria-labelledby="shiplog-proof-title" aria-describedby="shiplog-proof-note" tabindex="-1">
@@ -165,76 +217,6 @@
           <a class="shiplog-proof-link" href="/releases.html?focus=demo-r-1-3-0#shiplog-proof">Open this example release</a>
           <button class="share-button" id="shiplog-proof-copy" type="button" aria-describedby="shiplog-proof-copy-status">Copy link to this example release</button>
           <span class="share-status" id="shiplog-proof-copy-status" role="status" aria-live="polite" aria-atomic="true"></span>
-        </div>
-      </section>
-
-      <!-- Deployment check: does what is running match the real record of this
-           deployment above? Read only — it probes /healthz, compares, and
-           links; it never deploys, rolls back, or writes a record.
-
-           It used to compare against "the newest release record below", which
-           was an invented demonstration record — so the band named a record it
-           should never have been checked against. It is pointed at the one
-           record on this page marked as real, and the verdict names that record
-           in the same words its marking uses.
-
-           The question leads, as it does in the front door's copy of this band
-           (#2122): a reader meets what is being compared before the machinery
-           that compares it, rather than a status line, a caveat and a copy
-           control ahead of the sentence that says what any of it is for. It is
-           static markup, not a slot: what this check proves is true before the
-           probe answers and stays true if it never does, so a reader with no
-           JavaScript still learns what the band is for. It also draws the line
-           the rest of this page draws — the example decision and release above
-           are invented, this answer is not.
-
-           The waiting line under it is static markup for the same reason, so a
-           reader who meets the band before the probe answers, or who never gets
-           an answer, still reads a sentence rather than a blank. It is the
-           front door's waiting line, word for word (#2423): this page used to
-           carry a second, longer one that named the version being retrieved and
-           the record it would be compared with, which is what the question
-           directly above it already says. One fetch, one sentence, on both
-           pages — a reader who follows the front door's link here meets the
-           same words they left.
-
-           The classes are the release follow-up callout's, reused rather than
-           extended: styles.css is at its measured size budget, and this band is
-           the same thing that pattern already means — one state, one sentence,
-           one way out. deployment-status-view.js fills every slot below through
-           textContent and swaps the callout to the red variant off a match.
-
-           The evidence is a details element so the disclosure is the browser's:
-           Enter and Space both operate it, and the summary's aria-expanded is
-           mirrored from the element's own open state. -->
-      <section class="release-followup-slot" id="deployment-status" aria-labelledby="deployment-status-title">
-        <div class="release-followup" id="deployment-status-callout">
-          <h2 class="release-followup-title" id="deployment-status-title">Deployment check</h2>
-          <p class="release-followup-lead" id="deployment-status-proof">Does the real record of this deployment name the running build’s version? It reads the running build when the page loads. The example decision and release above are invented; that record and this answer are not.</p>
-          <p class="release-followup-lead" id="deployment-verdict" role="status">Checking the running build now…</p>
-          <p class="detail-summary" id="deployment-identifiers"></p>
-          <div class="shiplog-proof-share">
-            <button class="share-button" id="deployment-copy" type="button" disabled aria-describedby="deployment-copy-status">Copy the deployment check verdict and both versions</button>
-            <span class="share-status" id="deployment-copy-status" role="status" aria-live="polite" aria-atomic="true"></span>
-          </div>
-          <!-- One way out, to the record this check compares against. The row
-               used to carry a second link to the commit, which
-               deployment-status-view.js narrows to the same commit, under the
-               same words, as the record block's own commit link higher up the
-               page — one destination offered twice on one screen. The front
-               door keeps its copy of that link: there the check is the only
-               block on the page, and the commit has nowhere else to be offered.
-               Here the path is the check, then the record, then the commit the
-               record links. -->
-          <div class="shiplog-proof-share" id="deployment-proof-links">
-            <a class="shiplog-real-link" id="deployment-release-record" href="/releases.html#shipped-build">Open the real record of this deployment</a>
-          </div>
-          <p class="detail-summary" id="deployment-metric"></p>
-          <div id="deployment-next-action"></div>
-          <details class="supersede-disclosure" id="deployment-evidence" data-disclosure="collapsed">
-            <summary class="supersede-disclosure-summary" id="deployment-evidence-summary" aria-expanded="false" aria-controls="deployment-evidence-body">Evidence: what the running build answered, and the real record of this deployment it was compared with</summary>
-            <dl class="supersede-disclosure-body" id="deployment-evidence-body"></dl>
-          </details>
         </div>
       </section>
 
