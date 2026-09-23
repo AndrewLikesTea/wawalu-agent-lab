@@ -133,7 +133,8 @@ test("the picker is read and reached before the name, the count, and the results
     assert.equal(inMain[0].getAttribute("href"), "/social.html",
       "the first tab stop in main is not the intro's route to Social");
     assert.equal(inMain[0].parentNode?.classList?.contains("profile-lede"), true);
-    assert.deepEqual(inMain.slice(1, 4).map((element) => element.dataset.author), ["Ari", "Bea", "Zed"],
+    assert.equal(inMain[1].id, "ask-about-shiplog");
+    assert.deepEqual(inMain.slice(2, 5).map((element) => element.dataset.author), ["Ari", "Bea", "Zed"],
       "the first controls in main are not the display-name buttons in reading order");
     for (const chip of chips(page))
       assert.equal(chip.getAttribute("tabindex"), null, "the order is markup order, not a tabindex trick");
@@ -874,12 +875,13 @@ test("tabbing from the top reaches the picker, then the posts under the header",
     // Walked, not read off the markup: every stop is a real focus move made by
     // the page harness that boots the shipped markup with the shipped module.
     document.querySelectorAll(".profile-lede")[1].querySelectorAll("a")[0].focus();
+    assert.equal(pressTab(document).id, "ask-about-shiplog");
     const tiles = drawnTiles(document);
     const walked = [];
     // Two stops per post: the tile, then its Report post button (#2343).
     for (let step = 0; step < 4 + tiles.length * 2 + 2; step += 1) walked.push(pressTab(document));
     assert.deepEqual(walked.slice(0, 3).map((node) => node.dataset?.author), ["Ari", "Bea", "Zed"],
-      "the display-name picker is not the first thing a keyboard reaches in main");
+      "the display-name picker must follow the introduction links");
     // Then the way out of the filter the reader has just set: the selected
     // display name's whole feed on Social (#2193). It is the last stop in the
     // filter region and comes before the heading that names the results, so a
@@ -917,14 +919,12 @@ test("tabbing from the top reaches the picker, then the posts under the header",
     assert.ok(at(document.querySelector("#profile-social-route")) < at(document.querySelector("#grid-title")));
     assert.ok(at(document.querySelector("#profile-order")) < at(walked[4]));
     assert.ok(at(walked[3 + tiles.length * 2]) < at(document.querySelector("#profile-paint-route")));
-    // Nothing above the results region but the filter region itself: the intro's
-    // link to Social, the picker, and the picker's own way out of the filter it
-    // sets. Every one of them belongs to choosing a display name, and none of
-    // them stands between the heading that names the results and the results.
+    // Introduction links and the filter precede the results. None stands
+    // between the heading that names the results and the results.
     const inMain = tabSequence(document).filter((element) => element.closest("#main-content"));
     const beforePanel = inMain.filter((element) => !element.closest(".list-panel"));
     assert.deepEqual(beforePanel.map((element) => element.dataset?.author ?? element.getAttribute("href")),
-      ["/social.html", "Ari", "Bea", "Zed", "/social.html?author=Zed"]);
+      ["/social.html", "#site-footer-panel", "Ari", "Bea", "Zed", "/social.html?author=Zed"]);
   } finally {
     page.restore();
   }
