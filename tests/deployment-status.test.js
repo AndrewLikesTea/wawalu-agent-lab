@@ -809,16 +809,15 @@ test("the front door's check links the commit this build was made from", async (
   assert.ok(reachedCommit < reachedAction, "the commit link is out of reading order with the section around it");
 });
 
-test("the front door and the releases page name that one commit the same way", async (t) => {
+test("the front door and the releases page link the same commit, with full evidence on Releases", async (t) => {
   const home = await openHome(t, { readHealth: answers({ status: "ok", build: "v2.1.0" }) });
   const releases = await openReleasesWithStamp(t, HOME_STAMP);
   const homeLink = commitLink(home);
   const releasesLink = releases.document.querySelector("#shipped-build-source");
 
-  // Same destination and same accessible name, byte for byte — and both equal
-  // the shared derivation, so neither page can be edited alone.
+  // Releases exposes the full identifier; both surfaces open the same commit.
   assert.equal(homeLink.getAttribute("href"), releasesLink.getAttribute("href"));
-  assert.equal(textOf(homeLink), textOf(releasesLink));
+  assert.equal(textOf(releasesLink), `Open commit ${HOME_SHA} in the public repository`);
   assert.equal(textOf(homeLink), commitLinkText(HOME_SHA));
   assert.equal(homeLink.getAttribute("href"), `${REPOSITORY_URL}/commit/${HOME_SHA}`);
 });

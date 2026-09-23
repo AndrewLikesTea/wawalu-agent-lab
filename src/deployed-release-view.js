@@ -19,7 +19,8 @@ import {
   NO_RECORD_LABEL,
   REAL_LABEL,
   REAL_MARKING,
-  commitLinkText,
+  commitUrl,
+  normalizeCommitSha,
   parseShipReason,
   pullRequestUrl,
   sameSiteHref,
@@ -124,7 +125,8 @@ export function renderShippedBuild(root, record, options = {}) {
   const reason = byId(root, SHIPPED_BUILD_IDS.reason);
   const reasonNote = byId(root, SHIPPED_BUILD_IDS.reasonNote);
 
-  if (!record) {
+  const commit = normalizeCommitSha(record?.commitSha);
+  if (!commit) {
     panel.dataset.shippedBuild = "unstamped";
     // The heading and the marking go with the record. With no record there is
     // nothing to name and nothing to mark as real, so both say that instead of
@@ -133,7 +135,11 @@ export function renderShippedBuild(root, record, options = {}) {
     if (marking) marking.textContent = NO_RECORD_LABEL;
     if (note) note.textContent = UNSTAMPED_NOTE;
     if (facts) facts.replaceChildren();
-    if (source) source.hidden = true;
+    if (source) {
+      source.hidden = true;
+      source.removeAttribute("href");
+      source.textContent = "";
+    }
     if (copy) copy.hidden = true;
     if (copyStatus) copyStatus.textContent = "";
     // No commit, so no commit message to give a reason from.
@@ -151,18 +157,18 @@ export function renderShippedBuild(root, record, options = {}) {
   if (note) note.textContent = REAL_NOTE;
   if (facts) {
     facts.replaceChildren(
-      fact(doc, "Version", record.version),
+      fact(doc, "Build commit", commit),
       fact(doc, "Released", record.createdAt),
       fact(doc, "Owner", record.owner),
       fact(doc, "Status", record.status),
       fact(doc, "Summary", record.description),
     );
   }
-  if (source && record.sourceUrl) {
+  if (source) {
     source.hidden = false;
-    source.href = record.sourceUrl;
-    source.setAttribute("href", record.sourceUrl);
-    source.textContent = commitLinkText(record.commitSha);
+    source.href = commitUrl(commit);
+    source.setAttribute("href", commitUrl(commit));
+    source.textContent = `Open commit ${commit} in the public repository`;
   }
   renderShipReason(doc, reason, reasonNote, record.commitSubject);
   // Checked, not trusted: a record whose detailHref is not a link into this

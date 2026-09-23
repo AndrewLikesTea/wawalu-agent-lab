@@ -170,7 +170,7 @@ test("the real record names the deployed version and links a public commit a vis
   assert.equal(source.getAttribute("href"), `${REPOSITORY_URL}/commit/${SHA}`);
   assert.equal(source.hidden, false);
   // Named by the commit it opens, not by an adjective about it.
-  assert.equal(textOf(source), "Open commit 0123456789ab in the public repository");
+  assert.equal(textOf(source), `Open commit ${SHA} in the public repository`);
   assert.doesNotMatch(textOf(panel), /proven|verified|guaranteed|trusted/i);
 });
 
@@ -539,7 +539,7 @@ function assertRecordUnchanged(page) {
   const source = page.document.querySelector("#shipped-build-source");
   assert.equal(source.hidden, false);
   assert.equal(source.getAttribute("href"), `${REPOSITORY_URL}/commit/${SHA}`);
-  assert.equal(textOf(source), "Open commit 0123456789ab in the public repository");
+  assert.equal(textOf(source), `Open commit ${SHA} in the public repository`);
   assert.equal(page.document.querySelector("#shipped-build-copy").hidden, false);
 }
 
@@ -609,4 +609,64 @@ test("an unstamped build gives no reason, even when a subject reached the stamp"
   assert.equal(reason.list.children.length, 0);
   assert.equal(reason.pulls.length, 0);
   assert.equal(reason.note.hidden, true);
+});
+
+// The initial markup must never offer the repository root as commit evidence.
+test("commit evidence stays unavailable while the page module loads, then announces a load failure", async (t) => {
+  const { bootReleases } = await import("../src/releases-bootstrap.js");
+  const page = await loadPage(RELEASES_PAGE);
+  t.after(() => page.restore());
+  const panel = page.document.querySelector("#shipped-build");
+  const source = page.document.querySelector("#shipped-build-source");
+  const note = page.document.querySelector("#shipped-build-note");
+  let fail;
+  const pending = bootReleases(page.document, () => new Promise((_, reject) => { fail = reject; }));
+  assert.equal(panel.dataset.shippedBuild, "loading");
+  assert.match(textOf(note), /Loading deployment commit evidence/);
+  assert.equal(note.getAttribute("role"), "status");
+  assert.equal(note.getAttribute("aria-live"), "polite");
+  assert.equal(source.hidden, true);
+  assert.equal(source.getAttribute("href"), null);
+  assert.equal(page.document.querySelector("#shipped-build-facts").children.length, 0);
+  fail(new Error("module unavailable"));
+  await pending;
+  assert.equal(panel.dataset.shippedBuild, "failed");
+  assert.match(textOf(note), /could not load.*Reload/);
+  assert.equal(source.getAttribute("href"), null);
+  assert.doesNotMatch(textOf(panel), new RegExp(SHA));
+});
+
+test("loading resolves to the exact authoritative commit independently of a pending health check", async (t) => {
+  const page = await open(t, { readHealth: () => new Promise(() => {}), settle: false });
+  const facts = textOf(page.document.querySelector("#shipped-build-facts"));
+  assert.match(facts, new RegExp(`Build commit${SHA}`));
+  const source = page.document.querySelector("#shipped-build-source");
+  assert.equal(textOf(source), `Open commit ${SHA} in the public repository`);
+  assert.equal(source.getAttribute("href"), `${REPOSITORY_URL}/commit/${SHA}`);
+});
+
+test("missing or malformed evidence clears a previously rendered commit without borrowing the version", async (t) => {
+  const page = await open(t);
+  const record = deployedReleaseRecord(STAMPED);
+  for (const commitSha of [null, undefined, "", "not-a-commit", "../main", 123]) {
+    renderShippedBuild(page.document, record);
+    renderShippedBuild(page.document, { ...record, commitSha });
+    const source = page.document.querySelector("#shipped-build-source");
+    assert.equal(source.hidden, true);
+    assert.equal(source.getAttribute("href"), null);
+    assert.equal(textOf(source), "");
+    assert.equal(page.document.querySelector("#shipped-build-facts").children.length, 0);
+    assert.match(textOf(page.document.querySelector("#shipped-build-note")), /records no commit/);
+    assert.doesNotMatch(textOf(page.document.querySelector("#shipped-build")), new RegExp(SHA));
+  }
+});
+
+test("the verification destination is constructed from the commit, never a supplied root or foreign URL", async (t) => {
+  const page = await open(t);
+  for (const sourceUrl of [REPOSITORY_URL, "https://example.com/commit/abcdef0", null]) {
+    renderShippedBuild(page.document, { ...deployedReleaseRecord(STAMPED), sourceUrl });
+    const source = page.document.querySelector("#shipped-build-source");
+    assert.equal(source.getAttribute("href"), `${REPOSITORY_URL}/commit/${SHA}`);
+    assert.equal(textOf(source), `Open commit ${SHA} in the public repository`);
+  }
 });
