@@ -305,7 +305,7 @@ test("releases page is wired and linked from the decisions page", async () => {
   // announces it, so there is no second copy to keep in step with the first.
   assert.equal(page.match(/Loading releases/g).length, 1, "the wait is stated more than once");
   assert.match(page, /<div class="list-state list-state-loading" id="release-list-status" role="status" aria-live="polite">/);
-  assert.match(page, /src="\/releases-page\.js"/);
+  assert.match(page, /src="\/releases-bootstrap\.js"/);
   // No innerHTML anywhere in the interactive layers (no user-generated HTML).
   const component = await read("src/releases.js");
   assert.match(component, /const heading = el\("h3", "release-heading"\)/);
@@ -625,7 +625,7 @@ test("the deployment proof renders one record heading without losing its verific
   );
 
   const source = page.document.querySelector("#shipped-build-source");
-  assert.match(textOf(source), /^Open commit [0-9a-f]{12} in the public repository$/);
+  assert.match(textOf(source), /^Open commit [0-9a-f]{40} in the public repository$/);
   assert.match(source.getAttribute("href"), /github\.com\/AndrewLikesTea\/wawalu-agent-lab\/commit\/[0-9a-f]{40}$/);
 
   assert.equal(textOf(page.document.querySelector("#deployment-status-title")), "Deployment check");
@@ -874,7 +874,7 @@ test("the real record and the deployment check share one block, with the example
   const source = doc.querySelector("#shipped-build-source");
   const copyRecord = doc.querySelector("#shipped-build-copy");
   const copyVerdict = doc.querySelector("#deployment-copy");
-  assert.match(textOf(source), /^Open commit [0-9a-f]{12} in the public repository$/);
+  assert.match(textOf(source), /^Open commit [0-9a-f]{40} in the public repository$/);
   assert.equal(textOf(copyRecord), "Copy link to the real record of this deployment");
   assert.equal(textOf(copyVerdict), "Copy the deployment check verdict and both versions");
   for (const action of [source, copyRecord, copyVerdict]) {

@@ -1537,9 +1537,9 @@ test("a page that already published the repository does not publish it twice in 
     try {
       const inMain = repositoryLinksIn(document.querySelector("main"));
       const inFooter = repositoryLinksIn(byId(document, "site-footer"));
-      assert.equal(inMain.length, 1, `${file}: the content region links the repository more than once`);
+      assert.equal(inMain.length, file === "releases.html" ? 0 : 1, `${file}: only loaded commit evidence may link the Releases verification control`);
       assert.equal(inFooter.length, 1, `${file}: the About block links the repository more than once`);
-      assert.notEqual(inMain[0].id, SOURCE_ID, `${file}: the page's own link and the block's are the same node`);
+      assert.notEqual(inMain[0]?.id, SOURCE_ID, `${file}: the page's own link and the block's are the same node`);
       assert.equal(inFooter[0].id, SOURCE_ID);
     } finally {
       page.restore();

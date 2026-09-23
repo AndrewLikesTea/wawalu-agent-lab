@@ -114,14 +114,14 @@
            shipped-build id, which the copy button and the Agent observatory
            link to, so that address still lands inside this block. -->
       <section class="shiplog-proof shiplog-real" id="real-deployment" aria-labelledby="shipped-build-title">
-      <div class="shiplog-real-record" id="shipped-build" tabindex="-1">
+      <div class="shiplog-real-record" id="shipped-build" data-shipped-build="loading" tabindex="-1">
         <div class="shiplog-proof-heading">
           <div>
             <h2 id="shipped-build-title">Real record of this deployment</h2>
           </div>
-          <span class="badge badge-real" id="shipped-build-marking">Real record</span>
+          <span class="badge badge-real" id="shipped-build-marking">Loading record</span>
         </div>
-        <p class="shiplog-proof-note" id="shipped-build-note">This record is not an example. The build that produced the page you are reading wrote it, from the commit that build was made from. Open that commit below and check it against the public repository.</p>
+        <p class="shiplog-proof-note" id="shipped-build-note" role="status" aria-live="polite" aria-atomic="true">Loading deployment commit evidence. If this message remains, evidence could not load; reload this page to try again.</p>
         <dl class="shiplog-proof-facts" id="shipped-build-facts"></dl>
         <div class="shiplog-proof-share">
           <!-- One label per destination, and one link per destination. This row
@@ -131,14 +131,14 @@
                showed the same label twice for one address, and the block offered
                a reader a way to arrive where they already were. The button
                beside this hands over that address. -->
-          <button class="share-button" id="shipped-build-copy" type="button" aria-describedby="shipped-build-copy-status">Copy link to the real record of this deployment</button>
+          <button class="share-button" id="shipped-build-copy" hidden type="button" aria-describedby="shipped-build-copy-status">Copy link to the real record of this deployment</button>
           <span class="share-status" id="shipped-build-copy-status" role="status" aria-live="polite" aria-atomic="true"></span>
           <!-- Its own class, deliberately not .shiplog-proof-link: that class is
                how releases-page.js finds the invented example's "Open this
                example release" control, and a second element wearing it would
                take the copy button's URL away from the record it names. Same
                look, one owner each. -->
-          <a class="shiplog-real-link" id="shipped-build-source" href="https://github.com/AndrewLikesTea/wawalu-agent-lab">Open the public repository this site is built from</a>
+          <a class="shiplog-real-link" id="shipped-build-source" hidden></a>
         </div>
         <!-- Why this build shipped: the subject line of the commit named above,
              which the build wrote beside its sha, and the pull request that
@@ -584,7 +584,7 @@
         </details>
       </div>
     </footer>
-    <script type="module" src="/releases-page.js"></script>
+    <script type="module" src="/releases-bootstrap.js"></script>
     <script type="module" src="/site-footer-page.js"></script>
   </body>
 </html>
