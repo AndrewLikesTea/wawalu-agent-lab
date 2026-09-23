@@ -1832,11 +1832,11 @@ test("the feed is what a first-time visitor reads first, and the composer follow
   // skip link's destination, then the trigger, then the feed's own controls.
   assert.equal(document.querySelector(".skip-link").getAttribute("href"), "#main-content");
   assert.equal(main.getAttribute("tabindex"), "-1");
-  assert.deepEqual(stops.slice(0, 4).map((node) => node.id),
-    ["post-compose-open", "post-name-filter", "post-time-filter", "post-filter-clear"],
+  assert.deepEqual(stops.slice(0, 5).map((node) => node.id),
+    ["post-compose-open", "ask-about-shiplog", "post-name-filter", "post-time-filter", "post-filter-clear"],
     "the first controls after the page heading are not the trigger and then the feed");
   // "No more than three tab stops from the skip link to the first feed control":
-  // the display-name filter is stop 2.
+  // the display-name filter is stop 3, after the follow-up link.
   assert.ok(stops.findIndex((node) => node.id === "post-name-filter") + 1 <= 3);
 });
 

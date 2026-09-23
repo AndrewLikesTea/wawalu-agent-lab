@@ -1,6 +1,6 @@
 .observatory-hero { display:grid; grid-template-columns:minmax(0,1fr) 250px; align-items:end; gap:48px; padding:clamp(64px,9vw,112px) 0 64px; }
 .observatory-hero h1 { margin-bottom:22px; }
-.observatory-hero>div>p:last-child { max-width:680px; margin:0; color:#555550; font-size:18px; line-height:1.65; }
+.observatory-hero>div>p:last-of-type { max-width:680px; margin:0; color:#555550; font-size:18px; line-height:1.65; }
 .signal-card { display:flex; align-items:center; gap:13px; border:1px solid #cfcdc5; border-radius:14px; padding:18px; background:rgba(255,255,255,.66); }
 .signal-card div { display:grid; gap:4px; }
 .signal-card strong { font-size:14px; }

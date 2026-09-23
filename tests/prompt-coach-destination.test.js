@@ -451,7 +451,7 @@ test("the promise is made once above the field, and then the page says how", asy
   assert.match(start, /first change to make/);
 });
 
-test("the page names itself and says what it does, and the introduction stops there", async () => {
+test("the page names itself, says what it does, and offers a follow-up", async () => {
   const { document } = await openCoach();
 
   // One name for this page: the nav link a visitor clicked, the browser tab,
@@ -464,13 +464,13 @@ test("the page names itself and says what it does, and the introduction stops th
 
   // Reading order inside the introduction, asserted on the elements rather than
   // on the markup: the page's name, then one sentence saying what it does and
-  // where the text stays. Nothing sits above the name, and nothing follows the
-  // purpose — the offer of the surface that reads a whole history is made once,
+  // where the text stays, followed by the follow-up action. Nothing sits above
+  // the name. The offer of the surface that reads a whole history is made once,
   // in the card under the grade, where the reader has a use for it.
   const hero = document.querySelector(".coach-hero");
   const label = (node) => node.id || node.getAttribute("class") || node.tagName;
-  assert.deepEqual(hero.childElements.map(label), ["page-title", "page-tagline"],
-    "the introduction must read name, then purpose, and stop");
+  assert.deepEqual(hero.childElements.map(label), ["page-title", "page-tagline", "hero-actions"],
+    "the introduction must read name, purpose, then follow-up action");
   assert.equal(hero.childElements[0].tagName, "H1");
 
   const purpose = textOf(byId(document, "page-tagline"));
@@ -499,8 +499,9 @@ test("Personal AI history is pitched once, in the card under the grade", async (
     "Personal AI history is pitched more than once above the footer directory");
   assert.equal(occurrences(textOf(document.querySelector(".coach-neighbour")), "Personal AI history"), 1,
     "the one pitch must be the answer in the “Also on this site” card");
-  assert.equal(document.querySelector(".coach-hero").querySelectorAll("a").length, 0,
-    "the introduction sends a reader nowhere but the field below it");
+  assert.deepEqual(document.querySelector(".coach-hero").querySelectorAll("a")
+    .map((link) => link.getAttribute("href")), ["#site-footer-panel"],
+    "the introduction offers only the follow-up, without a second history pitch");
 
   // The surviving pitch carries every fact the deleted one had, so nothing a
   // reader needed to choose the destination left with the duplicate.

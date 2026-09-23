@@ -239,10 +239,11 @@ test("Social's route into Paint is the composer's control, and there is no secon
     "Social's hero offers Paint a second time again");
   // The hero still has its one route into the composer. It reveals the panel
   // now rather than jumping to it, so it is a disclosure trigger and not a
-  // link — and it is the only control the hero offers.
+  // link. The follow-up action comes after it.
   const heroControls = documents.Social.querySelector(".hero-actions")
     .querySelectorAll("a,button");
-  assert.equal(heroControls.length, 1);
+  assert.equal(heroControls.length, 2);
+  assert.equal(heroControls[1].getAttribute("id"), "ask-about-shiplog");
   assert.equal(heroControls[0].getAttribute("id"), "post-compose-open");
   assert.equal(heroControls[0].getAttribute("aria-controls"), "post-compose-panel");
 });
