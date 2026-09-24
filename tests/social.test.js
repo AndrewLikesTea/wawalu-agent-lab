@@ -338,7 +338,11 @@ test("social page is wired, labeled, and linked from the other pages", async () 
   // beside the heading says a thinner version of the same news, so announcing
   // both read every change out twice.
   assert.doesNotMatch(page, /id="post-count"[^>]*aria-live/);
-  assert.match(page, /<p class="feed-summary" id="feed-summary" aria-live="polite"><\/p>/);
+  // Atomic, because the sentence is one claim and not a set of clauses to read
+  // whichever of changed; and a focus target, because a successful Retry takes
+  // the button the reader was standing on with it and this is the line that
+  // says what came back (#2499). tabindex="-1" adds no tab stop.
+  assert.match(page, /<p class="feed-summary" id="feed-summary" aria-live="polite" aria-atomic="true" tabindex="-1"><\/p>/);
   // The live region ships empty, not hidden and not counting: a `hidden` region
   // announces unreliably when its text arrives, and a zero before the first
   // fetch is a claim the page has not earned.

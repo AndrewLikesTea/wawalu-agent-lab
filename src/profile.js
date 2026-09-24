@@ -27,7 +27,7 @@ import {
   OPEN_POST_LABEL, postDetailHref, profileHref, socialAllPostsLabel, socialFeedHref,
 } from "./social-links.js";
 import { imageDescription, renderDescriptionNote, renderImageUnavailable } from "./image-description.js";
-import { renderFeedStatus, feedPhase, feedPresence, setFilterAvailability } from "./feed-status.js";
+import { renderFeedStatus, feedPhase, feedPresence, retryFocus, setFilterAvailability } from "./feed-status.js";
 import { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH } from "./social-identity.js";
 import { mountPostReport, renderReportButton } from "./post-report.js";
 
@@ -367,8 +367,16 @@ export const PUBLISH_ON_SOCIAL = "Publish a post on Social";
 // the frame before hydration, where it once shipped "Ari hasn't posted an image
 // yet", a verdict that was false for the seeded feed.
 export function loadingSummaryText(author = DEFAULT_AUTHOR) {
-  return `Image posts are loading. ${PUBLISH_ON_SOCIAL} to add one.`;
+  return `${PROFILE_LOADING_ANNOUNCEMENT} ${PUBLISH_ON_SOCIAL} to add one.`;
 }
+
+// The wait as the live region says it, and the first sentence of the line above
+// rather than a second wording for one state. The panel keeps the clause that
+// offers something to do while the fetch runs; the announcement does not,
+// because a polite region interrupting a reader to suggest a trip to another
+// page is not news about this one — and because the sentence a screen reader is
+// walked past in the panel would otherwise be the same sentence twice.
+export const PROFILE_LOADING_ANNOUNCEMENT = "Image posts are loading.";
 
 // The counts line when the selected display name has nothing to show. It states
 // the situation without naming anyone, because the heading directly above it
@@ -489,6 +497,33 @@ export function profileActiveFilterLine(author, count = null, { counting = false
 export function profileAnnouncement(author, visibleCount) {
   if (visibleCount > 0) return `Showing ${countLabel(visibleCount, "image post")} by ${author}, newest first.`;
   return profileEmptyText(author);
+}
+
+// A failed load, announced (#2499). The panel that draws the failure is
+// rendered content and carries no live semantics of its own — it is built at
+// the moment it is needed, and a live region that arrives already holding its
+// words is not a change any assistive technology has been told to watch. So the
+// region that was here first says it, in the panel's own two shapes: a failed
+// first load has nothing to read, a failed refresh still has the tiles from the
+// last good one, and those are different news.
+//
+// It names the control by the words ON the control, so "retry" is not a verb
+// the reader has to go looking for a button to match.
+export function profileFailureAnnouncement(shownCount = 0) {
+  if (shownCount > 0) {
+    return `Image posts could not be updated. Showing the ${countLabel(shownCount, "image post")} already loaded. Select ${PROFILE_RETRY_LABEL}.`;
+  }
+  return `Image posts could not be loaded. Select ${PROFILE_RETRY_LABEL}.`;
+}
+
+// The one sentence the live region holds for whichever state this render drew.
+// One function so the four states cannot drift into four call sites, and so a
+// state added later has to answer here rather than fall through to silence —
+// which is what the failed load did before this existed.
+export function profileLoadAnnouncement({ state = "ready", author = DEFAULT_AUTHOR, shown = 0 } = {}) {
+  if (state === "loading") return PROFILE_LOADING_ANNOUNCEMENT;
+  if (state === "error") return profileFailureAnnouncement(shown);
+  return profileAnnouncement(author, shown);
 }
 
 /* ------------------------------ rendering layer --------------------------- */
@@ -704,6 +739,14 @@ export function renderProfileGrid(container, posts, options = {}) {
       renderFeedStatus(statusRegion, {
         state: "loading", label: "People feed loading", text: loadingSummaryText(author),
         append: statusRegion === container,
+        // #profile-feed-status is rendered content, not an announcement: this
+        // page's one voice is #profile-announcer, which ships in the markup and
+        // outlives every state. A `role="status"` drawn in here would be a
+        // second live region for one fetch — and one built at the moment its
+        // words arrive, which is the shape that announces unreliably or not at
+        // all — carrying `aria-label="People feed loading"`, a name for one of
+        // the four states on a node that passes through all of them.
+        quiet: statusRegion !== container,
       });
       renderSkeleton(container);
     } else if (phase === "failed") renderError(statusRegion, onRetry);
@@ -952,6 +995,18 @@ export function mountProfile(root, options = {}) {
   connection?.removeAttribute("hidden");
   const connectionLine = feedPresence(connection);
 
+  // Retry is drawn inside #profile-feed-status, so pressing it destroys the
+  // control the reader is standing on. THE DOCUMENTED LANDING FOR THIS REGION
+  // IS #profile-announcer: the page's one live region, authored in the markup,
+  // present in every state, and the node that is about to say what the retry
+  // produced. The visible panel cannot take the focus — it is hidden the moment
+  // tiles paint, and a reader left on a node that disappears is returned to the
+  // top of the document.
+  const retryLanding = retryFocus(elements.feedStatus ?? grid, elements.announcer ?? elements.heading);
+  const retryLoad = options.onRetry
+    ? () => { retryLanding.armed(); return options.onRetry(); }
+    : null;
+
   let posts = options.posts ?? [];
   let state = options.state ?? "ready";
   let author = options.author ?? DEFAULT_AUTHOR;
@@ -1022,7 +1077,7 @@ export function mountProfile(root, options = {}) {
     const filtered = Boolean(elsewhere) && elsewhere !== author;
     renderProfileGrid(grid, mine, {
       state,
-      onRetry: options.onRetry,
+      onRetry: retryLoad,
       author,
       statusRegion: elements.feedStatus ?? grid,
       onReport: report ? (post, button) => report.open(post, button) : null,
@@ -1040,9 +1095,18 @@ export function mountProfile(root, options = {}) {
     // an open fetch it is a promise standing on the line that is already saying
     // the image posts are still loading.
     connectionLine.present(phase === "loaded" || phase === "empty");
-    if (elements.announcer && state === "ready") {
-      elements.announcer.textContent = profileAnnouncement(author, mine.length);
+    // Every state, not only the settled one (#2499). The wait used to be
+    // announced by a `role="status"` drawn inside the panel below and thrown
+    // away with it, and a failed load was announced by nothing at all: the
+    // reader who could not see the panel was told the image posts were coming
+    // and then never told they were not. One node says all four.
+    if (elements.announcer) {
+      elements.announcer.textContent = profileLoadAnnouncement({ state, author, shown: mine.length });
     }
+    // Last, with the announcement in place: a reader who pressed Retry is put
+    // on the new Retry if this attempt failed too, and otherwise on the region
+    // above, which is now holding the news.
+    retryLanding.settle(state);
     if (options.onRender) options.onRender({ author, posts: mine, summary });
   };
 
