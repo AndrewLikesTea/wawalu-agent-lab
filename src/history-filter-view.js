@@ -14,7 +14,13 @@
 
 import { historyFilterChips, historyFiltersActive, historySummaryLine } from "./history-filters.js";
 
-export const COPY_LINK_SUCCESS = "Link copied. It opens this filtered view.";
+// Says what was copied and, in the same breath, what it is not: a reader who
+// pressed this expecting to send their history a colleague cannot open needs to
+// learn that here, not from the colleague. The static scope line beside the
+// button (#history-share-scope) points at the export; this confirms the half
+// that is easy to get wrong once the link is already on the clipboard.
+export const COPY_LINK_SUCCESS =
+  "Link copied. It opens this filtered view — the link carries the view, not the records.";
 export const COPY_LINK_FAILURE = "Could not copy the link automatically. Copy it from the address bar instead.";
 
 /** The headline above the results. */

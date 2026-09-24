@@ -463,7 +463,17 @@
             <p class="filter-summary" id="history-filter-summary" data-filtered="false">10 records</p>
             <ul class="filter-chips" id="history-filter-chips" aria-label="Active filters" hidden></ul>
             <div class="filter-share">
-              <button class="filter-share-action" id="copy-history-link" type="button">Copy link to this view</button>
+              <button class="filter-share-action" id="copy-history-link" type="button" aria-describedby="history-share-scope">Copy link to this view</button>
+              <!-- What the link carries, said before it is pressed rather than
+                   after. The first two sentences are the releases page's scope
+                   line word for word, with the noun this list uses: both pages
+                   answer the same question, so they answer it the same way. The
+                   third names the panel that does carry records and links to it,
+                   and claims nothing about that file beyond its name — the
+                   export panel states its own scope, and a second claim here
+                   could disagree with it. Described by, not merely adjacent: the
+                   page already describes its filter controls this way. -->
+              <span class="hint" id="history-share-scope">The link keeps your search and filters. Whoever opens it sees the records saved in their own browser. To send someone the records themselves, use <a class="text-link" href="#export-title">Export history</a>.</span>
               <!-- A live region of its own, present before there is anything to
                    say, so the copy confirmation is announced without competing
                    with the record count in #history-announcement. -->

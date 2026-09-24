@@ -102,7 +102,16 @@ test("the view-sharing action has one label, says what its link carries, and con
   assert.equal(body.split("Link to this view").length - 1, 0, "no competing label for the same action");
   assert.equal(button.getAttribute("aria-describedby"), "release-share-scope");
   assert.equal(textOf(get(page, "release-share-scope")),
-    "The link keeps your search and filters. Whoever opens it sees the releases saved in their own browser.");
+    "The link keeps your search and filters. Whoever opens it sees the releases saved in their own browser."
+    + " To send someone the releases themselves, use Export releases as JSON below.");
+  // The pointer names the control that does carry releases, by its own label,
+  // so a reader who wants to send the records can find it without guessing.
+  assert.equal(textOf(get(page, "release-export")), "Export releases as JSON");
+  // And it adds no second description of that file: the export's own scope line
+  // is the only place this page says what the download holds.
+  assert.equal(textOf(get(page, "release-export-scope")),
+    "The JSON download includes only the releases currently shown by the active search and filters,"
+    + " not the full release log. Each exported release includes its linked decisions.");
   button.click();
   await settle();
   const status = textOf(get(page, "release-copy-status"));
