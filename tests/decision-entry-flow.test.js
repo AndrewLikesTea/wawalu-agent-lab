@@ -562,10 +562,16 @@ test("the painted page lists the four-step evaluation path above the recorder", 
   const scope = textOf(byId(page, "evaluation-path-scope"));
   assert.match(scope, /stay in this browser only/);
   assert.match(scope, /demo workflow, not a customer result/);
+  // Whose property that browser-only storage is, said on the booted page rather
+  // than only in the markup. The sentence itself is shared-log-question.test.js.
+  assert.match(textOf(byId(page, "shared-log-question")),
+    /Browser-only storage is how this public demo works\./);
   assert.doesNotMatch(scope, /customers (use|trust)|\d+%|saved \$|teams report/i, "the path claims an outcome");
   // It spends no tab stop in the state a first visitor arrives in: the action
   // for step one is the form below it, and the path's own link appears only
-  // once this browser holds a record to act on (demo-progress.test.js).
+  // once this browser holds a record to act on (demo-progress.test.js). The
+  // sentence under the scope line names the follow-up form in words rather than
+  // linking it, for the same reason (shared-log-question.test.js).
   assert.equal(list.parentNode.querySelectorAll("a").length, 0, "the path list added a focusable");
   assert.equal(nextStep(page).hidden, true, "the next step is offered before anything was recorded");
 });
