@@ -1,4 +1,4 @@
-// The one open decision that is past its review point (issue #622).
+// The one open decision that has waited past the window (issue #622).
 //
 // WHAT THIS ANSWERS
 // -----------------
@@ -27,13 +27,18 @@
 // those as not-current (that is what the Current only filter hides), and
 // chasing a review for a record that has been replaced is noise.
 //
-// WHAT "PAST ITS REVIEW POINT" MEANS, AND THE ASSUMPTION IN IT
-// -----------------------------------------------------------
+// WHAT "WAITED TOO LONG" MEANS, AND THE ASSUMPTION IN IT
+// -----------------------------------------------------
 // A decision record carries `createdAt` and `status`. It does not carry a
 // review date: no shipped form, import, or export field sets one (see
 // shiplog-export-schema.js). So the operative rule is the age of the open
-// status, measured in whole elapsed days from `createdAt`, against ONE review
-// point — REVIEW_WINDOW_DAYS — applied to both open statuses.
+// status, measured in whole elapsed days from `createdAt`, against ONE window
+// — REVIEW_WINDOW_DAYS — applied to both open statuses.
+//
+// The rendered copy never names that window with a term of its own: it says
+// "still Proposed or Pending after 14 days", in the page's own status words
+// plus a number (issue #2507). Nothing a visitor reads here introduces a
+// fifth status-like word.
 //
 // One window, not a ladder per status: a second threshold would be a second
 // number nothing in the product can justify. Fourteen days is one sprint
@@ -67,7 +72,7 @@ const DAY_MS = 86_400_000;
  */
 export const OPEN_DECISION_STATUSES = Object.freeze(["pending", "proposed"]);
 
-/** The review point every open decision is measured against. See the note above. */
+/** The window every open decision is measured against. See the note above. */
 export const REVIEW_WINDOW_DAYS = 14;
 
 /** The three states this finding has. `noneOpen` covers an empty log. */
@@ -79,7 +84,10 @@ export const OVERDUE_FINDING_KINDS = Object.freeze({
 
 /** The heading each state carries. The two calm ones do not use urgent words. */
 export const OVERDUE_FINDING_HEADINGS = Object.freeze({
-  [OVERDUE_FINDING_KINDS.overdue]: "Past its review point",
+  // "Waiting on a decision" is the page's own definition of Pending — "waiting
+  // on the owner to call it" — and it is equally true of Proposed. It does not
+  // name a fifth status.
+  [OVERDUE_FINDING_KINDS.overdue]: "Waiting on a decision",
   [OVERDUE_FINDING_KINDS.noneOverdue]: "Review check",
   [OVERDUE_FINDING_KINDS.noneOpen]: "Review check",
 });
@@ -98,9 +106,11 @@ function days(count) {
   return plural(count, "day");
 }
 
-// The threshold, named the same way everywhere it is read out.
-function windowPhrase(windowDays) {
-  return `${windowDays}-day review point`;
+// The threshold, read out the same way everywhere: the two status words the
+// page defines, plus a plain number of days. There is no noun for it, because
+// every noun this panel tried was a word that appears nowhere else on the site.
+function pastWindowPhrase(windowDays) {
+  return `still Proposed or Pending after ${days(windowDays)}`;
 }
 
 // The status words are capitalised in prose, matching the glossary on the page.
@@ -144,7 +154,7 @@ function title(decision) {
  * by, and how far past that point the reference instant is.
  *
  * Whole elapsed days throughout, so a record is only ever reported as overdue
- * by a number a reader can count. Overdue means strictly past: a review point
+ * by a number a reader can count. Overdue means strictly past: a review date
  * reached today is due, not late. Returns null when the age cannot be
  * established — an unreadable `createdAt` or no reference instant — because a
  * record whose age is unknown must not be claimed as late.
@@ -158,7 +168,7 @@ export function decisionReviewAge(decision, options = {}) {
   const reviewByMs = recorded ?? recordedMs + windowDays * DAY_MS;
   const daysPast = Math.floor((now - reviewByMs) / DAY_MS);
   return {
-    // Which rule produced the review point, so the rendered benchmark can say
+    // Which rule produced the review date, so the rendered benchmark can say
     // whether it read a recorded date or applied the window.
     source: recorded === null ? "window" : "recorded",
     windowDays,
@@ -194,7 +204,7 @@ export function openDecisionRecords(records = [], options = {}) {
 
 // Priority, highest first. Four rules, in this order:
 //
-//   1. Further past the review point first. That is the material benchmark and
+//   1. Further past its review date first. That is the material benchmark and
 //      the issue asks for the single most overdue decision.
 //   2. The visitor's own record before an example when their age is equal.
 //   3. Pending before Proposed, per OPEN_DECISION_STATUSES.
@@ -222,41 +232,48 @@ export function selectOverdueDecision(records = [], options = {}) {
   return rankOverdue(openDecisionRecords(records, options))[0] ?? null;
 }
 
+// How far past it is, and against what. The lead already said how long it has
+// been open and in which status, so this line states only the comparison.
 function benchmarkSentence(entry) {
-  const { age, status } = entry;
-  const opened = `Open for ${days(age.daysOpen)} as ${statusWord(status)}`;
+  const { age } = entry;
   return age.source === "recorded"
-    ? `${opened}. Its recorded review date passed ${days(age.daysPast)} ago.`
-    : `${opened}, against a ${windowPhrase(age.windowDays)} — ${days(age.daysPast)} past it.`;
+    ? `Its recorded review date passed ${days(age.daysPast)} ago.`
+    : `It is ${days(age.daysPast)} past the ${days(age.windowDays)} this check allows.`;
 }
 
 // Why this one and not another, stated rather than implied. A single candidate
 // says so; more than one says how many it was chosen from and on what rule.
 //
+//
+// It does not restate the window: a candidate can be here on its own recorded
+// review date instead, and "after 14 days" beside a record five days old would
+// contradict the benchmark line above it.
 function prioritySentence(entry, overdueCount) {
-  if (overdueCount <= 1) return "It is the only open decision past its review point in this log.";
-  const from = `Chosen from ${plural(overdueCount, "open decision")} past the review point`;
+  if (overdueCount <= 1) return "It is the only decision in this log past the date it should have been called.";
+  const from = `Chosen from ${plural(overdueCount, "decision")} past the date they should have been called`;
   return entry.record.example === true
-    ? `${from}: the one furthest past it. This finding comes from the example records.`
-    : `${from}: the one furthest past it.`;
+    ? `${from}: the one furthest past. This finding comes from the example records.`
+    : `${from}: the one furthest past.`;
 }
 
 // The calm states. Neither implies urgency, and neither congratulates: they say
 // what was checked, against what, and what would change the answer.
 function calmLead(openCount, windowDays) {
-  return openCount === 0
-    ? "Nothing in this log is Proposed or Pending, so no review call is outstanding. "
-      + `A decision recorded as Pending starts a ${windowPhrase(windowDays)} from its recorded date.`
-    : `${plural(openCount, "open decision")} — Proposed or Pending — `
-      + `${openCount === 1 ? "is" : "are"} inside the ${windowPhrase(windowDays)}. `
-      + "Nothing is waiting on a review call.";
+  if (openCount === 0) {
+    return "Nothing in this log is Proposed or Pending, so no review call is outstanding. "
+      + `A decision recorded as Proposed or Pending gets ${days(windowDays)} from its recorded date.`;
+  }
+  const inside = openCount === 1
+    ? `1 decision is Proposed or Pending, and it is inside ${days(windowDays)}.`
+    : `${plural(openCount, "decision")} are Proposed or Pending, and none is past ${days(windowDays)}.`;
+  return `${inside} Nothing is waiting on a review call.`;
 }
 
 // Stated when an open record's date cannot be read, so the count above is never
 // quietly presented as covering records it could not judge.
 function undatedNote(undatedCount) {
   if (undatedCount === 0) return "";
-  return ` ${plural(undatedCount, "open decision")} carr${undatedCount === 1 ? "ies" : "y"} `
+  return ` ${plural(undatedCount, "Proposed or Pending decision")} carr${undatedCount === 1 ? "ies" : "y"} `
     + "no readable recorded date, so its age could not be checked.";
 }
 
@@ -291,7 +308,9 @@ export function overdueDecisionFinding(records = [], options = {}) {
       ...base,
       kind,
       heading: OVERDUE_FINDING_HEADINGS[kind],
-      lead: "No decision is past its review point.",
+      // The exact negation of the line the page shows while the check runs, so
+      // a reader sees the same question answered rather than a new one.
+      lead: `No decision is ${pastWindowPhrase(windowDays)}.`,
       benchmark: `${calmLead(open.length, windowDays)}${undatedNote(undatedCount)}`,
       priority: "",
     };
@@ -306,7 +325,7 @@ export function overdueDecisionFinding(records = [], options = {}) {
     decisionId: selected.record.id,
     example: selected.record.example === true,
     age: selected.age,
-    lead: `“${name}” is ${days(selected.age.daysPast)} past review.`,
+    lead: `“${name}” has been ${statusWord(selected.status)} for ${days(selected.age.daysOpen)}.`,
     benchmark: `${benchmarkSentence(selected)}${undatedNote(undatedCount)}`,
     priority: prioritySentence(selected, overdue.length),
     // The three facts the issue asks a reader to be able to act on, in the same

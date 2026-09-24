@@ -1514,7 +1514,7 @@ export async function initDecisionLog(root = document, storage = localStorage, o
     // the data changing can, and this is the one place the data changes.
     //
     // The clock is read here rather than at boot so a tab left open across a
-    // review point does not keep reporting yesterday's answer. `options.now`
+    // review date does not keep reporting yesterday's answer. `options.now`
     // exists so a test never depends on the wall clock.
     if (overdueSlot) {
       renderOverdueFinding(
