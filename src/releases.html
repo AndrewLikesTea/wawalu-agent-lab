@@ -336,7 +336,9 @@
              repeats the promise the recorder makes further down this page, that
              a release recorded here stays in this browser, so a reader learns
              before pressing that a colleague gets the filters and their own
-             log. Both buttons start disabled and are enabled by
+             log — and then names the export below as the thing that does carry
+             releases, as a plain in-page link to that control rather than a
+             third button. Both buttons start disabled and are enabled by
              release-filter-url.js — without the script neither can do anything.
              The manual field stays hidden until a copy fails, and wears the
              button's label: it is the same action done by hand, and a second
@@ -346,7 +348,7 @@
         <div class="share-control">
           <button class="share-button" id="release-copy-link" type="button" aria-describedby="release-share-scope" disabled>Copy link to this view</button>
           <button class="share-button" id="release-clear-filters" type="button" disabled>Clear filters</button>
-          <span class="hint" id="release-share-scope">The link keeps your search and filters. Whoever opens it sees the releases saved in their own browser.</span>
+          <span class="hint" id="release-share-scope">The link keeps your search and filters. Whoever opens it sees the releases saved in their own browser. To send someone your releases, use <a class="text-link" href="#release-export">Export releases as JSON</a> below.</span>
           <span class="share-status" id="release-copy-status" role="status" aria-live="polite" aria-atomic="true"></span>
           <div class="filter" id="release-copy-fallback" hidden>
             <label for="release-copy-url">Copy link to this view</label>

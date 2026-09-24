@@ -512,6 +512,74 @@ async function assertControlsAndExportAgree(t, { describe, apply, expected }) {
   return { page, payload };
 }
 
+// --- what the share control says, before anything is copied -------------------
+//
+// The file above is about the records the export hands back. This test is about
+// the sentence that tells a reader the *link* is not that file: the copy control
+// shares a view, and the records travel through the export panel. It belongs
+// here because it is the one claim on the page that holds those two controls to
+// each other, and because it must be true before any press — a reader decides
+// which control to use before they use either one.
+
+test("the share control says the link carries the view, and points at the export for the records", async (t) => {
+  const page = await openHistory(t);
+
+  const button = page.document.querySelector("#copy-history-link");
+  assert.ok(button, "the history has no copy-link control");
+  const scope = page.document.querySelector("#history-share-scope");
+  assert.ok(scope, "the copy control has no sentence saying what its link carries");
+
+  // 1. It is there on the first render, with nothing copied yet, and it is not
+  //    tucked inside a disclosure a real browser would leave closed.
+  assertNotCollapsed(scope, "the share scope sentence");
+  assert.equal(
+    textOf(page.document.querySelector("#history-copy-status")),
+    "",
+    "the copy confirmation region is not empty before anything was copied, so this is not the pre-copy state",
+  );
+  assert.equal(
+    textOf(scope),
+    "The link keeps your search and filters. Whoever opens it sees the records saved in their own browser."
+    + " To send someone your records, use Export history below.",
+    "the share scope sentence no longer says what the link keeps and who sees what",
+  );
+
+  // 2. Reachable in reading order with the control it describes: same parent,
+  //    immediately after the button, and named by the button's description.
+  assert.equal(button.getAttribute("aria-describedby"), "history-share-scope");
+  assert.ok(
+    scope.parentNode === button.parentNode,
+    "the sentence was moved away from the control it describes",
+  );
+  // Text nodes sit in `children` with a truthy tagName, so the ids are read off
+  // getAttribute rather than filtered on tagName.
+  const ids = button.parentNode.children.map((child) => (
+    typeof child.getAttribute === "function" ? child.getAttribute("id") : null
+  ));
+  assert.ok(
+    ids.indexOf("history-share-scope") > ids.indexOf("copy-history-link"),
+    `the sentence does not follow the control it describes (${JSON.stringify(ids.filter(Boolean))})`,
+  );
+
+  // 3. The pointer to the records is a real in-page link, and following it
+  //    reaches the export panel: the id is looked up on the page rather than
+  //    the href being trusted as a string.
+  const pointer = scope.querySelector("a");
+  assert.ok(pointer, "the sentence names the export but offers no way to get there");
+  assert.equal(textOf(pointer), "Export history");
+  assert.equal(pointer.getAttribute("href"), "#export-title");
+  const targets = page.document.querySelectorAll("#export-title");
+  assert.equal(targets.length, 1, "the export pointer names an id the page does not carry exactly once");
+  let inPanel = false;
+  for (let node = targets[0]; node && node.nodeType === 1; node = node.parentNode) {
+    if (String(node.className ?? "").includes("export-panel")) inPanel = true;
+  }
+  assert.ok(inPanel, "the id the pointer names is not inside the export panel, so following it lands somewhere else");
+  // And the panel it lands on is the one with the download control, so the
+  // sentence sends a reader to a section that can actually hand them a file.
+  assert.equal(page.document.querySelectorAll("#export-shiplog").length, 1);
+});
+
 // --- the combinations ---------------------------------------------------------
 
 test("a status chosen from the control counts and exports the same two decisions", async (t) => {

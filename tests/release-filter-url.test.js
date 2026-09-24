@@ -101,8 +101,23 @@ test("the view-sharing action has one label, says what its link carries, and con
   assert.equal(body.split("Copy link to this view").length - 1, 2, "the button and its fallback field, nothing else");
   assert.equal(body.split("Link to this view").length - 1, 0, "no competing label for the same action");
   assert.equal(button.getAttribute("aria-describedby"), "release-share-scope");
+  // Two things, in one sentence each: what the link carries, and what does
+  // carry releases to somebody else. The second is a plain in-page link, so the
+  // reader who wanted to send a colleague their releases is not left to find
+  // the export by scrolling.
   assert.equal(textOf(get(page, "release-share-scope")),
-    "The link keeps your search and filters. Whoever opens it sees the releases saved in their own browser.");
+    "The link keeps your search and filters. Whoever opens it sees the releases saved in their own browser."
+    + " To send someone your releases, use Export releases as JSON below.");
+  const pointer = get(page, "release-share-scope").querySelector("a");
+  assert.equal(textOf(pointer), "Export releases as JSON");
+  assert.equal(pointer.getAttribute("href"), "#release-export");
+  // Following it has to reach something: the href is checked against the id the
+  // page actually carries, not trusted as a string.
+  assert.equal(
+    page.document.querySelectorAll("#release-export").length,
+    1,
+    "the export pointer names an id this page does not carry, so following it scrolls nowhere",
+  );
   button.click();
   await settle();
   const status = textOf(get(page, "release-copy-status"));

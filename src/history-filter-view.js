@@ -14,7 +14,11 @@
 
 import { historyFilterChips, historyFiltersActive, historySummaryLine } from "./history-filters.js";
 
-export const COPY_LINK_SUCCESS = "Link copied. It opens this filtered view.";
+// The confirmation says what was copied and, because this is the moment a
+// reader is about to send it to somebody, what it is not: a link to a view, not
+// the records themselves. The panel it names is the one on the same page
+// (#export-title), which the static scope line beside the button links to.
+export const COPY_LINK_SUCCESS = "Link copied. It opens this filtered view. The link carries the view, not the records — use Export history to send those.";
 export const COPY_LINK_FAILURE = "Could not copy the link automatically. Copy it from the address bar instead.";
 
 /** The headline above the results. */

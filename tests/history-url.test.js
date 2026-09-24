@@ -316,6 +316,17 @@ test("copying the link confirms, and every clipboard failure says so instead of 
   assert.deepEqual(await copyHistoryLink("/", { clipboard: {} }), { copied: false, message: COPY_LINK_FAILURE });
   assert.deepEqual(await copyHistoryLink("/", { clipboard: null }), { copied: false, message: COPY_LINK_FAILURE });
   assert.match(COPY_LINK_FAILURE, /address bar/, "the failure has to leave the visitor a way through");
+  // The confirmation is read at the one moment a reader is about to send the
+  // link to somebody, so it says what the link is not: the view travels, the
+  // records do not. Both halves are pinned — a message that only said "copied"
+  // would leave a reader expecting their colleague to open their history.
+  assert.equal(
+    COPY_LINK_SUCCESS,
+    "Link copied. It opens this filtered view."
+    + " The link carries the view, not the records — use Export history to send those.",
+  );
+  assert.match(COPY_LINK_SUCCESS, /not the records/, "the confirmation must say what the link does not carry");
+  assert.match(COPY_LINK_SUCCESS, /Export history/, "the confirmation must name the thing that does carry records");
 });
 
 test("the active-filter block names every live filter and omits every dead one", () => {
