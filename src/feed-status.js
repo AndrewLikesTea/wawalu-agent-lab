@@ -80,7 +80,14 @@ export function filtersAvailable(phase) {
 // so an invitation to use it is a second claim the row cannot support. Why
 // neither menu is operable is the fetch's news, and the status region beside
 // this line is already reporting it.
-export const FILTERS_UNAVAILABLE_HINT = "Display name options become available when posts load.";
+//
+// It names the menu in the menu's own words (#2506). "Display name options"
+// was this file's name for a control whose label reads "Filter posts by display
+// name", so the line asked a reader to match a phrase against a label that did
+// not use it. And it waits in the same word as the status region below it
+// ("Posts are loading.", FEED_LOADING_LINE in src/social.js): two lines about
+// one open fetch that spelled the wait two ways read as two different waits.
+export const FILTERS_UNAVAILABLE_HINT = "Filter posts by display name becomes available when posts finish loading.";
 
 // WHERE A READER STANDING ON RETRY IS PUT WHEN RETRY GOES AWAY (#2499).
 //

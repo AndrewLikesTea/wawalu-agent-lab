@@ -85,7 +85,7 @@ test("Social's pending feed is post-shaped placeholders that say nothing", async
   }
   // The wait is announced once, by the status region, not by the placeholders.
   assert.equal(document.querySelectorAll("#feed-state").length, 1);
-  assert.match(textOf(document.querySelector("#feed-state")), /still loading/);
+  assert.match(textOf(document.querySelector("#feed-state")), /^Posts are loading\.$/);
 
   answer({ posts: LIVE_POSTS });
   await settled(document);

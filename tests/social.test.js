@@ -332,7 +332,12 @@ test("social page is wired, labeled, and linked from the other pages", async () 
   // tests/live-connection-copy.test.js owns the three states it can be in.
   assert.match(page, /id="feed-status"><\/span>/);
   assert.doesNotMatch(page, /will appear here on their own/);
-  assert.equal((page.match(/Existing posts are still loading\. Select Write a post\./g) ?? []).length, 1);
+  // The shipped wait, once, and it is one sentence (#2506). The invitation it
+  // used to end with belongs to the empty state, which the frame before
+  // hydration has no way of knowing it is heading for.
+  assert.equal((page.match(/Posts are loading\./g) ?? []).length, 1);
+  assert.doesNotMatch(page, /id="feed-state"[^>]*>[^<]*Select /);
+  assert.doesNotMatch(page, /id="feed-state"[^>]*>[^<]*Publish /);
   assert.doesNotMatch(page, /id="post-count"[^>]*>0 posts<\/span>/);
   // One announced region for a filter change, and it is the summary: the count
   // beside the heading says a thinner version of the same news, so announcing
@@ -867,7 +872,7 @@ test("the status region and the posts are read before the demo disclaimer, in ev
   };
 
   const feed = mountSocialFeed(document, { posts: [], state: "loading" });
-  invariant("loading", { status: /Existing posts are still loading\. Select Write a post\./ });
+  invariant("loading", { status: /^Posts are loading\.$/ });
 
   feed.setState("error");
   invariant("error", { status: /Social posts could not be loaded\./ });
@@ -1608,7 +1613,7 @@ test("the post count never claims zero posts before the feed has any answer", as
   assert.equal(page.document.querySelectorAll(".empty-state").length, 0, "loading copy never shares the page with empty-state guidance");
   const status = page.document.querySelector("#feed-state");
   assert.equal(status.querySelectorAll(".state-title").length, 1);
-  assert.equal(textOf(status.querySelector(".state-title")), "Existing posts are still loading. Select Write a post.");
+  assert.equal(textOf(status.querySelector(".state-title")), "Posts are loading.");
 
   feed.setState("error");
   assert.equal(textOf(count), "Unavailable", "a failed fetch is not a count of zero");
@@ -1618,7 +1623,7 @@ test("the post count never claims zero posts before the feed has any answer", as
   assert.equal(textOf(count), "0 posts", "an answered fetch with nothing in it is a real zero");
   const empty = page.document.querySelector(".empty-state");
   assert.match(textOf(empty), /No posts on Social yet\./);
-  assert.match(textOf(empty), /Write a post, or create an image in Paint first\./);
+  assert.match(textOf(empty), /Publish the first post and it appears here for anyone who visits\./);
 
   feed.seed([{ id: "now-populated", author: "Mina", body: "Ready.", createdAt: new Date().toISOString() }]);
   assert.equal(status.hidden, true, "a populated feed hides the reused status region");

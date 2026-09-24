@@ -91,9 +91,9 @@ test("Social's filters are not operable while the feed is loading, and say why",
   const hint = hintIn(document.querySelector(".social-toolbar"), "post-filter-hint");
   assert.equal(hint.tagName, "P");
   assert.equal(textOf(hint), FILTERS_UNAVAILABLE_HINT);
-  assert.equal(textOf(hint), "Display name options become available when posts load.");
+  assert.equal(textOf(hint), "Filter posts by display name becomes available when posts finish loading.");
   assert.equal(classesOf(hint).includes("hint"), true, "the reason is set at content weight");
-  assert.equal((textOf(document.body).match(/Display name options become available when posts load\./g) ?? []).length, 1);
+  assert.equal((textOf(document.body).match(/Filter posts by display name becomes available when posts finish loading\./g) ?? []).length, 1);
 });
 
 test("Social's filters come back, in their authored order, the moment posts render", async (t) => {
@@ -323,9 +323,22 @@ test("a loading filter row names the empty menu, and neither promises nor offers
   assert.equal(time.options.length, 4);
 
   assert.equal(filterStatus(document), FILTERS_UNAVAILABLE_HINT);
-  assert.equal(filterStatus(document), "Display name options become available when posts load.");
+  assert.equal(filterStatus(document), "Filter posts by display name becomes available when posts finish loading.");
   assert.equal(filterStatus(document), filterStatusLine({ available: false }));
-  assert.match(filterStatus(document), /Display name/, "the row stopped naming the menu that is empty");
+  // It names the empty menu in the menu's OWN words (#2506). The label is read
+  // off the page rather than written here a second time, so renaming the
+  // control and leaving the sentence behind is a red rather than a drift: the
+  // row used to call it "Display name options", which is a phrase a reader
+  // cannot find anywhere on the control it describes.
+  const namesLabel = textOf(document.querySelectorAll("label")
+    .find((node) => node.getAttribute("for") === "post-name-filter"));
+  assert.equal(namesLabel, "Filter posts by display name");
+  assert.ok(filterStatus(document).startsWith(namesLabel),
+    `the row stopped naming the menu that is empty, which is labelled "${namesLabel}"`);
+  // And it waits in the word the feed's own status region waits in, rather than
+  // spelling one open fetch two ways a block apart.
+  assert.match(filterStatus(document), /loading\./);
+  assert.match(textOf(document.querySelector("#feed-state")), /loading\./);
   assert.doesNotMatch(filterStatus(document), /posting time|time range|shown now/i,
     "the row describes the time menu, whose ranges are already on screen either way");
 

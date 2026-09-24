@@ -114,7 +114,7 @@ test("Social's wait is announced by one node, and its placeholders are in neithe
   assert.equal(status.getAttribute("role"), "status");
   assert.equal(status.getAttribute("aria-live"), "polite");
   assert.equal(status.getAttribute("aria-atomic"), "true");
-  assert.match(textOf(status), /still loading/);
+  assert.match(textOf(status), /^Posts are loading\.$/);
 
   // The count line is the same region's second half: one claim, read whole.
   const summary = document.querySelector("#feed-summary");
