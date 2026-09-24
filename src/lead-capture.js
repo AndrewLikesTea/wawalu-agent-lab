@@ -131,9 +131,9 @@ export function overLengthMessage(length, max = MAX_FOLLOW_UP_MESSAGE_LENGTH) {
 // one sentence. It states a use and promises no reply and no schedule.
 export const FOLLOW_UP_USE = "We use your address to reply to this request and for nothing else.";
 
-// Who answers, beside the two sentences above: a person, and no clock.
+// Who answers and when: a person, and what usually happens (#2510).
 export const FOLLOW_UP_REPLY = "A person from the Wawalu team that operates Shiplog replies by email to "
-  + "the address you give; there is no automated reply.";
+  + "the address you give, usually within two working days; there is no automated reply.";
 
 // This form's own pending and success states: the contact forms promise
 // something else, so each set owns that sentence. Both repeat src/index.html's

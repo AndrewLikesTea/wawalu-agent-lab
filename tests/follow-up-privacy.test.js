@@ -83,16 +83,31 @@ const NAMED_PAGES = [
  * reads, so a page is never compared against a sentence it does not ship.
  */
 /**
- * A clock, in any of the shapes one gets quoted in.
+ * The one window, stated the one way.
  *
- * The block below the field now says who answers, and that is the one thing it
- * is allowed to promise: this repository has no queue, no rota and no way to
- * hold anybody to a deadline, so a response time here would be a number the
- * product cannot keep. Held against every follow-up block on the site rather
- * than against the sentence alone, because "we usually reply within a day" is
- * the kind of reassurance that gets added to one page at a time.
+ * The block below the field used to say who answers and stop there, and "when?"
+ * is the question a visitor asks next — the one they were left to guess at
+ * while deciding whether to hand over an address. Issue #2510 answered it, in
+ * the register the answer has to be in: what usually happens, spelled in words,
+ * on every page carrying the form and in the same bytes on each. This is that
+ * fragment, so a page cannot quote a window of its own.
+ */
+const WINDOW = "usually within two working days";
+const countOf = (haystack, needle) => haystack.split(needle).length - 1;
+
+/**
+ * A clock in any of the shapes it gets quoted in — every one but the one above.
+ *
+ * This repository has no queue, no rota and no way to hold anybody to a
+ * deadline, so a second figure here would be a number the product cannot keep.
+ * Held against every follow-up block on the site rather than against the
+ * sentence alone, because "we usually reply within a day" is the kind of
+ * reassurance that gets added to one page at a time.
  */
 const SPEED = /business day|within \d|\bhours?\b|\bminutes?\b|\bsoon\b|\bquickly\b|\bimmediately\b|\bright away\b/i;
+
+/** And the window is an expectation. None of this is a thing anyone can claim. */
+const SLA = /\bguarantee|\bservice level\b|\bno later than\b|\bwe (?:will|shall) (?:reply|respond)\b/i;
 
 // Neither sentence beside the field may read as a brochure.
 const MARKETING = [/\bwe (?:will )?never\b/i, /\brest assured\b/i, /\bsecurely\b/i, /\bof course\b/i,
@@ -231,14 +246,18 @@ test("every follow-up form renders the use sentence too, byte for byte, beside t
   }
 });
 
-test("the reply sentence says who answers, and starts no clock", () => {
+test("the reply sentence says who answers and when, as an expectation", () => {
   // The third question a visitor asks at this field, after where the address
-  // goes and what it is used for: what comes back. It was unanswered, and the
-  // answer a first-time reader assumed — an autoresponder — is the one thing
-  // that does not happen. So: a person, named as the team the sentence above
-  // already names, replying to the address being typed.
+  // goes and what it is used for: what comes back, and when. The first half was
+  // unanswered, and the answer a first-time reader assumed — an autoresponder —
+  // is the one thing that does not happen. So: a person, named as the team the
+  // sentence above already names, replying to the address being typed.
   const words = FOLLOW_UP_REPLY.split(/\s+/).filter(Boolean);
-  assert.ok(words.length <= 25, `the sentence is ${words.length} words; the budget is 25`);
+  // #2510: 27, up from 25, because the second half is answered here rather than
+  // in a fourth paragraph. The window is a clause of the sentence about the
+  // person — a paragraph of its own would have read as a competing claim beside
+  // three that already state one thing each.
+  assert.ok(words.length <= 27, `the sentence is ${words.length} words; the budget is 27`);
   assert.equal(FOLLOW_UP_REPLY.at(-1), ".");
   assert.equal((FOLLOW_UP_REPLY.match(/[.!?]/g) ?? []).length, 1, "one sentence, not two");
 
@@ -248,10 +267,12 @@ test("the reply sentence says who answers, and starts no clock", () => {
     "it must say the reply comes by email, to the address being typed");
   assert.match(FOLLOW_UP_REPLY, /no automated reply/, "it must say that nothing automated answers");
 
-  // A promise about who, never about when. No figure, and no word that reads
-  // as one — see SPEED.
-  assert.doesNotMatch(FOLLOW_UP_REPLY, SPEED, "the sentence must promise a person, not a deadline");
-  assert.doesNotMatch(FOLLOW_UP_REPLY, /\d/, "no number belongs in a promise about who answers");
+  // When, once, in the one wording — and stated, never promised.
+  assert.equal(countOf(FOLLOW_UP_REPLY, WINDOW), 1, `it must state the window once: "${WINDOW}"`);
+  assert.doesNotMatch(FOLLOW_UP_REPLY, SLA, "the window is what usually happens, not a commitment");
+  assert.doesNotMatch(FOLLOW_UP_REPLY, SPEED, "one window, in one wording, and no second clock beside it");
+  assert.doesNotMatch(FOLLOW_UP_REPLY, /\d/,
+    "the window is spelled out, because a figure beside a field reads as a term");
   for (const filler of MARKETING) {
     assert.doesNotMatch(FOLLOW_UP_REPLY, filler, `the sentence must not read as marketing: ${filler}`);
   }
@@ -284,10 +305,22 @@ test("every follow-up form renders the reply sentence too, byte for byte, above 
   }
 });
 
-test("no follow-up block on the site quotes a response time", async () => {
-  for (const { file, form } of await followUpForms()) {
-    assert.doesNotMatch(textOf(form), SPEED,
-      `${file}: the follow-up block quotes a response time nobody here can keep`);
+test("every follow-up block on the site states that one window, and no other", async () => {
+  const forms = await followUpForms();
+  assert.ok(forms.length >= NAMED_PAGES.length, "no follow-up form was found at all");
+
+  for (const { file, form } of forms) {
+    const block = textOf(form);
+    // Identical bytes on every page is the whole point: a visitor who reads the
+    // footer on the home page and then asks from the briefing must not be
+    // quoted two different windows, and a page that quietly shortens its own is
+    // how that starts.
+    assert.equal(countOf(block, WINDOW), 1,
+      `${file}: the follow-up block must state "${WINDOW}" exactly once`);
+    assert.doesNotMatch(block, SPEED,
+      `${file}: the follow-up block quotes a second response time nobody here can keep`);
+    assert.doesNotMatch(block, SLA,
+      `${file}: the follow-up block commits to a reply rather than saying what usually happens`);
   }
 });
 
