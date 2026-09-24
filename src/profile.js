@@ -27,7 +27,7 @@ import {
   OPEN_POST_LABEL, postDetailHref, profileHref, socialAllPostsLabel, socialFeedHref,
 } from "./social-links.js";
 import { imageDescription, renderDescriptionNote, renderImageUnavailable } from "./image-description.js";
-import { renderFeedStatus, feedPhase, feedPresence, setFilterAvailability } from "./feed-status.js";
+import { renderFeedStatus, feedPhase, feedPresence, setFilterAvailability, statusFocusHold } from "./feed-status.js";
 import { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH } from "./social-identity.js";
 import { mountPostReport, renderReportButton } from "./post-report.js";
 
@@ -653,6 +653,20 @@ function renderEmpty(container, author) {
 // is announced without an object. What it retries is what the failure names.
 export const PROFILE_RETRY_LABEL = "Retry loading image posts";
 
+// What the page's one voice says about a load that failed. It used to say
+// nothing: #profile-announcer spoke only for a settled load, and the failed
+// panel below is rendered content by design — src/profile.html's status region
+// carries no role and no aria-live, which tests/people-landing.test.js pins,
+// because the announcer is this page's single live region. So the one state a
+// reader can act on was the one state nobody was told about.
+//
+// Each names the control that answers it, in that control's own words, the way
+// Social's waiting line names Write a post. The two are different facts: one has
+// tiles behind it and one has none, which is the difference between "what you
+// are reading is stale" and "there is nothing here".
+export const PROFILE_FAILED_ANNOUNCEMENT = `Image posts could not be loaded. Select ${PROFILE_RETRY_LABEL}.`;
+export const PROFILE_STALE_ANNOUNCEMENT = `Showing the image posts already loaded. Select ${PROFILE_RETRY_LABEL}.`;
+
 function renderError(container, onRetry) {
   const failed = renderFeedStatus(container, {
     state: "error", label: "People feed error", text: "Image posts could not be loaded.",
@@ -955,9 +969,15 @@ export function mountProfile(root, options = {}) {
   // name, and only choose() below can clear it: a landing name that moves when
   // the live feed answers is still a name nobody picked.
   let preselected = options.preselected ?? false;
+  // Whether the last render left a reader standing in the status panel because
+  // this module put them there. See the focus target at the end of render().
+  let parkedInStatus = false;
   const report = mountPostReport(root, { send: options.sendReport });
 
   const render = () => {
+    // Read before anything redraws: the one control the status panel holds is
+    // its Retry, and this render is what removes it. Spent at the bottom.
+    const holdStatusFocus = statusFocusHold(elements.feedStatus, parkedInStatus);
     const mine = selectProfilePosts(posts, author);
     const summary = profileSummary(posts, author);
     // The heading and the identity line are both written from `mine`, the same
@@ -1035,10 +1055,33 @@ export function mountProfile(root, options = {}) {
     // an open fetch it is a promise standing on the line that is already saying
     // the image posts are still loading.
     connectionLine.present(phase === "loaded" || phase === "empty");
-    if (elements.announcer && state === "ready") {
-      elements.announcer.textContent = profileAnnouncement(author, mine.length);
+    // The one voice, and now it speaks for a load that failed as well as for one
+    // that settled. A failure used to leave it holding the last good answer: the
+    // panel below drew the words and the Retry, but nothing on the page
+    // announced them, so a reader who could not see the panel was told the feed
+    // had stopped updating by silence. The wait is not said here — the loading
+    // panel is a live region for as long as it stands, and this sentence beside
+    // it would be the same news in two voices — so this covers the three states
+    // that settle: loaded, empty, failed.
+    //
+    // Written only when the words change. A refresh runs every thirty seconds
+    // and most of them resolve to the sentence already standing; re-writing it
+    // is a second announcement of news the reader has had, which is how a live
+    // region becomes something to switch off.
+    const announcement = state === "error"
+      ? (mine.length ? PROFILE_STALE_ANNOUNCEMENT : PROFILE_FAILED_ANNOUNCEMENT)
+      : state === "ready" ? profileAnnouncement(author, mine.length) : null;
+    if (elements.announcer && announcement !== null && elements.announcer.textContent !== announcement) {
+      elements.announcer.textContent = announcement;
     }
     if (options.onRender) options.onRender({ author, posts: mine, summary });
+    // FOCUS TARGET: the status panel while it still holds words — the wait a
+    // Retry press just started, or a second failure — and the results heading
+    // once the tiles land and the panel is emptied and hidden, because that
+    // heading is what states the display name and the count that just arrived.
+    // Never <body>, which is where a reader standing on Retry used to be left.
+    // The flag carries the hold from the press to the answer.
+    parkedInStatus = holdStatusFocus(elements.heading);
   };
 
   const renderPicker = ({ refocus = false } = {}) => {

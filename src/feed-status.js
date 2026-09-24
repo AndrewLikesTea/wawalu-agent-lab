@@ -179,6 +179,51 @@ export function setFilterAvailability(available, options = {}) {
   else hintHost.append(hint);
 }
 
+// Focus follow-through for a status region that redraws under the reader.
+//
+// The one control a feed's status region ever holds is its Retry, and pressing
+// it is what destroys it: the surface goes back to loading, the panel is
+// replaced, and the button the reader was standing on leaves the document —
+// which in a browser drops focus to <body> and sends the next Tab back to the
+// top of the page. So the active element is read BEFORE the redraw, while that
+// button is still there, and put somewhere deliberate after it.
+//
+// Where it lands, in the two shapes a redraw comes in:
+//
+//   • the region still has words — the wait that the press just started, or a
+//     second failure. Focus goes to the region itself. It is the node that
+//     changed, it is `role="status"` so the change is announced where the
+//     reader is standing, and any action it drew is the next Tab from there.
+//   • the answer arrived, so the region is emptied and hidden. A hidden node is
+//     not a place to stand, so the caller names the line that outlives it: the
+//     settled summary, which is where the count of what loaded is written.
+//
+// This is the same landing `setFilterAvailability` above already uses when it
+// shuts a menu a reader is standing on, and the same rule about the attribute:
+// `tabindex="-1"` is written only on the node actually focused, and only if the
+// markup did not already give it a stop, so a region nobody was standing in
+// never grows one.
+// A reader standing ON the region rather than on a control inside it was put
+// there by something else — `setFilterAvailability` above parks them there when
+// it shuts a menu under them — and that landing is not this helper's to
+// overrule. So `carried` is the caller saying "this is where I put them last
+// time", and the returned call hands it back: a hold that began at a control
+// inside the region follows the reader through the renders that answer it, and
+// one that began anywhere else is left alone.
+export function statusFocusHold(region, carried = false) {
+  const active = document.activeElement ?? null;
+  const inside = Boolean(region && active && within(active, region));
+  const held = inside && (active !== region || carried);
+  return (landing = null) => {
+    if (!held) return false;
+    const target = !region.hidden && region.children.length ? region : landing;
+    if (!target?.parentNode) return false;
+    if (target.getAttribute("tabindex") === null) target.setAttribute("tabindex", "-1");
+    target.focus();
+    return target === region;
+  };
+}
+
 function element(tag, className, text) {
   const node = document.createElement(tag);
   if (className) node.className = className;

@@ -98,6 +98,19 @@ async function init() {
     document.title = postDetailTitle(null, "loading");
     offerPeople(false);
     renderPostDetail(container, null, { state: "loading", id, author: requestedAuthor, returnHref: POST_EXITS.social.href });
+    // FOCUS TARGET while the retried lookup is open: #post-detail, the region
+    // that just replaced the failed panel with the wait. The press destroys the
+    // button it was made on — this render is what removes it — so without this
+    // a reader who retried spent the whole fetch on <body>, one Tab from the top
+    // of the document, and the settle below then moved focus from there. The
+    // region is `role="status"`, so landing on it is also how the reader hears
+    // that the second attempt started. `tabindex="-1"` makes it a landing place
+    // and not a tab stop, and it is written here rather than in src/post.html so
+    // a page nobody retried on carries none.
+    if (fromRetry) {
+      if (container.getAttribute("tabindex") === null) container.setAttribute("tabindex", "-1");
+      container.focus?.();
+    }
     let post = null;
     let failed = false;
     if (id) {

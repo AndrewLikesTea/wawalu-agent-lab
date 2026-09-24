@@ -28,7 +28,7 @@ import {
 } from "./social-links.js";
 import { postPermalink, renderPostCopyControl } from "./post-share.js";
 import { mountPostReport, renderReportButton } from "./post-report.js";
-import { renderFeedStatus, feedPhase, feedPresence, filtersAvailable, setFilterAvailability, FILTERS_UNAVAILABLE_HINT } from "./feed-status.js";
+import { renderFeedStatus, feedPhase, feedPresence, filtersAvailable, setFilterAvailability, statusFocusHold, FILTERS_UNAVAILABLE_HINT } from "./feed-status.js";
 
 export { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH };
 
@@ -1182,6 +1182,9 @@ export function mountSocialFeed(root, options = {}) {
 
   let posts = options.posts ?? [];
   let state = options.state ?? "ready";
+  // Whether the last render left a reader standing in the status region because
+  // this module put them there. See the focus target at the end of render().
+  let parkedInStatus = false;
 
   // The page's own address, read once. The origin behind the permalink a publish
   // hands back, and the query string People's link back to the whole feed writes
@@ -1211,6 +1214,10 @@ export function mountSocialFeed(root, options = {}) {
   const midSentence = (text) => (text ? text[0].toLowerCase() + text.slice(1) : "");
 
   const render = () => {
+    // Read before anything is redrawn, because the node it is about — Retry,
+    // inside the status region — is one of the things this render removes.
+    // Spent at the bottom, once the summary it may land on has been written.
+    const holdStatusFocus = statusFocusHold(feedState, parkedInStatus);
     const visible = filterPosts(posts, { author: nameFilter?.value, range: timeFilter?.value });
     const filtering = nameFilter?.value !== "all" || timeFilter?.value !== "all";
     const named = {
@@ -1329,6 +1336,14 @@ export function mountSocialFeed(root, options = {}) {
     // not looked yet.
     if (summary) summary.textContent = answered ? feedSummarySentence(showing) : "";
 
+    // FOCUS TARGET: the status region while it is still saying something — the
+    // wait a Retry press just started, or the failure a second press ran into —
+    // and #feed-summary once the posts land and the region is emptied and
+    // hidden, because that sentence is this feed's settled answer and carries
+    // the count. Never <body>, which is where a reader standing on Retry was
+    // left when the press replaced the panel under them. The flag carries the
+    // hold from the press to the answer, across the renders in between.
+    parkedInStatus = holdStatusFocus(summary);
   };
 
   const renderNames = () => {

@@ -714,6 +714,10 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .empty-actions .empty-action { margin:0; }
 .empty-action-secondary { border:1px solid #7a7a74; background:#fff; color:#171713; }
 .empty-action-secondary:hover { background:#e9f1f8; color:#171713; }
+/* A failed panel is marked by a rule, not only by the tint on its title: the
+   title is an h3 and already bold, so weight cannot carry it, and a hue on its
+   own is the one signal a reader may not get. The words differ too. */
+.empty-state-error { border-top:3px solid #7c3f3a; }
 .empty-state-error .empty-title { color:#7c3f3a; }
 /* Single post. The image leads at its natural aspect ratio — this is the view
    that exists to show it whole, not cropped to a grid cell. */
