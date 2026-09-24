@@ -541,11 +541,14 @@ test("the painted page lists the four-step evaluation path above the recorder", 
 
   const list = byId(page, "evaluation-path-steps");
   assert.equal(list.tagName, "OL", "the path is not an ordered list");
+  // Each step now carries its own status in words (#2500); the instruction
+  // after it is the sentence this path has always listed. The statuses
+  // themselves, and how they move, are covered by demo-progress.test.js.
   assert.deepEqual(pathSteps(page), [
-    "Record a decision with the form below.",
-    "Continue to Releases from the link that appears once it is saved.",
-    "Record a release there and link that decision to it.",
-    "Open the release you recorded and check its summary and linked decision.",
+    "Step 1 of 4 · Do this now Record a decision with the form below.",
+    "Step 2 of 4 · Not started Continue to Releases with that decision ready to link.",
+    "Step 3 of 4 · Not started Record a release there and link that decision to it.",
+    "Step 4 of 4 · Not started Open the release you recorded and check its summary and linked decision.",
   ]);
   // A subsection of "Record a decision", so one level below that heading.
   const title = byId(page, "evaluation-path-title");
@@ -560,7 +563,9 @@ test("the painted page lists the four-step evaluation path above the recorder", 
   assert.match(scope, /stay in this browser only/);
   assert.match(scope, /demo workflow, not a customer result/);
   assert.doesNotMatch(scope, /customers (use|trust)|\d+%|saved \$|teams report/i, "the path claims an outcome");
-  // It spends no tab stop: the only link the path needs is revealed by a save.
+  // It spends no tab stop in the state a first visitor arrives in: the action
+  // for step one is the form below it, and the path's own link appears only
+  // once this browser holds a record to act on (demo-progress.test.js).
   assert.equal(list.parentNode.querySelectorAll("a").length, 0, "the path list added a focusable");
   assert.equal(nextStep(page).hidden, true, "the next step is offered before anything was recorded");
 });
