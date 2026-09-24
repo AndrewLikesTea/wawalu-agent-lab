@@ -281,8 +281,14 @@
                  the reason is in words beside it either way.
                  It states no count and no order. That is the summary sentence's
                  job, one region down and inside the list panel, and this line is
-                 outside that panel on purpose. -->
-            <p class="hint" id="post-filter-hint">Display name options become available when posts load.</p>
+                 outside that panel on purpose.
+                 The waiting shape names the menu in the menu's own words and
+                 waits in the status region's word (#2506): it repeats the label
+                 authored above rather than calling the control something else,
+                 and it says "loading" because the status region below says
+                 "loading", so the row and the feed describe one open fetch the
+                 same way instead of two. -->
+            <p class="hint" id="post-filter-hint">Filter posts by display name becomes available when posts finish loading.</p>
           </div>
           <div class="feed-connection" hidden>
             <span class="live-dot" aria-hidden="true"></span>
@@ -355,8 +361,17 @@
                No posts on Social yet.", so the wait and the empty feed — the two
                states this page most needs to tell apart — were read out as one
                sentence. The words inside are the whole announcement now, and
-               those words change with the state. -->
-          <div class="feed-status" id="feed-state" role="status" aria-live="polite" aria-atomic="true">Existing posts are still loading. Select Write a post.</div>
+               those words change with the state.
+               And the waiting shape is one sentence saying one thing (#2506).
+               It used to end with an imperative naming the composer, which
+               offered a reader the one action this page has in the one state
+               where the page could not yet say whether anything was there to
+               read — and then offered it again, in the same words, if the fetch
+               came back empty. The offer now lives only in the empty state, and
+               there it says what publishing does. FEED_LOADING_LINE in
+               src/social.js is the same sentence for every render after this
+               frame, so an edit here is an edit in two files. -->
+          <div class="feed-status" id="feed-state" role="status" aria-live="polite" aria-atomic="true">Posts are loading.</div>
           <div id="post-feed" aria-describedby="feed-summary" aria-busy="true">
             <!-- Keep first paint structurally honest before the module mounts.
                  These are presentation-only reservations: the status immediately

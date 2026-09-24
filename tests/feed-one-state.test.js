@@ -115,29 +115,20 @@ test("the five feed states are mutually exclusive and decided in one place", () 
 /* ------------------------ what the waits send you to ----------------------- */
 
 // #2034 turned both waits into instructions, and an instruction names something.
-// That couples each string to a control declared in another file: both lines
-// carry the composer button's label, and People's carries the route to the page
-// that has a composer at all. Rename either control and the wait points at a
-// name nothing answers to — while every assertion above, which compares the
-// string to a second copy of itself, still passes. So read the label off the
-// control, and check it is on screen in the one state that says it.
-test("each wait names a control that is on the page while its fetch is open", async (t) => {
-  const social = await loadPage(SOCIAL_PAGE, {});
-  t.after(() => social.restore());
-  mountSocialFeed(social.document, { posts: [], state: "loading" });
-
-  // The composer opener lives in the hero, not the feed panel, so mounting the
-  // loading state leaves it standing. That is what makes it safe to name here.
-  const compose = social.document.querySelector("#post-compose-open");
-  assert.equal(compose.getAttribute("hidden"), null, "the wait names a composer control that is not on screen");
-  assert.equal(collapsibleAncestor(compose), null, "the wait names a composer control folded inside a disclosure");
-  // Both halves of the directive, so a control that renders no label at all
-  // cannot satisfy this by leaving "Select ." to match on the whitespace.
-  const composeLabel = textOf(compose);
-  assert.ok(composeLabel.length > 0, "the composer control the wait names renders no label");
-  assert.ok(FEED_LOADING_LINE.includes(`Select ${composeLabel}.`),
-    `the wait does not name the composer control, which reads "${composeLabel}"`);
-
+// People's still is one: it carries the route to the page that has a composer at
+// all, so rename that route and the wait points at a name nothing answers to —
+// while an assertion comparing the string to a second copy of itself still
+// passes. So read the label off the control, and check it is on screen in the
+// one state that says it.
+//
+// SOCIAL'S HALF IS GONE, DELIBERATELY (#2506). Social's wait used to carry
+// "Select Write a post." for the same reason, and that is exactly the sentence
+// this issue took out: a page that does not yet know whether it has anything to
+// show cannot also be the place it offers you the one thing to do instead, and
+// the empty state it hands over to makes that offer properly. What replaces the
+// check is the negative in "Social says one thing while it loads" below — the
+// wait names no control, because it makes no offer.
+test("People's wait names a route that is on the page while its fetch is open", async (t) => {
   const people = await loadPage(PEOPLE_PAGE, {});
   t.after(() => people.restore());
   mountProfile(people.document, { posts: [], author: "Zed", state: "loading" });
@@ -184,7 +175,17 @@ test("Social says one thing while it loads, and the other three lines are not on
 
   const status = document.querySelector("#feed-state");
   assert.equal(status.querySelectorAll(".state-title").length, 1);
-  assert.equal(textOf(status.querySelector(".state-title")), "Existing posts are still loading. Select Write a post.");
+  assert.equal(textOf(status.querySelector(".state-title")), "Posts are loading.");
+  assert.equal(textOf(status), FEED_LOADING_LINE, "the region says more than the wait");
+
+  // One sentence, and it is the wait (#2506). The region used to close with
+  // "Select Write a post." — an offer, in the state where the page cannot yet
+  // say whether there is anything to read instead, and the same offer the empty
+  // state makes once the fetch answers. So: no imperative, no offer, and no
+  // second sentence of any kind in the region a screen reader reads whole.
+  assert.equal((textOf(status).match(/\./g) ?? []).length, 1, "the waiting region states two things");
+  assert.doesNotMatch(textOf(status), /Select |Publish |Write a post/,
+    "the wait offers an action in the state that has nothing to offer it for");
 
   // Removed, not hidden. Each of these would otherwise be a second description
   // of the one open fetch, and neither is a claim the page can support yet.
@@ -194,7 +195,11 @@ test("Social says one thing while it loads, and the other three lines are not on
   const body = textOf(document.body);
   assert.doesNotMatch(body, /Counting posts/);
   assert.doesNotMatch(body, /New posts will appear here on their own/);
-  assert.equal((body.match(/Existing posts are still loading\. Select Write a post\./g) ?? []).length, 1);
+  assert.equal((body.match(/Posts are loading\./g) ?? []).length, 1);
+  // And the filter row beside it waits in the same word rather than inventing a
+  // second one for the same fetch.
+  assert.equal(textOf(document.querySelector("#post-filter-hint")),
+    "Filter posts by display name becomes available when posts finish loading.");
 
   // The wait reserves both kinds of post card, including their metadata and
   // eventual action position, without inventing anything a keyboard can reach.
@@ -264,7 +269,7 @@ test("Social names its failure, retries it by keyboard, and comes back", async (
     { id: "back-2", author: "Ari", content: "Also here.", timestamp: "2026-07-17T12:00:00.000Z" },
   ] };
   retry.click();
-  assert.equal(textOf(status.querySelector(".state-title")), "Existing posts are still loading. Select Write a post.",
+  assert.equal(textOf(status.querySelector(".state-title")), "Posts are loading.",
     "retry did not put the page back into the loading state");
   assert.equal(document.querySelectorAll("#post-count").length, 0, "the count outlived the state that has no count");
   await waitFor(() => document.querySelectorAll("#post-count").length === 1, "the retried request settled");
@@ -286,6 +291,9 @@ test("Social separates an empty feed from a feed its filters emptied", async (t)
   // Genuinely empty: the invitation, and no filter wording.
   const empty = document.querySelector(".empty-state");
   assert.match(textOf(empty), /No posts on Social yet\./);
+  // And the invitation says what publishing does rather than repeating the
+  // label on the button under it (#2506).
+  assert.match(textOf(empty), /Publish the first post and it appears here for anyone who visits\./);
   assert.equal(document.querySelectorAll(".empty-state-filtered").length, 0);
   assert.equal(textOf(document.querySelector("#post-count")), "0 posts");
   assert.equal(document.querySelector("#post-time-filter").disabled, true,
@@ -346,7 +354,7 @@ test("Social's promise about new posts is said only where there is a feed for th
   // authored directly above "Loading the Social feed…", which is the whole of
   // #1772: two statuses at once, and the one that could not be true yet first.
   assert.equal(promiseCount(document, promise), 0);
-  assert.equal((textOf(document.body).match(/Existing posts are still loading\. Select Write a post\./g) ?? []).length, 1);
+  assert.equal((textOf(document.body).match(/Posts are loading\./g) ?? []).length, 1);
 
   // Loading: still one statement, and it is the wait.
   // A retry the panel can offer, so the failed state below is the one a reader
@@ -355,7 +363,7 @@ test("Social's promise about new posts is said only where there is a feed for th
   const feed = mountSocialFeed(document, { posts: [], state: "loading", onRetry: () => {} });
   assert.equal(promiseCount(document, promise), 0);
   assert.equal(document.querySelectorAll(".feed-connection").length, 0);
-  assert.equal(textOf(document.querySelector("#feed-state").querySelector(".state-title")), "Existing posts are still loading. Select Write a post.");
+  assert.equal(textOf(document.querySelector("#feed-state").querySelector(".state-title")), "Posts are loading.");
 
   // Failed: the panel's message and its Retry are the page's whole status. A
   // connection line here would be a second instruction — reload the page —
@@ -374,6 +382,77 @@ test("Social's promise about new posts is said only where there is a feed for th
   assert.equal(rendered(document, ".post-card"), 3);
   assert.equal(promiseCount(document, promise), 1);
   assert.equal(document.querySelectorAll(".feed-connection").length, 1);
+});
+
+// #2506. The status region is one node that four states are drawn into, and the
+// complaint was that two of them said more than one thing: the wait offered the
+// composer, and the empty feed offered it again in the same words while never
+// saying what taking the offer would get you. So this walks the three states a
+// reader passes through on a feed that works — waiting, answered-and-empty,
+// answered-and-full — and counts, inside the region itself:
+//
+//   waiting sentences: 1 while the fetch is open, 0 afterwards, either way;
+//   publish invitations: 0 while the fetch is open, exactly 1 on an empty feed,
+//                        0 once there are posts to read.
+//
+// Counts rather than element identity, because comparing against a node in this
+// harness walks the whole parsed page for minutes. Sentences are split on the
+// full stop: the harness concatenates text with no separator, so "yet.Publish"
+// is what the region reads as, and the button's label carries no full stop,
+// which is what keeps a control out of a count of sentences.
+const sentencesIn = (text) => text.split(/(?<=\.)/).map((part) => part.trim()).filter(Boolean);
+const waitingSentences = (text) => sentencesIn(text).filter((line) => /\bload(s|ing|ed)?\b/i.test(line));
+const invitationSentences = (text) => sentencesIn(text)
+  .filter((line) => line.endsWith(".") && /^(Publish|Write|Select)\b/.test(line));
+
+test("Social's status region says one thing in each of the three states a working feed passes through", async (t) => {
+  const page = await loadPage(SOCIAL_PAGE, {});
+  t.after(() => page.restore());
+  const { document } = page;
+  const status = document.querySelector("#feed-state");
+  const feed = mountSocialFeed(document, { posts: [], state: "loading", onPublish: () => {} });
+
+  // LOADING. The wait, said once, with nothing else beside it.
+  assert.equal(textOf(status), "Posts are loading.");
+  assert.equal(textOf(status), FEED_LOADING_LINE, "the shipped wait and the rendered wait have parted");
+  assert.equal(waitingSentences(textOf(status)).length, 1);
+  assert.equal(invitationSentences(textOf(status)).length, 0,
+    "the wait offers publishing before the page knows whether there is anything to read");
+  assert.equal(status.querySelectorAll("button").length, 0, "the wait carries a control");
+
+  // EMPTY. The state named, then exactly one invitation, and that invitation
+  // states the consequence rather than repeating the button below it.
+  feed.seed([]);
+  const emptyText = textOf(status);
+  assert.match(emptyText, /No posts on Social yet\./);
+  assert.equal(waitingSentences(emptyText).length, 0, "the answer still says the feed is loading");
+  assert.equal(invitationSentences(emptyText).length, 1, "the empty feed makes its offer more than once");
+  assert.equal(invitationSentences(emptyText)[0],
+    "Publish the first post and it appears here for anyone who visits.");
+  // One way to act on it: the offer is a sentence and a button, not two of
+  // either. The button is the control the sentence is about, so it is counted
+  // separately and pinned to the label the hero uses for the same act.
+  assert.equal(status.querySelectorAll("button").length, 1);
+  assert.equal(textOf(status.querySelector(".feed-status-action")), "Write a post");
+
+  // POPULATED. Nothing about publishing at all: the reader has posts, and the
+  // one sentence the page owes them is the summary, which is not in here.
+  feed.seed(MIXED);
+  assert.equal(rendered(document, ".post-card"), 3);
+  assert.equal(textOf(status), "", "empty or waiting copy survived a populated render");
+  assert.equal(status.hidden, true);
+  assert.equal(waitingSentences(textOf(status)).length, 0);
+  assert.equal(invitationSentences(textOf(status)).length, 0);
+  assert.equal(document.querySelectorAll(".empty-state").length, 0);
+  assert.equal((textOf(document.body).match(/Publish the first post/g) ?? []).length, 0,
+    "the empty feed's invitation outlived the empty feed");
+
+  // The summary sentence and its one statement of the order are untouched by
+  // all of the above: this issue moved no count and added no second ordering.
+  const summary = document.querySelector("#feed-summary");
+  assert.equal(textOf(summary), "Showing 3 posts, newest first.");
+  assert.equal((textOf(summary).match(/newest first\./g) ?? []).length, 1);
+  assert.doesNotMatch(textOf(summary), /load/i);
 });
 
 /* ---------------------------------- People -------------------------------- */

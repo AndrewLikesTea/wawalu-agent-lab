@@ -208,13 +208,15 @@ test("every card carries one control named Open post, pointing at that post", ()
 
 test("empty, loading, and error states are three distinct renders", () => {
   // Nothing published yet and nothing matching the filters are different news.
-  // The first is the only one that has to name Paint: an image is the part of a
-  // post a reader has nowhere else to get.
+  // The first states what publishing does, because an empty feed is the one
+  // screen where the reader has nothing to read and the offer is the whole
+  // answer; Paint is offered by the hero and the composer, where an image is
+  // actually attached, rather than as a second step here (#2506).
   const noPosts = createElement("div");
   renderPosts(noPosts, []);
   const noPostsPanel = first(noPosts, "empty-state");
   assert.match(noPostsPanel.textContent, /No posts on Social yet\./);
-  assert.match(noPostsPanel.textContent, /Write a post, or create an image in Paint first\./);
+  assert.match(noPostsPanel.textContent, /Publish the first post and it appears here for anyone who visits\./);
   // The sentence points at Paint; the button that used to repeat it under this
   // line is gone. Social offered one action in three places — the hero, the
   // composer, and here — and the composer's is the one beside the field an image

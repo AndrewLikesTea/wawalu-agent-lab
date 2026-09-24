@@ -669,21 +669,26 @@ function renderSkeleton(container, count = 3) {
 //
 // A `noMatch` is passed only when filters are hiding posts, so its absence is
 // what "the feed itself is empty" means. The two are different news, say
-// different words, and get different actions: nothing published yet points at
-// Paint, because an image is the part of a post a reader has nowhere else to
-// get; a filtered-out feed is already full, so it names what excluded the posts
-// and hands over the one control that brings them back.
+// different words, and get different actions: nothing published yet invites a
+// first post; a filtered-out feed is already full, so it names what excluded the
+// posts and hands over the one control that brings them back.
 //
-// "create an image in Paint" is the site's one name for that act — the composer
-// and both of People's invitations all use it — so this sentence uses it too
-// rather than the "open Paint" it used to say. It is the sentence that points at
-// Paint here; the button that used to repeat it under this line is gone, because
-// Social offered one action three times and the composer above is where the
-// image is actually attached.
+// THE ONE INVITATION, AND WHAT IT IS FOR (#2506). This is the only state on the
+// page that offers publishing in words, because it is the only state where
+// publishing is what the screen is missing. So it says what publishing DOES
+// rather than repeating the label on the button below it: "Write a post, or
+// create an image in Paint first." was the button's own words followed by a
+// second step, which told a reader what to press twice over and what they would
+// get never. A first-time visitor reading an empty feed needs to know that a
+// post they write lands here and stays public — Social's posts are durable and
+// shared, not drafts kept in this browser — and that is the fact the sentence
+// now carries.
 //
-// It names the hero's control in that control's own words, so a reader can find
-// the action the empty state points to.
-const NO_POSTS_GUIDANCE = `${COMPOSE_POST_LABEL}, or create an image in Paint first.`;
+// Paint is not named here any more. The hero offers it and the composer offers
+// it beside the field an image is attached to, which is where it is actually
+// needed; naming it in the empty panel made this a two-step instruction in the
+// one place a reader has only one thing to do.
+const NO_POSTS_GUIDANCE = "Publish the first post and it appears here for anyone who visits.";
 
 // One wait, one sentence — on this page. Social used to describe it twice at
 // once: a visible line ("Loading posts…") beside a live region that said
@@ -693,10 +698,23 @@ const NO_POSTS_GUIDANCE = `${COMPOSE_POST_LABEL}, or create an image in Paint fi
 // it. src/social.html carries it for the frame before hydration, so a change here
 // is a change in two files.
 //
+// AND ONE CLAIM (#2506). The sentence used to run on into "Select Write a post."
+// — an invitation standing in the one state where the page cannot yet say
+// whether there is anything to invite anyone into, and the same invitation
+// NO_POSTS_GUIDANCE above makes properly once the fetch has answered. A reader
+// who met the empty feed therefore read the offer twice, and a reader whose
+// feed turned out to be full read it for no reason at all. A wait states the
+// wait. The offer belongs to the empty state, where it can also say what
+// publishing gets you.
+//
+// The verb is the one the filter row waits with (FILTERS_UNAVAILABLE_HINT,
+// src/feed-status.js) and the one People waits with, so the two lines a loading
+// Social shows describe one fetch in one word.
+//
 // People is not one of them. It waits on the same fetch but shows one display
 // name's image posts, so it says that instead (loadingSummaryText,
 // src/profile.js); this sentence stays Social's.
-export const FEED_LOADING_LINE = `Existing posts are still loading. Select ${COMPOSE_POST_LABEL}.`;
+export const FEED_LOADING_LINE = "Posts are loading.";
 
 // The connection line under the filters, on Social and on People, from one
 // source so the same fact never gets two phrasings. `noun` is the only
