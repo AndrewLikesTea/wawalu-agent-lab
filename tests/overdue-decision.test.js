@@ -59,9 +59,9 @@ const findingFor = (decisions, options = {}) =>
 
 // --- which decision is the finding -----------------------------------------
 
-test("the open decision furthest past its review point is the finding, with its age, owner, and status", () => {
+test("the open decision that has waited longest is the finding, with its age, owner, and status", () => {
   const finding = findingFor([
-    // 30 days open, 16 past a 14-day review point.
+    // 30 days open, 16 past a 14-day window.
     decision({ id: "d-flags", title: "Introduce feature flags", owner: "Ari", status: "proposed", createdAt: "2026-06-01T09:00:00.000Z" }),
     // 20 days open, 6 past.
     decision({ id: "d-cache", title: "Cache the read path", owner: "Kai", status: "pending", createdAt: "2026-06-11T09:00:00.000Z" }),
@@ -77,8 +77,10 @@ test("the open decision furthest past its review point is the finding, with its 
   assert.equal(finding.age.daysOpen, 30);
   assert.equal(finding.age.daysPast, 16);
   assert.equal(finding.age.source, "window");
-  assert.match(finding.lead, /“Introduce feature flags” is 16 days past review\./);
-  assert.match(finding.benchmark, /Open for 30 days as Proposed, against a 14-day review point — 16 days past it\./);
+  // The lead is the fact — title, status, age — and the benchmark is the
+  // comparison. Between them a reader can check the arithmetic: 14 + 16 = 30.
+  assert.equal(finding.lead, "“Introduce feature flags” has been Proposed for 30 days.");
+  assert.match(finding.benchmark, /It is 16 days past the 14 days this check allows\./);
 
   // Owner and status travel with it, in the same order and words the list rows
   // and the detail page use.
@@ -90,7 +92,8 @@ test("the open decision furthest past its review point is the finding, with its 
   assert.equal(finding.meta[0].badge, "badge badge-proposed");
 
   // Why this one, stated rather than implied.
-  assert.match(finding.priority, /Chosen from 2 open decisions past the review point/);
+  assert.equal(finding.priority,
+    "Chosen from 2 decisions past the date they should have been called: the one furthest past.");
 });
 
 test("the most overdue decision wins regardless of provenance", () => {
@@ -101,7 +104,7 @@ test("the most overdue decision wins regardless of provenance", () => {
 
   assert.equal(finding.decisionId, "demo");
   assert.equal(finding.example, true);
-  assert.match(finding.priority, /one furthest past it/);
+  assert.match(finding.priority, /the one furthest past/);
 });
 
 test("an example finding is disclosed", () => {
@@ -155,15 +158,16 @@ test("settled and replaced decisions are never the finding", () => {
 
 // --- no overdue decision ----------------------------------------------------
 
-test("an open decision inside its review point produces a calm no-overdue state", () => {
-  // 6 days open against a 14-day review point.
+test("an open decision inside the window produces a calm no-overdue state", () => {
+  // 6 days open against a 14-day window.
   const finding = findingFor([decision({ createdAt: "2026-06-25T09:00:00.000Z" })]);
 
   assert.equal(finding.kind, OVERDUE_FINDING_KINDS.noneOverdue);
   assert.equal(finding.action, null, "there is nothing to chase, so there is no action");
   assert.equal(finding.decisionId, null);
-  assert.equal(finding.lead, "No decision is past its review point.");
-  assert.match(finding.benchmark, /1 open decision — Proposed or Pending — is inside the 14-day review point\./);
+  // The exact negation of the line the page shows while the check is running.
+  assert.equal(finding.lead, "No decision is still Proposed or Pending after 14 days.");
+  assert.match(finding.benchmark, /1 decision is Proposed or Pending, and it is inside 14 days\./);
   assert.doesNotMatch(`${finding.heading} ${finding.lead} ${finding.benchmark}`,
     /\b(urgent|overdue|late|immediately|action required|attention)\b/i);
 });
@@ -175,9 +179,9 @@ test("a log with nothing open, and an empty log, both say what would change the 
   ]) {
     assert.equal(finding.kind, OVERDUE_FINDING_KINDS.noneOpen);
     assert.equal(finding.action, null);
-    assert.equal(finding.lead, "No decision is past its review point.");
+    assert.equal(finding.lead, "No decision is still Proposed or Pending after 14 days.");
     assert.match(finding.benchmark, /Nothing in this log is Proposed or Pending/);
-    assert.match(finding.benchmark, /starts a 14-day review point/);
+    assert.match(finding.benchmark, /gets 14 days from its recorded date/);
   }
 });
 
@@ -191,6 +195,10 @@ test("a recorded review date is used when the record carries one, and ignored wh
   assert.equal(recorded.age.source, "recorded");
   assert.equal(recorded.age.daysPast, 3);
   assert.match(recorded.benchmark, /Its recorded review date passed 3 days ago\./);
+  assert.equal(recorded.lead, "“A decision” has been Pending for 5 days.");
+  // The record is five days old, so no line in this state may explain it by the
+  // 14-day window: the panel would be arguing with itself.
+  assert.doesNotMatch(`${recorded.lead} ${recorded.benchmark} ${recorded.priority}`, /14 days/);
 
   // Unreadable, blank, and non-string values are not review dates: the window
   // rule decides instead, and the same record is inside it.
@@ -212,7 +220,7 @@ test("an open decision with no readable recorded date is never called late, and 
   );
   assert.equal(finding.kind, OVERDUE_FINDING_KINDS.noneOverdue);
   assert.equal(finding.undatedCount, 1);
-  assert.match(finding.benchmark, /1 open decision carries no readable recorded date/);
+  assert.match(finding.benchmark, /1 Proposed or Pending decision carries no readable recorded date/);
 });
 
 test("a blank owner and a blank title still produce an openable finding", () => {
@@ -225,11 +233,14 @@ test("a blank owner and a blank title still produce an openable finding", () => 
   assert.equal(finding.action.name, `${OVERDUE_ACTION_LABEL}: ${UNTITLED_DECISION}`);
 });
 
-test("a caller may state a different review point, and it is named in the copy", () => {
+test("a caller may state a different window, and every line that reads it out follows", () => {
   const finding = findingFor([decision({ createdAt: "2026-06-25T09:00:00.000Z" })], { reviewWindowDays: 3 });
   assert.equal(finding.kind, OVERDUE_FINDING_KINDS.overdue);
   assert.equal(finding.windowDays, 3);
-  assert.match(finding.benchmark, /against a 3-day review point/);
+  assert.match(finding.benchmark, /past the 3 days this check allows/);
+  // The calm lead reads the same window rather than a second, stale number.
+  assert.equal(findingFor([decision({ createdAt: "2026-06-30T09:00:00.000Z" })], { reviewWindowDays: 3 }).lead,
+    "No decision is still Proposed or Pending after 3 days.");
 
   // A nonsensical window falls back to the shipped one rather than dividing by
   // it: the panel always states a number a reader can act on.
@@ -250,7 +261,7 @@ test("the overdue panel is a labelled region whose action names the decision and
   assert.equal(panel.tagName, "SECTION");
   const heading = first(panel, "overdue-finding-title");
   assert.equal(panel.getAttribute("aria-labelledby"), heading.id, "the region is named by its own heading");
-  assert.equal(heading.textContent, "Past its review point");
+  assert.equal(heading.textContent, "Waiting on a decision");
 
   // Status, owner, and the recorded date, the last as a machine-readable time.
   const values = byClass(panel, "meta-value").map((node) => node.textContent);
@@ -278,7 +289,7 @@ test("the calm panel renders no action, and a finding drawn from an example says
   renderOverdueFinding(calm, findingFor([decision({ createdAt: "2026-06-25T09:00:00.000Z" })]));
 
   assert.equal(first(calm, "overdue-finding-action"), null, "nothing to chase, nothing to press");
-  assert.match(textOf(calm), /No decision is past its review point/);
+  assert.match(textOf(calm), /No decision is still Proposed or Pending after 14 days/);
   assert.match(textOf(calm), /reads the whole log, not the filters below/);
   assert.ok(first(calm, "overdue-finding-none-overdue"), "the calm state is styled as its own state");
 
@@ -320,14 +331,17 @@ test("the history view leads with the overdue decision, and Enter on its action 
   const panel = findingPanel(document);
 
   assert.equal(panel.getAttribute("aria-busy"), "false");
-  assert.match(textOf(panel), /Past its review point/);
-  assert.match(textOf(panel), /“Introduce feature flags” is 16 days past review/);
+  assert.match(textOf(panel), /Waiting on a decision/);
+  assert.match(textOf(panel), /“Introduce feature flags” has been Proposed for 30 days\./);
+  assert.match(textOf(panel), /It is 16 days past the 14 days this check allows\./);
+  // What to do next is the action already in this region, not a new control.
+  assert.match(textOf(panel), new RegExp(OVERDUE_ACTION_LABEL));
   assert.match(textOf(panel), /Ari/);
   assert.doesNotMatch(textOf(panel), /Checking the log/, "the static placeholder is replaced on the first paint");
 
   // It is read before the filters and the list it summarises.
   const html = textOf(document.querySelector(".list-panel"));
-  assert.ok(html.indexOf("Past its review point") < html.indexOf("Search records"));
+  assert.ok(html.indexOf("Waiting on a decision") < html.indexOf("Search records"));
 
   // Keyboard: the action is a Tab stop, and Enter opens the decision detail
   // for that record — not the list, and not a generic recorder link.
@@ -365,15 +379,18 @@ test("filtering the history narrows the list without changing or breaking the fi
   assert.ok(tabSequence(document).includes(findingPanel(document).querySelector("a")));
 });
 
-test("a history with nothing past review shows the calm state on the shipped page", async (t) => {
+test("a history with nothing past the window shows the calm state on the shipped page", async (t) => {
   const page = await openHistory(t, {
     decisions: [decision({ id: "d-fresh", createdAt: "2026-06-25T09:00:00.000Z" })],
   });
   const panel = findingPanel(page.document);
 
   assert.match(textOf(panel), /Review check/);
-  assert.match(textOf(panel), /No decision is past its review point/);
-  assert.match(textOf(panel), /1 open decision — Proposed or Pending — is inside the 14-day review point/);
+  assert.match(textOf(panel), /No decision is still Proposed or Pending after 14 days/);
+  assert.match(textOf(panel), /1 decision is Proposed or Pending, and it is inside 14 days/);
+  // The state that was on screen while the check ran is gone, not left behind.
+  assert.doesNotMatch(textOf(panel), /Checking the log/);
+  assert.ok(textOf(panel).trim().length > 0, "the calm state is copy, not an empty panel");
   assert.equal(panel.querySelector("a"), null, "a calm state offers nothing to press");
   assert.doesNotMatch(textOf(panel), /\b(urgent|late|immediately|action required)\b/i);
 
@@ -381,10 +398,69 @@ test("a history with nothing past review shows the calm state on the shipped pag
   assert.equal(page.document.querySelector("#decision-list").querySelectorAll(".history-card").length, 1);
 });
 
-test("the empty log states what would start a review point, and the panel is still one region", async (t) => {
+test("the empty log states what would start the count, and the panel is still one region", async (t) => {
   const panel = findingPanel((await openHistory(t)).document);
   assert.match(textOf(panel), /Nothing in this log is Proposed or Pending/);
+  assert.match(textOf(panel), /gets 14 days from its recorded date/);
   assert.equal(panel.querySelectorAll("section").length, 1);
+});
+
+// --- the words themselves (issue #2507) -------------------------------------
+
+test("the line shown while the check runs asks the page's own question, in its own words", async (t) => {
+  // Read before initDecisionLog: this is the authored fallback, which is what a
+  // visitor sees on a page whose script has not run yet.
+  const page = await loadPage(DECISIONS_PAGE);
+  t.after(() => page.restore());
+
+  const pending = page.document.querySelector(".overdue-finding-pending");
+  assert.equal(textOf(pending),
+    `Checking the log for decisions still Proposed or Pending after ${REVIEW_WINDOW_DAYS} days.`,
+    "the authored fallback must state the shipped window, not a number that has drifted from it");
+  assert.equal(findingPanel(page.document).getAttribute("aria-busy"), "true");
+
+  // One sentence, no ellipsis standing in for one.
+  assert.doesNotMatch(textOf(pending), /…|\.\.\./);
+  assert.equal(textOf(pending).split(".").filter((part) => part.trim() !== "").length, 1);
+});
+
+// One page at a time, restored before the next is loaded: several pages left
+// open at once are torn down oldest-first, which reinstalls the wrong globals.
+const panelTextFor = async (decisions) => {
+  const page = await loadPage(DECISIONS_PAGE, {
+    storage: decisions.length > 0 ? { "shiplog.decisions.v1": JSON.stringify(decisions) } : {},
+  });
+  try {
+    await initDecisionLog(page.document, page.storage, { seed: NO_DEMO_DATA, now: NOW, announceDelay: 0 });
+    return textOf(findingPanel(page.document));
+  } finally {
+    page.restore();
+  }
+};
+
+test("no state of the page names a status the glossary does not define", async () => {
+  const source = await readFile(DECISIONS_PAGE, "utf8");
+  assert.doesNotMatch(source, /review point/i, "the term appears nowhere in the shipped document");
+
+  // Every state the panel has, checked as rendered text rather than as source.
+  const overdue = await panelTextFor([
+    decision({ id: "d-flags", title: "Introduce feature flags", status: "proposed", createdAt: "2026-06-01T09:00:00.000Z" }),
+    decision({ id: "d-cache", title: "Cache the read path", createdAt: "2026-06-11T09:00:00.000Z" }),
+  ]);
+  const calm = await panelTextFor([decision({ createdAt: "2026-06-25T09:00:00.000Z" })]);
+  const empty = await panelTextFor([]);
+
+  for (const [state, text] of [["overdue", overdue], ["calm", calm], ["empty", empty]]) {
+    assert.doesNotMatch(text, /review point/i, `the ${state} state still says it`);
+    // The status glossary on this page defines four words. No fifth one, and no
+    // undefined word standing in for one, may appear in this panel.
+    assert.doesNotMatch(text, /\b(overdue|approved|open|draft|stale|expired)\b/i,
+      `the ${state} state names a status the page never defines`);
+  }
+
+  // The count is read out with the noun in agreement, both ways.
+  assert.match(overdue, /Chosen from 2 decisions past the date they should have been called/);
+  assert.match(calm, /\b1 decision is Proposed or Pending\b/);
 });
 
 test("the action fills the measure once the panel is a single narrow column", async () => {

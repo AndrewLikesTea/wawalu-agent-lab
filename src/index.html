@@ -343,14 +343,16 @@
           <p class="hint sample-disclosure">Includes example records to demonstrate Shiplog. They use no customer or production data.</p>
           <!-- ONE PRIORITISED REVIEW, ABOVE THE FILTERS.
                Drawn by overdue-decision-view.js from the whole composed log and
-               not from the filters below it: which open decision is past its
-               review point is a property of the records, and a narrowed view
-               must not be able to make it look as though none is. app.js paints
-               it in the same synchronous turn as the record list, so the line
-               below is only ever read on a page whose script has not run.
+               not from the filters below it: which decision has waited longest
+               is a property of the records, and a narrowed view must not be
+               able to make it look as though none has. app.js paints it in the
+               same synchronous turn as the record list, so the line below is
+               only ever read on a page whose script has not run. Its wording
+               and its number are pinned to the scripted copy and to
+               REVIEW_WINDOW_DAYS by tests, so the two states never disagree.
                Deliberately not a live region — see overdue-decision-view.js. -->
           <div id="overdue-decision" aria-busy="true">
-            <p class="hint overdue-finding-pending">Checking the log for an open decision past its review point…</p>
+            <p class="hint overdue-finding-pending">Checking the log for decisions still Proposed or Pending after 14 days.</p>
           </div>
           <div class="filters" role="search" aria-label="Search and filter the history">
             <div class="filter decision-search-filter">
