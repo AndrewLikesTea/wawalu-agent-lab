@@ -15,7 +15,7 @@ installDocument();
 const { FEED_LOADING_LINE } = await import("../src/social.js");
 
 const {
-  EMPTY_SUMMARY_LINE, PENDING_RESULTS_HEADING, PROFILE_EMPTY_COPY, PUBLISH_ON_SOCIAL, authorChipLabel, authorInitials, captionFor, countLabel, defaultProfileAuthor,
+  EMPTY_SUMMARY_LINE, PENDING_RESULTS_HEADING, PUBLISH_ON_SOCIAL, authorChipLabel, authorInitials, captionFor, countLabel, defaultProfileAuthor,
   distinctAuthors, hasExplicitAuthor, imagePostCounts, loadingSummaryText,
   mergePostsById, normalizeProfileApiPosts, normalizeSeedPosts, pickerEntries, pickerNoteText, postDetailHref,
   singleNameNotice, profileActiveFilterLine,
@@ -460,20 +460,24 @@ test("posts already on screen outrank a pending or failed refresh", () => {
   }
 });
 
-test("a completed empty profile names the selected display name and routes to Publish post", () => {
+// The panel offers what this page can do about an empty grid, and nothing else.
+// Publishing happens in Paint and on Social, and the .feed-create sequence under
+// the grid states that path in order and in full; this panel used to restate
+// three of its steps as two links in two other labels (#2497).
+test("a completed empty profile names the selected display name and offers the picker", () => {
   const container = createElement("div");
   renderProfileGrid(container, [], { author: "Mina" });
   const empty = first(container, "empty-state");
   assert.equal(first(empty, "empty-title").textContent,
     "The display name “Mina” has no image posts yet.");
   const actions = byClass(empty, "empty-action");
-  assert.equal(actions.length, 3);
+  assert.equal(actions.length, 1);
+  assert.equal(actions[0].textContent, "Choose another display name");
   assert.equal(actions[0].href, "#profile-name-picker");
-  assert.equal(actions[2].href, profilePaintHref("Mina"));
-  const action = actions[1];
-  assert.equal(action.textContent, "Publish an image post on Social");
-  assert.equal(action.href, "/social.html#post-form");
-  assert.equal(action.tagName, "A");
+  assert.equal(actions[0].tagName, "A");
+  // The handoff is not told a second time from inside the grid: one link out,
+  // and it stays on this page.
+  assert.equal(tags(empty, "A").length, 1);
 });
 
 test("a failed load is offered a retry, not a false empty state", () => {
@@ -778,9 +782,9 @@ test("the zero state does not vary with what the rest of the feed holds", () => 
   });
   assert.equal(first(withFilter, "empty-title").textContent, profileEmptyText("Ari"));
   const actions = byClass(withFilter, "empty-action");
-  assert.equal(actions.length, 3);
-  assert.equal(actions[1].textContent, PROFILE_EMPTY_COPY.actionLabel);
-  assert.equal(actions[1].href, PROFILE_EMPTY_COPY.actionHref);
+  assert.equal(actions.length, 1);
+  assert.equal(actions[0].textContent, "Choose another display name");
+  assert.equal(actions[0].href, "#profile-name-picker");
   // No button anywhere: the way back to a populated view is the picker above,
   // which is on screen in both of these situations.
   assert.equal(tags(withFilter, "BUTTON").length, 0);
@@ -914,9 +918,7 @@ test("empty People recovery follows safely interpolated names and replaces pendi
     assert.equal(tags(panel, "IMG").length, 0);
     assert.equal(byClass(container, "feed-status-error").length, 0);
     assert.equal(byClass(container, "profile-skeleton").length, 0);
-    assert.deepEqual(tags(panel, "A").map(link => link.href), [
-      "#profile-name-picker", "/social.html#post-form", profilePaintHref(author),
-    ]);
+    assert.deepEqual(tags(panel, "A").map(link => link.href), ["#profile-name-picker"]);
     assert.equal(panel.children[1].className, "empty-actions");
   }
 });

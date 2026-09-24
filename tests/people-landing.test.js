@@ -176,7 +176,7 @@ test("the picker says what choosing a name does, and the line over the grid says
     assert.equal(document.querySelectorAll(".profile-tile").length, 0);
     assert.equal(textOf(document.querySelector("#profile-name")), "Ari has no image posts yet.");
     assert.match(textOf(document.querySelector("#profile-feed-status")),
-      /The display name “Ari” has no image posts yet\.Choose another display namePublish an image post on Social/);
+      /The display name “Ari” has no image posts yet\.Choose another display name/);
 
     // The retired sentence is gone from every render path, not just the first
     // one, and no page state brings it back.
@@ -496,8 +496,8 @@ test("a name whose posts are all gone is offered the publishing flow", async () 
     assert.equal(document.querySelectorAll(".empty-state").length, 1);
     const panel = document.querySelector(".empty-state");
     assert.equal(document.querySelectorAll(".empty-state-filtered").length, 0);
-    assert.match(textOf(panel), /The display name “Bea” has no image posts yet\.Choose another display namePublish an image post on Social/);
-    assert.equal(panel.querySelectorAll("a")[1].getAttribute("href"), "/social.html#post-form");
+    assert.equal(textOf(panel), "The display name “Bea” has no image posts yet.Choose another display name");
+    assert.equal(panel.querySelectorAll("a")[0].getAttribute("href"), "#profile-name-picker");
   } finally {
     page.restore();
   }
@@ -532,7 +532,7 @@ test("an empty display name is named in prose once and counted once", async () =
     // feed holds image posts under other display names, so it is the filter that
     // emptied the view. Guidance rather than a second telling of the count.
     assert.equal(document.querySelectorAll(".empty-state").length, 1);
-    assert.match(textOf(document.querySelector(".empty-state")), /The display name “Nova” has no image posts yet\.Choose another display namePublish an image post on Social/);
+    assert.equal(textOf(document.querySelector(".empty-state")), "The display name “Nova” has no image posts yet.Choose another display name");
   } finally {
     page.restore();
   }
@@ -1150,11 +1150,11 @@ test("a keyboard selection leaves focus on the name that was chosen, not at the 
   }
 });
 
-test("a selected name with no image posts offers Publish post", async () => {
+test("a selected name with no image posts offers the picker, and the path is stated once", async () => {
   // Nova has nothing, but this feed does: that is the filtered dead end, whose
-  // recovery is the reset rather than the editor. The genuinely-empty
-  // invitation — Paint and the whole feed — is covered on a feed with no image
-  // posts at all, in tests/feed-one-state.test.js.
+  // recovery is the reset rather than the editor. The publishing path is the
+  // .feed-create sequence under the grid, and it is the page's only account of
+  // it: the panel used to restate three of its five steps as links (#2497).
   const page = await people({ search: "?author=Nova" });
   try {
     const { document } = page;
@@ -1162,11 +1162,25 @@ test("a selected name with no image posts offers Publish post", async () => {
     // One region, not two, and not an empty list.
     assert.equal(document.querySelectorAll(".empty-state").length, 1);
     const empty = document.querySelector(".empty-state");
-    assert.match(textOf(empty), /The display name “Nova” has no image posts yet\.Choose another display namePublish an image post on Social/);
+    assert.equal(textOf(empty), "The display name “Nova” has no image posts yet.Choose another display name");
     assert.equal(document.querySelector("#profile-grid").querySelectorAll(".profile-grid").length, 0,
       "the grid drew an empty list beside the region that explains it");
-    assert.equal(textOf(empty.querySelectorAll("a")[1]), "Publish an image post on Social");
-    assert.equal(empty.querySelectorAll("a")[1].getAttribute("href"), "/social.html#post-form");
+    assert.equal(empty.querySelectorAll("a").length, 1);
+    assert.equal(textOf(empty.querySelectorAll("a")[0]), "Choose another display name");
+    assert.equal(empty.querySelectorAll("a")[0].getAttribute("href"), "#profile-name-picker");
+    // One ordered account of the handoff on the page, and it is the sequence
+    // under the grid — Paint, the control, the description, publish, People.
+    const invitation = textOf(document.querySelector(".feed-create"));
+    assert.match(invitation,
+      /To add yours: Create or open an image in Paint \(opens in a new tab\)\. Select “Use this image in a Social post”, then fill in the required image description\. Publish a post on Social\. A published post with an image appears on People, under the display name you publish it with\./);
+    assert.match(invitation, /A published post is public and cannot be edited or deleted/);
+    assert.match(invitation, /Do not include customer or production data\./);
+    // And it is the only place the settled page names either end of the handoff.
+    const main = textOf(document.getElementById("main-content"));
+    assert.equal((main.match(/Publish a post on Social/g) ?? []).length, 1,
+      "People prompts the trip to Social's composer more than once again");
+    assert.equal((main.match(/image in Paint/g) ?? []).length, 1,
+      "People offers the route into Paint more than once again");
     // The panel the guidance lands in speaks as content: the polite region is
     // the page's one voice, so this is not announced a second time from here.
     const status = document.querySelector("#profile-feed-status");
@@ -1257,7 +1271,7 @@ test("the grid and the status region are read before the demo disclaimer", async
     // state the caveat is most likely to be the only thing on screen.
     chipFor(page, "Ari").click();
     assertPicturesBeforeProvenance(page.document, "filtered-empty", {
-      tiles: 0, status: /The display name “Ari” has no image posts yet\.Choose another display namePublish an image post on Social/,
+      tiles: 0, status: /The display name “Ari” has no image posts yet\.Choose another display name/,
     });
   } finally {
     page.restore();
