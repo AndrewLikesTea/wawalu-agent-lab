@@ -230,8 +230,20 @@ test("the success state says the record is browser-only and names the way out", 
   assert.equal(successRegion(page).hidden, false);
   assert.equal(
     textOf(kept),
-    "This release is stored in this browser only. “Export releases as JSON” above takes it with you."
-      + " It is a demo record, not a customer result.",
+    "This release is stored in this browser only — a demo record, not a customer result."
+      + " “Export releases as JSON” above writes only the releases your search and filters are showing;"
+      + " press “Clear filters” first to be sure this one is in the file."
+      + " For the full record, use “Export history” on the Home page and choose “Everything stored in this browser”.",
+  );
+  // The export sentence agrees with the export's own scope line: neither may
+  // promise that pressing the button takes this release along, because the
+  // file is the filtered view. A success state that says otherwise sends a
+  // first-time recorder away with a file their new release is not in.
+  assert.match(textOf(kept), /writes only the releases your search and filters are showing/);
+  assert.doesNotMatch(textOf(kept), /takes it with you/);
+  assert.match(
+    textOf(page.document.querySelector("#release-export-scope")),
+    /includes only the releases currently shown by the active search and filters/,
   );
   // Its own sentence, not the pre-submit scope line reprinted: that one is a
   // promise about any release this form takes, this one is a fact about the
@@ -250,6 +262,22 @@ test("the success state says the record is browser-only and names the way out", 
     textOf(kept).includes(`“${textOf(exportButton)}”`),
     "the success state names an export control the page does not show",
   );
+  // So is the recovery it offers: a reader told to clear the filters has to
+  // find a control wearing exactly those words on this page.
+  const clearButton = page.document.querySelector("#release-clear-filters");
+  assert.equal(textOf(clearButton), "Clear filters");
+  assert.ok(
+    textOf(kept).includes(`“${textOf(clearButton)}”`),
+    "the success state names a reset control the page does not show",
+  );
+  // And the whole-record route it sends a reader to is on the home page, in the
+  // words that page paints: the section it names and the scope it tells them to
+  // pick. A route named in a synonym is a route a first-time visitor cannot find.
+  const home = await readFile(new URL("../src/index.html", import.meta.url), "utf8");
+  for (const label of ["Export history", "Everything stored in this browser"]) {
+    assert.ok(textOf(kept).includes(`“${label}”`), `the success state does not name “${label}”`);
+    assert.ok(home.includes(`>${label}<`), `the home page shows no “${label}”`);
+  }
   // The claim is checked against the behaviour: the record is in this browser's
   // one storage key, and the run completed — an upload would have thrown.
   assert.equal(stored(page).length, 1);
