@@ -28,7 +28,7 @@ import {
 } from "./social-links.js";
 import { postPermalink, renderPostCopyControl } from "./post-share.js";
 import { mountPostReport, renderReportButton } from "./post-report.js";
-import { renderFeedStatus, feedPhase, feedPresence, filtersAvailable, setFilterAvailability, FILTERS_UNAVAILABLE_HINT } from "./feed-status.js";
+import { renderFeedStatus, feedPhase, feedPresence, filtersAvailable, holdStatusFocus, settleStatusFocus, setFilterAvailability, FILTERS_UNAVAILABLE_HINT } from "./feed-status.js";
 
 export { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH };
 
@@ -1171,6 +1171,32 @@ export function mountSocialFeed(root, options = {}) {
   // feed…", so a waiting reader met three sentences about one wait. They leave
   // the document while the feed is loading and come back with the answer.
   const countPresence = feedPresence(count);
+  // Retry, wrapped once here rather than at the three call sites that draw one
+  // (the failed first load, the failed refresh beside surviving posts, and
+  // whatever state is added next). The page's own handler is unchanged: it
+  // re-enters the loading state and re-requests. What is added around it is
+  // where the reader stands while that happens, because pressing Retry destroys
+  // the button they pressed — see holdStatusFocus in src/feed-status.js.
+  //
+  // FOCUS TARGET, DOCUMENTED. #feed-state while the region still has words for
+  // the reader, and the feed heading (#feed-title, which already ships
+  // tabindex="-1" for the no-match recovery) once the posts are back and the
+  // region has gone quiet. Never <body>, which is what the browser does on its
+  // own and what sends the next Tab to the top of the document.
+  //
+  // Settled twice on purpose: the synchronous loading render is the first thing
+  // that can empty the region — a failed refresh with posts still on screen
+  // hides it outright — and the answer is the second.
+  const retryFeed = options.onRetry
+    ? async () => {
+      const held = holdStatusFocus(feedState);
+      const answered = options.onRetry();
+      if (held) settleStatusFocus(feedState, heading);
+      await answered;
+      if (held) settleStatusFocus(feedState, heading);
+    }
+    : null;
+
   // The connection line ships empty and `hidden` (src/social.html) so that the
   // frame before this module runs states one thing — that the feed is loading.
   // Everything about the line from here is decided in code: this drops the
@@ -1224,7 +1250,7 @@ export function mountSocialFeed(root, options = {}) {
       ? { ...named, total: posts.length, onClear: recoverFromNoMatch }
       : null;
     renderPosts(feed, visible, {
-      state, noMatch, statusRegion: feedState ?? feed, onRetry: options.onRetry,
+      state, noMatch, statusRegion: feedState ?? feed, onRetry: retryFeed,
       onPublish: () => composer.open(),
       onReport: report ? (post, button) => report.open(post, button) : null,
     });

@@ -27,7 +27,7 @@ import {
   OPEN_POST_LABEL, postDetailHref, profileHref, socialAllPostsLabel, socialFeedHref,
 } from "./social-links.js";
 import { imageDescription, renderDescriptionNote, renderImageUnavailable } from "./image-description.js";
-import { renderFeedStatus, feedPhase, feedPresence, setFilterAvailability } from "./feed-status.js";
+import { renderFeedStatus, feedPhase, feedPresence, holdStatusFocus, settleStatusFocus, setFilterAvailability } from "./feed-status.js";
 import { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH } from "./social-identity.js";
 import { mountPostReport, renderReportButton } from "./post-report.js";
 
@@ -917,6 +917,34 @@ export function mountProfile(root, options = {}) {
     paintRoutes: [root.querySelector("#profile-paint-route")].filter(Boolean),
   };
 
+  // Retry, wrapped once for both the failed first load and the failed refresh
+  // beside surviving tiles. The page's handler is untouched — it re-enters the
+  // loading state and re-requests — and what is added around it is where the
+  // reader stands while that happens, because pressing Retry destroys the button
+  // they pressed: it is drawn inside the status region the retry immediately
+  // redraws. See holdStatusFocus in src/feed-status.js.
+  //
+  // FOCUS TARGET, DOCUMENTED. #profile-feed-status while that region still has
+  // words for the reader — the wait, a second failure, a display name with no
+  // image posts — and the results heading (#grid-title) once the tiles are back
+  // and the region has gone quiet and hidden. Never <body>, which is where a
+  // browser puts a reader whose element was removed, and which sends the next
+  // Tab to the top of the document.
+  //
+  // Settled twice: once after the synchronous loading render, which is what
+  // hides the region outright when tiles are already on screen, and once after
+  // the answer.
+  const retryFeed = options.onRetry
+    ? async () => {
+      const region = elements.feedStatus ?? grid;
+      const held = holdStatusFocus(region);
+      const answered = options.onRetry();
+      if (held) settleStatusFocus(region, elements.heading);
+      await answered;
+      if (held) settleStatusFocus(region, elements.heading);
+    }
+    : null;
+
   // The lines this page may only say once a fetch has answered: the count, the
   // promise about image posts arriving on their own, the invitation to put a
   // picture in a grid nobody has seen yet, and the sentence that says whose
@@ -1022,7 +1050,7 @@ export function mountProfile(root, options = {}) {
     const filtered = Boolean(elsewhere) && elsewhere !== author;
     renderProfileGrid(grid, mine, {
       state,
-      onRetry: options.onRetry,
+      onRetry: retryFeed,
       author,
       statusRegion: elements.feedStatus ?? grid,
       onReport: report ? (post, button) => report.open(post, button) : null,

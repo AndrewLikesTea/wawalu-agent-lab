@@ -90,6 +90,64 @@ function within(node, host) {
   return false;
 }
 
+// Focus a node the page is HANDING a reader, rather than one they tabbed to.
+// `tabindex="-1"` makes it a focus target without making it a tab stop, so no
+// page's tab budget changes, and it is only written when the markup did not
+// already give the node a stop of its own.
+function focusHandover(node) {
+  if (!node) return false;
+  if (node.getAttribute("tabindex") === null) node.setAttribute("tabindex", "-1");
+  node.focus?.();
+  return true;
+}
+
+// RETRY, AND WHERE THE READER IS STANDING WHILE IT RUNS.
+//
+// A feed's Retry lives inside the status region that is reporting the failure,
+// and the first thing a retry does is redraw that region as the wait. So the
+// control is destroyed under the press. In a browser that drops focus to
+// <body>, and the next Tab restarts at the top of the document — skip link,
+// brand, the whole site nav — before the reader is anywhere near the feed they
+// were just trying to load. Nothing on the page says this happened; the reader
+// simply finds themselves somewhere else.
+//
+// Two calls bracket the re-request, and between them the reader is never on a
+// node that has left the document.
+//
+// `holdStatusFocus` runs while the pressed button is still in the document and
+// moves focus up one level, to the region itself: the node that is about to
+// change under them, the node that says what is happening, and the one node in
+// this exchange that survives every redraw. It does nothing unless focus is
+// actually inside the region, so a retry fired by anything other than a
+// keyboard reader standing on the button moves no focus at all.
+export function holdStatusFocus(region) {
+  if (!region) return false;
+  const active = document.activeElement ?? null;
+  if (!active || !within(active, region)) return false;
+  return focusHandover(region);
+}
+
+// `settleStatusFocus` runs after each redraw and asks one question: is the
+// region still saying something? A wait, a second failure, an empty feed — all
+// of those leave words in the region, and any control the state offers is
+// inside it, so the reader stays where they are and Tab carries on from the
+// line they are standing on into the fresh Retry.
+//
+// A load that succeeded is the case that cannot stay: the region is emptied and
+// hidden, and focus on a hidden node is focus lost to <body> again. So it is
+// handed to `fallback` — the feed's own heading, the first thing above the
+// content that just arrived, which is where a reader who asked for the feed
+// back wants to be.
+//
+// It never acts unless focus is still on the region, so a reader who moved on
+// during the fetch is not dragged back, and calling it after it has already
+// handed over does nothing a second time.
+export function settleStatusFocus(region, fallback) {
+  if (!region || document.activeElement !== region) return false;
+  if (!region.hidden && (region.children?.length ?? 0) > 0) return false;
+  return focusHandover(fallback);
+}
+
 /** The hint this call owns, if a previous call already wrote it. */
 function existingHint(host, id) {
   return [...(host?.children ?? [])].find((child) => child.getAttribute?.("id") === id) ?? null;
@@ -146,10 +204,7 @@ export function setFilterAvailability(available, options = {}) {
 
   if (off && statusRegion) {
     const active = document.activeElement ?? null;
-    if (active && (list.includes(active) || within(active, focusHost))) {
-      if (statusRegion.getAttribute("tabindex") === null) statusRegion.setAttribute("tabindex", "-1");
-      statusRegion.focus();
-    }
+    if (active && (list.includes(active) || within(active, focusHost))) focusHandover(statusRegion);
   }
 
   for (const control of list) {
