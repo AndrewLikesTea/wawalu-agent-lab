@@ -958,10 +958,57 @@ function renderReleaseRow(record, index, visibleKeys) {
   return item;
 }
 
+// HOW MUCH OF THE LOG CARRIES ITS REASONING.
+//
+// The fact is read off the record, never off the row's text: `decisionIds` is
+// the association the release recorder writes, carried here as the resolved
+// record's `counts.total`. A dangling reference still counts as carried — the
+// release did name a decision, and the row already reports separately that one
+// of them is missing. Losing a decision to an import is a different failure
+// from never having recorded one, and this line is about the second.
+function carriesLinkedDecision(record) {
+  return (record.release?.counts?.total ?? record.release?.decisionIds?.length ?? 0) > 0;
+}
+
+const NO_RELEASES_TO_COUNT = "No releases are listed here, so there are none to count.";
+
+/**
+ * One sentence over the releases a view is currently showing.
+ *
+ * Pure, and derived from the same array the rows are built from, so the line
+ * cannot describe a different set than the list under it. Every branch names
+ * the filters, because a reader who has narrowed the log must not read a
+ * narrowed number as a statement about the whole log. "0 of 0" is never
+ * rendered: a view with no releases in it says so in words instead.
+ */
+export function releaseCoverageLine(visible = []) {
+  const releases = visible.filter((record) => record.type === "release");
+  const total = releases.length;
+  if (total === 0) return NO_RELEASES_TO_COUNT;
+  const carried = releases.filter(carriesLinkedDecision).length;
+  const bare = total - carried;
+  const shown = "shown by the current filters";
+  if (total === 1) {
+    return carried === 1
+      ? `The one release ${shown} carries at least one linked decision.`
+      : `The one release ${shown} carries no linked decision.`;
+  }
+  if (bare === 0) return `All ${total} releases ${shown} carry at least one linked decision.`;
+  if (carried === 0) return `None of the ${total} releases ${shown} carries a linked decision.`;
+  return `Of the ${total} releases ${shown}, ${carried} carry at least one linked decision `
+    + `and ${bare} ${bare === 1 ? "does" : "do"} not.`;
+}
+
 // Renders the composed history stream and returns the number of visible rows so
 // the caller can announce an accurate count without re-deriving the selection.
-export function renderHistory(container, count, records, view = {}) {
+//
+// `coverage`, when the surface has that node, is written here rather than from
+// a listener of its own: it is the same `visible` array the rows come from, on
+// the same render, so no filter can move the list without moving the sentence
+// above it — including on the two empty paths, which return early below.
+export function renderHistory(container, count, records, view = {}, { coverage } = {}) {
   const visible = selectHistory(records, view);
+  if (coverage) coverage.textContent = releaseCoverageLine(visible);
   container.replaceChildren();
   container.setAttribute("aria-busy", "false");
 
@@ -1109,6 +1156,10 @@ export async function initDecisionLog(root = document, storage = localStorage, o
   const fromFilter = root.querySelector("#filter-from");
   const toFilter = root.querySelector("#filter-to");
   const filterSummary = root.querySelector("#history-filter-summary");
+  // Plain text beside the list, deliberately not a live region of its own: it
+  // is written on the same render as the rows, so a second announcement here
+  // would only interrupt the settled count in #history-announcement.
+  const coverage = root.querySelector("#release-coverage");
   const trend = root.querySelector("#history-trend");
   const timelines = root.querySelector("#history-timelines");
   const filterChips = root.querySelector("#history-filter-chips");
@@ -1441,7 +1492,7 @@ export async function initDecisionLog(root = document, storage = localStorage, o
   };
 
   const render = () => {
-    const visible = renderHistory(list, count, records, view);
+    const visible = renderHistory(list, count, records, view, { coverage });
     if (supersedeSummary) supersedeSummary.textContent = supersedeFilterSummary(records, view);
     // The headline of the list, and the filters that produced it. Rendered
     // before the announcement so a reader who hears the count can already find
