@@ -180,19 +180,38 @@
             <h2 id="decision-form-title">Record a decision</h2>
           </div>
 
-          <!-- THE WHOLE DEMO, IN ORDER (#2371). Plain text with no links, so it
-               adds no tab stop to a page whose first screen has none to spare;
-               the one link the path needs appears under the button once a
-               decision is actually saved. Static markup that no module repaints. -->
+          <!-- THE WHOLE DEMO, IN ORDER, AND HOW FAR THIS BROWSER GOT (#2500).
+               Repainted by src/demo-progress.js from the records this browser
+               holds: each step says its own status in words, the one to do next
+               carries aria-current, and the region under the list offers a
+               single link to it. What is shipped below is the state of a
+               browser that has recorded nothing, which is what a reader whose
+               scripts never ran is honestly in — and the step sentences a
+               module repaints are the same ones it ships.
+               STILL NO TAB STOP IN THE MARKUP. The empty next region adds no
+               focusable, and the link the module paints into it appears only
+               once there is a record to act on. The first screen has none to
+               spare, and the coach entry lower down is pinned to its place in
+               the tab order by prompt-coach-destination.test.js. -->
           <section class="evaluation-path" aria-labelledby="evaluation-path-title">
             <h3 id="evaluation-path-title">Try the whole demo in four steps</h3>
             <ol id="evaluation-path-steps">
-              <li>Record a decision with the form below.</li>
-              <li>Continue to Releases from the link that appears once it is saved.</li>
-              <li>Record a release there and link that decision to it.</li>
-              <li>Open the release you recorded and check its summary and linked decision.</li>
+              <li aria-current="step"><span class="evaluation-path-status">Step 1 of 4 · Do this now</span> <span class="evaluation-path-step">Record a decision with the form below.</span></li>
+              <li><span class="evaluation-path-status">Step 2 of 4 · Not started</span> <span class="evaluation-path-step">Continue to Releases with that decision ready to link.</span></li>
+              <li><span class="evaluation-path-status">Step 3 of 4 · Not started</span> <span class="evaluation-path-step">Record a release there and link that decision to it.</span></li>
+              <li><span class="evaluation-path-status">Step 4 of 4 · Not started</span> <span class="evaluation-path-step">Open the release you recorded and check its summary and linked decision.</span></li>
             </ol>
+            <div class="evaluation-path-next" id="evaluation-path-next">
+              <p id="evaluation-path-next-lead">Nothing is recorded in this browser yet. Step one is the form below.</p>
+            </div>
             <p class="hint" id="evaluation-path-scope">Records you add stay in this browser only. This is a demo workflow, not a customer result.</p>
+            <!-- The one thing on this page that says a step changed without a
+                 reload. It ships empty, and stays in the accessibility tree
+                 from the first paint: a live region inserted at the moment its
+                 text arrives is announced by nothing. It is visible text, not a
+                 hidden one and not inside a disclosure, so the change is
+                 readable as well as audible. -->
+            <p class="hint evaluation-path-announce" id="evaluation-path-announce" role="status" aria-live="polite"></p>
           </section>
 
           <!-- novalidate, and validated by decision-entry.js instead. A native

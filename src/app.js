@@ -15,6 +15,7 @@ import {
 } from "./decision-backing.js";
 import { STORED_DECISION_STATUSES, canonicalDecisionStatus } from "./decision-status.js";
 import { dedupeById } from "./demo-data.js";
+import { initDemoProgress } from "./demo-progress.js";
 import {
   DEFAULT_HISTORY_FILTERS,
   RECORD_TYPES,
@@ -1779,6 +1780,18 @@ export async function initDecisionLog(root = document, storage = localStorage, o
       withdrawRecordNext();
       form.elements.title.focus();
     }
+  });
+
+  // How far this browser got through the demo (#2500). Mounted from here
+  // because the recorder owns both halves of the answer: this is the surface
+  // that writes decisions, and recordsChanged() above is the notification the
+  // indicator re-reads on. It is handed READERS, not lists — the store is the
+  // state, and a copy taken at boot would keep describing a log a later write
+  // has moved on from. A page without the path gets nothing back and nothing
+  // breaks, so the recorder still mounts on a surface that does not carry it.
+  initDemoProgress(root, storage, {
+    decisions: () => loadDecisions(storage),
+    releases: () => loadReleases(storage),
   });
 
   // The live deployment self-check (#1791), which is the releases page's band

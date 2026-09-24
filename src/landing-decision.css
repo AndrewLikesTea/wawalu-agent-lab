@@ -119,6 +119,23 @@
 .evaluation-path { margin:0 0 18px; border-left:4px solid #1f70c1; padding:2px 0 2px 14px; overflow-wrap:anywhere; }
 .evaluation-path h3 { margin:0 0 6px; font-size:16px; }
 .evaluation-path ol { margin:0 0 6px; padding-left:20px; line-height:1.5; }
+/* Status first, instruction under it (#2500). The status is its own block at
+ * every width, so the two never share a line that a long decision title could
+ * push sideways, and the list wraps down the page instead of overflowing it on
+ * a 390px screen. The status is told apart by weight and letter-spacing rather
+ * than by colour alone — the word itself is the status. */
+.evaluation-path li { margin:0 0 6px; }
+.evaluation-path-status { display:block; font-size:12px; font-weight:750; letter-spacing:.04em; text-transform:uppercase; }
+.evaluation-path-step { display:block; overflow-wrap:anywhere; }
+.evaluation-path-next { display:grid; gap:4px; margin:0 0 6px; overflow-wrap:anywhere; }
+.evaluation-path-next p { margin:0; font-size:15px; line-height:1.5; }
+.evaluation-path-next .text-link { justify-self:start; max-width:100%; }
+.evaluation-path-announce:empty { display:none; }
+@media (max-width:520px) {
+  .evaluation-path ol { padding-left:18px; }
+  .evaluation-path li { display:block; }
+  .evaluation-path-next .text-link { justify-self:stretch; white-space:normal; overflow-wrap:anywhere; }
+}
 .decision-record-next { display:grid; gap:8px; margin-top:12px; overflow-wrap:anywhere; }
 .decision-record-next p { margin:0; }
 .decision-record-next .button-link { max-width:100%; justify-self:start; }
