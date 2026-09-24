@@ -355,10 +355,15 @@ test("a display name People does not hold is not an error", async (t) => {
   assert.equal(textOf(document.querySelector("#profile-announcer")), `The display name “${NOBODY}” has no image posts yet.`);
 
   // Held, never swapped: no other name, Guest included, is selected under it,
-  // and the region offers the way to Social from where the reader stands.
+  // and the way to Social is on screen beside the empty grid. It is the ordered
+  // sequence under the grid, not a link inside the panel: the panel used to
+  // carry its own publishing route in different words, so the same handoff was
+  // offered twice (#2497).
   assert.equal(chips(document).filter((chip) => chip.getAttribute("aria-pressed") === "true"
     && chip.dataset?.author !== NOBODY).length, 0, "an unknown name was swapped for another display name");
-  assert.ok(document.querySelector(".empty-state").querySelectorAll("a")
+  assert.ok(document.querySelectorAll(".feed-create").length > 0,
+    "the unknown name's empty grid is not beside the path that fills it");
+  assert.ok(document.querySelector(".feed-create").querySelectorAll("a")
     .filter((link) => (link.getAttribute("href") ?? "").startsWith("/social.html")).length > 0,
   "the unknown name's message offers no way to Social");
 

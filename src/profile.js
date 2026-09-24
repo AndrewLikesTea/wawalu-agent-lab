@@ -331,12 +331,6 @@ export function formatDate(iso) {
 
 /* --------------------------- first-run copy ------------------------------- */
 
-// Recovery follows the selected-name message and uses the existing publishing routes.
-export const PROFILE_EMPTY_COPY = {
-  actionLabel: "Publish an image post on Social",
-  actionHref: "/social.html#post-form",
-};
-
 export function profileEmptyText(author) {
   const name = String(author ?? "").trim() || DEFAULT_AUTHOR;
   return `The display name “${name}” has no image posts yet.`;
@@ -632,6 +626,23 @@ function renderSkeleton(container, count = 6) {
   container.append(list);
 }
 
+// The zero state names the situation and offers the one recovery that belongs to
+// it: choose a different display name, which is the only thing a reader can do
+// without leaving this page.
+//
+// It used to stack two more routes here — "Publish an image post on Social" and
+// "Create an image in Paint" — which was the Paint-to-Social handoff told a
+// second time, in two labels the page's own account of that path does not use
+// (#2497). That account is the .feed-create sequence under the grid, and it is on
+// screen in this exact state: feedPresence restores it for every phase but
+// "loading", so the reader met three steps in one panel and five in the paragraph
+// below it. The page states the path once now, in order, in the sequence:
+// Paint, "Use this image in a Social post", the required image description,
+// publish, then the post appears on People under the display name it was
+// published under.
+//
+// The deleted Paint route also never said it opened a new tab, which it did, and
+// which every route into Paint in authored markup discloses in its own text.
 function renderEmpty(container, author) {
   const empty = el("div", "empty-state");
   empty.append(el("h3", "empty-title", profileEmptyText(author)));
@@ -639,12 +650,6 @@ function renderEmpty(container, author) {
   const choose = el("a", "empty-action empty-action-secondary", "Choose another display name");
   choose.href = "#profile-name-picker";
   actions.append(choose);
-  const link = el("a", "empty-action", PROFILE_EMPTY_COPY.actionLabel);
-  link.href = PROFILE_EMPTY_COPY.actionHref;
-  actions.append(link);
-  const paint = el("a", "empty-action empty-action-secondary", "Create an image in Paint");
-  paint.href = profilePaintHref(author);
-  actions.append(paint);
   empty.append(actions);
   container.append(empty);
 }
@@ -1011,7 +1016,7 @@ export function mountProfile(root, options = {}) {
     // one: some other display name in this feed does have image posts, so the
     // reader has narrowed a full feed to nothing rather than reached a site with
     // nothing on it. The panel below says the same thing either way — the
-    // selected name has no image posts, and here is how to publish one — but the
+    // selected name has no image posts, and the way out is another name — but the
     // promise beside it does not, so the distinction is still worth computing.
     const elsewhere = defaultProfileAuthor(posts);
     const filtered = Boolean(elsewhere) && elsewhere !== author;

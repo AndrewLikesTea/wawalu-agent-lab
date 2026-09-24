@@ -2339,15 +2339,16 @@ test("empty Social offers a keyboard-reachable Write a post action that opens an
 test("People empty recovery links follow its message in keyboard order on the shipped page", async (t) => {
   const page = await loadPage(new URL("../src/profile.html", import.meta.url), {});
   t.after(() => page.restore());
-  const { mountProfile, profilePaintHref } = await import("../src/profile.js");
+  const { mountProfile } = await import("../src/profile.js");
   const author = '<Mina> & friends';
   mountProfile(page.document, { posts: [], author, state: "ready" });
   const region = page.document.querySelector("#profile-feed-status");
   const links = region.querySelectorAll("a");
-  assert.equal(links.length, 3);
-  assert.deepEqual(links.map(link => link.href), [
-    "#profile-name-picker", "/social.html#post-form", profilePaintHref(author),
-  ]);
+  // One recovery, and it stays on this page. The publishing routes this panel
+  // used to stack beside it were the Paint-to-Social path told a second time,
+  // beside the sequence under the grid that tells it in full (#2497).
+  assert.equal(links.length, 1);
+  assert.deepEqual(links.map(link => link.href), ["#profile-name-picker"]);
   assert.match(textOf(region.querySelector("h3")), /<Mina> & friends/);
   assert.equal(region.querySelectorAll("img").length, 0);
   assert.deepEqual(tabSequence(page.document).filter(node => links.includes(node)), links);

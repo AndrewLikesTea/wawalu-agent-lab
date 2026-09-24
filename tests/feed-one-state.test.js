@@ -530,26 +530,26 @@ test("People names its failure, retries it by keyboard, and comes back", async (
   assert.equal(document.querySelectorAll(".empty-state").length, 0);
 });
 
-test("People gives every completed selected-name zero the publishing next step", async (t) => {
+test("People gives every completed selected-name zero the same one recovery", async (t) => {
   const page = await loadPage(PEOPLE_PAGE, {});
   t.after(() => page.restore());
   const { document } = page;
-  // Nobody in this feed has attached a picture, so nothing was filtered out and
-  // the invitation into Paint is the honest answer.
+  // Nobody in this feed has attached a picture, so nothing was filtered out. The
+  // way to fill the grid is the .feed-create sequence under it, which is on the
+  // page in this state; the panel itself offers only the picker (#2497).
   const profile = mountProfile(document, { posts: [post("p-11", "Ari", "11")], author: "Ari", state: "ready" });
 
   assert.equal(document.querySelectorAll(".empty-state").length, 1);
-  assert.match(textOf(document.querySelector(".empty-state")), /The display name “Ari” has no image posts yet\.Choose another display namePublish an image post on Social/);
+  assert.equal(textOf(document.querySelector(".empty-state")), "The display name “Ari” has no image posts yet.Choose another display name");
   assert.equal(document.querySelectorAll(".empty-state-filtered").length, 0);
   assert.doesNotMatch(textOf(document.body), /No image posts match the selected display name/);
 
   // Now Zed's pictures exist and Ari is still selected: the same empty grid, a
-  // different reason, and the invitation must not be the answer to it.
+  // different reason, and the same one recovery.
   profile.seed(MIXED);
   const filtered = document.querySelector(".empty-state");
   assert.equal(document.querySelectorAll(".empty-state").length, 1);
-  assert.match(textOf(filtered), /The display name “Ari” has no image posts yet\.Choose another display namePublish an image post on Social/);
-  assert.equal(filtered.querySelectorAll("a")[1].getAttribute("href"), "/social.html#post-form");
+  assert.equal(textOf(filtered), "The display name “Ari” has no image posts yet.Choose another display name");
   // And the promise about image posts arriving on their own is not standing over
   // a grid the picker emptied: it would answer "why is this empty?" with the
   // wrong reason.
@@ -560,8 +560,13 @@ test("People gives every completed selected-name zero the publishing next step",
   // away from the heading and the chips that carry them on screen.
   assert.equal(textOf(document.querySelector("#profile-announcer")),
     "The display name “Ari” has no image posts yet.");
-  assert.equal(filtered.querySelectorAll("a").length, 3);
+  assert.equal(filtered.querySelectorAll("a").length, 1);
   assert.equal(textOf(filtered.querySelector("a")), "Choose another display name");
+  // The path from Paint to a picture on this page is stated once, under the
+  // grid, and the panel does not tell three of its steps over again (#2497).
+  assert.equal(document.querySelectorAll(".feed-create").length, 1);
+  assert.match(textOf(document.querySelector(".feed-create")),
+    /Create or open an image in Paint \(opens in a new tab\)\. Select “Use this image in a Social post”, then fill in the required image description\. Publish a post on Social\. A published post with an image appears on People, under the display name you publish it with\./);
 });
 
 test("People's chooser is inoperable until there is something to choose between", async (t) => {

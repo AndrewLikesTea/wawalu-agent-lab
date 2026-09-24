@@ -126,9 +126,9 @@ test("a display name with zero image posts is answered under that name, with a s
     // is the reset rather than the editor.
     assert.equal(document.querySelectorAll(".empty-state").length, 1);
     const panel = document.querySelector("#profile-feed-status").querySelector(".empty-state");
-    assert.match(textOf(panel), /The display name “Ari” has no image posts yet\.Choose another display namePublish an image post on Social/);
-    assert.equal(textOf(panel.querySelectorAll("a")[1]), "Publish an image post on Social");
-    assert.equal(panel.querySelectorAll("a")[1].getAttribute("href"), "/social.html#post-form");
+    assert.equal(textOf(panel), "The display name “Ari” has no image posts yet.Choose another display name");
+    assert.equal(textOf(panel.querySelectorAll("a")[0]), "Choose another display name");
+    assert.equal(panel.querySelectorAll("a")[0].getAttribute("href"), "#profile-name-picker");
     // And the page's one voice names the display name, because an announcement
     // has no page around it to borrow a subject from.
     assert.equal(textOf(document.querySelector("#profile-announcer")), "The display name “Ari” has no image posts yet.");
@@ -137,10 +137,10 @@ test("a display name with zero image posts is answered under that name, with a s
   }
 });
 
-test("a feed with no pictures under any name offers Publish post", async () => {
+test("a feed with no pictures under any name states the path once, under the grid", async () => {
   // Nobody has an image post, so nothing was filtered out: this is the empty
-  // state rather than the filtered dead end, and its two routes are the ones
-  // that fill it — Paint, and the rest of the posts on Social.
+  // state rather than the filtered dead end. The panel offers the picker; the
+  // path that fills the grid is the sequence under it, told once (#2497).
   const page = await people({
     search: "?author=Ari",
     seed: { posts: [seedPost("p-11", "Ari", { withImage: false })] },
@@ -149,12 +149,12 @@ test("a feed with no pictures under any name offers Publish post", async () => {
     const { document } = page;
     assertStatedZero(document, "Ari");
     const panel = document.querySelector("#profile-feed-status").querySelector(".empty-state");
-    assert.match(textOf(panel), /The display name “Ari” has no image posts yet\.Choose another display namePublish an image post on Social/);
+    assert.equal(textOf(panel), "The display name “Ari” has no image posts yet.Choose another display name");
     const routes = panel.querySelectorAll("a");
-    assert.deepEqual(routes.map((route) => textOf(route)), ["Choose another display name", "Publish an image post on Social", "Create an image in Paint"]);
-    assert.equal(routes[1].getAttribute("href"), "/social.html#post-form");
-    // Both are real links, so both are a tab stop and neither needs a handler to
-    // be reachable from the keyboard.
+    assert.deepEqual(routes.map((route) => textOf(route)), ["Choose another display name"]);
+    assert.equal(routes[0].getAttribute("href"), "#profile-name-picker");
+    // A real link, so it is a tab stop and needs no handler to be reachable from
+    // the keyboard.
     for (const route of routes) {
       assert.equal(route.tagName, "A");
       assert.equal(route.getAttribute("tabindex"), null);
