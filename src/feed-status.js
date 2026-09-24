@@ -82,6 +82,77 @@ export function filtersAvailable(phase) {
 // this line is already reporting it.
 export const FILTERS_UNAVAILABLE_HINT = "Display name options become available when posts load.";
 
+// WHERE A READER STANDING ON RETRY IS PUT WHEN RETRY GOES AWAY (#2499).
+//
+// Both feeds draw their failure panel — message, guidance, and the one control
+// that re-runs the fetch — inside the status region. So the render that answers
+// the press is the render that destroys the button the press came from. A
+// removed focused element drops focus to <body>, and from <body> the next Tab
+// restarts at the top of the document: the reader who asked for the feed again
+// loses the feed, the nav, and every stop in between, and has to walk the whole
+// page back to where they were standing. That is the one outcome this must not
+// have, and it is what a page gets for free by doing nothing.
+//
+// So the press is remembered and each following render places the reader:
+//
+//   the attempt failed again  → the new Retry, because the control is back and
+//                               it is still the only thing to do here;
+//   anything else             → `landing`, the region's status node: the line
+//                               that says what the load produced. It takes
+//                               `tabindex="-1"` only if the markup did not
+//                               already give it a stop, so it is a place focus
+//                               can be put and never a stop Tab lands on.
+//
+// A feed that returns to "loading" first — both of these do, so a second
+// failure reads as a second attempt rather than a dead button — lands the
+// reader on `landing` for the wait and stays armed, so the answer still places
+// them when it arrives.
+//
+// Only a reader who has been stranded is moved: `document.activeElement` null,
+// on <body>, or on a node that is no longer in the document. Someone who tabbed
+// away while the fetch was open is where they chose to be, and moving them is
+// the same theft in the other direction. The detached case is what the test
+// harness produces — removing a node there leaves `activeElement` pointing at
+// it, where a browser drops to <body> — and both mean the same thing: the node
+// the reader was on is gone.
+export function retryFocus(statusRegion, landing) {
+  let pending = false;
+  // The node this parked the reader on for the duration of the fetch, if it
+  // did. They are still movable from there: that landing was this function's
+  // doing and not a place the reader chose, so putting them on the control the
+  // answer produced is finishing the move rather than taking their place.
+  let parked = null;
+  const stranded = (document) => {
+    const active = document?.activeElement ?? null;
+    if (!active || active === document.body) return true;
+    for (let walker = active; walker; walker = walker.parentNode) {
+      if (walker === document.documentElement) return false;
+    }
+    return true;
+  };
+  return {
+    /** Called from the Retry handler, before the render it triggers. */
+    armed() { pending = true; },
+    /** Called at the end of every render, with the state that render drew. */
+    settle(state) {
+      if (!pending) return;
+      if (state !== "loading") pending = false;
+      const document = landing?.ownerDocument ?? statusRegion?.ownerDocument ?? null;
+      if (!document) return;
+      const movable = stranded(document) || (parked !== null && document.activeElement === parked);
+      if (!movable) { parked = null; return; }
+      const again = state === "error"
+        ? statusRegion?.querySelector?.(".feed-status-action") ?? null
+        : null;
+      const target = again ?? landing;
+      if (!target) return;
+      if (target.getAttribute("tabindex") === null) target.setAttribute("tabindex", "-1");
+      target.focus();
+      parked = state === "loading" ? target : null;
+    },
+  };
+}
+
 /** Is `node` inside `host`? Ancestor walk: no descendant selectors here. */
 function within(node, host) {
   for (let walker = node; host && walker; walker = walker.parentNode) {

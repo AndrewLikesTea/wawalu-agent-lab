@@ -28,7 +28,7 @@ import {
 } from "./social-links.js";
 import { postPermalink, renderPostCopyControl } from "./post-share.js";
 import { mountPostReport, renderReportButton } from "./post-report.js";
-import { renderFeedStatus, feedPhase, feedPresence, filtersAvailable, setFilterAvailability, FILTERS_UNAVAILABLE_HINT } from "./feed-status.js";
+import { renderFeedStatus, feedPhase, feedPresence, filtersAvailable, retryFocus, setFilterAvailability, FILTERS_UNAVAILABLE_HINT } from "./feed-status.js";
 
 export { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH };
 
@@ -1183,6 +1183,18 @@ export function mountSocialFeed(root, options = {}) {
   let posts = options.posts ?? [];
   let state = options.state ?? "ready";
 
+  // Retry lives inside #feed-state, so pressing it destroys the control the
+  // reader is standing on. THE DOCUMENTED LANDING FOR THIS REGION IS
+  // #feed-summary: it is the line that says what the load produced ("Showing 3
+  // posts, newest first."), it is authored in the markup, it is on the page in
+  // every state, and — unlike #feed-state, which is emptied and hidden the
+  // moment cards paint — nothing ever takes it away, so focus put there is
+  // still somewhere a Tab later.
+  const retryLanding = retryFocus(feedState ?? feed, summary ?? heading);
+  const retryFeed = options.onRetry
+    ? () => { retryLanding.armed(); return options.onRetry(); }
+    : null;
+
   // The page's own address, read once. The origin behind the permalink a publish
   // hands back, and the query string People's link back to the whole feed writes
   // a display name into, are the same location object.
@@ -1224,7 +1236,7 @@ export function mountSocialFeed(root, options = {}) {
       ? { ...named, total: posts.length, onClear: recoverFromNoMatch }
       : null;
     renderPosts(feed, visible, {
-      state, noMatch, statusRegion: feedState ?? feed, onRetry: options.onRetry,
+      state, noMatch, statusRegion: feedState ?? feed, onRetry: retryFeed,
       onPublish: () => composer.open(),
       onReport: report ? (post, button) => report.open(post, button) : null,
     });
@@ -1329,6 +1341,10 @@ export function mountSocialFeed(root, options = {}) {
     // not looked yet.
     if (summary) summary.textContent = answered ? feedSummarySentence(showing) : "";
 
+    // Last, once every node this render touches holds its final words: a reader
+    // who pressed Retry is placed on the new Retry if the attempt failed again,
+    // and otherwise on the summary line above, which now says what came back.
+    retryLanding.settle(state);
   };
 
   const renderNames = () => {

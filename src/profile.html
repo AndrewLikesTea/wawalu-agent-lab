@@ -291,7 +291,21 @@
                  sentence is gone; src/profile.js drops it on mount. -->
             <span id="profile-status"></span>
           </div>
-          <p class="visually-hidden" id="profile-announcer" aria-live="polite" aria-atomic="true"></p>
+          <!-- The page's one voice: every state this feed passes through — the
+               wait, the count it settles on, a display name with nothing under
+               it, and a failed load — is announced from this one node, which
+               ships before any module runs and is never removed, because a live
+               region has to be in the document before its content changes for
+               that change to be announced at all.
+               tabindex="-1" adds no tab stop. It makes this the one place focus
+               can be PUT, which is what src/profile.js does when a Retry press
+               takes the button the reader was standing on with it (#2499). The
+               visible status region beside it cannot take that focus: it is
+               hidden the moment tiles paint, and a reader parked on a node that
+               then disappears is back at the top of the document — the exact
+               loss this is here to prevent. Parked here they are instead
+               standing on the node that narrates the rest of the load. -->
+          <p class="visually-hidden" id="profile-announcer" aria-live="polite" aria-atomic="true" tabindex="-1"></p>
 
           <!-- The grid container itself carries aria-busy while the first load is
                in flight; the tiles inside are ordinary links, so Tab, Enter, and

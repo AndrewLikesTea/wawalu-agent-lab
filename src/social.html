@@ -330,8 +330,17 @@
                no role="status" and holds no second live region, and nothing
                folds it away — a live region behind a closed disclosure is
                silent, and a reader who needs this sentence needs it before the
-               cards. -->
-          <p class="feed-summary" id="feed-summary" aria-live="polite"></p>
+               cards.
+               aria-atomic, because the sentence is one claim: the count, the
+               filters that produced it and the order are read as the statement
+               they are rather than as whichever clause changed.
+               tabindex="-1" adds no tab stop. It makes this the one place focus
+               can be PUT, which is what src/social.js does when a Retry press
+               succeeds and takes the button the reader was standing on with it
+               (#2499): this is the line that says what the retry produced, and
+               it is the only status node on this page that is never hidden and
+               never leaves the document. -->
+          <p class="feed-summary" id="feed-summary" aria-live="polite" aria-atomic="true" tabindex="-1"></p>
           <!-- The feed's one status region: the only place the wait, an empty
                Social, a filtered dead end and a failed load are ever drawn, and
                the one node that speaks for the first fetch. It ships holding the
