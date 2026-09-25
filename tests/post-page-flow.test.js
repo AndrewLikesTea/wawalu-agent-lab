@@ -12,6 +12,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { loadPage, pressTab, tabSequence, textOf } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
+import { REPORT_POST_LABEL } from "../src/post-report.js";
 
 const SEED_URL = "/social-demo-data.json";
 
@@ -344,34 +345,46 @@ test("the permalink opens with the post in every state, not with its caveats", a
 // with a post that needs looking at.
 //
 // Written out here so the two sentences are readable in the tests that assert
-// them, and pinned against src/social.html below so neither page can reword one
-// on its own. The permalink has no Report post button of its own, so it names
-// the control rather than offering it; the words are the same either way.
-const REPORT_ROUTE = "To ask the Wawalu team to review a post, select Report post on it.";
-const REPORT_ABOUT = "How reporting works: Report post opens a short form about that one post. Choose a reason, add a note if you want to, and give your email address. The report goes only to the Wawalu team, who review each one. A report does not remove or hide the post, and not every report leads to removal.";
+// them. The route is this page's own, because the control it names is not on
+// this page: Social and People draw a Report post button on every loaded card
+// and tile, and this page draws none (#2519, counted in the rendered page at the
+// end of this file). So it says where the control is, names this page's own
+// Social link by the words that link carries, and says the post to select it on
+// is the one being read. What follows the route is about the report rather than
+// about where to make it, and its last two sentences are pinned against
+// src/social.html below so neither page can reword one alone.
+const REPORT_ROUTE = `Report post is on Social, not on this page: select ${SOCIAL.label} above, then select Report post on this post.`;
+const REPORT_ABOUT = "Report post asks for a reason, an optional note, and your email address. The report goes only to the Wawalu team, who review each one. A report does not remove or hide the post, and not every report leads to removal.";
+// What happens to a report and what it can lead to: the account this page states
+// once, and the bytes every other surface that mentions a report uses.
+const REPORT_CONSEQUENCE = "The report goes only to the Wawalu team, who review each one. A report does not remove or hide the post, and not every report leads to removal.";
 
-test("the permalink names the reporting path in Social's own bytes", async () => {
+test("the permalink sends the reader to Social for the control, in Social's own consequence bytes", async () => {
   const html = (await readFile(new URL("../src/social.html", import.meta.url), "utf8")).replace(/<!--[\s\S]*?-->/g, "");
-  // Anchored on their opening words rather than typed out, so a Social that
-  // rewords either one fails here instead of drifting away from this page.
-  // Social's explanation drops the "How reporting works:" lead-in, because its
-  // route links there in those words (#2471), and closes on one sentence the
-  // composer's terms used to carry. Everything between is this page's, verbatim.
-  const shipped = {
-    route: html.match(/To ask the Wawalu team[^<]*/)?.[0]?.trim(),
-    about: html.match(/Report post opens a short form[^<]*not every report leads to removal\./)?.[0],
-  };
-  assert.ok(shipped.route, "Social no longer tells a reader how to ask for a post to be reviewed");
-  assert.ok(shipped.about, "Social no longer explains what reporting does and does not do");
-  assert.equal(REPORT_ROUTE, shipped.route, `the permalink does not ship Social's route sentence: ${shipped.route}`);
-  assert.equal(REPORT_ABOUT, `How reporting works: ${shipped.about}`, `the permalink does not ship Social's explanation: ${shipped.about}`);
+  // Anchored on its opening words rather than typed out, so a Social that
+  // rewords the consequence fails here instead of drifting away from this page.
+  const shipped = html.match(/The report goes only to the Wawalu team[^<]*not every report leads to removal\./)?.[0];
+  assert.ok(shipped, "Social no longer says what happens to a report and what it can lead to");
+  assert.equal(REPORT_CONSEQUENCE, shipped, `the permalink does not ship Social's consequence: ${shipped}`);
+  assert.ok(REPORT_ABOUT.endsWith(REPORT_CONSEQUENCE), "the permalink's explanation reworded the shared consequence");
+  // Social keeps the route that belongs to a page with the button on it. This
+  // page must not ship it: it names a control that is not here, about "a post"
+  // rather than the one being read.
+  const socialRoute = html.match(/To ask the Wawalu team[^<]*/)?.[0]?.trim();
+  assert.equal(socialRoute, "To ask the Wawalu team to review a post, select Report post on it.",
+    `Social's own route to its button changed: ${socialRoute}`);
 
-  // And the permalink's markup carries each one exactly once, so the page ships
-  // them to a reader whose script never runs.
+  // And the permalink's markup carries each of its own sentences exactly once,
+  // so the page ships them to a reader whose script never runs.
   const post = (await readFile(new URL("../src/post.html", import.meta.url), "utf8")).replace(/<!--[\s\S]*?-->/g, "");
   for (const [name, clause] of Object.entries({ route: REPORT_ROUTE, explanation: REPORT_ABOUT })) {
     assert.equal(post.split(clause).length - 1, 1, `the permalink's markup carries the reporting ${name} other than exactly once`);
   }
+  assert.equal(post.includes(socialRoute), false, "the permalink ships the route to a button it does not have");
+  // One account of what a report can lead to, not two differently worded ones.
+  assert.equal(post.split(REPORT_CONSEQUENCE).length - 1, 1, "the permalink states the consequence other than exactly once");
+  assert.equal(post.split(/not every report leads to removal/).length - 1, 1,
+    "the permalink carries a second phrasing of what a report can lead to");
   // Not in the follow-up block: that form's wording is pinned byte for byte
   // elsewhere, and a sentence about reporting a post is not a step in asking
   // the team a question about it.
@@ -1038,5 +1051,80 @@ test("the wait a cold visitor meets offers no link to copy", async () => {
     assert.equal(panel.querySelectorAll(".share-button").length, 1, "the post brought the control with it");
   } finally {
     page.restore();
+  }
+});
+
+// Issue #2519. Which words this page may use about reporting is decided by the
+// rendered page, not by its markup: src/social.js and src/profile.js import
+// src/post-report.js and draw a Report post button on every loaded card and
+// tile, and src/post-page.js imports it nowhere, so a reader who arrives here
+// from a pasted link has no control to select. Counted rather than reasoned
+// about — by the class the button ships with, by the label itself, and by the
+// panel the button opens — because the sentence below is only honest while the
+// count is zero.
+const reportControls = (document) => ({
+  buttons: document.querySelectorAll(".post-report-button").length,
+  labelled: document.querySelectorAll("button").filter((node) => textOf(node) === REPORT_POST_LABEL).length,
+  panels: document.querySelectorAll("#post-report-panel").length,
+});
+
+// The sentence that stands in for the control, byte for byte, in the page a
+// reader actually gets. It names the control by the one name every surface uses
+// for it, and the way out by the words that link carries — so a renamed link or
+// a renamed control fails here rather than leaving a reader hunting for words
+// that are no longer on the screen.
+function assertReportingRouteReads(document, where) {
+  assert.equal(textOf(document.body).split(REPORT_ROUTE).length - 1, 1,
+    `${where}: the page does not state the reporting route exactly once`);
+  assert.ok(REPORT_ROUTE.includes(REPORT_POST_LABEL), "the route names the reporting control something else");
+  const social = document.querySelector("#post-back");
+  assert.equal(textOf(social), SOCIAL.label, `${where}: the route names a Social link the page does not ship`);
+  assert.equal(social.getAttribute("href"), SOCIAL.href, `${where}: the named link does not go to Social`);
+  assert.ok(REPORT_ROUTE.includes(textOf(social)), `${where}: the route does not name the link it points at`);
+}
+
+test("the permalink renders no Report post control, so its copy sends the reader to Social", async () => {
+  const cold = await loadPage(new URL("../src/post.html", import.meta.url), { location: { search: "?id=p-image" } });
+  try {
+    assert.deepEqual(reportControls(cold.document), { buttons: 0, labelled: 0, panels: 0 },
+      "the shipped markup offers a reporting control");
+    assertReportingRouteReads(cold.document, "before the script runs");
+
+    let release;
+    globalThis.fetch = () => new Promise((resolve) => { release = () => resolve(seedResponse([SEED_POST])); });
+    await importPageModule("/post-page.js");
+    await waitFor(() => cold.document.documentElement.dataset.shiplogPostDetail === "loading", "the script took the region");
+    assert.deepEqual(reportControls(cold.document), { buttons: 0, labelled: 0, panels: 0 },
+      "the wait offers a reporting control");
+
+    release();
+    await waitFor(() => cold.document.documentElement.dataset.shiplogPostDetail === "ready", "the post arrived");
+    const panel = cold.document.querySelector("#post-detail");
+    await waitFor(() => panel.querySelectorAll(".detail-post").filter((node) => !node.classList.contains("detail-skeleton")).length === 1,
+      "the real post replaced the placeholder");
+    // The loaded post: the state a reader would expect the control beside, and
+    // the one the sentence has to be true of. The post brought its own control
+    // with it — Copy link to this post — so this is a count over real buttons.
+    assert.deepEqual(reportControls(cold.document), { buttons: 0, labelled: 0, panels: 0 },
+      "a loaded post brought a reporting control with it");
+    assert.equal(cold.document.querySelectorAll("button").length > 0, true, "no button rendered, so the count above proves nothing");
+    assertReportingRouteReads(cold.document, "once the post rendered");
+  } finally {
+    cold.restore();
+  }
+
+  for (const [state, search, answer] of [
+    ["not-found", "?id=p-gone", seedOnly([SEED_POST])],
+    ["error", "?id=p-image", () => { throw new TypeError("Failed to fetch"); }],
+  ]) {
+    const page = await openPostPage(search, answer);
+    try {
+      assert.equal(page.panel.dataset.postState, state, `the page landed in ${page.panel.dataset.postState}, not ${state}`);
+      assert.deepEqual(reportControls(page.document), { buttons: 0, labelled: 0, panels: 0 },
+        `${state}: a reporting control with no post to report`);
+      assertReportingRouteReads(page.document, state);
+    } finally {
+      page.restore();
+    }
   }
 });
