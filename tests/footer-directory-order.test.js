@@ -97,10 +97,11 @@ test("on every task page the follow-up block is read before the directory", asyn
     assert.equal(directory, band.length - 1, `${file}: something was added after the directory`);
     // The post page adds three sentences of its own after INVITATION's two —
     // what the topics cover, where a question about the post goes, and how to
-    // name the post in a message — but it opens on the same heading line as
-    // every other page (#2436).
+    // name the post in the request — but it opens on the same heading line as
+    // every other page (#2436). The last sentence quotes the two controls it
+    // asks for by their visible labels (#2541).
     assert.equal(textOf(band[invitation]), file === "post.html"
-      ? `${INVITATION} The topics below are about Shiplog — whether it is available for your team, a demonstration, a pilot, and security and data handling — not about this post. If your question is about this post itself, select Report post instead. Nothing about the post is attached to the request automatically. Select Copy link to this post and paste the link into your message so the team knows which post you mean.`
+      ? `${INVITATION} The topics below are about Shiplog — whether it is available for your team, a demonstration, a pilot, and security and data handling — not about this post. If your question is about this post itself, select Report post instead. Nothing about the post is attached to the request automatically. Select Copy link to this post above, then paste the link into the Anything else we should know? field so the team knows which post you mean.`
       : INVITATION, `${file}: the follow-up heading line changed`);
   }
 });
