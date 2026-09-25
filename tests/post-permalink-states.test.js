@@ -438,6 +438,238 @@ test("the retry is reached by Tab and fired by Enter, and the People link return
   }
 });
 
+/* ------------------------ the same two, over the API ---------------------- */
+
+// Everything above drives the static seed, because every id above is a seed id.
+// That is not the link a reader is usually handed: a post somebody published
+// lives in the durable API under a UUID, and `?id=<uuid>` is the only id shape
+// that reaches /api/social-posts/:id at all. So the two unresolved states are
+// asserted a second time over that route — the one a shared link actually takes.
+//
+// The stub answers in the API's own wire shape (src/social-posts-api.js's
+// publicPost): snake_case, `content` not `body`, `timestamp` not `createdAt`,
+// and a `source`. A stub shaped like the seed instead would be dropped whole by
+// normalizeProfileApiPosts, landing the page in not-found — so a "the retry
+// recovered" assertion would pass against an empty region and prove nothing.
+const LIVE_ID = "8f14e45f-ceea-467a-9c2b-3d4a1f6e7b90";
+const LIVE_URL = `/api/social-posts/${LIVE_ID}`;
+
+const livePost = () => ({
+  id: LIVE_ID,
+  author: "Rowan Diaz",
+  content: "Shipped the retry path today.",
+  caption: null,
+  timestamp: "2026-07-15T11:30:00.000Z",
+  source: "shiplog-web",
+  image_url: null,
+  image_alt: null,
+  image_width: null,
+  image_height: null,
+  like_count: 1,
+  comment_count: 0,
+});
+
+const liveResponse = (status, body) => ({ ok: status >= 200 && status < 300, status, json: async () => body });
+
+// A UUID is an API id and nothing else — no seed id is UUID shaped — so the
+// seed is not a fallback behind it, and asking for it here is the test failing
+// rather than a request to answer.
+const liveOnly = (answer) => (url) => {
+  if (url === SEED_URL) throw new Error("a UUID can only name an API post; the seed cannot hold one");
+  if (url !== LIVE_URL) throw new Error(`Unexpected request: ${url}`);
+  return answer();
+};
+
+// A 404 from the API is an answer: the feed was reached, and it holds no post
+// under this id. The link is dead, and nothing about pressing a button changes
+// that — which is the whole reason this state and the one below are separate.
+test("a UUID the API has never heard of is a dead link, not a failure to reach it", async () => {
+  const page = await openPostPage(`?id=${LIVE_ID}`, liveOnly(() => liveResponse(404, { error: "not_found" })));
+  try {
+    assertOneState(page, "not-found", "the API answered 404");
+
+    // It asked the one source that could have held this id, and only that one.
+    assert.deepEqual(page.requests, [LIVE_URL], "a UUID lookup asks the API, once");
+
+    assert.equal(textOf(page.panel.querySelector(".empty-title")), "Post unavailable");
+    assert.equal(textOf(page.panel.querySelector(".detail-state-label")), "Not found");
+    assert.match(textOf(page.panel), /This shared link may be unavailable, or the post may no longer be in Social\./);
+
+    // The wait is gone from the document, not hidden under the answer.
+    assert.equal(page.panel.querySelectorAll(".detail-loading").length, 0);
+    assert.equal(textOf(page.document.querySelector("main")).includes(STATE_HEADLINES.loading), false);
+
+    // No retry, and one route on to the feed.
+    assert.equal(page.panel.querySelectorAll("button").length, 0, "retrying an id the feed answered about is a lie");
+    assert.equal(page.panel.querySelectorAll(".empty-action").length, 1);
+    assert.equal(textOf(page.panel.querySelector(".detail-state-feed")), "Go to the Social feed");
+    assert.equal(page.panel.querySelector(".detail-state-feed").getAttribute("href"), "/social.html");
+  } finally {
+    page.restore();
+  }
+});
+
+// The same absent post, the other reason. A 500 is not an answer about the
+// post, so the page says the feed did not respond and offers the one action
+// that can come out differently.
+test("an API that cannot answer is a failed load, worded apart from a dead link, with a retry", async () => {
+  const page = await openPostPage(`?id=${LIVE_ID}`, liveOnly(() => liveResponse(500, {})));
+  try {
+    assertOneState(page, "error", "the API returned 500");
+
+    assert.equal(textOf(page.panel.querySelector(".empty-title")), "Post could not be opened");
+    assert.equal(textOf(page.panel.querySelector(".detail-state-label")), "Unreachable");
+    assert.match(textOf(page.panel), /Social did not respond, so this shared link is unavailable for now\./);
+
+    // Distinct wording, not the dead link's sentence with a noun swapped: the
+    // two states must not be tellable apart only by a colour.
+    assert.equal(textOf(page.panel).includes("This shared link may be unavailable, or the post may no longer be in Social."), false,
+      "the failed load must not borrow the dead link's sentence");
+    assert.equal(textOf(page.panel).includes("Post unavailable"), false);
+    // And the status code is the page's business, not the reader's.
+    assert.equal(textOf(page.panel).includes("500"), false);
+
+    assert.equal(page.panel.querySelectorAll(".detail-loading").length, 0);
+
+    // A real button in the ordinary tab order, and the feed alongside it.
+    const retry = page.panel.querySelector(".detail-retry");
+    assert.equal(retry.tagName, "BUTTON");
+    assert.equal(retry.type, "button");
+    assert.ok(tabSequence(page.document).includes(retry), "the retry is reachable by keyboard");
+    assert.equal(textOf(page.panel.querySelector(".detail-state-feed")), "Go to the Social feed");
+  } finally {
+    page.restore();
+  }
+});
+
+// The retry, end to end on the live route: keyboard only, a second failure that
+// lands back in the failed state, then a success that draws the post the API
+// sent — which is what proves the stub's wire shape survives the normalizer.
+test("the API retry fails back into the failed state, then lands the post the API sent", async () => {
+  let attempt = 0;
+  const page = await openPostPage(`?id=${LIVE_ID}`, liveOnly(() => {
+    attempt += 1;
+    if (attempt === 1) throw new TypeError("Failed to fetch");
+    if (attempt === 2) return liveResponse(503, {});
+    return liveResponse(200, { post: livePost() });
+  }));
+  try {
+    assertOneState(page, "error", "the first attempt could not reach the API");
+
+    // Tabbed to, not focused by hand, and fired with Enter: a reader who never
+    // touches a pointer has to be able to get out of this state.
+    const retry = page.panel.querySelector(".detail-retry");
+    let presses = tabSequence(page.document).length;
+    while (page.document.activeElement !== retry && presses > 0) {
+      pressTab(page.document);
+      presses -= 1;
+    }
+    assert.equal(page.document.activeElement, retry, "Tab must reach the retry");
+
+    pressEnter(page.document);
+    await waitFor(page.settled, "the second attempt settled");
+
+    // Second failure: back in the failed state rather than falling through to a
+    // dead link, and focus follows the button that was replaced.
+    assertOneState(page, "error", "a retry that failed again");
+    assert.equal(attempt, 2, "Enter must re-run the request");
+    const second = page.panel.querySelector(".detail-retry");
+    assert.notEqual(second, retry, "the failed state re-rendered");
+    assert.equal(page.document.activeElement, second, "focus follows the retry it replaced");
+
+    second.click();
+    await waitFor(page.settled, "the third attempt settled");
+
+    // Loaded, from the API's own wire shape: the fields it sends are the ones
+    // the page draws, so a mis-shaped record would show up here as not-found.
+    assertOneState(page, "loaded", "after a retry that worked");
+    assert.equal(attempt, 3);
+    assert.equal(textOf(page.panel.querySelector(".detail-body")), "Shipped the retry path today.");
+    assert.equal(textOf(page.panel.querySelector(".detail-author-link")), "Rowan Diaz");
+    assert.equal(textOf(page.document.querySelector("#page-title")), "Rowan Diaz's Social post");
+    assert.equal(page.panel.getAttribute("aria-busy"), "false");
+
+    // Nothing of the failure is left on the page — not the sentence, not the
+    // button, not a heading hidden behind the post.
+    assert.equal(textOf(page.document.querySelector("main")).includes("Social did not respond"), false);
+    assert.equal(page.panel.querySelectorAll(".detail-retry").length, 0);
+    assert.equal(page.panel.querySelectorAll(".empty-title").length, 0);
+  } finally {
+    page.restore();
+  }
+});
+
+// Both unresolved states are announced through the region the wait already
+// speaks from — the same element, the same politeness — rather than each
+// bringing a live region of its own, which is how a resolved answer ends up
+// announced by a node that was just removed.
+test("both unresolved states speak from the region the wait spoke from", async () => {
+  for (const [where, answer, expected] of [
+    ["a dead link", () => liveResponse(404, { error: "not_found" }), "not-found"],
+    ["a failed load", () => liveResponse(500, {}), "error"],
+  ]) {
+    const page = await openPostPage(`?id=${LIVE_ID}`, liveOnly(answer));
+    try {
+      assert.equal(page.panel.getAttribute("role"), "status", `${where}: the region announces`);
+      assert.equal(page.panel.getAttribute("aria-live"), "polite", `${where}: politely`);
+      assert.equal(page.panel.getAttribute("aria-atomic"), "true", `${where}: as one message`);
+      assert.equal(page.panel.getAttribute("aria-busy"), "false", `${where}: and is no longer waiting`);
+
+      // The panel inside it does not announce on its own account: a second live
+      // region here is how one of the two answers goes unread.
+      const state = page.panel.querySelector(".detail-state-message");
+      assert.equal(state.getAttribute("role"), null, `${where}: the panel uses the region, not its own`);
+      assert.equal(state.getAttribute("aria-live"), null, `${where}: and adds no second politeness`);
+      assert.equal(state.getAttribute("data-post-state-panel"), expected);
+    } finally {
+      page.restore();
+    }
+  }
+});
+
+// The page around the region is not part of the state. Whatever the lookup
+// does, what this page says about reporting a post and about asking the team a
+// question stands unchanged — so a reader who arrived at a dead link still has
+// both, and neither moves to make room for an explanation.
+test("neither unresolved state disturbs the reporting or follow-up blocks", async () => {
+  const REPORT_LINE = "Report post asks for a reason, an optional note, and your email address. The report goes only to the Wawalu team, who review each one. A report does not remove or hide the post, and not every report leads to removal.";
+  // Read off the loaded state first, so the two unresolved ones are compared
+  // against the page as it stands when the lookup went well, not against a
+  // string this test invented.
+  const loaded = await openPostPage(`?id=${LIVE_ID}`, liveOnly(() => liveResponse(200, { post: livePost() })));
+  try {
+    assert.ok(textOf(loaded.document.querySelector("#main-content")).includes(REPORT_LINE),
+      "the reporting explanation ships on this page");
+  } finally {
+    loaded.restore();
+  }
+
+  for (const [where, answer] of [
+    ["a dead link", () => liveResponse(404, { error: "not_found" })],
+    ["a failed load", () => liveResponse(500, {})],
+  ]) {
+    const page = await openPostPage(`?id=${LIVE_ID}`, liveOnly(answer));
+    try {
+      const main = page.document.querySelector("#main-content");
+      assert.ok(textOf(main).includes(REPORT_LINE), `${where}: the reporting explanation is still said, in full`);
+
+      // The follow-up block below, still whole: its own submit, its own retry,
+      // and the topic this page enrols in.
+      const form = page.document.querySelector("#site-footer-form");
+      assert.equal(form.getAttribute("data-follow-up-type"), "follow_up_social", `${where}: the follow-up type changed`);
+      assert.equal(form.getAttribute("data-follow-up-topic"), "Social post page — one post from Social, at its own link", `${where}: the follow-up topic changed`);
+      assert.equal(page.document.querySelectorAll("#site-footer-retry").length, 1, `${where}: the follow-up retry`);
+
+      // And the state's own retry is not confused for the follow-up's: they are
+      // different controls, in different regions, and only one is in the post's.
+      const inRegion = page.panel.querySelectorAll("button").filter((node) => node.getAttribute("class"));
+      assert.equal(inRegion.length, where === "a failed load" ? 1 : 0, `${where}: buttons inside the post region`);
+    } finally {
+      page.restore();
+    }
+  }
+});
+
 /* -------------------------------- loaded ---------------------------------- */
 
 test("a loaded post links its display name to that name's People view", async () => {

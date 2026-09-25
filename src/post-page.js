@@ -1,9 +1,19 @@
-// Page wiring for the single-post view. Resolution order mirrors the profile:
-// the durable API first, the static demo seed behind it.
+// Page wiring for the single-post view. Two sources, and the id's shape picks
+// between them: the durable API holds every post anyone has published, and the
+// static demo seed holds the invented ones the site ships with.
 //
-// The seed's ids are not UUIDs, so asking the API for one would earn a 400 that
-// means nothing to the reader. The id shape therefore decides which source is
-// asked first, and the seed is still consulted when the API has no answer.
+// It is a choice, not a chain. Every seed id is "seed-post-N" and every API id
+// is a UUID, so neither source can hold an id shaped for the other — asking the
+// seed for a UUID is a request that cannot succeed, and asking the API for a
+// seed id earns a 400 that means nothing to a reader. So each id is asked of
+// the one source that could answer it, and that source's answer is the answer.
+//
+// Which is what keeps the two unresolved states apart. The seed used to be
+// consulted after the API for *any* id, and a thrown fetch anywhere in that
+// chain made the page report a failure — so an API 404 (a resolved lookup: the
+// feed was reached and holds no such post) turned into the retryable error
+// state whenever the futile seed request behind it happened to fail too. That
+// told a reader their dead link was worth trying again.
 
 import { normalizeProfileApiPosts, normalizeSeedPosts } from "/profile.js";
 import { POST_EXITS, findPostById, postDetailTitle, postPageHeading, postPeopleHref, postPeopleLabel, renderPostDetail } from "/post-detail.js";
@@ -101,17 +111,13 @@ async function init() {
     let post = null;
     let failed = false;
     if (id) {
+      // One source, chosen by the id's shape, and asked once. A null here means
+      // that source answered and holds no such post; only a throw means it
+      // could not be asked at all.
       try {
-        post = UUID.test(id) ? await fetchLivePost(id) : null;
+        post = UUID.test(id) ? await fetchLivePost(id) : await fetchSeedPost(id);
       } catch {
         failed = true;
-      }
-      if (!post) {
-        try {
-          post = await fetchSeedPost(id);
-        } catch {
-          failed = true;
-        }
       }
     }
     // The two unresolved answers are different facts and get different states.
@@ -120,9 +126,9 @@ async function init() {
     // and simply had no post with this id is `not-found`, and retrying it would
     // only produce the same answer more slowly.
     //
-    // A lookup that failed is only reported as a failure when nothing was found
-    // anywhere: if the seed answered, the reader has the post and does not need
-    // to hear about the network.
+    // Which of the two a reader is told is now decided by the one source that
+    // could have held this id, so a failure somewhere else cannot overrule an
+    // answer, and an answer cannot hide a failure.
     const state = post ? "loaded" : failed ? "error" : "not-found";
     renderPostDetail(container, post, {
       state,
