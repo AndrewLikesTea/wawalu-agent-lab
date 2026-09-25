@@ -65,10 +65,13 @@ export const REPOSITORY_LINK_LABEL = "Open an issue on the public GitHub reposit
 export const SOURCE_LINK_LABEL = "Open the public repository this site is built from";
 
 // The two things a reader forwards to whoever decides, and where they already
-// are. A route, not a copy: the home page keeps both assets and their copy and
-// download controls. The label names both because the fragment lands on the
-// brief and the scorecard is the section directly beneath it.
-export const ASSETS_LINK_LABEL = "Evaluation brief and pilot scorecard";
+// are. A route, not a copy: the home page keeps both assets and their controls.
+// The label names both and says which one is blank; the sentence under it says
+// what they hold, claiming only what that section already says (#2540), so a
+// prospect who will not hand over an address can tell without pressing it.
+export const ASSETS_LINK_LABEL = "Evaluation brief and blank pilot scorecard";
+export const ASSETS_DESCRIPTION = "The brief says what Shiplog records and who operates it; the scorecard is a "
+  + "blank form your evaluating team fills in during a pilot.";
 export const ASSETS_HREF = "/#shiplog-evaluation-brief";
 
 /**
@@ -221,7 +224,8 @@ export const FOLLOW_UP_REDIRECT = Object.freeze({
  * the home page's answer to the same question.
  *
  * `assets` adds the one route to the home page's evaluation brief and blank
- * pilot scorecard. The home page never sets it: that section is already there.
+ * pilot scorecard, and the sentence saying what the two documents hold. The
+ * home page never sets it: that section is already there.
  *
  * `followUpTopic` is always stated in prose. The read-only control that used to
  * be its other shape lost its last page in #2168; tests hold that shape gone.
@@ -244,7 +248,10 @@ export function siteFooterMarkup(indent = "    ", {
     `    <p class="site-footer-identity"><a id="site-footer-source" href="${REPOSITORY_URL}">${SOURCE_LINK_LABEL}</a></p>`,
     // Beside the provenance link, in the band's standalone-link treatment: a
     // 44px tap target with the band's ring, off rules both stylesheets carry.
-    ...(assets ? [`    <a class="site-footer-redirect-link" id="site-footer-assets" href="${ASSETS_HREF}">${ASSETS_LINK_LABEL}</a>`] : []),
+    ...(assets ? [
+      `    <a class="site-footer-redirect-link" id="site-footer-assets" href="${ASSETS_HREF}">${ASSETS_LINK_LABEL}</a>`,
+      `    <p class="site-footer-identity" id="site-footer-assets-detail">${ASSETS_DESCRIPTION}</p>`,
+    ] : []),
     ...(collapsedDemos ? [] : directory),
     ...contact,
     ...(collapsedDemos ? directory : []),

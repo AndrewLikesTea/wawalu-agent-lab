@@ -122,13 +122,14 @@ test("the first focusable in the log precedes the first focusable in AI FinOps",
     `the log's first tab stop is number ${log} and AI FinOps' is ${finops}: reading order and tab order disagree`);
 
   // Keep the proof’s full-record link in the expected keyboard order.
-  // The six are the full decision record, the follow-up
+  // The seven are the route to the evaluation brief and blank pilot scorecard
+  // inside the offer paragraph (#2540), the full decision record, the follow-up
   // route, the two deployment-check links, the record-list button, and the
   // decision-to-release link.
   assert.equal(
     sequence.filter((element) => ancestorIds(element).includes("shiplog-entry")).length,
-    6,
-    "the log entry section must still offer its six tab stops including the full decision record",
+    7,
+    "the log entry section must still offer its seven tab stops including the full decision record",
   );
 });
 
