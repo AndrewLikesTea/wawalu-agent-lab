@@ -509,40 +509,64 @@ test("the page names itself, says what it does, and offers a follow-up", async (
 /** How many times a phrase is written in a block of rendered copy. */
 const occurrences = (text, phrase) => text.split(phrase).length - 1;
 
-test("Personal AI history is pitched once, in the card under the grade", async () => {
+test("Personal AI history is pitched once, in the card under the grade, with a door", async () => {
   const { document } = await openCoach();
 
   // The hero pitched it in near-identical words to the card below the grade —
   // the same rubric over a history, the same habit worth changing first, the
   // same browser. Two pitches read as two destinations to compare before the
   // reader has used the one they came for, so the page makes exactly one.
+  //
+  // One pitch, and the name written exactly twice above the footer: once in the
+  // sentence that says what the destination does, and once on the control that
+  // opens it. Both sit in the one card. The card used to name the page and then
+  // offer nothing to open it (issue 2563), so a door is required here rather
+  // than merely allowed.
   const body = textOf(document.querySelector("main"));
-  assert.equal(occurrences(body, "Personal AI history"), 1,
-    "Personal AI history is pitched more than once above the footer directory");
-  assert.equal(occurrences(textOf(document.querySelector(".coach-neighbour")), "Personal AI history"), 1,
-    "the one pitch must be the answer in the “Also on this site” card");
+  const neighbour = document.querySelector(".coach-neighbour");
+  assert.equal(occurrences(body, "Personal AI history"), 2,
+    "Personal AI history is named outside its one card above the footer directory");
+  assert.equal(occurrences(textOf(neighbour), "Personal AI history"), 2,
+    "the pitch and its door must both be in the “Also on this site” card");
+  const doors = neighbour.querySelectorAll("a")
+    .filter((link) => textOf(link) === "Open Personal AI history");
+  assert.equal(doors.length, 1, "the card must offer exactly one way to open it");
+  assert.equal(doors[0].getAttribute("href"), "/personal-history.html");
+  assert.equal(doors[0].getAttribute("class"), "secondary-button",
+    "the door must be shaped like the one the AI FinOps pitch offers");
   assert.deepEqual(document.querySelector(".coach-hero").querySelectorAll("a")
     .map((link) => link.getAttribute("href")), ["#site-footer-panel"],
     "the introduction offers only the follow-up, without a second history pitch");
 
   // The surviving pitch carries every fact the deleted one had, so nothing a
   // reader needed to choose the destination left with the duplicate.
-  const card = textOf(document.querySelector(".coach-neighbour"));
+  const card = textOf(neighbour);
   // Including the file it wants, named the way the site-wide footer names it:
   // the card and that clause are the only two places the site says what
   // Personal AI history reads, so they say it in the same words.
   assert.match(card, /the same rubric across your assistant export — weeks of your prompts —/);
   assert.match(card, /names the single habit worth changing first/);
-  assert.match(card, /It is read in your browser too\./);
+
+  // Where a file is read is the card's promise, made once above both pitches
+  // rather than in a clause each pitch wrote for itself. Two wordings of one
+  // boundary read as two boundaries to compare.
+  assert.equal(occurrences(card, "in this browser tab"), 1, card);
+  assert.doesNotMatch(card, /It is read in your browser too\.|Your files stay in that browser tab\./);
+
+  // Reachable by Tab where it is read: after the sentence that sells it, before
+  // the AI FinOps door, and without a tabindex anywhere on the card.
+  const labels = tabSequence(document).map((node) => textOf(node));
+  assert.ok(labels.includes("Open Personal AI history"),
+    "a keyboard visitor cannot reach the control that opens Personal AI history");
+  assert.ok(labels.indexOf("Open Personal AI history") < labels.indexOf("Open AI FinOps"),
+    "the doors must be tabbed in the order the pitches are read");
+  assert.equal(neighbour.querySelectorAll("a")
+    .filter((link) => link.getAttribute("tabindex") !== null).length, 0);
 
   // The footer directory is the site's, not this page's: it keeps its own entry
   // and is the only other place the destination is named.
   const footer = textOf(byId(document, "site-footer"));
   assert.equal(occurrences(footer, "Personal AI history"), 1);
-
-  // And the sentence both pitches ended on is written once on the whole page.
-  assert.ok(occurrences(`${body}\n${footer}`, "It is read in your browser too.") <= 1,
-    "“It is read in your browser too.” is written twice on the rendered page");
 });
 
 test("“Start here” names the region for a screen reader and no longer heads it", async () => {
