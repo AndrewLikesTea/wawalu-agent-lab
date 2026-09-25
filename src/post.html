@@ -216,20 +216,43 @@
              reading as a note under the post rather than as part of it. -->
         <p>The posts already on Social are invented to demonstrate Shiplog and use no customer or production data; anyone can read a post a visitor publishes.</p>
         <p class="hint">Whoever published this post chose the display name on it; nobody owns or verifies a display name on Social.</p>
-        <!-- How to ask for a post to be reviewed, in Social's own words and in
-             Social's own order: the route first, then what reporting does and
-             does not do. A reader who arrives here from a link someone pasted
-             into a chat window has never seen Social's feed panel, where those
-             two paragraphs stand, so the one thing a public post owes a
-             stranger reading it — how to raise it with the team that operates
-             the site — was said nowhere on this page. The caveat above already
-             tells that reader nobody verifies the name on the post; this is
-             what they can do about a post that needs looking at.
+        <!-- How to ask for a post to be reviewed: where the control is, then
+             what a report asks for and what it can lead to. A reader who
+             arrives here from a link someone pasted into a chat window has
+             never seen Social's feed panel, where those two paragraphs stand,
+             so the one thing a public post owes a stranger reading it — how to
+             raise it with the team that operates the site — was said nowhere on
+             this page. The caveat above already tells that reader nobody
+             verifies the name on the post; this is what they can do about a
+             post that needs looking at.
 
-             The bytes are Social's, not a second phrasing of the same facts: a
-             test reads both paragraphs out of src/social.html and fails the
-             moment either page rewords one. Two claims that agree in substance
-             and differ in a comma read as two claims to anyone who meets both.
+             The route names where the control is, because it is not here
+             (#2519). src/social.js and src/profile.js draw a Report post button
+             on every loaded card and tile; src/post-page.js imports
+             src/post-report.js nowhere, so this page has no button and no panel
+             in any of its four states — a test counts them in the rendered
+             page, not in this markup. It used to carry Social's own route
+             sentence, which says to "select Report post on it" about "a post":
+             on Social that names a button beside the post you are reading, and
+             here it named a control the page does not have, about a post it
+             never said was this one. It now says Social has the control, names
+             this page's own Social link by the words that link carries, and
+             says the post to select it on is this one.
+
+             What follows is about the report rather than about where to make
+             it, so its bytes stay Social's: the two sentences on what happens
+             to a report and what it can lead to are byte for byte the ones
+             Social ships and the ones the report panel itself shows, and a test
+             reads them out of src/social.html so neither page can reword one
+             alone. Two claims that agree in substance and differ in a comma
+             read as two claims to anyone who meets both.
+
+             The block is one sentence shorter than it was. Social's "Report
+             post opens a short form about that one post" went, not the words
+             that were added: the route above now says which post and where, so
+             that sentence restated it indefinitely, and what a reader needs
+             before they leave this page is which three things a report asks of
+             them — the email address included.
 
              Standing copy, like the two sentences above it: it sits in the
              page's own frame rather than in the region the lookup repaints, so
@@ -248,8 +271,8 @@
              the explanation is the next paragraph, so the same link would name
              a journey of one line and add a tab stop for it. The words are
              kept; the link is not a word. -->
-        <p class="hint">To ask the Wawalu team to review a post, select Report post on it.</p>
-        <p class="hint">How reporting works: Report post opens a short form about that one post. Choose a reason, add a note if you want to, and give your email address. The report goes only to the Wawalu team, who review each one. A report does not remove or hide the post, and not every report leads to removal.</p>
+        <p class="hint">Report post is on Social, not on this page: select Open Social to read the whole feed above, then select Report post on this post.</p>
+        <p class="hint">Report post asks for a reason, an optional note, and your email address. The report goes only to the Wawalu team, who review each one. A report does not remove or hide the post, and not every report leads to removal.</p>
         <!-- No publication consequence here. It used to stand in this hero, word
              for word the sentence Social's composer shows beside Publish post,
              on the reasoning that a permalink is the page a visitor meets cold.
