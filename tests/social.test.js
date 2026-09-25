@@ -646,7 +646,7 @@ test("the feed says who wrote the posts, where the posts are", async (t) => {
   const intro = textOf(page.document.querySelector(".hero-social").querySelectorAll("p")[2]);
   assert.doesNotMatch(intro, /Display names|whoever published it/,
     "the intro says who wrote the posts a second time, four screens from a card");
-  assert.match(intro, /The posts already here are invented to demonstrate Shiplog and use no customer or production data; a post you publish is real\.$/,
+  assert.match(intro, /The posts already here are invented to demonstrate Shiplog and use no customer or production data; anyone can read a post you publish\.$/,
     "the provenance sentence, with the demo-data claim inside it, must stay the intro's last words");
   // One sentence, word for word People's, naming the control both feeds print
   // on every card. Social had no such control and said nothing about opening a
@@ -724,7 +724,7 @@ test("who wrote the posts survives loading, populated, empty, and no-match", asy
 // The demo-data claim now sits inside the provenance sentence, so it covers only
 // the invented posts. Nothing checks what a visitor publishes, so the consequence
 // asks them not to include that data instead of promising it is absent (#2296).
-const PROVENANCE_SENTENCE = "The posts already here are invented to demonstrate Shiplog and use no customer or production data; a post you publish is real.";
+const PROVENANCE_SENTENCE = "The posts already here are invented to demonstrate Shiplog and use no customer or production data; anyone can read a post you publish.";
 const RETIRED_DATA_SENTENCE = "Posts use no customer or production data.";
 const PUBLISH_INSTRUCTION = "Do not include customer or production data.";
 // The two acts are named apart (#2373): a publisher cannot take their own post
@@ -945,8 +945,8 @@ test("the Posts panel opens on the feed's own heading, not on the display-name c
 test("Social, People, and a post permalink claim no customer data only for the invented posts", async (t) => {
   const scoped = {
     "social.html": PROVENANCE_SENTENCE,
-    "profile.html": "The image posts already here are invented to demonstrate Shiplog and use no customer or production data; an image post you publish is real.",
-    "post.html": "The posts already on Social are invented to demonstrate Shiplog and use no customer or production data; a post a visitor publishes is real.",
+    "profile.html": "The image posts already here are invented to demonstrate Shiplog and use no customer or production data; anyone can read an image post you publish.",
+    "post.html": "The posts already on Social are invented to demonstrate Shiplog and use no customer or production data; anyone can read a post a visitor publishes.",
   };
   for (const [file, sentence] of Object.entries(scoped)) {
     const page = await loadPage(new URL(`../src/${file}`, import.meta.url), {});
