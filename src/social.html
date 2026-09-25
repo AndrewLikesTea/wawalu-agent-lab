@@ -505,17 +505,28 @@
 
             <fieldset class="media-picker">
               <legend>Image <span class="label-optional">(optional)</span></legend>
-              <!-- The Paint round trip comes before Choose image because it is
-                   done first (#2294). It used to follow the picker and say
-                   "above", so a reader who took it in order tabbed back up the
-                   form. It ends at the picker: describing the image and
-                   publishing are said at the description field and beside
-                   Publish post, where they happen. The input's aria-describedby
-                   still names these steps. -->
-              <ol class="hint" id="post-image-steps">
-                <li><a class="secondary-button paint-link" href="/paint/" target="_blank" rel="noopener">Create or open an image in Paint <span class="new-tab-note">(opens in a new tab)</span> <span aria-hidden="true">↗</span></a></li>
-                <li>Select “Use this image in a Social post” in Paint, or export an image and select it using “Choose image”</li>
-              </ol>
+              <!-- Two ways in, one item each (#2514). Both routes used to share
+                   the second item, joined by an "or", so a visitor whose image
+                   was already on their machine had to read the Paint route
+                   first — and the half that was theirs explained the button by
+                   naming the button, which says nothing a reader cannot already
+                   see on it. Each route is labelled with where the image comes
+                   from now, so a reader takes the one that is true of them.
+                   Marked up as an unordered list because these are
+                   alternatives: numbering them asked a reader to do both. Paint
+                   leads because it is the shorter route and the only one this
+                   site owns end to end (#2298).
+                   Both routes come before Choose image because both are taken
+                   before a file is chosen (#2294); they used to follow the
+                   picker and say "above", so a reader who took them in order
+                   tabbed back up the form. They stop at the picker: describing
+                   the image and publishing are said at the description field and
+                   beside Publish post, where they happen. The input's
+                   aria-describedby still names them. -->
+              <ul class="hint" id="post-image-steps">
+                <li>From Paint: <a class="secondary-button paint-link" href="/paint/" target="_blank" rel="noopener">Create or open an image in Paint <span class="new-tab-note">(opens in a new tab)</span> <span aria-hidden="true">↗</span></a> then select “Use this image in a Social post”</li>
+                <li>From a file: Choose image takes an image already saved on this device</li>
+              </ul>
               <div class="media-source-actions">
                 <label class="secondary-button file-button" for="post-image">Choose image
                   <input id="post-image" name="image" type="file"
@@ -545,8 +556,13 @@
                    .detail-state-chip the image placeholders wear. Nothing in it
                    is focusable, so moving it up the field changed no tab stop.
                    Stated once, here; the refusals below restate it only after a
-                   file has actually been chosen. -->
-              <p class="hint" id="post-image-hint"><span class="detail-state-chip">PNG, JPEG, GIF, or WebP up to 512 KB</span> Reduce or re-export a larger image before you choose it.</p>
+                   file has actually been chosen. It is the rule alone (#2514):
+                   it used to close on a sentence telling the reader to shrink or
+                   re-export an oversized image, which is a remedy for a problem
+                   nobody has before they have chosen a file. The reader who does
+                   have it is told the remedy by src/social-page.js, in the
+                   refusal slot above, where it is news. -->
+              <p class="hint" id="post-image-hint"><span class="detail-state-chip">PNG, JPEG, GIF, or WebP, up to 512 KB</span></p>
               <p class="media-status" id="post-media-status" role="status" aria-live="polite" aria-atomic="true"></p>
               <!-- The requirement moved to the field it is about (#1967). It
                    stood here, before the picker, and had to spend half a

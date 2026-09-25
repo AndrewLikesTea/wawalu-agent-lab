@@ -407,16 +407,16 @@ test("the image control and chosen-image state name the action and pending resul
 
 // #1818: the four steps were one run-on sentence, and it carried the file rule
 // besides — so the sequence was unscannable and the constraint a visitor
-// actually trips over was the last thing on the screen. The steps are a numbered
-// list now, and the rule stands beside the control that takes the file.
-test("the composer numbers the round trip and puts the rule beside the control", () => {
+// actually trips over was the last thing on the screen. The ways in are a list
+// now, and the rule stands beside the control that takes the file.
+test("the composer lists the two ways in and puts the rule beside the control", () => {
   const steps = documents.Social.getElementById("post-image-steps");
   const hint = documents.Social.getElementById("post-image-hint");
-  assert.ok(steps, "the composer names no steps at all");
+  assert.ok(steps, "the composer names no way to add an image at all");
 
-  // (a) The discrete steps, in the order a reader takes them, marked up as an
-  // ordered list so the count and the position come from the markup rather than
-  // from a reader parsing commas. The list used to stop at the Paint link, which
+  // (a) One item per route, marked up as a list so the count and the position
+  // come from the markup rather than from a reader parsing commas. The list used
+  // to stop at the Paint link, which
   // left the reader in a second tab with a drawing and nothing telling them how
   // to get it into this one.
   // #1826 dropped a step reading "Select Choose image", whose whole content was
@@ -424,20 +424,30 @@ test("the composer numbers the round trip and puts the rule beside the control",
   // list stopped on returning to this tab, which left a reader holding a file
   // with nothing saying it is theirs to attach. The last step names the control
   // and the file, which is the part no label on screen carries.
-  assert.equal(steps.tagName, "OL", "the steps are not an ordered list");
+  // #2514 turns the sequence into the two routes it always held: one item per
+  // route, labelled with where the image comes from, unordered because they are
+  // alternatives and numbering them read as "do both". A reader whose image is
+  // already on their machine no longer has to read the Paint route to find
+  // theirs, and the route that is theirs no longer explains Choose image by
+  // naming Choose image.
+  assert.equal(steps.tagName, "UL", "the two routes are numbered as if they were steps");
   const items = steps.querySelectorAll("li");
   assert.deepEqual(items.map(textOf), [
-    "Create or open an image in Paint (opens in a new tab) ↗",
-    "Select “Use this image in a Social post” in Paint, or export an image and select it using “Choose image”",
+    "From Paint: Create or open an image in Paint (opens in a new tab) ↗ then select “Use this image in a Social post”",
+    "From a file: Choose image takes an image already saved on this device",
   ]);
+  assert.equal(textOf(documents.Social.querySelector("body"))
+    .split("export an image and select it using “Choose image”").length - 1, 0,
+    "the joined one-sentence version of the two routes is still on the page");
   assert.equal(textOf(documents.Social.querySelector("body")).split("Select Choose image").length - 1, 0,
     "the composer still instructs the reader to select the button beside the instruction");
 
   // (b) The rule is out of the step list and adjacent to the file control: the
   // element immediately after the one holding Choose image, and never inside the
   // steps. Structure, not pixels — the harness models no layout.
-  assert.equal(textOf(hint),
-    "PNG, JPEG, GIF, or WebP up to 512 KB Reduce or re-export a larger image before you choose it.");
+  // The rule alone since #2514: the remedy for an oversized file belongs to the
+  // refusal that answers one, not to the standing guidance every reader meets.
+  assert.equal(textOf(hint), "PNG, JPEG, GIF, or WebP, up to 512 KB");
   const input = documents.Social.getElementById("post-image");
   const control = input.parentNode;
   assert.equal(control.getAttribute("for"), "post-image", "Choose image no longer wraps its own input");
@@ -463,7 +473,7 @@ test("the composer numbers the round trip and puts the rule beside the control",
   // The rule is a standing classification of what this field takes, so it wears
   // the site's outline chip and never a filled live-state wash.
   const chip = hint.querySelectorAll("span")[0];
-  assert.equal(textOf(chip), "PNG, JPEG, GIF, or WebP up to 512 KB");
+  assert.equal(textOf(chip), "PNG, JPEG, GIF, or WebP, up to 512 KB");
   assert.equal(chip.getAttribute("class"), "detail-state-chip",
     "the rule is drawn as something other than the outline chip");
 
@@ -471,7 +481,7 @@ test("the composer numbers the round trip and puts the rule beside the control",
   // written in by a script after load: a curl has to contain it. (The harness
   // reads text straight through a closed disclosure, so the count below is what
   // actually rules one out.)
-  assert.match(sources.Social, /<ol class="hint" id="post-image-steps">/);
+  assert.match(sources.Social, /<ul class="hint" id="post-image-steps">/);
   assert.match(sources.Social, /<p class="hint" id="post-image-hint">/);
   // Scoped to the content region since #2250: the footer's secondary-destination
   // directory is a disclosure now, and it is nowhere near the composer. What may
@@ -486,10 +496,10 @@ test("the composer numbers the round trip and puts the rule beside the control",
   assert.ok(!hint.getAttribute("hidden"), "the rule ships hidden");
 });
 
-// (c) The Paint step is still the link it was: same words, same new tab, same
+// (c) The Paint route is still the link it was: same words, same new tab, same
 // declaration of it, same arrow. Splitting the sentence must not have quietly
-// turned the first step into plain text.
-test("the numbered Paint step keeps its new-tab words and its external indication", () => {
+// turned the first route into plain text.
+test("the Paint route keeps its new-tab words and its external indication", () => {
   const first = documents.Social.getElementById("post-image-steps").querySelectorAll("li")[0];
   const link = first.querySelector("a");
   assert.equal(link.tagName, "A");
@@ -501,9 +511,13 @@ test("the numbered Paint step keeps its new-tab words and its external indicatio
   const glyphs = link.querySelectorAll("span").filter((span) => /[↗→]/.test(textOf(span)));
   assert.equal(glyphs.length, 1);
   assert.equal(glyphs[0].getAttribute("aria-hidden"), "true");
-  // The step item adds nothing around it, so the list contributes one tab stop
-  // here and none anywhere else in it.
-  assert.equal(textOf(first), textOf(link));
+  // The route item labels the link and names the Paint control after it (#2514),
+  // and adds no second control: the list contributes one tab stop, here, and
+  // none anywhere else in it.
+  assert.equal(first.querySelectorAll("a,button,input").length, 1,
+    "the Paint route grew a second control");
+  assert.equal(textOf(first),
+    `From Paint: ${textOf(link)} then select “Use this image in a Social post”`);
 });
 
 // (d) The numbered list and the relocated rule are text, so the only stop they
@@ -555,10 +569,13 @@ test("the composer names the round trip in the order it is taken, once", () => {
   };
   assert.ok(at("Create or open an image in Paint") < at("Use this image in a Social post"),
     "the composer asks for the Paint action before the drawing");
-  // #2298: the one-step action from Paint leads, and exporting and choosing the
-  // file by hand is the fallback after it.
-  assert.ok(at("Use this image in a Social post") < at("export an image and select it using “Choose image”"),
-    "the manual route is offered ahead of the one-step action");
+  // #2298: the one-press action from Paint leads, and choosing a file already on
+  // the device is the route after it. #2514 makes that route its own item, so it
+  // is a labelled line a reader can skip to rather than the back half of a
+  // sentence about Paint.
+  assert.ok(at("Use this image in a Social post")
+    < at("From a file: Choose image takes an image already saved on this device"),
+    "the file route is offered ahead of the one-press action from Paint");
   // #2294: the list ends on the picker it leads into and no longer points back
   // "above" at it. Describing the image and publishing it are said at the
   // description field and beside Publish post, where they happen.
@@ -590,37 +607,44 @@ const inMediaPicker = (node) => {
   return false;
 };
 
-test("the image section holds exactly one step list, and it is the Paint one", () => {
+test("the image section holds exactly one list of ways in, and it is the image one", () => {
   // Counted by walking up from every list on the page rather than with a
   // descendant selector, which this harness rejects. An older three-step list
   // left behind beside the finished one would show up here as a second list.
   const lists = [...documents.Social.querySelectorAll("ol"), ...documents.Social.querySelectorAll("ul")]
     .filter(inMediaPicker);
-  assert.equal(lists.length, 1, `the image section offers ${lists.length} step lists`);
+  assert.equal(lists.length, 1, `the image section offers ${lists.length} lists`);
   assert.equal(lists[0].getAttribute("id"), "post-image-steps");
   assert.equal(documents.Social.querySelectorAll("#post-image-steps").length, 1);
 
-  // Four steps at most, one action each, and no step splits into two sentences.
+  // Four items at most, one route each, and no item splits into two sentences.
   const items = lists[0].querySelectorAll("li");
-  assert.ok(items.length <= 4, `the round trip is told in ${items.length} steps`);
+  assert.ok(items.length <= 4, `the ways in are told in ${items.length} items`);
   for (const item of items) {
-    assert.doesNotMatch(textOf(item), /\.\s/, `a step carries more than one sentence: ${textOf(item)}`);
+    assert.doesNotMatch(textOf(item), /\.\s/, `an item carries more than one sentence: ${textOf(item)}`);
   }
+  // Exactly two since #2514, and each one holds its own route only: neither item
+  // carries both, which is what made the old single sentence unskippable.
+  assert.equal(items.length, 2, `the two ways in are told in ${items.length} items`);
+  assert.doesNotMatch(textOf(items[0]), /Choose image/,
+    "the Paint route names the file control too, so the routes are joined again");
+  assert.doesNotMatch(textOf(items[1]), /Paint/,
+    "the file route names Paint too, so the routes are joined again");
 });
 
-test("the sequence names the image picker and leaves publishing to the button", () => {
+test("the file route names the image picker and leaves publishing to the button", () => {
   const items = documents.Social.getElementById("post-image-steps").querySelectorAll("li");
   const last = textOf(items[items.length - 1]);
 
-  // The sequence names the exported file and the exact rendered control label,
-  // and ends on that control (#2294): "Publish post" is said once, by the
-  // button, not in a list read before the fields it follows.
+  // The last route names the exact rendered control label and says what that
+  // control takes — an image the visitor already has (#2514). "Publish post" is
+  // said once, by the button, not in a list read before the fields it follows.
   const label = textOf(documents.Social.querySelector('label[for="post-image"]'));
   assert.equal(label, "Choose image");
   assert.ok(last.includes(label));
-  assert.equal(last, "Select “Use this image in a Social post” in Paint, or export an image and select it using “Choose image”");
+  assert.equal(last, "From a file: Choose image takes an image already saved on this device");
   assert.doesNotMatch(textOf(documents.Social.getElementById("post-image-steps")), /Publish/,
-    "the steps name the publish press ahead of the fields again");
+    "the routes name the publish press ahead of the fields again");
   assert.equal(textOf(documents.Social.querySelector('button[type="submit"]')), "Publish post");
   assert.doesNotMatch(textOf(documents.Social.querySelector("body")), /Publish your post/);
 
