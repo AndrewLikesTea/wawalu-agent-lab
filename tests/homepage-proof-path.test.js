@@ -158,9 +158,15 @@ test("the Shiplog offer states the pricing status and points to its contact path
   assert.equal(form.getAttribute("data-follow-up-type"), "follow_up_homepage");
 });
 
-test("the representative release panel features the release the story names", async (t) => {
+test("the example record panel features the release the story names", async (t) => {
   const home = await openHome(t);
   const panel = home.document.querySelector("#sample-release-list");
+
+  // The panel's eyebrow calls this data what the rest of the page calls it. It
+  // read "Representative release" until #2520 — a fourth name for the records
+  // the hero boundary, the badges, and the Releases page all call examples.
+  const eyebrow = home.document.querySelector(".release-panel-wrap").querySelector(".eyebrow");
+  assert.equal(textOf(eyebrow), EXAMPLE_LABEL);
 
   assert.equal(panel.getAttribute("aria-busy"), "false");
   assert.equal(panel.querySelectorAll(".list-state-loading").length, 0, "the panel stayed on its loading state");
@@ -177,13 +183,13 @@ test("the representative release panel features the release the story names", as
   assert.equal(storyHref, detailHref);
 });
 
-test("a release the visitor recorded is never featured as the representative example", async (t) => {
+test("a release the visitor recorded is never featured as an example record", async (t) => {
   const home = await openHome(t, { releases: [OWN_RELEASE] });
   const panel = home.document.querySelector("#sample-release-list");
   const rendered = textOf(panel);
 
   // Their release is the newest in the log, so it leads the history — but this
-  // panel says "Representative release", and their record is not one.
+  // panel says "Example record", and their record is not one.
   assert.doesNotMatch(rendered, /Our own launch/);
   assert.doesNotMatch(rendered, /Devi/);
   assert.match(rendered, /Throughput and latency/);
