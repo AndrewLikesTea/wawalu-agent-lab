@@ -103,6 +103,11 @@ test("a question typed on the post page reaches the team with the post topic", a
   }
 });
 
+// Social's block is about Shiplog, not about a post, and it now says so in the
+// sentence a reader meets before the topics (#2557). What it must not become is
+// the post page's block: no permalink to copy, no single post to name, and the
+// fixed topic is still the feed. So the heading line is pinned whole here, and
+// the two sentences that are the post page's alone are pinned absent.
 test("Social feed keeps its general invitation and fixed topic", async () => {
   const page = await loadPage(new URL("../src/social.html", import.meta.url));
   try {
@@ -112,7 +117,12 @@ test("Social feed keeps its general invitation and fixed topic", async () => {
     assert.equal(FOLLOW_UP_TOPICS.follow_up_social, topic);
     assert.equal(document.getElementById("site-footer-form").dataset.followUpTopic, topic);
     assert.equal(textOf(document.getElementById("site-footer-topic-note")), `This request is sent about the ${topic}.`);
-    assert.equal(textOf(document.querySelector(".site-footer-invitation")), "Questions about Shiplog? Send the Wawalu team that operates it a follow-up request.");
+    const heading = textOf(document.querySelector(".site-footer-invitation"));
+    assert.equal(heading, `${INVITATION} The topics below are about Shiplog — whether it is available for your team, a demonstration, a pilot, and security and data handling — not about an individual post; if your question is about one of the posts, select Report post on that post instead.`);
+    assert.ok(heading.includes(`select ${REPORT_POST_LABEL} on that post`),
+      `Social names the reporting control something other than "${REPORT_POST_LABEL}"`);
+    assert.doesNotMatch(heading, /Copy link to this post|this post itself/,
+      "Social's heading line took on the post page's sentences about one named post");
   } finally {
     page.restore();
   }

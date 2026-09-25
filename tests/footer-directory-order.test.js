@@ -52,6 +52,15 @@ const TASK_PAGES = ["social.html", "profile.html", "post.html", "coach.html", "r
 // page they are: the home page, the AI FinOps answer, the observatory's trace.
 const OPEN_PAGES = ["index.html", "evolution.html", "agent-trace.html"];
 
+// The pages whose heading line says more than INVITATION, and exactly what each
+// of them says. Every other page is held to INVITATION alone.
+const FEED_INVITATION = `${INVITATION} The topics below are about Shiplog — whether it is available for your team, a demonstration, a pilot, and security and data handling — not about an individual post; if your question is about one of the posts, select Report post on that post instead.`;
+const EXPECTED_INVITATION = {
+  "post.html": `${INVITATION} The topics below are about Shiplog — whether it is available for your team, a demonstration, a pilot, and security and data handling — not about this post. If your question is about this post itself, select Report post instead. Nothing about the post is attached to the request automatically. Select Copy link to this post above, then paste the link into the Anything else we should know? field so the team knows which post you mean.`,
+  "social.html": FEED_INVITATION,
+  "profile.html": FEED_INVITATION,
+};
+
 const read = (file) => readFile(new URL(file, SRC), "utf8");
 const parse = async (file) => parseHtml(await read(file));
 
@@ -100,9 +109,14 @@ test("on every task page the follow-up block is read before the directory", asyn
     // name the post in the request — but it opens on the same heading line as
     // every other page (#2436). The last sentence quotes the two controls it
     // asks for by their visible labels (#2541).
-    assert.equal(textOf(band[invitation]), file === "post.html"
-      ? `${INVITATION} The topics below are about Shiplog — whether it is available for your team, a demonstration, a pilot, and security and data handling — not about this post. If your question is about this post itself, select Report post instead. Nothing about the post is attached to the request automatically. Select Copy link to this post above, then paste the link into the Anything else we should know? field so the team knows which post you mean.`
-      : INVITATION, `${file}: the follow-up heading line changed`);
+    //
+    // Social and People add the first two of those in one sentence (#2557): they
+    // list posts rather than showing one, so they say the topics are not about an
+    // individual post and send a question about one of them to Report post, which
+    // is drawn on every card and every tile. They do not add the post page's last
+    // two sentences, which are about naming a single post in the request.
+    assert.equal(textOf(band[invitation]), EXPECTED_INVITATION[file] ?? INVITATION,
+      `${file}: the follow-up heading line changed`);
   }
 });
 

@@ -104,6 +104,12 @@ const describedBy = (document) => byId(document, "site-footer-email").getAttribu
 // the same claims. Issue #2153 brought /post.html onto both shapes: it is the
 // page a forwarded link lands on most often, and it was the last one asking for
 // a work address without saying what asking gets.
+// The heading line on the two pages that list posts, built from the one every
+// page carries so the pages cannot drift apart at the front (#2557). The added
+// sentence is the post page's own, with its referent changed: "this post" is a
+// page about one post, and these two are pages about many.
+const FEED_INVITATION = `${INVITATION} The topics below are about Shiplog — whether it is available for your team, a demonstration, a pilot, and security and data handling — not about an individual post; if your question is about one of the posts, select Report post on that post instead.`;
+
 const FOOTER_VARIANT = new Map([
   ["index.html", {
     followUpType: "follow_up_homepage", followUpTopic: FOLLOW_UP_TOPICS.follow_up_homepage,
@@ -139,12 +145,22 @@ const FOOTER_VARIANT = new Map([
     followUpType: "follow_up_releases", followUpTopic: FOLLOW_UP_TOPICS.follow_up_releases,
     collapsedDemos: true, askMessage: true, offer: true, assets: true,
   }],
+  // #2557: the two pages that list posts carry the same routing sentence the post
+  // page does, adapted to a page showing many posts rather than one. A visitor
+  // with a problem about a single post used to meet four topics that are all
+  // about Shiplog and no statement of what they cover, so the form read as the
+  // way to raise a post — and the control that does raise one, Report post, is
+  // drawn on every card here and on every tile on People. It sends them there
+  // and stops: how a report is then handled is Social's disclosure to explain,
+  // once (#2471).
   ["social.html", {
     followUpType: "follow_up_social", followUpTopic: FOLLOW_UP_TOPICS.follow_up_social,
+    invitation: FEED_INVITATION,
     collapsedDemos: true, askMessage: true, offer: true, assets: true,
   }],
   ["profile.html", {
     followUpType: "follow_up_people", followUpTopic: FOLLOW_UP_TOPICS.follow_up_people,
+    invitation: FEED_INVITATION,
     collapsedDemos: true, askMessage: true, offer: true, assets: true,
   }],
   // #2470: the observatory carried every other flag the task pages do but this
