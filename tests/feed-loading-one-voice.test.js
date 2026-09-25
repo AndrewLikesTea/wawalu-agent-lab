@@ -36,7 +36,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { loadPage, textOf } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
-import { mountSocialFeed, FEED_LOADING_LINE } from "../src/social.js";
+import { mountSocialFeed, FEED_LOADING_LINE, noMatchMessage, CLEAR_FILTERS_LABEL } from "../src/social.js";
 import { loadingSummaryText } from "../src/profile.js";
 import { POST_LOADING_STATUS } from "../src/post-detail.js";
 
@@ -197,6 +197,97 @@ test("Social tells an empty feed apart from a feed that has not answered yet", a
   // read alongside them, and the one this page used to carry said "loading".
   assert.equal(status.getAttribute("aria-label"), null);
   assert.doesNotMatch(textOf(status), /\bloading\b/i);
+});
+
+// The third state this file never followed over the wire. Social's three status
+// lines are mutually exclusive by construction — feedPhase() returns one phase
+// and renderPosts() draws one panel into #feed-state — but every test that
+// checked the filtered dead end against the other two mounted the feed directly
+// with an already-normalised array. Booting it is what puts the real fetch, the
+// real normaliser and the two real menus in the path, and the filtered state is
+// the only one of the three a reader reaches by *doing* something, so it is the
+// one where a stale line left standing would be a line they just watched appear.
+//
+// Counted over the whole rendered body, not per region: the defect this file
+// exists for was never a region saying the wrong thing, it was a second region
+// still saying the old thing somewhere else on the page.
+test("Social's three feed states never overlap, from the first fetch through a filter and back", async (t) => {
+  const page = await loadPage(SOCIAL_PAGE, { routes: { [SEED_ROUTE]: { posts: [] }, [LIVE_ROUTE]: LIVE_FEED } });
+  const savedInterval = globalThis.setInterval;
+  globalThis.setInterval = () => 0;
+  t.after(() => { globalThis.setInterval = savedInterval; page.restore(); });
+  const { document } = page;
+
+  // The dead end's sentence is derived from what the menu is actually showing,
+  // the same way src/social.js derives it, so a reworded option cannot leave
+  // this test passing against a sentence the page no longer says.
+  const midSentence = (text) => (text ? text[0].toLowerCase() + text.slice(1) : "");
+  // The three lines, counted as occurrences in the rendered text. The wait and
+  // the never-posted sentence are fixed strings; the dead end's is filled in
+  // once the menu it quotes has been read.
+  const tally = (noMatchLine) => ({
+    loading: occurrences(textOf(document.body), FEED_LOADING_LINE),
+    empty: occurrences(textOf(document.body), SOCIAL_EMPTY_LINE),
+    noMatch: noMatchLine ? occurrences(textOf(document.body), noMatchLine) : 0,
+  });
+
+  // 1. The cold frame, before any module runs: the wait, and only the wait.
+  assert.deepEqual(tally(null), { loading: 1, empty: 0, noMatch: 0 },
+    "the frame a cold visitor meets carries more than one of the three feed states");
+
+  await importPageModule("/social-page.js");
+  await waitFor(() => drawnCards(document).length === 2, "the two live posts painted");
+  assert.equal(document.querySelectorAll(".post-card-skeleton").length, 0,
+    "counted cards while the feed was still drawing placeholders");
+
+  // 2. Settled with posts: none of the three, because all three are claims about
+  // a feed with nothing in it.
+  assert.deepEqual(tally(null), { loading: 0, empty: 0, noMatch: 0 },
+    "a feed with posts in it is still telling a reader it has none");
+
+  const timeFilter = document.querySelector("#post-time-filter");
+  // The harness's select accepts any value; a real one refuses an unlisted
+  // option, so the value driven here is checked against what the menu renders.
+  const offered = timeFilter.options.map((option) => option.getAttribute("value"));
+  assert.ok(offered.includes("hour"), `the past-hour window must be offered; the menu holds ${offered.join(", ")}`);
+  const windowLabel = midSentence(textOf(timeFilter.options.find((option) => option.getAttribute("value") === "hour")));
+  const noMatchLine = noMatchMessage({ range: windowLabel });
+  assert.equal(noMatchLine, "No posts from the past hour.",
+    "the dead end no longer quotes the window the menu is showing");
+
+  // 3. Narrowed to zero. These posts are dated in July, so the past-hour window
+  // empties the feed without touching what the fetch returned.
+  timeFilter.value = "hour";
+  timeFilter.dispatchEvent({ type: "change", bubbles: true });
+  assert.equal(drawnCards(document).length, 0);
+  assert.deepEqual(tally(noMatchLine), { loading: 0, empty: 0, noMatch: 1 },
+    "the filtered dead end stands beside the wait or the never-posted sentence");
+
+  // Said by the region the page already owns, and by nothing else: the dead end
+  // is the news a screen-reader user gets for changing a menu, so a second node
+  // carrying it is a second announcement of one filter change.
+  const speaking = speakingRegions(document).filter((node) => textOf(node).includes(noMatchLine));
+  assert.deepEqual(idsOf(speaking), ["feed-state"],
+    "the dead end is announced from somewhere other than the feed's own live region");
+  const status = document.querySelector("#feed-state");
+  assert.equal(status.getAttribute("role"), "status");
+  assert.equal(status.getAttribute("aria-live"), "polite");
+  assert.equal(status.querySelectorAll('[role="status"]').length, 0,
+    "a live region drawn inside a live region announces one filter change twice");
+  assert.equal(status.querySelectorAll("[aria-live]").length, 0);
+  assert.deepEqual(idsOf(speakingOfTheWait(document)), [],
+    "something is still talking about the load after the filters answered");
+
+  // 4. And back out through the control the dead end hands over, to none of the
+  // three again — the state a reader started in.
+  const clear = status.querySelectorAll("button")[0];
+  assert.equal(textOf(clear), CLEAR_FILTERS_LABEL);
+  clear.click();
+  assert.equal(drawnCards(document).length, 2, "clearing did not restore the posts the filter hid");
+  assert.deepEqual(tally(noMatchLine), { loading: 0, empty: 0, noMatch: 0 },
+    "a state line outlived the filter change that cleared it");
+  assert.equal(document.querySelectorAll("#feed-state").length, 1,
+    "the region the states share was replaced rather than reused");
 });
 
 /* ------------------------------- People ---------------------------------- */
