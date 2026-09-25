@@ -211,7 +211,7 @@ test("a first-time visitor lands on a display name that has image posts", async 
     assert.equal(textOf(document.querySelector("#profile-name")), "Showing 2 image posts published as Zed.",
       "the header names someone other than the picker's own value");
     assert.match(textOf(document.querySelector(".profile-role")),
-      /^Display names on the posts already on Social are invented\.[\s\S]*anyone can publish under any name\.$/,
+      /^Display names on the example posts on Social are invented\.[\s\S]*anyone can publish under any name\.$/,
       "the display-name caveat is not the general one");
     assert.equal(textOf(document.querySelector(".profile-role")).includes("Zed"), false,
       "the caveat spends a third visible copy of the display name");
@@ -842,7 +842,7 @@ test("the display name is visible twice in the results region, and no more", asy
     // The lines that gave up their copy still say their own thing: Ari has
     // posted, just never a picture, and the counts carry that without a name.
     assert.match(textOf(document.querySelector("#profile-summary")), /^0 image posts · 1 post in total · last posted /);
-    assert.match(textOf(document.querySelector(".profile-role")), /^Display names on the posts already on Social are invented\./);
+    assert.match(textOf(document.querySelector(".profile-role")), /^Display names on the example posts on Social are invented\./);
     // The announcement keeps the name, because it is heard away from the page.
     assert.match(textOf(document.querySelector("#profile-announcer")), /Ari/);
   } finally {
@@ -1210,7 +1210,7 @@ function insideDisclosure(node) {
 
 // The site's one definition of a display name, in the bytes Social's feed note
 // and the post permalink render.
-const CAVEAT = "Display names on the posts already on Social are invented. On any other post, whoever published it chose the name. Nobody owns or verifies a display name, and anyone can publish under any name.";
+const CAVEAT = "Display names on the example posts on Social are invented. On any other post, whoever published it chose the name. Nobody owns or verifies a display name, and anyone can publish under any name.";
 
 // The reported defect (issue #1789): the display-name caveat closed the profile
 // header at the top of this panel, above the ordering line, above the status
@@ -1288,7 +1288,7 @@ test("once People has drawn its tiles, the display-name caveat tells both cases 
     const caveat = textOf(document.querySelector(".profile-role"));
     assert.equal(caveat, CAVEAT);
     assert.doesNotMatch(caveat, /\bdemo\b/i, "the caveat calls the posts a demo");
-    assert.match(caveat, /on the posts already on Social are invented\./);
+    assert.match(caveat, /on the example posts on Social are invented\./);
     assert.match(caveat, /On any other post, whoever published it chose the name\./);
   } finally {
     page.restore();
@@ -1484,10 +1484,12 @@ test("People claims no result before its first image post, and the loaded page i
 // "Posts use no customer or production data." once stood alone here, and read as
 // a promise about the whole page — the image post a visitor is about to publish
 // from Social included — that nothing on Shiplog enforces. The claim now lives
-// inside the sentence naming the invented image posts, in Social's sentence with
-// People's noun in it, and the consequences end on the instruction Social's
-// composer gives, in the same bytes (#2296).
-const PEOPLE_PROVENANCE = "The image posts already here are invented to demonstrate Shiplog and use no customer or production data; anyone can read an image post you publish.";
+// inside the sentence naming the invented posts, in Social's sentence, and the
+// consequences end on the instruction Social's composer gives, in the same bytes
+// (#2296). The set is named "the example posts" here, as it is on Social and the
+// permalink and as the seeded records are on the home page and Releases (#2549);
+// People's own noun stays in the clause about the visitor's own post.
+const PEOPLE_PROVENANCE = "The example posts here are invented to demonstrate Shiplog and use no customer or production data; anyone can read an image post you publish.";
 const RETIRED_DATA_SENTENCE = "Posts use no customer or production data.";
 const PUBLISH_INSTRUCTION = "Do not include customer or production data.";
 // The publishing contract as Social's composer states it, in second-person
@@ -1537,7 +1539,7 @@ test("the intro says the image posts on this page are invented, before any of th
   // stated rather than pointed at (#2484).
   const intro = textOf(served.document.querySelectorAll(".profile-lede")[1]);
   assert.ok(intro.endsWith(PEOPLE_PROVENANCE),
-    "the intro no longer ends on what the image posts already on the page are made of");
+    "the intro no longer ends on what the example posts already on the page are made of");
   assert.doesNotMatch(intro, /you publish it|Report post|Do not include/,
     "People's first screen warns about publishing again");
   assert.doesNotMatch(intro, /published as|Showing \d+ image post/i);

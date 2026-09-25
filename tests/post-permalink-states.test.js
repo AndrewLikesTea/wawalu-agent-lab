@@ -644,7 +644,7 @@ const RETIRED_DATA_SENTENCE = "Posts use no customer or production data.";
 // context about the page, not about this post — which is also why it holds in
 // the states where the lookup found nothing — so it reads after the post
 // rather than in front of it.
-const CONTEXT_SENTENCE = "The posts already on Social are invented to demonstrate Shiplog and use no customer or production data; anyone can read a post a visitor publishes.";
+const CONTEXT_SENTENCE = "The example posts on Social are invented to demonstrate Shiplog and use no customer or production data; anyone can read a post a visitor publishes.";
 
 test("the words of a route out never change, and the post provenance survives every state", async () => {
   const cases = [
@@ -1323,10 +1323,10 @@ test("the post page says what it is before it says it is loading", async () => {
 
   // Social's provenance sentence, with the only two words a one-post page cannot
   // say: "on Social" for "here", and "a visitor" for "you".
-  assert.ok(social.includes("The posts already here are invented to demonstrate Shiplog and use no customer or production data; anyone can read a post you publish."),
+  assert.ok(social.includes("The example posts here are invented to demonstrate Shiplog and use no customer or production data; anyone can read a post you publish."),
     "Social no longer says the provenance sentence this page follows");
   assert.equal(CONTEXT_SENTENCE.replace("on Social", "here").replace("a visitor publishes", "you publish"),
-    "The posts already here are invented to demonstrate Shiplog and use no customer or production data; anyone can read a post you publish.");
+    "The example posts here are invented to demonstrate Shiplog and use no customer or production data; anyone can read a post you publish.");
 
   // The strings this page already owns are untouched, byte for byte.
   assert.ok(html.includes(`<span class="detail-loading-text">${STATE_HEADLINES.loading}</span>`), "the loading line is unchanged");
