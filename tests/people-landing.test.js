@@ -1486,7 +1486,7 @@ test("People claims no result before its first image post, and the loaded page i
 // inside the sentence naming the invented image posts, in Social's sentence with
 // People's noun in it, and the consequences end on the instruction Social's
 // composer gives, in the same bytes (#2296).
-const PEOPLE_PROVENANCE = "The image posts already here are invented to demonstrate Shiplog and use no customer or production data; an image post you publish is real.";
+const PEOPLE_PROVENANCE = "The image posts already here are invented to demonstrate Shiplog and use no customer or production data; anyone can read an image post you publish.";
 const RETIRED_DATA_SENTENCE = "Posts use no customer or production data.";
 const PUBLISH_INSTRUCTION = "Do not include customer or production data.";
 // The publishing contract as Social's composer states it, in second-person
