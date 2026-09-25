@@ -256,7 +256,12 @@
                    "no filter" the same way. "All posting times" rather than "All
                    dates" because the ranges below it are measured in hours, and a
                    reader choosing the past hour is not choosing a date. -->
-              <select id="post-time-filter">
+              <!-- Described by its own line at the foot of the row, the way the
+                   display-name menu is described by the line beside it. The
+                   description stays attached in every state, because what a
+                   window means is true whether or not the menu is operable, so
+                   src/social.js only ever rewrites its words. -->
+              <select id="post-time-filter" aria-describedby="post-time-filter-hint">
                 <option value="all">All posting times</option>
                 <option value="hour">From the past hour</option>
                 <option value="day">From the past 24 hours</option>
@@ -305,6 +310,27 @@
                  "loading", so the row and the feed describe one open fetch the
                  same way instead of two. -->
             <p class="hint" id="post-filter-hint">Filter posts by display name becomes available when posts finish loading.</p>
+            <!-- The time menu's own line, and the answer to the question the row
+                 could not answer before (#2562): what a window actually
+                 measures. The menu offers three windows and an all-values
+                 option, and said nothing about where a window is counted from,
+                 so a reader choosing "From the past 24 hours" could not tell
+                 whether it meant yesterday, the calendar day, or the 24 hours
+                 before the moment they chose it.
+                 Two shapes, mutually exclusive, mirroring the line above it:
+                 while the menus are shut it says so in the same words the
+                 display-name line uses, and once they work it says what the
+                 windows mean. It ships carrying the waiting shape because the
+                 frame before hydration is the loading frame; src/social.js
+                 replaces only its text, which is why it is authored here.
+                 It quotes one option verbatim rather than describing it, so the
+                 sentence and the menu cannot drift; a test pins the quoted words
+                 to the option's own text.
+                 Not a live region, and outside the list panel, for the reasons
+                 the line above it is both: it describes the control that names
+                 it through aria-describedby, and #feed-summary owns the count
+                 and the order. -->
+            <p class="hint" id="post-time-filter-hint">Filter posts by posting time becomes available when posts finish loading.</p>
           </div>
           <div class="feed-connection" hidden>
             <span class="live-dot" aria-hidden="true"></span>

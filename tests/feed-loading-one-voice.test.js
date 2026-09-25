@@ -36,7 +36,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { loadPage, textOf } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
-import { mountSocialFeed, FEED_LOADING_LINE, noMatchMessage, CLEAR_FILTERS_LABEL } from "../src/social.js";
+import { mountSocialFeed, FEED_LOADING_LINE, noMatchMessage, CLEAR_FILTERS_LABEL, TIME_FILTER_UNAVAILABLE_HINT } from "../src/social.js";
+import { FILTERS_UNAVAILABLE_HINT } from "../src/feed-status.js";
 import { loadingSummaryText } from "../src/profile.js";
 import { POST_LOADING_STATUS } from "../src/post-detail.js";
 
@@ -149,10 +150,20 @@ test("Social's loading panel does not nest a second status inside the status reg
   assert.deepEqual(idsOf(speakingOfTheWait(document)), ["feed-state"]);
 
   // And the shut menus still get the reason in words, through the description
-  // the hint has always been, rather than through a region that shouts it.
-  for (const id of ["#post-name-filter", "#post-time-filter", "#post-filter-clear"]) {
-    assert.equal(document.querySelector(id).getAttribute("aria-describedby"), "post-filter-hint",
+  // the hint has always been, rather than through a region that shouts it. The
+  // time menu is described by its own line (#2562), which says the same wait in
+  // the same words while the fetch is open — a description, not a second voice.
+  const reasons = {
+    "#post-name-filter": ["post-filter-hint", FILTERS_UNAVAILABLE_HINT],
+    "#post-time-filter": ["post-time-filter-hint", TIME_FILTER_UNAVAILABLE_HINT],
+    "#post-filter-clear": ["post-filter-hint", FILTERS_UNAVAILABLE_HINT],
+  };
+  for (const [id, [hintId, sentence]] of Object.entries(reasons)) {
+    assert.equal(document.querySelector(id).getAttribute("aria-describedby"), hintId,
       `${id} lost the sentence that says why it cannot be used`);
+    const hint = document.querySelector(`#${hintId}`);
+    assert.equal(textOf(hint), sentence, `${id} is described by words that are not the reason`);
+    assert.equal(hint.getAttribute("aria-live"), null, `${hintId} is a second voice for one fetch`);
   }
 });
 
