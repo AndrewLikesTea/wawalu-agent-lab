@@ -297,14 +297,32 @@
          region and the follow-up's error, recovery and status lines all stay in
          the form above, so folding the directory away can never silence a live
          region. The follow-up form itself is outside too, and keeps its tab
-         stops with the directory closed. -->
+         stops with the directory closed.
+
+         The sentences this page adds to the standing invitation name two
+         controls, and both are named by the words a reader can see on them
+         (#2541). The last one used to say "paste the link into your message",
+         and nothing on this page is called a message: the one free-text input
+         in the form below is labelled "Anything else we should know?" with
+         "(optional)" after it, so a reader hunting for a message found nothing
+         by that name. The label is quoted without the optional marker, which
+         says whether to fill the field in rather than what it is called. "Copy
+         link to this post" is quoted the same way, from src/post-share.js, and
+         it is a real button here: src/post-detail.js appends it to the loaded
+         post in both ways a post resolves — a seed id read out of the demo file
+         and a UUID read from the API. "above" is where it is, in reading order
+         and so in tab order: the post region precedes this footer. The states
+         with no post draw no such button, and they are also the states with no
+         post to name, so the instruction and the control arrive and go
+         together. tests/post-follow-up-copy.test.js looks both controls up in
+         the rendered page rather than trusting these words. -->
     <footer class="site-footer" id="site-footer" aria-labelledby="site-footer-title">
       <div class="site-footer-inner">
         <h2 class="site-footer-title" id="site-footer-title">About Shiplog</h2>
         <p class="site-footer-identity">On this site you can analyze your own AI spend, check a prompt before you send it, and read the decisions and releases behind it. Shiplog is a demonstration product, built and operated by Wawalu at labs.wawalu.org.</p>
         <p class="site-footer-identity site-footer-pitch">Shiplog is for engineering teams that answer for an AI bill and a release history. See <a href="/evolution.html#workspace-answer">the worked decision in AI FinOps</a>.</p>
         <p class="site-footer-identity"><a id="site-footer-source" href="https://github.com/AndrewLikesTea/wawalu-agent-lab">Open the public repository this site is built from</a></p>
-        <p class="site-footer-invitation">Questions about Shiplog? Send the Wawalu team that operates it a follow-up request. The topics below are about Shiplog — whether it is available for your team, a demonstration, a pilot, and security and data handling — not about this post. If your question is about this post itself, select Report post instead. Nothing about the post is attached to the request automatically. Select Copy link to this post and paste the link into your message so the team knows which post you mean.</p>
+        <p class="site-footer-invitation">Questions about Shiplog? Send the Wawalu team that operates it a follow-up request. The topics below are about Shiplog — whether it is available for your team, a demonstration, a pilot, and security and data handling — not about this post. If your question is about this post itself, select Report post instead. Nothing about the post is attached to the request automatically. Select Copy link to this post above, then paste the link into the Anything else we should know? field so the team knows which post you mean.</p>
         <div class="site-footer-panel" id="site-footer-panel">
           <form id="site-footer-form" class="site-footer-form" data-follow-up-type="follow_up_social" data-follow-up-topic="Social post page — one post from Social, at its own link" novalidate>
             <p class="site-footer-note" id="site-footer-offer">There is no self-serve signup and no published price. Whether Shiplog is available for your team and what it would cost are both answered on request.</p>
