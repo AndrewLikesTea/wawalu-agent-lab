@@ -1,5 +1,4 @@
-// Rendering for the real record of this deployment, at the top of the releases
-// page.
+// Rendering for the deployment record, at the top of the releases page.
 //
 // The record itself is src/deployed-release.js and is pure; this layer only
 // turns it into DOM. Every value written here originates in the build stamp, and
@@ -49,18 +48,18 @@ export const SHIP_REASON_NOT_RECORDED = "The reason this build shipped was not r
 
 export const REAL_NOTE = "This record is not an example. The build that produced the page you are reading wrote it, from the commit that build was made from. Open that commit below and check it against the public repository.";
 
-export const UNSTAMPED_NOTE = "This build is unstamped: it records no commit, so there is no real record of it to show. Every release record on this page is an invented example.";
+export const UNSTAMPED_NOTE = "This build is unstamped: it records no commit, so it has no deployment record to show. Every release record on this page is an invented example.";
 
 /**
  * What the block is headed when the build is unstamped.
  *
  * The heading is the record's name, so it goes with the record the way the
- * marking does: with no record there is nothing to head "Real record of this
- * deployment", and a heading that says it anyway would be the one claim this
- * block exists not to make. It is the same name, negated, rather than a second
- * name for the same thing.
+ * marking does: with no record there is nothing to head "Deployment record",
+ * and a heading that says it anyway would be the one claim this block exists
+ * not to make. It is the same name, negated, rather than a second name for the
+ * same thing.
  */
-export const NO_RECORD_TITLE = "No real record of this deployment";
+export const NO_RECORD_TITLE = "No deployment record for this build";
 
 function byId(root, id) {
   return root.querySelector(`#${id}`);
@@ -203,8 +202,8 @@ export function renderShippedBuild(root, record, options = {}) {
         const copied = await copyRecordUrl(clipboard, copy.dataset.copyUrl);
         if (copyStatus) {
           copyStatus.textContent = copied
-            ? "Link to the real record of this deployment copied to clipboard."
-            : "Clipboard unavailable. Open the real record of this deployment to copy its address.";
+            ? "Link to the deployment record copied to clipboard."
+            : "Clipboard unavailable. Open the deployment record to copy its address.";
         }
         copy.disabled = false;
       });

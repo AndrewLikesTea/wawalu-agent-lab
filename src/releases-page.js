@@ -243,7 +243,7 @@ export function initReleasesPage(root = document, storage = localStorage, option
   // at the foot of the page rather than on the recorder below the log.
   initAskAboutShiplog(root);
 
-  // The real record of this deployment, painted before anything else on the
+  // The deployment record, painted before anything else on the
   // page: the observatory's "read the releases these pull requests shipped"
   // link lands here, and what it lands on has to be a record a visitor can
   // check rather than the invented-example panel below it. Derived from the

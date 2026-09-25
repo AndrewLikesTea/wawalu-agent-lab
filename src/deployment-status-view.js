@@ -279,7 +279,7 @@ export function bindDeploymentEvidence(root) {
 }
 
 /**
- * Boot the band: take the real record of this deployment, probe health, render
+ * Boot the band: take the deployment record, probe health, render
  * once.
  *
  * @param options.release the record to compare against. Passing it explicitly —

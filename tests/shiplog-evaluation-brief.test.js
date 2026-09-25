@@ -47,7 +47,7 @@ test("homepage renders the complete product brief between its explanation and AI
   assert.equal(link.getAttribute("href"), "/releases.html#shipped-build");
   const releases = await loadPage(new URL("../src/releases.html", import.meta.url));
   t.after(() => releases.restore());
-  assert.match(textOf(releases.document.getElementById("shipped-build")), /Real record of this deployment/);
+  assert.match(textOf(releases.document.getElementById("shipped-build")), /Deployment record/);
   const html = await readFile(page, "utf8");
   assert.ok(html.indexOf('id="top"') < html.indexOf('id="shiplog-evaluation-brief"'));
   assert.ok(html.indexOf('id="shiplog-evaluation-brief"') < html.indexOf('id="additional-capability"'));
@@ -232,5 +232,5 @@ test("the deployment address resolves to the record the brief links, on a page t
   t.after(() => releases.restore());
   const record = releases.document.getElementById(deployment.hash.slice(1));
   assert.ok(record, `${deployment.hash} must exist on ${deployment.pathname}`);
-  assert.match(textOf(record), /Real record of this deployment/);
+  assert.match(textOf(record), /Deployment record/);
 });

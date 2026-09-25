@@ -51,20 +51,25 @@ export const DEPLOYED_RELEASE_ID = "deployed-build";
  * REAL_LABEL is this record. EXAMPLE_LABEL (src/seed-records.js) is every
  * demonstration record, and is deliberately untouched by this change: the
  * invented marking gets louder by contrast, never quieter.
+ *
+ * REAL_LABEL is the record's one name (#2512). It used to read "Real record of
+ * this deployment" while the loading note called the same thing "deployment
+ * commit evidence" and the evidence disclosure called it "the real record of
+ * this deployment it was compared with" — three names for one artifact on two
+ * pages. Every surface now says "deployment record", from here.
  */
-export const REAL_LABEL = "Real record of this deployment";
+export const REAL_LABEL = "Deployment record";
 
 /**
- * The shorter marking beside the real record's heading.
+ * The marking beside the record's heading.
  *
- * It is REAL_LABEL's opening words, not a second name: the badge used to read
- * "Current deployment record", which left one screen naming one artifact twice
- * — a reader had to work out that the badge and the heading above it were the
- * same record. The qualifier the badge drops is the one the heading it sits
- * beside supplies, and what is left is the word that does the badge's job:
- * real, as against the example records below.
+ * It is not a shortened copy of the name above it — that is what left one
+ * screen naming one artifact twice, first as "Current deployment record" beside
+ * a differently worded heading, then as the heading's own opening words. The
+ * badge says the one thing the heading cannot: which of the two kinds of record
+ * this is. Real, as against the example records below.
  */
-export const REAL_MARKING = "Real record";
+export const REAL_MARKING = "Real";
 
 /** What the marking reads when the build is unstamped and there is no record. */
 export const NO_RECORD_LABEL = "This deployment records no commit";
@@ -73,16 +78,16 @@ export const NO_RECORD_LABEL = "This deployment records no commit";
  * How the deployment check names the record it compared against.
  *
  * It is REAL_LABEL in lower case on purpose: the sentence a reader gets in the
- * verdict names the same thing the badge beside the record names, in the same
+ * verdict names the same thing the heading above the record names, in the same
  * words, so "which record was this compared against?" needs no interpretation.
  */
-export const REAL_RECORD_NAME = "the real record of this deployment";
+export const REAL_RECORD_NAME = "the deployment record";
 
 /**
  * How every link to this record names itself, wherever it is offered.
  *
  * They used to read "Open this real release record", "Open release record
- * deployed-build" and this, which put three names on one destination and made
+ * deployed-build" and a third, which put three names on one destination and made
  * one record look like three. One address, one label — and it is
  * REAL_RECORD_NAME, so the link and the verdict that names the record say the
  * same words. The releases page now offers that address once, from the
@@ -180,7 +185,7 @@ export function sameSiteHref(value) {
 }
 
 /**
- * The real record of this deployment, or null when the build is unstamped.
+ * The deployment record, or null when the build is unstamped.
  *
  * Release-record shaped, so every surface that already knows how to read a
  * release record can read this one. Four fields are additions the seed records
@@ -209,7 +214,7 @@ export function deployedReleaseRecord(stamp) {
     version: commitSha,
     // The record's name, not a second one for it: this is what the evidence
     // disclosure prints as the compared record's title, and it is the words the
-    // heading, the marking, the copy button and the verdict all use.
+    // heading, the copy button and the verdict all use.
     title: REAL_LABEL,
     description: "The commit this artifact was built from, written by the build that produced this page.",
     status: "completed",

@@ -13,7 +13,7 @@
 // is the existing form on this same page. Least privilege: a status view that
 // could also act is a status view that can be wrong twice.
 //
-// WHICH RECORD IT COMPARES AGAINST. The real record of this deployment
+// WHICH RECORD IT COMPARES AGAINST. The deployment record
 // (src/deployed-release.js), and nothing else. It used to be the newest record
 // in the log, which on the shipped page was an invented demonstration record —
 // so the band said it had checked the running deployment against something that
@@ -52,7 +52,7 @@ export const UNKNOWN_REASONS = Object.freeze({
   // that named none, and one that named something this page refused to show —
   // so the sentence stays true without claiming to know which happened.
   "no-build": "The health check answered, but it named no build identifier this page can read.",
-  "no-record": "There is no real record of this deployment to compare the running build against.",
+  "no-record": "There is no deployment record to compare the running build against.",
 });
 
 const FALLBACK_REASON = UNKNOWN_REASONS.unreachable;
@@ -142,8 +142,8 @@ function elapsed(fromIso, nowIso) {
 // branches are links to a page a person then operates: this view never submits
 // anything itself.
 //
-// A record may carry its own words for that action. The real record of this
-// deployment (src/deployed-release.js) does: it does not live in the visitor's
+// A record may carry its own words for that action. The deployment record
+// (src/deployed-release.js) does: it does not live in the visitor's
 // log, so the detail route would resolve to nothing, and "reconcile a release"
 // is not what a reader should do when the page in front of them and the
 // deployment answering the probe name different builds. Every other record
@@ -153,7 +153,7 @@ function nextActionFor(release) {
     return {
       label: "Record the release that is running",
       href: "/releases.html#record-release",
-      target: "There is no real record of this deployment, so there is nothing to compare against yet.",
+      target: "There is no deployment record, so there is nothing to compare against yet.",
       releaseId: null,
     };
   }
@@ -245,7 +245,7 @@ export function verdictMetricText(verdict) {
   const deployed = verdict.deployedBuild ?? "not reported";
   const recorded = verdict.recordedBuild ?? "none recorded";
   const held = verdict.recordedAt ? `recorded ${verdict.heldFor} ago` : "never recorded";
-  return `Running ${deployed} · Real record ${recorded} · ${held}`;
+  return `Running ${deployed} · Deployment record ${recorded} · ${held}`;
 }
 
 /**
@@ -259,7 +259,7 @@ export function verdictMetricText(verdict) {
 export function comparedVersionsText(verdict) {
   const running = verdict?.deployedBuild ?? "not reported";
   const recorded = verdict?.recordedBuild ?? "not available";
-  return `Running build version: ${running}. Real deployment-record version: ${recorded}.`;
+  return `Running build version: ${running}. Deployment record version: ${recorded}.`;
 }
 
 /**
