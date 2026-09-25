@@ -15,7 +15,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { loadActivity, refreshDemoData } from "../src/agents.js";
-import { ASSETS_LINK_LABEL, DEMOS, DIRECTORY_SUMMARY, INVITATION, initSiteFooter } from "../src/site-footer.js";
+import {
+  ASSETS_DESCRIPTION, ASSETS_LINK_LABEL, DEMOS, DIRECTORY_SUMMARY, INVITATION, initSiteFooter,
+} from "../src/site-footer.js";
 import { loadPage, pressTab, tabSequence, textOf } from "./support/browser.js";
 
 const OBSERVATORY = new URL("../src/agents.html", import.meta.url);
@@ -76,8 +78,12 @@ test("the observatory reads About, then the follow-up form, then the destination
   const links = band.map((node, index) => (isDestination(node) ? index : -1)).filter((index) => index >= 0);
 
   assert.equal(textOf(band[assets]), ASSETS_LINK_LABEL, "the About block's last link changed");
-  // (a) The follow-up block is the very next thing after the About block.
-  assert.equal(invitation, assets + 1, "something sits between the About block and the follow-up block");
+  // (a) The follow-up block is the very next thing after the About block. Since
+  // #2540 that link is followed by the one sentence saying what the two
+  // documents hold, which is part of the About block and not of the form.
+  assert.equal(textOf(band[assets + 1]), ASSETS_DESCRIPTION,
+    "the sentence describing the brief and the scorecard left the link it belongs to");
+  assert.equal(invitation, assets + 2, "something sits between the About block and the follow-up block");
   assert.equal(textOf(band[invitation]), INVITATION);
   assert.equal(panel, invitation + 1);
   assert.equal(band.slice(assets, panel).filter((node) => node.tagName === "A").length, 1,

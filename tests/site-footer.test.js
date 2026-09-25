@@ -21,7 +21,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
 import {
-  ASSETS_HREF, ASSETS_LINK_LABEL,
+  ASSETS_DESCRIPTION, ASSETS_HREF, ASSETS_LINK_LABEL,
   DEMOS, DIRECTORY_SUMMARY, FOLLOW_UP_REDIRECT, IDENTITY, INVITATION, PITCH, PITCH_HREF, PITCH_LINK,
   REPOSITORY_LINK_LABEL, siteFooterMarkup, SOURCE_LINK_LABEL,
 } from "../src/site-footer.js";
@@ -1569,9 +1569,35 @@ test("exactly five pages route a reader to the brief and the scorecard, and the 
   // One label naming both, because the fragment lands on the brief and the
   // scorecard is the section directly beneath it — a reader who follows this is
   // looking at both, and has to know that before they press it.
-  assert.equal(ASSETS_LINK_LABEL, "Evaluation brief and pilot scorecard");
+  assert.equal(ASSETS_LINK_LABEL, "Evaluation brief and blank pilot scorecard");
   for (const asset of [/\bbrief\b/i, /\bscorecard\b/i]) {
     assert.match(ASSETS_LINK_LABEL, asset, "the label must name both assets");
+  }
+  // #2540: and says which of the two is empty. A reader following a link that
+  // reads "pilot scorecard" could reasonably expect a scored pilot; the section
+  // it lands on says every target, result and owner on it is blank.
+  assert.match(ASSETS_LINK_LABEL, /\bblank\b/, "the label must say the scorecard is not filled in");
+
+  // The sentence under the link, which is the whole of #2540: what the two
+  // documents hold, for a prospect who will not hand over an address to find
+  // out. Every claim in it is one the section already makes — the brief's first
+  // two paragraphs and the scorecard's own introduction — and it adds no price,
+  // no timeline, no named customer and no outcome.
+  assert.equal(ASSETS_DESCRIPTION, "The brief says what Shiplog records and who operates it; "
+    + "the scorecard is a blank form your evaluating team fills in during a pilot.");
+  for (const overreach of [/\d/, /\bfree\b/i, /\btrial\b/i, /\bguarantee/i, /\bwe['’]ll\b/i,
+    /\bweeks?\b/i, /\bdays?\b/i, /\bcustomers?\b/i, /\bresults?\b/i]) {
+    assert.doesNotMatch(ASSETS_DESCRIPTION, overreach, `the sentence must promise nothing new: ${overreach}`);
+  }
+  // Against the destination itself rather than against a claim typed in here:
+  // the brief says what Shiplog records and who runs it, and the scorecard says
+  // its fields are blank and who fills them in.
+  const destination = await read("index.html");
+  for (const claim of ["Shiplog records the context, alternatives, and owner",
+    "built and operated by Wawalu", "For your evaluating team to complete during a pilot",
+    "all targets, results, and owners below are blank"]) {
+    assert.ok(destination.includes(claim),
+      `the home page no longer says "${claim}", so the sentence describes a page that is gone`);
   }
   // Root-relative with the home page's own fragment: the convention every
   // cross-page link in this band already uses, so it resolves from any depth.
@@ -1597,11 +1623,27 @@ test("exactly five pages route a reader to the brief and the scorecard, and the 
       `${file}: the label is written ${shipped ? "once" : "nowhere"} on the page`);
   }
 
-  // The home page keeps its section and its controls, and gains no focusable of
-  // its own: its first screen has no spare tab stop, and a pointer from a page
-  // to a section of itself is a link a reader has to work out.
+  // The home page keeps its section and its controls, and keeps no footer route
+  // to them: the About block would be pointing at the page it is on.
   assert.equal((home.match(new RegExp(`id="${ASSETS_ID}"`, "g")) ?? []).length, 0,
-    "the home page must not point at its own section");
+    "the home page must not route to its own section from the footer");
+
+  // #2540 gave it one in-page route instead, inside the paragraph that answers
+  // how a team gets Shiplog — the paragraph a reader is standing in when they
+  // decide whether to ask. It is the same two documents under the same name,
+  // sentence-cased because it is read mid-sentence rather than as a line of its
+  // own, and it is stated once.
+  const inline = ASSETS_LINK_LABEL[0].toLowerCase() + ASSETS_LINK_LABEL.slice(1);
+  assert.equal((home.match(new RegExp(`>${inline}</a>`, "g")) ?? []).length, 1,
+    "the home page's offer paragraph must link the brief and the scorecard exactly once");
+  const tail = home.slice(home.indexOf("How a team gets Shiplog"));
+  const offer = tail.slice(0, tail.indexOf("</p>"));
+  assert.match(offer, /what it would cost are both answered on request/,
+    "the paragraph the route belongs to is not the one that answers price and availability");
+  assert.ok(offer.includes(`href="#${ASSETS_FRAGMENT}"`),
+    "the route must be inside the paragraph that says price and availability are answered on request");
+  assert.ok(offer.includes(ASSETS_DESCRIPTION),
+    "the home page must say what the two documents hold, in the words every other page says it in");
   for (const control of ["copy-shiplog-evaluation-brief", "download-shiplog-evaluation-brief", "copy-pilot-scorecard"]) {
     assert.ok(home.includes(`id="${control}"`), `the home page lost ${control}`);
   }
@@ -1646,10 +1688,34 @@ for (const file of ASSET_PAGES) {
       assert.ok(at(`id="${ASSETS_ID}"`) < at('class="site-footer-invitation"'),
         `${file}: the route follows the follow-up block`);
 
-      // Nothing rode in with it: no second window, and no sentence explaining
-      // what the brief contains. The link is the whole line.
+      // Nothing rode in with it: no second window, and no copy of either asset.
       assert.equal(link.getAttribute("target"), null);
       assert.equal(link.getAttribute("download"), null);
+
+      // #2540: one sentence saying what the two documents hold, directly under
+      // the link and inside the same block, in the band's own prose style. A
+      // reader who will not hand over an address can tell without pressing it.
+      const detail = byId(document, "site-footer-assets-detail");
+      assert.equal(countOf(document, "site-footer-assets-detail"), 1, "said once, or not at all");
+      assert.equal(detail.tagName, "P", "the description must be prose, not a control");
+      assert.equal(textOf(detail), ASSETS_DESCRIPTION);
+      assert.equal(detail.getAttribute("class"), "site-footer-identity",
+        "the sentence must reuse the band's prose style, not introduce one");
+      assert.equal(detail.closest("footer").id, "site-footer",
+        "the description belongs to the shared block, not to the content above it");
+      assert.equal(detail.getAttribute("tabindex"), null, "the sentence must not take focus");
+      for (const tag of ["a", "button", "input"]) {
+        assert.equal(detail.querySelectorAll(tag).length, 0, `${file}: the sentence must contain no ${tag}`);
+      }
+      assert.ok(!tabSequence(document).some((node) => node.id === "site-footer-assets-detail"),
+        "the sentence must not be a tab stop");
+
+      // Under the link it describes, and still above the page's own follow-up
+      // block: the About band answers where the two documents are, then asks.
+      assert.ok(at(`id="${ASSETS_ID}"`) < at('id="site-footer-assets-detail"'),
+        `${file}: the description is read before the link it describes`);
+      assert.ok(at('id="site-footer-assets-detail"') < at('class="site-footer-invitation"'),
+        `${file}: the description follows the follow-up block`);
     } finally {
       page.restore();
     }
