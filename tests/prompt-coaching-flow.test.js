@@ -116,15 +116,30 @@ test("the workflow is discoverable and idle before anything is pasted", async ()
     assert.equal(historyLink?.getAttribute("href"), "/personal-history.html",
       "the answer to the question the block asks must link to Personal AI history");
 
+    // And the pitch ends on a door, in the same shape the AI FinOps pitch ends
+    // on: the card used to name the destination and describe it without offering
+    // any way to open it, which left the footer directory as the only route to a
+    // page the navigation files under this one without naming.
+    const historyDoor = [...neighbour.querySelectorAll("a")]
+      .find((link) => textOf(link) === "Open Personal AI history");
+    assert.equal(historyDoor?.getAttribute("href"), "/personal-history.html",
+      "the Personal AI history pitch must offer a control that opens it");
+    assert.equal(historyDoor?.getAttribute("class"), "secondary-button",
+      "the door must be the same control the AI FinOps pitch offers");
+
     // The neighbouring product is described by the result its export analysis
     // provides, without borrowing the Prompt coach's scoring dimensions. It is
     // introduced by the different question it answers, about AI spend, never as
-    // the answer to grading many prompts. The privacy boundary and destination
-    // stay beside that description.
+    // the answer to grading many prompts. The destination stays beside that
+    // description; where the file is read is the card's one promise, above both
+    // pitches, rather than a clause each pitch words for itself.
     assert.match(textOf(neighbour), /Asking where your AI spend goes instead\?/);
     assert.match(textOf(neighbour),
       /AI FinOps analyzes a provider export to find AI-spend savings opportunities\./);
-    assert.match(textOf(neighbour), /Your files stay in that browser tab\./);
+    assert.match(textOf(neighbour),
+      /Both pages below read a file you choose in this browser tab, and neither uploads it\./);
+    assert.doesNotMatch(textOf(neighbour), /Your files stay in that browser tab\.|read in your browser too/,
+      "the card promises where a file is read once, not once per pitch");
     assert.doesNotMatch(textOf(neighbour), /scores a provider export|intent, efficiency, and model fit/);
     const finopsLink = [...neighbour.querySelectorAll("a")]
       .find((link) => textOf(link) === "Open AI FinOps");
