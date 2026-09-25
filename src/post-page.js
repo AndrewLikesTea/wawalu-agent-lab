@@ -3,18 +3,45 @@
 //
 // The seed's ids are not UUIDs, so asking the API for one would earn a 400 that
 // means nothing to the reader. The id shape therefore decides which source is
-// asked first, and the seed is still consulted when the API has no answer.
+// asked first, and the seed is still consulted when the API did not answer.
+//
+// "Did not answer" is the narrow thing it sounds like. An endpoint that reached
+// its store and said there is no such post has answered, and the lookup is over:
+// no id can be in both sources (a live id is a UUID and no seed id is), so a
+// second source has nothing to add and its own troubles must not be reported as
+// this link's. That is the whole difference between the page's two unresolved
+// states, and it is decided here rather than in the view.
 
 import { normalizeProfileApiPosts, normalizeSeedPosts } from "/profile.js";
 import { POST_EXITS, findPostById, postDetailTitle, postPageHeading, postPeopleHref, postPeopleLabel, renderPostDetail } from "/post-detail.js";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+// What the live endpoint said about this id, in the only two shapes that change
+// what the page draws.
+//
+// `post` is the post, when there is one. `answered` is the load-bearing half: it
+// means the endpoint reached its store and returned a verdict about *this id*,
+// so there is nothing further to look up and nothing a retry could change.
+//
+// Two statuses are that verdict. 404 is the endpoint saying it holds no such
+// post — the ordinary dead link: a post deleted, or an id nobody ever published
+// under. 400 is it refusing the id's shape (`invalid_id` is the only 400 this
+// route can return for a GET), which is the same fact reached sooner — an id the
+// endpoint will not accept can never name a post. The page checks the shape
+// itself before asking, so that branch is a belt over braces; but the check is a
+// second copy of the endpoint's own pattern, and if the two ever drift apart,
+// drifting into a dead link is right and drifting into a retryable failure is a
+// lie told to a reader who can do nothing with it.
+//
+// Everything else throws: a 5xx, a body that will not parse, a request that
+// never completed. Those are the lookup failing rather than answering, and they
+// are the only thing a retry can fix.
 async function fetchLivePost(id) {
   const response = await fetch(`/api/social-posts/${encodeURIComponent(id)}`, { cache: "no-store", headers: { accept: "application/json" } });
-  if (response.status === 404) return null;
+  if (response.status === 404 || response.status === 400) return { post: null, answered: true };
   if (!response.ok) throw new Error(`Posts API returned ${response.status}`);
-  return normalizeProfileApiPosts({ posts: [(await response.json()).post] })[0] ?? null;
+  return { post: normalizeProfileApiPosts({ posts: [(await response.json()).post] })[0] ?? null, answered: true };
 }
 
 async function fetchSeedPost(id) {
@@ -100,13 +127,23 @@ async function init() {
     renderPostDetail(container, null, { state: "loading", id, author: requestedAuthor, returnHref: POST_EXITS.social.href });
     let post = null;
     let failed = false;
+    // Whether any source has given a verdict about this id yet. A verdict closes
+    // the lookup: the seed is the fallback for a source that did not answer, not
+    // a second opinion on one that did.
+    let answered = false;
     if (id) {
-      try {
-        post = UUID.test(id) ? await fetchLivePost(id) : null;
-      } catch {
-        failed = true;
+      if (UUID.test(id)) {
+        try {
+          ({ post, answered } = await fetchLivePost(id));
+        } catch {
+          failed = true;
+        }
       }
-      if (!post) {
+      // Only a UUID can name a live post and no seed id is one, so at most one
+      // of the two sources can hold any given id. The seed is asked when the
+      // live endpoint was never asked — a non-UUID id, which is the shape a
+      // truncated paste usually has — or was asked and did not answer.
+      if (!post && !answered) {
         try {
           post = await fetchSeedPost(id);
         } catch {
@@ -123,6 +160,13 @@ async function init() {
     // A lookup that failed is only reported as a failure when nothing was found
     // anywhere: if the seed answered, the reader has the post and does not need
     // to hear about the network.
+    //
+    // Nor is it reported when a source already answered. A dead link whose
+    // fallback lookup then fell over is still a dead link — the endpoint said
+    // there is no such post, and an unreachable demo seed does not make that
+    // less true. Reporting it as a failure would hand the reader a Retry for an
+    // id that can never resolve, which is the one thing the dead-link state
+    // exists to avoid saying.
     const state = post ? "loaded" : failed ? "error" : "not-found";
     renderPostDetail(container, post, {
       state,
