@@ -105,9 +105,15 @@
              the identity line below already says so in words. -->
         <div class="profile-toolbar">
           <!-- The group label says what choosing an entry does, in Social's own
-               words — its feed labels a filter "Show posts" — and it names
-               the thing being chosen with the word the rest of the site uses
-               for it. "Show posts by" alone said what the control did and
+               words — its feed labels this same filter "Filter posts by display
+               name" — and it names the thing being chosen with the word the rest
+               of the site uses for it. Same sentence, one noun different: verb
+               first, then what the display name narrows, which on this page is
+               image posts and only image posts (#2542). It read "Filter by
+               display name", which named the filtered thing nowhere at all, so
+               one control was labelled two ways across two pages and a reader
+               who had used it on Social met a stranger here. "Show posts by"
+               alone said what the control did and
                left the entries unnamed, so the page's description
                called them one thing and the composer called them another.
                Before that this block was headed "Profile" and explained
@@ -134,11 +140,19 @@
                an abbreviation in the one sentence that explains the control is
                where a second word starts. -->
           <fieldset class="filter-group" id="profile-name-picker" tabindex="-1" aria-describedby="profile-author-hint">
-            <legend id="profile-author-label">Filter by display name</legend>
+            <legend id="profile-author-label">Filter image posts by display name</legend>
             <p class="hint profile-toolbar-hint" id="profile-author-hint">
               The list below shows only the image posts published under the selected display name. Choose another display name to update the image-post list.
             </p>
-            <p class="hint profile-toolbar-hint" id="profile-filter-hint">Display names become available when image posts load.</p>
+            <!-- The wait, worded the way Social's filter row words its own
+                 (#2542): the control named first, in the label's exact words,
+                 then the condition. It used to open on the entries instead —
+                 the display names became available, rather than the filter — so
+                 the same wait was announced as two different things depending on
+                 which page a reader was standing on. src/profile.js writes the
+                 same sentence back on every render, so this authored copy and
+                 the hydrated one say one thing. -->
+            <p class="hint profile-toolbar-hint" id="profile-filter-hint">Filter image posts by display name becomes available when image posts finish loading.</p>
             <!-- Written by profile.js on every render: which display name is
                  showing, and whether the page preselected it or the visitor
                  picked it. It ships empty on purpose — the name is not known
@@ -221,8 +235,8 @@
                    grid (PENDING_RESULTS_HEADING). It used to ship "Ari · image
                    posts": the page's largest heading naming a display name the
                    seed had guessed, over six placeholders and beside a filter
-                   row still saying display names become available when image
-                   posts load. Nothing has been published by anyone in that
+                   row still saying the filter becomes available when image
+                   posts finish loading. Nothing has been published by anyone in that
                    frame, so the heading names the content type and waits; the
                    display name and its count land in the same paint as the first
                    tile they can be true of. -->

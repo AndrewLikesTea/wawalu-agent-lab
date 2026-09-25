@@ -515,11 +515,15 @@ test("the profile and post pages are wired, labelled, and reachable", async () =
 
   assert.match(profile, /id="profile-grid"/);
   // The picker's label says what choosing an entry does, in the words Social's
-  // own feed toolbar uses ("Show posts"), and names what is being chosen with
-  // the term the composer, the feed filter, and this page's own description all
-  // use. "Show posts by" alone left the menu's contents unnamed, so the page
-  // described them as one thing and every other surface as another.
-  assert.match(profile, /<legend id="profile-author-label">Filter by display name<\/legend>/);
+  // own feed toolbar uses ("Filter posts by display name"), and names what is
+  // being chosen with the term the composer, the feed filter, and this page's
+  // own description all use. "Show posts by" alone left the menu's contents
+  // unnamed, so the page described them as one thing and every other surface as
+  // another; "Filter by display name" named the filtered thing nowhere, so the
+  // same control was labelled two ways across two pages (#2542). The one word
+  // that differs from Social's label is the one this page earns: People shows
+  // image posts and only image posts.
+  assert.match(profile, /<legend id="profile-author-label">Filter image posts by display name<\/legend>/);
   // The group is what the hint describes, and the container profile.js fills is
   // inside it, so the instruction is attached to the controls rather than to one
   // of them.

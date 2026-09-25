@@ -656,7 +656,7 @@ test("a page whose posts have not landed exposes no options and one availability
     const picker = document.querySelector("#profile-author");
     assert.equal(picker.children.length, 0);
     assert.equal(textOf(document.querySelector("#profile-filter-hint")),
-      "Display names become available when image posts load.");
+      "Filter image posts by display name becomes available when image posts finish loading.");
     assert.equal(textOf(document.querySelector("#profile-picker-note")), "");
     // The results heading waits with them. It names the display name that is
     // showing, and the posts under it, and stops: the seed's tiles are on screen
@@ -1400,7 +1400,8 @@ function assertClaimsNoResult(document, state) {
   // The two lines that must not regress with it: what the filter row is waiting
   // for, and the next action a reader can actually take from here.
   assert.equal(textOf(document.querySelector("#profile-filter-hint")),
-    "Display names become available when image posts load.", `${state}: the filter hint was reworded`);
+    "Filter image posts by display name becomes available when image posts finish loading.",
+    `${state}: the filter hint was reworded`);
   assert.equal(textOf(document.querySelector("#profile-feed-status")),
     "Image posts are loading. Publish a post on Social to add one.", `${state}: the waiting line lost its next action`);
 
