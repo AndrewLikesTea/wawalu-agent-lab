@@ -269,7 +269,11 @@ test("releases page is wired and linked from the decisions page", async () => {
   ]);
   assert.match(home, /href="\/releases\.html"/);
   assert.match(home, /id="sample-release-list"/);
-  assert.match(home, /Representative release/);
+  // Since #2520 the featured release is labelled with the same noun the hero
+  // boundary and the Releases page use — "Representative release" was a second
+  // name for one kind of record. tests/homepage-proof-path.test.js pins it in
+  // the rendered DOM; here it only has to still be in the shipped markup.
+  assert.match(home, /<p class="eyebrow">Example record<\/p>/);
   assert.match(home, /use no customer or production data/);
   // One description of what these records are, said once per page. The
   // Releases page says it beside the worked example it describes, so a visitor

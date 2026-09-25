@@ -1614,7 +1614,7 @@ export async function initDecisionLog(root = document, storage = localStorage, o
   // is the ordinary case.
   syncUrl();
 
-  // The "Representative release" panel. It used to feature releases[0], which is
+  // The "Example record" panel. It used to feature releases[0], which is
   // whatever sorts first in the composed log — the newest planned example for a
   // cold visitor, and the visitor's own most recent release once they record
   // one. Both are wrong here: the panel's heading, its hint, and the story card
