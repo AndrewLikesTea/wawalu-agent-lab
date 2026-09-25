@@ -25,7 +25,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { loadPage, textOf, tabSequence, pressTab } from "./support/browser.js";
-import { mountSocialFeed, filterStatusLine, NO_FILTERS_APPLIED } from "../src/social.js";
+import {
+  mountSocialFeed, filterStatusLine, NO_FILTERS_APPLIED,
+  TIME_FILTER_UNAVAILABLE_HINT, TIME_FILTER_WINDOW_HINT,
+} from "../src/social.js";
 import { mountProfile } from "../src/profile.js";
 import { FILTERS_UNAVAILABLE_HINT } from "../src/feed-status.js";
 import { PROFILE_FILTERS_UNAVAILABLE_HINT } from "../src/profile.js";
@@ -76,11 +79,20 @@ test("Social's filters are not operable while the feed is loading, and say why",
 
   // The property, not a class and not a colour wash: this is what takes them
   // out of the tab order and out of the pointer path.
+  // The time menu points at its own line and keeps pointing at it in every
+  // state (#2562): what a window measures is true whether or not the menu is
+  // operable, so that line is authored with the description rather than added
+  // and taken away with the wait. Its shut shape is still the reason.
+  const describedBy = {
+    "#post-name-filter": "post-filter-hint",
+    "#post-time-filter": "post-time-filter-hint",
+    "#post-filter-clear": "post-filter-hint",
+  };
   for (const id of SOCIAL_FILTERS) {
     const control = document.querySelector(id);
     assert.equal(control.disabled, true, `${id} is operable while the feed is loading`);
     assert.equal(control.getAttribute("aria-disabled"), "true", `${id} states nothing in the markup`);
-    assert.equal(control.getAttribute("aria-describedby"), "post-filter-hint", `${id} is not described by the reason`);
+    assert.equal(control.getAttribute("aria-describedby"), describedBy[id], `${id} is not described by the reason`);
   }
   const stops = tabSequence(document);
   for (const control of socialFilters(document)) {
@@ -108,11 +120,15 @@ test("Social's filters come back, in their authored order, the moment posts rend
   // Both menus. Clear filters follows a second rule (#1855) — it is operable
   // when there is something set to clear — so with nothing set it stays shut,
   // and the state line below says which of the two reasons is in force.
+  // The display-name menu's description was the reason it was shut, so it goes
+  // when the reason does. The time menu's is what its windows measure, which is
+  // still true of a working menu, so it stays.
+  const describedWhenOpen = { "#post-name-filter": null, "#post-time-filter": "post-time-filter-hint" };
   for (const id of SOCIAL_FILTERS.slice(0, 2)) {
     const control = document.querySelector(id);
     assert.equal(control.disabled, false, `${id} did not come back with the posts`);
     assert.equal(control.getAttribute("aria-disabled"), null, `${id} still claims to be disabled`);
-    assert.equal(control.getAttribute("aria-describedby"), null, `${id} still points at a hint that is gone`);
+    assert.equal(control.getAttribute("aria-describedby"), describedWhenOpen[id], `${id} points at the wrong hint`);
   }
   // Rewritten, not removed: the line is the filter row's own status in every
   // state now, and a description that has stopped being true is replaced by the
@@ -138,6 +154,108 @@ test("Social's filters come back, in their authored order, the moment posts rend
   time.focus();
   pressTab(document);
   assert.ok(document.activeElement === clear, "Tab from the time menu does not reach Clear filters");
+});
+
+/* ------------------------ what a posting-time window is -------------------- */
+
+// #2562. The row said which filters were set and why they were shut, and left
+// the one thing a closed menu cannot tell a reader unsaid: what a window
+// measures. "From the past 24 hours" can be read as yesterday, as the calendar
+// day, or as the 24 hours before the moment it is chosen, and only the last is
+// true of this filter.
+
+test("Social's time menu says what a window measures, in the menu's own words", async (t) => {
+  const page = await loadPage(SOCIAL_PAGE, {});
+  t.after(() => page.restore());
+  const { document } = page;
+  const feed = mountSocialFeed(document, { posts: [], state: "loading" });
+
+  const toolbar = document.querySelector(".social-toolbar");
+  const timeHint = hintIn(toolbar, "post-time-filter-hint");
+  const time = document.querySelector("#post-time-filter");
+
+  // Described by the mechanism the row already uses, at the same weight, and
+  // still described once the menu works: what a window measures does not stop
+  // being true when the wait ends.
+  assert.equal(timeHint.tagName, "P");
+  assert.equal(classesOf(timeHint).includes("hint"), true, "the line is not set at content weight");
+  assert.equal(time.getAttribute("aria-describedby"), "post-time-filter-hint");
+  assert.equal(textOf(timeHint), TIME_FILTER_UNAVAILABLE_HINT);
+
+  feed.seed(MIXED);
+  assert.equal(rendered(document, ".post-card"), 3);
+  assert.equal(time.getAttribute("aria-describedby"), "post-time-filter-hint",
+    "the working menu points at nothing that says what its windows measure");
+  assert.equal(textOf(timeHint), TIME_FILTER_WINDOW_HINT);
+  assert.equal(textOf(timeHint),
+    "Each posting-time window counts back from the moment you choose it: "
+    + "From the past 24 hours shows posts published in the 24 hours before that moment.");
+
+  // The window it names is the menu's own option text, byte for byte, and it is
+  // the only one quoted — so the sentence and a closed menu cannot drift.
+  const windows = optionTexts(time).slice(1);
+  assert.deepEqual(windows, ["From the past hour", "From the past 24 hours", "From the past 7 days"]);
+  assert.deepEqual(windows.filter((option) => textOf(timeHint).includes(option)), ["From the past 24 hours"]);
+
+  // One word for the thing this menu filters on, and it is the label's.
+  assert.equal(textOf(document.body).includes("Filter posts by posting time"), true);
+  for (const rival of ["recency", "time range", "age", "date range", "freshness"]) {
+    assert.equal(textOf(timeHint).toLowerCase().includes(rival), false,
+      `the line calls posting time "${rival}" as well`);
+  }
+});
+
+test("each of Social's filters says once when it becomes available, and neither line outlives the wait", async (t) => {
+  const page = await loadPage(SOCIAL_PAGE, {});
+  t.after(() => page.restore());
+  const { document } = page;
+  const feed = mountSocialFeed(document, { posts: [], state: "loading", onRetry: () => {} });
+
+  const says = (sentence) => textOf(document.body).split(sentence).length - 1;
+  const available = () => [says(FILTERS_UNAVAILABLE_HINT), says(TIME_FILTER_UNAVAILABLE_HINT)];
+
+  // Loading: one sentence per filter, and no filter left unaccounted for.
+  assert.deepEqual(available(), [1, 1], "the loading row does not say once per filter when each opens");
+  assert.equal(says("becomes available when posts finish loading"), 2);
+
+  // Loaded: neither sentence survives the thing it was waiting for.
+  feed.seed(MIXED);
+  assert.equal(rendered(document, ".post-card"), 3);
+  assert.deepEqual(available(), [0, 0], "a sentence about the wait is still on a loaded page");
+  assert.equal(says("becomes available"), 0);
+  assert.equal(textOf(hintIn(document.querySelector(".social-toolbar"), "post-filter-hint")), NO_FILTERS_APPLIED);
+
+  // Filters that empty a full feed are still working filters, so neither line
+  // comes back on the dead end.
+  const time = document.querySelector("#post-time-filter");
+  const names = document.querySelector("#post-name-filter");
+  names.value = "Ari";
+  names.dispatchEvent({ type: "change" });
+  time.value = "hour";
+  time.dispatchEvent({ type: "change" });
+  assert.equal(rendered(document, ".post-card"), 0, "the filters did not empty the feed");
+  assert.deepEqual(available(), [0, 0], "the no-match screen says the filters cannot be used");
+
+  // Failed: both come back, still once each, because both menus are shut again.
+  feed.setState("error");
+  assert.deepEqual(available(), [1, 1], "a failed feed does not say when each filter opens");
+
+  // Retry, back to the wait: once each, not twice.
+  feed.setState("loading");
+  assert.deepEqual(available(), [1, 1], "a retried wait doubled one of the sentences");
+
+  // And the two strings the rest of the row is held to are untouched by all of
+  // it: the display-name label, and the one count-and-order sentence.
+  feed.setState("ready");
+  feed.seed(MIXED);
+  names.value = "all";
+  names.dispatchEvent({ type: "change" });
+  time.value = "all";
+  time.dispatchEvent({ type: "change" });
+  assert.equal(rendered(document, ".post-card"), 3, "the feed did not come back when the filters were cleared");
+  assert.equal(textOf(socialNameLabel(document)), "Filter posts by display name");
+  assert.equal(textOf(document.querySelector("#feed-summary")), "Showing 3 posts, newest first.");
+  assert.equal(says(", newest first."), 1, "the page states its order more than once");
 });
 
 test("a failed Social feed leaves Retry as the reachable control, with nothing moved", async (t) => {
