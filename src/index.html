@@ -131,6 +131,12 @@
              same newest record. No second network read: the check reads the
              same health endpoint it already reads on releases.html, and nothing
              on this page waits for it.
+             THE LEAD STATES THE COMPARISON, IT NO LONGER ASKS IT (#2512). It
+             used to open with a question a reader had to carry until the
+             verdict answered it, and it named the compared record in words two
+             other surfaces worded differently. It now names the two versions
+             and what a match would prove, in the one name the record carries
+             everywhere: the deployment record.
              THE WAITING LINE IS AUTHORED AND THE ANSWER IS NOT. The document
              ships one waiting sentence and no verdict, because a verdict in
              these bytes would be a comparison nobody ran. Every settled state,
@@ -155,7 +161,7 @@
              identifier wraps instead of running off a 360px screen. -->
         <section class="hero-proof" id="deployment-status" aria-labelledby="deployment-status-title">
           <h3 id="deployment-status-title">Deployment check</h3>
-          <p class="release-followup-lead" id="deployment-status-proof">Does the real record of this deployment name the running build’s version?</p>
+          <p class="release-followup-lead" id="deployment-status-proof">This compares the version this site is running with the version in the deployment record. A match means the page you are reading came from the build that record names.</p>
           <p class="release-followup-lead" id="deployment-verdict" role="status">Checking the running build now…</p>
           <p class="detail-summary" id="deployment-metric"></p>
           <p class="hero-proof-boundary"><span>It reads the running build when the page loads. The example decision and release above are invented; this answer is not.</span></p>
@@ -593,7 +599,7 @@
           <h2 id="shiplog-evaluation-brief-title">Shiplog evaluation brief</h2>
           <p>Engineering teams need to explain why work shipped without reconstructing decisions from chat history. Shiplog records the context, alternatives, and owner of a decision and links it to the release it shaped, so teammates can trace shipped work back to its reasoning.</p>
           <p>Decisions and releases you add stay in this browser; they are not shared hosted records. Shiplog is a demonstration product built and operated by Wawalu. Availability and pricing are provided on request.</p>
-          <p>The example decisions and releases are invented, use no customer or production data, and are not customer results. To verify what this site shipped, open the <a href="/releases.html#shipped-build">real record of this deployment</a>.</p>
+          <p>The example decisions and releases are invented, use no customer or production data, and are not customer results. To verify what this site shipped, open the <a href="/releases.html#shipped-build">deployment record</a>.</p>
         </div>
         <p class="hint">Share this brief and the page link with a manager or procurement stakeholder.</p>
         <div class="share-control">

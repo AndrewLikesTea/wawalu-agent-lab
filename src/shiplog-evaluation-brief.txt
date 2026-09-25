@@ -4,7 +4,7 @@ Engineering teams need to explain why work shipped without reconstructing decisi
 
 Decisions and releases you add stay in this browser; they are not shared hosted records. Shiplog is a demonstration product built and operated by Wawalu. Availability and pricing are provided on request.
 
-The example decisions and releases are invented, use no customer or production data, and are not customer results. To verify what this site shipped, open the real record of this deployment.
+The example decisions and releases are invented, use no customer or production data, and are not customer results. To verify what this site shipped, open the deployment record.
 
 Public deployment evidence: https://labs.wawalu.org/releases.html#shipped-build
 

@@ -131,10 +131,16 @@ test("the band leads with what it compares, then answers, outside every disclosu
   // One name for the check, and it is the name the front door's link uses.
   assert.equal(textOf(page.document.querySelector("#deployment-status-title")), "Deployment check");
 
-  // What the check proves, in the page's own words, before any evidence. The
-  // question is one sentence and the front door renders the same one, so a
-  // reader who follows the link from there meets the words they arrived on.
-  assert.match(sentence, /^Does the real record of this deployment name the running build’s version\?/);
+  // What the check compares and what a match proves, in the page's own words,
+  // before any evidence (#2512). The front door opens on the same two
+  // sentences, so a reader who follows the link from there meets the words they
+  // arrived on — and neither page asks a question it leaves unanswered above
+  // the verdict.
+  assert.match(
+    sentence,
+    /^This compares the version this site is running with the version in the deployment record\. A match means the page you are reading came from the build that record names\./,
+  );
+  assert.doesNotMatch(sentence, /\?/, "the lead asks a question instead of stating the comparison");
   // No contrast with the invented example (#2487): the check shares a block
   // with the record it names, and the example no longer stands between them.
   assert.doesNotMatch(sentence, /that record and this answer are not/);
@@ -203,9 +209,9 @@ test("a running build that equals the newest record reads as a match and offers 
 
   assert.equal(
     verdictText(page),
-    "Confirmed: this site is running v2.1.0, the version the real record of this deployment names.",
+    "Confirmed: this site is running v2.1.0, the version the deployment record names.",
   );
-  assert.equal(metricText(page), "Running v2.1.0 · Real record v2.1.0 · recorded 2 days ago");
+  assert.equal(metricText(page), "Running v2.1.0 · Deployment record v2.1.0 · recorded 2 days ago");
   // The match state's whole claim: there is nothing to do, and nothing to click.
   assert.equal(nextActions(page).length, 0, "a matching deployment offered a next action");
   assert.match(
@@ -220,9 +226,9 @@ test("a running build that differs from the newest record reads as drift and nam
 
   assert.equal(
     verdictText(page),
-    "Not a match: this site is running v2.0.0, but the real record of this deployment names v2.1.0.",
+    "Not a match: this site is running v2.0.0, but the deployment record names v2.1.0.",
   );
-  assert.equal(metricText(page), "Running v2.0.0 · Real record v2.1.0 · recorded 2 days ago");
+  assert.equal(metricText(page), "Running v2.0.0 · Deployment record v2.1.0 · recorded 2 days ago");
 
   const actions = nextActions(page);
   assert.equal(actions.length, 1, "drift must name exactly one next action");
@@ -242,7 +248,7 @@ test("a health response in an unexpected shape reads as unknown, in plain langua
       + UNKNOWN_REASONS["unexpected-shape"],
   );
   // The comparison it can still make: the recorded build is last-known-good.
-  assert.equal(metricText(page), "Running not reported · Real record v2.1.0 · recorded 2 days ago");
+  assert.equal(metricText(page), "Running not reported · Deployment record v2.1.0 · recorded 2 days ago");
   assert.equal(nextActions(page).length, 1, "unknown must name exactly one next action");
   assert.equal(nextActions(page)[0].href, "/release.html?id=r-2-1-0");
   assert.doesNotMatch(verdictText(page), /Error|error:|at .*\.js/, "a reader was shown an error object");
@@ -256,7 +262,7 @@ test("an unreachable health check reads as unknown and still reports the last-kn
     "The check did not complete, so nothing here says which version this site is running. "
       + UNKNOWN_REASONS.unreachable,
   );
-  assert.equal(metricText(page), "Running not reported · Real record v2.1.0 · recorded 2 days ago");
+  assert.equal(metricText(page), "Running not reported · Deployment record v2.1.0 · recorded 2 days ago");
   assert.equal(nextActions(page).length, 1, "unknown must name exactly one next action");
   // The thrown message is not a thing a reader is shown.
   assert.doesNotMatch(verdictText(page), /must never reach the page/);
@@ -296,7 +302,7 @@ test("the visible copy control copies the verdict plus both compared version val
   assert.equal(copied, verdictCopyText(verdict));
   assert.match(copied, /^Deployment check verdict: Not a match:/);
   assert.match(copied, /Running build version: v2\.0\.0/);
-  assert.match(copied, /Real deployment-record version: v2\.1\.0/);
+  assert.match(copied, /Deployment record version: v2\.1\.0/);
   assert.equal(
     textOf(page.document.querySelector("#deployment-copy-status")),
     "Deployment check verdict and both version values copied to clipboard.",
@@ -340,7 +346,7 @@ test("the copy control offers nothing until the check has answered, and never bl
   button.click();
   await waitFor(() => textOf(status) !== "");
   assert.match(copied, /^Deployment check verdict: Confirmed: this site is running v2\.1\.0/);
-  assert.match(copied, /Running build version: v2\.1\.0\. Real deployment-record version: v2\.1\.0\./);
+  assert.match(copied, /Running build version: v2\.1\.0\. Deployment record version: v2\.1\.0\./);
 });
 
 test("copy preserves an unavailable running value and gives recoverable feedback when clipboard access fails", async (t) => {
@@ -349,7 +355,7 @@ test("copy preserves an unavailable running value and gives recoverable feedback
   button.click();
   await waitFor(() => textOf(page.document.querySelector("#deployment-copy-status")) !== "");
   assert.match(button.dataset.copyText, /Running build version: not reported/);
-  assert.match(button.dataset.copyText, /Real deployment-record version: v2\.1\.0/);
+  assert.match(button.dataset.copyText, /Deployment record version: v2\.1\.0/);
   assert.equal(
     textOf(page.document.querySelector("#deployment-copy-status")),
     "Clipboard unavailable. Select the verdict and both version values above to copy them.",
@@ -456,7 +462,7 @@ test("an identifier the page cannot show whole is refused, never stripped into a
   const page = await openReleases(t, { readHealth: answers({ status: "ok", build: spoofed }) });
   const identifiers = textOf(page.document.querySelector("#deployment-identifiers"));
   assert.equal(identifiers.includes(BIDI_OVERRIDE), false, "an invisible override reached the proof line");
-  assert.equal(identifiers, "Running build version: not reported. Real deployment-record version: v2.1.0.");
+  assert.equal(identifiers, "Running build version: not reported. Deployment record version: v2.1.0.");
   assert.match(verdictText(page), /The check did not complete/);
   // Nor into the copy, which is the one thing here that leaves the page: a
   // refused identifier must not ride an override into a document elsewhere.
@@ -499,7 +505,7 @@ test("the comparison is a pure function of the reading, the record, and the cloc
   // With nothing recorded there is still exactly one next action, and it points
   // at the recorder rather than at a record that does not exist.
   assert.equal(noRecord.nextAction.href, "/releases.html#record-release");
-  assert.equal(verdictMetricText(noRecord), "Running v9 · Real record none recorded · never recorded");
+  assert.equal(verdictMetricText(noRecord), "Running v9 · Deployment record none recorded · never recorded");
 
   const noBuild = deploymentVerdict({ health: { status: "ok", storage: "available" } }, NEWEST, NOW);
   assert.equal(noBuild.state, "unknown");
@@ -620,12 +626,13 @@ test("the front door's log section carries the check, its question, and the way 
   // its destination are one thing with one name.
   assert.equal(
     textOf(page.document.querySelector("#deployment-status-proof")),
-    "Does the real record of this deployment name the running build’s version?",
+    "This compares the version this site is running with the version in the deployment record."
+      + " A match means the page you are reading came from the build that record names.",
   );
   assert.equal(
-    (textOf(panel).match(/name the running build’s version\?/g) ?? []).length,
+    (textOf(panel).match(/the version in the deployment record\./g) ?? []).length,
     1,
-    "the question the check answers is asked more than once",
+    "what the check compares is stated more than once",
   );
   assert.equal(panel.getAttribute("aria-labelledby"), "deployment-status-title");
   assert.ok(
@@ -699,9 +706,9 @@ test("each outcome names both the running version and the recorded one", async (
   );
   // Both sides of the comparison are named in every outcome, including the one
   // where the running side could not be read: "not reported" is an answer.
-  assert.equal(matched.metric, "Running v2.1.0 · Real record v2.1.0 · recorded 2 days ago");
-  assert.equal(drifted.metric, "Running v2.0.0 · Real record v2.1.0 · recorded 2 days ago");
-  assert.equal(stalled.metric, "Running not reported · Real record v2.1.0 · recorded 2 days ago");
+  assert.equal(matched.metric, "Running v2.1.0 · Deployment record v2.1.0 · recorded 2 days ago");
+  assert.equal(drifted.metric, "Running v2.0.0 · Deployment record v2.1.0 · recorded 2 days ago");
+  assert.equal(stalled.metric, "Running not reported · Deployment record v2.1.0 · recorded 2 days ago");
   assert.match(matched.verdict, /v2\.1\.0/);
   assert.match(drifted.verdict, /v2\.0\.0[\s\S]*v2\.1\.0/);
   assert.match(stalled.verdict, /The check did not complete/);

@@ -552,9 +552,18 @@ const RETIRED_NAMES = [
   // heading marked it "Current deployment record", so a reader still had to
   // work out that the badge and the heading named one artifact.
   "Current deployment record",
+  // #2512: the round that collapsed the last three. The heading read "Real
+  // record of this deployment", the loading note under it called the same thing
+  // "deployment commit evidence", and the evidence disclosure called it "the
+  // real record of this deployment it was compared with". The check also opened
+  // on a question a reader had to hold until the verdict answered it.
+  "Real record of this deployment",
+  "real record of this deployment",
+  "deployment commit evidence",
+  "Does the real record",
 ];
 
-test("the real record of this deployment has one name everywhere the page names it", async (t) => {
+test("the deployment record has one name everywhere the page names it", async (t) => {
   const page = await openReleasesPage(t);
   const record = textOf(page.document.querySelector("#shipped-build"));
   const check = textOf(page.document.querySelector("#deployment-status"));
@@ -562,37 +571,37 @@ test("the real record of this deployment has one name everywhere the page names 
   // The name, in the three places the page offers the record: the heading a
   // reader scanning headings meets first, the link that opens it, and the
   // control that hands over its address.
-  assert.equal(textOf(page.document.querySelector("#shipped-build-title")), "Real record of this deployment");
-  // The badge beside that heading is the same name, shortened to badge length,
-  // rather than the fourth name for the record this page used to carry.
-  assert.equal(textOf(page.document.querySelector("#shipped-build-marking")), "Real record");
+  assert.equal(textOf(page.document.querySelector("#shipped-build-title")), "Deployment record");
+  // The badge beside that heading is not a shortened copy of the name and not a
+  // second name either: it says which of the two kinds of record this is.
+  assert.equal(textOf(page.document.querySelector("#shipped-build-marking")), "Real");
   assert.equal(
-    record.match(/Real record of this deployment/g)?.length,
+    record.match(/Deployment record/g)?.length,
     1,
     "the deployment-proof heading is the record block's only full-name occurrence",
   );
   assert.equal(
     textOf(page.document.querySelector("#shipped-build-copy")),
-    "Copy link to the real record of this deployment",
+    "Copy link to the deployment record",
   );
-  assert.equal(REAL_RECORD_LINK_LABEL, "Open the real record of this deployment");
+  assert.equal(REAL_RECORD_LINK_LABEL, "Open the deployment record");
   // The check no longer links back to the record: they share one block (#2487).
   assert.equal(page.document.querySelectorAll("#deployment-release-record").length, 0);
 
-  // The check keeps its own name and still says in one sentence what it
-  // compares — naming the compared-against record in those same words, in its
-  // question, its waiting line, its verdict and the heading of its evidence.
+  // The check keeps its own name and still says up front what it compares —
+  // naming the compared-against record in those same words, in its lead, its
+  // verdict and the heading of its evidence.
   assert.match(check, /^Deployment check /);
-  assert.match(check, /Does the real record of this deployment name the running build’s version\?/);
-  assert.match(check, /the version the real record of this deployment names\./);
-  assert.match(check, /Evidence: what the running build answered, and the real record of this deployment it was compared with/);
+  assert.match(check, /This compares the version this site is running with the version in the deployment record\./);
+  assert.match(check, /the version the deployment record names\./);
+  assert.match(check, /Evidence: what the running build answered, and the deployment record it was compared with/);
 
   // "The running build" is now only ever the deployment the check reads a
   // version from, never the record it is compared with.
   assert.match(check, /It reads the running build when the page loads\./);
   assert.doesNotMatch(record, /running build/i, "the record is named after the build again");
   for (const region of [record, check]) {
-    assert.match(region, /real record of this deployment/, "a region reaches for a second name for the record");
+    assert.match(region, /[Dd]eployment record/, "a region reaches for a second name for the record");
   }
 
   // Gone from everything the page renders, not just from the two regions —
@@ -613,7 +622,7 @@ test("the real record of this deployment has one name everywhere the page names 
 test("the deployment proof renders one record heading without losing its verification path", async (t) => {
   const page = await openReleasesPage(t);
   const headings = page.document.querySelectorAll("h1, h2, h3, h4, h5, h6")
-    .filter((heading) => textOf(heading) === "Real record of this deployment");
+    .filter((heading) => textOf(heading) === "Deployment record");
 
   assert.equal(headings.length, 1, "the rendered page repeats the deployment-record heading");
   assert.equal(headings[0].getAttribute("id"), "shipped-build-title");
@@ -631,18 +640,19 @@ test("the deployment proof renders one record heading without losing its verific
   assert.equal(textOf(page.document.querySelector("#deployment-status-title")), "Deployment check");
   assert.equal(
     textOf(page.document.querySelector("#deployment-status-proof")),
-    "Does the real record of this deployment name the running build’s version? It reads the"
-      + " running build when the page loads.",
+    "This compares the version this site is running with the version in the deployment record."
+      + " A match means the page you are reading came from the build that record names."
+      + " It reads the running build when the page loads.",
   );
 
-  // The question is asked once. It now opens the band, which is the place a
+  // What is compared is stated once. It opens the band, which is the place a
   // second copy of it would be added to — a lead that restated it would leave a
-  // reader answering the same question twice before reaching the answer.
+  // reader reading the same comparison twice before reaching the answer.
   const check = textOf(page.document.querySelector("#deployment-status"));
   assert.equal(
-    check.match(/Does the real record of this deployment name the running build’s version\?/g)?.length,
+    check.match(/This compares the version this site is running with the version in the deployment record\./g)?.length,
     1,
-    "the deployment check asks what it compares more than once",
+    "the deployment check states what it compares more than once",
   );
 });
 
@@ -682,14 +692,14 @@ test("the deployment check and the record it compares name themselves one way ea
   const check = textOf(doc.querySelector("#deployment-status"));
 
   assert.equal(textOf(doc.querySelector("#deployment-status-title")), "Deployment check");
-  assert.match(textOf(doc.querySelector("#deployment-status-proof")), /^Does the real record of this deployment name/);
+  assert.match(textOf(doc.querySelector("#deployment-status-proof")), /^This compares the version this site is running/);
   assert.equal(
     textOf(doc.querySelector("#deployment-copy")),
     "Copy the deployment check verdict and both versions",
   );
   assert.equal(
     textOf(doc.querySelector("#deployment-evidence-summary")),
-    "Evidence: what the running build answered, and the real record of this deployment it was compared with",
+    "Evidence: what the running build answered, and the deployment record it was compared with",
   );
 
   // Retired: the labels that named the verdict without naming the check that
@@ -875,7 +885,7 @@ test("the real record and the deployment check share one block, with the example
   const copyRecord = doc.querySelector("#shipped-build-copy");
   const copyVerdict = doc.querySelector("#deployment-copy");
   assert.match(textOf(source), /^Open commit [0-9a-f]{40} in the public repository$/);
-  assert.equal(textOf(copyRecord), "Copy link to the real record of this deployment");
+  assert.equal(textOf(copyRecord), "Copy link to the deployment record");
   assert.equal(textOf(copyVerdict), "Copy the deployment check verdict and both versions");
   for (const action of [source, copyRecord, copyVerdict]) {
     assert.equal(isInside(action, block), true, `${action.getAttribute("id")} left the real-deployment block`);
@@ -900,7 +910,7 @@ test("the real record and the deployment check share one block, with the example
   const markup = await readFile(RELEASES_PAGE, "utf8");
   for (const text of [textOf(doc.querySelector("#main-content")), markup]) {
     assert.equal(text.includes("that record and this answer are not"), false);
-    assert.equal(text.includes("Open the real record of this deployment"), false);
+    assert.equal(text.includes("Open the deployment record"), false);
   }
 
   // (e) Tab runs through the block's controls in one unbroken run.

@@ -112,14 +112,15 @@ test("the record is derived from the build stamp, and is null when the build nam
 });
 
 test("the two markings are distinct strings that cannot be read as each other", () => {
-  assert.equal(REAL_LABEL, "Real record of this deployment");
-  assert.equal(REAL_MARKING, "Real record");
+  assert.equal(REAL_LABEL, "Deployment record");
+  assert.equal(REAL_MARKING, "Real");
   assert.equal(EXAMPLE_LABEL, "Example record");
   assert.notEqual(REAL_MARKING, EXAMPLE_LABEL);
-  // The badge is the record's own name, shortened to the words a badge can
-  // carry — not a second name for it. Anything the heading beside it does not
-  // already say would be a name a reader has to reconcile.
-  assert.ok(REAL_LABEL.startsWith(REAL_MARKING), "the badge names something the heading does not");
+  // The badge is not the record's name shortened, and not a second name for it
+  // either (#2512): it says the one thing the heading beside it does not, which
+  // is which of the two kinds of record this is. A badge that repeated any part
+  // of the name would be a name a reader has to reconcile.
+  assert.equal(REAL_LABEL.includes(REAL_MARKING), false, "the badge repeats the name beside it");
   // Neither marking contains the other, so a reader cannot mistake the real
   // record for an example record.
   assert.equal(REAL_MARKING.includes(EXAMPLE_LABEL), false);
@@ -127,7 +128,7 @@ test("the two markings are distinct strings that cannot be read as each other", 
   const words = (label) => new Set(label.toLowerCase().split(/\W+/).filter(Boolean));
   const shared = [...words(REAL_MARKING)].filter((word) => words(EXAMPLE_LABEL).has(word) && word !== "record");
   assert.deepEqual(shared, [], "the two markings share wording beyond the noun they both name");
-  // The marking the badge carries and the name the verdict uses are the same
+  // The name the heading carries and the name the verdict uses are the same
   // words, so "which record was this compared against?" needs no translation.
   assert.equal(REAL_RECORD_NAME, `the ${REAL_LABEL.toLowerCase()}`);
 });
@@ -154,7 +155,7 @@ test("every rendered release record carries exactly one of the two markings", as
   assert.equal(page.document.querySelector("#shipped-build").dataset.shippedBuild, "real");
   for (const row of page.document.querySelectorAll(".release-item")) {
     assert.match(textOf(row), new RegExp(EXAMPLE_LABEL));
-    assert.doesNotMatch(textOf(row), /Real record/);
+    assert.doesNotMatch(textOf(row), new RegExp(`\\b${REAL_MARKING}\\b`));
   }
 });
 
@@ -311,10 +312,10 @@ test("an unstamped build shows no record and withdraws the real marking", async 
   // And the check says it has nothing real to compare against rather than
   // falling back to an invented record.
   assert.match(verdictText(page), /The check did not complete/);
-  assert.match(verdictText(page), /no real record of this deployment/);
+  assert.match(verdictText(page), /no deployment record to compare/);
   assert.equal(
     textOf(page.document.querySelector("#deployment-identifiers")),
-    "Running build version: 0123456789abcdef0123456789abcdef01234567. Real deployment-record version: not available.",
+    "Running build version: 0123456789abcdef0123456789abcdef01234567. Deployment record version: not available.",
   );
   assert.doesNotMatch(verdictText(page), /^Confirmed:/);
 });
@@ -359,7 +360,7 @@ test("the deployment check's verdict names a record the page marks as real", asy
     assert.doesNotMatch(verdictText(page), new RegExp(version.replace(/\./g, "\\.")),
       "the check named an invented demonstration record");
   }
-  assert.match(textOf(page.document.querySelector("#deployment-metric")), new RegExp(`^Running ${SHA} · Real record ${SHA} ·`));
+  assert.match(textOf(page.document.querySelector("#deployment-metric")), new RegExp(`^Running ${SHA} · Deployment record ${SHA} ·`));
 });
 
 test("a page and a deployment built from different commits read as a mismatch with one action", async (t) => {
@@ -378,7 +379,7 @@ test("a page and a deployment built from different commits read as a mismatch wi
   assert.equal(textOf(actions[0]), REAL_RECORD_LINK_LABEL);
   assert.equal(
     textOf(page.document.querySelector("#deployment-identifiers")),
-    `Running build version: ${other}. Real deployment-record version: ${SHA}.`,
+    `Running build version: ${other}. Deployment record version: ${SHA}.`,
   );
 });
 
@@ -386,7 +387,7 @@ test("the proof names both compared version values and sits in the record's own 
   const page = await open(t);
   assert.equal(
     textOf(page.document.querySelector("#deployment-identifiers")),
-    `Running build version: ${SHA}. Real deployment-record version: ${SHA}.`,
+    `Running build version: ${SHA}. Deployment record version: ${SHA}.`,
   );
   // No link back to the record (#2487): the check is a subsection of the block
   // the record heads, so the record is already beside it.
@@ -460,7 +461,7 @@ test("the body the endpoint really serves is one this band reads, and it resolve
 
   assert.equal(
     textOf(page.document.querySelector("#deployment-identifiers")),
-    `Running build version: ${SHA}. Real deployment-record version: ${SHA}.`,
+    `Running build version: ${SHA}. Deployment record version: ${SHA}.`,
   );
   assert.equal(page.document.querySelector("#deployment-status").dataset.deploymentState, "match");
   assert.match(verdictText(page), /^Confirmed: this site is running [0-9a-f]{40}, the version/);
@@ -468,7 +469,7 @@ test("the body the endpoint really serves is one this band reads, and it resolve
   // check, rather than a second reading of it.
   assert.equal(
     page.document.querySelector("#deployment-copy").dataset.copyText,
-    `Deployment check verdict: ${verdictText(page)}\nRunning build version: ${SHA}. Real deployment-record version: ${SHA}.`,
+    `Deployment check verdict: ${verdictText(page)}\nRunning build version: ${SHA}. Deployment record version: ${SHA}.`,
   );
 });
 
@@ -622,7 +623,7 @@ test("commit evidence stays unavailable while the page module loads, then announ
   let fail;
   const pending = bootReleases(page.document, () => new Promise((_, reject) => { fail = reject; }));
   assert.equal(panel.dataset.shippedBuild, "loading");
-  assert.match(textOf(note), /Loading deployment commit evidence/);
+  assert.match(textOf(note), /Loading the deployment record/);
   assert.equal(note.getAttribute("role"), "status");
   assert.equal(note.getAttribute("aria-live"), "polite");
   assert.equal(source.hidden, true);

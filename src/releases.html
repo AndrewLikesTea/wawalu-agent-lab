@@ -90,16 +90,17 @@
            before any module runs, and neither names a commit.
 
            THE HEADING IS THE RECORD'S NAME, in the words the copy button below
-           it and the deployment check's verdict use. The adjacent marking is
-           that name's opening words, so it marks the record as the real one
-           rather than giving it a second name.
+           it, the loading note above it and the deployment check's verdict all
+           use: "Deployment record" (#2512). The adjacent marking is not a
+           shortened copy of that name — it says the one thing the heading does
+           not, which is that this record is real and the ones below are not.
            It used to head this block with a second name for the same artifact,
            so one screen called it two things before a reader reached the check
            that calls it a third. One artifact, one name, everywhere. Because
            the heading is now the record's name it goes with the record: an
-           unstamped build has none, and the module heads the block "No real
-           record of this deployment" rather than leaving a heading that claims
-           one.
+           unstamped build has none, and the module heads the block "No
+           deployment record for this build" rather than leaving a heading that
+           claims one.
 
            The link's authored href is the public repository, which is true
            whatever the stamp says; the module narrows it to the exact commit.
@@ -117,11 +118,11 @@
       <div class="shiplog-real-record" id="shipped-build" data-shipped-build="loading" tabindex="-1">
         <div class="shiplog-proof-heading">
           <div>
-            <h2 id="shipped-build-title">Real record of this deployment</h2>
+            <h2 id="shipped-build-title">Deployment record</h2>
           </div>
           <span class="badge badge-real" id="shipped-build-marking">Loading record</span>
         </div>
-        <p class="shiplog-proof-note" id="shipped-build-note" role="status" aria-live="polite" aria-atomic="true">Loading deployment commit evidence. If this message remains, evidence could not load; reload this page to try again.</p>
+        <p class="shiplog-proof-note" id="shipped-build-note" role="status" aria-live="polite" aria-atomic="true">Loading the deployment record. If this message remains, the record could not load; reload this page to try again.</p>
         <dl class="shiplog-proof-facts" id="shipped-build-facts"></dl>
         <div class="shiplog-proof-share">
           <!-- One label per destination, and one link per destination. This row
@@ -131,7 +132,7 @@
                showed the same label twice for one address, and the block offered
                a reader a way to arrive where they already were. The button
                beside this hands over that address. -->
-          <button class="share-button" id="shipped-build-copy" hidden type="button" aria-describedby="shipped-build-copy-status">Copy link to the real record of this deployment</button>
+          <button class="share-button" id="shipped-build-copy" hidden type="button" aria-describedby="shipped-build-copy-status">Copy link to the deployment record</button>
           <span class="share-status" id="shipped-build-copy-status" role="status" aria-live="polite" aria-atomic="true"></span>
           <!-- Its own class, deliberately not .shiplog-proof-link: that class is
                how releases-page.js finds the invented example's "Open this
@@ -148,17 +149,22 @@
         <dl class="shiplog-proof-facts" id="shipped-build-reason"></dl>
         <p class="shiplog-proof-note" id="shipped-build-reason-note" hidden></p>
       </div>
-      <!-- Deployment check: does what is running match the real record of this
-           deployment directly above it, in this same block? Read only — it
+      <!-- Deployment check: does what is running match the deployment record
+           directly above it, in this same block? Read only — it
            probes /healthz, compares, and links; it never deploys, rolls back,
            or writes a record. A subsection of the record, so its heading sits
            one level under the record's.
 
-           The question leads, as it does in the front door's copy of this band
-           (#2122): a reader meets what is being compared before the machinery
-           that compares it. It is static markup, not a slot: what this check
-           proves is true before the probe answers and stays true if it never
-           does. The waiting line under it is the front door's, word for word
+           WHAT IS COMPARED LEADS, as it does in the front door's copy of this
+           band (#2122): a reader meets the two versions before the machinery
+           that compares them. It used to lead with a question the reader had to
+           hold in their head until the verdict answered it; it now states the
+           comparison and what a match would prove (#2512). It is static markup,
+           not a slot: what this check proves is true before the probe answers
+           and stays true if it never does. The first two sentences are the
+           front door's, byte for byte; the third is this page's, because the
+           front door says the same thing in the boundary line under its own
+           block. The waiting line under it is the front door's, word for word
            (#2423), so a reader who follows the front door's link here meets the
            same words they left.
 
@@ -176,7 +182,7 @@
       <section class="release-followup-slot" id="deployment-status" aria-labelledby="deployment-status-title">
         <div class="release-followup" id="deployment-status-callout">
           <h3 class="release-followup-title" id="deployment-status-title">Deployment check</h3>
-          <p class="release-followup-lead" id="deployment-status-proof">Does the real record of this deployment name the running build’s version? It reads the running build when the page loads.</p>
+          <p class="release-followup-lead" id="deployment-status-proof">This compares the version this site is running with the version in the deployment record. A match means the page you are reading came from the build that record names. It reads the running build when the page loads.</p>
           <p class="release-followup-lead" id="deployment-verdict" role="status">Checking the running build now…</p>
           <p class="detail-summary" id="deployment-identifiers"></p>
           <div class="shiplog-proof-share">
@@ -186,7 +192,7 @@
           <p class="detail-summary" id="deployment-metric"></p>
           <div id="deployment-next-action"></div>
           <details class="supersede-disclosure" id="deployment-evidence" data-disclosure="collapsed">
-            <summary class="supersede-disclosure-summary" id="deployment-evidence-summary" aria-expanded="false" aria-controls="deployment-evidence-body">Evidence: what the running build answered, and the real record of this deployment it was compared with</summary>
+            <summary class="supersede-disclosure-summary" id="deployment-evidence-summary" aria-expanded="false" aria-controls="deployment-evidence-body">Evidence: what the running build answered, and the deployment record it was compared with</summary>
             <dl class="supersede-disclosure-body" id="deployment-evidence-body"></dl>
           </details>
         </div>
