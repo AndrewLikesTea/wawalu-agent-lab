@@ -341,6 +341,11 @@
                    with the real total; the number here is pinned to
                    SEED_RECORD_COUNT in seed-records.js by a test. -->
               <span class="count" id="decision-count">10 records</span>
+              <!-- The same figure split by provenance, rewritten from the rows
+                   the filters leave on screen. The static halves are the cold
+                   visitor's truth: every seeded record is an example and they
+                   have added none. Both numbers are pinned by a test. -->
+              <span class="count" id="decision-provenance">· 10 example records · none you added</span>
               <!-- States the active "current only" filter and what it removed.
                    Empty while the filter is off. -->
               <span class="count supersede-summary" id="history-supersede-summary"></span>
@@ -468,7 +473,7 @@
                here is what a visitor whose script has not run sees, and matches
                the static #decision-count above. -->
           <div class="filter-summary-panel">
-            <p class="filter-summary" id="history-filter-summary" data-filtered="false">10 records</p>
+            <p class="filter-summary" id="history-filter-summary" data-filtered="false">10 records · 10 example records · none you added</p>
             <ul class="filter-chips" id="history-filter-chips" aria-label="Active filters" hidden></ul>
             <div class="filter-share">
               <button class="filter-share-action" id="copy-history-link" type="button">Copy link to this view</button>

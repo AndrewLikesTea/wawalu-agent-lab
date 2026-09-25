@@ -30,6 +30,15 @@ export const SAMPLE_RELEASE_ID = "demo-r-1-3-0";
 // nothing about what the reader should conclude from it.
 export const EXAMPLE_LABEL = "Example record";
 
+// The counterpart marking, for a record this browser actually holds.
+//
+// Every row in the home page's log carries exactly one of the two now (#2539).
+// An unbadged row left a reader to infer "then this one must be mine", and an
+// inference is not a statement. The wording is the hero's own — "Records you add
+// stay in this browser" — shortened to badge length, and it shares no word with
+// EXAMPLE_LABEL so neither marking can be read as the other.
+export const ADDED_LABEL = "You added";
+
 export const SEED_DECISIONS = Object.freeze([
   Object.freeze({
     id: SAMPLE_DECISION_ID,

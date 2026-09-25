@@ -38,7 +38,7 @@ import { retentionDeclined, retentionRefusal } from "./local-retention.js";
 import { recordsChanged } from "./shiplog-records.js";
 import { overdueDecisionFinding } from "./overdue-decision.js";
 import { renderOverdueFinding } from "./overdue-decision-view.js";
-import { EXAMPLE_LABEL, SAMPLE_RELEASE_ID, SEED_DECISIONS, SEED_RELEASES } from "./seed-records.js";
+import { ADDED_LABEL, EXAMPLE_LABEL, SAMPLE_RELEASE_ID, SEED_DECISIONS, SEED_RELEASES } from "./seed-records.js";
 import {
   SUPERSEDE_ERRORS,
   formatSupersedeSummary,
@@ -474,6 +474,61 @@ function recordLabel(count) {
   return `${count} ${count === 1 ? "record" : "records"}`;
 }
 
+// WHOSE RECORD IS THIS. One notion of provenance, read by the row badges and by
+// the split count above them, so the two can never disagree.
+//
+// `example` is decided once per composition, in refresh(): the seed ids this
+// visitor has not taken over. That is the same rule the JSON export applies from
+// the other side — the export is built from loadDecisions/loadReleases, so a
+// record is in the file if and only if this browser holds it, which is exactly
+// the half this predicate calls not-an-example. Neither the badge nor the count
+// re-derives provenance from an id shape a visitor could also produce.
+export function isExampleRecord(record) {
+  return record?.example === true;
+}
+
+/** The provenance split over a set of rows: `{ total, examples, added }`. */
+export function countRecordProvenance(records = []) {
+  const examples = records.filter(isExampleRecord).length;
+  return { total: records.length, examples, added: records.length - examples };
+}
+
+// The two halves, in one place, so the figure above the list and the sentence
+// beside it say them identically. Both halves are always named, including at
+// zero: "no example records" is a fact a reader can act on, while dropping the
+// half would leave them unable to tell an absence from something the page
+// declined to say.
+function exampleHalf(examples) {
+  return examples === 0 ? "no example records" : `${examples} example ${examples === 1 ? "record" : "records"}`;
+}
+
+function addedHalf(added) {
+  return added === 0 ? "none you added" : `${added} you added`;
+}
+
+/**
+ * The provenance split shown beside the record count.
+ *
+ * Always over the rows currently on screen — every caller passes the filtered
+ * selection — so search, the filters, and Current only move this figure with the
+ * list. Empty when nothing is shown: the count beside it already says none, and
+ * the list below says why.
+ */
+export function provenanceSplitLine(visible = []) {
+  const { total, examples, added } = countRecordProvenance(visible);
+  if (total === 0) return "";
+  return `· ${exampleHalf(examples)} · ${addedHalf(added)}`;
+}
+
+// Which records a counted figure counted. #2539: every figure on the home page
+// derived from a record count names its own records, so a reader who never
+// reaches the caption above the list still knows the number includes invented
+// examples.
+function countedRecordsNote(records) {
+  const { examples, added } = countRecordProvenance(records);
+  return `Counted here: ${exampleHalf(examples)} and ${addedHalf(added)}.`;
+}
+
 function focusCard(cards, index) {
   cards[index]?.focus();
 }
@@ -609,12 +664,18 @@ function appendOwner(summary, owner) {
   return element;
 }
 
-// The one place a row says a record is an example. Same badge idiom as the type
-// and status badges next to it, so the disclosure travels with the row through
-// every filter and sort instead of living only in the caption above the list.
-function appendExampleBadge(meta, example) {
-  if (example !== true) return null;
-  return appendTextElement(meta, "span", "badge badge-example", EXAMPLE_LABEL);
+// The one place a row says whose record it is. Same badge idiom as the type and
+// status badges next to it, so the answer travels with the row through every
+// filter and sort instead of living only in the caption above the list.
+//
+// Both provenances are marked (#2539), and both as words: the marking is a text
+// span, so it is in the row's accessible description rather than in a colour,
+// and it is never a control — index.html's first screen is at its tab-stop
+// budget and a badge has nothing to activate.
+function appendProvenanceBadge(meta, record) {
+  return isExampleRecord(record)
+    ? appendTextElement(meta, "span", "badge badge-example", EXAMPLE_LABEL)
+    : appendTextElement(meta, "span", "badge badge-added", ADDED_LABEL);
 }
 
 // The decisions a release carried, rendered on the release row. The other
@@ -859,7 +920,7 @@ function appendBacking(article, record) {
 }
 
 function renderDecisionRow(record, index, visibleKeys) {
-  const { decision, example } = record;
+  const { decision } = record;
   const item = document.createElement("li");
   const article = document.createElement("article");
   const detailLink = document.createElement("a");
@@ -888,7 +949,7 @@ function renderDecisionRow(record, index, visibleKeys) {
   // onto the word the filter and the glossary use before it reaches the badge.
   const status = canonicalDecisionStatus(decision.status);
   appendLabelledValue(meta, "Status", status, `badge badge-${status}`);
-  appendExampleBadge(meta, example);
+  appendProvenanceBadge(meta, record);
   appendRecordedDate(meta, decision.createdAt, "Recorded:");
   const summary = document.createElement("div");
   summary.id = descriptionId;
@@ -915,7 +976,7 @@ function renderDecisionRow(record, index, visibleKeys) {
 // date, description, linked-decision summary, owner — and the same open/act
 // affordance, so a filtered result is still actionable without a second hop.
 function renderReleaseRow(record, index, visibleKeys) {
-  const { release, example } = record;
+  const { release } = record;
   const item = document.createElement("li");
   const article = document.createElement("article");
   const detailLink = document.createElement("a");
@@ -937,7 +998,7 @@ function renderReleaseRow(record, index, visibleKeys) {
   appendLabelledValue(meta, "Type", "Release", "badge badge-type badge-type-release");
   const status = releaseStatus(release);
   appendLabelledValue(meta, "Status", status, `badge badge-release-${status}`);
-  appendExampleBadge(meta, example);
+  appendProvenanceBadge(meta, record);
   appendRecordedDate(meta, release.createdAt, "Released:");
   const summary = document.createElement("div");
   summary.id = descriptionId;
@@ -980,11 +1041,22 @@ const NO_RELEASES_TO_COUNT = "No releases are listed here, so there are none to 
  * the filters, because a reader who has narrowed the log must not read a
  * narrowed number as a statement about the whole log. "0 of 0" is never
  * rendered: a view with no releases in it says so in words instead.
+ *
+ * It also names the records it counted (#2539). It used to lean on the caption
+ * above the list for that, which asked a reader to hold two sentences together
+ * to know whether an invented release was inside this number; the second
+ * sentence answers it here, from the same array and the same helper as the split
+ * count in the heading. "No releases to count" names nothing, because it counted
+ * nothing.
  */
 export function releaseCoverageLine(visible = []) {
   const releases = visible.filter((record) => record.type === "release");
+  if (releases.length === 0) return NO_RELEASES_TO_COUNT;
+  return `${releaseCoverageClaim(releases)} ${countedRecordsNote(releases)}`;
+}
+
+function releaseCoverageClaim(releases) {
   const total = releases.length;
-  if (total === 0) return NO_RELEASES_TO_COUNT;
   const carried = releases.filter(carriesLinkedDecision).length;
   const bare = total - carried;
   const shown = "shown by the current filters";
@@ -1006,9 +1078,14 @@ export function releaseCoverageLine(visible = []) {
 // a listener of its own: it is the same `visible` array the rows come from, on
 // the same render, so no filter can move the list without moving the sentence
 // above it — including on the two empty paths, which return early below.
-export function renderHistory(container, count, records, view = {}, { coverage } = {}) {
+export function renderHistory(container, count, records, view = {}, { coverage, provenance } = {}) {
   const visible = selectHistory(records, view);
   if (coverage) coverage.textContent = releaseCoverageLine(visible);
+  // The split beside the figure, written here rather than by a listener of its
+  // own, for the same reason and on the same array: no path can move the list
+  // without moving both halves of the count. Recording a decision re-renders
+  // through here, which is how the "you added" half grows with no reload.
+  if (provenance) provenance.textContent = provenanceSplitLine(visible);
   container.replaceChildren();
   container.setAttribute("aria-busy", "false");
 
@@ -1140,6 +1217,10 @@ export async function initDecisionLog(root = document, storage = localStorage, o
   const form = root.querySelector("#decision-form");
   const list = root.querySelector("#decision-list");
   const count = root.querySelector("#decision-count");
+  // The same figure split by provenance. A second node rather than more text in
+  // the one above it, so the total keeps one meaning and one reader — and the
+  // two are siblings in the heading, so they are read as one line.
+  const provenance = root.querySelector("#decision-provenance");
   const notice = root.querySelector("#storage-notice");
   const statusFilter = root.querySelector("#filter-status");
   const ownerFilter = root.querySelector("#filter-owner");
@@ -1492,17 +1573,27 @@ export async function initDecisionLog(root = document, storage = localStorage, o
   };
 
   const render = () => {
-    const visible = renderHistory(list, count, records, view, { coverage });
+    const visible = renderHistory(list, count, records, view, { coverage, provenance });
     if (supersedeSummary) supersedeSummary.textContent = supersedeFilterSummary(records, view);
+    // The rows this view is showing, for everything below that describes them:
+    // the headline's provenance split, the trend, and the timelines. One
+    // selection, so none of them can describe a different set than the list.
+    const selected = selectHistory(records, view);
     // The headline of the list, and the filters that produced it. Rendered
     // before the announcement so a reader who hears the count can already find
-    // the same sentence on screen.
-    renderHistorySummary(filterSummary, { visible, total: records.length, filters: view });
+    // the same sentence on screen. It carries the same split as the figure in
+    // the heading: a figure that names no records is one a reader has to take
+    // the caption's word for.
+    renderHistorySummary(filterSummary, {
+      visible,
+      total: records.length,
+      filters: view,
+      split: provenanceSplitLine(selected),
+    });
     chipButtons = renderHistoryFilterChips(filterChips, view, { onRemove: removeFilter });
     // The shape of the same view, from the same selection rule: the chart is
     // drawn here rather than from a listener of its own, so a filter can never
     // move the list without moving the trend above it.
-    const selected = selectHistory(records, view);
     renderHistoryTrend(trend, { records: selected, onSelectWeek: selectWeek });
     // What became of each decision in the same view. Release dates are looked up
     // in the whole log rather than the filtered set: hiding the release rows

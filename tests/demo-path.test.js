@@ -18,12 +18,13 @@ import { initReleaseDetail } from "../src/release-page.js";
 import { loadReleaseData } from "../src/releases-data.js";
 import { RELEASE_STORAGE_KEY, resolveReleaseDetail } from "../src/releases.js";
 import {
+  ADDED_LABEL,
   EXAMPLE_LABEL,
   SAMPLE_DECISION_ID,
   SAMPLE_RELEASE_ID,
   SEED_RECORD_COUNT,
 } from "../src/seed-records.js";
-import { loadPage, textOf } from "./support/browser.js";
+import { loadPage, tabSequence, textOf, typeText } from "./support/browser.js";
 
 const HOME_PAGE = new URL("../src/index.html", import.meta.url);
 const DECISION_PAGE = new URL("../src/decision.html", import.meta.url);
@@ -134,6 +135,10 @@ async function openHome(t, { decisions = [], releases = [] } = {}) {
 
 const rows = (page) => page.document.querySelector("#decision-list").querySelectorAll(".history-card");
 const countText = (page) => textOf(page.document.querySelector("#decision-count"));
+const splitText = (page) => textOf(page.document.querySelector("#decision-provenance"));
+// The one line a reader sees above the list: the figure and the split beside it.
+const countLine = (page) => `${countText(page)} ${splitText(page)}`.trim();
+const labelled = (page, label) => rows(page).filter((row) => textOf(row).includes(label)).length;
 
 test("the static markup already states the count a cold visitor will see", async () => {
   const html = await readFile(HOME_PAGE, "utf8");
@@ -210,6 +215,171 @@ test("recording a decision keeps both the visitor's record and the examples, vis
   // The examples are read-through only: nothing was written to storage.
   assert.deepEqual(JSON.parse(page.storage.getItem(STORAGE_KEY)), [OWN_DECISION]);
   assert.deepEqual(JSON.parse(page.storage.getItem(RELEASE_STORAGE_KEY)), []);
+});
+
+// --- whose record is this (#2539) -----------------------------------------
+//
+// The list mixes invented records with the visitor's own, so every row says
+// which it is and the figure above the list is split the same way. Both are read
+// off the rendered page after moving a real control: the claim is that they
+// describe the rows on screen, and the only way to know they do is to change
+// what is on screen and read them again.
+
+function fillDecisionForm(page, values) {
+  for (const [field, value] of Object.entries(values)) {
+    const control = page.document.querySelector(`#${field}`);
+    assert.ok(control, `the decision form has no "${field}" control`);
+    if (control.tagName === "SELECT") {
+      control.value = value;
+      continue;
+    }
+    control.focus();
+    typeText(page.document, value);
+  }
+}
+
+const NEW_DECISION = {
+  title: "Move the queue to the edge",
+  context: "Regional workers were queueing behind one another.",
+  alternatives: "A bigger central queue.",
+  owner: "Devi",
+  // One of the two the form offers. A harness select accepts any value, so a
+  // status this form cannot set would be refused by the recorder and read here
+  // as a count that failed to move.
+  status: "accepted",
+};
+
+test("the static markup already states the split a cold visitor will see", async () => {
+  const html = await readFile(HOME_PAGE, "utf8");
+  const parsed = (await import("./support/browser.js")).parseHtml(html);
+
+  // A cold visitor has added nothing, so the whole seeded log is examples. Both
+  // halves are stated, so the first paint is already right rather than gaining
+  // a provenance split after a load settles.
+  const split = `· ${SEED_RECORD_COUNT} example records · none you added`;
+  assert.equal(textOf(parsed.querySelector("#decision-provenance")), split);
+  // The headline above the list states the same figure, so it carries the same
+  // split rather than a bare number a reader has to take the caption's word for.
+  assert.equal(
+    textOf(parsed.querySelector("#history-filter-summary")),
+    `${SEED_RECORD_COUNT} records ${split}`,
+  );
+});
+
+test("a cold home page splits the count and marks every row as an example", async (t) => {
+  const page = await openHome(t);
+
+  assert.equal(countLine(page), `${SEED_RECORD_COUNT} records · ${SEED_RECORD_COUNT} example records · none you added`);
+  assert.equal(labelled(page, EXAMPLE_LABEL), SEED_RECORD_COUNT);
+  assert.equal(labelled(page, ADDED_LABEL), 0, "a row this browser never held claims the visitor added it");
+  // The marking is text, in a span beside the type and status badges — never a
+  // control, because index.html's first screen is at its tab-stop budget.
+  const badges = rows(page)[0].querySelectorAll(".badge-example");
+  assert.equal(badges.length, 1, "the example marking is not a badge on the row");
+  assert.equal(textOf(badges[0]), EXAMPLE_LABEL);
+  assert.equal(badges[0].tagName, "SPAN");
+  assert.equal(
+    tabSequence(page.document).filter((stop) => stop.classList?.contains("badge-example")).length,
+    0,
+    "the provenance marking became a tab stop",
+  );
+});
+
+test("a stored record is marked as one the visitor added, and the split counts it", async (t) => {
+  const page = await openHome(t, { decisions: [OWN_DECISION] });
+
+  assert.equal(
+    countLine(page),
+    `${SEED_RECORD_COUNT + 1} records · ${SEED_RECORD_COUNT} example records · 1 you added`,
+  );
+  const own = rows(page).find((row) => textOf(row.querySelector("h3")) === OWN_DECISION.title);
+  const badge = own.querySelectorAll(".badge-added");
+  assert.equal(badge.length, 1, "the visitor's own row carries no provenance marking");
+  // Exactly the label, as a text node: the row's fields are the visitor's
+  // strings and the badge is written the same way as the rest of them.
+  assert.equal(textOf(badge[0]), ADDED_LABEL);
+  assert.equal(labelled(page, ADDED_LABEL), 1);
+  assert.equal(labelled(page, EXAMPLE_LABEL), SEED_RECORD_COUNT);
+});
+
+test("the split follows the search, the filters, and Current only", async (t) => {
+  const page = await openHome(t, { decisions: [OWN_DECISION] });
+
+  // A search that matches the visitor's record and nothing else.
+  const input = page.document.querySelector("#decision-search");
+  input.focus();
+  typeText(page.document, "tail latency");
+  assert.equal(rows(page).length, 1);
+  assert.equal(countLine(page), `1 of ${SEED_RECORD_COUNT + 1} records · no example records · 1 you added`);
+
+  page.document.querySelector("#clear-decision-filters").click();
+  assert.equal(
+    countLine(page),
+    `${SEED_RECORD_COUNT + 1} records · ${SEED_RECORD_COUNT} example records · 1 you added`,
+    "clearing the filters did not restore both halves",
+  );
+  // The headline above the list is the same figure and carries the same split.
+  assert.equal(
+    textOf(page.document.querySelector("#history-filter-summary")),
+    `${SEED_RECORD_COUNT + 1} records ${splitText(page)}`,
+  );
+
+  // Releases only: the visitor recorded a decision, so their half goes to none
+  // and says so rather than dropping out of the line.
+  page.document.querySelector("#record-type-release").click();
+  const releases = rows(page).length;
+  assert.equal(
+    countLine(page),
+    `${releases} of ${SEED_RECORD_COUNT + 1} records · ${releases} example records · none you added`,
+  );
+
+  // Current only removes decisions another decision replaced. It cannot empty
+  // this log, so the halves still add up to the figure beside them.
+  page.document.querySelector("#record-type-all").click();
+  page.document.querySelector("#filter-current-only").click();
+  const halves = splitText(page).replace(/^· /, "").split(" · ");
+  const counted = halves.map((half) => Number(half.match(/\d+/)?.[0] ?? 0));
+  assert.equal(halves.length, 2, "the split stopped naming both kinds of record");
+  assert.equal(counted[0] + counted[1], rows(page).length, "the halves do not add up to the rows on screen");
+});
+
+test("recording a decision grows the you-added half and paints the row marked, with no reload", async (t) => {
+  const page = await openHome(t);
+  assert.equal(labelled(page, ADDED_LABEL), 0);
+
+  fillDecisionForm(page, NEW_DECISION);
+  const submit = page.document.querySelector("#decision-form").querySelector('button[type="submit"]');
+  assert.equal(textOf(submit), "Record decision", "the decision form's submit action was renamed");
+  submit.click();
+
+  // Same document, same render: nothing was re-fetched and nothing reloaded.
+  assert.equal(
+    countLine(page),
+    `${SEED_RECORD_COUNT + 1} records · ${SEED_RECORD_COUNT} example records · 1 you added`,
+  );
+  const recorded = rows(page).find((row) => textOf(row.querySelector("h3")) === NEW_DECISION.title);
+  assert.ok(recorded, "the recorded decision is not in the list");
+  assert.equal(textOf(recorded.querySelectorAll(".badge-added")[0]), ADDED_LABEL);
+  assert.doesNotMatch(textOf(recorded), new RegExp(EXAMPLE_LABEL));
+  assert.equal(labelled(page, ADDED_LABEL), 1);
+});
+
+test("the export carries exactly the records the split calls yours, and no example", async (t) => {
+  const page = await openHome(t, { decisions: [OWN_DECISION] });
+  const { buildShiplogExport } = await import("../src/shiplog-export.js");
+
+  const { payload } = buildShiplogExport(page.storage, { generatedAt: "2026-01-01T00:00:00.000Z" });
+  const exported = [...payload.decisions, ...payload.releases];
+  // The split's own arithmetic, from the page: one record added, the rest
+  // examples — and the file is that one record, unchanged by this work.
+  assert.equal(countLine(page).includes("· 1 you added"), true);
+  assert.equal(exported.length, 1);
+  assert.deepEqual(exported.map(({ id }) => id), [OWN_DECISION.id]);
+  assert.equal(
+    exported.some(({ id }) => id === SAMPLE_DECISION_ID || id === SAMPLE_RELEASE_ID),
+    false,
+    "the export leaked an example record",
+  );
 });
 
 // --- direct URL loads -----------------------------------------------------

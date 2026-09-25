@@ -17,10 +17,19 @@ import { historyFilterChips, historyFiltersActive, historySummaryLine } from "./
 export const COPY_LINK_SUCCESS = "Link copied. It opens this filtered view.";
 export const COPY_LINK_FAILURE = "Could not copy the link automatically. Copy it from the address bar instead.";
 
-/** The headline above the results. */
-export function renderHistorySummary(node, { visible = 0, total = 0, filters = {} } = {}) {
+/**
+ * The headline above the results.
+ *
+ * `split` is the provenance split of the same rows (app.js), appended in the
+ * segment idiom the line already uses. It is passed in rather than derived here
+ * because this module is handed a count, not the records: the surface that owns
+ * the rows owns the answer, so the headline and the figure in the heading cannot
+ * state two different splits (#2539).
+ */
+export function renderHistorySummary(node, { visible = 0, total = 0, filters = {}, split = "" } = {}) {
   if (!node) return "";
-  const line = historySummaryLine(visible, total, filters);
+  const summary = historySummaryLine(visible, total, filters);
+  const line = split ? `${summary} ${split}` : summary;
   node.textContent = line;
   node.dataset.filtered = String(historyFiltersActive(filters));
   return line;
