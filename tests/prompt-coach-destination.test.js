@@ -25,6 +25,9 @@ import { COACHING_ENTRY_EXAMPLE } from "../src/prompt-coaching-entry.js";
 import { FIRST_RUN_GRADED_TITLE, applyCoachingFirstRun } from "../src/prompt-coaching-entry-view.js";
 import { COPY_LABEL } from "../src/coaching-summary-view.js";
 import { SPECIMEN_CASES } from "../src/coaching-specimen.js";
+import {
+  ASK_ABOUT_SHIPLOG_DESCRIPTION, ASK_ABOUT_SHIPLOG_DESCRIPTION_ID,
+} from "../src/ask-about-shiplog.js";
 
 const PAGE = fileURLToPath(new URL("../src/coach.html", import.meta.url));
 const read = (file) => readFile(new URL(`../src/${file}`, import.meta.url), "utf8");
@@ -336,9 +339,15 @@ test("the destination reads as one page about one thing", async () => {
   // under it says what the page does. An eyebrow above the heading, and a
   // tagline that restated the heading, said the same thing again before a
   // reader reached anywhere to type.
+  // The route's own description (#2556) is not counted: it is a caption on the
+  // follow-up action, about the form at the foot of the page, and it says
+  // nothing about what the prompt coach is for. Anything else is a second
+  // purpose sentence.
   const hero = document.querySelector(".coach-hero");
   assert.equal(textOf(byId(document, "page-title")), "Prompt coach");
-  assert.equal(hero.querySelectorAll("p").length, 1,
+  const purposes = hero.querySelectorAll("p")
+    .filter((node) => node.getAttribute("id") !== ASK_ABOUT_SHIPLOG_DESCRIPTION_ID);
+  assert.equal(purposes.length, 1,
     "the hero carries one purpose sentence and nothing else");
   assert.equal(hero.querySelectorAll(".eyebrow").length, 0,
     "the eyebrow above the heading named the page the heading names");
@@ -472,6 +481,19 @@ test("the page names itself, says what it does, and offers a follow-up", async (
   assert.deepEqual(hero.childElements.map(label), ["page-title", "page-tagline", "hero-actions"],
     "the introduction must read name, purpose, then follow-up action");
   assert.equal(hero.childElements[0].tagName, "H1");
+
+  // The follow-up action says where it goes (#2556), and it says it on the
+  // PAINTED page: this page's entry and preview leads are replaced by their view
+  // modules on load, so a sentence that only survives in coach.html is one no
+  // visitor here ever reads. Still static text — this page has no tab stops to
+  // spare above the grading control.
+  const described = hero.querySelectorAll("p")
+    .filter((node) => node.getAttribute("id") === ASK_ABOUT_SHIPLOG_DESCRIPTION_ID);
+  assert.equal(described.length, 1, `the route's description is painted ${described.length} times`);
+  assert.equal(textOf(described[0]), ASK_ABOUT_SHIPLOG_DESCRIPTION);
+  assert.equal(described[0].querySelectorAll("a").length, 0, "the description drew a link");
+  assert.equal(byId(document, "ask-about-shiplog").getAttribute("aria-describedby"),
+    ASK_ABOUT_SHIPLOG_DESCRIPTION_ID);
 
   const purpose = textOf(byId(document, "page-tagline"));
   assert.match(purpose, /Grade a prompt/, "the sentence under the name must say what the page does");

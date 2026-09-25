@@ -649,11 +649,12 @@ test("the feed says who wrote the posts, where the posts are", async (t) => {
 
   // Said once on the page. The intro says what the feed is and where to go
   // next, and its last words stay the ones the permalink quotes.
-  // Eyebrow, tagline, intro: the intro is the third paragraph in the hero, and
-  // the line above it says what a visitor does here in one sentence.
+  // The line above the intro says what a visitor does here in one sentence. The
+  // intro is named rather than counted: since #2556 the hero also carries the
+  // description of the "Ask about Shiplog" route.
   assert.equal(textOf(page.document.querySelector("#page-tagline")),
     "Read every post, and publish your own.");
-  const intro = textOf(page.document.querySelector(".hero-social").querySelectorAll("p")[2]);
+  const intro = textOf(page.document.querySelector(".social-feed-intro"));
   assert.doesNotMatch(intro, /Display names|whoever published it/,
     "the intro says who wrote the posts a second time, four screens from a card");
   assert.match(intro, /The example posts here are invented to demonstrate Shiplog and use no customer or production data; anyone can read a post you publish\.$/,
@@ -751,7 +752,7 @@ test("the intro scopes the demo promise to the seeded posts, and the composer st
   // are actually deciding whether to publish.
   id("post-compose-open").click();
 
-  const intro = textOf(document.querySelector(".hero-social").querySelectorAll("p")[2]);
+  const intro = textOf(document.querySelector(".social-feed-intro"));
   assert.ok(intro.endsWith(PROVENANCE_SENTENCE),
     "the intro stopped saying which posts its demo promise covers, or stopped ending on it");
   assert.equal(intro.includes(RETIRED_DATA_SENTENCE), false,

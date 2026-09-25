@@ -596,8 +596,9 @@ test("Social's homepage directory explains publishing, while a permalink explain
   // the images are optional, and when to open People instead. It no longer
   // calls the feed a "demo" one — the eyebrow and the demo-data sentence carry
   // that, and this paragraph sat between them saying it a third time.
-  // Third paragraph in the hero: eyebrow, then the one-line tagline, then this.
-  const intro = textOf(parseHtml(await read("social.html")).querySelector(".hero-social").querySelectorAll("p")[2]);
+  // Named rather than counted: the hero also carries the "Ask about Shiplog"
+  // description (#2556), so the intro is not the third paragraph any more.
+  const intro = textOf(parseHtml(await read("social.html")).querySelector(".social-feed-intro"));
   for (const fact of ["shared feed", "short posts", "images optional", "People"]) {
     assert.ok(intro.includes(fact), `Social's intro no longer tells a first-time visitor about ${fact}`);
   }

@@ -1,4 +1,6 @@
-// The in-page route to the follow-up form, on the two pages that carry it.
+// The in-page route to the follow-up form: followed on the two pages whose own
+// modules are cheap to run here, and read as shipped markup on all six that
+// carry it.
 //
 // Issue #2458: a visitor who has decided to ask about Shiplog should not have to
 // scroll a long page looking for the form. The route is deliberately a link and
@@ -28,12 +30,14 @@ import { readFile } from "node:fs/promises";
 
 import { initDecisionLog, STORAGE_KEY } from "../src/app.js";
 import {
+  ASK_ABOUT_SHIPLOG_DESCRIPTION, ASK_ABOUT_SHIPLOG_DESCRIPTION_ID,
   ASK_ABOUT_SHIPLOG_HREF, ASK_ABOUT_SHIPLOG_ID, ASK_ABOUT_SHIPLOG_LABEL,
 } from "../src/ask-about-shiplog.js";
+import { FOLLOW_UP_REPLY } from "../src/lead-capture.js";
 import { initReleasesPage } from "../src/releases-page.js";
 import { RELEASE_STORAGE_KEY } from "../src/releases.js";
 import { OFFER } from "../src/site-footer.js";
-import { loadPage, pressEnter, tabSequence, textOf } from "./support/browser.js";
+import { loadPage, parseHtml, pressEnter, tabSequence, textOf } from "./support/browser.js";
 
 const PANEL_ID = ASK_ABOUT_SHIPLOG_HREF.slice(1);
 
@@ -58,6 +62,11 @@ async function openReleases(t) {
 
 const CARRIERS = [["the home page", openHome], ["the Releases page", openReleases]];
 
+/** Counted rather than fetched by id, so "renders twice" fails instead of
+ * silently returning the first one. */
+const describedBy = (root) => root.querySelectorAll("p")
+  .filter((node) => node.getAttribute("id") === ASK_ABOUT_SHIPLOG_DESCRIPTION_ID);
+
 for (const [name, open] of CARRIERS) {
   test(`${name} paints one route named "${ASK_ABOUT_SHIPLOG_LABEL}" at the follow-up form`, async (t) => {
     const page = await open(t);
@@ -81,6 +90,16 @@ for (const [name, open] of CARRIERS) {
 
     // Reachable by Tab alone, like every other route on these pages.
     assert.ok(tabSequence(document).includes(route), `${name}: the route is not in the tab order`);
+
+    // And the label is not on its own: the painted page carries the line saying
+    // where the route goes and what the form asks for (#2556). Painted, because
+    // a page whose modules rewrite its introduction would otherwise ship the
+    // sentence to a test and not to a reader.
+    const described = describedBy(document);
+    assert.equal(described.length, 1, `${name}: the description is painted ${described.length} times`);
+    assert.equal(textOf(described[0]), ASK_ABOUT_SHIPLOG_DESCRIPTION);
+    assert.equal(tabSequence(document).filter((node) => node === described[0]).length, 0,
+      `${name}: the description became a tab stop`);
   });
 
   test(`${name} lands the route on the form, not merely at its scroll position`, async (t) => {
@@ -151,6 +170,96 @@ for (const [name, open] of CARRIERS) {
     }
   });
 }
+
+/* ---------------- what the label does not say, said once ------------------ */
+
+// #2556. "Ask about Shiplog" is a errand with no destination in it: a reader
+// who had not already scrolled to the foot of the page could reasonably expect
+// a mail client, a pricing page, or a new tab. The line below the label says
+// where it goes, what the form there asks for, and what comes back — and it is
+// the same line, from one constant, on all six pages that carry the route.
+const CARRYING_PAGES = [
+  "index.html", "releases.html", "coach.html", "social.html", "profile.html", "agents.html",
+];
+
+const readPage = async (file) => parseHtml(
+  await readFile(new URL(`../src/${file}`, import.meta.url), "utf8"));
+
+test("the sentence itself says where, what is asked, and what comes back — and promises nothing else", () => {
+  // Two sentences, no more: this is a caption under a link, not a section.
+  assert.equal((ASK_ABOUT_SHIPLOG_DESCRIPTION.match(/[.!?]/g) ?? []).length, 2);
+  assert.ok(ASK_ABOUT_SHIPLOG_DESCRIPTION.startsWith(ASK_ABOUT_SHIPLOG_LABEL),
+    "it must name the control it describes, because it reads below a row that may hold two");
+
+  // Where the route goes: down this page, to the form — not out of the page.
+  assert.match(ASK_ABOUT_SHIPLOG_DESCRIPTION, /follow-up form at the foot of this page/);
+
+  // What that form asks for, in the order the form asks it and in words a
+  // reader will recognise when they get there.
+  for (const asked of ["a work email address", "what you want to discuss", "an optional note"]) {
+    assert.ok(ASK_ABOUT_SHIPLOG_DESCRIPTION.includes(asked),
+      `the description does not say the form asks for ${asked}`);
+  }
+
+  // What comes back is the form's own sentence, byte for byte, rather than a
+  // paraphrase of it. A reader who follows the route meets the same words
+  // above the button; two wordings would be two promises to reconcile.
+  assert.ok(ASK_ABOUT_SHIPLOG_DESCRIPTION.endsWith(FOLLOW_UP_REPLY),
+    `the reply window has drifted from the form's own sentence: ${FOLLOW_UP_REPLY}`);
+
+  // And nothing this site cannot answer here. Availability and price are
+  // answered on request, which is what the form is for.
+  for (const overreach of [
+    /\bprice|pricing|\$\d|\bquote\b|\bcost\b/i,
+    /\bsign ?up\b|\bfree trial\b|\bstart now\b/i,
+    /\bemail us\b|\bnew tab\b/i,
+  ]) {
+    assert.doesNotMatch(ASK_ABOUT_SHIPLOG_DESCRIPTION, overreach,
+      `the description makes a claim the route cannot keep: ${overreach}`);
+  }
+});
+
+test("all six pages that offer the route carry that sentence, once, at the label", async () => {
+  for (const file of CARRYING_PAGES) {
+    const document = await readPage(file);
+
+    const described = describedBy(document);
+    assert.equal(described.length, 1, `${file}: the description ships ${described.length} times`);
+    assert.equal(textOf(described[0]), ASK_ABOUT_SHIPLOG_DESCRIPTION);
+
+    // At the entry point and nowhere else. Beside the form it would be a
+    // caption for a destination the reader has already arrived at.
+    const route = document.getElementById(ASK_ABOUT_SHIPLOG_ID);
+    assert.ok(route, `${file}: the page no longer carries the route this line describes`);
+    assert.ok(described[0].parentNode === route.parentNode,
+      `${file}: the description is not in the row the label sits in`);
+    assert.equal(route.getAttribute("aria-describedby"), ASK_ABOUT_SHIPLOG_DESCRIPTION_ID,
+      `${file}: a screen-reader user hears the label without the line explaining it`);
+    assert.equal(document.getElementById("site-footer")
+      .querySelectorAll(`#${ASK_ABOUT_SHIPLOG_DESCRIPTION_ID}`).length, 0,
+      `${file}: the description is repeated beside the form it points at`);
+
+    // Static text, not a second control: every page here is at or near its
+    // tab-stop budget, and a focusable above the first screen reds a test on
+    // another page. Counted three ways rather than trusted.
+    assert.equal(described[0].tagName, "P");
+    assert.equal(described[0].getAttribute("tabindex"), null);
+    assert.equal(described[0].querySelectorAll("a").length, 0, `${file}: the description drew a link`);
+    assert.equal(described[0].querySelectorAll("button").length, 0, `${file}: the description drew a button`);
+
+    // And the destination it names is on this page, in one copy, with the
+    // work-email field inside it — so "at the foot of this page" is true.
+    assert.equal(document.querySelectorAll(ASK_ABOUT_SHIPLOG_HREF).length, 1,
+      `${file}: the route names a panel this page does not carry`);
+    assert.equal(route.getAttribute("href"), ASK_ABOUT_SHIPLOG_HREF);
+    assert.equal(document.getElementById(PANEL_ID).querySelectorAll("#site-footer-email").length, 1,
+      `${file}: the work-email field the line promises is not inside the landing target`);
+
+    // No new rule paid for it: the line reuses the site's existing hint style.
+    assert.equal(described[0].getAttribute("class"), "hint",
+      `${file}: the description introduced a class of its own`);
+  }
+});
 
 // The action pair, checked as CSS rather than as a faked viewport: no module on
 // either page reads matchMedia or innerWidth and this harness models no layout,

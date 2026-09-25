@@ -5,6 +5,9 @@ import { loadPage, pressEnter, tabSequence, textOf } from "./support/browser.js"
 import { importPageModule, waitFor } from "./support/page-module.js";
 import { initSiteFooter } from "../src/site-footer.js";
 import { FOLLOW_UP_TOPICS } from "../src/leads.js";
+import {
+  ASK_ABOUT_SHIPLOG_DESCRIPTION, ASK_ABOUT_SHIPLOG_DESCRIPTION_ID,
+} from "../src/ask-about-shiplog.js";
 
 const pages = [
   ["coach", "follow_up_coach", ".coach-hero"],
@@ -28,6 +31,20 @@ for (const [name, purpose, heroSelector] of pages) {
       assert.ok(route.classList.contains("text-link"));
       assert.ok(route.parentNode.classList.contains("hero-actions"));
       assert.ok(tabSequence(document).includes(route));
+
+      // #2556: the label does not travel alone. The line that says where the
+      // route goes belongs to the introduction, beside the label, and is not a
+      // control. (The prompt coach replaces its entry copy on load, so that page
+      // is also checked after its own modules run, in
+      // tests/prompt-coach-destination.test.js.)
+      const described = document.querySelectorAll("p")
+        .filter((node) => node.getAttribute("id") === ASK_ABOUT_SHIPLOG_DESCRIPTION_ID);
+      assert.equal(described.length, 1, `${name}: the description is painted ${described.length} times`);
+      assert.equal(textOf(described[0]), ASK_ABOUT_SHIPLOG_DESCRIPTION);
+      assert.ok(described[0].parentNode.classList.contains("hero-actions"),
+        `${name}: the description drifted away from the label it explains`);
+      assert.ok(!tabSequence(document).includes(described[0]),
+        `${name}: the description became a tab stop of its own`);
       assert.equal(document.querySelectorAll("#site-footer-form").length, 1);
       const script = document.querySelector('script[src="/ask-about-shiplog-page.js"]');
       assert.ok(script, "the shipped page wires the action independently of its data loading");
