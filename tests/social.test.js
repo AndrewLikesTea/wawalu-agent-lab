@@ -39,13 +39,15 @@ const ids = (posts) => posts.map((post) => post.id);
 // The site's one definition of a display name. It carries both facts that used
 // to be split — where the names come from, and that nobody owns one — and
 // Social and People render it in the same bytes. Where the names come from is
-// two cases (#2348): invented on the posts already on Social, chosen by the
-// publisher on any other. It used to call the whole feed "this demo".
-const DISPLAY_NAME_SENTENCE = "Display names on the posts already on Social are invented. On any other post, whoever published it chose the name. Nobody owns or verifies a display name, and anyone can publish under any name.";
+// two cases (#2348): invented on the example posts on Social, chosen by the
+// publisher on any other. It used to call the whole feed "this demo", and it
+// used to call the first case "the posts already on Social" (#2549) — the set
+// has one name across Social, People and the permalink now.
+const DISPLAY_NAME_SENTENCE = "Display names on the example posts on Social are invented. On any other post, whoever published it chose the name. Nobody owns or verifies a display name, and anyone can publish under any name.";
 // Both cases, and never the word that called a feed of real posts a demo.
 function assertBothNameCases(text, where) {
   assert.doesNotMatch(text, /\bdemo\b/i, `${where} calls the posts a demo`);
-  assert.match(text, /on the posts already on Social are invented\./, `${where} dropped that the existing names are invented`);
+  assert.match(text, /on the example posts on Social are invented\./, `${where} dropped that the existing names are invented`);
   assert.match(text, /On any other post, whoever published it chose the name\./, `${where} dropped who chose every other name`);
 }
 // The wording the feed list carried before, kept here so the test that forbids
@@ -610,11 +612,19 @@ test("the feed says who wrote the posts, where the posts are", async (t) => {
   assert.equal(textOf(note), DISPLAY_NAME_SENTENCE,
     "the feed stopped disclosing who wrote the posts");
   assertBothNameCases(textOf(note), "the feed note");
-  // And they keep "invented" exclusively: every earlier word for the same thing
-  // is a second name for one concept, which is what this sentence exists to end.
-  for (const rival of [/persona/i, /synthetic/i, /representative example/i, /\bsample/i, /\bexample/i, /\bseeded\b/i])
+  // One name for the set, and one word for what it is. The name is "example
+  // posts" — the same noun phrase Social's intro, People and the permalink use,
+  // and the sibling of the "example records" the home page and Releases already
+  // carry (#2549). "Invented" stays as the thing said about them, not as a
+  // second name. Every other word the site has used for this concept is still
+  // refused: the whole point of the sentence is that a reader meets one.
+  assert.match(textOf(note), /\bthe example posts\b/,
+    "the caveat no longer calls the set by the site's one name for it");
+  for (const rival of [/persona/i, /synthetic/i, /representative example/i, /\bsample/i, /\bseeded\b/i])
     assert.doesNotMatch(textOf(note), rival,
       "the bundled names must not be described a second way");
+  assert.equal(textOf(note).split(/\bexample\b/i).length - 1, 1,
+    "the caveat names the set more than once");
 
   // In the feed panel itself, not in the hero and not in the composer. The
   // harness refuses descendant selectors, so the ancestry is walked.
@@ -646,7 +656,7 @@ test("the feed says who wrote the posts, where the posts are", async (t) => {
   const intro = textOf(page.document.querySelector(".hero-social").querySelectorAll("p")[2]);
   assert.doesNotMatch(intro, /Display names|whoever published it/,
     "the intro says who wrote the posts a second time, four screens from a card");
-  assert.match(intro, /The posts already here are invented to demonstrate Shiplog and use no customer or production data; anyone can read a post you publish\.$/,
+  assert.match(intro, /The example posts here are invented to demonstrate Shiplog and use no customer or production data; anyone can read a post you publish\.$/,
     "the provenance sentence, with the demo-data claim inside it, must stay the intro's last words");
   // One sentence, word for word People's, naming the control both feeds print
   // on every card. Social had no such control and said nothing about opening a
@@ -724,7 +734,7 @@ test("who wrote the posts survives loading, populated, empty, and no-match", asy
 // The demo-data claim now sits inside the provenance sentence, so it covers only
 // the invented posts. Nothing checks what a visitor publishes, so the consequence
 // asks them not to include that data instead of promising it is absent (#2296).
-const PROVENANCE_SENTENCE = "The posts already here are invented to demonstrate Shiplog and use no customer or production data; anyone can read a post you publish.";
+const PROVENANCE_SENTENCE = "The example posts here are invented to demonstrate Shiplog and use no customer or production data; anyone can read a post you publish.";
 const RETIRED_DATA_SENTENCE = "Posts use no customer or production data.";
 const PUBLISH_INSTRUCTION = "Do not include customer or production data.";
 // The two acts are named apart (#2373): a publisher cannot take their own post
@@ -945,8 +955,8 @@ test("the Posts panel opens on the feed's own heading, not on the display-name c
 test("Social, People, and a post permalink claim no customer data only for the invented posts", async (t) => {
   const scoped = {
     "social.html": PROVENANCE_SENTENCE,
-    "profile.html": "The image posts already here are invented to demonstrate Shiplog and use no customer or production data; anyone can read an image post you publish.",
-    "post.html": "The posts already on Social are invented to demonstrate Shiplog and use no customer or production data; anyone can read a post a visitor publishes.",
+    "profile.html": "The example posts here are invented to demonstrate Shiplog and use no customer or production data; anyone can read an image post you publish.",
+    "post.html": "The example posts on Social are invented to demonstrate Shiplog and use no customer or production data; anyone can read a post a visitor publishes.",
   };
   for (const [file, sentence] of Object.entries(scoped)) {
     const page = await loadPage(new URL(`../src/${file}`, import.meta.url), {});
@@ -1017,7 +1027,7 @@ test("Social and People define a display name once, in the same words", async (t
     // Both halves, not one: this is the whole point of merging the three.
     assertBothNameCases(text, file);
     assert.match(text, /Nobody owns or verifies a display name/, `${file} dropped that nobody owns a name`);
-    rendered.push(text.match(/Display names on the posts[^]*?anyone can publish under any name\./)?.[0]);
+    rendered.push(text.match(/Display names on the example posts[^]*?anyone can publish under any name\./)?.[0]);
   }
   assert.equal(new Set(rendered).size, 1,
     `Social and People drifted apart: ${rendered.join(" / ")}`);

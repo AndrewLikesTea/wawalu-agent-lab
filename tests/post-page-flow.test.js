@@ -102,7 +102,7 @@ const IDENTITY = "Whoever published this post chose the display name on it; nobo
 // Social's and People's version, which this page no longer carries. Those two
 // pages keep it and are asserted on elsewhere; here it is the string that must
 // not come back.
-const FEED_NOTE = "Display names on the posts already on Social are invented. On any other post, whoever published it chose the name. Nobody owns or verifies a display name, and anyone can publish under any name.";
+const FEED_NOTE = "Display names on the example posts on Social are invented. On any other post, whoever published it chose the name. Nobody owns or verifies a display name, and anyone can publish under any name.";
 
 const SOCIAL = { label: "Open Social to read the whole feed", href: "/social.html" };
 const PEOPLE = { label: "Open People to see Mina Okafor’s other image posts", href: "/profile.html" };
@@ -183,7 +183,7 @@ test("the permalink names who chose the display name in one sentence, not Social
   const shipped = [];
   for (const file of ["social.html", "profile.html"]) {
     const html = (await readFile(new URL(`../src/${file}`, import.meta.url), "utf8")).replace(/<!--[\s\S]*?-->/g, "");
-    const clause = html.match(/Display names on the posts[^<]*anyone can publish under any name\./)?.[0];
+    const clause = html.match(/Display names on the example posts[^<]*anyone can publish under any name\./)?.[0];
     assert.ok(clause, `${file} no longer tells a reader what a display name is`);
     shipped.push(clause);
   }
@@ -192,7 +192,7 @@ test("the permalink names who chose the display name in one sentence, not Social
 
   const post = (await readFile(new URL("../src/post.html", import.meta.url), "utf8")).replace(/<!--[\s\S]*?-->/g, "");
   assert.equal(post.split(IDENTITY).length - 1, 1, "the permalink's markup carries its own sentence other than exactly once");
-  assert.equal(post.includes("Display names on the posts"), false, "the permalink still ships Social's feed note");
+  assert.equal(post.includes("Display names on the example posts"), false, "the permalink still ships Social's feed note");
   assert.equal(post.includes("anyone can publish under any name"), false, "the permalink still ships the feed note's last clause");
 
   const page = await openPostPage("?id=p-image", seedOnly([SEED_POST]));
@@ -509,7 +509,7 @@ test("an unknown id is named as a missing post, with the feed still the way out"
     assert.match(textOf(page.panel), /Post unavailable/);
     assert.match(textOf(page.panel), /This shared link may be unavailable, or the post may no longer be in Social\./);
     assert.doesNotMatch(textOf(page.panel), /removed|private|signed-in|your post/i);
-    assert.doesNotMatch(textOf(page.panel), /Display names on the posts/);
+    assert.doesNotMatch(textOf(page.panel), /Display names on the example posts/);
     // No post, no author: the h1 keeps the generic label it shipped with.
     assert.equal(textOf(page.document.querySelector("#page-title")), "Social post");
     assert.doesNotMatch(textOf(page.panel), /Try again/);
@@ -704,7 +704,7 @@ test("the loading state is one announced line in the post's region, and takes no
     assert.equal(state.getAttribute("role"), null, "the update uses the page's persistent live region");
     assert.equal(page.document.activeElement, null, "nothing may take focus on load");
     assert.equal(textOf(state.querySelector(".detail-loading-text")), "The post is loading.");
-    assert.doesNotMatch(textOf(panel), /Display names on the posts/);
+    assert.doesNotMatch(textOf(panel), /Display names on the example posts/);
     // Nothing is named yet, so the h1 names the page — the same words a reader
     // sees in the shipped markup before any script runs.
     assert.equal(textOf(page.document.querySelector("#page-title")), "Social post");
@@ -728,7 +728,7 @@ test("the loading state is one announced line in the post's region, and takes no
     // The frame around it still says what the page is, so the region is never
     // an unexplained blank.
     assert.match(textOf(page.document.querySelector(".hero-post")),
-      /The posts already on Social are invented to demonstrate Shiplog and use no customer or production data; anyone can read a post a visitor publishes\./);
+      /The example posts on Social are invented to demonstrate Shiplog and use no customer or production data; anyone can read a post a visitor publishes\./);
     assertExits(page, null, "loading");
     assert.equal(textOf(page.document.querySelector("#post-people")), "", "loading must not expose an empty or placeholder display name");
     assert.equal(page.document.querySelector("#post-people").hidden, true);
