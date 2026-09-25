@@ -20,6 +20,11 @@ const demo = {
 
 const titles = (harness) => byClass(harness.list, "history-card").map((card) => card.children[0].textContent);
 const settle = () => new Promise((resolve) => setTimeout(resolve, 5));
+// The headline names the records it counted (#2539). Every fixture here arrives
+// as the demonstration seed and none of it is stored, so the visitor's half is
+// empty; a view with nothing in it states no split at all, because the figure
+// beside it already says none.
+const asExamples = (shown) => ` · ${shown} example ${shown === 1 ? "record" : "records"} · none you added`;
 
 async function boot() {
   const harness = createHistoryHarness(demo);
@@ -174,7 +179,7 @@ test("a release filter shows its decisions and one prioritized non-final follow-
 
   assert.deepEqual(titles(harness), ["Approve edge cache", "Adopt a durable queue"]);
   assert.equal(harness.url, "?release=r-1-3-0");
-  assert.equal(harness.summary.textContent, "2 of 3 records");
+  assert.equal(harness.summary.textContent, "2 of 3 records" + asExamples(2));
   assert.deepEqual(chipText(harness), ["Release: r-1-3-0"]);
 
   const followUp = harness.elements["#history-release-followup"];
@@ -276,12 +281,15 @@ test("an owner this log has never held falls back to the whole history", async (
 
 test("the summary line is the headline of the list and the chips are its filters", async () => {
   const harness = await open();
-  assert.equal(harness.summary.textContent, "3 records");
+  assert.equal(harness.summary.textContent, "3 records" + asExamples(3));
   assert.equal(harness.chips.hidden, true, "there is nothing to dismiss yet");
 
   harness.chooseType("decision");
   harness.chooseDates("2026-01-01", "2026-03-31");
-  assert.equal(harness.summary.textContent, "2 of 3 records · decisions · Jan 1 – Mar 31");
+  assert.equal(
+    harness.summary.textContent,
+    "2 of 3 records · decisions · Jan 1 – Mar 31" + asExamples(2),
+  );
   assert.equal(harness.summary.dataset.filtered, "true");
   assert.equal(harness.chips.hidden, false);
   assert.deepEqual(chipText(harness), ["Record type: Decisions", "From: Jan 1, 2026", "To: Mar 31, 2026"]);
@@ -325,7 +333,7 @@ test("clear all returns to the clean base path and the unfiltered history", asyn
 
   assert.equal(harness.url, "", "no filter parameter may be left behind");
   assert.equal(harness.count.textContent, "3 records");
-  assert.equal(harness.summary.textContent, "3 records");
+  assert.equal(harness.summary.textContent, "3 records" + asExamples(3));
   assert.deepEqual(chipText(harness), []);
   assert.equal(harness.search.value, "");
   assert.equal(harness.elements["#filter-from"].value, "");
@@ -394,7 +402,7 @@ test("a view narrowed through the controls reopens identically from its address"
   assert.equal(teammate.search.value, "edge");
   assert.equal(teammate.status.value, "pending");
   assert.equal(teammate.elements["#filter-owner"].value, "Mina");
-  assert.equal(teammate.summary.textContent, "1 of 3 records");
+  assert.equal(teammate.summary.textContent, "1 of 3 records" + asExamples(1));
   assert.equal(teammate.summary.textContent, sender.summary.textContent);
   assert.deepEqual(teammate.entries, [address], "opening a shared link must not write to the history");
 });
@@ -417,7 +425,7 @@ test("a shared link that matches nothing offers Reset, which restores the log an
   ]);
   assert.equal(harness.search.value, "");
   assert.equal(harness.elements["#filter-owner"].value, "all");
-  assert.equal(harness.summary.textContent, "3 records");
+  assert.equal(harness.summary.textContent, "3 records" + asExamples(3));
   assert.equal(harness.search.focused, 1, "focus cannot stay on the removed Reset button");
   assert.deepEqual(harness.entries, [""], "the reset stacked a history entry");
 });
@@ -425,7 +433,7 @@ test("a shared link that matches nothing offers Reset, which restores the log an
 test("a link naming an undefined status or an owner no record holds applies neither", async () => {
   const harness = await open("?status=bogus&owner=Nobody&q=queue");
   assert.deepEqual(titles(harness), ["v1.3.0 · Throughput and latency", "Adopt a durable queue"]);
-  assert.equal(harness.summary.textContent, "2 of 3 records");
+  assert.equal(harness.summary.textContent, "2 of 3 records" + asExamples(2));
   assert.equal(harness.status.value, "all");
   assert.equal(harness.elements["#filter-owner"].value, "all");
   assert.deepEqual(parseHistoryFilters(harness.url), { ...DEFAULT_HISTORY_FILTERS, query: "queue" });

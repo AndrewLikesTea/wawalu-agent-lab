@@ -14,6 +14,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { initDecisionLog, releaseCoverageLine, STORAGE_KEY, toHistoryRecords } from "../src/app.js";
 import { RELEASE_STORAGE_KEY } from "../src/releases.js";
+import { SEED_RELEASES } from "../src/seed-records.js";
 import { DomEvent, loadPage, tabSequence, textOf, typeText } from "./support/browser.js";
 
 const DECISIONS_PAGE = new URL("../src/index.html", import.meta.url);
@@ -74,6 +75,21 @@ async function openHistory(t, { decisions = DECISIONS, releases = RELEASES } = {
   return page;
 }
 
+// The same page with the shipped demonstration records composed in behind the
+// visitor's own, which is what a real visitor who has recorded something sees.
+async function openMixedHistory(t) {
+  const page = await loadPage(DECISIONS_PAGE, {
+    storage: {
+      [STORAGE_KEY]: JSON.stringify(DECISIONS),
+      [RELEASE_STORAGE_KEY]: JSON.stringify(RELEASES),
+    },
+  });
+  t.after(() => page.restore());
+  await initDecisionLog(page.document, page.storage);
+  assert.equal(page.document.documentElement.dataset.shiplog, "ready");
+  return page;
+}
+
 const coverage = (page) => textOf(page.document.querySelector("#release-coverage"));
 const rows = (page) => page.document.querySelector("#decision-list").querySelectorAll(".history-card");
 const rowTitles = (page) => rows(page).map((card) => textOf(card.querySelector("h3")));
@@ -92,13 +108,21 @@ function chooseOption(page, selector, value) {
 
 const NO_RELEASES = "No releases are listed here, so there are none to count.";
 
+// The figure names the records it counted, in the line itself (#2539), from the
+// same helper as the split count in the heading. Every release in these fixtures
+// is stored in this browser and the demonstration seed is switched off, so the
+// example half of the note is empty here; the mixed log is exercised by its own
+// test below, which boots the page with the shipped seed in it.
+const yoursOnly = (releases) => ` Counted here: no example records and ${releases} you added.`;
+
 test("the history says how many of the releases it lists carry a linked decision", async (t) => {
   const page = await openHistory(t);
 
   assert.equal(rows(page).length, 7, "all three decisions and all four releases are listed");
   assert.equal(
     coverage(page),
-    "Of the 4 releases shown by the current filters, 3 carry at least one linked decision and 1 does not.",
+    "Of the 4 releases shown by the current filters, 3 carry at least one linked decision and 1 does not."
+    + yoursOnly(4),
   );
 });
 
@@ -115,13 +139,14 @@ test("searching narrows the list and both numbers with it", async (t) => {
   ]);
   assert.equal(
     coverage(page),
-    "All 3 releases shown by the current filters carry at least one linked decision.",
+    "All 3 releases shown by the current filters carry at least one linked decision." + yoursOnly(3),
   );
 
   page.document.querySelector("#clear-decision-filters").click();
   assert.equal(
     coverage(page),
-    "Of the 4 releases shown by the current filters, 3 carry at least one linked decision and 1 does not.",
+    "Of the 4 releases shown by the current filters, 3 carry at least one linked decision and 1 does not."
+    + yoursOnly(4),
     "clearing the search restores the count over the whole log",
   );
 });
@@ -131,14 +156,17 @@ test("a search that leaves one release says so in the singular", async (t) => {
 
   search(page, "Housekeeping");
   assert.deepEqual(rowTitles(page), ["v1.4.0 · Housekeeping"]);
-  assert.equal(coverage(page), "The one release shown by the current filters carries no linked decision.");
+  assert.equal(
+    coverage(page),
+    "The one release shown by the current filters carries no linked decision." + yoursOnly(1),
+  );
 
   page.document.querySelector("#clear-decision-filters").click();
   search(page, "v1.1");
   assert.deepEqual(rowTitles(page), ["v1.1.0 · Read path latency"]);
   assert.equal(
     coverage(page),
-    "The one release shown by the current filters carries at least one linked decision.",
+    "The one release shown by the current filters carries at least one linked decision." + yoursOnly(1),
   );
 });
 
@@ -152,7 +180,8 @@ test("filtering to decisions leaves no releases to count, and never counts zero 
   page.document.querySelector("#record-type-release").click();
   assert.equal(
     coverage(page),
-    "Of the 4 releases shown by the current filters, 3 carry at least one linked decision and 1 does not.",
+    "Of the 4 releases shown by the current filters, 3 carry at least one linked decision and 1 does not."
+    + yoursOnly(4),
     "filtering to releases counts the same four",
   );
 });
@@ -181,7 +210,8 @@ test("current only hides superseded decisions and leaves the release count hones
   const before = coverage(page);
   assert.equal(
     before,
-    "Of the 4 releases shown by the current filters, 3 carry at least one linked decision and 1 does not.",
+    "Of the 4 releases shown by the current filters, 3 carry at least one linked decision and 1 does not."
+    + yoursOnly(4),
   );
 
   page.document.querySelector("#filter-current-only").click();
@@ -197,6 +227,30 @@ test("current only hides superseded decisions and leaves the release count hones
   assert.equal(coverage(page), before);
 });
 
+// The half that the fixtures above cannot exercise: a log with both kinds of
+// record in it. The note is derived from the same rows the claim counts, so it
+// follows a filter rather than describing the whole log (#2539).
+test("the coverage figure names both kinds of record it counted, and follows the filters", async (t) => {
+  const page = await openMixedHistory(t);
+  const examples = SEED_RELEASES.length;
+
+  assert.match(
+    coverage(page),
+    new RegExp(`^(Of|All|None of) the ${examples + RELEASES.length} releases `),
+    "the claim stopped counting the whole visible set of releases",
+  );
+  assert.match(
+    coverage(page),
+    new RegExp(` Counted here: ${examples} example records and ${RELEASES.length} you added\\.$`),
+  );
+
+  // Narrowing to the visitor's own release notes leaves the examples out of the
+  // figure, and the note says so instead of still claiming them.
+  search(page, "Dependency bumps");
+  assert.deepEqual(rowTitles(page), ["v1.4.0 · Housekeeping"]);
+  assert.match(coverage(page), / Counted here: no example records and 1 you added\.$/);
+});
+
 test("a log with no releases in it says there are none to count", async (t) => {
   const page = await openHistory(t, { decisions: [], releases: [] });
 
@@ -209,18 +263,19 @@ test("the plural and all-or-nothing wordings read as English", async (t) => {
 
   assert.equal(
     releaseCoverageLine(records([...RELEASES, release("r-1-5-0", "v1.5.0", "Chores", "More bumps.", [], 5)])),
-    "Of the 5 releases shown by the current filters, 3 carry at least one linked decision and 2 do not.",
+    "Of the 5 releases shown by the current filters, 3 carry at least one linked decision and 2 do not."
+    + yoursOnly(5),
   );
   assert.equal(
     releaseCoverageLine(records(RELEASES.slice(0, 3))),
-    "All 3 releases shown by the current filters carry at least one linked decision.",
+    "All 3 releases shown by the current filters carry at least one linked decision." + yoursOnly(3),
   );
   assert.equal(
     releaseCoverageLine(records([
       release("r-a", "v2.0.0", "One", "No decision.", [], 1),
       release("r-b", "v2.1.0", "Two", "No decision either.", [], 2),
     ])),
-    "None of the 2 releases shown by the current filters carries a linked decision.",
+    "None of the 2 releases shown by the current filters carries a linked decision." + yoursOnly(2),
   );
   assert.equal(releaseCoverageLine(records([])), NO_RELEASES);
   assert.equal(releaseCoverageLine(), NO_RELEASES);
@@ -230,20 +285,27 @@ test("the plural and all-or-nothing wordings read as English", async (t) => {
   // that never recorded a reason at all.
   assert.equal(
     releaseCoverageLine(records([release("r-c", "v3.0.0", "Three", "Gone.", ["no-such-decision"], 1)])),
-    "The one release shown by the current filters carries at least one linked decision.",
+    "The one release shown by the current filters carries at least one linked decision." + yoursOnly(1),
   );
 });
 
-test("the line sits with the list it describes, adds no tab stop, and repeats no caveat", async (t) => {
+test("the line sits with the list it describes, adds no tab stop, and names its own records", async (t) => {
   const page = await openHistory(t);
   const node = page.document.querySelector("#release-coverage");
 
-  // Reachable with the list rather than announced away from it, and inside the
-  // panel that already states the example-records caveat — so the sentence does
-  // not have to restate it and cannot disturb a count of that statement.
+  // Reachable with the list rather than announced away from it. It used to lean
+  // on the panel's caveat for whose records it counted and was pinned against
+  // restating it; #2539 reverses that — a counted figure names its own records,
+  // so a reader who meets the number first still knows what is inside it. The
+  // page-level sentence is untouched and still said exactly once, so nothing
+  // counting that statement moves.
   const panel = page.document.querySelector(".list-panel");
-  assert.match(textOf(panel), /Includes example records to demonstrate Shiplog\./);
-  assert.doesNotMatch(coverage(page), /example records|customer or production data/);
+  const disclosure = "Includes example records to demonstrate Shiplog. They use no customer or production data.";
+  assert.equal(textOf(panel).split(disclosure).length - 1, 1);
+  assert.match(coverage(page), /Counted here: no example records and 4 you added\.$/);
+  // The caveat itself is not repeated per figure: the line names the records it
+  // counted and says nothing about customer data, which the panel already owns.
+  assert.doesNotMatch(coverage(page), /customer or production data/);
   assert.equal(node.getAttribute("role"), null, "the list's own status region carries the announcement");
   assert.equal(node.getAttribute("aria-live"), null);
 
