@@ -1128,3 +1128,146 @@ test("the permalink renders no Report post control, so its copy sends the reader
     }
   }
 });
+
+/* ------------ the durable half: what the API's two answers mean ----------- */
+
+// Every test above asks for a seed id (`p-image`, `p-gone`), and src/post-page.js
+// asks /api/social-posts only for a UUID — so the branch that meets the real
+// feed, and the 404 it answers a stale or deleted link with, had no end-to-end
+// cover at all. It is the branch a forwarded link actually takes: a post someone
+// published has a UUID id, and it is exactly that link that goes stale.
+const LIVE_ID = "3f2b0c18-9a41-4d66-8b0e-55c7a1d9e402";
+const LIVE_URL = `/api/social-posts/${LIVE_ID}`;
+
+// The API's wire shape, not the feed's internal one. src/profile.js's
+// normalizeProfileApiPosts is what turns `content`/`timestamp` into the record
+// the renderer draws; a fixture written in the internal shape would be dropped
+// by it and land the page in a not-found state the test never asked for.
+const LIVE_POST = {
+  id: LIVE_ID,
+  author: "Mina Okafor",
+  content: "Focus rings landed everywhere.",
+  caption: "The middle card, ringed.",
+  timestamp: "2026-07-14T09:00:00.000Z",
+  like_count: 3,
+  comment_count: 1,
+  image_url: "/media/focus-ring.svg",
+  image_alt: "A card wrapped in a blue focus ring",
+  image_width: 1200,
+  image_height: 900,
+};
+
+const livePost = () => ({ ok: true, status: 200, json: async () => ({ post: LIVE_POST }) });
+// What the API answers a stale, mistyped or deleted id with. It is an answer:
+// the feed was reached and said there is no such post (src/social-posts-api.js,
+// "Social post not found.").
+const liveMissing = () => ({ ok: false, status: 404, json: async () => ({ error: "not_found" }) });
+// And what it answers with its storage binding gone — the feed genuinely could
+// not be consulted, which is the only unresolved answer a retry can change.
+const liveDown = () => ({ ok: false, status: 503, json: async () => ({ error: "storage_unavailable" }) });
+
+// One of the four, counted rather than matched: the identifying marker of each
+// state is an attribute on its own panel, so a stale sibling left behind by a
+// render shows up here as a second entry instead of hiding under the live one.
+const statePanels = (panel) => panel.querySelectorAll("[data-post-state-panel]")
+  .map((node) => node.getAttribute("data-post-state-panel"));
+
+const waits = (panel) => textOf(panel).split("The post is loading.").length - 1;
+
+test("a UUID the API answers 404 for is a dead link, not an outage", async () => {
+  const page = await openPostPage(`?id=${LIVE_ID}`, (url) => {
+    if (url === LIVE_URL) return liveMissing();
+    if (url === SEED_URL) return seedResponse([SEED_POST]);
+    throw new Error(`Unexpected request: ${url}`);
+  });
+  try {
+    assert.ok(page.requests.includes(LIVE_URL), "a UUID id must be asked of the durable feed");
+    assert.equal(page.panel.dataset.postState, "not-found");
+    // The whole of the reader-facing claim: the wait is gone, and one state
+    // stands in its place rather than on top of it.
+    assert.deepEqual(statePanels(page.panel), ["not-found"]);
+    assert.equal(waits(page.panel), 0, "the wait outlived the answer");
+    assert.match(textOf(page.panel), /Post unavailable/);
+    assert.match(textOf(page.panel), /This shared link may be unavailable, or the post may no longer be in Social\./);
+    // No retry, because there is nothing for one to change: the feed already
+    // answered, and it would answer the same way again.
+    assert.doesNotMatch(textOf(page.panel), /Social did not respond/);
+    assert.equal(page.panel.querySelectorAll("button").length, 0);
+    assert.equal(textOf(page.panel.querySelector(".detail-state-feed")), "Go to the Social feed");
+    assertExits(page, null, "a UUID the feed has no post for");
+  } finally {
+    page.restore();
+  }
+});
+
+// The regression this pair exists for. The page used to decide between its two
+// unresolved states with a boolean OR over both sources — anything that threw
+// anywhere made the whole lookup a failure — so a link the API had *just*
+// answered 404 for was drawn as "Social did not respond" whenever the static
+// seed happened not to load. The reader was handed a Retry that could only ever
+// fetch the same 404 again: the timeout this page exists to end, one layer in.
+//
+// The seed cannot hold a UUID (its ids are seed-post-N), so its failure here is
+// not a fact about this link at all.
+test("a dead UUID link stays a dead link when the demo seed cannot be fetched", async () => {
+  const page = await openPostPage(`?id=${LIVE_ID}`, (url) => {
+    if (url === LIVE_URL) return liveMissing();
+    throw new TypeError("Failed to fetch");
+  });
+  try {
+    assert.equal(page.panel.dataset.postState, "not-found",
+      "an answered 404 was overturned by an unrelated source failing");
+    assert.deepEqual(statePanels(page.panel), ["not-found"]);
+    assert.equal(waits(page.panel), 0);
+    assert.doesNotMatch(textOf(page.panel), /Social did not respond/);
+    assert.equal(page.panel.querySelectorAll("button").length, 0, "a dead link was offered a retry");
+    assert.equal(textOf(page.panel.querySelector(".detail-state-feed")), "Go to the Social feed");
+  } finally {
+    page.restore();
+  }
+});
+
+test("an API that cannot answer at all is an outage, and its retry lands the post", async () => {
+  let down = true;
+  const page = await openPostPage(`?id=${LIVE_ID}`, (url) => {
+    if (url === LIVE_URL) return down ? liveDown() : livePost();
+    // The seed answers, and holds nothing: the verdict has to come from the
+    // source that could not answer, not from the one that answered emptily.
+    if (url === SEED_URL) return seedResponse([]);
+    throw new Error(`Unexpected request: ${url}`);
+  });
+  try {
+    assert.equal(page.panel.dataset.postState, "error");
+    assert.deepEqual(statePanels(page.panel), ["error"]);
+    assert.equal(waits(page.panel), 0);
+    assert.match(textOf(page.panel), /Post could not be opened/);
+    assert.match(textOf(page.panel), /Social did not respond, so this shared link is unavailable for now\./);
+    // Distinct from the dead-link state in words, not in colour: the two
+    // sentences share no clause, and neither state's heading is the other's.
+    assert.doesNotMatch(textOf(page.panel), /Post unavailable/);
+
+    const retry = page.panel.querySelector(".detail-retry");
+    assert.equal(textOf(retry), "Retry the shared post");
+    assert.ok(tabSequence(page.document).includes(retry), "the retry is not reachable by Tab");
+
+    down = false;
+    retry.click();
+    // The real post, not the placeholder that carries the same class while the
+    // second request is in flight.
+    await waitFor(
+      () => page.panel.querySelectorAll(".detail-post").filter((node) => !node.classList.contains("detail-skeleton")).length === 1,
+      "the retry landed the post",
+    );
+    await waitFor(page.settled, "the retry settled");
+
+    assert.equal(page.panel.dataset.postState, "loaded");
+    assert.deepEqual(statePanels(page.panel), ["loaded"]);
+    assert.equal(waits(page.panel), 0);
+    assert.doesNotMatch(textOf(page.panel), /Social did not respond/);
+    assert.equal(textOf(page.panel.querySelector("figcaption")), "The middle card, ringed.");
+    assert.equal(textOf(page.document.querySelector("#page-title")), "Mina Okafor's Social post");
+    assertExits(page, MINA, "recovered from an unreachable feed");
+  } finally {
+    page.restore();
+  }
+});

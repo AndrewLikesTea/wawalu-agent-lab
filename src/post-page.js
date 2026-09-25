@@ -6,9 +6,29 @@
 // asked first, and the seed is still consulted when the API has no answer.
 
 import { normalizeProfileApiPosts, normalizeSeedPosts } from "/profile.js";
-import { POST_EXITS, findPostById, postDetailTitle, postPageHeading, postPeopleHref, postPeopleLabel, renderPostDetail } from "/post-detail.js";
+import {
+  POST_EXITS,
+  POST_SOURCE_ABSENT,
+  POST_SOURCE_FOUND,
+  POST_SOURCE_UNREACHABLE,
+  authoritativePostSource,
+  findPostById,
+  postDetailTitle,
+  postPageHeading,
+  postPeopleHref,
+  postPeopleLabel,
+  renderPostDetail,
+  resolvePostLookupState,
+} from "/post-detail.js";
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+// Which of a source's three answers this was, without letting a thrown request
+// and an answered-but-empty one collapse into the same boolean. `null` from a
+// fetcher is the source saying it has no such post; a throw is the source not
+// answering at all, and only the caller's try/catch can tell them apart.
+async function consult(fetcher) {
+  const post = await fetcher();
+  return { post, outcome: post ? POST_SOURCE_FOUND : POST_SOURCE_ABSENT };
+}
 
 async function fetchLivePost(id) {
   const response = await fetch(`/api/social-posts/${encodeURIComponent(id)}`, { cache: "no-store", headers: { accept: "application/json" } });
@@ -99,18 +119,24 @@ async function init() {
     offerPeople(false);
     renderPostDetail(container, null, { state: "loading", id, author: requestedAuthor, returnHref: POST_EXITS.social.href });
     let post = null;
-    let failed = false;
+    // What each source said, kept apart by name. The API is asked only for ids
+    // it can answer for — it replies 400 invalid_id to anything that is not a
+    // UUID — and the seed is asked whenever nothing has been found yet, so a
+    // post it holds is still reached behind an absent API.
+    const answered = {};
     if (id) {
-      try {
-        post = UUID.test(id) ? await fetchLivePost(id) : null;
-      } catch {
-        failed = true;
+      if (authoritativePostSource(id) === "live") {
+        try {
+          ({ post, outcome: answered.live } = await consult(() => fetchLivePost(id)));
+        } catch {
+          answered.live = POST_SOURCE_UNREACHABLE;
+        }
       }
       if (!post) {
         try {
-          post = await fetchSeedPost(id);
+          ({ post, outcome: answered.seed } = await consult(() => fetchSeedPost(id)));
         } catch {
-          failed = true;
+          answered.seed = POST_SOURCE_UNREACHABLE;
         }
       }
     }
@@ -120,10 +146,12 @@ async function init() {
     // and simply had no post with this id is `not-found`, and retrying it would
     // only produce the same answer more slowly.
     //
-    // A lookup that failed is only reported as a failure when nothing was found
-    // anywhere: if the seed answered, the reader has the post and does not need
-    // to hear about the network.
-    const state = post ? "loaded" : failed ? "error" : "not-found";
+    // A found post ends the question wherever it came from: if the seed
+    // answered, the reader has the post and does not need to hear about the
+    // network. Otherwise the verdict belongs to the one source whose answer is
+    // about this id — see resolvePostLookupState in src/post-detail.js, which is
+    // where the rule and the reason for it live.
+    const state = post ? "loaded" : resolvePostLookupState(id, answered);
     renderPostDetail(container, post, {
       state,
       id,

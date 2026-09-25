@@ -14,8 +14,13 @@ const {
   POST_LOADING_STATUS,
   POST_LOADED_DESCRIPTION,
   POST_SKELETON_SLOTS,
+  POST_SOURCE_ABSENT,
+  POST_SOURCE_FOUND,
+  POST_SOURCE_UNREACHABLE,
   POST_STATES,
+  authoritativePostSource,
   findPostById,
+  resolvePostLookupState,
   resolvePostState,
   postDetailTitle,
   postImageAlt,
@@ -43,6 +48,76 @@ const post = {
   comments: 1,
   image: { src: "/media/focus-ring.svg", alt: "A card wrapped in a blue focus ring", width: 1200, height: 900 },
 };
+
+/* ------------------ telling the two unresolved answers apart -------------- */
+
+// Which source owns an id of this shape. Everything below rests on it: the API
+// answers a non-UUID with 400 invalid_id, and the static seed's ids are never
+// UUIDs, so exactly one of the two could hold any given post.
+test("an id's shape names the one source that could hold its post", () => {
+  assert.equal(authoritativePostSource("3f2b0c18-9a41-4d66-8b0e-55c7a1d9e402"), "live");
+  assert.equal(authoritativePostSource("  3F2B0C18-9A41-4D66-8B0E-55C7A1D9E402 "), "live");
+  assert.equal(authoritativePostSource("seed-post-1"), "seed");
+  assert.equal(authoritativePostSource("p-image"), "seed");
+  // A truncated UUID is not a UUID, and asking the API for it would earn a 400
+  // that means nothing to a reader.
+  assert.equal(authoritativePostSource("3f2b0c18-9a41-4d66-8b0e"), "seed");
+  // No id at all: nothing owns it, and nothing was consulted.
+  assert.equal(authoritativePostSource(""), "");
+  assert.equal(authoritativePostSource(undefined), "");
+});
+
+// The premise the classification above is only sound under, read out of the file
+// itself rather than asserted from memory: put a UUID id into the seed and the
+// rule "the seed cannot hold this UUID, so its failure is not about this link"
+// stops being true, and this fails before a reader meets the consequence.
+test("no post in the static seed carries a UUID id", async () => {
+  const seed = JSON.parse(await readFile(new URL("../src/social-demo-data.json", import.meta.url), "utf8"));
+  assert.ok(seed.posts.length > 0, "an empty seed would pass this vacuously");
+  for (const post of seed.posts) assert.equal(authoritativePostSource(post.id), "seed", post.id);
+});
+
+// not-found or error, decided by that one source. The bug this replaced was a
+// boolean OR across both: a link the API had answered 404 for was drawn as an
+// outage, with a retry that could only fetch the same 404 again, whenever the
+// unrelated seed request happened to fail.
+test("the verdict on a link comes from the source whose answer is about it", () => {
+  const cases = [
+    // The API answered: it has no such post. Nothing the seed does changes that.
+    ["a UUID the feed answered 404 for", "3f2b0c18-9a41-4d66-8b0e-55c7a1d9e402",
+      { live: POST_SOURCE_ABSENT, seed: POST_SOURCE_ABSENT }, "not-found"],
+    ["the same UUID with the seed unreachable", "3f2b0c18-9a41-4d66-8b0e-55c7a1d9e402",
+      { live: POST_SOURCE_ABSENT, seed: POST_SOURCE_UNREACHABLE }, "not-found"],
+    // The API could not answer at all: that is the retryable one, whatever the
+    // seed then said about an id it could not have held.
+    ["a UUID the feed could not answer", "3f2b0c18-9a41-4d66-8b0e-55c7a1d9e402",
+      { live: POST_SOURCE_UNREACHABLE, seed: POST_SOURCE_ABSENT }, "error"],
+    // A seed id is never asked of the API, so only the seed's answer counts.
+    ["a seed id the seed does not hold", "p-gone", { seed: POST_SOURCE_ABSENT }, "not-found"],
+    ["a seed id the seed could not be asked for", "p-gone", { seed: POST_SOURCE_UNREACHABLE }, "error"],
+    // No id: nothing was consulted, so nothing was unreachable. This is the
+    // not-found state's `empty` wording, never a failure.
+    ["no id at all", "", {}, "not-found"],
+    ["no id, with a stray failure recorded", "", { live: POST_SOURCE_UNREACHABLE }, "not-found"],
+  ];
+  for (const [name, id, answered, expected] of cases) {
+    assert.equal(resolvePostLookupState(id, answered), expected, name);
+  }
+  assert.equal(resolvePostLookupState("p-gone"), "not-found", "a lookup with nothing recorded is not a failure");
+});
+
+// The three answers are three distinct strings, so a caller cannot hand one for
+// another and have the comparison quietly hold.
+test("a source answers in exactly three ways, and they are all different", () => {
+  const answers = [POST_SOURCE_FOUND, POST_SOURCE_ABSENT, POST_SOURCE_UNREACHABLE];
+  assert.equal(new Set(answers).size, 3);
+  for (const answer of answers) assert.equal(typeof answer, "string");
+  // Only one of them is the retryable one.
+  assert.equal(
+    answers.filter((answer) => resolvePostLookupState("p-gone", { seed: answer }) === "error").length,
+    1,
+  );
+});
 
 test("a post is found by exact id", () => {
   const posts = [post, { ...post, id: "other" }];

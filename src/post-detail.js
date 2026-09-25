@@ -463,6 +463,56 @@ export function resolvePostState(post, state = "ready") {
   return state === "error" ? "error" : "not-found";
 }
 
+// ------------------------- the boundary's two answers ----------------------
+//
+// Above this line the view only ever hears "the lookup finished" or "the lookup
+// threw". What follows is where that verdict is made, and it is made from what
+// each source actually said rather than from whether anything anywhere went
+// wrong — because the two answers are different facts about the reader's link,
+// and only one of them may be drawn with a retry.
+//
+// A source answers in one of exactly three ways. `absent` is a source that was
+// reached and had no such post: a 404 from the API, or a seed that parsed and
+// held no matching id. `unreachable` is a source that could not be consulted at
+// all — it threw, or answered not-ok. `found` ends the question.
+export const POST_SOURCE_FOUND = "found";
+export const POST_SOURCE_ABSENT = "absent";
+export const POST_SOURCE_UNREACHABLE = "unreachable";
+
+// Only the API's ids are UUIDs. It answers a non-UUID with 400 invalid_id, and
+// src/social-demo-data.json ships ids of the shape seed-post-N, which can never
+// be one. So an id's shape names exactly one source that would hold the post if
+// the post exists — the *authoritative* source for that id.
+const UUID_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+export function authoritativePostSource(id) {
+  const wanted = String(id ?? "").trim();
+  if (!wanted) return "";
+  return UUID_ID.test(wanted) ? "live" : "seed";
+}
+
+// not-found or error, decided by the one source whose answer is about this id.
+//
+// It used to be decided by a boolean OR across both sources: anything that threw
+// anywhere made the whole lookup an error. That turned an authoritative "no such
+// post" into an outage. A UUID link the API had just answered 404 for would be
+// drawn as "Social did not respond", under a Retry that could only ever produce
+// the same 404 more slowly — the reader made the timeout again, one layer in
+// from the state this page exists to draw.
+//
+// The seed is still consulted behind an absent API, and a post found there still
+// wins — a found post is a found post. What changed is that the seed's *failure*
+// can no longer overturn an answer about an id it could not have held.
+//
+// An id that was never supplied has no authoritative source and nothing was
+// consulted, so nothing was unreachable: that is the not-found state's `empty`
+// wording, not a failure.
+export function resolvePostLookupState(id, answered = {}) {
+  const source = authoritativePostSource(id);
+  if (!source) return "not-found";
+  return answered[source] === POST_SOURCE_UNREACHABLE ? "error" : "not-found";
+}
+
 export function renderPostDetail(container, post, options = {}) {
   const { state: requested = "ready", id = "", returnHref = POST_EXITS.social.href } = options;
   // One state, chosen before anything is drawn. replaceChildren() empties the
