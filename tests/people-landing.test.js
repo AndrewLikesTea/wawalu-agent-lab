@@ -1513,7 +1513,13 @@ const PUBLISH_CONDITIONS = [
   ["anyone can select Report post on it", "Anyone can select Report post on a published post"],
   [PUBLISH_INSTRUCTION, PUBLISH_INSTRUCTION],
 ];
-const PEOPLE_CONSEQUENCE = "A published post is public and cannot be edited or deleted, and anyone can select Report post on it. "
+// The Report post clause says where the control is as well as that it exists
+// (#2557): src/profile.js draws the button under every tile on this page, and
+// src/social.js under every card on Social, so the reader is told the one they
+// are looking at is reportable from where they are standing. Social is named
+// without a second route to it — the one trip this paragraph offers is the
+// publishing step above, which tests/profile.test.js counts.
+const PEOPLE_CONSEQUENCE = "A published post is public and cannot be edited or deleted, and anyone can select Report post on it — the button under every post here and in Social's feed. "
   + PUBLISH_INSTRUCTION;
 
 test("the intro says the image posts on this page are invented, before any of them load", async (t) => {

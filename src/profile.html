@@ -423,7 +423,13 @@
                four Social's composer notice states: public, no editing or
                deleting, Report post, and no customer or production data. They
                used to be a pointer to Social's "terms" (#2401), a name
-               Social's untitled notice never carries (#2484).
+               Social's untitled notice never carries (#2484). The Report post
+               condition names where that control is (#2557): profile.js draws
+               it under every tile on this page and social.js under every card
+               on the feed, so the reader is not sent looking for it. Social is
+               named there without a second route to it — the one trip this
+               paragraph offers is the publishing step above, which
+               tests/profile.test.js counts.
                This paragraph is the page's only account of that path (#2497).
                The zero-state panel inside the grid used to repeat three of its
                five steps as a stack of links — "Publish an image post on Social"
@@ -438,7 +444,7 @@
                profile that was being read; this static href is the
                pre-hydration render and returns to People either way. -->
           <p class="feed-create hint">
-            To add yours: <a class="text-link paint-link" id="profile-paint-route" href="/paint/?from=profile" target="_blank" rel="noopener">Create or open an image in Paint <span class="new-tab-note">(opens in a new tab)</span></a>. Select “Use this image in a Social post”, then fill in the required image description. <a class="text-link" id="profile-publish-route" href="/social.html#post-form">Publish a post on Social</a>. A published post with an image appears on People, under the display name you publish it with. A published post is public and cannot be edited or deleted, and anyone can select Report post on it. Do not include customer or production data.
+            To add yours: <a class="text-link paint-link" id="profile-paint-route" href="/paint/?from=profile" target="_blank" rel="noopener">Create or open an image in Paint <span class="new-tab-note">(opens in a new tab)</span></a>. Select “Use this image in a Social post”, then fill in the required image description. <a class="text-link" id="profile-publish-route" href="/social.html#post-form">Publish a post on Social</a>. A published post with an image appears on People, under the display name you publish it with. A published post is public and cannot be edited or deleted, and anyone can select Report post on it — the button under every post here and in Social's feed. Do not include customer or production data.
           </p>
           <!-- People is a filtered view of Social, and the nav says so by
                nesting them. This is where People defines the thing its picker
@@ -480,7 +486,7 @@
         <p class="site-footer-identity"><a id="site-footer-source" href="https://github.com/AndrewLikesTea/wawalu-agent-lab">Open the public repository this site is built from</a></p>
         <a class="site-footer-redirect-link" id="site-footer-assets" href="/#shiplog-evaluation-brief">Evaluation brief and blank pilot scorecard</a>
         <p class="site-footer-identity" id="site-footer-assets-detail">The brief says what Shiplog records and who operates it; the scorecard is a blank form your evaluating team fills in during a pilot.</p>
-        <p class="site-footer-invitation">Questions about Shiplog? Send the Wawalu team that operates it a follow-up request.</p>
+        <p class="site-footer-invitation">Questions about Shiplog? Send the Wawalu team that operates it a follow-up request. The topics below are about Shiplog — whether it is available for your team, a demonstration, a pilot, and security and data handling — not about an individual post; if your question is about a post, select Report post on it instead.</p>
         <div class="site-footer-panel" id="site-footer-panel">
           <form id="site-footer-form" class="site-footer-form" data-follow-up-type="follow_up_people" data-follow-up-topic="People page — pick a display name, see its image posts, newest first" novalidate>
             <p class="site-footer-note" id="site-footer-offer">There is no self-serve signup and no published price. Whether Shiplog is available for your team and what it would cost are both answered on request.</p>

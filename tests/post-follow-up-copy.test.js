@@ -103,6 +103,11 @@ test("a question typed on the post page reaches the team with the post topic", a
   }
 });
 
+// Social's block is still general — it is about Shiplog and not about one post
+// — and #2557 made it say so. It opens on INVITATION, then names the topics and
+// sends a question about a post to Report post, which is drawn on every card on
+// this page. It carries none of the post page's single-post apparatus: no "this
+// post", no copy control, no instruction to paste a link.
 test("Social feed keeps its general invitation and fixed topic", async () => {
   const page = await loadPage(new URL("../src/social.html", import.meta.url));
   try {
@@ -112,7 +117,10 @@ test("Social feed keeps its general invitation and fixed topic", async () => {
     assert.equal(FOLLOW_UP_TOPICS.follow_up_social, topic);
     assert.equal(document.getElementById("site-footer-form").dataset.followUpTopic, topic);
     assert.equal(textOf(document.getElementById("site-footer-topic-note")), `This request is sent about the ${topic}.`);
-    assert.equal(textOf(document.querySelector(".site-footer-invitation")), "Questions about Shiplog? Send the Wawalu team that operates it a follow-up request.");
+    const sentence = textOf(document.querySelector(".site-footer-invitation"));
+    assert.equal(sentence, `${INVITATION} The topics below are about Shiplog — whether it is available for your team, a demonstration, a pilot, and security and data handling — not about an individual post; if your question is about a post, select Report post on it instead.`);
+    assert.doesNotMatch(sentence, /this post|Copy link|paste the link/,
+      "Social's block borrowed the post page's single-post sentences");
   } finally {
     page.restore();
   }

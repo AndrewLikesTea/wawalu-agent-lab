@@ -235,6 +235,8 @@ test("People: the helper points at the terms instead of restating them, once the
   // cannot be edited or deleted, and anyone can select Report post on it. What
   // is pinned here is that the page carries no orphaned half of the pair — the
   // failure this test was written for was one warning without the other.
+  // Since #2557 the second half also says where the control is, and the count
+  // at the end of this test is what makes that claim true of this page.
   //
   // On the painted DOM, not the markup: src/profile.js takes that paragraph out
   // of the document while the first fetch is open and puts it back, so a wait on
@@ -245,7 +247,7 @@ test("People: the helper points at the terms instead of restating them, once the
   assert.doesNotMatch(helper, REMOVAL_PATH,
     "People recites the composer's own sentence about the removal path");
   assert.ok(helper.trim().endsWith(
-    "A published post is public and cannot be edited or deleted, and anyone can select Report post on it. "
+    "A published post is public and cannot be edited or deleted, and anyone can select Report post on it — the button under every post here and in Social's feed. "
     + "Do not include customer or production data."),
   `People's helper no longer states both halves of the distinction: ${helper}`);
   assert.ok(helper.includes(REPORT_POST_LABEL), `People names the reporting control something other than "${REPORT_POST_LABEL}"`);

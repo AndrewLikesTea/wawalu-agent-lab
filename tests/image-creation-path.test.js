@@ -49,7 +49,7 @@ const NEARBY_INVITATION = { People: documents.People };
 // "Social's publishing terms", a name Social never shows (#2484).
 // tests/social.test.js owns the composer's wording.
 const PEOPLE_CONSEQUENCE =
-  "A published post is public and cannot be edited or deleted, and anyone can select Report post on it. "
+  "A published post is public and cannot be edited or deleted, and anyone can select Report post on it — the button under every post here and in Social's feed. "
   + "Do not include customer or production data.";
 // Social's full sentences, which People does not recite word for word.
 const RETIRED_ON_PEOPLE = [

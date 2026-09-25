@@ -104,6 +104,13 @@ const describedBy = (document) => byId(document, "site-footer-email").getAttribu
 // the same claims. Issue #2153 brought /post.html onto both shapes: it is the
 // page a forwarded link lands on most often, and it was the last one asking for
 // a work address without saying what asking gets.
+// #2557: the two pages that show posts say the same thing the post page says
+// about what this form is for, in one sentence. The topics are about Shiplog;
+// a question about one post goes to Report post, which is a control both of
+// these pages draw on every loaded post. It says where that control is and
+// stops there — how a report is handled is explained once, below Social's feed.
+const FEED_INVITATION = `${INVITATION} The topics below are about Shiplog — whether it is available for your team, a demonstration, a pilot, and security and data handling — not about an individual post; if your question is about a post, select Report post on it instead.`;
+
 const FOOTER_VARIANT = new Map([
   ["index.html", {
     followUpType: "follow_up_homepage", followUpTopic: FOLLOW_UP_TOPICS.follow_up_homepage,
@@ -141,10 +148,12 @@ const FOOTER_VARIANT = new Map([
   }],
   ["social.html", {
     followUpType: "follow_up_social", followUpTopic: FOLLOW_UP_TOPICS.follow_up_social,
+    invitation: FEED_INVITATION,
     collapsedDemos: true, askMessage: true, offer: true, assets: true,
   }],
   ["profile.html", {
     followUpType: "follow_up_people", followUpTopic: FOLLOW_UP_TOPICS.follow_up_people,
+    invitation: FEED_INVITATION,
     collapsedDemos: true, askMessage: true, offer: true, assets: true,
   }],
   // #2470: the observatory carried every other flag the task pages do but this
