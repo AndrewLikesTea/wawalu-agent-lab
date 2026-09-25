@@ -1954,6 +1954,10 @@ export async function initDecisionLog(root = document, storage = localStorage, o
     buildStamp: options.buildStamp,
     readHealth: options.readHealth,
     now: options.deploymentNow,
+    // Injected for the same reason as the reader and the clock: the block's
+    // copy control writes to a clipboard, and a test drives that write rather
+    // than the browser's.
+    clipboard: clipboardRef,
   }).catch(() => {});
 
   document.documentElement.dataset.shiplog = "ready";
