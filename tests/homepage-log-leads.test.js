@@ -122,14 +122,22 @@ test("the first focusable in the log precedes the first focusable in AI FinOps",
     `the log's first tab stop is number ${log} and AI FinOps' is ${finops}: reading order and tab order disagree`);
 
   // Keep the proof’s full-record link in the expected keyboard order.
-  // The seven are the route to the evaluation brief and blank pilot scorecard
+  // The eight are the route to the evaluation brief and blank pilot scorecard
   // inside the offer paragraph (#2540), the full decision record, the follow-up
-  // route, the two deployment-check links, the record-list button, and the
+  // route, the summary of the deployment check's evidence disclosure (#2555),
+  // the two deployment-check links, the record-list button, and the
   // decision-to-release link.
+  //
+  // The check's copy control is deliberately not the ninth. It ships disabled
+  // and is enabled by the render that gives it a verdict to copy, and the check
+  // on this page never reaches an endpoint — so here it is unusable in both the
+  // state it opens in and the state it settles into, and an unusable control is
+  // not a tab stop. A verdict it can copy is asserted in
+  // tests/deployment-status.test.js, where the health read is injected.
   assert.equal(
     sequence.filter((element) => ancestorIds(element).includes("shiplog-entry")).length,
-    7,
-    "the log entry section must still offer its seven tab stops including the full decision record",
+    8,
+    "the log entry section must still offer its eight tab stops including the full decision record",
   );
 });
 

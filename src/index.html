@@ -164,6 +164,36 @@
           <p class="release-followup-lead" id="deployment-status-proof">This compares the version this site is running with the version in the deployment record. A match means the page you are reading came from the build that record names.</p>
           <p class="release-followup-lead" id="deployment-verdict" role="status">Checking the running build now…</p>
           <p class="detail-summary" id="deployment-metric"></p>
+          <!-- THE SAME CONTROL AND THE SAME EVIDENCE THE RELEASES BAND OFFERS,
+               not a second pair. The ids are the ones src/deployment-status-view.js
+               fills, the label is DEPLOYMENT_COPY_LABEL and the copied text
+               verdictCopyText(), both from src/deployment-status.js, and the
+               address that text names as its source is read off this page's own
+               location rather than written here — so a pasted proof says which
+               page it came from, and the two pages cannot word one control two
+               ways. No rule was added: share-control, share-button, share-status
+               and the disclosure classes all already ship in styles.css, which
+               is at its measured size budget.
+               IT SHIPS DISABLED, AND SAYS WHY. Before the check answers there is
+               no verdict to copy, so the control is unusable and the line beside
+               it — which describes the control through aria-describedby — says
+               when it becomes usable. The settling render clears that line. A
+               check that could not answer withdraws the control instead and says
+               there is no verdict to copy yet.
+               THE STATUS LINE IS A SIBLING OF THE BUTTON AND NOT INSIDE THE
+               DISCLOSURE. A live region folded inside a closed details element is
+               announced by nothing in a real browser, so the confirmation lives
+               out here where it is both read and readable. It confirms the copy
+               and nothing else: the verdict above already says whether the two
+               versions matched. -->
+          <div class="share-control">
+            <button class="share-button" id="deployment-copy" type="button" disabled aria-describedby="deployment-copy-status">Copy the deployment check verdict and both versions</button>
+            <span class="share-status" id="deployment-copy-status" role="status" aria-live="polite" aria-atomic="true">This becomes available to copy once the check answers.</span>
+          </div>
+          <details class="supersede-disclosure" id="deployment-evidence" data-disclosure="collapsed">
+            <summary class="supersede-disclosure-summary" id="deployment-evidence-summary" aria-expanded="false" aria-controls="deployment-evidence-body">Evidence: what the running build answered, and the deployment record it was compared with</summary>
+            <dl class="supersede-disclosure-body" id="deployment-evidence-body"></dl>
+          </details>
           <p class="hero-proof-boundary"><span>It reads the running build when the page loads. The example decision and release above are invented; this answer is not.</span></p>
           <p><a class="text-link" id="deployment-commit" href="https://github.com/AndrewLikesTea/wawalu-agent-lab">Open the public repository this site is built from</a></p>
           <p><a class="text-link" href="/releases.html#deployment-status">See the deployment check on Releases</a></p>

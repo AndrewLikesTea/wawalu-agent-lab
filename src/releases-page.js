@@ -496,6 +496,10 @@ export function initReleasesPage(root = document, storage = localStorage, option
     readHealth: options.readHealth,
     now: options.now,
     clipboard: options.clipboard,
+    // Left out on purpose: `copyRequiresVerdict`. Here the copied text of a
+    // check that could not answer is the thing an operator pastes into an
+    // incident note, so the control stays. `pageAddress` is left to the module,
+    // which reads this page's own address off the live location.
   }).catch(() => {});
 
   update();

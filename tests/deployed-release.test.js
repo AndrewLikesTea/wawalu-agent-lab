@@ -70,6 +70,9 @@ async function open(
 ) {
   const page = await loadPage(RELEASES_PAGE, {
     storage: { [STORAGE_KEY]: JSON.stringify([]), [RELEASE_STORAGE_KEY]: JSON.stringify([]) },
+    // The copied proof names the address it was copied from, read off the live
+    // location, so the harness has to model this page as the page open.
+    location: { pathname: "/releases.html" },
   });
   t.after(() => page.restore());
   initReleasesPage(page.document, page.storage, {
@@ -466,10 +469,12 @@ test("the body the endpoint really serves is one this band reads, and it resolve
   assert.equal(page.document.querySelector("#deployment-status").dataset.deploymentState, "match");
   assert.match(verdictText(page), /^Confirmed: this site is running [0-9a-f]{40}, the version/);
   // And the copy a buyer takes away carries the same two values, from the same
-  // check, rather than a second reading of it.
+  // check, rather than a second reading of it — plus the address of the page it
+  // was taken from, so a pasted proof says where it came from (#2555).
   assert.equal(
     page.document.querySelector("#deployment-copy").dataset.copyText,
-    `Deployment check verdict: ${verdictText(page)}\nRunning build version: ${SHA}. Deployment record version: ${SHA}.`,
+    `Deployment check verdict: ${verdictText(page)}\nRunning build version: ${SHA}. Deployment record version: ${SHA}.`
+      + "\nCopied from: https://labs.wawalu.org/releases.html",
   );
 });
 

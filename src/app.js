@@ -1949,11 +1949,20 @@ export async function initDecisionLog(root = document, storage = localStorage, o
   // initDeploymentStatus returns on a missing panel. `deploymentNow` is its own
   // option because `options.now` here is a millisecond number and the check
   // reads an ISO string.
+  //
+  // The copy control and the evidence disclosure are the releases band's, not a
+  // second pair: same module, same label, same builder for the copied text. The
+  // one thing this page asks for that the releases page does not is
+  // `copyRequiresVerdict` — the front door's block is a proof a buyer takes
+  // away, and a check that could not answer produced nothing to take.
   initDeploymentStatus(root, {
     release: options.deployedRelease,
     buildStamp: options.buildStamp,
     readHealth: options.readHealth,
     now: options.deploymentNow,
+    clipboard: clipboardRef,
+    pageAddress: options.pageAddress,
+    copyRequiresVerdict: true,
   }).catch(() => {});
 
   document.documentElement.dataset.shiplog = "ready";

@@ -16,6 +16,11 @@ import { STORAGE_KEY, initDecisionLog } from "../src/app.js";
 import { RELEASE_STORAGE_KEY } from "../src/releases.js";
 import { initReleasesPage } from "../src/releases-page.js";
 import {
+  COPY_CONFIRMED_TEXT,
+  COPY_FAILED_TEXT,
+  COPY_PENDING_TEXT,
+  COPY_UNRESOLVED_TEXT,
+  DEPLOYMENT_COPY_LABEL,
   MAX_IDENTIFIER_LENGTH,
   UNKNOWN_REASONS,
   deploymentVerdict,
@@ -27,12 +32,13 @@ import {
 } from "../src/deployment-status.js";
 import {
   DEPLOYMENT_IDS,
+  currentPageAddress,
   parseHealthBody,
   probeHealth,
   renderDeploymentStatus,
 } from "../src/deployment-status-view.js";
 import { REPOSITORY_URL, commitLinkText, commitUrl } from "../src/deployed-release.js";
-import { loadPage, pressEnter, pressTab, textOf } from "./support/browser.js";
+import { loadPage, pressEnter, pressTab, tabSequence, textOf } from "./support/browser.js";
 import { waitFor } from "./support/page-module.js";
 
 const RELEASES_PAGE = new URL("../src/releases.html", import.meta.url);
@@ -62,6 +68,9 @@ async function openReleases(t, { releases = [OLDER, NEWEST], readHealth, deploye
       [STORAGE_KEY]: JSON.stringify([]),
       [RELEASE_STORAGE_KEY]: JSON.stringify(releases),
     },
+    // The copied proof names the address it came from, read off the live
+    // location, so the harness has to model this page as the page open.
+    location: { pathname: "/releases.html" },
   });
   t.after(() => page.restore());
   // The record the check compares against is injected for the same reason the
@@ -276,6 +285,9 @@ test("the visible copy control copies the verdict plus both compared version val
       [STORAGE_KEY]: JSON.stringify([]),
       [RELEASE_STORAGE_KEY]: JSON.stringify([OLDER, NEWEST]),
     },
+    // The copied proof names the address it came from, read off the live
+    // location, so the harness has to model this page as the page open.
+    location: { pathname: "/releases.html" },
   });
   t.after(() => page.restore());
   initReleasesPage(page.document, page.storage, {
@@ -293,19 +305,22 @@ test("the visible copy control copies the verdict plus both compared version val
   // verdict: …". Before that, the button said "Copy verdict and both versions"
   // and the success line said "Deployment verdict …", so one band offered a
   // reader three names for the thing it had just answered.
+  assert.equal(textOf(button), DEPLOYMENT_COPY_LABEL);
   assert.equal(textOf(button), "Copy the deployment check verdict and both versions");
   assert.equal(button.getAttribute("aria-describedby"), "deployment-copy-status");
   button.click();
   await waitFor(() => textOf(page.document.querySelector("#deployment-copy-status")) !== "");
 
   const verdict = deploymentVerdict({ health: { status: "ok", build: "v2.0.0" } }, NEWEST, NOW);
-  assert.equal(copied, verdictCopyText(verdict));
+  assert.equal(copied, verdictCopyText(verdict, "https://labs.wawalu.org/releases.html"));
   assert.match(copied, /^Deployment check verdict: Not a match:/);
   assert.match(copied, /Running build version: v2\.0\.0/);
   assert.match(copied, /Deployment record version: v2\.1\.0/);
+  // And where it was copied from, so the paste is checkable away from the page.
+  assert.match(copied, /\nCopied from: https:\/\/labs\.wawalu\.org\/releases\.html$/);
   assert.equal(
     textOf(page.document.querySelector("#deployment-copy-status")),
-    "Deployment check verdict and both version values copied to clipboard.",
+    COPY_CONFIRMED_TEXT,
   );
 });
 
@@ -356,10 +371,7 @@ test("copy preserves an unavailable running value and gives recoverable feedback
   await waitFor(() => textOf(page.document.querySelector("#deployment-copy-status")) !== "");
   assert.match(button.dataset.copyText, /Running build version: not reported/);
   assert.match(button.dataset.copyText, /Deployment record version: v2\.1\.0/);
-  assert.equal(
-    textOf(page.document.querySelector("#deployment-copy-status")),
-    "Clipboard unavailable. Select the verdict and both version values above to copy them.",
-  );
+  assert.equal(textOf(page.document.querySelector("#deployment-copy-status")), COPY_FAILED_TEXT);
 });
 
 test("an aborted health check is reported as a timeout, not as an unreachable endpoint", async (t) => {
@@ -468,7 +480,10 @@ test("an identifier the page cannot show whole is refused, never stripped into a
   // refused identifier must not ride an override into a document elsewhere.
   const copyText = page.document.querySelector("#deployment-copy").dataset.copyText;
   assert.equal(copyText.includes(BIDI_OVERRIDE), false, "an invisible override reached the copied result");
-  assert.equal(copyText.endsWith(identifiers), true, "the copy and the band worded the comparison differently");
+  // The comparison line is the copied text's second line, worded identically to
+  // the band's; the third is the address the proof was copied from (#2555).
+  assert.equal(copyText.split("\n")[1], identifiers, "the copy and the band worded the comparison differently");
+  assert.equal(copyText.split("\n")[2], "Copied from: https://labs.wawalu.org/releases.html");
 });
 
 test("a record this band cannot route to is not linked by its next action", async (t) => {
@@ -557,13 +572,16 @@ const UNSTAMPED_STAMP = Object.freeze({ schemaVersion: 1, commitSha: null, built
 
 async function openHome(
   t,
-  { releases = [OLDER, NEWEST], readHealth, buildStamp = HOME_STAMP, settle = true } = {},
+  { releases = [OLDER, NEWEST], readHealth, buildStamp = HOME_STAMP, settle = true, clipboard } = {},
 ) {
   const page = await loadPage(HOME_PAGE, {
     storage: {
       [STORAGE_KEY]: JSON.stringify([]),
       [RELEASE_STORAGE_KEY]: JSON.stringify(releases),
     },
+    // The copied proof names the address it came from, read off the live
+    // location, so the harness has to model the front door as the page open.
+    location: { pathname: "/" },
   });
   t.after(() => page.restore());
   await initDecisionLog(page.document, page.storage, {
@@ -572,6 +590,7 @@ async function openHome(
     buildStamp,
     deploymentNow: () => NOW,
     deployedRelease: NEWEST,
+    clipboard,
   });
   if (settle) {
     await waitFor(
@@ -900,4 +919,222 @@ test("an unstamped build offers no commit rather than an invented one", async (t
   const link = commitLink(page);
   assert.equal(link.hidden, true, "an unstamped build linked a commit it cannot name");
   assert.doesNotMatch(textOf(page.document.querySelector(`#${DEPLOYMENT_IDS.panel}`)), /Open commit/);
+});
+
+/* ------ taking the front door's verdict away as proof (#2555) -------------- */
+//
+// The releases band has offered a copy control and an evidence disclosure since
+// #2423; the front door had the sentence and nothing to do with it. These tests
+// pin the port: the SAME label, from one constant, the SAME builder for the
+// copied text with this page's own address passed in, and the same disclosure —
+// plus the two states the front door words differently from Releases, because
+// this block is a proof a buyer takes away rather than an operator's incident
+// note.
+
+const HOME_ADDRESS = "https://labs.wawalu.org/";
+const copyButton = (page) => page.document.querySelector(`#${DEPLOYMENT_IDS.copy}`);
+const copyStatusText = (page) => textOf(page.document.querySelector(`#${DEPLOYMENT_IDS.copyStatus}`));
+
+test("the front door's copy control carries the releases control's label, from one constant", async (t) => {
+  // Both documents are read as bytes rather than booted side by side: two live
+  // pages in one test leave the wrong page's globals installed on teardown, and
+  // what is being asserted here is that neither document retypes the label.
+  for (const page of [HOME_PAGE, RELEASES_PAGE]) {
+    const html = await readFile(page, "utf8");
+    assert.equal(
+      (html.match(/Copy the deployment check verdict and both versions/g) ?? []).length,
+      1,
+      `${page.pathname} must author the copy control exactly once`,
+    );
+    assert.ok(html.includes(DEPLOYMENT_COPY_LABEL), `${page.pathname} spells the copy label its own way`);
+  }
+
+  // And the painted control is named by the module, not by the markup, so an
+  // edit to one document cannot move one page's label away from the other's.
+  const home = await openHome(t, { readHealth: answers({ status: "ok", build: "v2.1.0" }) });
+  assert.equal(home.document.querySelectorAll(`#${DEPLOYMENT_IDS.copy}`).length, 1);
+  assert.equal(textOf(copyButton(home)), DEPLOYMENT_COPY_LABEL);
+  // A real button that submits nothing, described by the line that reports what
+  // pressing it did.
+  assert.equal(copyButton(home).tagName, "BUTTON");
+  assert.equal(copyButton(home).getAttribute("type"), "button");
+  assert.equal(copyButton(home).getAttribute("aria-describedby"), DEPLOYMENT_IDS.copyStatus);
+});
+
+test("the front door copies the verdict, both versions, and this page's own address", async (t) => {
+  let copied = null;
+  const page = await openHome(t, {
+    readHealth: answers({ status: "ok", build: "v2.0.0" }),
+    clipboard: { writeText: async (value) => { copied = value; } },
+  });
+
+  const button = copyButton(page);
+  assert.equal(button.disabled, false, "the control stayed unusable after the check answered");
+  assert.equal(button.hidden, false, "the control was withdrawn from a check that answered");
+  button.click();
+  await waitFor(() => copyStatusText(page) !== "");
+
+  // Byte for byte the shared builder's output, with this page's address passed
+  // in — not a second spelling of the same four facts.
+  const verdict = deploymentVerdict({ health: { status: "ok", build: "v2.0.0" } }, NEWEST, NOW);
+  assert.equal(copied, verdictCopyText(verdict, HOME_ADDRESS));
+  assert.equal(
+    copied,
+    "Deployment check verdict: Not a match: this site is running v2.0.0,"
+      + " but the deployment record names v2.1.0."
+      + "\nRunning build version: v2.0.0. Deployment record version: v2.1.0."
+      + `\nCopied from: ${HOME_ADDRESS}`,
+  );
+  // The address is read off the live location, not written into the page: the
+  // same derivation, asked directly, answers the same thing.
+  assert.equal(currentPageAddress(), HOME_ADDRESS);
+});
+
+test("the front door's confirmation reports the copy and claims nothing about the comparison", async (t) => {
+  let copied = null;
+  const page = await openHome(t, {
+    readHealth: answers({ status: "ok", build: "v2.1.0" }),
+    clipboard: { writeText: async (value) => { copied = value; } },
+  });
+  copyButton(page).click();
+  await waitFor(() => copyStatusText(page) !== "");
+
+  assert.equal(copyStatusText(page), COPY_CONFIRMED_TEXT);
+  assert.match(copied, /^Deployment check verdict: Confirmed: this site is running v2\.1\.0/);
+  // A match was copied here, and the confirmation still says only that a copy
+  // happened: a line that repeated the verdict would make the button a second
+  // claim about the comparison.
+  assert.doesNotMatch(copyStatusText(page), /match|mismatch|confirmed|drift|running/i);
+
+  // And it is announced where a real browser can announce it: a live region, and
+  // not one folded inside a disclosure that ships closed.
+  const status = page.document.querySelector(`#${DEPLOYMENT_IDS.copyStatus}`);
+  assert.equal(status.getAttribute("role"), "status");
+  assert.equal(status.getAttribute("aria-live"), "polite");
+  for (let node = status.parentNode; node; node = node.parentNode) {
+    assert.notEqual(node.tagName, "DETAILS", "the confirmation is folded inside a disclosure");
+  }
+});
+
+test("the front door offers nothing to copy until the check answers, and says when it will", async (t) => {
+  let answer;
+  let copied = null;
+  const page = await openHome(t, {
+    readHealth: () => new Promise((resolve) => { answer = resolve; }),
+    settle: false,
+    clipboard: { writeText: async (value) => { copied = value; } },
+  });
+  const button = copyButton(page);
+
+  await waitFor(() => typeof answer === "function", "the probe never started");
+  assert.equal(verdictText(page), WAITING_LINE, "the block had already answered");
+  // Visibly unavailable, with the reason beside it — asserted on the attribute
+  // and the line, because the harness never blurs a disabled control and a
+  // focus assertion would pass on a page that only looked disabled.
+  assert.equal(button.disabled, true, "a result was offered for copying before the check produced one");
+  assert.equal(copyStatusText(page), COPY_PENDING_TEXT);
+  assert.equal(copyStatusText(page), "This becomes available to copy once the check answers.");
+  button.click();
+  await Promise.resolve();
+  assert.equal(copied, null, "a half-loaded page wrote to the clipboard");
+
+  // Once the check answers the control becomes usable and the waiting line goes:
+  // it described a wait that is over.
+  answer({ status: "ok", build: "v2.1.0" });
+  await waitFor(() => page.document.documentElement.dataset.shiplogDeployment === "ready");
+  assert.equal(button.disabled, false);
+  assert.equal(copyStatusText(page), "");
+});
+
+test("the front door's evidence disclosure names both sides and is reachable by keyboard", async (t) => {
+  const page = await openHome(t, {
+    readHealth: answers({ status: "ok", build: "v2.1.0", storage: "available" }),
+  });
+  const details = page.document.querySelector(`#${DEPLOYMENT_IDS.evidence}`);
+  const summary = page.document.querySelector(`#${DEPLOYMENT_IDS.evidenceSummary}`);
+
+  // Closed on arrival. `!open` rather than equality: a closed disclosure reads
+  // back as undefined in this harness, not false.
+  assert.ok(!details.open);
+  assert.equal(details.hasAttribute("open"), false);
+  assert.equal(summary.getAttribute("aria-expanded"), "false");
+  assert.equal(details.dataset.disclosure, "collapsed");
+  assert.equal(summary.getAttribute("aria-controls"), DEPLOYMENT_IDS.evidenceBody);
+  // The same words the releases disclosure is summarised with, and the same
+  // classes, so the port needed no rule of its own.
+  assert.equal(
+    textOf(summary),
+    "Evidence: what the running build answered, and the deployment record it was compared with",
+  );
+  assert.equal(details.getAttribute("class"), "supersede-disclosure");
+  assert.equal(summary.getAttribute("class"), "supersede-disclosure-summary");
+
+  let reached = false;
+  for (let step = 0; step < 400 && !reached; step += 1) reached = pressTab(page.document) === summary;
+  assert.ok(reached, "the front door's evidence disclosure is not reachable by keyboard");
+  pressEnter(page.document);
+  assert.equal(details.hasAttribute("open"), true, "Enter did not open the disclosure");
+  assert.equal(summary.getAttribute("aria-expanded"), "true");
+
+  // What the running build answered, and the record it was compared with.
+  assert.deepEqual(evidencePairs(page), [
+    ["Checked at", NOW],
+    ["status", "ok"],
+    ["build", "v2.1.0"],
+    ["storage", "available"],
+    ["Record id", "r-2-1-0"],
+    ["Version", "v2.1.0"],
+    ["Title", "Queue drain"],
+    ["Status", "completed"],
+    ["Owner", "Ellis"],
+    ["Recorded at", "2026-08-04T12:00:00.000Z"],
+  ]);
+});
+
+test("a front-door check that could not answer offers no copy control and says why", async (t) => {
+  let copied = null;
+  const page = await openHome(t, {
+    readHealth: fails("TypeError"),
+    clipboard: { writeText: async (value) => { copied = value; } },
+  });
+  const button = copyButton(page);
+
+  assert.match(verdictText(page), /The check did not complete/);
+  // Withdrawn both ways: out of sight, and out of the tab order.
+  assert.equal(button.hidden, true, "a check with no verdict still offered one for copying");
+  assert.equal(button.disabled, true);
+  const sequence = tabSequence(page.document);
+  assert.equal(
+    sequence.filter((element) => element.getAttribute("id") === DEPLOYMENT_IDS.copy).length,
+    0,
+    "the withdrawn control is still a tab stop",
+  );
+  // And the reason, in plain words, where the control was.
+  assert.equal(copyStatusText(page), COPY_UNRESOLVED_TEXT);
+  assert.equal(copyStatusText(page), "The check could not answer, so there is no verdict to copy yet.");
+
+  // A click that reaches it anyway writes nothing: there is no verdict behind it.
+  button.click();
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.equal(copied, null, "a check with no verdict wrote to the clipboard");
+
+  // The evidence is still there — what the probe failed to answer is the one
+  // thing a reader in this state has to look at.
+  assert.equal(page.document.querySelectorAll(`#${DEPLOYMENT_IDS.evidence}`).length, 1);
+  assert.deepEqual(evidencePairs(page).slice(0, 2), [
+    ["Checked at", NOW],
+    ["Health response", "Not received — unreachable."],
+  ]);
+});
+
+test("the releases page keeps its copy control when the check could not answer", async (t) => {
+  // The other half of the difference, stated as a test so neither page drifts
+  // into the other's behaviour: an operator pasting "the check did not complete"
+  // into an incident note is exactly who that control is for.
+  const page = await openReleases(t, { readHealth: fails("TypeError") });
+  const button = page.document.querySelector(`#${DEPLOYMENT_IDS.copy}`);
+  assert.equal(button.hidden, false, "the releases band withdrew a control an operator needs");
+  assert.equal(button.disabled, false);
+  assert.match(button.dataset.copyText, /^Deployment check verdict: The check did not complete/);
 });

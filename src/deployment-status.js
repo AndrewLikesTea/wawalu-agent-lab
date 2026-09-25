@@ -268,10 +268,59 @@ export function comparedVersionsText(verdict) {
  * Verdict first, then the two values it was drawn from — the order the band
  * itself reads in, so a pasted incident note and the page it came from make the
  * same claim in the same words.
+ *
+ * WHY THE ADDRESS IS A PARAMETER AND NOT A LITERAL. Two pages now carry this
+ * control, and a pasted proof is read somewhere neither of them is open, so it
+ * has to say which page it came from. The page is the one thing this builder
+ * cannot know — it is pure, with no location of its own — so the caller passes
+ * its own address in, read off the live location by
+ * `currentPageAddress` in deployment-status-view.js. A caller that has no
+ * address to give gets the two-line form rather than a line naming nothing.
  */
-export function verdictCopyText(verdict) {
-  return `Deployment check verdict: ${verdictSentence(verdict)}\n${comparedVersionsText(verdict)}`;
+export function verdictCopyText(verdict, pageAddress = "") {
+  const address = typeof pageAddress === "string" ? pageAddress.trim() : "";
+  const body = `Deployment check verdict: ${verdictSentence(verdict)}\n${comparedVersionsText(verdict)}`;
+  return address ? `${body}\nCopied from: ${address}` : body;
 }
+
+/**
+ * THE COPY CONTROL'S OWN WORDS, from one place, for every page that offers it.
+ *
+ * The control is authored into both documents so a reader whose scripts have
+ * not run still sees it, and `bindDeploymentCopy` writes this label over
+ * whatever the markup said — so the two pages cannot drift into two names for
+ * one control, and neither can drift from the name the tests pin.
+ */
+export const DEPLOYMENT_COPY_LABEL = "Copy the deployment check verdict and both versions";
+
+/**
+ * What the status line says while the check is still reading the running build.
+ *
+ * Authored into the document beside a disabled control, and described by it, so
+ * the reason the control is unusable is read out with the control rather than
+ * left to its greyed-out appearance. Cleared by the render that enables it.
+ */
+export const COPY_PENDING_TEXT = "This becomes available to copy once the check answers.";
+
+/**
+ * What it says on a page that withdraws the control when the check could not
+ * answer. Plain words for a plain state: there is no verdict, so there is
+ * nothing to put on a clipboard, and the line says that rather than leaving a
+ * control that would copy the absence of an answer.
+ */
+export const COPY_UNRESOLVED_TEXT = "The check could not answer, so there is no verdict to copy yet.";
+
+/**
+ * The confirmation, and it is about the copy and nothing else.
+ *
+ * It deliberately names neither a match nor a mismatch: the verdict above
+ * already says which one this is, and a confirmation that repeated it would be
+ * a second claim made by the act of pressing a button.
+ */
+export const COPY_CONFIRMED_TEXT = "Deployment check verdict and both version values copied to clipboard.";
+
+/** The recoverable failure, naming the next step rather than the cause. */
+export const COPY_FAILED_TEXT = "Clipboard unavailable. Select the verdict and both version values above to copy them.";
 
 // What a matching verdict says instead of offering an action.
 export const NO_ACTION_TEXT = `No action is needed: the version running is the one ${REAL_RECORD_NAME} names.`;

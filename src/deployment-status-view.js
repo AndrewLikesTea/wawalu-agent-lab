@@ -15,6 +15,10 @@
 // action is a link to a record a person then operates.
 
 import {
+  COPY_CONFIRMED_TEXT,
+  COPY_FAILED_TEXT,
+  COPY_UNRESOLVED_TEXT,
+  DEPLOYMENT_COPY_LABEL,
   NO_ACTION_TEXT,
   comparedVersionsText,
   deploymentVerdict,
@@ -145,10 +149,49 @@ function releaseEntries(release) {
 }
 
 /**
+ * The address of the page this band is painted on, for the copied proof.
+ *
+ * Read off the live location and never written down: the same band ships on two
+ * pages, and a hard-coded address would be right on one of them at most. `href`
+ * when the environment has one; otherwise the origin and path composed, which
+ * is what the ordinary case needs and what a harness that models a location
+ * without an `href` still answers. Anything it cannot compose is "", and the
+ * copied text then carries the two lines it always did rather than a line
+ * naming nowhere.
+ */
+export function currentPageAddress(locationRef = globalThis.window?.location ?? globalThis.location) {
+  const href = typeof locationRef?.href === "string" ? locationRef.href.trim() : "";
+  if (href) return href;
+  const origin = typeof locationRef?.origin === "string" ? locationRef.origin.trim() : "";
+  if (!origin) return "";
+  const path = typeof locationRef?.pathname === "string" && locationRef.pathname !== ""
+    ? locationRef.pathname
+    : "/";
+  try {
+    return new URL(path, origin).href;
+  } catch {
+    return "";
+  }
+}
+
+/**
  * Paint one verdict. Synchronous and side-effect free apart from the DOM it is
  * handed, so a test can render a verdict object directly.
+ *
+ * @param options.pageAddress the address the copied proof names as its source.
+ * @param options.copyRequiresVerdict withdraw the copy control when the check
+ *   could not answer, and say why, instead of offering a copy of the absence of
+ *   an answer. The front door sets it: its block is a proof a buyer takes away,
+ *   and there is nothing to take away from a check that did not complete. The
+ *   releases page does not, because there the copied text of a failed check is
+ *   the thing an operator pastes into an incident note.
  */
-export function renderDeploymentStatus(root, verdict, { reading = null, release = null } = {}) {
+export function renderDeploymentStatus(root, verdict, {
+  reading = null,
+  release = null,
+  pageAddress = "",
+  copyRequiresVerdict = false,
+} = {}) {
   const panel = byId(root, DEPLOYMENT_IDS.panel);
   if (!panel) return null;
   const doc = root.ownerDocument ?? root;
@@ -169,12 +212,24 @@ export function renderDeploymentStatus(root, verdict, { reading = null, release 
   const metric = byId(root, DEPLOYMENT_IDS.metric);
   if (metric) metric.textContent = verdictMetricText(verdict);
   const copy = byId(root, DEPLOYMENT_IDS.copy);
+  const copyStatus = byId(root, DEPLOYMENT_IDS.copyStatus);
   if (copy) {
-    copy.dataset.copyText = verdictCopyText(verdict);
+    // A check that did not complete produced no verdict. Where the page said it
+    // would withdraw the control in that state, it goes — hidden AND disabled,
+    // so it is neither seen nor tabbed to — and the line beside it says in plain
+    // words that there is nothing to copy.
+    const unresolved = copyRequiresVerdict && verdict.state === "unknown";
+    copy.dataset.copyText = verdictCopyText(verdict, pageAddress);
+    copy.hidden = unresolved;
     // The control ships disabled and is enabled by the render that gives it
     // something to say. Before a verdict exists there is no result to copy, and
     // a click on nothing would report a clipboard failure that never happened.
-    copy.disabled = false;
+    copy.disabled = unresolved;
+    // The status line reports the last copy, and no copy has happened yet — so
+    // the render that settles the check clears whatever the document authored
+    // there to explain the wait, and replaces it only when there is a state to
+    // explain instead.
+    if (copyStatus) copyStatus.textContent = unresolved ? COPY_UNRESOLVED_TEXT : "";
   }
 
   const slot = byId(root, DEPLOYMENT_IDS.action);
@@ -217,13 +272,14 @@ export function bindDeploymentCopy(root, clipboard = globalThis.navigator?.clipb
   const status = byId(root, DEPLOYMENT_IDS.copyStatus);
   if (!button || !status || button.dataset.copyBound === "true") return null;
   button.dataset.copyBound = "true";
+  // The label comes from the module, not from the markup, so the two documents
+  // that author this control cannot end up naming it two things.
+  button.textContent = DEPLOYMENT_COPY_LABEL;
   button.addEventListener("click", async () => {
     button.disabled = true;
     status.textContent = "";
     const copied = await copyRecordUrl(clipboard, button.dataset.copyText);
-    status.textContent = copied
-      ? "Deployment check verdict and both version values copied to clipboard."
-      : "Clipboard unavailable. Select the verdict and both version values above to copy them.";
+    status.textContent = copied ? COPY_CONFIRMED_TEXT : COPY_FAILED_TEXT;
     button.disabled = false;
   });
   return button;
@@ -293,6 +349,11 @@ export function bindDeploymentEvidence(root) {
  * @param options.readHealth injected reader; tests pass a fixture, production
  *   leaves it out and gets `healthEndpointReader()`.
  * @param options.now injected clock, for the same reason.
+ * @param options.pageAddress the address the copied proof names as its source.
+ *   Left out, it is read off the live location, which is what both pages want
+ *   in production — the same band ships on two addresses.
+ * @param options.copyRequiresVerdict see `renderDeploymentStatus`: withdraw the
+ *   copy control when the check could not answer. The front door sets it.
  */
 export async function initDeploymentStatus(root, options = {}) {
   const panel = byId(root, DEPLOYMENT_IDS.panel);
@@ -316,7 +377,12 @@ export async function initDeploymentStatus(root, options = {}) {
     // blank panel and never a thrown error a reader would see as a broken page.
     verdict = deploymentVerdict({ failure: "unreachable", checkedAt }, release, checkedAt);
   }
-  renderDeploymentStatus(root, verdict, { reading, release });
+  renderDeploymentStatus(root, verdict, {
+    reading,
+    release,
+    pageAddress: options.pageAddress ?? currentPageAddress(),
+    copyRequiresVerdict: options.copyRequiresVerdict === true,
+  });
   const documentElement = root.documentElement ?? globalThis.document?.documentElement;
   if (documentElement) documentElement.dataset.shiplogDeployment = "ready";
   return verdict;
