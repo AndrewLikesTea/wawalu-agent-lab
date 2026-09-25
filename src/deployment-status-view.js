@@ -36,6 +36,7 @@ export const DEPLOYMENT_IDS = Object.freeze({
   metric: "deployment-metric",
   copy: "deployment-copy",
   copyStatus: "deployment-copy-status",
+  copyAvailability: "deployment-copy-availability",
   action: "deployment-next-action",
   actionTarget: "deployment-next-action-target",
   evidence: "deployment-evidence",
@@ -89,6 +90,35 @@ export async function probeHealth(readHealth, checkedAt) {
   } catch (error) {
     const aborted = error?.name === "AbortError" || error?.name === "TimeoutError";
     return { failure: aborted ? "timeout" : "unreachable", checkedAt };
+  }
+}
+
+// What the copy control's availability means, said in words next to it. A
+// disabled control explains nothing on its own, and a control that has been
+// withdrawn explains even less, so a surface that carries the availability slot
+// gets a sentence for each state the control is not usable in.
+export const COPY_PENDING_LINE = "The copy control becomes available once the check answers.";
+export const COPY_NO_VERDICT_LINE = "The check did not answer, so there is no verdict to copy yet.";
+
+/**
+ * The address of the page a verdict is being copied from.
+ *
+ * Read off the live location rather than written down, because the same control
+ * is mounted on more than one page and a hard-coded path would have every paste
+ * name whichever page was authored first. Origin and path only: the query
+ * string and fragment a reader happens to be on are not part of where the check
+ * ran, and this site's other copy controls leave them out for the same reason
+ * (src/share-link.js). A location this cannot read returns null, which
+ * `verdictCopyText` renders as no address rather than as a guessed one.
+ */
+export function pageAddress(location = globalThis.window?.location) {
+  const origin = typeof location?.origin === "string" ? location.origin.trim() : "";
+  if (!origin) return null;
+  const path = typeof location?.pathname === "string" && location.pathname.trim() ? location.pathname.trim() : "/";
+  try {
+    return new URL(path, origin).href;
+  } catch {
+    return null;
   }
 }
 
@@ -148,7 +178,11 @@ function releaseEntries(release) {
  * Paint one verdict. Synchronous and side-effect free apart from the DOM it is
  * handed, so a test can render a verdict object directly.
  */
-export function renderDeploymentStatus(root, verdict, { reading = null, release = null } = {}) {
+export function renderDeploymentStatus(
+  root,
+  verdict,
+  { reading = null, release = null, location = globalThis.window?.location } = {},
+) {
   const panel = byId(root, DEPLOYMENT_IDS.panel);
   if (!panel) return null;
   const doc = root.ownerDocument ?? root;
@@ -169,13 +203,30 @@ export function renderDeploymentStatus(root, verdict, { reading = null, release 
   const metric = byId(root, DEPLOYMENT_IDS.metric);
   if (metric) metric.textContent = verdictMetricText(verdict);
   const copy = byId(root, DEPLOYMENT_IDS.copy);
+  // A comparison that came out one way or the other is a verdict somebody can
+  // paste into an incident note. "The check did not complete" is not one: it is
+  // the absence of the thing the control offers to copy.
+  const hasVerdict = verdict.state === "match" || verdict.state === "drift";
+  // Only a surface that carries the availability line takes the second half of
+  // this rule — withdrawing the control when there is no verdict — because that
+  // is the half a reader cannot understand without a sentence explaining it.
+  // The releases page carries no such line and keeps its long-standing
+  // behaviour: it offers the copy in every settled state, including the one
+  // that failed, because the band's own rule there is that a proof a reader
+  // takes away must say what it failed to establish.
+  const availability = byId(root, DEPLOYMENT_IDS.copyAvailability);
   if (copy) {
-    copy.dataset.copyText = verdictCopyText(verdict);
+    const offered = hasVerdict || !availability;
+    // Empty rather than stale when nothing is offered: a hidden control whose
+    // payload still reads as a verdict is one focus bug away from copying it.
+    copy.dataset.copyText = offered ? verdictCopyText(verdict, pageAddress(location)) : "";
     // The control ships disabled and is enabled by the render that gives it
     // something to say. Before a verdict exists there is no result to copy, and
     // a click on nothing would report a clipboard failure that never happened.
-    copy.disabled = false;
+    copy.disabled = !offered;
+    copy.hidden = !offered;
   }
+  if (availability) availability.textContent = hasVerdict ? "" : COPY_NO_VERDICT_LINE;
 
   const slot = byId(root, DEPLOYMENT_IDS.action);
   if (slot) {

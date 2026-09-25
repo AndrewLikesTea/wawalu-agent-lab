@@ -276,6 +276,10 @@ test("the visible copy control copies the verdict plus both compared version val
       [STORAGE_KEY]: JSON.stringify([]),
       [RELEASE_STORAGE_KEY]: JSON.stringify([OLDER, NEWEST]),
     },
+    // The copied text names the page it was copied from (#2555), and this check
+    // is mounted on two of them. Stating the path here is what makes the
+    // assertion below about a derivation rather than about a default.
+    location: { pathname: "/releases.html" },
   });
   t.after(() => page.restore());
   initReleasesPage(page.document, page.storage, {
@@ -299,10 +303,12 @@ test("the visible copy control copies the verdict plus both compared version val
   await waitFor(() => textOf(page.document.querySelector("#deployment-copy-status")) !== "");
 
   const verdict = deploymentVerdict({ health: { status: "ok", build: "v2.0.0" } }, NEWEST, NOW);
-  assert.equal(copied, verdictCopyText(verdict));
+  assert.equal(copied, verdictCopyText(verdict, "https://labs.wawalu.org/releases.html"));
   assert.match(copied, /^Deployment check verdict: Not a match:/);
   assert.match(copied, /Running build version: v2\.0\.0/);
   assert.match(copied, /Deployment record version: v2\.1\.0/);
+  // The address is this page's, not the other surface the same control is on.
+  assert.match(copied, /\nCopied from: https:\/\/labs\.wawalu\.org\/releases\.html$/);
   assert.equal(
     textOf(page.document.querySelector("#deployment-copy-status")),
     "Deployment check verdict and both version values copied to clipboard.",
@@ -468,7 +474,10 @@ test("an identifier the page cannot show whole is refused, never stripped into a
   // refused identifier must not ride an override into a document elsewhere.
   const copyText = page.document.querySelector("#deployment-copy").dataset.copyText;
   assert.equal(copyText.includes(BIDI_OVERRIDE), false, "an invisible override reached the copied result");
-  assert.equal(copyText.endsWith(identifiers), true, "the copy and the band worded the comparison differently");
+  // The comparison is worded identically; only the address of the page it was
+  // taken from follows it (#2555).
+  assert.equal(copyText.includes(`\n${identifiers}\n`), true, "the copy and the band worded the comparison differently");
+  assert.equal(copyText.endsWith("Copied from: https://labs.wawalu.org/"), true);
 });
 
 test("a record this band cannot route to is not linked by its next action", async (t) => {

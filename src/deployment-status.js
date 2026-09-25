@@ -268,9 +268,19 @@ export function comparedVersionsText(verdict) {
  * Verdict first, then the two values it was drawn from — the order the band
  * itself reads in, so a pasted incident note and the page it came from make the
  * same claim in the same words.
+ *
+ * @param pageUrl the address the control was pressed on, appended last so a
+ *   pasted note says where the claim can be re-checked. Both surfaces carry
+ *   this check, so the address is the one difference between two otherwise
+ *   identical pastes. Omitted, or unreadable, and the payload is the verdict
+ *   and the two values alone: an address this function cannot read is not one
+ *   it invents, and a note that names the wrong page is worse than one that
+ *   names none.
  */
-export function verdictCopyText(verdict) {
-  return `Deployment check verdict: ${verdictSentence(verdict)}\n${comparedVersionsText(verdict)}`;
+export function verdictCopyText(verdict, pageUrl = null) {
+  const address = text(pageUrl);
+  return `Deployment check verdict: ${verdictSentence(verdict)}\n${comparedVersionsText(verdict)}`
+    + (address ? `\nCopied from: ${address}` : "");
 }
 
 // What a matching verdict says instead of offering an action.
