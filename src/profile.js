@@ -800,7 +800,17 @@ export function renderProfileGrid(container, posts, options = {}) {
 // why, and the focus rescue — a reader standing on a chip when the feed goes
 // back to loading is moved to the status region rather than dropped to <body>,
 // which is a real path here because selecting a name rebuilds every chip.
-export const PROFILE_FILTERS_UNAVAILABLE_HINT = "Display names become available when image posts load.";
+//
+// The sentence is Social's, one noun different (#2542). Social's row says
+// "Filter posts by display name becomes available when posts finish loading.";
+// this one names the control in the words of the legend above it and says
+// "image posts" because that is what People holds. It used to name the entries
+// rather than the control — the display names became available, not the filter
+// — so a reader who met the same wait on both pages met it as two different
+// facts. The authored copy in src/profile.html is this string, so the frame
+// before this module runs and every frame after it say one thing.
+export const PROFILE_FILTERS_UNAVAILABLE_HINT =
+  "Filter image posts by display name becomes available when image posts finish loading.";
 
 // The id of the one link out of this filter region, so the page, the tests, and
 // anything that has to find it later all name it once.

@@ -446,7 +446,7 @@ test("People's display-name chooser is not operable while image posts are loadin
 
   const hint = hintIn(document.querySelector("#profile-author").parentNode, "profile-filter-hint");
   assert.equal(textOf(hint), PROFILE_FILTERS_UNAVAILABLE_HINT);
-  assert.equal(textOf(hint), "Display names become available when image posts load.");
+  assert.equal(textOf(hint), "Filter image posts by display name becomes available when image posts finish loading.");
   assert.equal(classesOf(hint).includes("hint"), true);
 });
 
@@ -479,7 +479,86 @@ test("a failed People feed disables the chooser and leaves Retry reachable", asy
     assert.equal(chip.getAttribute("aria-disabled"), null);
     assert.equal(chip.getAttribute("aria-describedby"), null);
   }
-  assert.doesNotMatch(textOf(document.body), /Display names become available/);
+  assert.doesNotMatch(textOf(document.body), /becomes available when image posts finish loading/);
+});
+
+/* ----------------------------- one filter, one name ----------------------- */
+
+// #2542. The same control was described two ways: Social labelled it "Filter
+// posts by display name" and said it "becomes available when posts finish
+// loading"; People labelled it "Filter by display name" and said "Display names
+// become available when image posts load." One concept, two labels and two
+// sentence shapes, so a reader who used the filter on one page met a stranger on
+// the other.
+//
+// Social is the reference — nothing here edits its strings — and People now
+// carries the same two shapes with the one noun this page earns: it shows image
+// posts and only image posts. The relationship is pinned as a derivation rather
+// than as two independent literals, so neither page can be reworded on its own.
+const NAME_FILTER_LABEL = "Filter posts by display name";
+const ALL_NAMES_OPTION = "All display names";
+const IMAGE_POSTS = (copy) => copy.replace(/\bposts\b/g, "image posts");
+/** A second word for the thing both filters select. "display name" is the term. */
+const RIVAL_TERM = /\bauthors?\b|\bposters?\b|\busernames?\b|\busers?\b|(?<!display )\bnames?\b/i;
+
+const socialNameLabel = (document) => [...document.querySelectorAll("label")]
+  .find((label) => label.getAttribute("for") === "post-name-filter") ?? null;
+/** The menu's own entries: `children` also holds the whitespace between them. */
+const optionTexts = (select) => [...(select?.options ?? [])].map((option) => textOf(option));
+
+test("Social and People label the display-name filter the same way, loading and loaded", async (t) => {
+  // The derivation first: People's strings are Social's with one noun changed,
+  // so "keep them in step" is a fact about the copy and not a convention.
+  assert.equal(IMAGE_POSTS(NAME_FILTER_LABEL), "Filter image posts by display name");
+  assert.equal(IMAGE_POSTS(FILTERS_UNAVAILABLE_HINT), PROFILE_FILTERS_UNAVAILABLE_HINT);
+  for (const copy of [NAME_FILTER_LABEL, ALL_NAMES_OPTION, FILTERS_UNAVAILABLE_HINT, PROFILE_FILTERS_UNAVAILABLE_HINT,
+    IMAGE_POSTS(NAME_FILTER_LABEL)]) {
+    assert.doesNotMatch(copy, RIVAL_TERM, `"${copy}" names the selected thing a second way`);
+  }
+
+  const social = await loadPage(SOCIAL_PAGE, {});
+  const people = await loadPage(PEOPLE_PAGE, {});
+  // Newest first, in one hook: two pages restored oldest-first would leave the
+  // second page's globals installed over the first page's document.
+  t.after(() => {
+    people.restore();
+    social.restore();
+  });
+
+  // Served, before either feed answers: what a first-time visitor reads on the
+  // frame that ships.
+  assert.equal(textOf(socialNameLabel(social.document)), NAME_FILTER_LABEL);
+  assert.deepEqual(optionTexts(social.document.querySelector("#post-name-filter")), [ALL_NAMES_OPTION]);
+  assert.equal(filterStatus(social.document), FILTERS_UNAVAILABLE_HINT);
+  assert.equal(textOf(people.document.querySelector("#profile-author-label")), IMAGE_POSTS(NAME_FILTER_LABEL));
+  assert.equal(textOf(people.document.querySelector("#profile-filter-hint")), PROFILE_FILTERS_UNAVAILABLE_HINT);
+
+  // Loading, painted by the page's own modules: the authored sentence is the one
+  // the render writes back, on both pages, so the wording does not change under
+  // a reader between the served frame and the first paint.
+  const feed = mountSocialFeed(social.document, { posts: [], state: "loading" });
+  const profile = mountProfile(people.document, { posts: MIXED, author: "Ari", state: "loading" });
+  assert.equal(filterStatus(social.document), FILTERS_UNAVAILABLE_HINT);
+  assert.equal(textOf(people.document.querySelector("#profile-filter-hint")), PROFILE_FILTERS_UNAVAILABLE_HINT);
+
+  // Loaded: the label and the menu keep their words when the wait is over, and
+  // the availability sentence leaves both pages rather than lingering as a
+  // description of a control that is now working.
+  feed.seed(MIXED);
+  profile.seed(MIXED);
+  assert.equal(textOf(socialNameLabel(social.document)), NAME_FILTER_LABEL);
+  assert.equal(optionTexts(social.document.querySelector("#post-name-filter"))[0], ALL_NAMES_OPTION);
+  assert.notEqual(filterStatus(social.document), FILTERS_UNAVAILABLE_HINT);
+  assert.equal(textOf(people.document.querySelector("#profile-author-label")), IMAGE_POSTS(NAME_FILTER_LABEL));
+  assert.equal(people.document.querySelectorAll("#profile-filter-hint").length, 0);
+  // People's picker is chips and always has one name selected, so it has no
+  // all-values entry to match Social's — the menu that does have one keeps
+  // Social's exact wording above.
+  assert.equal(people.document.querySelectorAll("select").length, 0);
+  const chipLabels = people.document.querySelectorAll(".profile-filter-option").map((chip) => textOf(chip));
+  assert.notEqual(chipLabels.length, 0, "the chooser drew no display names to read");
+  for (const label of chipLabels)
+    assert.doesNotMatch(label, RIVAL_TERM, `the chip "${label}" names the concept a second way`);
 });
 
 test("a chip holding focus when the chooser closes hands it to the status region", async (t) => {
