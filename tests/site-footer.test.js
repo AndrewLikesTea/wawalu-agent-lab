@@ -1115,7 +1115,8 @@ test("neither a failure nor a receipt says who answers a second time", async () 
 
     // A failure adds a paragraph about what to do next. It says nothing about
     // who answers: that request did not land, so there is nobody to answer it.
-    assert.doesNotMatch(shownText(document, "site-footer-recovery"), /automated reply|A person from the Wawalu team/);
+    assert.doesNotMatch(shownText(document, "site-footer-recovery"),
+      /A person replies|working days|automated reply|A person from the Wawalu team/);
     assert.equal(carryingReply(footer).length, 1, "the failure state repeats the sentence");
 
     failNext = false;
@@ -1127,7 +1128,7 @@ test("neither a failure nor a receipt says who answers a second time", async () 
     // Two sentences about a reply, in the same band, would be a reader's
     // second question rather than an answer to their first.
     const receipt = textOf(byId(document, "site-footer-confirmation"));
-    assert.doesNotMatch(receipt, /automated reply|A person from the Wawalu team/,
+    assert.doesNotMatch(receipt, /A person replies|working days|automated reply|A person from the Wawalu team/,
       "the receipt restates who answers");
     assert.equal(carryingReply(footer).length, 1, "the success state repeats the sentence");
     assert.equal(calls.length, 2);
