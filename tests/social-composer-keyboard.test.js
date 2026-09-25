@@ -150,11 +150,12 @@ test("the composer reads Paint, Choose image, the preview, the fields and the no
   const missing = expected.filter((name) => !order.includes(name));
   assert.deepEqual(missing, [], `the composer lost part of its sequence: ${order.join(" ")}`);
   assert.deepEqual([...expected].sort((a, b) => order.indexOf(a) - order.indexOf(b)), expected);
-  // The Paint action, with exporting by hand as its fallback, is the list item
-  // after the Paint link, still before the picker.
+  // Two labelled routes since #2514 — Paint first, a file already on the device
+  // second — both still read before the picker they lead into.
   const steps = id("post-image-steps").querySelectorAll("li").map((item) => textOf(item));
   assert.equal(steps.length, 2);
-  assert.match(steps[1], /^Select “Use this image in a Social post” in Paint, or export an image/);
+  assert.match(steps[0], /^From Paint: .* then select “Use this image in a Social post”$/);
+  assert.equal(steps[1], "From a file: Choose image takes an image already saved on this device");
 
   // One Publish post control, and it is the last button before Close.
   const named = ["a", "button", "input", "summary"]

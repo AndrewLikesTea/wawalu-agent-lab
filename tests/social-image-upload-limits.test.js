@@ -171,7 +171,7 @@ test("the help text and the refusals state the limit and the formats identically
     readFile(new URL("../src/publishing-media.js", import.meta.url), "utf8"),
   ]);
 
-  assert.ok(markup.includes('<p class="hint" id="post-image-hint"><span class="detail-state-chip">PNG, JPEG, GIF, or WebP up to 512 KB</span> Reduce or re-export a larger image before you choose it.</p>'));
+  assert.ok(markup.includes('<p class="hint" id="post-image-hint"><span class="detail-state-chip">PNG, JPEG, GIF, or WebP, up to 512 KB</span></p>'));
   assert.match(OVER_LIMIT, /maximum is 512 KB/);
   assert.ok(UNSUPPORTED_TYPE.includes("PNG, JPEG, GIF, or WebP"));
   // Every mention of the figure across the field, its wiring, and the refusals
@@ -202,13 +202,15 @@ test("the image field states the formats and the size exactly once, in plain sen
   // to sit under the help text.
   assert.equal(textOf(document.querySelector(".media-picker")).split("512 KB").length - 1, 1);
 
-  // The rule as a chip beside the control, the fix in the sentence after it. The
-  // fix stops at the file: the numbered steps are where the control is named, so
-  // "Choose image" is not said twice a line apart.
-  assert.equal(textOf(hint),
-    "PNG, JPEG, GIF, or WebP up to 512 KB Reduce or re-export a larger image before you choose it.");
+  // The rule as a chip beside the control, and nothing else (#2514). It used to
+  // close on a sentence telling the reader to shrink or re-export an oversized
+  // image — a remedy read before the problem, by everyone, including the reader
+  // whose file is 4 KB. The refusal above still carries it, for the one reader
+  // it applies to, at the moment it applies.
+  assert.equal(textOf(hint), "PNG, JPEG, GIF, or WebP, up to 512 KB");
+  assert.doesNotMatch(textOf(document.querySelector(".media-picker")), /Reduce or re-export/);
   assert.equal(textOf(document.querySelector('label[for="post-image"]')), "Choose image");
-  // The steps name the image control by its exact rendered label.
+  // The routes name the image control by its exact rendered label, once.
   assert.equal(help.split("Choose image").length - 1, 1,
     `the help must name the control once: ${help}`);
   assert.equal(textOf(hint).split("Choose image").length - 1, 0,
@@ -217,11 +219,12 @@ test("the image field states the formats and the size exactly once, in plain sen
   assert.doesNotMatch(help, /\b(maximum|max|limit)\b/i);
   assert.doesNotMatch(help, /;/);
 
-  // The complete path stays in one ordered sequence, and the new-tab behavior
-  // remains declared in the link's own text.
+  // The two routes stay two labelled items — not one sentence joined by "or"
+  // (#2514) — and the new-tab behavior remains declared in the link's own text.
   assert.equal(textOf(steps),
-    "Create or open an image in Paint (opens in a new tab) ↗"
-    + " Select “Use this image in a Social post” in Paint, or export an image and select it using “Choose image”");
+    "From Paint: Create or open an image in Paint (opens in a new tab) ↗"
+    + " then select “Use this image in a Social post”"
+    + " From a file: Choose image takes an image already saved on this device");
   const paint = steps.querySelector("a");
   assert.equal(paint.getAttribute("href"), "/paint/");
   assert.equal(paint.getAttribute("target"), "_blank");
