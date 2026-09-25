@@ -95,6 +95,53 @@ test("keyboard activation names and expands the composer, focuses its required f
   assert.equal(document.activeElement?.id, "post-compose-open");
 });
 
+// #2554 re-reported this composer's open/close keyboard behaviour, which shipped
+// in #2378 and #2460 and is asserted above and in
+// tests/social-composer-publish-race.test.js. One invariant the report states was
+// still only implied: every existing check names the node open() focuses by id
+// ("post-form-title"), and an id match is not containment. A refactor that kept
+// the id but moved the heading out of the panel — above the trigger, say, as a
+// heading for the whole column — would leave all of those green while open()
+// dropped focus outside the region it had just revealed, which is the failure the
+// criterion is about. So this asserts what the criterion actually says: whatever
+// open() focuses is a descendant of #post-compose-panel. Walked by parentNode
+// because this harness throws on a descendant selector, and because a walk keeps
+// answering after the panel's contents are rearranged.
+test("open() lands focus inside the composer panel by containment, not by id, on both routes", async (t) => {
+  const { document, feed, id } = await setup(t);
+  const panel = id("post-compose-panel");
+  const within = (node) => {
+    for (let cursor = node; cursor; cursor = cursor.parentNode) if (cursor === panel) return true;
+    return false;
+  };
+
+  // A closed composer holds no focus, so the two claims below are about what
+  // open() did and not about where the page happened to start.
+  assert.equal(within(document.activeElement), false);
+
+  // The trigger's own route.
+  id("post-compose-open").click();
+  assert.equal(within(document.activeElement), true,
+    `open() left focus outside the composer, on ${nameOf(document.activeElement)}`);
+  // Programmatically focusable without being a stop, so containment costs the
+  // page no tab stop.
+  assert.equal(document.activeElement?.getAttribute("tabindex"), "-1");
+  assert.equal(tabSequence(document).filter((node) => node === document.activeElement).length, 0,
+    "the node open() focuses became a tab stop");
+
+  // And the API route, from an opener that is not the trigger — the shape a Paint
+  // handoff and the publish reveal use. Escape first, so open() runs a real
+  // hidden-to-shown transition rather than re-focusing an already-open panel.
+  pressKey(document, "Escape");
+  assert.equal(within(document.activeElement), false);
+  const origin = document.createElement("button");
+  document.body.append(origin);
+  origin.focus();
+  feed.composer.open({ opener: origin });
+  assert.equal(within(document.activeElement), true,
+    `open({ opener }) left focus outside the composer, on ${nameOf(document.activeElement)}`);
+});
+
 test("closing a dirty draft preserves every field and returns to the actual opener", async (t) => {
   const { document, feed, id } = await setup(t);
   const origin = document.createElement("button");
