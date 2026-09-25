@@ -231,25 +231,37 @@ test("every follow-up form renders the use sentence too, byte for byte, beside t
   }
 });
 
-test("the reply sentence says who answers, and starts no clock", () => {
+test("the reply sentence says who answers, and when", () => {
   // The third question a visitor asks at this field, after where the address
-  // goes and what it is used for: what comes back. It was unanswered, and the
-  // answer a first-time reader assumed — an autoresponder — is the one thing
-  // that does not happen. So: a person, named as the team the sentence above
-  // already names, replying to the address being typed.
+  // goes and what it is used for: what comes back, and when. The first half was
+  // answered — a person, not the autoresponder a first-time reader assumes —
+  // and the second half was left open, so a reader who heard nothing on day one
+  // had no way to know whether that was normal. #2510 answers both in one
+  // sentence: who replies, and the window to expect them in.
+  //
+  // It says neither the team's name nor the address a second time. The privacy
+  // sentence directly above names both, and this sentence used to repeat them;
+  // read in order the block said "the Wawalu team that operates Shiplog" twice
+  // in three sentences. One claim each, once.
   const words = FOLLOW_UP_REPLY.split(/\s+/).filter(Boolean);
   assert.ok(words.length <= 25, `the sentence is ${words.length} words; the budget is 25`);
   assert.equal(FOLLOW_UP_REPLY.at(-1), ".");
   assert.equal((FOLLOW_UP_REPLY.match(/[.!?]/g) ?? []).length, 1, "one sentence, not two");
 
-  assert.match(FOLLOW_UP_REPLY, /A person from the Wawalu team that operates Shiplog/,
-    "it must name a person, on the team the privacy sentence already names");
-  assert.match(FOLLOW_UP_REPLY, /replies by email to the address you give/,
-    "it must say the reply comes by email, to the address being typed");
-  assert.match(FOLLOW_UP_REPLY, /no automated reply/, "it must say that nothing automated answers");
+  assert.match(FOLLOW_UP_REPLY, /^A person replies by email/,
+    "it must open on a person, so nobody reads the reply as an autoresponder");
+  assert.match(FOLLOW_UP_REPLY, /usually within two working days/,
+    "it must say when to expect the reply");
 
-  // A promise about who, never about when. No figure, and no word that reads
-  // as one — see SPEED.
+  // What the window is and is not. "Usually" is the whole of it: the sentence
+  // reports what happens, and the moment it reads as a commitment it is one
+  // this repository has no rota to keep.
+  assert.match(FOLLOW_UP_REPLY, /\busually\b/, "the window is what usually happens, not a commitment");
+  for (const promise of [/\bguarantee/i, /\bwill (?:reply|respond|get back)\b/i, /\bwe (?:will|['’]ll)\b/i]) {
+    assert.doesNotMatch(FOLLOW_UP_REPLY, promise, `the sentence must state an expectation, not a promise: ${promise}`);
+  }
+
+  // No figure, and no word that reads as one — see SPEED.
   assert.doesNotMatch(FOLLOW_UP_REPLY, SPEED, "the sentence must promise a person, not a deadline");
   assert.doesNotMatch(FOLLOW_UP_REPLY, /\d/, "no number belongs in a promise about who answers");
   for (const filler of MARKETING) {
