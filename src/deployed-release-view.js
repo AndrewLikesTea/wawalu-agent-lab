@@ -124,6 +124,8 @@ export function renderShippedBuild(root, record, options = {}) {
   const reason = byId(root, SHIPPED_BUILD_IDS.reason);
   const reasonNote = byId(root, SHIPPED_BUILD_IDS.reasonNote);
 
+  if (marking) marking.hidden = false;
+
   const commit = normalizeCommitSha(record?.commitSha);
   if (!commit) {
     panel.dataset.shippedBuild = "unstamped";
