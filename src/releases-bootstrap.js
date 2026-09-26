@@ -7,8 +7,7 @@ export async function bootReleases(root, load = () => import("./releases-page.js
     const panel = root.querySelector("#shipped-build");
     if (!panel || panel.dataset.shippedBuild !== "loading") return;
     panel.dataset.shippedBuild = "failed";
-    root.querySelector("#shipped-build-marking").textContent = "Commit evidence unavailable";
-    root.querySelector("#shipped-build-note").textContent = "Deployment commit evidence could not load. Reload this page to try again. No commit can be verified from this record.";
+    root.querySelector("#shipped-build-note").textContent = "The deployment record could not load. Reload this page to try again.";
   }
 }
 

@@ -625,7 +625,12 @@ test("commit evidence stays unavailable while the page module loads, then announ
   let fail;
   const pending = bootReleases(page.document, () => new Promise((_, reject) => { fail = reject; }));
   assert.equal(panel.dataset.shippedBuild, "loading");
-  assert.match(textOf(note), /Loading the deployment record/);
+  assert.equal(textOf(note), "Loading the deployment record.");
+  assert.equal((textOf(panel).match(/Loading/g) ?? []).length, 1);
+  assert.doesNotMatch(textOf(panel), /could not load|reload|try again/i);
+  const marking = page.document.querySelector("#shipped-build-marking");
+  assert.equal(marking.hidden, true);
+  assert.equal(textOf(marking), "");
   assert.equal(note.getAttribute("role"), "status");
   assert.equal(note.getAttribute("aria-live"), "polite");
   assert.equal(source.hidden, true);
@@ -634,7 +639,10 @@ test("commit evidence stays unavailable while the page module loads, then announ
   fail(new Error("module unavailable"));
   await pending;
   assert.equal(panel.dataset.shippedBuild, "failed");
-  assert.match(textOf(note), /could not load.*Reload/);
+  assert.equal(textOf(note), "The deployment record could not load. Reload this page to try again.");
+  assert.doesNotMatch(textOf(panel), /Loading/);
+  assert.equal(marking.hidden, true);
+  assert.equal(textOf(marking), "");
   assert.equal(source.getAttribute("href"), null);
   assert.doesNotMatch(textOf(panel), new RegExp(SHA));
 });
@@ -673,3 +681,20 @@ test("the verification destination is constructed from the commit, never a suppl
     assert.equal(textOf(source), `Open commit ${SHA} in the public repository`);
   }
 });
+
+for (const [state, stamp] of [["real", STAMPED], ["unstamped", UNSTAMPED]]) {
+  test(`successful loading replaces request copy and reveals the ${state} marking`, async (t) => {
+    const { bootReleases } = await import("../src/releases-bootstrap.js");
+    const page = await loadPage(RELEASES_PAGE);
+    t.after(() => page.restore());
+    await bootReleases(page.document, async () => {
+      renderShippedBuild(page.document, deployedReleaseRecord(stamp));
+    });
+    const panel = page.document.querySelector("#shipped-build");
+    const marking = page.document.querySelector("#shipped-build-marking");
+    assert.equal(panel.dataset.shippedBuild, state);
+    assert.equal(marking.hidden, false);
+    assert.equal(textOf(marking), state === "real" ? REAL_MARKING : NO_RECORD_LABEL);
+    assert.doesNotMatch(textOf(panel), /Loading|could not load|Reload this page/);
+  });
+}
