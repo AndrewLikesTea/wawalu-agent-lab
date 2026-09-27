@@ -541,7 +541,7 @@ test("the optional message field is offered above the address, with its limit in
   assert.ok(described.includes("finops-example-follow-up-message-hint"));
   assert.ok(described.includes(COUNTER_ID));
   assert.equal(textOf(document.getElementById("finops-example-follow-up-message-hint")),
-    `Up to ${MAX_FOLLOW_UP_MESSAGE_LENGTH} characters.`);
+    `Briefly share your team size, how you record decisions and releases, or what a pilot must prove. Up to ${MAX_FOLLOW_UP_MESSAGE_LENGTH} characters.`);
   assert.equal(textOf(document.getElementById("finops-example-follow-up-message-counter-label")),
     "Characters remaining:");
 
