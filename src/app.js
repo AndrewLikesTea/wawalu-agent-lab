@@ -51,6 +51,7 @@ import {
   indexById,
   loadReleases,
   mountReleaseList,
+  readReleases,
   releaseDescription,
   releaseDetailHref,
   releaseOwner,
@@ -605,9 +606,25 @@ export function renderDecisionState(container, state, options = {}) {
   // Two distinct empty states, kept distinct on purpose: "nothing recorded yet"
   // is a first-run state whose one action is recording a decision, while "no
   // records match" is a filter state whose one action is resetting the filters.
+  //
+  // The wait is stated ONCE. This used to be two lines — a heading "Loading
+  // decisions" over a paragraph "Loading all decisions…" — which is the same
+  // sentence twice, read out twice, and only ever half-true: the region below is
+  // one combined decision-and-release history, so neither line named what was
+  // being waited for. The wording matches the loading state authored in
+  // src/index.html character for character, so the sentence a visitor reads
+  // before this script runs is the sentence still standing after it.
   const copy = {
-    loading: ["Loading decisions", "Loading all decisions…"],
-    error: ["Decisions could not be loaded", "Your saved decisions are still shown when available. Try reloading for the example history."],
+    loading: [HISTORY_LOADING_TEXT],
+    // A failure states what failed and what is untouched, and it is the one
+    // state that offers Retry. It is not "your saved decisions are still shown":
+    // nothing is shown, because a log this browser refused to hand over cannot
+    // be told apart from an empty one, and drawing the examples underneath a
+    // failure would present invented records as the visitor's history.
+    error: [
+      "Couldn’t load your history",
+      "This browser’s decision and release log could not be read. Your saved records have not been changed.",
+    ],
     empty: options.filtered
       ? ["No records match your filters", "No decision or release matches the current record type, status, owner, and search. Reset the filters to see the full history."]
       : [
@@ -616,7 +633,9 @@ export function renderDecisionState(container, state, options = {}) {
       ],
   }[state];
   appendTextElement(panel, "h3", "", copy[0]);
-  appendTextElement(panel, "p", "", copy[1]);
+  // A state with nothing to add beyond its heading says only that. An empty
+  // paragraph would take a line on screen and be read out as one.
+  if (copy[1]) appendTextElement(panel, "p", "", copy[1]);
   // Which filters produced the empty list, in their own values. The sentence
   // above names the *dimensions* ("record type, status, owner, and search"),
   // which leaves a reader who has narrowed four controls to reconstruct what
@@ -629,16 +648,41 @@ export function renderDecisionState(container, state, options = {}) {
       appendTextElement(panel, "p", "hint empty-state-filters", `Filters in effect: ${chips.map((chip) => chip.text).join(" · ")}`);
     }
   }
-  if (state === "empty") {
-    const action = options.filtered
-      ? appendTextElement(panel, "button", "empty-action history-reset-action", "Reset filters")
-      : appendTextElement(panel, "button", "empty-action decision-empty-action", "Record your first decision");
+  // The one next step each settled state offers. A real button in every case —
+  // never a link dressed as one — because none of the three navigates: they
+  // move focus into the recorder, drop the filters, or read the log again.
+  //
+  // Every one of them is drawn HERE, inside the history region, which is well
+  // below index.html's first screen. That is deliberate and load-bearing: the
+  // first screen is at its tab-stop budget (the coach link is stop 29 of 30), so
+  // a recovery control added above it would push that link out of range.
+  const kind = HISTORY_STATE_ACTION_FOR[options.filtered && state === "empty" ? "no-match" : state];
+  if (kind) {
+    const [className, label, controls] = HISTORY_STATE_ACTIONS[kind];
+    const action = appendTextElement(panel, "button", `empty-action ${className}`, label);
     action.type = "button";
-    action.setAttribute("aria-controls", options.filtered ? "decision-list" : "decision-form");
-    action.dataset.action = options.filtered ? "reset-filters" : "record-decision";
+    action.setAttribute("aria-controls", controls);
+    action.dataset.action = kind;
   }
   container.append(panel);
 }
+
+// The one loading sentence of the combined history, exported so index.html's
+// authored copy and the panel this module paints over it can be held to the same
+// bytes by a test rather than by two people remembering.
+export const HISTORY_LOADING_TEXT = "Loading decisions and releases…";
+
+// Which next step belongs to which state. "no-match" is the narrowed spelling of
+// `empty`; `loading` has none — on boot there is nothing to offer, and a list
+// with rows shows no panel at all.
+const HISTORY_STATE_ACTION_FOR = { empty: "record-decision", "no-match": "reset-filters", error: "retry" };
+
+// Each action's class, visible label, and what it controls.
+const HISTORY_STATE_ACTIONS = {
+  "reset-filters": ["history-reset-action", "Reset filters", "decision-list"],
+  "record-decision": ["decision-empty-action", "Record your first decision", "decision-form"],
+  retry: ["history-retry-action", "Retry", "decision-list"],
+};
 
 function appendRecordedDate(meta, createdAt, label) {
   const datePair = document.createElement("span");
@@ -1144,6 +1188,18 @@ export function createCountAnnouncer(node, options = {}) {
   };
 }
 
+// What the history's live region says when the log could not be read. It names
+// the control that recovers it, because the panel that carries that control is
+// below the fold and the announcement is the only notice a screen reader gets —
+// nothing moves focus to it.
+export const HISTORY_UNREAD_ANNOUNCEMENT =
+  "Couldn’t load your history. Use the Retry button in the history to read the log again.";
+
+// What the recorder says when it refuses to write into a log it could not read.
+// Saving would put a one-record log over every decision already stored.
+export const HISTORY_UNREAD_SAVE = "Couldn’t save: your decision log didn’t load. "
+  + "Retry loading the history below, then record again — nothing you typed has been lost.";
+
 export function historyCountMessage(visible, total) {
   if (total === 0) return "No records recorded yet.";
   if (visible === 0) return "No records match the current filters.";
@@ -1283,8 +1339,25 @@ export async function initDecisionLog(root = document, storage = localStorage, o
   const seed = options.seed ?? { decisions: SEED_DECISIONS, releases: SEED_RELEASES };
   const seedDecisions = Array.isArray(seed.decisions) ? seed.decisions : [];
   const seedReleases = Array.isArray(seed.releases) ? seed.releases : [];
-  let recordedDecisions = loadDecisions(storage);
-  let recordedReleases = loadReleases(storage);
+  // BOTH LOGS, READ STRICTLY. The tolerant loaders turn a store that refuses the
+  // read into an empty array, which means a failure used to arrive on this page
+  // dressed as "you have not recorded anything yet" — a first-run sentence, and a
+  // "Record your first decision" button, standing on top of a log that is still
+  // there and could not be reached. Null means unread, which is its own state
+  // with its own copy and its own next step (Retry) below.
+  const readLog = () => {
+    try {
+      return { decisions: readDecisions(storage), releases: readReleases(storage) };
+    } catch {
+      return null;
+    }
+  };
+  let stored = readLog();
+  // An unread log is a state of the LIST, not of the page: the filters, the
+  // recorder and the export panel around it keep working.
+  let unread = stored === null;
+  let recordedDecisions = stored?.decisions ?? [];
+  let recordedReleases = stored?.releases ?? [];
   let decisions = [];
   let releases = [];
   let records = [];
@@ -1573,7 +1646,19 @@ export async function initDecisionLog(root = document, storage = localStorage, o
   };
 
   const render = () => {
-    const visible = renderHistory(list, count, records, view, { coverage, provenance });
+    // The failed read is drawn in the list's own region and nowhere else, and it
+    // replaces whatever was there: renderDecisionState clears the container, so
+    // the loading line is gone from the DOM rather than hidden behind the panel
+    // that succeeded it. Every figure that describes the list is emptied in the
+    // same breath — a count, a split or a coverage sentence left standing would
+    // be describing a history this page does not have.
+    const visible = unread ? 0 : renderHistory(list, count, records, view, { coverage, provenance });
+    if (unread) {
+      renderDecisionState(list, "error");
+      if (count) count.textContent = "";
+      if (provenance) provenance.textContent = "";
+      if (coverage) coverage.textContent = "";
+    }
     if (supersedeSummary) supersedeSummary.textContent = supersedeFilterSummary(records, view);
     // The rows this view is showing, for everything below that describes them:
     // the headline's provenance split, the trend, and the timelines. One
@@ -1584,12 +1669,19 @@ export async function initDecisionLog(root = document, storage = localStorage, o
     // the same sentence on screen. It carries the same split as the figure in
     // the heading: a figure that names no records is one a reader has to take
     // the caption's word for.
-    renderHistorySummary(filterSummary, {
-      visible,
-      total: records.length,
-      filters: view,
-      split: provenanceSplitLine(selected),
-    });
+    // Skipped, not recomputed, on a failed read: this line's whole vocabulary is
+    // "n of m records", and every sentence it can produce from a log of zero —
+    // starting with "no records yet" — contradicts the panel below it.
+    if (unread) {
+      if (filterSummary) filterSummary.textContent = "";
+    } else {
+      renderHistorySummary(filterSummary, {
+        visible,
+        total: records.length,
+        filters: view,
+        split: provenanceSplitLine(selected),
+      });
+    }
     chipButtons = renderHistoryFilterChips(filterChips, view, { onRemove: removeFilter });
     // The shape of the same view, from the same selection rule: the chart is
     // drawn here rather than from a listener of its own, so a filter can never
@@ -1605,7 +1697,11 @@ export async function initDecisionLog(root = document, storage = localStorage, o
       releases.find(({ id }) => id === view.releaseId),
       decisions,
     );
-    announce(historyCountMessage(visible, records.length));
+    // The page's own live region carries the state change, so a failed or
+    // recovered read is announced without the panel having to steal focus to be
+    // noticed. historyCountMessage cannot say this: a count of zero reads as
+    // "No records recorded yet", which is the other state entirely.
+    announce(unread ? HISTORY_UNREAD_ANNOUNCEMENT : historyCountMessage(visible, records.length));
     // The history owns the filter rule, so it states its own selection instead of
     // letting the export panel re-derive one from the store. Published on every
     // render, including the first: a surface that mounts later reads the scope
@@ -1644,8 +1740,12 @@ export async function initDecisionLog(root = document, storage = localStorage, o
   // rendering, which is what boot needs before it adopts a link's filters. Every
   // other caller is a data change and paints.
   const refresh = ({ paint = true } = {}) => {
-    decisions = dedupeById([...recordedDecisions, ...seedDecisions]);
-    releases = dedupeById([...recordedReleases, ...seedReleases]);
+    // An unread log composes to nothing, examples included. The examples are a
+    // module constant and would load fine, but a page that drew them under a
+    // failed read would be presenting invented records as this browser's history
+    // — and its record count, its trend and its export would all describe them.
+    decisions = unread ? [] : dedupeById([...recordedDecisions, ...seedDecisions]);
+    releases = unread ? [] : dedupeById([...recordedReleases, ...seedReleases]);
     const recordedIds = new Set([...recordedDecisions, ...recordedReleases].map(({ id }) => id));
     exampleIds = new Set([...seedDecisions, ...seedReleases]
       .map(({ id }) => id)
@@ -1824,10 +1924,37 @@ export async function initDecisionLog(root = document, storage = localStorage, o
   list.addEventListener("keydown", (event) => {
     handleDecisionListKeydown(event, list);
   });
+  // Read both logs again, saying so while it happens.
+  //
+  // The wait is painted into the same region the Retry was in, so the failed
+  // panel and its button are gone from the DOM before either answer lands —
+  // which is also what keeps a reader from meeting a Retry and a recovered list
+  // at once. A read that succeeds recomposes the history and lands focus on the
+  // list's own heading, which is what the press was for; one that fails again
+  // redraws the failure and puts focus back on the freshly drawn Retry, so the
+  // keyboard is not dropped to the top of the document by a button that a
+  // re-render removed from under it.
+  const retryHistory = () => {
+    renderDecisionState(list, "loading");
+    const next = readLog();
+    if (!next) {
+      renderDecisionState(list, "error");
+      announce(HISTORY_UNREAD_ANNOUNCEMENT);
+      list.querySelector(".history-retry-action")?.focus?.({ preventScroll: true });
+      return;
+    }
+    unread = false;
+    recordedDecisions = next.decisions;
+    recordedReleases = next.releases;
+    refresh();
+    root.querySelector("#decisions-title")?.focus?.({ preventScroll: true });
+  };
+
   list.addEventListener("click", (event) => {
     const trigger = event.target.closest?.("[data-action]");
     if (trigger?.dataset.action === "record-decision") enterDecisionRecorder(root, trigger);
     if (trigger?.dataset.action === "reset-filters") resetFilters();
+    if (trigger?.dataset.action === "retry") retryHistory();
   });
   exitRecorder?.addEventListener("click", () => exitDecisionRecorder(root));
 
@@ -1869,6 +1996,15 @@ export async function initDecisionLog(root = document, storage = localStorage, o
     }
     clearSupersedesError();
     clearEntryErrors();
+    // The log this record would join could not be read, so there is no base to
+    // add to: writing now would put this one decision over every decision the
+    // store still holds. The entry stays in the form, untouched, and the notice
+    // names the Retry that recovers the log.
+    if (unread) {
+      notice.textContent = HISTORY_UNREAD_SAVE;
+      notice.hidden = false;
+      return;
+    }
     // Only the recorded half grows. refresh() recomposes the examples behind
     // it, so a new decision is added to the visitor's records rather than
     // replacing anything, and both sets survive.

@@ -236,9 +236,13 @@ test("decision list exposes semantic loading, empty, and error states", async ()
   assert.match(page, /id="decision-list" aria-busy="true"/);
   assert.doesNotMatch(page, /id="decision-list"[^>]*aria-live/);
   assert.match(page, /id="history-announcement" role="status" aria-live="polite"/);
-  assert.match(page, /<h3>Loading decisions<\/h3>/);
+  assert.match(page, /<h3>Loading decisions and releases…<\/h3>/);
   assert.match(page, /<h2 id="decisions-title" tabindex="-1">All records<\/h2>/);
-  assert.match(page, /<p>Loading all decisions…<\/p>/);
+  // One loading line for the combined history, not two saying the same thing.
+  // The region used to ship a heading AND a paragraph, so a screen reader heard
+  // the wait twice and neither line named the releases this list also holds.
+  assert.equal(page.match(/Loading decisions and releases…/g).length, 1);
+  assert.doesNotMatch(page, /Loading all decisions/);
   assert.match(page, /<h2 id="decision-form-title">Record a decision<\/h2>/);
   assert.match(page, /<button type="submit">Record decision<\/button>/);
   assert.match(page, /id="title-hint">A short name for the decision\.<\/span>/);
@@ -257,10 +261,12 @@ test("decision list exposes semantic loading, empty, and error states", async ()
   assert.match(page, /id="supersedes-hint">The decision this one replaces, if any\. That decision is marked Superseded by this one, and Current only hides it\.<\/span>/);
   assert.match(source, /panel\.setAttribute\("role", state === "error" \? "alert" : "status"\)/);
   assert.match(source, /container\.setAttribute\("aria-busy", String\(state === "loading"\)\)/);
-  assert.match(source, /\["Loading decisions", "Loading all decisions…"\]/);
+  assert.match(source, /loading: \[HISTORY_LOADING_TEXT\]/);
+  assert.match(source, /HISTORY_LOADING_TEXT = "Loading decisions and releases…"/);
   assert.match(source, /"No decisions yet"/);
   assert.match(source, /"Record the title, context, owner, and status/);
   assert.match(source, /\["No records match your filters", "No decision or release matches/);
+  assert.match(source, /"Couldn’t load your history"/);
   assert.match(page, /id="exit-decision-recorder" type="button">Back to decision history<\/button>/);
   assert.match(page, /id="decisions-title" tabindex="-1"/);
 });
