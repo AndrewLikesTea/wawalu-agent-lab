@@ -320,7 +320,10 @@ test("active keyboard filters survive refresh and the loading state is honest be
   const pending = await loadPage(PAGE, { storage: STORAGE, location: { search: before.location.search } });
   t.after(() => pending.restore());
   assert.equal(pending.document.querySelector("#decision-list").getAttribute("aria-busy"), "true");
-  assert.equal(textOf(pending.document.querySelector(".list-state-loading").querySelector("h3")), "Loading decisions");
+  assert.equal(
+    textOf(pending.document.querySelector(".list-state-loading").querySelector("h3")),
+    "Loading decisions and releases…",
+  );
   await initDecisionLog(pending.document, pending.storage, {
     seed: NO_EXAMPLES,
     location: globalThis.window.location,

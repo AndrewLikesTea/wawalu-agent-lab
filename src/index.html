@@ -526,10 +526,21 @@
                the tab order of this page is exactly what it was. -->
           <div id="history-timelines"></div>
           <p class="hint" id="release-coverage"></p>
+          <!-- THE COMBINED HISTORY, AND EVERY STATE IT CAN BE IN.
+               It ships holding the wait, so a reader is told before any module
+               runs, and app.js replaces this node's contents with whichever
+               state resolved: the rows, "no decisions yet", "no records match
+               your filters", or a failed read. The wait is stated ONCE — this
+               carried a heading and a paragraph saying the same thing, and
+               neither named the releases this region also lists. The sentence is
+               HISTORY_LOADING_TEXT in src/app.js, byte for byte, so the line a
+               visitor reads before the script runs is the line still standing
+               after it. Replaced, never hidden beside: renderDecisionState
+               clears this container first, so no settled state can be read with
+               the wait still underneath it. -->
           <div id="decision-list" aria-busy="true">
             <div class="list-state list-state-loading" role="status">
-              <h3>Loading decisions</h3>
-              <p>Loading all decisions…</p>
+              <h3>Loading decisions and releases…</h3>
             </div>
           </div>
         </div>
