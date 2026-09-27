@@ -10,7 +10,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { loadPage, pressTab, tabSequence, textOf } from "./support/browser.js";
+import { loadPage, pressKey, pressTab, tabSequence, textOf } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
 import { REPORT_POST_LABEL } from "../src/post-report.js";
 
@@ -344,22 +344,14 @@ test("the permalink opens with the post in every state, not with its caveats", a
 // stranger nobody verifies the name on the post, and nothing about what to do
 // with a post that needs looking at.
 //
-// Written out here so the two sentences are readable in the tests that assert
-// them. The route is this page's own, because the control it names is not on
-// this page: Social and People draw a Report post button on every loaded card
-// and tile, and this page draws none (#2519, counted in the rendered page at the
-// end of this file). So it says where the control is, names this page's own
-// Social link by the words that link carries, and says the post to select it on
-// is the one being read. What follows the route is about the report rather than
-// about where to make it, and its last two sentences are pinned against
-// src/social.html below so neither page can reword one alone.
-const REPORT_ROUTE = `Report post is on Social, not on this page: select ${SOCIAL.label} above, then select Report post on this post.`;
+// The route identifies the loaded post action; consequences stay shared with Social.
+const REPORT_ROUTE = "Once this post loads, select Report post beside the post’s actions to ask the Wawalu team to review it.";
 const REPORT_ABOUT = "Report post asks for a reason, an optional note, and your email address. The report goes only to the Wawalu team, who review each one. A report does not remove or hide the post, and not every report leads to removal.";
 // What happens to a report and what it can lead to: the account this page states
 // once, and the bytes every other surface that mentions a report uses.
 const REPORT_CONSEQUENCE = "The report goes only to the Wawalu team, who review each one. A report does not remove or hide the post, and not every report leads to removal.";
 
-test("the permalink sends the reader to Social for the control, in Social's own consequence bytes", async () => {
+test("the permalink explains its reporting control with the shared consequence copy", async () => {
   const html = (await readFile(new URL("../src/social.html", import.meta.url), "utf8")).replace(/<!--[\s\S]*?-->/g, "");
   // Anchored on its opening words rather than typed out, so a Social that
   // rewords the consequence fails here instead of drifting away from this page.
@@ -434,13 +426,6 @@ function assertReportingStands(document, where) {
   let next = pressTab(document);
   if (next.id === "post-people") next = pressTab(document);
   assert.ok(next === links[1], `${where}: Tab reaches publish in document order`);
-  // This surface currently explains reporting without rendering a Report post
-  // control. Any reporting control offered in future must follow both links.
-  for (const control of sequence.filter((node) => /report/i.test(
-    `${node.id} ${node.getAttribute("aria-label") || ""} ${textOf(node)}`))) {
-    assert.ok(sequence.indexOf(control) > sequence.indexOf(links[1]),
-      `${where}: both Social links precede reporting controls`);
-  }
 
   for (const [name, index] of Object.entries({ route: reading[3], explanation: reading[4] })) {
     assert.equal(flow[index].getAttribute("class"), "hint",
@@ -948,7 +933,7 @@ test("a loaded post can hand over its own link, and says so where the post is", 
 
 // Tab order by pressing Tab, not only by index: from the post's last stop, one
 // press reaches the control and the next reaches the feed link.
-test("Tab moves from the post to its copy control, then straight to the feed", async () => {
+test("Tab moves from the post to its copy control, then reporting, then the feed", async () => {
   const page = await openPostPage("?id=p-image", seedOnly([SEED_POST]));
   try {
     const sequence = tabSequence(page.document);
@@ -960,6 +945,7 @@ test("Tab moves from the post to its copy control, then straight to the feed", a
     // is confirmed before stepping.
     assert.ok(page.document.activeElement === before, "Tab starts from the post");
     assert.equal(textOf(pressTab(page.document)), "Copy link to this post");
+    assert.equal(textOf(pressTab(page.document)), "Report post");
     const next = pressTab(page.document);
     assert.equal(next.id, "post-back");
     assert.equal(textOf(next), "Open Social to read the whole feed");
@@ -1054,14 +1040,7 @@ test("the wait a cold visitor meets offers no link to copy", async () => {
   }
 });
 
-// Issue #2519. Which words this page may use about reporting is decided by the
-// rendered page, not by its markup: src/social.js and src/profile.js import
-// src/post-report.js and draw a Report post button on every loaded card and
-// tile, and src/post-page.js imports it nowhere, so a reader who arrives here
-// from a pasted link has no control to select. Counted rather than reasoned
-// about — by the class the button ships with, by the label itself, and by the
-// panel the button opens — because the sentence below is only honest while the
-// count is zero.
+// Reporting is available only after a post resolves (#2570).
 const reportControls = (document) => ({
   buttons: document.querySelectorAll(".post-report-button").length,
   labelled: document.querySelectorAll("button").filter((node) => textOf(node) === REPORT_POST_LABEL).length,
@@ -1080,10 +1059,10 @@ function assertReportingRouteReads(document, where) {
   const social = document.querySelector("#post-back");
   assert.equal(textOf(social), SOCIAL.label, `${where}: the route names a Social link the page does not ship`);
   assert.equal(social.getAttribute("href"), SOCIAL.href, `${where}: the named link does not go to Social`);
-  assert.ok(REPORT_ROUTE.includes(textOf(social)), `${where}: the route does not name the link it points at`);
+  assert.doesNotMatch(textOf(document.body), /Report post is on Social, not on this page/);
 }
 
-test("the permalink renders no Report post control, so its copy sends the reader to Social", async () => {
+test("the permalink offers reporting only once a post resolves", async () => {
   const cold = await loadPage(new URL("../src/post.html", import.meta.url), { location: { search: "?id=p-image" } });
   try {
     assert.deepEqual(reportControls(cold.document), { buttons: 0, labelled: 0, panels: 0 },
@@ -1094,7 +1073,7 @@ test("the permalink renders no Report post control, so its copy sends the reader
     globalThis.fetch = () => new Promise((resolve) => { release = () => resolve(seedResponse([SEED_POST])); });
     await importPageModule("/post-page.js");
     await waitFor(() => cold.document.documentElement.dataset.shiplogPostDetail === "loading", "the script took the region");
-    assert.deepEqual(reportControls(cold.document), { buttons: 0, labelled: 0, panels: 0 },
+    assert.deepEqual(reportControls(cold.document), { buttons: 0, labelled: 0, panels: 1 },
       "the wait offers a reporting control");
 
     release();
@@ -1105,8 +1084,8 @@ test("the permalink renders no Report post control, so its copy sends the reader
     // The loaded post: the state a reader would expect the control beside, and
     // the one the sentence has to be true of. The post brought its own control
     // with it — Copy link to this post — so this is a count over real buttons.
-    assert.deepEqual(reportControls(cold.document), { buttons: 0, labelled: 0, panels: 0 },
-      "a loaded post brought a reporting control with it");
+    assert.deepEqual(reportControls(cold.document), { buttons: 1, labelled: 1, panels: 1 },
+      "a loaded post must offer reporting");
     assert.equal(cold.document.querySelectorAll("button").length > 0, true, "no button rendered, so the count above proves nothing");
     assertReportingRouteReads(cold.document, "once the post rendered");
   } finally {
@@ -1120,11 +1099,80 @@ test("the permalink renders no Report post control, so its copy sends the reader
     const page = await openPostPage(search, answer);
     try {
       assert.equal(page.panel.dataset.postState, state, `the page landed in ${page.panel.dataset.postState}, not ${state}`);
-      assert.deepEqual(reportControls(page.document), { buttons: 0, labelled: 0, panels: 0 },
+      assert.deepEqual(reportControls(page.document), { buttons: 0, labelled: 0, panels: 1 },
         `${state}: a reporting control with no post to report`);
       assertReportingRouteReads(page.document, state);
     } finally {
       page.restore();
     }
   }
+});
+
+test("single post: shared report preselection, validation, retained draft, retry and focus", async () => {
+  const page = await openPostPage("?id=p-image", seedOnly([SEED_POST]));
+  const { document } = page;
+  const get = (id) => document.querySelector(`#post-report-${id}`);
+  try {
+    const button = document.querySelector(".post-report-button");
+    assert.equal(button.dataset.postId, SEED_POST.id);
+    assert.match(button.getAttribute("aria-label"), /^Report post by Mina Okafor, /);
+    button.click();
+    assert.equal(document.activeElement.id, "post-report-title");
+    assert.equal(get("panel").getAttribute("aria-labelledby"), "post-report-title");
+    assert.match(textOf(get("post")), /Mina Okafor: “Focus rings landed everywhere\.”/);
+    // The harness cannot Tab from tabindex=-1; inspect natural panel order.
+    assert.equal(tabSequence(document).filter((node) => node.closest("#post-report-panel"))[0].id, "post-report-reason-0");
+    get("submit").click();
+    assert.equal(get("reason-error").getAttribute("role"), "alert");
+    assert.equal(get("reason-error").hidden, false);
+    assert.equal(document.activeElement.id, "post-report-reason-0");
+    get("reason-2").click();
+    get("context").value = "Please review this.";
+    get("email").value = "invalid";
+    get("submit").click();
+    assert.equal(document.activeElement.id, "post-report-email");
+    assert.equal(get("email").getAttribute("aria-invalid"), "true");
+    get("email").value = "visitor@example.org";
+    for (const close of [() => pressKey(document, "Escape"), () => get("close").click()]) {
+      close();
+      assert.equal(get("panel").hidden, true);
+      assert.ok(document.activeElement === button);
+      button.click();
+      assert.equal(get("reason-2").checked, true);
+      assert.equal(get("context").value, "Please review this.");
+      assert.equal(get("email").value, "visitor@example.org");
+    }
+    const sent = [];
+    let finish;
+    globalThis.fetch = async (url, init) => {
+      assert.equal(url, "/api/post-reports");
+      sent.push(JSON.parse(init.body));
+      if (sent.length === 1) return new Promise((resolve) => {
+        finish = () => resolve({ ok: false, status: 503, json: async () => ({}) });
+      });
+      return { ok: true, json: async () => ({ status: "received" }) };
+    };
+    get("submit").click();
+    assert.equal(get("submit").disabled, true);
+    get("close").click();
+    pressKey(document, "Escape");
+    assert.equal(get("panel").hidden, false, "cannot close an in-flight report");
+    finish();
+    await waitFor(() => !get("retry").hidden, "failed send offers retry");
+    assert.match(textOf(get("status")), /Your report was not sent/);
+    assert.equal(get("status").getAttribute("aria-live"), "polite");
+    assert.equal(document.activeElement.id, "post-report-retry");
+    get("retry").click();
+    await waitFor(() => get("form").hidden, "retry succeeds");
+    assert.deepEqual(sent, Array.from({ length: 2 }, () => ({ post_id: SEED_POST.id, reason: "spam", context: "Please review this.", email: "visitor@example.org" })));
+    assert.match(textOf(get("status")), /^Report sent\./);
+    assert.equal(document.activeElement.id, "post-report-status");
+    get("close").click();
+    assert.ok(document.activeElement === button);
+    button.click();
+    assert.equal(get("form").hidden, false);
+    assert.equal(get("reason-2").checked, false);
+    assert.equal(get("context").value, "");
+    assert.equal(get("email").value, "visitor@example.org");
+  } finally { page.restore(); }
 });

@@ -15,3 +15,7 @@
 .social-toolbar .filter { min-width:min(150px,100%); }
 /* A failed tile grows to hold its whole description instead of cropping it. */
 .post-media[data-state="error"],.profile-media[data-state="error"] { overflow:visible; }
+
+/* The shared disclosure must accommodate long display names and keyboard focus. */
+#post-report-panel { position:static; min-width:0; overflow-wrap:anywhere; }
+#post-report-title:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }

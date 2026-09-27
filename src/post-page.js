@@ -8,6 +8,8 @@
 import { normalizeProfileApiPosts, normalizeSeedPosts } from "/profile.js";
 import { POST_EXITS, findPostById, postDetailTitle, postPageHeading, postPeopleHref, postPeopleLabel, renderPostDetail } from "/post-detail.js";
 
+import { mountPostReport, renderReportButton } from "/post-report.js";
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 async function fetchLivePost(id) {
@@ -26,6 +28,10 @@ async function fetchSeedPost(id) {
 async function init() {
   const container = document.querySelector("#post-detail");
   if (!container) return;
+
+  const report = mountPostReport(document);
+  // Keep the disclosure beside the post, outside its repainted live region.
+  container.parentNode.append(document.querySelector("#post-report-panel"));
 
   const params = new URLSearchParams(window.location.search);
   const id = params.get("id") ?? "";
@@ -131,6 +137,12 @@ async function init() {
       returnHref: POST_EXITS.social.href,
       onRetry: () => load({ fromRetry: true }),
     });
+    if (post) {
+      const when = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(post.createdAt));
+      container.querySelector(".share-control").append(
+        renderReportButton(post, when, (selected, opener) => report.open(selected, opener)),
+      );
+    }
     nameHeading(post);
     aimPeople(post?.author ?? "");
     offerPeople(Boolean(post));
