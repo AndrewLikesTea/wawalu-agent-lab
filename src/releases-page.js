@@ -32,6 +32,7 @@ import { RELEASE_FORM_ERRORS, createRelease, mountDecisionPicker, recordedSummar
 import { copyRecordUrl } from "./share-link.js";
 import { decisionToLink } from "./decision-entry.js";
 import { initReleaseExport } from "./release-export.js";
+import { initReleaseReasoningProof } from "./release-reasoning-proof.js";
 
 const SAVE_FAILED = "This release could not be saved in this browser. Your entries are still here; free some browser storage and try again.";
 export const LOG_UNREAD = "Couldn’t save: the release log didn’t load. Retry loading releases, then record again.";
@@ -372,7 +373,19 @@ export function initReleasesPage(root = document, storage = localStorage, option
   // visitor downloads is the list they are looking at by construction and not
   // by two implementations agreeing.
   let shown = [];
+  // The reasoning figure above the log (#2579). Mounted before the first render
+  // so its copy control is live from the same moment its sentence is, and fed
+  // from `releases` — the complete loaded log — on every render below rather than
+  // from `shown`, which is what makes "the filters do not move this number" a
+  // property of the wiring instead of a promise in the copy.
+  const reasoningProof = initReleaseReasoningProof(root, {
+    clipboard: options.clipboard ?? globalThis.navigator?.clipboard,
+  });
   const update = () => {
+    // Whatever the list is showing, the figure is over the whole loaded log —
+    // and over nothing at all when the log could not be read, because a log that
+    // did not load has no releases to count.
+    reasoningProof.update(unread ? [] : releases, decisions, exampleReleaseIds);
     if (unread) {
       // Nothing is shown, so nothing is counted, exported or followed up.
       shown = [];

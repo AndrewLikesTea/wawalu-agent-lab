@@ -277,6 +277,62 @@
         <p class="hint evaluation-path-announce" id="evaluation-path-announce" role="status" aria-live="polite"></p>
       </section>
 
+      <!-- HOW CONSISTENTLY THIS LOG KEEPS ITS REASONING (#2579), directly above
+           the log it is a claim about. One number a reader can quote, and beside
+           it the three things a quoted number needs: the rule it was counted
+           under, what it was counted over, and whose records those were.
+
+           THE FIGURE IS NOT IN THESE BYTES. A count is a claim the page cannot
+           make until the log has loaded — the same reason the log's own count
+           sentence below ships empty — so the sentence node ships empty and
+           release-reasoning-proof.js writes it. It is a live region from the
+           first paint rather than one inserted when its text arrives, because a
+           region that appears with its contents is announced by nothing, and the
+           numbers do move later: recording a release moves them, and so does a
+           retry that recovers the decision log. It is not a second voice for the
+           log's wait — it states no wait, and the log's one status region below
+           is still the only node that says the log is loading.
+
+           WHAT IS AUTHORED is everything that is true before any module runs:
+           the heading, the counting rule and the scope. The rule is the one
+           thing about this figure a reader cannot infer from it, and it is
+           deliberately stricter than the home page's release-coverage line: here
+           a link pointing at a decision this log does not hold does not count,
+           because the question is whether the rationale can still be read.
+
+           The scope sentence is the other half of "quotable": every other count
+           on this page follows the search and the filters, and this one does
+           not. The page hands the module the complete loaded log on every
+           render, never the rendered selection, so the sentence stays true.
+
+           The copy control hands over the whole proof point as text, not a link:
+           it is a sentence that has to survive being pasted into a mail, so it
+           carries its own scope and its own provenance. It ships disabled like
+           the log's share controls below — without the script there is no
+           sentence to copy — and wears the classes this page already ships, so
+           the block costs one declaration in releases-proof.css and nothing in
+           styles.css, which is at its measured size budget. -->
+      <section class="shiplog-proof" id="reasoning-proof" aria-labelledby="reasoning-proof-title">
+        <div class="shiplog-proof-heading">
+          <div>
+            <h2 id="reasoning-proof-title">Reasoning kept with each release</h2>
+          </div>
+        </div>
+        <p class="feed-summary" id="reasoning-proof-claim" role="status" aria-live="polite" aria-atomic="true"></p>
+        <!-- Whose records the figure counted, directly under the figure and in
+             the same type as the example records' own caveat rather than as a
+             hint below the fold of the block: which half of this number was
+             invented is not a footnote. Written by the module from the records it
+             counted, so it cannot describe a log it did not read. -->
+        <p class="shiplog-proof-note" id="reasoning-proof-provenance"></p>
+        <p class="shiplog-proof-note" id="reasoning-proof-rule">A link pointing at a decision the decision log does not hold does not count. Neither does a release with no linked decision.</p>
+        <p class="shiplog-proof-note" id="reasoning-proof-scope">Both numbers are over every release loaded on this page, not the filtered view: the search and the filters below do not change them.</p>
+        <div class="shiplog-proof-share">
+          <button class="share-button" id="reasoning-proof-copy" type="button" disabled aria-describedby="reasoning-proof-copy-status">Copy this count as a sentence</button>
+          <span class="share-status" id="reasoning-proof-copy-status" role="status" aria-live="polite" aria-atomic="true"></span>
+        </div>
+      </section>
+
       <!-- The log first, the recorder under it. A prospect following "Explore
            the decision and release log" from the home page reaches the count,
            the search, the filters, the export and a real record before any

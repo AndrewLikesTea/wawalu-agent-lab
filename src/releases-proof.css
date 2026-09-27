@@ -60,6 +60,21 @@
  * release just recorded and the sentences around it wrap in the column. */
 @media(max-width:520px) { #release-record-next>*{min-width:0;max-width:100%;overflow-wrap:anywhere} }
 @media(max-width:520px) { .shiplog-proof-heading{align-items:stretch;flex-direction:column}.shiplog-proof-facts{grid-template-columns:1fr}.shiplog-proof-share{align-items:stretch;flex-direction:column}.shiplog-proof-share .share-button{width:100%} }
+/* The reasoning figure (#2579) borrows the log's own count-sentence class, which
+ * carries a bottom margin for the list it normally stands above. Inside this
+ * block the parent grid owns the spacing, so the margin would read as a gap half
+ * again as wide as every other one here. One declaration, no new hue, no new type
+ * scale; this sheet is the releases page's own and is outside the measured
+ * evolution size budget, and styles.css gained nothing. */
+#reasoning-proof-claim { margin:0; }
+/* The attribution ships empty — it is a statement about records that have not
+ * been read yet — and an empty grid item still takes a gap either side of it, so
+ * a reader whose scripts never ran would meet a band of dead space where the
+ * sentence will be. The figure above it is deliberately NOT hidden the same way:
+ * it is the live region that announces the count, and a live region rendered from
+ * display:none is not reliably announced by every screen reader. */
+#reasoning-proof-provenance:empty { display:none; }
+
 /* ---------------------- the four-step demo guide (#2578) ------------------- */
 /* The home page's guide, carried onto this page. The rules are restated here
  * rather than shared, and deliberately: styles.css is inside the measured size
