@@ -2256,10 +2256,11 @@ test("publishing the drawing empties the composer, and reopening it offers no le
   id("post-image-alt").focus();
   typeText(document, ALT_TEXT);
   id("post-submit").click();
-  await waitFor(() => !id("social-notice").hidden, "the composer answered the publish");
-
-  assert.equal(id("social-notice").classList.contains("is-success"), true,
-    `the publish did not land: ${textOf(id("social-notice"))}`);
+  // Waiting on the settled state, not merely on a visible region: the region is
+  // visible from the moment the request leaves, carrying the in-progress state
+  // (#2577), so `!hidden` would return here mid-publish and assert against it.
+  await waitFor(() => id("social-notice").classList.contains("is-success"),
+    "the composer confirmed the publish");
 
   id("post-compose-cancel").click();
   trigger.click();

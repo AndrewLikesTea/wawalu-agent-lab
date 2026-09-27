@@ -759,6 +759,7 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .detail-state-chip { display:inline-flex; align-items:center; margin:0 0 11px; border:1px solid currentColor; border-radius:5px; padding:2px 9px; font:750 10px/1.6 ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; }
 .detail-state-chip-missing { border-color:#d9c69a; background:#fdf7e8; color:#5b4a20; }
 .detail-state-chip-error { border-color:#d5aaa6; background:#fbf1f1; color:#713b37; }
+.detail-state-chip-pending { border-color:#a8c2da; background:#eef4fa; color:#1f4a72; }
 /* The retry's landing place after a successful retry (post-page.js). It is
    focusable only programmatically, so this ring appears exactly once: when the
    reader pressed "Try again" and the post replaced the failure. */

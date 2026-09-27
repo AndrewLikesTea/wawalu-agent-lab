@@ -341,7 +341,7 @@ test("a retry after a failure sends the same post again, without re-entering any
   assert.equal(harness.media, null);
 });
 
-test("while a publish is in flight the button carries the state alone, and a second submit cannot leave", async (t) => {
+test("while a publish is in flight the button and the status region say so, and a second submit cannot leave", async (t) => {
   const harness = await composer(t, { fail: "Posts API returned 503" });
   harness.fill({ body: "Only one of these is sent.", author: "Remy" });
 
@@ -353,12 +353,16 @@ test("while a publish is in flight the button carries the state alone, and a sec
   await harness.publish();
   assert.equal(harness.requests.length, 2, "the retry is on the wire");
 
-  // Exactly one thing on the page describes the attempt. The failed outcome of
-  // the previous press is gone rather than sitting under a request in flight,
-  // which would state two contradictory states at once.
+  // Exactly one state on the page describes the attempt, and it is this one
+  // (#2577). The failed outcome of the previous press is overwritten rather than
+  // left sitting under a request in flight, which would state two contradictory
+  // states at once — and rather than emptied, which left the relabelled button
+  // as the only evidence that anything was happening.
   const region = notice(harness.document);
-  assert.equal(region.hidden, true);
-  assert.equal(textOf(region), "");
+  assert.equal(region.hidden, false);
+  assert.match(textOf(region), new RegExp(PUBLISH_STATE_WORDS.pending));
+  assert.doesNotMatch(textOf(region), new RegExp(PUBLISH_STATE_WORDS.failed));
+  assert.equal(region.classList.contains("is-success"), false);
 
   const submit = harness.document.querySelector("#post-submit");
   assert.match(textOf(submit), /Publishing…/, "the control names what it is doing");
@@ -415,9 +419,10 @@ test("the confirmation and the failure clear 4.5:1 on colours already in the pal
     ".notice",
     // The confirmation sentence, on the success surface.
     ".notice.is-success",
-    // The two state chips: "Not published", and "Hidden by filters".
+    // The three state chips: "Not published", "Hidden by filters", "Publishing".
     ".detail-state-chip-error",
     ".detail-state-chip-missing",
+    ".detail-state-chip-pending",
   ];
   for (const selector of pairings) {
     const text = ratio(declared(selector, "color"), declared(selector, "background"));

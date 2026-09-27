@@ -319,13 +319,17 @@ export function publishedPostLabel({ body = "", author = "" } = {}) {
   return `Published “${short}” as ${author}.`;
 }
 
-// Two live states, two words, both carried by the label rather than by the wash
-// behind it: blue on this site is already both a series hue and the selection
-// accent, so a state told in colour alone is told in a colour that means three
-// other things. The chips are the shipped detail-state chips — a filled wash, as
-// the design system requires of a state that is happening now, and no new custom
-// property or palette entry.
-export const PUBLISH_STATE_WORDS = Object.freeze({ filtered: "Hidden by filters", failed: "Not published" });
+// Three live states, three words, each carried by the label rather than by the
+// wash behind it: blue on this site is already both a series hue and the
+// selection accent, so a state told in colour alone is told in a colour that
+// means three other things. The chips are the shipped detail-state chips — a
+// filled wash, as the design system requires of a state that is happening now,
+// and no new custom property or palette entry.
+export const PUBLISH_STATE_WORDS = Object.freeze({
+  pending: "Publishing",
+  filtered: "Hidden by filters",
+  failed: "Not published",
+});
 export const FILTERED_OUT_NOTE = "Your current filters hide this post from the feed below.";
 export const REVEAL_CONTROL_LABEL = "Clear filters and show this post";
 export const NO_IMAGE_NOTE = "This post carries no image, so it appears on Social only.";
@@ -355,6 +359,14 @@ export const DRAFT_KEPT_NOTE = "What you changed after pressing Publish post is 
 // again without fixing the field would fail the same way.
 export const PUBLISH_RETRY_NOTE = "Use Retry publishing post to send the same post again.";
 export const PUBLISH_RETRY_LABEL = "Retry publishing post";
+
+// #2577. The state between the press and the outcome. The button relabels itself
+// to "Publishing…", but that is a label change on the element the reader's own
+// focus is already sitting on, and assistive technology announces those
+// inconsistently — so the attempt is stated in words too, in the region both
+// outcomes are stated in. It says the one thing a reader pressing again wants to
+// know: the second press costs nothing, because the handler drops it.
+export const PUBLISH_IN_PROGRESS_NOTE = "Your post is on its way to Social. Pressing Publish post again sends nothing while this one is out, and your draft stays in the composer until it lands.";
 
 // The label said "(required with an image)" and nothing said what the
 // requirement does, so the one refusal that is entirely this page's own — the
@@ -1651,15 +1663,29 @@ export function mountSocialFeed(root, options = {}) {
     if (focus) notice.focus();
   };
 
-  // The outcome of the *last* press is not the state of this one. Cleared as a
-  // publish starts, so the only thing describing the attempt in flight is the
-  // button that started it — otherwise a retry runs under a region still
-  // reading "Not published", and the reader is told two states at once.
-  const clearNotice = () => {
+  // The outcome of the *last* press is not the state of this one. Overwritten as
+  // a publish starts, so a retry never runs under a region still reading "Not
+  // published" — that would tell the reader two states at once — and the attempt
+  // in flight is never left unsaid either (#2577). Before this, the region was
+  // emptied here and the relabelled button was the only evidence a request was
+  // out; a label change under the reader's own focus is not a reliable
+  // announcement, and a reader who had tabbed away from the button had nothing.
+  //
+  // This region is `role="status" aria-live="polite" aria-atomic="true"` and is
+  // named in the submit button's own aria-describedby, so the sentence arrives
+  // politely, whole, and attached to the control that started it.
+  //
+  // No focus move: the reader is standing where they pressed, and a live region
+  // speaks without being visited. Focus moves only when the outcome lands.
+  const showPending = () => {
     if (!notice) return;
-    notice.replaceChildren();
     notice.classList.remove("is-success");
-    notice.hidden = true;
+    notice.replaceChildren(
+      stateChip(PUBLISH_STATE_WORDS.pending, "detail-state-chip-pending"),
+      document.createTextNode(` ${PUBLISH_IN_PROGRESS_NOTE}`),
+    );
+    notice.hidden = false;
+    notice.setAttribute("tabindex", "-1");
   };
 
   // True from the moment a request leaves until it comes back, and the whole
@@ -1667,7 +1693,10 @@ export function mountSocialFeed(root, options = {}) {
   // the post field's Cmd/Ctrl+Enter shortcut all reach the handler that reads it.
   // Nothing is disabled (#2370): the button keeps the focus it was pressed with,
   // Close stays usable, and the "Publishing…" label is the status a reader finds
-  // on the button, including after closing and reopening the composer.
+  // on the button, including after closing and reopening the composer. The
+  // attribute is not the guard — `publishing` is — so a disabled button would buy
+  // nothing and cost the reader their place. The words for the same state live in
+  // the status region above (showPending); this is the label half of one state.
   const setSubmitting = (submitting) => {
     publishing = submitting;
     if (!submit) return;
@@ -1760,7 +1789,7 @@ export function mountSocialFeed(root, options = {}) {
       const doc = root.ownerDocument ?? root;
       const snapshot = { revision: draftRevision, hasImage: Boolean(media), focused: doc.activeElement };
       try {
-        clearNotice();
+        showPending();
         setSubmitting(true);
         const saved = options.create ? await options.create(post, media) : post;
         const focus = composer.isOpen && doc.activeElement === snapshot.focused;
