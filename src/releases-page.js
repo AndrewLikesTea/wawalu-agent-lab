@@ -7,6 +7,7 @@
 import {
   ALL_DECISIONS_FILTER,
   focusRelease,
+  loadReleases,
   mountReleaseList,
   readReleases,
   releaseSummarySentence,
@@ -20,7 +21,9 @@ import {
 import { initAskAboutShiplog } from "./ask-about-shiplog.js";
 import { bindReleaseFilterUrl } from "./release-filter-url.js";
 import { loadReleaseData } from "./releases-data.js";
-import { readDecisions } from "./app.js";
+import { loadDecisions, readDecisions } from "./app.js";
+import { initDemoProgress } from "./demo-progress.js";
+import { recordsChanged } from "./shiplog-records.js";
 import { BUILD_STAMP } from "./build-stamp.js";
 import { deployedReleaseRecord } from "./deployed-release.js";
 import { renderShippedBuild } from "./deployed-release-view.js";
@@ -274,6 +277,26 @@ export function initReleasesPage(root = document, storage = localStorage, option
 
   container.setAttribute("aria-busy", "true");
   announce("loading");
+
+  // The four-step demo guide, the same module the home page mounts (#2578).
+  //
+  // Mounted here, with the log's wait already announced and before the log is
+  // read, because the guide does not wait on the log: it states what THIS
+  // browser has recorded, the authored version of that is on screen from the
+  // first paint, and correcting it to the store's answer is not something a
+  // reader should watch happen after the rows land.
+  //
+  // Handed READERS, not lists, and deliberately not the composed picture the
+  // list renders below: that one includes the seeded examples, which nobody in
+  // this browser recorded, so a first-time visitor reading them would be shown
+  // somebody else's progress. These two reads see only what was written here.
+  // A document without the guide gets nothing back and nothing breaks.
+  initDemoProgress(root, storage, {
+    decisions: () => loadDecisions(storage),
+    releases: () => loadReleases(storage),
+    surface: "releases",
+  });
+
   let data = readLog();
   // An unread log is a state of the list, not of the page: the filters and the
   // recorder still work from what did load, and the recorder refuses to save
@@ -478,6 +501,12 @@ export function initReleasesPage(root = document, storage = localStorage, option
       }
       releases = [release, ...releases];
       update();
+      // The record is in storage by the time this runs, so the demo guide can
+      // re-read the store and move. Announced through the shared channel rather
+      // than by calling the guide back directly: the notification says "this
+      // root's records changed", which is the fact, and every surface that
+      // counts them re-reads for itself.
+      recordsChanged(root);
     },
   });
 

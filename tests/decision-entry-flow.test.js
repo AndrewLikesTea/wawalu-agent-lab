@@ -545,7 +545,7 @@ test("the painted page lists the four-step evaluation path above the recorder", 
   // after it is the sentence this path has always listed. The statuses
   // themselves, and how they move, are covered by demo-progress.test.js.
   assert.deepEqual(pathSteps(page), [
-    "Step 1 of 4 · Do this now Record a decision with the form below.",
+    "Step 1 of 4 · Do this now Record a decision with the decision form on the Home page.",
     "Step 2 of 4 · Not started Continue to Releases with that decision ready to link.",
     "Step 3 of 4 · Not started Record a release there and link that decision to it.",
     "Step 4 of 4 · Not started Open the release you recorded and check its summary and linked decision.",

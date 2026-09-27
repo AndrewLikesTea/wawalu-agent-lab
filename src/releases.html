@@ -227,6 +227,56 @@
         </div>
       </section>
 
+      <!-- THE SAME FOUR-STEP DEMO GUIDE THE HOME PAGE SHIPS (#2578), and the
+           same module behind it. src/demo-progress.js owns the four sentences,
+           their order, the status words and the derivation; this page passes it
+           a surface name, which changes only which step arriving here has
+           already done and which of THIS page's controls the one next link
+           names. There is no second step model to keep in step with the first.
+
+           WHY IT STANDS HERE. It is the last thing a reader passes before the
+           log and the recorder it directs them into, and it stands after the
+           real deployment record and the example records rather than above
+           them: the guide describes what a visitor can do, not a record they
+           can check, so it must not displace the one block on this page that is
+           checkable. Its heading is an h2 like the blocks either side of it,
+           and the section takes its accessible name from that heading, so it is
+           a named region of its own rather than a second copy of one.
+
+           WHAT SHIPS IN THESE BYTES is the state of a browser that has recorded
+           nothing — which is what a reader whose scripts never ran honestly is —
+           and on this page that state is the prerequisite: the demo starts with
+           a decision, this log cannot record one, so the lead says so and the
+           one link goes to the page that can. The step sentences are the home
+           page's words verbatim, from the same constants the module repaints
+           them with.
+
+           The provenance line is the home page's sentence, not a second
+           wording, and it deliberately does not repeat the example-records
+           caveat above it: shiplog-proof.test.js counts that caveat once above
+           the recorder, and one guide adding a second occurrence would red it. -->
+      <section class="evaluation-path" id="evaluation-path" aria-labelledby="evaluation-path-title">
+        <h2 id="evaluation-path-title">Try the whole demo in four steps</h2>
+        <ol id="evaluation-path-steps">
+          <li aria-current="step"><span class="evaluation-path-status">Step 1 of 4 · Do this now</span> <span class="evaluation-path-step">Record a decision with the decision form on the Home page.</span></li>
+          <li><span class="evaluation-path-status">Step 2 of 4 · Not started</span> <span class="evaluation-path-step">Continue to Releases with that decision ready to link.</span></li>
+          <li><span class="evaluation-path-status">Step 3 of 4 · Not started</span> <span class="evaluation-path-step">Record a release there and link that decision to it.</span></li>
+          <li><span class="evaluation-path-status">Step 4 of 4 · Not started</span> <span class="evaluation-path-step">Open the release you recorded and check its summary and linked decision.</span></li>
+        </ol>
+        <div class="evaluation-path-next" id="evaluation-path-next">
+          <p id="evaluation-path-next-lead">No decision is recorded in this browser yet, so there is nothing to link to a release here. Step one is the decision form on the Home page.</p>
+          <a class="text-link" id="evaluation-path-action" href="/index.html#decision-form" aria-describedby="evaluation-path-next-lead">Open the decision form on the Home page</a>
+        </div>
+        <p class="hint" id="evaluation-path-scope">Records you add stay in this browser only. This is a demo workflow, not a customer result.</p>
+        <!-- The one thing here that says a step changed without a reload. It
+             ships empty and stays in the accessibility tree from the first
+             paint: a live region inserted at the moment its text arrives is
+             announced by nothing. Visible text, not a hidden one and not inside
+             a disclosure element, so the change is readable as well as audible;
+             and it repeats nothing on a repaint that moved no step. -->
+        <p class="hint evaluation-path-announce" id="evaluation-path-announce" role="status" aria-live="polite"></p>
+      </section>
+
       <!-- The log first, the recorder under it. A prospect following "Explore
            the decision and release log" from the home page reaches the count,
            the search, the filters, the export and a real record before any

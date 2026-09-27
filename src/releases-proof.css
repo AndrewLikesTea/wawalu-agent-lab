@@ -60,3 +60,28 @@
  * release just recorded and the sentences around it wrap in the column. */
 @media(max-width:520px) { #release-record-next>*{min-width:0;max-width:100%;overflow-wrap:anywhere} }
 @media(max-width:520px) { .shiplog-proof-heading{align-items:stretch;flex-direction:column}.shiplog-proof-facts{grid-template-columns:1fr}.shiplog-proof-share{align-items:stretch;flex-direction:column}.shiplog-proof-share .share-button{width:100%} }
+/* ---------------------- the four-step demo guide (#2578) ------------------- */
+/* The home page's guide, carried onto this page. The rules are restated here
+ * rather than shared, and deliberately: styles.css is inside the measured size
+ * budget with a few bytes of headroom, and landing-decision.css is the home
+ * page's own sheet, which this page does not load and should not begin loading
+ * for eleven declarations. This sheet is the releases page's own and is outside
+ * that budget. The heading is an h2 here because the blocks either side of it
+ * are, so it takes a size of its own; every other rule is the same rule.
+ * Nothing on this page measures the viewport in script, so the narrow-width
+ * behaviour lives here and is asserted against these rules rather than against
+ * a faked viewport: the status is its own block at every width, so a long
+ * decision title can never push it sideways, and the step text and the next
+ * link wrap down the column instead of truncating or overflowing it. The focus
+ * ring is the global a:focus-visible rule in styles.css. */
+.evaluation-path { margin:0 0 24px; border-left:4px solid #1f70c1; padding:2px 0 2px 14px; overflow-wrap:anywhere; }
+.evaluation-path h2 { margin:0 0 6px; font-size:18px; }
+.evaluation-path ol { margin:0 0 6px; padding-left:20px; line-height:1.5; }
+.evaluation-path li { margin:0 0 6px; }
+.evaluation-path-status { display:block; font-size:12px; font-weight:750; letter-spacing:.04em; text-transform:uppercase; }
+.evaluation-path-step { display:block; overflow-wrap:anywhere; }
+.evaluation-path-next { display:grid; gap:4px; margin:0 0 6px; overflow-wrap:anywhere; }
+.evaluation-path-next p { margin:0; font-size:15px; line-height:1.5; }
+.evaluation-path-next .text-link { justify-self:start; max-width:100%; }
+.evaluation-path-announce:empty { display:none; }
+@media(max-width:520px) { .evaluation-path ol{padding-left:18px}.evaluation-path li{display:block}.evaluation-path-next .text-link{justify-self:stretch;white-space:normal;overflow-wrap:anywhere} }
