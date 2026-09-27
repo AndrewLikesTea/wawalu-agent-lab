@@ -569,6 +569,26 @@ test("the Summary hint says what to write for each release status", async (t) =>
   assert.equal(textOf(page.document.querySelector('label[for="release-description"]')), "Summary (required)");
 });
 
+// Version is the third field standing for all three statuses, and its hint used
+// to call the value "the version or tag that shipped" — false for a recorder
+// filling in a Planned or Cancelled release (#2580). Asserted on the booted
+// page, so what is checked is the hint a visitor actually reads.
+test("the Version hint names the value without claiming the release shipped", async (t) => {
+  const page = await openReleases(t);
+
+  const field = page.document.querySelector("#release-version");
+  assert.equal(field.getAttribute("aria-describedby"), "release-version-hint");
+  const hint = textOf(page.document.querySelector("#release-version-hint"));
+  assert.equal(hint, "The version or tag for this release, such as v1.4.0.");
+  // Still concrete: the example a recorder copies the format from.
+  assert.match(hint, /v1\.4\.0/);
+  // Status-neutral: Planned and Cancelled are recorded through this same field.
+  assert.doesNotMatch(hint, /shipped/i,
+    "the Version hint still tells a planned or cancelled release that it shipped");
+  // One name per concept — the hint calls it what the label calls it.
+  assert.equal(textOf(page.document.querySelector('label[for="release-version"]')), "Version (required)");
+});
+
 // The picker's authored markup now opens on "Loading decisions to link…", so
 // the one thing that must never happen is the boot leaving that claim standing.
 // A browser that refuses storage is the closest a visitor gets to the log not
