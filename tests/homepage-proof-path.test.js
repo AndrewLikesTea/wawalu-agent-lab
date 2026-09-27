@@ -15,7 +15,7 @@ import assert from "node:assert/strict";
 
 import { initDecisionLog, STORAGE_KEY } from "../src/app.js";
 import {
-  ASK_ABOUT_SHIPLOG_HREF, ASK_ABOUT_SHIPLOG_ID, ASK_ABOUT_SHIPLOG_LABEL,
+  ASK_ABOUT_SHIPLOG_HREF, ASK_ABOUT_SHIPLOG_ID,
 } from "../src/ask-about-shiplog.js";
 import { initDecisionDetail } from "../src/decision-page.js";
 import { initReleaseDetail } from "../src/release-page.js";
@@ -143,7 +143,7 @@ test("the Shiplog offer states the pricing status and points to its contact path
   // Since #2458 the ask is a control under the answer rather than a clause
   // inside it, and it lands on the form's container rather than on the field:
   // the offer and the topic line are read on arrival, not scrolled past.
-  assert.equal(textOf(contact), ASK_ABOUT_SHIPLOG_LABEL);
+  assert.equal(textOf(contact), "Request a demonstration or discuss a pilot");
   assert.equal(contact.getAttribute("id"), ASK_ABOUT_SHIPLOG_ID);
   // The link names one destination on this page, so the buyer picks no form.
   assert.equal(offer.querySelectorAll(`a[href="${ASK_ABOUT_SHIPLOG_HREF}"]`).length, 1);

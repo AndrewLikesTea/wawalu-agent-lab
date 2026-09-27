@@ -39,6 +39,9 @@ import { RELEASE_STORAGE_KEY } from "../src/releases.js";
 import { OFFER } from "../src/site-footer.js";
 import { loadPage, parseHtml, pressEnter, tabSequence, textOf } from "./support/browser.js";
 
+const HOME_LABEL = "Request a demonstration or discuss a pilot";
+const HOME_DESCRIPTION = "Use the follow-up form at the foot of this page to request a demonstration or discuss a pilot with the Wawalu team. Enter your work email to request a follow-up. A person replies by email, usually within two working days.";
+
 const PANEL_ID = ASK_ABOUT_SHIPLOG_HREF.slice(1);
 
 async function openHome(t) {
@@ -68,7 +71,7 @@ const describedBy = (root) => root.querySelectorAll("p")
   .filter((node) => node.getAttribute("id") === ASK_ABOUT_SHIPLOG_DESCRIPTION_ID);
 
 for (const [name, open] of CARRIERS) {
-  test(`${name} paints one route named "${ASK_ABOUT_SHIPLOG_LABEL}" at the follow-up form`, async (t) => {
+  test(`${name} paints one named route to the follow-up form`, async (t) => {
     const page = await open(t);
     const { document } = page;
 
@@ -79,7 +82,7 @@ for (const [name, open] of CARRIERS) {
 
     // The accessible name is the visible text: no aria-label saying something
     // else, and no icon standing in for the words.
-    assert.equal(textOf(route), ASK_ABOUT_SHIPLOG_LABEL);
+    assert.equal(textOf(route), name === "the home page" ? HOME_LABEL : ASK_ABOUT_SHIPLOG_LABEL);
     assert.equal(route.getAttribute("aria-label"), null);
     assert.equal(route.getAttribute("href"), ASK_ABOUT_SHIPLOG_HREF);
     assert.equal(route.tagName, "A", "the route must be a real link, so a page with no script still arrives");
@@ -97,7 +100,7 @@ for (const [name, open] of CARRIERS) {
     // sentence to a test and not to a reader.
     const described = describedBy(document);
     assert.equal(described.length, 1, `${name}: the description is painted ${described.length} times`);
-    assert.equal(textOf(described[0]), ASK_ABOUT_SHIPLOG_DESCRIPTION);
+    assert.equal(textOf(described[0]), name === "the home page" ? HOME_DESCRIPTION : ASK_ABOUT_SHIPLOG_DESCRIPTION);
     assert.equal(tabSequence(document).filter((node) => node === described[0]).length, 0,
       `${name}: the description became a tab stop`);
   });
@@ -219,13 +222,13 @@ test("the sentence itself says where, what is asked, and what comes back — and
   }
 });
 
-test("all six pages that offer the route carry that sentence, once, at the label", async () => {
+test("all six pages carry their follow-up description once at the label", async () => {
   for (const file of CARRYING_PAGES) {
     const document = await readPage(file);
 
     const described = describedBy(document);
     assert.equal(described.length, 1, `${file}: the description ships ${described.length} times`);
-    assert.equal(textOf(described[0]), ASK_ABOUT_SHIPLOG_DESCRIPTION);
+    assert.equal(textOf(described[0]), file === "index.html" ? HOME_DESCRIPTION : ASK_ABOUT_SHIPLOG_DESCRIPTION);
 
     // At the entry point and nowhere else. Beside the form it would be a
     // caption for a destination the reader has already arrived at.
