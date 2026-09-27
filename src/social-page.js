@@ -456,7 +456,7 @@ async function init() {
   let knownIds = new Set(fallback.map((post) => post.id));
   let hasConnected = false;
 
-  const refresh = async () => {
+  const load = async () => {
     try {
       const live = await fetchLivePosts();
       const nextIds = new Set(live.map((post) => post.id));
@@ -478,6 +478,37 @@ async function init() {
       // beside them, or replaces a first-load skeleton when there are none.
       feed.setState("error");
     }
+  };
+
+  // ONE REQUEST AT A TIME (#2576).
+  //
+  // Four things ask for this feed: the first paint, a ten-second interval, every
+  // return to the tab, and Retry. None of them knew whether one of the others was
+  // already waiting on /api/social-posts, and two of the four are a reader's own
+  // press or tab switch, so overlapping was not a rare case.
+  //
+  // Two open requests are worse than one slow one. They answer in whichever order
+  // the network gives them, and the loser writes last: a stale success could
+  // replace newer posts, and a failure that had already been superseded could put
+  // the error panel over a feed that had just loaded. A double-press — Enter
+  // repeating, or a second click delivered before the render that removes the
+  // button — opened a second fetch for news the first was already fetching.
+  //
+  // So a caller arriving while a request is open joins that request instead of
+  // opening another. The answer is as fresh either way: it is the same route with
+  // `cache: no-store`, opened moments ago. A reader who joins a request that then
+  // fails gets the failure panel back with its Retry, and by then nothing is open,
+  // so the next press really is a new attempt — held by
+  // tests/social-feed-retry-idempotence.test.js.
+  //
+  // Retry's own re-announcement is not deduplicated: onRetry above sets the feed
+  // back to "loading" on every press, which is the same state drawn twice over and
+  // says the same sentence, so a second press is never silence.
+  let inFlight = null;
+  const refresh = () => {
+    if (inFlight) return inFlight;
+    inFlight = load().finally(() => { inFlight = null; });
+    return inFlight;
   };
 
   await refresh();

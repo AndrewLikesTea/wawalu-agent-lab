@@ -153,7 +153,12 @@ export function retryFocus(statusRegion, landing) {
         : null;
       const target = again ?? landing;
       if (!target) return;
-      if (target.getAttribute("tabindex") === null) target.setAttribute("tabindex", "-1");
+      // The stop is only invented for `landing`, which is a line of text and has
+      // no reason to be one otherwise. `again` is a <button> and already is one:
+      // stamping `tabindex="-1"` on it to focus it took the failed panel's only
+      // working control out of the tab order, so a reader who moved on could not
+      // Tab back to Retry at all (#2576). Focusing a control needs no attribute.
+      if (!again && target.getAttribute("tabindex") === null) target.setAttribute("tabindex", "-1");
       target.focus();
       parked = state === "loading" ? target : null;
     },
