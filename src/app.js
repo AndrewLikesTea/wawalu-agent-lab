@@ -526,7 +526,16 @@ export function provenanceSplitLine(visible = []) {
 // reaches the caption above the list still knows the number includes invented
 // examples.
 function countedRecordsNote(records) {
-  const { examples, added } = countRecordProvenance(records);
+  return countedRecordsNoteFor(countRecordProvenance(records));
+}
+
+// The same sentence over a split that was counted somewhere else. The releases
+// page's reasoning figure (release-reasoning-proof.js) derives provenance from
+// the example-id set that badges its rows rather than from an `example` flag per
+// record, so it has the two halves and not the records; it names them in these
+// words rather than in a second set, because two wordings of one split is how
+// the site starts telling a reader two different things about the same records.
+export function countedRecordsNoteFor({ examples = 0, added = 0 } = {}) {
   return `Counted here: ${exampleHalf(examples)} and ${addedHalf(added)}.`;
 }
 
