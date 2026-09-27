@@ -521,6 +521,28 @@ test("the loading recorder states the wait once, in two different sentences", as
   assert.equal(summaryText(page), "No decisions can be linked until the list loads.");
 });
 
+// The required Version is the third field standing for three statuses, and it
+// used to say the version "shipped" — false for a Planned or Cancelled release
+// the moment it is being recorded (#2580). The hint has to be status-neutral
+// and still concrete, so it keeps the example. Asserted on the booted page,
+// because the hint a visitor reads is whatever survives the page's own render.
+test("the Version hint describes the version without claiming the release shipped", async (t) => {
+  const page = await openReleases(t);
+
+  const field = page.document.querySelector("#release-version");
+  assert.equal(field.getAttribute("aria-describedby"), "release-version-hint");
+  const hint = textOf(page.document.querySelector("#release-version-hint"));
+  assert.equal(hint, "The version or tag this release covers, such as v1.4.0.");
+  // Concrete: the example a recorder copies the format from is still there.
+  assert.match(hint, /v1\.4\.0/);
+  // The reading the issue exists to remove: a version being told it shipped
+  // while the recorder is filing a planned or cancelled release.
+  assert.doesNotMatch(hint, /ship/i,
+    "the Version hint still describes the release as having shipped");
+  // The field the guidance belongs to keeps the name the hint is read under.
+  assert.equal(textOf(page.document.querySelector('label[for="release-version"]')), "Version (required)");
+});
+
 // The required date is one field for three statuses, so its hint has to name
 // all three days a recorder might be holding — and name the cancelled one
 // without saying that release shipped. Asserted on the booted page, because
