@@ -242,20 +242,19 @@ test("Social's route into Paint is the composer's control, and there is no secon
   // link. The follow-up action comes after it.
   const heroControls = documents.Social.querySelector(".hero-actions")
     .querySelectorAll("a,button");
-  assert.equal(heroControls.length, 2);
-  assert.equal(heroControls[1].getAttribute("id"), "ask-about-shiplog");
+  assert.equal(heroControls.length, 1);
   assert.equal(heroControls[0].getAttribute("id"), "post-compose-open");
   assert.equal(heroControls[0].getAttribute("aria-controls"), "post-compose-panel");
 });
 
-test("People routes to Social from its entry point and to Paint beside its grid", () => {
+test("People preserves Social and Paint routes in the supporting guidance", () => {
   // The way back to the whole feed is in the page's opening section, in the
   // sentence that says what this view leaves out. The way into Paint is one
   // paragraph above the grid, beside the pictures that prompt it. Each is a
   // visible link that names its destination, and neither is offered twice: the
   // hero used to carry a second Paint control with the same four words on it.
-  const hero = documents.People.querySelector(".hero");
-  const toSocial = hero.querySelectorAll("a").filter((anchor) => anchor.href.startsWith("/social.html"));
+  const guidance = documents.People.querySelector(".profile-lede.hint");
+  const toSocial = guidance.querySelectorAll("a").filter((anchor) => anchor.href.startsWith("/social.html"));
   assert.equal(toSocial.length, 1, "People's entry point offers no single way back to Social");
   assert.match(textOf(toSocial[0]), /Social/);
 

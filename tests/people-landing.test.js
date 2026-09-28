@@ -123,19 +123,10 @@ test("the picker is read and reached before the name, the count, and the results
     assert.ok(at("#profile-author") < at("#profile-summary"));
     assert.ok(at("#profile-author") < at("#profile-grid"));
 
-    // And the tab sequence agrees, without a tabindex propping it up: every
-    // display name is its own tab stop, in reading order, and they are the first
-    // controls a keyboard reaches inside the main content. Ahead of them is the
-    // intro's link to Social, which is a word in the opening sentence rather
-    // than a control on this view — a reader who wants the whole feed meets the
-    // way to it before the filter they would otherwise have to escape.
+    // The primary action leads directly into the display-name filters.
     const inMain = tabSequence(document).filter((element) => element.closest("#main-content"));
-    assert.equal(inMain[0].getAttribute("href"), "/social.html",
-      "the first tab stop in main is not the intro's route to Social");
-    assert.equal(inMain[0].parentNode?.classList?.contains("profile-lede"), true);
-    assert.equal(inMain[1].id, "ask-about-shiplog");
-    assert.deepEqual(inMain.slice(2, 5).map((element) => element.dataset.author), ["Ari", "Bea", "Zed"],
-      "the first controls in main are not the display-name buttons in reading order");
+    assert.equal(inMain[0].id, "ask-about-shiplog");
+    assert.deepEqual(inMain.slice(1, 4).map((element) => element.dataset.author), ["Ari", "Bea", "Zed"]);
     for (const chip of chips(page))
       assert.equal(chip.getAttribute("tabindex"), null, "the order is markup order, not a tabindex trick");
   } finally {
@@ -302,14 +293,14 @@ test("People states the images-only rule once and offers each route once", async
     // destination and its own words.
     const toSocial = anchors.filter((anchor) => (anchor.getAttribute("href") ?? "").startsWith("/social.html"));
     assert.equal(toSocial.length, 3, "the main content changed how many times it routes to Social");
-    assert.equal(toSocial[0].getAttribute("href"), "/social.html");
-    assert.equal(toSocial[0].parentNode?.classList?.contains("profile-lede"), true,
+    assert.equal(toSocial[1].getAttribute("href"), "/social.html");
+    assert.equal(toSocial[1].parentNode?.classList?.contains("profile-lede"), true,
       "the link to the whole feed is not in the sentence that states the rule");
     // The filtered route names the display name it carries and nothing else: the
     // rule it depends on is the intro's, counted once above.
-    assert.equal(toSocial[1].getAttribute("href"), "/social.html?author=Zed");
-    assert.equal(textOf(toSocial[1]), "See every post published under Zed on Social");
-    assert.equal(toSocial[1].parentNode?.getAttribute("id"), "profile-social-route",
+    assert.equal(toSocial[0].getAttribute("href"), "/social.html?author=Zed");
+    assert.equal(textOf(toSocial[0]), "See every post published under Zed on Social");
+    assert.equal(toSocial[0].parentNode?.getAttribute("id"), "profile-social-route",
       "the filtered route to Social is not the link the picker draws");
     assert.equal(toSocial[2].getAttribute("href"), "/social.html#post-form");
     assert.equal(textOf(toSocial[2]), "Publish a post on Social");
@@ -783,7 +774,7 @@ test("one profile header opens the results, above the line that orders them", as
     // paragraph in this panel, and still not in the hero.
     assert.ok(at(".profile-role") > at("#profile-grid"),
       "the display-name caveat is still read before the posts");
-    assert.equal(panel.childElements.at(-1).className, "profile-role",
+    assert.equal(panel.childElements.at(-1).className, "profile-role hint",
       "something other than the caveat closes the results region");
     // And the hero it came from keeps no piece of it behind.
     const hero = document.querySelector(".hero-profile");
@@ -874,14 +865,13 @@ test("tabbing from the top reaches the picker, then the posts under the header",
     const { document } = page;
     // Walked, not read off the markup: every stop is a real focus move made by
     // the page harness that boots the shipped markup with the shipped module.
-    document.querySelectorAll(".profile-lede")[1].querySelectorAll("a")[0].focus();
-    assert.equal(pressTab(document).id, "ask-about-shiplog");
+    document.querySelector("#ask-about-shiplog").focus();
     const tiles = drawnTiles(document);
     const walked = [];
     // Two stops per post: the tile, then its Report post button (#2343).
-    for (let step = 0; step < 4 + tiles.length * 2 + 2; step += 1) walked.push(pressTab(document));
+    for (let step = 0; step < 4 + tiles.length * 2 + 3; step += 1) walked.push(pressTab(document));
     assert.deepEqual(walked.slice(0, 3).map((node) => node.dataset?.author), ["Ari", "Bea", "Zed"],
-      "the display-name picker must follow the introduction links");
+      "the display-name picker must follow the primary action");
     // Then the way out of the filter the reader has just set: the selected
     // display name's whole feed on Social (#2193). It is the last stop in the
     // filter region and comes before the heading that names the results, so a
@@ -906,8 +896,9 @@ test("tabbing from the top reaches the picker, then the posts under the header",
       assert.equal(walked[5 + index * 2].dataset?.postId, tile.dataset.postId,
         `the stop after post ${index + 1} is not that post's Report post button`);
     }
-    assert.equal(walked[4 + tiles.length * 2].getAttribute("id"), "profile-paint-route");
-    assert.equal(walked[5 + tiles.length * 2].getAttribute("id"), "profile-publish-route");
+    assert.equal(walked[4 + tiles.length * 2].getAttribute("href"), "/social.html");
+    assert.equal(walked[5 + tiles.length * 2].getAttribute("id"), "profile-paint-route");
+    assert.equal(walked[6 + tiles.length * 2].getAttribute("id"), "profile-publish-route");
 
     // And the visual order the tab order is supposed to match: every one of
     // those stops comes after the heading, the posts come after the label, and
@@ -919,12 +910,12 @@ test("tabbing from the top reaches the picker, then the posts under the header",
     assert.ok(at(document.querySelector("#profile-social-route")) < at(document.querySelector("#grid-title")));
     assert.ok(at(document.querySelector("#profile-order")) < at(walked[4]));
     assert.ok(at(walked[3 + tiles.length * 2]) < at(document.querySelector("#profile-paint-route")));
-    // Introduction links and the filter precede the results. None stands
+    // The primary action and the filter precede the results. None stands
     // between the heading that names the results and the results.
     const inMain = tabSequence(document).filter((element) => element.closest("#main-content"));
     const beforePanel = inMain.filter((element) => !element.closest(".list-panel"));
     assert.deepEqual(beforePanel.map((element) => element.dataset?.author ?? element.getAttribute("href")),
-      ["/social.html", "#site-footer-panel", "Ari", "Bea", "Zed", "/social.html?author=Zed"]);
+      ["#site-footer-panel", "Ari", "Bea", "Zed", "/social.html?author=Zed"]);
   } finally {
     page.restore();
   }
@@ -1571,12 +1562,11 @@ test("the intro says the image posts on this page are invented, before any of th
     social.restore();
   }
 
-  // Read before the control that filters the grid, so it covers the pictures a
-  // reader is about to choose between rather than explaining them afterwards.
+  // Supporting provenance follows the results, including during loading.
   const order = documentOrder(served.document);
   assert.ok(order.indexOf(served.document.querySelectorAll(".profile-lede")[1])
-    < order.indexOf(served.document.querySelector("#profile-author-label")),
-    "the intro now reads after the display-name picker");
+    > order.indexOf(served.document.querySelector("#profile-grid")),
+    "supporting guidance must follow the results");
 
   // And the loaded page still carries both: nothing the module paints may drop
   // or double either claim. The authored intro fakes hydration, so the wait is

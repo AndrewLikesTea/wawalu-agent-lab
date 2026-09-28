@@ -672,8 +672,7 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .profile-summary { margin:10px 0 0; color:#5b5b56; font:650 13px/1.5 ui-monospace,monospace; }
 /* Filled wash: a state that changes with the picker, in the avatar's own pair. */
 .profile-active-filter { display:inline-block; margin:0; border-radius:4px; padding:7px 10px; background:#e7eefb; color:#1f5fa8; font:650 13px/1.4 system-ui,sans-serif; }
-.profile-lede { max-width:640px; margin:22px 0 0; color:#555550; font-size:17px; line-height:1.6; }
-.profile-role { display:flex; flex-wrap:wrap; align-items:baseline; gap:8px; max-width:640px; margin:14px 0 0; color:#4c5b66; font-size:14px; line-height:1.6; }
+.profile-lede:not(.hint) { max-width:640px; margin:22px 0 0; color:#555550; font-size:17px; line-height:1.6; }
 .profile-toolbar { display:flex; align-items:end; flex-wrap:wrap; gap:12px 20px; max-width:640px; margin:22px 0 0; }
 .profile-toolbar .filter { flex:0 1 240px; }
 .profile-toolbar-hint { flex:1 1 240px; margin:0 0 4px; }
