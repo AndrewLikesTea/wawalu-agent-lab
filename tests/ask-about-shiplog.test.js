@@ -39,9 +39,6 @@ import { RELEASE_STORAGE_KEY } from "../src/releases.js";
 import { OFFER } from "../src/site-footer.js";
 import { loadPage, parseHtml, pressEnter, tabSequence, textOf } from "./support/browser.js";
 
-const HOME_LABEL = "Request a demonstration or discuss a pilot";
-const HOME_DESCRIPTION = "Use the follow-up form at the foot of this page to request a demonstration or discuss a pilot with the Wawalu team. Enter your work email to request a follow-up. A person replies by email, usually within two working days.";
-
 const PANEL_ID = ASK_ABOUT_SHIPLOG_HREF.slice(1);
 
 async function openHome(t) {
@@ -63,7 +60,11 @@ async function openReleases(t) {
   return page;
 }
 
-const CARRIERS = [["the home page", openHome], ["the Releases page", openReleases]];
+// #2593 took the home page off this list. One label there asked two questions
+// at once, so it now carries two controls of its own — one per errand, each
+// carrying its answer into the form — and tests/homepage-buyer-intent.test.js
+// holds that pair. The shared one-label route is what the other five ship.
+const CARRIERS = [["the Releases page", openReleases]];
 
 /** Counted rather than fetched by id, so "renders twice" fails instead of
  * silently returning the first one. */
@@ -82,7 +83,7 @@ for (const [name, open] of CARRIERS) {
 
     // The accessible name is the visible text: no aria-label saying something
     // else, and no icon standing in for the words.
-    assert.equal(textOf(route), name === "the home page" ? HOME_LABEL : ASK_ABOUT_SHIPLOG_LABEL);
+    assert.equal(textOf(route), ASK_ABOUT_SHIPLOG_LABEL);
     assert.equal(route.getAttribute("aria-label"), null);
     assert.equal(route.getAttribute("href"), ASK_ABOUT_SHIPLOG_HREF);
     assert.equal(route.tagName, "A", "the route must be a real link, so a page with no script still arrives");
@@ -100,7 +101,7 @@ for (const [name, open] of CARRIERS) {
     // sentence to a test and not to a reader.
     const described = describedBy(document);
     assert.equal(described.length, 1, `${name}: the description is painted ${described.length} times`);
-    assert.equal(textOf(described[0]), name === "the home page" ? HOME_DESCRIPTION : ASK_ABOUT_SHIPLOG_DESCRIPTION);
+    assert.equal(textOf(described[0]), ASK_ABOUT_SHIPLOG_DESCRIPTION);
     assert.equal(tabSequence(document).filter((node) => node === described[0]).length, 0,
       `${name}: the description became a tab stop`);
   });
@@ -182,7 +183,7 @@ for (const [name, open] of CARRIERS) {
 // where it goes, what the form there asks for, and what comes back — and it is
 // the same line, from one constant, on all six pages that carry the route.
 const CARRYING_PAGES = [
-  "index.html", "releases.html", "coach.html", "social.html", "profile.html", "agents.html",
+  "releases.html", "coach.html", "social.html", "profile.html", "agents.html",
 ];
 
 const readPage = async (file) => parseHtml(
@@ -222,13 +223,13 @@ test("the sentence itself says where, what is asked, and what comes back — and
   }
 });
 
-test("all six pages carry their follow-up description once at the label", async () => {
+test("all five pages carry their follow-up description once at the label", async () => {
   for (const file of CARRYING_PAGES) {
     const document = await readPage(file);
 
     const described = describedBy(document);
     assert.equal(described.length, 1, `${file}: the description ships ${described.length} times`);
-    assert.equal(textOf(described[0]), file === "index.html" ? HOME_DESCRIPTION : ASK_ABOUT_SHIPLOG_DESCRIPTION);
+    assert.equal(textOf(described[0]), ASK_ABOUT_SHIPLOG_DESCRIPTION);
 
     // At the entry point and nowhere else. Beside the form it would be a
     // caption for a destination the reader has already arrived at.

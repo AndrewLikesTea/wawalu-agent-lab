@@ -46,6 +46,31 @@ export const LEAD_PURPOSES = Object.freeze(["field_notes", "follow_up", ...FOLLO
 // It names the page the way the others do: "post from Social" read as though
 // the request were about the post, right after the invitation says it is not.
 export const POST_FOLLOW_UP_TOPIC = "Social post page — one post from Social, at its own link";
+/**
+ * What the home page's two buyer controls send instead of its default topic.
+ *
+ * The home page asks one question in two shapes — "Request a product
+ * demonstration" and "Discuss a pilot evaluation" — and until #2593 both of
+ * them sent the same row, so the Wawalu team read "Homepage — record a decision
+ * and explore Shiplog" for a request that was neither. These are the two
+ * answers, keyed by the value the control puts in the address bar.
+ *
+ * They are topics and not an `intent`: the intent column is the four-way radio
+ * group in FOLLOW_UP_INTENT_PURPOSES, and that group is a focusable inside the
+ * form. The home page's follow-up form is the one form on the site whose first
+ * Tab stop is pinned to the work-email field by another page's contract (the
+ * evaluation brief routes a buyer straight into it), so the choice is made
+ * before the form rather than inside it, and it travels as the topic — the
+ * field this purpose already sends and already states above the field.
+ *
+ * The clause after the dash is the label FOLLOW_UP_INTENTS gives the same
+ * choice, lowercased into the "Page — what this is about" shape every entry
+ * below uses, so the team reads one vocabulary across both columns.
+ */
+export const HOMEPAGE_BUYER_TOPICS = Object.freeze({
+  demo: "Homepage — a product demonstration",
+  pilot: "Homepage — a pilot evaluation",
+});
 export const FOLLOW_UP_TOPICS = Object.freeze({
   follow_up_homepage: "Homepage — record a decision and explore Shiplog",
   follow_up_finops_example: "Bundled AI FinOps example — lower-cost routing in Atlas Platform",
@@ -64,6 +89,13 @@ export const FOLLOW_UP_TOPICS = Object.freeze({
   // destination. It is DEMOS's clause now, like every other row here.
   follow_up_agents: "Agent observatory page — watch a synthetic engineering team build and review work",
 });
+// The topics a purpose accepts beside its own entry above, in one table rather
+// than a condition per surface, so a third one cannot be added by accident.
+const ALTERNATE_TOPICS = Object.freeze({
+  follow_up_social: Object.freeze([POST_FOLLOW_UP_TOPIC]),
+  follow_up_homepage: Object.freeze(Object.values(HOMEPAGE_BUYER_TOPICS)),
+});
+
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /**
@@ -192,8 +224,12 @@ export async function handleLeadRequest(request, {
   }
   const isObject = input !== null && typeof input === "object" && !Array.isArray(input);
   const keys = isObject ? Object.keys(input) : [];
-  const expectedTopic = isObject && input.purpose === "follow_up_social" && input.topic === POST_FOLLOW_UP_TOPIC
-    ? POST_FOLLOW_UP_TOPIC
+  // A purpose whose surface sends more than one topic. The shared post page
+  // rides on Social's request type, and the home page's two buyer controls each
+  // name what the request is about; anything else is the purpose's one topic.
+  const alternates = isObject ? ALTERNATE_TOPICS[input.purpose] ?? [] : [];
+  const expectedTopic = alternates.includes(input.topic)
+    ? input.topic
     : isObject ? FOLLOW_UP_TOPICS[input.purpose] : null;
   const expectedKeys = expectedTopic ? ["email", "purpose", "topic"] : ["email", "purpose"];
   // `message` may be present or absent, and only on a purpose whose form offers

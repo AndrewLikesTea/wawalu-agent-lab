@@ -85,24 +85,28 @@
         <h2 id="shiplog-entry-title">Know why it shipped. Decide what’s next.</h2>
         <p>Shiplog records decisions, tracks the releases they shape, and keeps the link between them. A teammate who arrives six months late opens the release and reads the reasoning behind it, instead of reconstructing it from chat history. Recording, searching, filtering, exporting, and importing the log are all further down this page.</p>
         <p>How a team gets Shiplog: by asking the team that operates it. There is no self-serve signup and no published price — Shiplog is a demonstration product built and operated by Wawalu, so whether it is available for your team and what it would cost are both answered on request. The <a href="#shiplog-evaluation-brief">evaluation brief and blank pilot scorecard</a> are further down this page. The brief says what Shiplog records and who operates it; the scorecard is a blank form your evaluating team fills in during a pilot. The follow-up form at the foot of this page sends your work email to that team and nothing else.</p>
-        <!-- THE ASK, AS A CONTROL, DIRECTLY UNDER THE ANSWER IT FOLLOWS FROM.
-             It used to be the closing clause of the paragraph above, which is
-             where a reader who had already decided to ask had to go looking for
-             it. ONE ROUTE AND NOT TWO: this section is held to its six tab
-             stops by homepage-log-leads.test.js and to a single contact
-             destination by homepage-proof-path.test.js, so the buyer picks no
-             form and nothing on this page competes with the hero's own call to
-             action. It is not in the hero for the reason stated there: the ask
-             belongs with the answer about availability and pricing, which is
-             this paragraph and not that one.
-             The address is the one the evaluation brief publishes for the same
-             question, and ask-about-shiplog.js makes arriving a focus move
-             rather than a scroll. No rule was added: the row and the link reuse
-             the hero's classes, which already wrap at narrow widths, because
+        <!-- THE ASK, AS TWO CONTROLS, DIRECTLY UNDER THE ANSWER IT FOLLOWS FROM.
+             It used to be the closing clause of the paragraph above, then one
+             link reading "Request a demonstration or discuss a pilot" — one
+             control for two errands, which carried neither: every request from
+             this page reached the Wawalu team as the same row. TWO ROUTES AND
+             ONE FORM (#2593): each label names one errand, each address carries
+             it, and homepage-buyer-intent.js puts it on the form's topic line
+             and on the wire, then lands focus in the work email field. There is
+             still ONE contact destination on this page — both addresses are
+             this page and the same panel — so the buyer picks no form and
+             nothing here competes with the hero's own call to action. It is not
+             in the hero for the reason stated there: the ask belongs with the
+             answer about availability and pricing, which is this paragraph and
+             not that one.
+             The panel is the address the evaluation brief publishes for the
+             same question. No rule was added: the row and both links reuse the
+             hero's classes, which already wrap at narrow widths, because
              styles.css is at its measured size budget. -->
         <div class="hero-actions">
-          <a class="text-link" id="ask-about-shiplog" href="#site-footer-panel" aria-describedby="ask-about-shiplog-description">Request a demonstration or discuss a pilot</a>
-          <p class="hint" id="ask-about-shiplog-description">Use the follow-up form at the foot of this page to request a demonstration or discuss a pilot with the Wawalu team. Enter your work email to request a follow-up. A person replies by email, usually within two working days.</p>
+          <a class="text-link" id="buyer-intent-demo" href="/?discuss=demo#site-footer-panel" aria-describedby="buyer-intent-description">Request a product demonstration</a>
+          <a class="text-link" id="buyer-intent-pilot" href="/?discuss=pilot#site-footer-panel" aria-describedby="buyer-intent-description">Discuss a pilot evaluation</a>
+          <p class="hint" id="buyer-intent-description">Either one moves you to the follow-up form at the foot of this page, states there what your request is about, and puts the cursor in the work email field. A person replies by email, usually within two working days.</p>
         </div>
         <article class="hero-proof" id="featured-decision" aria-labelledby="featured-decision-title">
           <h3 class="eyebrow" id="featured-decision-title">One recorded decision, and the release that shipped it</h3>

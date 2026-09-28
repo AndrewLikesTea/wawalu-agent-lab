@@ -74,13 +74,16 @@ for (const [file, noteId, browserOnlyPhrase] of PLACES) {
     assert.ok(document.getElementById("site-footer-panel"),
       `${file} has no follow-up panel for the named form to sit in`);
 
-    // Named, not linked: the page's one route to that form is the introduction's
-    // "Ask about Shiplog" action, and this sentence does not draw a second one.
+    // Named, not linked: the page's routes to that form are the ones in its
+    // introduction, and this sentence does not draw another. Releases carries
+    // the shared "Ask about Shiplog" action; the home page carries the two
+    // buyer controls #2593 split it into, each landing on the same panel.
     assert.equal(sentence.querySelectorAll("a").length, 0,
       "the sentence adds a second link to a destination this page already names");
-    const route = document.getElementById("ask-about-shiplog");
-    assert.ok(route, `${file} no longer offers the route this sentence relies on`);
-    assert.equal(route.getAttribute("href"), "#site-footer-panel");
+    const routes = document.querySelectorAll("a")
+      .filter((link) => link.getAttribute("href")?.endsWith("#site-footer-panel"));
+    assert.equal(routes.length, file === "index.html" ? 2 : 1,
+      `${file} no longer offers the route this sentence relies on`);
   });
 
   test(`${file}: the answer routes the question instead of answering it`, async () => {

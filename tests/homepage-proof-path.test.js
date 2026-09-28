@@ -14,9 +14,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { initDecisionLog, STORAGE_KEY } from "../src/app.js";
-import {
-  ASK_ABOUT_SHIPLOG_HREF, ASK_ABOUT_SHIPLOG_ID,
-} from "../src/ask-about-shiplog.js";
+import { ASK_ABOUT_SHIPLOG_HREF } from "../src/ask-about-shiplog.js";
+import { BUYER_INTENT_CONTROLS } from "../src/homepage-buyer-intent.js";
 import { initDecisionDetail } from "../src/decision-page.js";
 import { initReleaseDetail } from "../src/release-page.js";
 import { RELEASE_STORAGE_KEY } from "../src/releases.js";
@@ -135,18 +134,25 @@ test("the release that decision links to lists the decision back", async (t) => 
 test("the Shiplog offer states the pricing status and points to its contact path", async (t) => {
   const home = await openHome(t);
   const offer = home.document.getElementById("shiplog-entry");
-  const contact = offer.querySelector(`a[href="${ASK_ABOUT_SHIPLOG_HREF}"]`);
+  const contacts = offer.querySelectorAll("a")
+    .filter((link) => link.getAttribute("href")?.endsWith(ASK_ABOUT_SHIPLOG_HREF));
 
   assert.match(textOf(offer), /How a team gets Shiplog/);
   assert.match(textOf(offer), /no self-serve signup and no published price/i);
   assert.match(textOf(offer), /what it would cost are both answered on request/i);
   // Since #2458 the ask is a control under the answer rather than a clause
-  // inside it, and it lands on the form's container rather than on the field:
-  // the offer and the topic line are read on arrival, not scrolled past.
-  assert.equal(textOf(contact), "Request a demonstration or discuss a pilot");
-  assert.equal(contact.getAttribute("id"), ASK_ABOUT_SHIPLOG_ID);
-  // The link names one destination on this page, so the buyer picks no form.
-  assert.equal(offer.querySelectorAll(`a[href="${ASK_ABOUT_SHIPLOG_HREF}"]`).length, 1);
+  // inside it, and it lands on the form rather than merely scrolling to it: the
+  // offer and the topic line are read on arrival, not scrolled past. Since
+  // #2593 it is two controls, because it was two errands — and each address
+  // carries which one, so the request the team receives says so.
+  assert.deepEqual(contacts.map((link) => textOf(link)),
+    BUYER_INTENT_CONTROLS.map((control) => control.label));
+  assert.deepEqual(contacts.map((link) => link.getAttribute("id")),
+    BUYER_INTENT_CONTROLS.map((control) => control.id));
+  assert.equal(offer.querySelectorAll(`a[href="${ASK_ABOUT_SHIPLOG_HREF}"]`).length, 0,
+    "the combined demonstration-or-pilot route is back beside the two that replaced it");
+  // Two labels, one destination on this page, so the buyer still picks no form.
+  assert.equal(new Set(contacts.map((link) => link.getAttribute("href").split("#")[1])).size, 1);
   assert.equal(offer.querySelectorAll('a[href="#site-footer-email"]').length, 0);
   assert.ok(home.document.getElementById("site-footer-email"),
     "the offer must point to a rendered follow-up form that asks for a work email");

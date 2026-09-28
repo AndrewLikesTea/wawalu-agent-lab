@@ -35,6 +35,7 @@ import { publishHistoryScope } from "./history-scope.js";
 import { initDeploymentStatus } from "./deployment-status-view.js";
 import { initLeadCapture } from "./lead-capture.js";
 import { initAskAboutShiplog } from "./ask-about-shiplog.js";
+import { initHomepageBuyerIntent } from "./homepage-buyer-intent.js";
 import { retentionDeclined, retentionRefusal } from "./local-retention.js";
 import { recordsChanged } from "./shiplog-records.js";
 import { overdueDecisionFinding } from "./overdue-decision.js";
@@ -1278,8 +1279,12 @@ function syncSupersedesOptions(select, decisions) {
 export async function initDecisionLog(root = document, storage = localStorage, options = {}) {
   initLeadCapture(root);
   // The log entry's route to the follow-up form. Guarded inside, so a page that
-  // mounts this log without the route or without the band gets nothing.
+  // mounts this log without the route or without the band gets nothing. The
+  // home page carries the two buyer controls instead of the shared one route,
+  // so the first of these does nothing there and the second does nothing
+  // anywhere else; each returns null when its own markup is absent.
   initAskAboutShiplog(root);
+  initHomepageBuyerIntent(root, options);
   const form = root.querySelector("#decision-form");
   const list = root.querySelector("#decision-list");
   const count = root.querySelector("#decision-count");
