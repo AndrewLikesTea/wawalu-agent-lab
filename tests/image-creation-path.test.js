@@ -743,7 +743,7 @@ test("the description step is said beside Publish post, not in the step list", (
     "the step list restates the rule the field already carries");
 });
 
-test("with no image chosen, nothing in the composer describes the Image description field", async () => {
+test("before choosing an image, only the Paint return instructions describe the future description step", async () => {
   const page = await loadPage(PAGES.Social);
   try {
     const document = page.document;
@@ -758,7 +758,11 @@ test("with no image chosen, nothing in the composer describes the Image descript
     // the pre-warning is gone, and nothing paraphrases it.
     const reachable = document.getElementById("post-form").querySelectorAll("p")
       .filter((paragraph) => !foldedAway(paragraph));
+    const paintInstructions = document.getElementById("paint-return-instructions");
+    assert.match(textOf(paintInstructions), /Image to publish.*From Paint.*focus on the image description/);
+    assert.match(textOf(paintInstructions), /image did not arrive.*file on this device or return to Paint/);
     for (const paragraph of reachable) {
+      if (paragraph === paintInstructions) continue;
       assert.doesNotMatch(textOf(paragraph), /image description/i,
         `the composer names Image description before there is an image: ${textOf(paragraph)}`);
       assert.doesNotMatch(textOf(paragraph), /will not publish until/i,

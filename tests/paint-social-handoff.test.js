@@ -18,8 +18,10 @@ import { initEditor } from "../src/paint/paint.js";
 import {
   EXPORT_FILE_NAME,
   PAINT_HANDOFF_COPY,
+  PAINT_HANDOFF_UNKNOWN,
   paintHandoffHref,
   paintHandoffIntent,
+  preparedArrival,
   renderPaintArrival,
 } from "../src/paint-handoff.js";
 import { PAINT_HANDOFF_KEY, PAINT_HANDOFF_STORAGE_ERROR } from "../src/publishing-media.js";
@@ -68,11 +70,28 @@ test("the handoff link routes to the Social composer and carries which kind of h
 test("the destination recognises a Paint arrival and ignores anything else", () => {
   assert.equal(paintHandoffIntent("?from=paint&image=exported"), PAINT_HANDOFF_COPY.exported);
   assert.equal(paintHandoffIntent("from=paint&image=prepared"), PAINT_HANDOFF_COPY.prepared);
-  assert.equal(paintHandoffIntent("?from=paint"), null);
-  assert.equal(paintHandoffIntent("?from=paint&image=constructor"), null);
+  assert.equal(paintHandoffIntent("?from=paint"), PAINT_HANDOFF_UNKNOWN);
+  assert.equal(paintHandoffIntent("?from=paint&image=constructor"), PAINT_HANDOFF_UNKNOWN);
   assert.equal(paintHandoffIntent("?from=profile&image=exported"), null);
   assert.equal(paintHandoffIntent(""), null);
   assert.equal(paintHandoffIntent(), null);
+});
+
+// The composer acts on the unknown marker — it opens and draws recovery — so it
+// travels as an intent rather than as null. The panel draws copy, and this one
+// carries none, so the panel must refuse it exactly as it refuses no arrival at
+// all. Without this the two halves drift and a visitor reads "From Paint ·
+// undefined" under a blank heading.
+test("an arrival marker naming no kind carries no copy, and the panel draws nothing", () => {
+  assert.deepEqual(Object.keys(PAINT_HANDOFF_UNKNOWN), ["kind"]);
+  assert.ok(Object.isFrozen(PAINT_HANDOFF_UNKNOWN));
+  const panel = createElement("div");
+  renderPaintArrival(panel, PAINT_HANDOFF_COPY.prepared);
+  assert.equal(panel.hidden, false);
+  assert.equal(renderPaintArrival(panel, PAINT_HANDOFF_UNKNOWN), null);
+  assert.equal(panel.hidden, true);
+  assert.equal(panel.textContent, "");
+  assert.equal(panel.dataset.handoff, undefined);
 });
 
 test("exporting a PNG reveals a labelled handoff and puts focus on the way out", async () => {
@@ -164,7 +183,7 @@ test("an open Social composer that claims the image keeps the visitor in Paint, 
   await settle();
 
   assert.deepEqual(paint.navigations, [], "Paint opened a second Social beside the one that took the image");
-  assert.match(control(paint, "#publish-status").textContent, /Switch to that tab/);
+  assert.match(control(paint, "#publish-status").textContent, /Switch to that tab.*preview or recovery message/);
 });
 
 test("a store that will not hold the image keeps the visitor in Paint and says why", async () => {
@@ -220,6 +239,14 @@ test("the composer distinguishes a prepared drawing: attached to the draft, stil
   assert.equal(panel.dataset.handoff, "prepared");
   assert.match(panel.textContent, /has not been uploaded or published/i);
   assert.match(byClass(panel, "paint-arrival-next")[0].textContent, /publish the post/i);
+
+  // Publishing refuses an empty post, so the same arrival in a tab holding no
+  // post text names both steps rather than one. Only the step sentence differs.
+  renderPaintArrival(panel, preparedArrival({ hasDraft: false }));
+  assert.equal(panel.dataset.handoff, "prepared");
+  assert.match(panel.textContent, /has not been uploaded or published/i);
+  assert.match(byClass(panel, "paint-arrival-next")[0].textContent, /holds no post text.*both required before you publish/);
+  assert.doesNotMatch(panel.textContent, /one remaining required step/);
 });
 
 test("an ordinary visit to Social shows no arrival panel at all", () => {
