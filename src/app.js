@@ -16,6 +16,7 @@ import {
 import { STORED_DECISION_STATUSES, canonicalDecisionStatus } from "./decision-status.js";
 import { dedupeById } from "./demo-data.js";
 import { initDemoProgress } from "./demo-progress.js";
+import { initEvaluationSummary } from "./evaluation-summary.js";
 import {
   DEFAULT_HISTORY_FILTERS,
   RECORD_TYPES,
@@ -1748,6 +1749,14 @@ export async function initDecisionLog(root = document, storage = localStorage, o
   // `paint: false` composes the log and re-derives the controls without
   // rendering, which is what boot needs before it adopts a link's filters. Every
   // other caller is a data change and paints.
+  // The pasteable summary of the loaded log (#2582). Mounted before the first
+  // composition so its control is live by the time refresh() below hands it the
+  // first set of figures, and updated from inside refresh() rather than from a
+  // listener of its own: that is the one place the data changes, so the summary
+  // cannot describe a log the page has moved on from. A surface without the
+  // block gets an inert handle and nothing here changes.
+  const evaluationSummary = initEvaluationSummary(root, { clipboard: clipboardRef });
+
   const refresh = ({ paint = true } = {}) => {
     // An unread log composes to nothing, examples included. The examples are a
     // module constant and would load fine, but a page that drew them under a
@@ -1777,6 +1786,11 @@ export async function initDecisionLog(root = document, storage = localStorage, o
         { exampleLabel: EXAMPLE_LABEL },
       );
     }
+    // Over the whole loaded log, not the filtered selection, and repainted even
+    // on the composition pass that does not paint the list: the summary states
+    // that filters do not move its figures, so it is written here where the data
+    // changes and nowhere the filters reach.
+    evaluationSummary.update({ records, decisions, releases, exampleIds, unread });
     if (ownerFilter) syncOwnerOptions(ownerFilter, records);
     syncReleaseOptions(releaseFilter, releases);
     if (supersedesField) syncSupersedesOptions(supersedesField, decisions);
