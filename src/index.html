@@ -1027,6 +1027,38 @@
         <p class="coach-entry-companion">Already have an export of your own AI history? <a href="/personal-history.html">Read weeks of your own prompts in Personal AI history</a>. It runs the same rubric over that export in this browser tab, then names the one habit worth changing first and whether it is moving.</p>
       </section>
 
+      <!-- THE TWO BUYER ERRANDS, EACH CARRIED INTO A FORM THAT CAN HOLD IT.
+           The ask in the log section above is one route for both, and it lands
+           on this page's own follow-up form, which is email-only: it ships no
+           "what do you want to discuss" control, so a visitor who came to ask
+           about a demonstration arrives with nowhere to say so and the request
+           reaches the team as an address. These two routes land on the footer
+           form of a page that does carry that control, with the matching choice
+           already made and the work-email field focused. The choice is made from
+           the query the link carries, by ask-about-shiplog.js, which also owns
+           the in-page route above; the radios stay operable, so a visitor who
+           picked the wrong one changes it before sending.
+           WHY THESE TWO DESTINATIONS: the control exists only on the five pages
+           whose request type is in FOLLOW_UP_INTENT_PURPOSES (src/leads.js), and
+           each of those forms says which page the request is about. So each
+           errand goes to the page it is about: a demonstration to the Prompt
+           coach, the one surface a visitor can watch work in this browser, and a
+           pilot to Releases, the log an evaluating team would pilot.
+           BELOW THE COACH ENTRY, NOT ABOVE IT: the coach link is the last stop
+           before the footer and prompt-coach-destination.test.js tabs the page
+           to it. No rule was added — the block and its row reuse .hero-proof,
+           .hero-actions and .secondary-button, because styles.css is at its
+           measured size budget. -->
+      <section class="hero-proof" id="buyer-intent" aria-labelledby="buyer-intent-title">
+        <h2 id="buyer-intent-title">Asking about a demonstration or a pilot</h2>
+        <p>Both routes open the follow-up form at the foot of the page they name, with what you want to discuss already chosen and your work email the only thing left to type. You can read and change that choice before you send the request.</p>
+        <div class="hero-actions">
+          <a class="secondary-button" id="buyer-intent-demo" href="/coach.html?intent=demo#site-footer-panel">Ask about a product demonstration</a>
+          <a class="secondary-button" id="buyer-intent-pilot" href="/releases.html?intent=pilot#site-footer-panel">Ask about a pilot evaluation</a>
+        </div>
+        <p class="hint">The demonstration route opens the Prompt coach, the page you can watch work in this browser tab. The pilot route opens Releases, where every release and its linked decisions are the log an evaluating team would pilot.</p>
+      </section>
+
       <section class="product-story" id="decision-to-release" aria-labelledby="product-story-title" data-proof-point="decision-to-release">
         <div class="product-story-intro">
           <p class="eyebrow">Keep reasoning with the work</p>

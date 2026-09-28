@@ -66,10 +66,90 @@ export const ASK_ABOUT_SHIPLOG_DESCRIPTION =
   + " optional note. A person replies by email, usually within two working days.";
 
 /**
+ * The query key a cross-page route carries, and the value it carries in it: one
+ * of the radio values the footer's "What do you want to discuss?" group renders
+ * (`FOLLOW_UP_INTENTS` in lead-capture.js). It is the field's own name, so the
+ * link, the control and the wire all spell the errand the same way.
+ *
+ * The home page's two buyer routes are what send it: that page's own follow-up
+ * form is email-only — its request type is not in `FOLLOW_UP_INTENT_PURPOSES`,
+ * so src/site-footer.js renders it no such group — and an errand as specific as
+ * a demonstration or a pilot arriving there arrives as a bare address.
+ */
+export const FOLLOW_UP_INTENT_PARAM = "intent";
+
+/** A radio value, not a selector: the query is a visitor-supplied string, and it
+ * is built into an id below. */
+const INTENT_VALUE = /^[a-z_]{1,32}$/;
+
+/** The id the group's radio for one value carries, in src/site-footer.js. */
+export const intentRadioId = (value) => `site-footer-intent-${value}`;
+
+/**
+ * What the live region says once the choice has been made for a visitor.
+ *
+ * `label` is read off the page's own <label> rather than written here: the
+ * announcement then names the choice in the words the control beside it uses,
+ * and there is no second copy of four labels to drift. It says the choice is
+ * changeable because it was made without asking, and names the one field left,
+ * because that is where the focus has just gone.
+ */
+export const followUpIntentLanded = (label) => `${label} is selected as what you want to discuss.`
+  + " Your work email is the only thing left to enter, and you can change what you want to discuss"
+  + " before you send the request.";
+
+// Spread first, both here and for the group below: a live HTMLCollection and a
+// NodeList carry no `find`, so a real browser is where an array method on one of
+// them would throw and the harness is where it would never be noticed.
+const labelIn = (parent) => [...(parent?.children ?? [])].find((node) => node.tagName === "LABEL");
+
+/**
+ * Land a visitor who arrived from another page's buyer route: make the choice
+ * their link named, announce it where the form already announces, and put the
+ * cursor in the one field left to fill.
+ *
+ * THE FIELD AND NOT THE PANEL, which is the opposite of the in-page route above.
+ * A reader following that route has not said what they want yet and arrives to
+ * read the form's offer and its topic line. A visitor arriving here chose the
+ * errand on the page they came from and had the choice made for them, so the
+ * address is the only thing this page still needs — and the announcement, not
+ * the focus move, is what tells them the rest is done.
+ *
+ * Returns the value applied, or null: a page with no such group (every page's
+ * footer that asks for an address only), a link with no query, and a value no
+ * radio answers to all leave the form exactly as it shipped.
+ */
+export function initFollowUpIntentLanding(root = document, search = globalThis.window?.location?.search ?? "") {
+  const requested = new URLSearchParams(String(search ?? "")).get(FOLLOW_UP_INTENT_PARAM) ?? "";
+  if (!INTENT_VALUE.test(requested)) return null;
+  const group = root.querySelector("#site-footer-intent");
+  const email = root.querySelector("#site-footer-email");
+  if (!group || !email) return null;
+  const radios = [...group.querySelectorAll('input[name="intent"]')];
+  const chosen = radios.find((radio) => radio.getAttribute("id") === intentRadioId(requested));
+  if (!chosen) return null;
+  // The whole group, not only the one: a browser unchecks the rest of a radio
+  // group by itself, and saying so here keeps "one choice" true wherever this
+  // runs rather than resting on that.
+  for (const radio of radios) radio.checked = radio === chosen;
+  const label = labelIn(chosen.parentNode);
+  const status = root.querySelector("#site-footer-status");
+  if (status && label) status.textContent = followUpIntentLanded(label.textContent.trim());
+  email.focus?.({ preventScroll: true });
+  root.querySelector(ASK_ABOUT_SHIPLOG_HREF)?.scrollIntoView?.({ block: "start" });
+  return requested;
+}
+
+/**
  * Wire the route on a page that ships it. Returns a teardown, or null when this
  * page carries no route or no form — so a surface with neither is unaffected.
+ *
+ * The cross-page landing above runs first and independently of the route: it is
+ * the same errand arriving from somewhere else, and a page could carry the form
+ * without carrying the in-page link to it.
  */
 export function initAskAboutShiplog(root = document) {
+  initFollowUpIntentLanding(root);
   const link = root.querySelector(`#${ASK_ABOUT_SHIPLOG_ID}`);
   const panel = root.querySelector(ASK_ABOUT_SHIPLOG_HREF);
   if (!link || !panel) return null;
