@@ -17,6 +17,7 @@ import { STORED_DECISION_STATUSES, canonicalDecisionStatus } from "./decision-st
 import { dedupeById } from "./demo-data.js";
 import { initDemoProgress } from "./demo-progress.js";
 import { initEvaluationSummary } from "./evaluation-summary.js";
+import { renderReleaseCoverage } from "./homepage-release-coverage.js";
 import {
   DEFAULT_HISTORY_FILTERS,
   RECORD_TYPES,
@@ -1791,6 +1792,12 @@ export async function initDecisionLog(root = document, storage = localStorage, o
     // that filters do not move its figures, so it is written here where the data
     // changes and nowhere the filters reach.
     evaluationSummary.update({ records, decisions, releases, exampleIds, unread });
+    // The releases page's two coverage figures, on the front door (#2605), from
+    // the same counter and the same sentence that page paints. Written here and
+    // not in render() for the reason above: this block states that the filters
+    // do not move its numbers, so it is repainted only where the data changes.
+    // A surface without the block is left alone.
+    renderReleaseCoverage(root, { releases, decisions, exampleIds, unread });
     if (ownerFilter) syncOwnerOptions(ownerFilter, records);
     syncReleaseOptions(releaseFilter, releases);
     if (supersedesField) syncSupersedesOptions(supersedesField, decisions);
