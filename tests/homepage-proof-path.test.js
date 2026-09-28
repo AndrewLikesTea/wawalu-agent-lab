@@ -21,6 +21,7 @@ import { initDecisionDetail } from "../src/decision-page.js";
 import { initReleaseDetail } from "../src/release-page.js";
 import { RELEASE_STORAGE_KEY } from "../src/releases.js";
 import { EXAMPLE_LABEL, SAMPLE_DECISION_ID, SAMPLE_RELEASE_ID } from "../src/seed-records.js";
+import { FOLLOW_UP_INTENTS } from "../src/lead-capture.js";
 import { loadPage, textOf } from "./support/browser.js";
 
 const PAGES = {
@@ -156,6 +157,53 @@ test("the Shiplog offer states the pricing status and points to its contact path
   // the copy invites is the row the Wawalu team receives.
   const form = home.document.getElementById("site-footer-form");
   assert.equal(form.getAttribute("data-follow-up-type"), "follow_up_homepage");
+});
+
+// #2606: the block that asks a visitor to pick one of two things now says what
+// each one is. The labels are read out of FOLLOW_UP_INTENTS rather than retyped,
+// so a reader who meets a definition here and presses a topic control further
+// down the page meets one name per offer.
+test("the offer says what each of the two things a visitor can ask for involves", async (t) => {
+  const home = await openHome(t);
+  const offer = home.document.getElementById("shiplog-entry");
+
+  const defined = offer.querySelectorAll("p")
+    .filter((node) => textOf(node).startsWith(FOLLOW_UP_INTENTS.demo));
+  assert.equal(defined.length, 1, "the two offers are defined once, in one paragraph");
+  const text = textOf(defined[0]);
+
+  // Who does what, in each case: the team that operates Shiplog in one, the
+  // reader's own evaluating team in the other.
+  assert.match(text, new RegExp(
+    `^${FOLLOW_UP_INTENTS.demo} is a walk-through of Shiplog by the Wawalu team that operates it\\.`));
+  assert.match(text, new RegExp(`${FOLLOW_UP_INTENTS.pilot} is your evaluating team trying Shiplog`));
+
+  // The pilot sentence names the scorecard in the words this page already uses
+  // for it, and sends the reader to the copy the page carries. It is prose and
+  // not a link: this section's tab stops are counted elsewhere.
+  assert.match(text, /the blank pilot scorecard further down this page\.$/);
+  assert.equal(defined[0].querySelectorAll("a").length, 0, "the definitions add no focusable node");
+  assert.ok(home.document.getElementById("shiplog-pilot-scorecard"),
+    "the definition sends a reader further down this page to a scorecard that is not there");
+
+  // Definitions and not an offer: no clock, no money, no availability, and
+  // nobody who has already done one.
+  for (const overreach of [/\d/, /\bminutes?\b/i, /\bhours?\b/i, /\bweeks?\b/i, /\bdays?\b/i,
+    /\bfree\b/i, /\btrial\b/i, /\bprice/i, /\bcosts?\b/i, /\bcustomers?\b/i, /\bresults?\b/i,
+    /\bavailable\b/i, /\bbook\b/i, /\bschedul/i, /\bguarantee/i]) {
+    assert.doesNotMatch(text, overreach, `the definitions must promise nothing new: ${overreach}`);
+  }
+
+  // And the answer about availability and price is still made once on this page,
+  // in the paragraph above, rather than restated beside the definitions.
+  assert.equal(home.document.querySelectorAll("p")
+    .filter((node) => textOf(node).includes("There is no self-serve signup and no published price")).length,
+  1, "the home page states the no-signup answer more than once");
+
+  // The block still says where the request goes and who answers it.
+  const hint = textOf(home.document.getElementById("ask-about-shiplog-description"));
+  assert.match(hint, /follow-up form at the foot of this page/);
+  assert.match(hint, /A person replies by email, usually within two working days\./);
 });
 
 test("the example record panel features the release the story names", async (t) => {
