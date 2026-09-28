@@ -151,11 +151,11 @@ test("the total is the number of loaded releases, whatever their links", () => {
 
 test("the sentence carries both numbers in words, and says nothing at all over an empty log", () => {
   assert.equal(reasoningKeptSentence({ total: 3, preserved: 1 }),
-    "1 of 3 releases in this release log links at least one decision that is in the decision log.");
+    "1 of 3 releases in this release log links at least one decision the decision log holds.");
   assert.equal(reasoningKeptSentence({ total: 3, preserved: 2 }),
-    "2 of 3 releases in this release log link at least one decision that is in the decision log.");
+    "2 of 3 releases in this release log link at least one decision the decision log holds.");
   assert.equal(reasoningKeptSentence({ total: 1, preserved: 0 }),
-    "0 of 1 release in this release log link at least one decision that is in the decision log.");
+    "0 of 1 release in this release log link at least one decision the decision log holds.");
   // A fraction glyph is not a sentence: both numbers are stated, in words.
   for (const total of [0, 1, 4]) {
     assert.doesNotMatch(reasoningKeptSentence({ total, preserved: 0 }), /\d\s*\/\s*\d/);
@@ -230,12 +230,24 @@ test("the block is a named region with the figure, the rule, the scope and the a
   assert.equal(textOf(headings[0]), REASONING_PROOF_HEADING);
   assert.equal(byId(page, "reasoning-proof-title").tagName, "H2");
 
-  assert.equal(claim(page), "1 of 3 releases in this release log links at least one decision that is in the decision log.");
+  assert.equal(claim(page), "1 of 3 releases in this release log links at least one decision the decision log holds.");
   assert.equal(provenance(page), "Counted here: no example records and 3 you added.");
   assert.equal(textOf(byId(page, "reasoning-proof-rule")), REASONING_PROOF_RULE);
   assert.equal(textOf(byId(page, "reasoning-proof-scope")), REASONING_PROOF_SCOPE);
   // The rule is stated where the number is, not left to the log's rows.
   assert.match(textOf(region), /does not count/);
+
+  // ORDER (#2598): the two figures are named first, then what does not count,
+  // then what they are counted over. A reader who meets an exclusion before the
+  // thing it excludes from has to hold a rule with nothing to apply it to.
+  const said = Array.from(region.children).map((node) => textOf(node)).filter((text) => text !== "");
+  const lead = said.findIndex((text) => text.includes("at least one decision the decision log holds."));
+  const excludes = said.findIndex((text) => text.includes("does not count"));
+  assert.ok(lead >= 0, "the sentence naming both figures never rendered");
+  assert.ok(excludes > lead, "an exclusion is stated before the figures it excludes from");
+  assert.ok(said.indexOf(REASONING_PROOF_SCOPE) > excludes, "the scope note left the figures it qualifies");
+  // And the lead names both numbers, not one: "N of M releases".
+  assert.match(said[lead], /^\d+ of \d+ releases? in this release log/);
 });
 
 test("the figure is a live region from the first paint, before any module runs", async (t) => {
@@ -264,7 +276,7 @@ test("the three provenance cases reach the painted attribution", async (t) => {
     seed: { decisions: [QUEUE], releases: [KEPT, BARE] },
   });
   assert.equal(examples.document.querySelectorAll(".release-toggle").length, 2, "the seeded examples never rendered");
-  assert.equal(claim(examples), "1 of 2 releases in this release log links at least one decision that is in the decision log.");
+  assert.equal(claim(examples), "1 of 2 releases in this release log links at least one decision the decision log holds.");
   assert.equal(provenance(examples), "Counted here: 2 example records and none you added.");
 
   const added = await openPage(t, { releases: [KEPT, BARE] });
@@ -276,20 +288,20 @@ test("the three provenance cases reach the painted attribution", async (t) => {
     seed: { decisions: [QUEUE], releases: [BARE] },
   });
   assert.equal(mixed.document.querySelectorAll(".release-toggle").length, 2, "the mixed log never rendered");
-  assert.equal(claim(mixed), "1 of 2 releases in this release log links at least one decision that is in the decision log.");
+  assert.equal(claim(mixed), "1 of 2 releases in this release log links at least one decision the decision log holds.");
   assert.equal(provenance(mixed), "Counted here: 1 example record and 1 you added.");
 });
 
 test("a dangling link is not counted on the page either, and recovering the decision moves the figure", async (t) => {
   const withoutIt = await openPage(t, { releases: [KEPT, DANGLING], decisions: [QUEUE] });
   assert.equal(withoutIt.document.querySelectorAll(".release-toggle").length, 2, "the log rendered nothing to count");
-  assert.equal(claim(withoutIt), "1 of 2 releases in this release log links at least one decision that is in the decision log.");
+  assert.equal(claim(withoutIt), "1 of 2 releases in this release log links at least one decision the decision log holds.");
 
   const withIt = await openPage(t, {
     releases: [KEPT, DANGLING],
     decisions: [QUEUE, decision("d-gone", "The decision that was missing")],
   });
-  assert.equal(claim(withIt), "2 of 2 releases in this release log link at least one decision that is in the decision log.");
+  assert.equal(claim(withIt), "2 of 2 releases in this release log link at least one decision the decision log holds.");
 });
 
 test("a log that could not be read counts nothing rather than claiming a figure", async (t) => {
@@ -331,6 +343,11 @@ test("the copy control hands the summary to the clipboard and says so", async (t
   const button = byId(page, "reasoning-proof-copy");
 
   assert.equal(textOf(button), REASONING_PROOF_COPY_LABEL);
+  // The label names what is copied, and the block reports two numbers (#2598),
+  // so it names two — in the words the scope sentence above it already uses.
+  assert.equal(REASONING_PROOF_COPY_LABEL, "Copy both numbers as a sentence");
+  assert.doesNotMatch(REASONING_PROOF_COPY_LABEL, /this count/, "the control still names one figure");
+  assert.match(REASONING_PROOF_SCOPE, /^Both numbers /, "the label and the scope note no longer agree");
   assert.equal(button.getAttribute("type"), "button");
   assert.equal(button.getAttribute("aria-label"), null, "the visible label is not the accessible name");
   assert.equal(button.getAttribute("aria-describedby"), "reasoning-proof-copy-status");
@@ -343,6 +360,10 @@ test("the copy control hands the summary to the clipboard and says so", async (t
   assert.equal(written[0], reasoningProofSummary(countReasoningKept([KEPT, DANGLING, BARE], [QUEUE, CACHE])));
   assert.match(written[0], /1 of 3 releases/);
   assert.match(written[0], /Counted here: no example records and 3 you added\./);
+  // The copied bytes carry the page's own lead sentence, both figures included,
+  // so the clipboard and the screen cannot state different numbers (#2598).
+  assert.ok(written[0].includes(claim(page)), "the copied text is not the sentence on screen");
+  assert.match(claim(page), /^\d+ of \d+ releases? /, "the sentence on screen lost a figure");
   assert.equal(textOf(byId(page, "reasoning-proof-copy-status")), REASONING_PROOF_COPIED_STATUS);
   assert.equal(button.disabled, false, "the control did not come back after a successful copy");
 });
@@ -371,7 +392,7 @@ test("the copied sentence follows the log rather than the press that came before
   }
   byId(page, "release-form").dispatchEvent(new DomEvent("submit", { bubbles: true }));
   assert.equal(page.document.querySelectorAll(".release-toggle").length, 3, "the release was not recorded");
-  assert.equal(claim(page), "1 of 3 releases in this release log links at least one decision that is in the decision log.");
+  assert.equal(claim(page), "1 of 3 releases in this release log links at least one decision the decision log holds.");
 
   byId(page, "reasoning-proof-copy").click();
   await settle();
