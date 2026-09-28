@@ -426,11 +426,14 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .linked-release-undated { font-style:italic; }
 /* The prompt-coach entry point. One column at every width: the card is three
    short blocks and a control, and a second column would only widen the reading
-   measure of a paragraph that is already short. */
-.coach-entry { display:grid; justify-items:start; gap:10px; margin:24px 0 0; border:1px solid #cdd9c9; border-radius:14px; padding:clamp(18px,3vw,26px); background:linear-gradient(135deg,rgba(255,255,255,.94),rgba(233,243,231,.8)); }
-.coach-entry h2 { margin:0; font-size:clamp(21px,3vw,27px); line-height:1.15; letter-spacing:-.03em; }
-.coach-entry p:not(.eyebrow) { max-width:70ch; margin:0; color:#4f5a4d; font-size:15px; line-height:1.62; }
+   measure of a paragraph that is already short. .buyer-intent is the same kind
+   of block, so it shares these rules. */
+.coach-entry,.buyer-intent { display:grid; justify-items:start; gap:10px; margin:24px 0 0; border:1px solid #cdd9c9; border-radius:14px; padding:clamp(18px,3vw,26px); background:linear-gradient(135deg,rgba(255,255,255,.94),rgba(233,243,231,.8)); }
+.coach-entry h2,.buyer-intent h2 { margin:0; font-size:clamp(21px,3vw,27px); line-height:1.15; letter-spacing:-.03em; }
+.coach-entry p:not(.eyebrow),.buyer-intent p:not(.eyebrow) { max-width:70ch; margin:0; color:#4f5a4d; font-size:15px; line-height:1.62; }
 .coach-entry .secondary-button { margin-top:4px; }
+.buyer-intent .hero-actions { margin-top:2px; gap:10px; }
+.buyer-intent-choice { font-weight:750; }
 /* The companion path reads as a footnote to the offer above it, not as a second
    call to action competing with it. */
 .coach-entry .coach-entry-companion { margin-top:2px; font-size:14px; color:#5c6759; }

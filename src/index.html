@@ -1027,6 +1027,25 @@
         <p class="coach-entry-companion">Already have an export of your own AI history? <a href="/personal-history.html">Read weeks of your own prompts in Personal AI history</a>. It runs the same rubric over that export in this browser tab, then names the one habit worth changing first and whether it is moving.</p>
       </section>
 
+      <!-- What a buyer came for, carried down to the request at the foot of the
+           page (#2593). It sits below the prompt coach offer and outside both
+           work-email forms on purpose: the pair is a choice about the follow-up,
+           not a second control inside it, and the follow-up block's own tab
+           order is pinned to the field and its two submit buttons.
+           The pair itself is drawn by homepage-buyer-intent.js rather than
+           shipped, because choosing moves focus into that form and a control
+           that cannot do that on a page whose script never ran is a dead one.
+           The empty paragraph below the slot is the polite region that announces
+           the change; it ships empty so that setting it is a change. -->
+      <section class="buyer-intent" id="buyer-intent" aria-labelledby="buyer-intent-title">
+        <p class="eyebrow">Before you ask for a follow-up</p>
+        <h2 id="buyer-intent-title">Say what you want to talk about.</h2>
+        <p>Choosing below carries what you came for down to the request form at the foot of this page and puts you in the work-email field. Your choice is shown there before you send, and choosing the other one replaces it.</p>
+        <div class="hero-actions" id="buyer-intent-choices" role="group" aria-labelledby="buyer-intent-title"></div>
+        <p class="buyer-intent-choice" id="buyer-intent-choice"></p>
+        <p class="buyer-intent-choice" id="buyer-intent-status" role="status" aria-live="polite"></p>
+      </section>
+
       <section class="product-story" id="decision-to-release" aria-labelledby="product-story-title" data-proof-point="decision-to-release">
         <div class="product-story-intro">
           <p class="eyebrow">Keep reasoning with the work</p>
@@ -1140,6 +1159,7 @@
       </div>
     </footer>
     <script type="module" src="/landing-decision-page.js"></script>
+    <script type="module" src="/homepage-buyer-intent.js"></script>
     <script type="module" src="/homepage-executive-takeaway.js"></script>
     <script type="module" src="/shiplog-evaluation-brief.js"></script>
     <script type="module" src="/shiplog-pilot-scorecard.js"></script>
