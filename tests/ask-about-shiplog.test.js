@@ -33,7 +33,7 @@ import {
   ASK_ABOUT_SHIPLOG_DESCRIPTION, ASK_ABOUT_SHIPLOG_DESCRIPTION_ID,
   ASK_ABOUT_SHIPLOG_HREF, ASK_ABOUT_SHIPLOG_ID, ASK_ABOUT_SHIPLOG_LABEL,
 } from "../src/ask-about-shiplog.js";
-import { FOLLOW_UP_REPLY } from "../src/lead-capture.js";
+import { FOLLOW_UP_INTENTS, FOLLOW_UP_REPLY } from "../src/lead-capture.js";
 import { initReleasesPage } from "../src/releases-page.js";
 import { RELEASE_STORAGE_KEY } from "../src/releases.js";
 import { OFFER } from "../src/site-footer.js";
@@ -261,6 +261,132 @@ test("all six pages carry their follow-up description once at the label", async 
     // No new rule paid for it: the line reuses the site's existing hint style.
     assert.equal(described[0].getAttribute("class"), "hint",
       `${file}: the description introduced a class of its own`);
+  }
+});
+
+/* ------------- what each of the two offers is, said before the ask --------- */
+
+// #2606. The home page's label offers a demonstration or a pilot and the page
+// never said what either one is, so a first-time visitor had to raise their hand
+// to find out. The two topics are named in full lower down the page, but only as
+// the pair of controls homepage-buyer-intent.js draws, which is below the story
+// and below the coach. The line pinned here says who does what in each one, in
+// the row where the ask is made.
+const OFFERS_ID = "ask-about-shiplog-offers";
+const HOME_OFFERS = "“A product demonstration” is a walkthrough: the Wawalu team that"
+  + " operates Shiplog shows you the log and answers your questions. “A pilot evaluation”"
+  + " is your own team trying Shiplog and scoring it on the blank pilot scorecard further"
+  + " down this page.";
+
+/** Counted rather than fetched by id, so "renders twice" fails here. */
+const offersIn = (root) => root.querySelectorAll("p")
+  .filter((node) => node.getAttribute("id") === OFFERS_ID);
+
+test("the home page says what each of the two offers is, at the ask", async (t) => {
+  const { document } = await openHome(t);
+
+  const painted = offersIn(document);
+  assert.equal(painted.length, 1, `the line is painted ${painted.length} times, not once`);
+  assert.equal(textOf(painted[0]), HOME_OFFERS);
+
+  // The two topics are quoted in the words the five footer forms render for
+  // them, byte for byte from the one map, so a reader can match each sentence to
+  // the option they will pick rather than translating between two wordings.
+  for (const intent of ["demo", "pilot"]) {
+    assert.ok(textOf(painted[0]).includes(`“${FOLLOW_UP_INTENTS[intent]}”`),
+      `the line does not quote "${FOLLOW_UP_INTENTS[intent]}" as the form names it`);
+  }
+
+  // Each label is followed by who does the work in it: the team that operates
+  // Shiplog in one, the evaluating team in the other.
+  assert.match(textOf(painted[0]),
+    /“A product demonstration” is a walkthrough: the Wawalu team that operates Shiplog/);
+  assert.match(textOf(painted[0]), /“A pilot evaluation” is your own team trying Shiplog/);
+
+  // It reads above the line that says how the request is sent: what you are
+  // asking for, then how to ask for it.
+  const row = painted[0].parentNode;
+  const order = row.querySelectorAll("p").map((node) => node.getAttribute("id"));
+  assert.deepEqual(order, [OFFERS_ID, ASK_ABOUT_SHIPLOG_DESCRIPTION_ID],
+    "the row must explain the two offers before it explains how to send the request");
+  assert.ok(row.getAttribute("class").includes("hero-actions"),
+    "the line must sit in the row the ask is made in");
+});
+
+test("the scorecard the pilot sentence names is on this page, under that name", async (t) => {
+  const { document } = await openHome(t);
+
+  // Named the way the page already names it, in one copy, and the words point
+  // down the page at it rather than at a destination that would have to exist.
+  const scorecards = document.querySelectorAll("#shiplog-pilot-scorecard");
+  assert.equal(scorecards.length, 1, "the home page no longer carries the pilot scorecard");
+  assert.equal(textOf(document.getElementById("shiplog-pilot-scorecard-title")),
+    "Shiplog pilot scorecard");
+  const offer = document.getElementById("shiplog-entry");
+  assert.match(textOf(offer), /blank pilot scorecard further down this page/,
+    "the pilot sentence must name and place the scorecard");
+
+  // And the route to it is the one this section already published, two
+  // sentences above: no second link to the same material.
+  assert.equal(offer.querySelectorAll('a[href="#shiplog-evaluation-brief"]').length, 1,
+    "the section's existing route to the brief and blank scorecard is gone or doubled");
+  assert.equal(offer.querySelectorAll('a[href="#shiplog-pilot-scorecard"]').length, 0,
+    "a second route to the scorecard would publish one address twice in one region");
+});
+
+test("the line costs no control, and the ask still says how the request is sent", async (t) => {
+  const { document } = await openHome(t);
+  const [line] = offersIn(document);
+
+  // Prose, three ways: this page is at its tab-stop budget and a focusable added
+  // above the first screen reds tests on other pages.
+  assert.equal(line.tagName, "P");
+  assert.equal(line.getAttribute("class"), "hint", "the line introduced a class of its own");
+  assert.equal(line.getAttribute("tabindex"), null);
+  assert.equal(line.querySelectorAll("a").length, 0, "the line drew a link");
+  assert.equal(line.querySelectorAll("button").length, 0, "the line drew a button");
+  assert.equal(tabSequence(document).filter((node) => node === line).length, 0,
+    "the line became a tab stop");
+
+  // The row still carries what it carried: the form the request goes through and
+  // the reply that comes back, in the form's own sentence.
+  const row = textOf(line.parentNode);
+  assert.match(row, /follow-up form at the foot of this page/);
+  assert.ok(row.includes(FOLLOW_UP_REPLY), `the row no longer says: ${FOLLOW_UP_REPLY}`);
+
+  // And the answer above it is said once, not twice: the offer paragraph states
+  // the signup and price position, and the new line does not restate it.
+  const section = textOf(document.getElementById("shiplog-entry"));
+  assert.equal(section.split("no self-serve signup").length - 1, 1,
+    "the no-signup sentence is stated twice in one section");
+  assert.doesNotMatch(textOf(line), /self-serve signup|published price|answered on request/,
+    "the line repeats the availability answer the paragraph above already gives");
+});
+
+test("the line promises no schedule, price, customer or result", () => {
+  for (const overreach of [
+    /\d/,
+    /\bprice|pricing|\$|\bcost\b|\bquote\b|\bfree\b|\btrial\b/i,
+    /\bweeks?\b|\bdays?\b|\bhours?\b|\bminutes?\b|\bsoon\b|\bschedule\b|\bbook\b/i,
+    /\bcustomers?\b|\bclients?\b|\bcase study\b|\bused by\b|\bsaved\b|\bfaster\b/i,
+    /\bguarantee|\bwe['’]ll\b|\bsign ?up\b|\bavailable\b/i,
+  ]) {
+    assert.doesNotMatch(HOME_OFFERS, overreach,
+      `the line makes a claim this page cannot keep: ${overreach}`);
+  }
+  // Two sentences, one per offer: this is a caption in an action row.
+  assert.equal((HOME_OFFERS.match(/[.!?]/g) ?? []).length, 2);
+});
+
+test("only the home page carries it, because only the home page carries the scorecard", async () => {
+  for (const file of CARRYING_PAGES) {
+    const document = await readPage(file);
+    assert.equal(offersIn(document).length, file === "index.html" ? 1 : 0,
+      `${file}: the line describes a scorecard this page does not carry`);
+    if (file !== "index.html") continue;
+    // Shipped in the markup and not painted in: a reader whose script never ran
+    // still learns what the two offers are before following the route.
+    assert.equal(textOf(offersIn(document)[0]), HOME_OFFERS);
   }
 });
 
