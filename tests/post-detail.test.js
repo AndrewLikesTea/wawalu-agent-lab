@@ -499,13 +499,18 @@ test("both destinations ship as constants, and only the People link's target nar
 
 /* ------------------------- the page's standing frame ---------------------- */
 
-// Word-for-word with the <p> in src/post.html's hero. It is pinned here because
-// the whole point of the sentence is that it is standing copy: a reader who
-// arrived from a shared link has to be told what this page is before, during,
-// and after the post load — including when the post never arrives.
+// Word-for-word with the provenance paragraph in src/post.html's hero. It is
+// pinned here because it is what the page says before it knows: a reader who
+// arrived from a shared link is told what a post on Social may be from the first
+// paint, and in every state where the lookup never produced one.
 // It describes what a shared link opens rather than what is on screen, which is
 // why it can outlive not-found and error: those states have no post, so a
 // sentence beginning "This is one post…" would be describing an empty panel.
+//
+// Once a post does arrive, src/post-page.js replaces it in place with the answer
+// about that one post (postProvenanceSentence, #2607). That swap is the page
+// wiring's, not this renderer's — renderPostDetail() only ever touches
+// #post-detail — which is what the second test below still pins.
 const STANDING_SENTENCE = "The example posts on Social are invented to demonstrate Shiplog and use no customer or production data; anyone can read a post a visitor publishes.";
 
 // Every state the panel can be in, named the way a reader would name it.
@@ -521,7 +526,10 @@ const postPageHtml = () => readFile(new URL("../src/post.html", import.meta.url)
 
 test("the page identifies a shared post as invented or visitor-published, written once outside the panel", async () => {
   const html = await postPageHtml();
-  assert.ok(html.includes(`<p>${STANDING_SENTENCE}</p>`), "the standing sentence must ship in the markup");
+  // The id is the handle src/post-page.js writes the per-post answer through, so
+  // it is part of the contract: without it the swap silently never happens and
+  // the page keeps hedging about a post it has read.
+  assert.ok(html.includes(`<p id="post-provenance">${STANDING_SENTENCE}</p>`), "the standing sentence must ship in the markup");
   // Counted over the page's own content, not the whole document: the About
   // Shiplog band below it names every destination of the site in the words the
   // home page's directory uses, and Social's row is this same sentence. What

@@ -20,7 +20,8 @@ import assert from "node:assert/strict";
 import { readdir, readFile } from "node:fs/promises";
 import { DomEvent, loadPage, parseHtml, pressEnter, pressTab, tabSequence, textOf } from "./support/browser.js";
 import { postDetailHref } from "../src/social-links.js";
-import { FEED_LOADING_LINE } from "../src/social.js";
+import { POST_EXAMPLE_PROVENANCE, POST_PUBLISHED_PROVENANCE, postProvenanceSentence } from "../src/post-detail.js";
+import { EXAMPLE_POST_LABEL, FEED_LOADING_LINE } from "../src/social.js";
 import { loadingSummaryText } from "../src/profile.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
 
@@ -641,18 +642,25 @@ const EXITS_BY_STATE = {
 // make it, so it now lives inside CONTEXT_SENTENCE (#2296).
 const RETIRED_DATA_SENTENCE = "Posts use no customer or production data.";
 // What a pasted link opens, for a reader who has never seen the feed. It is
-// context about the page, not about this post — which is also why it holds in
-// the states where the lookup found nothing — so it reads after the post
-// rather than in front of it.
+// context about the page, not about this post — which is why it holds in the
+// states where the lookup found nothing — so it reads after the post rather
+// than in front of it. A loaded post replaces it with the answer about itself
+// (#2607); the paragraph and its place in reading order are the same either way.
 const CONTEXT_SENTENCE = "The example posts on Social are invented to demonstrate Shiplog and use no customer or production data; anyone can read a post a visitor publishes.";
+// As it ships, id and all. The id is not decoration: it is the handle
+// src/post-page.js writes the per-post answer through, so a paragraph that loses
+// it keeps hedging about a post the page has already read.
+const CONTEXT_MARKUP = `<p id="post-provenance">${CONTEXT_SENTENCE}</p>`;
 
 test("the words of a route out never change, and the post provenance survives every state", async () => {
   const cases = [
-    ["loaded", "?id=p-image", seedOnly([IMAGE_POST])],
-    ["not-found", "?id=p-never-existed", seedOnly([IMAGE_POST])],
-    ["error", "?id=p-image", () => { throw new TypeError("Failed to fetch"); }],
+    // p-image is seeded content, so the loaded state answers with the invented
+    // wording. Both answers are exercised end to end further down this file.
+    ["loaded", "?id=p-image", seedOnly([IMAGE_POST]), POST_EXAMPLE_PROVENANCE],
+    ["not-found", "?id=p-never-existed", seedOnly([IMAGE_POST]), CONTEXT_SENTENCE],
+    ["error", "?id=p-image", () => { throw new TypeError("Failed to fetch"); }, CONTEXT_SENTENCE],
   ];
-  for (const [state, search, answer] of cases) {
+  for (const [state, search, answer, provenance] of cases) {
     const page = await openPostPage(search, answer);
     try {
       const main = page.document.querySelector("#main-content");
@@ -667,8 +675,13 @@ test("the words of a route out never change, and the post provenance survives ev
       // on a pasted link has a step to undo.
       for (const label of CHROME_LINKS) assert.doesNotMatch(label, /←|Back/);
 
-      assert.equal(textOf(main).includes(CONTEXT_SENTENCE), true,
+      assert.equal(textOf(main).includes(provenance), true,
         `the ${state} state lost the post provenance`);
+      // Whichever one this state carries, it carries only that one: the hedge and
+      // the per-post answer are the same paragraph, never two paragraphs saying
+      // the same thing in two voices.
+      assert.equal(textOf(page.document.querySelector("#post-provenance")), provenance,
+        `the ${state} state states its provenance somewhere other than the page's one paragraph for it`);
       assert.equal(textOf(main).includes(RETIRED_DATA_SENTENCE), false,
         `the ${state} state still says every post carries no customer or production data`);
       assert.equal(textOf(main).split("customer or production data").length - 1, 1,
@@ -679,7 +692,7 @@ test("the words of a route out never change, and the post provenance survives ev
       // every render, so anything inside it is gone the moment a state changes.
       assert.equal(page.panel.querySelectorAll(".detail-back").length, 0,
         `the ${state} state's routes out must sit in the page frame, not the panel`);
-      assert.equal(textOf(page.panel).includes(CONTEXT_SENTENCE), false,
+      assert.equal(textOf(page.panel).includes(provenance), false,
         `the ${state} state must not repeat the provenance sentence inside the panel`);
     } finally {
       page.restore();
@@ -690,7 +703,7 @@ test("the words of a route out never change, and the post provenance survives ev
   // the shipped markup too, not only from a page that has finished loading.
   const html = await readFile(new URL("../src/post.html", import.meta.url), "utf8");
   assert.ok(html.includes(`>${SOCIAL_LINK}</a>`), `${SOCIAL_LINK} must ship in the markup`);
-  assert.ok(html.includes(`<p>${CONTEXT_SENTENCE}</p>`), "the post provenance must ship in the markup");
+  assert.ok(html.includes(CONTEXT_MARKUP), "the post provenance must ship in the markup");
   assert.equal(html.includes(RETIRED_DATA_SENTENCE), false, "the unscoped data boundary must not ship in the markup");
   // The eyebrow names the surface the post came out of and stops there. It no
   // longer says "post" a line above the h1 that says it and two lines above the
@@ -701,6 +714,155 @@ test("the words of a route out never change, and the post provenance survives ev
   assert.match(html, /<p class="eyebrow">Social<\/p>/);
   assert.doesNotMatch(html, /<p class="eyebrow">[^<]*demo/,
     "the permalink eyebrow classifies a post the page has not read");
+});
+
+/* --------------------- what this one post is (#2607) ---------------------- */
+
+// A seed id never reaches /api/social-posts — src/post-page.js only asks the API
+// for a UUID — so the live path has to be exercised with one, and the stub has to
+// answer in the API's wire shape (content, timestamp, source) rather than the
+// feed's. A row with no `source` is what the invented records look like; one
+// stamped "shiplog-web" is the only thing that means a visitor published it, and
+// the API is the only writer of that value (src/social-posts-api.js).
+const LIVE_EXAMPLE_ID = "6b2d8f14-0a3c-4d5e-9f81-2c3b4a5d6e7f";
+const LIVE_PUBLISHED_ID = "9c7e1a24-5b6d-4e3f-8a92-1b2c3d4e5f60";
+
+const liveRow = (id, source) => ({
+  id,
+  author: "Mina Okafor",
+  content: "Focus rings landed everywhere.",
+  timestamp: "2026-07-14T09:00:00.000Z",
+  like_count: 3,
+  comment_count: 1,
+  ...(source ? { source } : {}),
+});
+
+const liveOnly = (row) => (url) => {
+  if (url === `/api/social-posts/${row.id}`) return { ok: true, status: 200, json: async () => ({ post: row }) };
+  throw new Error(`Unexpected request: ${url}`);
+};
+
+// The rule, stated where it is decided rather than inferred from the page: the
+// source field alone, and a row that carries none is sample content. Nothing here
+// looks at the id, the display name, or the shape of the record.
+test("only the visitor source earns the published sentence, and an absent one reads as an example", () => {
+  assert.equal(postProvenanceSentence({ source: "shiplog-web" }), POST_PUBLISHED_PROVENANCE);
+  assert.equal(postProvenanceSentence({ source: "agent-demo" }), POST_EXAMPLE_PROVENANCE);
+  assert.equal(postProvenanceSentence({}), POST_EXAMPLE_PROVENANCE);
+  // No post, no claim: this is what keeps the waiting and dead-end states from
+  // calling a post that has not arrived an example.
+  assert.equal(postProvenanceSentence(null), "");
+
+  // Neither sentence borrows the other's claim. The example one may promise the
+  // data boundary because only an invented post can; the published one may not
+  // be called an example, which is the single thing this page must never say
+  // about somebody's real post.
+  assert.match(POST_EXAMPLE_PROVENANCE, /example post/);
+  assert.match(POST_EXAMPLE_PROVENANCE, /no customer or production data/);
+  assert.doesNotMatch(POST_PUBLISHED_PROVENANCE, /example|invented|demonstrat/i);
+  assert.doesNotMatch(POST_PUBLISHED_PROVENANCE, /customer or production data/);
+  // Short, active, one sentence each — the same bar the hedge they replace meets.
+  for (const sentence of [POST_EXAMPLE_PROVENANCE, POST_PUBLISHED_PROVENANCE]) {
+    assert.ok(sentence.split(/\s+/).length <= 25, `"${sentence}" is longer than 25 words`);
+    assert.equal(sentence.split(/[.!?]/).filter((part) => part.trim()).length, 1, `"${sentence}" is more than one sentence`);
+  }
+});
+
+test("a loaded post says whether it is an example or somebody's published post, in the painted page", async () => {
+  const cases = [
+    ["an example record", liveRow(LIVE_EXAMPLE_ID, null), POST_EXAMPLE_PROVENANCE, POST_PUBLISHED_PROVENANCE, 1],
+    ["a visitor's post", liveRow(LIVE_PUBLISHED_ID, "shiplog-web"), POST_PUBLISHED_PROVENANCE, POST_EXAMPLE_PROVENANCE, 0],
+  ];
+  for (const [name, row, expected, refused, badges] of cases) {
+    const page = await openPostPage(`?id=${row.id}`, liveOnly(row));
+    try {
+      assert.equal(page.panel.dataset.postState, "loaded", `${name}: the live lookup did not produce a post`);
+      assert.deepEqual(page.requests, [`/api/social-posts/${row.id}`],
+        `${name}: the page did not take the live API path`);
+
+      // In the painted DOM, in the page's one provenance paragraph — not only in
+      // the authored markup, which ships the hedge.
+      const main = textOf(page.document.querySelector("#main-content"));
+      assert.equal(textOf(page.document.querySelector("#post-provenance")), expected,
+        `${name}: the provenance paragraph does not say what this post is`);
+      assert.equal(times(main, expected), 1, `${name}: the sentence is said ${times(main, expected)} times`);
+      assert.equal(times(main, refused), 0, `${name}: the page also makes the other provenance claim`);
+      // And the hedge it replaced is gone: a page that has read the post does not
+      // go on describing what a post on Social may be.
+      assert.equal(times(main, CONTEXT_SENTENCE), 0, `${name}: the page still hedges about a post it has read`);
+
+      // The marker on the post agrees with the sentence beside it — both are
+      // decided by isExamplePost — and a visitor's post carries neither.
+      const markers = page.panel.querySelectorAll(".badge-example");
+      assert.equal(markers.length, badges, `${name}: ${markers.length} example badges on the post`);
+      assert.equal(times(main, EXAMPLE_POST_LABEL), badges === 0 ? 0 : 1,
+        `${name}: the two-word marker is on the page ${times(main, EXAMPLE_POST_LABEL)} times`);
+    } finally {
+      page.restore();
+    }
+  }
+});
+
+test("the wait claims nothing about a post that has not arrived, and a retry takes the claim back", async () => {
+  const row = liveRow(LIVE_EXAMPLE_ID, null);
+  const page = await loadPage(new URL("../src/post.html", import.meta.url), { location: { search: `?id=${row.id}` } });
+  try {
+    let release;
+    globalThis.fetch = () => new Promise((resolve) => {
+      release = () => resolve({ ok: true, status: 200, json: async () => ({ post: row }) });
+    });
+    await importPageModule("/post-page.js");
+    const panel = page.document.querySelector("#post-detail");
+    await waitFor(() => panel.querySelectorAll(".detail-loading").length === 1, "the loading state rendered");
+
+    // While the lookup runs the paragraph is the hedge, which names both cases and
+    // commits to neither. Neither per-post answer is on the page: one would be
+    // calling a post that has not arrived an example, and the other would be
+    // crediting a visitor with publishing it.
+    const waiting = textOf(page.document.querySelector("#main-content"));
+    assert.equal(textOf(page.document.querySelector("#post-provenance")), CONTEXT_SENTENCE);
+    for (const sentence of [POST_EXAMPLE_PROVENANCE, POST_PUBLISHED_PROVENANCE]) {
+      assert.equal(times(waiting, sentence), 0, `the wait says "${sentence}" about a post it does not have`);
+    }
+    assert.equal(times(waiting, EXAMPLE_POST_LABEL), 0, "the placeholder is marked as an example post");
+
+    release();
+    await waitFor(() => page.document.documentElement.dataset.shiplogPostDetail === "ready", "the post arrived");
+    assert.equal(textOf(page.document.querySelector("#post-provenance")), POST_EXAMPLE_PROVENANCE);
+  } finally {
+    page.restore();
+  }
+});
+
+// The retry path. A failed first attempt has no post, so the paragraph is the
+// hedge; the attempt that works is where the page earns the right to be specific,
+// and it has to become specific in that paint rather than keeping the wording it
+// was drawn with.
+test("a retry that works replaces the hedge with the answer about the post it found", async () => {
+  const row = liveRow(LIVE_PUBLISHED_ID, "shiplog-web");
+  let failing = true;
+  const page = await openPostPage(`?id=${row.id}`, (url) => {
+    if (failing) throw new TypeError("Failed to fetch");
+    return liveOnly(row)(url);
+  });
+  try {
+    assertOneState(page, "error", "the first attempt failed");
+    assert.equal(textOf(page.document.querySelector("#post-provenance")), CONTEXT_SENTENCE,
+      "a state with no post is specific about one");
+
+    failing = false;
+    page.panel.querySelector(".detail-retry").click();
+    await waitFor(page.settled, "the retry finished");
+
+    assertOneState(page, "loaded", "after a retry that worked");
+    assert.equal(textOf(page.document.querySelector("#post-provenance")), POST_PUBLISHED_PROVENANCE,
+      "the recovered post never got its own sentence");
+    const main = textOf(page.document.querySelector("#main-content"));
+    assert.equal(times(main, CONTEXT_SENTENCE), 0);
+    assert.equal(times(main, EXAMPLE_POST_LABEL), 0, "a post a visitor published was marked invented");
+  } finally {
+    page.restore();
+  }
 });
 
 // The row a visitor lands next to when a shared link is all they have.
@@ -965,13 +1127,15 @@ function assertLeadsWithThePost(document, where) {
     `${where}: the permalink must name the post, then show it, then offer a way onward`);
 
   // The whole page sequence: eyebrow, heading, the post's own region, the
-  // links, then what Social is. The context paragraph is the standing sentence
-  // about the shared post, carrying the data claim, and it does not precede the post.
+  // links, then what the post is. The context paragraph carries the data claim,
+  // and it does not precede the post. Found by its id rather than by its words,
+  // because its words are the point: the same paragraph in the same place says
+  // what a post on Social may be before the lookup, and what this one is after it.
   const flow = main.querySelectorAll("h1,p,div");
   const eyebrow = flow.findIndex((node) => node.classList.contains("eyebrow"));
   const heading = flow.findIndex((node) => node.id === "page-title");
   const slot = flow.findIndex((node) => node.id === "post-detail");
-  const context = flow.findIndex((node) => textOf(node) === CONTEXT_SENTENCE);
+  const context = flow.findIndex((node) => node.id === "post-provenance");
   const exits = flow.findIndex((node) => node.classList.contains("detail-page-exits"));
   assert.ok(eyebrow >= 0 && slot >= 0 && context >= 0 && exits >= 0,
     `${where}: the page lost a part of its sequence`);
@@ -1037,8 +1201,8 @@ test("the permalink leads with the post and puts the feed context under it, load
   const at = (needle) => html.indexOf(needle);
   assert.ok(at('<p class="eyebrow">Social</p>') < at('<h1 id="page-title">'), "the eyebrow precedes the heading");
   assert.ok(at('<h1 id="page-title">') < at('id="post-detail"'), "the heading precedes the post's own region");
-  assert.ok(at('id="post-detail"') < at(`<p>${CONTEXT_SENTENCE}</p>`), "the post precedes what the page says about Social");
-  assert.ok(at(`>${PUBLISH_LINK}</a>`) < at(`<p>${CONTEXT_SENTENCE}</p>`), "both Social routes precede the intro");
+  assert.ok(at('id="post-detail"') < at(CONTEXT_MARKUP), "the post precedes what the page says about Social");
+  assert.ok(at(`>${PUBLISH_LINK}</a>`) < at(CONTEXT_MARKUP), "both Social routes precede the intro");
   assert.ok(at(`>${SOCIAL_LINK}</a>`) < at('id="post-people"'), "Social precedes People, the order the nav names them in");
   // Moved in the markup, not turned around in CSS: a stylesheet reorder would
   // leave reading order and tab order in the order this change exists to end.
@@ -1077,8 +1241,8 @@ test("a loaded post's caption, name, time and image all read before the feed con
     // And the context paragraph itself is after the post, not merely below it.
     const blocks = main.querySelectorAll("#post-detail,p");
     const slot = blocks.findIndex((node) => node.id === "post-detail");
-    const context = blocks.findIndex((node) => textOf(node) === CONTEXT_SENTENCE);
-    assert.ok(slot >= 0 && context > slot, "the paragraph describing Social must follow the post");
+    const context = blocks.findIndex((node) => node.id === "post-provenance");
+    assert.ok(slot >= 0 && context > slot, "the paragraph describing the post must follow the post");
 
     // Tab order agrees with reading order: the post's own link to its author is
     // reached before either cross-link.
@@ -1188,7 +1352,9 @@ test("the post page introduces itself once, answering what a cold visitor cannot
 
     release();
     await waitFor(() => waiting.document.documentElement.dataset.shiplogPostDetail === "ready", "the post arrived");
-    assertSaidOnce(waiting.document, "once the post arrived");
+    // p-image is seeded, so the paragraph that was hedging now says which of the
+    // two it is. Still one paragraph, still said once.
+    assertSaidOnce(waiting.document, "once the post arrived", POST_EXAMPLE_PROVENANCE);
   } finally {
     waiting.restore();
   }
@@ -1211,17 +1377,26 @@ test("the post page introduces itself once, answering what a cold visitor cannot
 // One explanation of what this page is, and one statement of its data boundary.
 // Counted over the rendered page's own content — the About Shiplog band
 // below it is the site's directory and is not this page introducing itself.
-function assertSaidOnce(document, where) {
+//
+// `provenance` is which sentence this state's one provenance paragraph is holding:
+// the hedge that names both cases before the lookup answers, or the answer about
+// the post once one has loaded (#2607). The two phrases below are then counted
+// against that sentence rather than against a literal 1, which is the same rule
+// stated once: the page says each of them exactly as often as its one provenance
+// paragraph says it, and nowhere else.
+function assertSaidOnce(document, where, provenance = CONTEXT_SENTENCE) {
   const main = textOf(document.querySelector("#main-content"));
   assert.equal(times(main, RETIRED_WAIT), 0, `${where}: the retired wait is back on the page`);
-  assert.equal(times(main, CONTEXT_SENTENCE), 1, `${where}: the provenance is said ${times(main, CONTEXT_SENTENCE)} times`);
+  assert.equal(times(main, provenance), 1, `${where}: the provenance is said ${times(main, provenance)} times`);
   assert.equal(times(main, RETIRED_DATA_SENTENCE), 0, `${where}: the unscoped data boundary is back on the page`);
-  assert.equal(times(main, "customer or production data"), 1,
+  assert.equal(times(main, "customer or production data"), times(provenance, "customer or production data"),
     `${where}: the data boundary is said ${times(main, "customer or production data")} times`);
-  // And no second wording of the same fact anywhere in the page's content: one
-  // mention of invented posts, the one in the sentence above. The display-name
-  // sentence a loaded post adds is a different fact and is not counted.
-  assert.equal(times(main, "invented to demonstrate"), 1, `${where}: invented provenance is said a second way`);
+  // And no second wording of the same fact anywhere in the page's content. The
+  // display-name sentence a loaded post adds is a different fact and is not
+  // counted; neither is the two-word badge on the post, which is the marker
+  // Social's cards and People's tiles carry rather than a second sentence.
+  assert.equal(times(main, "invented to demonstrate"), times(provenance, "invented to demonstrate"),
+    `${where}: invented provenance is said a second way`);
   // The claim this page must not make, in any wording: that a shared link is
   // demo content by virtue of being a shared link. A reader forwarded a post a
   // visitor published is one of the readers this page has to be true for, so
@@ -1330,7 +1505,7 @@ test("the post page says what it is before it says it is loading", async () => {
 
   // The strings this page already owns are untouched, byte for byte.
   assert.ok(html.includes(`<span class="detail-loading-text">${STATE_HEADLINES.loading}</span>`), "the loading line is unchanged");
-  assert.ok(html.includes(`<p>${CONTEXT_SENTENCE}</p>`), "the provenance sentence is unchanged");
+  assert.ok(html.includes(CONTEXT_MARKUP), "the provenance sentence is unchanged");
   assert.equal(html.includes(RETIRED_DATA_SENTENCE), false, "the unscoped data boundary stays retired");
   for (const label of CHROME_LINKS.filter((text) => text !== PEOPLE_LINK)) {
     assert.ok(html.includes(`>${label}</a>`), `${label} is unchanged`);

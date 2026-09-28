@@ -353,6 +353,40 @@ export const POST_LOADING_STATUS = "The post is loading.";
 // describing a name the page did not draw.
 export const POST_LOADED_DESCRIPTION = "This post shows the display name used to publish it and the post content.";
 
+// What this one post is, once the lookup has read it (#2607).
+//
+// Social and People may hedge — "The example posts here are invented to
+// demonstrate Shiplog…" — because they show a list, and the badge on each card
+// says which of them the sentence is about. A permalink holds exactly one post,
+// so the same hedge was the page declining to answer the only provenance
+// question it has, to the one reader who cannot look at a neighbouring card to
+// work it out. These are the two answers it can give instead, and src/post-page.js
+// writes whichever one the loaded post earns over the standing sentence in
+// src/post.html. One statement, in the place the hedge stood; the badge on the
+// post above it is the same marker Social's cards and People's tiles carry, not
+// a second telling.
+//
+// Each keeps what the hedge carried for its own case and nothing more. The data
+// boundary stays with the invented post, because only an invented post can
+// promise it. Who can read it stays with the published one, because that is the
+// fact a reader forwarded somebody's real post is owed — and calling that post an
+// example would be the one thing this page must never say about it.
+export const POST_EXAMPLE_PROVENANCE =
+  "This is an example post, invented to demonstrate Shiplog, and it uses no customer or production data.";
+export const POST_PUBLISHED_PROVENANCE = "A visitor published this post on Social, and anyone can read it.";
+
+// isExamplePost() is the one rule for the question, so this sentence and the
+// badge drawn on the post cannot disagree: "shiplog-web" is the only source a
+// visitor's post carries, and an absent or unknown one is sample content.
+//
+// No post, no sentence. A lookup that is still running or that found nothing has
+// nothing to be provenance *of*, and the empty string is what keeps the caller
+// from printing the example wording over an empty panel.
+export function postProvenanceSentence(post) {
+  if (!post) return "";
+  return isExamplePost(post) ? POST_EXAMPLE_PROVENANCE : POST_PUBLISHED_PROVENANCE;
+}
+
 // The one act this page can perform on the post it is showing: hand over the
 // address that reopens it. A permalink is the surface a link gets *shared* from
 // again, and until now the only way to pass one on was to select the address
