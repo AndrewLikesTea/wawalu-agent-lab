@@ -727,6 +727,35 @@
         </div>
       </section>
 
+      <!-- THE COUNTS FROM THIS BROWSER, AS PASTEABLE TEXT (#2582).
+           The brief and the scorecard above are fixed editorial text and say so;
+           neither can tell a buyer how much is actually in the log. This block
+           does, from the log app.js has already composed, and hands it over as
+           text. It sits last of the three because it is the only one of them a
+           reader has to have loaded the log to use.
+           Every line is painted by src/evaluation-summary.js — the list ships
+           EMPTY on purpose, because a figure authored here would be a number
+           nobody counted, and it would still be on screen after a failed read.
+           The paragraph states the wait, so a visitor whose script never ran is
+           told rather than left with a blank list, and the button ships disabled
+           for the same reason the log's other share controls do: without the
+           module there is nothing to hand over.
+           The status line is a sibling of the button and is never moved inside a
+           disclosure. The test harness reads text through a closed one, so an
+           assertion on it would stay green while a real browser announced
+           nothing at all. -->
+      <section class="hero-proof" id="evaluation-summary" aria-labelledby="evaluation-summary-title">
+        <h2 id="evaluation-summary-title">Evaluation summary of the records loaded here</h2>
+        <p>Counted from the decisions and releases this browser has loaded, so recording a record changes them. Paste the summary into an internal evaluation write-up.</p>
+        <ul id="evaluation-summary-preview" aria-busy="true">
+          <li>The counts appear here once the decision and release log has loaded.</li>
+        </ul>
+        <div class="share-control">
+          <button class="share-button" id="evaluation-summary-copy" type="button" disabled aria-describedby="evaluation-summary-copy-status">Copy this evaluation summary for an internal review</button>
+          <span class="share-status" id="evaluation-summary-copy-status" role="status" aria-live="polite" aria-atomic="true"></span>
+        </div>
+      </section>
+
       <section class="hero-finops" id="additional-capability" aria-labelledby="additional-capability-title">
         <p class="eyebrow">Runs on your own work</p>
         <h2 id="additional-capability-title">AI FinOps: understand your AI spend.</h2>
