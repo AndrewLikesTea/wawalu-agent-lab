@@ -87,7 +87,7 @@ test("the summary states both totals, both splits, the reasoning figure, and its
   // (3) the reasoning-completeness proof point, and (4) the rule behind it —
   // both quoted from release-reasoning-proof.js rather than reworded here.
   assert.equal(lines[3],
-    "Reasoning kept: 2 of 3 releases in this release log link at least one decision that is in the decision log.");
+    "Reasoning kept: 2 of 3 releases in this release log link at least one decision the decision log holds.");
   assert.equal(lines[4], REASONING_PROOF_RULE);
   // (5) and (6) the two provenance sentences a pasted figure travels without.
   assert.equal(lines[5], EVALUATION_SUMMARY_PROVENANCE);
@@ -172,7 +172,7 @@ test("a release linking a decision the log does not hold is not counted as prese
   // would give the site two wordings for one figure, which is the whole reason
   // this block borrows it instead of writing its own.
   assert.equal(evaluationSummaryLines(counts)[3],
-    "Reasoning kept: 0 of 1 release in this release log link at least one decision that is in the decision log.");
+    "Reasoning kept: 0 of 1 release in this release log link at least one decision the decision log holds.");
 });
 
 /* --------------------------- the shipped markup --------------------------- */
@@ -260,7 +260,7 @@ test("the preview is painted from the loaded log and the copy matches it exactly
   assert.equal(lines[1], "2 decisions loaded. Counted here: 1 example record and 1 you added.");
   assert.equal(lines[2], "2 releases loaded. Counted here: 1 example record and 1 you added.");
   assert.equal(lines[3],
-    "Reasoning kept: 2 of 2 releases in this release log link at least one decision that is in the decision log.");
+    "Reasoning kept: 2 of 2 releases in this release log link at least one decision the decision log holds.");
   assert.equal(lines[5], EVALUATION_SUMMARY_PROVENANCE);
   assert.equal(lines[6], EVALUATION_SUMMARY_EXAMPLE_CAVEAT);
 

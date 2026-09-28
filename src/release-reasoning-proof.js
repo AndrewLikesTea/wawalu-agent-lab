@@ -50,12 +50,17 @@ export const REASONING_PROOF_SCOPE =
 export const REASONING_PROOF_SUMMARY_SCOPE =
   "Counted over every release loaded on the Shiplog releases page, not a filtered view.";
 
-/** The visible words on the control, which say what pressing it produces. */
-export const REASONING_PROOF_COPY_LABEL = "Copy this count as a sentence";
+// The visible words on the control, which say what pressing it produces. The
+// block reports two numbers and the scope sentence calls them "both numbers", so
+// the control says "both numbers" too: "this count" named one figure for a
+// sentence that has always carried two. The "Copy <what it is>" shape is the
+// page's own (see "Copy the deployment check verdict and both versions"), and
+// "as a sentence" is what tells a reader this is not another link control.
+export const REASONING_PROOF_COPY_LABEL = "Copy both numbers as a sentence";
 
-export const REASONING_PROOF_COPIED_STATUS = "Count copied to clipboard.";
+export const REASONING_PROOF_COPIED_STATUS = "Both numbers copied to clipboard.";
 export const REASONING_PROOF_COPY_FAILED_STATUS =
-  "Could not copy the count. The same sentence is above this button.";
+  "Could not copy both numbers. The same sentence is above this button.";
 
 // A log with nothing in it names nothing: "0 of 0 releases" is a fraction posing
 // as a finding, and this is also what an unread log says, because a log that did
@@ -93,11 +98,18 @@ export function countReasoningKept(releases = [], decisions = [], exampleIds = n
  * Words, not a fraction glyph: this is the line a reader quotes, and "6/8" does
  * not say what either number is. "N of M releases" is the shape the log's own
  * count sentence already uses, so the page reads in one idiom.
+ *
+ * It says the decision log HOLDS the decision, which is the verb the exclusion
+ * sentence under it already uses ("a decision the decision log does not hold
+ * does not count"): one name for one concept, so the two sentences read as the
+ * rule and its bound rather than as two rules. It stays page-neutral — no "on
+ * this page" — because the homepage's evaluation summary and the clipboard both
+ * quote this sentence byte for byte, and each states its own scope beside it.
  */
 export function reasoningKeptSentence({ total = 0, preserved = 0 } = {}) {
   if (total === 0) return NO_RELEASES_TO_COUNT;
   return `${preserved} of ${total} ${total === 1 ? "release" : "releases"} in this release log `
-    + `${preserved === 1 ? "links" : "link"} at least one decision that is in the decision log.`;
+    + `${preserved === 1 ? "links" : "link"} at least one decision the decision log holds.`;
 }
 
 /**
