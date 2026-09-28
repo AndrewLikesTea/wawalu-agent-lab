@@ -202,7 +202,9 @@ test("the composer reads Paint, Choose image, the preview, the fields and the no
   const steps = id("post-image-steps").querySelectorAll("li").map((item) => textOf(item));
   assert.equal(steps.length, 2);
   assert.match(steps[0], /^From Paint: .* then select “Use this image in a Social post”$/);
-  assert.equal(steps[1], "From a file: Choose image takes an image already saved on this device");
+  // #2594: the file route no longer quotes the label on the picker it is read
+  // above, which rendered "…on this device Choose image" as one run-on line.
+  assert.equal(steps[1], "From a file: add an image already saved on this device");
 
   // One Publish post control, and it is the last button before Close.
   const named = ["a", "button", "input", "summary"]

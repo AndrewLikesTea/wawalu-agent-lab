@@ -183,6 +183,47 @@ test("the help text and the refusals state the limit and the formats identically
   for (const mention of formats) assert.equal(mention, "PNG, JPEG, GIF, or WebP");
 });
 
+// #2594: the two ways in, read the way the region actually renders. The file
+// route quoted the label on the control immediately below it, so a visitor
+// reading straight down the open composer met "Choose image" twice in a row,
+// once as the end of a sentence and once as a button — one broken line where
+// there are meant to be two choices. This reads the whole fieldset's text back
+// in order and pins the shape: two labelled routes, the control named once by
+// the control, and the rule about the file still beside it.
+test("the image field offers Paint and a saved file as two routes, naming the picker once", async (t) => {
+  const { document } = await openComposer(t);
+  const picker = document.querySelector(".media-picker");
+  const region = textOf(picker);
+
+  // The name of the control belongs to the control. Counted across the whole
+  // fieldset, not just the help, because the collision was between the two.
+  assert.equal(region.split("Choose image").length - 1, 1,
+    `"Choose image" is not said exactly once in the image field: ${region}`);
+  assert.equal(textOf(document.querySelector('label[for="post-image"]')), "Choose image");
+
+  // Two routes, each readable on its own: one names where the image is made,
+  // the other where it already is, and neither carries the other's words.
+  const routes = document.querySelector("#post-image-steps").querySelectorAll("li").map(textOf);
+  assert.equal(routes.length, 2, `the field offers ${routes.length} routes`);
+  assert.match(routes[0], /^From Paint: /);
+  assert.equal(routes[1], "From a file: add an image already saved on this device");
+  assert.doesNotMatch(routes[1], /Paint/, "the file route carries the Paint route too");
+
+  // The Paint route still names the control to press inside Paint, byte for
+  // byte, and still declares that Paint opens somewhere else.
+  assert.equal(routes[0].split("“Use this image in a Social post”").length - 1, 1,
+    `the Paint route no longer names the control to select in Paint: ${routes[0]}`);
+  assert.match(routes[0], /\(opens in a new tab\)/);
+  const paint = document.querySelector("#post-image-steps").querySelector("a");
+  assert.equal(paint.getAttribute("target"), "_blank");
+
+  // The rule about the file stays with the file option, unchanged and visible.
+  assert.equal(textOf(document.querySelector("#post-image-hint")),
+    "PNG, JPEG, GIF, or WebP, up to 512 KB");
+  assert.equal(region.split("512 KB").length - 1, 1,
+    `the size limit is stated more than once in the field: ${region}`);
+});
+
 // One statement of the rule, in the field the reader is standing in. The
 // formats and the size were stated twice a line apart — once in a clause hung
 // off the Paint link by a semicolon, once as a summary line under it — so the
@@ -210,9 +251,11 @@ test("the image field states the formats and the size exactly once, in plain sen
   assert.equal(textOf(hint), "PNG, JPEG, GIF, or WebP, up to 512 KB");
   assert.doesNotMatch(textOf(document.querySelector(".media-picker")), /Reduce or re-export/);
   assert.equal(textOf(document.querySelector('label[for="post-image"]')), "Choose image");
-  // The routes name the image control by its exact rendered label, once.
-  assert.equal(help.split("Choose image").length - 1, 1,
-    `the help must name the control once: ${help}`);
+  // #2594: the standing help around the picker never states the control's label
+  // — the control does. It used to be quoted by the file route directly above
+  // it, so the region read "…already saved on this device Choose image".
+  assert.equal(help.split("Choose image").length - 1, 0,
+    `the help restates the control's label: ${help}`);
   assert.equal(textOf(hint).split("Choose image").length - 1, 0,
     `the format and size rule repeats the control's label: ${textOf(hint)}`);
   // No second phrasing of the same rule beside it, and no clause welding.
@@ -224,7 +267,7 @@ test("the image field states the formats and the size exactly once, in plain sen
   assert.equal(textOf(steps),
     "From Paint: Create or open an image in Paint (opens in a new tab) ↗"
     + " then select “Use this image in a Social post”"
-    + " From a file: Choose image takes an image already saved on this device");
+    + " From a file: add an image already saved on this device");
   const paint = steps.querySelector("a");
   assert.equal(paint.getAttribute("href"), "/paint/");
   assert.equal(paint.getAttribute("target"), "_blank");
