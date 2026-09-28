@@ -524,6 +524,24 @@
                 <li>From Paint: <a class="secondary-button paint-link" href="/paint/" target="_blank" rel="noopener">Create or open an image in Paint <span class="new-tab-note">(opens in a new tab)</span> <span aria-hidden="true">↗</span></a> then select “Use this image in a Social post”</li>
                 <li>From a file: add an image already saved on this device</li>
               </ul>
+              <!-- What the Paint route actually lands on (#2604). The route above
+                   said where to go and which control to press, and then stopped:
+                   a visitor pressing a control in a second tab had no idea what
+                   this one would look like when they got back, so the two halves
+                   of the handoff made no promise to each other. This states the
+                   arrival, and the sentence it quotes is
+                   PAINT_ARRIVAL_ORIGIN_LINE from src/paint-handoff.js — the same
+                   string the arrival renders beside the preview, held byte for
+                   byte by tests/paint-social-arrival-state.test.js so neither
+                   side can be reworded alone.
+                   It stops at that sentence. The arrival's second half names the
+                   image description field, and per #2294 nothing reachable here
+                   may name that field before there is an image it applies to, so
+                   this says only that the remaining step is named on arrival, at
+                   the field that asks for it. It quotes neither the picker's
+                   label nor the file rule either: both are stated once, below, by
+                   the control and the chip that own them. -->
+              <p class="hint" id="post-image-return">On return, this composer opens with that image already in the preview, and says beside it: “This image came from Paint.” The one step still required is named there, at the field that asks for it.</p>
               <div class="media-source-actions">
                 <label class="secondary-button file-button" for="post-image">Choose image
                   <input id="post-image" name="image" type="file"
@@ -610,6 +628,18 @@
                        anyway. -->
                   <figcaption id="compose-preview-caption"></figcaption>
                 </figure>
+                <!-- Ships empty. Where the picture came from, said beside the
+                     picture, and only when the reader did not put it there
+                     themselves: src/social-page.js writes
+                     PAINT_ARRIVAL_PREVIEW_LINE here on an arrival from Paint and
+                     empties it when the image is removed or replaced. It stands
+                     between the preview and the description field because it ends
+                     by naming that field, so the sentence and the step it asks
+                     for are adjacent. Not the media status line above: that one
+                     is a live region, and the arrival panel over the form is
+                     already announcing this transfer once. It takes the standing
+                     help class, so this state cost no new rule. -->
+                <p class="hint" id="compose-media-origin" hidden></p>
                 <!-- The requirement marker is the same span, in the same place,
                      with the same class as the "(optional)" markers on Display
                      name and Image, so the two answers to "must I fill this in?" are told

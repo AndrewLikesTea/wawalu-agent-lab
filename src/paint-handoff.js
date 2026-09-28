@@ -42,6 +42,57 @@ export const PAINT_HANDOFF_COPY = Object.freeze({
   }),
 });
 
+// #2604. The three sentences the arrival itself draws, kept here with the rest
+// of the route's vocabulary because each of them is said in two places and the
+// two must not drift apart.
+//
+// The line rendered beside the preview, inside the media region, on a prepared
+// arrival. It is two sentences and they are kept as two constants, because only
+// one of them can be said in advance.
+//
+// The first names the origin in plain words. That is the half the composer's own
+// description of the Paint route quotes byte for byte (#post-image-return in
+// src/social.html), so the promise a reader is given before they leave is the
+// sentence they meet on their return.
+//
+// The second names the one step left. It cannot be quoted in that promise: per
+// #2294 nothing reachable in the composer may name the image description field
+// before there is an image it applies to, which is exactly the pre-warning that
+// issue removed — so this half is said at the arrival, where the field is on
+// screen and the rule has started to bind, and the promise says only that it
+// will be said there. Held instead against the code that enforces it: the claim
+// is src/social.js's, where imageDescriptionProblem refuses a blank description
+// whenever an image is attached and the submit guard calls it with exactly that
+// condition, so the sentence is true of the publish path and not only of the
+// copy. tests/paint-social-arrival-state.test.js publishes an undescribed
+// arrival to prove it.
+//
+// Neither half is written into #post-media-status: that region is a live one,
+// the arrival panel above the form is already announcing this transfer, and a
+// single handoff announced twice is how a live region stops being worth
+// listening to.
+export const PAINT_ARRIVAL_ORIGIN_LINE = "This image came from Paint.";
+export const PAINT_ARRIVAL_REQUIRED_STEP =
+  "Add the image description below — it is the last required step before you can publish.";
+export const PAINT_ARRIVAL_PREVIEW_LINE = `${PAINT_ARRIVAL_ORIGIN_LINE} ${PAINT_ARRIVAL_REQUIRED_STEP}`;
+
+// The two ways on from a transfer that did not arrive, said in the refusal slot
+// the picker's own news goes to. Exactly two, named in the words of the controls
+// that take them: the picker's label, and the route back that follows this
+// sentence as a link. An arrival that cannot show an image must never be an
+// empty frame with no account of itself.
+export const PAINT_ARRIVAL_ROUTES =
+  "Two ways on: select “Choose image” to use a file already on this device, or go back to Paint and send it again.";
+
+// Said only on an arrival, and only when this tab's post field is genuinely
+// empty. Paint opens beside the Social tab a visitor was writing in, and a draft
+// is held in one tab's memory on purpose (src/publishing-media.js), so a visitor
+// who typed their post next door lands on an empty form with text that is not
+// lost — merely elsewhere. On every other composer open this would be a remark
+// about nothing, so nothing says it there.
+export const PAINT_ARRIVAL_NO_DRAFT =
+  "This tab holds no post text yet — a draft you typed in another Social tab stays in that tab.";
+
 export function paintHandoffCopy(kind) {
   return PAINT_HANDOFF_COPY[kind] ?? PAINT_HANDOFF_COPY.exported;
 }
@@ -70,7 +121,11 @@ function element(tag, className, text) {
 // shape — a marked chip, a heading, the "nothing was uploaded" sentence, and
 // the one next step — is the same for both kinds so the difference between them
 // is the words, not the layout.
-export function renderPaintArrival(panel, intent) {
+// `note` is the no-draft sentence, appended last because it is about the tab the
+// visitor landed in rather than about the image: it follows the next step instead
+// of interrupting it. It reuses the detail paragraph's own class so it costs no
+// new rule in styles.css, and carries a second, unstyled class purely as a hook.
+export function renderPaintArrival(panel, intent, { note = "" } = {}) {
   if (!panel) return null;
   if (!intent) {
     panel.hidden = true;
@@ -95,5 +150,6 @@ export function renderPaintArrival(panel, intent) {
     element("p", "paint-arrival-detail", intent.arrivalDetail),
     next,
   );
+  if (note) panel.append(element("p", "paint-arrival-detail paint-arrival-note", note));
   return panel;
 }

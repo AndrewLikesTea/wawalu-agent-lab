@@ -17,7 +17,15 @@ import {
   takePaintHandoff,
   validatePublishImage,
 } from "/publishing-media.js";
-import { PAINT_EDITOR_PATH, PAINT_HANDOFF_COPY, paintHandoffIntent, renderPaintArrival } from "/paint-handoff.js";
+import {
+  PAINT_ARRIVAL_NO_DRAFT,
+  PAINT_ARRIVAL_PREVIEW_LINE,
+  PAINT_ARRIVAL_ROUTES,
+  PAINT_EDITOR_PATH,
+  PAINT_HANDOFF_COPY,
+  paintHandoffIntent,
+  renderPaintArrival,
+} from "/paint-handoff.js";
 
 const REFRESH_INTERVAL = 10_000;
 
@@ -124,6 +132,7 @@ function mountMediaComposer(root, description, composer) {
   const preview = root.querySelector("#compose-preview-image");
   const fallback = root.querySelector("#compose-preview-error");
   const source = root.querySelector("#compose-media-source");
+  const origin = root.querySelector("#compose-media-origin");
   const caption = root.querySelector("#compose-preview-caption");
   const alt = root.querySelector("#post-image-alt");
   const status = root.querySelector("#post-media-status");
@@ -142,6 +151,18 @@ function mountMediaComposer(root, description, composer) {
   const setStatus = (message, error = false) => {
     status.textContent = message;
     status.classList.toggle("is-error", error);
+  };
+
+  // Where the image in the frame came from, beside the frame (#2604). The panel
+  // above the form explains the transfer; this is the one line that travels with
+  // the picture itself, so a reader looking at a preview they did not choose on
+  // this page is told who put it there and what is still being waited on. A file
+  // chosen with the picker needs no such line: the reader pressed the control, and
+  // the status line below already says the image is ready to describe and post.
+  const setOrigin = (line = "") => {
+    if (!origin) return;
+    origin.textContent = line;
+    origin.hidden = !line;
   };
 
   // The refusal for a file this field will not take, drawn in the slot that
@@ -185,6 +206,9 @@ function mountMediaComposer(root, description, composer) {
     selectionGeneration += 1;
     media = null;
     renderPaintArrival(arrivalPanel, null);
+    // The origin line describes an image that is no longer here. It goes with the
+    // preview it belonged to, the same way the panel above the form does.
+    setOrigin();
     input.value = "";
     description.clear();
     description.setAttached(false);
@@ -202,9 +226,10 @@ function mountMediaComposer(root, description, composer) {
     if (focus) input.focus();
   };
 
-  const show = (next, { focus = false, fromPaint = false } = {}) => {
+  const show = (next, { focus = false, fromPaint = false, note = "" } = {}) => {
     media = next;
-    renderPaintArrival(arrivalPanel, fromPaint ? PAINT_HANDOFF_COPY.prepared : null);
+    renderPaintArrival(arrivalPanel, fromPaint ? PAINT_HANDOFF_COPY.prepared : null, { note });
+    setOrigin(fromPaint ? PAINT_ARRIVAL_PREVIEW_LINE : "");
     // A file this field accepts is the answer to the refusal, so the refusal
     // goes as the image arrives.
     clearRejection();
@@ -246,7 +271,7 @@ function mountMediaComposer(root, description, composer) {
   // One path for a file however it arrived — chosen with Choose image or handed
   // over from Paint — so the type and size rules, the preview, Remove image and
   // the refusal are the same for both. Resolves whether the file was taken.
-  const accept = async (file, { focus = false, fromPaint = false } = {}) => {
+  const accept = async (file, { focus = false, fromPaint = false, note = "" } = {}) => {
     const generation = ++selectionGeneration;
     const problem = !file ? "Choose an image to continue."
       : !PUBLISH_IMAGE_TYPES.has(file.type) ? UNSUPPORTED_TYPE_ERROR
@@ -272,7 +297,7 @@ function mountMediaComposer(root, description, composer) {
     try {
       const next = await fileToPublishImage(file);
       if (generation !== selectionGeneration) return null;
-      show(next, { focus, fromPaint });
+      show(next, { focus, fromPaint, note });
       return true;
     } catch (error) {
       if (generation !== selectionGeneration) return null;
@@ -304,9 +329,17 @@ function mountMediaComposer(root, description, composer) {
   // that this field would have refused from the picker is refused exactly that
   // way, marked input and disabled Publish included, and all the transfer adds
   // is the route back.
-  const failTransfer = (message = "") => {
+  // The two ways on and the no-draft sentence are appended as text rather than
+  // written through renderFieldError, because the refused-file path reaches here
+  // with a refusal already drawn in this slot naming that file's own size or type
+  // — and renderFieldError replaces what is there. So both callers end with the
+  // same shape: what stopped the image, then the two routes, then the route back
+  // as a link a reader can press.
+  const failTransfer = (message = "", note = "") => {
     if (!rejection) return;
     if (message) renderFieldError(rejection, message);
+    rejection.append(` ${PAINT_ARRIVAL_ROUTES}`);
+    if (note) rejection.append(` ${note}`);
     const link = document.createElement("a");
     link.href = PAINT_EDITOR_PATH;
     link.target = "_blank";
@@ -323,23 +356,28 @@ function mountMediaComposer(root, description, composer) {
   // transfer is not announced twice.
   const intent = paintHandoffIntent(globalThis.location?.search);
   const takeFromPaint = async () => {
+    // Read before the composer opens and before anything is taken, so it is the
+    // state the visitor actually arrived in. A tab that was claimed through the
+    // storage event usually holds the draft Paint was opened from; a tab Paint
+    // opened itself never does.
+    const note = root.querySelector("#post-body")?.value.trim() ? "" : PAINT_ARRIVAL_NO_DRAFT;
     composer.open({ focus: false });
     let file;
     try { file = takePaintHandoff(globalThis.localStorage); } catch { /* blocked storage */ }
     if (!file) {
       renderPaintArrival(arrivalPanel, null);
       setStatus("");
-      failTransfer("The image from Paint could not be loaded. It may have expired or become unreadable. Your text draft is unchanged. Try sending it again from Paint.");
+      failTransfer("The image from Paint could not be loaded. It may have expired, be unreadable, or be too large to carry over. Your text draft is unchanged.", note);
       return;
     }
     // accept() has already written the refusal naming the file's own size or
     // type; the route back to Paint is what a transfer adds to it. A stale
     // generation resolves null — a newer selection or removal owns the UI now,
     // including focus — and only `false` is this file being turned away.
-    const taken = await accept(file, { focus: true, fromPaint: true });
+    const taken = await accept(file, { focus: true, fromPaint: true, note });
     if (taken === false) {
       renderPaintArrival(arrivalPanel, null);
-      failTransfer();
+      failTransfer("", note);
     }
   };
   if (intent?.kind === "prepared") {
