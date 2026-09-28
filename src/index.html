@@ -189,6 +189,52 @@
           <p><a class="text-link" href="/releases.html#deployment-status">See the deployment check on Releases</a></p>
         </section>
 
+        <!-- HOW TYPICAL THE EXAMPLE ABOVE IS, IN TWO NUMBERS (#2605).
+             The panel above shows one decision that reached one release. This
+             block says how many of the loaded releases keep their reasoning that
+             way, out of how many there are, so a reader does not have to take
+             one worked example as the rule.
+             THEY ARE THE RELEASES PAGE'S NUMBERS, NOT A SECOND OPINION. The
+             split is countReasoningKept() in src/release-reasoning-proof.js and
+             the sentence is reasoningKeptSentence() from the same module — the
+             function and the string that page renders — so the two surfaces
+             cannot report different figures for one browser. src/app.js hands
+             the complete loaded log to src/homepage-release-coverage.js from
+             refresh(), never the filtered selection, which is what makes the
+             scope line below true rather than merely stated.
+             THE RULE AND THE SCOPE ARE AUTHORED; THE FIGURE IS NOT. Both
+             caveats are true before any module runs, and they are the releases
+             page's own sentences word for word, so the site does not draw one
+             line two ways. The figure is a claim the page cannot make until the
+             log has loaded, so the sentence node ships saying the counting is
+             still going on — the deployment check above states its wait the
+             same way — and never a zero, a dash, or an empty line. It is a live
+             region from the first paint rather than one filled on arrival,
+             because a region that appears with its contents is announced by
+             nothing, and recording a release moves these numbers.
+             NO CONTROL AND NO NEW TAB STOP. This section is held to eight tab
+             stops by tests/homepage-log-leads.test.js, and the same sentence is
+             already copyable from the evaluation summary further down, which
+             carries its own scope with it. The example records state that they
+             are invented once in this section, in the panel above; this block
+             says only which records it counted, so the caveat is not restated
+             in a second set of words.
+             THE IDS ARE NOT release dash coverage. That name is already taken,
+             by the line above the record list that reports the same subject
+             over the FILTERED view; src/app.js resolves it by id in document
+             order, so a block named that up here would be found first and
+             overwritten with the filtered sentence.
+             Every class here already ships and no rule was added: styles.css is
+             at its measured size budget. -->
+        <section class="hero-proof" id="reasoning-kept" aria-labelledby="reasoning-kept-title">
+          <h3 id="reasoning-kept-title">Reasoning kept with each release</h3>
+          <p class="release-followup-lead" id="reasoning-kept-lead">Two numbers, counted from the releases loaded in this browser: how many of them link at least one decision the decision log holds, out of how many were loaded.</p>
+          <p class="release-followup-lead" id="reasoning-kept-claim" role="status" aria-live="polite" aria-atomic="true">Still counting the releases loaded in this browser…</p>
+          <p class="detail-summary" id="reasoning-kept-provenance"></p>
+          <p class="hint" id="reasoning-kept-rule">A link pointing at a decision the decision log does not hold does not count. Neither does a release with no linked decision.</p>
+          <p class="hint" id="reasoning-kept-scope">Both numbers are over every release loaded on this page, not the filtered view: the search and the filters below do not change them.</p>
+        </section>
+
         <div class="hero-actions">
           <a class="button-link" href="#record-history">Record and search the log on this page <span aria-hidden="true">→</span></a>
           <a class="text-link" href="#decision-to-release">See how a decision reaches a release</a>
