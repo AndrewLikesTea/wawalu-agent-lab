@@ -511,10 +511,18 @@
                    tabbed back up the form. They stop at the picker: describing
                    the image and publishing are said at the description field and
                    beside Publish post, where they happen. The input's
-                   aria-describedby still names them. -->
+                   aria-describedby still names them.
+                   The file route no longer quotes the picker's label (#2594).
+                   Sitting directly above that control, it rendered "…already
+                   saved on this device Choose image" — the two choices read as
+                   one broken sentence with the same words twice, and a reader
+                   meeting the field for the first time could not tell the routes
+                   apart at a glance. The route says where the image comes from;
+                   the control says what it is called; neither repeats the other.
+                   "add" is the verb the composer's own hint already uses. -->
               <ul class="hint" id="post-image-steps">
                 <li>From Paint: <a class="secondary-button paint-link" href="/paint/" target="_blank" rel="noopener">Create or open an image in Paint <span class="new-tab-note">(opens in a new tab)</span> <span aria-hidden="true">↗</span></a> then select “Use this image in a Social post”</li>
-                <li>From a file: Choose image takes an image already saved on this device</li>
+                <li>From a file: add an image already saved on this device</li>
               </ul>
               <div class="media-source-actions">
                 <label class="secondary-button file-button" for="post-image">Choose image

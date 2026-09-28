@@ -429,11 +429,17 @@ test("the composer lists the two ways in and puts the rule beside the control", 
   // already on their machine no longer has to read the Paint route to find
   // theirs, and the route that is theirs no longer explains Choose image by
   // naming Choose image.
+  // #2594 finishes that: the file route quoted the label on the control it is
+  // read directly above, so the region rendered "…already saved on this device
+  // Choose image" — the instruction and the button colliding into one broken
+  // sentence with the label in it twice. The route says what it is for and the
+  // control says what it is called, each once. "add" is the page's own verb for
+  // this: the composer's hint already opens "Add an image if you want one".
   assert.equal(steps.tagName, "UL", "the two routes are numbered as if they were steps");
   const items = steps.querySelectorAll("li");
   assert.deepEqual(items.map(textOf), [
     "From Paint: Create or open an image in Paint (opens in a new tab) ↗ then select “Use this image in a Social post”",
-    "From a file: Choose image takes an image already saved on this device",
+    "From a file: add an image already saved on this device",
   ]);
   assert.equal(textOf(documents.Social.querySelector("body"))
     .split("export an image and select it using “Choose image”").length - 1, 0,
@@ -573,15 +579,17 @@ test("the composer names the round trip in the order it is taken, once", () => {
   // is a labelled line a reader can skip to rather than the back half of a
   // sentence about Paint.
   assert.ok(at("Use this image in a Social post")
-    < at("From a file: Choose image takes an image already saved on this device"),
+    < at("From a file: add an image already saved on this device"),
     "the file route is offered ahead of the one-press action from Paint");
   // #2294: the list ends on the picker it leads into and no longer points back
   // "above" at it. Describing the image and publishing it are said at the
   // description field and beside Publish post, where they happen.
   assert.doesNotMatch(steps, /\babove\b/, "the steps send the reader back up the form");
-  // The sequence identifies the picker by its rendered label.
-  assert.match(steps, /Choose image/,
-    "the steps must name the image control");
+  // #2594: the sequence no longer identifies the picker by quoting its label.
+  // It sits directly above the control, so quoting it rendered the label twice
+  // running. The control keeps the name; the routes keep the reasons.
+  assert.doesNotMatch(steps, /Choose image/,
+    "the steps restate the label on the control they are read above");
   assert.equal(textOf(documents.Social.querySelector('label[for="post-image"]')), "Choose image");
 
   // Once, in the field where the file is chosen — not restated elsewhere.
@@ -631,17 +639,19 @@ test("the image section holds exactly one list of ways in, and it is the image o
     "the file route names Paint too, so the routes are joined again");
 });
 
-test("the file route names the image picker and leaves publishing to the button", () => {
+test("the file route says what it is for and leaves the picker its own name", () => {
   const items = documents.Social.getElementById("post-image-steps").querySelectorAll("li");
   const last = textOf(items[items.length - 1]);
 
-  // The last route names the exact rendered control label and says what that
-  // control takes — an image the visitor already has (#2514). "Publish post" is
-  // said once, by the button, not in a list read before the fields it follows.
+  // The last route says where the image comes from — one the visitor already has
+  // (#2514) — without quoting the label on the control below it (#2594): read
+  // straight through, the two used to run together as "…on this device Choose
+  // image". "Publish post" is still said once, by the button, not in a list read
+  // before the fields it follows.
   const label = textOf(documents.Social.querySelector('label[for="post-image"]'));
   assert.equal(label, "Choose image");
-  assert.ok(last.includes(label));
-  assert.equal(last, "From a file: Choose image takes an image already saved on this device");
+  assert.ok(!last.includes(label), `the file route still quotes the control: ${last}`);
+  assert.equal(last, "From a file: add an image already saved on this device");
   assert.doesNotMatch(textOf(documents.Social.getElementById("post-image-steps")), /Publish/,
     "the routes name the publish press ahead of the fields again");
   assert.equal(textOf(documents.Social.querySelector('button[type="submit"]')), "Publish post");
