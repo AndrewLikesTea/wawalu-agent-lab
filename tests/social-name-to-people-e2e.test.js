@@ -306,7 +306,7 @@ test("the forwarded People URL opens cold on that display name, filtered and new
   // her here would mean the URL lost to the default.
   assert.equal(pressedChip(document)?.dataset.author, REMY, "the cold open did not resolve to the forwarded name");
   assert.equal(chips(document).filter((chip) => chip.getAttribute("aria-pressed") === "true").length, 1);
-  assert.equal(textOf(document.querySelector("#profile-name")), `Showing 2 image posts published as ${REMY}.`);
+  assert.equal(textOf(document.querySelector("#profile-name")), `Showing 2 image posts published as ${REMY}, all example posts.`);
 
   // No second selection step: the grid is already Remy's, newest first, and the
   // expected ids are sorted out of the fixture rather than written down.
@@ -331,7 +331,7 @@ test("a stored name loses to the forwarded one on first paint", async (t) => {
   const { document } = page;
 
   assert.equal(pressedChip(document)?.dataset.author, REMY, "the remembered name overrode the forwarded one");
-  assert.equal(textOf(document.querySelector("#profile-name")), `Showing 2 image posts published as ${REMY}.`);
+  assert.equal(textOf(document.querySelector("#profile-name")), `Showing 2 image posts published as ${REMY}, all example posts.`);
   assert.deepEqual(document.querySelectorAll(".profile-tile").map((tile) => tile.dataset?.postId), newestFirstIds(REMY));
 });
 

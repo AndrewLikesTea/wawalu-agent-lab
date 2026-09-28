@@ -191,12 +191,52 @@ export function feedHeading({ shown = 0, range = "", author = "" } = {}) {
 // filters to see all 9 posts." above the panel saying exactly that, with the
 // heading making it three. One state, one telling, and it is the telling that
 // carries the control back out.
-export function feedSummarySentence({ shown = 0, total = shown, range = "", author = "" } = {}) {
+export function feedSummarySentence({ shown = 0, total = shown, range = "", author = "", examples = 0 } = {}) {
   const clauses = filterClauses({ range, author });
 
   if (shown === 0) return "";
-  if (!clauses) return `Showing ${shownPostsCount({ shown })}, newest first.`;
-  return `Showing ${shownPostsCount({ shown, total, filtering: true })} ${clauses}, newest first.`;
+  const counted = clauses
+    ? `${shownPostsCount({ shown, total, filtering: true })} ${clauses}`
+    : shownPostsCount({ shown });
+  return `Showing ${counted}${examplePostsClause(shown, examples)}, newest first.`;
+}
+
+// The two words a post carries when it is invented, and the only place they are
+// written. "The example posts" is already this site's name for its sample
+// content — src/social.html, src/profile.html and src/post.html all say it — so
+// one of them is an "Example post" and nothing here coins a second vocabulary.
+export const EXAMPLE_POST_LABEL = "Example post";
+
+// The one `source` a post a visitor published carries. The API stamps it
+// server-side on every human write (src/social-posts-api.js) and nothing else
+// writes it, so "not this value" is the whole test — and a record that reaches a
+// renderer carrying no source at all is the static seed, which is invented.
+// Defaulting an unknown source to "example" is the safe direction: the failure
+// it prevents is a made-up post that reads as somebody's real one.
+export const VISITOR_POST_SOURCE = "shiplog-web";
+
+export function isExamplePost(post) {
+  return post?.source !== VISITOR_POST_SOURCE;
+}
+
+export function countExamplePosts(posts) {
+  return (posts ?? []).filter((post) => isExamplePost(post)).length;
+}
+
+// How many of the posts on screen are invented, as a clause inside the sentence
+// that already states how many there are. One clause rather than a second
+// sentence, because the summary line is the page's one statement of what the
+// load produced and the order it is in — a second sentence beside it would be a
+// second place to keep "newest first" out of.
+//
+// Three shapes and no fourth: none (say nothing — the blanket caveat above the
+// feed already covers a screen with no invented posts on it), all of them, and a
+// mixed screen. The nouns agree with the figures they follow, so no state of
+// this feed can read "1 posts" or "all example post".
+export function examplePostsClause(shown = 0, examples = 0) {
+  if (examples <= 0) return "";
+  if (examples >= shown) return examples === 1 ? ", an example post" : ", all example posts";
+  return `, including ${examples} example post${examples === 1 ? "" : "s"}`;
 }
 
 // How many posts are showing, in the one shape this page states it in — and the
@@ -598,6 +638,15 @@ function renderPostCard(post, { index, onReport = null }) {
   const time = el("time", "post-date", formatDateTime(post.createdAt));
   time.dateTime = post.createdAt;
   byline.append(time);
+  // Which posts are invented, said on the post rather than only in the caveat
+  // above the feed. Two words, in the badge shape this site already marks an
+  // example record with (.badge-example — Decisions and Releases print it), and
+  // only on a post that is one: a post a visitor published carries no marker at
+  // all, because an empty or hidden one beside real content is a distinction a
+  // reader cannot see. It sits in the byline, after the time and before the
+  // route to People, so it travels with the post's provenance rather than with
+  // the card's actions — and it never joins the card's accessible name.
+  if (isExamplePost(post)) byline.append(el("span", "badge badge-example", EXAMPLE_POST_LABEL));
   if (image) {
     const people = el("a", "post-people", peopleImagePostsLabel(post.author));
     people.href = profileHref(post.author);
@@ -1397,7 +1446,10 @@ export function mountSocialFeed(root, options = {}) {
     // the connection status and the count already say which of loading and
     // failed is true.
     const answered = posts.length > 0 || state === "ready";
-    const showing = { shown: visible.length, total: posts.length, ...named };
+    // `examples` counts the same `visible` array, so the figure in the sentence
+    // is the number of badges on screen under whatever filters are set — never a
+    // count of the whole feed standing next to a narrowed one.
+    const showing = { shown: visible.length, total: posts.length, ...named, examples: countExamplePosts(visible) };
 
     // The heading is not its own live region: the count beside it is already
     // announced on every filter change, and a second polite region here would

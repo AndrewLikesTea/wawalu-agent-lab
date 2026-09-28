@@ -1384,7 +1384,10 @@ test("the summary sentence stays true as the filters change", async (t) => {
     control.dispatchEvent({ type: "change", bubbles: true });
   };
 
-  assert.equal(textOf(summary), "Showing 3 posts, newest first.");
+  // Every post in this fixture is seeded sample content — none carries the
+  // `shiplog-web` source a visitor's post gets — so the sentence names all three
+  // as examples alongside the count and the order (#2597).
+  assert.equal(textOf(summary), "Showing 3 posts, all example posts, newest first.");
   assert.equal(shown(), 3);
   // The sentence is the announced region, and it is in normal flow rather than
   // folded away or hidden — a live region a reader cannot see is one they are
@@ -1395,15 +1398,15 @@ test("the summary sentence stays true as the filters change", async (t) => {
   assert.equal(summary.querySelectorAll("[aria-live]").length, 0, "a nested live region announces twice");
 
   choose(nameFilter, "Ari");
-  assert.equal(textOf(summary), "Showing 2 of 3 posts by Ari, newest first.");
+  assert.equal(textOf(summary), "Showing 2 of 3 posts by Ari, all example posts, newest first.");
   assert.equal(shown(), 2, "the stated count is the number of cards rendered");
 
   choose(timeFilter, "hour");
-  assert.equal(textOf(summary), "Showing 1 of 3 posts by Ari from the past hour, newest first.");
+  assert.equal(textOf(summary), "Showing 1 of 3 posts by Ari from the past hour, an example post, newest first.");
   assert.equal(shown(), 1);
 
   choose(nameFilter, "all");
-  assert.equal(textOf(summary), "Showing 1 of 3 posts from the past hour, newest first.",
+  assert.equal(textOf(summary), "Showing 1 of 3 posts from the past hour, an example post, newest first.",
     "an unset filter contributes no clause");
 
   choose(nameFilter, "Mina");
@@ -1425,7 +1428,7 @@ test("the summary sentence stays true as the filters change", async (t) => {
   assert.doesNotMatch(textOf(deadEnd), /No posts on Social yet/);
 
   page.document.querySelector("#post-filter-clear").click();
-  assert.equal(textOf(summary), "Showing 3 posts, newest first.");
+  assert.equal(textOf(summary), "Showing 3 posts, all example posts, newest first.");
   assert.equal(shown(), 3);
 });
 
@@ -1504,7 +1507,7 @@ test("a filter combination matching nothing reads as a dead end with its own rec
   assert.equal(shown(), 3, "recovery restores every post");
   assert.equal(nameFilter.value, "all");
   assert.equal(timeFilter.value, "all");
-  assert.equal(textOf(page.document.querySelector("#feed-summary")), "Showing 3 posts, newest first.");
+  assert.equal(textOf(page.document.querySelector("#feed-summary")), "Showing 3 posts, all example posts, newest first.");
   // The connection line comes back with the posts, in its authored slot.
   assert.equal(page.document.querySelectorAll(".feed-connection").length, 1);
   assert.equal(page.document.querySelectorAll(".empty-state").length, 0);
@@ -1584,7 +1587,7 @@ test("a settled feed says how many posts it holds and how they are ordered, once
 
   const panel = page.document.querySelector(".list-panel");
   const summary = page.document.querySelector("#feed-summary");
-  assert.equal(textOf(summary), "Showing 4 posts, newest first.");
+  assert.equal(textOf(summary), "Showing 4 posts, all example posts, newest first.");
   assert.equal(page.document.querySelectorAll(".post-card").length, 4,
     "the stated count is the number of cards rendered");
 
@@ -1596,9 +1599,10 @@ test("a settled feed says how many posts it holds and how they are ordered, once
   // And no heading claiming to hold every post beside a sentence that counts.
   assert.doesNotMatch(textOf(panel), /All posts/);
 
-  // Singular is a real sentence, not "1 posts".
+  // Singular is a real sentence, not "1 posts" — and not "all example posts"
+  // over a screen holding one.
   feed.seed([posts[0]]);
-  assert.equal(textOf(summary), "Showing 1 post, newest first.");
+  assert.equal(textOf(summary), "Showing 1 post, an example post, newest first.");
 });
 
 // The shipped markup only pins the count a visitor sees before the feed mounts.

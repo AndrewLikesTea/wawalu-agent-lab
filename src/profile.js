@@ -22,7 +22,9 @@
 //      rings landed everywhere" is a usable name; the alt text is still exposed
 //      on the image inside the link when the tile is read rather than listed.
 
-import { connectionStatusLine, normalizeImage } from "./social.js";
+import {
+  EXAMPLE_POST_LABEL, connectionStatusLine, countExamplePosts, examplePostsClause, isExamplePost, normalizeImage,
+} from "./social.js";
 import {
   OPEN_POST_LABEL, postDetailHref, profileHref, socialAllPostsLabel, socialFeedHref,
 } from "./social-links.js";
@@ -57,6 +59,13 @@ export function normalizeProfileApiPosts(payload) {
       likes: countOf(post.like_count),
       comments: countOf(post.comment_count),
     };
+    // Carried through, not dropped. It is the only field that says whether a
+    // post was published by a visitor or invented for the demo, and both this
+    // page and the single-post permalink (src/post-page.js normalizes through
+    // here too) print that difference on the post. Dropping it made every post
+    // downstream look like sample content, which is the one way this label can
+    // be wrong about somebody's real post.
+    if (typeof post.source === "string" && post.source.trim()) normalized.source = post.source.trim();
     const image = normalizeImage({ src: post.image_url, alt: post.image_alt, width: post.image_width, height: post.image_height });
     if (image) normalized.image = image;
     return [normalized];
@@ -78,6 +87,10 @@ export function normalizeSeedPosts(list) {
       likes: countOf(post.likes),
       comments: countOf(post.comments),
     };
+    // The seed declares no source and is invented, so this normally carries
+    // nothing through. It is read anyway so the two normalizers answer the same
+    // question the same way rather than one of them silently erasing the field.
+    if (typeof post.source === "string" && post.source.trim()) normalized.source = post.source.trim();
     const image = normalizeImage(post.image);
     if (image) normalized.image = image;
     return [normalized];
@@ -473,7 +486,14 @@ export function profileResultsHeading(author, count = null, { pending = false } 
 // authored markup, above six placeholders, under a name the seed had guessed
 // (#2043). The wait is stated once, over the grid, by the status region that
 // owns it — this line does not narrate it a second time.
-export function profileActiveFilterLine(author, count = null, { counting = false, pending = false } = {}) {
+// `examples` is how many of those tiles are invented, and it is stated in this
+// sentence rather than in one of its own — Social states the same fact inside
+// the line that already counts its posts (feedSummarySentence, src/social.js),
+// and this page's line is Social's with this page's noun in it. The clause is
+// spelled by the same function there, so the two pages name invented content in
+// one vocabulary. It only ever appears beside a settled count: a line that has
+// not counted its tiles cannot say how many of them are examples.
+export function profileActiveFilterLine(author, count = null, { counting = false, pending = false, examples = 0 } = {}) {
   if (pending) return "";
   const name = String(author ?? "").trim() || DEFAULT_AUTHOR;
   if (count === null || count === undefined) {
@@ -482,7 +502,7 @@ export function profileActiveFilterLine(author, count = null, { counting = false
       : `Showing image posts published as ${name}.`;
   }
   if (count === 0) return `${name} has no image posts yet.`;
-  return `Showing ${countLabel(count, "image post")} published as ${name}.`;
+  return `Showing ${countLabel(count, "image post")} published as ${name}${examplePostsClause(count, examples)}.`;
 }
 
 // What the live region announces after a refresh settles. It mirrors what the
@@ -612,6 +632,11 @@ function renderTile(post, index, onReport = null) {
   time.dateTime = post.createdAt;
   meta.append(time);
   meta.append(el("span", "profile-tile-stat", `${countLabel(post.likes, "like")} · ${countLabel(post.comments, "comment")}`));
+  // The same two words Social's cards and the permalink print, in the same
+  // badge, and only on an invented post — a tile for a post somebody published
+  // carries nothing here. The tile is named by its caption alone (aria-label
+  // below), so this marks the post without renaming the link.
+  if (isExamplePost(post)) meta.append(el("span", "badge badge-example", EXAMPLE_POST_LABEL));
   link.append(meta, destination);
 
   // Which post first, then what the tile does, quoting the words printed on it
@@ -933,12 +958,12 @@ export function renderAuthorPicker(container, entries, { author, counted = true,
 // a tile without standing for a particular post. It is not removed: taking the
 // avatar out and putting it back would move the header under the reader between
 // two paints, which is what the reserved shapes exist to prevent.
-export function renderProfileHeader(elements, author, summary, { count = null, counting = false, pending = false } = {}) {
+export function renderProfileHeader(elements, author, summary, { count = null, counting = false, pending = false, examples = 0 } = {}) {
   if (elements.avatar) {
     elements.avatar.textContent = pending ? "" : authorInitials(author);
     elements.avatar.setAttribute("aria-hidden", "true");
   }
-  if (elements.name) elements.name.textContent = profileActiveFilterLine(author, count, { counting, pending });
+  if (elements.name) elements.name.textContent = profileActiveFilterLine(author, count, { counting, pending, examples });
   if (elements.summary) elements.summary.textContent = profileSummaryText(summary);
 }
 
@@ -1051,7 +1076,10 @@ export function mountProfile(root, options = {}) {
     // because the header is written before the grid it describes.
     const pending = state === "loading" && mine.length === 0;
     renderProfileHeader(elements, author, summary,
-      { count: counted ? mine.length : null, counting: !counted && state === "loading", pending });
+      { count: counted ? mine.length : null, counting: !counted && state === "loading", pending,
+        // Counted off `mine`, the array the tiles are drawn from, so the figure
+        // in the sentence is the number of badges below it.
+        examples: countExamplePosts(mine) });
     if (elements.heading) {
       elements.heading.textContent = profileResultsHeading(author, counted ? mine.length : null, { pending });
     }

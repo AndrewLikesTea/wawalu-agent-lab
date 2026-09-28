@@ -153,13 +153,13 @@ test("the picker says what choosing a name does, and the line over the grid says
     // Zed is the landing name and has two pictures. The number is the tiles on
     // screen, not the size of the feed behind them: four posts are loaded here.
     assert.equal(document.querySelectorAll(".profile-tile").length, 2);
-    assert.equal(textOf(document.querySelector("#profile-name")), "Showing 2 image posts published as Zed.");
+    assert.equal(textOf(document.querySelector("#profile-name")), "Showing 2 image posts published as Zed, all example posts.");
 
     // One image post, said in the singular, on the path a visitor actually
     // takes: the chooser, not a first paint.
     chipFor(page, "Bea").click();
     assert.equal(document.querySelectorAll(".profile-tile").length, 1);
-    assert.equal(textOf(document.querySelector("#profile-name")), "Showing 1 image post published as Bea.");
+    assert.equal(textOf(document.querySelector("#profile-name")), "Showing 1 image post published as Bea, an example post.");
 
     // And a name with nothing under it says so in the same voice, above the
     // empty state that still carries what to do about it.
@@ -199,7 +199,7 @@ test("a first-time visitor lands on a display name that has image posts", async 
     // Zed has the most image posts; Ari sorts first and has none. Landing on Ari
     // is the reported defect — a verdict about an empty name nobody chose.
     assert.equal(selectedChip(page)?.dataset.author, "Zed");
-    assert.equal(textOf(document.querySelector("#profile-name")), "Showing 2 image posts published as Zed.",
+    assert.equal(textOf(document.querySelector("#profile-name")), "Showing 2 image posts published as Zed, all example posts.",
       "the header names someone other than the picker's own value");
     assert.match(textOf(document.querySelector(".profile-role")),
       /^Display names on the example posts on Social are invented\.[\s\S]*anyone can publish under any name\.$/,
@@ -430,7 +430,10 @@ test("the counts on the picker are the rows the grid draws, name by name", async
       assert.equal(textOf(document.querySelector("#profile-name")),
         count === 0
           ? `${name} has no image posts yet.`
-          : `Showing ${count} image post${count === 1 ? "" : "s"} published as ${name}.`);
+          // Every post in this fixture is seeded sample content, so the whole
+          // grid is invented and the line says so after the count (#2597).
+          : `Showing ${count} image post${count === 1 ? "" : "s"} published as ${name}`
+            + `${count === 1 ? ", an example post" : ", all example posts"}.`);
     }
   } finally {
     page.restore();
@@ -593,7 +596,7 @@ test("choosing another name updates the page in place and keeps the URL and stor
       // Focus stays on the display name that was just chosen, even though the
       // chips were rebuilt around it.
       assert.equal(document.activeElement?.dataset.author, "Bea");
-      assert.equal(textOf(document.querySelector("#profile-name")), "Showing 1 image post published as Bea.");
+      assert.equal(textOf(document.querySelector("#profile-name")), "Showing 1 image post published as Bea, an example post.");
       assert.equal(textOf(document.querySelector(".profile-role")).includes("Bea"), false);
       assert.match(textOf(document.querySelector("#profile-summary")), /^1 image post /);
       assert.equal(document.querySelectorAll(".profile-tile").length, 1);
@@ -614,7 +617,7 @@ test("selecting with the pointer moves the heading, the list, the URL, and the s
     chipFor(page, "Bea").click();
 
     assert.equal(selectedChip(page)?.dataset.author, "Bea");
-    assert.equal(textOf(document.querySelector("#profile-name")), "Showing 1 image post published as Bea.");
+    assert.equal(textOf(document.querySelector("#profile-name")), "Showing 1 image post published as Bea, an example post.");
     assert.match(textOf(document.querySelector("#profile-summary")), /^1 image post /);
     assert.equal(document.querySelectorAll(".profile-tile").length, 1);
     // In place: no navigation, and the selection is carried in the URL and in
@@ -1083,7 +1086,7 @@ test("choosing a name by keyboard moves the page and announces it once, from one
 
     // The three things a reader watches, moved together by the one selection.
     assert.equal(resultsHeading(document), "Bea · 1 image post");
-    assert.equal(textOf(document.querySelector("#profile-name")), "Showing 1 image post published as Bea.");
+    assert.equal(textOf(document.querySelector("#profile-name")), "Showing 1 image post published as Bea, an example post.");
     assert.equal(tileCount(document), 1);
     // Once, in one voice. Two code paths writing the same news, or a second
     // live region rendering it, is what a screen reader hears twice.
@@ -1453,7 +1456,12 @@ test("People claims no result before its first image post, and the loaded page i
     await waitFor(() => document.documentElement.dataset.shiplogProfile === "ready", "the first load settles");
     assert.equal(drawnTiles(document).length, 2);
     assert.equal(resultsHeading(document), "Zed · 2 image posts");
+    // No example clause and no marker: this fixture answers the live API with
+    // `source: "shiplog-web"`, so both posts were published by a visitor and the
+    // page says nothing about invented content (#2597). The field surviving
+    // normalizeProfileApiPosts is what makes that true.
     assert.equal(textOf(document.querySelector("#profile-name")), "Showing 2 image posts published as Zed.");
+    assert.equal(document.querySelectorAll(".badge-example").length, 0);
     assert.equal(document.querySelector("#profile-name").hasAttribute("hidden"), false,
       "the identity line came back still hidden");
     assert.equal(textOf(document.querySelector("#profile-avatar")), "ZE");
