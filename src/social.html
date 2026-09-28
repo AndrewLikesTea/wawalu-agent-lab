@@ -234,13 +234,16 @@
                  It states no count and no order. That is the summary sentence's
                  job, one region down and inside the list panel, and this line is
                  outside that panel on purpose.
-                 The waiting shape names the menu in the menu's own words and
-                 waits in the status region's word (#2506): it repeats the label
-                 authored above rather than calling the control something else,
-                 and it says "loading" because the status region below says
+                 The waiting shape names each menu in that menu's own words and
+                 waits in the status region's word (#2506, #2611): it repeats the
+                 labels authored above rather than calling the controls something
+                 else, and it says "loading" because the status region below says
                  "loading", so the row and the feed describe one open fetch the
-                 same way instead of two. -->
-            <p class="hint" id="post-filter-hint">Filter posts by display name becomes available when posts finish loading.</p>
+                 same way instead of two. It covers BOTH menus, because both are
+                 shut by the same fetch and open again at the same moment — the
+                 row used to answer "when can I use this?" once per menu, in two
+                 near-identical sentences a line apart. -->
+            <p class="hint" id="post-filter-hint">The display-name and posting-time filters become available when posts finish loading.</p>
             <!-- The time menu's own line, and the answer to the question the row
                  could not answer before (#2562): what a window actually
                  measures. The menu offers three windows and an all-values
@@ -248,12 +251,13 @@
                  so a reader choosing "From the past 24 hours" could not tell
                  whether it meant yesterday, the calendar day, or the 24 hours
                  before the moment they chose it.
-                 Two shapes, mutually exclusive, mirroring the line above it:
-                 while the menus are shut it says so in the same words the
-                 display-name line uses, and once they work it says what the
-                 windows mean. It ships carrying the waiting shape because the
-                 frame before hydration is the loading frame; src/social.js
-                 replaces only its text, which is why it is authored here.
+                 One shape, in every state (#2611). It used to repeat the wait
+                 the line above already states, in the same words with this
+                 menu's label swapped in, so the foot of the row answered "when
+                 can I use this?" twice. What a window measures is true of a shut
+                 menu and of a working one, so this line says that and nothing
+                 else, and it ships saying it: src/social.js only ever rewrites
+                 it, which is why it is authored here.
                  It quotes one option verbatim rather than describing it, so the
                  sentence and the menu cannot drift; a test pins the quoted words
                  to the option's own text.
@@ -261,7 +265,7 @@
                  the line above it is both: it describes the control that names
                  it through aria-describedby, and #feed-summary owns the count
                  and the order. -->
-            <p class="hint" id="post-time-filter-hint">Filter posts by posting time becomes available when posts finish loading.</p>
+            <p class="hint" id="post-time-filter-hint">Each posting-time window counts back from the moment you choose it: From the past 24 hours shows posts published in the 24 hours before that moment.</p>
           </div>
           <div class="feed-connection" hidden>
             <span class="live-dot" aria-hidden="true"></span>

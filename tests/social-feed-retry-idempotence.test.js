@@ -141,7 +141,7 @@ test("a failed Social load says so in its own words and offers one keyboard-reac
     assert.equal(control.disabled, true, `${id} is still operable on a failed feed`);
     assert.equal(control.getAttribute("aria-disabled"), "true", `${id} is shut with no mark in the markup`);
   }
-  assert.match(textOf(document.querySelector("#post-filter-hint")), /becomes available when posts finish loading\./);
+  assert.match(textOf(document.querySelector("#post-filter-hint")), /become available when posts finish loading\.$/);
 });
 
 test("Retry re-runs the same request, re-announces the wait, and lands the real posts", async (t) => {

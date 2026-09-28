@@ -197,9 +197,10 @@ test("Social says one thing while it loads, and the other three lines are not on
   assert.doesNotMatch(body, /New posts will appear here on their own/);
   assert.equal((body.match(/Posts are loading\./g) ?? []).length, 1);
   // And the filter row beside it waits in the same word rather than inventing a
-  // second one for the same fetch.
+  // second one for the same fetch — once for both menus (#2611), not once each.
   assert.equal(textOf(document.querySelector("#post-filter-hint")),
-    "Filter posts by display name becomes available when posts finish loading.");
+    "The display-name and posting-time filters become available when posts finish loading.");
+  assert.equal((body.match(/become available when posts finish loading\./g) ?? []).length, 1);
 
   // The wait reserves both kinds of post card, including their metadata and
   // eventual action position, without inventing anything a keyboard can reach.
