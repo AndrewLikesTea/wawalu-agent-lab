@@ -45,87 +45,18 @@
       <main id="main-content" tabindex="-1">
       <section class="hero hero-social" id="top" aria-labelledby="page-title">
         <p class="eyebrow">Social · public posts</p>
-        <!-- The heading is the destination's name, the same word the nav uses,
-             so a reader who clicked "Social" lands on a page that agrees it is
-             Social. Under it, one verb-first line says what a visitor does
-             here, the way Releases and Prompt coach open. The paragraph below
-             it says what the feed holds, and then names the one neighbouring
-             surface a visitor confuses it with — People — and when to open that
-             instead. It used to open on "Read every post as it lands, and
-             publish your own", which is the line above it in more words.
-             People carries the mirror pair.
-             Which display name a post carries is no longer explained here —
-             what the posts are made of still is. It was: this paragraph
-             carried the disclosure, four screens above the first card and above
-             a composer, so a reader met it before they had seen a display name
-             it could explain. It now sits once, at #feed-source-note, below the
-             posts whose names it describes.
-             Nor is "demo" said here. This opened on "a shared demo feed", under
-             an eyebrow then reading "Social · demo", above a page that says a
-             published post is real and permanent (#2335), so the eyebrow says
-             "public posts" instead. The feed is still shared; what it is made of
-             is the provenance sentence's job, and that sentence stays these
-             words' last, because the permalink quotes it as this intro's ending.
-             The demo-data claim is part of that sentence, not a sentence of its
-             own. Standing alone as "Posts use no customer or production data."
-             it promised something about every post, including the one a
-             visitor was about to write, and nothing checks what a visitor
-             writes. It now covers only the posts this site invented, and a
-             published post is named as not one of them. How it is named changed
-             (#2511): it used to be "a post you publish is real", and a visitor
-             who arrived from the home page had just been told that records they
-             add stay in this browser, so "real" read as "a real record, kept
-             here for you" — the opposite of what publishing does. The clause
-             now says who ends up reading the post, which is the one thing a
-             visitor has to know before they open the composer. The rest of what
-             publishing costs, and what not to put in a post, is still said once
-             at the Publish post button, and nothing here may become a second
-             wording of it.
-             What that set is called is now one noun phrase site-wide (#2549):
-             "example posts", the sibling of the "example records" the home page
-             and Releases already use. It used to be "the posts already here" on
-             Social, "the image posts already here" on People and "the posts
-             already on Social" on the permalink — three names for one set, so a
-             reader moving between the three pages could not tell whether they
-             described the same posts. "Invented" still describes them; it is
-             what they are, not what they are called.
-             Nothing may sit between the heading, the tagline and this
-             paragraph either, comments included: the nav test reads the three
-             as one block to check that Social and People each name the other.
-             -->
+        <!-- Keep the reading action and filters ahead of supporting guidance. -->
         <h1 id="page-title">Social</h1>
         <p id="page-tagline">Read every post, and publish your own.</p>
         <!-- The publishing route is the first action and sits directly under the
              page promise. It uses the site's solid primary-action pattern and
              has a solid shape and dedicated row, so hierarchy does not depend
-             on colour. The feed explanation and filters follow it in both
+             on colour. The feed heading and filters follow it in both
              visual and DOM order; detailed publishing guidance stays inside
              the composer. -->
         <div class="hero-actions section-heading">
           <button class="button-link" id="post-compose-open" type="button" aria-expanded="false" aria-controls="post-compose-panel">Write a post</button>
-          <a class="text-link" id="ask-about-shiplog" href="#site-footer-panel" aria-describedby="ask-about-shiplog-description">Ask about Shiplog</a>
-          <p class="hint" id="ask-about-shiplog-description">Ask about Shiplog moves you to the follow-up form at the foot of this page, which asks for a work email address, what you want to discuss and an optional note. A person replies by email, usually within two working days.</p>
         </div>
-        <p class="social-feed-intro">Social is a shared feed of short posts about shipped work, images optional. Open People when you want the image posts from one display name. Select Open post to see a post on its own page, with a link you can share. The example posts here are invented to demonstrate Shiplog and use no customer or production data; anyone can read a post you publish.</p>
-        <!-- What publishing costs is not said here any more. It used to be: the
-             same sentence stood in this intro, again beside Publish post, and
-             again in the permalink's hero — one fact in three places, two of
-             them nowhere near a control that could publish anything. A reader
-             who meets a warning three times reads it none of them, and a reader
-             who skims the intro on the way to the composer has spent the
-             warning before it can cost them anything. It now appears exactly
-             once, at #post-consequence below, where the button that publishes
-             names it with aria-describedby — so it is read out at the moment of
-             the act, to a screen reader and to an eye alike, instead of being
-             offered early and forgotten.
-             The People clause here is a destination, not a rule: what that page
-             shows, and when to open it instead of this feed. It used to say the
-             image posts were "published under one display name", which is how a
-             post gets to People and not what People holds — a second telling of
-             the sentence the image field already carries (#2405). How an image
-             post reaches People is said once, in the composer, at the field that
-             attaches the image. -->
-
         <!-- One route out of the hero, and now the control that reveals the
              composer rather than a link that jumps to it. The composer used to
              be the first thing under this heading, so a first-time visitor met
@@ -424,6 +355,18 @@
               <li><div class="post-card post-card-skeleton post-card-media"><div class="skeleton-copy"><div class="skeleton-line"></div><div class="skeleton-line"></div><div class="skeleton-line skeleton-line-short"></div></div><div class="skeleton-media"></div><div class="post-head skeleton-post-head"><div class="post-avatar skeleton-avatar"></div><div class="post-byline skeleton-byline"><div class="skeleton-line skeleton-line-author skeleton-line-short"></div><div class="skeleton-line skeleton-line-date skeleton-line-short"></div></div></div><div class="skeleton-line skeleton-line-short skeleton-line-action"></div></div></li>
             </ol>
           </div>
+          <!-- What the feed holds, and the one neighbouring surface a visitor
+               confuses it with. It used to stand above the composer and four
+               screens above the first card; it explains the posts, so it now
+               follows them. The wording rules outlive the placement: "example
+               posts" is the site's one name for the invented set (#2549); the
+               no-customer-data claim covers only that set, because nothing
+               checks what a visitor writes; a published post is described by
+               who reads it, never as "real" (#2511), which beside the home
+               page's browser-only promise read as "kept here for you"; and what
+               publishing costs is stated once at the Publish post button
+               (#2390), never a second time here. -->
+          <p class="social-feed-intro hint">Social is a shared feed of short posts about shipped work, images optional. Open People when you want the image posts from one display name. Select Open post to see a post on its own page, with a link you can share. The example posts here are invented to demonstrate Shiplog and use no customer or production data; anyone can read a post you publish.</p>
           <!-- Who wrote what a reader has just scrolled through, said once and
                said here, because here is where the names are. A reader meets
                "Ari" on a card and reads an account unless the page tells them
@@ -461,6 +404,13 @@
                a step in publishing. It points at the explanation below the feed,
                which the report panel is mounted directly after. -->
           <p class="hint" id="post-report-route">To ask the Wawalu team to review a post, select Report post on it. <a class="text-link" href="#post-report-about">How reporting works</a></p>
+          <!-- The contact route closes the supporting block instead of opening
+               the hero: writing a post is what this page is for, and the hero
+               carries that one action. It keeps its own caption beside it, the
+               way the other five pages do — a label that travels without the
+               line explaining it leaves a reader guessing what it costs. -->
+          <a class="text-link" id="ask-about-shiplog" href="#site-footer-panel" aria-describedby="ask-about-shiplog-description">Ask about Shiplog</a>
+          <p class="hint" id="ask-about-shiplog-description">Ask about Shiplog moves you to the follow-up form at the foot of this page, which asks for a work email address, what you want to discuss and an optional note. A person replies by email, usually within two working days.</p>
         </div>
 
         <!-- Ships collapsed, and is revealed by the hero's Write a post

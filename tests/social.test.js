@@ -674,8 +674,8 @@ test("the feed says who wrote the posts, where the posts are", async (t) => {
     "Social · public posts", "the page eyebrow must identify public posts");
   assert.doesNotMatch(hero, /\bdemo\b/i,
     "the hero must not classify visitor posts as demos");
-  assert.equal(hero.split("no customer or production data").length - 1, 1,
-    "the hero states the demo-data fact more than once");
+  assert.equal(intro.split("no customer or production data").length - 1, 1,
+    "the supporting introduction states the demo-data fact once");
   assert.doesNotMatch(intro, /demo feed/,
     "the intro must not classify the shared feed as a demo");
   // Removing the word did not cost the sentence what it was for: the feed is
@@ -1852,8 +1852,8 @@ test("the feed is what a first-time visitor reads first, and the composer follow
   // skip link's destination, then the trigger, then the feed's own controls.
   assert.equal(document.querySelector(".skip-link").getAttribute("href"), "#main-content");
   assert.equal(main.getAttribute("tabindex"), "-1");
-  assert.deepEqual(stops.slice(0, 5).map((node) => node.id),
-    ["post-compose-open", "ask-about-shiplog", "post-name-filter", "post-time-filter", "post-filter-clear"],
+  assert.deepEqual(stops.slice(0, 4).map((node) => node.id),
+    ["post-compose-open", "post-name-filter", "post-time-filter", "post-filter-clear"],
     "the first controls after the page heading are not the trigger and then the feed");
   // "No more than three tab stops from the skip link to the first feed control":
   // the display-name filter is stop 3, after the follow-up link.
@@ -1870,8 +1870,8 @@ test("the first-visit publish action is primary and precedes feed guidance and f
   assert.equal(action.getAttribute("class"), "button-link",
     "the first-visit publishing route no longer uses the primary action pattern");
   assert.equal(textOf(action), "Write a post");
-  assert.ok(hero.childElements.indexOf(action.parentNode) < hero.childElements.indexOf(intro),
-    "feed guidance appears before the primary publishing action");
+  assert.equal(action.closest(".hero-social"), hero);
+  assert.equal(intro.closest(".hero-social"), null, "supporting guidance must follow the hero");
 
   const mainStops = tabSequence(document).filter((node) => node.id);
   assert.ok(mainStops.indexOf(action) < mainStops.indexOf(filter),

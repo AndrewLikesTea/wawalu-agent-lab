@@ -272,8 +272,8 @@ test("the nav names people, and never promises the visitor a personal profile", 
 
 test("the profile page defines the selected name as a display name", async () => {
   const html = await readFile(pageUrl("profile.html"), "utf8");
-  const role = html.match(/<p class="profile-role">([\s\S]*?)<\/p>/);
-  assert.ok(role, "the profile page must state its role near its heading");
+  const role = html.match(/<p class="profile-role hint">([\s\S]*?)<\/p>/);
+  assert.ok(role, "the profile page must preserve its display-name guidance");
   // It defines display names in general and names none of them. The selected
   // name is established once above it, by the heading that opens the profile
   // header this paragraph closes; it used to open on that name, which made it a
@@ -307,7 +307,7 @@ test("the profile page defines the selected name as a display name", async () =>
   // other half of a split feed, so the intro says what Social holds instead.
   assert.match(html, /<p class="profile-lede" id="page-tagline">See the image posts published under one display name\.<\/p>/,
     "the tagline no longer states the rule the paragraph below stopped repeating");
-  assert.match(html, /<p class="profile-lede">Open <a class="text-link" href="\/social\.html">Social<\/a> when you want the whole feed, including posts with no image\./,
+  assert.match(html, /<p class="profile-lede hint">Open <a class="text-link" href="\/social\.html">Social<\/a> when you want the whole feed, including posts with no image\./,
     "the intro no longer opens the whole feed in the sentence that names it");
   // And it is the page's only route to Social outside the nav and the footer:
   // this paragraph used to end on a second one, three lines under the first.
@@ -332,15 +332,15 @@ test("the profile page defines the selected name as a display name", async () =>
 // The two surfaces a visitor mixes up. Each page's first sentence has to say
 // what it holds AND name the other one with a reason to open it instead, or the
 // nav's two adjacent labels are the only thing telling them apart.
-test("Social and People each disambiguate the other in the sentence under the heading", async () => {
+test("Social and People preserve guidance explaining the other surface", async () => {
   const pages = [
     // The heading is followed by the one-line tagline, and the description is
     // the paragraph under that.
-    { file: "social.html", heading: "Social", other: "People", lede: /<h1 id="page-title">Social<\/h1>[\s\S]*?<p class="social-feed-intro">([^<]*)<\/p>/ },
+    { file: "social.html", heading: "Social", other: "People", lede: /<h1 id="page-title">Social<\/h1>[\s\S]*?<p class="social-feed-intro hint">([^<]*)<\/p>/ },
     // People's description carries the link to Social inside itself, so the
     // capture takes markup: the sentence that names the other surface is the
     // sentence that opens it.
-    { file: "profile.html", heading: "People", other: "Social", lede: /<h1 id="page-title">People<\/h1>\s*<p class="profile-lede" id="page-tagline">[^<]*<\/p>\s*<p class="profile-lede">([\s\S]*?)<\/p>/ },
+    { file: "profile.html", heading: "People", other: "Social", lede: /<h1 id="page-title">People<\/h1>\s*<p class="profile-lede" id="page-tagline">[^<]*<\/p>[\s\S]*?<p class="profile-lede hint">([\s\S]*?)<\/p>/ },
   ];
 
   const descriptions = [];

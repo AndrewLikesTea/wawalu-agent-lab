@@ -585,7 +585,7 @@ test("the People picker and the page's own description use one term for what is 
 
   // The intro is still there, and it may not reintroduce a second word for what
   // the picker selects just because it stopped stating the rule itself.
-  const intro = between(/<p class="profile-lede">([\s\S]*?)<\/p>/);
+  const intro = between(/<p class="profile-lede hint">([\s\S]*?)<\/p>/);
   assert.notEqual(intro, "", "the page intro must still be on the page");
   for (const rival of RIVALS)
     assert.doesNotMatch(intro, rival, "the page intro must not name the selected thing a second way");

@@ -11,7 +11,7 @@ import {
 
 const pages = [
   ["coach", "follow_up_coach", ".coach-hero"],
-  ["social", "follow_up_social", ".hero-social"],
+  ["social", "follow_up_social", ".list-panel"],
   ["profile", "follow_up_people", ".hero-profile"],
   ["agents", "follow_up_agents", ".observatory-hero"],
 ];
@@ -29,7 +29,7 @@ for (const [name, purpose, heroSelector] of pages) {
       assert.equal(route.tagName, "A");
       assert.equal(route.getAttribute("href"), "#site-footer-panel");
       assert.ok(route.classList.contains("text-link"));
-      assert.ok(route.parentNode.classList.contains("hero-actions"));
+      assert.ok(route.parentNode.classList.contains(name === "social" ? "list-panel" : "hero-actions"));
       assert.ok(tabSequence(document).includes(route));
 
       // #2556: the label does not travel alone. The line that says where the
@@ -41,7 +41,7 @@ for (const [name, purpose, heroSelector] of pages) {
         .filter((node) => node.getAttribute("id") === ASK_ABOUT_SHIPLOG_DESCRIPTION_ID);
       assert.equal(described.length, 1, `${name}: the description is painted ${described.length} times`);
       assert.equal(textOf(described[0]), ASK_ABOUT_SHIPLOG_DESCRIPTION);
-      assert.ok(described[0].parentNode.classList.contains("hero-actions"),
+      assert.ok(described[0].parentNode.classList.contains(name === "social" ? "list-panel" : "hero-actions"),
         `${name}: the description drifted away from the label it explains`);
       assert.ok(!tabSequence(document).includes(described[0]),
         `${name}: the description became a tab stop of its own`);
