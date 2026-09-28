@@ -20,7 +20,7 @@ import { waitFor } from "./support/page-module.js";
 import { bootSocial, handoffRecord } from "./support/social-paint-arrival.js";
 import { PAINT_HANDOFF_COPY } from "../src/paint-handoff.js";
 import { AUTHOR_STORAGE_KEY } from "../src/social-identity.js";
-import { IMAGE_DESCRIPTION_REFUSAL_NOTE } from "../src/social.js";
+import { BLANK_POST_MESSAGE, IMAGE_DESCRIPTION_REFUSAL_NOTE } from "../src/social.js";
 import {
   MAX_PUBLISH_IMAGE_BYTES,
   PAINT_HANDOFF_KEY,
@@ -64,6 +64,10 @@ test("an open composer claims the image into its draft, and publishes it as it w
 
   assert.equal(storage.getItem(PAINT_HANDOFF_KEY), null, "the record was left for a second taker");
   assert.equal(id("post-body").value, DRAFT, "the draft was replaced by the handoff");
+  assert.equal(id("paint-draft-note").hidden, true);
+  // This tab does hold post text, so the description really is the last step.
+  assert.match(textOf(id("paint-arrival")), /one remaining required step/);
+  assert.doesNotMatch(id("post-image-alt").getAttribute("aria-describedby"), /paint-draft-note/);
   assert.equal(id("post-author").value, "Remy", "the display name was replaced by the handoff");
   assert.equal(document.activeElement?.id, "post-image-alt", "focus did not land on the description");
   assert.equal(textOf(id("compose-media-source")), "Image to publish");
@@ -107,6 +111,18 @@ test("arriving from Paint takes the image once, focuses the description and clea
 
   assert.equal(id("post-compose-panel").hidden, false);
   assert.equal(id("post-author").value, "Remy");
+  // Nothing writes the visitor's post for them. This tab holds no draft, so the
+  // panel names both steps that are left rather than promising only one, and the
+  // note beside it says where text typed in another tab went.
+  assert.equal(id("post-body").value, "");
+  assert.equal(id("paint-draft-note").hidden, false);
+  assert.match(textOf(id("paint-draft-note")), /Drafts are per-tab.*another tab/);
+  assert.match(textOf(id("paint-arrival")), /From Paint.*holds no post text.*both required before you publish/s);
+  assert.match(textOf(id("compose-preview-caption")), /From Paint/);
+  // Focus lands here, so both of those sentences are read out with the field.
+  const described = id("post-image-alt").getAttribute("aria-describedby");
+  assert.match(described, /paint-arrival/);
+  assert.match(described, /paint-draft-note/);
   assert.equal(document.activeElement?.id, "post-image-alt");
   assert.equal(storage.getItem(PAINT_HANDOFF_KEY), null);
   assert.deepEqual(history.replaced, ["/social.html#post-form"], "a reload would ask for the image again");
@@ -133,6 +149,12 @@ for (const [label, bytes, type, reason] of [
     const error = id("post-image-error");
 
     assert.ok(textOf(error).includes(reason), `the refusal did not say why: ${textOf(error)}`);
+    // This image did arrive; this field would not take it. Saying otherwise
+    // over the top of a sentence naming its own size or type contradicts it.
+    assert.doesNotMatch(textOf(error), /did not arrive/,
+      "a file Paint handed over and this field refused was reported as never arriving");
+    assert.match(textOf(error), /Choose image.*file on this device.*return to Paint/s,
+      "a refused transfer did not offer the two ways forward");
     assert.equal(error.hidden, false);
     assert.equal(id("compose-media").hidden, true, "a refused image was shown as ready");
     assert.equal(id("paint-arrival").hidden, true, "a refused image was announced as attached");
@@ -155,6 +177,8 @@ test("without the marker, and with no draft to join, a waiting record is left al
   dispatchStorage(PAINT_HANDOFF_KEY);
   assert.equal(storage.getItem(PAINT_HANDOFF_KEY), record, "a tab with no draft claimed the image");
   assert.equal(id("post-compose-panel").hidden, true);
+  assert.equal(id("paint-draft-note").hidden, true);
+  assert.notEqual(globalThis.document.activeElement?.id, "post-image-alt");
 });
 
 test("transfer confirmation is one status, and removal clears it without clearing the text draft", async (t) => {
@@ -198,7 +222,8 @@ for (const [label, record] of [
     assert.equal(id("paint-arrival").hidden, true);
     assert.equal(document.activeElement.id, "post-form-title");
     assert.equal(id("post-image-error").getAttribute("role"), "alert");
-    assert.match(textOf(id("post-image-error")), /could not be loaded/);
+    assert.match(textOf(id("post-image-error")), /image did not arrive.*Choose image.*file on this device.*return to Paint/s);
+    assert.equal(id("paint-draft-note").hidden, false);
     const recovery = id("post-image-error").querySelector("a");
     assert.equal(recovery.href, "/paint/");
     assert.equal(recovery.target, "_blank", "recovery must keep the draft tab alive");
@@ -284,4 +309,72 @@ test("undecodable transferred bytes retain text and provide Paint recovery", asy
   assert.equal(id("compose-media").hidden, true);
   assert.equal(id("post-image-error").querySelector("a").href, "/paint/");
   assert.equal(document.activeElement.id, "post-form-title");
+});
+
+for (const search of ["?from=paint", "?from=paint&image=unknown"]) {
+  test(`invalid arrival marker ${search} opens recovery without claiming stale data`, async (t) => {
+    const record = handoffRecord(PNG);
+    const { id, storage, history } = await bootSocial(t, { search, storage: { [PAINT_HANDOFF_KEY]: record } });
+    assert.equal(id("post-compose-panel").hidden, false);
+    assert.equal(id("compose-media").hidden, true);
+    assert.match(textOf(id("post-image-error")), /image did not arrive/);
+    assert.equal(storage.getItem(PAINT_HANDOFF_KEY), record);
+    assert.deepEqual(history.replaced, ["/social.html"]);
+  });
+}
+
+// Two modules write this one field's aria-describedby: src/social.js puts the
+// refusal id on it, src/social-page.js puts the arrival ids on it. A second
+// image arriving over a live refusal used to take the refusal id with it,
+// leaving a field still marked aria-invalid whose reason nothing announced.
+test("a Paint image arriving over a live description refusal keeps the refusal announced", async (t) => {
+  const { id, document, storage, dispatchStorage } = await bootSocial(t, { routes: SAVED });
+  id("post-compose-open").click();
+  typeInto(document, "post-body", DRAFT);
+  await chooseFile(document, new File([PNG], "first.png", { type: "image/png" }));
+
+  id("post-submit").click();
+  await waitFor(() => !id("post-image-alt-error").hidden, "the undescribed image was refused");
+  assert.equal(id("post-image-alt").getAttribute("aria-invalid"), "true");
+
+  storage.setItem(PAINT_HANDOFF_KEY, handoffRecord(PNG));
+  dispatchStorage(PAINT_HANDOFF_KEY);
+  await waitFor(() => !id("paint-arrival").hidden, "the composer took the image from Paint");
+
+  const described = id("post-image-alt").getAttribute("aria-describedby").split(/\s+/);
+  assert.equal(id("post-image-alt-error").hidden, false, "the refusal left the screen on its own");
+  assert.equal(id("post-image-alt").getAttribute("aria-invalid"), "true");
+  assert.ok(described.includes("post-image-alt-error"),
+    `a field left marked invalid stopped naming its reason: ${described.join(" ")}`);
+  assert.ok(described.includes("paint-arrival"));
+  // One id each, however many images arrive: this attribute is edited, not rebuilt.
+  assert.equal(described.length, new Set(described).size, `ids stacked up: ${described.join(" ")}`);
+});
+
+// The arrival panel promises what Publish post enforces, and nothing invents
+// post text to make the promise smaller. A draftless arrival is told two steps
+// are left, and a publish attempted after only one of them is refused for the
+// other — the words on the panel and the words on the refusal are the same
+// requirement seen twice.
+test("a draftless arrival is refused for the post text its panel said was required", async (t) => {
+  const { id, document, requests } = await bootSocial(t, {
+    ...FROM_PAINT, routes: SAVED, storage: { [PAINT_HANDOFF_KEY]: handoffRecord(PNG) },
+  });
+  await waitFor(() => !id("compose-media").hidden, "preview arrived");
+  assert.match(textOf(id("paint-arrival")), /both required before you publish/);
+
+  typeInto(document, "post-image-alt", ALT);
+  id("post-submit").click();
+  await waitFor(() => !id("post-error-summary").hidden, "the composer answered the publish");
+  const listed = id("post-error-summary").querySelectorAll("li").map((item) => textOf(item));
+  assert.deepEqual(listed, [BLANK_POST_MESSAGE], "the only thing left was not the post text");
+  assert.equal(posts(requests).length, 0, "a post nobody wrote was published");
+
+  typeInto(document, "post-body", DRAFT);
+  id("post-submit").click();
+  await waitFor(() => posts(requests).length === 1, "the written post published");
+  const sent = JSON.parse(posts(requests)[0].body);
+  assert.equal(sent.content, DRAFT, "the post carried text the visitor did not write");
+  assert.equal(sent.image.alt, ALT);
+  await waitFor(() => !id("post-submit").disabled, "publish settled");
 });

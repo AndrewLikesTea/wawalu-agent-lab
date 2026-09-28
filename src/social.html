@@ -438,6 +438,7 @@
                next step. It is focusable so the arrival can put the reader on
                the explanation rather than in the middle of the form. -->
           <div class="paint-arrival" id="paint-arrival" role="status" tabindex="-1" hidden></div>
+          <p id="paint-draft-note" class="hint" hidden></p>
 
           <form id="post-form" aria-labelledby="post-form-title" aria-describedby="post-form-hint" novalidate>
             <p class="hint" id="post-form-hint">Write your post. Add an image if you want one — a post with an image also appears on People, under the display name you publish it with.</p>
@@ -524,6 +525,7 @@
                 <li>From Paint: <a class="secondary-button paint-link" href="/paint/" target="_blank" rel="noopener">Create or open an image in Paint <span class="new-tab-note">(opens in a new tab)</span> <span aria-hidden="true">↗</span></a> then select “Use this image in a Social post”</li>
                 <li>From a file: add an image already saved on this device</li>
               </ul>
+              <p class="hint" id="paint-return-instructions">Social opens the composer with your image in “Image to publish”, a From Paint confirmation, and focus on the image description, under a line naming what is still required before you can publish. If the image did not arrive, the composer shows no preview and says so, and you can choose a file on this device or return to Paint.</p>
               <div class="media-source-actions">
                 <label class="secondary-button file-button" for="post-image">Choose image
                   <input id="post-image" name="image" type="file"

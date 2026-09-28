@@ -38,9 +38,30 @@ export const PAINT_HANDOFF_COPY = Object.freeze({
     action: "Open the post preview on Social",
     arrivalTitle: "Your drawing is attached to this draft only",
     arrivalDetail: "Paint handed the drawing to the composer as a preview. It has not been uploaded or published.",
-    arrivalStep: "Describe the image, then publish the post to share it.",
+    arrivalStep: "The image description is the one remaining required step before you publish the post.",
+    // The same arrival in a tab that holds no post text. Publishing refuses an
+    // empty post as firmly as an undescribed image, so naming one step here
+    // would be a promise the Publish button breaks. Two sentences, one panel:
+    // the step named is the step that is actually left.
+    arrivalStepNoDraft: "This tab holds no post text, so writing the post and describing the image are both required before you publish.",
   }),
 });
+
+// The prepared arrival, told which of its two step sentences this tab has
+// earned. Kept beside the copy rather than assembled at the call site so the
+// panel cannot drift from the words it is built out of.
+export function preparedArrival({ hasDraft = true } = {}) {
+  const copy = PAINT_HANDOFF_COPY.prepared;
+  return hasDraft ? copy : Object.freeze({ ...copy, arrivalStep: copy.arrivalStepNoDraft });
+}
+
+// An address that says "from paint" but names no kind we publish — a truncated
+// link, a stale bookmark, a hand-edited query. It is an arrival with no copy,
+// not a non-arrival: the composer opens on it and draws the recovery message
+// rather than leaving the address's promise unanswered. It deliberately carries
+// no copy fields, so renderPaintArrival below refuses to draw it rather than
+// painting "From Paint · undefined".
+export const PAINT_HANDOFF_UNKNOWN = Object.freeze({ kind: "invalid" });
 
 export function paintHandoffCopy(kind) {
   return PAINT_HANDOFF_COPY[kind] ?? PAINT_HANDOFF_COPY.exported;
@@ -56,7 +77,7 @@ export function paintHandoffIntent(search = "") {
   const params = new URLSearchParams(String(search).replace(/^\?/, ""));
   if (params.get("from") !== "paint") return null;
   const kind = params.get("image");
-  return Object.hasOwn(PAINT_HANDOFF_COPY, kind) ? PAINT_HANDOFF_COPY[kind] : null;
+  return Object.hasOwn(PAINT_HANDOFF_COPY, kind) ? PAINT_HANDOFF_COPY[kind] : PAINT_HANDOFF_UNKNOWN;
 }
 
 function element(tag, className, text) {
@@ -72,7 +93,10 @@ function element(tag, className, text) {
 // is the words, not the layout.
 export function renderPaintArrival(panel, intent) {
   if (!panel) return null;
-  if (!intent) {
+  // Tested on the copy, not on truthiness: PAINT_HANDOFF_UNKNOWN is an intent
+  // the composer acts on but this panel has nothing to say about, and drawing
+  // it would paint the word "undefined" at a visitor.
+  if (!intent?.arrivalTitle) {
     panel.hidden = true;
     panel.replaceChildren();
     delete panel.dataset.handoff;

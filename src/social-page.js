@@ -17,7 +17,7 @@ import {
   takePaintHandoff,
   validatePublishImage,
 } from "/publishing-media.js";
-import { PAINT_EDITOR_PATH, PAINT_HANDOFF_COPY, paintHandoffIntent, renderPaintArrival } from "/paint-handoff.js";
+import { PAINT_EDITOR_PATH, paintHandoffIntent, preparedArrival, renderPaintArrival } from "/paint-handoff.js";
 
 const REFRESH_INTERVAL = 10_000;
 
@@ -132,6 +132,25 @@ function mountMediaComposer(root, description, composer) {
   const publishBlocker = root.querySelector("#post-publish-blocker");
   const submit = root.querySelector("#post-submit");
   const arrivalPanel = root.querySelector("#paint-arrival");
+  const draftNote = root.querySelector("#paint-draft-note");
+  const explainDraft = () => {
+    if (!draftNote) return;
+    draftNote.hidden = Boolean(root.querySelector("#post-body")?.value.trim() || media || alt.value.trim());
+    draftNote.textContent = draftNote.hidden ? "" : "Drafts are per-tab; text entered in another tab is not available here.";
+  };
+  // The description field's aria-describedby is not this module's alone:
+  // src/social.js adds and removes the refusal id on the same attribute when
+  // Publish post turns an undescribed image away. Writing the whole attribute
+  // would drop that id while the refusal is still on screen and the field is
+  // still marked aria-invalid — a control marked invalid whose reason is no
+  // longer announced. So this edits token by token, the way the publish reason
+  // does, and owns only the two ids the arrival puts there.
+  const PAINT_ALT_IDS = ["paint-arrival", "paint-draft-note"];
+  const describeAlt = (...ids) => {
+    const others = (alt.getAttribute("aria-describedby") ?? "").split(/\s+/)
+      .filter((token) => token && !PAINT_ALT_IDS.includes(token));
+    alt.setAttribute("aria-describedby", [...others, ...ids].join(" "));
+  };
   let media = null;
   let selectionProblem = "";
   // FileReader and image decoding are asynchronous. A generation token keeps a
@@ -184,7 +203,9 @@ function mountMediaComposer(root, description, composer) {
   const clear = ({ focus = false, announce = "" } = {}) => {
     selectionGeneration += 1;
     media = null;
+    describeAlt();
     renderPaintArrival(arrivalPanel, null);
+    if (draftNote) draftNote.hidden = true;
     input.value = "";
     description.clear();
     description.setAttached(false);
@@ -204,7 +225,16 @@ function mountMediaComposer(root, description, composer) {
 
   const show = (next, { focus = false, fromPaint = false } = {}) => {
     media = next;
-    renderPaintArrival(arrivalPanel, fromPaint ? PAINT_HANDOFF_COPY.prepared : null);
+    if (!fromPaint && draftNote) draftNote.hidden = true;
+    const hasDraft = Boolean(root.querySelector("#post-body")?.value.trim());
+    // Focus lands on this field on a Paint arrival, so the two things a reader
+    // who never looked up would otherwise miss — where the image came from, and
+    // that the text they typed elsewhere is not in this tab — are read out with
+    // the field rather than left sitting above it. A chosen file names neither.
+    if (!fromPaint) describeAlt();
+    else if (draftNote && !draftNote.hidden) describeAlt("paint-arrival", "paint-draft-note");
+    else describeAlt("paint-arrival");
+    renderPaintArrival(arrivalPanel, fromPaint ? preparedArrival({ hasDraft }) : null);
     // A file this field accepts is the answer to the refusal, so the refusal
     // goes as the image arrives.
     clearRejection();
@@ -216,7 +246,7 @@ function mountMediaComposer(root, description, composer) {
     preview.hidden = false;
     preview.src = next.preview;
     source.textContent = "Image to publish";
-    caption.textContent = `${next.width} × ${next.height} px · ${Math.max(1, Math.ceil(next.size / 1024))} KB`;
+    caption.textContent = `${fromPaint ? "From Paint · " : ""}${next.width} × ${next.height} px · ${Math.max(1, Math.ceil(next.size / 1024))} KB`;
     // Written out, not composed from the heading above: the heading is a noun
     // phrase naming the pending state, and interpolating it produced "Image to
     // publish ready to describe and post." This is also the one moment a
@@ -304,9 +334,19 @@ function mountMediaComposer(root, description, composer) {
   // that this field would have refused from the picker is refused exactly that
   // way, marked input and disabled Publish included, and all the transfer adds
   // is the route back.
+  const TRANSFER_RECOVERY = "Choose image to select a file on this device, or return to Paint.";
   const failTransfer = (message = "") => {
     if (!rejection) return;
-    if (message) renderFieldError(rejection, message);
+    explainDraft();
+    // Two different failures share this slot and must not share a sentence. A
+    // message here means nothing came out of storage at all, so "did not
+    // arrive" is the truth and this writes the whole refusal. With none,
+    // accept() has already written why this field turned away the file Paint
+    // did hand over — an image over 512 KB arrived exactly as intended — and
+    // prefixing "did not arrive" would contradict the reason printed with it.
+    // Either way the two ways forward are stated, and the link below is one.
+    if (message) renderFieldError(rejection, `The image did not arrive from Paint. ${message} ${TRANSFER_RECOVERY}`);
+    else rejection.append(` ${TRANSFER_RECOVERY}`);
     const link = document.createElement("a");
     link.href = PAINT_EDITOR_PATH;
     link.target = "_blank";
@@ -322,10 +362,13 @@ function mountMediaComposer(root, description, composer) {
   // for that arrival is the panel's, not the media status line's, so a single
   // transfer is not announced twice.
   const intent = paintHandoffIntent(globalThis.location?.search);
-  const takeFromPaint = async () => {
+  const takeFromPaint = async ({ invalid = false } = {}) => {
     composer.open({ focus: false });
+    explainDraft();
     let file;
-    try { file = takePaintHandoff(globalThis.localStorage); } catch { /* blocked storage */ }
+    if (!invalid) {
+      try { file = takePaintHandoff(globalThis.localStorage); } catch { /* blocked storage */ }
+    }
     if (!file) {
       renderPaintArrival(arrivalPanel, null);
       setStatus("");
@@ -342,7 +385,7 @@ function mountMediaComposer(root, description, composer) {
       failTransfer();
     }
   };
-  if (intent?.kind === "prepared") {
+  if (intent?.kind === "prepared" || intent?.kind === "invalid") {
     // Off the address first, so a reload does not ask again — and so a second
     // boot of this page, which reads the address it leaves, cannot take twice.
     const params = new URLSearchParams(globalThis.location.search);
@@ -351,8 +394,9 @@ function mountMediaComposer(root, description, composer) {
     const query = params.toString();
     const { pathname = "", hash = "" } = globalThis.location;
     globalThis.history?.replaceState?.(globalThis.history.state, "", `${pathname}${query ? `?${query}` : ""}${hash}`);
-    takeFromPaint();
+    takeFromPaint({ invalid: intent.kind === "invalid" });
   } else {
+    if (intent) explainDraft();
     renderPaintArrival(arrivalPanel, intent)?.focus?.();
   }
   // Paint left the record from its own tab. Only a composer that is open or

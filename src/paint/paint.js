@@ -445,7 +445,7 @@ export function initEditor(root = document, environment = globalThis) {
       await new Promise((resolve) => (environment.setTimeout ?? setTimeout)(resolve, PAINT_HANDOFF_CLAIM_MS));
       publishButton.disabled = false;
       if (environment.localStorage.getItem(PAINT_HANDOFF_KEY) === null) {
-        publishStatus.textContent = "Added to the post you are writing on Social. Switch to that tab to describe and publish it.";
+        publishStatus.textContent = "Social received the image handoff. Switch to that tab to check the preview or recovery message, then describe and publish it.";
         return;
       }
       publishStatus.textContent = "";
