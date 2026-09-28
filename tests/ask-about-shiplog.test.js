@@ -33,7 +33,7 @@ import {
   ASK_ABOUT_SHIPLOG_DESCRIPTION, ASK_ABOUT_SHIPLOG_DESCRIPTION_ID,
   ASK_ABOUT_SHIPLOG_HREF, ASK_ABOUT_SHIPLOG_ID, ASK_ABOUT_SHIPLOG_LABEL,
 } from "../src/ask-about-shiplog.js";
-import { FOLLOW_UP_REPLY } from "../src/lead-capture.js";
+import { FOLLOW_UP_INTENTS, FOLLOW_UP_REPLY } from "../src/lead-capture.js";
 import { initReleasesPage } from "../src/releases-page.js";
 import { RELEASE_STORAGE_KEY } from "../src/releases.js";
 import { OFFER } from "../src/site-footer.js";
@@ -173,6 +173,96 @@ for (const [name, open] of CARRIERS) {
     }
   });
 }
+
+/* --------------- what the two asks involve, on the home page -------------- */
+
+// #2606. The home page's route offers two things and named neither, so a reader
+// deciding which one they wanted had only the words in the link. The paragraph
+// above the control now says what each one is — who runs it, and what the other
+// side does — in the site's own names for these two topics.
+//
+// Painted, not read out of the file: this page's own modules run before a
+// visitor reads any of it, and a sentence that survives only in index.html is
+// one nobody meets.
+test("the home page says what each of the two asks involves, above the control that makes them", async (t) => {
+  const { document } = await openHome(t);
+
+  const entry = document.getElementById("shiplog-entry");
+  const offers = entry.querySelectorAll("p")
+    .filter((node) => node.getAttribute("id") === "ask-about-shiplog-offers");
+  assert.equal(offers.length, 1, `the definitions are painted ${offers.length} times`);
+  const said = textOf(offers[0]);
+
+  // Named in the words the follow-up forms use for these topics — the same map
+  // the topic pair lower down this page renders — so a reader meets one wording
+  // per offer across the site rather than two to reconcile.
+  for (const intent of [FOLLOW_UP_INTENTS.demo, FOLLOW_UP_INTENTS.pilot]) {
+    assert.ok(said.includes(intent), `the definitions do not name "${intent}"`);
+  }
+  assert.equal(FOLLOW_UP_INTENTS.demo, "A product demonstration");
+  assert.equal(FOLLOW_UP_INTENTS.pilot, "A pilot evaluation");
+
+  // Who does the work in each: the operators walk a visitor through the
+  // demonstration, and the visitor's own team runs the pilot.
+  assert.match(said, /the team that operates Shiplog/);
+  assert.match(said, /your own team tries Shiplog/);
+
+  // The pilot sentence names the scorecard in the label this page already uses
+  // for it, and points at the copy of it on this page rather than at a control
+  // of its own.
+  assert.match(said, /blank pilot scorecard further down this page/);
+  assert.ok(textOf(entry).includes("evaluation brief and blank pilot scorecard"),
+    "this section's own name for the scorecard changed; the definition must follow it");
+  assert.equal(document.querySelectorAll("#shiplog-pilot-scorecard").length, 1,
+    "the scorecard the pilot sentence points down at is not on this page");
+
+  // Read above the control it explains, and costing no tab stop: the first
+  // screen of this page has none to spare.
+  const blocks = entry.childElements;
+  const row = document.getElementById(ASK_ABOUT_SHIPLOG_ID).parentNode;
+  assert.ok(blocks.indexOf(offers[0]) >= 0 && blocks.indexOf(offers[0]) < blocks.indexOf(row),
+    "the definitions must read above the control that makes the request");
+  assert.equal(offers[0].tagName, "P");
+  assert.equal(offers[0].getAttribute("tabindex"), null);
+  for (const tag of ["a", "button"]) {
+    assert.equal(offers[0].querySelectorAll(tag).length, 0, `the definitions drew a ${tag}`);
+  }
+  assert.equal(tabSequence(document).filter((node) => node === offers[0]).length, 0,
+    "the definitions became a tab stop");
+
+  // And no promise this page cannot keep. Availability and cost stay answered
+  // on request, there is no clock on either offer, and nothing here implies
+  // Shiplog has customers.
+  for (const overreach of [
+    /\d/,
+    /\bprice|pricing|\bcost\b|\bfree\b|\btrial\b/i,
+    /\bminutes?\b|\bhours?\b|\bdays?\b|\bweeks?\b|\bschedule\b|\bbook\b/i,
+    /\bcustomers?\b|\bclients?\b|\bteams like\b/i,
+  ]) {
+    assert.doesNotMatch(said, overreach, `the definitions make a claim this page cannot keep: ${overreach}`);
+  }
+});
+
+test("the definitions stand alongside how the request is sent, and restate nothing", async (t) => {
+  const { document } = await openHome(t);
+
+  // The caption under the label is untouched: it is still where the page says
+  // the follow-up form at the foot sends the request, and what comes back.
+  const described = describedBy(document);
+  assert.equal(described.length, 1, `the description is painted ${described.length} times`);
+  assert.equal(textOf(described[0]), HOME_DESCRIPTION);
+  assert.match(HOME_DESCRIPTION, /follow-up form at the foot of this page/);
+  assert.ok(HOME_DESCRIPTION.endsWith(FOLLOW_UP_REPLY),
+    `the reply window has drifted from the form's own sentence: ${FOLLOW_UP_REPLY}`);
+
+  // And the answer about availability and price is still made once on this
+  // page. The new paragraph stands beside it rather than saying it again.
+  const page = textOf(document.getElementById("main-content"))
+    + textOf(document.getElementById("site-footer"));
+  const [priceClaim] = OFFER.split(". ");
+  assert.equal(page.split(priceClaim).length - 1, 1,
+    `"${priceClaim}" is stated more than once on the home page`);
+});
 
 /* ---------------- what the label does not say, said once ------------------ */
 
