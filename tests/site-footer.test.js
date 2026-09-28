@@ -135,10 +135,15 @@ const FOOTER_VARIANT = new Map([
     // answers the form cannot route. It opens with INVITATION's two sentences
     // now — the same words Social and People carry — then says what the topics
     // cover and sends a question about the post itself to Report post, which is
-    // the path that does answer it. The last two sentences now name the copy
-    // control and the free-text input by the words a reader sees on them, which
-    // is what tests/post-follow-up-copy.test.js holds them to (#2541).
-    invitation: 'Questions about Shiplog? Send the Wawalu team that operates it a follow-up request. The topics below are about Shiplog — whether it is available for your team, a demonstration, a pilot, and security and data handling — not about this post. If your question is about this post itself, select Report post instead. Nothing about the post is attached to the request automatically. Select Copy link to this post above, then paste the link into the Anything else we should know? field so the team knows which post you mean.',
+    // the path that does answer it. Those last sentences name the copy control
+    // and the free-text input by the words a reader sees on them, which is what
+    // tests/post-follow-up-copy.test.js holds them to (#2541) — and they are
+    // not in the generated markup any more. #2603 moved them onto src/post-page.js,
+    // which writes them into this paragraph once a post loads and takes them
+    // back out when one does not, because Report post and Copy link to this
+    // post are both drawn on the loaded post and nowhere else. What ships is
+    // the part that is true in every state.
+    invitation: 'Questions about Shiplog? Send the Wawalu team that operates it a follow-up request. The topics below are about Shiplog — whether it is available for your team, a demonstration, a pilot, and security and data handling — not about this post. Nothing about the post is attached to the request automatically.',
     collapsedDemos: true, askMessage: true, offer: true,
   }],
   ["releases.html", {

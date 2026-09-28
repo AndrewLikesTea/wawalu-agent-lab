@@ -12,6 +12,25 @@ import { mountPostReport, renderReportButton } from "/post-report.js";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+// Social's note under its feed, quoted rather than restated: the handle is the
+// words Social's own link to that note carries, and the body is the note. One
+// account of what a report leads to serves both surfaces, so a reader who meets
+// it on a forwarded link and a reader who meets it on the feed read the same
+// sentences. tests/post-page-flow.test.js reads both out of src/social.html.
+const REPORT_DISCLOSURE_SUMMARY = "How reporting works";
+const REPORT_DISCLOSURE_BODY = "Report post opens a short form about that one post. Choose a reason, add a note if you want to, and give your email address. The report goes only to the Wawalu team, who review each one. A report does not remove or hide the post, and not every report leads to removal. The team decides after review whether to remove it.";
+
+// The two sentences of the follow-up invitation that tell a reader to select a
+// control, and the sentence they are threaded around. Both controls — Report
+// post and Copy link to this post — are drawn only on the loaded post, so both
+// sentences are withheld until there is one. The third sentence ships in
+// src/post.html and holds in every state; it is matched here to put the
+// reporting one before it and the copy one after it, which is the order the
+// paragraph has always read in.
+const INVITATION_REPORT = "If your question is about this post itself, select Report post instead.";
+const INVITATION_ATTACHMENT = "Nothing about the post is attached to the request automatically.";
+const INVITATION_COPY = "Select Copy link to this post above, then paste the link into the Anything else we should know? field so the team knows which post you mean.";
+
 async function fetchLivePost(id) {
   const response = await fetch(`/api/social-posts/${encodeURIComponent(id)}`, { cache: "no-store", headers: { accept: "application/json" } });
   if (response.status === 404) return null;
@@ -89,6 +108,45 @@ async function init() {
   // is the one where a link's words promise something the page cannot supply,
   // and this link promises nothing about this post.
 
+  // Guidance that names a control follows the control. Reporting is explained
+  // beside the post it applies to, and the invitation's two pointers at a
+  // button arrive with the buttons and go when they go — a page that is still
+  // looking a post up, or that failed to find one, draws neither button, and an
+  // instruction to select one of them is an instruction that reader cannot
+  // follow (#2603).
+  //
+  // The explanation is a disclosure rather than a standing paragraph so the
+  // post keeps the top of the region: a reader who wants to know what a report
+  // costs opens it, and a reader who does not reads past one line. It is built
+  // here and not shipped closed in src/post.html because a disclosure handle is
+  // a tab stop, and the waiting page's tab order runs from the Social exit
+  // straight into the footer (tests/page-skip-link.test.js).
+  const reporting = document.querySelector("#post-reporting");
+  const invitation = document.querySelector(".site-footer-invitation");
+  const waitingInvitation = invitation?.textContent ?? "";
+  const loadedInvitation = `${waitingInvitation.replace(INVITATION_ATTACHMENT, `${INVITATION_REPORT} ${INVITATION_ATTACHMENT}`)} ${INVITATION_COPY}`;
+  const nameControls = (drawn) => {
+    if (invitation) invitation.textContent = drawn ? loadedInvitation : waitingInvitation;
+    if (!reporting) return;
+    // Same rule the People link follows: a reader standing on the handle when
+    // it goes must not be dropped to the top of the document, so focus moves
+    // back to the exit above it first.
+    if (document.activeElement?.closest?.("#post-reporting")) document.querySelector("#post-back")?.focus?.();
+    reporting.replaceChildren();
+    if (!drawn) return;
+    const disclosure = document.createElement("details");
+    // The class goes on the parent, which is where the shipped pointer and
+    // focus-ring treatment for a disclosure is keyed in this codebase.
+    disclosure.className = "post-report-disclosure";
+    const summary = document.createElement("summary");
+    summary.textContent = REPORT_DISCLOSURE_SUMMARY;
+    const body = document.createElement("p");
+    body.className = "hint";
+    body.textContent = REPORT_DISCLOSURE_BODY;
+    disclosure.append(summary, body);
+    reporting.append(disclosure);
+  };
+
   const heading = document.querySelector("#page-title");
   const nameHeading = (post) => {
     if (heading) heading.textContent = postPageHeading(post);
@@ -103,6 +161,7 @@ async function init() {
     nameHeading(null);
     document.title = postDetailTitle(null, "loading");
     offerPeople(false);
+    nameControls(false);
     renderPostDetail(container, null, { state: "loading", id, author: requestedAuthor, returnHref: POST_EXITS.social.href });
     let post = null;
     let failed = false;
@@ -143,6 +202,7 @@ async function init() {
         renderReportButton(post, when, (selected, opener) => report.open(selected, opener)),
       );
     }
+    nameControls(Boolean(post));
     nameHeading(post);
     aimPeople(post?.author ?? "");
     offerPeople(Boolean(post));

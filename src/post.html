@@ -220,8 +220,32 @@
              reading as a note under the post rather than as part of it. -->
         <p>The example posts on Social are invented to demonstrate Shiplog and use no customer or production data; anyone can read a post a visitor publishes.</p>
         <p class="hint">Whoever published this post chose the display name on it; nobody owns or verifies a display name on Social.</p>
-        <p class="hint">Once this post loads, select Report post beside the post’s actions to ask the Wawalu team to review it.</p>
-        <p class="hint">Report post asks for a reason, an optional note, and your email address. The report goes only to the Wawalu team, who review each one. A report does not remove or hide the post, and not every report leads to removal.</p>
+        <!-- Reporting is explained here, and only once there is a post to
+             report: src/post-page.js draws a closed disclosure element into
+             this container when the lookup returns one, and empties it again in
+             every other state (#2603).
+
+             It used to ship as two standing paragraphs. The first told a reader
+             to "select Report post beside the post’s actions", and this page
+             draws that button in exactly one of its four states, so the wait,
+             the failure and the unknown-post state each sent a reader hunting
+             for a control that is not on the screen. The second explained what
+             a report does, at the length of a paragraph, above a post that had
+             not arrived. Both are the same fix: what a report costs is worth
+             reading beside the control that files one, not instead of it.
+
+             The handle reads "How reporting works" and the body is Social's own
+             note under its feed, quoted byte for byte rather than paraphrased,
+             so one account of what a report leads to serves both surfaces.
+             tests/post-page-flow.test.js reads both strings out of
+             src/social.html and fails here if Social rewords either.
+
+             Nothing ships inside this container, which is what keeps the
+             loading state's tab order exactly what it was: a disclosure handle
+             is a tab stop, and tests/page-skip-link.test.js holds this page to
+             reaching the footer from the Social exit with no control of its own
+             in between. -->
+        <div id="post-reporting"></div>
         <!-- No publication consequence here. It used to stand in this hero, word
              for word the sentence Social's composer shows beside Publish post,
              on the reasoning that a permalink is the page a visitor meets cold.
@@ -248,9 +272,17 @@
          region. The follow-up form itself is outside too, and keeps its tab
          stops with the directory closed.
 
-         The sentences this page adds to the standing invitation name two
-         controls, and both are named by the words a reader can see on them
-         (#2541). The last one used to say "paste the link into your message",
+         What ships in the invitation below is the part that is true in all
+         four states: what the topics cover, and that nothing about the post is
+         attached to the request. The two sentences that name a control are not
+         here. src/post-page.js adds them to this paragraph when a post loads
+         and takes them back out when one does not, because both the Report post
+         button and the Copy link to this post button are drawn only on the
+         loaded post — an instruction to select either one is an instruction a
+         waiting reader cannot follow (#2603).
+
+         Those two sentences name their controls by the words a reader can see
+         on them (#2541). The last one used to say "paste the link into your message",
          and nothing on this page is called a message: the one free-text input
          in the form below is labelled "Anything else we should know?" with
          "(optional)" after it, so a reader hunting for a message found nothing
@@ -271,7 +303,7 @@
         <p class="site-footer-identity">On this site you can analyze your own AI spend, check a prompt before you send it, and read the decisions and releases behind it. Shiplog is a demonstration product, built and operated by Wawalu at labs.wawalu.org.</p>
         <p class="site-footer-identity site-footer-pitch">Shiplog is for engineering teams that answer for an AI bill and a release history. See <a href="/evolution.html#workspace-answer">the worked decision in AI FinOps</a>.</p>
         <p class="site-footer-identity"><a id="site-footer-source" href="https://github.com/AndrewLikesTea/wawalu-agent-lab">Open the public repository this site is built from</a></p>
-        <p class="site-footer-invitation">Questions about Shiplog? Send the Wawalu team that operates it a follow-up request. The topics below are about Shiplog — whether it is available for your team, a demonstration, a pilot, and security and data handling — not about this post. If your question is about this post itself, select Report post instead. Nothing about the post is attached to the request automatically. Select Copy link to this post above, then paste the link into the Anything else we should know? field so the team knows which post you mean.</p>
+        <p class="site-footer-invitation">Questions about Shiplog? Send the Wawalu team that operates it a follow-up request. The topics below are about Shiplog — whether it is available for your team, a demonstration, a pilot, and security and data handling — not about this post. Nothing about the post is attached to the request automatically.</p>
         <div class="site-footer-panel" id="site-footer-panel">
           <form id="site-footer-form" class="site-footer-form" data-follow-up-type="follow_up_social" data-follow-up-topic="Social post page — one post from Social, at its own link" novalidate>
             <p class="site-footer-note" id="site-footer-offer">There is no self-serve signup and no published price. Whether Shiplog is available for your team and what it would cost are both answered on request.</p>

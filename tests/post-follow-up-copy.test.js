@@ -18,6 +18,15 @@ import { POST_COPY_LABEL } from "../src/post-share.js";
 // this post has to say which, and they now name both controls by the words on
 // them (#2541): "your message" named nothing on this page, and the free-text
 // input under the topics is labelled "Anything else we should know?".
+//
+// Both sentences point at a button, and this page draws both buttons on the
+// loaded post and in none of its other three states. #2603 therefore made them
+// state-dependent: `waiting` is what ships in src/post.html and what a reader
+// meets before, during and after a lookup that found nothing; `invitation` is
+// what src/post-page.js writes into the paragraph once there is a post to
+// report and a link to copy. The two are held apart here rather than in the
+// markup tables, because only a driven page can show the switch happening.
+const waiting = "Questions about Shiplog? Send the Wawalu team that operates it a follow-up request. The topics below are about Shiplog — whether it is available for your team, a demonstration, a pilot, and security and data handling — not about this post. Nothing about the post is attached to the request automatically.";
 const invitation = "Questions about Shiplog? Send the Wawalu team that operates it a follow-up request. The topics below are about Shiplog — whether it is available for your team, a demonstration, a pilot, and security and data handling — not about this post. If your question is about this post itself, select Report post instead. Nothing about the post is attached to the request automatically. Select Copy link to this post above, then paste the link into the Anything else we should know? field so the team knows which post you mean.";
 const post = { id: "p-copy", author: "Mina Okafor", body: "Focus rings landed everywhere.", createdAt: "2026-07-14T09:00:00.000Z", likes: 0, comments: 0 };
 
@@ -32,7 +41,7 @@ for (const state of ["loading", "loaded"]) {
     const rows = [];
     let release;
     try {
-      assert.equal(textOf(document.querySelector(".site-footer-invitation")), invitation);
+      assert.equal(textOf(document.querySelector(".site-footer-invitation")), waiting);
       globalThis.fetch = async (url, options) => {
         if (url === "/social-demo-data.json") {
           await new Promise((resolve) => { release = resolve; });
@@ -54,7 +63,7 @@ for (const state of ["loading", "loaded"]) {
       }
       assert.equal(byId("post-detail").dataset.postState, state);
       assert.match(textOf(byId("page-title")), /post/i);
-      assert.equal(textOf(document.querySelector(".site-footer-invitation")), invitation);
+      assert.equal(textOf(document.querySelector(".site-footer-invitation")), state === "loaded" ? invitation : waiting);
       assert.equal(textOf(byId("site-footer-topic-note")), "This request is sent about the Social post page — one post from Social, at its own link.");
       assert.equal(byId("site-footer-topic-note").hidden, false);
       byId("site-footer-intent-demo").click();
@@ -128,19 +137,26 @@ test("Social feed keeps its general invitation and fixed topic", async () => {
   }
 });
 
-// The two halves of #2436, held to their sources rather than to a second copy
-// of the words: the block opens on the heading line Social and People render,
-// and it names the reporting control exactly as src/post-report.js does. The
-// pointer is in the invitation, which every task page reads before the panel
+// The half of #2436 that ships in the markup: the block opens on the heading
+// line Social and People render. The other half — the pointer at Report post —
+// is no longer here to read. It named a control this page draws on the loaded
+// post and in none of its other three states, so #2603 moved it onto
+// src/post-page.js; the driven tests above and below hold the loaded wording,
+// and what this one holds is that a reader whose lookup has not answered is
+// told to select nothing. The pointer, when it arrives, still lands in the
+// invitation, which every task page reads before the panel
 // (tests/footer-directory-order.test.js), so it is above the topic choices.
-test("the post page opens on Social's heading line and points a post question at Report post", async () => {
+test("the post page opens on Social's heading line and names no control before one is drawn", async () => {
   const page = await loadPage(new URL("../src/post.html", import.meta.url));
   try {
     const paragraph = textOf(page.document.querySelector(".site-footer-invitation"));
     assert.ok(paragraph.startsWith(`${INVITATION} `),
       "the post page no longer opens on the invitation every other page carries");
-    assert.ok(paragraph.includes(`select ${REPORT_POST_LABEL} instead`),
-      `the post page names the reporting control something other than "${REPORT_POST_LABEL}"`);
+    assert.equal(paragraph, waiting, "the shipped heading line changed");
+    for (const label of [REPORT_POST_LABEL, POST_COPY_LABEL]) {
+      assert.equal(paragraph.includes(label), false,
+        `the shipped heading line sends a waiting reader to "${label}", which is not on the page yet`);
+    }
     const markup = await readFile(new URL("../src/post.html", import.meta.url), "utf8");
     assert.ok(markup.indexOf('class="site-footer-invitation"') < markup.indexOf('id="site-footer-intent"'),
       "the pointer to Report post is read after the topic choices");
