@@ -27,7 +27,7 @@ import assert from "node:assert/strict";
 import { loadPage, textOf, tabSequence, pressTab } from "./support/browser.js";
 import {
   mountSocialFeed, filterStatusLine, NO_FILTERS_APPLIED,
-  TIME_FILTER_UNAVAILABLE_HINT, TIME_FILTER_WINDOW_HINT,
+  FEED_FILTERS_UNAVAILABLE_HINT, TIME_FILTER_WINDOW_HINT,
 } from "../src/social.js";
 import { mountProfile } from "../src/profile.js";
 import { FILTERS_UNAVAILABLE_HINT } from "../src/feed-status.js";
@@ -82,7 +82,8 @@ test("Social's filters are not operable while the feed is loading, and say why",
   // The time menu points at its own line and keeps pointing at it in every
   // state (#2562): what a window measures is true whether or not the menu is
   // operable, so that line is authored with the description rather than added
-  // and taken away with the wait. Its shut shape is still the reason.
+  // and taken away with the wait. The reason it is shut is the row's line, which
+  // names both menus (#2611).
   const describedBy = {
     "#post-name-filter": "post-filter-hint",
     "#post-time-filter": "post-time-filter-hint",
@@ -102,10 +103,13 @@ test("Social's filters are not operable while the feed is loading, and say why",
   // And the reason in words, at caption weight, inside the filter region.
   const hint = hintIn(document.querySelector(".social-toolbar"), "post-filter-hint");
   assert.equal(hint.tagName, "P");
-  assert.equal(textOf(hint), FILTERS_UNAVAILABLE_HINT);
-  assert.equal(textOf(hint), "Filter posts by display name becomes available when posts finish loading.");
+  assert.equal(textOf(hint), FEED_FILTERS_UNAVAILABLE_HINT);
+  assert.equal(textOf(hint), "The display-name and posting-time filters become available when posts finish loading.");
   assert.equal(classesOf(hint).includes("hint"), true, "the reason is set at content weight");
-  assert.equal((textOf(document.body).match(/Filter posts by display name becomes available when posts finish loading\./g) ?? []).length, 1);
+  assert.equal((textOf(document.body).match(/The display-name and posting-time filters become available when posts finish loading\./g) ?? []).length, 1);
+  // And the sentences it replaced are gone from the page, on this render path
+  // and on every other one below (#2611).
+  assert.doesNotMatch(textOf(document.body), /Filter posts by (display name|posting time) becomes available/);
 });
 
 test("Social's filters come back, in their authored order, the moment posts render", async (t) => {
@@ -134,7 +138,7 @@ test("Social's filters come back, in their authored order, the moment posts rend
   // state now, and a description that has stopped being true is replaced by the
   // one that is.
   assert.equal(textOf(hintIn(document.querySelector(".social-toolbar"), "post-filter-hint")), NO_FILTERS_APPLIED);
-  assert.doesNotMatch(textOf(document.body), /Filters become available/);
+  assert.doesNotMatch(textOf(document.body), /become[s]? available/);
 
   // The menus in the order the markup puts them, with nothing moved.
   const stops = tabSequence(document);
@@ -177,10 +181,17 @@ test("Social's time menu says what a window measures, in the menu's own words", 
   // Described by the mechanism the row already uses, at the same weight, and
   // still described once the menu works: what a window measures does not stop
   // being true when the wait ends.
+  //
+  // And it is the SAME sentence in both states (#2611). This line used to carry
+  // a second copy of the row's wait while the fetch was open, one line under the
+  // row's own; the wait is the row's to state, so the line that answers "counted
+  // back from when?" answers only that, and answers it from the first frame.
   assert.equal(timeHint.tagName, "P");
   assert.equal(classesOf(timeHint).includes("hint"), true, "the line is not set at content weight");
   assert.equal(time.getAttribute("aria-describedby"), "post-time-filter-hint");
-  assert.equal(textOf(timeHint), TIME_FILTER_UNAVAILABLE_HINT);
+  assert.equal(textOf(timeHint), TIME_FILTER_WINDOW_HINT);
+  assert.doesNotMatch(textOf(timeHint), /become[s]? available/,
+    "the time menu's line states the wait the row above it already states");
 
   feed.seed(MIXED);
   assert.equal(rendered(document, ".post-card"), 3);
@@ -205,24 +216,60 @@ test("Social's time menu says what a window measures, in the menu's own words", 
   }
 });
 
-test("each of Social's filters says once when it becomes available, and neither line outlives the wait", async (t) => {
+// #2611. The row answered "when can I use this?" twice, a line apart and in
+// near-identical words — one sentence per menu, each naming its own label. A
+// reader who had read the first learned nothing from the second. One sentence
+// names both menus now, and this pins the count on every render path the row
+// passes through: first paint, loading, loaded, the filtered dead end, the
+// failed feed, and the wait a retry puts it back into.
+test("Social's filter row says once, for both menus, when its filters become usable", async (t) => {
   const page = await loadPage(SOCIAL_PAGE, {});
   t.after(() => page.restore());
   const { document } = page;
-  const feed = mountSocialFeed(document, { posts: [], state: "loading", onRetry: () => {} });
 
   const says = (sentence) => textOf(document.body).split(sentence).length - 1;
-  const available = () => [says(FILTERS_UNAVAILABLE_HINT), says(TIME_FILTER_UNAVAILABLE_HINT)];
+  const waits = () => says(FEED_FILTERS_UNAVAILABLE_HINT);
+  /** The two sentences this one replaced, on any render path. */
+  const oldLines = () => [
+    says("Filter posts by display name becomes available when posts finish loading."),
+    says("Filter posts by posting time becomes available when posts finish loading."),
+  ];
 
-  // Loading: one sentence per filter, and no filter left unaccounted for.
-  assert.deepEqual(available(), [1, 1], "the loading row does not say once per filter when each opens");
-  assert.equal(says("becomes available when posts finish loading"), 2);
+  // The frame a cold visitor meets, before a module has run: already one line.
+  assert.equal(waits(), 1, "the served frame does not state the wait exactly once");
+  assert.deepEqual(oldLines(), [0, 0], "the served frame still carries a replaced sentence");
 
-  // Loaded: neither sentence survives the thing it was waiting for.
+  const feed = mountSocialFeed(document, { posts: [], state: "loading", onRetry: () => {} });
+
+  // Loading: still one, and it names both menus in the menus' own words.
+  assert.equal(waits(), 1, "the loading row states the wait more than once");
+  assert.deepEqual(oldLines(), [0, 0]);
+  assert.equal(says("become available when posts finish loading"), 1);
+  for (const label of ["display-name", "posting-time"]) {
+    assert.equal(FEED_FILTERS_UNAVAILABLE_HINT.includes(label), true,
+      `the row's one sentence leaves the ${label} filter unaccounted for`);
+  }
+
+  // And it sits with the controls it is about, not in the feed's status region:
+  // one node, a child of the filter group, found by walking up rather than with
+  // a descendant selector.
+  const toolbar = document.querySelector(".social-toolbar");
+  const notice = hintIn(toolbar, "post-filter-hint");
+  assert.equal(textOf(notice), FEED_FILTERS_UNAVAILABLE_HINT);
+  assert.ok(notice.parentNode === toolbar, "the combined notice left the filter group");
+  assert.equal(toolbar.querySelectorAll(".hint")
+    .filter((node) => textOf(node) === FEED_FILTERS_UNAVAILABLE_HINT).length, 1,
+    "the filter group holds more than one copy of the notice");
+  assert.equal(textOf(toolbar).split(FEED_FILTERS_UNAVAILABLE_HINT).length - 1, waits(),
+    "the sentence is also drawn somewhere outside the filter group");
+  assert.doesNotMatch(textOf(document.querySelector("#feed-state")), /become available/,
+    "the feed's status region states the filter row's wait as well");
+
+  // Loaded: the sentence does not survive the thing it was waiting for.
   feed.seed(MIXED);
   assert.equal(rendered(document, ".post-card"), 3);
-  assert.deepEqual(available(), [0, 0], "a sentence about the wait is still on a loaded page");
-  assert.equal(says("becomes available"), 0);
+  assert.equal(waits(), 0, "a sentence about the wait is still on a loaded page");
+  assert.equal(says("become available"), 0);
   assert.equal(textOf(hintIn(document.querySelector(".social-toolbar"), "post-filter-hint")), NO_FILTERS_APPLIED);
 
   // Filters that empty a full feed are still working filters, so neither line
@@ -234,15 +281,17 @@ test("each of Social's filters says once when it becomes available, and neither 
   time.value = "hour";
   time.dispatchEvent({ type: "change" });
   assert.equal(rendered(document, ".post-card"), 0, "the filters did not empty the feed");
-  assert.deepEqual(available(), [0, 0], "the no-match screen says the filters cannot be used");
+  assert.equal(waits(), 0, "the no-match screen says the filters cannot be used");
 
-  // Failed: both come back, still once each, because both menus are shut again.
+  // Failed: it comes back, still once, because both menus are shut again.
   feed.setState("error");
-  assert.deepEqual(available(), [1, 1], "a failed feed does not say when each filter opens");
+  assert.equal(waits(), 1, "a failed feed does not say when its filters open");
+  assert.deepEqual(oldLines(), [0, 0], "the failed feed drew a replaced sentence");
 
-  // Retry, back to the wait: once each, not twice.
+  // Retry, back to the wait: once, not twice.
   feed.setState("loading");
-  assert.deepEqual(available(), [1, 1], "a retried wait doubled one of the sentences");
+  assert.equal(waits(), 1, "a retried wait doubled the sentence");
+  assert.deepEqual(oldLines(), [0, 0], "the retried wait drew a replaced sentence");
 
   // And the two strings the rest of the row is held to are untouched by all of
   // it: the display-name label, and the one count-and-order sentence.
@@ -271,7 +320,7 @@ test("a failed Social feed leaves Retry as the reachable control, with nothing m
     assert.equal(control.disabled, true, "a failed feed still offers a filter");
     assert.equal(control.getAttribute("aria-disabled"), "true");
   }
-  assert.equal(textOf(hintIn(document.querySelector(".social-toolbar"), "post-filter-hint")), FILTERS_UNAVAILABLE_HINT);
+  assert.equal(textOf(hintIn(document.querySelector(".social-toolbar"), "post-filter-hint")), FEED_FILTERS_UNAVAILABLE_HINT);
 
   const retry = status.querySelector(".feed-status-action");
   assert.equal(retry.tagName, "BUTTON");
@@ -409,17 +458,18 @@ test("the filter row's status line describes the controls beside it without anno
   assert.equal(textOf(document.querySelector("#feed-summary")), "Showing 2 posts, all example posts, newest first.");
 });
 
-// #2001. The row promised BOTH menus' options "when posts load" while the time
-// menu was standing there listing all four of its ranges, so a reader was told
-// to wait for a choice they could already read. The rule the sentence is held
-// to from here is one a reader can check against the controls without knowing
-// the code: it names as pending exactly the menu that is EMPTY, and says
-// nothing about the menu that already carries its choices — in either
-// direction, because both menus are `disabled` and "shown now" would invite a
-// reader into a control that refuses them. Pinning the option counts and not
-// only the sentence is the point: the words drifted from the controls once
-// because nothing tied them together.
-test("a loading filter row names the empty menu, and neither promises nor offers the full one", async (t) => {
+// #2001, kept under #2611. The row promised BOTH menus' OPTIONS "when posts
+// load" while the time menu was standing there listing all four of its ranges,
+// so a reader was told to wait for a choice they could already read. The rule
+// that came out of it is the one still in force, and a reader can check it
+// against the controls without knowing the code: the sentence is about what the
+// FILTERS do, never about what is in them. Both menus are named, because both
+// carry `disabled` until the fetch answers and both lose it at the same moment;
+// neither menu's contents are promised, so the time menu's four ranges are not
+// described as arriving and the display names are not either. Pinning the
+// option counts and not only the sentence is the point: the words drifted from
+// the controls once because nothing tied them together.
+test("a loading filter row names both menus without promising what is in either", async (t) => {
   const page = await loadPage(SOCIAL_PAGE, {});
   t.after(() => page.restore());
   const { document } = page;
@@ -440,31 +490,38 @@ test("a loading filter row names the empty menu, and neither promises nor offers
   assert.ok(time.options.length > 1, "the time menu has no ranges to be told to wait for");
   assert.equal(time.options.length, 4);
 
-  assert.equal(filterStatus(document), FILTERS_UNAVAILABLE_HINT);
-  assert.equal(filterStatus(document), "Filter posts by display name becomes available when posts finish loading.");
+  assert.equal(filterStatus(document), FEED_FILTERS_UNAVAILABLE_HINT);
+  assert.equal(filterStatus(document), "The display-name and posting-time filters become available when posts finish loading.");
   assert.equal(filterStatus(document), filterStatusLine({ available: false }));
-  // It names the empty menu in the menu's OWN words (#2506). The label is read
-  // off the page rather than written here a second time, so renaming the
+  // It names each menu in that menu's OWN words (#2506, #2611). The labels are
+  // read off the page rather than written here a second time, so renaming a
   // control and leaving the sentence behind is a red rather than a drift: the
-  // row used to call it "Display name options", which is a phrase a reader
-  // cannot find anywhere on the control it describes.
-  const namesLabel = textOf(document.querySelectorAll("label")
-    .find((node) => node.getAttribute("for") === "post-name-filter"));
-  assert.equal(namesLabel, "Filter posts by display name");
-  assert.ok(filterStatus(document).startsWith(namesLabel),
-    `the row stopped naming the menu that is empty, which is labelled "${namesLabel}"`);
+  // row used to call the first one "Display name options", which is a phrase a
+  // reader cannot find anywhere on the control it describes.
+  const labelFor = (id) => textOf(document.querySelectorAll("label")
+    .find((node) => node.getAttribute("for") === id));
+  assert.equal(labelFor("post-name-filter"), "Filter posts by display name");
+  assert.equal(labelFor("post-time-filter"), "Filter posts by posting time");
+  for (const [id, term] of [["post-name-filter", "display-name"], ["post-time-filter", "posting-time"]]) {
+    assert.equal(filterStatus(document).includes(term), true,
+      `the row does not name the ${id} menu, which is labelled "${labelFor(id)}"`);
+    assert.equal(labelFor(id).includes(term.replace("-", " ")), true,
+      `the row names the ${id} menu in words its own label does not use`);
+  }
   // And it waits in the word the feed's own status region waits in, rather than
   // spelling one open fetch two ways a block apart.
   assert.match(filterStatus(document), /loading\./);
   assert.match(textOf(document.querySelector("#feed-state")), /loading\./);
-  assert.doesNotMatch(filterStatus(document), /posting time|time range|shown now/i,
-    "the row describes the time menu, whose ranges are already on screen either way");
+  // What is IN either menu is not promised: the sentence is about the controls.
+  assert.doesNotMatch(filterStatus(document), /option|range|window|name[s]? become|shown now/i,
+    "the row promises a menu's contents rather than the menu");
 
   // And the promise comes true, which is what makes it a promise and not a
-  // sentence that merely reads well: the names arrive with the posts.
+  // sentence that merely reads well: both menus open with the posts.
   feed.seed(RECENT);
   assert.ok(names.options.length > 1, "the display names never became available at all");
   assert.equal(names.disabled, false);
+  assert.equal(time.disabled, false, "the posting-time menu never became available at all");
   assert.equal(time.options.length, 4, "the time menu's ranges changed when the posts landed");
   assert.doesNotMatch(textOf(document.body), /become available/, "the waiting sentence outlived the wait");
 });
@@ -609,15 +666,25 @@ test("a failed People feed disables the chooser and leaves Retry reachable", asy
 // sentence shapes, so a reader who used the filter on one page met a stranger on
 // the other.
 //
-// Social is the reference — nothing here edits its strings — and People now
-// carries the same two shapes with the one noun this page earns: it shows image
-// posts and only image posts. The relationship is pinned as a derivation rather
-// than as two independent literals, so neither page can be reworded on its own.
+// People's sentence is still Social's single-filter shape with the one noun
+// this page earns: it shows image posts and only image posts. That shape is
+// FILTERS_UNAVAILABLE_HINT in src/feed-status.js, the default for a filter row
+// with one control, and the derivation from it is pinned here rather than as
+// two independent literals so People cannot be reworded on its own.
+//
+// Social no longer renders that shape (#2611). It has two menus and states the
+// wait for both of them in one sentence, so the thing the two pages are held to
+// is what a reader actually carries between them: one label for the control,
+// one term inside it, and one word for the wait. Naming the same filter two
+// ways is what #2542 was about, and that is still a red here.
 const NAME_FILTER_LABEL = "Filter posts by display name";
 const ALL_NAMES_OPTION = "All display names";
 const IMAGE_POSTS = (copy) => copy.replace(/\bposts\b/g, "image posts");
-/** A second word for the thing both filters select. "display name" is the term. */
-const RIVAL_TERM = /\bauthors?\b|\bposters?\b|\busernames?\b|\busers?\b|(?<!display )\bnames?\b/i;
+/**
+ * A second word for the thing both filters select. "display name" is the term,
+ * hyphenated or spaced — Social's row says "the display-name filter".
+ */
+const RIVAL_TERM = /\bauthors?\b|\bposters?\b|\busernames?\b|\busers?\b|(?<!display[ -])\bnames?\b/i;
 
 const socialNameLabel = (document) => [...document.querySelectorAll("label")]
   .find((label) => label.getAttribute("for") === "post-name-filter") ?? null;
@@ -630,8 +697,16 @@ test("Social and People label the display-name filter the same way, loading and 
   assert.equal(IMAGE_POSTS(NAME_FILTER_LABEL), "Filter image posts by display name");
   assert.equal(IMAGE_POSTS(FILTERS_UNAVAILABLE_HINT), PROFILE_FILTERS_UNAVAILABLE_HINT);
   for (const copy of [NAME_FILTER_LABEL, ALL_NAMES_OPTION, FILTERS_UNAVAILABLE_HINT, PROFILE_FILTERS_UNAVAILABLE_HINT,
-    IMAGE_POSTS(NAME_FILTER_LABEL)]) {
+    FEED_FILTERS_UNAVAILABLE_HINT, IMAGE_POSTS(NAME_FILTER_LABEL)]) {
     assert.doesNotMatch(copy, RIVAL_TERM, `"${copy}" names the selected thing a second way`);
+  }
+  // Social's two-menu sentence and People's one-menu sentence are different
+  // shapes, and they still have to be the same page of the same product: the
+  // term inside the control, and the word the wait is spelled in.
+  assert.equal(FEED_FILTERS_UNAVAILABLE_HINT.includes("display-name"), true,
+    "Social's row stopped using the term People's does for the filter they share");
+  for (const copy of [FEED_FILTERS_UNAVAILABLE_HINT, PROFILE_FILTERS_UNAVAILABLE_HINT]) {
+    assert.match(copy, /finish loading\.$/, `"${copy}" spells the wait its own way`);
   }
 
   const social = await loadPage(SOCIAL_PAGE, {});
@@ -647,7 +722,7 @@ test("Social and People label the display-name filter the same way, loading and 
   // frame that ships.
   assert.equal(textOf(socialNameLabel(social.document)), NAME_FILTER_LABEL);
   assert.deepEqual(optionTexts(social.document.querySelector("#post-name-filter")), [ALL_NAMES_OPTION]);
-  assert.equal(filterStatus(social.document), FILTERS_UNAVAILABLE_HINT);
+  assert.equal(filterStatus(social.document), FEED_FILTERS_UNAVAILABLE_HINT);
   assert.equal(textOf(people.document.querySelector("#profile-author-label")), IMAGE_POSTS(NAME_FILTER_LABEL));
   assert.equal(textOf(people.document.querySelector("#profile-filter-hint")), PROFILE_FILTERS_UNAVAILABLE_HINT);
 
@@ -656,7 +731,7 @@ test("Social and People label the display-name filter the same way, loading and 
   // a reader between the served frame and the first paint.
   const feed = mountSocialFeed(social.document, { posts: [], state: "loading" });
   const profile = mountProfile(people.document, { posts: MIXED, author: "Ari", state: "loading" });
-  assert.equal(filterStatus(social.document), FILTERS_UNAVAILABLE_HINT);
+  assert.equal(filterStatus(social.document), FEED_FILTERS_UNAVAILABLE_HINT);
   assert.equal(textOf(people.document.querySelector("#profile-filter-hint")), PROFILE_FILTERS_UNAVAILABLE_HINT);
 
   // Loaded: the label and the menu keep their words when the wait is over, and
@@ -666,7 +741,7 @@ test("Social and People label the display-name filter the same way, loading and 
   profile.seed(MIXED);
   assert.equal(textOf(socialNameLabel(social.document)), NAME_FILTER_LABEL);
   assert.equal(optionTexts(social.document.querySelector("#post-name-filter"))[0], ALL_NAMES_OPTION);
-  assert.notEqual(filterStatus(social.document), FILTERS_UNAVAILABLE_HINT);
+  assert.notEqual(filterStatus(social.document), FEED_FILTERS_UNAVAILABLE_HINT);
   assert.equal(textOf(people.document.querySelector("#profile-author-label")), IMAGE_POSTS(NAME_FILTER_LABEL));
   assert.equal(people.document.querySelectorAll("#profile-filter-hint").length, 0);
   // People's picker is chips and always has one name selected, so it has no

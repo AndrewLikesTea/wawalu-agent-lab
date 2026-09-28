@@ -67,9 +67,15 @@ export function filtersAvailable(phase) {
   return phase === "loaded" || phase === "filtered-empty";
 }
 
-// The one sentence the filter region says while its controls cannot do
-// anything. Caption weight, not content weight: it describes the controls
+// The sentence a filter region with ONE control says while that control cannot
+// do anything. Caption weight, not content weight: it describes the control
 // beside it rather than the feed, which the status region is already reporting.
+//
+// People renders it, one noun changed (PROFILE_FILTERS_UNAVAILABLE_HINT,
+// src/profile.js), and it stays the default here for any row of the same shape.
+// Social has two menus and says the wait for both of them in one sentence
+// instead (FEED_FILTERS_UNAVAILABLE_HINT, src/social.js), so it passes its own
+// `hintText`; the rest of this note is the rule that sentence still keeps.
 //
 // It names the display-name menu and nothing else (#2001). Both menus are shut
 // while the feed is open, but only one of them is also EMPTY: the time menu

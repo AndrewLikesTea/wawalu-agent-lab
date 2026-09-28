@@ -28,7 +28,7 @@ import {
 } from "./social-links.js";
 import { postPermalink, renderPostCopyControl } from "./post-share.js";
 import { mountPostReport, renderReportButton } from "./post-report.js";
-import { renderFeedStatus, feedPhase, feedPresence, filtersAvailable, retryFocus, setFilterAvailability, FILTERS_UNAVAILABLE_HINT } from "./feed-status.js";
+import { renderFeedStatus, feedPhase, feedPresence, filtersAvailable, retryFocus, setFilterAvailability } from "./feed-status.js";
 
 export { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH };
 
@@ -290,7 +290,7 @@ export const CLEAR_FILTERS_LABEL = "Clear filters";
 // get, and a menu is closed over its own answer.
 //
 // Three shapes, mutually exclusive:
-//   shut     — the wait, in the words the row has always used for it.
+//   shut     — the wait, for BOTH menus at once (FEED_FILTERS_UNAVAILABLE_HINT).
 //   open     — nothing set, said plainly, which is also exactly when Clear
 //              filters has nothing to do and is `disabled`.
 //   open     — the filters that are set, named in the menus' own option text.
@@ -305,39 +305,66 @@ export const CLEAR_FILTERS_LABEL = "Clear filters";
 // describe the controls it sits with.
 export const NO_FILTERS_APPLIED = "No filters applied.";
 
+// THE WAIT, SAID ONCE FOR THE WHOLE ROW (#2611). The row used to answer "when
+// can I use this?" twice, a line apart and in near-identical words: "Filter
+// posts by display name becomes available when posts finish loading." directly
+// above "Filter posts by posting time becomes available when posts finish
+// loading." Two sentences, one fact, and a reader who had read the first
+// learned nothing from the second except that they had to read it.
+//
+// So one sentence names both menus. It is a claim about the CONTROLS, not about
+// their contents, which is what keeps it true of both: the display-name menu is
+// empty until posts land and the time menu ships its four windows in the
+// markup, but both carry `disabled` until the fetch answers, and both stop
+// carrying it at the same moment. That distinction is why #2001 struck the time
+// menu out of the old sentence — it promised a reader CHOICES they could
+// already read — and saying the filter becomes available rather than its
+// options do is the same rule kept, for both menus at once.
+//
+// It names each menu in that menu's own label ("Filter posts by display name",
+// "Filter posts by posting time"), so a reader matches the sentence to the
+// controls above it without translating. And it waits in the status region's
+// word — "loading", FEED_LOADING_LINE below — so the row and the feed spell one
+// open fetch one way.
+//
+// What the posting-time windows measure is no longer part of this: it is true
+// whether or not the menu is operable, so it stays on the time menu's own line
+// in every state (timeFilterHintLine).
+export const FEED_FILTERS_UNAVAILABLE_HINT =
+  "The display-name and posting-time filters become available when posts finish loading.";
+
 export function filterStatusLine({ available = true, range = "", author = "" } = {}) {
-  if (!available) return FILTERS_UNAVAILABLE_HINT;
+  if (!available) return FEED_FILTERS_UNAVAILABLE_HINT;
   const clauses = filterClauses({ range, author });
   return clauses ? `Filtered to posts ${clauses}.` : NO_FILTERS_APPLIED;
 }
 
-// The time menu's own line, and the only place its two shapes are decided
-// (#2562). The row said which filters were set and why they were shut, and left
-// the one thing a reader cannot work out from a closed menu unsaid: what a
-// window measures. "From the past 24 hours" can be read as yesterday, as the
-// calendar day, or as the 24 hours before the moment it is chosen, and only the
-// last one is true.
+// The time menu's own line, and the only thing it says (#2562, #2611). The row
+// said which filters were set and why they were shut, and left the one thing a
+// reader cannot work out from a closed menu unsaid: what a window measures.
+// "From the past 24 hours" can be read as yesterday, as the calendar day, or as
+// the 24 hours before the moment it is chosen, and only the last one is true.
 //
-// Shut: the display-name line's sentence with this menu's label in it. One
-// availability shape for the row, said once per menu, so a reader who meets the
-// wait on one control meets the same wait on the other rather than a stranger.
-// The display-name line is unchanged and still names only its own menu, which is
-// what keeps it derivable from People's (#2542) — People has no time filter.
+// One shape, not two. This line used to carry a second availability sentence
+// while the fetch was open — the display-name line's sentence with this menu's
+// label in it — which put two near-identical waits one line apart at the foot
+// of the row. The wait is now the row's, said once by the line above
+// (FEED_FILTERS_UNAVAILABLE_HINT), and this line answers the question that one
+// does not: what a window is counted from. That answer is true of a shut menu
+// and of a working one, which is why it no longer has a loading shape and why
+// the menu points at it from the markup in every state.
 //
-// Open: what the windows mean, in one sentence. It names the menu's own term
-// ("posting time", from the label above the control) and quotes one option
-// exactly as the menu spells it, because a description that paraphrases the
-// thing it describes asks a reader to match two wordings. The example is the
-// middle window rather than the shortest: the hour is the option whose meaning
-// is hardest to get wrong, and the day is the one a reader is most likely to
-// read as a calendar day.
-export const TIME_FILTER_UNAVAILABLE_HINT = "Filter posts by posting time becomes available when posts finish loading.";
-
+// It names the menu's own term ("posting time", from the label above the
+// control) and quotes one option exactly as the menu spells it, because a
+// description that paraphrases the thing it describes asks a reader to match
+// two wordings. The example is the middle window rather than the shortest: the
+// hour is the option whose meaning is hardest to get wrong, and the day is the
+// one a reader is most likely to read as a calendar day.
 export const TIME_FILTER_WINDOW_HINT =
   "Each posting-time window counts back from the moment you choose it: From the past 24 hours shows posts published in the 24 hours before that moment.";
 
-export function timeFilterHintLine({ available = true } = {}) {
-  return available ? TIME_FILTER_WINDOW_HINT : TIME_FILTER_UNAVAILABLE_HINT;
+export function timeFilterHintLine() {
+  return TIME_FILTER_WINDOW_HINT;
 }
 
 // ---------------------------------------------------------------------------
@@ -797,9 +824,9 @@ const NO_POSTS_GUIDANCE = "Publish the first post and it appears here for anyone
 // wait. The offer belongs to the empty state, where it can also say what
 // publishing gets you.
 //
-// The verb is the one the filter row waits with (FILTERS_UNAVAILABLE_HINT,
-// src/feed-status.js) and the one People waits with, so the two lines a loading
-// Social shows describe one fetch in one word.
+// The verb is the one the filter row waits with (FEED_FILTERS_UNAVAILABLE_HINT
+// above) and the one People waits with, so the two lines a loading Social shows
+// describe one fetch in one word.
 //
 // People is not one of them. It waits on the same fetch but shows one display
 // name's image posts, so it says that instead (loadingSummaryText,
@@ -1399,17 +1426,18 @@ export function mountSocialFeed(root, options = {}) {
       hintText: filterStatusLine({ available: filtersOpen, ...named }),
       hintPersists: true,
     });
-    // The time menu's line, written the same way and in the same call order, so
-    // the two sentences at the foot of the row change together. No controls and
-    // no status region here: the menus were disabled by the call above, this one
-    // only owns words, and running the focus rescue twice would move a reader
-    // the first call had already placed. The menu points at this line in the
-    // markup rather than being pointed at it here, because unlike the line above
-    // it this description is true in every state.
+    // The time menu's line, written the same way and in the same call order. It
+    // says one thing in every state — what a posting-time window is counted
+    // from — so the wait above it is the row's only wait and is said once (#2611).
+    // No controls and no status region here: the menus were disabled by the call
+    // above, this one only owns words, and running the focus rescue twice would
+    // move a reader the first call had already placed. The menu points at this
+    // line in the markup rather than being pointed at it here, because unlike
+    // the line above it this description is true in every state.
     setFilterAvailability(filtersOpen, {
       hintHost: root.querySelector(".social-toolbar"),
       hintId: "post-time-filter-hint",
-      hintText: timeFilterHintLine({ available: filtersOpen }),
+      hintText: timeFilterHintLine(),
       hintPersists: true,
     });
     // And the reset follows what that sentence says. With both menus on "all"
