@@ -19,3 +19,12 @@
 /* The shared disclosure must accommodate long display names and keyboard focus. */
 #post-report-panel { position:static; min-width:0; overflow-wrap:anywhere; }
 #post-report-title:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; }
+
+/* The permalink's reporting explanation, drawn onto the loaded post by
+   src/post-page.js. Keyed on the parent so the handle's pointer and the site's
+   focus ring travel together, which is how every other disclosure on the site
+   is styled. It lives here rather than in styles.css because this stylesheet is
+   the one the Social surfaces already load and is not inside the initial-payload
+   size budget that styles.css is measured against. */
+.post-report-disclosure > summary { cursor:pointer; font-size:13px; font-weight:700; }
+.post-report-disclosure > summary:focus-visible { outline:3px solid var(--focus-ring); outline-offset:2px; }

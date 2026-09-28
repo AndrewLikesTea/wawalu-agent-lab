@@ -56,7 +56,12 @@ const OPEN_PAGES = ["index.html", "evolution.html", "agent-trace.html"];
 // of them says. Every other page is held to INVITATION alone.
 const FEED_INVITATION = `${INVITATION} The topics below are about Shiplog — whether it is available for your team, a demonstration, a pilot, and security and data handling — not about an individual post; if your question is about one of the posts, select Report post on that post instead.`;
 const EXPECTED_INVITATION = {
-  "post.html": `${INVITATION} The topics below are about Shiplog — whether it is available for your team, a demonstration, a pilot, and security and data handling — not about this post. If your question is about this post itself, select Report post instead. Nothing about the post is attached to the request automatically. Select Copy link to this post above, then paste the link into the Anything else we should know? field so the team knows which post you mean.`,
+  // The shipped markup, which is the waiting page: the two sentences that tell
+  // a reader to select Report post or Copy link to this post are added to this
+  // paragraph by src/post-page.js once a post loads, and only then, because
+  // neither button is drawn before one does (#2603). The loaded wording is held
+  // in tests/post-follow-up-copy.test.js, which drives the page through both.
+  "post.html": `${INVITATION} The topics below are about Shiplog — whether it is available for your team, a demonstration, a pilot, and security and data handling — not about this post. Nothing about the post is attached to the request automatically.`,
   "social.html": FEED_INVITATION,
   "profile.html": FEED_INVITATION,
 };
@@ -104,11 +109,13 @@ test("on every task page the follow-up block is read before the directory", asyn
     assert.ok(panel < directory, `${file}: the directory is read before the follow-up form`);
     // Last, not merely late: nothing of the band follows the map.
     assert.equal(directory, band.length - 1, `${file}: something was added after the directory`);
-    // The post page adds three sentences of its own after INVITATION's two —
-    // what the topics cover, where a question about the post goes, and how to
-    // name the post in the request — but it opens on the same heading line as
-    // every other page (#2436). The last sentence quotes the two controls it
-    // asks for by their visible labels (#2541).
+    // The post page adds a sentence of its own after INVITATION's two — what
+    // the topics cover, and that nothing about the post is attached — but it
+    // opens on the same heading line as every other page (#2436). Where a
+    // question about the post goes, and how to name the post in the request,
+    // are two more sentences that quote their controls by visible label (#2541)
+    // and are withheld from the shipped markup until those controls are drawn
+    // (#2603), so they are not part of what this file reads.
     //
     // Social and People add the first two of those in one sentence (#2557): they
     // list posts rather than showing one, so they say the topics are not about an
