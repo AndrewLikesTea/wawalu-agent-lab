@@ -19,6 +19,7 @@ import { POST_COPY_LABEL } from "../src/post-share.js";
 // them (#2541): "your message" named nothing on this page, and the free-text
 // input under the topics is labelled "Anything else we should know?".
 const invitation = "Questions about Shiplog? Send the Wawalu team that operates it a follow-up request. The topics below are about Shiplog — whether it is available for your team, a demonstration, a pilot, and security and data handling — not about this post. If your question is about this post itself, select Report post instead. Nothing about the post is attached to the request automatically. Select Copy link to this post above, then paste the link into the Anything else we should know? field so the team knows which post you mean.";
+const initialInvitation = invitation.replace(" If your question is about this post itself, select Report post instead.", "").replace(" Select Copy link to this post above, then paste the link into the Anything else we should know? field so the team knows which post you mean.", "");
 const post = { id: "p-copy", author: "Mina Okafor", body: "Focus rings landed everywhere.", createdAt: "2026-07-14T09:00:00.000Z", likes: 0, comments: 0 };
 
 for (const state of ["loading", "loaded"]) {
@@ -32,7 +33,7 @@ for (const state of ["loading", "loaded"]) {
     const rows = [];
     let release;
     try {
-      assert.equal(textOf(document.querySelector(".site-footer-invitation")), invitation);
+      assert.equal(textOf(document.querySelector(".site-footer-invitation")), initialInvitation);
       globalThis.fetch = async (url, options) => {
         if (url === "/social-demo-data.json") {
           await new Promise((resolve) => { release = resolve; });
@@ -54,7 +55,7 @@ for (const state of ["loading", "loaded"]) {
       }
       assert.equal(byId("post-detail").dataset.postState, state);
       assert.match(textOf(byId("page-title")), /post/i);
-      assert.equal(textOf(document.querySelector(".site-footer-invitation")), invitation);
+      assert.equal(textOf(document.querySelector(".site-footer-invitation")), state === "loaded" ? invitation : initialInvitation);
       assert.equal(textOf(byId("site-footer-topic-note")), "This request is sent about the Social post page — one post from Social, at its own link.");
       assert.equal(byId("site-footer-topic-note").hidden, false);
       byId("site-footer-intent-demo").click();
@@ -133,14 +134,14 @@ test("Social feed keeps its general invitation and fixed topic", async () => {
 // and it names the reporting control exactly as src/post-report.js does. The
 // pointer is in the invitation, which every task page reads before the panel
 // (tests/footer-directory-order.test.js), so it is above the topic choices.
-test("the post page opens on Social's heading line and points a post question at Report post", async () => {
+test("the loading post page opens on Social's heading line without naming an absent reporting control", async () => {
   const page = await loadPage(new URL("../src/post.html", import.meta.url));
   try {
     const paragraph = textOf(page.document.querySelector(".site-footer-invitation"));
     assert.ok(paragraph.startsWith(`${INVITATION} `),
       "the post page no longer opens on the invitation every other page carries");
-    assert.ok(paragraph.includes(`select ${REPORT_POST_LABEL} instead`),
-      `the post page names the reporting control something other than "${REPORT_POST_LABEL}"`);
+    assert.ok(!paragraph.includes(`select ${REPORT_POST_LABEL} instead`),
+      `the loading post page unexpectedly names "${REPORT_POST_LABEL}"`);
     const markup = await readFile(new URL("../src/post.html", import.meta.url), "utf8");
     assert.ok(markup.indexOf('class="site-footer-invitation"') < markup.indexOf('id="site-footer-intent"'),
       "the pointer to Report post is read after the topic choices");

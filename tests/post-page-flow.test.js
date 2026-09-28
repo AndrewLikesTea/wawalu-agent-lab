@@ -345,98 +345,53 @@ test("the permalink opens with the post in every state, not with its caveats", a
 // with a post that needs looking at.
 //
 // The route identifies the loaded post action; consequences stay shared with Social.
-const REPORT_ROUTE = "Once this post loads, select Report post beside the post’s actions to ask the Wawalu team to review it.";
-const REPORT_ABOUT = "Report post asks for a reason, an optional note, and your email address. The report goes only to the Wawalu team, who review each one. A report does not remove or hide the post, and not every report leads to removal.";
-// What happens to a report and what it can lead to: the account this page states
-// once, and the bytes every other surface that mentions a report uses.
-const REPORT_CONSEQUENCE = "The report goes only to the Wawalu team, who review each one. A report does not remove or hide the post, and not every report leads to removal.";
+const REPORT_ROUTE = "If your question is about this post itself, select Report post instead.";
+const REPORT_ABOUT = "Report post opens a short form about that one post. Choose a reason, add a note if you want to, and give your email address. The report goes only to the Wawalu team, who review each one. A report does not remove or hide the post, and not every report leads to removal. The team decides after review whether to remove it.";
 
-test("the permalink explains its reporting control with the shared consequence copy", async () => {
-  const html = (await readFile(new URL("../src/social.html", import.meta.url), "utf8")).replace(/<!--[\s\S]*?-->/g, "");
-  // Anchored on its opening words rather than typed out, so a Social that
-  // rewords the consequence fails here instead of drifting away from this page.
-  const shipped = html.match(/The report goes only to the Wawalu team[^<]*not every report leads to removal\./)?.[0];
-  assert.ok(shipped, "Social no longer says what happens to a report and what it can lead to");
-  assert.equal(REPORT_CONSEQUENCE, shipped, `the permalink does not ship Social's consequence: ${shipped}`);
-  assert.ok(REPORT_ABOUT.endsWith(REPORT_CONSEQUENCE), "the permalink's explanation reworded the shared consequence");
-  // Social keeps the route that belongs to a page with the button on it. This
-  // page must not ship it: it names a control that is not here, about "a post"
-  // rather than the one being read.
-  const socialRoute = html.match(/To ask the Wawalu team[^<]*/)?.[0]?.trim();
-  assert.equal(socialRoute, "To ask the Wawalu team to review a post, select Report post on it.",
-    `Social's own route to its button changed: ${socialRoute}`);
-
-  // And the permalink's markup carries each of its own sentences exactly once,
-  // so the page ships them to a reader whose script never runs.
-  const post = (await readFile(new URL("../src/post.html", import.meta.url), "utf8")).replace(/<!--[\s\S]*?-->/g, "");
-  for (const [name, clause] of Object.entries({ route: REPORT_ROUTE, explanation: REPORT_ABOUT })) {
-    assert.equal(post.split(clause).length - 1, 1, `the permalink's markup carries the reporting ${name} other than exactly once`);
+test("the reporting disclosure exactly reuses Social and supports native keyboard activation", async () => {
+  const page = await loadPage(new URL("../src/post.html", import.meta.url));
+  try {
+    const { document } = page;
+    const disclosure = document.querySelector("#post-report-about");
+    const summary = disclosure.querySelector("summary");
+    const social = await readFile(new URL("../src/social.html", import.meta.url), "utf8");
+    assert.equal(summary.textContent, social.match(/<a class="text-link" href="#post-report-about">(.*?)<\/a>/)[1]);
+    assert.equal(disclosure.querySelector("p").textContent,
+      social.match(/<p class="hint" id="post-report-about">(.*?)<\/p>/)[1]);
+    assert.equal(disclosure.hasAttribute("open"), false);
+    assert.ok(tabSequence(document).includes(summary));
+    summary.focus();
+    for (const key of ["Enter", "Enter", " ", " "]) {
+      const wasOpen = disclosure.hasAttribute("open");
+      pressKey(document, key);
+      assert.equal(disclosure.hasAttribute("open"), !wasOpen);
+      assert.equal(document.activeElement, summary);
+    }
+    const css = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
+    assert.match(css, /#post-report-about summary:focus-visible \{ outline:3px solid var\(--focus-ring\); outline-offset:2px/);
+  } finally {
+    page.restore();
   }
-  assert.equal(post.includes(socialRoute), false, "the permalink ships the route to a button it does not have");
-  // One account of what a report can lead to, not two differently worded ones.
-  assert.equal(post.split(REPORT_CONSEQUENCE).length - 1, 1, "the permalink states the consequence other than exactly once");
-  assert.equal(post.split(/not every report leads to removal/).length - 1, 1,
-    "the permalink carries a second phrasing of what a report can lead to");
-  // Not in the follow-up block: that form's wording is pinned byte for byte
-  // elsewhere, and a sentence about reporting a post is not a step in asking
-  // the team a question about it.
-  assert.equal(post.slice(post.indexOf('<footer class="site-footer"')).includes(REPORT_ROUTE), false,
-    "the reporting route landed in the footer's follow-up block");
 });
 
-// Standing copy, wherever the lookup ended up: it lives in the page's own frame
-// rather than in #post-detail, which every render empties. Counted over the
-// whole body, located by one combined query (document order), and compared as
-// booleans and counts, never as nodes.
 function assertReportingStands(document, where) {
-  const body = textOf(document.body);
-  for (const [name, clause] of Object.entries({ route: REPORT_ROUTE, explanation: REPORT_ABOUT })) {
-    assert.equal(body.split(clause).length - 1, 1,
-      `${where}: the page states the reporting ${name} other than exactly once`);
-  }
-
-  const flow = document.querySelector("#main-content").querySelectorAll("h1,p,a");
-  const at = (text) => flow.findIndex((node) => node.tagName === "P" && textOf(node) === text);
-  const reading = [flow.findIndex((node) => node.id === "post-back"),
-    flow.findIndex((node) => node.id === "post-publish"), at(IDENTITY), at(REPORT_ROUTE), at(REPORT_ABOUT)];
-  assert.ok(reading.every((index) => index >= 0),
-    `${where}: the display-name caveat, a reporting sentence or the Social link left the page's content`);
-  assert.deepEqual(reading.slice().sort((a, b) => a - b), reading,
-    `${where}: both Social links precede the display-name caveat and reporting explanation`);
-
-  const postRegion = document.querySelector("#post-detail").closest("section");
-  const siblings = postRegion.parentNode.children.filter((node) => node.getAttribute);
-  const row = document.querySelector(".detail-page-exits");
-  assert.ok(siblings[siblings.indexOf(postRegion) + 1] === row,
-    `${where}: the onward row immediately follows the post region`);
-  assert.equal(body.split(IDENTITY).length - 1, 1, `${where}: the display-name caveat stays unchanged`);
-
+  const disclosure = document.querySelector("#post-report-about");
+  assert.equal(disclosure.tagName, "DETAILS", where);
+  assert.equal(textOf(disclosure.querySelector("summary")), "How reporting works");
+  assert.equal(textOf(disclosure.querySelector("p")), REPORT_ABOUT);
+  assert.equal(disclosure.hasAttribute("open"), false);
+  const flow = document.querySelector("#main-content").querySelectorAll("#post-detail,#post-back,#post-publish,p.hint,details");
+  const identity = flow.find((node) => textOf(node) === IDENTITY);
+  assert.ok(flow.indexOf(disclosure) > flow.indexOf(identity));
+  assert.ok(flow.indexOf(identity) > flow.indexOf(document.querySelector("#post-publish")));
+  assert.equal(disclosure.closest("#post-detail"), null);
   const sequence = tabSequence(document);
-  const links = [document.querySelector("#post-back"), document.querySelector("#post-publish")];
-  for (const [index, expected] of [SOCIAL, PUBLISH].entries()) {
-    const link = links[index];
-    assert.equal(document.querySelectorAll(`#${link.id}`).length, 1);
-    assert.equal(textOf(link), expected.label, `${where}: unchanged Social link text`);
-    assert.equal(link.getAttribute("href"), expected.href, `${where}: unchanged destination`);
-    assert.ok(sequence.includes(link), `${where}: Social link is keyboard reachable`);
-    assert.equal(link.getAttribute("tabindex"), null, `${where}: natural focus order`);
-  }
-  assert.ok(sequence.indexOf(links[0]) < sequence.indexOf(links[1]), `${where}: feed before publish`);
-  links[0].focus();
-  let next = pressTab(document);
-  if (next.id === "post-people") next = pressTab(document);
-  assert.ok(next === links[1], `${where}: Tab reaches publish in document order`);
-
-  for (const [name, index] of Object.entries({ route: reading[3], explanation: reading[4] })) {
-    assert.equal(flow[index].getAttribute("class"), "hint",
-      `${where}: the reporting ${name} lost the class the caveat beside it uses`);
-    for (const region of ["#post-detail", "#site-footer"]) {
-      assert.equal(Boolean(flow[index].closest(region)), false, `${where}: the reporting ${name} sits inside ${region}`);
-    }
-  }
+  const publish = document.querySelector("#post-publish");
+  assert.equal(sequence[sequence.indexOf(publish) + 1], disclosure.querySelector("summary"));
+  assertReportingRouteReads(document, where);
 }
 
-test("the permalink states the reporting path while the post loads and once it has loaded", async () => {
+test("the reporting disclosure stays available while action guidance follows post state", async () => {
   const cold = await loadPage(new URL("../src/post.html", import.meta.url), { location: { search: "?id=p-image" } });
   try {
     assertReportingStands(cold.document, "before the script runs");
@@ -460,8 +415,7 @@ test("the permalink states the reporting path while the post loads and once it h
     cold.restore();
   }
 
-  // A link that resolved to nothing is the state a reader is most likely to
-  // want the team for, so the sentences stand there too.
+  // Unresolved posts retain the explanation without instructions to use absent controls.
   for (const [state, search, answer] of [
     ["not-found", "?id=p-gone", seedOnly([SEED_POST])],
     ["error", "?id=p-image", () => { throw new TypeError("Failed to fetch"); }],
@@ -1053,9 +1007,12 @@ const reportControls = (document) => ({
 // a renamed control fails here rather than leaving a reader hunting for words
 // that are no longer on the screen.
 function assertReportingRouteReads(document, where) {
-  assert.equal(textOf(document.body).split(REPORT_ROUTE).length - 1, 1,
-    `${where}: the page does not state the reporting route exactly once`);
-  assert.ok(REPORT_ROUTE.includes(REPORT_POST_LABEL), "the route names the reporting control something else");
+  const loaded = document.querySelector("#post-detail").dataset.postState === "loaded";
+  const invitation = textOf(document.querySelector(".site-footer-invitation"));
+  assert.equal(invitation.includes(REPORT_ROUTE), loaded, where);
+  assert.equal(invitation.includes("Select Copy link to this post above"), loaded, where);
+  assert.equal(Boolean(document.querySelector(".post-report-button")), loaded, where);
+  assert.equal(Boolean(document.querySelector("#post-copy")), loaded, where);
   const social = document.querySelector("#post-back");
   assert.equal(textOf(social), SOCIAL.label, `${where}: the route names a Social link the page does not ship`);
   assert.equal(social.getAttribute("href"), SOCIAL.href, `${where}: the named link does not go to Social`);

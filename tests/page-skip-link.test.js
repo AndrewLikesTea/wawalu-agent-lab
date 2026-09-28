@@ -366,19 +366,19 @@ test("the post page's loading tab order reaches Social without a placeholder Peo
   const walked = Array.from({ length: FRAME_STOPS }, () => textOf(pressTab(document)));
   assert.deepEqual(walked, sequence.slice(0, FRAME_STOPS).map((stop) => textOf(stop)));
 
-  // After the exit, the next stops a keyboard reader reaches are the footer's:
-  // its site map, in the band's own order, and then the contact field and action.
-  // Nothing the shipped post markup contains sits between them — the image and
-  // the caption are rendered by post-detail.js and carry no links of their own
-  // (a caption is text, never markup — PRODUCT.md), so the order the review
-  // asked for — exit, image link, caption links, footer — holds with its middle
-  // two steps empty.
+  // The native reporting disclosure is the one content stop before the footer.
+  const summary = sequence[FRAME_STOPS];
+  assert.equal(summary.tagName, "SUMMARY");
+  assert.equal(textOf(summary), "How reporting works");
+  assert.equal(summary.parentNode.id, "post-report-about");
+  assert.equal(pressTab(document), summary);
+  const footerStart = FRAME_STOPS + 1;
   // One stop per row, including the row for the page the navigation files
   // inside another destination — see `filedUnder` in src/site-footer.js.
   const bandStops = DEMOS.map((demo) => demo.label);
   // The follow-up block's fields carry no text of their own, so they are named
   // by id: the optional question #2153 added, then the work email beneath it.
-  const afterExit = sequence.slice(FRAME_STOPS).map((stop) => textOf(stop) || stop.id);
+  const afterExit = sequence.slice(footerStart).map((stop) => textOf(stop) || stop.id);
   // The band opens on the sentence that says who Shiplog is for, so its pointer
   // at the worked decision is the first footer stop, and the repository link
   // #2152 put in the shared block is the second. On this page the map is folded
@@ -403,13 +403,13 @@ test("the post page's loading tab order reaches Social without a placeholder Peo
     return false;
   };
   assert.deepEqual(
-    afterExit.filter((_, index) => !closed(sequence[FRAME_STOPS + index])).slice(0, 7),
+    afterExit.filter((_, index) => !closed(sequence[footerStart + index])).slice(0, 7),
     [PITCH_LINK, SOURCE_LINK_LABEL, INTENT_STOP,
       "site-footer-message", "site-footer-email", "Request a follow-up", DIRECTORY_SUMMARY],
-    "with the directory closed, the form must still be five stops from the exit",
+    "with the directory closed, the form must still be reachable after the disclosure",
   );
   assert.ok(
-    sequence.slice(FRAME_STOPS).every((stop) => stop.closest("#site-footer")),
+    sequence.slice(footerStart).every((stop) => stop.closest("#site-footer")),
     "a control on the post page sits between the exit and the footer",
   );
 });

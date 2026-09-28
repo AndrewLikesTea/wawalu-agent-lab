@@ -56,7 +56,7 @@ const OPEN_PAGES = ["index.html", "evolution.html", "agent-trace.html"];
 // of them says. Every other page is held to INVITATION alone.
 const FEED_INVITATION = `${INVITATION} The topics below are about Shiplog — whether it is available for your team, a demonstration, a pilot, and security and data handling — not about an individual post; if your question is about one of the posts, select Report post on that post instead.`;
 const EXPECTED_INVITATION = {
-  "post.html": `${INVITATION} The topics below are about Shiplog — whether it is available for your team, a demonstration, a pilot, and security and data handling — not about this post. If your question is about this post itself, select Report post instead. Nothing about the post is attached to the request automatically. Select Copy link to this post above, then paste the link into the Anything else we should know? field so the team knows which post you mean.`,
+  "post.html": `${INVITATION} The topics below are about Shiplog — whether it is available for your team, a demonstration, a pilot, and security and data handling — not about this post. Nothing about the post is attached to the request automatically.`,
   "social.html": FEED_INVITATION,
   "profile.html": FEED_INVITATION,
 };

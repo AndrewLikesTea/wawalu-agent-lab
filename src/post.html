@@ -220,8 +220,10 @@
              reading as a note under the post rather than as part of it. -->
         <p>The example posts on Social are invented to demonstrate Shiplog and use no customer or production data; anyone can read a post a visitor publishes.</p>
         <p class="hint">Whoever published this post chose the display name on it; nobody owns or verifies a display name on Social.</p>
-        <p class="hint">Once this post loads, select Report post beside the post’s actions to ask the Wawalu team to review it.</p>
-        <p class="hint">Report post asks for a reason, an optional note, and your email address. The report goes only to the Wawalu team, who review each one. A report does not remove or hide the post, and not every report leads to removal.</p>
+        <details id="post-report-about" class="hint">
+          <summary>How reporting works</summary>
+          <p class="hint">Report post opens a short form about that one post. Choose a reason, add a note if you want to, and give your email address. The report goes only to the Wawalu team, who review each one. A report does not remove or hide the post, and not every report leads to removal. The team decides after review whether to remove it.</p>
+        </details>
         <!-- No publication consequence here. It used to stand in this hero, word
              for word the sentence Social's composer shows beside Publish post,
              on the reasoning that a permalink is the page a visitor meets cold.
@@ -271,7 +273,7 @@
         <p class="site-footer-identity">On this site you can analyze your own AI spend, check a prompt before you send it, and read the decisions and releases behind it. Shiplog is a demonstration product, built and operated by Wawalu at labs.wawalu.org.</p>
         <p class="site-footer-identity site-footer-pitch">Shiplog is for engineering teams that answer for an AI bill and a release history. See <a href="/evolution.html#workspace-answer">the worked decision in AI FinOps</a>.</p>
         <p class="site-footer-identity"><a id="site-footer-source" href="https://github.com/AndrewLikesTea/wawalu-agent-lab">Open the public repository this site is built from</a></p>
-        <p class="site-footer-invitation">Questions about Shiplog? Send the Wawalu team that operates it a follow-up request. The topics below are about Shiplog — whether it is available for your team, a demonstration, a pilot, and security and data handling — not about this post. If your question is about this post itself, select Report post instead. Nothing about the post is attached to the request automatically. Select Copy link to this post above, then paste the link into the Anything else we should know? field so the team knows which post you mean.</p>
+        <p class="site-footer-invitation">Questions about Shiplog? Send the Wawalu team that operates it a follow-up request. The topics below are about Shiplog — whether it is available for your team, a demonstration, a pilot, and security and data handling — not about this post.<span id="post-report-guidance"></span> Nothing about the post is attached to the request automatically.<span id="post-copy-guidance"></span></p>
         <div class="site-footer-panel" id="site-footer-panel">
           <form id="site-footer-form" class="site-footer-form" data-follow-up-type="follow_up_social" data-follow-up-topic="Social post page — one post from Social, at its own link" novalidate>
             <p class="site-footer-note" id="site-footer-offer">There is no self-serve signup and no published price. Whether Shiplog is available for your team and what it would cost are both answered on request.</p>

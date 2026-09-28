@@ -89,6 +89,14 @@ async function init() {
   // is the one where a link's words promise something the page cannot supply,
   // and this link promises nothing about this post.
 
+  // Only name actions after their controls have been rendered.
+  const updateGuidance = () => {
+    document.querySelector("#post-report-guidance").textContent = container.querySelector(".post-report-button")
+      ? " If your question is about this post itself, select Report post instead." : "";
+    document.querySelector("#post-copy-guidance").textContent = container.querySelector("#post-copy")
+      ? " Select Copy link to this post above, then paste the link into the Anything else we should know? field so the team knows which post you mean." : "";
+  };
+
   const heading = document.querySelector("#page-title");
   const nameHeading = (post) => {
     if (heading) heading.textContent = postPageHeading(post);
@@ -104,6 +112,7 @@ async function init() {
     document.title = postDetailTitle(null, "loading");
     offerPeople(false);
     renderPostDetail(container, null, { state: "loading", id, author: requestedAuthor, returnHref: POST_EXITS.social.href });
+    updateGuidance();
     let post = null;
     let failed = false;
     if (id) {
@@ -143,6 +152,7 @@ async function init() {
         renderReportButton(post, when, (selected, opener) => report.open(selected, opener)),
       );
     }
+    updateGuidance();
     nameHeading(post);
     aimPeople(post?.author ?? "");
     offerPeople(Boolean(post));

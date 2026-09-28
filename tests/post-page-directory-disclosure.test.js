@@ -326,11 +326,10 @@ test("the permalink's tab order runs skip, nav, post, exits, follow-up, director
   assert.ok(at(SUMMARY) > at("#site-footer-email"), "the follow-up field is reached before the summary");
   assert.equal(at(SUMMARY), stops.length - 1, "the folded map is the last stop on the page");
 
-  // Two stops between the last exit and the follow-up block, and both belong to
-  // the shared band rather than to this page: its pointer at the worked
-  // decision, and the repository link #2152 added beneath it.
+  // The reporting summary follows the exits, then the shared band’s worked
+  // decision and repository links precede the follow-up form.
   const between = stops.slice(exits[2] + 1, at(INTENT)).map(textOf);
-  assert.deepEqual(between, [PITCH_LINK, SOURCE_LINK_LABEL]);
+  assert.deepEqual(between, ["How reporting works", PITCH_LINK, SOURCE_LINK_LABEL]);
 
   // The whole sequence, end to end, with the directory shut. The block's fields
   // carry no text of their own — the intent group #2365 added (one stop), the

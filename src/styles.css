@@ -300,6 +300,7 @@ article:target .decision-card { border-color:#1f70c1; box-shadow:0 0 0 3px #cfe2
 .detail-panel { margin-top:24px; min-height:0; }
 .detail-back { display:inline-flex; align-items:center; gap:8px; margin-bottom:24px; color:#62625d; font:700 13px/1 system-ui,sans-serif; text-decoration:none; }
 .detail-back:hover { color:#171713; text-decoration:underline; }
+#post-report-about summary:focus-visible { outline:3px solid var(--focus-ring); outline-offset:2px; }
 .detail-back:focus-visible { outline:3px solid var(--focus-ring); outline-offset:2px; border-radius:6px; }
 .detail-back-arrow { font-size:15px; }
 .release-detail { display:grid; gap:28px; }
