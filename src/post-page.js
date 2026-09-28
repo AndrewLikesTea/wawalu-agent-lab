@@ -6,7 +6,10 @@
 // asked first, and the seed is still consulted when the API has no answer.
 
 import { normalizeProfileApiPosts, normalizeSeedPosts } from "/profile.js";
-import { POST_EXITS, findPostById, postDetailTitle, postPageHeading, postPeopleHref, postPeopleLabel, renderPostDetail } from "/post-detail.js";
+import {
+  POST_EXITS, findPostById, postDetailTitle, postPageHeading, postPeopleHref, postPeopleLabel,
+  postProvenanceSentence, renderPostDetail,
+} from "/post-detail.js";
 
 import { mountPostReport, renderReportButton } from "/post-report.js";
 
@@ -152,6 +155,22 @@ async function init() {
     if (heading) heading.textContent = postPageHeading(post);
   };
 
+  // What the post is, said about the post rather than about the feed it came out
+  // of (#2607). src/post.html ships the sentence that names both provenances and
+  // commits to neither, because that is all a page can honestly say before it has
+  // read the post — and it is what a reader whose script never runs is left with.
+  // Once a post arrives this writes the answer for that one post over it, and
+  // every attempt starts by putting the hedge back: a retry after a loaded post,
+  // and a lookup that ends in not-found or error, have no post to be specific
+  // about. The paragraph is the same paragraph throughout, in the same place in
+  // reading order, so the claim moves from general to specific without the page
+  // gaining or losing a line under the reader.
+  const provenance = document.querySelector("#post-provenance");
+  const bothProvenances = provenance?.textContent ?? "";
+  const sayProvenance = (post) => {
+    if (provenance) provenance.textContent = postProvenanceSentence(post) || bothProvenances;
+  };
+
   const load = async ({ fromRetry = false } = {}) => {
     // The heading only names a post once there is one. Until then it names the
     // page, and the panel below carries the state. The marker goes back to
@@ -162,6 +181,7 @@ async function init() {
     document.title = postDetailTitle(null, "loading");
     offerPeople(false);
     nameControls(false);
+    sayProvenance(null);
     renderPostDetail(container, null, { state: "loading", id, author: requestedAuthor, returnHref: POST_EXITS.social.href });
     let post = null;
     let failed = false;
@@ -203,6 +223,7 @@ async function init() {
       );
     }
     nameControls(Boolean(post));
+    sayProvenance(post);
     nameHeading(post);
     aimPeople(post?.author ?? "");
     offerPeople(Boolean(post));
