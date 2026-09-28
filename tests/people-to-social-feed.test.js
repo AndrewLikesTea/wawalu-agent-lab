@@ -289,7 +289,7 @@ test("Social opened at that URL is already filtered, and Clear filters puts ever
   // And the summary sentence describes that narrowed result, in the menu's own
   // words, with the ordering it always states and no second copy of it.
   const summary = textOf(document.querySelector("#feed-summary"));
-  assert.equal(summary, `Showing 2 of ${FEED.length} posts by ${BEA}, newest first.`);
+  assert.equal(summary, `Showing 2 of ${FEED.length} posts by ${BEA}, all example posts, newest first.`);
 
   const clear = document.querySelector("#post-filter-clear");
   assert.equal(textOf(clear), CLEAR_FILTERS_LABEL);
@@ -298,7 +298,7 @@ test("Social opened at that URL is already filtered, and Clear filters puts ever
 
   assert.equal(menu.value, "all", "Clear filters left the forwarded name selected");
   assert.equal(document.querySelectorAll(".post-card").length, FEED.length);
-  assert.equal(textOf(document.querySelector("#feed-summary")), `Showing ${FEED.length} posts, newest first.`);
+  assert.equal(textOf(document.querySelector("#feed-summary")), `Showing ${FEED.length} posts, all example posts, newest first.`);
 });
 
 test("a forwarded name the feed does not carry leaves the whole feed showing", async (t) => {
@@ -310,5 +310,5 @@ test("a forwarded name the feed does not carry leaves the whole feed showing", a
   assert.equal(menu.value, "all");
   assert.equal(menu.options.filter((option) => option.value === "Nobody Here").length, 0);
   assert.equal(document.querySelectorAll(".post-card").length, FEED.length);
-  assert.equal(textOf(document.querySelector("#feed-summary")), `Showing ${FEED.length} posts, newest first.`);
+  assert.equal(textOf(document.querySelector("#feed-summary")), `Showing ${FEED.length} posts, all example posts, newest first.`);
 });

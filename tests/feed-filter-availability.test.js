@@ -254,7 +254,7 @@ test("each of Social's filters says once when it becomes available, and neither 
   time.dispatchEvent({ type: "change" });
   assert.equal(rendered(document, ".post-card"), 3, "the feed did not come back when the filters were cleared");
   assert.equal(textOf(socialNameLabel(document)), "Filter posts by display name");
-  assert.equal(textOf(document.querySelector("#feed-summary")), "Showing 3 posts, newest first.");
+  assert.equal(textOf(document.querySelector("#feed-summary")), "Showing 3 posts, all example posts, newest first.");
   assert.equal(says(", newest first."), 1, "the page states its order more than once");
 });
 
@@ -406,7 +406,7 @@ test("the filter row's status line describes the controls beside it without anno
   assert.equal(filterStatus(document), NO_FILTERS_APPLIED);
   assert.doesNotMatch(filterStatus(document), /newest|oldest|order/i, "the row restates the feed's ordering");
   assert.doesNotMatch(filterStatus(document), /\d/, "the row restates the feed's count");
-  assert.equal(textOf(document.querySelector("#feed-summary")), "Showing 2 posts, newest first.");
+  assert.equal(textOf(document.querySelector("#feed-summary")), "Showing 2 posts, all example posts, newest first.");
 });
 
 // #2001. The row promised BOTH menus' options "when posts load" while the time

@@ -22,7 +22,7 @@ import { captionFor, countLabel, profileHref } from "./profile.js";
 import { renderImageUnavailable } from "./image-description.js";
 import { pageTitle } from "./page-title.js";
 import { postPermalink, renderPostCopyControl } from "./post-share.js";
-import { normalizeImage } from "./social.js";
+import { EXAMPLE_POST_LABEL, isExamplePost, normalizeImage } from "./social.js";
 
 // The three routes out of a permalink, named once and shipped in src/post.html.
 //
@@ -565,6 +565,22 @@ export function renderPostDetail(container, post, options = {}) {
   const time = el("time", "post-date detail-date", formatDateTime(post.createdAt));
   time.dateTime = post.createdAt;
   article.append(time);
+
+  // Whether this post is invented, said on the post. A reader who arrived on a
+  // shared link has no feed around them, so the permalink cannot lean on the
+  // caveat above a list the way Social and People can — this is the page's one
+  // per-post statement of it, in the same two words and the same .badge-example
+  // shape both of those surfaces print, after the display name and the time the
+  // way a card's byline carries it. Nothing at all on a post a visitor
+  // published: an empty or hidden marker beside real content is a distinction a
+  // reader cannot see. It is a paragraph of its own rather than a word appended
+  // to the byline, because the byline is the name, linked, and this is not part
+  // of anybody's name.
+  if (isExamplePost(post)) {
+    const provenance = el("p", "detail-byline detail-post-example");
+    provenance.append(el("span", "badge badge-example", EXAMPLE_POST_LABEL));
+    article.append(provenance);
+  }
 
   // A dedicated caption does not replace the post body, so show the body too
   // when they differ — otherwise the detail view would hide text the feed shows.

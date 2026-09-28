@@ -110,7 +110,8 @@ test("Social states the total when nothing is filtered, and it is the number of 
   // No denominator when nothing narrowed the feed: "4 of 4 posts" would offer a
   // reader a fraction to read where there is only a total.
   assert.doesNotMatch(textOf(document.querySelector("#post-count")), / of /);
-  assert.equal(textOf(document.querySelector("#feed-summary")), `Showing ${drawn} posts, newest first.`);
+  assert.equal(textOf(document.querySelector("#feed-summary")),
+    `Showing ${drawn} posts, all example posts, newest first.`);
 });
 
 test("Social states shown and total once a filter is on, in one shape", async (t) => {
@@ -126,7 +127,7 @@ test("Social states shown and total once a filter is on, in one shape", async (t
   // The sentence below the filters counts the same posts by the same rule, so
   // the two lines a reader meets on the way to the cards say one thing.
   assert.equal(textOf(document.querySelector("#feed-summary")),
-    `Showing ${drawn} of 4 posts by Zed, newest first.`);
+    `Showing ${drawn} of 4 posts by Zed, all example posts, newest first.`);
 
   // One post through is a sentence, not "1 posts": the noun follows the total.
   setFilter(document, "#post-name-filter", "Bea");
@@ -171,7 +172,11 @@ test("Social recounts after a post is published, without a reload", async (t) =>
     posts: FEED,
     state: "ready",
     storage: page.storage,
-    create: async (draft) => ({ ...draft, id: "p-15", createdAt: "2026-07-15T09:00:00.000Z" }),
+    // The API stamps `source` server-side on every human write and the feed
+    // reads it back through normalizeSocialApiPosts, so a published post arrives
+    // carrying it. The stub says so, which is what makes the mixed screen below
+    // — seeded examples plus one post a visitor published — the real one.
+    create: async (draft) => ({ ...draft, id: "p-15", createdAt: "2026-07-15T09:00:00.000Z", source: "shiplog-web" }),
   });
   feed.composer.open();
 
@@ -188,7 +193,12 @@ test("Social recounts after a post is published, without a reload", async (t) =>
   const after = loadedCards(document);
   assert.equal(after, before + 1);
   assert.equal(textOf(document.querySelector("#post-count")), `${after} posts`);
-  assert.equal(textOf(document.querySelector("#feed-summary")), `Showing ${after} posts, newest first.`);
+  // …and the post the visitor just published is not counted among the invented
+  // ones, so the sentence goes from "all example posts" to a subset (#2597).
+  assert.equal(textOf(document.querySelector("#feed-summary")),
+    `Showing ${after} posts, including ${before} example posts, newest first.`);
+  // The card that was just published carries no marker; every seeded one does.
+  assert.equal(document.querySelectorAll(".badge-example").length, before);
 });
 
 test("Social recounts when the filters are cleared", async (t) => {
@@ -305,7 +315,7 @@ test("People's caption under the heading carries the count in both states a read
   profile.setState("ready");
   const drawn = loadedTiles(document);
   assert.equal(drawn, 2);
-  assert.equal(textOf(caption), `Showing ${drawn} image posts published as Zed.`);
+  assert.equal(textOf(caption), `Showing ${drawn} image posts published as Zed, all example posts.`);
   assert.equal(claimedBy(chipFor(document, "Zed")), drawn);
 
   // A settled zero is still a count, and still this one line.

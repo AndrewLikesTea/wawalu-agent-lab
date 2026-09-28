@@ -450,7 +450,7 @@ test("Social's status region says one thing in each of the three states a workin
   // The summary sentence and its one statement of the order are untouched by
   // all of the above: this issue moved no count and added no second ordering.
   const summary = document.querySelector("#feed-summary");
-  assert.equal(textOf(summary), "Showing 3 posts, newest first.");
+  assert.equal(textOf(summary), "Showing 3 posts, all example posts, newest first.");
   assert.equal((textOf(summary).match(/newest first\./g) ?? []).length, 1);
   assert.doesNotMatch(textOf(summary), /load/i);
 });
