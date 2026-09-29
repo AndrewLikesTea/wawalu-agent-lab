@@ -627,6 +627,9 @@
           <p class="hint"><a class="text-link" href="/workspace.html">See what's stored in this browser</a> — the records, roughly how much space they use, and how to erase them.</p>
           <p id="export-shiplog-status" class="notice" role="status" aria-live="polite"></p>
         </div>
+        <p id="shiplog-archive-note" class="hint">Complete archive: every decision and release stored in this browser, regardless of filters. Shiplog processes these records on the server to create the file and does not retain them.</p>
+        <button id="download-shiplog-archive" type="button" aria-describedby="shiplog-archive-note">Download complete Shiplog archive</button>
+        <p id="shiplog-archive-status" role="status" aria-live="polite"></p>
         <button id="export-shiplog" type="button">Download JSON</button>
         <!-- Recovery from a filter that matches nothing. Hidden until that
              happens, so it is not a tab stop on the ordinary path, and it runs
