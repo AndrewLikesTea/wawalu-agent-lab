@@ -524,14 +524,14 @@ test("the opener and heading use Write a post, and the submit reads Publish post
     "the word survives outside the People page's own URL and nav class");
 });
 
-// #2405: one rule, one telling. Social stated where a post with an image lands
+// #2405: one rule, one telling. Social stated where an image post lands
 // three times in three wordings — in the hero, at the image field, and under
 // the display name — so a reader had to work out whether they were three rules
 // or one, and the telling that matters at the moment of the act was the middle
 // one. The image field's sentence is the survivor, because that is the control
 // the rule depends on: choose an image and it applies, choose none and it does
 // not.
-test("where a post with an image lands is said once, at the field that attaches the image", async (t) => {
+test("where an image post lands is said once, at the field that attaches the image", async (t) => {
   const page = await loadPage(new URL("../src/social.html", import.meta.url), {});
   t.after(() => page.restore());
   mountComposerDisclosure(page.document);
@@ -565,7 +565,7 @@ test("the composer calls its required 280-character text a post throughout", asy
 
   const composer = page.document.querySelector("#post-compose-panel");
   assert.equal(textOf(composer.querySelector("#post-form-hint")),
-    "Write your post. Add an image if you want one — a post with an image also appears on People, under the display name you publish it with.");
+    "Write your post. Add an image if you want one — that makes it an image post, which also appears on People, under the display name you publish it with.");
   // "Your post", not "Post": the page's other uses of the bare word name the
   // published thing — Publish post, Open post — and the label names the reader's
   // own draft (#1967). The noun is the same one everything else defers to.
@@ -1972,7 +1972,7 @@ test("the composer's three cautions still read word for word once it is open", a
     "post-author-hint": AUTHOR_HINT,
     // The fourth entry here was #post-author-identity, "People groups image
     // posts under this display name." It is deleted, not reworded: the image
-    // field already says where a post with an image lands (#2405).
+    // field already says where an image post lands (#2405).
     "post-consequence": PUBLISH_CONSEQUENCE,
   };
   for (const [id_, wording] of Object.entries(cautions)) {

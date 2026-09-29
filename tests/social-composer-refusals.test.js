@@ -142,7 +142,7 @@ test("the over-length message clears when the post comes back under the limit", 
   assert.equal(input.getAttribute("aria-invalid"), null, "a valid field is left marked invalid");
   assert.equal(input.getAttribute("aria-describedby"), "post-body-hint post-counter-label post-counter");
 
-  // The successful path is untouched: a post with an image still publishes and
+  // The successful path is untouched: an image post still publishes and
   // still reaches the feed.
   type(harness.document.querySelector("#post-image-alt"), "A card wrapped in a blue focus ring.");
   publish(harness.document);

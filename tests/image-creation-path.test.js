@@ -123,7 +123,7 @@ for (const [name, document] of Object.entries(NEARBY_INVITATION)) {
     // pinned is that the result is still stated, still after the steps, and
     // still before the consequence of carrying them out.
     assert.match(sentence.trim(), /^To add yours: Create or open an image in Paint/);
-    const result = "A published post with an image appears on People, under the display name you publish it with.";
+    const result = "A published image post appears on People, under the display name you publish it with.";
     assert.equal(sentence.split(result).length - 1, 1,
       `${name}'s helper does not explain where the post appears exactly once`);
     assert.ok(sentence.indexOf("Publish a post on Social.") < sentence.indexOf(result),
@@ -669,7 +669,7 @@ test("the file route says what it is for and leaves the picker its own name", ()
 // named would turn up — a rule about a control that was not on the screen, read
 // before the reader had decided whether it applied to them. It is one sentence at
 // the field now, revealed with the preview, which is the moment the rule binds.
-const ALT_REQUIREMENT = "A post with an image will not publish until you fill this in.";
+const ALT_REQUIREMENT = "An image post will not publish until you fill this in.";
 
 /** Text a reader cannot reach yet: something above it carries `hidden`. */
 const foldedAway = (node) => {
@@ -825,7 +825,7 @@ test("People names the same steps in the same words as the composer", async () =
   assert.equal(invitation,
     "To add yours: Create or open an image in Paint (opens in a new tab). "
     + "Select “Use this image in a Social post”, then fill in the required image description. "
-    + "Publish a post on Social. A published post with an image appears on People, "
+    + "Publish a post on Social. A published image post appears on People, "
     + "under the display name you publish it with. "
     // The conditions of publishing themselves, not a pointer to them (#2484).
     + PEOPLE_CONSEQUENCE);
@@ -872,6 +872,34 @@ test("People names the same steps in the same words as the composer", async () =
   assert.equal(paintLink.getAttribute("target"), "_blank");
   assert.doesNotMatch(invitation, /PNG|export|save|download|upload/i,
     "People should describe the direct handoff without requiring an exported file");
+});
+
+// #2634: one name for a post that carries an image. People's heading, its
+// filter label and its picker hint all call it an image post; Social called the
+// same thing "a post with an image" at the two places a writer meets it, so the
+// pages read as if the grid held one kind of post and the composer made another.
+// The term is the survivor, because it is the one a reader picks by.
+test("Social and People give a post that carries an image one name", () => {
+  const SECOND_NAMES = [/posts? with an image/i, /photo post/i, /picture post/i,
+    /media post/i, /image-bearing/i];
+  for (const [name, document] of Object.entries(documents)) {
+    const copy = textOf(document.getElementById("main-content"));
+    assert.match(copy, /image posts?/i, `${name} no longer uses the term at all`);
+    for (const rival of SECOND_NAMES)
+      assert.doesNotMatch(copy, rival, `${name} names an image post a second way`);
+  }
+
+  // And the term is introduced once, where a reader can see what makes one: the
+  // composer hint beside the field that attaches the image. People's heading and
+  // filter label lean on the word, so Social has to have defined it first, and
+  // one definition is the whole of it — a gloss repeated elsewhere is the second
+  // wording this test exists to keep out.
+  const social = textOf(documents.Social.getElementById("main-content"));
+  assert.equal(social.split("makes it an image post").length - 1, 1,
+    "Social defines the term twice, or no longer defines it at all");
+  assert.match(textOf(documents.Social.getElementById("post-form-hint")),
+    /Add an image if you want one — that makes it an image post/,
+    "the definition left the field a reader adds an image with");
 });
 
 test("the steps are the image field's own description, so focusing it reads them", () => {

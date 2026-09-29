@@ -595,8 +595,8 @@ test("the People picker and the page's own description use one term for what is 
   // on the result, in the term, and the publishing step stays a link — pinned to
   // the term and the link rather than to the whole sentence, which is the helper
   // beside the grid and is worded with Social's composer.
-  assert.match(html, /A published post with an image appears on People, under the display name you publish it with\./);
-  assert.match(html, /Select “Use this image in a Social post”, then fill in the required image description\. <a[^>]+>Publish a post on Social<\/a>\. A published post with an image appears on People, under the display name you publish it with\./);
+  assert.match(html, /A published image post appears on People, under the display name you publish it with\./);
+  assert.match(html, /Select “Use this image in a Social post”, then fill in the required image description\. <a[^>]+>Publish a post on Social<\/a>\. A published image post appears on People, under the display name you publish it with\./);
   const social = await readFile(new URL("../src/social.html", import.meta.url), "utf8");
   assert.match(social, /<label for="post-author">Display name <span class="label-optional">\(optional\)<\/span><\/label>/,
     "the composer names the same thing the picker selects");

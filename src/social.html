@@ -68,7 +68,7 @@
              focus that comes back to this control on every close.
              It once read "Write a post without an image", which contradicted
              the form it opens: that form's own image field is labelled
-             "(optional)", so the composer takes a post with an image or
+             "(optional)", so the composer takes an image post or a post
              without one and the control that opens it may not promise
              otherwise. The qualifier is what went; the verb is back without it,
              and the control claims nothing about images in either direction.
@@ -445,7 +445,7 @@
           <p id="paint-draft-note" class="hint" hidden></p>
 
           <form id="post-form" aria-labelledby="post-form-title" aria-describedby="post-form-hint" novalidate>
-            <p class="hint" id="post-form-hint">Write your post. Add an image if you want one — a post with an image also appears on People, under the display name you publish it with.</p>
+            <p class="hint" id="post-form-hint">Write your post. Add an image if you want one — that makes it an image post, which also appears on People, under the display name you publish it with.</p>
 
             <div class="field field-wide">
               <!-- First, because the hint above says "Write your post. Add an
@@ -659,8 +659,13 @@
                        that names it. Two hints stacked under one input is the
                        Display name pattern, and like that field's second hint
                        it is named by the input's own aria-describedby, in the
-                       order it is read. -->
-                  <p class="hint" id="post-image-alt-requirement">A post with an image will not publish until you fill this in.</p>
+                       order it is read.
+                       "An image post" is the term the composer's own hint
+                       introduced a moment ago, and the one People's heading and
+                       filter label use. This line names the thing, not the
+                       shape of it: "a post with an image" was a second way of
+                       saying the same word (#2634). -->
+                  <p class="hint" id="post-image-alt-requirement">An image post will not publish until you fill this in.</p>
                   <p class="counter-row">
                     <span id="post-image-alt-counter-label">Characters remaining:</span>
                     <span id="post-image-alt-counter" aria-live="polite" aria-atomic="true">200</span>
