@@ -815,6 +815,66 @@
         </div>
       </section>
 
+      <!-- WHAT THIS DEMONSTRATION REACHES, WITH THE REST OF WHAT A REVIEWER
+           FORWARDS (#2631). The blocks above are what a buyer sends to whoever
+           has to decide: the brief, the blank scorecard, the counts from this
+           browser. None of them answered the question a security reviewer asks
+           first, and the page's answer was scattered across an invented-records
+           note in one panel and a stay-in-this-browser promise in another. This
+           block states the boundary once, splits browser-only records from
+           published posts, and offers two things a reviewer can open without
+           asking us — all of it above the follow-up form, so nobody has to send
+           an email address to read it.
+           WHY HERE AND NOT BESIDE THE DEMONSTRATION AND PILOT ROUTES: those
+           routes sit in the log entry near the top, and the first five sections
+           of this page are held to promise, demo and proof before evaluation
+           material by tests/homepage-proof-order.test.js. This is evaluation
+           material, and the paragraph carrying those routes already sends a
+           reader down here for the brief and the scorecard.
+           EVERY CLAIM IS TRACEABLE AND NOTHING SOFTER IS ALLOWED IN. The five
+           items are the product charter's own constraint and its stated
+           outcome, word for word; the storage pair is behaviour this site
+           ships. No certification, compliance, encryption, retention or
+           customer-deployment claim goes in this section: none of it is in the
+           charter or visible in what ships, so none of it is checkable.
+           THE PUBLISHED POST IS PUBLIC AND SAYS SO. Social writes a published
+           post to this site's public posts API, where every visitor reads it,
+           so the second paragraph may never be edited into the browser-only
+           promise the first one makes. They are opposite on purpose.
+           THE COPY CONTROL IS DRAWN, NOT SHIPPED. The empty div below is filled
+           by src/security-boundaries.js, which also composes the plain text it
+           puts on the clipboard from the same constants this markup is pinned
+           to by tests/homepage-security-boundaries.test.js. A button that needs
+           a module to do anything is dead on a page whose script never ran; the
+           boundaries themselves are authored here and are readable either way.
+           THE HEALTH ADDRESS IS ABSOLUTE ON PURPOSE. Every module reads that
+           path relative, as HEALTH_URL, and this text is written to be
+           forwarded off the page, where a relative path points at nothing. The
+           repository link lands on the charter file rather than the repository
+           root, because the root address is already published once inside this
+           page's main region by the deployment check, and site-footer.test.js
+           holds each region to one copy of it. -->
+      <section class="hero-proof" id="security-boundaries" aria-labelledby="security-boundaries-title">
+        <h2 id="security-boundaries-title">Security and data boundaries</h2>
+        <p>Read what this demonstration can and cannot reach before you send anyone an email address. Nothing below is a certification, and none of it is a claim about a deployment of your own.</p>
+        <p id="security-boundaries-demo">The public Shiplog demonstration on this site does not access any of these:</p>
+        <ul aria-labelledby="security-boundaries-demo">
+          <li>Wawalu customer data</li>
+          <li>Wawalu production databases</li>
+          <li>Cookies</li>
+          <li>Credentials</li>
+          <li>Internal APIs</li>
+        </ul>
+        <p>Decisions and releases you record here stay in this browser. Recording one sends it nowhere, no account holds it, and clearing this browser’s storage removes it.</p>
+        <p>Posts published through Social are the opposite, on purpose: a published post is sent to this site’s public posts API and kept there, and anyone who visits Shiplog can read it, its image, and the display name it was published with. A published post is not private, is not browser-only, and cannot be edited or deleted after publishing.</p>
+        <p id="security-boundaries-evidence">Both of these can be inspected independently, without asking us:</p>
+        <ul aria-labelledby="security-boundaries-evidence">
+          <li><a class="text-link" id="security-boundaries-charter" href="https://github.com/AndrewLikesTea/wawalu-agent-lab/blob/main/PRODUCT.md">Read the product charter these boundaries are taken from, in the public repository</a></li>
+          <li><a class="text-link" id="security-boundaries-health" href="https://labs.wawalu.org/healthz">Open the health endpoint this deployment answers</a></li>
+        </ul>
+        <div id="security-boundaries-actions"></div>
+      </section>
+
       <section class="hero-finops" id="additional-capability" aria-labelledby="additional-capability-title">
         <p class="eyebrow">Runs on your own work</p>
         <h2 id="additional-capability-title">AI FinOps: understand your AI spend.</h2>
@@ -1220,6 +1280,7 @@
     <script type="module" src="/landing-decision-page.js"></script>
     <script type="module" src="/homepage-buyer-intent.js"></script>
     <script type="module" src="/homepage-executive-takeaway.js"></script>
+    <script type="module" src="/security-boundaries.js"></script>
     <script type="module" src="/shiplog-evaluation-brief.js"></script>
     <script type="module" src="/shiplog-pilot-scorecard.js"></script>
     <script type="module" src="/app.js"></script>
