@@ -743,7 +743,17 @@ test("the description step is said beside Publish post, not in the step list", (
     "the step list restates the rule the field already carries");
 });
 
-test("before choosing an image, only the Paint return instructions describe the future description step", async () => {
+// #2627: the standing help under the two routes used to read the arrival out in
+// advance — which heading the image lands under, that a From Paint confirmation
+// appears, where focus goes, and then the failed transfer and both ways out of
+// it — so every reader met a narration of two states before either had happened,
+// and the state that never happens to them was the longer half. Both states
+// speak for themselves when they occur: the arrival panel names the transfer and
+// the step that is left, and src/social-page.js writes the "did not arrive"
+// refusal with both recovery paths into the slot below the picker
+// (tests/social-paint-handoff-flow.test.js pins those halves). Pre-arrival, the
+// section says what to do and nothing else.
+test("before choosing an image, nothing in the composer describes the future description step", async () => {
   const page = await loadPage(PAGES.Social);
   try {
     const document = page.document;
@@ -754,15 +764,24 @@ test("before choosing an image, only the Paint return instructions describe the 
     assert.equal(foldedAway(document.getElementById("post-image-alt-requirement")), true,
       "the requirement is readable before there is an image it applies to");
 
+    // Read off the rendered section and off the served markup with rationale
+    // comments stripped, so neither sentence can come back as authored copy.
+    const picker = textOf(document.querySelector(".media-picker"));
+    const served = sources.Social.replace(/<!--[\s\S]*?-->/g, "");
+    for (const narration of ["Social opens the composer with your image in", "If the image did not arrive"]) {
+      assert.equal(picker.split(narration).length - 1, 0,
+        `the image field narrates a state that has not happened: ${narration}`);
+      assert.equal(served.split(narration).length - 1, 0,
+        `the arrival narration is back in the served markup: ${narration}`);
+    }
+    assert.equal(document.querySelectorAll("#paint-return-instructions").length, 0,
+      "the pre-arrival narration paragraph is back in the image field");
+
     // No paragraph the reader can reach names the field or restates its rule —
     // the pre-warning is gone, and nothing paraphrases it.
     const reachable = document.getElementById("post-form").querySelectorAll("p")
       .filter((paragraph) => !foldedAway(paragraph));
-    const paintInstructions = document.getElementById("paint-return-instructions");
-    assert.match(textOf(paintInstructions), /Image to publish.*From Paint.*focus on the image description/);
-    assert.match(textOf(paintInstructions), /image did not arrive.*file on this device or return to Paint/);
     for (const paragraph of reachable) {
-      if (paragraph === paintInstructions) continue;
       assert.doesNotMatch(textOf(paragraph), /image description/i,
         `the composer names Image description before there is an image: ${textOf(paragraph)}`);
       assert.doesNotMatch(textOf(paragraph), /will not publish until/i,
