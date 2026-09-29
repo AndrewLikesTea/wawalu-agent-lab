@@ -33,6 +33,7 @@ import { copyRecordUrl } from "./share-link.js";
 import { decisionToLink } from "./decision-entry.js";
 import { initReleaseExport } from "./release-export.js";
 import { initReleaseReasoningProof } from "./release-reasoning-proof.js";
+import { initReleaseCoverageGaps } from "./release-coverage-gaps.js";
 
 const SAVE_FAILED = "This release could not be saved in this browser. Your entries are still here; free some browser storage and try again.";
 export const LOG_UNREAD = "Couldn’t save: the release log didn’t load. Retry loading releases, then record again.";
@@ -381,11 +382,26 @@ export function initReleasesPage(root = document, storage = localStorage, option
   const reasoningProof = initReleaseReasoningProof(root, {
     clipboard: options.clipboard ?? globalThis.navigator?.clipboard,
   });
+  // The other half of that figure (#2630): the releases it is short BY, as a
+  // worklist, and the control that reveals them. The reveal narrows the log
+  // through the same update() every other filter goes through — it is a filter,
+  // not a second renderer — so the rows, the count sentence and the export all
+  // follow it without being told about it.
+  const coverageGaps = initReleaseCoverageGaps(root, { onFilter: () => update() });
   const update = () => {
     // Whatever the list is showing, the figure is over the whole loaded log —
     // and over nothing at all when the log could not be read, because a log that
     // did not load has no releases to count.
     reasoningProof.update(unread ? [] : releases, decisions, exampleReleaseIds);
+    // Written from the same array the figure counted, and with the decisions the
+    // recorder may honestly offer to link — which is what decides whether an
+    // unlinked release's next step is "link an existing decision" or "record one
+    // first". A log that could not be read has no releases to be short of, so the
+    // reveal and the worklist withdraw with the rows.
+    const gapView = coverageGaps.update(unread ? [] : releases, decisions, {
+      linkableDecisions: decisionsRead ? decisions.length : 0,
+      reported: options.reportedUncovered,
+    });
     if (unread) {
       // Nothing is shown, so nothing is counted, exported or followed up.
       shown = [];
@@ -402,7 +418,17 @@ export function initReleasesPage(root = document, storage = localStorage, option
       decisionStatus: decisionStatusInputs.find((input) => input.checked)?.value ?? "all",
       decisionId: decisionFilter?.value ?? ALL_DECISIONS_FILTER,
     };
-    shown = view.render({ releases, decisions, exampleIds: exampleReleaseIds }, filters);
+    // The reveal narrows the array handed to the renderer rather than adding a
+    // sixth filter value: the uncovered set is derived from the same resolution
+    // the worklist rows are, so passing the list itself keeps the rows on screen
+    // and the entries in the worklist the same releases by construction. The
+    // other filters still apply on top of it, and the count sentence below is
+    // still over the whole loaded log, so no two numbers can disagree.
+    const uncoveredIds = new Set(coverageGaps.uncoveredIds());
+    const listed = coverageGaps.uncoveredOnly() && gapView.actionable
+      ? releases.filter((release) => uncoveredIds.has(release.id))
+      : releases;
+    shown = view.render({ releases: listed, decisions, exampleIds: exampleReleaseIds }, filters);
     // One count, from the same computation that rendered the rows, and one
     // follow-up derived from exactly those rows — so the callout can never
     // point at a release the active filter has hidden.
