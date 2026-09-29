@@ -113,12 +113,22 @@ export function initBuyerIntent(document) {
     carry(intent);
     // Focus first, then announce: a polite region queues behind the name of the
     // field the reader has just landed in, rather than racing it.
-    email?.focus();
+    // A new choice also reopens a completed request through its existing control.
+    if (form?.hidden) document.getElementById("site-footer-again")?.click();
+    email?.focus({ preventScroll: typeof panel?.scrollIntoView === "function" });
+    panel?.scrollIntoView?.({ block: "start" });
     status.textContent = announcement(intent);
   }
 
   for (const button of buttons) {
     button.addEventListener("click", () => choose(button.dataset.intent));
+  }
+  for (const link of document.querySelectorAll("[data-buyer-intent]")) {
+    link.addEventListener("click", (event) => {
+      if (event.button > 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      choose(link.dataset.buyerIntent);
+      // Keep native fragment navigation/history and the no-script fallback.
+    });
   }
   return { buttons, choose };
 }
