@@ -119,6 +119,10 @@ test("arriving from Paint takes the image once, focuses the description and clea
   assert.match(textOf(id("paint-draft-note")), /Drafts are per-tab.*another tab/);
   assert.match(textOf(id("paint-arrival")), /From Paint.*holds no post text.*both required before you publish/s);
   assert.match(textOf(id("compose-preview-caption")), /From Paint/);
+  // #2627: the panel is where the arrival is told, and the standing help above
+  // the picker no longer tells it in advance.
+  assert.doesNotMatch(textOf(id("post-image-steps")), /Image to publish|image description/i,
+    "the pre-arrival help narrates the arrival the panel has just announced");
   // Focus lands here, so both of those sentences are read out with the field.
   const described = id("post-image-alt").getAttribute("aria-describedby");
   assert.match(described, /paint-arrival/);
@@ -223,6 +227,12 @@ for (const [label, record] of [
     assert.equal(document.activeElement.id, "post-form-title");
     assert.equal(id("post-image-error").getAttribute("role"), "alert");
     assert.match(textOf(id("post-image-error")), /image did not arrive.*Choose image.*file on this device.*return to Paint/s);
+    // #2627: said once, here, by the state it is about. The standing help above
+    // the picker used to say it too, to every reader, before anything failed.
+    assert.equal(textOf(id("post-form")).split("did not arrive").length - 1, 1,
+      "the failure is stated somewhere other than the slot the failure happened in");
+    assert.equal(textOf(id("post-image-steps")).split("did not arrive").length - 1, 0,
+      "the pre-arrival help describes a failed transfer again");
     assert.equal(id("paint-draft-note").hidden, false);
     const recovery = id("post-image-error").querySelector("a");
     assert.equal(recovery.href, "/paint/");
