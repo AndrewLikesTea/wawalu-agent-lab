@@ -21,6 +21,7 @@ import { STORAGE_KEY } from "../src/app.js";
 import { RELEASE_STORAGE_KEY } from "../src/releases.js";
 import { countReasoningKept } from "../src/release-reasoning-proof.js";
 import {
+  COVERAGE_DEFINITION,
   COVERAGE_GAP_HEADING,
   NO_LINKED_DECISION_REASON,
   SHOW_ALL_RELEASES_LABEL,
@@ -136,8 +137,12 @@ test("the label, the announcement, the lead and the chip all name real values", 
     "Showing 4 of 19 releases: uncovered only.",
   );
   assert.equal(coverageGapAnnouncement({ count: 4, total: 19 }), "Showing all 19 releases.");
-  assert.match(coverageGapLead({ count: 2, total: 4 }), /^2 of 4 releases in this log have no decision/);
-  assert.match(coverageGapLead({ count: 1, total: 4 }), /^1 of 4 releases in this log has no decision/);
+  // The lead uses the word the block above defines rather than restating the
+  // rule a third time, and it agrees with itself about how many releases it is
+  // talking about.
+  assert.match(coverageGapLead({ count: 2, total: 4 }), /^2 of 4 releases in this log are uncovered\./);
+  assert.match(coverageGapLead({ count: 1, total: 4 }), /^1 of 4 releases in this log is uncovered\./);
+  assert.doesNotMatch(coverageGapLead({ count: 2, total: 4 }), /no decision this log can show/);
 
   // The one filled chip. Its colour is never the message: the text says which
   // state it is and carries both values, so it reads the same in greyscale.
@@ -282,6 +287,55 @@ test("the reveal filters the log to the uncovered rows, moves focus, and announc
   assert.equal(byId(page, "coverage-gap-worklist").hidden, true);
 });
 
+// --- the words themselves (#2635) --------------------------------------------
+
+test("the page says what covered and uncovered mean before either word is used", async (t) => {
+  const { page } = await openPage(t);
+  assert.equal(textOf(byId(page, "coverage-gap-definition")), COVERAGE_DEFINITION);
+
+  // RENDERED order, not source order: the definition has to reach the screen
+  // ahead of the chip and the reveal's label, both of which are written by
+  // script after the log loads. Read off the painted body for that reason.
+  const said = textOf(page.document.body);
+  const defined = said.indexOf(COVERAGE_DEFINITION);
+  assert.ok(defined >= 0, "the definition never rendered on the page");
+  const firstUse = said.search(/uncovered/i);
+  assert.ok(firstUse > defined, "a control says “uncovered” before the page defines it");
+  assert.ok(
+    firstUse < defined + COVERAGE_DEFINITION.length,
+    "the first “uncovered” on the page is not the one in the definition",
+  );
+  // The three places the word is a label, all of them below it.
+  for (const later of ["Uncovered: 2 of 4", "Show 2 uncovered releases"]) {
+    assert.ok(said.indexOf(later) > defined, `“${later}” stands above the definition`);
+  }
+  // It is authored, not written by script: a reader who arrives before the log
+  // loads still meets the word's meaning.
+  const cold = await loadPage(RELEASES_PAGE, { storage: {} });
+  t.after(() => cold.restore());
+  assert.equal(textOf(cold.document.querySelector("#coverage-gap-definition")), COVERAGE_DEFINITION);
+});
+
+test("the worklist is named by a plain noun phrase, and the old heading is gone", async (t) => {
+  const { page } = await openPage(t);
+  assert.equal(COVERAGE_GAP_HEADING, "Releases with no linked decision in this log");
+
+  byId(page, "coverage-gap-toggle").click();
+  assert.equal(textOf(byId(page, "coverage-gap-worklist-title")), COVERAGE_GAP_HEADING);
+  const said = textOf(page.document.body);
+  assert.ok(said.includes(COVERAGE_GAP_HEADING), "the worklist heading never rendered");
+  assert.ok(said.indexOf(COVERAGE_GAP_HEADING) > said.indexOf(COVERAGE_DEFINITION));
+  // Nothing on the page still emits the sentence-shaped heading, including the
+  // worklist's own lead, which used to repeat it.
+  assert.doesNotMatch(said, /no decision this log can show/i);
+  assert.equal(
+    textOf(byId(page, "coverage-gap-worklist-lead")),
+    "2 of 4 releases in this log are uncovered. Each one states why below, with the next step for that reason.",
+  );
+  // The filter option below is a separate piece of wording and is untouched.
+  assert.match(said, /Decision not in this log/);
+});
+
 test("each revealed release states its reason in words and its own next step", async (t) => {
   const { page } = await openPage(t);
   byId(page, "coverage-gap-toggle").click();
@@ -397,7 +451,13 @@ test("an empty log states that coverage does not apply and offers no reveal at a
   // And the hidden control is stripped, not left holding "Show 0 uncovered
    // releases" for a reader who searches the page for its own text.
   assert.equal(textOf(byId(page, "coverage-gap-toggle")), "");
-  assert.doesNotMatch(textOf(byId(page, "reasoning-proof")), /uncovered/i);
+  // No count and no coverage status anywhere in the block. The definition of
+  // the word stays — it is authored, it is true of an empty log too, and it is
+  // the one occurrence of "uncovered" an empty page is allowed.
+  const block = textOf(byId(page, "reasoning-proof"));
+  assert.doesNotMatch(block, /\d+ uncovered/i, "a count was claimed for a log with nothing in it");
+  assert.equal(block.match(/uncovered/gi).length, 1, "the block says \"uncovered\" somewhere other than its definition");
+  assert.ok(block.includes(COVERAGE_DEFINITION));
 });
 
 test("complete coverage is a positive statement with the real values and no reveal", async (t) => {

@@ -34,7 +34,16 @@
 import { RECORD_DECISION_HREF, releaseTitle, summarizeReleases } from "./releases.js";
 
 /** The worklist's own name, in the register of the log's row headings. */
-export const COVERAGE_GAP_HEADING = "Releases with no decision this log can show";
+export const COVERAGE_GAP_HEADING = "Releases with no linked decision in this log";
+
+// What "covered" and "uncovered" mean, stated once, above the first control
+// that uses either word (#2635). Authored in the markup and pinned here so the
+// page and this module cannot drift apart. It borrows the figure's own clause —
+// "at least one decision the decision log holds" — rather than coining a second
+// way to say the rule.
+export const COVERAGE_DEFINITION =
+  "A release is covered when it links at least one decision the decision log holds; "
+  + "every other release is uncovered.";
 
 /** The two kinds of gap, and the words each one is stated in. */
 export const COVERAGE_GAP_KINDS = Object.freeze(["unlinked", "dangling"]);
@@ -158,10 +167,16 @@ export function coverageStatusChip({ linked = 0, total = 0 } = {}) {
     : { text: `Uncovered: ${total - linked} of ${total}`, className: "badge badge-missing" };
 }
 
-/** The worklist's own lead sentence: what the rows below it are, in numbers. */
+/**
+ * The worklist's own lead sentence: what the rows below it are, in numbers.
+ *
+ * It uses the defined term rather than restating the rule a third time: the
+ * coverage block above states what uncovered means before any control says the
+ * word, so by the time a reader reaches these rows the term is theirs.
+ */
 export function coverageGapLead({ count = 0, total = 0 } = {}) {
   return `${count} of ${total} ${total === 1 ? "release" : "releases"} in this log `
-    + `${count === 1 ? "has" : "have"} no decision this log can show. `
+    + `${count === 1 ? "is" : "are"} uncovered. `
     + "Each one states why below, with the next step for that reason.";
 }
 
