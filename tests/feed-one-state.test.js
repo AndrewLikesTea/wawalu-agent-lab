@@ -36,9 +36,11 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { loadPage, textOf } from "./support/browser.js";
+import { readFile } from "node:fs/promises";
+import { loadPage, pressTab, tabSequence, textOf } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
-import { mountSocialFeed, FEED_LOADING_LINE } from "../src/social.js";
+import { mountSocialFeed, FEED_LOADING_LINE, CLEAR_FILTERS_LABEL } from "../src/social.js";
+import { COMPOSE_POST_LABEL } from "../src/social-links.js";
 import { mountProfile, loadingSummaryText, PUBLISH_ON_SOCIAL } from "../src/profile.js";
 import { feedPhase } from "../src/feed-status.js";
 
@@ -454,6 +456,277 @@ test("Social's status region says one thing in each of the three states a workin
   assert.equal(textOf(summary), "Showing 3 posts, all example posts, newest first.");
   assert.equal((textOf(summary).match(/newest first\./g) ?? []).length, 1);
   assert.doesNotMatch(textOf(summary), /load/i);
+});
+
+/* ------------- the four states a reader MEETS, and their two exits --------- */
+
+// #2622 asked whether a visitor can tell a Social feed with nothing in it from
+// one their own filters emptied, and whether each of those screens hands over
+// the right recovery. The machine above already decides that in one place, and
+// the tests before this one pin what each state SAYS. What was never pinned is
+// the half a reader meets rather than reads:
+//
+//   - that exactly one of the four panels is in the document, asserted as the
+//     other three being ABSENT rather than as the right one being present;
+//   - that the dead end's way out is a real control one Tab past the filter row,
+//     and that pressing it restores the unfiltered feed;
+//   - that the empty feed's way out is the composer ALREADY on this page and not
+//     a second destination;
+//   - that a state arriving on its own announces without taking the reader's
+//     place;
+//   - and that the words in these panels survive a narrow viewport, which is a
+//     claim about CSS and is asserted against the rule text, because no module
+//     on this page reads matchMedia and a viewport shim would assert itself.
+//
+// The four panels wear one class each, from one template string in
+// renderFeedStatus — `feed-status-${state}` — so "which state is painted" is a
+// count of four selectors and nothing has to infer it from copy. Counts and
+// attributes only: comparing against an element node in this harness walks the
+// whole parsed page for minutes.
+const PANEL = {
+  loading: ".feed-status-loading",
+  failed: ".feed-status-error",
+  empty: ".feed-status-empty",
+  filtered: ".feed-status-filtered",
+};
+
+const painted = (document) => Object.fromEntries(
+  Object.entries(PANEL).map(([state, selector]) => [state, document.querySelectorAll(selector).length]),
+);
+
+/** The words on the one action a state offers, or how many it offered instead. */
+const actionLabel = (document, selector) => {
+  const panel = document.querySelector(selector);
+  const buttons = panel ? panel.querySelectorAll("button") : [];
+  return buttons.length === 1 ? textOf(buttons[0]) : `${buttons.length} controls`;
+};
+
+/** Two menus set to a combination that excludes every post in MIXED. */
+function filterToNothing(document) {
+  const names = document.querySelector("#post-name-filter");
+  names.value = "Ari";
+  names.dispatchEvent({ type: "change" });
+  const times = document.querySelector("#post-time-filter");
+  times.value = "hour";
+  times.dispatchEvent({ type: "change" });
+  return { names, times };
+}
+
+test("Social paints one of its four states at a time, each with its own way out", async (t) => {
+  const page = await loadPage(SOCIAL_PAGE, {});
+  t.after(() => page.restore());
+  const { document } = page;
+  const feed = mountSocialFeed(document, { posts: [], state: "loading", onRetry: () => {} });
+
+  // LOADING. The wait, and no claim about what the fetch will find. The
+  // placeholders carry .post-card, so which state this is gets read off the
+  // panel and never off a card count.
+  assert.deepEqual(painted(document), { loading: 1, failed: 0, empty: 0, filtered: 0 });
+  assert.equal(actionLabel(document, PANEL.loading), "0 controls", "the wait offers an action");
+  assert.equal(rendered(document, ".post-card"), 0);
+
+  // FAILED with nothing in hand: its own words, and the one thing to do.
+  feed.setState("error");
+  assert.deepEqual(painted(document), { loading: 0, failed: 1, empty: 0, filtered: 0 });
+  assert.equal(actionLabel(document, PANEL.failed), "Retry loading Social posts");
+
+  // UNFILTERED EMPTY: answered, nothing published, neither menu touched.
+  feed.seed([]);
+  assert.deepEqual(painted(document), { loading: 0, failed: 0, empty: 1, filtered: 0 });
+  assert.equal(actionLabel(document, PANEL.empty), COMPOSE_POST_LABEL);
+  assert.match(textOf(document.querySelector(PANEL.empty)), /No posts on Social yet\./);
+  assert.doesNotMatch(textOf(document.body), /Posts are loading\./);
+  assert.doesNotMatch(textOf(document.body), /could not be loaded/);
+
+  // FILTERED TO NOTHING: a full feed behind two menus that exclude all of it.
+  feed.seed(MIXED);
+  filterToNothing(document);
+  assert.deepEqual(painted(document), { loading: 0, failed: 0, empty: 0, filtered: 1 });
+  assert.equal(actionLabel(document, PANEL.filtered), CLEAR_FILTERS_LABEL);
+  const dead = textOf(document.querySelector(PANEL.filtered));
+  // The sentence names what excluded the posts, in the menus' own option text,
+  // and how many are waiting behind them — which is the whole difference from
+  // the panel above.
+  assert.match(dead, /No posts by Ari from the past hour\./);
+  assert.match(dead, /see all 3 posts\./);
+  // And the other three states' words are nowhere on the page beside it. A
+  // filtered feed reading as an empty one is the defect this issue names.
+  const body = textOf(document.body);
+  assert.doesNotMatch(body, /No posts on Social yet\./);
+  assert.doesNotMatch(body, /Posts are loading\./);
+  assert.doesNotMatch(body, /could not be loaded/);
+
+  // LOADED: no panel at all, and the page's one statement of the order is back,
+  // once, in the summary — this issue adds no second ordering line.
+  document.querySelector(PANEL.filtered).querySelector("button").click();
+  assert.deepEqual(painted(document), { loading: 0, failed: 0, empty: 0, filtered: 0 });
+  assert.equal(rendered(document, ".post-card"), 3);
+  const summary = textOf(document.querySelector("#feed-summary"));
+  assert.equal((summary.match(/newest first\./g) ?? []).length, 1);
+});
+
+test("a Social state change speaks in the live region without taking the reader's place", async (t) => {
+  const page = await loadPage(SOCIAL_PAGE, {});
+  t.after(() => page.restore());
+  const { document } = page;
+  const feed = mountSocialFeed(document, { posts: [], state: "loading", onRetry: () => {} });
+
+  // The one node all four states are drawn into, and it is polite: the state
+  // change is announced where it stands rather than by moving anybody to it.
+  const status = document.querySelector("#feed-state");
+  assert.equal(status.getAttribute("role"), "status");
+  assert.equal(status.getAttribute("aria-live"), "polite");
+
+  // A reader standing on a control no render in this test touches.
+  const standing = () => document.activeElement?.getAttribute("id") ?? "(nothing)";
+  document.querySelector("#post-compose-open").focus();
+  assert.equal(standing(), "post-compose-open");
+
+  // Three states arriving on their own — a first answer, a failed refresh over
+  // posts already on screen, and a feed that came back empty.
+  feed.seed(MIXED);
+  assert.equal(standing(), "post-compose-open", "the answered feed moved the reader");
+  feed.setState("error");
+  assert.equal(standing(), "post-compose-open", "the failed refresh moved the reader");
+  assert.equal(rendered(document, ".post-card"), 3, "a failed refresh discarded readable posts");
+  feed.seed([]);
+  assert.equal(standing(), "post-compose-open", "the empty feed moved the reader");
+  assert.match(textOf(status), /No posts on Social yet\./);
+
+  // And the dead end, which a reader arrives at by using a menu: the panel is
+  // drawn under them and the menu keeps focus, so nothing drags them into the
+  // new region to read it.
+  feed.seed(MIXED);
+  const names = document.querySelector("#post-name-filter");
+  names.focus();
+  filterToNothing(document);
+  assert.equal(painted(document).filtered, 1);
+  assert.equal(standing(), "post-name-filter", "the dead end took the reader off the menu that caused it");
+  assert.equal(names.disabled, false, "the menus that emptied the feed are the way back into it");
+});
+
+test("the filtered dead end's way out is a real control one Tab past the filters", async (t) => {
+  const page = await loadPage(SOCIAL_PAGE, {});
+  t.after(() => page.restore());
+  const { document } = page;
+  mountSocialFeed(document, { posts: MIXED, state: "ready" });
+  const { names, times } = filterToNothing(document);
+  const toolbarClear = document.querySelector("#post-filter-clear");
+  const exit = document.querySelector(PANEL.filtered).querySelector("button");
+
+  // A real control, in the tab order under its own steam: a button's text is its
+  // accessible name, and a real button needs no invented tab stop. The type is
+  // read off the property — this harness reflects none, so getAttribute("type")
+  // is null on a button the renderer built.
+  assert.equal(exit.tagName, "BUTTON");
+  assert.equal(exit.type, "button");
+  assert.equal(exit.disabled, false);
+  assert.equal(exit.getAttribute("tabindex"), null);
+  assert.equal(textOf(exit), CLEAR_FILTERS_LABEL);
+
+  // Where it stands: after both menus and after the row's own reset, with
+  // nothing focusable in between — the summary line above it carries
+  // tabindex="-1" and is a place focus can be put, never a stop Tab lands on.
+  const stops = tabSequence(document);
+  const at = (node) => stops.indexOf(node);
+  assert.ok(at(names) < at(times), "the menus are out of authored order");
+  assert.ok(at(times) < at(toolbarClear), "the row's reset no longer follows its menus");
+  assert.equal(at(exit) - at(toolbarClear), 1, "something focusable stands between the filter row and its way out");
+  toolbarClear.focus();
+  assert.ok(pressTab(document) === exit, "Tab from the filter row does not reach the way out");
+
+  // Pressing it restores the unfiltered feed: both menus back to their
+  // all-values option, every post on screen, the count agreeing with the cards,
+  // and no panel left over.
+  exit.click();
+  assert.equal(names.value, "all");
+  assert.equal(times.value, "all");
+  assert.equal(rendered(document, ".post-card"), 3);
+  assert.deepEqual(painted(document), { loading: 0, failed: 0, empty: 0, filtered: 0 });
+  assert.equal(textOf(document.querySelector("#post-count")), "3 posts");
+  // This press destroys the control it came from, so the reader is placed on the
+  // feed they asked for. Leaving focus on a removed node drops a keyboard reader
+  // to <body>, and from there the next Tab restarts at the top of the document.
+  assert.ok(document.activeElement !== document.body, "the reader was dropped to the document");
+  assert.ok(classesOf(document.activeElement).includes("post-people"),
+    "the restored feed did not take the reader in at a card's first stop");
+});
+
+test("the empty feed's way out is the composer already on the page", async (t) => {
+  const page = await loadPage(SOCIAL_PAGE, {});
+  t.after(() => page.restore());
+  const { document } = page;
+  mountSocialFeed(document, { posts: [], state: "ready" });
+  const panel = document.querySelector(PANEL.empty);
+
+  // One route, and it is a control rather than a link somewhere else: a second
+  // composer destination is the failure this watches for.
+  assert.equal(panel.querySelectorAll("button").length, 1);
+  assert.equal(panel.querySelectorAll("a").length, 0);
+  const route = panel.querySelector("button");
+  assert.equal(route.tagName, "BUTTON");
+  assert.equal(route.type, "button");
+  assert.equal(route.disabled, false);
+  assert.equal(textOf(route), COMPOSE_POST_LABEL);
+  assert.ok(tabSequence(document).includes(route), "the empty feed's way out is not a tab stop");
+  // Nothing to filter on this screen, so the menus are not stops a reader walks
+  // through to reach it.
+  assert.equal(tabSequence(document).includes(document.querySelector("#post-name-filter")), false);
+
+  // And it opens the composer THIS page ships — the one disclosure the hero's
+  // entry controls — rather than navigating anywhere.
+  const composer = document.querySelector("#post-compose-panel");
+  const entry = document.querySelector("#post-compose-open");
+  assert.equal(composer.hidden, true);
+  route.click();
+  assert.equal(composer.hidden, false);
+  assert.equal(entry.getAttribute("aria-expanded"), "true");
+  assert.equal(document.querySelectorAll("#post-compose-panel").length, 1, "the page grew a second composer");
+  // Opening is the reader's own press, so the composer takes focus: its title.
+  // That is a press answering, not a state arriving, which is the distinction
+  // the test above holds the four states to.
+  assert.equal(document.activeElement?.getAttribute("id"), "post-form-title");
+});
+
+// The four panels at a narrow width, asserted against the CSS the page actually
+// loads. No module on Social reads matchMedia or innerWidth, so a harness
+// viewport shim would only assert itself; what decides whether a 60-character
+// display name inside the dead-end sentence wraps or widens the page is these
+// rules, and they are read out of the sheets social.html links.
+function cssRules(css) {
+  const found = [];
+  for (const [, selectorText, body] of css.replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    found.push({ selectors: selectorText.split(",").map((part) => part.trim().replace(/\s+/g, " ")), body });
+  }
+  return found;
+}
+
+test("the four Social states hold their words at a narrow width", async () => {
+  const read = (file) => readFile(new URL(`../src/${file}`, import.meta.url), "utf8");
+  const html = await read("social.html");
+  const sheets = [...html.matchAll(/<link rel="stylesheet" href="\/([^"]+)"/g)].map(([, href]) => href);
+  const rules = cssRules((await Promise.all(sheets.map(read))).join("\n"));
+  const bodyOf = (selector) => rules.filter((rule) => rule.selectors.includes(selector)).map((rule) => rule.body).join(" ");
+
+  // The panel is a wrapping row, and the guidance sentence takes a line of its
+  // own instead of being squeezed beside the label it follows.
+  assert.match(bodyOf(".feed-status"), /flex-wrap:\s*wrap/);
+  assert.match(bodyOf(".feed-status-detail"), /flex-basis:\s*100%/);
+  // The way out is a button sized to its words with a finger-sized target, not a
+  // full-width bar: both recoveries are drawn by this one rule.
+  assert.match(bodyOf(".feed-status-action"), /width:\s*auto/);
+  assert.match(bodyOf(".feed-status-action"), /min-height:\s*4[0-9]px/);
+  // A long display name in the dead end's sentence shrinks the panel's
+  // min-content instead of widening the page. `anywhere`, not `break-word`:
+  // only the former narrows a flex child.
+  const wrapping = bodyOf("#feed-state .empty-state");
+  assert.match(wrapping, /overflow-wrap:\s*anywhere/);
+  assert.match(wrapping, /min-width:\s*0/);
+  // And nothing in the panel clips its own text.
+  for (const selector of [".feed-status", ".feed-status-detail", ".feed-status-action", "#feed-state .empty-state"]) {
+    assert.doesNotMatch(bodyOf(selector), /text-overflow|line-clamp|white-space:\s*nowrap|overflow:\s*hidden/,
+      `${selector} clips the words a state is identified by`);
+  }
 });
 
 /* ---------------------------------- People -------------------------------- */
