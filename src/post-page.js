@@ -21,7 +21,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-
 // it on a forwarded link and a reader who meets it on the feed read the same
 // sentences. tests/post-page-flow.test.js reads both out of src/social.html.
 const REPORT_DISCLOSURE_SUMMARY = "How reporting works";
-const REPORT_DISCLOSURE_BODY = "Report post opens a short form about that one post. Choose a reason, add a note if you want to, and give your email address. The report goes only to the Wawalu team, who review each one. A report does not remove or hide the post, and not every report leads to removal. The team decides after review whether to remove it.";
+const REPORT_DISCLOSURE_BODY = "Report post opens a short form about that one post. Choose a reason, add a note if you want to, and give your email address. The report goes only to the Wawalu team, who review each one. The post stays up unless the team decides after review to remove it.";
 
 // The two sentences of the follow-up invitation that tell a reader to select a
 // control, and the sentence they are threaded around. Both controls — Report

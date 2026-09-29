@@ -129,7 +129,13 @@ test("Social: the reporting route sits outside the composer and points at the ex
   let inComposer = false;
   for (let at = route; at; at = at.parentNode) if (at.id === "post-compose-panel") inComposer = true;
   assert.equal(inComposer, false, "the route is inside the composer, whose tab order is pinned");
-  assert.match(textOf(id("post-report-about")), /reviews? each one\. A report does not remove or hide the post, and not every report leads to removal\. The team decides after review whether to remove it\.$/);
+  // One sentence for what a report leads to, not two saying it in turn (#2626):
+  // "a report does not remove or hide the post, and not every report leads to
+  // removal" and "the team decides after review whether to remove it" were the
+  // same fact twice, so the explanation now states the outcome a reader can see.
+  assert.match(textOf(id("post-report-about")), /reviews? each one\. The post stays up unless the team decides after review to remove it\.$/);
+  assert.doesNotMatch(textOf(id("post-report-about")), /not every report leads to removal/,
+    "Social restates what a report leads to a second time");
 
   // Explained once (#2471). The route's link text used to open the explanation
   // as a lead-in too, and the composer's terms restated the review in their own
@@ -138,7 +144,11 @@ test("Social: the reporting route sits outside the composer and points at the ex
   // hidden until then, so it is not counted as a second explanation.
   const main = textOf(id("main-content")).split(textOf(id("post-report-panel"))).join(" ");
   assert.ok(main.split("How reporting works").length - 1 <= 1, "Social says \"How reporting works\" more than once");
-  assert.equal(main.split("not every report leads to removal").length - 1, 1, "Social explains what a report leads to other than exactly once");
+  assert.equal(main.split("The post stays up unless the team decides").length - 1, 1, "Social explains what a report leads to other than exactly once");
+  // And the form's fields are described in that one place and nowhere else on
+  // the painted page: the composer's terms point at the control, they do not
+  // re-list what pressing it asks for (#2626).
+  assert.equal(main.split("Report post opens a short form").length - 1, 1, "Social describes what the report form asks for other than exactly once");
   const terms = textOf(id("post-consequence"));
   assert.doesNotMatch(terms, /after review|may remove|review/i, "the publishing terms restate the reporting explanation's review process");
 });
