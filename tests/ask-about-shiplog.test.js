@@ -37,10 +37,16 @@ import { FOLLOW_UP_INTENTS, FOLLOW_UP_REPLY } from "../src/lead-capture.js";
 import { initReleasesPage } from "../src/releases-page.js";
 import { RELEASE_STORAGE_KEY } from "../src/releases.js";
 import { OFFER } from "../src/site-footer.js";
+import { importPageModule } from "./support/page-module.js";
 import { loadPage, parseHtml, pressEnter, tabSequence, textOf } from "./support/browser.js";
 
-const HOME_LABEL = "Request a demonstration or discuss a pilot";
-const HOME_DESCRIPTION = "Use the follow-up form at the foot of this page to request a demonstration or discuss a pilot with the Wawalu team. Enter your work email to request a follow-up. A person replies by email, usually within two working days.";
+const HOME_LABEL = "Request a demonstration";
+// Since #2623 this line describes two controls that DO the errand rather than
+// one that names it, so it says what activating either one does — the shape the
+// other five pages already use — instead of instructing a reader to go and use
+// the form themselves. It names what is shown, never what is sent: the topic
+// stays on this page, and the sentence beside the field says so too.
+const HOME_DESCRIPTION = "Both actions move you to the follow-up form at the foot of this page and name your chosen topic above its field. The form sends your work email address and nothing else. A person replies by email, usually within two working days.";
 
 const PANEL_ID = ASK_ABOUT_SHIPLOG_HREF.slice(1);
 
@@ -50,6 +56,7 @@ async function openHome(t) {
   });
   t.after(() => page.restore());
   await initDecisionLog(page.document, page.storage);
+  await importPageModule("/homepage-buyer-intent.js");
   return page;
 }
 
@@ -112,14 +119,14 @@ for (const [name, open] of CARRIERS) {
 
     // Focusable as a target and not as a stop: the panel takes focus when the
     // route is followed, and nothing joined the tab order to make that work.
-    assert.equal(panel.getAttribute("tabindex"), "-1");
+    assert.equal(panel.getAttribute("tabindex"), name === "the home page" ? null : "-1");
     assert.equal(tabSequence(document).filter((node) => node === panel).length, 0,
       `${name}: the form's container became a tab stop of its own`);
 
     const route = document.getElementById(ASK_ABOUT_SHIPLOG_ID);
     route.focus();
     pressEnter(document);
-    assert.equal(document.activeElement?.getAttribute("id"), PANEL_ID,
+    assert.equal(document.activeElement?.getAttribute("id"), name === "the home page" ? "site-footer-email" : PANEL_ID,
       `${name}: following the route left focus outside the follow-up form`);
 
     // What is in view on arrival: the band's own heading above the panel, the

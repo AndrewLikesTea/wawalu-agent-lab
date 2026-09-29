@@ -17,6 +17,16 @@
 // cursor in a box. This mirrors initRecordReleaseJump in releases-page.js,
 // which lands the Releases hero on the recorder the same way.
 //
+// WHY A ROUTE MAY OPT OUT OF THE LANDING. A route carrying `data-buyer-intent`
+// has a better one: homepage-buyer-intent.js records the topic that route names
+// and puts the visitor in the work-email field itself, which is the field they
+// came to fill. Wiring this module on top of it would undo that, and not only
+// because two click handlers would race. A fragment target that CAN take focus
+// is focused by the navigation the link performs after every handler has run, so
+// the tabindex below would hand focus from the field back to the panel — the
+// browser doing it, not this module, which is why no test harness catches it and
+// why the opt-out is a guard here rather than an ordering convention there.
+//
 // THE TABINDEX IS SET HERE, not in the footer markup. That markup is generated
 // by siteFooterMarkup() in site-footer.js and shipped byte for byte on every
 // page that carries the band — site-footer.test.js compares the two — and only
@@ -72,7 +82,7 @@ export const ASK_ABOUT_SHIPLOG_DESCRIPTION =
 export function initAskAboutShiplog(root = document) {
   const link = root.querySelector(`#${ASK_ABOUT_SHIPLOG_ID}`);
   const panel = root.querySelector(ASK_ABOUT_SHIPLOG_HREF);
-  if (!link || !panel) return null;
+  if (!link || !panel || link.hasAttribute("data-buyer-intent")) return null;
   panel.setAttribute("tabindex", "-1");
   const onClick = () => {
     panel.focus?.({ preventScroll: true });

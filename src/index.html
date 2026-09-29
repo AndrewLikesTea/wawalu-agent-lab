@@ -85,42 +85,34 @@
         <h2 id="shiplog-entry-title">Know why it shipped. Decide what’s next.</h2>
         <p>Shiplog records decisions, tracks the releases they shape, and keeps the link between them. A teammate who arrives six months late opens the release and reads the reasoning behind it, instead of reconstructing it from chat history. Recording, searching, filtering, exporting, and importing the log are all further down this page.</p>
         <p>How a team gets Shiplog: by asking the team that operates it. There is no self-serve signup and no published price — Shiplog is a demonstration product built and operated by Wawalu, so whether it is available for your team and what it would cost are both answered on request. The <a href="#shiplog-evaluation-brief">evaluation brief and blank pilot scorecard</a> are further down this page. The brief says what Shiplog records and who operates it; the scorecard is a blank form your evaluating team fills in during a pilot. The follow-up form at the foot of this page sends your work email to that team and nothing else.</p>
-        <!-- THE ASK, AS A CONTROL, DIRECTLY UNDER THE ANSWER IT FOLLOWS FROM.
-             It used to be the closing clause of the paragraph above, which is
-             where a reader who had already decided to ask had to go looking for
-             it. ONE ROUTE AND NOT TWO: this section is held to its six tab
-             stops by homepage-log-leads.test.js and to a single contact
-             destination by homepage-proof-path.test.js, so the buyer picks no
-             form and nothing on this page competes with the hero's own call to
-             action. It is not in the hero for the reason stated there: the ask
-             belongs with the answer about availability and pricing, which is
-             this paragraph and not that one.
-             The address is the one the evaluation brief publishes for the same
-             question, and ask-about-shiplog.js makes arriving a focus move
-             rather than a scroll. No rule was added: the row and the link reuse
-             the hero's classes, which already wrap at narrow widths, because
-             styles.css is at its measured size budget.
-             WHAT THE TWO OFFERS ARE, SAID BEFORE THE HAND GOES UP (#2606). The
-             label named two things a first-time visitor had no way to tell
-             apart, and the topics are only spelled out lower down, as the two
-             drawn controls in the buyer-intent section. So the line below says
-             what each one is, in the words FOLLOW_UP_INTENTS uses for them, so
-             a reader can map a sentence onto the option they will pick.
-             PROSE ONLY, AND NO SECOND ROUTE TO THE SCORECARD. This section is
-             held to eight tab stops by homepage-log-leads.test.js and to one
-             contact destination by homepage-proof-path.test.js, so the
-             scorecard is named and placed in words: the paragraph above
-             already links the evaluation brief and blank pilot scorecard, two
-             sentences up, and a second link to the same material would be the
-             same address twice in one region.
-             It promises no schedule, price, availability or customer: what
-             Shiplog costs and whether it is available stay answered on request
-             in the paragraph above, and the reply and the form are said once,
-             in the line the route describes itself with. -->
+        <!-- TWO ROUTES, BECAUSE THE TOPIC IS THE CHOICE (#2623). This row
+             carried one route for both errands, so a buyer who had already
+             decided scrolled the rest of the page to reach the pair that names
+             them. Each route now names one errand, lands the visitor in the
+             work-email field, and records that topic where they can read it
+             back before sending. Both drive the same state the pair lower down
+             the page drives, so the page holds one choice and not two, and the
+             address is the one the evaluation brief publishes for this question.
+             ONE STYLE FOR THE TWO: peers, not a primary and a fallback. Nothing
+             here knows which errand a given buyer wants, so weighting one would
+             be a guess drawn in type. They reuse the hero's classes, which
+             already wrap at narrow widths, because styles.css is at its
+             measured size budget.
+             NOT IN THE HERO: the ask belongs with the answer about availability
+             and pricing, which is the paragraph above and not that one.
+             NO SECOND ROUTE TO THE SCORECARD: the paragraph above links the
+             evaluation brief and blank pilot scorecard two sentences up, and
+             this section's tab stops are counted by homepage-log-leads.test.js.
+             The two lines below promise no schedule, price, availability or
+             customer: what Shiplog costs and whether it is available stay
+             answered on request in the paragraph above, and what the request
+             sends is said once, in the line the routes describe themselves
+             with. -->
         <div class="hero-actions">
-          <a class="text-link" id="ask-about-shiplog" href="#site-footer-panel" aria-describedby="ask-about-shiplog-description">Request a demonstration or discuss a pilot</a>
+          <a class="text-link" id="ask-about-shiplog" data-buyer-intent="demo" href="#site-footer-panel" aria-describedby="ask-about-shiplog-description">Request a demonstration</a>
+          <a class="text-link" id="discuss-pilot" data-buyer-intent="pilot" href="#site-footer-panel" aria-describedby="ask-about-shiplog-description">Discuss a pilot</a>
           <p class="hint" id="ask-about-shiplog-offers">“A product demonstration” is a walkthrough: the Wawalu team that operates Shiplog shows you the log and answers your questions. “A pilot evaluation” is your own team trying Shiplog and scoring it on the blank pilot scorecard further down this page.</p>
-          <p class="hint" id="ask-about-shiplog-description">Use the follow-up form at the foot of this page to request a demonstration or discuss a pilot with the Wawalu team. Enter your work email to request a follow-up. A person replies by email, usually within two working days.</p>
+          <p class="hint" id="ask-about-shiplog-description">Both actions move you to the follow-up form at the foot of this page and name your chosen topic above its field. The form sends your work email address and nothing else. A person replies by email, usually within two working days.</p>
         </div>
         <article class="hero-proof" id="featured-decision" aria-labelledby="featured-decision-title">
           <h3 class="eyebrow" id="featured-decision-title">One recorded decision, and the release that shipped it</h3>
