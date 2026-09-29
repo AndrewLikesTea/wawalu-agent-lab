@@ -919,7 +919,7 @@ test("People gives every completed selected-name zero the same one recovery", as
   // grid, and the panel does not tell three of its steps over again (#2497).
   assert.equal(document.querySelectorAll(".feed-create").length, 1);
   assert.match(textOf(document.querySelector(".feed-create")),
-    /Create or open an image in Paint \(opens in a new tab\)\. Select “Use this image in a Social post”, then fill in the required image description\. Publish a post on Social\. A published post with an image appears on People, under the display name you publish it with\./);
+    /Create or open an image in Paint \(opens in a new tab\)\. Select “Use this image in a Social post”, then fill in the required image description\. Publish a post on Social\. A published image post appears on People, under the display name you publish it with\./);
 });
 
 test("People's chooser is inoperable until there is something to choose between", async (t) => {

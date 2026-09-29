@@ -1166,7 +1166,7 @@ test("a selected name with no image posts offers the picker, and the path is sta
     // under the grid — Paint, the control, the description, publish, People.
     const invitation = textOf(document.querySelector(".feed-create"));
     assert.match(invitation,
-      /To add yours: Create or open an image in Paint \(opens in a new tab\)\. Select “Use this image in a Social post”, then fill in the required image description\. Publish a post on Social\. A published post with an image appears on People, under the display name you publish it with\./);
+      /To add yours: Create or open an image in Paint \(opens in a new tab\)\. Select “Use this image in a Social post”, then fill in the required image description\. Publish a post on Social\. A published image post appears on People, under the display name you publish it with\./);
     assert.match(invitation, /A published post is public and cannot be edited or deleted/);
     assert.match(invitation, /Do not include customer or production data\./);
     // And it is the only place the settled page names either end of the handoff.
@@ -1181,6 +1181,29 @@ test("a selected name with no image posts offers the picker, and the path is sta
     assert.equal(status.getAttribute("aria-live"), null);
     assert.equal(status.getAttribute("role"), null);
     assert.equal(textOf(document.querySelector("#profile-announcer")), "The display name “Nova” has no image posts yet.");
+  } finally {
+    page.restore();
+  }
+});
+
+// #2634: People counts, filters and heads its grid with "image post", so its
+// prose may not name the same thing "a post with an image" one line under a chip
+// that counts image posts. Social defines the noun at the composer; these steps
+// and the caveat above them borrow it, as they already borrow the rest of their
+// wording from that composer.
+test("People names a post that carries an image the way its own headings do", async () => {
+  const page = await people();
+  try {
+    const rendered = textOf(page.document.querySelector("body"));
+    assert.doesNotMatch(rendered, /posts? with an image/i,
+      "a rendered string on People names an image post a second way");
+    assert.doesNotMatch(rendered, /\b(photo|picture|media) posts?\b/i,
+      "People invents another noun for an image post");
+    // The two places the concept is named in prose rather than counted.
+    assert.match(textOf(page.document.querySelector(".feed-create")),
+      /A published image post appears on People, under the display name you publish it with\./);
+    assert.match(textOf(page.document.querySelector(".profile-lede.hint")),
+      /anyone can read an image post you publish\./);
   } finally {
     page.restore();
   }

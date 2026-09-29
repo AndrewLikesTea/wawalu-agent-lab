@@ -68,8 +68,8 @@
              focus that comes back to this control on every close.
              It once read "Write a post without an image", which contradicted
              the form it opens: that form's own image field is labelled
-             "(optional)", so the composer takes a post with an image or
-             without one and the control that opens it may not promise
+             "(optional)", so the composer takes an image post or one with no
+             image and the control that opens it may not promise
              otherwise. The qualifier is what went; the verb is back without it,
              and the control claims nothing about images in either direction.
              It names the writing, while the button at the end of the
@@ -444,8 +444,18 @@
           <div class="paint-arrival" id="paint-arrival" role="status" tabindex="-1" hidden></div>
           <p id="paint-draft-note" class="hint" hidden></p>
 
+          <!-- #2634: this hint is where the site's name for a post that carries
+               an image is introduced, and it is the only sentence that defines
+               it — by tying the noun to the act that produces it, at the field
+               that performs the act. Social and People used to call the same
+               thing "a post with an image" in prose while People's headings, its
+               filter label and the footer all called it an image post, so a
+               reader met two names for one concept and had to decide whether
+               they were the same. "Image post" is the survivor, because it is
+               the one the other surfaces already count and filter by. The rule
+               about where it lands is unchanged and still told once (#2405). -->
           <form id="post-form" aria-labelledby="post-form-title" aria-describedby="post-form-hint" novalidate>
-            <p class="hint" id="post-form-hint">Write your post. Add an image if you want one — a post with an image also appears on People, under the display name you publish it with.</p>
+            <p class="hint" id="post-form-hint">Write your post. Add an image if you want one — adding an image makes it an image post, which also appears on People, under the display name you publish it with.</p>
 
             <div class="field field-wide">
               <!-- First, because the hint above says "Write your post. Add an
@@ -660,7 +670,7 @@
                        Display name pattern, and like that field's second hint
                        it is named by the input's own aria-describedby, in the
                        order it is read. -->
-                  <p class="hint" id="post-image-alt-requirement">A post with an image will not publish until you fill this in.</p>
+                  <p class="hint" id="post-image-alt-requirement">An image post will not publish until you fill this in.</p>
                   <p class="counter-row">
                     <span id="post-image-alt-counter-label">Characters remaining:</span>
                     <span id="post-image-alt-counter" aria-live="polite" aria-atomic="true">200</span>

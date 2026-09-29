@@ -559,13 +559,45 @@ test("where a post with an image lands is said once, at the field that attaches 
   assert.match(intro, /Open People when you want the image posts from one display name\./);
 });
 
+// #2634: one name for a post that carries an image, and one sentence that says
+// what makes it one. Social's prose called it "a post with an image" while the
+// footer entry for People, People's own headings and its filter label all called
+// it an image post, so the two pages named one concept twice and a reader had to
+// work out whether they were the same thing. The noun People counts and filters
+// by is the survivor; Social is where it is defined, because Social is where the
+// act that produces it happens.
+test("Social names a post that carries an image one way, and defines the name once", async (t) => {
+  const page = await loadPage(new URL("../src/social.html", import.meta.url), {});
+  t.after(() => page.restore());
+  mountComposerDisclosure(page.document);
+  page.document.querySelector("#post-compose-open").click();
+
+  const rendered = textOf(page.document.querySelector("body"));
+  assert.doesNotMatch(rendered, /posts? with an image/i,
+    "a rendered string on Social names an image post a second way");
+  // Not a third: a synonym is the same defect as the phrase this replaced.
+  assert.doesNotMatch(rendered, /\b(photo|picture|media) posts?\b/i,
+    "Social invents another noun for an image post");
+
+  // The definition, at the field whose use produces the thing being named, and
+  // said exactly once — a second telling is a second rule to reconcile (#2405).
+  assert.match(textOf(page.document.querySelector("#post-form-hint")),
+    /adding an image makes it an image post/,
+    "the composer no longer ties the term to the act that produces it");
+  assert.equal(rendered.split("makes it an image post").length - 1, 1,
+    "Social defines the term more than once, or the one definition is gone");
+  // And the requirement beside the description field uses the defined noun.
+  assert.equal(textOf(page.document.querySelector("#post-image-alt-requirement")),
+    "An image post will not publish until you fill this in.");
+});
+
 test("the composer calls its required 280-character text a post throughout", async (t) => {
   const page = await loadPage(new URL("../src/social.html", import.meta.url), {});
   t.after(() => page.restore());
 
   const composer = page.document.querySelector("#post-compose-panel");
   assert.equal(textOf(composer.querySelector("#post-form-hint")),
-    "Write your post. Add an image if you want one — a post with an image also appears on People, under the display name you publish it with.");
+    "Write your post. Add an image if you want one — adding an image makes it an image post, which also appears on People, under the display name you publish it with.");
   // "Your post", not "Post": the page's other uses of the bare word name the
   // published thing — Publish post, Open post — and the label names the reader's
   // own draft (#1967). The noun is the same one everything else defers to.

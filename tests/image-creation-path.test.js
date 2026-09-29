@@ -123,7 +123,7 @@ for (const [name, document] of Object.entries(NEARBY_INVITATION)) {
     // pinned is that the result is still stated, still after the steps, and
     // still before the consequence of carrying them out.
     assert.match(sentence.trim(), /^To add yours: Create or open an image in Paint/);
-    const result = "A published post with an image appears on People, under the display name you publish it with.";
+    const result = "A published image post appears on People, under the display name you publish it with.";
     assert.equal(sentence.split(result).length - 1, 1,
       `${name}'s helper does not explain where the post appears exactly once`);
     assert.ok(sentence.indexOf("Publish a post on Social.") < sentence.indexOf(result),
@@ -669,7 +669,7 @@ test("the file route says what it is for and leaves the picker its own name", ()
 // named would turn up — a rule about a control that was not on the screen, read
 // before the reader had decided whether it applied to them. It is one sentence at
 // the field now, revealed with the preview, which is the moment the rule binds.
-const ALT_REQUIREMENT = "A post with an image will not publish until you fill this in.";
+const ALT_REQUIREMENT = "An image post will not publish until you fill this in.";
 
 /** Text a reader cannot reach yet: something above it carries `hidden`. */
 const foldedAway = (node) => {
@@ -825,7 +825,7 @@ test("People names the same steps in the same words as the composer", async () =
   assert.equal(invitation,
     "To add yours: Create or open an image in Paint (opens in a new tab). "
     + "Select “Use this image in a Social post”, then fill in the required image description. "
-    + "Publish a post on Social. A published post with an image appears on People, "
+    + "Publish a post on Social. A published image post appears on People, "
     + "under the display name you publish it with. "
     // The conditions of publishing themselves, not a pointer to them (#2484).
     + PEOPLE_CONSEQUENCE);
