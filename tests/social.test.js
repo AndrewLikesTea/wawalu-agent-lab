@@ -524,14 +524,14 @@ test("the opener and heading use Write a post, and the submit reads Publish post
     "the word survives outside the People page's own URL and nav class");
 });
 
-// #2405: one rule, one telling. Social stated where a post with an image lands
+// #2405: one rule, one telling. Social stated where an image post lands
 // three times in three wordings — in the hero, at the image field, and under
 // the display name — so a reader had to work out whether they were three rules
 // or one, and the telling that matters at the moment of the act was the middle
 // one. The image field's sentence is the survivor, because that is the control
 // the rule depends on: choose an image and it applies, choose none and it does
 // not.
-test("where a post with an image lands is said once, at the field that attaches the image", async (t) => {
+test("where an image post lands is said once, at the field that attaches the image", async (t) => {
   const page = await loadPage(new URL("../src/social.html", import.meta.url), {});
   t.after(() => page.restore());
   mountComposerDisclosure(page.document);
@@ -551,6 +551,29 @@ test("where a post with an image lands is said once, at the field that attaches 
   assert.doesNotMatch(rendered, /published under one display name/,
     "the hero explains how an image post reaches People again");
 
+  // #2634: one name for it, and the composer is where that name is defined.
+  // Social and People both used to say "a post with an image" in the one
+  // sentence that explains the result, while every heading, filter label and
+  // footer entry on both pages said "image post" — one thing under two names,
+  // and the reader had to decide whether they were the same thing.
+  const TERM = "image post";
+  const hint = textOf(page.document.querySelector("#post-form-hint"));
+  assert.match(hint, /Add an image if you want one — the result is an image post,/,
+    "the composer stops tying the term to the act that produces it");
+  assert.equal(rendered.split("the result is an image post").length - 1, 1,
+    "the term is defined more than once on Social, or the one definition is gone");
+  assert.ok(hint.indexOf(TERM) < hint.indexOf("appears on People"),
+    "the hint spends the noun before it defines it");
+  for (const rival of [/posts? with an image/i, /photo post/i, /picture post/i,
+    /media post/i, /image-bearing/i, /post with a picture/i]) {
+    assert.doesNotMatch(rendered, rival,
+      `Social names an image post a second way: ${rival}`);
+  }
+  // Including the field that refuses one: the rule names what it refuses in
+  // the same noun the hint above it just defined.
+  assert.equal(textOf(page.document.querySelector("#post-image-alt-requirement")),
+    "An image post will not publish until you fill this in.");
+
   // The hero keeps one pointer to People, written as somewhere to go rather
   // than as a second account of what publishing does.
   const intro = textOf(page.document.querySelector(".social-feed-intro"));
@@ -565,7 +588,7 @@ test("the composer calls its required 280-character text a post throughout", asy
 
   const composer = page.document.querySelector("#post-compose-panel");
   assert.equal(textOf(composer.querySelector("#post-form-hint")),
-    "Write your post. Add an image if you want one — a post with an image also appears on People, under the display name you publish it with.");
+    "Write your post. Add an image if you want one — the result is an image post, and it also appears on People, under the display name you publish it with.");
   // "Your post", not "Post": the page's other uses of the bare word name the
   // published thing — Publish post, Open post — and the label names the reader's
   // own draft (#1967). The noun is the same one everything else defers to.
@@ -1972,7 +1995,7 @@ test("the composer's three cautions still read word for word once it is open", a
     "post-author-hint": AUTHOR_HINT,
     // The fourth entry here was #post-author-identity, "People groups image
     // posts under this display name." It is deleted, not reworded: the image
-    // field already says where a post with an image lands (#2405).
+    // field already says where an image post lands (#2405).
     "post-consequence": PUBLISH_CONSEQUENCE,
   };
   for (const [id_, wording] of Object.entries(cautions)) {
@@ -2042,6 +2065,15 @@ test("once Social has loaded, the display name hint fixes the name on this post,
   assert.equal(main.split(AUTHOR_HINT).length - 1, 1, "the hint is said more than once on the page");
   assert.equal(main.includes("cannot be changed after publishing"), false,
     "the account-sounding wording survives somewhere on the page");
+
+  // #2634, on the painted page rather than in the file: no module rewrites
+  // #post-form-hint, so the sentence that defines "image post" is what a
+  // booted Social actually shows, and the loaded page carries no second name
+  // for the thing.
+  assert.equal(textOf(document.querySelector("#post-form-hint")),
+    "Write your post. Add an image if you want one — the result is an image post, and it also appears on People, under the display name you publish it with.");
+  assert.doesNotMatch(main, /posts? with an image/i,
+    "the loaded page names an image post a second way");
 });
 
 // ---------------------------------------------------------------------------

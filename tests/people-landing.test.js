@@ -1166,7 +1166,7 @@ test("a selected name with no image posts offers the picker, and the path is sta
     // under the grid — Paint, the control, the description, publish, People.
     const invitation = textOf(document.querySelector(".feed-create"));
     assert.match(invitation,
-      /To add yours: Create or open an image in Paint \(opens in a new tab\)\. Select “Use this image in a Social post”, then fill in the required image description\. Publish a post on Social\. A published post with an image appears on People, under the display name you publish it with\./);
+      /To add yours: Create or open an image in Paint \(opens in a new tab\)\. Select “Use this image in a Social post”, then fill in the required image description\. Publish a post on Social\. A published image post appears on People, under the display name you publish it with\./);
     assert.match(invitation, /A published post is public and cannot be edited or deleted/);
     assert.match(invitation, /Do not include customer or production data\./);
     // And it is the only place the settled page names either end of the handoff.
@@ -1545,6 +1545,20 @@ test("the intro says the image posts on this page are invented, before any of th
   const helper = textOf(served.document.querySelector(".feed-create"));
   assert.ok(helper.trim().endsWith(PEOPLE_CONSEQUENCE),
     "the helper beside the grid does not close on the conditions of publishing");
+  // #2634: the page that lists nothing but image posts calls them that
+  // everywhere, including in the sequence that explains how one gets here. It
+  // said "a post with an image" there while its own heading, filter legend and
+  // provenance line said "image post".
+  assert.match(helper, /A published image post appears on People, under the display name you publish it with\./,
+    "the helper names the result of the steps in a second vocabulary");
+  for (const rival of [/posts? with an image/i, /photo post/i, /picture post/i,
+    /media post/i, /image-bearing/i, /post with a picture/i]) {
+    assert.doesNotMatch(main, rival, `People names an image post a second way: ${rival}`);
+  }
+  // And the term is spent here, not defined again: Social's composer owns the
+  // one definition, at the field that produces the thing.
+  assert.doesNotMatch(main, /the result is an image post/,
+    "People defines the term Social's composer already defines");
   assert.doesNotMatch(main, /publishing terms/i, "People points at terms instead of stating them");
   // And nowhere on the page does it recite the composer's own sentences.
   for (const sentence of PUBLISH_CONTRACT)
