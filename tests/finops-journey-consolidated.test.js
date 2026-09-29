@@ -11,7 +11,7 @@
 // here from the bundled example records rather than committed as a file.
 
 import assert from "node:assert/strict";
-import test from "node:test";
+import test, { beforeEach, afterEach, mock } from "node:test";
 import { readFile } from "node:fs/promises";
 
 import { loadPage, parseHtml, pressEnter, pressSpace, tabSequence, textOf } from "./support/browser.js";
@@ -28,6 +28,10 @@ const ACTION_KEY = "shiplog.finops.monthly-department-action.v1";
 // The day the bundled next-step fixtures were authored against. Injected, never
 // read from a clock, so every phase below is pinned to one date.
 const TODAY = "2026-07-15T09:00:00.000Z";
+// The real page reads Date at its boundary. Pin that clock too: otherwise the
+// July evidence ages into a refresh recommendation before verification.
+beforeEach(() => mock.timers.enable({ apis: ["Date"], now: new Date(TODAY) }));
+afterEach(() => mock.timers.reset());
 
 const action = (overrides = {}) => ({
   schemaVersion: MONTHLY_ACTION_VERSION,
