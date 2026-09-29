@@ -75,6 +75,41 @@
  * display:none is not reliably announced by every screen reader. */
 #reasoning-proof-provenance:empty { display:none; }
 
+/* ------------------- the coverage gap as a worklist (#2630) ---------------- */
+/* The reveal, its live status, and the worklist beside the rows. Every colour
+ * here is one this page already ships and every control is an existing class:
+ * the chip is .badge (filled, and only for the live coverage status), the reveal
+ * is the .empty-action pair the log's own states use, the next-step link is
+ * .text-link. styles.css, which is inside the measured evolution size budget,
+ * gained nothing; this sheet is the releases page's own and is outside it.
+ *
+ * Nothing on this page measures the viewport in script, so the narrow-width
+ * behaviour is these rules and is asserted against them: min-width:0 and
+ * overflow-wrap let a long release title and a raw decision reference wrap
+ * inside the card instead of widening the page, and at 520px the reveal row
+ * stacks and the button fills its column rather than overflowing at 390px. */
+.coverage-gap-skeleton { display:block; width:min(100%,34ch); height:13px; margin:0; border-radius:7px; background:#dfe8e3; }
+/* The wait ends when the log answers, whatever the answer was. */
+#reasoning-proof[aria-busy="false"] .coverage-gap-skeleton { display:none; }
+.coverage-gap-reveal { display:flex; align-items:center; flex-wrap:wrap; gap:10px 14px; }
+/* .empty-action centres itself under a state panel; here it stands in a row. */
+.coverage-gap-reveal .empty-action { width:auto; margin:0; }
+/* The announcement takes the whole row under the control it reports on. It is
+ * deliberately NOT collapsed while empty, unlike the attribution above: a live
+ * region that appears together with its first text is announced by nothing. */
+#coverage-gap-status { flex:1 1 100%; margin:0; }
+.coverage-gap-worklist { display:grid; gap:9px; margin:0 0 16px; border:1px solid #d9d7d0; border-radius:12px; padding:16px; min-width:0; background:#fff; overflow-wrap:anywhere; }
+/* Focused by script, so the ring is on :focus like #record-history-title's. */
+.coverage-gap-worklist:focus { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.coverage-gap-worklist h3 { margin:0; font-size:17px; }
+.coverage-gap-list { display:grid; gap:13px; margin:0; padding:0 0 0 20px; }
+.coverage-gap-item { min-width:0; }
+.coverage-gap-name { margin:0; font-size:15px; font-weight:700; line-height:1.4; }
+.coverage-gap-reason { margin:3px 0 0; color:#3f4b45; font-size:14px; line-height:1.5; }
+.coverage-gap-step { margin:4px 0 0; color:#555550; font-size:14px; line-height:1.5; }
+.coverage-gap-action { display:inline-block; margin-top:5px; }
+@media(max-width:520px) { .coverage-gap-reveal{align-items:stretch;flex-direction:column}.coverage-gap-reveal .empty-action{width:100%;line-height:1.3}.coverage-gap-worklist{padding:14px}.coverage-gap-list{padding-left:18px} }
+
 /* ---------------------- the four-step demo guide (#2578) ------------------- */
 /* The home page's guide, carried onto this page. The rules are restated here
  * rather than shared, and deliberately: styles.css is inside the measured size

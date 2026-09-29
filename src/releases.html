@@ -315,7 +315,7 @@
            sentence to copy — and wears the classes this page already ships, so
            the block costs one declaration in releases-proof.css and nothing in
            styles.css, which is at its measured size budget. -->
-      <section class="shiplog-proof" id="reasoning-proof" aria-labelledby="reasoning-proof-title">
+      <section class="shiplog-proof" id="reasoning-proof" aria-labelledby="reasoning-proof-title" aria-busy="true">
         <div class="shiplog-proof-heading">
           <div>
             <h2 id="reasoning-proof-title">Reasoning kept with each release</h2>
@@ -330,6 +330,33 @@
         <p class="shiplog-proof-note" id="reasoning-proof-provenance"></p>
         <p class="shiplog-proof-note" id="reasoning-proof-rule">A link pointing at a decision the decision log does not hold does not count. Neither does a release with no linked decision.</p>
         <p class="shiplog-proof-note" id="reasoning-proof-scope">Both numbers are over every release loaded on this page, not the filtered view: the search and the filters below do not change them.</p>
+        <!-- THE GAP, AS SOMETHING A READER CAN OPEN (#2630). The figure above
+             says how many releases keep their reasoning; these two nodes are how
+             a reader reaches the ones that do not. The chip states the live
+             coverage in words and in both values — it is the one filled chip in
+             this block, because it is the one thing here that changes as the log
+             does, and read with no colour at all it says the same thing. The
+             reveal is a real button element whose label carries the count,
+             written by release-coverage-gaps.js from the list it renders.
+
+             BOTH SHIP QUIET. A count is a claim the page cannot make until the
+             log has loaded, so the chip is empty, the button is hidden — no
+             reveal while the data is unknown, and nothing disabled and
+             mysterious — and the section carries aria-busy until the log answers.
+             The skeleton below them is the coverage figure's own wait: it is
+             decorative and aria-hidden, because the log's status region is the
+             page's one voice for "loading" and a second one would say it twice.
+
+             The announcement is a polite region in the normal flow of the block,
+             never inside a disclosure: a live region behind a closed details is
+             silent in a real browser. It ships empty and stays empty until a
+             reveal actually changes what is on screen. -->
+        <p class="coverage-gap-skeleton" id="coverage-gap-skeleton" aria-hidden="true"></p>
+        <div class="coverage-gap-reveal">
+          <span class="badge" id="coverage-gap-chip" hidden></span>
+          <button class="empty-action empty-action-secondary coverage-gap-toggle" id="coverage-gap-toggle" type="button" aria-pressed="false" aria-controls="coverage-gap-list" hidden>Show uncovered releases</button>
+          <p class="shiplog-proof-note" id="coverage-gap-status" role="status" aria-live="polite" aria-atomic="true"></p>
+        </div>
         <div class="shiplog-proof-share">
           <button class="share-button" id="reasoning-proof-copy" type="button" disabled aria-describedby="reasoning-proof-copy-status">Copy both numbers as a sentence</button>
           <span class="share-status" id="reasoning-proof-copy-status" role="status" aria-live="polite" aria-atomic="true"></span>
@@ -494,6 +521,25 @@
              it is not a live region, because #release-count already announces
              that the view changed. -->
         <div class="release-followup-slot" id="release-followup" hidden></div>
+        <!-- THE UNCOVERED WORKLIST (#2630), at the head of the uncovered view and
+             the thing the reveal above moves focus to, which is why it carries a
+             tabindex of minus one: the panel's own heading stands above the count,
+             the search, four filters and the export, so landing there would leave
+             a keyboard reader a dozen tab stops from what changed. Focusable only
+             by script, so it adds no tab stop and reorders nothing.
+             It stands above the log's status region rather than between it and the
+             rows: that region states the wait, and the wait belongs immediately
+             before the list it is about.
+             One entry per uncovered release, written by release-coverage-gaps.js:
+             its name, which of the two kinds of gap it has IN WORDS, and the one
+             next step that applies to that kind. Hidden until the reveal is
+             pressed, and empty in the markup, because which releases are
+             uncovered is not knowable before the log loads. -->
+        <section class="coverage-gap-worklist" id="coverage-gap-worklist" aria-labelledby="coverage-gap-worklist-title" tabindex="-1" hidden>
+          <h3 id="coverage-gap-worklist-title">Releases with no decision this log can show</h3>
+          <p class="shiplog-proof-note" id="coverage-gap-worklist-lead"></p>
+          <ol class="coverage-gap-list" id="coverage-gap-list"></ol>
+        </section>
         <!-- The log's one status region: the only place loading, no releases
              yet, no match and a failed load are ever drawn, and the only live
              region the list has. It is visible rather than visually hidden so
