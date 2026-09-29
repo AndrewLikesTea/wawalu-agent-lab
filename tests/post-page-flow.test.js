@@ -354,10 +354,15 @@ test("the permalink opens with the post in every state, not with its caveats", a
 // The handle's words and the explanation are Social's, read back out of
 // src/social.html by the test below rather than trusted from these lines.
 const REPORT_SUMMARY = "How reporting works";
-const REPORT_ABOUT = "Report post opens a short form about that one post. Choose a reason, add a note if you want to, and give your email address. The report goes only to the Wawalu team, who review each one. A report does not remove or hide the post, and not every report leads to removal. The team decides after review whether to remove it.";
+const REPORT_ABOUT = "Report post opens a short form about that one post. Choose a reason, add a note if you want to, and give your email address. The report goes only to the Wawalu team, who review each one. The post stays up unless the team decides after review to remove it.";
 // What happens to a report and what it can lead to: the account this page states
 // once, and the bytes every other surface that mentions a report uses.
-const REPORT_CONSEQUENCE = "The report goes only to the Wawalu team, who review each one. A report does not remove or hide the post, and not every report leads to removal.";
+//
+// It used to close on two sentences that said the same thing in turn — that a
+// report removes and hides nothing, then that removal is the team's call after
+// review (#2626). One sentence carries both now, in the outcome a reader can
+// see: the post stays up.
+const REPORT_CONSEQUENCE = "The report goes only to the Wawalu team, who review each one. The post stays up unless the team decides after review to remove it.";
 // The two sentences the follow-up invitation gains with the post, each naming a
 // control the loaded state draws. Held byte for byte in
 // tests/post-follow-up-copy.test.js, which drives the form they sit above.
@@ -368,7 +373,7 @@ test("the permalink's reporting explanation is Social's, and none of it ships in
   const html = (await readFile(new URL("../src/social.html", import.meta.url), "utf8")).replace(/<!--[\s\S]*?-->/g, "");
   // Anchored on its opening words rather than typed out, so a Social that
   // rewords the consequence fails here instead of drifting away from this page.
-  const shipped = html.match(/The report goes only to the Wawalu team[^<]*not every report leads to removal\./)?.[0];
+  const shipped = html.match(/The report goes only to the Wawalu team[^<]*decides after review to remove it\./)?.[0];
   assert.ok(shipped, "Social no longer says what happens to a report and what it can lead to");
   assert.equal(REPORT_CONSEQUENCE, shipped, `the permalink does not ship Social's consequence: ${shipped}`);
   // The note under Social's feed, and the words Social's own link to that note
@@ -402,7 +407,7 @@ test("the permalink's reporting explanation is Social's, and none of it ships in
     assert.equal(post.includes(clause), false,
       `the permalink's markup ships the reporting ${name} to a reader with no post on the page`);
   }
-  assert.equal(post.split(/not every report leads to removal/).length - 1, 0,
+  assert.equal(post.split(/decides after review to remove it/).length - 1, 0,
     "the permalink's markup still states what a report leads to before there is a post");
   assert.equal(post.includes(REPORT_POST_LABEL), false,
     "the permalink's markup names the reporting control before it is drawn");
