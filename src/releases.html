@@ -330,6 +330,17 @@
         <p class="shiplog-proof-note" id="reasoning-proof-provenance"></p>
         <p class="shiplog-proof-note" id="reasoning-proof-rule">A link pointing at a decision the decision log does not hold does not count. Neither does a release with no linked decision.</p>
         <p class="shiplog-proof-note" id="reasoning-proof-scope">Both numbers are over every release loaded on this page, not the filtered view: the search and the filters below do not change them.</p>
+        <!-- THE WORD, BEFORE THE WORD IS USED (#2635). Everything below this
+             line is labelled "uncovered" — the chip, the reveal's own label, the
+             announcement, the worklist's lead — and until here the page had
+             never said what it meant. One sentence, authored rather than
+             written by script, because a reader meets it before the log has
+             loaded and the term does not depend on what the log holds. It
+             names the covered side first and the uncovered side as its
+             remainder, in the same words the figure above already uses ("at
+             least one decision the decision log holds"), so the rule, the
+             figure and the label read as one thing rather than three. -->
+        <p class="shiplog-proof-note" id="coverage-gap-definition">A release is covered when it links at least one decision the decision log holds; every other release is uncovered.</p>
         <!-- THE GAP, AS SOMETHING A READER CAN OPEN (#2630). The figure above
              says how many releases keep their reasoning; these two nodes are how
              a reader reaches the ones that do not. The chip states the live
@@ -536,7 +547,7 @@
              pressed, and empty in the markup, because which releases are
              uncovered is not knowable before the log loads. -->
         <section class="coverage-gap-worklist" id="coverage-gap-worklist" aria-labelledby="coverage-gap-worklist-title" tabindex="-1" hidden>
-          <h3 id="coverage-gap-worklist-title">Releases with no decision this log can show</h3>
+          <h3 id="coverage-gap-worklist-title">Releases with no linked decision in this log</h3>
           <p class="shiplog-proof-note" id="coverage-gap-worklist-lead"></p>
           <ol class="coverage-gap-list" id="coverage-gap-list"></ol>
         </section>
