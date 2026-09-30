@@ -15,6 +15,9 @@ import assert from "node:assert/strict";
 import { loadPage, textOf, tabSequence, pressKey, pressTab } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
 import { bootSocial } from "./support/social-paint-arrival.js";
+import {
+  ASK_ABOUT_SHIPLOG_DESCRIPTION, ASK_ABOUT_SHIPLOG_LABEL,
+} from "../src/ask-about-shiplog.js";
 
 const PAGE_URL = new URL("../src/profile.html", import.meta.url);
 const SEED_ROUTE = "/social-demo-data.json";
@@ -123,10 +126,12 @@ test("the picker is read and reached before the name, the count, and the results
     assert.ok(at("#profile-author") < at("#profile-summary"));
     assert.ok(at("#profile-author") < at("#profile-grid"));
 
-    // The primary action leads directly into the display-name filters.
+    // The display-name filter is the first control in the content region, and
+    // the errand off the page is the last one: the route to the follow-up form
+    // used to take this first stop, in front of the pictures (#2640).
     const inMain = tabSequence(document).filter((element) => element.closest("#main-content"));
-    assert.equal(inMain[0].id, "ask-about-shiplog");
-    assert.deepEqual(inMain.slice(1, 4).map((element) => element.dataset.author), ["Ari", "Bea", "Zed"]);
+    assert.deepEqual(inMain.slice(0, 3).map((element) => element.dataset.author), ["Ari", "Bea", "Zed"]);
+    assert.equal(inMain.at(-1).getAttribute("id"), "ask-about-shiplog");
     for (const chip of chips(page))
       assert.equal(chip.getAttribute("tabindex"), null, "the order is markup order, not a tabindex trick");
   } finally {
@@ -777,8 +782,14 @@ test("one profile header opens the results, above the line that orders them", as
     // paragraph in this panel, and still not in the hero.
     assert.ok(at(".profile-role") > at("#profile-grid"),
       "the display-name caveat is still read before the posts");
-    assert.equal(panel.childElements.at(-1).className, "profile-role hint",
-      "something other than the caveat closes the results region");
+    // The caveat is followed by one thing only: the route to the follow-up form
+    // and its caption, which close the panel the way Social's close theirs
+    // (#2640). Nothing else was added under the pictures.
+    assert.equal(panel.childElements.at(-3).className, "profile-role hint",
+      "something other than the caveat opens the close of the results region");
+    assert.equal(panel.childElements.at(-2).getAttribute("id"), "ask-about-shiplog");
+    assert.equal(panel.childElements.at(-1).getAttribute("id"), "ask-about-shiplog-description",
+      "something other than the follow-up caption closes the results region");
     // And the hero it came from keeps no piece of it behind.
     const hero = document.querySelector(".hero-profile");
     assert.equal(hero.querySelectorAll(".profile-identity").length, 0);
@@ -868,13 +879,15 @@ test("tabbing from the top reaches the picker, then the posts under the header",
     const { document } = page;
     // Walked, not read off the markup: every stop is a real focus move made by
     // the page harness that boots the shipped markup with the shipped module.
-    document.querySelector("#ask-about-shiplog").focus();
+    // Entered from the last stop the site frame owns, so the first stop walked
+    // here is the first stop the content region has.
+    tabSequence(document).filter((node) => node.closest(".site-header")).at(-1).focus();
     const tiles = drawnTiles(document);
     const walked = [];
     // Two stops per post: the tile, then its Report post button (#2343).
-    for (let step = 0; step < 4 + tiles.length * 2 + 3; step += 1) walked.push(pressTab(document));
+    for (let step = 0; step < 4 + tiles.length * 2 + 4; step += 1) walked.push(pressTab(document));
     assert.deepEqual(walked.slice(0, 3).map((node) => node.dataset?.author), ["Ari", "Bea", "Zed"],
-      "the display-name picker must follow the primary action");
+      "the display-name picker must be the first thing the content region offers");
     // Then the way out of the filter the reader has just set: the selected
     // display name's whole feed on Social (#2193). It is the last stop in the
     // filter region and comes before the heading that names the results, so a
@@ -902,6 +915,10 @@ test("tabbing from the top reaches the picker, then the posts under the header",
     assert.equal(walked[4 + tiles.length * 2].getAttribute("href"), "/social.html");
     assert.equal(walked[5 + tiles.length * 2].getAttribute("id"), "profile-paint-route");
     assert.equal(walked[6 + tiles.length * 2].getAttribute("id"), "profile-publish-route");
+    // And last, after every picture and every way of making one: the errand that
+    // leaves the page for the follow-up form (#2640). It used to be the stop the
+    // reader met before the picker.
+    assert.equal(walked[7 + tiles.length * 2].getAttribute("id"), "ask-about-shiplog");
 
     // And the visual order the tab order is supposed to match: every one of
     // those stops comes after the heading, the posts come after the label, and
@@ -913,12 +930,12 @@ test("tabbing from the top reaches the picker, then the posts under the header",
     assert.ok(at(document.querySelector("#profile-social-route")) < at(document.querySelector("#grid-title")));
     assert.ok(at(document.querySelector("#profile-order")) < at(walked[4]));
     assert.ok(at(walked[3 + tiles.length * 2]) < at(document.querySelector("#profile-paint-route")));
-    // The primary action and the filter precede the results. None stands
-    // between the heading that names the results and the results.
+    // The filter precedes the results and nothing else does. None of its stops
+    // stands between the heading that names the results and the results.
     const inMain = tabSequence(document).filter((element) => element.closest("#main-content"));
     const beforePanel = inMain.filter((element) => !element.closest(".list-panel"));
     assert.deepEqual(beforePanel.map((element) => element.dataset?.author ?? element.getAttribute("href")),
-      ["#site-footer-panel", "Ari", "Bea", "Zed", "/social.html?author=Zed"]);
+      ["Ari", "Bea", "Zed", "/social.html?author=Zed"]);
   } finally {
     page.restore();
   }
@@ -973,7 +990,187 @@ function assertListLeadsInvitation(document, when) {
     `${when}: the publishing invitation renders above the image posts`);
   assert.equal(at(".profile-role"), at(".feed-create") + 1,
     `${when}: the invitation and the display-name caveat swapped places`);
+  // And the errand that leaves the page closes the panel, under every one of
+  // them: the label and the caption it travels with, in that order, in every
+  // frame the module paints (#2640).
+  assert.equal(at("#ask-about-shiplog"), at(".profile-role") + 1,
+    `${when}: the follow-up route is not the block after the display-name caveat`);
+  assert.equal(at("#ask-about-shiplog-description"), at("#ask-about-shiplog") + 1,
+    `${when}: the follow-up caption is not read directly after the label it explains`);
+  assert.equal(blocks.length, at("#ask-about-shiplog-description") + 1,
+    `${when}: something was appended after the follow-up caption`);
 }
+
+/* ------------- the errand off the page reads after the pictures ------------- */
+
+// #2640. People put its route to the follow-up form between the tagline and the
+// picker, so the first control on a page whose whole answer is a grid of images
+// was an errand to a form at the foot of it — and the first Tab from the site
+// frame landed there rather than on the filter. Social already reads the other
+// way round: feed first, then the route. These pin People reading Social's way
+// in the painted DOM, and pin the two halves of the route having MOVED rather
+// than having been copied.
+test("the follow-up route reads and is reached after the image posts, once", async () => {
+  const page = await people();
+  try {
+    const { document } = page;
+    const order = documentOrder(document);
+    const at = (selector) => order.indexOf(document.querySelector(selector));
+
+    // Once each, counted rather than fetched by id: a reorder that copied the
+    // pair instead of moving it leaves the old one in place and still passes an
+    // id lookup.
+    for (const id of ["ask-about-shiplog", "ask-about-shiplog-description"]) {
+      assert.equal(document.querySelectorAll(`#${id}`).length, 1,
+        `#${id} is painted more than once, so the pair was copied rather than moved`);
+    }
+    // And no copy is left behind in the hero, in any form: the old position held
+    // the label, the caption, and the row that wrapped them.
+    const hero = document.querySelector(".hero-profile");
+    assert.equal(hero.querySelectorAll("#ask-about-shiplog").length, 0,
+      "the follow-up label is still in the hero");
+    assert.equal(hero.querySelectorAll("#ask-about-shiplog-description").length, 0,
+      "the follow-up caption is still in the hero");
+    assert.equal(hero.querySelectorAll(".hero-actions").length, 0,
+      "the row the route used to sit in is still on the page, empty");
+    assert.equal(textOf(hero).includes("Ask about Shiplog"), false,
+      "the hero still says the words the route was moved out of it");
+
+    // Reading order: the filter, then the image posts, then the route and the
+    // line that says what it costs.
+    for (const before of ["#profile-author-label", "#profile-author", "#grid-title", "#profile-feed-status", "#profile-grid"]) {
+      assert.ok(at(before) < at("#ask-about-shiplog"),
+        `${before} is read after the errand off the page`);
+    }
+    assert.ok(at("#ask-about-shiplog") < at("#ask-about-shiplog-description"));
+    // Unchanged copy: moved verbatim, from the one constant the six carrying
+    // pages share.
+    assert.equal(textOf(document.querySelector("#ask-about-shiplog")), ASK_ABOUT_SHIPLOG_LABEL);
+    assert.equal(textOf(document.querySelector("#ask-about-shiplog-description")), ASK_ABOUT_SHIPLOG_DESCRIPTION);
+    assert.equal(document.querySelector("#ask-about-shiplog").getAttribute("aria-describedby"),
+      "ask-about-shiplog-description");
+    assert.equal(document.querySelector("#ask-about-shiplog").getAttribute("href"), "#site-footer-panel");
+
+    // Tab order follows that visual order and costs no tabindex: the filter
+    // region's own stops, then every control the results panel draws, then the
+    // route — which is the last stop the content region has.
+    const inMain = tabSequence(document).filter((node) => node.closest("#main-content"));
+    assert.deepEqual(inMain.slice(0, 3).map((node) => node.dataset?.author), ["Ari", "Bea", "Zed"]);
+    assert.equal(inMain.at(-1).getAttribute("id"), "ask-about-shiplog");
+    // Two regions, in order, with nothing from a third between them: the filter
+    // group (its entries and the way out to the selected name's whole feed), then
+    // the results panel. Named per stop so a failure says which control moved.
+    const region = (node) => (node.closest(".profile-toolbar") ? "filter" : node.closest(".list-panel") ? "list" : "elsewhere");
+    const regions = inMain.map(region);
+    assert.equal(regions.includes("elsewhere"), false,
+      `a control outside the filter and the list is in the tab order: ${inMain.filter((node) => region(node) === "elsewhere").map((node) => node.getAttribute("id") ?? textOf(node)).join(", ")}`);
+    assert.equal(regions[0], "filter", "something reaches the reader before the display-name filter");
+    assert.equal(regions.lastIndexOf("filter") + 1, regions.indexOf("list"),
+      "the filter's stops and the list's stops are interleaved");
+    assert.ok(regions.filter((name) => name === "list").length > 1,
+      "the list drew no controls of its own to tab through before the route");
+    assert.ok(inMain.every((node) => !Number(node.getAttribute("tabindex"))),
+      "the order is markup order, not a tabindex trick");
+  } finally {
+    page.restore();
+  }
+});
+
+test("activating the follow-up route from its new position still lands on the form", async () => {
+  const page = await people();
+  try {
+    const { document } = page;
+    // The page's own wiring, the way the shipped markup loads it: the handler
+    // resolves the panel by id, so moving the label cannot strand it.
+    await importPageModule("/ask-about-shiplog-page.js");
+    const route = document.querySelector("#ask-about-shiplog");
+    const panel = document.querySelector("#site-footer-panel");
+    route.focus();
+    route.click();
+    // The container the form's topic control sits in, which is what this route
+    // has always landed on: it holds the offer, the line naming the topic this
+    // request is sent about, the topic fieldset itself and the work-email field,
+    // so the arrival reads as a form with its reasons rather than as a cursor in
+    // a box. Pinned as focus rather than as scroll: this harness models no
+    // layout, and focus is the half a keyboard reader depends on.
+    assert.equal(document.activeElement?.getAttribute("id"), "site-footer-panel");
+    assert.equal(panel.querySelectorAll("#site-footer-intent").length, 1,
+      "the topic control is not inside the container the route lands on");
+    assert.equal(panel.querySelectorAll("#site-footer-email").length, 1);
+    assert.equal(panel.getAttribute("tabindex"), "-1");
+    assert.equal(tabSequence(document).filter((node) => node === panel).length, 0,
+      "the landing target became a tab stop of its own");
+    // And the request identity is untouched by the move.
+    const form = document.querySelector("#site-footer-form");
+    assert.equal(form.dataset.followUpType, "follow_up_people");
+  } finally {
+    page.restore();
+  }
+});
+
+test("every state of the image-post list draws in the one container under the filter", async () => {
+  // Loading, loaded, a display name with no image posts, and a failed load: the
+  // acceptance criterion is that the list's states cannot move, so this pins the
+  // container's slot in the panel rather than each state's markup separately.
+  // The slot is stated as an ordering and not as a number: the connecting line
+  // above the list leaves the document in some states, so the container's index
+  // legitimately moves down one while its place in the reading order does not.
+  const assertOneSlot = (document, when) => {
+    const at = (selector) => blockIndex(document, selector);
+    assert.ok(at("#profile-feed-status") > -1, `${when}: the list's status container left the panel`);
+    assert.ok(at(".section-heading") < at("#profile-feed-status"),
+      `${when}: the list no longer renders under the heading group that names and orders it`);
+    assert.equal(at("#profile-grid"), at("#profile-feed-status") + 1,
+      `${when}: something was inserted between the list's status panel and its tiles`);
+    assert.ok(at("#ask-about-shiplog") > at("#profile-grid"),
+      `${when}: the errand off the page renders above the list`);
+    assert.equal(document.querySelectorAll("#profile-feed-status").length, 1,
+      `${when}: the page carries a second status container`);
+  };
+
+  const page = await people({ live: { posts: [] } });
+  try {
+    const { document } = page;
+    // One node, not one container per state: captured on the loaded page and
+    // compared by identity after each repaint, which is what "the states cannot
+    // move" means. Identity with ===, never a deep assertion: comparing harness
+    // elements walks the whole parsed page.
+    const container = document.querySelector("#profile-feed-status");
+    assertOneSlot(document, "loaded");
+    assert.equal(drawnTiles(document).length, 2, "the loaded state drew no tiles");
+
+    chipFor(page, "Ari").click();
+    assert.equal(drawnTiles(document).length, 0, "Ari drew a tile, so this is not the empty state");
+    assert.match(textOf(document.querySelector("#profile-feed-status")), /has no image posts yet\./);
+    assert.ok(document.querySelector("#profile-feed-status") === container,
+      "the empty state drew into a container of its own");
+    assertOneSlot(document, "on an empty display name");
+
+    // The failed load: People does draw one — the posts API is left unrouted,
+    // which is what a dead fetch looks like here, with no seed behind it to keep
+    // tiles on screen — and it draws in the same container, retry control and
+    // all. A failure with tiles still readable is a different state and is
+    // covered in "the demo disclaimer stays below the grid ..." below.
+    const failing = await loadPage(PAGE_URL, { routes: { [SEED_ROUTE]: { posts: [] } } });
+    const savedInterval = globalThis.setInterval;
+    globalThis.setInterval = () => 0;
+    try {
+      await importPageModule("/profile-page.js");
+      await waitFor(() => failing.document.documentElement.dataset.shiplogProfile === "ready",
+        "the failed first load settles");
+      const failed = failing.document.querySelector("#profile-feed-status");
+      assert.match(textOf(failed), /Image posts could not be loaded\./);
+      assert.equal(failed.querySelectorAll(".feed-status-action").length, 1,
+        "the failed load drew no retry control");
+      assertOneSlot(failing.document, "on a failed load");
+    } finally {
+      globalThis.setInterval = savedInterval;
+      failing.restore();
+    }
+  } finally {
+    page.restore();
+  }
+});
 
 test("the image-post list leads its section and the way to publish one follows it", async () => {
   // The markup as served, before a line of script has run.

@@ -9,14 +9,18 @@ import {
   ASK_ABOUT_SHIPLOG_DESCRIPTION, ASK_ABOUT_SHIPLOG_DESCRIPTION_ID,
 } from "../src/ask-about-shiplog.js";
 
+// page, follow-up purpose, the region the route belongs to, and the class on the
+// row it sits in. Social and People both close their results panel with it: a
+// page whose own answer is the list has no business putting an errand off the
+// page in front of the list (#2640). The two hero pages keep the action row.
 const pages = [
-  ["coach", "follow_up_coach", ".coach-hero"],
-  ["social", "follow_up_social", ".list-panel"],
-  ["profile", "follow_up_people", ".hero-profile"],
-  ["agents", "follow_up_agents", ".observatory-hero"],
+  ["coach", "follow_up_coach", ".coach-hero", "hero-actions"],
+  ["social", "follow_up_social", ".list-panel", "list-panel"],
+  ["profile", "follow_up_people", ".list-panel", "list-panel"],
+  ["agents", "follow_up_agents", ".observatory-hero", "hero-actions"],
 ];
 
-for (const [name, purpose, heroSelector] of pages) {
+for (const [name, purpose, regionSelector, rowClass] of pages) {
   for (const activation of ["keyboard", "click"]) {
     test(`${name}: introduction action ${activation} focuses the existing follow-up and retains request identity`, async (t) => {
       const page = await loadPage(new URL(`../src/${name}.html`, import.meta.url));
@@ -24,12 +28,12 @@ for (const [name, purpose, heroSelector] of pages) {
       const { document } = page;
       const route = document.querySelector("#ask-about-shiplog");
       assert.equal(document.querySelectorAll("#ask-about-shiplog").length, 1);
-      assert.ok(document.querySelector(heroSelector)?.querySelector("#ask-about-shiplog") === route, "action belongs to the introduction");
+      assert.ok(document.querySelector(regionSelector)?.querySelector("#ask-about-shiplog") === route, "action belongs to the region that carries it");
       assert.equal(textOf(route), "Ask about Shiplog");
       assert.equal(route.tagName, "A");
       assert.equal(route.getAttribute("href"), "#site-footer-panel");
       assert.ok(route.classList.contains("text-link"));
-      assert.ok(route.parentNode.classList.contains(name === "social" ? "list-panel" : "hero-actions"));
+      assert.ok(route.parentNode.classList.contains(rowClass));
       assert.ok(tabSequence(document).includes(route));
 
       // #2556: the label does not travel alone. The line that says where the
@@ -41,7 +45,7 @@ for (const [name, purpose, heroSelector] of pages) {
         .filter((node) => node.getAttribute("id") === ASK_ABOUT_SHIPLOG_DESCRIPTION_ID);
       assert.equal(described.length, 1, `${name}: the description is painted ${described.length} times`);
       assert.equal(textOf(described[0]), ASK_ABOUT_SHIPLOG_DESCRIPTION);
-      assert.ok(described[0].parentNode.classList.contains(name === "social" ? "list-panel" : "hero-actions"),
+      assert.ok(described[0].parentNode.classList.contains(rowClass),
         `${name}: the description drifted away from the label it explains`);
       assert.ok(!tabSequence(document).includes(described[0]),
         `${name}: the description became a tab stop of its own`);
