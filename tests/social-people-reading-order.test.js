@@ -5,7 +5,11 @@ import { loadPage, textOf, tabSequence } from "./support/browser.js";
 
 const surfaces = [
   { file: "social", sequence: ["#page-title", "#post-compose-open", "#feed-title", "#post-name-filter", "#post-time-filter", "#feed-state", "#post-feed", ".social-feed-intro", "#feed-source-note"], guidance: ".social-feed-intro", state: "#feed-state", label: "Posts are loading." },
-  { file: "profile", sequence: ["#page-title", "#ask-about-shiplog", "#profile-author-label", "#profile-author", "#grid-title", "#profile-feed-status", "#profile-grid", ".profile-lede.hint", ".feed-create", ".profile-role"], guidance: ".profile-lede.hint", state: "#profile-feed-status", label: "Image posts are loading." },
+  // People reads the way Social does since #2640: the filter and the results
+  // first, the supporting captions after them, and the contact route last of
+  // all. The route used to be the second step here, above the filter that
+  // chooses the pictures and above the pictures themselves.
+  { file: "profile", sequence: ["#page-title", "#profile-author-label", "#profile-author", "#grid-title", "#profile-feed-status", "#profile-grid", ".profile-lede.hint", ".feed-create", ".profile-role", "#ask-about-shiplog"], guidance: ".profile-lede.hint", state: "#profile-feed-status", label: "Image posts are loading." },
 ];
 
 for (const surface of surfaces) {
@@ -28,20 +32,26 @@ for (const surface of surfaces) {
     assert.equal(document.querySelector(surface.state).hidden, false);
     assert.equal(document.querySelector(surface.guidance).classList.contains("hint"), true);
     // The follow-up label keeps the caption that says what it costs, wherever
-    // the label sits: Social's hero holds one action and the contact route
-    // closes the supporting block, People has no composer so the route is its
-    // hero action. Either way the two are one unit, in one container, in order.
+    // the label sits: both of these pages answer with a feed, so the contact
+    // route closes the supporting block under it. Either way the two are one
+    // unit, in one container, in order.
     const askRoute = document.querySelector("#ask-about-shiplog");
     const askCaption = document.querySelector("#ask-about-shiplog-description");
     assert.ok(askCaption.parentNode === askRoute.parentNode,
       "the follow-up caption drifted out of the row its label sits in");
     assert.ok(order.indexOf(askCaption) > order.indexOf(askRoute),
       "the caption is read before the label it explains");
-    if (surface.file === "social")
-      assert.ok(order.indexOf(askRoute) > order.indexOf(document.querySelector(surface.state)),
-        "the contact route is read before the feed it follows");
+    assert.ok(order.indexOf(askRoute) > order.indexOf(document.querySelector(surface.state)),
+      "the contact route is read before the feed it follows");
     const stops = tabSequence(document).filter((node) => node.closest("#main-content"));
-    assert.equal(stops[0].id, surface.file === "social" ? "post-compose-open" : "ask-about-shiplog");
+    // The first stop inside the content region is the page's own work: Social's
+    // composer trigger, and on People the first link in the supporting copy
+    // under the grid, because the served picker holds no chips until the feed
+    // answers. The errand is the last stop either way, which is the half this
+    // change is about.
+    if (surface.file === "social") assert.equal(stops[0].id, "post-compose-open");
+    assert.equal(stops.at(-1).id, "ask-about-shiplog",
+      `${surface.file}: the contact route is not the last stop in the content region`);
     assert.ok(stops.every((node) => !Number(node.getAttribute("tabindex"))), "no positive tabindex overrides reading order");
     if (surface.file === "social") {
       assert.deepEqual(stops.slice(0, 4).map((node) => node.id), ["post-compose-open", "post-name-filter", "post-time-filter", "post-filter-clear"]);

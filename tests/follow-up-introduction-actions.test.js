@@ -9,12 +9,21 @@ import {
   ASK_ABOUT_SHIPLOG_DESCRIPTION, ASK_ABOUT_SHIPLOG_DESCRIPTION_ID,
 } from "../src/ask-about-shiplog.js";
 
+// Page, the request identity its form carries, and the region the route belongs
+// to. Two of the four are reading surfaces rather than introductions: Social and
+// People both answer with a feed, so the route closes the list panel under the
+// posts instead of standing between the reader and them (#2640). The label and
+// its caption move as one unit either way, which is what the parent checks
+// below are for.
 const pages = [
   ["coach", "follow_up_coach", ".coach-hero"],
   ["social", "follow_up_social", ".list-panel"],
-  ["profile", "follow_up_people", ".hero-profile"],
+  ["profile", "follow_up_people", ".list-panel"],
   ["agents", "follow_up_agents", ".observatory-hero"],
 ];
+
+/** The class the route's own container carries on this page. */
+const rowClass = (name) => (name === "social" || name === "profile" ? "list-panel" : "hero-actions");
 
 for (const [name, purpose, heroSelector] of pages) {
   for (const activation of ["keyboard", "click"]) {
@@ -24,16 +33,16 @@ for (const [name, purpose, heroSelector] of pages) {
       const { document } = page;
       const route = document.querySelector("#ask-about-shiplog");
       assert.equal(document.querySelectorAll("#ask-about-shiplog").length, 1);
-      assert.ok(document.querySelector(heroSelector)?.querySelector("#ask-about-shiplog") === route, "action belongs to the introduction");
+      assert.ok(document.querySelector(heroSelector)?.querySelector("#ask-about-shiplog") === route, "action belongs to the region that owns it");
       assert.equal(textOf(route), "Ask about Shiplog");
       assert.equal(route.tagName, "A");
       assert.equal(route.getAttribute("href"), "#site-footer-panel");
       assert.ok(route.classList.contains("text-link"));
-      assert.ok(route.parentNode.classList.contains(name === "social" ? "list-panel" : "hero-actions"));
+      assert.ok(route.parentNode.classList.contains(rowClass(name)));
       assert.ok(tabSequence(document).includes(route));
 
       // #2556: the label does not travel alone. The line that says where the
-      // route goes belongs to the introduction, beside the label, and is not a
+      // route goes belongs to the same container, beside the label, and is not a
       // control. (The prompt coach replaces its entry copy on load, so that page
       // is also checked after its own modules run, in
       // tests/prompt-coach-destination.test.js.)
@@ -41,7 +50,7 @@ for (const [name, purpose, heroSelector] of pages) {
         .filter((node) => node.getAttribute("id") === ASK_ABOUT_SHIPLOG_DESCRIPTION_ID);
       assert.equal(described.length, 1, `${name}: the description is painted ${described.length} times`);
       assert.equal(textOf(described[0]), ASK_ABOUT_SHIPLOG_DESCRIPTION);
-      assert.ok(described[0].parentNode.classList.contains(name === "social" ? "list-panel" : "hero-actions"),
+      assert.ok(described[0].parentNode.classList.contains(rowClass(name)),
         `${name}: the description drifted away from the label it explains`);
       assert.ok(!tabSequence(document).includes(described[0]),
         `${name}: the description became a tab stop of its own`);
