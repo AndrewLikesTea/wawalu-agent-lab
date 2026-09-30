@@ -30,7 +30,7 @@ import { applyCoachingSpecimen } from "./coaching-specimen-view.js";
 import { initCoachingSummaryCopy } from "./coaching-summary-view.js";
 
 const BUNDLED_EXAMPLE_FAILURE = "The bundled synthetic example could not be loaded. You can still paste and grade your own prompt.";
-const POSSIBLE_RESULTS_FAILURE = "Possible results could not be loaded. You can still paste and grade your own prompt.";
+const POSSIBLE_RESULTS_FAILURE = "The results the coach can give back could not be loaded. You can still paste and grade your own prompt.";
 
 /**
  * Give one optional, bundled region its own loading, failure, and retry cycle.
@@ -187,7 +187,7 @@ export function initPromptCoaching(doc = globalThis.document, {
     loadingClass: "coaching-specimen-lead",
     loader: loadPossibleResults,
     failureCopy: POSSIBLE_RESULTS_FAILURE,
-    retryLabel: "Retry the possible results",
+    retryLabel: "Retry the results the coach can give back",
   });
   // The copy control is wired before the form and independently of it, for the
   // same reason: its markup is already in the document, and a button that is

@@ -46,7 +46,7 @@ test("each failed bundled region has concise accessible fallback copy and its ow
   assert.equal(sample.dataset.loadState, "error");
   assert.equal(results.dataset.loadState, "error");
   assert.match(textOf(sample), /bundled synthetic example could not be loaded/i);
-  assert.match(textOf(results), /possible results could not be loaded/i);
+  assert.match(textOf(results), /results the coach can give back could not be loaded/i);
   for (const region of [sample, results]) {
     const announced = region.querySelector("[role=alert]");
     assert.match(textOf(announced), /still paste and grade your own prompt/i);

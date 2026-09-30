@@ -285,7 +285,7 @@ export function announceCoachingEntrySource(doc, source) {
   const heading = byId(doc, "prompt-coaching-question");
   if (heading) heading.textContent = `${subject} and its score`;
   const guidance = byId(doc, "prompt-coaching-result-guidance");
-  if (guidance) guidance.textContent = `${subject === "Your prompt" ? subject : "The bundled synthetic example"} is graded against the prompt rubric bundled with this page.`;
+  if (guidance) guidance.textContent = `${subject === "Your prompt" ? subject : "The bundled synthetic example"} is graded against the prompt rubric bundled with this page: a fixed checklist of criteria, the same one for every prompt.`;
   if (!source) {
     delete section.dataset.gradedSource;
     node.textContent = "";

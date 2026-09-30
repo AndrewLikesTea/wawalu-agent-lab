@@ -544,7 +544,7 @@ test("Personal AI history is pitched once, in the card under the grade, with a d
   // Including the file it wants, named the way the site-wide footer names it:
   // the card and that clause are the only two places the site says what
   // Personal AI history reads, so they say it in the same words.
-  assert.match(card, /the same rubric across your assistant export — weeks of your prompts —/);
+  assert.match(card, /the same checklist across your assistant export — weeks of your prompts —/);
   assert.match(card, /names the single habit worth changing first/);
 
   // Where a file is read is the card's promise, made once above both pitches
@@ -645,11 +645,11 @@ test("each invitation names only what it reveals, and no two name the same thing
 
   assert.equal(before, "See how the overall score is measured and what to do first.");
   assert.equal(reads, "See the bundled synthetic example’s own text and the counts read from it.");
-  assert.equal(results, "See all seven possible results — among them a graded prompt, a prompt that needs changes, and text the coach cannot grade — none taken from text you paste.");
+  assert.equal(results, "See all seven results the coach can give back — each one drawn in full, from a graded prompt to text the coach cannot grade — none taken from text you paste.");
   // The count is the number of cases the disclosure actually renders, so the
   // invitation cannot promise a different number of results than it shows.
   const NUMBER_WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"];
-  assert.ok(results.includes(`all ${NUMBER_WORDS[SPECIMEN_CASES.length]} possible results`),
+  assert.ok(results.includes(`all ${NUMBER_WORDS[SPECIMEN_CASES.length]} results the coach can give back`),
     `the invitation must name the ${SPECIMEN_CASES.length} results this disclosure renders`);
   // Said once, and in one block. The paragraph that used to sit under this
   // summary named the same three examples in different words, so counting the

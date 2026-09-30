@@ -104,7 +104,7 @@ test("the workflow is discoverable and idle before anything is pasted", async ()
     assert.equal(textOf(byId(document, "coach-neighbour-title")),
       "Grading more than one prompt?");
     assert.match(textOf(neighbour),
-      /Personal AI history runs the same rubric across your assistant export/);
+      /Personal AI history runs the same checklist across your assistant export/);
     // And it names that file the way the site-wide footer names it. This
     // paragraph and the footer clause are the only two places the site says
     // what Personal AI history reads, and they used to disagree: the footer
@@ -177,7 +177,8 @@ test("pasting a weak prompt returns an answer, one benchmark, and one move", asy
 
     assert.equal(textOf(byId(document, "prompt-coaching-question")), "Your prompt and its score");
     assert.equal(textOf(byId(document, "prompt-coaching-result-guidance")),
-      "Your prompt is graded against the prompt rubric bundled with this page.");
+      "Your prompt is graded against the prompt rubric bundled with this page: "
+      + "a fixed checklist of criteria, the same one for every prompt.");
     assert.equal(textOf(byId(document, "prompt-coaching-entry-source")),
       "This result is for your prompt, read in this tab and kept nowhere.");
     const result = byId(document, "prompt-coaching-result");
