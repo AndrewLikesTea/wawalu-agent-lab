@@ -826,16 +826,19 @@ export function renderProfileGrid(container, posts, options = {}) {
 // back to loading is moved to the status region rather than dropped to <body>,
 // which is a real path here because selecting a name rebuilds every chip.
 //
-// The sentence is Social's, one noun different (#2542). Social's row says
-// "Filter posts by display name becomes available when posts finish loading.";
-// this one names the control in the words of the legend above it and says
-// "image posts" because that is what People holds. It used to name the entries
-// rather than the control — the display names became available, not the filter
-// — so a reader who met the same wait on both pages met it as two different
-// facts. The authored copy in src/profile.html is this string, so the frame
-// before this module runs and every frame after it say one thing.
+// The sentence says the condition and stops (#2657). It used to be Social's
+// with one noun changed — "Filter image posts by display name becomes available
+// when image posts finish loading." — which opened in the exact words of the
+// legend it renders under, so the control's own name was the first thing a
+// reader read twice. What the two pages still share is what a reader carries
+// between them: one term for the thing being selected, and one word for the
+// wait, which is the word the status region beside it uses. Before that it named
+// the entries rather than the control — the display names became available, not
+// the filter — so a reader who met the same wait on both pages met it as two
+// different facts. The authored copy in src/profile.html is this string, so the
+// frame before this module runs and every frame after it say one thing.
 export const PROFILE_FILTERS_UNAVAILABLE_HINT =
-  "Filter image posts by display name becomes available when image posts finish loading.";
+  "This filter becomes available once the image posts finish loading.";
 
 // The id of the one link out of this filter region, so the page, the tests, and
 // anything that has to find it later all name it once.
