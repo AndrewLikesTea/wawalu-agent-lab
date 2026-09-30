@@ -123,10 +123,13 @@ test("the picker is read and reached before the name, the count, and the results
     assert.ok(at("#profile-author") < at("#profile-summary"));
     assert.ok(at("#profile-author") < at("#profile-grid"));
 
-    // The primary action leads directly into the display-name filters.
+    // The display-name filters open the content region (#2640). The follow-up
+    // errand used to take the stop above them, so the first control on a page
+    // that answers with pictures was about the product rather than about the
+    // pictures; it closes the region now, and is checked there below.
     const inMain = tabSequence(document).filter((element) => element.closest("#main-content"));
-    assert.equal(inMain[0].id, "ask-about-shiplog");
-    assert.deepEqual(inMain.slice(1, 4).map((element) => element.dataset.author), ["Ari", "Bea", "Zed"]);
+    assert.deepEqual(inMain.slice(0, 3).map((element) => element.dataset.author), ["Ari", "Bea", "Zed"]);
+    assert.equal(inMain.at(-1).id, "ask-about-shiplog");
     for (const chip of chips(page))
       assert.equal(chip.getAttribute("tabindex"), null, "the order is markup order, not a tabindex trick");
   } finally {
@@ -777,8 +780,14 @@ test("one profile header opens the results, above the line that orders them", as
     // paragraph in this panel, and still not in the hero.
     assert.ok(at(".profile-role") > at("#profile-grid"),
       "the display-name caveat is still read before the posts");
-    assert.equal(panel.childElements.at(-1).className, "profile-role hint",
-      "something other than the caveat closes the results region");
+    // The caveat closes the page's own account of the pictures. Only the
+    // follow-up errand comes after it, which is an errand about the product and
+    // not a fifth thing to read about the grid (#2640): the two blocks that
+    // close the panel are the route and the caption that explains it, in that
+    // order, and the caveat is the block directly above them.
+    assert.deepEqual(panel.childElements.slice(-3).map((node) => node.getAttribute("id") ?? node.className),
+      ["profile-role hint", "ask-about-shiplog", "ask-about-shiplog-description"],
+      "something other than the caveat and the follow-up route closes the results region");
     // And the hero it came from keeps no piece of it behind.
     const hero = document.querySelector(".hero-profile");
     assert.equal(hero.querySelectorAll(".profile-identity").length, 0);
@@ -868,13 +877,18 @@ test("tabbing from the top reaches the picker, then the posts under the header",
     const { document } = page;
     // Walked, not read off the markup: every stop is a real focus move made by
     // the page harness that boots the shipped markup with the shipped module.
-    document.querySelector("#ask-about-shiplog").focus();
+    // The walk starts on the stop immediately before the first display name, so
+    // it does not depend on what the site frame above the content region holds.
+    const sequence = tabSequence(document);
+    sequence[sequence.indexOf(chips(page)[0]) - 1].focus();
     const tiles = drawnTiles(document);
     const walked = [];
-    // Two stops per post: the tile, then its Report post button (#2343).
-    for (let step = 0; step < 4 + tiles.length * 2 + 3; step += 1) walked.push(pressTab(document));
+    // Two stops per post: the tile, then its Report post button (#2343). One
+    // stop after the last of the panel's own links: the follow-up route, which
+    // closes the panel since #2640.
+    for (let step = 0; step < 4 + tiles.length * 2 + 4; step += 1) walked.push(pressTab(document));
     assert.deepEqual(walked.slice(0, 3).map((node) => node.dataset?.author), ["Ari", "Bea", "Zed"],
-      "the display-name picker must follow the primary action");
+      "the display-name picker must open the content region");
     // Then the way out of the filter the reader has just set: the selected
     // display name's whole feed on Social (#2193). It is the last stop in the
     // filter region and comes before the heading that names the results, so a
@@ -902,6 +916,9 @@ test("tabbing from the top reaches the picker, then the posts under the header",
     assert.equal(walked[4 + tiles.length * 2].getAttribute("href"), "/social.html");
     assert.equal(walked[5 + tiles.length * 2].getAttribute("id"), "profile-paint-route");
     assert.equal(walked[6 + tiles.length * 2].getAttribute("id"), "profile-publish-route");
+    // And last of all, the errand about the product: it is reached after every
+    // picture and after the two steps that put another one there (#2640).
+    assert.equal(walked[7 + tiles.length * 2].getAttribute("id"), "ask-about-shiplog");
 
     // And the visual order the tab order is supposed to match: every one of
     // those stops comes after the heading, the posts come after the label, and
@@ -913,12 +930,14 @@ test("tabbing from the top reaches the picker, then the posts under the header",
     assert.ok(at(document.querySelector("#profile-social-route")) < at(document.querySelector("#grid-title")));
     assert.ok(at(document.querySelector("#profile-order")) < at(walked[4]));
     assert.ok(at(walked[3 + tiles.length * 2]) < at(document.querySelector("#profile-paint-route")));
-    // The primary action and the filter precede the results. None stands
-    // between the heading that names the results and the results.
+    // The filter precedes the results and nothing else does. Nothing stands
+    // between the heading that names the results and the results, and the
+    // content region no longer opens on an errand: every stop above the panel
+    // is the picker's own (#2640).
     const inMain = tabSequence(document).filter((element) => element.closest("#main-content"));
     const beforePanel = inMain.filter((element) => !element.closest(".list-panel"));
     assert.deepEqual(beforePanel.map((element) => element.dataset?.author ?? element.getAttribute("href")),
-      ["#site-footer-panel", "Ari", "Bea", "Zed", "/social.html?author=Zed"]);
+      ["Ari", "Bea", "Zed", "/social.html?author=Zed"]);
   } finally {
     page.restore();
   }

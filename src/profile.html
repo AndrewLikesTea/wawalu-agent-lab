@@ -43,22 +43,16 @@
       <main id="main-content" tabindex="-1">
       <section class="hero hero-profile" id="top" aria-labelledby="page-title">
         <p class="eyebrow">People · public image posts</p>
-        <!-- Keep the reading action and filters ahead of supporting guidance. -->
+        <!-- Keep the filters and the results ahead of supporting guidance. The
+             follow-up route used to open this section, so the first control on a
+             page that answers with pictures was an errand about the product
+             (#2640). It closes the reading surface below now, where Social
+             already puts the same label. -->
         <h1 id="page-title">People</h1>
         <p class="profile-lede" id="page-tagline">See the image posts published under one display name.</p>
-        <!-- This page has no composer, so asking a person is its one action and
-             it stays in the hero. Its caption stays with it: every other page
-             that carries this label carries the line explaining it in the same
-             row, and a caption stranded below the grid describes a control that
-             is nowhere near it. The caption is a hint, not a paragraph of
-             guidance, so it costs the picker below one short line. -->
-        <div class="hero-actions">
-          <a class="text-link" id="ask-about-shiplog" href="#site-footer-panel" aria-describedby="ask-about-shiplog-description">Ask about Shiplog</a>
-          <p class="hint" id="ask-about-shiplog-description">Ask about Shiplog moves you to the follow-up form at the foot of this page, which asks for a work email address, what you want to discuss and an optional note. A person replies by email, usually within two working days.</p>
-        </div>
 
         <!-- The picker comes before the answer, in the markup and not merely in
-             the layout: it follows the primary action, and a
+             the layout: it is the first thing under the intro, and a
              reader who arrives from Social's "Open People" pointer sees whose
              posts they are about to read, and who else has any, before they read
              a name, a count, or a grid. It used to sit below all of them, so the
@@ -330,7 +324,8 @@
                is the step after the browsing rather than a paragraph a reader
                has to get past to reach the images. Tab order follows out of the
                markup and not out of a tabindex: the display-name picker, then
-               every Open post control, then these two links.
+               every Open post control, then these two links, and then the
+               follow-up route that closes the panel.
                profile.js takes this paragraph out of the document while the
                first fetch is open and puts it back against the display-name
                caveat below (feedPresence's anchor in src/feed-status.js), so
@@ -442,6 +437,25 @@
                (#2549); this sentence used to say "the posts already on Social",
                and only that noun phrase changed. -->
           <p class="profile-role hint">Display names on the example posts on Social are invented. On any other post, whoever published it chose the name. Nobody owns or verifies a display name, and anyone can publish under any name.</p>
+          <!-- The contact route closes the supporting block, exactly as it does
+               on Social (src/social.html) and for the same reason: browsing the
+               image posts is what this page is for, so the filter that chooses
+               them and the list itself are the first things under the intro, and
+               an errand about the product is the step after the reading rather
+               than the control a reader meets before a single picture (#2640).
+               It kept its caption when it moved — every page that carries this
+               label carries the line explaining it in the same container, and
+               tests/ask-about-shiplog.test.js compares the two parents — so the
+               label and the sentence travelled together, unrewritten.
+               Nothing here relies on being near the form: the handler in
+               src/ask-about-shiplog.js resolves #site-footer-panel by id from
+               the document, so the focus move survives the move, and the href is
+               the real address a page whose script never ran still follows.
+               No tabindex: the stop order is this markup order, which is why the
+               label is now the last stop in the panel rather than the first in
+               the document. -->
+          <a class="text-link" id="ask-about-shiplog" href="#site-footer-panel" aria-describedby="ask-about-shiplog-description">Ask about Shiplog</a>
+          <p class="hint" id="ask-about-shiplog-description">Ask about Shiplog moves you to the follow-up form at the foot of this page, which asks for a work email address, what you want to discuss and an optional note. A person replies by email, usually within two working days.</p>
         </div>
       </section>
       </main>
