@@ -645,7 +645,11 @@ test("each invitation names only what it reveals, and no two name the same thing
 
   assert.equal(before, "See how the overall score is measured and what to do first.");
   assert.equal(reads, "See the bundled synthetic example’s own text and the counts read from it.");
-  assert.equal(results, "See all seven possible results — among them a graded prompt, a prompt that needs changes, and text the coach cannot grade — none taken from text you paste.");
+  // The invitation says what a result is before offering seven of them, gives
+  // the range those verdicts span, and says what opening it puts on screen.
+  assert.equal(results, "See all seven possible results — every verdict the coach can return for a prompt, from a graded prompt to text the coach cannot grade — each one shown here in full, none taken from text you paste.");
+  assert.match(results, /every verdict the coach can return for a prompt/,
+    "the invitation must say what a “result” is, not only how many there are");
   // The count is the number of cases the disclosure actually renders, so the
   // invitation cannot promise a different number of results than it shows.
   const NUMBER_WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"];

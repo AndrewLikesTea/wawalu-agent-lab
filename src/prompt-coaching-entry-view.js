@@ -285,7 +285,12 @@ export function announceCoachingEntrySource(doc, source) {
   const heading = byId(doc, "prompt-coaching-question");
   if (heading) heading.textContent = `${subject} and its score`;
   const guidance = byId(doc, "prompt-coaching-result-guidance");
-  if (guidance) guidance.textContent = `${subject === "Your prompt" ? subject : "The bundled synthetic example"} is graded against the prompt rubric bundled with this page.`;
+  // Only the subject changes between the two states. The clause that defines
+  // what a rubric is stays: this sentence is the page's first rendered mention
+  // of the word in both cold-load and post-grade order, and a visitor who
+  // grades their own text must not lose the definition the markup gave them.
+  // The wording is held byte-for-byte in tests/prompt-coaching-flow.test.js.
+  if (guidance) guidance.textContent = `${subject === "Your prompt" ? subject : "The bundled synthetic example"} is graded against the prompt rubric bundled with this page — a fixed checklist of criteria the coach scores every prompt on.`;
   if (!source) {
     delete section.dataset.gradedSource;
     node.textContent = "";

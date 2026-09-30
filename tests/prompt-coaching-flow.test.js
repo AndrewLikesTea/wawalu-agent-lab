@@ -84,6 +84,18 @@ test("the workflow is discoverable and idle before anything is pasted", async ()
     assert.match(guidance, /^The bundled synthetic example is graded against/, guidance);
     assert.match(guidance, /prompt rubric bundled with this page/, guidance);
     assert.doesNotMatch(guidance, /Paste a prompt/, guidance);
+    // And it defines the word where the reader first meets it. "Rubric" is used
+    // again further down — by the coaching summary's description of its own
+    // contents, and by the Personal AI history pitch — and a first-time visitor
+    // has no way to know what a prompt rubric is unless the first use says. The
+    // definition has to be the FIRST rendered use, not merely present
+    // somewhere, so this is pinned by position rather than by a match.
+    assert.match(guidance,
+      / — a fixed checklist of criteria the coach scores every prompt on\.$/, guidance);
+    const rendered = textOf(document.querySelector("main"));
+    assert.equal(rendered.indexOf("rubric"),
+      rendered.indexOf("rubric bundled with this page — a fixed checklist of criteria the coach scores every prompt on."),
+      "the first rendered mention of the rubric must be the sentence that defines it");
 
     assert.equal(textOf(document.querySelector(".prompt-coach-sample-attribution")),
       "This result is for the bundled synthetic example. Paste your prompt in the field to get its score.");
@@ -176,8 +188,14 @@ test("pasting a weak prompt returns an answer, one benchmark, and one move", asy
     assert.match(section.dataset.grade, /^[A-F]$/);
 
     assert.equal(textOf(byId(document, "prompt-coaching-question")), "Your prompt and its score");
+    // The grading-provenance line still renders after a paste, with only the
+    // subject swapped. The clause defining what a rubric is travels with it:
+    // this sentence is the page's first rendered mention of the word in both
+    // cold-load and post-grade order, so losing the definition here would leave
+    // a visitor who graded their own text with an undefined term.
     assert.equal(textOf(byId(document, "prompt-coaching-result-guidance")),
-      "Your prompt is graded against the prompt rubric bundled with this page.");
+      "Your prompt is graded against the prompt rubric bundled with this page"
+      + " — a fixed checklist of criteria the coach scores every prompt on.");
     assert.equal(textOf(byId(document, "prompt-coaching-entry-source")),
       "This result is for your prompt, read in this tab and kept nowhere.");
     const result = byId(document, "prompt-coaching-result");

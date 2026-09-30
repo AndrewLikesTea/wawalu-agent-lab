@@ -94,9 +94,22 @@
                grade answers. The workflow still publishes that question in the
                session it returns; a reader does not need it asked twice above
                one text box. The id is historical and load-bearing: the section
-               is labelled by it. -->
+               is labelled by it.
+
+               This paragraph is the first rendered place on the page that says
+               "rubric", so it is where the word is defined: a reader who meets
+               it here and nowhere else still knows what the grade was measured
+               against. Every later mention — the coaching summary's contents,
+               the Personal AI history pitch at the foot of the page — then
+               reads against a definition already given. The definition is a
+               clause of this sentence rather than a second line, so the
+               heading block still carries exactly one line of guidance.
+               prompt-coaching-entry-view.js rewrites this node when a grade
+               lands, swapping only the subject, so the definition must be
+               written in both places or it disappears the moment a visitor
+               grades their own text. -->
           <h2 id="prompt-coaching-question">Bundled synthetic example and its score</h2>
-          <p id="prompt-coaching-result-guidance">The bundled synthetic example is graded against the prompt rubric bundled with this page.</p>
+          <p id="prompt-coaching-result-guidance">The bundled synthetic example is graded against the prompt rubric bundled with this page — a fixed checklist of criteria the coach scores every prompt on.</p>
         </div>
         <!-- The front door: what a visitor gets here, what it is measured
              against, and the one thing to do first.
@@ -252,9 +265,21 @@
         <!-- Every state of a coached result, drawn from the bundled samples,
              for review before the entry flow above is wired to these
              primitives. It is a review surface, not a second answer — closed
-             by default, and it never reads the field. -->
+             by default, and it never reads the field.
+
+             The invitation has to say what a "result" is before it offers
+             seven of them: a reader who has not graded anything yet has no
+             referent for the noun, and three examples of a thing are not a
+             definition of it. So the first clause says what the coach returns
+             — a verdict on a prompt — the second gives the range those
+             verdicts span, and the third says what opening this actually puts
+             on screen. The count is the number of cases the region renders and
+             is checked against it. "Possible results" is the one name this
+             region goes by: the loading line below, the failure sentence and
+             the retry control in prompt-coaching-page.js all use it, so a
+             reader who meets the region in any state meets one noun. -->
         <details class="coaching-specimen" id="coaching-specimen">
-          <summary id="coaching-specimen-summary">See all seven possible results — among them a graded prompt, a prompt that needs changes, and text the coach cannot grade — none taken from text you paste.</summary>
+          <summary id="coaching-specimen-summary">See all seven possible results — every verdict the coach can return for a prompt, from a graded prompt to text the coach cannot grade — each one shown here in full, none taken from text you paste.</summary>
           <div class="coaching-specimen-body" id="coaching-specimen-body">
             <p class="coaching-specimen-lead">Loading the possible results.</p>
           </div>

@@ -30,7 +30,10 @@ import { applyCoachingSpecimen } from "./coaching-specimen-view.js";
 import { initCoachingSummaryCopy } from "./coaching-summary-view.js";
 
 const BUNDLED_EXAMPLE_FAILURE = "The bundled synthetic example could not be loaded. You can still paste and grade your own prompt.";
-const POSSIBLE_RESULTS_FAILURE = "Possible results could not be loaded. You can still paste and grade your own prompt.";
+// Named the way its disclosure names it, and with the article its sibling above
+// carries: a reader who opened "See all seven possible results" and met a
+// failure reads about the same thing they asked for.
+const POSSIBLE_RESULTS_FAILURE = "The possible results could not be loaded. You can still paste and grade your own prompt.";
 
 /**
  * Give one optional, bundled region its own loading, failure, and retry cycle.
