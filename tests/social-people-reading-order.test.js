@@ -5,7 +5,10 @@ import { loadPage, textOf, tabSequence } from "./support/browser.js";
 
 const surfaces = [
   { file: "social", sequence: ["#page-title", "#post-compose-open", "#feed-title", "#post-name-filter", "#post-time-filter", "#feed-state", "#post-feed", ".social-feed-intro", "#feed-source-note"], guidance: ".social-feed-intro", state: "#feed-state", label: "Posts are loading." },
-  { file: "profile", sequence: ["#page-title", "#ask-about-shiplog", "#profile-author-label", "#profile-author", "#grid-title", "#profile-feed-status", "#profile-grid", ".profile-lede.hint", ".feed-create", ".profile-role"], guidance: ".profile-lede.hint", state: "#profile-feed-status", label: "Image posts are loading." },
+  // People used to read its follow-up route second, between the tagline and the
+  // picker (#2640). The picker and the image posts lead the page now and the
+  // route closes the results panel, which is the order Social already reads in.
+  { file: "profile", sequence: ["#page-title", "#profile-author-label", "#profile-author", "#grid-title", "#profile-feed-status", "#profile-grid", ".profile-lede.hint", ".feed-create", ".profile-role", "#ask-about-shiplog"], guidance: ".profile-lede.hint", state: "#profile-feed-status", label: "Image posts are loading." },
 ];
 
 for (const surface of surfaces) {
@@ -27,21 +30,36 @@ for (const surface of surfaces) {
     assert.ok(textOf(document.querySelector(surface.state)).startsWith(surface.label));
     assert.equal(document.querySelector(surface.state).hidden, false);
     assert.equal(document.querySelector(surface.guidance).classList.contains("hint"), true);
-    // The follow-up label keeps the caption that says what it costs, wherever
-    // the label sits: Social's hero holds one action and the contact route
-    // closes the supporting block, People has no composer so the route is its
-    // hero action. Either way the two are one unit, in one container, in order.
+    // The follow-up label keeps the caption that says what it costs, and both
+    // pages close their supporting block with the pair now: Social's hero holds
+    // the composer, People has no composer at all, so on neither page does the
+    // errand off the page stand in front of the posts. Either way the two are
+    // one unit, in one container, in order — and each is painted once, because a
+    // reorder that copied the pair would pass an id lookup unchanged.
     const askRoute = document.querySelector("#ask-about-shiplog");
     const askCaption = document.querySelector("#ask-about-shiplog-description");
+    assert.equal(document.querySelectorAll("#ask-about-shiplog").length, 1,
+      "the follow-up label is painted more than once");
+    assert.equal(document.querySelectorAll("#ask-about-shiplog-description").length, 1,
+      "the follow-up caption is painted more than once");
     assert.ok(askCaption.parentNode === askRoute.parentNode,
       "the follow-up caption drifted out of the row its label sits in");
     assert.ok(order.indexOf(askCaption) > order.indexOf(askRoute),
       "the caption is read before the label it explains");
-    if (surface.file === "social")
-      assert.ok(order.indexOf(askRoute) > order.indexOf(document.querySelector(surface.state)),
-        "the contact route is read before the feed it follows");
+    assert.ok(order.indexOf(askRoute) > order.indexOf(document.querySelector(surface.state)),
+      "the contact route is read before the feed it follows");
     const stops = tabSequence(document).filter((node) => node.closest("#main-content"));
-    assert.equal(stops[0].id, surface.file === "social" ? "post-compose-open" : "ask-about-shiplog");
+    if (surface.file === "social") {
+      assert.equal(stops[0].id, "post-compose-open");
+    } else {
+      // People draws its picker entries from the posts, so the served page has
+      // no filter stop yet and its first content stop is already inside the
+      // results panel. The route is the last stop there rather than the first.
+      assert.ok(stops[0].closest(".list-panel"),
+        "a control stands in front of People's image posts on the served page");
+      assert.equal(stops.at(-1).id, "ask-about-shiplog",
+        "the follow-up route is no longer the last stop in the content region");
+    }
     assert.ok(stops.every((node) => !Number(node.getAttribute("tabindex"))), "no positive tabindex overrides reading order");
     if (surface.file === "social") {
       assert.deepEqual(stops.slice(0, 4).map((node) => node.id), ["post-compose-open", "post-name-filter", "post-time-filter", "post-filter-clear"]);

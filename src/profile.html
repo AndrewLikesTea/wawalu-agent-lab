@@ -43,22 +43,19 @@
       <main id="main-content" tabindex="-1">
       <section class="hero hero-profile" id="top" aria-labelledby="page-title">
         <p class="eyebrow">People · public image posts</p>
-        <!-- Keep the reading action and filters ahead of supporting guidance. -->
+        <!-- Keep the filter and the image posts ahead of supporting guidance.
+             The route to the follow-up form used to sit in this hero, between
+             the tagline and the picker, so the first control a keyboard reader
+             reached on a page that is nothing but pictures was an errand to a
+             form at the foot of it (#2640). Both halves moved, together and
+             unchanged, to the close of the results panel below — the same place
+             Social keeps the same label — so People now reads picker, pictures,
+             then the ways off the page. The hero keeps no copy of either. -->
         <h1 id="page-title">People</h1>
         <p class="profile-lede" id="page-tagline">See the image posts published under one display name.</p>
-        <!-- This page has no composer, so asking a person is its one action and
-             it stays in the hero. Its caption stays with it: every other page
-             that carries this label carries the line explaining it in the same
-             row, and a caption stranded below the grid describes a control that
-             is nowhere near it. The caption is a hint, not a paragraph of
-             guidance, so it costs the picker below one short line. -->
-        <div class="hero-actions">
-          <a class="text-link" id="ask-about-shiplog" href="#site-footer-panel" aria-describedby="ask-about-shiplog-description">Ask about Shiplog</a>
-          <p class="hint" id="ask-about-shiplog-description">Ask about Shiplog moves you to the follow-up form at the foot of this page, which asks for a work email address, what you want to discuss and an optional note. A person replies by email, usually within two working days.</p>
-        </div>
 
         <!-- The picker comes before the answer, in the markup and not merely in
-             the layout: it follows the primary action, and a
+             the layout: it is the page's first control now, and a
              reader who arrives from Social's "Open People" pointer sees whose
              posts they are about to read, and who else has any, before they read
              a name, a count, or a grid. It used to sit below all of them, so the
@@ -442,6 +439,23 @@
                (#2549); this sentence used to say "the posts already on Social",
                and only that noun phrase changed. -->
           <p class="profile-role hint">Display names on the example posts on Social are invented. On any other post, whoever published it chose the name. Nobody owns or verifies a display name, and anyone can publish under any name.</p>
+          <!-- The route to the follow-up form closes this panel, exactly as it
+               closes Social's (src/social.html): this page has no composer, so
+               reading the image posts is what it is for, and an errand that
+               leaves the page belongs after them rather than in front of them
+               (#2640). Moved, not copied — same bytes, same classes, same pair
+               in one container, and the aria-describedby between them is the one
+               that shipped. Only their place in the document changed.
+               It is authored markup outside every branch profile.js swaps, so
+               the loading, empty, filtered-empty and failed-fetch states all
+               render it; it is appended after the last of those paragraphs, so
+               the presence slots the module remembers for the lines above keep
+               the indexes they had.
+               The caption stays beside the label the way all six pages that
+               carry this route keep them together: a label that travels without
+               the line explaining it leaves a reader guessing what it costs. -->
+          <a class="text-link" id="ask-about-shiplog" href="#site-footer-panel" aria-describedby="ask-about-shiplog-description">Ask about Shiplog</a>
+          <p class="hint" id="ask-about-shiplog-description">Ask about Shiplog moves you to the follow-up form at the foot of this page, which asks for a work email address, what you want to discuss and an optional note. A person replies by email, usually within two working days.</p>
         </div>
       </section>
       </main>
