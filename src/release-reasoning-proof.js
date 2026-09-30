@@ -31,8 +31,11 @@ import { countedRecordsNoteFor } from "./app.js";
 import { indexById, resolveRelease } from "./releases.js";
 import { copyText } from "./share-link.js";
 
-/** The block's own name, in the page's h2 register. */
-export const REASONING_PROOF_HEADING = "Reasoning kept with each release";
+/** The block's own name, in the page's h2 register. Names what the two numbers
+ * count rather than claiming the log keeps its reasoning: the figure below is
+ * how many of the loaded releases link a decision this log holds, and a reader
+ * who met the claim first would read the numbers as evidence for it. */
+export const REASONING_PROOF_HEADING = "Releases on this page that link a decision";
 
 // What a release has to do to be counted, said where the number is. Both halves
 // of the rule are stated, because a reader who only learns the first would read
