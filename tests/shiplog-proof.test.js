@@ -199,18 +199,28 @@ test("tab order reaches the log's controls before the recorder's fields, and add
   assert.ok(firstToggle >= 0 && firstToggle < at("release-version"),
     "a release row is not reachable before the recorder's first field");
 
-  // The hero's two routes, in the order a visitor decides between them: the
-  // page's own action first, then the ask that #2458 put beside it. Counted, so
-  // a third control has to be added here before it can be added to the page.
+  // The hero's one route: the page's own action. The ask that #2458 put beside
+  // it moved below the deployment record in #2654, so the opening screen is the
+  // promise and the recorder rather than a paragraph about a follow-up form.
+  // Counted, so a second control has to be added here before it can be added to
+  // the hero.
   const hero = page.document.querySelector(".hero");
   const heroStops = sequence.filter((node) => isWithin(node, hero));
-  assert.equal(heroStops.length, 2, "the hero gained a control beyond its two routes");
+  assert.equal(heroStops.length, 1, "the hero gained a control beyond its one route");
   assert.equal(heroStops[0].id, "record-release-link");
   assert.equal(textOf(heroStops[0]), "Open the form to record a release");
   assert.equal(heroStops[0].getAttribute("href"), "#record-release");
-  assert.equal(heroStops[1].id, "ask-about-shiplog");
-  assert.equal(textOf(heroStops[1]), "Ask about Shiplog");
-  assert.equal(heroStops[1].getAttribute("href"), "#site-footer-panel");
+
+  // And the ask is still reached exactly once, after the record it follows and
+  // before the example records below it.
+  const ask = sequence.filter((node) => node.id === "ask-about-shiplog");
+  assert.equal(ask.length, 1, `the ask is reachable ${ask.length} times`);
+  assert.equal(textOf(ask[0]), "Ask about Shiplog");
+  assert.equal(ask[0].getAttribute("href"), "#site-footer-panel");
+  assert.ok(sequence.indexOf(ask[0]) > sequence.indexOf(heroStops[0]),
+    "the ask is tabbed to before the page's own action");
+  assert.ok(isWithin(ask[0], page.document.querySelector("#ask-about-shiplog-actions")),
+    "the ask left the row its description sits in");
   assert.equal(textOf(page.document.querySelector("#release-form").querySelector("button")), "Record release");
   // The recorder panel is a focus target, not a stop: it carries tabindex="-1",
   // so nothing else joined the sequence when it became focusable.
