@@ -19,6 +19,7 @@ import { readFile } from "node:fs/promises";
 import { initDecisionLog, toHistoryRecords } from "../src/app.js";
 import {
   OVERDUE_ACTION_LABEL,
+  OVERDUE_FINDING_HEADINGS,
   OVERDUE_FINDING_KINDS,
   REVIEW_WINDOW_DAYS,
   UNTITLED_DECISION,
@@ -388,8 +389,11 @@ test("a history with nothing past the window shows the calm state on the shipped
   assert.match(textOf(panel), /Review check/);
   assert.match(textOf(panel), /No decision is still Proposed or Pending after 14 days/);
   assert.match(textOf(panel), /1 decision is Proposed or Pending, and it is inside 14 days/);
-  // The state that was on screen while the check ran is gone, not left behind.
+  // The state that was on screen while the check ran is gone, not left behind:
+  // its heading and its sentence too, so the region is never introduced twice.
   assert.doesNotMatch(textOf(panel), /Checking the log/);
+  assert.doesNotMatch(textOf(panel), /It looks for the decision left Proposed or Pending longest/);
+  assert.equal(panel.querySelectorAll("h3").length, 1, "the authored heading is replaced, not joined");
   assert.ok(textOf(panel).trim().length > 0, "the calm state is copy, not an empty panel");
   assert.equal(panel.querySelector("a"), null, "a calm state offers nothing to press");
   assert.doesNotMatch(textOf(panel), /\b(urgent|late|immediately|action required)\b/i);
@@ -422,6 +426,67 @@ test("the line shown while the check runs asks the page's own question, in its o
   // One sentence, no ellipsis standing in for one.
   assert.doesNotMatch(textOf(pending), /…|\.\.\./);
   assert.equal(textOf(pending).split(".").filter((part) => part.trim() !== "").length, 1);
+});
+
+// --- the check introduces itself (issue #2658) ------------------------------
+
+test("the check is named and says what to do, above the line that says it is running", async (t) => {
+  // Read before initDecisionLog, like the test above: the page's module scripts
+  // are deferred, so this block is the first paint — what a cold visitor reads
+  // while the check is still running, under no heading at all before #2658.
+  const page = await loadPage(DECISIONS_PAGE);
+  t.after(() => page.restore());
+  const { document } = page;
+
+  const region = findingPanel(document);
+  // Element children only: the parser keeps whitespace text nodes in children
+  // and they carry a truthy tagName, so they have to be dropped by name.
+  const blocks = region.children.filter((node) => !String(node.tagName).startsWith("#"));
+  assert.deepEqual(blocks.map((node) => node.tagName), ["H3", "P", "P"],
+    "a heading, one sentence, then the running line — nothing else, and no control");
+
+  // One level below "All records", the heading this region sits under, and the
+  // same level and class the scripted panel's heading uses, so the outline and
+  // the look of this figure do not change when the script replaces it.
+  assert.equal(textOf(document.querySelector("#decisions-title")), "All records");
+  assert.equal(blocks[0].getAttribute("class"), "overdue-finding-title");
+  assert.equal(textOf(blocks[0]), OVERDUE_FINDING_HEADINGS[OVERDUE_FINDING_KINDS.noneOverdue],
+    "the authored heading must be the name the scripted panel already carries");
+  assert.equal(textOf(blocks[0]), "Review check");
+
+  // Exactly one sentence, saying what the check looks for and what to do with
+  // the record it names.
+  const lead = textOf(blocks[1]);
+  assert.equal(lead,
+    "It looks for the decision left Proposed or Pending longest, so you can open that record "
+      + "and settle it or record the decision that replaces it.");
+  assert.equal(lead.split(".").filter((part) => part.trim() !== "").length, 1);
+  assert.doesNotMatch(lead, /…|\.\.\./);
+  // Not the running line said a second time.
+  assert.doesNotMatch(lead, /Checking the log/);
+
+  // The status words are the decision form's own on this page, to the byte.
+  const options = document.querySelector("#status").querySelectorAll("option").map((node) => textOf(node));
+  assert.ok(options.includes("Pending"), "the form's own option text");
+  assert.match(textOf(document.querySelector("#status-hint")), /\bProposed\b/);
+  for (const word of ["Proposed", "Pending"]) {
+    assert.ok(lead.includes(word), `the sentence must name ${word} in the form's capitalisation`);
+  }
+
+  // The window belongs to the running line and is stated once for the page, so
+  // there is never a second number to keep in step with REVIEW_WINDOW_DAYS.
+  assert.equal(blocks[2].getAttribute("class"), "hint overdue-finding-pending");
+  assert.doesNotMatch(`${textOf(blocks[0])} ${lead}`, /\b(14|fourteen)\b/i);
+  const source = await readFile(DECISIONS_PAGE, "utf8");
+  assert.equal(source.split(`${REVIEW_WINDOW_DAYS} days`).length - 1, 1,
+    "the window is written once in the whole document, including its comments");
+
+  // No new tab stop: index.html's tab order is held to a count by
+  // tests/prompt-coach-destination.test.js, and this region is above the link
+  // that count ends on.
+  assert.equal(region.querySelectorAll("a").length, 0);
+  assert.equal(region.querySelectorAll("button").length, 0);
+  assert.equal(region.querySelectorAll("summary").length, 0);
 });
 
 // One page at a time, restored before the next is loaded: several pages left
