@@ -14,9 +14,11 @@ import { loadPage, parseHtml, pressEnter, textOf, typeText } from "./support/bro
 import { importPageModule, waitFor } from "./support/page-module.js";
 import { createTestD1 } from "./support/d1-sqlite.js";
 import { onRequest } from "../functions/api/leads.js";
-import { initSiteFooter, INTENT_QUESTION } from "../src/site-footer.js";
+import { initSiteFooter, INTENT_QUESTION, NOTE_GUIDANCE } from "../src/site-footer.js";
 import { FOLLOW_UP_INTENT_PURPOSES, FOLLOW_UP_TOPICS } from "../src/leads.js";
-import { CONTACT_COPY, FOLLOW_UP_INTENTS, FOLLOW_UP_PRIVACY_WITH_MESSAGE } from "../src/lead-capture.js";
+import {
+  CONTACT_COPY, FOLLOW_UP_INTENTS, FOLLOW_UP_PRIVACY_WITH_MESSAGE, MAX_FOLLOW_UP_MESSAGE_LENGTH,
+} from "../src/lead-capture.js";
 
 const EMAIL = "buyer@example.com";
 const SRC = new URL("../src/", import.meta.url);
@@ -208,6 +210,135 @@ test("submitting with nothing chosen is stopped here: inline, announced, focused
     const receipt = textOf(byId(document, "site-footer-confirmation"));
     assert.equal(receipt.split("Your discussion choice has been saved.").length - 1, 1,
       "reopening and submitting replaces the explanation instead of repeating it");
+  } finally {
+    page.restore();
+  }
+});
+
+/* ------------------ what the note is for, per answer (#2656) --------------- */
+
+// Two of the four answers cannot be replied to without facts only the visitor
+// has — how many people are on the team, how often it ships, and for a pilot
+// what it would have to prove. The note is where those go, and it used to say
+// only how long it may be, so a first reply was a question back. The guidance
+// below is an invitation: the note stays optional, the limit is untouched, and
+// the other two answers keep the field exactly as it was.
+
+const GUIDANCE_ID = "site-footer-message-guidance";
+const GENERIC_HINT = `Up to ${MAX_FOLLOW_UP_MESSAGE_LENGTH} characters.`;
+const ASKING_PAGES = ["agents.html", "coach.html", "post.html", "profile.html", "releases.html", "social.html"];
+
+test("no guidance names a price, a range, or availability for the team reading it", () => {
+  assert.deepEqual(Object.keys(NOTE_GUIDANCE), ["availability_pricing", "pilot"],
+    "only the two answers a reply cannot be written without get a sentence");
+  for (const [value, sentence] of Object.entries(NOTE_GUIDANCE)) {
+    assert.ok(Object.hasOwn(FOLLOW_UP_INTENTS, value), `${value}: guidance for an answer no form offers`);
+    assert.doesNotMatch(sentence, /\b(price|pricing|quote|budget|cost|costs|per seat|we can start)\b/i, value);
+    assert.doesNotMatch(sentence, /[$£€]/, `${value}: no figure belongs in an invitation`);
+    assert.doesNotMatch(sentence, /available for your team/i, `${value}: asking is not an offer`);
+    // It advises a note it has to fit inside.
+    assert.ok(sentence.length <= MAX_FOLLOW_UP_MESSAGE_LENGTH, `${value}: longer than the note it advises`);
+    assert.match(sentence, /how many people are on your team/, `${value}: team size is one of the facts`);
+    assert.match(sentence, /how often you ship a release/, `${value}: release cadence is the other`);
+  }
+  assert.match(NOTE_GUIDANCE.pilot, /what the pilot would have to prove/);
+});
+
+test("every form that asks the question ships the guidance slot empty, inside the note's description", async () => {
+  for (const file of ASKING_PAGES) {
+    const document = parseHtml(await readFile(new URL(file, SRC), "utf8"));
+    const note = byId(document, "site-footer-message");
+    assert.equal(note.getAttribute("required"), null, `${file}: the note stays optional`);
+    // The limit is the counter's and the endpoint's, as it was: no control
+    // attribute silently truncates what a visitor types.
+    assert.equal(note.getAttribute("maxlength"), null, `${file}: the note gained no maxlength`);
+    assert.equal(note.getAttribute("aria-describedby"),
+      `site-footer-message-hint ${GUIDANCE_ID} site-footer-message-counter-label site-footer-message-counter`,
+      `${file}: the guidance is described between the limit and the count, not merely beside the field`);
+
+    const slot = byId(document, GUIDANCE_ID);
+    assert.equal(slot.tagName, "SPAN");
+    assert.equal(textOf(slot), "", `${file}: nothing is chosen yet, so nothing is advised`);
+    assert.ok(slot.hasAttribute("hidden"), `${file}: an empty slot is not painted`);
+    assert.equal(slot.getAttribute("aria-live"), null,
+      `${file}: the count beside it is this field's polite region; a second would talk over it`);
+    assert.equal(textOf(byId(document, "site-footer-message-hint")), GENERIC_HINT);
+    assert.equal(textOf(byId(document, "site-footer-message-counter")), `${MAX_FOLLOW_UP_MESSAGE_LENGTH}`);
+  }
+});
+
+const accepted = (intent) => reply({ captured: true, created: true, purpose: "follow_up_coach", intent }, 201);
+
+for (const [value, expected] of [
+  ["availability_pricing", NOTE_GUIDANCE.availability_pricing],
+  ["pilot", NOTE_GUIDANCE.pilot],
+  ["demo", ""],
+  ["security_data", ""],
+]) {
+  test(`choosing ${FOLLOW_UP_INTENTS[value]} advises ${expected ? "what the note should carry" : "nothing beyond the limit"}`, async () => {
+    const { page, document } = await mountCoach(accepted(value));
+    try {
+      const slot = byId(document, GUIDANCE_ID);
+      assert.equal(textOf(slot), "", "the slot starts empty on every page");
+
+      byId(document, `site-footer-intent-${value}`).click();
+      assert.equal(textOf(slot), expected);
+      assert.equal(slot.hidden, !expected, "an empty slot stays out of the page");
+      // Whatever the answer, the generic hint and the count are byte-for-byte
+      // what they were, and the note is still not required.
+      assert.equal(textOf(byId(document, "site-footer-message-hint")), GENERIC_HINT);
+      assert.equal(textOf(byId(document, "site-footer-message-counter")), `${MAX_FOLLOW_UP_MESSAGE_LENGTH}`);
+      assert.equal(byId(document, "site-footer-message").getAttribute("required"), null);
+    } finally {
+      page.restore();
+    }
+  });
+}
+
+test("changing the answer swaps the guidance, and moving to one without it takes the sentence back", async () => {
+  const { page, document } = await mountCoach(accepted("demo"));
+  try {
+    const slot = byId(document, GUIDANCE_ID);
+    byId(document, "site-footer-intent-availability_pricing").click();
+    assert.equal(textOf(slot), NOTE_GUIDANCE.availability_pricing);
+
+    byId(document, "site-footer-intent-pilot").click();
+    assert.equal(textOf(slot), NOTE_GUIDANCE.pilot, "one sentence at a time, never both");
+
+    byId(document, "site-footer-intent-security_data").click();
+    assert.equal(textOf(slot), "", "advice for an answer that is no longer chosen must not linger");
+    assert.equal(slot.hidden, true);
+  } finally {
+    page.restore();
+  }
+});
+
+test("the guidance changes nothing about the note: the count still runs and an empty note still sends", async () => {
+  const { page, document, calls } = await mountCoach(accepted("availability_pricing"));
+  try {
+    byId(document, "site-footer-intent-availability_pricing").click();
+    assert.equal(textOf(byId(document, GUIDANCE_ID)), NOTE_GUIDANCE.availability_pricing);
+
+    const typed = "Six engineers, we ship weekly.";
+    byId(document, "site-footer-message").focus();
+    typeText(document, typed);
+    assert.equal(textOf(byId(document, "site-footer-message-counter")),
+      `${MAX_FOLLOW_UP_MESSAGE_LENGTH - typed.length}`, "the counter counts what it always counted");
+    assert.equal(byId(document, "site-footer-message-error").hidden, true, "nothing is over the limit");
+    assert.equal(textOf(byId(document, GUIDANCE_ID)), NOTE_GUIDANCE.availability_pricing,
+      "typing into the field the sentence describes does not retract it");
+
+    // Emptied again: the guidance was an invitation, so the request still goes.
+    byId(document, "site-footer-message").value = "";
+    submit(document, "availability_pricing");
+    await settled(document);
+    assert.equal(byId(document, "site-footer-form").dataset.state, "success",
+      textOf(byId(document, "site-footer-status")));
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].intent, "availability_pricing");
+    assert.ok(!Object.hasOwn(calls[0], "message"), "an empty note is still no message on the wire");
+    assert.deepEqual(Object.keys(calls[0]).sort(), ["email", "intent", "purpose", "topic"],
+      "the guidance added no field: the privacy sentence still lists everything sent");
   } finally {
     page.restore();
   }

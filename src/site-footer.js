@@ -302,16 +302,31 @@ function intentFieldLines() {
   ];
 }
 
+// What the note is worth saying, for the two answers a first reply cannot be
+// written without: both turn on facts the team has no other way to know. An
+// invitation only — the note stays optional, the limit is unchanged, and no
+// sentence names a figure or promises Shiplog is available for the reader.
+export const NOTE_GUIDANCE = Object.freeze({
+  availability_pricing: "Helpful to include: how many people are on your team, and roughly how often you ship a release.",
+  pilot: "Helpful to include: how many people are on your team, roughly how often you ship a release, and what the pilot would have to prove.",
+});
+const GUIDANCE_ID = "site-footer-message-guidance";
+
 // Above the address on purpose: a visitor decides what to ask before deciding
 // whether to hand over a work address for the answer, and keyboard order is
 // reading order. The label asks what the question above it did not.
+//
+// The guidance sits in the note's description from first paint, between the
+// limit and the count, so it is read where it applies. It ships empty and
+// hidden: an id pointing at nothing contributes nothing to a description.
 function messageFieldLines() {
   return [
     '        <div class="site-footer-field">',
     '          <label for="site-footer-message">Anything else we should know? <span class="label-optional">(optional)</span></label>',
-    '          <input id="site-footer-message" name="message" type="text" autocomplete="off" aria-describedby="site-footer-message-hint site-footer-message-counter-label site-footer-message-counter" />',
+    `          <input id="site-footer-message" name="message" type="text" autocomplete="off" aria-describedby="site-footer-message-hint ${GUIDANCE_ID} site-footer-message-counter-label site-footer-message-counter" />`,
     '          <p class="site-footer-error" id="site-footer-message-error" role="alert" hidden></p>',
     `          <span class="hint" id="site-footer-message-hint">Up to ${MAX_FOLLOW_UP_MESSAGE_LENGTH} characters.</span>`,
+    `          <span class="hint" id="${GUIDANCE_ID}" hidden></span>`,
     '          <p class="counter-row">',
     '            <span id="site-footer-message-counter-label">Characters remaining:</span>',
     `            <span id="site-footer-message-counter" aria-live="polite" aria-atomic="true">${MAX_FOLLOW_UP_MESSAGE_LENGTH}</span>`,
@@ -426,7 +441,22 @@ export function initSiteFooter(root = document, request = (...args) => globalThi
     if (message) intentGroup.setAttribute("aria-invalid", "true");
     else intentGroup.removeAttribute("aria-invalid");
   }
-  for (const radio of intents) radio.addEventListener("change", () => setIntentError(null));
+  // The answer-specific invitation, swapped where it is already described. Not
+  // a live region: the count beside it is this field's polite one, and a second
+  // would talk over it. A reader meets this on focus — when they are deciding.
+  const guidance = root.querySelector(`#${GUIDANCE_ID}`);
+  function showNoteGuidance(value) {
+    if (!guidance) return;
+    const sentence = Object.hasOwn(NOTE_GUIDANCE, value) ? NOTE_GUIDANCE[value] : "";
+    guidance.textContent = sentence;
+    guidance.hidden = !sentence;
+  }
+  for (const radio of intents) {
+    radio.addEventListener("change", () => {
+      setIntentError(null);
+      showNoteGuidance(radio.value);
+    });
+  }
 
   // Failure swaps request for retry and hands a hidden button's focus to the
   // retained field. During retry, preserve the active button until settlement.
