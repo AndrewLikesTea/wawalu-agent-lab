@@ -61,7 +61,8 @@ test("the downloadable artifact is exactly the authored brief, a disclosure and 
     "This document contains fixed editorial content and public links only. It includes no visitor records or form entries.",
     PILOT_SCORECARD_TEXT,
   ].join("\n\n")}\n`);
-  assert.match(text, /Decisions and releases you add stay in this browser; they are not shared hosted records/);
+  assert.match(text, /Decisions and releases you add stay in this browser\./);
+  assert.match(text, /One shared log across a team’s browsers and devices is not part of this demonstration build\./);
   assert.match(text, /invented, use no customer or production data, and are not customer results/);
   assert.match(text, /No pilot outcome is claimed/);
   const fields = text.split("\n").filter(line => /^(Buyer target|Observed result|Owner):/.test(line));

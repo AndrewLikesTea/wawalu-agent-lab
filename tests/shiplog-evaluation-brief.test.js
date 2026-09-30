@@ -38,8 +38,10 @@ test("homepage renders the complete product brief between its explanation and AI
   for (const wording of [
     "without reconstructing decisions from chat history",
     "context, alternatives, and owner", "links it to the release it shaped",
-    "Decisions and releases you add stay in this browser; they are not shared hosted records.",
-    "Availability and pricing are provided on request.",
+    "Decisions and releases you add stay in this browser.",
+    "One shared log across a team’s browsers and devices is not part of this demonstration build.",
+    "A pilot here evaluates that recording workflow and this site’s deployment record, not shared storage.",
+    "ask about availability in the follow-up form at the foot of this page",
     "invented, use no customer or production data, and are not customer results",
     "manager or procurement stakeholder",
   ]) assert.ok(text.includes(wording), wording);
@@ -140,8 +142,9 @@ test("the copied brief carries its own boundaries and claims nothing it cannot s
   doc.getElementById("copy-shiplog-evaluation-brief").click();
   await settle();
   for (const wording of [
-    "Decisions and releases you add stay in this browser; they are not shared hosted records.",
-    "Availability and pricing are provided on request.",
+    "Decisions and releases you add stay in this browser.",
+    "One shared log across a team’s browsers and devices is not part of this demonstration build.",
+    "ask about availability in the follow-up form at the foot of this page",
     "The example decisions and releases are invented",
     "use no customer or production data",
     "are not customer results",

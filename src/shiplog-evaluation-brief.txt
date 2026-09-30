@@ -2,7 +2,7 @@ Shiplog evaluation brief
 
 Engineering teams need to explain why work shipped without reconstructing decisions from chat history. Shiplog records the context, alternatives, and owner of a decision and links it to the release it shaped, so teammates can trace shipped work back to its reasoning.
 
-Decisions and releases you add stay in this browser; they are not shared hosted records. Shiplog is a demonstration product built and operated by Wawalu. Availability and pricing are provided on request.
+Decisions and releases you add stay in this browser. One shared log across a team’s browsers and devices is not part of this demonstration build. A pilot here evaluates that recording workflow and this site’s deployment record, not shared storage. Shiplog is built and operated by Wawalu; ask about availability in the follow-up form at the foot of this page.
 
 The example decisions and releases are invented, use no customer or production data, and are not customer results. To verify what this site shipped, open the deployment record.
 

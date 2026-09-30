@@ -1,30 +1,33 @@
-// Browser-only storage is a property of this demo, not a limit of the product.
+// The shared-log question is answered once, in words, and never re-deferred.
 //
-// Both places a visitor can write a record — the home page's four-step demo and
-// the Releases recorder — already say the record stays in this browser. Read
-// alone, that reads as "Shiplog cannot hold a shared team log", which is a claim
-// neither page is entitled to make. Each note now carries one more sentence
-// saying whose property the browser-only storage is, and where the question of a
-// shared team log is answered.
+// #2655. Three passages used to hand the same question back to the reader. The
+// home page's evaluation brief said availability was "provided on request"; the
+// decision recorder and the Releases recorder each carried the same 35-word
+// sentence saying a shared log was "answered on request — ask the team". A
+// visitor met the deferral three times and learned nothing from any of them.
 //
-// What this file pins is the sentence being the same sentence in both places,
-// and the promise in it being a route rather than an assertion: it says the
-// question is answered on request and names the form that asks it. It says
-// nothing about what a team's Shiplog stores, syncs, or costs, and this file
-// fails if it starts to.
+// One passage now answers it plainly: records stay in the visitor's own
+// browser, one shared log across a team's browsers and devices is not part of
+// this build, a pilot therefore evaluates the recording workflow and the
+// deployment record, and availability is asked in the follow-up form this page
+// already carries. "Not part of this build" is the honest ceiling — this file
+// fails if the passage upgrades it to a promise ("not yet", "coming", a date),
+// claims a shared log exists, names a price, or names a customer.
 //
-// It names that form in words instead of linking it, on both pages. Releases
-// holds its authored regions to one destination per link and one link per
-// destination (releases.test.js), and both pages already carry exactly one
-// route to their own follow-up form — the "Ask about Shiplog" action in the
-// introduction. A second anchor to #site-footer-panel would be a second name
-// for a destination the page already names, and on Releases it would also sit
-// between the decision picker and "Record release" in the form's tab order.
-// So this file asserts the opposite of a link: that the sentence adds no
-// focusable and no href anywhere.
+// What the recorders keep is the statement of fact they already had: where a
+// record goes. What they may not do is ask or defer the availability question a
+// second and third time. So this file asserts the answer exists exactly once on
+// the home page, that both recorders still state where records go unsoftened,
+// and that neither of them carries a deferral any more.
 //
-// The rationale lives here rather than in a markup comment because index.html
-// is byte-gated by the document size budget.
+// It also asserts the answer adds no focusable. Both pages hold their authored
+// regions to one route per destination, and each already carries exactly one
+// route to its own follow-up form — the "Ask about Shiplog" action in the
+// introduction. Naming the form in words costs no tab stop; index.html's first
+// screen and Releases' recorder tab order both have none to spare.
+//
+// The rationale lives here rather than in a markup comment because the home
+// page's recorder panel is prose a document budget measures.
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -32,89 +35,123 @@ import { readFile } from "node:fs/promises";
 
 import { parseHtml, textOf } from "./support/browser.js";
 
-// Byte-identical on both pages. Written out here rather than read from one page
-// and compared to the other, so a reworded sentence has to be reworded on
-// purpose in three files instead of drifting in two.
-const SHARED_LOG_QUESTION = "Browser-only storage is how this public demo works."
-  + " Whether a team gets one shared log is answered on request — ask the team"
-  + " that operates Shiplog in the follow-up form at the foot of this page.";
+// The one answer, byte-exact. Written out here rather than read from the page,
+// so a reworded passage has to be reworded on purpose.
+const SHARED_LOG_ANSWER = "Decisions and releases you add stay in this browser."
+  + " One shared log across a team’s browsers and devices is not part of this"
+  + " demonstration build. A pilot here evaluates that recording workflow and"
+  + " this site’s deployment record, not shared storage. Shiplog is built and"
+  + " operated by Wawalu; ask about availability in the follow-up form at the"
+  + " foot of this page.";
 
-// page file, the storage note the sentence belongs to, and the phrase that note
-// uses to say a record does not leave this browser.
-const PLACES = [
+// The deferrals this change removed, in the words they shipped in.
+const DEFERRALS = [
+  "Browser-only storage is how this public demo works",
+  "Whether a team gets one shared log is answered on request",
+  "Availability and pricing are provided on request",
+];
+
+// page file, the storage note that page keeps, and the phrase it uses to say a
+// record does not leave this browser.
+const RECORDERS = [
   ["index.html", "evaluation-path-scope", "stay in this browser only"],
   ["releases.html", "release-record-scope", "kept in this browser, on this device"],
 ];
 
 const read = (file) => readFile(new URL(`../src/${file}`, import.meta.url), "utf8");
+const escape = (phrase) => phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-for (const [file, noteId, browserOnlyPhrase] of PLACES) {
-  test(`${file}: the storage note says whose property browser-only storage is, and links to this page's follow-up form`, async () => {
-    const document = parseHtml(await read(file));
+test("the home page answers the shared-log question once, in the evaluation brief", async () => {
+  const html = await read("index.html");
+  const document = parseHtml(html);
 
-    const sentence = document.getElementById("shared-log-question");
-    assert.ok(sentence, `${file} does not answer the shared-log question where it admits browser-only storage`);
-    assert.equal(textOf(sentence), SHARED_LOG_QUESTION);
+  const brief = document.getElementById("shiplog-evaluation-brief-text");
+  assert.ok(brief, "the home page no longer carries the evaluation brief");
+  const passage = brief.querySelectorAll("p").find((node) => textOf(node) === SHARED_LOG_ANSWER);
+  assert.ok(passage, "the brief does not answer the shared-log question in the words this file pins");
 
-    // Adjacent to the note it qualifies, not somewhere else on the page: the
-    // reader who has just been told the record stays here is the reader this
-    // sentence is for.
+  // Once. Meeting the answer twice would read as the page protesting.
+  const answers = brief.querySelectorAll("p").filter((node) => textOf(node) === SHARED_LOG_ANSWER);
+  assert.equal(answers.length, 1);
+  assert.equal(html.split("is not part of this demonstration build").length - 1, 1,
+    "the home page states the build's storage limit more than once");
+
+  // Named, not linked: the page's one route to that form is the introduction's
+  // "Ask about Shiplog" action, and this passage does not draw a second one.
+  assert.equal(passage.querySelectorAll("a").length, 0,
+    "the passage adds a second link to a destination this page already names");
+  const route = document.getElementById("ask-about-shiplog");
+  assert.ok(route, "the home page no longer offers the route this passage relies on");
+  assert.equal(route.getAttribute("href"), "#site-footer-panel");
+  assert.equal(document.querySelectorAll("#site-footer-form").length, 1,
+    "the passage names a follow-up form at the foot of the page and the page carries none");
+  assert.ok(document.getElementById("site-footer-panel"),
+    "the page has no follow-up panel for the named form to sit in");
+});
+
+test("the answer states a limit of this build and promises nothing beyond it", async () => {
+  const document = parseHtml(await read("index.html"));
+  const brief = document.getElementById("shiplog-evaluation-brief-text");
+  const passage = textOf(brief.querySelectorAll("p").find((node) => textOf(node) === SHARED_LOG_ANSWER));
+
+  // A roadmap commitment, a claim that shared storage already works, a price,
+  // a date, or a named customer would each be the page promising what nobody
+  // has agreed to.
+  for (const claim of [
+    /\bnot yet\b/i, /\bcoming\b/i, /\bsoon\b/i, /\broadmap\b/i, /\bplanned\b/i, /\bwill\b/i,
+    /\bsync(s|ed|ing)?\b/i, /\bserver|hosted|cloud|account|sign[- ]?in\b/i,
+    /\bprice|pricing|cost|\$\d|free\b/i, /\bper (seat|user)\b/i,
+    /\b20\d\d\b/, /\bQ[1-4]\b/,
+    /\bcustomers\b/i, /\btrusted by\b/i,
+  ]) assert.doesNotMatch(passage, claim, `the answer claims more than a limit of this build: ${claim}`);
+
+  // And it still says all four things it exists to say.
+  assert.match(passage, /stay in this browser/);
+  assert.match(passage, /not part of this demonstration build/);
+  assert.match(passage, /A pilot here evaluates/);
+  assert.match(passage, /follow-up form at the foot of this page/);
+});
+
+for (const [file, noteId, browserOnlyPhrase] of RECORDERS) {
+  test(`${file}: the recorder says where a record goes and defers nothing`, async () => {
+    const html = await read(file);
+    const document = parseHtml(html);
+
+    // The existing statement of fact, unsoftened.
     const note = document.getElementById(noteId);
-    assert.ok(note, `${file} no longer states browser-only storage where this sentence answers for it`);
-    assert.match(textOf(note), new RegExp(browserOnlyPhrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")),
+    assert.ok(note, `${file} no longer states where a record goes`);
+    assert.match(textOf(note), new RegExp(escape(browserOnlyPhrase)),
       "the existing browser-only statement was reworded or softened");
-    const paragraphs = note.parentNode.querySelectorAll("p");
-    assert.equal(paragraphs.indexOf(sentence), paragraphs.indexOf(note) + 1,
-      "the answer is not the next thing read after the note it answers for");
 
-    // The form it names has to be on this page and has to be one form, or the
-    // sentence sends a reader looking for something that is not there.
-    assert.equal(document.querySelectorAll("#site-footer-form").length, 1,
-      `${file} names a follow-up form at the foot of the page and carries none`);
-    assert.ok(document.getElementById("site-footer-panel"),
-      `${file} has no follow-up panel for the named form to sit in`);
-
-    // Named, not linked: the page's one route to that form is the introduction's
-    // "Ask about Shiplog" action, and this sentence does not draw a second one.
-    assert.equal(sentence.querySelectorAll("a").length, 0,
-      "the sentence adds a second link to a destination this page already names");
-    const route = document.getElementById("ask-about-shiplog");
-    assert.ok(route, `${file} no longer offers the route this sentence relies on`);
-    assert.equal(route.getAttribute("href"), "#site-footer-panel");
-  });
-
-  test(`${file}: the answer routes the question instead of answering it`, async () => {
-    const document = parseHtml(await read(file));
-    const sentence = textOf(document.getElementById("shared-log-question"));
-
-    // The whole point of "answered on request" is that this page is not the
-    // place the answer is given. Any of these would be the page answering.
-    for (const claim of [
-      /\bsync(s|ed|ing)?\b/i,
-      /\bserver|hosted|cloud|account|sign[- ]?in\b/i,
-      /\bwill\b|\bcan\b|\bdoes\b|\bsupports?\b/i,
-      /\bprice|cost|\$\d|free\b/i,
-      /\bper (seat|user)\b/i,
-    ]) {
-      assert.doesNotMatch(sentence, claim,
-        "the sentence makes a claim about a team's Shiplog instead of routing the question");
+    // And no second passage handing the availability question back.
+    assert.equal(document.querySelectorAll("#shared-log-question").length, 0,
+      `${file} still carries the deferral the evaluation brief answers`);
+    for (const deferral of DEFERRALS) {
+      assert.ok(!html.includes(deferral), `${file} still defers with “${deferral}”`);
     }
   });
 }
 
-test("the home page answers the shared-log question once, not at every mention of this browser", async () => {
-  const html = await read("index.html");
-  const document = parseHtml(html);
+test("no page repeats a deferral the evaluation brief answers", async () => {
+  for (const file of ["index.html", "releases.html"]) {
+    const html = await read(file);
+    for (const deferral of DEFERRALS.slice(0, 2)) {
+      assert.ok(!html.includes(deferral), `${file} still defers with “${deferral}”`);
+    }
+  }
+  // The brief's own passage replaced the third one, so it may not survive
+  // anywhere the brief is authored or forwarded.
+  for (const file of ["index.html", "shiplog-evaluation-brief.txt"]) {
+    assert.ok(!(await read(file)).includes(DEFERRALS[2]),
+      `${file} still says availability is “provided on request” without saying where`);
+  }
+});
 
-  // The home page says "this browser" in several places — the hero boundary,
-  // the retention link, the four-step demo. Meeting this answer twice would
-  // read as the page protesting.
-  assert.equal(document.querySelectorAll("#shared-log-question").length, 1);
-  const occurrences = html.split("Browser-only storage is how this public demo works").length - 1;
-  assert.equal(occurrences, 1, "the home page answers the shared-log question more than once");
-
-  // And the statements it qualifies are all still there, unsoftened.
-  const body = textOf(document.querySelector("main"));
-  assert.match(body, /Records you add stay in this browser\./);
-  assert.match(body, /Records you add stay in this browser only\./);
+test("the forwarded brief carries the same answer as the page", async () => {
+  const document = parseHtml(await read("index.html"));
+  const brief = document.getElementById("shiplog-evaluation-brief-text");
+  const passage = brief.querySelectorAll("p").find((node) => textOf(node) === SHARED_LOG_ANSWER);
+  assert.ok(passage, "the page does not carry the answer this file pins");
+  assert.ok((await read("shiplog-evaluation-brief.txt")).includes(SHARED_LOG_ANSWER),
+    "the downloadable brief and the page disagree about the answer");
 });

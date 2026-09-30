@@ -384,10 +384,11 @@ test("the recorder says where a recorded release is kept, above the button that 
   const scope = page.document.querySelector("#release-record-scope");
   assert.ok(scope, "the recorder says nothing about where a recorded release is kept");
   assert.equal(textOf(scope), RECORD_SCOPE);
-  // And whose property that is, said on the booted page rather than only in the
-  // markup. The sentence itself is shared-log-question.test.js.
-  assert.match(textOf(page.document.querySelector("#shared-log-question")),
-    /Browser-only storage is how this public demo works\./);
+  // One sentence about where a release goes, and no second one re-deferring the
+  // shared-log question: the home page's evaluation brief answers that once for
+  // the site (shared-log-question.test.js).
+  assert.equal(page.document.querySelectorAll("#shared-log-question").length, 0,
+    "the recorder defers the shared-log question the brief already answers");
 
   // Painted above the submit control, in the form's own reading order.
   const order = page.document.querySelector("#release-form").querySelectorAll("p,button");
