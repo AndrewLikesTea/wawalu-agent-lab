@@ -9,8 +9,13 @@ import {
   ASK_ABOUT_SHIPLOG_DESCRIPTION, ASK_ABOUT_SHIPLOG_DESCRIPTION_ID,
 } from "../src/ask-about-shiplog.js";
 
+// The third entry is the region the route belongs to on that page. It is the
+// page's introduction wherever the route is the introduction's own action; on
+// Social it closes the feed's supporting block, and since #2654 the prompt
+// coach carries it below the grade for the same reason, so the page's promise
+// is not separated from the example that keeps it.
 const pages = [
-  ["coach", "follow_up_coach", ".coach-hero"],
+  ["coach", "follow_up_coach", "#ask-about-shiplog-actions"],
   ["social", "follow_up_social", ".list-panel"],
   ["profile", "follow_up_people", ".hero-profile"],
   ["agents", "follow_up_agents", ".observatory-hero"],
@@ -24,7 +29,7 @@ for (const [name, purpose, heroSelector] of pages) {
       const { document } = page;
       const route = document.querySelector("#ask-about-shiplog");
       assert.equal(document.querySelectorAll("#ask-about-shiplog").length, 1);
-      assert.ok(document.querySelector(heroSelector)?.querySelector("#ask-about-shiplog") === route, "action belongs to the introduction");
+      assert.ok(document.querySelector(heroSelector)?.querySelector("#ask-about-shiplog") === route, "the action left the region that carries it");
       assert.equal(textOf(route), "Ask about Shiplog");
       assert.equal(route.tagName, "A");
       assert.equal(route.getAttribute("href"), "#site-footer-panel");

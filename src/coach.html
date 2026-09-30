@@ -67,10 +67,6 @@
       <section class="coach-hero" aria-labelledby="page-title">
         <h1 id="page-title">Prompt coach</h1>
         <p id="page-tagline">Grade a prompt before you send it. Your pasted text stays in this browser. It is not sent to a model or stored.</p>
-        <div class="hero-actions">
-          <a class="text-link" id="ask-about-shiplog" href="#site-footer-panel" aria-describedby="ask-about-shiplog-description">Ask about Shiplog</a>
-          <p class="hint" id="ask-about-shiplog-description">Ask about Shiplog moves you to the follow-up form at the foot of this page, which asks for a work email address, what you want to discuss and an optional note. A person replies by email, usually within two working days.</p>
-        </div>
       </section>
 
       <!-- Coach one prompt: the question a reader arrives with before they have
@@ -260,6 +256,32 @@
           </div>
         </details>
       </section>
+
+      <!-- THE ASK, BELOW THE GRADE (#2654). The route and the three sentences
+           explaining it used to close the introduction, which put a paragraph
+           about a follow-up form between this page's one promise and the
+           bundled example that keeps it. The introduction now reads the page's
+           name and that one sentence, the grade answers for itself, and the ask
+           follows it — the shape Social already ships, where the hero carries
+           the page's own action and the contact route closes the supporting
+           material.
+
+           It reads before the "Also on this site" card rather than inside it:
+           that card is about two other destinations, and the errand this route
+           runs is about this one.
+
+           The label and its line move as one unit, in one container, the way
+           every other page carrying this route keeps them — the line is still
+           the label's accessible description through aria-describedby, and it
+           is still static text rather than a disclosure, because this page has
+           no tab stop to spare on a control that only explains another one.
+           Same classes, same bytes, same ids: only the place moved, so the pair
+           still wraps and stacks at narrow widths (.hero-actions in
+           styles.css) and costs no rule. -->
+      <div class="hero-actions" id="ask-about-shiplog-actions">
+        <a class="text-link" id="ask-about-shiplog" href="#site-footer-panel" aria-describedby="ask-about-shiplog-description">Ask about Shiplog</a>
+        <p class="hint" id="ask-about-shiplog-description">Ask about Shiplog moves you to the follow-up form at the foot of this page, which asks for a work email address, what you want to discuss and an optional note. A person replies by email, usually within two working days.</p>
+      </div>
 
       <!-- Where the neighbouring surfaces are, said once, at the foot of the
            page rather than beside the workflow: a visitor who came here to

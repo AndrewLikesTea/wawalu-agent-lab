@@ -52,7 +52,10 @@
              the recorder's own options, in their casing, so a visitor reads
              the same three words here that they select by further down. -->
         <h1 id="page-title">See every release,<br />and why.</h1>
-        <p>Every release — Completed, Planned, or Cancelled — newest first, with its linked decisions. Expand a release to review each linked decision and its status.</p>
+        <!-- The id is the reading-order test's handle on this line, so the
+             order check can name the promise without matching on words the
+             build stamp below may also print. -->
+        <p id="releases-promise">Every release — Completed, Planned, or Cancelled — newest first, with its linked decisions. Expand a release to review each linked decision and its status.</p>
         <!-- The log stands above the recorder now, so a visitor who came here
              to write a record would otherwise pass the whole history on the way
              to a field. One control, one destination: it lands on the recorder
@@ -62,18 +65,8 @@
              is running" already points at, so both arrive in one place.
              Reuses the home page hero's action classes rather than adding a
              rule: styles.css is at its measured size budget. -->
-        <!-- The second route is the ask, beside the page's own primary action
-             rather than at the end of a long log: a visitor who has seen enough
-             should not have to scroll past every release to reach the form that
-             answers availability and pricing. It lands on the follow-up panel,
-             which opens with those two sentences, so the answer arrives with
-             the form rather than being replaced by it. The row already wraps
-             and stacks at narrow widths (.hero-actions in styles.css), so the
-             pair costs no rule. -->
         <div class="hero-actions">
           <a class="text-link" id="record-release-link" href="#record-release">Open the form to record a release</a>
-          <a class="text-link" id="ask-about-shiplog" href="#site-footer-panel" aria-describedby="ask-about-shiplog-description">Ask about Shiplog</a>
-          <p class="hint" id="ask-about-shiplog-description">Ask about Shiplog moves you to the follow-up form at the foot of this page, which asks for a work email address, what you want to discuss and an optional note. A person replies by email, usually within two working days.</p>
         </div>
       </section>
 
@@ -199,6 +192,33 @@
         </div>
       </section>
       </section>
+
+      <!-- THE ASK, BELOW THE PAGE'S OWN CONTENT (#2654). The route and the line
+           that explains it used to stand in the hero row beside the recorder
+           link, which put three sentences about a form between the page's
+           promise and the one record on this page a visitor can check. The
+           opening screen now reads heading, promise, the recorder route, then
+           the deployment record — and the ask follows the evidence, the way
+           Social closes its supporting block with the same pair.
+
+           It stays as high as it can rather than moving to the foot of the page:
+           the reason #2458 put it above the log in the first place was that a
+           visitor who has seen enough should not scroll past every release to
+           reach the form that answers availability and pricing. So it sits
+           directly after the record they came to check, and wholly before the
+           example records, which still stand after it as one unbroken region.
+
+           The label and its line move as one unit, in one container, the way
+           every other page carrying this route keeps them: a label that travels
+           without the line explaining it leaves a reader guessing what it
+           costs, and the line is still the label's accessible description
+           through aria-describedby. Same classes, same bytes, same ids — only
+           the place moved, so the pair still wraps and stacks at narrow widths
+           (.hero-actions in styles.css) and costs no rule. -->
+      <div class="hero-actions" id="ask-about-shiplog-actions">
+        <a class="text-link" id="ask-about-shiplog" href="#site-footer-panel" aria-describedby="ask-about-shiplog-description">Ask about Shiplog</a>
+        <p class="hint" id="ask-about-shiplog-description">Ask about Shiplog moves you to the follow-up form at the foot of this page, which asks for a work email address, what you want to discuss and an optional note. A person replies by email, usually within two working days.</p>
+      </div>
 
       <section class="shiplog-proof shiplog-demo" id="shiplog-proof" aria-labelledby="shiplog-proof-title" aria-describedby="shiplog-proof-note" tabindex="-1">
         <div class="shiplog-proof-heading">

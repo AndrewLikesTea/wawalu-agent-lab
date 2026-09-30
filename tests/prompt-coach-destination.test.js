@@ -473,21 +473,24 @@ test("the page names itself, says what it does, and offers a follow-up", async (
 
   // Reading order inside the introduction, asserted on the elements rather than
   // on the markup: the page's name, then one sentence saying what it does and
-  // where the text stays, followed by the follow-up action. Nothing sits above
-  // the name. The offer of the surface that reads a whole history is made once,
-  // in the card under the grade, where the reader has a use for it.
+  // where the text stays. Nothing sits above the name, and nothing sits below
+  // the sentence either — the follow-up action and the three sentences
+  // explaining it moved below the grade in #2654, so the introduction no longer
+  // stands between this page's promise and the example that keeps it. The offer
+  // of the surface that reads a whole history is made once, in the card under
+  // the grade, where the reader has a use for it.
   const hero = document.querySelector(".coach-hero");
   const label = (node) => node.id || node.getAttribute("class") || node.tagName;
-  assert.deepEqual(hero.childElements.map(label), ["page-title", "page-tagline", "hero-actions"],
-    "the introduction must read name, purpose, then follow-up action");
+  assert.deepEqual(hero.childElements.map(label), ["page-title", "page-tagline"],
+    "the introduction must read name, then purpose, and nothing else");
   assert.equal(hero.childElements[0].tagName, "H1");
 
   // The follow-up action says where it goes (#2556), and it says it on the
   // PAINTED page: this page's entry and preview leads are replaced by their view
   // modules on load, so a sentence that only survives in coach.html is one no
   // visitor here ever reads. Still static text — this page has no tab stops to
-  // spare above the grading control.
-  const described = hero.querySelectorAll("p")
+  // spare on a control that only explains another one.
+  const described = document.querySelectorAll("p")
     .filter((node) => node.getAttribute("id") === ASK_ABOUT_SHIPLOG_DESCRIPTION_ID);
   assert.equal(described.length, 1, `the route's description is painted ${described.length} times`);
   assert.equal(textOf(described[0]), ASK_ABOUT_SHIPLOG_DESCRIPTION);
@@ -535,8 +538,13 @@ test("Personal AI history is pitched once, in the card under the grade, with a d
   assert.equal(doors[0].getAttribute("class"), "secondary-button",
     "the door must be shaped like the one the AI FinOps pitch offers");
   assert.deepEqual(document.querySelector(".coach-hero").querySelectorAll("a")
+    .map((link) => link.getAttribute("href")), [],
+    "the introduction offers no destination of its own, and no second history pitch");
+  // The follow-up route the introduction used to carry is below the grade now
+  // (#2654), and it is still the only link in the row it moved to.
+  assert.deepEqual(document.querySelector("#ask-about-shiplog-actions").querySelectorAll("a")
     .map((link) => link.getAttribute("href")), ["#site-footer-panel"],
-    "the introduction offers only the follow-up, without a second history pitch");
+    "the follow-up row offers something other than the follow-up");
 
   // The surviving pitch carries every fact the deleted one had, so nothing a
   // reader needed to choose the destination left with the duplicate.
