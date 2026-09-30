@@ -5,6 +5,7 @@ import { loadPage, pressEnter, tabSequence, textOf } from "./support/browser.js"
 import { importPageModule, waitFor } from "./support/page-module.js";
 import { initSiteFooter } from "../src/site-footer.js";
 import { FOLLOW_UP_TOPICS } from "../src/leads.js";
+import { FOLLOW_UP_INTENTS, FOLLOW_UP_REPLY } from "../src/lead-capture.js";
 import {
   ASK_ABOUT_SHIPLOG_DESCRIPTION, ASK_ABOUT_SHIPLOG_DESCRIPTION_ID,
 } from "../src/ask-about-shiplog.js";
@@ -45,6 +46,26 @@ for (const [name, purpose, heroSelector] of pages) {
         `${name}: the description drifted away from the label it explains`);
       assert.ok(!tabSequence(document).includes(described[0]),
         `${name}: the description became a tab stop of its own`);
+
+      // #2643: that line names what a visitor can ask this page's form FOR — a
+      // product demonstration or a pilot evaluation, in the order the fieldset
+      // below lists them — rather than listing the fields they will fill in, and
+      // it still ends on the reply promise. Read off the painted caption rather
+      // than the constant, so a page shipping a stale copy fails here.
+      const caption = textOf(described[0]);
+      const offers = [FOLLOW_UP_INTENTS.demo.toLowerCase(), FOLLOW_UP_INTENTS.pilot.toLowerCase()];
+      for (const offer of offers) {
+        assert.ok(caption.includes(offer),
+          `${name}: the line does not say a visitor can ask for ${offer}`);
+      }
+      assert.ok(caption.indexOf(offers[0]) < caption.indexOf(offers[1]),
+        `${name}: the line names the two offers in an order this page's fieldset does not list them in`);
+      assert.ok(caption.endsWith(FOLLOW_UP_REPLY),
+        `${name}: the line no longer says: ${FOLLOW_UP_REPLY}`);
+      // The cost answer stays the form's to give, once, further down the page.
+      assert.doesNotMatch(caption, /price|pricing|availability/i,
+        `${name}: the line restates the availability answer the form below already gives`);
+
       assert.equal(document.querySelectorAll("#site-footer-form").length, 1);
       const script = document.querySelector('script[src="/ask-about-shiplog-page.js"]');
       assert.ok(script, "the shipped page wires the action independently of its data loading");
@@ -58,6 +79,16 @@ for (const [name, purpose, heroSelector] of pages) {
       const panel = document.querySelector("#site-footer-panel");
       const email = document.querySelector("#site-footer-email");
       email.value = "reader@example.com";
+      // And the two the line names are really on the form below it, under those
+      // names and in that order. Labels rather than values: the label is what a
+      // reader matches the introduction's sentence against when they arrive.
+      const choices = document.querySelector("#site-footer-intent")
+        .querySelectorAll("label").map((label) => textOf(label));
+      assert.deepEqual(choices, Object.values(FOLLOW_UP_INTENTS),
+        `${name}: the follow-up fieldset no longer offers the topics the introduction names`);
+      assert.deepEqual(choices.slice(1, 3), [FOLLOW_UP_INTENTS.demo, FOLLOW_UP_INTENTS.pilot],
+        `${name}: the demonstration and the pilot are not where the introduction says they are`);
+
       document.querySelector("#site-footer-intent-pilot").click();
       route.focus();
       if (activation === "keyboard") pressEnter(document);

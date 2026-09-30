@@ -52,10 +52,10 @@ export const ASK_ABOUT_SHIPLOG_HREF = "#site-footer-panel";
 export const ASK_ABOUT_SHIPLOG_DESCRIPTION_ID = "ask-about-shiplog-description";
 
 /**
- * What the label alone does not say: where the route goes, what the form there
- * asks for, and what comes back. Issue #2556 — "Ask about Shiplog" read as a
- * mail client, a pricing page or a new tab to anyone who had not already
- * scrolled to the foot of the page.
+ * What the label alone does not say: where the route goes, what a visitor may
+ * ask for once they are there, and what comes back. Issue #2556 — "Ask about
+ * Shiplog" read as a mail client, a pricing page or a new tab to anyone who had
+ * not already scrolled to the foot of the page.
  *
  * THE SECOND SENTENCE IS NOT WRITTEN HERE. It is FOLLOW_UP_REPLY from
  * lead-capture.js, byte for byte, because the form itself renders that sentence
@@ -67,13 +67,28 @@ export const ASK_ABOUT_SHIPLOG_DESCRIPTION_ID = "ask-about-shiplog-description";
  *
  * It promises no price, no quote and no signup, because the site's answer to
  * both is that there is no self-serve signup and no published price and that
- * both are answered on request. Saying the form asks what you want to discuss
- * is a description of a fieldset, not an offer.
+ * both are answered on request.
+ *
+ * WHY IT NAMES TWO OFFERS AND NOT THREE FIELDS. Issue #2643: the first sentence
+ * used to list what the form asks for — an address, a topic, an optional note —
+ * which is a description of a fieldset rather than an offer, so a reader learned
+ * they would be asked what they want to discuss without learning that a product
+ * demonstration and a pilot evaluation are two of the answers. It now names
+ * those two, lower-cased out of FOLLOW_UP_INTENTS in lead-capture.js and in the
+ * order that fieldset lists them, so a reader meets the option they will pick in
+ * the words they will pick it by. It names NEITHER of the other two: availability
+ * and pricing is the one answer this line may not restate, and security and data
+ * handling has its own brief on the home page.
+ *
+ * THE WORK-EMAIL REQUIREMENT LEFT WITH THE FIELD LIST, deliberately: the form
+ * states what it sends and to whom in FOLLOW_UP_PRIVACY_WITH_MESSAGE, directly
+ * above its own button, where a visitor reads it at the moment they type it. A
+ * caption under a link is the place to say what can be asked for.
  */
 export const ASK_ABOUT_SHIPLOG_DESCRIPTION =
   "Ask about Shiplog moves you to the follow-up form at the foot of this page,"
-  + " which asks for a work email address, what you want to discuss and an"
-  + " optional note. A person replies by email, usually within two working days.";
+  + " where you can request a product demonstration or discuss a pilot"
+  + " evaluation. A person replies by email, usually within two working days.";
 
 /**
  * Wire the route on a page that ships it. Returns a teardown, or null when this

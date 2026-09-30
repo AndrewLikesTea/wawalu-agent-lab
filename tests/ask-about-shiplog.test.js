@@ -204,12 +204,28 @@ test("the sentence itself says where, what is asked, and what comes back — and
   // Where the route goes: down this page, to the form — not out of the page.
   assert.match(ASK_ABOUT_SHIPLOG_DESCRIPTION, /follow-up form at the foot of this page/);
 
-  // What that form asks for, in the order the form asks it and in words a
-  // reader will recognise when they get there.
-  for (const asked of ["a work email address", "what you want to discuss", "an optional note"]) {
-    assert.ok(ASK_ABOUT_SHIPLOG_DESCRIPTION.includes(asked),
-      `the description does not say the form asks for ${asked}`);
+  // And what a visitor may ask that form for (#2643). Named rather than
+  // described: the sentence used to list the fields — an address, a topic, an
+  // optional note — which told a reader what they would be typing and not one
+  // thing they could ask for. The two offers are quoted out of the map the
+  // fieldset itself is generated from, lower-cased into the sentence, so a
+  // reader meets the option they will pick in the words they will pick it by.
+  const offered = [FOLLOW_UP_INTENTS.demo.toLowerCase(), FOLLOW_UP_INTENTS.pilot.toLowerCase()];
+  for (const offer of offered) {
+    assert.ok(ASK_ABOUT_SHIPLOG_DESCRIPTION.includes(offer),
+      `the description does not say a visitor can ask for ${offer}`);
   }
+
+  // Those two and no other topic, in the order the fieldset lists them. The
+  // fieldset offers four; availability and pricing is the one answer this line
+  // may not restate, and security and data handling has its own brief elsewhere.
+  const named = Object.values(FOLLOW_UP_INTENTS).map((label) => label.toLowerCase())
+    .filter((label) => ASK_ABOUT_SHIPLOG_DESCRIPTION.includes(label));
+  assert.deepEqual(named, offered,
+    "the description names a topic beyond the demonstration and the pilot, or dropped one");
+  assert.ok(ASK_ABOUT_SHIPLOG_DESCRIPTION.indexOf(offered[0])
+    < ASK_ABOUT_SHIPLOG_DESCRIPTION.indexOf(offered[1]),
+    "the description names the two offers in an order the fieldset does not list them in");
 
   // What comes back is the form's own sentence, byte for byte, rather than a
   // paraphrase of it. A reader who follows the route meets the same words
