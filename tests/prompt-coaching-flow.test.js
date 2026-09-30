@@ -84,6 +84,14 @@ test("the workflow is discoverable and idle before anything is pasted", async ()
     assert.match(guidance, /^The bundled synthetic example is graded against/, guidance);
     assert.match(guidance, /prompt rubric bundled with this page/, guidance);
     assert.doesNotMatch(guidance, /Paste a prompt/, guidance);
+    // And it defines "rubric" where the word is first read, in the same
+    // sentence, so no later mention is a first meeting with an undefined term.
+    // Every other rendered use of the word on this page comes after this one.
+    assert.match(guidance, /the fixed checklist of criteria the coach scores every prompt on\.$/,
+      guidance);
+    const rendered = textOf(document.querySelector("main"));
+    assert.ok(rendered.slice(0, rendered.indexOf("rubric")).endsWith("is graded against the prompt "),
+      "the defining sentence must be the page's first rendered mention of the rubric");
 
     assert.equal(textOf(document.querySelector(".prompt-coach-sample-attribution")),
       "This result is for the bundled synthetic example. Paste your prompt in the field to get its score.");
@@ -177,7 +185,7 @@ test("pasting a weak prompt returns an answer, one benchmark, and one move", asy
 
     assert.equal(textOf(byId(document, "prompt-coaching-question")), "Your prompt and its score");
     assert.equal(textOf(byId(document, "prompt-coaching-result-guidance")),
-      "Your prompt is graded against the prompt rubric bundled with this page.");
+      "Your prompt is graded against the prompt rubric bundled with this page — the fixed checklist of criteria the coach scores every prompt on.");
     assert.equal(textOf(byId(document, "prompt-coaching-entry-source")),
       "This result is for your prompt, read in this tab and kept nowhere.");
     const result = byId(document, "prompt-coaching-result");

@@ -46,7 +46,7 @@ test("each failed bundled region has concise accessible fallback copy and its ow
   assert.equal(sample.dataset.loadState, "error");
   assert.equal(results.dataset.loadState, "error");
   assert.match(textOf(sample), /bundled synthetic example could not be loaded/i);
-  assert.match(textOf(results), /possible results could not be loaded/i);
+  assert.match(textOf(results), /The answers the coach can give could not be loaded/i);
   for (const region of [sample, results]) {
     const announced = region.querySelector("[role=alert]");
     assert.match(textOf(announced), /still paste and grade your own prompt/i);
@@ -89,14 +89,14 @@ test("retries recover independently and preserve an in-progress prompt and tier"
     "the bundled example retry to recover");
   assert.ok(document.getElementById("prompt-coach-sample-result"));
   assert.equal(document.getElementById("coaching-specimen-body").dataset.loadState, "error",
-    "retrying the example must not retry possible results");
+    "retrying the example must not retry the answers the coach can give");
   assert.deepEqual(requests(), { exampleRequests: 2, resultsRequests: 1 });
   assert.equal(prompt.value, "Draft a rollback note for the service owner.");
   assert.equal(tier.value, "economy");
 
   document.getElementById("coaching-specimen-body").querySelector("button").click();
   await waitFor(() => document.getElementById("coaching-specimen-body").dataset.loadState === "ready",
-    "the possible-results retry to recover");
+    "the retry over the coach's answers to recover");
   assert.ok(document.querySelectorAll(".coaching-specimen-case").length > 1);
   assert.equal(document.getElementById("prompt-coach-sample-body").dataset.loadState, "ready");
   assert.deepEqual(requests(), { exampleRequests: 2, resultsRequests: 2 });

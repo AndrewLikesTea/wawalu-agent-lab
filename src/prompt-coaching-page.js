@@ -30,7 +30,7 @@ import { applyCoachingSpecimen } from "./coaching-specimen-view.js";
 import { initCoachingSummaryCopy } from "./coaching-summary-view.js";
 
 const BUNDLED_EXAMPLE_FAILURE = "The bundled synthetic example could not be loaded. You can still paste and grade your own prompt.";
-const POSSIBLE_RESULTS_FAILURE = "Possible results could not be loaded. You can still paste and grade your own prompt.";
+const COACH_ANSWERS_FAILURE = "The answers the coach can give could not be loaded. You can still paste and grade your own prompt.";
 
 /**
  * Give one optional, bundled region its own loading, failure, and retry cycle.
@@ -51,8 +51,8 @@ const POSSIBLE_RESULTS_FAILURE = "Possible results could not be loaded. You can 
  * is emptied rather than given a second copy of the same sentence, and the
  * status empties on every settled outcome so a loading claim never stands over
  * a painted result or a failure. A region without a status node keeps the older
- * shape — the sentence drawn into the body — which is what the possible-results
- * disclosure wants: it is closed by default, and nothing should be announced
+ * shape — the sentence drawn into the body — which is what the disclosure over
+ * the coach's answers wants: it is closed by default, and nothing should be announced
  * over a visitor who never asked to look.
  *
  * A settled outcome is applied only if it belongs to the newest run. Retrying
@@ -186,8 +186,8 @@ export function initPromptCoaching(doc = globalThis.document, {
     sectionId: "coaching-specimen",
     loadingClass: "coaching-specimen-lead",
     loader: loadPossibleResults,
-    failureCopy: POSSIBLE_RESULTS_FAILURE,
-    retryLabel: "Retry the possible results",
+    failureCopy: COACH_ANSWERS_FAILURE,
+    retryLabel: "Retry the answers the coach can give",
   });
   // The copy control is wired before the form and independently of it, for the
   // same reason: its markup is already in the document, and a button that is

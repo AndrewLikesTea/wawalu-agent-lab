@@ -633,7 +633,7 @@ test("the privacy promise is made once, in one wording, before the field", async
 // The three invitations a visitor reads before opening anything, and the one
 // rule they are held to: each names what is behind it and nothing another one
 // covers. The middle one promised the whole page — the example, what a grade
-// includes, possible results, and the privacy details — so a reader who opened
+// includes, the answers the coach can give, and the privacy details — so a reader who opened
 // it met the boundary the block before the field already carries and the states
 // the disclosure below it shows, and had no way to tell the three apart.
 test("each invitation names only what it reveals, and no two name the same thing", async () => {
@@ -645,12 +645,12 @@ test("each invitation names only what it reveals, and no two name the same thing
 
   assert.equal(before, "See how the overall score is measured and what to do first.");
   assert.equal(reads, "See the bundled synthetic example’s own text and the counts read from it.");
-  assert.equal(results, "See all seven possible results — among them a graded prompt, a prompt that needs changes, and text the coach cannot grade — none taken from text you paste.");
+  assert.equal(results, "See all seven answers the coach can give — among them a graded prompt, a prompt that needs changes, and text the coach cannot grade — none taken from text you paste.");
   // The count is the number of cases the disclosure actually renders, so the
-  // invitation cannot promise a different number of results than it shows.
+  // invitation cannot promise a different number of answers than it shows.
   const NUMBER_WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"];
-  assert.ok(results.includes(`all ${NUMBER_WORDS[SPECIMEN_CASES.length]} possible results`),
-    `the invitation must name the ${SPECIMEN_CASES.length} results this disclosure renders`);
+  assert.ok(results.includes(`all ${NUMBER_WORDS[SPECIMEN_CASES.length]} answers the coach can give`),
+    `the invitation must name the ${SPECIMEN_CASES.length} answers this disclosure renders`);
   // Said once, and in one block. The paragraph that used to sit under this
   // summary named the same three examples in different words, so counting the
   // summary's own sentence would have let it back in: what is pinned is the
@@ -675,7 +675,7 @@ test("each invitation names only what it reveals, and no two name the same thing
 
   // The middle one is written from its own first block outward. Every other
   // topic it used to promise is read behind one of the other two.
-  for (const promise of [/possible result/i, /privacy/i, /boundary/i, /never|stays out/i,
+  for (const promise of [/answers the coach/i, /privacy/i, /boundary/i, /never|stays out/i,
     /what a grade includes/i, /score/i]) {
     assert.doesNotMatch(reads, promise,
       `the disclosure over the read text promises “${promise.source}”, which another invitation covers`);
@@ -690,8 +690,8 @@ test("each invitation names only what it reveals, and no two name the same thing
   // name every other surface on the site uses for a bundled demonstration — and
   // the disclosure over its source text names it, so a reader knows which of
   // the two bundled things they are opening. The demonstrations at the foot of
-  // the page are the possible results, which is what the region already calls
-  // itself in its own failure and retry copy. Neither invitation may borrow the
+  // the page are the answers the coach can give, which is what the region calls
+  // itself in its own loading, failure and retry copy. Neither invitation may borrow the
   // other's noun. Each still says it opens material this build wrote rather
   // than anything a reader typed, because that is owed to them before they
   // open it: "bundled synthetic example" carries it on one, "none taken from
@@ -699,7 +699,7 @@ test("each invitation names only what it reveals, and no two name the same thing
   assert.match(reads, /bundled synthetic example/,
     "the disclosure over the read text must name which bundled thing it opens");
   assert.doesNotMatch(results, /bundled/i,
-    "“bundled” names the graded example on this page, never the possible results");
+    "“bundled” names the graded example on this page, never the answers the coach can give");
   // And the third case is named as the page names it — text the coach cannot
   // grade. Never a refusal: the coach runs in this tab and declines nothing on
   // content grounds, so a reader who reads one would expect a rule that is not
@@ -714,7 +714,7 @@ test("each invitation names only what it reveals, and no two name the same thing
   assert.ok(!byId(document, "prompt-coaching-preview").open,
     "the disclosure over the read text opens on arrival");
   assert.ok(!byId(document, "coaching-specimen").open,
-    "the disclosure over the possible results opens on arrival");
+    "the disclosure over the coach's answers opens on arrival");
 });
 
 test("one name for what a reader leaves with: the coaching summary", async () => {
