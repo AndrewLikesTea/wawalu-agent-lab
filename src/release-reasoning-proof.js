@@ -50,6 +50,47 @@ export const REASONING_PROOF_SCOPE =
 export const REASONING_PROOF_SUMMARY_SCOPE =
   "Counted over every release loaded on the Shiplog releases page, not a filtered view.";
 
+// WHAT THE TWO NUMBERS ARE, IN ONE CLAUSE (#2645).
+//
+// Two surfaces have to name this pair before either figure exists — this page
+// and the home page's copy of the block — and a reader who met two wordings
+// would be counting two things. So the clause is exported and both of them
+// spend it, the way they already share the rule and the scope above. It is the
+// counted sentence's own words ("link at least one decision the decision log
+// holds", "loaded"), so the introduction and the figure read as one claim
+// rather than as a paraphrase and its subject.
+//
+// It deliberately does NOT say "uncovered". The page defines that word further
+// down, in #coverage-gap-definition, and a rendered-order check holds the
+// definition to being the page's first use of it.
+export const REASONING_PROOF_FIGURES =
+  "how many of them link at least one decision the decision log holds, "
+  + "out of how many were loaded";
+
+/** The wait, as the home page's block already says it. */
+export const REASONING_PROOF_COUNTING_LEAD = "Still counting the releases loaded in this browser";
+
+// WHAT THE FIGURE'S NODE SHIPS (#2645). The releases page used to ship it empty,
+// which left a reader who arrived before the log loaded with a heading, an
+// exclusion rule and two numbers nobody had named. One sentence does both jobs
+// here — names the pair and says it is still being counted — because this block
+// has no lead paragraph of its own; the home page's copy carries a lead above
+// the figure, so there the wait is only the first clause plus an ellipsis.
+//
+// It states no LOADING: the log's own status region below is still the page's
+// one voice for that, and "counting" is what this block is waiting on.
+export const REASONING_PROOF_COUNTING = `${REASONING_PROOF_COUNTING_LEAD}: ${REASONING_PROOF_FIGURES}.`;
+
+// Why the copy control cannot be pressed yet, in the shape the home page's
+// deployment check already uses for the same slot ("The copy control becomes
+// available once the check answers."). It refers to the control rather than
+// quoting its label, because the label naming itself twice on one page is the
+// defect #2644 reported about the share control beside it. Withdrawn by
+// initReleaseReasoningProof the moment the control is live, so it is never a
+// sentence about something that already works.
+export const REASONING_PROOF_COPY_PENDING =
+  "The copy control becomes available once the figures are counted.";
+
 // The visible words on the control, which say what pressing it produces. The
 // block reports two numbers and the scope sentence calls them "both numbers", so
 // the control says "both numbers" too: "this count" named one figure for a
@@ -171,6 +212,10 @@ export function renderReleaseReasoningProof(root, counts) {
  * reads the latest counts at press time, so the clipboard can never receive a
  * figure the page has since replaced.
  *
+ * The authored line saying why it cannot be pressed yet is withdrawn in the same
+ * breath as the control is enabled, so the page never carries a sentence about a
+ * control that already works.
+ *
  * A document without the block gets an inert handle back, so a surface that
  * mounts the releases page without this markup is unaffected.
  */
@@ -178,10 +223,12 @@ export function initReleaseReasoningProof(root, options = {}) {
   const claim = root.querySelector("#reasoning-proof-claim");
   const button = root.querySelector("#reasoning-proof-copy");
   const status = root.querySelector("#reasoning-proof-copy-status");
+  const availability = root.querySelector("#reasoning-proof-copy-availability");
   if (!claim) return { update() {} };
   let counts = countReasoningKept();
   if (button) {
     button.disabled = false;
+    if (availability) availability.textContent = "";
     button.addEventListener("click", async () => {
       button.disabled = true;
       if (status) status.textContent = "";

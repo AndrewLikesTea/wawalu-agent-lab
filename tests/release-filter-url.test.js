@@ -89,6 +89,36 @@ test("copy is keyboard operable and copies current canonical filters with access
   assert.equal(textOf(feedback), "Link to this view copied. No search or filters are set, so it opens the full release log.");
 });
 
+/**
+ * The page's own words, with the deployment record and the check that quotes it
+ * left out.
+ *
+ * Those two blocks recite a git commit subject, which this page neither writes
+ * nor bounds — and the commit that made this label the page's only one is itself
+ * titled `Make "Copy link to this view" name exactly one control on Releases`
+ * (#2661). A build stamped from it therefore paints the label a second time as
+ * RECORD TEXT, and the count below reported a competing label where no control
+ * existed. The claim under test is about this page's controls, which the
+ * per-control checks at the end of the test cover for those two regions
+ * directly. tests/release-coverage-gaps.test.js excludes the same two regions
+ * from its vocabulary walk, and tests/shiplog-proof.test.js from its caveat
+ * walk, for the same reason.
+ *
+ * Excluded text is blanked rather than cut, so every index into the painted page
+ * still refers to the same position.
+ */
+const RECITED_REGIONS = ["real-deployment", "deployment-status"];
+
+function pageControlText(document) {
+  let said = textOf(document.body);
+  for (const id of RECITED_REGIONS) {
+    const region = document.getElementById(id);
+    const recited = region ? textOf(region) : "";
+    if (recited) said = said.replace(recited, " ".repeat(recited.length));
+  }
+  return said;
+}
+
 test("the view-sharing action has one label, says what its link carries, and confirms in its own words", async (t) => {
   const page = await boot(t, "?q=queue", { writeText: async () => {} });
   const button = get(page, "release-copy-link");
@@ -98,7 +128,7 @@ test("the view-sharing action has one label, says what its link carries, and con
   // The hand-copy field is a second control, so it has a name of its own
   // (#2644): it says what the box holds and what to do with it.
   assert.equal(textOf(page.document.querySelector('label[for="release-copy-url"]')), "Link to copy by hand");
-  const body = textOf(page.document.body);
+  const body = pageControlText(page.document);
   assert.equal(body.split("Copy link to this view").length - 1, 1, "the button, and nothing else on the page");
   assert.equal(body.split("Link to this view").length - 1, 0, "no competing label for the same action");
   assert.equal(button.getAttribute("aria-describedby"), "release-share-scope");
