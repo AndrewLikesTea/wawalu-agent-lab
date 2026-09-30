@@ -289,6 +289,35 @@ test("the reveal filters the log to the uncovered rows, moves focus, and announc
 
 // --- the words themselves (#2635) --------------------------------------------
 
+/**
+ * The page's own words, with the deployment record and the check that quotes it
+ * left out.
+ *
+ * Those two blocks print a git commit subject, which this page neither writes
+ * nor bounds — and the commit that landed the definition below is itself titled
+ * `Define "uncovered" on Releases` (#2636). So after any build, the first
+ * "uncovered" on the page came from the deployment record, and the order check
+ * reported a control using the word before the definition when no control did.
+ * The claim under test is about the page's vocabulary: the chip, the reveal's
+ * label and the worklist. tests/shiplog-proof.test.js excludes rendered record
+ * text from its caveat walk for the same reason.
+ *
+ * Excluded text is blanked rather than cut, so every index still refers to the
+ * same position in the painted page.
+ */
+const RECORD_REGIONS = ["real-deployment", "deployment-status"];
+
+function pageVocabulary(document) {
+  let said = textOf(document.body);
+  for (const id of RECORD_REGIONS) {
+    const region = document.getElementById(id);
+    if (!region) continue;
+    const recited = textOf(region);
+    if (recited) said = said.replace(recited, " ".repeat(recited.length));
+  }
+  return said;
+}
+
 test("the page says what covered and uncovered mean before either word is used", async (t) => {
   const { page } = await openPage(t);
   assert.equal(textOf(byId(page, "coverage-gap-definition")), COVERAGE_DEFINITION);
@@ -296,7 +325,7 @@ test("the page says what covered and uncovered mean before either word is used",
   // RENDERED order, not source order: the definition has to reach the screen
   // ahead of the chip and the reveal's label, both of which are written by
   // script after the log loads. Read off the painted body for that reason.
-  const said = textOf(page.document.body);
+  const said = pageVocabulary(page.document);
   const defined = said.indexOf(COVERAGE_DEFINITION);
   assert.ok(defined >= 0, "the definition never rendered on the page");
   const firstUse = said.search(/uncovered/i);

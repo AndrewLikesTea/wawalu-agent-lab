@@ -1146,6 +1146,41 @@
         <p class="coach-entry-companion">Already have an export of your own AI history? <a href="/personal-history.html">Read weeks of your own prompts in Personal AI history</a>. It runs the same rubric over that export in this browser tab, then names the one habit worth changing first and whether it is moving.</p>
       </section>
 
+      <!-- WHAT THE PLACES A TEAM ALREADY USES DO NOT DO (#2642).
+           A reader arrives having written some of this down already — in a
+           repository, a wiki, or a chat channel — and the page never said what
+           Shiplog adds to any of them. Three questions, three answers, each
+           pointing at something this page already carries above it: the link
+           from a decision to the release it shaped and the "Decisions in
+           release" filter, the context, alternatives and owner the record form
+           will not save without, and the four statuses plus "Current only".
+           Every label here is quoted from the control above that bears it, so a
+           reader who scrolls back up finds the words they just read.
+           NO CONTROL, NO CAVEAT, NO FIGURE. Headings and paragraphs only: no
+           link, no button, no disclosure of any kind. The prompt coach offer
+           above it holds the last tab stop this page can spare, and a focusable
+           here would push the coach link past the press ceiling derived in
+           tests/prompt-coach-destination.test.js. It names no customer, no
+           adoption and no saving, quotes no number, and restates none of the
+           example-records or browser-only sentences the blocks above already
+           carry exactly once each.
+           HERE, AND NOT ABOVE THE RECORD FORM: it answers the last objection a
+           reader has before they choose what to talk about below, and the first
+           five regions of this page are pinned to promise, demo and proof in
+           tests/homepage-proof-order.test.js. It reuses the proof block's own
+           styling rather than paying for a new rule in the page's sheet. -->
+      <section class="hero-proof" id="why-shiplog" aria-labelledby="why-shiplog-title">
+        <p class="eyebrow">Compared with where this already lives</p>
+        <h2 id="why-shiplog-title">Why not just keep this reasoning in the repository, a wiki, or chat?</h2>
+        <p>Teams already write some of it down in those places. What they cannot do there is say which release a decision shipped in, what was weighed before it, or whether it still stands.</p>
+        <h3>Why not keep architecture decision records in the repository?</h3>
+        <p>A decision record sits next to the code, not next to the release that shipped it. Shiplog links each decision to the release it shaped, and the “Decisions in release” filter above narrows the history to one release’s decisions.</p>
+        <h3>Why not keep release notes in a wiki?</h3>
+        <p>A release note says what changed, not what was weighed or who called it. The “Record a decision” form above will not save a record without its context, alternatives, and owner, so the reasoning arrives with the decision.</p>
+        <h3>Why not search the chat channel where it was decided?</h3>
+        <p>Chat keeps the argument but never says which decision still stands. Every decision here carries one of four statuses — Proposed, Pending, Accepted, or Superseded — and “Current only” hides every decision a later one replaced.</p>
+      </section>
+
       <!-- What a buyer came for, carried down to the request at the foot of the
            page (#2593). It sits below the prompt coach offer and outside both
            work-email forms on purpose: the pair is a choice about the follow-up,
