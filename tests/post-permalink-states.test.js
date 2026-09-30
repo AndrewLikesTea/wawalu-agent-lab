@@ -1613,3 +1613,134 @@ test("the painted page tells a cold visitor what Social is, once, and no longer 
     page.restore();
   }
 });
+
+/* ------------- the link the feeds promise, named on arrival --------------- */
+
+// Issue #2662. Social and People both close with "Select Open post to see a post
+// on its own page, with a link you can share", and the page that promise lands
+// on never mentioned a link at all: a reader who followed it for one was left to
+// work out that the address they arrived by was it. This is the destination
+// keeping the promise, in the feeds' own five words, so the two surfaces
+// describe one thing rather than two.
+//
+// Standing copy — no code in src/post-page.js writes this paragraph — which is
+// how it holds through a fetch that empties #post-detail and repaints the page
+// around it. Asserted in the painted page per state rather than inferred from
+// the markup, because "nothing rewrites it" is the claim being tested.
+const SHARED_PHRASE = "a link you can share";
+const ADDRESS_NOTE = `This page’s address opens this one post, so it is ${SHARED_PHRASE}.`;
+const FEED_PROMISE = "Select Open post to see a post on its own page, with a link you can share.";
+
+// What the note may never do: name a control. The copy button is drawn on the
+// loaded post and on nothing else, so an instruction to select one is an
+// instruction three of this page's four states cannot be followed on.
+const NAMES_A_CONTROL = /\bselect\b|\bbutton\b|copy link|\bpress\b|\btap\b|address bar/i;
+
+function assertAddressNoteStands(document, where) {
+  const main = document.querySelector("#main-content");
+  const text = textOf(main);
+  assert.equal(textOf(main.querySelector("#post-address")), ADDRESS_NOTE,
+    `${where}: the page stopped naming the link the feeds promised`);
+  assert.equal(times(text, ADDRESS_NOTE), 1, `${where}: the note is said ${times(text, ADDRESS_NOTE)} times`);
+  assert.equal(times(text, SHARED_PHRASE), 1,
+    `${where}: the phrase the feeds use is on the page ${times(text, SHARED_PHRASE)} times`);
+
+  // Outside the region every render empties — asserted as a boolean, never as a
+  // node compared against null.
+  assert.equal(Boolean(main.querySelector("#post-address").closest("#post-detail")), false,
+    `${where}: the note sits inside the region the fetch replaces`);
+  assert.equal(textOf(document.querySelector("#post-detail")).includes(SHARED_PHRASE), false,
+    `${where}: the panel says the phrase the standing note owns`);
+
+  // And it reads after the post and after the routes out: a reader gets what the
+  // link promised before they are told what the link is.
+  const flow = main.querySelectorAll("h1,p,a,#post-detail");
+  const detail = flow.findIndex((node) => node.id === "post-detail");
+  const note = flow.findIndex((node) => node.id === "post-address");
+  const social = flow.findIndex((node) => node.id === "post-back");
+  assert.ok(detail >= 0 && note >= 0 && social >= 0,
+    `${where}: the post region, the note or the feed route left the page's content`);
+  assert.ok(detail < social && social < note,
+    `${where}: the note must read after the post and after the routes out`);
+}
+
+test("the post page names the link the feeds promised, in the feeds' own words", async () => {
+  const html = await readFile(new URL("../src/post.html", import.meta.url), "utf8");
+  // Shipped in the markup, so it is on screen at first paint and for a reader
+  // whose script never runs.
+  assert.ok(html.includes(`<p class="hint" id="post-address">${ADDRESS_NOTE}</p>`), "the note must ship in the markup");
+
+  const stripped = html.replace(/<!--[\s\S]*?-->/g, "");
+  const content = stripped.slice(0, stripped.indexOf('<footer class="site-footer"'));
+  assert.equal(times(content, ADDRESS_NOTE), 1, "the note is written once, not once per state");
+
+  // One short sentence, the bar every standing sentence on this page meets.
+  assert.equal(ADDRESS_NOTE.split(/[.!?]/).filter((part) => part.trim()).length, 1, "one sentence, not two");
+  assert.ok(ADDRESS_NOTE.split(/\s+/).length <= 25, "the note stays at 25 words or fewer");
+  assert.doesNotMatch(ADDRESS_NOTE, NAMES_A_CONTROL, "the note names a control this page does not always draw");
+
+  // It is the address that is the link, not a thing the reader must go and find.
+  assert.match(ADDRESS_NOTE, /This page’s address/);
+
+  // Placed under the post, outside the region the lookup empties.
+  const at = (needle) => html.indexOf(needle);
+  assert.ok(at('id="post-detail"') < at(ADDRESS_NOTE), "the post precedes the note about its link");
+  assert.ok(at(`>${SOCIAL_LINK}</a>`) < at(ADDRESS_NOTE), "the routes out precede the note about its link");
+  assert.equal(html.match(/<div id="post-detail"[\s\S]*?<\/div>/)[0].includes(ADDRESS_NOTE), false,
+    "the note must not sit in #post-detail");
+
+  // The promise this answers, still made, once, on both feeds — and quoted here
+  // only as the phrase, not as the whole sentence: this page is the destination,
+  // not a second telling of the instruction that leads to it.
+  for (const file of ["social.html", "profile.html"]) {
+    const source = await readFile(new URL(`../src/${file}`, import.meta.url), "utf8");
+    assert.equal(times(source, FEED_PROMISE), 1, `src/${file} no longer promises a link you can share exactly once`);
+  }
+  assert.ok(FEED_PROMISE.includes(SHARED_PHRASE), "the phrase the feeds promise was reworded");
+  assert.ok(ADDRESS_NOTE.includes(SHARED_PHRASE), "the note stopped borrowing the feeds' phrase word for word");
+  assert.equal(html.includes(FEED_PROMISE), false, "the permalink restates the feeds' instruction instead of answering it");
+});
+
+test("the note about this page's address stands through loading, a loaded example, and a visitor's post", async () => {
+  // Loading held open: what a reader meets before the lookup answers, drawn by
+  // its own branch of renderPostDetail() rather than inferred from the next one.
+  const waiting = await loadPage(new URL("../src/post.html", import.meta.url), { location: { search: "?id=p-image" } });
+  try {
+    let release;
+    globalThis.fetch = () => new Promise((resolve) => { release = () => resolve(seedResponse([IMAGE_POST])); });
+    await importPageModule("/post-page.js");
+    const panel = waiting.document.querySelector("#post-detail");
+    await waitFor(() => panel.querySelectorAll(".detail-loading").length === 1, "the loading state rendered");
+    assert.equal(textOf(panel.querySelector(".detail-loading-text")), STATE_HEADLINES.loading);
+    assertAddressNoteStands(waiting.document, "while the lookup runs");
+
+    // And through the repaint into a loaded invented example. Waited on the
+    // post's own content — the display name is drawn by src/post-detail.js and
+    // appears nowhere in the markup — so this cannot pass on turn zero.
+    release();
+    await waitFor(() => panel.querySelectorAll(".detail-author-link").length === 1, "the example post arrived");
+    assert.equal(textOf(panel.querySelector(".detail-author-link")), IMAGE_POST.author);
+    assert.equal(textOf(waiting.document.querySelector("#post-provenance")), POST_EXAMPLE_PROVENANCE,
+      "the seeded post did not load as an invented example");
+    assertAddressNoteStands(waiting.document, "once the example post arrived");
+  } finally {
+    waiting.restore();
+  }
+
+  // A post a visitor really published: the live API path, a UUID id, and the
+  // source field without which the record would be dropped and the page would
+  // land in a state with no post at all.
+  const row = liveRow(LIVE_PUBLISHED_ID, "shiplog-web");
+  const page = await openPostPage(`?id=${row.id}`, liveOnly(row));
+  try {
+    assertOneState(page, "loaded", "a post a visitor published");
+    assert.deepEqual(page.requests, [`/api/social-posts/${row.id}`], "the page did not take the live API path");
+    assert.equal(textOf(page.panel.querySelector(".detail-author-link")), row.author, "the visitor's post did not render");
+    assert.ok(textOf(page.panel).includes(row.content), "the visitor's post rendered without its text");
+    assert.equal(textOf(page.document.querySelector("#post-provenance")), POST_PUBLISHED_PROVENANCE,
+      "the page did not read this as a post a visitor published");
+    assertAddressNoteStands(page.document, "a post a visitor published");
+  } finally {
+    page.restore();
+  }
+});
