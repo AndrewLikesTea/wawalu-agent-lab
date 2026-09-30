@@ -6,9 +6,9 @@
 // reports with reason `no_build_stamp`.
 export const BUILD_STAMP = Object.freeze({
   schemaVersion: 1,
-  commitSha: "b6f10150471dd7b711ee25378f8481824facb869",
-  commitSubject: "Agent: Answer \"why not just keep ADRs in the repo?\" on the homepage (#2660)",
-  builtAt: "2026-09-30T12:50:58.632Z",
+  commitSha: "80b0d48cacd43363023e221df2c48e31c69abd78",
+  commitSubject: "Agent: Make \"Copy link to this view\" name exactly one control on Releases (#2661)",
+  builtAt: "2026-09-30T13:59:47.705Z",
 });
 
 export default BUILD_STAMP;
