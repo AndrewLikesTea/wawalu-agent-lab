@@ -621,7 +621,7 @@ test("People's display-name chooser is not operable while image posts are loadin
 
   const hint = hintIn(document.querySelector("#profile-author").parentNode, "profile-filter-hint");
   assert.equal(textOf(hint), PROFILE_FILTERS_UNAVAILABLE_HINT);
-  assert.equal(textOf(hint), "Filter image posts by display name becomes available when image posts finish loading.");
+  assert.equal(textOf(hint), "This filter becomes available once the image posts finish loading.");
   assert.equal(classesOf(hint).includes("hint"), true);
 });
 
@@ -654,7 +654,7 @@ test("a failed People feed disables the chooser and leaves Retry reachable", asy
     assert.equal(chip.getAttribute("aria-disabled"), null);
     assert.equal(chip.getAttribute("aria-describedby"), null);
   }
-  assert.doesNotMatch(textOf(document.body), /becomes available when image posts finish loading/);
+  assert.doesNotMatch(textOf(document.body), /becomes available once the image posts finish loading/);
 });
 
 /* ----------------------------- one filter, one name ----------------------- */
@@ -666,11 +666,13 @@ test("a failed People feed disables the chooser and leaves Retry reachable", asy
 // sentence shapes, so a reader who used the filter on one page met a stranger on
 // the other.
 //
-// People's sentence is still Social's single-filter shape with the one noun
-// this page earns: it shows image posts and only image posts. That shape is
-// FILTERS_UNAVAILABLE_HINT in src/feed-status.js, the default for a filter row
-// with one control, and the derivation from it is pinned here rather than as
-// two independent literals so People cannot be reworded on its own.
+// People's label is still Social's with the one noun this page earns: it shows
+// image posts and only image posts, and that derivation is pinned here rather
+// than as two independent literals so the control cannot be renamed on one page
+// alone. Its wait sentence is its own (#2657) — Social's single-filter shape,
+// FILTERS_UNAVAILABLE_HINT in src/feed-status.js, opens in the label's exact
+// words, which on a filter that carries a visible legend meant reading the
+// control's name twice in two adjacent lines.
 //
 // Social no longer renders that shape (#2611). It has two menus and states the
 // wait for both of them in one sentence, so the thing the two pages are held to
@@ -695,7 +697,17 @@ test("Social and People label the display-name filter the same way, loading and 
   // The derivation first: People's strings are Social's with one noun changed,
   // so "keep them in step" is a fact about the copy and not a convention.
   assert.equal(IMAGE_POSTS(NAME_FILTER_LABEL), "Filter image posts by display name");
-  assert.equal(IMAGE_POSTS(FILTERS_UNAVAILABLE_HINT), PROFILE_FILTERS_UNAVAILABLE_HINT);
+  // The wait sentence is no longer derived from Social's (#2657). People's
+  // filter carries a visible legend, and Social's shape opens in the label's
+  // exact words, so People was saying the control's name twice in two adjacent
+  // lines — the label, then the same six words again as the subject of the
+  // sentence under it. What the two pages are still held to is what a reader
+  // actually carries between them, checked below: one term for the thing being
+  // selected, one word for the wait, and the same label on the control.
+  assert.doesNotMatch(PROFILE_FILTERS_UNAVAILABLE_HINT, /Filter image posts by display name/,
+    "People's wait sentence quotes the label directly above it again");
+  assert.match(PROFILE_FILTERS_UNAVAILABLE_HINT, /\bimage posts\b/,
+    "People's wait sentence stopped naming what this page holds");
   for (const copy of [NAME_FILTER_LABEL, ALL_NAMES_OPTION, FILTERS_UNAVAILABLE_HINT, PROFILE_FILTERS_UNAVAILABLE_HINT,
     FEED_FILTERS_UNAVAILABLE_HINT, IMAGE_POSTS(NAME_FILTER_LABEL)]) {
     assert.doesNotMatch(copy, RIVAL_TERM, `"${copy}" names the selected thing a second way`);

@@ -146,9 +146,11 @@ test("the picker says what choosing a name does, and the line over the grid says
     // Read after hydration, not off the served markup: this page pre-renders
     // filter copy, so the sentence has to survive the render that fills the
     // picker beside it.
+    // One sentence (#2657): the imperative restatement that followed it said
+    // the same fact a second time, beside a control whose own label had already
+    // said it.
     assert.equal(textOf(document.querySelector("#profile-author-hint")),
-      "The list below shows only the image posts published under the selected display name."
-      + " Choose another display name to update the image-post list.");
+      "The list below shows only the image posts published under the selected display name.");
 
     // Zed is the landing name and has two pictures. The number is the tiles on
     // screen, not the size of the feed behind them: four posts are loaded here.
@@ -179,10 +181,16 @@ test("the picker says what choosing a name does, and the line over the grid says
       assert.equal(main.includes("is the current filter"), false,
         `the picker defines the filter as itself under ${name}`);
       // And the sentence that says what the grid holds stays put while the
-      // selection moves: it explains the control, not one name's results.
-      assert.match(textOf(document.querySelector("#profile-author-hint")),
-        /^The list below shows only the image posts published under the selected display name\./,
+      // selection moves: it explains the control, not one name's results. One
+      // sentence in every state, too — no render path writes the imperative
+      // restatement back (#2657). The empty state's own "Choose another display
+      // name" link is a different thing: it is an action, at the point where a
+      // reader has nothing to read.
+      assert.equal(textOf(document.querySelector("#profile-author-hint")),
+        "The list below shows only the image posts published under the selected display name.",
         `the picker hint lost its explanation under ${name}`);
+      assert.doesNotMatch(main, /Choose another display name to update the image-(post|page) list/,
+        `the picker hint restates itself under ${name}`);
     }
     // The ordering label is untouched by all of it, in its own words and its own
     // place above the list.
@@ -650,7 +658,7 @@ test("a page whose posts have not landed exposes no options and one availability
     const picker = document.querySelector("#profile-author");
     assert.equal(picker.children.length, 0);
     assert.equal(textOf(document.querySelector("#profile-filter-hint")),
-      "Filter image posts by display name becomes available when image posts finish loading.");
+      "This filter becomes available once the image posts finish loading.");
     assert.equal(textOf(document.querySelector("#profile-picker-note")), "");
     // The results heading waits with them. It names the display name that is
     // showing, and the posts under it, and stops: the seed's tiles are on screen
@@ -1392,10 +1400,14 @@ function assertClaimsNoResult(document, state) {
   }
 
   // The two lines that must not regress with it: what the filter row is waiting
-  // for, and the next action a reader can actually take from here.
+  // for, and the next action a reader can actually take from here. The wait is
+  // said in the row's own words rather than the legend's (#2657), and it still
+  // has to say that the filter is not usable yet.
   assert.equal(textOf(document.querySelector("#profile-filter-hint")),
-    "Filter image posts by display name becomes available when image posts finish loading.",
+    "This filter becomes available once the image posts finish loading.",
     `${state}: the filter hint was reworded`);
+  assert.equal(textOf(document.querySelector("#profile-author-label")), "Filter image posts by display name",
+    `${state}: the filter lost its label`);
   assert.equal(textOf(document.querySelector("#profile-feed-status")),
     "Image posts are loading. Publish a post on Social to add one.", `${state}: the waiting line lost its next action`);
 

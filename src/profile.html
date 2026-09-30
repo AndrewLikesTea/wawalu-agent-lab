@@ -107,21 +107,28 @@
                "a name": one word for this concept on People, in Social's feed
                filters and on the composer's field is what a test here pins, and
                an abbreviation in the one sentence that explains the control is
-               where a second word starts. -->
+               where a second word starts. It is one sentence (#2657). It used to
+               run on into a second one that told a reader, in the imperative, to
+               pick a different entry if they wanted a different list — the same
+               fact as the sentence before it, said again, and the fourth place
+               above the first picture to say that this list follows the
+               selection. -->
           <fieldset class="filter-group" id="profile-name-picker" tabindex="-1" aria-describedby="profile-author-hint">
             <legend id="profile-author-label">Filter image posts by display name</legend>
             <p class="hint profile-toolbar-hint" id="profile-author-hint">
-              The list below shows only the image posts published under the selected display name. Choose another display name to update the image-post list.
+              The list below shows only the image posts published under the selected display name.
             </p>
-            <!-- The wait, worded the way Social's filter row words its own
-                 (#2542): the control named first, in the label's exact words,
-                 then the condition. It used to open on the entries instead —
-                 the display names became available, rather than the filter — so
-                 the same wait was announced as two different things depending on
-                 which page a reader was standing on. src/profile.js writes the
-                 same sentence back on every render, so this authored copy and
-                 the hydrated one say one thing. -->
-            <p class="hint profile-toolbar-hint" id="profile-filter-hint">Filter image posts by display name becomes available when image posts finish loading.</p>
+            <!-- The wait: the condition, in this region's own words. It used to
+                 name the control first in the legend's exact words (#2542),
+                 which put the same six words twice in two adjacent lines, so the
+                 first thing a reader met on this page they met twice (#2657).
+                 Before that it opened on the entries instead — the display names
+                 became available, rather than the filter — so the same wait was
+                 announced as two different things depending on which page a
+                 reader was standing on. src/profile.js writes the same sentence
+                 back on every render, so this authored copy and the hydrated one
+                 say one thing. -->
+            <p class="hint profile-toolbar-hint" id="profile-filter-hint">This filter becomes available once the image posts finish loading.</p>
             <!-- Written by profile.js on every render: which display name is
                  showing, and whether the page preselected it or the visitor
                  picked it. It ships empty on purpose — the name is not known

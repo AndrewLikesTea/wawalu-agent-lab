@@ -71,8 +71,11 @@ export function filtersAvailable(phase) {
 // do anything. Caption weight, not content weight: it describes the control
 // beside it rather than the feed, which the status region is already reporting.
 //
-// People renders it, one noun changed (PROFILE_FILTERS_UNAVAILABLE_HINT,
-// src/profile.js), and it stays the default here for any row of the same shape.
+// People renders a shorter line of its own (PROFILE_FILTERS_UNAVAILABLE_HINT,
+// src/profile.js): its filter carries a visible legend, and this shape opens in
+// the legend's own words, so there it said the control's name twice in two
+// adjacent lines (#2657). This stays the default here for a row of the same
+// shape whose control is labelled somewhere a reader is not already looking.
 // Social has two menus and says the wait for both of them in one sentence
 // instead (FEED_FILTERS_UNAVAILABLE_HINT, src/social.js), so it passes its own
 // `hintText`; the rest of this note is the rule that sentence still keeps.
