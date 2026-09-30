@@ -285,7 +285,12 @@ export function announceCoachingEntrySource(doc, source) {
   const heading = byId(doc, "prompt-coaching-question");
   if (heading) heading.textContent = `${subject} and its score`;
   const guidance = byId(doc, "prompt-coaching-result-guidance");
-  if (guidance) guidance.textContent = `${subject === "Your prompt" ? subject : "The bundled synthetic example"} is graded against the prompt rubric bundled with this page.`;
+  // This sentence is the page's first mention of the rubric in reading order,
+  // so it carries the definition of the word — the same clause coach.html ships
+  // in the pre-script fallback. Rewriting the subject must not drop it: a
+  // visitor who graded their own prompt is the one reader guaranteed to have
+  // read this line, and "rubric" on its own tells them nothing.
+  if (guidance) guidance.textContent = `${subject === "Your prompt" ? subject : "The bundled synthetic example"} is graded against the prompt rubric bundled with this page — a fixed checklist of criteria, the same one for every prompt.`;
   if (!source) {
     delete section.dataset.gradedSource;
     node.textContent = "";

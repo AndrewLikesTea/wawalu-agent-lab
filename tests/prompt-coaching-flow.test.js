@@ -165,6 +165,31 @@ test("the workflow is discoverable and idle before anything is pasted", async ()
   }
 });
 
+// "Rubric" is a term of art, and the whole of what this page measures rests on
+// it. The sentence a visitor meets it in FIRST has to explain it; every later
+// sentence may then use it as a name, which is why the coaching summary's
+// privacy line and the Personal AI history cross-link still say the word.
+// Asserted on the painted page and in rendered reading order, because the
+// sentence that carries the definition is rewritten by script and because the
+// authored order of coach.html is not what a visitor reads.
+test("the reader's first rubric is defined in the same sentence", async () => {
+  const page = await openCoachingPage();
+  try {
+    const { document } = page;
+    const sentences = textOf(document.querySelector("main")).split(/(?<=[.?!])\s+/);
+    const first = sentences.find((sentence) => /rubric/i.test(sentence));
+    assert.ok(first, "the page must say what a pasted prompt is graded against");
+    assert.match(first, /a fixed checklist of criteria, the same one for every prompt/,
+      `the reader's first "rubric" is an undefined term: ${first}`);
+    // And the definition costs the summary's privacy promise nothing: it still
+    // says the copyable summary carries no text the visitor pasted.
+    assert.match(textOf(byId(document, "prompt-coaching-copy-lead")),
+      /never your prompt text\.$/);
+  } finally {
+    page.restore();
+  }
+});
+
 test("pasting a weak prompt returns an answer, one benchmark, and one move", async () => {
   const page = await openCoachingPage();
   try {
@@ -176,8 +201,11 @@ test("pasting a weak prompt returns an answer, one benchmark, and one move", asy
     assert.match(section.dataset.grade, /^[A-F]$/);
 
     assert.equal(textOf(byId(document, "prompt-coaching-question")), "Your prompt and its score");
+    // The guidance keeps its definition of "rubric" when it switches subject:
+    // the word is introduced here, in reading order, before any other sentence
+    // on the page uses it, so both subjects carry the same explaining clause.
     assert.equal(textOf(byId(document, "prompt-coaching-result-guidance")),
-      "Your prompt is graded against the prompt rubric bundled with this page.");
+      "Your prompt is graded against the prompt rubric bundled with this page — a fixed checklist of criteria, the same one for every prompt.");
     assert.equal(textOf(byId(document, "prompt-coaching-entry-source")),
       "This result is for your prompt, read in this tab and kept nowhere.");
     const result = byId(document, "prompt-coaching-result");

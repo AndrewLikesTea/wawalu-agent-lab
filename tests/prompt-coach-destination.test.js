@@ -653,7 +653,14 @@ test("each invitation names only what it reveals, and no two name the same thing
 
   assert.equal(before, "See how the overall score is measured and what to do first.");
   assert.equal(reads, "See the bundled synthetic example’s own text and the counts read from it.");
-  assert.equal(results, "See all seven possible results — among them a graded prompt, a prompt that needs changes, and text the coach cannot grade — none taken from text you paste.");
+  assert.equal(results, "See all seven possible results the coach can give back — among them a graded prompt, a prompt that needs changes, and text the coach cannot grade — none taken from text you paste.");
+  // The third one says what a "result" is where it counts them: a visitor who
+  // has graded nothing yet cannot know that a result is what the coach hands
+  // back for one prompt, so a bare count of "possible results" counted an
+  // unnamed thing. The noun itself is unchanged, because the region also names
+  // itself in its loading line, its failure sentence and its retry control.
+  assert.match(results, /possible results the coach can give back/,
+    "the invitation must say what a result is, not only how many there are");
   // The count is the number of cases the disclosure actually renders, so the
   // invitation cannot promise a different number of results than it shows.
   const NUMBER_WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"];

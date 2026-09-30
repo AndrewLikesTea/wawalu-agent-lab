@@ -92,7 +92,17 @@
                one text box. The id is historical and load-bearing: the section
                is labelled by it. -->
           <h2 id="prompt-coaching-question">Bundled synthetic example and its score</h2>
-          <p id="prompt-coaching-result-guidance">The bundled synthetic example is graded against the prompt rubric bundled with this page.</p>
+          <!-- The first place this page says "rubric" to a reader, so it is the
+               place the word is explained: a first-time visitor should not have
+               to already know the term to know what their prompt is measured
+               against. The definition is a clause of this same sentence rather
+               than a second line, because the heading block carries exactly one
+               line of guidance. Every later mention on the page — the coaching
+               summary's privacy line, the Personal AI history cross-link — is
+               read after this one and leaves the word standing. The same
+               sentence is rewritten by prompt-coaching-entry-view.js once a
+               visitor grades their own text, with the same definition. -->
+          <p id="prompt-coaching-result-guidance">The bundled synthetic example is graded against the prompt rubric bundled with this page — a fixed checklist of criteria, the same one for every prompt.</p>
         </div>
         <!-- The front door: what a visitor gets here, what it is measured
              against, and the one thing to do first.
@@ -248,9 +258,17 @@
         <!-- Every state of a coached result, drawn from the bundled samples,
              for review before the entry flow above is wired to these
              primitives. It is a review surface, not a second answer — closed
-             by default, and it never reads the field. -->
+             by default, and it never reads the field.
+
+             The invitation says what a "result" is before it counts them: a
+             reader who has not graded anything yet has no way to know that a
+             result is what the coach hands back for one prompt, so "possible
+             results" on its own was a count of an unnamed thing. The noun is
+             unchanged on purpose — the region names itself "possible results"
+             in its loading line, its failure sentence and its retry control,
+             and renaming it here would leave four surfaces disagreeing. -->
         <details class="coaching-specimen" id="coaching-specimen">
-          <summary id="coaching-specimen-summary">See all seven possible results — among them a graded prompt, a prompt that needs changes, and text the coach cannot grade — none taken from text you paste.</summary>
+          <summary id="coaching-specimen-summary">See all seven possible results the coach can give back — among them a graded prompt, a prompt that needs changes, and text the coach cannot grade — none taken from text you paste.</summary>
           <div class="coaching-specimen-body" id="coaching-specimen-body">
             <p class="coaching-specimen-lead">Loading the possible results.</p>
           </div>
