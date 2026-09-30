@@ -44,15 +44,15 @@ const documents = Object.fromEntries(
 // "Social offers Paint exactly once" below.
 const NEARBY_INVITATION = { People: documents.People };
 
-// The conditions People closes its helper on. They are the four Social's
-// composer notice states, in shorter sentences, rather than a pointer to
-// "Social's publishing terms", a name Social never shows (#2484).
-// tests/social.test.js owns the composer's wording.
+// The conditions People closes its helper on: the terms of publishing, then the
+// instruction, rather than a pointer to "Social's publishing terms", a name
+// Social never shows (#2484). Social's composer states them in these same bytes
+// since #2648. tests/social.test.js owns the composer's wording.
 const PEOPLE_CONSEQUENCE =
   "A published post is public and cannot be edited or deleted, and anyone can select Report post on it. "
   + "Do not include customer or production data.";
-// Social's full sentences, which People does not recite word for word.
-const RETIRED_ON_PEOPLE = [
+// The longer second-person sentences this replaced, retired from every page.
+const RETIRED_WORDINGS = [
   "Anyone who visits Shiplog can read your post, its image, and the display name you publish it with.",
   "You cannot edit or delete your own post after you publish it.",
   "Anyone can select Report post on a published post.",
@@ -134,9 +134,9 @@ for (const [name, document] of Object.entries(NEARBY_INVITATION)) {
       `${name}'s helper does not end on the conditions of publishing`);
     assert.doesNotMatch(sentence, /publishing terms/i,
       `${name}'s helper points at terms instead of stating them`);
-    // It states the conditions in its own shorter sentences, not Social's
-    // second-person ones, which render beside the composer.
-    for (const recited of RETIRED_ON_PEOPLE)
+    // In the shorter sentences both pages now use, never the four second-person
+    // ones they replaced (#2648).
+    for (const recited of RETIRED_WORDINGS)
       assert.equal(sentence.includes(recited), false,
         `${name}'s helper recites a publishing rule that belongs to Social: ${recited}`);
   });

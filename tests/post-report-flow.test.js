@@ -189,14 +189,14 @@ test("People: every drawn tile has a Report post button that opens the same pane
 // the team does with a report is left to the explanation below the feed, which
 // says it once (#2471).
 //
-// It is stated once, beside the composer that performs the act (#2401). People
-// used to carry a second copy on a page with no composer; it points at Social's
-// now, and the test below pins that it kept neither half.
+// Each page states it once, and the two now state it in one wording (#2648):
+// Social's composer adopted the shorter sentence People's helper already used,
+// so a reader who meets both is not reconciling two tellings of the same rule.
 //
 // Asserted on the painted DOM, not on the markup: a page could hydrate over its
 // own warning.
-const SELF_SERVICE = /You cannot edit or delete your own post after you publish it/;
-const REMOVAL_PATH = /Anyone can select Report post on a published post\./;
+const SELF_SERVICE = /A published post is public and cannot be edited or deleted/;
+const REMOVAL_PATH = /anyone can select Report post on it\./;
 // A promise of removal, and a second name for the one actor the site has.
 const OVERPROMISES = [/will be removed/i, /will remove/i, /we remove/i, /guarantee/i];
 const RIVAL_ACTORS = [/moderator/i, /\badmin\b/i, /support team/i, /\bstaff\b/i];
@@ -241,19 +241,17 @@ test("People: the helper points at the terms instead of restating them, once the
   // module ran. Wait on drawn tiles instead; skeletons carry the tile class.
   await waitFor(() => realCards(document, ".profile-tile", "profile-tile-skeleton").length > 0, "People drew an image post");
 
-  // People states both halves in its own shorter words (#2484): the post
-  // cannot be edited or deleted, and anyone can select Report post on it. What
-  // is pinned here is that the page carries no orphaned half of the pair — the
-  // failure this test was written for was one warning without the other.
+  // People states both halves in the shorter sentence it introduced (#2484) and
+  // Social's composer now shares (#2648): the post cannot be edited or deleted,
+  // and anyone can select Report post on it. What is pinned here is that the page
+  // carries no orphaned half of the pair — the failure this test was written for
+  // was one warning without the other.
   //
   // On the painted DOM, not the markup: src/profile.js takes that paragraph out
   // of the document while the first fetch is open and puts it back, so a wait on
   // drawn tiles is also the wait for this region.
   const helper = textOf(document.querySelector(".feed-create"));
-  assert.doesNotMatch(helper, SELF_SERVICE,
-    "People recites the composer's own sentence about taking a post down");
-  assert.doesNotMatch(helper, REMOVAL_PATH,
-    "People recites the composer's own sentence about the removal path");
+  statesTheDistinction(helper, "People's helper");
   assert.ok(helper.trim().endsWith(
     "A published post is public and cannot be edited or deleted, and anyone can select Report post on it. "
     + "Do not include customer or production data."),

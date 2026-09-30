@@ -612,27 +612,29 @@ test("Social's homepage directory explains publishing, while a permalink explain
   const band = parseHtml(await read("social.html")).querySelector(".site-footer-demos");
   assert.ok(textOf(band).includes(PURPOSE), "the band states what a visitor does on Social");
 
-  // Social's own intro is not a directory row and keeps its own sentences: a
-  // first-time visitor still learns the feed is shared, the posts are short,
-  // the images are optional, and when to open People instead. It no longer
-  // calls the feed a "demo" one — the eyebrow and the demo-data sentence carry
-  // that, and this paragraph sat between them saying it a third time.
+  // Social's own intro is not a directory row and carries what no row does:
+  // when to open People instead, and what the posts above it are made of. It
+  // stopped defining the feed (#2648) — the hero's tagline and this band's row
+  // say what a visitor does here and what the posts are, and the intro said it a
+  // third time one screen under both. It never called the feed a "demo" one
+  // either: the eyebrow and the demo-data sentence carry that.
   // Named rather than counted: the hero also carries the "Ask about Shiplog"
   // description (#2556), so the intro is not the third paragraph any more.
   const intro = textOf(parseHtml(await read("social.html")).querySelector(".social-feed-intro"));
-  for (const fact of ["shared feed", "short posts", "images optional", "People"]) {
+  for (const fact of ["People", "Open post", "example posts"]) {
     assert.ok(intro.includes(fact), `Social's intro no longer tells a first-time visitor about ${fact}`);
   }
 
-  // But it says it once per page. The band used to carry that intro sentence
-  // byte for byte, so Social's own page printed it twice, one screen apart.
+  // And no page says it twice. The band used to carry that intro sentence byte
+  // for byte, so Social's own page printed it twice, one screen apart; Social's
+  // copy of it is gone now, and the band's row is the page's one telling.
   const PASTED = "is a shared feed of short posts about shipped work";
   for (const file of PAGES) {
     const times = (await read(file)).split(PASTED).length - 1;
     assert.ok(times <= 1, `${file} carries the same Social sentence ${times} times`);
   }
-  assert.equal((await read("social.html")).split(PASTED).length - 1, 1,
-    "Social's own page must still say what the feed is, once");
+  assert.equal((await read("social.html")).split(PASTED).length - 1, 0,
+    "Social's own page defines the feed again, beside the band row that already does");
 
   // The wordings this replaces, retired everywhere rather than left in a corner.
   for (const file of PAGES) {
@@ -690,8 +692,11 @@ test("Social's description, its directory row and its follow-up topic all say sh
     await importPageModule("/site-footer-page.js");
     const { document } = social;
     await waitFor(() => document.documentElement.dataset.shiplogSocial === "ready", "Social finished its first load");
+    // The painted intro opens on where to go instead: what the feed holds is the
+    // hero's and this band's row's to say, and the intro stopped repeating it
+    // (#2648). The page description still carries the phrase for a search result.
     assert.match(textOf(document.querySelector(".social-feed-intro")),
-      /^Social is a shared feed of short posts about shipped work, images optional\. Open People when you want the image posts from one display name\./);
+      /^Open People when you want the image posts from one display name\./);
     assert.ok(document.querySelector('meta[name="description"]').getAttribute("content").includes(`about ${PHRASE}, images optional`));
     paintedFooter(document, "social.html");
   } finally {
