@@ -63,14 +63,16 @@
            Personal AI history is offered once, in the "Also on this site" card
            below the grade, and not here: a second pitch in near-identical words
            read as two destinations to compare before the reader had used this
-           one. -->
+           one.
+
+           The introduction is the name and that one sentence, and nothing else
+           (#2654). The follow-up route and the three-line caption explaining it
+           used to close this hero, which put a paragraph about a form at the
+           foot of the page between "grade a prompt" and the graded example that
+           keeps that promise. Both moved together, below the workflow. -->
       <section class="coach-hero" aria-labelledby="page-title">
         <h1 id="page-title">Prompt coach</h1>
         <p id="page-tagline">Grade a prompt before you send it. Your pasted text stays in this browser. It is not sent to a model or stored.</p>
-        <div class="hero-actions">
-          <a class="text-link" id="ask-about-shiplog" href="#site-footer-panel" aria-describedby="ask-about-shiplog-description">Ask about Shiplog</a>
-          <p class="hint" id="ask-about-shiplog-description">Ask about Shiplog moves you to the follow-up form at the foot of this page, which asks for a work email address, what you want to discuss and an optional note. A person replies by email, usually within two working days.</p>
-        </div>
       </section>
 
       <!-- Coach one prompt: the question a reader arrives with before they have
@@ -260,6 +262,21 @@
           </div>
         </details>
       </section>
+
+      <!-- The ask, and the caption that says what it costs, after the workflow
+           it is a question about (#2654): a reader has the graded example, the
+           field and the rubric's own words before they are offered a person to
+           ask. It stands above the "Also on this site" card, so the page's own
+           follow-up is offered before another destination is, and above the
+           footer form itself, so the route never sits beside its destination.
+           Label and caption stay one unit in one row, the way the other four
+           pages that carry them do, and the row reuses .hero-actions, which
+           already wraps and stacks at narrow widths — so the move costs no rule
+           in a stylesheet with no room for one. -->
+      <div class="hero-actions">
+        <a class="text-link" id="ask-about-shiplog" href="#site-footer-panel" aria-describedby="ask-about-shiplog-description">Ask about Shiplog</a>
+        <p class="hint" id="ask-about-shiplog-description">Ask about Shiplog moves you to the follow-up form at the foot of this page, which asks for a work email address, what you want to discuss and an optional note. A person replies by email, usually within two working days.</p>
+      </div>
 
       <!-- Where the neighbouring surfaces are, said once, at the foot of the
            page rather than beside the workflow: a visitor who came here to

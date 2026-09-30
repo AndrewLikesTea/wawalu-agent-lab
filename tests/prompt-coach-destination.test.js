@@ -473,13 +473,15 @@ test("the page names itself, says what it does, and offers a follow-up", async (
 
   // Reading order inside the introduction, asserted on the elements rather than
   // on the markup: the page's name, then one sentence saying what it does and
-  // where the text stays, followed by the follow-up action. Nothing sits above
-  // the name. The offer of the surface that reads a whole history is made once,
-  // in the card under the grade, where the reader has a use for it.
+  // where the text stays. Nothing sits above the name, and nothing below the
+  // sentence — the follow-up action and its caption closed this hero until
+  // #2654 moved them below the workflow, so the graded example now follows the
+  // promise directly. The offer of the surface that reads a whole history is
+  // made once, in the card under the grade, where the reader has a use for it.
   const hero = document.querySelector(".coach-hero");
   const label = (node) => node.id || node.getAttribute("class") || node.tagName;
-  assert.deepEqual(hero.childElements.map(label), ["page-title", "page-tagline", "hero-actions"],
-    "the introduction must read name, purpose, then follow-up action");
+  assert.deepEqual(hero.childElements.map(label), ["page-title", "page-tagline"],
+    "the introduction must read name, then purpose, and stop there");
   assert.equal(hero.childElements[0].tagName, "H1");
 
   // The follow-up action says where it goes (#2556), and it says it on the
@@ -487,13 +489,20 @@ test("the page names itself, says what it does, and offers a follow-up", async (
   // modules on load, so a sentence that only survives in coach.html is one no
   // visitor here ever reads. Still static text — this page has no tab stops to
   // spare above the grading control.
-  const described = hero.querySelectorAll("p")
+  const described = document.querySelectorAll("p")
     .filter((node) => node.getAttribute("id") === ASK_ABOUT_SHIPLOG_DESCRIPTION_ID);
   assert.equal(described.length, 1, `the route's description is painted ${described.length} times`);
   assert.equal(textOf(described[0]), ASK_ABOUT_SHIPLOG_DESCRIPTION);
   assert.equal(described[0].querySelectorAll("a").length, 0, "the description drew a link");
   assert.equal(byId(document, "ask-about-shiplog").getAttribute("aria-describedby"),
     ASK_ABOUT_SHIPLOG_DESCRIPTION_ID);
+
+  // The caption travels with the label it explains: one row, label first, and
+  // the row is outside the introduction now.
+  assert.ok(described[0].parentNode === byId(document, "ask-about-shiplog").parentNode,
+    "the caption drifted out of the row its label sits in");
+  assert.equal(hero.querySelectorAll("#ask-about-shiplog").length, 0,
+    "the follow-up route is back in the introduction, above the graded example");
 
   const purpose = textOf(byId(document, "page-tagline"));
   assert.match(purpose, /Grade a prompt/, "the sentence under the name must say what the page does");
@@ -534,9 +543,13 @@ test("Personal AI history is pitched once, in the card under the grade, with a d
   assert.equal(doors[0].getAttribute("href"), "/personal-history.html");
   assert.equal(doors[0].getAttribute("class"), "secondary-button",
     "the door must be shaped like the one the AI FinOps pitch offers");
+  // The introduction offers nothing to open at all since #2654 moved the
+  // follow-up route below the workflow: no second history pitch can hide there,
+  // and the route itself is checked where it now reads, in
+  // tests/releases-coach-reading-order.test.js.
   assert.deepEqual(document.querySelector(".coach-hero").querySelectorAll("a")
-    .map((link) => link.getAttribute("href")), ["#site-footer-panel"],
-    "the introduction offers only the follow-up, without a second history pitch");
+    .map((link) => link.getAttribute("href")), [],
+    "the introduction offers a destination again instead of one promise");
 
   // The surviving pitch carries every fact the deleted one had, so nothing a
   // reader needed to choose the destination left with the duplicate.

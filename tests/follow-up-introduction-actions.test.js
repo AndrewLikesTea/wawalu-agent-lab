@@ -9,14 +9,27 @@ import {
   ASK_ABOUT_SHIPLOG_DESCRIPTION, ASK_ABOUT_SHIPLOG_DESCRIPTION_ID,
 } from "../src/ask-about-shiplog.js";
 
+// The region the route belongs to, per page, and the block it must read after
+// where the page puts its own surface first. Social closed its supporting block
+// with the route rather than opening the hero with it, and #2654 did the same
+// for the coach: the route and its caption sit below the grading workflow, so
+// the graded example follows the page's promise directly.
 const pages = [
-  ["coach", "follow_up_coach", ".coach-hero"],
-  ["social", "follow_up_social", ".list-panel"],
-  ["profile", "follow_up_people", ".hero-profile"],
-  ["agents", "follow_up_agents", ".observatory-hero"],
+  ["coach", "follow_up_coach", "#main-content", "#prompt-coaching"],
+  ["social", "follow_up_social", ".list-panel", null],
+  ["profile", "follow_up_people", ".hero-profile", null],
+  ["agents", "follow_up_agents", ".observatory-hero", null],
 ];
 
-for (const [name, purpose, heroSelector] of pages) {
+/** Document order inside the content region, as a browser would read it. */
+function readingOrder(document) {
+  const order = [];
+  const walk = (node) => { for (const child of node.children) { order.push(child); walk(child); } };
+  walk(document.querySelector("#main-content"));
+  return order;
+}
+
+for (const [name, purpose, heroSelector, follows] of pages) {
   for (const activation of ["keyboard", "click"]) {
     test(`${name}: introduction action ${activation} focuses the existing follow-up and retains request identity`, async (t) => {
       const page = await loadPage(new URL(`../src/${name}.html`, import.meta.url));
@@ -24,7 +37,12 @@ for (const [name, purpose, heroSelector] of pages) {
       const { document } = page;
       const route = document.querySelector("#ask-about-shiplog");
       assert.equal(document.querySelectorAll("#ask-about-shiplog").length, 1);
-      assert.ok(document.querySelector(heroSelector)?.querySelector("#ask-about-shiplog") === route, "action belongs to the introduction");
+      assert.ok(document.querySelector(heroSelector)?.querySelector("#ask-about-shiplog") === route, "action belongs to the page's content region");
+      if (follows) {
+        const order = readingOrder(document);
+        assert.ok(order.indexOf(route) > order.indexOf(document.querySelector(follows)),
+          `${name}: the route is read before the surface it should follow (${follows})`);
+      }
       assert.equal(textOf(route), "Ask about Shiplog");
       assert.equal(route.tagName, "A");
       assert.equal(route.getAttribute("href"), "#site-footer-panel");

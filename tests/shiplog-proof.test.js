@@ -199,18 +199,26 @@ test("tab order reaches the log's controls before the recorder's fields, and add
   assert.ok(firstToggle >= 0 && firstToggle < at("release-version"),
     "a release row is not reachable before the recorder's first field");
 
-  // The hero's two routes, in the order a visitor decides between them: the
-  // page's own action first, then the ask that #2458 put beside it. Counted, so
-  // a third control has to be added here before it can be added to the page.
+  // The hero's one route: the page's own action. The ask that #2458 put beside
+  // it moved below the deployment record with its caption (#2654), so the first
+  // screen is the page's promise and the action that keeps it. Counted, so a
+  // second control has to be added here before it can be added to the hero.
   const hero = page.document.querySelector(".hero");
   const heroStops = sequence.filter((node) => isWithin(node, hero));
-  assert.equal(heroStops.length, 2, "the hero gained a control beyond its two routes");
+  assert.equal(heroStops.length, 1, "the hero gained a control beyond its own route");
   assert.equal(heroStops[0].id, "record-release-link");
   assert.equal(textOf(heroStops[0]), "Open the form to record a release");
   assert.equal(heroStops[0].getAttribute("href"), "#record-release");
-  assert.equal(heroStops[1].id, "ask-about-shiplog");
-  assert.equal(textOf(heroStops[1]), "Ask about Shiplog");
-  assert.equal(heroStops[1].getAttribute("href"), "#site-footer-panel");
+
+  // And the ask is still one stop, still reached by Tab, now after the record
+  // it is a question about and still before the log's own controls.
+  assert.equal(sequence.filter((node) => node.id === "ask-about-shiplog").length, 1,
+    "the ask is missing from the tab order, or reached twice");
+  assert.equal(textOf(page.document.querySelector("#ask-about-shiplog")), "Ask about Shiplog");
+  assert.ok(at("deployment-copy") < at("ask-about-shiplog"),
+    "the ask is tabbed to before the deployment record it now follows");
+  assert.ok(at("ask-about-shiplog") < at("release-search"),
+    "the ask fell past the log's own controls");
   assert.equal(textOf(page.document.querySelector("#release-form").querySelector("button")), "Record release");
   // The recorder panel is a focus target, not a stop: it carries tabindex="-1",
   // so nothing else joined the sequence when it became focusable.
