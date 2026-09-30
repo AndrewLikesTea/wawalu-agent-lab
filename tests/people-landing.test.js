@@ -1491,26 +1491,27 @@ test("People claims no result before its first image post, and the loaded page i
 const PEOPLE_PROVENANCE = "The example posts here are invented to demonstrate Shiplog and use no customer or production data; anyone can read an image post you publish.";
 const RETIRED_DATA_SENTENCE = "Posts use no customer or production data.";
 const PUBLISH_INSTRUCTION = "Do not include customer or production data.";
-// The publishing contract as Social's composer states it, in second-person
-// sentences addressed to the writer at the form. People has no composer, so it
-// does not recite these (#2401).
-const PUBLISH_CONTRACT = [
+// The four second-person sentences Social's composer used to stack, retired from
+// both pages (#2648): public and permanent were two facts a reader had to add up,
+// the reporting route was a third, and the first said who reads a display name in
+// a second wording of the hint at Social's display-name field.
+const RETIRED_CONTRACT = [
   "Anyone who visits Shiplog can read your post, its image, and the display name you publish it with.",
   "You cannot edit or delete your own post after you publish it",
-  // The removal path, so the terms never read as "a published post can never
-  // come down" beside a Report post button (#2373). One clause: what a report
-  // leads to is explained once, below Social's feed (#2471).
   "Anyone can select Report post on a published post.",
 ];
-// What People says instead: the same four conditions, shorter. It used to say
-// "Social’s publishing terms state the rest", a name Social's notice never
-// carries (#2484). Each entry is People's wording, then Social's for the same
-// condition, so neither page can carry one the other leaves out.
+// What both pages say instead: the same conditions, shorter, in one wording. It
+// used to be "Social’s publishing terms state the rest" here, a name Social's
+// notice never carries (#2484); Social's composer took People's sentence over in
+// #2648, so neither page can carry a condition the other leaves out and neither
+// can paraphrase it. The removal path is a clause of it, so the terms never read
+// as "a published post can never come down" beside a Report post button (#2373).
+// What a report leads to is still explained once, below Social's feed (#2471).
 const PUBLISH_CONDITIONS = [
-  ["A published post is public", "Anyone who visits Shiplog can read your post"],
-  ["cannot be edited or deleted", "You cannot edit or delete your own post"],
-  ["anyone can select Report post on it", "Anyone can select Report post on a published post"],
-  [PUBLISH_INSTRUCTION, PUBLISH_INSTRUCTION],
+  "A published post is public",
+  "cannot be edited or deleted",
+  "anyone can select Report post on it",
+  PUBLISH_INSTRUCTION,
 ];
 const PEOPLE_CONSEQUENCE = "A published post is public and cannot be edited or deleted, and anyone can select Report post on it. "
   + PUBLISH_INSTRUCTION;
@@ -1546,24 +1547,28 @@ test("the intro says the image posts on this page are invented, before any of th
   assert.ok(helper.trim().endsWith(PEOPLE_CONSEQUENCE),
     "the helper beside the grid does not close on the conditions of publishing");
   assert.doesNotMatch(main, /publishing terms/i, "People points at terms instead of stating them");
-  // And nowhere on the page does it recite the composer's own sentences.
-  for (const sentence of PUBLISH_CONTRACT)
+  // And nowhere on the page does it carry one of the retired long sentences.
+  for (const sentence of RETIRED_CONTRACT)
     assert.equal(main.includes(sentence), false,
-      `People recites a publishing rule that belongs beside Social's composer: ${sentence}`);
+      `People carries a publishing sentence #2648 retired: ${sentence}`);
   assert.equal(main.split(PEOPLE_CONSEQUENCE).length - 1, 1,
     "People states the publishing conditions twice or not at all");
   const social = await loadPage(new URL("../src/social.html", import.meta.url), {});
   try {
-    // The other side: every condition People states, Social's composer states,
-    // and the composer still carries its full sentences.
+    // The other side: every condition People states, Social's composer states —
+    // in the same bytes, because the composer adopted this page's sentence
+    // (#2648). The two pages author their copy separately, so the whole string is
+    // compared and not only the conditions inside it.
     const composer = textOf(social.document.querySelector("#post-consequence"));
-    for (const [onPeople, onSocial] of PUBLISH_CONDITIONS) {
-      assert.ok(helper.includes(onPeople), `People's helper lost a publishing condition: ${onPeople}`);
-      assert.ok(composer.includes(onSocial), `Social's composer lost a condition People states: ${onSocial}`);
+    for (const condition of PUBLISH_CONDITIONS) {
+      assert.ok(helper.includes(condition), `People's helper lost a publishing condition: ${condition}`);
+      assert.ok(composer.includes(condition), `Social's composer lost a condition People states: ${condition}`);
     }
-    for (const sentence of PUBLISH_CONTRACT)
-      assert.ok(composer.includes(sentence),
-        `Social's composer no longer states a publishing rule: ${sentence}`);
+    assert.equal(composer, PEOPLE_CONSEQUENCE,
+      "Social's composer states the terms of publishing in words People's helper does not");
+    for (const sentence of RETIRED_CONTRACT)
+      assert.equal(composer.includes(sentence), false,
+        `Social's composer carries a publishing sentence #2648 retired: ${sentence}`);
     assert.doesNotMatch(textOf(social.document.querySelector("#main-content")), /publishing terms/i,
       "Social names a notice it never titles");
   } finally {
@@ -1596,14 +1601,14 @@ test("the intro says the image posts on this page are invented, before any of th
     const loadedHelper = textOf(page.document.querySelector(".feed-create"));
     assert.ok(loadedHelper.trim().endsWith(PEOPLE_CONSEQUENCE),
       "the loaded People helper lost the publishing conditions");
-    for (const [onPeople] of PUBLISH_CONDITIONS)
-      assert.ok(loadedHelper.includes(onPeople), `the loaded People helper lost a condition: ${onPeople}`);
+    for (const condition of PUBLISH_CONDITIONS)
+      assert.ok(loadedHelper.includes(condition), `the loaded People helper lost a condition: ${condition}`);
     assert.ok(loadedHelper.includes("under the display name you publish it with"),
       "the loaded People helper names the display name in words Social's composer does not use");
     assert.doesNotMatch(hydrated, /publishing terms/i, "the loaded People page points at terms again");
-    for (const sentence of PUBLISH_CONTRACT)
+    for (const sentence of RETIRED_CONTRACT)
       assert.equal(hydrated.includes(sentence), false,
-        `the loaded People page recites a rule that belongs beside Social's composer: ${sentence}`);
+        `the loaded People page carries a publishing sentence #2648 retired: ${sentence}`);
   } finally {
     page.restore();
   }

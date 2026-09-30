@@ -359,18 +359,24 @@
               <li><div class="post-card post-card-skeleton post-card-media"><div class="skeleton-copy"><div class="skeleton-line"></div><div class="skeleton-line"></div><div class="skeleton-line skeleton-line-short"></div></div><div class="skeleton-media"></div><div class="post-head skeleton-post-head"><div class="post-avatar skeleton-avatar"></div><div class="post-byline skeleton-byline"><div class="skeleton-line skeleton-line-author skeleton-line-short"></div><div class="skeleton-line skeleton-line-date skeleton-line-short"></div></div></div><div class="skeleton-line skeleton-line-short skeleton-line-action"></div></div></li>
             </ol>
           </div>
-          <!-- What the feed holds, and the one neighbouring surface a visitor
-               confuses it with. It used to stand above the composer and four
-               screens above the first card; it explains the posts, so it now
-               follows them. The wording rules outlive the placement: "example
-               posts" is the site's one name for the invented set (#2549); the
-               no-customer-data claim covers only that set, because nothing
-               checks what a visitor writes; a published post is described by
-               who reads it, never as "real" (#2511), which beside the home
-               page's browser-only promise read as "kept here for you"; and what
-               publishing costs is stated once at the Publish post button
-               (#2390), never a second time here. -->
-          <p class="social-feed-intro hint">Social is a shared feed of short posts about shipped work, images optional. Open People when you want the image posts from one display name. Select Open post to see a post on its own page, with a link you can share. The example posts here are invented to demonstrate Shiplog and use no customer or production data; anyone can read a post you publish.</p>
+          <!-- Where to go next, and what the posts above are made of. It used to
+               stand above the composer and four screens above the first card; it
+               explains the posts, so it now follows them. The wording rules
+               outlive the placement: "example posts" is the site's one name for
+               the invented set (#2549); the no-customer-data claim covers only
+               that set, because nothing checks what a visitor writes; a
+               published post is described by who reads it, never as "real"
+               (#2511), which beside the home page's browser-only promise read as
+               "kept here for you"; and what publishing costs is stated once at
+               the Publish post button (#2390), never a second time here.
+               It no longer opens by defining Social (#2648). The hero's tagline
+               says what a visitor does here and the footer's destination row
+               says what the feed holds, so this paragraph starts at the one
+               thing neither says: which neighbouring surface to open instead. It
+               stopped closing on who can read a published post for the same
+               reason — that is the composer's sentence, one press from the act,
+               and said here too it warned a reader four screens early. -->
+          <p class="social-feed-intro hint">Open People when you want the image posts from one display name. Select Open post to see a post on its own page, with a link you can share. The example posts here are invented to demonstrate Shiplog and use no customer or production data.</p>
           <!-- Who wrote what a reader has just scrolled through, said once and
                said here, because here is where the names are. A reader meets
                "Ari" on a card and reads an account unless the page tells them
@@ -704,12 +710,20 @@
                  could never be deleted at all (#2373). One clause only: what
                  a report leads to is said once, in the explanation below the
                  feed (#2471), and this sentence used to restate its review
-                 half in other words. It names the
-                 post rather than saying "it": the sentence nearest this one is
-                 the display name's, so the pronoun's closest antecedent was the
-                 name, and the permanence warning could be read as being about
-                 the name a visitor picked instead of the post they published. -->
-            <p class="hint publish-consequence" id="post-consequence">Anyone who visits Shiplog can read your post, its image, and the display name you publish it with. You cannot edit or delete your own post after you publish it, so post nothing you would not put on a public page. Anyone can select Report post on a published post. Do not include customer or production data.</p>
+                 half in other words.
+                 Two sentences now, where there were four (#2648): the terms of
+                 publishing, then the one instruction. Public and permanent were
+                 two sentences that a reader had to add up, and the reporting
+                 route was a third; stacked, they read as a wall to skip rather
+                 than a cost to weigh. The subject is the published post, named
+                 once at the front, so every "it" after it points at the post and
+                 not at the display name in the sentence above. These are the
+                 bytes People's helper already used for the same conditions
+                 (#2484), so the two pages state them in one wording instead of
+                 two. Where the display name a visitor picks appears, and that it
+                 is fixed once published, is that field's own hint, said at the
+                 field; that it is public follows from the first words here. -->
+            <p class="hint publish-consequence" id="post-consequence">A published post is public and cannot be edited or deleted, and anyone can select Report post on it. Do not include customer or production data.</p>
             <p class="field-error compose-error" id="post-publish-blocker" hidden></p>
             <!-- Ships empty. src/social.js writes the one step Publish post is
                  still waiting for here while a chosen image has no description,

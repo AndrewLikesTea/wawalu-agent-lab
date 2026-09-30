@@ -978,7 +978,11 @@ test("the onward row offers the feed, the display name and a post of your own", 
 // stops reading, and it was spent before it could cost anything. It is now said
 // exactly once, at the Publish post button, which names it as its own
 // accessible description so it is announced at the moment of the act.
-const CONSEQUENCE = "Anyone who visits Shiplog can read your post, its image, and the display name you publish it with. You cannot edit or delete your own post after you publish it, so post nothing you would not put on a public page. Anyone can select Report post on a published post. Do not include customer or production data.";
+// Two sentences since #2648, in the bytes People's helper already used: the
+// terms of publishing, then the one instruction. It was four, and the two that
+// went said public and permanent separately and named the reporting route a
+// third time.
+const CONSEQUENCE = "A published post is public and cannot be edited or deleted, and anyone can select Report post on it. Do not include customer or production data.";
 const consequencesIn = (html) => [...html.matchAll(/<p class="[^"]*publish-consequence[^"]*"[^>]*>([^<]*)<\/p>/g)].map((match) => match[1]);
 
 test("the publication consequence is said once, at the button that publishes", async () => {
@@ -995,13 +999,17 @@ test("the publication consequence is said once, at the button that publishes", a
     "the permalink publishes nothing and must not carry the consequence");
   // People is the third page that shows published posts, and it publishes
   // nothing either: it picks a display name and lists that name's image posts.
-  // Pinned at zero so the sentence cannot spread back across the reading pages.
+  // Pinned at zero so the composer's paragraph cannot spread back across the
+  // reading pages. The terms themselves are People's own sentence — it wrote them
+  // (#2484) and Social's composer adopted them (#2648) — and they sit inside the
+  // helper that hands a reader to that composer, not in a paragraph of their own.
   assert.deepEqual(consequencesIn(people), [],
-    "People publishes nothing and must not carry the consequence");
-  // Not moved into either page under another class name either: the sentence is
-  // gone from their text altogether.
+    "People publishes nothing and must not carry the composer's own paragraph");
+  assert.equal(people.split(CONSEQUENCE).length - 1, 1,
+    "People's helper no longer closes on the terms of publishing, in Social's bytes");
+  // The permalink is the page with no route into publishing at all, so the
+  // sentence is gone from its text altogether, classed or not.
   assert.equal(post.includes(CONSEQUENCE), false, "the permalink must not repeat the sentence unclassed");
-  assert.equal(people.includes(CONSEQUENCE), false, "People must not repeat the sentence unclassed");
 
   // It stands ahead of the control it is about, and the button names it, so it
   // is read on focus rather than only seen.
@@ -1490,18 +1498,26 @@ test("the post page says what it is before it says it is loading", async () => {
   assert.equal(content.includes("Social is a shared feed of short posts"), false,
     "the permalink must not restate Social's whole intro sentence");
 
-  // Social's description of itself, byte for byte: the lead borrows the phrase,
-  // not a paraphrase of it.
+  // What the feed holds, in Social's own words rather than a paraphrase of them.
+  // Social's feed panel stopped opening on a sentence that defined the feed
+  // (#2648) — the hero and the footer's destination row say it there — so the
+  // phrase is anchored to what Social still ships: the page description and that
+  // row.
   const social = await readFile(new URL("../src/social.html", import.meta.url), "utf8");
-  assert.ok(social.includes(`Social is a ${SOCIAL_DESCRIPTION}, images optional.`),
-    "Social no longer describes itself in the words this lead borrows");
+  const FEED_HOLDS = "short posts about shipped work";
+  assert.ok(SOCIAL_DESCRIPTION.includes(FEED_HOLDS), "the lead stopped borrowing Social's words for its posts");
+  assert.ok(social.includes(FEED_HOLDS), "Social no longer says what its posts are in the words this lead borrows");
+  assert.equal(social.includes(`Social is a ${SOCIAL_DESCRIPTION}, images optional.`), false,
+    "Social's feed panel defines the feed again, under a hero and beside a footer row that already do");
 
-  // Social's provenance sentence, with the only two words a one-post page cannot
-  // say: "on Social" for "here", and "a visitor" for "you".
-  assert.ok(social.includes("The example posts here are invented to demonstrate Shiplog and use no customer or production data; anyone can read a post you publish."),
+  // Social's provenance sentence, with the one word a one-post page cannot say:
+  // "on Social" for "here". Social's copy ends there since #2648; this page has
+  // no composer, so it keeps its own clause about who can read a published post.
+  const SOCIAL_PROVENANCE = "The example posts here are invented to demonstrate Shiplog and use no customer or production data.";
+  assert.ok(social.includes(SOCIAL_PROVENANCE),
     "Social no longer says the provenance sentence this page follows");
-  assert.equal(CONTEXT_SENTENCE.replace("on Social", "here").replace("a visitor publishes", "you publish"),
-    "The example posts here are invented to demonstrate Shiplog and use no customer or production data; anyone can read a post you publish.");
+  assert.ok(CONTEXT_SENTENCE.startsWith(SOCIAL_PROVENANCE.replace("here", "on Social").replace(/\.$/, ";")),
+    "this page's provenance sentence stopped opening on Social's, word for word");
 
   // The strings this page already owns are untouched, byte for byte.
   assert.ok(html.includes(`<span class="detail-loading-text">${STATE_HEADLINES.loading}</span>`), "the loading line is unchanged");

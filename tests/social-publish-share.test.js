@@ -30,10 +30,11 @@ const NOW = Date.parse("2026-09-02T10:00:00.000Z");
 // A real UUID: /post.html only asks the API for an id shaped like one.
 const SAVED_ID = "5b91d0c4-2f7a-4c31-9b6e-1d0a7c4e8f22";
 
-// The sentence the composer has always carried about what publishing costs. It
-// is authored in src/social.html, said exactly once, and this file's stake in it
-// is only that nothing here quietly moved or reworded it.
-const CONSEQUENCE = "Anyone who visits Shiplog can read your post, its image, and the display name you publish it with. You cannot edit or delete your own post after you publish it, so post nothing you would not put on a public page. Anyone can select Report post on a published post. Do not include customer or production data.";
+// The sentences the composer carries about what publishing costs: the terms, then
+// the one instruction (#2648). They are authored in src/social.html, said exactly
+// once, and this file's stake in them is only that nothing here quietly moved or
+// reworded them.
+const CONSEQUENCE = "A published post is public and cannot be edited or deleted, and anyone can select Report post on it. Do not include customer or production data.";
 
 // The composer on the shipped markup, with the API and the clipboard replaced by
 // values the test owns. `saved` is what the publish response resolves to — the
@@ -260,8 +261,8 @@ test("the composer still says, once, what publishing costs", async (t) => {
   assert.equal(document.querySelector("#post-compose-panel").hidden, false);
   const consequence = document.querySelector("#post-consequence");
   assert.equal(textOf(consequence), CONSEQUENCE);
-  assert.match(textOf(consequence), /You cannot edit or delete your own post after you publish it/);
+  assert.match(textOf(consequence), /cannot be edited or deleted/);
   assert.ok(document.querySelector("#post-submit").getAttribute("aria-describedby").split(/\s+/).includes("post-consequence"));
   // Once. The receipt does not restate it beside the link it now offers.
-  assert.equal(textOf(harness.notice()).includes("You cannot edit or delete your own post"), false);
+  assert.equal(textOf(harness.notice()).includes("cannot be edited or deleted"), false);
 });

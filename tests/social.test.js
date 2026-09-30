@@ -647,8 +647,8 @@ test("the feed says who wrote the posts, where the posts are", async (t) => {
   assert.ok(note.classList.contains("hint"),
     "the sentence uses the explanatory-prose class the panel already ships");
 
-  // Said once on the page. The intro says what the feed is and where to go
-  // next, and its last words stay the ones the permalink quotes.
+  // Said once on the page. The intro says where to go next and what the posts
+  // above it are made of, and its last words stay the ones the permalink quotes.
   // The line above the intro says what a visitor does here in one sentence. The
   // intro is named rather than counted: since #2556 the hero also carries the
   // description of the "Ask about Shiplog" route.
@@ -657,8 +657,13 @@ test("the feed says who wrote the posts, where the posts are", async (t) => {
   const intro = textOf(page.document.querySelector(".social-feed-intro"));
   assert.doesNotMatch(intro, /Display names|whoever published it/,
     "the intro says who wrote the posts a second time, four screens from a card");
-  assert.match(intro, /The example posts here are invented to demonstrate Shiplog and use no customer or production data; anyone can read a post you publish\.$/,
+  assert.match(intro, /The example posts here are invented to demonstrate Shiplog and use no customer or production data\.$/,
     "the provenance sentence, with the demo-data claim inside it, must stay the intro's last words");
+  // And it stops there (#2648). Who can read a published post is the composer's
+  // sentence, stated at the press that makes one public; said here too it was a
+  // warning four screens from the act, which is a warning a reader skims.
+  assert.doesNotMatch(intro, /anyone can read a post you publish/,
+    "the intro warns about publishing again, away from the control that publishes");
   // One sentence, word for word People's, naming the control both feeds print
   // on every card. Social had no such control and said nothing about opening a
   // post; People told a reader to "select a post" and named nothing.
@@ -678,10 +683,28 @@ test("the feed says who wrote the posts, where the posts are", async (t) => {
     "the supporting introduction states the demo-data fact once");
   assert.doesNotMatch(intro, /demo feed/,
     "the intro must not classify the shared feed as a demo");
-  // Removing the word did not cost the sentence what it was for: the feed is
-  // still shared, the posts short, the images optional.
-  assert.match(intro, /^Social is a shared feed of short posts about shipped work, images optional\./,
-    "the intro stopped saying what the feed holds");
+  // What the feed holds is said once on the page, and not here (#2648). The
+  // hero's tagline says what a visitor does on Social, the footer's destination
+  // row says what the posts are, and this paragraph used to define the feed a
+  // third time one screen under both. It now opens on the one thing neither of
+  // them says: which neighbouring surface to open instead.
+  assert.match(intro, /^Open People when you want the image posts from one display name\./,
+    "the intro stopped opening on the surface a visitor confuses the feed with");
+  assert.doesNotMatch(intro, /Social is a shared feed/,
+    "the intro defines Social again, under a hero that already did");
+
+  // Counted region by region, because the phrase is allowed in exactly one
+  // place: the footer's destination list, which every page carries. Outside
+  // that list it survives once on Social — in the footer's own follow-up topic
+  // line, which quotes the destination row it sends the request about.
+  const FEED_HOLDS = "short posts about shipped work";
+  const times = (text) => text.split(FEED_HOLDS).length - 1;
+  assert.equal(times(textOf(page.document.querySelector("#main-content"))), 0,
+    "the page body says what the feed holds again, outside the footer's destination list");
+  const directory = times(textOf(page.document.querySelector(".site-footer-demos")));
+  assert.equal(directory, 1, "the footer's destination list stopped saying what Social holds");
+  assert.equal(times(textOf(page.document.querySelector("#site-footer"))) - directory, 1,
+    "Social says what the feed holds more than once outside the footer's destination list");
 });
 
 // The sentence is a claim about the feed's authors, not about a fetch, so it
@@ -735,16 +758,27 @@ test("who wrote the posts survives loading, populated, empty, and no-match", asy
 // The demo-data claim now sits inside the provenance sentence, so it covers only
 // the invented posts. Nothing checks what a visitor publishes, so the consequence
 // asks them not to include that data instead of promising it is absent (#2296).
-const PROVENANCE_SENTENCE = "The example posts here are invented to demonstrate Shiplog and use no customer or production data; anyone can read a post you publish.";
+const PROVENANCE_SENTENCE = "The example posts here are invented to demonstrate Shiplog and use no customer or production data.";
 const RETIRED_DATA_SENTENCE = "Posts use no customer or production data.";
 const PUBLISH_INSTRUCTION = "Do not include customer or production data.";
-// The two acts are named apart (#2373): a publisher cannot take their own post
-// down, and removal runs through Report post. Said only the first, the composer
-// contradicted the reporting explanation below the feed. The review itself is
-// that explanation's to state, once (#2471), so the composer names the control
-// and stops.
-const PUBLISH_REMOVAL = "Anyone can select Report post on a published post.";
-const PUBLISH_CONSEQUENCE = "Anyone who visits Shiplog can read your post, its image, and the display name you publish it with. You cannot edit or delete your own post after you publish it, so post nothing you would not put on a public page. " + PUBLISH_REMOVAL + " " + PUBLISH_INSTRUCTION;
+// One sentence for the terms of publishing (#2648), in the bytes People's helper
+// beside its grid already used (#2484), so the two pages state the same
+// conditions in one wording. Both acts are still named apart (#2373): the
+// publisher cannot take their own post down, and removal runs through Report
+// post — said only the first, the composer contradicted the reporting
+// explanation below the feed. What a report leads to stays that explanation's to
+// state, once (#2471), so this names the control and stops.
+const PUBLISH_TERMS = "A published post is public and cannot be edited or deleted, and anyone can select Report post on it.";
+const PUBLISH_CONSEQUENCE = PUBLISH_TERMS + " " + PUBLISH_INSTRUCTION;
+// The four sentences this replaced. They stacked two facts a reader had to add
+// up — public, and permanent — and then a third about reporting, and the first
+// of them said who reads a display name in a second wording of the hint at the
+// display name field.
+const RETIRED_CONSEQUENCE = [
+  "Anyone who visits Shiplog can read your post, its image, and the display name you publish it with.",
+  "You cannot edit or delete your own post after you publish it",
+  "Anyone can select Report post on a published post.",
+];
 
 test("the intro scopes the demo promise to the seeded posts, and the composer states the cost once", async (t) => {
   const { document, id } = await socialDisclosure(t);
@@ -789,15 +823,42 @@ test("the intro scopes the demo promise to the seeded posts, and the composer st
   // the text with the consequence itself removed, so the sentence cannot vouch
   // for its own paraphrase.
   const elsewhere = main.split(PUBLISH_CONSEQUENCE).join(" ");
-  for (const rival of [/cannot delete/i, /can’t delete/i, /delete it afterwards/i, /permanently/i, /public page/i, /anyone who visits/i]) {
+  for (const rival of [/cannot delete/i, /can’t delete/i, /delete it afterwards/i, /permanently/i, /public page/i, /anyone who visits/i, /cannot be edited or deleted/i]) {
     assert.doesNotMatch(elsewhere, rival,
       `Social states that a published post is public and permanent a second way (${rival})`);
   }
+  // And the four sentences the one above replaced are gone from the page, not
+  // moved somewhere quieter on it (#2648).
+  for (const retired of RETIRED_CONSEQUENCE)
+    assert.equal(main.includes(retired), false,
+      `Social still carries a sentence merged into the terms of publishing: ${retired}`);
+  assert.equal(main.includes("anyone can read a post you publish"), false,
+    "the feed panel warns about publishing again, away from the control that publishes");
   // The intro says what a post is made of, and stops there: what publishing
   // costs belongs at the button, four screens down, not in a paragraph a reader
   // skims on the way to the feed.
   assert.doesNotMatch(intro, /delete|public|permanent/i,
     "the intro carries the publish consequence a second time");
+});
+
+// #2648: the two pages that talk about publishing state its terms in one
+// wording. Social's composer says it at the press that publishes; People has no
+// composer, so its helper beside the grid says it where it hands a reader to
+// Social's. The two pages author their copy separately, so the bytes are what is
+// compared — a paraphrase on either side is a reader reconciling two tellings of
+// the same rule.
+test("People and Social state the terms of publishing in the same bytes", async () => {
+  const social = await readFile(new URL("../src/social.html", import.meta.url), "utf8");
+  const people = await readFile(new URL("../src/profile.html", import.meta.url), "utf8");
+
+  assert.equal(social.split(PUBLISH_CONSEQUENCE).length - 1, 1,
+    "Social's composer does not carry the terms of publishing exactly once");
+  assert.equal(people.split(PUBLISH_CONSEQUENCE).length - 1, 1,
+    "People's helper no longer closes on the same terms, byte for byte");
+  for (const retired of RETIRED_CONSEQUENCE) {
+    assert.equal(social.includes(retired), false, `Social still authors a retired sentence: ${retired}`);
+    assert.equal(people.includes(retired), false, `People still authors a retired sentence: ${retired}`);
+  }
 });
 
 /* ------------------- the feed before the provenance (#1789) ------------------ */
@@ -1111,9 +1172,15 @@ test("the display name field explains where the name appears and that it cannot 
   }
   assert.deepEqual(folded, [], "the help text sits inside something hidden or collapsed");
 
-  // The consequence at the Publish button is the one place that claim is made.
+  // This hint is where the display name's own rules are read: what it appears
+  // beside, what it falls back to, and that this post keeps it. The consequence
+  // at the Publish button states the terms of publishing and no longer names the
+  // display name a second time (#2648) — a published post is public, and what
+  // the name rides along with is this sentence's to say.
   assert.match(textOf(page.document.querySelector("#post-consequence")),
-    /^Anyone who visits Shiplog can read your post, its image, and the display name you publish it with\./);
+    /^A published post is public and cannot be edited or deleted, and anyone can select Report post on it\./);
+  assert.doesNotMatch(textOf(page.document.querySelector("#post-consequence")), /display name/,
+    "the consequence names the display name again, in a second wording of this field's hint");
   assert.equal(page.document.querySelectorAll(".publish-consequence").length, 1);
 });
 
@@ -1819,8 +1886,8 @@ test("with the composer open, only the submit says Publish and the opener says W
   assert.equal(id("post-publish-reason").hidden, true);
   assert.equal(textOf(id("post-consequence")), PUBLISH_CONSEQUENCE,
     "the consequence beside the renamed button was rewritten");
-  assert.match(textOf(id("post-consequence")), /^Anyone who visits Shiplog can read your post/);
-  assert.match(textOf(id("post-consequence")), /You cannot edit or delete your own post after you publish it/);
+  assert.match(textOf(id("post-consequence")), /^A published post is public/);
+  assert.match(textOf(id("post-consequence")), /cannot be edited or deleted/);
   assert.ok(id("post-submit").getAttribute("aria-describedby").split(/\s+/).includes("post-consequence"));
 });
 
