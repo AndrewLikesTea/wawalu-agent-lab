@@ -186,6 +186,28 @@
           <a class="detail-back detail-page-back" id="post-publish" href="/social.html#post-form">Open Social to publish a post</a>
         </p>
 
+        <!-- The promise the two feeds make about this page, kept here by the
+             page itself. Social and People both tell a reader that selecting
+             Open post shows a post on its own page, with a link they can share;
+             this page never mentioned a link at all, so a reader who followed
+             that promise was left to work out for themselves what the link was.
+             This says it: the address that opened this page. The phrase is the
+             feeds' own, word for word, so the promise and the destination agree
+             rather than describing the same thing two ways.
+
+             It is standing copy, outside #post-detail and untouched by
+             src/post-page.js, so it holds while the lookup runs and after it
+             lands — the address is the address whether or not a post arrives.
+             It names no control: the loaded post carries a button that copies
+             the post's own canonical link, but that button exists in one of the
+             four states, and a sentence pointing at it would be pointing at
+             nothing in the other three.
+
+             It reads under the post and under the routes out, not above them: a
+             reader gets what the link promised before they are told what the
+             link is. -->
+        <p class="hint" id="post-address">This page’s address opens this one post, so it is a link you can share.</p>
+
         <!-- Standing copy: it sits in the frame, not in #post-detail, so it
              holds whatever the lookup did. It reads after the post rather than
              before it.
