@@ -436,8 +436,28 @@
                only ever read on a page whose script has not run. Its wording
                and its number are pinned to the scripted copy and to
                REVIEW_WINDOW_DAYS by tests, so the two states never disagree.
-               Deliberately not a live region — see overdue-decision-view.js. -->
+               Deliberately not a live region — see overdue-decision-view.js.
+               IT IS INTRODUCED LIKE EVERY OTHER FIGURE HERE (#2658). The page's
+               module scripts are deferred, so this block is the first paint: it
+               is read before the check has answered anything. The deployment
+               check and the reasoning-kept block above it both name themselves
+               and say what they are for before they report a figure, and this
+               one used to open on a bare status line under no heading at all.
+               "Review check" is the name the scripted panel already carries in
+               both of its settled states, so the region does not rename itself
+               when the script runs. The sentence says what the check looks for
+               and what to do with the record it names, in the two status words
+               the decision form's own options and hint use. It does not restate
+               the window: the line below it states that once for the page, and
+               a second copy is a second number to keep in step. No control and
+               no new tab stop — a heading and a paragraph, because index.html's
+               tab order is held to a count by
+               tests/prompt-coach-destination.test.js. renderOverdueFinding()
+               empties this container before it paints, so none of the three
+               lines can survive into a state that does not describe it. -->
           <div id="overdue-decision" aria-busy="true">
+            <h3 class="overdue-finding-title">Review check</h3>
+            <p class="hint">It looks for the decision left Proposed or Pending longest, so you can open that record and settle it or record the decision that replaces it.</p>
             <p class="hint overdue-finding-pending">Checking the log for decisions still Proposed or Pending after 14 days.</p>
           </div>
           <div class="filters" role="search" aria-label="Search and filter the history">
