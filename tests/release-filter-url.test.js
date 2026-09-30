@@ -95,10 +95,11 @@ test("the view-sharing action has one label, says what its link carries, and con
   assert.equal(textOf(button), "Copy link to this view");
   assert.equal(button.getAttribute("aria-label"), null);
   assert.equal(button.getAttribute("title"), null);
-  // The hand-copy field is the same action, so it wears the same label.
-  assert.equal(textOf(page.document.querySelector('label[for="release-copy-url"]')), "Copy link to this view");
+  // The hand-copy field is a second control, so it has a name of its own
+  // (#2644): it says what the box holds and what to do with it.
+  assert.equal(textOf(page.document.querySelector('label[for="release-copy-url"]')), "Link to copy by hand");
   const body = textOf(page.document.body);
-  assert.equal(body.split("Copy link to this view").length - 1, 2, "the button and its fallback field, nothing else");
+  assert.equal(body.split("Copy link to this view").length - 1, 1, "the button, and nothing else on the page");
   assert.equal(body.split("Link to this view").length - 1, 0, "no competing label for the same action");
   assert.equal(button.getAttribute("aria-describedby"), "release-share-scope");
   assert.equal(textOf(get(page, "release-share-scope")),
@@ -111,6 +112,43 @@ test("the view-sharing action has one label, says what its link carries, and con
   for (const id of ["shipped-build-copy", "shiplog-proof-copy", "deployment-copy"]) {
     assert.doesNotMatch(textOf(get(page, id)), /this view/);
   }
+});
+
+// The name a control answers to is the only thing that tells it apart in a
+// screen reader's list of controls, where nothing about position survives. Two
+// controls in this one toolbar wearing the same name is the defect #2644
+// reported, so the whole area is checked rather than the pair that collided.
+function controlName(page, control) {
+  if (control.getAttribute("aria-label")) return control.getAttribute("aria-label");
+  if (control.tagName === "BUTTON") return textOf(control);
+  const label = page.document.querySelector(`label[for="${control.getAttribute("id")}"]`);
+  if (label) return textOf(label);
+  const fieldset = control.closest("fieldset");
+  return fieldset ? textOf(fieldset.querySelector("legend")) : "";
+}
+
+test("every control in the search and filter area is named, and no two share a name", async (t) => {
+  const page = await boot(t, "?q=queue", { writeText: async () => { throw new Error("denied"); } });
+  // With the clipboard refused, the hand-copy field is on screen: the area is
+  // checked in the state where it holds the most controls.
+  get(page, "release-copy-link").click();
+  await settle();
+  assert.equal(get(page, "release-copy-fallback").hidden, false);
+  // The area is the filter panel and the share control beside it: the copy
+  // button sits outside the search landmark in the markup, but a reader meets
+  // the two as one toolbar.
+  const areas = [page.document.querySelector(".release-filters"),
+    get(page, "release-copy-link").closest(".share-control")];
+  const names = areas.flatMap((area) => area.querySelectorAll("input,select,textarea,button"))
+    .map((control) => controlName(page, control));
+  assert.ok(names.length >= 12, `the area lost controls: ${names.join(" | ")}`);
+  assert.deepEqual(names.filter((name) => name === ""), [], "an unnamed control in the area");
+  const repeated = names.filter((name, index) => names.indexOf(name) !== index);
+  assert.deepEqual(repeated, [], `two controls answer to the same name: ${repeated.join(" | ")}`);
+  assert.equal(names.filter((name) => name === "Copy link to this view").length, 1,
+    "exactly one control is the copy action");
+  assert.equal(names.filter((name) => name === "Link to copy by hand").length, 1,
+    "and exactly one is the field to copy from by hand");
 });
 
 for (const clipboard of [{}, { writeText: async () => { throw new Error("denied"); } }]) {

@@ -492,9 +492,13 @@
              before pressing that a colleague gets the filters and their own
              log. Both buttons start disabled and are enabled by
              release-filter-url.js — without the script neither can do anything.
-             The manual field stays hidden until a copy fails, and wears the
-             button's label: it is the same action done by hand, and a second
-             name for it would read as a second control. It borrows the
+             The manual field stays hidden until a copy fails, and carries a
+             name of its own (#2644): when it wore the button's label, two
+             controls in the same toolbar answered to the same name, and a
+             reader listing the controls got that name twice with nothing to
+             choose between them. Its name follows the one the prompt
+             coach already uses for the box behind its copy button — the thing,
+             then what to do with it by hand. It borrows the
              filter class so its label and box match the controls above rather
              than paying for a new rule in styles.css. -->
         <div class="share-control">
@@ -503,7 +507,7 @@
           <span class="hint" id="release-share-scope">The link keeps your search and filters. Whoever opens it sees the releases saved in their own browser.</span>
           <span class="share-status" id="release-copy-status" role="status" aria-live="polite" aria-atomic="true"></span>
           <div class="filter" id="release-copy-fallback" hidden>
-            <label for="release-copy-url">Copy link to this view</label>
+            <label for="release-copy-url">Link to copy by hand</label>
             <input id="release-copy-url" type="text" readonly />
           </div>
         </div>
