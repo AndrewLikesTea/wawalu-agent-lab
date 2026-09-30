@@ -74,6 +74,11 @@
  * it is the live region that announces the count, and a live region rendered from
  * display:none is not reliably announced by every screen reader. */
 #reasoning-proof-provenance:empty { display:none; }
+/* The copy control's availability line (#2645) is emptied the moment the control
+ * is live, and this grid gives every child a gap either side of it, so without
+ * this the block would keep a band of dead space under the button for the whole
+ * life of the page. Not a live region, so hiding it costs no announcement. */
+#reasoning-proof-copy-availability:empty { display:none; }
 
 /* ------------------- the coverage gap as a worklist (#2630) ---------------- */
 /* The reveal, its live status, and the worklist beside the rows. Every colour

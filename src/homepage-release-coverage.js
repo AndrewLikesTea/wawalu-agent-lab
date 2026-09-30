@@ -42,6 +42,8 @@
 
 import { HISTORY_UNREAD_ANNOUNCEMENT } from "./app.js";
 import {
+  REASONING_PROOF_COUNTING_LEAD,
+  REASONING_PROOF_FIGURES,
   REASONING_PROOF_HEADING,
   REASONING_PROOF_RULE,
   REASONING_PROOF_SCOPE,
@@ -82,9 +84,14 @@ export const RELEASE_COVERAGE_HEADING = REASONING_PROOF_HEADING;
 // so it introduces the sentence below rather than paraphrasing it into a second
 // version of the same claim. The deployment check above states its comparison
 // the same way, in the same place, for the same reason.
+//
+// Both halves now come from the releases page's own constants (#2645), which is
+// where the clause naming the pair lives: that page has to introduce the same
+// two numbers before either exists, and one clause called twice is the only way
+// the two surfaces cannot drift into two names for one figure. The words here
+// are unchanged.
 export const RELEASE_COVERAGE_LEAD =
-  "Two numbers, counted from the releases loaded in this browser: how many of them "
-  + "link at least one decision the decision log holds, out of how many were loaded.";
+  `Two numbers, counted from the releases loaded in this browser: ${REASONING_PROOF_FIGURES}.`;
 
 // The caveats, from the releases page's own constants. Authored into the
 // document rather than written here: both are true before any module runs.
@@ -95,7 +102,11 @@ export const RELEASE_COVERAGE_SCOPE = REASONING_PROOF_SCOPE;
 // happening, which is the one thing that is true of a page whose script has not
 // run, and it is a sentence rather than a placeholder glyph so a screen reader
 // reaching it early is told something.
-export const RELEASE_COVERAGE_COUNTING = "Still counting the releases loaded in this browser…";
+//
+// An ellipsis and not the pair, because the lead above has already named both
+// numbers here. The releases page carries the same wait and no lead, so there
+// the sentence continues into the clause (REASONING_PROOF_COUNTING).
+export const RELEASE_COVERAGE_COUNTING = `${REASONING_PROOF_COUNTING_LEAD}…`;
 
 /**
  * A refused read is not an empty log. The first sentence says which of the two

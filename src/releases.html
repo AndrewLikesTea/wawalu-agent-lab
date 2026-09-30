@@ -287,14 +287,24 @@
 
            THE FIGURE IS NOT IN THESE BYTES. A count is a claim the page cannot
            make until the log has loaded — the same reason the log's own count
-           sentence below ships empty — so the sentence node ships empty and
-           release-reasoning-proof.js writes it. It is a live region from the
+           sentence below ships empty — so no number is authored here and
+           release-reasoning-proof.js writes both. It is a live region from the
            first paint rather than one inserted when its text arrives, because a
            region that appears with its contents is announced by nothing, and the
            numbers do move later: recording a release moves them, and so does a
            retry that recovers the decision log. It is not a second voice for the
-           log's wait — it states no wait, and the log's one status region below
-           is still the only node that says the log is loading.
+           log's wait — it says nothing about loading, and the log's one status
+           region below is still the only node that says the log is loading.
+
+           WHAT THE NODE SAYS UNTIL THEN (#2645): what the two numbers are, and
+           that they are still being counted. It used to ship empty, which left a
+           reader who arrived before the log loaded holding an exclusion rule
+           about two numbers the page had never named — a rule with nothing to
+           apply it to. The sentence is one sentence and not two because this
+           block has no lead paragraph; the home page's copy of it has one, so
+           there the wait is the same opening clause and an ellipsis. Both come
+           from REASONING_PROOF_COUNTING, so the two surfaces cannot name one
+           figure two ways.
 
            WHAT IS AUTHORED is everything that is true before any module runs:
            the heading, the counting rule and the scope. The rule is the one
@@ -321,7 +331,7 @@
             <h2 id="reasoning-proof-title">Reasoning kept with each release</h2>
           </div>
         </div>
-        <p class="feed-summary" id="reasoning-proof-claim" role="status" aria-live="polite" aria-atomic="true"></p>
+        <p class="feed-summary" id="reasoning-proof-claim" role="status" aria-live="polite" aria-atomic="true">Still counting the releases loaded in this browser: how many of them link at least one decision the decision log holds, out of how many were loaded.</p>
         <!-- Whose records the figure counted, directly under the figure and in
              the same type as the example records' own caveat rather than as a
              hint below the fold of the block: which half of this number was
@@ -369,9 +379,19 @@
           <p class="shiplog-proof-note" id="coverage-gap-status" role="status" aria-live="polite" aria-atomic="true"></p>
         </div>
         <div class="shiplog-proof-share">
-          <button class="share-button" id="reasoning-proof-copy" type="button" disabled aria-describedby="reasoning-proof-copy-status">Copy both numbers as a sentence</button>
+          <button class="share-button" id="reasoning-proof-copy" type="button" disabled aria-describedby="reasoning-proof-copy-status reasoning-proof-copy-availability">Copy both numbers as a sentence</button>
           <span class="share-status" id="reasoning-proof-copy-status" role="status" aria-live="polite" aria-atomic="true"></span>
         </div>
+        <!-- WHY THE CONTROL IS DISABLED, WHILE IT IS (#2645), in the shape the
+             home page's deployment check already uses for the same slot: "The
+             copy control becomes available once the check answers." It says "the
+             copy control" rather than quoting the button's own words, because a
+             label a page prints twice is the defect #2644 reported about the
+             share control below — and the count of that label on this page is
+             checked. release-reasoning-proof.js empties this node as it enables
+             the control, so it is never a sentence about something that
+             already works. -->
+        <p class="shiplog-proof-note" id="reasoning-proof-copy-availability">The copy control becomes available once the figures are counted.</p>
       </section>
 
       <!-- The log first, the recorder under it. A prospect following "Explore

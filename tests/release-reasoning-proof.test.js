@@ -33,6 +33,8 @@ import {
   REASONING_PROOF_COPIED_STATUS,
   REASONING_PROOF_COPY_FAILED_STATUS,
   REASONING_PROOF_COPY_LABEL,
+  REASONING_PROOF_COPY_PENDING,
+  REASONING_PROOF_COUNTING,
   REASONING_PROOF_HEADING,
   REASONING_PROOF_RULE,
   REASONING_PROOF_SCOPE,
@@ -258,16 +260,73 @@ test("the figure is a live region from the first paint, before any module runs",
   assert.equal(node.getAttribute("role"), "status");
   assert.equal(node.getAttribute("aria-live"), "polite");
   assert.equal(node.getAttribute("aria-atomic"), "true");
-  // Empty as shipped: a count is a claim the page cannot make until the log has
-  // loaded, and the node has to be in the tree before its text arrives to be
-  // announced at all.
-  assert.equal(textOf(node), "");
+  // No figure as shipped: a count is a claim the page cannot make until the log
+  // has loaded, and the node has to be in the tree before its text arrives to be
+  // announced at all. What it does say is what the two numbers are (#2645).
+  assert.equal(textOf(node), REASONING_PROOF_COUNTING);
+  assert.doesNotMatch(textOf(node), /\d/, "no count may be authored into the figure");
   // The rule and the scope are authored, so the block is legible with no script.
   assert.equal(textOf(byId(page, "reasoning-proof-rule")), REASONING_PROOF_RULE);
   assert.equal(textOf(byId(page, "reasoning-proof-scope")), REASONING_PROOF_SCOPE);
   // And the figure's wait is not a second voice for the log's: this block says
   // nothing about loading, which the log's own status region below does.
   assert.doesNotMatch(textOf(byId(page, "reasoning-proof")), /[Ll]oading/);
+});
+
+// --- the wait, before there is a figure to state (#2645) ----------------------
+
+test("before the log loads the block names both numbers and says they are still being counted", async (t) => {
+  // The served bytes with no module run at all, which is what a reader on a slow
+  // connection has in front of them — and what a reader with no script keeps.
+  const cold = await loadPage(RELEASES_PAGE, { storage: {} });
+  t.after(() => cold.restore());
+  const waiting = textOf(cold.document.querySelector("#reasoning-proof-claim"));
+
+  assert.equal(waiting, REASONING_PROOF_COUNTING);
+  // One sentence doing both jobs: what each number is, and that neither is in yet.
+  assert.match(waiting, /^Still counting the releases loaded in this browser/);
+  assert.match(waiting, /link at least one decision the decision log holds/);
+  assert.match(waiting, /out of how many were loaded/);
+  // Not "uncovered": the page defines that word lower down, and a rendered-order
+  // check holds the definition to being the page's first use of it.
+  assert.doesNotMatch(waiting, /uncovered/i);
+
+  // ORDER: the two exclusions stand after the sentence naming the figures, which
+  // is the whole reason this node says anything before the count arrives.
+  const said = Array.from(cold.document.querySelector("#reasoning-proof").children)
+    .map((node) => textOf(node))
+    .filter((text) => text !== "");
+  const named = said.indexOf(waiting);
+  assert.ok(named >= 0, "the wait never reached the region");
+  assert.ok(said.indexOf(REASONING_PROOF_RULE) > named,
+    "an exclusion is stated before the numbers it excludes from");
+  assert.ok(said.indexOf(REASONING_PROOF_SCOPE) > said.indexOf(REASONING_PROOF_RULE),
+    "the scope note left the figures it qualifies");
+
+  // And the copy control says why it cannot be pressed yet, in the home page's
+  // shape for the same slot — referring to the control, never quoting its label,
+  // because the count of that label on this page is itself checked (#2644).
+  assert.equal(textOf(cold.document.querySelector("#reasoning-proof-copy-availability")),
+    REASONING_PROOF_COPY_PENDING);
+  assert.equal(REASONING_PROOF_COPY_PENDING,
+    "The copy control becomes available once the figures are counted.");
+  assert.doesNotMatch(REASONING_PROOF_COPY_PENDING, new RegExp(REASONING_PROOF_COPY_LABEL));
+  assert.notEqual(cold.document.querySelector("#reasoning-proof-copy").getAttribute("disabled"), null);
+});
+
+test("the counted sentence replaces the wait rather than standing beside it", async (t) => {
+  const page = await openPage(t);
+  assert.equal(page.document.querySelectorAll(".release-toggle").length, 3, "the log rendered nothing to count");
+  assert.equal(claim(page), "1 of 3 releases in this release log links at least one decision the decision log holds.");
+
+  // The rendered page, not the module: one node holds the wait and the figure, so
+  // a reader can never meet both, and the control's explanation goes with it.
+  const region = textOf(byId(page, "reasoning-proof"));
+  assert.doesNotMatch(region, /Still counting/, "the wait is still on screen beside the figure");
+  assert.doesNotMatch(region, /out of how many were loaded/, "the pair is introduced twice");
+  assert.doesNotMatch(region, /becomes available/, "the control still says it is unavailable");
+  // The exclusions stayed put, under the figure that replaced the wait.
+  assert.match(region, /does not count/);
 });
 
 test("the three provenance cases reach the painted attribution", async (t) => {
@@ -309,6 +368,9 @@ test("a log that could not be read counts nothing rather than claiming a figure"
   assert.equal(page.document.querySelectorAll(".release-toggle").length, 0, "the refused log still rendered rows");
   assert.equal(claim(page), NO_RELEASES_TO_COUNT);
   assert.equal(provenance(page), "Counted here: no example records and none you added.");
+  // A page that has stopped counting does not still say it is counting (#2645),
+  // even when what it found was nothing.
+  assert.doesNotMatch(textOf(byId(page, "reasoning-proof")), /Still counting/);
 });
 
 // --- the filter invariant (E): the complete loaded log ------------------------
@@ -350,7 +412,12 @@ test("the copy control hands the summary to the clipboard and says so", async (t
   assert.match(REASONING_PROOF_SCOPE, /^Both numbers /, "the label and the scope note no longer agree");
   assert.equal(button.getAttribute("type"), "button");
   assert.equal(button.getAttribute("aria-label"), null, "the visible label is not the accessible name");
-  assert.equal(button.getAttribute("aria-describedby"), "reasoning-proof-copy-status");
+  // The status it writes, and the line saying why it cannot be pressed yet
+  // (#2645) — which this module empties as it enables the control, so by now the
+  // reference resolves to nothing rather than to a stale explanation.
+  assert.equal(button.getAttribute("aria-describedby"),
+    "reasoning-proof-copy-status reasoning-proof-copy-availability");
+  assert.equal(textOf(byId(page, "reasoning-proof-copy-availability")), "");
   assert.equal(button.disabled, false, "the control is still disabled after the page booted");
   assert.ok(tabSequence(page.document).includes(button), "the copy control is not reachable by Tab");
 
@@ -433,12 +500,15 @@ test("the figure stands above the log it describes and does not repeat the examp
   assert.doesNotMatch(region, /These example records are invented/);
 });
 
-test("the block pays for two rules, in the page's own sheet", async () => {
+test("the block pays for three rules, in the page's own sheet", async () => {
   const css = await readFile(CSS, "utf8");
   assert.match(css, /#reasoning-proof-claim \{ margin:0; \}/);
   // The attribution collapses while it has nothing to say; the figure does not,
   // because a live region rendered from display:none may never be announced.
   assert.match(css, /#reasoning-proof-provenance:empty \{ display:none; \}/);
+  // The copy control's availability line (#2645) collapses once it is withdrawn,
+  // or the block keeps a grid gap under the button for the life of the page.
+  assert.match(css, /#reasoning-proof-copy-availability:empty \{ display:none; \}/);
   assert.doesNotMatch(css, /#reasoning-proof-claim:empty/);
   // Every other rule the block needs is one this page already ships.
   const styles = await readFile(new URL("../src/styles.css", import.meta.url), "utf8");
