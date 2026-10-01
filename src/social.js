@@ -1506,7 +1506,22 @@ export function mountSocialFeed(root, options = {}) {
     // announced on every filter change, and a second polite region here would
     // read the same news twice. Nothing folds it away either — it names the
     // panel it heads.
-    if (heading) heading.textContent = answered ? feedHeading(showing) : DEFAULT_FEED_HEADING;
+    //
+    // It states a count only in the three phases that have an answer for the
+    // view on screen, and names the panel in the two that do not — which is the
+    // rule the count beside it already follows ("Unavailable" when the load
+    // failed, absent while one is open). `answered` alone was not that rule: it
+    // asks whether any post has ever arrived, so a reader sitting on the
+    // filtered dead end when the connection dropped, or pressing its Retry, met
+    // "Post feed: No posts by Ari from the past hour" over "Social posts could
+    // not be loaded." — the verdict on their filters and the admission the page
+    // could not reach the feed, together, with the count between them saying it
+    // did not know. The verdict is only true of posts the page has in hand, and
+    // in those two phases it has stopped vouching for them, so the heading goes
+    // back to naming its panel until the next answer lands. It is also the
+    // panel's accessible name, so this is what the region announced on entry.
+    const vouched = answered && phase !== "loading" && phase !== "failed";
+    if (heading) heading.textContent = vouched ? feedHeading(showing) : DEFAULT_FEED_HEADING;
 
     // Only the text is replaced. The element itself is the live region and it
     // ships with the page, so an update is one announcement — and it is never
