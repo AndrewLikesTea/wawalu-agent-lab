@@ -370,7 +370,11 @@
               <select id="supersedes" name="supersedes" aria-describedby="supersedes-hint supersedes-error">
                 <option value="">None</option>
               </select>
-              <span class="hint" id="supersedes-hint">The decision this one replaces, if any. That decision is marked Superseded by this one, and Current only hides it.</span>
+              <!-- Hiding is a view, not a deletion, and the sentence has to say
+                   so. The filter's name is quoted because unquoted it read as
+                   the hedge "currently it only hides it" rather than as the
+                   button of that name in the filter row below. -->
+              <span class="hint" id="supersedes-hint">The decision this one replaces, if any. That decision is marked Superseded by this one and stays in the log — you can still open and export it. Pressing “Current only” hides it from the list.</span>
               <p class="field-error" id="supersedes-error" role="alert" hidden></p>
             </div>
 

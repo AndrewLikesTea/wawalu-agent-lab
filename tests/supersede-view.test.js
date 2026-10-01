@@ -261,6 +261,32 @@ test("the toggle is reachable and operable by keyboard alone", async (t) => {
   assert.equal(textOf(control), "Current only");
 });
 
+test("the Replaces hint says the named decision stays in the log, and quotes the real filter", async (t) => {
+  const { page } = await openHistory(t);
+  const hint = squash(textOf(page.document.querySelector("#supersedes-hint")));
+
+  // The status it gets has to be the word the status filter offers, not a
+  // near-synonym the visitor then hunts for in the filter row.
+  const statuses = page.document.querySelector("#filter-status")
+    .querySelectorAll("option").map((option) => textOf(option));
+  assert.ok(statuses.includes("Superseded"), "the status filter no longer offers Superseded");
+  assert.match(hint, /marked Superseded by this one/);
+
+  // Hiding is a view, not a deletion: the record is still openable and still
+  // exportable, and the hint has to say both.
+  assert.match(hint, /stays in the log/);
+  assert.match(hint, /open and export it/);
+
+  // The filter is named in quotes, byte-for-byte as the control renders it, so
+  // it reads as a control and not as part of the sentence's grammar.
+  assert.equal(textOf(toggle(page)), "Current only");
+  assert.ok(
+    hint.includes(`Pressing “${textOf(toggle(page))}” hides it from the list.`),
+    `the hint does not quote the filter as it is labelled: ${hint}`,
+  );
+  assert.doesNotMatch(hint, /and Current only hides it/);
+});
+
 test("a supersede link that no longer exists is refused inline, and nothing is written", async (t) => {
   const { page } = await openHistory(t);
   const form = page.document.querySelector("#decision-form");

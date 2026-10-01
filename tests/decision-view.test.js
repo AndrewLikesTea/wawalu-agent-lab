@@ -258,7 +258,10 @@ test("decision list exposes semantic loading, empty, and error states", async ()
   // — the filter offers all four, so the gap is stated rather than discovered.
   assert.match(page, /<option value="pending">Pending<\/option>\s*<option value="accepted">Accepted<\/option>/);
   assert.match(page, /id="status-hint">Set Pending or Accepted\. Records can also read Proposed or Superseded; this form does not set those\.<\/span>/);
-  assert.match(page, /id="supersedes-hint">The decision this one replaces, if any\. That decision is marked Superseded by this one, and Current only hides it\.<\/span>/);
+  // Replaces says what happens to the decision it names: the status it gets, that
+  // it is still in the log, and that the named filter only hides it from a view.
+  assert.match(page, /id="supersedes-hint">The decision this one replaces, if any\. That decision is marked Superseded by this one and stays in the log — you can still open and export it\. Pressing “Current only” hides it from the list\.<\/span>/);
+  assert.doesNotMatch(page, /and Current only hides it/);
   assert.match(source, /panel\.setAttribute\("role", state === "error" \? "alert" : "status"\)/);
   assert.match(source, /container\.setAttribute\("aria-busy", String\(state === "loading"\)\)/);
   assert.match(source, /loading: \[HISTORY_LOADING_TEXT\]/);
