@@ -28,7 +28,7 @@ import {
 import {
   OPEN_POST_LABEL, postDetailHref, profileHref, socialAllPostsLabel, socialFeedHref,
 } from "./social-links.js";
-import { imageDescription, renderDescriptionNote, renderImageUnavailable } from "./image-description.js";
+import { imageDescription, renderDescriptionNote, renderImageDescriptionText, renderImageUnavailable } from "./image-description.js";
 import { renderFeedStatus, feedPhase, feedPresence, retryFocus, setFilterAvailability } from "./feed-status.js";
 import { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH } from "./social-identity.js";
 import { mountPostReport, renderReportButton } from "./post-report.js";
@@ -609,6 +609,34 @@ function renderTile(post, index, onReport = null) {
   const figure = el("figure", "profile-figure");
   const description = imageDescription(post);
   if (post.image) figure.append(renderTileMedia(post.image, description));
+
+  // The description the poster wrote, between the image and the tile's caption —
+  // the order it is read in, in the DOM, not a visual reordering. Until now a
+  // People tile held it in an alt attribute only, so the one grid on this site
+  // that is nothing but pictures was the one place the description could not be
+  // read; the feed and the permalink both already print it.
+  //
+  // Guarded on `post.image`, never on the description being empty:
+  // imageDescription() never returns a falsy alt — for a post with no image it
+  // synthesizes a sentence about one — so a text-only post guarded the other way
+  // would grow a caption describing a picture it does not have. And only where
+  // the poster actually wrote a description: `missing` marks the synthesized
+  // fallback, which belongs in alt and in the note below, not under a label
+  // claiming the poster wrote it.
+  //
+  // Hidden from assistive tech, because this exact string is already the alt of
+  // the image directly above it and the tile's accessible name is its caption.
+  // Two readings of one sentence inside one link is how a tile stops being
+  // skimmable by ear. The alt stays as it is; this is its visible half.
+  if (post.image && !description.missing) {
+    const descriptionText = renderImageDescriptionText(description.alt, {
+      className: "description-note profile-tile-description",
+      labelClassName: "profile-tile-description-label",
+      textClassName: "profile-tile-description-text",
+    });
+    descriptionText.setAttribute("aria-hidden", "true");
+    figure.append(descriptionText);
+  }
 
   const caption = el("figcaption", "profile-tile-caption", captionFor(post));
   // Ids are minted from the render index, never from post.id: a post id is

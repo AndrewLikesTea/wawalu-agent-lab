@@ -23,8 +23,9 @@ import {
   mountSocialFeed,
   renderPosts,
 } from "../src/social.js";
-import { MISSING_DESCRIPTION_NOTE, imageDescription } from "../src/image-description.js";
+import { MISSING_DESCRIPTION_NOTE, imageDescription, renderImageDescriptionText } from "../src/image-description.js";
 import { renderProfileGrid } from "../src/profile.js";
+import { renderPostDetail } from "../src/post-detail.js";
 import {
   createMemoryRateLimiter,
   createMemorySocialStores,
@@ -354,7 +355,12 @@ test("the description help states its limit in the caption hint's own form", asy
   const description = textOf(harness.document.querySelector("#post-image-alt-hint"));
   const caption = textOf(harness.document.querySelector("#post-body-hint"));
 
-  assert.equal(description, "Describe what matters in the image for people who cannot see it. Up to 200 characters.");
+  assert.equal(description, "Describe what matters in the image. It is published with the post as text everyone can read, and read aloud to people who cannot see the image. Up to 200 characters.");
+  // The field says the description is public text, not only an alt attribute:
+  // all three surfaces print it under a label now, so a poster has to be told
+  // that before they type it. The sentence it replaced named one audience only.
+  assert.doesNotMatch(description, /for people who cannot see it\./);
+  assert.match(description, /published with the post/);
   // The post hint is that closing clause and nothing else since #1826: the word
   // it opened on was the label's own "(required)" marker said a second time.
   assert.equal(caption, "Up to 280 characters.");
@@ -445,19 +451,195 @@ test("a People profile gives the same post the same alt and the same note", () =
   assert.equal(byClass(container, "profile-tile-caption")[0].textContent, "Ring landed everywhere.");
 });
 
+// `.description-note` is a type role, not a state: the missing-description flag
+// and a People tile's visible description both carry it, the same way the
+// permalink's labelled description does. So "no note" is counted by the words
+// the flag prints, which is the thing that must not appear on a described post.
 test("a described post carries its own words on both surfaces and no note", () => {
-  const described = { ...legacy, image: IMAGE };
+  const withImage = { ...legacy, image: IMAGE };
+  const flags = (node) => byClass(node, "description-note")
+    .filter((note) => note.textContent.trim() === MISSING_DESCRIPTION_NOTE);
+
   const feed = createElement("div");
-  renderPosts(feed, [described]);
+  renderPosts(feed, [withImage]);
   assert.equal(tags(feed, "IMG")[0].alt, IMAGE.alt);
-  assert.equal(byClass(feed, "description-note").length, 0);
+  assert.equal(flags(feed).length, 0);
 
   const profile = createElement("div");
-  renderProfileGrid(profile, [{ ...described, caption: "Ring landed everywhere.", likes: 0, comments: 0 }], {
+  renderProfileGrid(profile, [{ ...withImage, caption: "Ring landed everywhere.", likes: 0, comments: 0 }], {
     author: "Mina",
   });
   assert.equal(tags(profile, "IMG")[0].alt, IMAGE.alt);
-  assert.equal(byClass(profile, "description-note").length, 0);
+  assert.equal(flags(profile).length, 0);
+});
+
+/* ------------------- the description as visible text --------------------- */
+//
+// A description a poster is required to write and a reader cannot read is only
+// half a requirement. These assert the other half on all three surfaces that
+// render a post's image: the description is on screen, under a label, and the
+// node holding it carries the identical string the alt attribute carries.
+//
+// Counting, never identity: `assert.equal(node, null)` on a harness element
+// walks the whole parsed page for minutes and survives --test-timeout, so a
+// "there is no caption here" assertion below is a length of 0.
+
+const described = { ...legacy, image: IMAGE, caption: "Ring landed everywhere.", likes: 0, comments: 0 };
+const textOnly = {
+  id: "p-text",
+  author: "Mina",
+  body: "No picture on this one.",
+  caption: "No picture on this one.",
+  createdAt: "2026-07-14T00:00:00.000Z",
+  likes: 0,
+  comments: 0,
+};
+
+// One row per surface: what renders it, the class on the paragraph, the class on
+// the description's own span, and the class on the image the string also feeds.
+const undescribed = { ...legacy, caption: "Ring landed everywhere.", likes: 0, comments: 0 };
+
+const SURFACES = [
+  {
+    name: "the Social feed",
+    note: "post-image-description",
+    text: "post-image-description-text",
+    label: "post-image-description-label",
+    image: "post-image",
+    draw: (node, post) => renderPosts(node, [post]),
+  },
+  {
+    name: "a People tile",
+    note: "profile-tile-description",
+    text: "profile-tile-description-text",
+    label: "profile-tile-description-label",
+    image: "profile-image",
+    draw: (node, post) => renderProfileGrid(node, [post], { author: "Mina" }),
+  },
+  {
+    name: "the shared post page",
+    note: "detail-image-description",
+    text: "detail-image-description-text",
+    label: "detail-image-description-label",
+    image: "detail-image",
+    draw: (node, post) => renderPostDetail(node, post),
+  },
+];
+
+for (const surface of SURFACES) {
+  test(`${surface.name} prints the description once, labelled, in the string the alt holds`, () => {
+    const container = createElement("div");
+    surface.draw(container, described);
+
+    // Exactly one, per card. A second would be the same sentence twice under one
+    // image, which is the regression a count catches and a text match does not.
+    assert.equal(byClass(container, surface.note).length, 1, "one description paragraph per image card");
+    assert.equal(byClass(container, surface.text).length, 1);
+    assert.equal(byClass(container, surface.label)[0].textContent.trim(), "Image description:",
+      "the description is labelled in words, not by position");
+
+    // Byte for byte, read off the description's own node so the label beside it
+    // cannot pad the comparison, and compared with === rather than a regex.
+    const visible = byClass(container, surface.text)[0];
+    const img = byClass(container, surface.image)[0];
+    assert.equal(visible.textContent, IMAGE.alt);
+    assert.equal(visible.textContent, img.alt);
+
+    // The captions role, reused. No surface grew a type of its own for this.
+    assert.equal(byClass(container, surface.note)[0].tagName, "P");
+    assert.equal(byClass(container, surface.note)[0].classes.includes("description-note"),
+      surface.note !== "post-image-description",
+      "the feed keeps .post-image-description's own rule; the other two reuse .description-note");
+  });
+
+  test(`${surface.name} draws no description at all for a post with no image`, () => {
+    const container = createElement("div");
+    surface.draw(container, textOnly);
+
+    // Guarded on the post having an image, never on the description being
+    // falsy: imageDescription() never returns one, so the other guard would give
+    // a text-only post a caption describing a picture it does not have.
+    assert.equal(byClass(container, surface.note).length, 0);
+    assert.equal(byClass(container, surface.text).length, 0);
+    assert.equal(byClass(container, surface.label).length, 0);
+    assert.equal(tags(container, "IMG").length, 0);
+  });
+
+  test(`${surface.name} never prints the synthesized placeholder under the label`, () => {
+    const container = createElement("div");
+    surface.draw(container, described);
+    assert.doesNotMatch(byClass(container, surface.text)[0].textContent, /No description provided/);
+
+    // And a row stored before descriptions were required draws no labelled
+    // description at all — the read-path fallback belongs in alt, and on the two
+    // tile surfaces in the note beside the caption, not under a label claiming
+    // the poster wrote it.
+    const stored = createElement("div");
+    surface.draw(stored, undescribed);
+    assert.equal(byClass(stored, surface.text).length, 0, "a synthesized alt was printed under the label");
+    assert.equal(byClass(stored, surface.label).length, 0);
+    assert.notEqual(tags(stored, "IMG")[0].alt.trim(), "", "the image still has a real alt");
+  });
+}
+
+// DOM order, not a CSS reordering: a People tile reads as the picture, then what
+// the poster said the picture shows, then the post's own words. The feed and the
+// permalink each lead with the post's text instead — the feed puts its caption
+// above the media (src/social.js) and the permalink puts the description above
+// the image (pinned in tests/post-permalink-states.test.js) — so this pins the
+// order of the one surface that was missing the description entirely.
+test("a People tile reads image, then description, then the post's caption", () => {
+  const container = createElement("div");
+  renderProfileGrid(container, [described], { author: "Mina" });
+
+  const figure = byClass(container, "profile-figure")[0];
+  assert.deepEqual(figure.children.map((child) => child.className),
+    ["profile-media", "description-note profile-tile-description", "profile-tile-caption"],
+    "the tile's figure was reordered, or grew a node between the image and its description");
+
+  // Hidden from assistive tech: the identical string is the alt of the image in
+  // the same tile, and the tile's accessible name is its caption, so announcing
+  // this paragraph would read one sentence twice inside one link. The alt is not
+  // blanked to pay for it.
+  assert.equal(byClass(container, "profile-tile-description")[0].getAttribute("aria-hidden"), "true");
+  assert.equal(byClass(container, "profile-image")[0].alt, IMAGE.alt);
+  assert.equal(byClass(container, "profile-tile")[0].getAttribute("aria-label"),
+    "Ring landed everywhere. — Open post", "the description must not rename the tile");
+});
+
+// The feed's description still follows the image it describes, directly, with
+// nothing between them.
+test("the feed's description follows the image frame it describes", () => {
+  const container = createElement("div");
+  renderPosts(container, [described]);
+  const figure = tags(container, "FIGURE")[0];
+  const classNames = figure.children.map((child) => child.className);
+  assert.equal(classNames.indexOf("post-image-description"), classNames.indexOf("post-media") + 1);
+  assert.equal(byClass(container, "post-image-description")[0].id,
+    byClass(container, "post-image")[0].getAttribute("aria-describedby"));
+});
+
+// The escaping, pinned where it happens. A description is publisher-supplied
+// text and reaches the DOM through textContent only; the browser harness parses
+// no markup at all, so a page-level assertion could never fail from an innerHTML
+// regression here. This one can.
+test("a description containing markup stays text, verbatim, with no elements made", () => {
+  const hostile = `<img src=x onerror="alert('x')"> & a "quoted" <b>bold</b> word`;
+  const note = renderImageDescriptionText(hostile, {
+    className: "description-note",
+    labelClassName: "label",
+    textClassName: "text",
+  });
+
+  const text = byClass(note, "text")[0];
+  assert.equal(text.textContent, hostile, "the description was re-encoded or truncated");
+  assert.equal(text.children.length, 0, "the description created child elements");
+  assert.equal(tags(note, "IMG").length, 0);
+  assert.equal(tags(note, "B").length, 0);
+  // The label is a sibling node, which is what keeps the description's own node
+  // comparable to an alt attribute with ===.
+  assert.equal(note.children.length, 2);
+  assert.equal(byClass(note, "label")[0].textContent, "Image description: ");
 });
 
 test("the write path refuses an undescribed or over-described upload, so no new row can lack one", async () => {

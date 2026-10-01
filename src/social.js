@@ -22,7 +22,7 @@
 // single import. One owner, so the byline the feed accepts and the byline the
 // profile remembers cannot drift apart.
 import { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH, readStoredAuthor, rememberAuthor } from "./social-identity.js";
-import { imageDescription, renderDescriptionNote, renderImageUnavailable } from "./image-description.js";
+import { imageDescription, renderDescriptionNote, renderImageDescriptionText, renderImageUnavailable } from "./image-description.js";
 import {
   COMPOSE_POST_LABEL, OPEN_POST_LABEL, peopleImagePostsLabel, postDetailHref, profileHref, requestedFeedAuthor,
 } from "./social-links.js";
@@ -100,7 +100,11 @@ export function imageDescriptionProblem(value, { attached = false } = {}) {
   if (!attached) return null;
   const text = String(value ?? "").trim();
   if (!text) {
-    return "Add a description of the image before posting, so people who cannot see it still get the post.";
+    // Says what the description is for in the terms the field's own help uses:
+    // it is published with the post as visible text, not only read aloud. A
+    // refusal that named only the screen-reader audience would be the alt-only
+    // framing the field stopped using.
+    return "Add a description of the image before posting: it is published with the post as text everyone can read, and read aloud to people who cannot see the image.";
   }
   if (text.length > MAX_IMAGE_ALT_LENGTH) {
     return `An image description must be ${MAX_IMAGE_ALT_LENGTH} characters or fewer. Remove ${text.length - MAX_IMAGE_ALT_LENGTH}.`;
@@ -603,7 +607,10 @@ function renderMedia(image, description, descriptionId) {
   // shared read-path fallback (src/image-description.js) — never alt="", which
   // would quietly file the image as decoration.
   img.alt = description.alt;
-  img.setAttribute("aria-describedby", descriptionId);
+  // Only when there is a visible description to point at. An undescribed legacy
+  // row draws no labelled description, so there is no id here to name, and an
+  // aria-describedby naming nothing is a dangling IDREF.
+  if (descriptionId) img.setAttribute("aria-describedby", descriptionId);
   img.loading = "lazy";
   img.decoding = "async";
   if (image.width && image.height) {
@@ -694,9 +701,25 @@ function renderPostCard(post, { index, onReport = null }) {
     const caption = el("figcaption", "post-caption", post.body);
     caption.id = textId;
     figure.append(caption);
-    const descriptionText = el("p", "post-image-description", `Image description: ${description.alt}`);
-    descriptionText.id = `post-${index}-image-description`;
-    figure.append(renderMedia(image, description, descriptionText.id), descriptionText);
+    // The description the poster wrote, on screen, directly under the image it
+    // describes — drawn by the one helper all three surfaces share
+    // (src/image-description.js), in a span of its own, so the sentence a reader
+    // sees is the identical string the alt attribute above it holds.
+    //
+    // Only when the poster actually wrote one. imageDescription() always returns
+    // a real alt, synthesizing "Image posted by Mina. No description provided."
+    // for a row written before descriptions were required — right for alt, and
+    // wrong under a label that says the poster described the image, because it
+    // would claim they did and print the missing-description note's own words a
+    // second time. An undescribed row keeps the note below instead.
+    const descriptionText = description.missing ? null : renderImageDescriptionText(description.alt, {
+      className: "post-image-description",
+      labelClassName: "post-image-description-label",
+      textClassName: "post-image-description-text",
+    });
+    if (descriptionText) descriptionText.id = `post-${index}-image-description`;
+    figure.append(renderMedia(image, description, descriptionText?.id));
+    if (descriptionText) figure.append(descriptionText);
     // The note sits beside the caption rather than inside it, so an undescribed
     // legacy post is visibly flagged without the flag joining the card's
     // accessible name.

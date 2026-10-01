@@ -47,7 +47,7 @@ const TEXT = {
   },
   "profile.html": {
     body: [".profile-tile-caption"],
-    description: [".media-fallback-text"],
+    description: [".media-fallback-text", ".profile-tile-description"],
     name: [".profile-active-filter", ".profile-summary", ".profile-identity-text h2", "#profile-social-route a"],
     filter: [".profile-filter-option"],
   },
@@ -157,6 +157,9 @@ test("People paints the whole caption and every name chip unclipped", () => {
   const grid = createElement("div");
   renderProfileGrid(grid, [{ id: "p-image", author: NAME, body: BODY, createdAt: "2026-07-14T09:00:00.000Z", image: IMAGE, likes: 0, comments: 0 }], { author: NAME });
   assert.equal(textIn(grid, "profile-tile-caption"), BODY);
+  // The tile prints the description too, so a 200-character unbroken one has to
+  // wrap inside the tile rather than widen the grid column it sits in.
+  assert.equal(textIn(grid, "profile-tile-description-text"), DESCRIPTION);
 
   const picker = createElement("div");
   createElement("div").append(picker);

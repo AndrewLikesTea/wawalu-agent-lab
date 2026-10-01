@@ -42,6 +42,49 @@ export function renderDescriptionNote() {
 }
 
 // ---------------------------------------------------------------------------
+// The description as on-screen text.
+//
+// The composer requires a description of every posted image, and for a long time
+// the only reader who ever met one was a reader using a screen reader: it lived
+// in an alt attribute and nowhere else. It is visible text now on all three
+// surfaces that render a post's image — the feed (src/social.js), a People tile
+// (src/profile.js) and the permalink (src/post-detail.js) — and this is the one
+// helper that draws it, so the three cannot drift into three wordings of one
+// sentence.
+//
+// THE LABEL AND THE DESCRIPTION ARE SEPARATE SPANS, NEVER ONE STRING. That is
+// what keeps the description's own node byte-identical to the alt attribute
+// beside it: a label folded into the same text node makes the two impossible to
+// compare with `===` and easy to let drift. Every surface's parity test reads
+// the text span and nothing else.
+//
+// WRITTEN WITH textContent AND NOTHING ELSE. A description is publisher-supplied
+// text, so angle brackets and quotes in one stay characters in a text node and
+// never become elements — there is no innerHTML and no concatenated markup on
+// this path. The browser harness in tests/support parses no markup at all, so a
+// page-level assertion could not catch a regression here; the escaping is pinned
+// by a unit test on this helper instead.
+//
+// Every class name is the caller's, because the three frames are different
+// shapes and each already owns its type and spacing. The helper adds no class of
+// its own and therefore no stylesheet rule: src/styles.css has no size headroom
+// to spend on a fourth spelling of the captions role.
+export const IMAGE_DESCRIPTION_LABEL = "Image description";
+
+export function renderImageDescriptionText(description, { className, labelClassName, textClassName } = {}) {
+  const note = document.createElement("p");
+  if (className) note.className = className;
+  const label = document.createElement("span");
+  if (labelClassName) label.className = labelClassName;
+  label.textContent = `${IMAGE_DESCRIPTION_LABEL}: `;
+  const text = document.createElement("span");
+  if (textClassName) text.className = textClassName;
+  text.textContent = description;
+  note.append(label, text);
+  return note;
+}
+
+// ---------------------------------------------------------------------------
 // The read-time failure placeholder.
 //
 // NOT the composer's preview failure. That one (#compose-preview-error in

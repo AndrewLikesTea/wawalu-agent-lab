@@ -19,7 +19,7 @@
 // Relative, not root-absolute: this module is imported by `node --test` as well
 // as by the browser, and only a relative specifier resolves in both.
 import { captionFor, countLabel, profileHref } from "./profile.js";
-import { renderImageUnavailable } from "./image-description.js";
+import { IMAGE_DESCRIPTION_LABEL, renderImageDescriptionText, renderImageUnavailable } from "./image-description.js";
 import { pageTitle } from "./page-title.js";
 import { postPermalink, renderPostCopyControl } from "./post-share.js";
 import { EXAMPLE_POST_LABEL, isExamplePost, normalizeImage } from "./social.js";
@@ -213,7 +213,10 @@ export function postImageAlt(image, caption) {
 // pasted link — that is the difference between reading the post and guessing at
 // it, so the description is drawn as text under the image, under a label saying
 // what it is.
-export const POST_IMAGE_DESCRIPTION_LABEL = "Image description";
+//
+// One word, shared: the feed and a People tile label the same sentence, so the
+// label is the shared helper's constant and this is the permalink's name for it.
+export const POST_IMAGE_DESCRIPTION_LABEL = IMAGE_DESCRIPTION_LABEL;
 
 // Read-time sibling of the composer's own preview failure in src/social-page.js
 // ("We couldn't create a preview of the uploaded image. Remove the image, upload
@@ -242,13 +245,16 @@ export const POST_IMAGE_FAILED_UNDESCRIBED_LINE = "We couldn’t show the image 
 // string that went into alt, byte for byte, which is what the parity test reads.
 // Putting the label in the same text node would make the two impossible to
 // compare and easy to let drift.
+// Drawn by the shared helper now (src/image-description.js), which is where the
+// feed and a People tile draw the same sentence from. The classes, the label and
+// the two spans are unchanged; what moved is the one copy of the rule that the
+// description is a text node of its own and is written with textContent.
 function renderImageDescription(description) {
-  const note = el("p", "description-note detail-image-description");
-  note.append(
-    el("span", "detail-image-description-label", `${POST_IMAGE_DESCRIPTION_LABEL}: `),
-    el("span", "detail-image-description-text", description),
-  );
-  return note;
+  return renderImageDescriptionText(description, {
+    className: "description-note detail-image-description",
+    labelClassName: "detail-image-description-label",
+    textClassName: "detail-image-description-text",
+  });
 }
 
 // `description` is resolved by the caller — one value, used twice, so the alt
