@@ -112,6 +112,13 @@ test("the five feed states are mutually exclusive and decided in one place", () 
   // is still the loaded state rather than a spinner drawn over content.
   assert.equal(feedPhase({ state: "loading", total: 3, visible: 3 }), "loaded");
   assert.equal(feedPhase({ state: "error", total: 3, visible: 3 }), "loaded");
+  // A refresh over a feed the filters already emptied is the wait, not the dead
+  // end: there is nothing on screen for posts to outrank, and the panel would
+  // be telling a reader their filters match nothing while the fetch that
+  // decides that is still open. The order in here is what keeps the two from
+  // ever being drawn together.
+  assert.equal(feedPhase({ state: "loading", total: 3, visible: 0, filtering: true }), "loading");
+  assert.equal(feedPhase({ state: "error", total: 3, visible: 0, filtering: true }), "failed");
 });
 
 /* ------------------------ what the waits send you to ----------------------- */
@@ -563,6 +570,77 @@ test("Social paints one of its four states at a time, each with its own way out"
   assert.equal(rendered(document, ".post-card"), 3);
   const summary = textOf(document.querySelector("#feed-summary"));
   assert.equal((summary.match(/newest first\./g) ?? []).length, 1);
+});
+
+// The crossing of these four states that no test walked, and the one place the
+// page contradicted itself over it: a load opening or failing over a feed the
+// reader's own menus had already emptied. The wait, the failure and the dead end
+// are all states with nothing on screen, and src/social-page.js puts a reader
+// standing on the dead end into the other two without their asking — the ten-
+// second refresh drops to "error" when the connection goes, and that panel's
+// Retry sets "loading" on every press.
+//
+// The status region picked one panel correctly all along. The HEADING did not:
+// it stated the filter verdict whenever any post had ever arrived, so the dead
+// end's words outlived the state that was entitled to say them. The page read
+// "Post feed: No posts by Ari from the past hour" above "Social posts could not
+// be loaded." — the verdict on the filters and the admission the feed was out of
+// reach, at once, with "Unavailable" between them. That heading is the feed
+// panel's accessible name, so it was also the first thing announced on entering
+// the region. Pinned as absence of the verdict, not as the heading's exact
+// words, plus its return on the next answer so suppressing it loses nothing.
+test("Social's filtered dead end does not outlive its state in the heading", async (t) => {
+  const page = await loadPage(SOCIAL_PAGE, {});
+  t.after(() => page.restore());
+  const { document } = page;
+  const feed = mountSocialFeed(document, { posts: MIXED, state: "ready", onRetry: () => {} });
+  const title = () => textOf(document.querySelector("#feed-title"));
+  filterToNothing(document);
+  assert.deepEqual(painted(document), { loading: 0, failed: 0, empty: 0, filtered: 1 });
+  assert.equal(title(), "Post feed: No posts by Ari from the past hour");
+
+  // THE CONNECTION DROPS. One panel, and it is the failure. The heading goes
+  // back to naming its panel, so nothing on screen still claims to have checked
+  // the filters against a feed the page cannot reach.
+  feed.setState("error");
+  assert.deepEqual(painted(document), { loading: 0, failed: 1, empty: 0, filtered: 0 });
+  assert.equal(title(), "Post feed");
+  const broken = textOf(document.body);
+  assert.doesNotMatch(broken, /No posts by Ari/);
+  assert.doesNotMatch(broken, /Select Clear filters to see all/);
+  assert.doesNotMatch(broken, /No posts on Social yet\./);
+  assert.equal(textOf(document.querySelector("#post-count")), "Unavailable");
+
+  // ITS RETRY. The same again while the second attempt is open: the wait is the
+  // one panel, and the heading makes no claim about a fetch still running. The
+  // skeletons carry .post-card, so which state this is gets read off the panels
+  // and never off a card count.
+  feed.setState("loading");
+  assert.deepEqual(painted(document), { loading: 1, failed: 0, empty: 0, filtered: 0 });
+  assert.match(textOf(document.querySelector(PANEL.loading)), /Posts are loading\./);
+  assert.equal(title(), "Post feed");
+  const waiting = textOf(document.body);
+  assert.doesNotMatch(waiting, /No posts by Ari/);
+  assert.doesNotMatch(waiting, /Select Clear filters to see all/);
+  assert.doesNotMatch(waiting, /No posts on Social yet\./);
+  assert.equal(rendered(document, ".post-card"), 0);
+
+  // THE ANSWER. The filters never moved, so the dead end is back — once, in the
+  // panel that carries the way out — and the heading vouches for the verdict
+  // again. Nothing was lost by withholding it for two states.
+  feed.setState("ready");
+  assert.deepEqual(painted(document), { loading: 0, failed: 0, empty: 0, filtered: 1 });
+  assert.equal(title(), "Post feed: No posts by Ari from the past hour");
+  const dead = textOf(document.querySelector(PANEL.filtered));
+  assert.match(dead, /No posts by Ari from the past hour\./);
+  assert.match(dead, /Select Clear filters to see all 3 posts\./);
+  assert.equal(actionLabel(document, PANEL.filtered), CLEAR_FILTERS_LABEL);
+  // Still the dead end's words and not the never-posted feed's, and the way out
+  // is said once in the text a reader is handed.
+  const answered = textOf(document.body);
+  assert.doesNotMatch(answered, /No posts on Social yet\./);
+  assert.equal(answered.split("Select Clear filters to see all 3 posts.").length - 1, 1);
+  assert.doesNotMatch(answered, /Posts are loading\./);
 });
 
 test("a Social state change speaks in the live region without taking the reader's place", async (t) => {
