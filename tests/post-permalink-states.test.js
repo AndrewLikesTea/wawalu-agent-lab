@@ -646,7 +646,7 @@ const RETIRED_DATA_SENTENCE = "Posts use no customer or production data.";
 // states where the lookup found nothing — so it reads after the post rather
 // than in front of it. A loaded post replaces it with the answer about itself
 // (#2607); the paragraph and its place in reading order are the same either way.
-const CONTEXT_SENTENCE = "The example posts on Social are invented to demonstrate Shiplog and use no customer or production data; anyone can read a post a visitor publishes.";
+const CONTEXT_SENTENCE = "Posts labelled “Example post” are invented to demonstrate Shiplog and use no customer or production data; anyone can read a post a visitor publishes.";
 // As it ships, id and all. The id is not decoration: it is the handle
 // src/post-page.js writes the per-post answer through, so a paragraph that loses
 // it keeps hedging about a post the page has already read.
@@ -824,7 +824,15 @@ test("the wait claims nothing about a post that has not arrived, and a retry tak
     for (const sentence of [POST_EXAMPLE_PROVENANCE, POST_PUBLISHED_PROVENANCE]) {
       assert.equal(times(waiting, sentence), 0, `the wait says "${sentence}" about a post it does not have`);
     }
-    assert.equal(times(waiting, EXAMPLE_POST_LABEL), 0, "the placeholder is marked as an example post");
+    // Nothing on screen is marked. The hedge quotes the marker to say what it
+    // means (#2683), so the words are on the page once, inside that paragraph —
+    // the marker itself is a badge, and a wait has no post to put one on.
+    assert.equal(page.document.querySelectorAll(".badge-example").length, 0,
+      "the placeholder is marked as an example post");
+    assert.equal(times(waiting, EXAMPLE_POST_LABEL), 1,
+      "the hedge stopped naming the marker a reader is told to look for");
+    assert.equal(times(textOf(page.document.querySelector("#post-provenance")), EXAMPLE_POST_LABEL), 1,
+      "the marker's words are on the page outside the paragraph that explains them");
 
     release();
     await waitFor(() => page.document.documentElement.dataset.shiplogPostDetail === "ready", "the post arrived");
@@ -1510,13 +1518,16 @@ test("the post page says what it is before it says it is loading", async () => {
   assert.equal(social.includes(`Social is a ${SOCIAL_DESCRIPTION}, images optional.`), false,
     "Social's feed panel defines the feed again, under a hero and beside a footer row that already do");
 
-  // Social's provenance sentence, with the one word a one-post page cannot say:
-  // "on Social" for "here". Social's copy ends there since #2648; this page has
-  // no composer, so it keeps its own clause about who can read a published post.
-  const SOCIAL_PROVENANCE = "The example posts here are invented to demonstrate Shiplog and use no customer or production data.";
+  // Social's provenance sentence, which this page now opens on verbatim: naming
+  // the invented set by the marker its posts print leaves nothing to localise
+  // (#2683), where "the example posts here" had to become "on Social" for a page
+  // that holds one post and no feed. Social's copy ends there since #2648; this
+  // page has no composer, so it keeps its own clause about who can read a
+  // published post.
+  const SOCIAL_PROVENANCE = "Posts labelled “Example post” are invented to demonstrate Shiplog and use no customer or production data.";
   assert.ok(social.includes(SOCIAL_PROVENANCE),
     "Social no longer says the provenance sentence this page follows");
-  assert.ok(CONTEXT_SENTENCE.startsWith(SOCIAL_PROVENANCE.replace("here", "on Social").replace(/\.$/, ";")),
+  assert.ok(CONTEXT_SENTENCE.startsWith(SOCIAL_PROVENANCE.replace(/\.$/, ";")),
     "this page's provenance sentence stopped opening on Social's, word for word");
 
   // The strings this page already owns are untouched, byte for byte.

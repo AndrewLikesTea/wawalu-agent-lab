@@ -222,19 +222,22 @@
              specific about, and the statement is never said twice: one paragraph,
              one claim, in one place in reading order.
 
-             Social's own provenance sentence, with the two words this page
-             cannot say: there is no "here" feed on a one-post page, and the
-             reader may be looking at a post somebody else published, so "you"
-             becomes "a visitor". A reader forwarded a real post must not be told
-             every post on Social was invented, or that it carries no customer
-             or production data: only the invented posts can promise that. They
-             are called "the example posts" here because that is what Social and
-             People call them and what the home page and Releases call the
-             seeded decisions and releases (#2549). This sentence used to say
-             "the posts already on Social"; only the noun phrase changed. What
-             the sentence says about a visitor's own post is who reads it. It
-             used to say the post "is real" (#2511), which tells a reader who
-             followed a pasted link nothing about who else can open it.
+             Social's own provenance sentence, with the one word this page
+             cannot say: the reader may be looking at a post somebody else
+             published, so "you" becomes "a visitor". A reader forwarded a real
+             post must not be told every post on Social was invented, or that it
+             carries no customer or production data: only the invented posts can
+             promise that. They are named by the marker they print —
+             EXAMPLE_POST_LABEL in src/social.js, the same two words Social's
+             cards, People's tiles and the post below carry (#2683) — so the
+             sentence points at something a reader can see rather than at a set
+             they have to identify. It used to say "the posts already on
+             Social", then "the example posts on Social" (#2549); only the noun
+             phrase changed, and Social's copy and this page's now open on the
+             same clause word for word. What the sentence says about a visitor's
+             own post is who reads it. It used to say the post "is real"
+             (#2511), which tells a reader who followed a pasted link nothing
+             about who else can open it.
 
              Who chose the name on the post follows it, in one sentence. It used
              to be Social's whole feed note — three sentences, forty words,
@@ -250,7 +253,7 @@
              holds whether the lookup found a post, found nothing, or failed.
              The class is Social's feed-note class, which is what keeps this line
              reading as a note under the post rather than as part of it. -->
-        <p id="post-provenance">The example posts on Social are invented to demonstrate Shiplog and use no customer or production data; anyone can read a post a visitor publishes.</p>
+        <p id="post-provenance">Posts labelled “Example post” are invented to demonstrate Shiplog and use no customer or production data; anyone can read a post a visitor publishes.</p>
         <p class="hint">Whoever published this post chose the display name on it; nobody owns or verifies a display name on Social.</p>
         <!-- Reporting is explained here, and only once there is a post to
              report: src/post-page.js draws a closed disclosure element into

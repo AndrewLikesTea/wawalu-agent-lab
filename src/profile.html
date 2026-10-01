@@ -408,16 +408,20 @@
                pre-hydration render and returns to People either way. -->
           <!-- Social's mirror of this paragraph, in People's terms. It opened
                the page and now follows the pictures it explains. The wording
-               rules outlive the placement: "example posts" is the site's one
-               name for the invented set (#2549) — this page used to call it
-               "the image posts already here" while Social called the same set
-               something else; the no-customer-data claim covers only that set,
+               rules outlive the placement: it names the set by the marker the
+               tiles themselves carry — "Example post", EXAMPLE_POST_LABEL in
+               src/social.js (#2683) — so a reader can look at a tile and tell
+               which pictures the sentence is about. This page used to call the
+               set "the image posts already here" while Social called it
+               something else, then both called it "the example posts" (#2549),
+               which named it without showing a reader where it was; the
+               no-customer-data claim covers only the labelled posts,
                because nothing checks what a visitor publishes; and a published
                post is described by who reads it, never as "real" (#2511), which
                beside the home page's browser-only promise read as "kept here
                for you". What publishing costs is said once, in the paragraph
                below that carries the route to the composer (#2390). -->
-          <p class="profile-lede hint">Open <a class="text-link" href="/social.html">Social</a> when you want the whole feed, including posts with no image. Select Open post to see a post on its own page, with a link you can share. The example posts here are invented to demonstrate Shiplog and use no customer or production data; anyone can read an image post you publish.</p>
+          <p class="profile-lede hint">Open <a class="text-link" href="/social.html">Social</a> when you want the whole feed, including posts with no image. Select Open post to see a post on its own page, with a link you can share. Posts labelled “Example post” are invented to demonstrate Shiplog and use no customer or production data; anyone can read an image post you publish.</p>
           <p class="feed-create hint">
             To add yours: <a class="text-link paint-link" id="profile-paint-route" href="/paint/?from=profile" target="_blank" rel="noopener">Create or open an image in Paint <span class="new-tab-note">(opens in a new tab)</span></a>. Select “Use this image in a Social post”, then fill in the required image description. <a class="text-link" id="profile-publish-route" href="/social.html#post-form">Publish a post on Social</a>. A published post with an image appears on People, under the display name you publish it with. A published post is public and cannot be edited or deleted, and anyone can select Report post on it. Do not include customer or production data.
           </p>
@@ -443,12 +447,13 @@
                against.
                What this paragraph does not do is point at Social. The intro
                states the rule and carries the link; this paragraph stays on the
-               display name it defines. It names the example posts on Social
+               display name it defines. It names the posts the site invented
                apart from every other post (#2348) rather than calling the feed
-               a demo. "The example posts" is the site's one name for that set
-               (#2549); this sentence used to say "the posts already on Social",
-               and only that noun phrase changed. -->
-          <p class="profile-role hint">Display names on the example posts on Social are invented. On any other post, whoever published it chose the name. Nobody owns or verifies a display name, and anyone can publish under any name.</p>
+               a demo, and it names them by the marker their tiles print —
+               EXAMPLE_POST_LABEL in src/social.js (#2683). This sentence used
+               to say "the posts already on Social", then "the example posts on
+               Social" (#2549), and only that noun phrase changed. -->
+          <p class="profile-role hint">Display names on posts labelled “Example post” are invented. On any other post, whoever published it chose the name. Nobody owns or verifies a display name, and anyone can publish under any name.</p>
         </div>
       </section>
       </main>

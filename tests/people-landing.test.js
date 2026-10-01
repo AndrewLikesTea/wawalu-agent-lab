@@ -210,7 +210,7 @@ test("a first-time visitor lands on a display name that has image posts", async 
     assert.equal(textOf(document.querySelector("#profile-name")), "Showing 2 image posts published as Zed, all example posts.",
       "the header names someone other than the picker's own value");
     assert.match(textOf(document.querySelector(".profile-role")),
-      /^Display names on the example posts on Social are invented\.[\s\S]*anyone can publish under any name\.$/,
+      /^Display names on posts labelled “Example post” are invented\.[\s\S]*anyone can publish under any name\.$/,
       "the display-name caveat is not the general one");
     assert.equal(textOf(document.querySelector(".profile-role")).includes("Zed"), false,
       "the caveat spends a third visible copy of the display name");
@@ -844,7 +844,7 @@ test("the display name is visible twice in the results region, and no more", asy
     // The lines that gave up their copy still say their own thing: Ari has
     // posted, just never a picture, and the counts carry that without a name.
     assert.match(textOf(document.querySelector("#profile-summary")), /^0 image posts · 1 post in total · last posted /);
-    assert.match(textOf(document.querySelector(".profile-role")), /^Display names on the example posts on Social are invented\./);
+    assert.match(textOf(document.querySelector(".profile-role")), /^Display names on posts labelled “Example post” are invented\./);
     // The announcement keeps the name, because it is heard away from the page.
     assert.match(textOf(document.querySelector("#profile-announcer")), /Ari/);
   } finally {
@@ -1211,8 +1211,9 @@ function insideDisclosure(node) {
 }
 
 // The site's one definition of a display name, in the bytes Social's feed note
-// and the post permalink render.
-const CAVEAT = "Display names on the example posts on Social are invented. On any other post, whoever published it chose the name. Nobody owns or verifies a display name, and anyone can publish under any name.";
+// renders. The invented set is named by the marker its tiles print (#2683), so a
+// reader can see which names the first sentence is about.
+const CAVEAT = "Display names on posts labelled “Example post” are invented. On any other post, whoever published it chose the name. Nobody owns or verifies a display name, and anyone can publish under any name.";
 
 // The reported defect (issue #1789): the display-name caveat closed the profile
 // header at the top of this panel, above the ordering line, above the status
@@ -1290,7 +1291,7 @@ test("once People has drawn its tiles, the display-name caveat tells both cases 
     const caveat = textOf(document.querySelector(".profile-role"));
     assert.equal(caveat, CAVEAT);
     assert.doesNotMatch(caveat, /\bdemo\b/i, "the caveat calls the posts a demo");
-    assert.match(caveat, /on the example posts on Social are invented\./);
+    assert.match(caveat, /on posts labelled “Example post” are invented\./);
     assert.match(caveat, /On any other post, whoever published it chose the name\./);
   } finally {
     page.restore();
@@ -1497,10 +1498,12 @@ test("People claims no result before its first image post, and the loaded page i
 // from Social included — that nothing on Shiplog enforces. The claim now lives
 // inside the sentence naming the invented posts, in Social's sentence, and the
 // consequences end on the instruction Social's composer gives, in the same bytes
-// (#2296). The set is named "the example posts" here, as it is on Social and the
-// permalink and as the seeded records are on the home page and Releases (#2549);
-// People's own noun stays in the clause about the visitor's own post.
-const PEOPLE_PROVENANCE = "The example posts here are invented to demonstrate Shiplog and use no customer or production data; anyone can read an image post you publish.";
+// (#2296). The set is named by the marker its tiles print, as it is on Social
+// and the permalink and as the seeded records are on the home page and Releases
+// (#2549, #2683), so "which pictures?" is answered on the tile rather than left
+// to a reader who has not scrolled yet; People's own noun stays in the clause
+// about the visitor's own post.
+const PEOPLE_PROVENANCE = "Posts labelled “Example post” are invented to demonstrate Shiplog and use no customer or production data; anyone can read an image post you publish.";
 const RETIRED_DATA_SENTENCE = "Posts use no customer or production data.";
 const PUBLISH_INSTRUCTION = "Do not include customer or production data.";
 // The four second-person sentences Social's composer used to stack, retired from

@@ -511,7 +511,7 @@ test("both destinations ship as constants, and only the People link's target nar
 // about that one post (postProvenanceSentence, #2607). That swap is the page
 // wiring's, not this renderer's — renderPostDetail() only ever touches
 // #post-detail — which is what the second test below still pins.
-const STANDING_SENTENCE = "The example posts on Social are invented to demonstrate Shiplog and use no customer or production data; anyone can read a post a visitor publishes.";
+const STANDING_SENTENCE = "Posts labelled “Example post” are invented to demonstrate Shiplog and use no customer or production data; anyone can read a post a visitor publishes.";
 
 // Every state the panel can be in, named the way a reader would name it.
 const PANEL_STATES = [
@@ -687,7 +687,7 @@ test("the post region holds exactly one state, and names it on one attribute", (
     // to any one state: a panel that painted it too would say it twice once
     // loaded. Both wordings are refused — the page's own sentence (#2408) and
     // the feed note it replaced, which must not come back through the panel.
-    assert.doesNotMatch(container.textContent, /Display names on the example posts|owns or verifies/,
+    assert.doesNotMatch(container.textContent, /Display names on posts labelled|owns or verifies/,
       `the ${name} state paints its own display-name explanation`);
     assert.equal(byClass(container, "detail-post-description").length, name === "loaded" ? 1 : 0,
       `the ${name} state's post-content explanation`);
