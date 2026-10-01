@@ -617,7 +617,7 @@ test("a post with no image renders no image element and no empty frame to hold o
 // can resolve to a post or to nothing at all, and the frame has to read the same
 // either way — so this is asserted in the missing state as well as the loaded
 // one, not just in the state that happens to work.
-const SOCIAL_LINK = "Open Social to read the whole feed";
+const SOCIAL_LINK = "Open Social to read the Social feed";
 const PEOPLE_LINK = "Open People to see Mina Okafor’s other image posts";
 // Both routes name Social; their labels explain whether to read or publish.
 const PUBLISH_LINK = "Open Social to publish a post";
@@ -1438,9 +1438,13 @@ function assertSaidOnce(document, where, provenance = CONTEXT_SENTENCE) {
 // own words for itself, for a reader who has never seen the feed. #2329: the
 // sentence telling readers to copy the address went, because the loaded post now
 // carries a Copy link to this post button that copies the post's own link.
-const SOCIAL_DESCRIPTION = "shared feed of short posts about shipped work";
+// #2698: "the feed", not "Shiplog’s shared feed". One name for this feed across
+// Social, People and this page — Social heads its own list "Social feed" and the
+// route out below reads "Open Social to read the Social feed" — so the
+// appositive here defines the feed rather than giving it a fourth name.
+const SOCIAL_DESCRIPTION = "feed of short posts about shipped work";
 const ADDRESS_SENTENCE = "Copy this page’s address to share this post.";
-const LEAD_SENTENCE = `This page is for one post from Social, Shiplog’s ${SOCIAL_DESCRIPTION}.`;
+const LEAD_SENTENCE = `This page is for one post from Social, the ${SOCIAL_DESCRIPTION}.`;
 const RETIRED_LEAD = "This page is for one post from Social; its address links to that post alone, so you can copy it to share the post.";
 const sentencesOf = (text) => text.split(/(?<=[.!?])\s+/).filter((part) => part.trim());
 // "post" and "posts" both count: a sentence that leans on the word three times
@@ -1609,7 +1613,7 @@ test("the painted page tells a cold visitor what Social is, once, and no longer 
     const blocks = document.querySelector(".hero-post").querySelectorAll("h1,p");
     const lead = textOf(blocks[blocks.findIndex((node) => node.id === "page-title") + 1]);
     assert.equal(lead, LEAD_SENTENCE);
-    assert.ok(lead.includes(`Social, Shiplog’s ${SOCIAL_DESCRIPTION}.`), "the lead must describe Social in Social's own words");
+    assert.ok(lead.includes(`Social, the ${SOCIAL_DESCRIPTION}.`), "the lead must describe Social in Social's own words");
     for (const sentence of sentencesOf(lead)) {
       assert.ok(postWordsIn(sentence) <= 2, `"${sentence}" says post more than twice`);
     }

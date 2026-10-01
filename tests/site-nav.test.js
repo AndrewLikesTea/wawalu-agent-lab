@@ -307,7 +307,10 @@ test("the profile page defines the selected name as a display name", async () =>
   // other half of a split feed, so the intro says what Social holds instead.
   assert.match(html, /<p class="profile-lede" id="page-tagline">See the image posts published under one display name\.<\/p>/,
     "the tagline no longer states the rule the paragraph below stopped repeating");
-  assert.match(html, /<p class="profile-lede hint">Open <a class="text-link" href="\/social\.html">Social<\/a> when you want the whole feed, including posts with no image\./,
+  // "the Social feed" since #2698: the one name that feed carries on every page
+  // pointing at it, where "the whole feed" named nothing a reader could match to
+  // Social's own heading. The link still wraps Social alone — the destination.
+  assert.match(html, /<p class="profile-lede hint">Open <a class="text-link" href="\/social\.html">Social<\/a> when you want the Social feed, including posts with no image\./,
     "the intro no longer opens the whole feed in the sentence that names it");
   // And it is the page's only route to Social outside the nav and the footer:
   // this paragraph used to end on a second one, three lines under the first.
@@ -356,7 +359,16 @@ test("Social and People preserve guidance explaining the other surface", async (
     const description = match[1];
     descriptions.push(description);
 
-    const mentions = description.split(other).length - 1;
+    // Once as the destination. #2698 gave the feed on Social one name across
+    // Social, People and the shared post page, and that name contains the
+    // destination's: People's description reads "Open Social when you want the
+    // Social feed", where the second "Social" is the feed's name and not the
+    // page's said twice. The feed's name comes out before counting, so the
+    // destination is still pinned to exactly one mention and no other repetition
+    // gets in. Social's own description has no "the People feed" to remove, so
+    // nothing about that half changes.
+    const named = description.split(`the ${other} feed`).join("");
+    const mentions = named.split(other).length - 1;
     assert.equal(mentions, 1, `${file}: the description must name ${other} exactly once, not ${mentions} times`);
     // Sentence-initial on both, now that the tagline above carries the rule the
     // People clause used to be joined to.

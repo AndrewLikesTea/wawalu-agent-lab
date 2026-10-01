@@ -32,7 +32,7 @@ import { importPageModule, waitFor } from "./support/page-module.js";
 const POST_PAGE = new URL("../src/post.html", import.meta.url);
 const SOCIAL_PAGE = new URL("../src/social.html", import.meta.url);
 
-const FEED_NAME = "Open Social to read the whole feed";
+const FEED_NAME = "Open Social to read the Social feed";
 const PUBLISH_NAME = "Open Social to publish a post";
 const FEED_HREF = "/social.html";
 const PUBLISH_HREF = "/social.html#post-form";
