@@ -79,6 +79,20 @@
  * this the block would keep a band of dead space under the button for the whole
  * life of the page. Not a live region, so hiding it costs no announcement. */
 #reasoning-proof-copy-availability:empty { display:none; }
+/* The copied sentence on screen (#2682), so a reader can check a figure before
+ * they forward it. Two declarations and no new hue, no new type scale and no new
+ * spacing step: every line carries .shiplog-proof-note, which is this block's own
+ * body text, so the region reads as part of the block rather than as a quotation
+ * of it. The label and the lines stack at every width, the list drops the markers
+ * and the indent a browser gives it — these are sentences, not options a reader
+ * picks between, which is why the markup keeps an explicit list role — and
+ * overflow-wrap is inherited by the lines so a long clause wraps inside the
+ * column at 390px instead of widening the page. Nothing on this page measures the
+ * viewport in script, so the narrow-width behaviour is these rules. This sheet is
+ * the releases page's own and is outside the measured evolution size budget;
+ * styles.css, which is inside it, gained nothing. */
+.reasoning-proof-copyable { display:grid; gap:8px; }
+.reasoning-proof-sentence { display:grid; gap:6px; margin:0; padding:0; list-style:none; overflow-wrap:anywhere; }
 
 /* ------------------- the coverage gap as a worklist (#2630) ---------------- */
 /* The reveal, its live status, and the worklist beside the rows. Every colour

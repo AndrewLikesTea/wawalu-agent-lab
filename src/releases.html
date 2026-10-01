@@ -408,6 +408,45 @@
           <button class="empty-action empty-action-secondary coverage-gap-toggle" id="coverage-gap-toggle" type="button" aria-pressed="false" aria-controls="coverage-gap-list" hidden>Show uncovered releases</button>
           <p class="shiplog-proof-note" id="coverage-gap-status" role="status" aria-live="polite" aria-atomic="true"></p>
         </div>
+        <!-- THE COPIED SENTENCE, ON SCREEN (#2682). The control below hands over
+             six lines, and until now the only way to find out what they said was
+             to press it and paste somewhere. A reader checking a figure before
+             they forward it — which is the whole use this block exists for — had
+             to trust the clipboard. So the payload is rendered here, one list
+             item per line, and release-reasoning-proof.js builds the lines ONCE:
+             this region and the clipboard are the same array, rendered two ways,
+             so neither can carry a figure, a word or a space the other does not.
+
+             BELOW THE DEFINITION ABOVE IT, ON PURPOSE. The sentence says nothing
+             about covered or uncovered releases, but it is placed under
+             #coverage-gap-definition all the same, because a rendered-order check
+             holds that definition to being the page's first use of the word and
+             anything inserted above it moves what the page says first.
+
+             IT SHIPS HIDDEN AND EMPTY. A sentence is six lines of provenance
+             around two numbers, and before the log loads there are no numbers:
+             authoring placeholders here would put a figure nobody counted in the
+             served bytes, and a third wait sentence in a block that already has
+             one for the figure and one for the control. The region is revealed by
+             the same call that paints it.
+
+             IT IS NOT A LIVE REGION, and that is the considered choice rather
+             than an omission. The figure above is already polite-live and carries
+             the first of these lines word for word, so announcing these too would
+             read the same two numbers twice for every count. aria-busy carries
+             the wait, exactly as the home page's evaluation-summary preview does
+             for the same shape of block. The list keeps an explicit list role
+             because its markers are removed, and it is labelled by the sentence
+             above it rather than by a heading, so the block still carries one
+             h2. No focusable element: nothing here is a control, and the page's
+             tab order is unchanged. Two declarations in releases-proof.css,
+             which is the releases page's own sheet and outside the measured
+             evolution size budget; styles.css gained nothing, and every line
+             takes the block's existing note class. -->
+        <div class="reasoning-proof-copyable" id="reasoning-proof-copyable" hidden>
+          <p class="shiplog-proof-note" id="reasoning-proof-sentence-label">What the copy control below puts on the clipboard, to read or select by hand:</p>
+          <ul class="reasoning-proof-sentence" id="reasoning-proof-sentence" role="list" aria-labelledby="reasoning-proof-sentence-label" aria-busy="true"></ul>
+        </div>
         <div class="shiplog-proof-share">
           <button class="share-button" id="reasoning-proof-copy" type="button" disabled aria-describedby="reasoning-proof-copy-status reasoning-proof-copy-availability">Copy both numbers as a sentence</button>
           <span class="share-status" id="reasoning-proof-copy-status" role="status" aria-live="polite" aria-atomic="true"></span>

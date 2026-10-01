@@ -50,8 +50,40 @@ export const REASONING_PROOF_SCOPE =
   + "the search and the filters below do not change them.";
 
 // The same fact, for a reader who has the sentence and not the page.
+//
+// "the browser it came from" and not "this browser" (#2682): the page's own
+// wording for the scope is "loaded in this browser", which is unambiguous while
+// a reader is holding the browser. Pasted into a mail by someone who was on the
+// call, "this browser" is the recipient's, and the figure becomes a claim about
+// their log. Naming it once, as somewhere else, is what makes the sentence safe
+// to forward.
 export const REASONING_PROOF_SUMMARY_SCOPE =
-  "Counted over every release loaded on the Shiplog releases page, not a filtered view.";
+  "Counted over every release loaded in the browser it came from, not a filtered view.";
+
+// WHOSE RECORDS, AS A CLAIM AND NOT A COUNT (#2682).
+//
+// reasoningProvenanceNote already says HOW MANY of the counted releases were
+// examples. This says what an example record IS, which is the half a recipient
+// who never saw the page cannot infer: a figure forwarded without it reads as a
+// statement about a real team's release history. It is a property of example
+// records rather than a sentence about this log, so it is true at zero examples
+// too — the note above it is where the reader learns there were none.
+//
+// It carries the site's pinned commitment, "no customer or production data",
+// verbatim; the example panel above states it in its own words about its own
+// records, and tests/shiplog-proof.test.js counts that statement once above the
+// recorder with this region excluded from the walk.
+export const REASONING_PROOF_SUMMARY_EXAMPLES =
+  "Example records counted here are invented to demonstrate Shiplog and use no customer or production data.";
+
+// WHERE IT CAME FROM, SO THE SOURCE IS FINDABLE (#2682). A quoted figure with
+// no source is a figure a recipient has to take on trust. "Releases" is the
+// name the site's own navigation gives this page, so a recipient looking for it
+// is looking for the word they will see; the path is relative because this
+// module is pure and the site is served from more than one origin, and a
+// hostname it invented would be a worse pointer than none.
+export const REASONING_PROOF_SUMMARY_SOURCE =
+  "Source: the Releases page of the Shiplog site, at releases.html.";
 
 // WHAT THE TWO NUMBERS ARE, IN ONE CLAUSE (#2645).
 //
@@ -170,20 +202,42 @@ export function reasoningProvenanceNote(counts = {}) {
 }
 
 /**
- * The whole proof point as plain text, for the mail or ticket it gets pasted
- * into. Pure: no DOM, no clipboard, no clock.
+ * The whole proof point as lines, which IS the deliverable (#2682).
  *
- * It carries its own scope and its own provenance, because a quoted figure
- * travels without the page around it and a reader receiving it must not have to
- * guess whether the records behind it were invented.
+ * Pure: no DOM, no clipboard, no clock. The clipboard joins these lines and the
+ * copy-by-hand region below the figure renders one node per line, so the text a
+ * reader checked on screen and the text their colleague receives cannot differ
+ * in a figure, a word or a space. A region assembled separately from the
+ * payload is a region that can lie about what was copied.
+ *
+ * EVERY NUMBER HERE IS ALREADY ON THE PAGE. The two figures come from
+ * reasoningKeptSentence — the sentence in #reasoning-proof-claim — and the
+ * split from reasoningProvenanceNote, which is #reasoning-proof-provenance.
+ * Nothing is derived: no percentage, no ratio, no "x out of y as a share",
+ * because a figure that appears only in the clipboard is a figure nobody could
+ * check against the page it claims to come from.
+ *
+ * WHAT MAKES IT STAND ALONE, in the order a recipient needs it: the figures,
+ * the rule they were counted under, which of the counted records were invented,
+ * what an invented record is, what the count was taken over, and where to find
+ * the source. The first three were already here; #2682 added the last three,
+ * because the sentence was being forwarded to people who had never seen the
+ * page and read as a claim about a real team's releases.
  */
-export function reasoningProofSummary(counts = {}) {
+export function reasoningProofSummaryLines(counts = {}) {
   return [
     `Shiplog releases: ${reasoningKeptSentence(counts)}`,
     REASONING_PROOF_RULE,
     reasoningProvenanceNote(counts),
+    REASONING_PROOF_SUMMARY_EXAMPLES,
     REASONING_PROOF_SUMMARY_SCOPE,
-  ].join("\n");
+    REASONING_PROOF_SUMMARY_SOURCE,
+  ];
+}
+
+/** The clipboard payload: the same lines, one per line. */
+export function reasoningProofSummary(counts = {}) {
+  return reasoningProofSummaryLines(counts).join("\n");
 }
 
 /**
@@ -205,6 +259,48 @@ export function renderReleaseReasoningProof(root, counts) {
   ]) {
     if (node && node.textContent !== text) node.textContent = text;
   }
+  renderReasoningProofSentence(root, counts);
+}
+
+/**
+ * Paint the copy-by-hand region: one node per payload line, in payload order.
+ *
+ * REVEALED HERE AND NOWHERE ELSE (#2682). The region ships `hidden` and empty,
+ * because the only thing it could say before the counts exist is a sentence with
+ * placeholder figures in it — and the block already has one voice for the wait
+ * (#reasoning-proof-claim) and one for why the control cannot be pressed yet
+ * (#reasoning-proof-copy-availability). A third would say it a third way.
+ *
+ * NOT A LIVE REGION, deliberately, and this is the one place the block departs
+ * from "announce what changes". #reasoning-proof-claim is already a polite live
+ * region carrying the first of these lines verbatim, so announcing this one too
+ * would read the same two figures to a screen reader twice per count — once
+ * bare, once inside six lines of provenance. `aria-busy` carries the wait
+ * instead, which is how index.html's evaluation-summary preview — the same
+ * component, a payload previewed beside its copy control — already does it.
+ *
+ * Repainted only when a line actually changed: a filter keypress moves neither
+ * figure, and rebuilding the list under the reader's selection on every
+ * keystroke would drop a hand-selected sentence mid-drag.
+ */
+export function renderReasoningProofSentence(root, counts) {
+  const list = root.querySelector("#reasoning-proof-sentence");
+  if (!list) return [];
+  const lines = reasoningProofSummaryLines(counts);
+  const painted = Array.from(list.querySelectorAll("li")).map((item) => item.textContent);
+  if (painted.length !== lines.length || lines.some((line, index) => painted[index] !== line)) {
+    list.replaceChildren();
+    for (const line of lines) {
+      const item = list.ownerDocument.createElement("li");
+      item.className = "shiplog-proof-note";
+      item.textContent = line;
+      list.append(item);
+    }
+  }
+  list.setAttribute("aria-busy", "false");
+  const region = root.querySelector("#reasoning-proof-copyable");
+  if (region) region.hidden = false;
+  return lines;
 }
 
 /**
