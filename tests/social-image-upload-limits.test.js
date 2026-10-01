@@ -21,7 +21,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
-import { DomEvent, loadPage, textOf } from "./support/browser.js";
+import { DomEvent, loadPage, textOf, typeText } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
 import { UNSUPPORTED_TYPE_ERROR, overLimitError } from "../src/publishing-media.js";
 
@@ -29,9 +29,19 @@ const PAGE = fileURLToPath(new URL("../src/social.html", import.meta.url));
 
 // The strings a visitor reads, written out rather than imported, so a silent
 // rewording fails here instead of passing against itself.
-const RECOVERY = "The invalid selection was cleared; no prior image remains selected. Convert or re-export it, then choose it again.";
-const UNSUPPORTED_TYPE = `This file is not a PNG, JPEG, GIF, or WebP. ${RECOVERY}`;
-const OVER_LIMIT = `This file is 513 KB; the maximum is 512 KB. ${RECOVERY}`;
+//
+// Two refusals, two next steps. They used to share one tail — "Convert or
+// re-export it, then choose it again" — so the message for a 513 KB PNG told the
+// reader to change the format of a file whose format was already accepted, and
+// the two messages differed only in their opening sentence. Each step is written
+// out separately below, and the test after them refuses to let either sentence
+// appear in the other's message.
+const NOTHING_HELD = "Nothing was attached.";
+const STILL_HELD = "The image you already chose is still attached, and its description is unchanged.";
+const TYPE_STEP = "Convert or re-export it as one of those formats, then choose it again.";
+const SIZE_STEP = "Export a smaller image from Paint, or choose another file.";
+const UNSUPPORTED_TYPE = `This file is not a PNG, JPEG, GIF, or WebP. ${NOTHING_HELD} ${TYPE_STEP}`;
+const OVER_LIMIT = `This file is 513 KB; the maximum is 512 KB. ${NOTHING_HELD} ${SIZE_STEP}`;
 const PREVIEW_FAILURE = "We couldn’t create an image preview. Select Remove image, then Choose image to try again.";
 
 // The composer as it is served: real markup, real wiring, no network beyond the
@@ -406,4 +416,181 @@ test("choosing an image moves no focus, and Remove image returns it to Choose im
   assert.equal(document.querySelector("#compose-media").hidden, true);
   assert.equal(document.activeElement?.id, "post-image", "Remove image did not return focus to Choose image");
   assert.equal(submitDescribedBy().split(/\s+/).includes("post-publish-reason"), false);
+});
+
+// #2693 -----------------------------------------------------------------------
+//
+// The two refusals above assert their whole message, so a shared sentence would
+// show up there. This asserts the thing that equality cannot: that neither
+// message can ever carry the other's next step. Written as two separate
+// containment checks on two separate sentences, because a single test for a
+// substring both messages happen to share is exactly how the old shared tail
+// survived — it was present in both, so nothing ever failed when it was wrong
+// for one of them.
+test("the two refusals name two different next steps, and never each other's", async (t) => {
+  const { document } = await openComposer(t);
+
+  const tooBig = textOf(await choose(document, { name: "poster.png", type: "image/png", size: 512 * 1024 + 1 }));
+  assert.ok(tooBig.includes(SIZE_STEP), `the oversized refusal does not say what to do: ${tooBig}`);
+  assert.equal(tooBig.includes(TYPE_STEP), false,
+    "the oversized refusal tells the reader to change the format of a file whose format was accepted");
+  // A format this field does take, so the size step would be a lie about why.
+  assert.equal(tooBig.includes("not a PNG"), false);
+
+  const wrongType = textOf(await choose(document, { name: "sunset.heic", type: "image/heic", size: 40_000 }));
+  assert.ok(wrongType.includes(TYPE_STEP), `the wrong-type refusal does not say what to do: ${wrongType}`);
+  assert.equal(wrongType.includes(SIZE_STEP), false,
+    "the wrong-type refusal tells the reader to shrink a file that was never too big");
+  // 40 KB, so the limit is not what stopped it and the figure has no business here.
+  assert.equal(wrongType.includes("512 KB"), false);
+  assert.notEqual(tooBig, wrongType);
+});
+
+// The criterion this issue turns on. A file the field refuses is not a change to
+// the post: it was never attached, so it cannot take an image that was. The
+// composer used to say the opposite in words ("the invalid selection was
+// cleared") and then act on it, disabling Publish post over an image it had
+// already accepted and telling the reader publishing was unavailable until they
+// chose a supported image — while a supported image sat in the preview directly
+// above that sentence.
+test("a refused file leaves an accepted image attached, described, and publishable", async (t) => {
+  const { document } = await openComposer(t);
+  await chooseValid(t, document, { name: "ring.png", type: "image/png", size: 4_000 });
+  const alt = document.querySelector("#post-image-alt");
+  alt.focus();
+  typeText(document, "A brass ring on grey paper");
+  const preview = document.querySelector("#compose-preview-image").getAttribute("src");
+  const caption = textOf(document.querySelector("#compose-preview-caption"));
+
+  const error = await choose(document, { name: "sunset.heic", type: "image/heic", size: 40_000 });
+
+  // The refusal says which of the two states the composer is in, rather than one
+  // sentence that is true in neither.
+  assert.equal(textOf(error), `⚠This file is not a PNG, JPEG, GIF, or WebP. ${STILL_HELD} ${TYPE_STEP}`);
+  assert.equal(textOf(error).includes(NOTHING_HELD), false,
+    "a composer still holding an image reported that nothing was attached");
+
+  // Still attached: same preview, same measurement, same control to take it off.
+  assert.equal(document.querySelector("#compose-media").hidden, false);
+  assert.equal(document.querySelector("#compose-preview-image").getAttribute("src"), preview);
+  assert.equal(textOf(document.querySelector("#compose-preview-caption")), caption);
+  assert.equal(removeImageControls(document).length, 1);
+  // Still described: the text the reader typed is not collateral.
+  assert.equal(alt.value, "A brass ring on grey paper");
+  // Still publishable, and not claimed otherwise. The blocker is for a composer
+  // with nothing valid in it; this one has an image and a description.
+  assert.equal(document.querySelector("#post-submit").disabled, false);
+  assert.equal(textOf(document.querySelector("#post-publish-blocker")), "");
+  assert.equal(document.querySelector("#post-publish-blocker").hidden, true);
+  // The picker itself is empty, marked, and described by the refusal in addition
+  // to the three descriptions it ships with — appended, not overwritten.
+  const input = document.querySelector("#post-image");
+  assert.equal(input.value, "");
+  assert.equal(input.getAttribute("aria-invalid"), "true");
+  assert.equal(input.getAttribute("aria-describedby"),
+    "post-image-hint post-image-steps post-media-status post-image-error");
+});
+
+// Nothing attached is the other half, and it is a different sentence: an empty
+// composer whose reader just tried to attach an image is held back, because
+// publishing now would publish the post without the image they chose.
+test("an oversized file attaches nothing and says so", async (t) => {
+  const { document } = await openComposer(t);
+
+  const error = await choose(document, { name: "poster.png", type: "image/png", size: 512 * 1024 + 1 });
+
+  assert.equal(textOf(error), `⚠${OVER_LIMIT}`);
+  assert.equal(document.querySelector("#compose-media").hidden, true);
+  assert.equal(document.querySelector("#compose-preview-image").getAttribute("src"), null);
+  assert.equal(removeImageControls(document).length, 0);
+  assert.equal(document.querySelector("#post-image").value, "");
+  assert.equal(document.querySelector("#post-image-alt").value, "");
+  assert.equal(document.querySelector("#post-submit").disabled, true);
+});
+
+// Where the reader is standing when the refusal is drawn. The control that took
+// the file is the control that takes the next one, so keyboard focus is on it —
+// read directly, because pressTab in this harness restarts at the first stop and
+// would answer a different question.
+test("focus is on Choose image after either refusal", async (t) => {
+  const { document } = await openComposer(t);
+  document.querySelector("#post-body").focus();
+
+  await choose(document, { name: "poster.png", type: "image/png", size: 512 * 1024 + 1 });
+  assert.equal(document.activeElement?.id, "post-image",
+    "the oversized refusal left focus away from Choose image");
+
+  document.querySelector("#post-body").focus();
+  await choose(document, { name: "sunset.heic", type: "image/heic", size: 40_000 });
+  assert.equal(document.activeElement?.id, "post-image",
+    "the wrong-type refusal left focus away from Choose image");
+});
+
+// The refusal goes when the image it was shown beside goes. Remove image is the
+// one control here whose whole job is to change this state, so a message about a
+// file naming an attachment that no longer exists must not outlive it.
+test("Remove image clears the refusal along with the image", async (t) => {
+  const { document } = await openComposer(t);
+  await chooseValid(t, document, { name: "ring.png", type: "image/png", size: 4_000 });
+  const error = await choose(document, { name: "sunset.heic", type: "image/heic", size: 40_000 });
+  assert.equal(error.hidden, false);
+
+  document.querySelector("#remove-image").click();
+
+  assert.equal(error.hidden, true);
+  assert.equal(textOf(error), "");
+  const input = document.querySelector("#post-image");
+  assert.equal(input.getAttribute("aria-invalid"), null);
+  assert.equal(input.getAttribute("aria-describedby"), "post-image-hint post-image-steps post-media-status");
+  assert.equal(document.querySelector("#compose-media").hidden, true);
+  assert.equal(removeImageControls(document).length, 0);
+  assert.equal(document.activeElement?.id, "post-image");
+});
+
+// Every live region inside the composer, by id, so "the refusal added one" is a
+// fact about the whole panel rather than about the elements this test thought to
+// name. The universal selector throws in this harness and descendant selectors
+// throw with it, so this walks the tree; text nodes sit in `children` with a
+// truthy tagName, so the filter is on getAttribute, not on tagName.
+function liveRegions(root) {
+  const found = [];
+  const walk = (node) => {
+    for (const child of node.children ?? []) {
+      if (typeof child.getAttribute !== "function") continue;
+      const role = child.getAttribute("role");
+      if (child.getAttribute("aria-live") || role === "alert" || role === "status") {
+        found.push(child.getAttribute("id") || child.getAttribute("class") || role);
+      }
+      walk(child);
+    }
+  };
+  walk(root);
+  return found.sort();
+}
+
+// One treatment for every refusal in this form, and no new region for this one.
+test("the refusal is announced in the composer's existing region, in the existing treatment", async (t) => {
+  const { document } = await openComposer(t);
+  const panel = document.querySelector("#post-compose-panel");
+  const before = liveRegions(panel);
+
+  const error = await choose(document, { name: "sunset.heic", type: "image/heic", size: 40_000 });
+
+  // role="alert" is a live region, and it is this element — the same element,
+  // role and classes the missing-image-description refusal uses, so a reader
+  // meets one shape of bad news per field rather than two.
+  assert.equal(error.getAttribute("role"), "alert");
+  assert.equal(error.getAttribute("class"), "field-error compose-error");
+  assert.equal(document.querySelector("#post-image-alt-error").getAttribute("class"), "field-error compose-error");
+  assert.equal(document.querySelector("#post-image-alt-error").getAttribute("role"), "alert");
+  assert.deepEqual(liveRegions(panel), before,
+    "the refusal introduced a second live region into the composer");
+  assert.ok(before.includes("post-image-error"), "the refusal is not drawn in a live region at all");
+  // And the polite status line stays empty: the same news said in an alert and
+  // in a status is one press answered twice.
+  assert.equal(textOf(document.querySelector("#post-media-status")), "");
+  // The problem is in words, so colour is never carrying it. The mark beside it
+  // is hidden from the announcement, which is why the sentence has to be whole.
+  assert.ok(textOf(error).includes("This file is not a PNG, JPEG, GIF, or WebP."));
+  assert.equal(error.querySelector(".field-error-mark").getAttribute("aria-hidden"), "true");
 });
