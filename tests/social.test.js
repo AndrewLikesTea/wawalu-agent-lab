@@ -657,7 +657,7 @@ test("the feed says who wrote the posts, where the posts are", async (t) => {
   // intro is named rather than counted: since #2556 the hero also carries the
   // description of the "Ask about Shiplog" route.
   assert.equal(textOf(page.document.querySelector("#page-tagline")),
-    "Read every post, and publish your own.");
+    "Read short posts about shipped work, and publish your own.");
   const intro = textOf(page.document.querySelector(".social-feed-intro"));
   assert.doesNotMatch(intro, /Display names|whoever published it/,
     "the intro says who wrote the posts a second time, four screens from a card");
@@ -687,24 +687,29 @@ test("the feed says who wrote the posts, where the posts are", async (t) => {
     "the supporting introduction states the demo-data fact once");
   assert.doesNotMatch(intro, /demo feed/,
     "the intro must not classify the shared feed as a demo");
-  // What the feed holds is said once on the page, and not here (#2648). The
-  // hero's tagline says what a visitor does on Social, the footer's destination
-  // row says what the posts are, and this paragraph used to define the feed a
-  // third time one screen under both. It now opens on the one thing neither of
-  // them says: which neighbouring surface to open instead.
+  // What the feed holds is said once on the page, and not here (#2648, #2688).
+  // The hero's tagline says it, in the reading half of what a visitor does
+  // here; this paragraph used to define the feed a second time one screen
+  // under it. It now opens on the one thing the tagline does not say: which
+  // neighbouring surface to open instead.
   assert.match(intro, /^Open People when you want the image posts from one display name\./,
     "the intro stopped opening on the surface a visitor confuses the feed with");
   assert.doesNotMatch(intro, /Social is a shared feed/,
     "the intro defines Social again, under a hero that already did");
 
-  // Counted region by region, because the phrase is allowed in exactly one
-  // place: the footer's destination list, which every page carries. Outside
-  // that list it survives once on Social — in the footer's own follow-up topic
-  // line, which quotes the destination row it sends the request about.
+  // Counted region by region, because the phrase belongs in exactly two places
+  // on this page. In the body it is the heading block's and nothing else's: a
+  // visitor who lands on Social cold reads it there and nowhere later (#2688),
+  // so the feed summary, the feed note and the composer may not repeat it. In
+  // the chrome it is the footer's destination list, which every page carries,
+  // plus the footer's own follow-up topic line, which quotes the destination
+  // row it sends the request about.
   const FEED_HOLDS = "short posts about shipped work";
   const times = (text) => text.split(FEED_HOLDS).length - 1;
-  assert.equal(times(textOf(page.document.querySelector("#main-content"))), 0,
-    "the page body says what the feed holds again, outside the footer's destination list");
+  assert.equal(times(textOf(page.document.querySelector("#main-content"))), 1,
+    "the page body says what the feed holds other than exactly once");
+  assert.equal(times(textOf(page.document.querySelector("#page-tagline"))), 1,
+    "the one place the body says what the feed holds is no longer the tagline");
   const directory = times(textOf(page.document.querySelector(".site-footer-demos")));
   assert.equal(directory, 1, "the footer's destination list stopped saying what Social holds");
   assert.equal(times(textOf(page.document.querySelector("#site-footer"))) - directory, 1,
