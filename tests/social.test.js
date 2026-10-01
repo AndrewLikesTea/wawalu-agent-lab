@@ -2035,7 +2035,7 @@ test("the composer's three cautions still read word for word once it is open", a
   id("compose-media").hidden = false;
 
   const cautions = {
-    "post-image-alt-hint": "Describe what matters in the image for people who cannot see it. Up to 200 characters.",
+    "post-image-alt-hint": "Describe what matters in the image. It is published with the post as text everyone can read, and read aloud to people who cannot see the image. Up to 200 characters.",
     "post-author-hint": AUTHOR_HINT,
     // The fourth entry here was #post-author-identity, "People groups image
     // posts under this display name." It is deleted, not reworded: the image

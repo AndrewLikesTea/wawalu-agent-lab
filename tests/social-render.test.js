@@ -105,8 +105,12 @@ test("an image post renders as a figure with the caption as its figcaption", () 
   assert.equal(people.tagName, "A");
   assert.equal(people.href, "/profile.html?author=Mina");
   assert.equal(people.textContent, "See Mina’s image posts on People");
-  assert.equal(first(card, "post-image-description").textContent,
-    "Image description: A card wrapped in a blue focus ring");
+  // Labelled in words, and the description itself is a node of its own holding
+  // the identical string the alt above it holds — the label is a sibling span,
+  // never a prefix in the same text node, so the two can be compared with ===.
+  assert.equal(first(card, "post-image-description-label").textContent.trim(), "Image description:");
+  assert.equal(first(card, "post-image-description-text").textContent, "A card wrapped in a blue focus ring");
+  assert.equal(first(card, "post-image-description-text").textContent, img.alt);
   assert.equal(img.getAttribute("aria-describedby"), first(card, "post-image-description").id);
 });
 

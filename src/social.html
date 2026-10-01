@@ -657,7 +657,17 @@
                   <textarea id="post-image-alt" name="image-alt" rows="2" maxlength="200"
                     aria-describedby="post-image-alt-hint post-image-alt-requirement post-image-alt-counter-label post-image-alt-counter"></textarea>
                   <p class="field-error compose-error" id="post-image-alt-error" role="alert" hidden></p>
-                  <span class="hint" id="post-image-alt-hint">Describe what matters in the image for people who cannot see it. Up to 200 characters.</span>
+                  <!-- Who reads this description, said completely. It used to
+                       name one audience — "for people who cannot see it" — which
+                       described an alt attribute and nothing else, and was out
+                       of date the moment the feed, People and the shared post
+                       page started printing the description on screen under a
+                       label. A poster writing here is writing public text that
+                       travels with the post wherever it is read, and the hint
+                       says so before they type it rather than after they see it
+                       published. The limit clause closes it, in the caption
+                       field's own form, as it always did. -->
+                  <span class="hint" id="post-image-alt-hint">Describe what matters in the image. It is published with the post as text everyone can read, and read aloud to people who cannot see the image. Up to 200 characters.</span>
                   <!-- The consequence of leaving this field empty, said once, at
                        the field, and only once there is an image to describe:
                        this region is revealed with the preview. It names no

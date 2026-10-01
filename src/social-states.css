@@ -10,11 +10,23 @@
    unbroken body, a URL, a 60-char display name. `anywhere` rather than
    `break-word` because only it shrinks min-content, which is what lets a flex
    or grid child narrow instead of widening the page. Nothing here clips. */
-.post-body,.post-caption,.post-title,.post-name,.post-author,.post-people,.post-image-description,.post-media-fallback,.profile-media-fallback,.media-fallback-text,.profile-tile-caption,.profile-active-filter,.profile-summary,.profile-identity-text h2,.feed-summary,.detail-caption,.detail-body,.detail-author-link,.detail-image-description,.detail-post-description,#profile-social-route a,.profile-filter-option,#post-name-filter { min-width:0; max-width:100%; overflow-wrap:anywhere; }
+.post-body,.post-caption,.post-title,.post-name,.post-author,.post-people,.post-image-description,.post-media-fallback,.profile-media-fallback,.media-fallback-text,.profile-tile-caption,.profile-tile-description,.profile-active-filter,.profile-summary,.profile-identity-text h2,.feed-summary,.detail-caption,.detail-body,.detail-author-link,.detail-image-description,.detail-post-description,#profile-social-route a,.profile-filter-option,#post-name-filter { min-width:0; max-width:100%; overflow-wrap:anywhere; }
 /* A native select sizes to its longest option; the cap above keeps it in its column. */
 .social-toolbar .filter { min-width:min(150px,100%); }
 /* A failed tile grows to hold its whole description instead of cropping it. */
 .post-media[data-state="error"],.profile-media[data-state="error"] { overflow:visible; }
+
+/* A People tile's image description and its missing-description note carry the
+   captions role from .description-note in styles.css — ink-3, 11px, the
+   monospace face, exactly as the feed and the permalink draw the same sentence.
+   The only thing they need that the shared class cannot give them is this tile's
+   own horizontal padding: a tile's image is full-bleed and its caption, meta row
+   and action all inset by 14px, so without this the one line of text in the tile
+   would start at the border. Padding only — no second type size, no second hue.
+   Here rather than in styles.css because this sheet is the one both Social
+   surfaces already load and is outside the initial-payload size budget that
+   styles.css is measured against. */
+.profile-figure .description-note { padding:0 14px; }
 
 /* The shared disclosure must accommodate long display names and keyboard focus. */
 #post-report-panel { position:static; min-width:0; overflow-wrap:anywhere; }
