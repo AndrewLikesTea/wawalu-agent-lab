@@ -46,7 +46,7 @@ const HOME_LABEL = "Request a demonstration";
 // other five pages already use — instead of instructing a reader to go and use
 // the form themselves. It names what is shown, never what is sent: the topic
 // stays on this page, and the sentence beside the field says so too.
-const HOME_DESCRIPTION = "Both actions move you to the follow-up form at the foot of this page and name your chosen topic above its field. The form sends your work email address and nothing else. A person replies by email, usually within two working days.";
+const HOME_DESCRIPTION = "Both actions move you to the follow-up form at the foot of this page and name your chosen topic above its field. The form sends your work email address and nothing else.";
 
 const PANEL_ID = ASK_ABOUT_SHIPLOG_HREF.slice(1);
 
@@ -110,6 +110,15 @@ for (const [name, open] of CARRIERS) {
     assert.equal(textOf(described[0]), name === "the home page" ? HOME_DESCRIPTION : ASK_ABOUT_SHIPLOG_DESCRIPTION);
     assert.equal(tabSequence(document).filter((node) => node === described[0]).length, 0,
       `${name}: the description became a tab stop`);
+
+    // #2689: and the caption does not make the promise the form it points at
+    // already makes. Painted, and counted across the whole page: the footer
+    // here is drawn by site-footer.js, so the one surviving copy is the one a
+    // reader meets beside the work-email field.
+    const replies = document.querySelectorAll("p").filter((node) => textOf(node) === FOLLOW_UP_REPLY);
+    assert.equal(replies.length, 1, `${name}: the reply promise is painted ${replies.length} times`);
+    assert.equal(replies[0].getAttribute("id"), "site-footer-reply",
+      `${name}: the surviving copy is not the form's own`);
   });
 
   test(`${name} lands the route on the form, not merely at its scroll position`, async (t) => {
@@ -186,8 +195,9 @@ for (const [name, open] of CARRIERS) {
 // #2556. "Ask about Shiplog" is a errand with no destination in it: a reader
 // who had not already scrolled to the foot of the page could reasonably expect
 // a mail client, a pricing page, or a new tab. The line below the label says
-// where it goes, what the form there asks for, and what comes back — and it is
-// the same line, from one constant, on all six pages that carry the route.
+// where it goes and what the form there asks for — and it is the same line,
+// from one constant, on all six pages that carry the route. What comes back is
+// promised at the form and only there, which is what #2689 counts below.
 const CARRYING_PAGES = [
   "index.html", "releases.html", "coach.html", "social.html", "profile.html", "agents.html",
 ];
@@ -195,9 +205,9 @@ const CARRYING_PAGES = [
 const readPage = async (file) => parseHtml(
   await readFile(new URL(`../src/${file}`, import.meta.url), "utf8"));
 
-test("the sentence itself says where, what is asked, and what comes back — and promises nothing else", () => {
-  // Two sentences, no more: this is a caption under a link, not a section.
-  assert.equal((ASK_ABOUT_SHIPLOG_DESCRIPTION.match(/[.!?]/g) ?? []).length, 2);
+test("the sentence itself says where and what is asked — and promises nothing else", () => {
+  // One sentence, no more: this is a caption under a link, not a section.
+  assert.equal((ASK_ABOUT_SHIPLOG_DESCRIPTION.match(/[.!?]/g) ?? []).length, 1);
   assert.ok(ASK_ABOUT_SHIPLOG_DESCRIPTION.startsWith(ASK_ABOUT_SHIPLOG_LABEL),
     "it must name the control it describes, because it reads below a row that may hold two");
 
@@ -211,11 +221,14 @@ test("the sentence itself says where, what is asked, and what comes back — and
       `the description does not say the form asks for ${asked}`);
   }
 
-  // What comes back is the form's own sentence, byte for byte, rather than a
-  // paraphrase of it. A reader who follows the route meets the same words
-  // above the button; two wordings would be two promises to reconcile.
-  assert.ok(ASK_ABOUT_SHIPLOG_DESCRIPTION.endsWith(FOLLOW_UP_REPLY),
-    `the reply window has drifted from the form's own sentence: ${FOLLOW_UP_REPLY}`);
+  // What comes back is NOT said here. #2689: the caption used to end on
+  // FOLLOW_UP_REPLY byte for byte, and the form it points at renders the same
+  // sentence above its button, so a reader met one promise twice inside a
+  // scroll. It is made once, where it is made: at the form.
+  assert.ok(!ASK_ABOUT_SHIPLOG_DESCRIPTION.includes(FOLLOW_UP_REPLY),
+    "the caption repeats the promise the form makes beside its own button");
+  assert.doesNotMatch(ASK_ABOUT_SHIPLOG_DESCRIPTION, /\breplie?s?\b|working days/i,
+    "a paraphrase of the reply window is the same duplicate in other words");
 
   // And nothing this site cannot answer here. Availability and price are
   // answered on request, which is what the form is for.
@@ -248,6 +261,16 @@ test("all six pages carry their follow-up description once at the label", async 
     assert.equal(document.getElementById("site-footer")
       .querySelectorAll(`#${ASK_ABOUT_SHIPLOG_DESCRIPTION_ID}`).length, 0,
       `${file}: the description is repeated beside the form it points at`);
+
+    // And the promise the form makes is made once on the whole page, at the
+    // form. #2689: the caption ended on the same sentence, so these pages said
+    // it twice within one scroll — once describing a destination and once at
+    // it. Counted across the document rather than inside the caption, so
+    // putting the duplicate back anywhere fails here.
+    const replies = document.querySelectorAll("p").filter((node) => textOf(node) === FOLLOW_UP_REPLY);
+    assert.equal(replies.length, 1, `${file}: the reply promise ships ${replies.length} times`);
+    assert.equal(replies[0].getAttribute("id"), "site-footer-reply",
+      `${file}: the surviving copy is not the one beside the work-email field`);
 
     // Static text, not a second control: every page here is at or near its
     // tab-stop budget, and a focusable above the first screen reds a test on
@@ -355,11 +378,13 @@ test("the line costs no control, and the ask still says how the request is sent"
   assert.equal(tabSequence(document).filter((node) => node === line).length, 0,
     "the line became a tab stop");
 
-  // The row still carries what it carried: the form the request goes through and
-  // the reply that comes back, in the form's own sentence.
+  // The row still carries what it carried: the form the request goes through.
+  // What comes back is not promised here — #2689 left that sentence at the
+  // form, and the page-wide count above pins it to one copy.
   const row = textOf(line.parentNode);
   assert.match(row, /follow-up form at the foot of this page/);
-  assert.ok(row.includes(FOLLOW_UP_REPLY), `the row no longer says: ${FOLLOW_UP_REPLY}`);
+  assert.ok(!row.includes(FOLLOW_UP_REPLY),
+    `the row promises a reply the form below already promises: ${FOLLOW_UP_REPLY}`);
 
   // And the answer above it is said once, not twice: the offer paragraph states
   // the signup and price position, and the new line does not restate it.

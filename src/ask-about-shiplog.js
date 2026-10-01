@@ -52,18 +52,15 @@ export const ASK_ABOUT_SHIPLOG_HREF = "#site-footer-panel";
 export const ASK_ABOUT_SHIPLOG_DESCRIPTION_ID = "ask-about-shiplog-description";
 
 /**
- * What the label alone does not say: where the route goes, what the form there
- * asks for, and what comes back. Issue #2556 — "Ask about Shiplog" read as a
- * mail client, a pricing page or a new tab to anyone who had not already
- * scrolled to the foot of the page.
+ * What the label alone does not say: where the route goes and what the form
+ * there asks for. Issue #2556 — "Ask about Shiplog" read as a mail client, a
+ * pricing page or a new tab to anyone who had not already scrolled to the foot
+ * of the page.
  *
- * THE SECOND SENTENCE IS NOT WRITTEN HERE. It is FOLLOW_UP_REPLY from
- * lead-capture.js, byte for byte, because the form itself renders that sentence
- * above its button and a reader who arrives should meet the same words twice
- * rather than two promises to reconcile. It is copied rather than imported: this
- * module is the whole of what six pages load for the route, and importing the
- * lead-capture graph to spell one sentence would put a form module on pages that
- * only need a focus move. tests/ask-about-shiplog.test.js compares the two.
+ * THE REPLY WINDOW IS NOT SAID HERE. #2689: this caption and the form it points
+ * at both spelled FOLLOW_UP_REPLY, so five pages made one promise twice inside a
+ * scroll. The sentence stays where the promise is made — beside the submit, from
+ * lead-capture.js — and tests/ask-about-shiplog.test.js counts it once per page.
  *
  * It promises no price, no quote and no signup, because the site's answer to
  * both is that there is no self-serve signup and no published price and that
@@ -73,7 +70,7 @@ export const ASK_ABOUT_SHIPLOG_DESCRIPTION_ID = "ask-about-shiplog-description";
 export const ASK_ABOUT_SHIPLOG_DESCRIPTION =
   "Ask about Shiplog moves you to the follow-up form at the foot of this page,"
   + " which asks for a work email address, what you want to discuss and an"
-  + " optional note. A person replies by email, usually within two working days.";
+  + " optional note.";
 
 /**
  * Wire the route on a page that ships it. Returns a teardown, or null when this

@@ -5,6 +5,7 @@ import { loadPage, pressEnter, tabSequence, textOf } from "./support/browser.js"
 import { importPageModule, waitFor } from "./support/page-module.js";
 import { initSiteFooter } from "../src/site-footer.js";
 import { FOLLOW_UP_TOPICS } from "../src/leads.js";
+import { FOLLOW_UP_REPLY } from "../src/lead-capture.js";
 import {
   ASK_ABOUT_SHIPLOG_DESCRIPTION, ASK_ABOUT_SHIPLOG_DESCRIPTION_ID,
 } from "../src/ask-about-shiplog.js";
@@ -72,6 +73,15 @@ for (const [name, purpose, heroSelector] of pages) {
       assert.ok(!tabSequence(document).includes(panel), "focus target adds no tab stop");
       assert.ok(panel.querySelector("#site-footer-form") === form);
       assert.equal(email.value, "reader@example.com", "jump preserves entered values");
+      // #2689: the reader who just arrived at the form meets the reply promise
+      // for the first time here, not for the second. The caption they followed
+      // used to end on the same sentence. Counted on the painted page after the
+      // footer's own module ran, so the one surviving copy is the form's.
+      const replies = document.querySelectorAll("p").filter((node) => textOf(node) === FOLLOW_UP_REPLY);
+      assert.equal(replies.length, 1, `${name}: the reply promise is painted ${replies.length} times`);
+      assert.ok(form.querySelector("#site-footer-reply") === replies[0],
+        `${name}: the surviving copy is not the one inside the follow-up form`);
+
       assert.equal(form.dataset.followUpType, purpose);
       assert.equal(form.dataset.followUpTopic, FOLLOW_UP_TOPICS[purpose]);
       assert.ok(textOf(document.querySelector("#site-footer-topic-note")).includes(FOLLOW_UP_TOPICS[purpose]));
