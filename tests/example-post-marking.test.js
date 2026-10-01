@@ -5,7 +5,10 @@
 //
 // So each post that is invented now prints two words, "Example post", and each
 // list says in its own summary sentence how many of the posts on screen are.
-// Three rules hold this together, and this file is the one place they are all
+// The caveats then stopped naming a set the reader had to find and started
+// quoting the marker instead — "Posts labelled 'Example post' are invented…"
+// (#2683) — so the sentence and the cards under it answer the same question.
+// Four rules hold this together, and this file is the one place they are all
 // pinned at once:
 //
 //   1. The label is the exception. A post a visitor published carries NO marker
@@ -18,6 +21,10 @@
 //   3. Loading placeholders say nothing. They carry the same .post-card and
 //      .profile-tile classes as real content, so every count here subtracts the
 //      -skeleton elements rather than trusting the class alone.
+//   4. Every caveat that points at the label quotes EXAMPLE_POST_LABEL itself.
+//      Three pages ship that wording in authored markup, so the only thing
+//      stopping the sentence and the badge from drifting apart is a test that
+//      builds the expected words from the constant the badge is drawn with.
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -131,7 +138,11 @@ test("a wholly published Social feed says nothing about examples and marks nothi
   assert.equal(realCards(document).length, 2);
   assert.equal(markers(document).length, 0);
   assert.equal(textOf(document.querySelector("#feed-summary")), "Showing 2 posts, newest first.");
-  assert.doesNotMatch(textOf(document.querySelector(".list-panel")), /Example post/);
+  // Nothing in the feed names the label. The panel's own caveats quote it to say
+  // what it means (#2683), so the words are asserted off the cards rather than
+  // off the panel they sit in.
+  for (const card of realCards(document))
+    assert.doesNotMatch(textOf(card), /Example post/, "a post a visitor published carries the words anyway");
 });
 
 test("Social's loading placeholders carry no label and no count", async (t) => {
@@ -276,4 +287,49 @@ test("the normalizers carry source through, so a published post reaches the rend
   assert.equal(isExamplePost(fromSeed), true);
   const [seedWithSource] = normalizeSeedPosts([published("seed-post-2", "Mina", "13")]);
   assert.equal(seedWithSource.source, "shiplog-web");
+});
+
+/* ------------------------------- the caveats ------------------------------- */
+
+// The other half of the label: the sentences that tell a reader it is there.
+//
+// Each page used to say some of the posts on it were invented and leave the
+// reader to work out which — "The example posts here are invented…" over a feed
+// where nothing distinguished one post from another (#2683). Each now quotes the
+// marker instead, so the sentence names something the reader can look at.
+//
+// Three pages ship that wording as authored markup, which is the one place it
+// could drift from the badge. The expected words are built from
+// EXAMPLE_POST_LABEL here rather than typed out a fourth time, so renaming the
+// label fails this test instead of quietly leaving three caveats pointing at a
+// marker no post carries. The quotation marks are the site's typographic ones,
+// as in every other quoted control name in these pages' prose.
+const QUOTED_LABEL = `labelled “${EXAMPLE_POST_LABEL}”`;
+
+test("every caveat that points at the label quotes the label the posts are drawn with", async (t) => {
+  const caveats = {
+    "social.html": [".social-feed-intro", "#feed-source-note"],
+    "profile.html": [".profile-lede.hint", ".profile-role"],
+    // One paragraph on the permalink, and it is the standing hedge: src/post-page.js
+    // replaces it with the answer about the loaded post, which names no marker.
+    "post.html": ["#post-provenance"],
+  };
+
+  for (const [file, selectors] of Object.entries(caveats)) {
+    const page = await loadPage(new URL(`../src/${file}`, import.meta.url), {});
+    t.after(() => page.restore());
+    for (const selector of selectors) {
+      assert.equal(page.document.querySelectorAll(selector).length, 1,
+        `${file}: ${selector} is not on the page exactly once`);
+      const text = textOf(page.document.querySelector(selector));
+      assert.ok(text.includes(QUOTED_LABEL),
+        `${file}: ${selector} asks the reader to identify the invented posts instead of quoting the label: ${text}`);
+      // Once, and the old wording never beside it: a caveat that said both would
+      // be giving the set two names in one paragraph.
+      assert.equal(text.split(QUOTED_LABEL).length - 1, 1,
+        `${file}: ${selector} quotes the label more than once`);
+      assert.doesNotMatch(text, /the example posts/i,
+        `${file}: ${selector} still names the set a reader cannot see`);
+    }
+  }
 });

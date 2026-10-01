@@ -604,7 +604,7 @@ test("Social's homepage directory explains publishing, while a permalink explain
   // The permalink's standing copy is post-specific and does not repeat the
   // generic feed description beside it.
   const permalink = parseHtml(await read("post.html")).querySelector("#main-content");
-  assert.ok(textOf(permalink).includes("The example posts on Social are invented to demonstrate Shiplog and use no customer or production data; anyone can read a post a visitor publishes."));
+  assert.ok(textOf(permalink).includes("Posts labelled “Example post” are invented to demonstrate Shiplog and use no customer or production data; anyone can read a post a visitor publishes."));
   assert.equal(textOf(permalink).includes(PURPOSE), false,
     "the post permalink repeats the generic Social description beside the post-specific explanation");
 
@@ -619,9 +619,11 @@ test("Social's homepage directory explains publishing, while a permalink explain
   // third time one screen under both. It never called the feed a "demo" one
   // either: the eyebrow and the demo-data sentence carry that.
   // Named rather than counted: the hero also carries the "Ask about Shiplog"
-  // description (#2556), so the intro is not the third paragraph any more.
+  // description (#2556), so the intro is not the third paragraph any more. What
+  // the posts are made of is stated by quoting the marker the invented ones
+  // print rather than by naming a set the reader has to pick out (#2683).
   const intro = textOf(parseHtml(await read("social.html")).querySelector(".social-feed-intro"));
-  for (const fact of ["People", "Open post", "example posts"]) {
+  for (const fact of ["People", "Open post", "Example post"]) {
     assert.ok(intro.includes(fact), `Social's intro no longer tells a first-time visitor about ${fact}`);
   }
 

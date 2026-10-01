@@ -361,7 +361,7 @@ export const POST_LOADED_DESCRIPTION = "This post shows the display name used to
 
 // What this one post is, once the lookup has read it (#2607).
 //
-// Social and People may hedge — "The example posts here are invented to
+// Social and People may hedge — "Posts labelled 'Example post' are invented to
 // demonstrate Shiplog…" — because they show a list, and the badge on each card
 // says which of them the sentence is about. A permalink holds exactly one post,
 // so the same hedge was the page declining to answer the only provenance
