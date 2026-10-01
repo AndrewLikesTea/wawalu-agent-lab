@@ -162,6 +162,15 @@
            (#2423), so a reader who follows the front door's link here meets the
            same words they left.
 
+           WHAT THE OTHER TWO OUTCOMES MEAN IS AUTHORED BESIDE IT (#2681). The
+           lead says what a match proves; the line under it says what a
+           mismatch and a check that cannot complete mean, and what to do about
+           each. Both sentences are DEPLOYMENT_OUTCOMES in
+           src/deployment-status.js and the front door ships them byte for byte,
+           so the two surfaces cannot word one outcome two ways. The mismatch
+           sentence names the public repository, which this page already links
+           from the record above and from its footer, rather than adding a link.
+
            No link back to the record: it is the rest of this block. The row
            that used to carry one also carried the commit link, which the record
            above already offers under the same words.
@@ -177,6 +186,7 @@
         <div class="release-followup" id="deployment-status-callout">
           <h3 class="release-followup-title" id="deployment-status-title">Deployment check</h3>
           <p class="release-followup-lead" id="deployment-status-proof">This compares the version this site is running with the version in the deployment record. A match means the page you are reading came from the build that record names. It reads the running build when the page loads.</p>
+          <p class="release-followup-lead" id="deployment-outcomes">If the versions do not match, the page you are reading did not come from the build that record names. Open the public repository this site is built from to look up either version. If the check cannot complete, nothing here says which version this site is running. Reload the page to run it again.</p>
           <p class="release-followup-lead" id="deployment-verdict" role="status">Checking the running build now…</p>
           <p class="detail-summary" id="deployment-identifiers"></p>
           <div class="shiplog-proof-share">

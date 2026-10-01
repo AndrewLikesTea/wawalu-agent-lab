@@ -153,6 +153,16 @@
              these bytes would be a comparison nobody ran. Every settled state,
              including a check that could not complete, replaces that sentence
              with a full sentence naming both versions.
+             WHAT EACH OUTCOME MEANS IS AUTHORED TOO (#2681). The lead says what
+             a match proves; the line under it says what the other two outcomes
+             mean and what to do about each. A reader needs that most in the
+             state where the check never answers, which is the one state no
+             rendered copy arrives in — so it ships in these bytes. The three
+             sentences are DEPLOYMENT_OUTCOMES in src/deployment-status.js and
+             the releases page ships them byte for byte. The mismatch
+             sentence names the repository link below it, which both pages
+             already carry, rather than adding a focusable to a first screen
+             that has no spare tab stop.
              THE CAVEAT IS SAID ONCE IN THIS SECTION. The panel above states
              that the records are invented; this one states only the contrast
              the check needs, so a reader is not told the same thing twice in
@@ -183,6 +193,7 @@
         <section class="hero-proof" id="deployment-status" aria-labelledby="deployment-status-title">
           <h3 id="deployment-status-title">Deployment check</h3>
           <p class="release-followup-lead" id="deployment-status-proof">This compares the version this site is running with the version in the deployment record. A match means the page you are reading came from the build that record names.</p>
+          <p class="release-followup-lead" id="deployment-outcomes">If the versions do not match, the page you are reading did not come from the build that record names. Open the public repository this site is built from to look up either version. If the check cannot complete, nothing here says which version this site is running. Reload the page to run it again.</p>
           <p class="release-followup-lead" id="deployment-verdict" role="status">Checking the running build now…</p>
           <p class="detail-summary" id="deployment-metric"></p>
           <div class="share-control">
