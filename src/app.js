@@ -40,7 +40,16 @@ import { retentionDeclined, retentionRefusal } from "./local-retention.js";
 import { recordsChanged } from "./shiplog-records.js";
 import { overdueDecisionFinding } from "./overdue-decision.js";
 import { renderOverdueFinding } from "./overdue-decision-view.js";
-import { ADDED_LABEL, EXAMPLE_LABEL, SAMPLE_RELEASE_ID, SEED_DECISIONS, SEED_RELEASES } from "./seed-records.js";
+import {
+  ADDED_LABEL,
+  EXAMPLE_LABEL,
+  REPOSITORY_LABEL,
+  REPOSITORY_RELEASE_ABSENT,
+  SAMPLE_RELEASE_ID,
+  SEED_DECISIONS,
+  SEED_RELEASES,
+  pullRequestUrl,
+} from "./seed-records.js";
 import {
   SUPERSEDE_ERRORS,
   formatSupersedeSummary,
@@ -297,11 +306,23 @@ export function toHistoryRecords(decisions = [], releases = [], options = {}) {
       // routed to, so a row and the decision detail page never disagree about
       // the same records, and the three states — shipped, not yet, unreadable —
       // are settled here rather than inferred from a length in the renderer.
-      const shipped = shippedState(releasesByDecision.get(decision.id) ?? []);
+      //
+      // RELEASE LINK RULE (seed-records.js REPOSITORY_RELEASE_ABSENT): a record
+      // from this repository may link a release in this log only if that release
+      // genuinely shipped it. It is settled here, at composition, rather than
+      // left to whether an invented release happens to name the id: an example
+      // release must never be presented as the thing that shipped a real
+      // decision, and "never" has to be structural to stay true as the examples
+      // change. The row says the absence in words — see appendShippedIn.
+      const repository = decision.repository ?? null;
+      const shipped = repository && repository.releaseInLog !== true
+        ? shippedState([])
+        : shippedState(releasesByDecision.get(decision.id) ?? []);
       return {
         type: "decision",
         id: decision.id,
         example: exampleIds.has(decision.id),
+        repository,
         title: decision.title,
         owner: decision.owner,
         createdAt: decision.createdAt,
@@ -486,14 +507,37 @@ function recordLabel(count) {
 // record is in the file if and only if this browser holds it, which is exactly
 // the half this predicate calls not-an-example. Neither the badge nor the count
 // re-derives provenance from an id shape a visitor could also produce.
-export function isExampleRecord(record) {
-  return record?.example === true;
+// THE SINGLE PLACE THE THREE CLASSES ARE DECIDED. Every badge, every count and
+// every sentence below reads provenance from here, so the row, the split count
+// above the list, and the pasteable summary can never disagree.
+//
+// `repository` wins over `example` on purpose. A repository record is seeded, so
+// it is inside the same not-this-browser's set that `example` marks, and leaving
+// it there keeps the sort, the export and exampleIdsFor working unchanged — the
+// extra class is a finer answer on top of that set, never a contradiction of it.
+export function recordProvenance(record) {
+  if (record?.repository) return "repository";
+  return record?.example === true ? "example" : "added";
 }
 
-/** The provenance split over a set of rows: `{ total, examples, added }`. */
+export function isExampleRecord(record) {
+  return recordProvenance(record) === "example";
+}
+
+export function isRepositoryRecord(record) {
+  return recordProvenance(record) === "repository";
+}
+
+/** The provenance split over a set of rows: `{ total, examples, repository, added }`. */
 export function countRecordProvenance(records = []) {
-  const examples = records.filter(isExampleRecord).length;
-  return { total: records.length, examples, added: records.length - examples };
+  let examples = 0;
+  let repository = 0;
+  for (const record of records) {
+    const which = recordProvenance(record);
+    if (which === "example") examples += 1;
+    else if (which === "repository") repository += 1;
+  }
+  return { total: records.length, examples, repository, added: records.length - examples - repository };
 }
 
 // The two halves, in one place, so the figure above the list and the sentence
@@ -509,6 +553,22 @@ function addedHalf(added) {
   return added === 0 ? "none you added" : `${added} you added`;
 }
 
+// The third class, named only when there is one to name.
+//
+// Absent at zero, where the other two are always named, and the asymmetry is
+// deliberate: the example/added split is a property of every log, so a reader
+// has to be told both numbers to read either. A repository record is a kind of
+// record some sets simply do not contain — a set of releases never contains one
+// — and "none from this repository" on a list of releases would answer a
+// question the reader did not ask and imply the class could appear there.
+//
+// It is also what keeps the release-coverage sentence (releaseCoverageLine) and
+// the releases page's reasoning figure byte-identical: both count releases, no
+// release is a repository record, so this clause never reaches them.
+function repositoryHalf(repository) {
+  return `${repository} from this repository`;
+}
+
 /**
  * The provenance split shown beside the record count.
  *
@@ -518,9 +578,12 @@ function addedHalf(added) {
  * the list below says why.
  */
 export function provenanceSplitLine(visible = []) {
-  const { total, examples, added } = countRecordProvenance(visible);
+  const { total, examples, repository, added } = countRecordProvenance(visible);
   if (total === 0) return "";
-  return `· ${exampleHalf(examples)} · ${addedHalf(added)}`;
+  const halves = [exampleHalf(examples)];
+  if (repository > 0) halves.push(repositoryHalf(repository));
+  halves.push(addedHalf(added));
+  return `· ${halves.join(" · ")}`;
 }
 
 // Which records a counted figure counted. #2539: every figure on the home page
@@ -537,8 +600,9 @@ function countedRecordsNote(records) {
 // record, so it has the two halves and not the records; it names them in these
 // words rather than in a second set, because two wordings of one split is how
 // the site starts telling a reader two different things about the same records.
-export function countedRecordsNoteFor({ examples = 0, added = 0 } = {}) {
-  return `Counted here: ${exampleHalf(examples)} and ${addedHalf(added)}.`;
+export function countedRecordsNoteFor({ examples = 0, repository = 0, added = 0 } = {}) {
+  if (repository === 0) return `Counted here: ${exampleHalf(examples)} and ${addedHalf(added)}.`;
+  return `Counted here: ${exampleHalf(examples)}, ${repositoryHalf(repository)} and ${addedHalf(added)}.`;
 }
 
 function focusCard(cards, index) {
@@ -727,10 +791,43 @@ function appendOwner(summary, owner) {
 // span, so it is in the row's accessible description rather than in a colour,
 // and it is never a control — index.html's first screen is at its tab-stop
 // budget and a badge has nothing to activate.
+const PROVENANCE_BADGE = {
+  example: ["badge badge-example", EXAMPLE_LABEL],
+  repository: ["badge badge-repository", REPOSITORY_LABEL],
+  added: ["badge badge-added", ADDED_LABEL],
+};
+
 function appendProvenanceBadge(meta, record) {
-  return isExampleRecord(record)
-    ? appendTextElement(meta, "span", "badge badge-example", EXAMPLE_LABEL)
-    : appendTextElement(meta, "span", "badge badge-added", ADDED_LABEL);
+  const [className, label] = PROVENANCE_BADGE[recordProvenance(record)];
+  return appendTextElement(meta, "span", className, label);
+}
+
+// What a repository row carries that no other row does: the pull request it is
+// citable in, as a real link, and the release-link rule stated in words.
+//
+// It sits outside the card's own link for the reason appendRelationships does —
+// an anchor cannot nest — so the PR is a Tab stop of its own that opens the
+// merged pull request. That is below the home page's first screen, which is at
+// its tab-stop budget; this adds nothing above it.
+//
+// The caveat on the example records is a page-level sentence about *those*
+// records. Nothing here repeats or qualifies it, because nothing here is an
+// example: the badge and this line are the whole of what the row claims.
+function appendRepositorySource(article, record) {
+  const { repository } = record;
+  if (!repository) return null;
+  const source = document.createElement("p");
+  // The layout class the other relationship rows use, so this line sits with
+  // them and costs no rule of its own — styles.css has no size headroom.
+  source.className = "record-links record-source";
+  appendTextElement(source, "span", "owner-label", "Recorded in");
+  const anchor = document.createElement("a");
+  anchor.className = "record-link record-source-link";
+  anchor.href = pullRequestUrl(repository.pullRequest);
+  appendTextElement(anchor, "span", "record-link-label", `Pull request #${repository.pullRequest}`);
+  source.append(anchor);
+  article.append(source);
+  return source;
 }
 
 // The decisions a release carried, rendered on the release row. The other
@@ -853,11 +950,17 @@ function appendShippedIn(article, record, visibleKeys) {
     // The state stands alone here — prefixing "Shipped in" to "Not yet shipped"
     // reads as a contradiction, and neither sentence needs the label to be
     // understood. There is nothing to disclose, so there is no disclosure.
+    //
+    // A repository record gets its own wording. "Not yet shipped" would be
+    // false of it: it shipped, in a pull request this row links, into a release
+    // this log does not hold. Composition guarantees it reaches this branch —
+    // see the release link rule in toHistoryRecords.
+    const empty = isRepositoryRecord(record) ? REPOSITORY_RELEASE_ABSENT : copy.empty;
     appendTextElement(
       relationship,
       "span",
       "record-link-empty",
-      shipped.state === "unresolved" ? copy.unresolved : copy.empty,
+      shipped.state === "unresolved" ? copy.unresolved : empty,
     );
     article.append(relationship);
     return relationship;
@@ -1022,6 +1125,7 @@ function renderDecisionRow(record, index, visibleKeys) {
   detailLink.append(summary);
   article.append(detailLink);
   appendShippedIn(article, record, visibleKeys);
+  appendRepositorySource(article, record);
   appendBacking(article, record);
   item.append(article);
   return item;

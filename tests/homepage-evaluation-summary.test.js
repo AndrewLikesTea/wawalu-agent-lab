@@ -151,8 +151,11 @@ test("the counts are read off the composed stream, never re-derived", () => {
     releases: [release("r", ["a"])],
     exampleIds: new Set(["a", "r"]),
   });
-  assert.deepEqual(counts.decisions, { total: 2, examples: 1, added: 1 });
-  assert.deepEqual(counts.releases, { total: 1, examples: 1, added: 0 });
+  // Three classes since #2695, and the split is exhaustive: this stream holds
+  // no record from this repository, so that class counts zero rather than
+  // going unreported — the three always add up to `total`.
+  assert.deepEqual(counts.decisions, { total: 2, examples: 1, repository: 0, added: 1 });
+  assert.deepEqual(counts.releases, { total: 1, examples: 1, repository: 0, added: 0 });
   // A link that resolves counts; the example/added halves come from the same
   // exampleIds set the rows are badged from.
   assert.deepEqual(counts.reasoning, { total: 1, preserved: 1, examples: 1, added: 0 });
