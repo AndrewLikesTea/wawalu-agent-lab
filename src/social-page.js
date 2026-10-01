@@ -33,6 +33,23 @@ export const PREVIEW_FAILURE = "We couldn’t create an image preview. Select Re
 // input's aria-describedby while the message is showing.
 export const REJECTED_FILE_ERROR_ID = "post-image-error";
 
+// The step that answers each refusal, one per reason the file was turned away.
+// All three used to share one sentence — "Convert or re-export it, then choose it
+// again" — which is the remedy for the wrong format and nonsense for a 600 KB PNG
+// that is already in a format this field takes: converting it changes nothing
+// about its size. A shared tail also made the two refusals differ only in their
+// first sentence, so a reader skimming the end of the message learned nothing
+// about which rule they had broken. Each step names what to do in words, so the
+// mark on the control and the colour of the text are never the only signal.
+const NEXT_STEP = Object.freeze({
+  missing: "Try choosing the file again.",
+  // Deliberately without a second copy of the format list: the sentence before
+  // this one has just named all four, and the rule beside the control states
+  // them standing. "Those formats" points at both.
+  type: "Convert or re-export it as one of those formats, then choose it again.",
+  size: "Export a smaller image from Paint, or choose another file.",
+});
+
 // What Remove image leaves behind. Removing the image used to empty the status
 // line, so the one control whose whole job is to change the composer's state
 // reported that change as silence — the preview vanished, the description field
@@ -278,21 +295,33 @@ function mountMediaComposer(root, description, composer) {
   // the refusal are the same for both. Resolves whether the file was taken.
   const accept = async (file, { focus = false, fromPaint = false } = {}) => {
     const generation = ++selectionGeneration;
-    const problem = !file ? "Choose an image to continue."
-      : !PUBLISH_IMAGE_TYPES.has(file.type) ? UNSUPPORTED_TYPE_ERROR
-        : file.size > MAX_PUBLISH_IMAGE_BYTES ? overLimitError(file.size) : "";
-    if (problem) {
+    const refusal = !file ? { problem: "Choose an image to continue.", step: NEXT_STEP.missing }
+      : !PUBLISH_IMAGE_TYPES.has(file.type) ? { problem: UNSUPPORTED_TYPE_ERROR, step: NEXT_STEP.type }
+        : file.size > MAX_PUBLISH_IMAGE_BYTES ? { problem: overLimitError(file.size), step: NEXT_STEP.size } : null;
+    if (refusal) {
       input.value = "";
-      const selectionState = media
-        ? "The invalid selection was cleared; your prior valid image remains selected."
-        : "The invalid selection was cleared; no prior image remains selected.";
-      const recovery = `${problem} ${selectionState} Convert or re-export it, then choose it again.`;
+      // A refused file takes nothing with it. An image this field already
+      // accepted stays on screen, its description stays typed, and Publish post
+      // stays live for it: the file that was just turned away never became part
+      // of the post, so nothing about the post changed. The composer used to
+      // report the opposite in both directions — it announced "the invalid
+      // selection was cleared" either way, and disabled Publish post over a
+      // perfectly publishable image, telling the reader publishing was
+      // unavailable until they chose a supported image while a supported image
+      // was sitting in the preview above the sentence.
+      const held = Boolean(media);
+      const selectionState = held
+        ? "The image you already chose is still attached, and its description is unchanged."
+        : "Nothing was attached.";
       // Said once, at the control that took the file. It used to go to the
       // status line under the rule, which is polite and two lines further down;
       // saying it in both places would be one press answered twice.
-      showRejection(recovery);
+      showRejection(`${refusal.problem} ${selectionState} ${refusal.step}`);
       setStatus("");
-      setSelectionProblem(problem);
+      // Only an empty composer is held back, and then because it has no image
+      // rather than because of this file. With an accepted image still attached
+      // there is nothing to block: `get()` hands over that image, unchanged.
+      setSelectionProblem(held ? "" : refusal.problem);
       if (!fromPaint) input.focus();
       return false;
     }
