@@ -80,6 +80,26 @@ test("the example-records caveat is stated once above the record form", async (t
   }
   assert.equal(reachedForm, true, "the walk never reached the record form");
   above = above.replace(/\s+/g, " ");
+
+  // ONE REGION ABOVE THE FORM IS ALLOWED TO RESTATE IT (#2682): the copied
+  // sentence rendered beside the reasoning figure's copy control. That text is
+  // the clipboard payload, printed so it can be checked without pasting, and it
+  // has to carry the caveat because the figure gets forwarded to people who
+  // never saw this page — so excluding it is the fix, not rewording it.
+  //
+  // The claim under test is unchanged: how many times the page says this in its
+  // own voice, above the form. Blanked rather than cut, the way
+  // tests/release-coverage-gaps.test.js excludes rendered record text, and the
+  // exclusion asserts that it matched, so a renamed region fails here instead of
+  // quietly stopping excluding anything.
+  const copyable = page.document.getElementById("reasoning-proof-copyable");
+  const recited = (copyable?.textContent ?? "").replace(/\s+/g, " ").trim();
+  assert.match(recited, /no customer or production data/,
+    "the copied sentence no longer carries the caveat it travels with");
+  const parts = above.split(recited);
+  assert.equal(parts.length, 2, "the copied sentence is not in the walk exactly once");
+  above = parts.join(" ".repeat(recited.length));
+
   assert.equal((above.match(/no customer or production data/g) ?? []).length, 1);
   assert.equal((above.match(/These example records are invented:/g) ?? []).length, 1);
   // Said where the example records are, not in the page intro above it.

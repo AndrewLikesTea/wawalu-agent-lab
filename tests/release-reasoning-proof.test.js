@@ -38,10 +38,13 @@ import {
   REASONING_PROOF_HEADING,
   REASONING_PROOF_RULE,
   REASONING_PROOF_SCOPE,
+  REASONING_PROOF_SUMMARY_EXAMPLES,
   REASONING_PROOF_SUMMARY_SCOPE,
+  REASONING_PROOF_SUMMARY_SOURCE,
   countReasoningKept,
   reasoningKeptSentence,
   reasoningProofSummary,
+  reasoningProofSummaryLines,
   reasoningProvenanceNote,
 } from "../src/release-reasoning-proof.js";
 import { DomEvent, loadPage, tabSequence, textOf, typeText } from "./support/browser.js";
@@ -216,6 +219,193 @@ test("the summary builder is pure and carries both counts, the rule, and the att
   assert.doesNotMatch(REASONING_PROOF_SUMMARY_SCOPE, /below|this page's/);
   // An empty log copies the honest sentence rather than a figure.
   assert.match(reasoningProofSummary(countReasoningKept([], [])), /none to count/);
+});
+
+// --- the copied sentence stands alone (#2682) --------------------------------
+
+const SENTENCE_LABEL = "What the copy control below puts on the clipboard, to read or select by hand:";
+
+test("the copied sentence carries its own provenance: figures, scope, caveat and source", () => {
+  const counts = countReasoningKept([KEPT, DANGLING, BARE], [QUEUE, CACHE], new Set(["r-bare"]));
+  const lines = reasoningProofSummaryLines(counts);
+
+  // The payload IS these lines, joined. One builder, so the region on screen and
+  // the clipboard cannot be assembled differently.
+  assert.equal(reasoningProofSummary(counts), lines.join("\n"));
+  assert.deepEqual(lines, reasoningProofSummaryLines(counts), "the lines are not the same twice");
+
+  // (a) both figures, in the page's own sentence.
+  assert.equal(lines[0], `Shiplog releases: ${reasoningKeptSentence(counts)}`);
+  assert.match(lines[0], /1 of 3 releases/);
+  // (b) which of the counted records were invented, and (c) what that means.
+  assert.equal(lines[2], "Counted here: 1 example record and 2 you added.");
+  assert.equal(lines[3], REASONING_PROOF_SUMMARY_EXAMPLES);
+  assert.match(lines[3], /invented to demonstrate Shiplog/);
+  assert.match(lines[3], /no customer or production data/);
+  // (d) what the count was taken over, naming the browser rather than "this"
+  // one: pasted into a mail, "this browser" is the recipient's.
+  assert.equal(lines[4], REASONING_PROOF_SUMMARY_SCOPE);
+  assert.match(lines[4], /loaded in the browser it came from/);
+  assert.doesNotMatch(REASONING_PROOF_SUMMARY_SCOPE, /this browser/);
+  // (e) where to find the source, by the name the site's navigation gives it.
+  assert.equal(lines[5], REASONING_PROOF_SUMMARY_SOURCE);
+  assert.match(lines[5], /the Releases page of the Shiplog site/);
+  assert.match(lines[5], /releases\.html/);
+
+  // It reads as six sentences and not as a form: nothing is a bare fragment.
+  for (const line of lines) assert.match(line, /[.!]$/, `“${line}” is not a sentence`);
+});
+
+test("no figure in the copied sentence is derived, and none is absent from the page", async (t) => {
+  const page = await openPage(t);
+  const counts = countReasoningKept([KEPT, DANGLING, BARE], [QUEUE, CACHE]);
+  const summary = reasoningProofSummary(counts);
+
+  // No percentage, no ratio, no fraction glyph: a figure that exists only in the
+  // clipboard is one nobody can check against the page it claims to come from.
+  assert.doesNotMatch(summary, /%|percent|ratio/i);
+  assert.doesNotMatch(summary, /\d\s*\/\s*\d/);
+
+  // Every number in it is already painted, in the two nodes that own the two
+  // halves of this figure — and nowhere else is a number sourced from.
+  const painted = `${claim(page)} ${provenance(page)}`;
+  for (const number of summary.match(/\d+/g) ?? []) {
+    assert.ok(painted.includes(number), `the sentence states ${number}, which the page does not show`);
+  }
+  assert.match(claim(page), /1 of 3 releases/);
+  assert.match(provenance(page), /no example records and 3 you added/);
+});
+
+const sentenceLines = (page) => Array.from(byId(page, "reasoning-proof-sentence").querySelectorAll("li"))
+  .map((item) => item.textContent);
+
+test("the sentence on screen and the sentence on the clipboard are one value", async (t) => {
+  const written = [];
+  const page = await openPage(t, { clipboard: { writeText: async (text) => { written.push(text); } } });
+  const region = byId(page, "reasoning-proof-copyable");
+  const list = byId(page, "reasoning-proof-sentence");
+
+  // Revealed by the paint, and no longer waiting.
+  assert.equal(region.hidden, false, "the copy-by-hand region never came out of hiding");
+  assert.equal(list.getAttribute("aria-busy"), "false");
+
+  const onScreen = sentenceLines(page);
+  assert.deepEqual(onScreen, reasoningProofSummaryLines(countReasoningKept([KEPT, DANGLING, BARE], [QUEUE, CACHE])));
+
+  byId(page, "reasoning-proof-copy").click();
+  await settle();
+  assert.equal(written.length, 1);
+  // THE PIN: byte for byte, including whitespace and punctuation. A region
+  // assembled apart from the payload is a region that can lie about the copy.
+  assert.equal(written[0], onScreen.join("\n"));
+  assert.equal(textOf(byId(page, "reasoning-proof-copy-status")), REASONING_PROOF_COPIED_STATUS);
+
+  // And it follows the log: recording a release moves both at once.
+  for (const [id, value] of [
+    ["release-version", "v9.9.9"],
+    ["release-owner", "Priya"],
+    ["release-released-on", "2026-07-02"],
+    ["release-description", "Recorded in this test."],
+  ]) {
+    byId(page, id).focus();
+    typeText(page.document, value);
+  }
+  byId(page, "release-form").dispatchEvent(new DomEvent("submit", { bubbles: true }));
+  assert.equal(page.document.querySelectorAll(".release-toggle").length, 4, "the release was not recorded");
+  assert.match(sentenceLines(page)[0], /1 of 4 releases/);
+  byId(page, "reasoning-proof-copy").click();
+  await settle();
+  assert.equal(written[1], sentenceLines(page).join("\n"));
+});
+
+test("the copy-by-hand region ships hidden and empty, with no figure authored into it", async (t) => {
+  const cold = await loadPage(RELEASES_PAGE, { storage: {} });
+  t.after(() => cold.restore());
+  const region = cold.document.querySelector("#reasoning-proof-copyable");
+  const list = cold.document.querySelector("#reasoning-proof-sentence");
+
+  // Nothing painted, so no placeholder and no zero: the same lifecycle as the
+  // control, whose authored explanation is the block's one voice for the wait.
+  assert.equal(region.hidden, true, "the region is on screen before anything is counted");
+  assert.equal(list.querySelectorAll("li").length, 0, "a sentence is authored into the served bytes");
+  assert.doesNotMatch(textOf(list), /\d/, "no count may be authored into the copied sentence");
+  assert.equal(list.getAttribute("aria-busy"), "true");
+  assert.equal(textOf(cold.document.querySelector("#reasoning-proof-copy-availability")),
+    REASONING_PROOF_COPY_PENDING);
+
+  // The label is the only thing it says cold, and it does not become a third
+  // wait sentence or a second copy of the control's words.
+  assert.equal(textOf(cold.document.querySelector("#reasoning-proof-sentence-label")), SENTENCE_LABEL);
+  assert.doesNotMatch(SENTENCE_LABEL, new RegExp(REASONING_PROOF_COPY_LABEL));
+  assert.doesNotMatch(SENTENCE_LABEL, /counting|becomes available/i);
+});
+
+test("the region is labelled, placed under the coverage definition, and adds no tab stop", async (t) => {
+  const page = await openPage(t);
+  const list = byId(page, "reasoning-proof-sentence");
+
+  // Programmatically named by the sentence above it rather than by a heading, so
+  // the block still carries exactly one h2 — and the markers it loses to CSS do
+  // not cost it its list semantics.
+  assert.equal(list.getAttribute("aria-labelledby"), "reasoning-proof-sentence-label");
+  assert.equal(list.getAttribute("role"), "list");
+  assert.equal(byId(page, "reasoning-proof").querySelectorAll("h2").length, 1);
+  // Not a live region: the figure above is already polite-live and carries the
+  // first of these lines verbatim, so a second one reads the same two numbers
+  // twice per count. Never assertive either way.
+  assert.equal(list.getAttribute("aria-live"), null);
+  assert.equal(byId(page, "reasoning-proof-copyable").getAttribute("aria-live"), null);
+
+  // Nothing here is focusable, so the page's tab order is the one it had.
+  const stops = tabSequence(page.document)
+    .filter((stop) => stop.getAttribute?.("id")?.startsWith("reasoning-proof-sentence"));
+  assert.equal(stops.length, 0, "the copy-by-hand region added a tab stop");
+
+  // RENDERED order, not authored order: the definition of "uncovered" has to
+  // reach the screen first, and a rendered-order check elsewhere blames whatever
+  // control stands above it rather than the region that moved.
+  const said = textOf(page.document.body);
+  const defined = said.indexOf(textOf(byId(page, "coverage-gap-definition")));
+  assert.ok(defined >= 0, "the coverage definition never rendered");
+  assert.ok(said.indexOf(sentenceLines(page)[0]) > defined,
+    "the copied sentence renders above the coverage definition");
+  // And beside the control, above it, which is where the failed copy says it is.
+  assert.ok(said.indexOf(SENTENCE_LABEL) < said.indexOf(REASONING_PROOF_COPY_LABEL));
+  assert.match(REASONING_PROOF_COPY_FAILED_STATUS, /above this button/);
+});
+
+test("a log that could not be read shows a sentence with no figure in it rather than a zero", async (t) => {
+  const page = await openPage(t, { refuse: true });
+  assert.equal(page.document.querySelectorAll(".release-toggle").length, 0, "the refused log still rendered rows");
+
+  // The counts exist — they are nothing — so the region is painted, and what it
+  // says is the honest sentence rather than "0 of 0".
+  assert.equal(byId(page, "reasoning-proof-copyable").hidden, false);
+  const lines = sentenceLines(page);
+  assert.equal(lines[0], `Shiplog releases: ${NO_RELEASES_TO_COUNT}`);
+  assert.doesNotMatch(lines[0], /\d/, "the empty log printed a figure into the copied sentence");
+  assert.equal(lines[2], "Counted here: no example records and none you added.");
+  // The travelling half is unconditional: a recipient of this sentence is told
+  // what it was counted over and where it came from whatever the log held.
+  assert.equal(lines[4], REASONING_PROOF_SUMMARY_SCOPE);
+  assert.equal(lines[5], REASONING_PROOF_SUMMARY_SOURCE);
+});
+
+test("the control keeps its label, its lifecycle and its unavailable explanation", async (t) => {
+  const cold = await loadPage(RELEASES_PAGE, { storage: {} });
+  t.after(() => cold.restore());
+  const shipped = cold.document.querySelector("#reasoning-proof-copy");
+  assert.equal(textOf(shipped), "Copy both numbers as a sentence");
+  assert.equal(REASONING_PROOF_COPY_LABEL, "Copy both numbers as a sentence");
+  assert.notEqual(shipped.getAttribute("disabled"), null, "the control no longer ships unavailable");
+  assert.equal(textOf(cold.document.querySelector("#reasoning-proof-copy-availability")),
+    "The copy control becomes available once the figures are counted.");
+  assert.equal(shipped.getAttribute("aria-describedby"),
+    "reasoning-proof-copy-status reasoning-proof-copy-availability");
+
+  const page = await openPage(t);
+  assert.equal(byId(page, "reasoning-proof-copy").disabled, false);
+  assert.equal(textOf(byId(page, "reasoning-proof-copy-availability")), "");
 });
 
 // --- the painted page --------------------------------------------------------
@@ -494,15 +684,27 @@ test("the figure stands above the log it describes and does not repeat the examp
     "release-search",
   ]);
   // The example-records caveat is counted once above the record form by
-  // tests/shiplog-proof.test.js; this block must not be a second occurrence.
+  // tests/shiplog-proof.test.js. This block states it in exactly one place: the
+  // copied sentence (#2682), which has to carry it because the figure gets
+  // forwarded off the page — so the block's OWN prose must still not repeat it,
+  // and the panel's wording for its own records stays the panel's.
   const region = textOf(byId(page, "reasoning-proof"));
-  assert.doesNotMatch(region, /no customer or production data/);
+  const spoken = region.split(textOf(byId(page, "reasoning-proof-copyable"))).join(" ");
+  assert.doesNotMatch(spoken, /no customer or production data/);
   assert.doesNotMatch(region, /These example records are invented/);
+  assert.equal((region.match(/no customer or production data/g) ?? []).length, 1,
+    "the caveat is stated more than once inside the block");
 });
 
-test("the block pays for three rules, in the page's own sheet", async () => {
+test("the block pays for its rules in the page's own sheet, never in the measured one", async () => {
   const css = await readFile(CSS, "utf8");
   assert.match(css, /#reasoning-proof-claim \{ margin:0; \}/);
+  // The copy-by-hand region (#2682): the stack and the list reset, and nothing
+  // else — every line carries .shiplog-proof-note, which this block already has.
+  assert.match(css, /\.reasoning-proof-copyable \{ display:grid; gap:8px; \}/);
+  assert.match(css, /\.reasoning-proof-sentence \{[^}]*list-style:none;[^}]*\}/);
+  assert.match(css, /\.reasoning-proof-sentence \{[^}]*overflow-wrap:anywhere;[^}]*\}/,
+    "a long clause cannot wrap inside the column at a phone width");
   // The attribution collapses while it has nothing to say; the figure does not,
   // because a live region rendered from display:none may never be announced.
   assert.match(css, /#reasoning-proof-provenance:empty \{ display:none; \}/);
