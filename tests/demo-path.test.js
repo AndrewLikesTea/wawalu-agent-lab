@@ -20,10 +20,22 @@ import { RELEASE_STORAGE_KEY, resolveReleaseDetail } from "../src/releases.js";
 import {
   ADDED_LABEL,
   EXAMPLE_LABEL,
+  REPOSITORY_DECISIONS,
   SAMPLE_DECISION_ID,
   SAMPLE_RELEASE_ID,
+  SEED_EXAMPLE_COUNT,
   SEED_RECORD_COUNT,
 } from "../src/seed-records.js";
+
+// The seeded log is no longer one class (#2695): the invented examples, plus the
+// decisions this repository actually made. SEED_RECORD_COUNT is still the whole
+// log; SEED_EXAMPLE_COUNT is the invented part, which is what the "example
+// records" half of every split below counts.
+const REPOSITORY_COUNT = REPOSITORY_DECISIONS.length;
+// The split a cold visitor reads, as the page writes it: the third class is
+// named only because the log contains one.
+const COLD_SPLIT =
+  `· ${SEED_EXAMPLE_COUNT} example records · ${REPOSITORY_COUNT} from this repository · none you added`;
 import { loadPage, tabSequence, textOf, typeText } from "./support/browser.js";
 
 const HOME_PAGE = new URL("../src/index.html", import.meta.url);
@@ -170,10 +182,11 @@ test("a cold home page renders a non-zero count with decisions and releases in i
   assert.ok(rows(page).some((row) => row.classList.contains("decision-card")), "no decision row rendered");
   assert.ok(rows(page).some((row) => row.classList.contains("release-card")), "no release row rendered");
   assert.equal(page.document.querySelector("#decision-list").querySelectorAll(".list-state-empty").length, 0);
-  // Every rendered row says what it is.
+  // Every rendered row says what it is. The repository records are seeded too
+  // but are not examples, so they are not in this count.
   assert.equal(
     rows(page).filter((row) => textOf(row).includes(EXAMPLE_LABEL)).length,
-    SEED_RECORD_COUNT,
+    SEED_EXAMPLE_COUNT,
   );
 });
 
@@ -210,7 +223,7 @@ test("recording a decision keeps both the visitor's record and the examples, vis
   assert.doesNotMatch(textOf(own), new RegExp(EXAMPLE_LABEL));
   assert.equal(
     rows(page).filter((row) => textOf(row).includes(EXAMPLE_LABEL)).length,
-    SEED_RECORD_COUNT,
+    SEED_EXAMPLE_COUNT,
   );
   // The examples are read-through only: nothing was written to storage.
   assert.deepEqual(JSON.parse(page.storage.getItem(STORAGE_KEY)), [OWN_DECISION]);
@@ -253,10 +266,11 @@ test("the static markup already states the split a cold visitor will see", async
   const html = await readFile(HOME_PAGE, "utf8");
   const parsed = (await import("./support/browser.js")).parseHtml(html);
 
-  // A cold visitor has added nothing, so the whole seeded log is examples. Both
-  // halves are stated, so the first paint is already right rather than gaining
-  // a provenance split after a load settles.
-  const split = `· ${SEED_RECORD_COUNT} example records · none you added`;
+  // A cold visitor has added nothing, so the seeded log is the invented
+  // examples plus this repository's own records. All three classes are stated,
+  // so the first paint is already right rather than gaining a provenance split
+  // after a load settles.
+  const split = COLD_SPLIT;
   assert.equal(textOf(parsed.querySelector("#decision-provenance")), split);
   // The headline above the list states the same figure, so it carries the same
   // split rather than a bare number a reader has to take the caption's word for.
@@ -266,15 +280,20 @@ test("the static markup already states the split a cold visitor will see", async
   );
 });
 
-test("a cold home page splits the count and marks every row as an example", async (t) => {
+test("a cold home page splits the count three ways and marks every row", async (t) => {
   const page = await openHome(t);
 
-  assert.equal(countLine(page), `${SEED_RECORD_COUNT} records · ${SEED_RECORD_COUNT} example records · none you added`);
-  assert.equal(labelled(page, EXAMPLE_LABEL), SEED_RECORD_COUNT);
+  assert.equal(countLine(page), `${SEED_RECORD_COUNT} records ${COLD_SPLIT}`);
+  assert.equal(labelled(page, EXAMPLE_LABEL), SEED_EXAMPLE_COUNT);
   assert.equal(labelled(page, ADDED_LABEL), 0, "a row this browser never held claims the visitor added it");
   // The marking is text, in a span beside the type and status badges — never a
   // control, because index.html's first screen is at its tab-stop budget.
-  const badges = rows(page)[0].querySelectorAll(".badge-example");
+  // Read off an example row by its marking rather than off row 0: the seeded
+  // half is ordered newest first and this repository's own records are the
+  // newest in it, so position no longer tells you the class.
+  const exampleRow = rows(page).find((row) => row.querySelectorAll(".badge-example").length === 1);
+  assert.ok(exampleRow, "no row carries the example marking");
+  const badges = exampleRow.querySelectorAll(".badge-example");
   assert.equal(badges.length, 1, "the example marking is not a badge on the row");
   assert.equal(textOf(badges[0]), EXAMPLE_LABEL);
   assert.equal(badges[0].tagName, "SPAN");
@@ -290,7 +309,8 @@ test("a stored record is marked as one the visitor added, and the split counts i
 
   assert.equal(
     countLine(page),
-    `${SEED_RECORD_COUNT + 1} records · ${SEED_RECORD_COUNT} example records · 1 you added`,
+    `${SEED_RECORD_COUNT + 1} records · ${SEED_EXAMPLE_COUNT} example records`
+    + ` · ${REPOSITORY_COUNT} from this repository · 1 you added`,
   );
   const own = rows(page).find((row) => textOf(row.querySelector("h3")) === OWN_DECISION.title);
   const badge = own.querySelectorAll(".badge-added");
@@ -299,7 +319,7 @@ test("a stored record is marked as one the visitor added, and the split counts i
   // strings and the badge is written the same way as the rest of them.
   assert.equal(textOf(badge[0]), ADDED_LABEL);
   assert.equal(labelled(page, ADDED_LABEL), 1);
-  assert.equal(labelled(page, EXAMPLE_LABEL), SEED_RECORD_COUNT);
+  assert.equal(labelled(page, EXAMPLE_LABEL), SEED_EXAMPLE_COUNT);
 });
 
 test("the split follows the search, the filters, and Current only", async (t) => {
@@ -315,8 +335,9 @@ test("the split follows the search, the filters, and Current only", async (t) =>
   page.document.querySelector("#clear-decision-filters").click();
   assert.equal(
     countLine(page),
-    `${SEED_RECORD_COUNT + 1} records · ${SEED_RECORD_COUNT} example records · 1 you added`,
-    "clearing the filters did not restore both halves",
+    `${SEED_RECORD_COUNT + 1} records · ${SEED_EXAMPLE_COUNT} example records`
+    + ` · ${REPOSITORY_COUNT} from this repository · 1 you added`,
+    "clearing the filters did not restore every class",
   );
   // The headline above the list is the same figure and carries the same split.
   assert.equal(
@@ -339,8 +360,12 @@ test("the split follows the search, the filters, and Current only", async (t) =>
   page.document.querySelector("#filter-current-only").click();
   const halves = splitText(page).replace(/^· /, "").split(" · ");
   const counted = halves.map((half) => Number(half.match(/\d+/)?.[0] ?? 0));
-  assert.equal(halves.length, 2, "the split stopped naming both kinds of record");
-  assert.equal(counted[0] + counted[1], rows(page).length, "the halves do not add up to the rows on screen");
+  assert.equal(halves.length, 3, "the split stopped naming all three kinds of record");
+  assert.equal(
+    counted.reduce((sum, part) => sum + part, 0),
+    rows(page).length,
+    "the classes do not add up to the rows on screen",
+  );
 });
 
 test("recording a decision grows the you-added half and paints the row marked, with no reload", async (t) => {
@@ -355,7 +380,8 @@ test("recording a decision grows the you-added half and paints the row marked, w
   // Same document, same render: nothing was re-fetched and nothing reloaded.
   assert.equal(
     countLine(page),
-    `${SEED_RECORD_COUNT + 1} records · ${SEED_RECORD_COUNT} example records · 1 you added`,
+    `${SEED_RECORD_COUNT + 1} records · ${SEED_EXAMPLE_COUNT} example records`
+    + ` · ${REPOSITORY_COUNT} from this repository · 1 you added`,
   );
   const recorded = rows(page).find((row) => textOf(row.querySelector("h3")) === NEW_DECISION.title);
   assert.ok(recorded, "the recorded decision is not in the list");

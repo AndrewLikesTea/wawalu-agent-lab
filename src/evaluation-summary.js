@@ -90,9 +90,13 @@ export const EVALUATION_SUMMARY_UNREAD =
 // Both logs are counted in the same shape, so a reader comparing the two lines
 // is comparing like with like. Zero names itself rather than rendering
 // "0 decisions loaded", which reads as a figure when it is an absence.
-function loadedLine(noun, { total = 0, examples = 0, added = 0 } = {}) {
+function loadedLine(noun, { total = 0, examples = 0, repository = 0, added = 0 } = {}) {
   if (total === 0) return `No ${noun}s are loaded here, so there are none to count.`;
-  return `${total} ${total === 1 ? noun : `${noun}s`} loaded. ${countedRecordsNoteFor({ examples, added })}`;
+  // The whole split, not two thirds of it. countedRecordsNoteFor names the
+  // repository class only when the counted set contains one, so the release line
+  // is unchanged; the decision line names all three and still adds up to `total`,
+  // which it would not if a repository record were folded into either half.
+  return `${total} ${total === 1 ? noun : `${noun}s`} loaded. ${countedRecordsNoteFor({ examples, repository, added })}`;
 }
 
 /**

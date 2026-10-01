@@ -15,8 +15,17 @@
 // changes what every visitor sees on the next load rather than only what a
 // brand new browser sees.
 //
-// Everything below is invented. No customer, Wawalu operational, or internal
-// record appears here.
+// INVENTED_DECISIONS and SEED_RELEASES below are invented. No customer, Wawalu
+// operational, or internal record appears in them.
+//
+// REPOSITORY_DECISIONS is the one exception, and it is a different kind of
+// record rather than a loosening of that rule: each entry is a decision this
+// repository actually made, cited to the pull request that merged it. Nothing
+// there is invented either — it is quoted from the reasoning that PR landed —
+// and nothing there is customer or production data, because the subject is this
+// site's own source. The two sets never merge into one class: see
+// recordProvenance in app.js, which is the single place the three classes are
+// decided.
 
 // The ids the home page's calls to action, the detail routes, and the
 // cross-links all agree on. They are exported so no surface has to repeat the
@@ -39,7 +48,67 @@ export const EXAMPLE_LABEL = "Example record";
 // EXAMPLE_LABEL so neither marking can be read as the other.
 export const ADDED_LABEL = "You added";
 
-export const SEED_DECISIONS = Object.freeze([
+// The third marking: a decision this repository really made. It shares no word
+// with either label above, for the same reason those two share none with each
+// other — a reader must not be able to read one marking as another.
+export const REPOSITORY_LABEL = "Shiplog's own decision";
+
+// The public repository these records are citable in. The PR link on a row is
+// built from this and the record's own number, so a record cannot name one pull
+// request and open another.
+export const REPOSITORY_URL = "https://github.com/AndrewLikesTea/wawalu-agent-lab";
+
+export function pullRequestUrl(number) {
+  return `${REPOSITORY_URL}/pull/${number}`;
+}
+
+// How a repository row says which release carried it.
+//
+// RELEASE LINK RULE: a repository record links a release in this log only if
+// that release genuinely shipped it. Every release in this log is an invented
+// example, so none of them shipped any of these, and every record below sets
+// `releaseInLog: false`. The association is dropped at composition rather than
+// left to the renderer, and the row states the absence in these words instead
+// of borrowing "Not yet shipped" — these decisions did ship, just not into a
+// release this log holds.
+export const REPOSITORY_RELEASE_ABSENT = "The release that shipped it is not in this log";
+
+export const REPOSITORY_DECISIONS = Object.freeze([
+  Object.freeze({
+    id: "shiplog-pr-362",
+    title: "Serve the example records as module constants, not a fetched file",
+    context: "The example decisions and releases were two JSON files fetched at boot, so they arrived a network round trip after the first paint: a cold visitor read a count of zero under a caption promising examples, and the decision detail page could sit on its loading state when the request was slow or refused.",
+    alternatives: "Keeping the fetch and covering the gap with a loading state, and writing the examples into the visitor's storage on first load — rejected because the export could then no longer claim it holds only what this browser stored.",
+    owner: "Remy",
+    status: "accepted",
+    createdAt: "2026-07-27T20:57:32.000Z",
+    repository: Object.freeze({ pullRequest: 362, releaseInLog: false }),
+  }),
+  Object.freeze({
+    id: "shiplog-pr-294",
+    title: "Store supersession in one direction and derive the reverse",
+    context: "A decision needed to record that it replaced an earlier one, and every surface that reads the relationship from the other side — the detail banner, the history filter, the import round trip — needed the same answer.",
+    alternatives: "A stored superseded-by field on the decision that was replaced — rejected because a writer would have to keep two fields in step, and the two directions could then disagree.",
+    owner: "Remy",
+    status: "accepted",
+    createdAt: "2026-07-27T04:08:52.000Z",
+    repository: Object.freeze({ pullRequest: 294, releaseInLog: false }),
+  }),
+  Object.freeze({
+    id: "shiplog-pr-2547",
+    title: "Mark every record row with whose record it is",
+    context: "The home page's record count and its rows did not say which records demonstrate Shiplog and which the visitor had added, so a reader could not tell the two apart from the list alone.",
+    alternatives: "Marking only the demonstration records and leaving a visitor's own rows unmarked — rejected because an unmarked row left a reader to infer the answer, and an inference is not a statement. Deriving the answer from the shape of a record id was rejected too: a visitor can produce that shape.",
+    owner: "Mina",
+    status: "accepted",
+    createdAt: "2026-09-25T08:43:47.000Z",
+    repository: Object.freeze({ pullRequest: 2547, releaseInLog: false }),
+  }),
+]);
+
+export const REPOSITORY_DECISION_IDS = Object.freeze(REPOSITORY_DECISIONS.map(({ id }) => id));
+
+const INVENTED_DECISIONS = Object.freeze([
   Object.freeze({
     id: SAMPLE_DECISION_ID,
     title: "Adopt a durable job queue",
@@ -95,6 +164,12 @@ export const SEED_DECISIONS = Object.freeze([
     createdAt: "2026-03-10T09:00:00.000Z",
   }),
 ]);
+
+// The decision half of the log every visitor sees: the invented examples first,
+// then this repository's own records. One array, because they are one log — the
+// class is carried per record, so no surface has to be told which list a row
+// came from.
+export const SEED_DECISIONS = Object.freeze([...INVENTED_DECISIONS, ...REPOSITORY_DECISIONS]);
 
 export const SEED_RELEASES = Object.freeze([
   Object.freeze({
@@ -198,6 +273,12 @@ export const SEED_RELEASE_IDS = Object.freeze(SEED_RELEASES.map(({ id }) => id))
 // markup in src/index.html states this number so the count is right on the
 // first paint instead of counting up from zero; a test pins the two together.
 export const SEED_RECORD_COUNT = SEED_DECISIONS.length + SEED_RELEASES.length;
+
+// How many of those are invented examples. Every seeded release is one, and
+// every seeded decision except the repository records above. Derived, not
+// written down, so adding a record of either kind cannot leave the split line
+// in index.html pinned to a number that no longer describes the log.
+export const SEED_EXAMPLE_COUNT = SEED_RECORD_COUNT - REPOSITORY_DECISIONS.length;
 
 // Which of the seed ids are still examples for this visitor. A record the
 // visitor actually stored wins on id, so it is their record and is not labelled
