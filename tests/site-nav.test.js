@@ -387,8 +387,10 @@ test("Social and People lead with the same one-line, verb-first tagline the rest
     "the coach's one line is the tagline under its heading, not a second class beside it");
 
   const taglines = [
-    // Both halves of what a visitor does on Social, in the feed's own words.
-    ["social.html", "Read every post, and publish your own."],
+    // Both halves of what a visitor does on Social, and the reading half names
+    // what there is to read, in the words the footer's destination row and the
+    // shared post page already use for it (#2688).
+    ["social.html", "Read short posts about shipped work, and publish your own."],
     // What People shows, in the words the picker below it selects by.
     ["profile.html", "See the image posts published under one display name."],
   ];
