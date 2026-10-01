@@ -2590,3 +2590,88 @@ test("the stated count and the dead end's total are what the wire actually yield
   assert.equal(summariesInPanel(), 1);
   assert.equal(document.querySelectorAll(".empty-state").length, 0);
 });
+
+/* ------- where a published post is stored, said in the composer (#2701) ------ */
+
+// THE DEFECT. The composer stated the terms of publishing — public, permanent,
+// reportable — and said nothing about where the post goes. Every other record on
+// this site stays in the reader's own browser and says so, so a first-time
+// publisher could satisfy all three of those terms and still assume a post sits
+// in this tab like a decision or a release does. It does not: it is sent to the
+// team that operates Shiplog and stored there.
+//
+// THE LAYER. The composer's caveats are authored markup in src/social.html.
+// src/social.js writes the refusal slots, the missing-step slot and the submit
+// label while a publish is in flight, and nothing else in this stack — so these
+// assertions read the block off the page after src/social-page.js has booted and
+// painted. Authored copy that a view module overwrites on load would pass a
+// file-level check and never reach a reader; this is what tells the two apart.
+//
+// HARNESS NOTES: no element is ever an operand of an assertion (a failed node
+// comparison serialises the whole page and outlives --test-timeout); order comes
+// from a pre-order walk, because descendant selectors throw here, comma groups
+// silently match nothing and querySelectorAll("*") throws at parse time.
+const STORAGE_SCOPE = "Publishing sends this post to the Wawalu team that operates Shiplog, which stores it."
+  + " It is not kept only in this browser."
+  + " Anyone who opens Social can read it, on any device or browser."
+  + " The decisions and releases you record stay in this browser; a post you publish does not.";
+
+test("the composer says where a published post is stored before anything is typed", async (t) => {
+  const { document, id } = await bootSocial(t);
+  id("post-compose-open").click();
+
+  // Nothing filled in: the state a reader is in while they are still deciding,
+  // which is the only state in which this fact is any use to them.
+  assert.equal(id("post-body").value ?? "", "");
+  assert.equal(id("post-author").value ?? "", "");
+  assert.equal(id("post-compose-panel").hidden, false);
+
+  const scope = id("post-storage-scope");
+  assert.equal(textOf(scope), STORAGE_SCOPE, "the storage block was rewritten");
+  assert.equal(foldedAway(scope), false, "the storage block only renders inside something collapsed");
+  assert.equal(textOf(id("post-compose-panel")).split(STORAGE_SCOPE).length - 1, 1,
+    "the open composer does not render the storage block exactly once");
+
+  // The three facts it exists to state, each on the page once. Counted on the
+  // rendered text, so a second copy pasted beside the feed fails here too.
+  const main = textOf(document.querySelector("#main-content"));
+  for (const fact of [
+    "the Wawalu team that operates Shiplog, which stores it",
+    "It is not kept only in this browser.",
+    "Anyone who opens Social can read it, on any device or browser.",
+    "The decisions and releases you record stay in this browser",
+  ]) {
+    assert.equal(main.split(fact).length - 1, 1, `Social does not state this exactly once: ${fact}`);
+  }
+
+  // Prose, and nothing a reader has to press. A fact behind a disclosure is a
+  // fact met afterwards, and this harness reads text through a collapsed
+  // details element, so the shape is asserted rather than trusted.
+  assert.equal(scope.tagName, "P");
+  for (const tag of ["a", "button", "details", "summary", "input"]) {
+    assert.equal(scope.querySelectorAll(tag).length, 0, `the storage block grew a ${tag}`);
+  }
+  assert.equal(tabSequence(document).filter((node) => node.id === "post-storage-scope").length, 0,
+    "the storage block became a tab stop");
+
+  // Read before the press it is about, after the fields, and above the terms of
+  // publishing — which must stay the last words before the button they cost.
+  const order = documentOrder(document).map((node) => node.getAttribute?.("id") || "");
+  const at = (name) => order.indexOf(name);
+  assert.ok(at("post-storage-scope") >= 0,
+    `the composer no longer renders the storage block: ${order.filter(Boolean).join(" ")}`);
+  assert.ok(at("post-storage-scope") < at("post-submit"),
+    "the storage block is read after the control that publishes");
+  assert.ok(at("post-author") < at("post-storage-scope"),
+    "the storage block moved above the fields whose post it is about");
+  assert.ok(at("post-storage-scope") < at("post-consequence"),
+    "the storage block parted the terms of publishing from the button they are about");
+
+  // And the sentence this change may not touch still renders, in its own bytes,
+  // exactly once on the whole page.
+  assert.equal(textOf(id("post-consequence")), PUBLISH_CONSEQUENCE,
+    "the terms of publishing were reworded by a change that may only add beside them");
+  assert.equal(textOf(document.querySelector("body")).split(PUBLISH_TERMS).length - 1, 1,
+    "“public and cannot be edited or deleted” is not on the rendered page exactly once");
+  assert.equal(document.querySelectorAll(".publish-consequence").length, 1);
+});
