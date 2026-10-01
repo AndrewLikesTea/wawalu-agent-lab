@@ -104,7 +104,7 @@ const IDENTITY = "Whoever published this post chose the display name on it; nobo
 // not come back.
 const FEED_NOTE = "Display names on posts labelled “Example post” are invented. On any other post, whoever published it chose the name. Nobody owns or verifies a display name, and anyone can publish under any name.";
 
-const SOCIAL = { label: "Open Social to read the whole feed", href: "/social.html" };
+const SOCIAL = { label: "Open Social to read the Social feed", href: "/social.html" };
 const PEOPLE = { label: "Open People to see Mina Okafor’s other image posts", href: "/profile.html" };
 const PUBLISH = { label: "Open Social to publish a post", href: "/social.html#post-form" };
 const MINA = "/profile.html?author=Mina%20Okafor";
@@ -282,7 +282,9 @@ test("the permalink says who chose the display name once in every state, after t
 // a pasted link is all they have agreed to read: the surface the post came out
 // of, and one sentence saying what the page is. Everything the page has to say
 // about invented posts, display names and reporting reads under the post.
-const PAGE_LEDE = "This page is for one post from Social, Shiplog’s shared feed of short posts about shipped work.";
+// #2698: the appositive names the feed once, the way Social's own heading and
+// People's sentence about it do, instead of calling it "Shiplog’s shared feed".
+const PAGE_LEDE = "This page is for one post from Social, the feed of short posts about shipped work.";
 const CAVEAT_WORDS = /invented|display name|customer or production data|Report post|reporting/i;
 
 // Rendered order, not authored order: the post region is in the same combined
@@ -1068,7 +1070,7 @@ test("Tab moves from the post to its copy control, then reporting, then the feed
     assert.equal(textOf(pressTab(page.document)), "Report post");
     const next = pressTab(page.document);
     assert.equal(next.id, "post-back");
-    assert.equal(textOf(next), "Open Social to read the whole feed");
+    assert.equal(textOf(next), "Open Social to read the Social feed");
   } finally {
     page.restore();
   }

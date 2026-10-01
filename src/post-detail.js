@@ -51,10 +51,13 @@ import { EXAMPLE_POST_LABEL, isExamplePost, normalizeImage } from "./social.js";
 // trigger reads "Write a post" and its submit reads "Publish post" (#2389).
 //
 // The place is named the way the rest of the site names it: "Open Social to read
-// the whole feed", People's own words for that destination. It replaced "Open
-// the full Social feed", whose "the full Social feed" appeared on no other page.
+// the Social feed", the name Social's own feed heading and People's sentence
+// about this destination both use since #2698. It replaced "Open Social to read
+// the whole feed", whose "the whole feed" was a third name for a feed Social
+// headed "Post feed" — one surface, three names, across the three pages a
+// reader moves between.
 export const POST_EXITS = {
-  social: { href: "/social.html", label: "Open Social to read the whole feed" },
+  social: { href: "/social.html", label: "Open Social to read the Social feed" },
   people: { href: "/profile.html" },
   publish: { href: "/social.html#post-form", label: "Open Social to publish a post" },
 };

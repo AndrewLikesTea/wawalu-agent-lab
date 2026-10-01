@@ -69,8 +69,13 @@
              has never seen the feed learns what it is. It ships in the markup so
              a reader whose script never runs still gets it. Sharing is no longer
              a sentence here: the loaded post carries a Copy link to this post
-             button that copies the post's own link, not the address bar's. -->
-        <p>This page is for one post from Social, Shiplog’s shared feed of short posts about shipped work.</p>
+             button that copies the post's own link, not the address bar's.
+
+             The appositive says "the feed", not "Shiplog's shared feed"
+             (#2698): one name for this feed across Social, People and this page,
+             and the page it sits on is already named Shiplog in the band below.
+             What the feed holds is still Social's own phrase, word for word. -->
+        <p>This page is for one post from Social, the feed of short posts about shipped work.</p>
 
         <!-- The post itself, directly under the heading that names it and above
              everything the page says about the surface it came from.
@@ -165,10 +170,15 @@
              composer trigger reads "Write a post" and its submit reads
              "Publish post" (#2389).
 
-             The place is named "Open Social to read the whole feed": Social's
-             own verb, and the words People already uses when it points at the
-             whole feed. It replaced "Open the full Social feed", which named
-             the destination in a phrase no other page on the site used.
+             The place is named "Open Social to read the Social feed": Social's
+             own verb, and the name People uses when it points at the same place.
+             It replaced "Open Social to read the whole feed" (#2698), where
+             "the whole feed" was this page's own name for a surface Social's own
+             heading called "Post feed" — three names for one feed, across the
+             three pages a reader moves between. Social is named twice here on
+             purpose: the destination is the page, and the feed is what the
+             reader will read once they arrive, which is what tells this route
+             apart from the publishing route below it.
 
              It points at /social.html#post-form, the fragment social-page.js
              opens the composer on, and which now also moves the caret into the
@@ -181,7 +191,7 @@
              they have no stake in to be offered the one thing this page can
              still give them. -->
         <p class="detail-page-exits">
-          <a class="detail-back detail-page-back" id="post-back" href="/social.html">Open Social to read the whole feed</a>
+          <a class="detail-back detail-page-back" id="post-back" href="/social.html">Open Social to read the Social feed</a>
           <a class="detail-back detail-page-back" id="post-people" href="/profile.html" hidden></a>
           <a class="detail-back detail-page-back" id="post-publish" href="/social.html#post-form">Open Social to publish a post</a>
         </p>

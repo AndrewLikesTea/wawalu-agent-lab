@@ -220,7 +220,7 @@ test("a first-time visitor lands on a display name that has image posts", async 
     assert.equal(textOf(document.querySelector("#page-tagline")),
       "See the image posts published under one display name.");
     assert.match(textOf(document.querySelectorAll(".profile-lede")[1]),
-      /^Open Social when you want the whole feed, including posts with no image\./);
+      /^Open Social when you want the Social feed, including posts with no image\./);
     // And it names the control that does it, in the words printed on the tile,
     // rather than telling a reader to "select a post" and leaving them to guess
     // what part of one is selectable.

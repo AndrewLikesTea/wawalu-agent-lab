@@ -583,7 +583,7 @@ test("Social paints one of its four states at a time, each with its own way out"
 // The status region picked one panel correctly all along. The HEADING did not:
 // it stated the filter verdict whenever any post had ever arrived, so the dead
 // end's words outlived the state that was entitled to say them. The page read
-// "Post feed: No posts by Ari from the past hour" above "Social posts could not
+// "Social feed: No posts by Ari from the past hour" above "Social posts could not
 // be loaded." — the verdict on the filters and the admission the feed was out of
 // reach, at once, with "Unavailable" between them. That heading is the feed
 // panel's accessible name, so it was also the first thing announced on entering
@@ -597,14 +597,14 @@ test("Social's filtered dead end does not outlive its state in the heading", asy
   const title = () => textOf(document.querySelector("#feed-title"));
   filterToNothing(document);
   assert.deepEqual(painted(document), { loading: 0, failed: 0, empty: 0, filtered: 1 });
-  assert.equal(title(), "Post feed: No posts by Ari from the past hour");
+  assert.equal(title(), "Social feed: No posts by Ari from the past hour");
 
   // THE CONNECTION DROPS. One panel, and it is the failure. The heading goes
   // back to naming its panel, so nothing on screen still claims to have checked
   // the filters against a feed the page cannot reach.
   feed.setState("error");
   assert.deepEqual(painted(document), { loading: 0, failed: 1, empty: 0, filtered: 0 });
-  assert.equal(title(), "Post feed");
+  assert.equal(title(), "Social feed");
   const broken = textOf(document.body);
   assert.doesNotMatch(broken, /No posts by Ari/);
   assert.doesNotMatch(broken, /Select Clear filters to see all/);
@@ -618,7 +618,7 @@ test("Social's filtered dead end does not outlive its state in the heading", asy
   feed.setState("loading");
   assert.deepEqual(painted(document), { loading: 1, failed: 0, empty: 0, filtered: 0 });
   assert.match(textOf(document.querySelector(PANEL.loading)), /Posts are loading\./);
-  assert.equal(title(), "Post feed");
+  assert.equal(title(), "Social feed");
   const waiting = textOf(document.body);
   assert.doesNotMatch(waiting, /No posts by Ari/);
   assert.doesNotMatch(waiting, /Select Clear filters to see all/);
@@ -630,7 +630,7 @@ test("Social's filtered dead end does not outlive its state in the heading", asy
   // again. Nothing was lost by withholding it for two states.
   feed.setState("ready");
   assert.deepEqual(painted(document), { loading: 0, failed: 0, empty: 0, filtered: 1 });
-  assert.equal(title(), "Post feed: No posts by Ari from the past hour");
+  assert.equal(title(), "Social feed: No posts by Ari from the past hour");
   const dead = textOf(document.querySelector(PANEL.filtered));
   assert.match(dead, /No posts by Ari from the past hour\./);
   assert.match(dead, /Select Clear filters to see all 3 posts\./);

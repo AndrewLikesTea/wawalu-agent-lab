@@ -160,12 +160,18 @@ function filterClauses({ range = "", author = "" } = {}) {
 // `shown` is the length of the array the cards are rendered from, never a second
 // filter pass, which is what keeps the stated count and the visible cards the
 // same number.
-export const DEFAULT_FEED_HEADING = "Post feed";
+//
+// It names the feed "Social feed" (#2698), the one name this site uses for it
+// everywhere a page refers to it — the post page's route out and People's
+// sentence about what it leaves out say the same two words. "Post feed" was a
+// third name for the surface the nav calls Social, so a reader who arrived from
+// either of those pages met a heading that matched neither.
+export const DEFAULT_FEED_HEADING = "Social feed";
 
 export function feedHeading({ shown = 0, range = "", author = "" } = {}) {
   const clauses = filterClauses({ range, author });
   const counted = shown === 0 ? "No posts" : `${shown} ${shown === 1 ? "post" : "posts"}`;
-  return `Post feed: ${clauses ? `${counted} ${clauses}` : counted}`;
+  return `${DEFAULT_FEED_HEADING}: ${clauses ? `${counted} ${clauses}` : counted}`;
 }
 
 // The sentence above the post list: how many posts are on screen, out of how
