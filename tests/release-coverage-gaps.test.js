@@ -23,6 +23,7 @@ import { countReasoningKept } from "../src/release-reasoning-proof.js";
 import {
   COVERAGE_DEFINITION,
   COVERAGE_GAP_HEADING,
+  COVERAGE_GAP_MEMBERSHIP,
   NO_LINKED_DECISION_REASON,
   SHOW_ALL_RELEASES_LABEL,
   coverageGapAnnouncement,
@@ -345,18 +346,45 @@ test("the page says what covered and uncovered mean before either word is used",
   assert.equal(textOf(cold.document.querySelector("#coverage-gap-definition")), COVERAGE_DEFINITION);
 });
 
-test("the worklist is named by a plain noun phrase, and the old heading is gone", async (t) => {
+test("the worklist is named by the defined word, and states both ways in", async (t) => {
   const { page } = await openPage(t);
-  assert.equal(COVERAGE_GAP_HEADING, "Releases with no linked decision in this log");
+  assert.equal(COVERAGE_GAP_HEADING, "Uncovered releases");
 
   byId(page, "coverage-gap-toggle").click();
   assert.equal(textOf(byId(page, "coverage-gap-worklist-title")), COVERAGE_GAP_HEADING);
   const said = textOf(page.document.body);
   assert.ok(said.includes(COVERAGE_GAP_HEADING), "the worklist heading never rendered");
   assert.ok(said.indexOf(COVERAGE_GAP_HEADING) > said.indexOf(COVERAGE_DEFINITION));
-  // Nothing on the page still emits the sentence-shaped heading, including the
-  // worklist's own lead, which used to repeat it.
+
+  // Both ways a release gets here, in one authored sentence directly under the
+  // heading: nothing linked, or every link pointing at a record this log lost.
+  // Authored, because it is true of the list before any of it is drawn.
+  assert.equal(textOf(byId(page, "coverage-gap-worklist-rule")), COVERAGE_GAP_MEMBERSHIP);
+  assert.match(COVERAGE_GAP_MEMBERSHIP, /links no decision at all/);
+  assert.match(COVERAGE_GAP_MEMBERSHIP, /this log does not hold\.$/);
+  assert.ok(
+    said.indexOf(COVERAGE_GAP_HEADING) < said.indexOf(COVERAGE_GAP_MEMBERSHIP),
+    "the membership sentence renders above the heading it belongs to",
+  );
+  assert.ok(
+    said.indexOf(COVERAGE_GAP_MEMBERSHIP) < said.indexOf(textOf(byId(page, "coverage-gap-worklist-lead"))),
+    "the membership sentence renders below the count it introduces",
+  );
+  // It leaves the defined word to the heading, so the definition above stays the
+  // page's first use of it.
+  assert.doesNotMatch(COVERAGE_GAP_MEMBERSHIP, /uncovered/i);
+
+  // Nothing on the page still names this region with a sentence of its own,
+  // including the two headings this one replaced.
   assert.doesNotMatch(said, /no decision this log can show/i);
+  assert.doesNotMatch(said, /Releases with no linked decision in this log/i);
+  const markup = await readFile(RELEASES_PAGE, "utf8");
+  assert.ok(markup.includes(COVERAGE_GAP_MEMBERSHIP), "the membership sentence is written by script, not authored");
+  assert.equal(
+    markup.includes("Releases with no linked decision in this log"),
+    false,
+    "src/releases.html still ships the retired worklist heading",
+  );
   assert.equal(
     textOf(byId(page, "coverage-gap-worklist-lead")),
     "2 of 4 releases in this log are uncovered. Each one states why below, with the next step for that reason.",

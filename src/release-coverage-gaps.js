@@ -33,8 +33,25 @@
 
 import { RECORD_DECISION_HREF, releaseTitle, summarizeReleases } from "./releases.js";
 
-/** The worklist's own name, in the register of the log's row headings. */
-export const COVERAGE_GAP_HEADING = "Releases with no linked decision in this log";
+/**
+ * The worklist's own name: the defined word, not a second way of saying it
+ * (#2702). The heading it replaced described one of the two ways a release gets
+ * here — a missing link — and left the other unnamed.
+ */
+export const COVERAGE_GAP_HEADING = "Uncovered releases";
+
+/**
+ * Both ways in, directly under that heading, in one sentence.
+ *
+ * The heading now carries the term, so this says who is on the list instead of
+ * restating what the term means: nothing linked, or everything linked pointing
+ * at a record this log does not hold. It avoids the word "uncovered" itself —
+ * the heading above it is the page's name for the list, and the definition in
+ * the coverage block is the page's first use of the word by design.
+ */
+export const COVERAGE_GAP_MEMBERSHIP =
+  "A release is on this list when it links no decision at all, "
+  + "or when every decision it links is one this log does not hold.";
 
 // What "covered" and "uncovered" mean, stated once, above the first control
 // that uses either word (#2635). Authored in the markup and pinned here so the
