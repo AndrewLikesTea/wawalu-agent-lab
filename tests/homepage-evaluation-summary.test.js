@@ -29,7 +29,7 @@ import {
   evaluationSummaryCounts,
   evaluationSummaryLines,
 } from "../src/evaluation-summary.js";
-import { REASONING_PROOF_RULE } from "../src/release-reasoning-proof.js";
+import { COVERAGE_DEFINITION } from "../src/release-reasoning-proof.js";
 import { loadPage, parseHtml, tabSequence, textOf, typeText } from "./support/browser.js";
 import { waitFor } from "./support/page-module.js";
 
@@ -88,7 +88,8 @@ test("the summary states both totals, both splits, the reasoning figure, and its
   // both quoted from release-reasoning-proof.js rather than reworded here.
   assert.equal(lines[3],
     "Reasoning kept: 2 of 3 releases in this release log link at least one decision the decision log holds.");
-  assert.equal(lines[4], REASONING_PROOF_RULE);
+  assert.equal(lines[4], COVERAGE_DEFINITION);
+  assert.doesNotMatch(lines[4], /does not count/, "the payload still carries the deleted exclusions");
   // (5) and (6) the two provenance sentences a pasted figure travels without.
   assert.equal(lines[5], EVALUATION_SUMMARY_PROVENANCE);
   assert.match(lines[5], /counted from the decisions and releases loaded in this browser/);

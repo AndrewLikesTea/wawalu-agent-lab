@@ -19,9 +19,10 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { STORAGE_KEY } from "../src/app.js";
 import { RELEASE_STORAGE_KEY } from "../src/releases.js";
-import { countReasoningKept } from "../src/release-reasoning-proof.js";
+// The definition of "covered" and "uncovered" lives with the figure it is the
+// rule for, in the coverage block above this list (#2712).
+import { COVERAGE_DEFINITION, countReasoningKept } from "../src/release-reasoning-proof.js";
 import {
-  COVERAGE_DEFINITION,
   COVERAGE_GAP_HEADING,
   COVERAGE_GAP_MEMBERSHIP,
   NO_LINKED_DECISION_REASON,
@@ -509,12 +510,19 @@ test("an empty log states that coverage does not apply and offers no reveal at a
    // releases" for a reader who searches the page for its own text.
   assert.equal(textOf(byId(page, "coverage-gap-toggle")), "");
   // No count and no coverage status anywhere in the block. The definition of
-  // the word stays — it is authored, it is true of an empty log too, and it is
-  // the one occurrence of "uncovered" an empty page is allowed.
+  // the word stays — it is authored, and it is true of an empty log too.
   const block = textOf(byId(page, "reasoning-proof"));
   assert.doesNotMatch(block, /\d+ uncovered/i, "a count was claimed for a log with nothing in it");
-  assert.equal(block.match(/uncovered/gi).length, 1, "the block says \"uncovered\" somewhere other than its definition");
   assert.ok(block.includes(COVERAGE_DEFINITION));
+  // And every "uncovered" in the block is inside that one sentence: once where
+  // the page defines the word, and once in the copy-by-hand payload below,
+  // which quotes the definition byte for byte so a forwarded figure travels
+  // with the rule it was counted under (#2712). No control says it.
+  assert.equal(
+    block.split(COVERAGE_DEFINITION).join(" ").match(/uncovered/gi),
+    null,
+    "the block says \"uncovered\" somewhere other than its definition",
+  );
 });
 
 test("complete coverage is a positive statement with the real values and no reveal", async (t) => {

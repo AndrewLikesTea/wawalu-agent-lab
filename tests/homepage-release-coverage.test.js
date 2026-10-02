@@ -35,8 +35,8 @@ import {
   releaseCoverageUnread,
 } from "../src/homepage-release-coverage.js";
 import {
+  COVERAGE_DEFINITION,
   REASONING_PROOF_HEADING,
-  REASONING_PROOF_RULE,
   REASONING_PROOF_SCOPE,
   reasoningKeptSentence,
 } from "../src/release-reasoning-proof.js";
@@ -144,11 +144,25 @@ test("the block ships its caveats, its wait, and no counted figure", async () =>
   assert.match(lead, /link at least one decision the decision log holds/);
   assert.match(lead, /out of how many were loaded/);
 
-  // And the two disqualifiers after it, in the releases page's own words.
-  assert.equal(textOf(document.getElementById(RELEASE_COVERAGE_IDS.rule)), REASONING_PROOF_RULE);
+  // And the rule after it, which is the releases page's definition of "covered"
+  // and "uncovered" byte for byte (#2712): one sentence naming both halves,
+  // where this block used to carry two exclusions and define the word by
+  // neither of them.
+  assert.equal(textOf(document.getElementById(RELEASE_COVERAGE_IDS.rule)), COVERAGE_DEFINITION);
+  assert.equal(RELEASE_COVERAGE_RULE, COVERAGE_DEFINITION);
+  assert.match(textOf(document.getElementById(RELEASE_COVERAGE_IDS.rule)), /^A release is covered when/);
+  assert.match(textOf(document.getElementById(RELEASE_COVERAGE_IDS.rule)), /every other release is uncovered\.$/);
   assert.equal(textOf(document.getElementById(RELEASE_COVERAGE_IDS.scope)), REASONING_PROOF_SCOPE);
-  assert.equal(RELEASE_COVERAGE_RULE, REASONING_PROOF_RULE);
   assert.equal(RELEASE_COVERAGE_SCOPE, REASONING_PROOF_SCOPE);
+
+  // The two exclusions are gone from the whole page, not moved: the block below
+  // that previews the evaluation summary quoted the same sentence.
+  assert.doesNotMatch(textOf(document.body), /does not count/,
+    "an exclusion survived somewhere on the home page");
+  // And both the rule and the scope are stated once each in the served bytes.
+  const said = textOf(document.body);
+  assert.equal(said.split(COVERAGE_DEFINITION).length - 1, 1, "the definition is stated twice on the home page");
+  assert.equal(said.split(REASONING_PROOF_SCOPE).length - 1, 1, "the scope note is stated twice on the home page");
 
   // No figure is authored: a number in the served bytes is a number nobody
   // counted, and it would still be on screen after a failed read.
@@ -352,9 +366,10 @@ test("the home page and the releases page count one browser's log identically", 
     textOf(home.document.getElementById(RELEASE_COVERAGE_IDS.provenance)),
     textOf(releasesPage.document.getElementById("reasoning-proof-provenance")),
   );
-  // Both pages state the same two disqualifiers beside it, word for word.
+  // Both pages state the same rule beside it, word for word: one definition of
+  // "covered" and "uncovered", wherever a visitor meets it (#2712).
   assert.equal(
     textOf(home.document.getElementById(RELEASE_COVERAGE_IDS.rule)),
-    textOf(releasesPage.document.getElementById("reasoning-proof-rule")),
+    textOf(releasesPage.document.getElementById("coverage-gap-definition")),
   );
 });

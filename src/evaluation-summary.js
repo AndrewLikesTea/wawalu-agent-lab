@@ -33,7 +33,7 @@
 
 import { countRecordProvenance, countedRecordsNoteFor } from "./app.js";
 import {
-  REASONING_PROOF_RULE, countReasoningKept, reasoningKeptSentence,
+  COVERAGE_DEFINITION, countReasoningKept, reasoningKeptSentence,
 } from "./release-reasoning-proof.js";
 import { copyText } from "./share-link.js";
 
@@ -136,7 +136,7 @@ export function evaluationSummaryLines(counts = {}) {
     // two wordings of one figure is how the site starts telling a reader two
     // different things about the same releases.
     `Reasoning kept: ${reasoningKeptSentence(counts.reasoning)}`,
-    REASONING_PROOF_RULE,
+    COVERAGE_DEFINITION,
     EVALUATION_SUMMARY_PROVENANCE,
     EVALUATION_SUMMARY_EXAMPLE_CAVEAT,
   ];

@@ -53,14 +53,12 @@ export const COVERAGE_GAP_MEMBERSHIP =
   "A release is on this list when it links no decision at all, "
   + "or when every decision it links is one this log does not hold.";
 
-// What "covered" and "uncovered" mean, stated once, above the first control
-// that uses either word (#2635). Authored in the markup and pinned here so the
-// page and this module cannot drift apart. It borrows the figure's own clause —
-// "at least one decision the decision log holds" — rather than coining a second
-// way to say the rule.
-export const COVERAGE_DEFINITION =
-  "A release is covered when it links at least one decision the decision log holds; "
-  + "every other release is uncovered.";
+// What "covered" and "uncovered" mean is stated once for the whole site, in the
+// coverage figures block above this list: COVERAGE_DEFINITION in
+// release-reasoning-proof.js, authored at #coverage-gap-definition. It lives
+// with the figure because the figure's rule and the definition of the word are
+// one rule (#2712), and this module — which is where the word becomes a chip, a
+// button label and a lead — only uses the term it defines.
 
 /** The two kinds of gap, and the words each one is stated in. */
 export const COVERAGE_GAP_KINDS = Object.freeze(["unlinked", "dangling"]);
