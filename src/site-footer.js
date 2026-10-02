@@ -75,24 +75,26 @@ export const ASSETS_DESCRIPTION = "The brief says what Shiplog records and who o
 export const ASSETS_HREF = "/#shiplog-evaluation-brief";
 
 /**
- * What a visitor can do here, then who runs it and where — on every page.
+ * What Shiplog is, what else is here, then who runs it and where — every page.
  *
- * The doing sentence comes first on purpose. This band used to open by defining
- * Shiplog as a decision and release log, which describes one section of one page
- * and contradicts what the site leads with: the home page's title, heading, and
- * first call to action are all AI FinOps.
+ * The definition leads. The band used to open on what a visitor could do here,
+ * which named three tools and left the product unnamed; the second sentence
+ * keeps those tools and says the one thing they are not — Shiplog itself.
  *
- * The second sentence names an organisation and a hosting claim, both checkable
- * from outside. Between them they claim no customer, usage, funding, or result —
- * there is no evidence here for any of those. Every verb in the first sentence
- * is something a page this site ships today does, and DEMOS says which page.
+ * It says the log's promise in words the home page does not use for it:
+ * tests/build.test.js counts that phrasing on /index.html, and this band ships
+ * there too, so the same wording twice is a red build.
+ *
+ * The last sentence names an organisation and a hosting claim, both checkable
+ * from outside. Between them they claim no customer, usage, funding, or result.
  */
-export const IDENTITY = "On this site you can analyze your own AI spend, check a prompt before you send "
-  + "it, and read the decisions and releases behind it. Shiplog is a demonstration product, built and "
-  + "operated by Wawalu at labs.wawalu.org.";
+export const IDENTITY = "Shiplog is a decision and release log: it records a decision, tracks the release "
+  + "it shaped, and keeps the two linked. AI FinOps and Prompt coach are separate tools hosted in the same "
+  + "lab, not part of Shiplog. Shiplog is a demonstration product, built and operated by Wawalu at "
+  + "labs.wawalu.org.";
 
 // Who Shiplog is for, and the page that shows it working; the tests say why.
-export const PITCH = "Shiplog is for engineering teams that answer for an AI bill and a release history.";
+export const PITCH = "Shiplog is for engineering teams that have to explain why something shipped.";
 export const PITCH_LINK = "the worked decision in AI FinOps";
 export const PITCH_HREF = "/evolution.html#workspace-answer";
 
