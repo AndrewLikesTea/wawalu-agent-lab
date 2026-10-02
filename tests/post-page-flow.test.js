@@ -62,7 +62,9 @@ function exits(document) {
   // A withheld route is not a route: this harness models no layout, so a hidden
   // link still carries its words and would otherwise read as offered here.
   return document.querySelectorAll("a").filter((link) => !link.hidden && (
-    /^Open (Social|People) to |←|Back to/.test(link.textContent)
+    // Each route leads with its own act since #2717, so this matches the three
+    // openers rather than one shared "Open … to".
+    /^Read the Social feed|^Publish a post on Social|^Open People to |←|Back to/.test(link.textContent)
     // …and any chrome link that is on the page with no words in it. The People
     // label is now written from the loaded display name, so a name the page
     // cannot put in a label leaves a focusable link holding nothing — the one
@@ -104,9 +106,9 @@ const IDENTITY = "Whoever published this post chose the display name on it; nobo
 // not come back.
 const FEED_NOTE = "Display names on posts labelled “Example post” are invented. On any other post, whoever published it chose the name. Nobody owns or verifies a display name, and anyone can publish under any name.";
 
-const SOCIAL = { label: "Open Social to read the Social feed", href: "/social.html" };
+const SOCIAL = { label: "Read the Social feed", href: "/social.html" };
 const PEOPLE = { label: "Open People to see Mina Okafor’s other image posts", href: "/profile.html" };
-const PUBLISH = { label: "Open Social to publish a post", href: "/social.html#post-form" };
+const PUBLISH = { label: "Publish a post on Social", href: "/social.html#post-form" };
 const MINA = "/profile.html?author=Mina%20Okafor";
 
 test("a post that loads is headed by its display name and reads description, image, caption, name, time", async () => {
@@ -1070,7 +1072,7 @@ test("Tab moves from the post to its copy control, then reporting, then the feed
     assert.equal(textOf(pressTab(page.document)), "Report post");
     const next = pressTab(page.document);
     assert.equal(next.id, "post-back");
-    assert.equal(textOf(next), "Open Social to read the Social feed");
+    assert.equal(textOf(next), "Read the Social feed");
   } finally {
     page.restore();
   }

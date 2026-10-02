@@ -28,11 +28,10 @@ import { EXAMPLE_POST_LABEL, isExamplePost, normalizeImage } from "./social.js";
 //
 // Neither is a "back". A permalink is the one page in this product a visitor can
 // meet cold — pasted into a chat window, opened by someone who has never seen
-// Social — and there is nothing behind them to return to. So both links point
-// forward, name their destination, and say what is there, in the verb the two
-// feed pages already use for each other ("Open People when you want…", "Open
-// Social when you want…"). The label says People, not Profile: this site has a
-// People page and no page called Profile.
+// Social — and there is nothing behind them to return to. So every link points
+// forward, leads with what the reader will do there, and names the page it does
+// it on. The label says People, not Profile: this site has a People page and no
+// page called Profile.
 //
 // The labels are constants because nothing may rewrite them mid-visit. They are
 // pinned against src/post.html, which ships both links. Social stands in all
@@ -50,16 +49,19 @@ import { EXAMPLE_POST_LABEL, isExamplePost, normalizeImage } from "./social.js";
 // It names the destination and the act, not a control: Social's own composer
 // trigger reads "Write a post" and its submit reads "Publish post" (#2389).
 //
-// The place is named the way the rest of the site names it: "Open Social to read
-// the Social feed", the name Social's own feed heading and People's sentence
-// about this destination both use since #2698. It replaced "Open Social to read
-// the whole feed", whose "the whole feed" was a third name for a feed Social
-// headed "Post feed" — one surface, three names, across the three pages a
-// reader moves between.
+// Each label leads with its own verb (#2717). Both read "Open Social to read the
+// Social feed" and "Open Social to publish a post", so the words a reader scans
+// first were the same four on both, and the act that tells them apart arrived
+// fifth. The action comes first now, and the two actions differ on their first
+// word: "Read" and "Publish". The feed is still named the way the rest of the
+// site names it — "the Social feed", Social's own heading and People's sentence
+// about this destination since #2698, which replaced a "whole feed" that was a
+// third name for one surface — and the publishing route still names Social,
+// because it is another page this one is sending the reader to.
 export const POST_EXITS = {
-  social: { href: "/social.html", label: "Open Social to read the Social feed" },
+  social: { href: "/social.html", label: "Read the Social feed" },
   people: { href: "/profile.html" },
-  publish: { href: "/social.html#post-form", label: "Open Social to publish a post" },
+  publish: { href: "/social.html#post-form", label: "Publish a post on Social" },
 };
 const MAX_RETURN_AUTHOR_LENGTH = 60;
 

@@ -2675,10 +2675,21 @@ test("the stated count and the dead end's total are what the wire actually yield
 // comparison serialises the whole page and outlives --test-timeout); order comes
 // from a pre-order walk, because descendant selectors throw here, comma groups
 // silently match nothing and querySelectorAll("*") throws at parse time.
-const STORAGE_SCOPE = "Publishing sends this post to the Wawalu team that operates Shiplog, which stores it."
-  + " It is not kept only in this browser."
-  + " Anyone who opens Social can read it, on any device or browser."
-  + " The decisions and releases you record stay in this browser; a post you publish does not.";
+//
+// ONE SENTENCE, NOT FOUR (#2717). The block said the same thing three ways: the
+// post is sent to the team and stored, it is "not kept only in this browser",
+// and "the decisions and releases you record stay in this browser; a post you
+// publish does not". Two of those were restatements, and a reader counting four
+// sentences before a button they cannot undo skips the block. Where the bytes go
+// is one clause now, the reach it buys is the other, and the terms of publishing
+// below are still their own sentence.
+const STORAGE_SCOPE = "Publishing stores this post with the Wawalu team that operates Shiplog;"
+  + " anyone who opens Social can read it, on any device or browser.";
+// The wordings this replaced, which may not come back beside it.
+const RETIRED_SCOPE = [
+  "It is not kept only in this browser.",
+  "The decisions and releases you record stay in this browser; a post you publish does not.",
+];
 
 test("the composer says where a published post is stored before anything is typed", async (t) => {
   const { document, id } = await bootSocial(t);
@@ -2696,16 +2707,29 @@ test("the composer says where a published post is stored before anything is type
   assert.equal(textOf(id("post-compose-panel")).split(STORAGE_SCOPE).length - 1, 1,
     "the open composer does not render the storage block exactly once");
 
-  // The three facts it exists to state, each on the page once. Counted on the
+  // The two facts it exists to state, each on the page once. Counted on the
   // rendered text, so a second copy pasted beside the feed fails here too.
   const main = textOf(document.querySelector("#main-content"));
   for (const fact of [
-    "the Wawalu team that operates Shiplog, which stores it",
-    "It is not kept only in this browser.",
-    "Anyone who opens Social can read it, on any device or browser.",
-    "The decisions and releases you record stay in this browser",
+    "stores this post with the Wawalu team that operates Shiplog",
+    "anyone who opens Social can read it, on any device or browser",
   ]) {
     assert.equal(main.split(fact).length - 1, 1, `Social does not state this exactly once: ${fact}`);
+  }
+  // And neither fact is said a second way. The block cost four sentences to
+  // leave two facts; a later change that re-adds one of these is the defect.
+  for (const retired of RETIRED_SCOPE) {
+    assert.equal(main.includes(retired), false,
+      `Social states where a post goes a second way: ${retired}`);
+  }
+  // Three sentences between the display name field and the control that
+  // publishes — this one and the two terms of publishing below it — and no
+  // sentence longer than a reader will read at a button they cannot undo.
+  const sentences = `${STORAGE_SCOPE} ${PUBLISH_CONSEQUENCE}`.split(". ").filter(Boolean);
+  assert.equal(sentences.length, 3, "the composer's consequences grew a fourth sentence");
+  for (const sentence of sentences) {
+    const words = sentence.split(/\s+/).filter(Boolean).length;
+    assert.ok(words < 25, `${words} words is too long to read at the button: ${sentence}`);
   }
 
   // Prose, and nothing a reader has to press. A fact behind a disclosure is a

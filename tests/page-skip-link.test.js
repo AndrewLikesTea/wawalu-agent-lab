@@ -356,8 +356,8 @@ test("the post page's loading tab order reaches Social without a placeholder Peo
       ...SITE_NAV.slice(0, 3).map((link) => link.label),
       "More lab tools",
       ...SITE_NAV.slice(3).map((link) => link.label),
-      "Open Social to read the Social feed",
-      "Open Social to publish a post",
+      "Read the Social feed",
+      "Publish a post on Social",
     ],
     "the post page's tab order changed",
   );
@@ -444,9 +444,9 @@ test("the post page withholds People until it can name the loaded display name",
   assert.deepEqual(
     exits.map((link) => [link.href, textOf(link)]),
     [
-      ["/social.html", "Open Social to read the Social feed"],
+      ["/social.html", "Read the Social feed"],
       ["/profile.html", ""],
-      ["/social.html#post-form", "Open Social to publish a post"],
+      ["/social.html#post-form", "Publish a post on Social"],
     ],
   );
   // People alone is withheld in the shipped markup, which is the loading state:

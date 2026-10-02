@@ -426,10 +426,10 @@ test("the post page's two routes out sit after the site frame, and name where th
 
   // Social ships in visible text. People waits for the loaded display name, so
   // loading cannot expose an empty or placeholder name.
-  assert.match(html, /<a class="detail-back detail-page-back" id="post-back" href="\/social\.html">Open Social to read the Social feed<\/a>/);
+  assert.match(html, /<a class="detail-back detail-page-back" id="post-back" href="\/social\.html">Read the Social feed<\/a>/);
   assert.match(html, /<a class="detail-back detail-page-back" id="post-people" href="\/profile\.html" hidden><\/a>/);
   // Publishing opens Social's composer; the visible label names that destination.
-  assert.match(html, /<a class="detail-back detail-page-back" id="post-publish" href="\/social\.html#post-form">Open Social to publish a post<\/a>/);
+  assert.match(html, /<a class="detail-back detail-page-back" id="post-publish" href="\/social\.html#post-form">Publish a post on Social<\/a>/);
   assert.equal(html.includes("post-back-feed"), false, "the old stacked exit is gone");
   const exits = html.match(/<p class="detail-page-exits">[\s\S]*?<\/p>/)[0];
   assert.doesNotMatch(exits, /aria-label/, "an exit must not depend on aria-label to name its destination");
@@ -439,8 +439,11 @@ test("the post page's two routes out sit after the site frame, and name where th
   // visitor never took.
   assert.doesNotMatch(exits, /←|Back to/, "the permalink's routes out point forward, not back");
 
-  // And they are not a phrasing invented here: Social and People point at each
-  // other with the same verb, and this page joins that pattern.
+  // The destination pages keep their own way of pointing at each other — a
+  // sentence offering a surface a reader is already on the sibling of. This page
+  // is met cold and offers a list of acts, so its routes lead with the act
+  // (#2717); what must not drift is the two pages below still naming the places
+  // these routes go.
   const [social, people] = await Promise.all([
     readFile(new URL("../src/social.html", import.meta.url), "utf8"),
     readFile(new URL("../src/profile.html", import.meta.url), "utf8"),
@@ -458,17 +461,25 @@ test("both destinations ship as constants, and only the People link's target nar
   // The words are fixed. Nothing about a lookup may rewrite them, because they
   // have to read the same before, during and after it.
   assert.deepEqual(POST_EXITS, {
-    social: { href: "/social.html", label: "Open Social to read the Social feed" },
+    social: { href: "/social.html", label: "Read the Social feed" },
     people: { href: "/profile.html" },
-    publish: { href: "/social.html#post-form", label: "Open Social to publish a post" },
+    publish: { href: "/social.html#post-form", label: "Publish a post on Social" },
   });
   // Both name a destination the nav offers: this site has a People page and no
   // page called Profile, so a link here cannot promise one.
-  assert.equal(POST_EXITS.social.label, "Open Social to read the Social feed");
+  assert.equal(POST_EXITS.social.label, "Read the Social feed");
 
   // The two Social routes name their different purposes and keep distinct targets.
   assert.notEqual(POST_EXITS.social.href, POST_EXITS.publish.href);
-  assert.equal(POST_EXITS.publish.label, "Open Social to publish a post");
+  assert.equal(POST_EXITS.publish.label, "Publish a post on Social");
+
+  // Each leads with the act, and the acts differ on the first word a reader
+  // scans (#2717): both labels used to open on "Open Social to", so the words
+  // that tell the routes apart arrived fifth.
+  for (const label of [POST_EXITS.social.label, POST_EXITS.publish.label]) {
+    assert.doesNotMatch(label, /^Open /, `"${label}" leads with the page rather than the act`);
+  }
+  assert.notEqual(POST_EXITS.social.label.split(" ")[0], POST_EXITS.publish.label.split(" ")[0]);
 
   // The loaded post's own author wins, then the ?author= profile.js writes into
   // its tiles.
@@ -700,7 +711,7 @@ test("the standing exits remain while unavailable states add a clear feed action
   assert.equal([...html.matchAll(/id="post-people"/g)].length, 1, "one People exit in the markup");
   assert.equal([...html.matchAll(/id="post-publish"/g)].length, 1, "one publish entry point in the markup");
   assert.equal([...html.matchAll(/class="detail-back detail-page-back"/g)].length, 3, "the row, and only the row");
-  assert.equal([...html.matchAll(/<a [^>]*>Open Social to read the Social feed<\/a>/g)].length, 1, "the standing Social label appears once");
+  assert.equal([...html.matchAll(/<a [^>]*>Read the Social feed<\/a>/g)].length, 1, "the standing Social label appears once");
 
   for (const [name, value, options] of PANEL_STATES) {
     const container = createElement("div");

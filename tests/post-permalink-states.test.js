@@ -617,10 +617,10 @@ test("a post with no image renders no image element and no empty frame to hold o
 // can resolve to a post or to nothing at all, and the frame has to read the same
 // either way — so this is asserted in the missing state as well as the loaded
 // one, not just in the state that happens to work.
-const SOCIAL_LINK = "Open Social to read the Social feed";
+const SOCIAL_LINK = "Read the Social feed";
 const PEOPLE_LINK = "Open People to see Mina Okafor’s other image posts";
 // Both routes name Social; their labels explain whether to read or publish.
-const PUBLISH_LINK = "Open Social to publish a post";
+const PUBLISH_LINK = "Publish a post on Social";
 const CHROME_LINKS = [SOCIAL_LINK, PEOPLE_LINK, PUBLISH_LINK];
 // What each state offers. Social is true whatever the lookup did — the feed
 // exists either way — so it stands in all four. People is offered only where
@@ -1440,7 +1440,7 @@ function assertSaidOnce(document, where, provenance = CONTEXT_SENTENCE) {
 // carries a Copy link to this post button that copies the post's own link.
 // #2698: "the feed", not "Shiplog’s shared feed". One name for this feed across
 // Social, People and this page — Social heads its own list "Social feed" and the
-// route out below reads "Open Social to read the Social feed" — so the
+// route out below reads "Read the Social feed" — so the
 // appositive here defines the feed rather than giving it a fourth name.
 const SOCIAL_DESCRIPTION = "feed of short posts about shipped work";
 const ADDRESS_SENTENCE = "Copy this page’s address to share this post.";
