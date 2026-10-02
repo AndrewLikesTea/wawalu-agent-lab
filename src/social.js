@@ -1261,7 +1261,14 @@ export function mountComposerDisclosure(root) {
   cancel?.addEventListener("click", close);
   panel.addEventListener("keydown", (event) => {
     if (event.defaultPrevented || event.isComposing) return;
+    // Scoped twice over, because Escape belongs to the page everywhere else:
+    // the listener is on the panel, so a press anywhere outside it is never
+    // seen here, and `panel.hidden` refuses the press a script-focused node
+    // inside a collapsed panel could still deliver. Without the second half a
+    // stray Escape would call close() on an already-closed composer and yank
+    // focus to the trigger from wherever the reader actually was.
     if (event.key === "Escape") {
+      if (panel.hidden) return;
       event.preventDefault();
       close();
       return;

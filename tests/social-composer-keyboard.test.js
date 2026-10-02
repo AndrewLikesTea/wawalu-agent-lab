@@ -1,8 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { PUBLISH_REASON_ID, mountSocialFeed } from "../src/social.js";
+import { PUBLISH_REASON_ID, composerFocusables, mountSocialFeed, nextContainedStop } from "../src/social.js";
 import { DomEvent, loadPage, pressKey, pressTab, tabSequence, textOf } from "./support/browser.js";
+import { bootSocial } from "./support/social-paint-arrival.js";
+import { waitFor } from "./support/page-module.js";
 
 // Harness note: every assertion here compares strings, numbers or booleans. A
 // failing assertion with a parsed element as an operand spends minutes
@@ -275,6 +277,158 @@ test("an image with no description names the missing step on Publish post, once,
   assert.equal(describedBy().includes(PUBLISH_REASON_ID), false);
   assert.equal(reason.hidden, true);
   assert.equal(carriers(document.querySelector("body"), "Fill in the required image description"), 0);
+});
+
+// #2709. Rendered order, not authored order: this boots /social-page.js and
+// walks the document the modules leave behind, because an authored-order check
+// describes a page no visitor sees. One walk and one index per region, compared
+// as a whole sequence — a handful of separate "A precedes B" checks can all pass
+// while the order as a reader meets it is still wrong.
+const RENDERED_ORDER = [
+  "#page-title", "#page-tagline", "#post-compose-open", "#feed-title",
+  "#post-name-filter", "#post-time-filter", "#post-filter-clear", "#feed-summary",
+  "#feed-state", "#post-feed", ".social-feed-intro", "#feed-source-note",
+  "#post-report-route", "#post-compose-panel", "#post-form-title", "#post-body",
+  "#ask-about-shiplog", "#ask-about-shiplog-description", "#post-report-about",
+];
+
+// Every tab stop inside the page body ahead of the display-name filter, named.
+// Pinned as a list and not only as a number so a change that swaps one control
+// for another — rather than adding one — fails with the swap in the message.
+// Bounded to #main-content on purpose: the skip link and the nav rail also sit
+// above the filters, and a new nav destination is not this file's failure.
+const STOPS_ABOVE_FILTERS = ["post-compose-open"];
+
+const LIVE_POST = {
+  posts: [{
+    id: "visitor-2709", author: "Mina", content: "Moved the composer below the feed.",
+    timestamp: "2026-09-30T09:00:00.000Z", source: "shiplog-web",
+  }],
+};
+
+test("the composer is read after the feed and before the contact route, and adds no tab stop above the filters", async (t) => {
+  const { document, id } = await bootSocial(t, { routes: { "/api/social-posts?limit=100": LIVE_POST } });
+  await waitFor(() => document.querySelectorAll(".post-card")
+    .filter((card) => !card.getAttribute("class").includes("post-card-skeleton")).length === 1,
+  "the post painted");
+
+  const order = [];
+  const walk = (node) => {
+    for (const child of node.children ?? []) {
+      // Text nodes arrive in `children` with a truthy tagName, so the attribute
+      // reader is what tells an element from a run of text.
+      if (typeof child.getAttribute !== "function") continue;
+      order.push(child);
+      walk(child);
+    }
+  };
+  walk(document.querySelector("#main-content"));
+
+  const at = (selector) => {
+    const node = document.querySelector(selector);
+    assert.ok(node, `${selector} is not on the page`);
+    const index = order.indexOf(node);
+    assert.ok(index >= 0, `${selector} is outside #main-content`);
+    return index;
+  };
+  const indices = RENDERED_ORDER.map(at);
+  const named = RENDERED_ORDER.map((selector, position) => [selector, indices[position]])
+    .sort((a, b) => a[1] - b[1]).map(([selector]) => selector);
+  assert.deepEqual(named, RENDERED_ORDER, `rendered reading order is ${named.join(" ")}`);
+
+  // "After the feed region" means after the cards, not merely after the element
+  // that holds them: the last card's own index is what the criterion is about.
+  const cards = document.querySelectorAll(".post-card")
+    .filter((card) => !card.getAttribute("class").includes("post-card-skeleton"));
+  assert.equal(cards.length, 1);
+  assert.ok(order.indexOf(cards[cards.length - 1]) < at("#post-compose-panel"),
+    "the composer is read before the last post");
+
+  // About Shiplog is the site footer, outside #main-content, so the composer
+  // precedes it by construction. Asserted as an index rather than against the
+  // node, because comparing a parsed element to a value inspects the page.
+  assert.equal(order.indexOf(document.querySelector("#site-footer-title")), -1,
+    "About Shiplog moved inside #main-content, where the walk above no longer bounds it");
+
+  // The criterion the move must not pay for. The composer still has exactly one
+  // entry point above the filters — the hero control that was already there.
+  const stops = tabSequence(document);
+  const above = stops.slice(0, stops.indexOf(id("post-name-filter")));
+  const names = above.filter((node) => node.closest("#main-content"))
+    .map((node) => node.getAttribute("id") || node.getAttribute("class") || textOf(node).trim());
+  assert.deepEqual(names, STOPS_ABOVE_FILTERS, `the page's stops above the filters are ${names.join(" ")}`);
+  assert.equal(names.length, 1, "the page gained a tab stop above the feed's filters");
+  // Said as a total too, so a focusable added to the page chrome above the
+  // filters — outside #main-content, where the list above cannot see it — is
+  // still a count that has to move for this to stay green.
+  assert.equal(above.length, above.filter((node) => !node.closest("#main-content")).length + 1);
+
+  // The contact route is still a stop, just a later one: it moved below the
+  // composer rather than out of the tab order.
+  assert.ok(stops.indexOf(document.querySelector("#ask-about-shiplog")) > stops.indexOf(id("post-compose-open")));
+  // The caption travels with the label it explains, in one container.
+  assert.equal(document.querySelector("#ask-about-shiplog-description").parentNode
+    === document.querySelector("#ask-about-shiplog").parentNode, true,
+  "the follow-up caption drifted out of the container its label sits in");
+});
+
+// The composer closed is the `hidden` attribute and nothing else: textOf reads
+// straight through a collapsed region in this harness, so a visibility claim
+// made on text alone would pass against a panel standing wide open.
+test("open puts focus in the composer one stop above its first field, and both close routes return it", async (t) => {
+  const { document, id } = await setup(t);
+  const panel = id("post-compose-panel");
+  assert.equal(panel.hidden, true);
+  assert.equal(tabSequence(document).includes(id("post-body")), false);
+
+  id("post-compose-open").click();
+  assert.equal(panel.hidden, false);
+  assert.equal(document.activeElement?.id, "post-form-title");
+  // Where the criterion asked for the post field: open() lands on the panel's
+  // heading instead, which names the form that was just revealed (#2370), and
+  // the field is the very next stop. Proved with the pure Tab decision rather
+  // than pressTab, which restarts at stop 0 from a node off the ring.
+  assert.equal(nextContainedStop(composerFocusables(panel), document.activeElement, false)?.id, "post-body");
+
+  id("post-compose-cancel").click();
+  assert.equal(panel.hidden, true);
+  assert.equal(document.activeElement?.id, "post-compose-open");
+
+  id("post-compose-open").click();
+  id("post-author").focus();
+  pressKey(document, "Escape");
+  assert.equal(panel.hidden, true);
+  assert.equal(document.activeElement?.id, "post-compose-open");
+  assert.equal(id("post-compose-open").getAttribute("aria-expanded"), "false");
+});
+
+test("Escape elsewhere on the page is left alone, and a collapsed composer refuses one aimed into it", async (t) => {
+  const { document, id } = await setup(t);
+  id("post-compose-open").click();
+
+  // A press on a control outside the panel never reaches this disclosure, so
+  // the page keeps Escape — and the open composer stays open.
+  const outside = new DomEvent("keydown", { bubbles: true, key: "Escape" });
+  id("post-name-filter").focus();
+  id("post-name-filter").dispatchEvent(outside);
+  assert.equal(outside.defaultPrevented, false, "the composer swallowed Escape from outside it");
+  assert.equal(id("post-compose-panel").hidden, false, "Escape outside the composer closed it");
+  assert.equal(document.activeElement?.id, "post-name-filter");
+
+  id("post-body").focus();
+  pressKey(document, "Escape");
+  assert.equal(id("post-compose-panel").hidden, true);
+  assert.equal(document.activeElement?.id, "post-compose-open");
+
+  // And a stray press delivered inside the collapsed panel is refused rather
+  // than re-run: close() would otherwise yank focus to the trigger from
+  // wherever the reader had got to.
+  id("post-filter-clear").focus();
+  const stray = new DomEvent("keydown", { bubbles: true, key: "Escape" });
+  id("post-body").dispatchEvent(stray);
+  assert.equal(stray.defaultPrevented, false);
+  assert.equal(id("post-compose-panel").hidden, true);
+  assert.equal(document.activeElement?.id, "post-filter-clear");
 });
 
 test("composer style contracts allow narrow content to wrap and retain shared focus outlines", async () => {

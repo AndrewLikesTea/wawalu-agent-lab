@@ -10,19 +10,23 @@ import {
   ASK_ABOUT_SHIPLOG_DESCRIPTION, ASK_ABOUT_SHIPLOG_DESCRIPTION_ID,
 } from "../src/ask-about-shiplog.js";
 
-// The third entry is the region the route belongs to on that page. It is the
-// page's introduction wherever the route is the introduction's own action; on
-// Social it closes the feed's supporting block, and since #2654 the prompt
-// coach carries it below the grade for the same reason, so the page's promise
-// is not separated from the example that keeps it.
+// The third entry is the region the route belongs to on that page, and the
+// fourth is the class its immediate container carries. The region is the page's
+// introduction wherever the route is the introduction's own action; since #2654
+// the prompt coach carries it below the grade for the same reason, so the page's
+// promise is not separated from the example that keeps it. Social is the one
+// page where the route belongs to no region: it used to close the feed panel's
+// supporting block, and since #2709 the composer is read after the feed, so the
+// route closes the page below the composer instead. Its container is
+// <main> itself, which carries no class — hence the null.
 const pages = [
-  ["coach", "follow_up_coach", "#ask-about-shiplog-actions"],
-  ["social", "follow_up_social", ".list-panel"],
-  ["profile", "follow_up_people", ".hero-profile"],
-  ["agents", "follow_up_agents", ".observatory-hero"],
+  ["coach", "follow_up_coach", "#ask-about-shiplog-actions", "hero-actions"],
+  ["social", "follow_up_social", "#main-content", null],
+  ["profile", "follow_up_people", ".hero-profile", "hero-actions"],
+  ["agents", "follow_up_agents", ".observatory-hero", "hero-actions"],
 ];
 
-for (const [name, purpose, heroSelector] of pages) {
+for (const [name, purpose, heroSelector, containerClass] of pages) {
   for (const activation of ["keyboard", "click"]) {
     test(`${name}: introduction action ${activation} focuses the existing follow-up and retains request identity`, async (t) => {
       const page = await loadPage(new URL(`../src/${name}.html`, import.meta.url));
@@ -35,7 +39,13 @@ for (const [name, purpose, heroSelector] of pages) {
       assert.equal(route.tagName, "A");
       assert.equal(route.getAttribute("href"), "#site-footer-panel");
       assert.ok(route.classList.contains("text-link"));
-      assert.ok(route.parentNode.classList.contains(name === "social" ? "list-panel" : "hero-actions"));
+      // The route and its description are direct children of one container, so
+      // neither is nested a level deeper than the other inside the region.
+      const inContainer = (node, label) => {
+        if (containerClass) assert.ok(node.parentNode.classList.contains(containerClass), label);
+        else assert.equal(node.parentNode.getAttribute("id"), heroSelector.slice(1), label);
+      };
+      inContainer(route, `${name}: the label left the container that carries it`);
       assert.ok(tabSequence(document).includes(route));
 
       // #2556: the label does not travel alone. The line that says where the
@@ -47,8 +57,9 @@ for (const [name, purpose, heroSelector] of pages) {
         .filter((node) => node.getAttribute("id") === ASK_ABOUT_SHIPLOG_DESCRIPTION_ID);
       assert.equal(described.length, 1, `${name}: the description is painted ${described.length} times`);
       assert.equal(textOf(described[0]), ASK_ABOUT_SHIPLOG_DESCRIPTION);
-      assert.ok(described[0].parentNode.classList.contains(name === "social" ? "list-panel" : "hero-actions"),
-        `${name}: the description drifted away from the label it explains`);
+      inContainer(described[0], `${name}: the description drifted away from the label it explains`);
+      assert.equal(described[0].parentNode === route.parentNode, true,
+        `${name}: the description and its label no longer share a container`);
       assert.ok(!tabSequence(document).includes(described[0]),
         `${name}: the description became a tab stop of its own`);
       assert.equal(document.querySelectorAll("#site-footer-form").length, 1);
