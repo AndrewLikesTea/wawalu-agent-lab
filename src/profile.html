@@ -451,6 +451,17 @@
                for you". What publishing costs is said once, in the paragraph
                below that carries the route to the composer (#2390).
 
+               Who reads a published post left this sentence in #2734. It closed
+               on a clause about an image post the reader publishes — People's
+               noun and People's point of view for a fact Social and the shared
+               post page each stated in their own. All three now render one
+               wording, PUBLISHED_POST_REACH in src/social.js, and People renders
+               it in the paragraph below, beside the rest of what publishing
+               costs. This sentence ends on the provenance, which is what the
+               intro is for: what a reader is looking at, not what happens if
+               they publish. What is left is Social's own bytes for the
+               provenance, word for word, and the shared post page's.
+
                It names the destination's feed "the Social feed" (#2698), the one
                name that feed now carries everywhere: Social's own feed heading
                and the shared post page's route out say the same two words. It
@@ -458,9 +469,21 @@
                a part of something larger without naming the thing. What this
                view leaves out — posts with no image — is still said here, and
                the link still wraps Social alone, the destination. -->
-          <p class="profile-lede hint">Open <a class="text-link" href="/social.html">Social</a> when you want the Social feed, including posts with no image. Select Open post to see a post on its own page, with a link you can share. Posts labelled “Example post” are invented to demonstrate Shiplog and use no customer or production data; anyone can read an image post you publish.</p>
+          <p class="profile-lede hint">Open <a class="text-link" href="/social.html">Social</a> when you want the Social feed, including posts with no image. Select Open post to see a post on its own page, with a link you can share. Posts labelled “Example post” are invented to demonstrate Shiplog and use no customer or production data.</p>
+          <!-- Everything publishing costs, in the paragraph that hands a reader
+               to the composer. The last three sentences are shared copy and are
+               compared byte for byte against src/social.js by
+               tests/published-post-reach.test.js: PUBLISHED_POST_REACH, then
+               PUBLISHED_POST_TERMS, then the reporting clause People and Social
+               both carry. The reach sentence arrived here in #2734, from the
+               intro above, which said the same thing in People's own noun; the
+               terms were People's sentence first (#2484) and Social's composer
+               adopted them (#2648), and they split off the reporting clause in
+               #2734 so the shared post page can carry them too. Order matters:
+               who reads it, then whether it can come back, then the route that
+               takes one down, then the one instruction. -->
           <p class="feed-create hint">
-            To add yours: <a class="text-link paint-link" id="profile-paint-route" href="/paint/?from=profile" target="_blank" rel="noopener">Create or open an image in Paint <span class="new-tab-note">(opens in a new tab)</span></a>. Select “Use this image in a Social post”, then fill in the required image description. <a class="text-link" id="profile-publish-route" href="/social.html#post-form">Publish a post on Social</a>. A published post with an image appears on People, under the display name you publish it with. A published post is public and cannot be edited or deleted, and anyone can select Report post on it. Do not include customer or production data.
+            To add yours: <a class="text-link paint-link" id="profile-paint-route" href="/paint/?from=profile" target="_blank" rel="noopener">Create or open an image in Paint <span class="new-tab-note">(opens in a new tab)</span></a>. Select “Use this image in a Social post”, then fill in the required image description. <a class="text-link" id="profile-publish-route" href="/social.html#post-form">Publish a post on Social</a>. A published post with an image appears on People, under the display name you publish it with. Anyone can read a published post, on any device or browser. A published post is public and cannot be edited or deleted. Anyone can select Report post on it. Do not include customer or production data.
           </p>
           <!-- People is a filtered view of Social, and the nav says so by
                nesting them. This is where People defines the thing its picker

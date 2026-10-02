@@ -20,6 +20,8 @@ import {
   MAX_IMAGE_ALT_LENGTH,
   DEFAULT_AUTHOR,
   EXAMPLE_POST_LABEL,
+  PUBLISHED_POST_REACH,
+  PUBLISHED_POST_TERMS,
   PUBLISH_FAILED_NOTE,
   mountSocialFeed,
   mountComposerDisclosure,
@@ -780,7 +782,12 @@ const PUBLISH_INSTRUCTION = "Do not include customer or production data.";
 // post — said only the first, the composer contradicted the reporting
 // explanation below the feed. What a report leads to stays that explanation's to
 // state, once (#2471), so this names the control and stops.
-const PUBLISH_TERMS = "A published post is public and cannot be edited or deleted, and anyone can select Report post on it.";
+// Two sentences since #2734, where there was one with a trailing clause: the
+// terms themselves are PUBLISHED_POST_TERMS in src/social.js and the shared post
+// page renders them too, and that page draws a Report post button on a loaded
+// post and on none of its three other states — so the reporting clause could not
+// travel with them and became its own sentence here.
+const PUBLISH_TERMS = `${PUBLISHED_POST_TERMS} Anyone can select Report post on it.`;
 const PUBLISH_CONSEQUENCE = PUBLISH_TERMS + " " + PUBLISH_INSTRUCTION;
 // The four sentences this replaced. They stacked two facts a reader had to add
 // up — public, and permanent — and then a third about reporting, and the first
@@ -1029,8 +1036,14 @@ test("the Posts panel opens on the feed's own heading, not on the display-name c
 test("Social, People, and a post permalink claim no customer data only for the invented posts", async (t) => {
   const scoped = {
     "social.html": PROVENANCE_SENTENCE,
-    "profile.html": "Posts labelled “Example post” are invented to demonstrate Shiplog and use no customer or production data; anyone can read an image post you publish.",
-    "post.html": "Posts labelled “Example post” are invented to demonstrate Shiplog and use no customer or production data; anyone can read a post a visitor publishes.",
+    // All three say it in Social's bytes since #2734. Each used to close this
+    // sentence with its own wording of who can read a published post — People's
+    // "an image post you publish", the permalink's "a post a visitor publishes"
+    // — which is one fact in three voices. That fact is PUBLISHED_POST_REACH
+    // now, said once per page in one wording, and what is left here is the
+    // provenance claim alone.
+    "profile.html": PROVENANCE_SENTENCE,
+    "post.html": PROVENANCE_SENTENCE,
   };
   for (const [file, sentence] of Object.entries(scoped)) {
     const page = await loadPage(new URL(`../src/${file}`, import.meta.url), {});
@@ -1190,7 +1203,7 @@ test("the display name field explains where the name appears and that it cannot 
   // display name a second time (#2648) — a published post is public, and what
   // the name rides along with is this sentence's to say.
   assert.match(textOf(page.document.querySelector("#post-consequence")),
-    /^A published post is public and cannot be edited or deleted, and anyone can select Report post on it\./);
+    /^A published post is public and cannot be edited or deleted\. Anyone can select Report post on it\./);
   assert.doesNotMatch(textOf(page.document.querySelector("#post-consequence")), /display name/,
     "the consequence names the display name again, in a second wording of this field's hint");
   assert.equal(page.document.querySelectorAll(".publish-consequence").length, 1);
@@ -2767,12 +2780,20 @@ test("the stated count and the dead end's total are what the wire actually yield
 // sentences before a button they cannot undo skips the block. Where the bytes go
 // is one clause now, the reach it buys is the other, and the terms of publishing
 // below are still their own sentence.
-const STORAGE_SCOPE = "Publishing stores this post with the Wawalu team that operates Shiplog;"
-  + " anyone who opens Social can read it, on any device or browser.";
+//
+// ONE WORDING FOR THE REACH (#2734). The second clause became its own sentence,
+// PUBLISHED_POST_REACH, which is the byte-exact wording People and the shared
+// post page also render. It used to read "anyone who opens Social can read it,
+// on any device or browser" — true, and Social's own phrasing of a fact the
+// other two pages each phrased their own way. The subject is the published post
+// rather than Social, because the same sentence has to hold on a permalink.
+const STORAGE_SCOPE = "Publishing stores this post with the Wawalu team that operates Shiplog."
+  + ` ${PUBLISHED_POST_REACH}`;
 // The wordings this replaced, which may not come back beside it.
 const RETIRED_SCOPE = [
   "It is not kept only in this browser.",
   "The decisions and releases you record stay in this browser; a post you publish does not.",
+  "anyone who opens Social can read it, on any device or browser",
 ];
 
 test("the composer says where a published post is stored before anything is typed", async (t) => {
@@ -2796,7 +2817,7 @@ test("the composer says where a published post is stored before anything is type
   const main = textOf(document.querySelector("#main-content"));
   for (const fact of [
     "stores this post with the Wawalu team that operates Shiplog",
-    "anyone who opens Social can read it, on any device or browser",
+    PUBLISHED_POST_REACH,
   ]) {
     assert.equal(main.split(fact).length - 1, 1, `Social does not state this exactly once: ${fact}`);
   }
@@ -2806,11 +2827,15 @@ test("the composer says where a published post is stored before anything is type
     assert.equal(main.includes(retired), false,
       `Social states where a post goes a second way: ${retired}`);
   }
-  // Three sentences between the display name field and the control that
-  // publishes — this one and the two terms of publishing below it — and no
-  // sentence longer than a reader will read at a button they cannot undo.
+  // Five sentences between the display name field and the control that
+  // publishes — where the bytes go, who can read it, the terms, the reporting
+  // route, and the one instruction — and no sentence longer than a reader will
+  // read at a button they cannot undo. It was three until #2734, which split
+  // two of them in half so that the reach and the terms could each be a whole
+  // sentence the other two pages render in the same bytes. No word was added:
+  // the clause boundaries became full stops.
   const sentences = `${STORAGE_SCOPE} ${PUBLISH_CONSEQUENCE}`.split(". ").filter(Boolean);
-  assert.equal(sentences.length, 3, "the composer's consequences grew a fourth sentence");
+  assert.equal(sentences.length, 5, "the composer's consequences grew a sixth sentence");
   for (const sentence of sentences) {
     const words = sentence.split(/\s+/).filter(Boolean).length;
     assert.ok(words < 25, `${words} words is too long to read at the button: ${sentence}`);

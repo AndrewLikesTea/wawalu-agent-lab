@@ -21,7 +21,7 @@ import { readdir, readFile } from "node:fs/promises";
 import { DomEvent, loadPage, parseHtml, pressEnter, pressTab, tabSequence, textOf } from "./support/browser.js";
 import { postDetailHref } from "../src/social-links.js";
 import { POST_EXAMPLE_PROVENANCE, POST_PUBLISHED_PROVENANCE, postProvenanceSentence } from "../src/post-detail.js";
-import { EXAMPLE_POST_LABEL, FEED_LOADING_LINE } from "../src/social.js";
+import { EXAMPLE_POST_LABEL, FEED_LOADING_LINE, PUBLISHED_POST_REACH, PUBLISHED_POST_TERMS } from "../src/social.js";
 import { loadingSummaryText } from "../src/profile.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
 
@@ -646,7 +646,11 @@ const RETIRED_DATA_SENTENCE = "Posts use no customer or production data.";
 // states where the lookup found nothing — so it reads after the post rather
 // than in front of it. A loaded post replaces it with the answer about itself
 // (#2607); the paragraph and its place in reading order are the same either way.
-const CONTEXT_SENTENCE = "Posts labelled “Example post” are invented to demonstrate Shiplog and use no customer or production data; anyone can read a post a visitor publishes.";
+// Social's bytes for the provenance, word for word, and People's (#2734). It
+// used to close with "; anyone can read a post a visitor publishes" — this page's
+// point of view on a fact the other two pages each stated in their own — and that
+// fact is PUBLISHED_POST_REACH now, said once per page in one wording.
+const CONTEXT_SENTENCE = "Posts labelled “Example post” are invented to demonstrate Shiplog and use no customer or production data.";
 // As it ships, id and all. The id is not decoration: it is the handle
 // src/post-page.js writes the per-post answer through, so a paragraph that loses
 // it keeps hedging about a post the page has already read.
@@ -990,7 +994,13 @@ test("the onward row offers the feed, the display name and a post of your own", 
 // terms of publishing, then the one instruction. It was four, and the two that
 // went said public and permanent separately and named the reporting route a
 // third time.
-const CONSEQUENCE = "A published post is public and cannot be edited or deleted, and anyone can select Report post on it. Do not include customer or production data.";
+// Three sentences since #2734. The terms split off the reporting clause so that
+// the terms themselves could be rendered on this page too: this page draws a
+// Report post button on a loaded post and on none of its three other states, so
+// a clause promising one could not travel with them. What stays Social's alone is
+// this whole paragraph — its id, its class, the reporting clause and the
+// instruction to a publisher.
+const CONSEQUENCE = "A published post is public and cannot be edited or deleted. Anyone can select Report post on it. Do not include customer or production data.";
 const consequencesIn = (html) => [...html.matchAll(/<p class="[^"]*publish-consequence[^"]*"[^>]*>([^<]*)<\/p>/g)].map((match) => match[1]);
 
 test("the publication consequence is said once, at the button that publishes", async () => {
@@ -1015,9 +1025,16 @@ test("the publication consequence is said once, at the button that publishes", a
     "People publishes nothing and must not carry the composer's own paragraph");
   assert.equal(people.split(CONSEQUENCE).length - 1, 1,
     "People's helper no longer closes on the terms of publishing, in Social's bytes");
-  // The permalink is the page with no route into publishing at all, so the
-  // sentence is gone from its text altogether, classed or not.
-  assert.equal(post.includes(CONSEQUENCE), false, "the permalink must not repeat the sentence unclassed");
+  // The permalink carries the terms of publishing and nothing else from this
+  // paragraph (#2734): PUBLISHED_POST_TERMS stands below the post in its own
+  // sentence, and the reporting clause and the instruction to a publisher stay
+  // with the composer. So the paragraph as Social writes it is absent here,
+  // classed or not, while the one sentence the three pages share is present.
+  assert.equal(post.includes(CONSEQUENCE), false, "the permalink must not repeat the whole paragraph unclassed");
+  assert.equal(post.split(PUBLISHED_POST_TERMS).length - 1, 1,
+    "the permalink must state the terms of publishing exactly once, in the shared wording");
+  assert.equal(post.includes("Anyone can select Report post on it."), false,
+    "the permalink promises a Report post control it draws in one of its four states");
 
   // It stands ahead of the control it is about, and the button names it, so it
   // is read on focus rather than only seen.
@@ -1085,6 +1102,17 @@ test("every state the page can reach puts exactly one of the four on screen", as
       // Whatever the state, the page's own h1 is the only h1 on it, so the
       // heading outline has one top level rather than one per rendered state.
       assert.equal(page.document.querySelectorAll("h1").length, 1, `the ${state} state adds a second h1`);
+      // And what publishing makes public outlives all three (#2734). Both
+      // sentences are standing copy below the post and outside
+      // #post-provenance, which is the paragraph src/post-page.js overwrites,
+      // so neither can be carried off by a lookup that found nothing or failed.
+      // Counted on the painted page, not the markup, and counted rather than
+      // matched: a second copy drawn by a state renderer fails here too.
+      const painted = textOf(page.document.querySelector("#main-content"));
+      for (const sentence of [PUBLISHED_POST_REACH, PUBLISHED_POST_TERMS]) {
+        assert.equal(painted.split(sentence).length - 1, 1,
+          `the ${state} state does not say this exactly once: ${sentence}`);
+      }
     } finally {
       page.restore();
     }
@@ -1522,17 +1550,18 @@ test("the post page says what it is before it says it is loading", async () => {
   assert.equal(social.includes(`Social is a ${SOCIAL_DESCRIPTION}, images optional.`), false,
     "Social's feed panel defines the feed again, under a hero and beside a footer row that already do");
 
-  // Social's provenance sentence, which this page now opens on verbatim: naming
+  // Social's provenance sentence, which this page now says verbatim: naming
   // the invented set by the marker its posts print leaves nothing to localise
   // (#2683), where "the example posts here" had to become "on Social" for a page
-  // that holds one post and no feed. Social's copy ends there since #2648; this
-  // page has no composer, so it keeps its own clause about who can read a
-  // published post.
+  // that holds one post and no feed. Social's copy ended there since #2648 and
+  // this page's does too since #2734 — the clause it used to add about who can
+  // read a published post is now a sentence of its own below the post, in the
+  // one wording all three pages render.
   const SOCIAL_PROVENANCE = "Posts labelled “Example post” are invented to demonstrate Shiplog and use no customer or production data.";
   assert.ok(social.includes(SOCIAL_PROVENANCE),
     "Social no longer says the provenance sentence this page follows");
-  assert.ok(CONTEXT_SENTENCE.startsWith(SOCIAL_PROVENANCE.replace(/\.$/, ";")),
-    "this page's provenance sentence stopped opening on Social's, word for word");
+  assert.equal(CONTEXT_SENTENCE, SOCIAL_PROVENANCE,
+    "this page's provenance sentence stopped being Social's, word for word");
 
   // The strings this page already owns are untouched, byte for byte.
   assert.ok(html.includes(`<span class="detail-loading-text">${STATE_HEADLINES.loading}</span>`), "the loading line is unchanged");

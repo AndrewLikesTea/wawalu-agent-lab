@@ -226,6 +226,35 @@ export const EXAMPLE_POST_LABEL = "Example post";
 // it prevents is a made-up post that reads as somebody's real one.
 export const VISITOR_POST_SOURCE = "shiplog-web";
 
+// What publishing makes public, in one wording for the three pages that show a
+// published post: Social, People and the shared post page (#2734). Each page
+// authors the two sentences into its own markup so they paint before any script
+// runs, and tests/published-post-reach.test.js compares the bytes rather than
+// the sense — a paraphrase on any one page is a reader reconciling three
+// tellings of the same fact.
+//
+// Two sentences, because they answer two questions and one page can only answer
+// one of them. Who can read it, and on what: this used to be said three ways —
+// "anyone can read an image post you publish" on People, "anyone can read a
+// post a visitor publishes" on the permalink, and "anyone who opens Social can
+// read it, on any device or browser" inside Social's storage block — each in
+// its own page's noun and point of view, which is three wordings of one fact a
+// reader has no way to tell apart.
+export const PUBLISHED_POST_REACH = "Anyone can read a published post, on any device or browser.";
+// And whether it can be taken back. Social's composer and People's helper
+// already stated this in the same bytes (#2484, #2648); it now also stands on
+// the permalink, which is the page a forwarded link lands a reader on and the
+// one place the question is asked about a post somebody else published.
+//
+// The reporting clause is not in it. It used to close the sentence as "and
+// anyone can select Report post on it", which is true beside Social's composer
+// and People's route into it and true of exactly one of the permalink's four
+// states: src/post-page.js draws that button only on a loaded post. So the
+// clause stayed on the two pages where it holds unconditionally, as its own
+// sentence, and this one says the part that is true of a published post
+// everywhere.
+export const PUBLISHED_POST_TERMS = "A published post is public and cannot be edited or deleted.";
+
 export function isExamplePost(post) {
   return post?.source !== VISITOR_POST_SOURCE;
 }

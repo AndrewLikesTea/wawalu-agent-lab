@@ -766,8 +766,16 @@
                  fact a reader has to press for is a fact they meet afterwards.
                  It does NOT restate the terms below it: that sentence is said
                  once, in its own bytes, and this one answers a different
-                 question. -->
-            <p class="hint" id="post-storage-scope">Publishing stores this post with the Wawalu team that operates Shiplog; anyone who opens Social can read it, on any device or browser.</p>
+                 question.
+                 The reach clause is now its own sentence, and its bytes are
+                 PUBLISHED_POST_REACH in src/social.js (#2734) — the one wording
+                 People and the shared post page also render, where each of them
+                 used to say it in its own noun and point of view. It names the
+                 published post rather than "Social", because the same sentence
+                 has to hold on a permalink opened from a pasted link. Still one
+                 paragraph, so the two facts are read together and the composer
+                 gains nothing to tab to. -->
+            <p class="hint" id="post-storage-scope">Publishing stores this post with the Wawalu team that operates Shiplog. Anyone can read a published post, on any device or browser.</p>
 
             <!-- The one place this sentence is said, at the moment it costs
                  something: the reader is one click from making a post public
@@ -800,8 +808,16 @@
                  (#2484), so the two pages state them in one wording instead of
                  two. Where the display name a visitor picks appears, and that it
                  is fixed once published, is that field's own hint, said at the
-                 field; that it is public follows from the first words here. -->
-            <p class="hint publish-consequence" id="post-consequence">A published post is public and cannot be edited or deleted, and anyone can select Report post on it. Do not include customer or production data.</p>
+                 field; that it is public follows from the first words here.
+                 The terms and the reporting route are two sentences as of #2734,
+                 and the first of them is PUBLISHED_POST_TERMS in src/social.js:
+                 the shared post page renders it too, and that page draws a
+                 Report post button on a loaded post and on none of its other
+                 three states, so a clause promising one could not travel with
+                 it. The clause stays here, where it holds whatever the reader
+                 does next, and reads the same as before — one sentence later in
+                 the paragraph rather than one clause later in the sentence. -->
+            <p class="hint publish-consequence" id="post-consequence">A published post is public and cannot be edited or deleted. Anyone can select Report post on it. Do not include customer or production data.</p>
             <p class="field-error compose-error" id="post-publish-blocker" hidden></p>
             <!-- Ships empty. src/social.js writes the one step Publish post is
                  still waiting for here while a chosen image has no description,

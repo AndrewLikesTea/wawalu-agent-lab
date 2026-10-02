@@ -522,7 +522,14 @@ test("both destinations ship as constants, and only the People link's target nar
 // about that one post (postProvenanceSentence, #2607). That swap is the page
 // wiring's, not this renderer's — renderPostDetail() only ever touches
 // #post-detail — which is what the second test below still pins.
-const STANDING_SENTENCE = "Posts labelled “Example post” are invented to demonstrate Shiplog and use no customer or production data; anyone can read a post a visitor publishes.";
+// Who reads a visitor's own post left this sentence in #2734: it closed with
+// "; anyone can read a post a visitor publishes", this page's point of view on a
+// fact Social and People each stated in theirs. All three render
+// PUBLISHED_POST_REACH now, in one wording — on this page as its own standing
+// paragraph below the post, outside #post-provenance so the swap below cannot
+// take it away. What is left here is Social's bytes for the provenance, word for
+// word, and People's.
+const STANDING_SENTENCE = "Posts labelled “Example post” are invented to demonstrate Shiplog and use no customer or production data.";
 
 // Every state the panel can be in, named the way a reader would name it.
 const PANEL_STATES = [
