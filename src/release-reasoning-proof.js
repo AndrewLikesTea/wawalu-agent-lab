@@ -10,11 +10,11 @@
 // recorded an association at all — a dangling reference included, because "never
 // recorded a decision" and "lost the decision to an import" are different
 // failures and that line is about the first. This figure is about the second:
-// the question is whether the rationale can still be READ, so an association
-// pointing at a decision this log does not hold does not count, and neither does
-// a release that linked nothing. The two lines therefore disagree on a log with
-// dangling references, which is the correct outcome and is why each states its
-// own rule beside itself rather than borrowing the other's sentence.
+// the question is whether the rationale can still be READ, so a release is
+// covered here only when it links a decision this log still holds. The two
+// lines therefore disagree on a log with dangling references, which is the
+// correct outcome and is why each states its own rule beside itself rather than
+// borrowing the other's sentence.
 //
 // FILTERS DO NOT MOVE IT. Every other count on the releases page describes what
 // the filters are showing (releaseSummarySentence, the export, the follow-up).
@@ -37,12 +37,34 @@ import { copyText } from "./share-link.js";
  * who met the claim first would read the numbers as evidence for it. */
 export const REASONING_PROOF_HEADING = "Releases on this page that link a decision";
 
-// What a release has to do to be counted, said where the number is. Both halves
-// of the rule are stated, because a reader who only learns the first would read
-// the remainder as "linked, but to something missing".
-export const REASONING_PROOF_RULE =
-  "A link pointing at a decision the decision log does not hold does not count. "
-  + "Neither does a release with no linked decision.";
+// WHAT "COVERED" AND "UNCOVERED" MEAN, SAID ONCE FOR THE WHOLE SITE (#2712).
+//
+// One sentence, naming both halves, where the number is. It replaced three
+// overlapping statements of one rule. This block used to state it as two
+// exclusions — "A link pointing at a decision the decision log does not hold
+// does not count. Neither does a release with no linked decision." — and then
+// define the word again two paragraphs below, so a reader met the same rule
+// twice in two registers and had to work out it was one rule. The home page's
+// copy of the block carried the two exclusions and nothing else, which left
+// "covered" defined there only by what it is not.
+//
+// THE COVERED SIDE FIRST, uncovered as its remainder: a reader who meets an
+// exclusion before the thing it excludes from is holding a rule with nothing to
+// apply it to. It borrows the figure's own clause — "at least one decision the
+// decision log holds" — rather than coining a second way to say the rule, so
+// the figure, the rule and every "uncovered" label below read as one thing.
+//
+// AUTHORED ON BOTH PAGES, PINNED HERE. The releases page carries it at
+// #coverage-gap-definition, above the first control that uses either word, and
+// a rendered-order check holds it to being that page's first use of
+// "uncovered"; the home page's copy of the block carries the same bytes at
+// #reasoning-kept-rule. Both are authored rather than written by script,
+// because the words are true before the log has loaded, and both are pinned to
+// this constant so "worded identically on both pages" is a property of the
+// source and not of two hand-kept strings.
+export const COVERAGE_DEFINITION =
+  "A release is covered when it links at least one decision the decision log holds; "
+  + "every other release is uncovered.";
 
 // What the two numbers are over. Static, because it is true on every render.
 export const REASONING_PROOF_SCOPE =
@@ -95,9 +117,9 @@ export const REASONING_PROOF_SUMMARY_SOURCE =
 // holds", "loaded"), so the introduction and the figure read as one claim
 // rather than as a paraphrase and its subject.
 //
-// It deliberately does NOT say "uncovered". The page defines that word further
-// down, in #coverage-gap-definition, and a rendered-order check holds the
-// definition to being the page's first use of it.
+// It deliberately does NOT say "uncovered". The definition below it, at
+// #coverage-gap-definition, is where the page states that word, and a
+// rendered-order check holds it to being the page's first use of it.
 export const REASONING_PROOF_FIGURES =
   "how many of them link at least one decision the decision log holds, "
   + "out of how many were loaded";
@@ -175,10 +197,10 @@ export function countReasoningKept(releases = [], decisions = [], exampleIds = n
  * not say what either number is. "N of M releases" is the shape the log's own
  * count sentence already uses, so the page reads in one idiom.
  *
- * It says the decision log HOLDS the decision, which is the verb the exclusion
- * sentence under it already uses ("a decision the decision log does not hold
- * does not count"): one name for one concept, so the two sentences read as the
- * rule and its bound rather than as two rules. It stays page-neutral — no "on
+ * It says the decision log HOLDS the decision, which is the clause the
+ * definition under it is written in too ("at least one decision the decision
+ * log holds"): one name for one concept, so the figure and the rule read as one
+ * claim rather than as two rules. It stays page-neutral — no "on
  * this page" — because the homepage's evaluation summary and the clipboard both
  * quote this sentence byte for byte, and each states its own scope beside it.
  */
@@ -218,7 +240,8 @@ export function reasoningProvenanceNote(counts = {}) {
  * check against the page it claims to come from.
  *
  * WHAT MAKES IT STAND ALONE, in the order a recipient needs it: the figures,
- * the rule they were counted under, which of the counted records were invented,
+ * the rule they were counted under — the page's own definition of "covered",
+ * quoted rather than summarised — which of the counted records were invented,
  * what an invented record is, what the count was taken over, and where to find
  * the source. The first three were already here; #2682 added the last three,
  * because the sentence was being forwarded to people who had never seen the
@@ -227,7 +250,7 @@ export function reasoningProvenanceNote(counts = {}) {
 export function reasoningProofSummaryLines(counts = {}) {
   return [
     `Shiplog releases: ${reasoningKeptSentence(counts)}`,
-    REASONING_PROOF_RULE,
+    COVERAGE_DEFINITION,
     reasoningProvenanceNote(counts),
     REASONING_PROOF_SUMMARY_EXAMPLES,
     REASONING_PROOF_SUMMARY_SCOPE,

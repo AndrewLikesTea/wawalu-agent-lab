@@ -4,8 +4,9 @@
 // WHAT IS PINNED HERE, in the order the acceptance criteria are written:
 //
 //   * the rule — a release counts when it links a decision that IS in the loaded
-//     decision log; a link pointing at an absent id does not count, and neither
-//     does a release that linked nothing;
+//     decision log, which the page states once, positively, as its definition
+//     of "covered" and "uncovered" (#2712: it used to state the same rule a
+//     second time as two exclusions);
 //   * the denominator — every loaded release, not the rendered selection;
 //   * the attribution — all three provenance cases (examples only, added only,
 //     mixed) in the site's own wording, derived from the records counted;
@@ -29,6 +30,7 @@ import { STORAGE_KEY } from "../src/app.js";
 import { RELEASE_STORAGE_KEY } from "../src/releases.js";
 import { initReleasesPage } from "../src/releases-page.js";
 import {
+  COVERAGE_DEFINITION,
   NO_RELEASES_TO_COUNT,
   REASONING_PROOF_COPIED_STATUS,
   REASONING_PROOF_COPY_FAILED_STATUS,
@@ -36,7 +38,6 @@ import {
   REASONING_PROOF_COPY_PENDING,
   REASONING_PROOF_COUNTING,
   REASONING_PROOF_HEADING,
-  REASONING_PROOF_RULE,
   REASONING_PROOF_SCOPE,
   REASONING_PROOF_SUMMARY_EXAMPLES,
   REASONING_PROOF_SUMMARY_SCOPE,
@@ -212,7 +213,10 @@ test("the summary builder is pure and carries both counts, the rule, and the att
   assert.match(summary, /1 of 3 releases/);
   assert.ok(summary.includes(reasoningProvenanceNote(counts)), "the copied text carries no attribution");
   assert.match(summary, /Counted here: 1 example record and 2 you added\./);
-  assert.ok(summary.includes(REASONING_PROOF_RULE), "the copied text does not carry the counting rule");
+  // The rule it was counted under is the page's definition of the word, quoted
+  // rather than summarised: a recipient who never saw the page gets one rule.
+  assert.ok(summary.includes(COVERAGE_DEFINITION), "the copied text does not carry the counting rule");
+  assert.doesNotMatch(summary, /does not count/, "the copied text still carries the deleted exclusions");
   // It travels without the page around it, so it states its own scope in words
   // that mean something off the page.
   assert.ok(summary.includes(REASONING_PROOF_SUMMARY_SCOPE));
@@ -424,20 +428,25 @@ test("the block is a named region with the figure, the rule, the scope and the a
 
   assert.equal(claim(page), "1 of 3 releases in this release log links at least one decision the decision log holds.");
   assert.equal(provenance(page), "Counted here: no example records and 3 you added.");
-  assert.equal(textOf(byId(page, "reasoning-proof-rule")), REASONING_PROOF_RULE);
+  assert.equal(textOf(byId(page, "coverage-gap-definition")), COVERAGE_DEFINITION);
   assert.equal(textOf(byId(page, "reasoning-proof-scope")), REASONING_PROOF_SCOPE);
-  // The rule is stated where the number is, not left to the log's rows.
-  assert.match(textOf(region), /does not count/);
+  // The rule is stated where the number is, not left to the log's rows — and it
+  // is stated once (#2712): the block used to carry two exclusions here and the
+  // definition of the same rule again two paragraphs below.
+  assert.ok(textOf(region).includes(COVERAGE_DEFINITION));
+  assert.doesNotMatch(textOf(region), /does not count/, "an exclusion survived beside the definition");
+  assert.ok(!page.document.getElementById("reasoning-proof-rule"), "the exclusions still have a node on the page");
 
-  // ORDER (#2598): the two figures are named first, then what does not count,
-  // then what they are counted over. A reader who meets an exclusion before the
-  // thing it excludes from has to hold a rule with nothing to apply it to.
+  // ORDER (#2598, #2712): the two figures are named first, then the rule they
+  // were counted under, then what they are counted over. A reader who meets the
+  // rule before the thing it applies to is holding a rule with nothing to
+  // apply it to.
   const said = Array.from(region.children).map((node) => textOf(node)).filter((text) => text !== "");
   const lead = said.findIndex((text) => text.includes("at least one decision the decision log holds."));
-  const excludes = said.findIndex((text) => text.includes("does not count"));
+  const defined = said.indexOf(COVERAGE_DEFINITION);
   assert.ok(lead >= 0, "the sentence naming both figures never rendered");
-  assert.ok(excludes > lead, "an exclusion is stated before the figures it excludes from");
-  assert.ok(said.indexOf(REASONING_PROOF_SCOPE) > excludes, "the scope note left the figures it qualifies");
+  assert.ok(defined > lead, "the rule is stated before the figures it applies to");
+  assert.ok(said.indexOf(REASONING_PROOF_SCOPE) > defined, "the scope note left the figures it qualifies");
   // And the lead names both numbers, not one: "N of M releases".
   assert.match(said[lead], /^\d+ of \d+ releases? in this release log/);
 });
@@ -456,7 +465,7 @@ test("the figure is a live region from the first paint, before any module runs",
   assert.equal(textOf(node), REASONING_PROOF_COUNTING);
   assert.doesNotMatch(textOf(node), /\d/, "no count may be authored into the figure");
   // The rule and the scope are authored, so the block is legible with no script.
-  assert.equal(textOf(byId(page, "reasoning-proof-rule")), REASONING_PROOF_RULE);
+  assert.equal(textOf(byId(page, "coverage-gap-definition")), COVERAGE_DEFINITION);
   assert.equal(textOf(byId(page, "reasoning-proof-scope")), REASONING_PROOF_SCOPE);
   // And the figure's wait is not a second voice for the log's: this block says
   // nothing about loading, which the log's own status region below does.
@@ -481,16 +490,16 @@ test("before the log loads the block names both numbers and says they are still 
   // check holds the definition to being the page's first use of it.
   assert.doesNotMatch(waiting, /uncovered/i);
 
-  // ORDER: the two exclusions stand after the sentence naming the figures, which
-  // is the whole reason this node says anything before the count arrives.
+  // ORDER: the rule stands after the sentence naming the figures, which is the
+  // whole reason this node says anything before the count arrives.
   const said = Array.from(cold.document.querySelector("#reasoning-proof").children)
     .map((node) => textOf(node))
     .filter((text) => text !== "");
   const named = said.indexOf(waiting);
   assert.ok(named >= 0, "the wait never reached the region");
-  assert.ok(said.indexOf(REASONING_PROOF_RULE) > named,
-    "an exclusion is stated before the numbers it excludes from");
-  assert.ok(said.indexOf(REASONING_PROOF_SCOPE) > said.indexOf(REASONING_PROOF_RULE),
+  assert.ok(said.indexOf(COVERAGE_DEFINITION) > named,
+    "the rule is stated before the numbers it applies to");
+  assert.ok(said.indexOf(REASONING_PROOF_SCOPE) > said.indexOf(COVERAGE_DEFINITION),
     "the scope note left the figures it qualifies");
 
   // And the copy control says why it cannot be pressed yet, in the home page's
@@ -515,8 +524,8 @@ test("the counted sentence replaces the wait rather than standing beside it", as
   assert.doesNotMatch(region, /Still counting/, "the wait is still on screen beside the figure");
   assert.doesNotMatch(region, /out of how many were loaded/, "the pair is introduced twice");
   assert.doesNotMatch(region, /becomes available/, "the control still says it is unavailable");
-  // The exclusions stayed put, under the figure that replaced the wait.
-  assert.match(region, /does not count/);
+  // The rule stayed put, under the figure that replaced the wait.
+  assert.ok(region.includes(COVERAGE_DEFINITION));
 });
 
 test("the three provenance cases reach the painted attribution", async (t) => {

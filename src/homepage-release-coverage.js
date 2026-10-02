@@ -42,10 +42,10 @@
 
 import { HISTORY_UNREAD_ANNOUNCEMENT } from "./app.js";
 import {
+  COVERAGE_DEFINITION,
   REASONING_PROOF_COUNTING_LEAD,
   REASONING_PROOF_FIGURES,
   REASONING_PROOF_HEADING,
-  REASONING_PROOF_RULE,
   REASONING_PROOF_SCOPE,
   countReasoningKept,
   reasoningKeptSentence,
@@ -95,7 +95,13 @@ export const RELEASE_COVERAGE_LEAD =
 
 // The caveats, from the releases page's own constants. Authored into the
 // document rather than written here: both are true before any module runs.
-export const RELEASE_COVERAGE_RULE = REASONING_PROOF_RULE;
+//
+// The rule is that page's definition of "covered" and "uncovered", byte for
+// byte (#2712). This block used to carry the rule as two exclusions instead,
+// which defined the word here only by what it is not — and a visitor who read
+// both pages met two statements of one rule. One sentence, one constant, and
+// the home page's `rule` node is where it lands here.
+export const RELEASE_COVERAGE_RULE = COVERAGE_DEFINITION;
 export const RELEASE_COVERAGE_SCOPE = REASONING_PROOF_SCOPE;
 
 // What the document ships in the figure's place. It says the counting is still
