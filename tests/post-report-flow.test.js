@@ -196,7 +196,10 @@ test("People: every drawn tile has a Report post button that opens the same pane
 // Asserted on the painted DOM, not on the markup: a page could hydrate over its
 // own warning.
 const SELF_SERVICE = /A published post is public and cannot be edited or deleted/;
-const REMOVAL_PATH = /anyone can select Report post on it\./;
+// Its own sentence since #2734, so the capital is not fixed: the terms before it
+// are the bytes the shared post page renders too, and the clause split off them
+// because that page draws a Report post button in one of its four states.
+const REMOVAL_PATH = /[Aa]nyone can select Report post on it\./;
 // A promise of removal, and a second name for the one actor the site has.
 const OVERPROMISES = [/will be removed/i, /will remove/i, /we remove/i, /guarantee/i];
 const RIVAL_ACTORS = [/moderator/i, /\badmin\b/i, /support team/i, /\bstaff\b/i];
@@ -253,7 +256,8 @@ test("People: the helper points at the terms instead of restating them, once the
   const helper = textOf(document.querySelector(".feed-create"));
   statesTheDistinction(helper, "People's helper");
   assert.ok(helper.trim().endsWith(
-    "A published post is public and cannot be edited or deleted, and anyone can select Report post on it. "
+    "A published post is public and cannot be edited or deleted. "
+    + "Anyone can select Report post on it. "
     + "Do not include customer or production data."),
   `People's helper no longer states both halves of the distinction: ${helper}`);
   assert.ok(helper.includes(REPORT_POST_LABEL), `People names the reporting control something other than "${REPORT_POST_LABEL}"`);

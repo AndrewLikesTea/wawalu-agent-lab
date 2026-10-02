@@ -1503,7 +1503,13 @@ test("People claims no result before its first image post, and the loaded page i
 // (#2549, #2683), so "which pictures?" is answered on the tile rather than left
 // to a reader who has not scrolled yet; People's own noun stays in the clause
 // about the visitor's own post.
-const PEOPLE_PROVENANCE = "Posts labelled “Example post” are invented to demonstrate Shiplog and use no customer or production data; anyone can read an image post you publish.";
+// Who reads a published post left this sentence in #2734: it closed with "; anyone
+// can read an image post you publish", People's noun and People's point of view
+// for a fact Social and the shared post page each stated in their own. All three
+// render PUBLISHED_POST_REACH now, and People renders it in the helper below,
+// beside the rest of what publishing costs. What is left here is Social's bytes
+// for the provenance, word for word.
+const PEOPLE_PROVENANCE = "Posts labelled “Example post” are invented to demonstrate Shiplog and use no customer or production data.";
 const RETIRED_DATA_SENTENCE = "Posts use no customer or production data.";
 const PUBLISH_INSTRUCTION = "Do not include customer or production data.";
 // The four second-person sentences Social's composer used to stack, retired from
@@ -1525,11 +1531,24 @@ const RETIRED_CONTRACT = [
 const PUBLISH_CONDITIONS = [
   "A published post is public",
   "cannot be edited or deleted",
-  "anyone can select Report post on it",
+  "Anyone can select Report post on it",
   PUBLISH_INSTRUCTION,
 ];
-const PEOPLE_CONSEQUENCE = "A published post is public and cannot be edited or deleted, and anyone can select Report post on it. "
+// Four sentences since #2734, where there were two. Who reads a published post
+// moved down from the intro, and the reporting clause became a sentence of its
+// own so the terms before it could be the byte-exact wording the shared post
+// page renders too — that page draws a Report post button on a loaded post and
+// on none of its three other states, so a clause promising one could not travel
+// with them.
+const COMPOSER_CONSEQUENCE = "A published post is public and cannot be edited or deleted. "
+  + "Anyone can select Report post on it. "
   + PUBLISH_INSTRUCTION;
+// Social says who can read a published post in the storage block above its
+// composer; People says it here, because this paragraph is the whole of what
+// publishing costs on a page with no composer to attach it to. Same bytes either
+// way — PUBLISHED_POST_REACH owns them.
+const PUBLISH_REACH = "Anyone can read a published post, on any device or browser.";
+const PEOPLE_CONSEQUENCE = `${PUBLISH_REACH} ${COMPOSER_CONSEQUENCE}`;
 
 test("the intro says the image posts on this page are invented, before any of them load", async (t) => {
   // Served, not hydrated: what a reader receives from the markup, ahead of the
@@ -1579,8 +1598,15 @@ test("the intro says the image posts on this page are invented, before any of th
       assert.ok(helper.includes(condition), `People's helper lost a publishing condition: ${condition}`);
       assert.ok(composer.includes(condition), `Social's composer lost a condition People states: ${condition}`);
     }
-    assert.equal(composer, PEOPLE_CONSEQUENCE,
+    assert.equal(composer, COMPOSER_CONSEQUENCE,
       "Social's composer states the terms of publishing in words People's helper does not");
+    // And who can read a published post, which both pages state in one wording
+    // since #2734 — Social in the storage block above the button, People at the
+    // front of this helper, because People has no button to attach it to.
+    assert.equal(textOf(social.document.querySelector("#post-storage-scope")).split(PUBLISH_REACH).length - 1, 1,
+      "Social's composer states who can read a published post in words People's helper does not");
+    assert.ok(helper.startsWith(PUBLISH_REACH) || helper.includes(` ${PUBLISH_REACH}`),
+      "People's helper states who can read a published post in another wording");
     for (const sentence of RETIRED_CONTRACT)
       assert.equal(composer.includes(sentence), false,
         `Social's composer carries a publishing sentence #2648 retired: ${sentence}`);

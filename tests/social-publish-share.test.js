@@ -34,7 +34,7 @@ const SAVED_ID = "5b91d0c4-2f7a-4c31-9b6e-1d0a7c4e8f22";
 // the one instruction (#2648). They are authored in src/social.html, said exactly
 // once, and this file's stake in them is only that nothing here quietly moved or
 // reworded them.
-const CONSEQUENCE = "A published post is public and cannot be edited or deleted, and anyone can select Report post on it. Do not include customer or production data.";
+const CONSEQUENCE = "A published post is public and cannot be edited or deleted. Anyone can select Report post on it. Do not include customer or production data.";
 
 // The composer on the shipped markup, with the API and the clipboard replaced by
 // values the test owns. `saved` is what the publish response resolves to — the

@@ -48,8 +48,12 @@ const NEARBY_INVITATION = { People: documents.People };
 // instruction, rather than a pointer to "Social's publishing terms", a name
 // Social never shows (#2484). Social's composer states them in these same bytes
 // since #2648. tests/social.test.js owns the composer's wording.
+// Three sentences since #2734: the terms, then the reporting clause that split
+// off them so the shared post page could render the terms in these same bytes,
+// then the instruction.
 const PEOPLE_CONSEQUENCE =
-  "A published post is public and cannot be edited or deleted, and anyone can select Report post on it. "
+  "A published post is public and cannot be edited or deleted. "
+  + "Anyone can select Report post on it. "
   + "Do not include customer or production data.";
 // The longer second-person sentences this replaced, retired from every page.
 const RETIRED_WORDINGS = [
@@ -827,6 +831,10 @@ test("People names the same steps in the same words as the composer", async () =
     + "Select “Use this image in a Social post”, then fill in the required image description. "
     + "Publish a post on Social. A published post with an image appears on People, "
     + "under the display name you publish it with. "
+    // Who can read a published post, in the one wording Social and the shared
+    // post page also render (#2734). Social says it in the storage block above
+    // its composer; People has no composer, so it says it here.
+    + "Anyone can read a published post, on any device or browser. "
     // The conditions of publishing themselves, not a pointer to them (#2484).
     + PEOPLE_CONSEQUENCE);
 

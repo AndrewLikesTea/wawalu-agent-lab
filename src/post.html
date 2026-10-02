@@ -241,10 +241,16 @@
              they have to identify. It used to say "the posts already on
              Social", then "the example posts on Social" (#2549); only the noun
              phrase changed, and Social's copy and this page's now open on the
-             same clause word for word. What the sentence says about a visitor's
-             own post is who reads it. It used to say the post "is real"
-             (#2511), which tells a reader who followed a pasted link nothing
-             about who else can open it.
+             same clause word for word, and since #2734 on the whole sentence:
+             it is Social's bytes exactly, and People's.
+
+             Who reads a visitor's own post used to close this sentence, in a
+             clause naming the visitor who published it — this page's point of
+             view on a fact the other two pages each stated in theirs. It left
+             here in #2734 and is now said in one wording on all three, below,
+             in PUBLISHED_POST_REACH's bytes. Before that it said the post "is
+             real" (#2511), which tells a reader who followed a pasted link
+             nothing about who else can open it.
 
              Who chose the name on the post follows it, in one sentence. It used
              to be Social's whole feed note — three sentences, forty words,
@@ -260,8 +266,41 @@
              holds whether the lookup found a post, found nothing, or failed.
              The class is Social's feed-note class, which is what keeps this line
              reading as a note under the post rather than as part of it. -->
-        <p id="post-provenance">Posts labelled “Example post” are invented to demonstrate Shiplog and use no customer or production data; anyone can read a post a visitor publishes.</p>
+        <p id="post-provenance">Posts labelled “Example post” are invented to demonstrate Shiplog and use no customer or production data.</p>
         <p class="hint">Whoever published this post chose the display name on it; nobody owns or verifies a display name on Social.</p>
+        <!-- What publishing on Social makes public, in the two sentences Social's
+             composer and People's helper render (#2734). PUBLISHED_POST_REACH
+             and PUBLISHED_POST_TERMS in src/social.js are the bytes;
+             tests/published-post-reach.test.js compares the three pages rather
+             than reading each one's sense.
+
+             Here, and not in the hero above the post: the blocks before
+             #post-detail are pinned to the eyebrow, the h1 and the lead, and a
+             reader who followed a pasted link came for the post, not for the
+             terms of an act this page offers no control for. Below the post is
+             also where the question is actually asked — a forwarded link is how
+             most readers first learn that a post on Social is readable by
+             anyone, and the standing frame is the only part of this page that
+             answers it in all four states.
+
+             Outside #post-provenance on purpose, so both survive the swap:
+             src/post-page.js overwrites that paragraph with the loaded post's
+             own provenance and leaves these two alone, which is what keeps them
+             on screen when the lookup finds nothing or fails.
+
+             Plain prose in the frame's own help style, like the two paragraphs
+             above: no disclosure and no link, because the page's tab order from
+             the Social exit to the footer is pinned and a fact a reader has to
+             press for is a fact they meet afterwards.
+
+             The reporting clause Social and People close on is not here. It
+             reads "Anyone can select Report post on it", and src/post-page.js
+             draws a Report post button on a loaded post and on none of the
+             other three states, so the sentence would promise a control a
+             waiting reader cannot find. What a report does is explained in
+             #post-reporting below, which arrives and goes with that button. -->
+        <p class="hint" id="post-published-reach">Anyone can read a published post, on any device or browser.</p>
+        <p class="hint" id="post-published-terms">A published post is public and cannot be edited or deleted.</p>
         <!-- Reporting is explained here, and only once there is a post to
              report: src/post-page.js draws a closed disclosure element into
              this container when the lookup returns one, and empties it again in
@@ -288,17 +327,18 @@
              reaching the footer from the Social exit with no control of its own
              in between. -->
         <div id="post-reporting"></div>
-        <!-- No publication consequence here. It used to stand in this hero, word
-             for word the sentence Social's composer shows beside Publish post,
-             on the reasoning that a permalink is the page a visitor meets cold.
-             But nobody publishes on this page: there is no composer, no caption
-             field and no button, so the sentence warned a reader about an act
-             this surface cannot perform. Said three times across two pages it
-             also read as boilerplate rather than as a consequence, which is the
-             failure mode a warning cannot afford. It survives once, in the one
-             place where it costs something — attached to Social's Publish post
-             button as that button's accessible description, so it is announced
-             at the moment of the act rather than skimmed twice beforehand. -->
+        <!-- Social's composer paragraph does not ship here, and its id and its
+             publish-consequence class are Social's alone. What this page carries
+             is the two sentences above the reporting container: the part of that
+             paragraph that describes a published post wherever it is read
+             (#2734). What stays behind is the part addressed to a publisher —
+             "Do not include customer or production data", an instruction to
+             somebody filling in a form this page does not have — and the
+             reporting clause, whose control this page draws in one of its four
+             states. Social's paragraph itself is still announced once, in the
+             place where it costs something: it is the Publish post button's
+             accessible description, so a reader meets it at the moment of the
+             act rather than skimming it beforehand. -->
       </section>
       </main>
     </div>
