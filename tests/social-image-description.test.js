@@ -598,13 +598,15 @@ test("a People tile reads image, then description, then the post's caption", () 
     "the tile's figure was reordered, or grew a node between the image and its description");
 
   // Hidden from assistive tech: the identical string is the alt of the image in
-  // the same tile, and the tile's accessible name is its caption, so announcing
-  // this paragraph would read one sentence twice inside one link. The alt is not
-  // blanked to pay for it.
+  // the same tile, and the tile is named by its action and its post, so
+  // announcing this paragraph would read one sentence twice inside one link. The
+  // alt is not blanked to pay for it.
   assert.equal(byClass(container, "profile-tile-description")[0].getAttribute("aria-hidden"), "true");
   assert.equal(byClass(container, "profile-image")[0].alt, IMAGE.alt);
-  assert.equal(byClass(container, "profile-tile")[0].getAttribute("aria-label"),
-    "Ring landed everywhere. — Open post", "the description must not rename the tile");
+  const tile = byClass(container, "profile-tile")[0];
+  assert.equal(tile.getAttribute("aria-label"),
+    `Open post by Mina, ${byClass(tile, "profile-tile-date")[0].textContent}`,
+    "the description must not rename the tile");
 });
 
 // The feed's description still follows the image it describes, directly, with
