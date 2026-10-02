@@ -285,7 +285,10 @@ test("an image with no description names the missing step on Publish post, once,
 // as a whole sequence — a handful of separate "A precedes B" checks can all pass
 // while the order as a reader meets it is still wrong.
 const RENDERED_ORDER = [
-  "#page-title", "#page-tagline", "#post-compose-open", "#feed-title",
+  // #publish-access is the hero's one sentence about what publishing requires
+  // (#2726). It rides in the trigger's own row, so it is read where the act is
+  // offered and screens above the composer panel the trigger reveals.
+  "#page-title", "#page-tagline", "#post-compose-open", "#publish-access", "#feed-title",
   "#post-name-filter", "#post-time-filter", "#post-filter-clear", "#feed-summary",
   "#feed-state", "#post-feed", ".social-feed-intro", "#feed-source-note",
   "#post-report-route", "#post-compose-panel", "#post-form-title", "#post-body",
