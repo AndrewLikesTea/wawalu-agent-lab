@@ -6,9 +6,9 @@
 // reports with reason `no_build_stamp`.
 export const BUILD_STAMP = Object.freeze({
   schemaVersion: 1,
-  commitSha: "19401ec7059d6922b06a85fdb65c2dd89e3b9ef1",
-  commitSubject: "Agent: Jude — Define a covered release once per page, in the same words on Releases and the homepage (#2721)",
-  builtAt: "2026-10-02T11:32:47.736Z",
+  commitSha: "99cb74dc199a81d8595a01ba21c4bc4415862990",
+  commitSubject: "Agent: State each of the Social composer's publishing consequences exactly once (#2728)",
+  builtAt: "2026-10-02T12:44:20.488Z",
 });
 
 export default BUILD_STAMP;

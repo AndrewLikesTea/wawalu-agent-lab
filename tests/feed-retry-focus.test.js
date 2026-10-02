@@ -308,6 +308,59 @@ test("People's Retry is reachable by Tab and gives focus back to the region that
   assert.equal(document.activeElement.getAttribute("tabindex"), "-1");
 });
 
+// The counterpart of the Social case above, which People had no equivalent of.
+// What it adds to that one is the arithmetic of the panel across two attempts:
+// the failure is drawn with replaceChildren, so a second one must replace the
+// first rather than stack beneath it. A region that appends would pass every
+// `match` assertion in this file — the words would all be there — while the
+// reader met the same sentence and the same button twice, with no way to tell
+// which attempt either belonged to. So it is counted, not matched.
+//
+// The wait is counted too, in the same breath: the loading line and the failure
+// are two of the four states this region holds one of, and "the error arrived"
+// is only half the claim if the line it replaced is still sitting above it.
+test("a People retry that fails again leaves one failure and one Retry, not a stack", async (t) => {
+  const { document } = await bootPeople(t);
+  const status = () => document.querySelector("#profile-feed-status");
+
+  const failures = () => status().querySelectorAll(".empty-state-error").length;
+  const occurrences = (pattern) => (textOf(status()).match(pattern) ?? []).length;
+
+  assert.equal(failures(), 1, "the first failed load drew no failure, or drew more than one");
+  assert.equal(occurrences(/Image posts could not be loaded\./g), 1);
+  assert.equal(occurrences(/Image posts are loading\./g), 0,
+    "the loading line is still standing under the failure that replaced it");
+
+  const retry = status().querySelector(".feed-status-action");
+  retry.focus();
+  retry.click();
+  // No live route was ever added, so this attempt fails the same way. The page
+  // returns to "loading" first and withdraws the control, so the control coming
+  // back is the event that says the second attempt has settled.
+  await waitFor(() => document.querySelectorAll(".feed-status-action").length === 1,
+    "the second attempt never settled");
+
+  assert.equal(failures(), 1, "a second failure stacked a second failure panel");
+  assert.equal(occurrences(/Image posts could not be loaded\./g), 1,
+    "the reader is told the load failed twice over, with no way to tell the attempts apart");
+  assert.equal(occurrences(/Image posts are loading\./g), 0);
+  assert.equal(document.querySelectorAll(".feed-status-action").length, 1,
+    "the second attempt left more than one Retry on the page");
+  assert.equal(textOf(status().querySelector(".feed-status-action")), PROFILE_RETRY_LABEL,
+    "the second failure withdrew the control, or renamed it");
+
+  // And the one voice says it once: a polite atomic region holding two copies of
+  // its sentence announces the pair of them as one utterance.
+  assert.equal(textOf(document.querySelector("#profile-announcer")),
+    `Image posts could not be loaded. Select ${PROFILE_RETRY_LABEL}.`);
+
+  // The grid behind it still holds no tiles and no leftover placeholders: the
+  // failure is the region's whole content, not a line above a pending skeleton.
+  assert.equal(drawnTiles(document).length, 0);
+  assert.equal(document.querySelectorAll(".profile-tile").length, 0,
+    "placeholders from the retried wait outlived the failure that answered it");
+});
+
 /* ---------------------------- the shared post ----------------------------- */
 
 // Already shipped before this change: src/post-page.js sends focus to the post
