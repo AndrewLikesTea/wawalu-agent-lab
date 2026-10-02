@@ -43,9 +43,25 @@
       <main id="main-content" tabindex="-1">
       <section class="hero hero-profile" id="top" aria-labelledby="page-title">
         <p class="eyebrow">People · public image posts</p>
-        <!-- Keep the reading action and filters ahead of supporting guidance. -->
+        <!-- Keep the reading action and filters ahead of supporting guidance.
+             The line under the heading says where these pictures come from
+             (#2735). It read "See the image posts published under one display
+             name", which named what the picker below selects and left a cold
+             visitor — the one who arrives from a shared display-name link and
+             never opens Social — to find out that People is a filtered view of
+             Social from a sentence under the grid. The source is in the first
+             screen now, with the rule that decides which posts reach this page
+             at all: a post on Social that carries an image. "Image posts" is
+             the term, here and in the picker legend, the heading over the grid
+             and the helper under it; the clause after the colon defines it
+             rather than naming it a second way.
+             One sentence, and it must stay one: the taglines on this site are
+             one line under the heading, and a test counts the full stops in
+             this element. The display-name half is kept as a statement, not an
+             instruction — what choosing an entry does is the picker's own hint
+             to say, and this page already said it one time too many. -->
         <h1 id="page-title">People</h1>
-        <p class="profile-lede" id="page-tagline">See the image posts published under one display name.</p>
+        <p class="profile-lede" id="page-tagline">See the image posts from Social: every Social post that carries an image, shown one display name at a time.</p>
         <!-- This page has no composer, so asking a person is its one action and
              it stays in the hero. Its caption stays with it: every other page
              that carries this label carries the line explaining it in the same
@@ -313,8 +329,21 @@
                loading, failed, or an empty display name. It is rendered content
                and not an announcement — the polite region above is the page's
                one voice, and while this element was also live a name with no
-               image posts spoke the same guidance twice, from two regions. -->
-          <div class="feed-status" id="profile-feed-status">Image posts are loading. Publish a post on Social to add one.</div>
+               image posts spoke the same guidance twice, from two regions.
+               Its second sentence used to be the trip to Social's composer, in
+               the same bytes as the publishing step in the helper under the
+               grid — one page telling a visitor to go and publish twice
+               (#2735). Social's wait gave up the same offer in #2506, for the
+               reason that applies here too: a page that does not yet know
+               whether it has anything to show is not the place to offer the one
+               thing to do instead, and the helper under the grid makes that
+               offer in order, in full, and only once. What the sentence says
+               instead is what this frame is the only one that has to say it in:
+               a visitor who is served this page and nothing else learns where
+               the pictures come from. It must still differ from the polite
+               region's announcement above, which carries the wait on its own
+               and must not be walked past twice. -->
+          <div class="feed-status" id="profile-feed-status">Image posts are loading. Each one was published on Social.</div>
           <div id="profile-grid" aria-describedby="profile-order" aria-busy="true">
             <!-- No display name is claimed above these: the heading names the
                  content type and the filled state chip is not on the page yet.

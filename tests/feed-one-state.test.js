@@ -124,53 +124,51 @@ test("the five feed states are mutually exclusive and decided in one place", () 
 /* ------------------------ what the waits send you to ----------------------- */
 
 // #2034 turned both waits into instructions, and an instruction names something.
-// People's still is one: it carries the route to the page that has a composer at
-// all, so rename that route and the wait points at a name nothing answers to —
-// while an assertion comparing the string to a second copy of itself still
-// passes. So read the label off the control, and check it is on screen in the
-// one state that says it.
+// Neither wait is one now.
 //
-// SOCIAL'S HALF IS GONE, DELIBERATELY (#2506). Social's wait used to carry
-// "Select Write a post." for the same reason, and that is exactly the sentence
-// this issue took out: a page that does not yet know whether it has anything to
-// show cannot also be the place it offers you the one thing to do instead, and
-// the empty state it hands over to makes that offer properly. What replaces the
-// check is the negative in "Social says one thing while it loads" below — the
-// wait names no control, because it makes no offer.
-test("People's wait names a route that is on the page while its fetch is open", async (t) => {
+// SOCIAL'S HALF WENT FIRST, DELIBERATELY (#2506). Social's wait used to carry
+// "Select Write a post.", and that is exactly the sentence that issue took out:
+// a page that does not yet know whether it has anything to show cannot also be
+// the place it offers you the one thing to do instead, and the empty state it
+// hands over to makes that offer properly. What replaced the check is the
+// negative in "Social says one thing while it loads" below — the wait names no
+// control, because it makes no offer.
+//
+// PEOPLE'S HALF FOLLOWED IN #2735, for the same reason and one more: People made
+// that offer in the same bytes as the publishing step in the .feed-create
+// sequence under the grid, so one screen told a visitor to go and publish twice
+// and then pointed them at Social a third time for the posts with no image. The
+// sequence owns the offer, in order and in full. What the wait says instead is
+// the fact this frame is the only one that has to carry — where the pictures
+// come from — so it still names Social, and still names it once.
+test("People's wait names where its image posts come from and offers nothing", async (t) => {
   const people = await loadPage(PEOPLE_PAGE, {});
   t.after(() => people.restore());
   mountProfile(people.document, { posts: [], author: "Zed", state: "loading" });
 
-  // People has no composer, so its wait names the act and the page that can
-  // perform it. It used to name Social's composer control by the label that
-  // control prints; #2389 renamed that control to "Write a post" so that
-  // "Publish" names only the button which publishes, and People's phrase stayed
-  // "Publish a post on Social" — a destination and an act, not a control label.
-  //
-  // So what this half can still check is the destination: the page named in the
-  // wait is a page this one links to, by a link that survives the fetch. The nav
-  // link supplies that name rather than a second literal. The composer label is
-  // deliberately NOT required here any more; a reader following this wait lands
-  // on /social.html#post-form with the composer already open, and completes the
-  // act at the button that does say "Publish post".
+  // The destination is read off the control rather than written as a second
+  // literal: rename the nav link and a wait naming a page nothing answers to
+  // fails here instead of passing against a copy of itself.
   const route = people.document.querySelector(".nav-social");
   assert.equal(route.getAttribute("href"), "/social.html");
   assert.equal(route.closest("details").hasAttribute("open"), true, "the secondary navigation starts open on People, keeping Social visible during loading");
   const routeLabel = textOf(route);
   assert.ok(routeLabel.length > 0, "the route the wait names renders no label");
-  assert.ok(loadingSummaryText().includes(` on ${routeLabel} `),
-    `the wait does not name ${routeLabel}, the page a visitor has to go to`);
-  assert.ok(loadingSummaryText().includes(PUBLISH_ON_SOCIAL),
-    "the wait stopped using People's one phrase for the trip to Social");
-  // And it names that trip once: two offers in one sentence is the failure
-  // #2181 fixed, whichever words each one used.
-  assert.equal((loadingSummaryText().match(new RegExp(`on ${routeLabel}`, "g")) ?? []).length, 1);
+  assert.ok(loadingSummaryText().includes(routeLabel),
+    `the wait does not name ${routeLabel}, the page these image posts come from`);
+  // And it names it once: two mentions of one destination in one sentence is the
+  // failure #2181 fixed, whichever words each one used.
+  assert.equal((loadingSummaryText().match(new RegExp(routeLabel, "g")) ?? []).length, 1);
+  // The offer itself is gone from the wait, and it is gone in the phrase People
+  // owns for it — so a reword of that phrase cannot smuggle it back in.
+  assert.doesNotMatch(loadingSummaryText(), new RegExp(PUBLISH_ON_SOCIAL),
+    "the wait makes the offer the .feed-create sequence under the grid owns");
+  assert.doesNotMatch(loadingSummaryText(), /Open Social|Write a post/,
+    "the wait offers the trip to Social under a second name");
 
-  // The wait says the words itself rather than leaning on the .feed-create link
-  // that also carries them: feedPresence() takes that paragraph out of the
-  // document for exactly this state, so a wait relying on it would point at
-  // something the reader cannot see yet.
+  // And the sequence that does own it is off the page in this state anyway:
+  // feedPresence() removes it while the fetch is open, so the reader is not
+  // being asked to publish at the moment they have nothing to look at.
   assert.equal(people.document.querySelectorAll(".feed-create").length, 0);
 });
 
@@ -816,7 +814,7 @@ test("People says one thing while it loads, and the other three lines are not on
   mountProfile(document, { posts: [], author: "Zed", state: "loading" });
 
   const status = document.querySelector("#profile-feed-status");
-  assert.equal(textOf(status), "Image posts are loading. Publish a post on Social to add one.");
+  assert.equal(textOf(status), "Image posts are loading. Each one was published on Social.");
 
   assert.equal(document.querySelectorAll("#profile-summary").length, 0);
   assert.equal(document.querySelectorAll(".feed-connection").length, 0);
@@ -826,7 +824,7 @@ test("People says one thing while it loads, and the other three lines are not on
   assert.doesNotMatch(body, /Counting image posts/);
   assert.doesNotMatch(body, /New image posts will appear here on their own/);
   assert.doesNotMatch(body, /Want a picture of your own here\?/);
-  assert.equal((body.match(/Image posts are loading\. Publish a post on Social to add one\./g) ?? []).length, 1);
+  assert.equal((body.match(/Image posts are loading\. Each one was published on Social\./g) ?? []).length, 1);
 
   // And the results region claims nothing about a person while it waits (#2043):
   // the heading names the content type, the sentence that says what the grid is
@@ -953,7 +951,7 @@ test("People names its failure, retries it by keyboard, and comes back", async (
     image_url: "/media/Mina.svg", image_alt: "A drawing signed Mina", image_width: 1200, image_height: 900,
   }] };
   retry.click();
-  assert.equal(textOf(document.querySelector("#profile-feed-status")), "Image posts are loading. Publish a post on Social to add one.",
+  assert.equal(textOf(document.querySelector("#profile-feed-status")), "Image posts are loading. Each one was published on Social.",
     "retry did not put the page back into the loading state");
   await waitFor(() => document.querySelectorAll(".profile-tile").length > 0, "the retried request settled");
 
@@ -1030,14 +1028,14 @@ test("People's promise about new image posts is said only where there is a grid 
 
   // The shipped frame: one statement, and it is the one over the grid.
   assert.equal(promiseCount(document, promise), 0);
-  assert.equal((textOf(document.body).match(/Image posts are loading\. Publish a post on Social to add one\./g) ?? []).length, 1);
+  assert.equal((textOf(document.body).match(/Image posts are loading\. Each one was published on Social\./g) ?? []).length, 1);
 
   // With a retry to run, so the failed panel below builds the control a reader
   // is actually given.
   const profile = mountProfile(document, { posts: [], author: "Zed", state: "loading", onRetry: () => {} });
   assert.equal(promiseCount(document, promise), 0);
   assert.equal(document.querySelectorAll(".feed-connection").length, 0);
-  assert.equal(textOf(document.querySelector("#profile-feed-status")), "Image posts are loading. Publish a post on Social to add one.");
+  assert.equal(textOf(document.querySelector("#profile-feed-status")), "Image posts are loading. Each one was published on Social.");
 
   // Failed: the panel names it and holds the one control that retries it.
   profile.setState("error");

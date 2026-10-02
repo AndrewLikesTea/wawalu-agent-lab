@@ -305,7 +305,11 @@ test("the profile page defines the selected name as a display name", async () =>
   // Once, and it is the tagline under the heading that states it. A link that
   // read "see posts without images on Social" would make Social sound like the
   // other half of a split feed, so the intro says what Social holds instead.
-  assert.match(html, /<p class="profile-lede" id="page-tagline">See the image posts published under one display name\.<\/p>/,
+  // The tagline names the source as well as the rule since #2735: it read "See
+  // the image posts published under one display name", which told a visitor
+  // arriving from a shared display-name link what the picker selects and never
+  // said the pictures are Social's.
+  assert.match(html, /<p class="profile-lede" id="page-tagline">See the image posts from Social: every Social post that carries an image, shown one display name at a time\.<\/p>/,
     "the tagline no longer states the rule the paragraph below stopped repeating");
   // "the Social feed" since #2698: the one name that feed carries on every page
   // pointing at it, where "the whole feed" named nothing a reader could match to
@@ -403,8 +407,11 @@ test("Social and People lead with the same one-line, verb-first tagline the rest
     // what there is to read, in the words the footer's destination row and the
     // shared post page already use for it (#2688).
     ["social.html", "Read short posts about shipped work, and publish your own."],
-    // What People shows, in the words the picker below it selects by.
-    ["profile.html", "See the image posts published under one display name."],
+    // What People shows, in the words the picker below it selects by — and,
+    // since #2735, where it comes from: the clause after the colon is the rule
+    // that decides which posts reach this page at all, so a visitor who never
+    // opens Social still learns on the first screen that these are Social's.
+    ["profile.html", "See the image posts from Social: every Social post that carries an image, shown one display name at a time."],
   ];
 
   for (const [file, tagline] of taglines) {

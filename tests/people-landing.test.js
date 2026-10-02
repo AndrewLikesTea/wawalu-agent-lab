@@ -218,7 +218,7 @@ test("a first-time visitor lands on a display name that has image posts", async 
     // the link. This paragraph and the eyebrow over the grid both used to
     // restate the rule in their own words.
     assert.equal(textOf(document.querySelector("#page-tagline")),
-      "See the image posts published under one display name.");
+      "See the image posts from Social: every Social post that carries an image, shown one display name at a time.");
     assert.match(textOf(document.querySelectorAll(".profile-lede")[1]),
       /^Open Social when you want the Social feed, including posts with no image\./);
     // And it names the control that does it, in the words printed on the tile,
@@ -363,7 +363,7 @@ test("People uses one status node for loading, error, and recovery to live posts
   t.after(() => { globalThis.setInterval = savedInterval; page.restore(); });
 
   const status = page.document.querySelector("#profile-feed-status");
-  assert.equal(textOf(status), "Image posts are loading. Publish a post on Social to add one.");
+  assert.equal(textOf(status), "Image posts are loading. Each one was published on Social.");
   assert.equal(page.document.querySelectorAll("#profile-feed-status").length, 1);
 
   await importPageModule("/profile-page.js");
@@ -1310,7 +1310,7 @@ test("the demo disclaimer stays below the grid while the posts load and when the
   globalThis.fetch = (url, init) => (url === LIVE_ROUTE ? new Promise(() => {}) : routed(url, init));
   try {
     assertPicturesBeforeProvenance(pending.document, "as served", {
-      tiles: 0, status: /^Image posts are loading\. Publish a post on Social to add one\.$/,
+      tiles: 0, status: /^Image posts are loading\. Each one was published on Social\.$/,
     });
     await importPageModule("/profile-page.js");
     await waitFor(() => textOf(pending.document.querySelector("#profile-filter-hint")),
@@ -1401,7 +1401,7 @@ function assertClaimsNoResult(document, state) {
   }
 
   // The two lines that must not regress with it: what the filter row is waiting
-  // for, and the next action a reader can actually take from here. The wait is
+  // for, and where the image posts a reader is waiting on come from. The wait is
   // said in the row's own words rather than the legend's (#2657), and it still
   // has to say that the filter is not usable yet.
   assert.equal(textOf(document.querySelector("#profile-filter-hint")),
@@ -1410,7 +1410,7 @@ function assertClaimsNoResult(document, state) {
   assert.equal(textOf(document.querySelector("#profile-author-label")), "Filter image posts by display name",
     `${state}: the filter lost its label`);
   assert.equal(textOf(document.querySelector("#profile-feed-status")),
-    "Image posts are loading. Publish a post on Social to add one.", `${state}: the waiting line lost its next action`);
+    "Image posts are loading. Each one was published on Social.", `${state}: the waiting line lost the source of the image posts`);
 
   // The placeholders and the content-hierarchy preview are untouched: this
   // change takes a claim away, it does not take a shape away. And nothing in the

@@ -127,7 +127,7 @@ test("Coach, Releases, Social, People, and Agents send one bounded request and s
     ["coach.html", "follow_up_coach", "Paste a prompt"],
     ["releases.html", "follow_up_releases", "Deployment check"],
     ["social.html", "follow_up_social", "publish your own"],
-    ["profile.html", "follow_up_people", "published under one display name"],
+    ["profile.html", "follow_up_people", "one display name at a time"],
     ["agents.html", "follow_up_agents", "public GitHub activity"],
   ];
   for (const [file, requestType, pageContent] of pages) {
