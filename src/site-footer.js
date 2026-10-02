@@ -75,24 +75,23 @@ export const ASSETS_DESCRIPTION = "The brief says what Shiplog records and who o
 export const ASSETS_HREF = "/#shiplog-evaluation-brief";
 
 /**
- * What a visitor can do here, then who runs it and where — on every page.
+ * What Shiplog is, then who runs it, then the other tools in the lab (#2711).
  *
- * The doing sentence comes first on purpose. This band used to open by defining
- * Shiplog as a decision and release log, which describes one section of one page
- * and contradicts what the site leads with: the home page's title, heading, and
- * first call to action are all AI FinOps.
+ * The definition leads: a reader meeting this band on a deep page learns what
+ * the product is before what else is hosted beside it. The other tools are
+ * named after it, as tools, not as what Shiplog is.
  *
- * The second sentence names an organisation and a hosting claim, both checkable
- * from outside. Between them they claim no customer, usage, funding, or result —
- * there is no evidence here for any of those. Every verb in the first sentence
- * is something a page this site ships today does, and DEMOS says which page.
+ * The provenance sentence names an organisation and a hosting claim, both
+ * checkable from outside. Nothing here claims a customer, usage, funding or
+ * result — there is no evidence for any. DEMOS says which page does what.
  */
-export const IDENTITY = "On this site you can analyze your own AI spend, check a prompt before you send "
-  + "it, and read the decisions and releases behind it. Shiplog is a demonstration product, built and "
-  + "operated by Wawalu at labs.wawalu.org.";
+export const IDENTITY = "Shiplog is a decision and release log: it records a decision, tracks the releases "
+  + "it shaped, and keeps the link between the two. Shiplog is a demonstration product, built and "
+  + "operated by Wawalu at labs.wawalu.org. The same lab hosts other tools: analyze your own AI spend, "
+  + "or check a prompt before you send it.";
 
 // Who Shiplog is for, and the page that shows it working; the tests say why.
-export const PITCH = "Shiplog is for engineering teams that answer for an AI bill and a release history.";
+export const PITCH = "Shiplog is for engineering teams that have to explain why something shipped.";
 export const PITCH_LINK = "the worked decision in AI FinOps";
 export const PITCH_HREF = "/evolution.html#workspace-answer";
 

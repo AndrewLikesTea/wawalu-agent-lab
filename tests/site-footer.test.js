@@ -300,21 +300,46 @@ test("the footer is a contentinfo landmark with an accessible name, after the co
   }
 });
 
-test("the footer says what a visitor can do here before it says what Shiplog is", async () => {
-  // The band used to open by defining Shiplog as a decision and release log,
-  // which is not what this site leads with: the home page's title, heading, and
-  // first call to action are all AI FinOps. A visitor who reads only this block
-  // has to come away knowing what they can do, not just what to call it.
+// #2711: the band used to open on the three things a visitor could do here, two
+// of which are AI side tools, and never said what Shiplog is until the reader
+// had already been handed a spend analyser. A reader who meets this band on a
+// deep page — a release, a post, a profile — has to learn the product before the
+// tools beside it, so the definition leads and the tools are framed as tools.
+test("the footer says what Shiplog is before it names the other tools in the lab", async () => {
   const page = await loadPage(pageUrl("index.html"));
   const { document } = page;
   try {
     const identity = textOf(document.querySelector(".site-footer-identity"));
-    const [opening] = identity.split(". ");
-    assert.match(opening, /^On this site you can /, "the first sentence must name what a visitor can do");
-    assert.ok(!opening.includes("Shiplog is"), "the definition must not be the opening sentence");
-    // The three things it promises are the three things the demo list points at.
-    for (const verb of ["analyze your own AI spend", "check a prompt", "decisions and releases"])
-      assert.ok(identity.includes(verb), `the opening must name "${verb}"`);
+    const sentences = identity.split(/(?<=\.)\s+/);
+    const [opening] = sentences;
+
+    // The name of the thing, then what it does with a decision and a release.
+    assert.match(opening, /^Shiplog is a decision and release log/,
+      "the first sentence must name Shiplog as the decision and release log");
+    for (const act of ["records a decision", "tracks the releases it shaped", "keeps the link between the two"])
+      assert.ok(opening.includes(act), `the opening must say that Shiplog ${act}`);
+
+    // The other tools are still named — they are real pages of this site — but
+    // after the definition, and as tools the lab hosts rather than as Shiplog.
+    for (const tool of ["analyze your own AI spend", "check a prompt before you send it"]) {
+      assert.ok(!opening.includes(tool), `the opening leads with a side tool: "${tool}"`);
+      assert.ok(identity.includes(tool), `the band no longer names "${tool}"`);
+    }
+    assert.ok(identity.includes("The same lab hosts other tools"),
+      "the band must frame the other tools as tools hosted beside Shiplog");
+    assert.ok(identity.indexOf("Shiplog is a demonstration product")
+      < identity.indexOf("The same lab hosts other tools"),
+      "the lab has to be named before \"the same lab\" refers back to it");
+
+    // Said once each, and no sentence of the band restated in it.
+    for (const once of ["Shiplog is a demonstration product", "labs.wawalu.org", "decision and release log"])
+      assert.equal(identity.split(once).length - 1, 1, `the band says "${once}" other than exactly once`);
+    assert.equal(new Set(sentences).size, sentences.length, "the band repeats one of its own sentences");
+
+    // The home page states its own promise in its own words, once (see
+    // tests/build.test.js), and this band must not become a second telling.
+    assert.ok(!identity.includes("records decisions, tracks the releases they shape"),
+      "the band pastes the home page's counted promise sentence into every page");
   } finally {
     page.restore();
   }
