@@ -300,21 +300,32 @@ test("the footer is a contentinfo landmark with an accessible name, after the co
   }
 });
 
-test("the footer says what a visitor can do here before it says what Shiplog is", async () => {
-  // The band used to open by defining Shiplog as a decision and release log,
-  // which is not what this site leads with: the home page's title, heading, and
-  // first call to action are all AI FinOps. A visitor who reads only this block
-  // has to come away knowing what they can do, not just what to call it.
+test("the footer names the log as the product before it names the other tools (#2711)", async () => {
+  // The band used to open on what a visitor could do here — spend analysis, a
+  // prompt check, decisions and releases — three errands in a row with the
+  // product unnamed. A reader who meets Shiplog only in this block now reads
+  // what it is first, and reads the other tools as tools.
   const page = await loadPage(pageUrl("index.html"));
   const { document } = page;
   try {
     const identity = textOf(document.querySelector(".site-footer-identity"));
-    const [opening] = identity.split(". ");
-    assert.match(opening, /^On this site you can /, "the first sentence must name what a visitor can do");
-    assert.ok(!opening.includes("Shiplog is"), "the definition must not be the opening sentence");
-    // The three things it promises are the three things the demo list points at.
-    for (const verb of ["analyze your own AI spend", "check a prompt", "decisions and releases"])
-      assert.ok(identity.includes(verb), `the opening must name "${verb}"`);
+    const [opening, tools] = identity.split(". ");
+    assert.match(opening, /^Shiplog is a decision and release log/, "the first sentence must define the product");
+    // The log is three verbs, not a noun: what it keeps is why the link holds.
+    for (const act of ["records a decision", "tracks the release", "keeps the two linked"])
+      assert.ok(opening.includes(act), `the definition must say the log "${act}"`);
+    assert.ok(!opening.includes("On this site you can"), "the errand list must not be the opening sentence");
+
+    // The two browser tools are named, and named as separate from the product —
+    // the boundary the home page's own directory draws, in the footer's words.
+    assert.match(tools, /^AI FinOps and Prompt coach are separate tools/,
+      "the second sentence must demote the other tools");
+    assert.match(tools, /hosted in the same lab, not part of Shiplog$/,
+      "the second sentence must say the tools are not the product");
+
+    // And the band still points at the product's own audience, not an AI bill.
+    assert.match(PITCH, /have to explain why something shipped/, "the pitch must name the log's audience");
+    assert.ok(!PITCH.includes("AI bill"), "the audience is no longer defined by a spend report");
   } finally {
     page.restore();
   }
