@@ -20,9 +20,12 @@ import {
   isRepositoryRecord,
   provenanceSplitLine,
   recordProvenance,
+  REPOSITORY_VIEW_NOTE,
+  selectHistory,
   STORAGE_KEY,
   toHistoryRecords,
 } from "../src/app.js";
+import { REPOSITORY_ONLY_LABEL, REPOSITORY_ONLY_VALUE } from "../src/history-filters.js";
 import { RELEASE_STORAGE_KEY } from "../src/releases.js";
 import {
   EXAMPLE_LABEL,
@@ -36,7 +39,7 @@ import {
   SEED_RELEASES,
   pullRequestUrl,
 } from "../src/seed-records.js";
-import { loadPage, tabSequence, textOf } from "./support/browser.js";
+import { loadPage, parseHtml, pressSpace, pressTab, tabSequence, textOf } from "./support/browser.js";
 
 const HOME_PAGE = new URL("../src/index.html", import.meta.url);
 const REPOSITORY_COUNT = REPOSITORY_DECISIONS.length;
@@ -254,4 +257,237 @@ test("a repository record reaches focus and opens its record page like an exampl
   const exampleCard = cards(page).find((node) => node.querySelectorAll(".badge-example").length === 1);
   assert.ok(exampleCard, "no example row rendered");
   assert.ok(stops.includes(exampleCard), "an example row's card is not a tab stop");
+});
+
+// --- isolating Shiplog's own decisions (#2710) -----------------------------
+//
+// A buyer who wants to see the product used on a REAL history had to find the
+// three repository rows among thirteen. The filter bar carries a toggle for them
+// now, and the claims below are read off the rendered page after operating that
+// control — including once with the keyboard alone, because a toggle whose
+// handler works and whose button cannot be reached is not a control.
+
+const toggle = (page) => page.document.querySelector("#filter-repository-only");
+const sourceNote = (page) => page.document.querySelector("#history-source-note");
+const splitText = (page) => textOf(page.document.querySelector("#decision-provenance"));
+const countText = (page) => textOf(page.document.querySelector("#decision-count"));
+// The rows a reader can actually see. A placeholder carries the same card class
+// as a real row everywhere this harness is used, so the suffix is excluded here
+// rather than trusted to be absent — a count that includes one reads as a
+// settled list that is still loading.
+const visibleRows = (page) =>
+  rows(page).filter((row) => row.querySelectorAll(".history-card")
+    .every((card) => !(card.getAttribute("class") ?? "").includes("-skeleton")));
+const exampleRows = (page) =>
+  visibleRows(page).filter((row) => row.querySelectorAll(".badge-repository").length === 0);
+const occurrences = (text, phrase) => text.split(phrase).length - 1;
+const COLD_SPLIT = `· ${SEED_EXAMPLE_COUNT} example records · ${REPOSITORY_COUNT} from this repository · none you added`;
+
+test("the toggle ships as a named, keyboard-operable control with its state exposed", async () => {
+  const parsed = parseHtml(await readFile(HOME_PAGE, "utf8"));
+  const control = parsed.querySelector("#filter-repository-only");
+  assert.ok(control, "the filter bar carries no repository-records control");
+
+  // A native button, so Tab reaches it and Enter and Space both activate it. Not
+  // a div with a click handler, and not a mouse-only affordance.
+  assert.equal(control.tagName, "BUTTON");
+  assert.equal(control.getAttribute("type"), "button");
+  // Its accessible name is the label constant, byte for byte, so the control,
+  // its chip and the glossary of filter words cannot drift apart.
+  assert.equal(textOf(control), REPOSITORY_ONLY_LABEL);
+  // Pressed-ness is the state assistive tech reports, and it ships unpressed:
+  // the default view is the whole log.
+  assert.equal(control.getAttribute("aria-pressed"), "false");
+  assert.equal(control.getAttribute("aria-describedby"), "filter-repository-hint");
+  assert.equal(parsed.querySelectorAll("#filter-repository-hint").length, 1);
+
+  // It sits in the record list's own filter bar — after the search field and
+  // before Clear filters — and nowhere near the hero. The first screen of this
+  // page is held to its tab stops by other files (the hero's own count, and
+  // tests/prompt-coach-destination.test.js), and a filter belongs with the
+  // filters anyway: it is the bar's own reset that has to drop it.
+  const html = await readFile(HOME_PAGE, "utf8");
+  assert.ok(html.indexOf('id="decision-search"') < html.indexOf('id="filter-repository-only"'),
+    "the toggle was added above the record list's filter bar");
+  assert.ok(html.indexOf('id="filter-repository-only"') < html.indexOf('id="clear-decision-filters"'),
+    "the toggle must be inside the filter bar that Clear filters resets");
+  // The sentence's slot ships empty: the default view is not the provenance view.
+  const note = parsed.querySelector("#history-source-note");
+  assert.ok(note, "the summary panel has no slot for the provenance sentence");
+  assert.equal(textOf(note), "");
+});
+
+test("pressing the toggle leaves only repository-sourced records, and no example record", async (t) => {
+  const page = await openHome(t);
+  assert.equal(visibleRows(page).length, SEED_RECORD_COUNT);
+
+  toggle(page).click();
+
+  assert.equal(toggle(page).getAttribute("aria-pressed"), "true");
+  assert.equal(visibleRows(page).length, REPOSITORY_COUNT);
+  assert.equal(repositoryRows(page).length, REPOSITORY_COUNT);
+  // Nothing labelled an example survived — asserted on the badge AND on the
+  // label's own words, because the filter reads the provenance field and the
+  // badge is what a reader actually sees.
+  assert.equal(exampleRows(page).length, 0, "an unsourced row survived the provenance filter");
+  for (const row of visibleRows(page)) {
+    assert.equal(row.querySelectorAll(".badge-example").length, 0);
+    assert.doesNotMatch(textOf(row), new RegExp(EXAMPLE_LABEL));
+  }
+  // Every seeded repository record is present, by id: the view is the class, not
+  // a sample of it.
+  assert.deepEqual(
+    visibleRows(page).map((row) => row.getAttribute("id")).sort(),
+    REPOSITORY_DECISIONS.map(({ id }) => `decision-${id}`).sort(),
+  );
+  // The filter is the provenance field and nothing else, which is what keeps it
+  // honest when a record's copy is reworded: the pure selector agrees.
+  assert.equal(
+    selectHistory(toHistoryRecords(REPOSITORY_DECISIONS, [], { exampleIds: new Set() }), { repositoryOnly: true })
+      .every((record) => isRepositoryRecord(record)),
+    true,
+  );
+  // The view is shareable like every other filter on this page, because it IS
+  // one: `?source=repository`. This harness installs no history object, so the
+  // round trip is pinned where the rest of the encoding is, in
+  // tests/history-url.test.js, and what is read here is the rendered list.
+  assert.equal(REPOSITORY_ONLY_VALUE, "repository");
+});
+
+// The split beside the figure describes THE ROWS ON SCREEN — that is the rule
+// this page has shipped since #2539, pinned by
+// tests/demo-path.test.js ("the split follows the search, the filters, and
+// Current only"), and this filter is not an exception to it. So the reading
+// while the view is active is: all three classes still named, the repository
+// count unchanged at its corpus value, the example half correctly at none, and
+// the corpus total still stated as the denominator beside it.
+test("the count line still names all three classes and the whole log's total", async (t) => {
+  const page = await openHome(t);
+  assert.equal(countText(page), `${SEED_RECORD_COUNT} records`);
+  assert.equal(splitText(page), COLD_SPLIT);
+
+  toggle(page).click();
+
+  // The corpus total is still reported: the figure is "3 of 13 records", so a
+  // reader is never shown a narrowed number as a statement about the whole log.
+  assert.equal(countText(page), `${REPOSITORY_COUNT} of ${SEED_RECORD_COUNT} records`);
+  // All three classes are still named, and the repository count is the same
+  // number it was on the unfiltered view.
+  const halves = splitText(page).replace(/^· /, "").split(" · ");
+  assert.equal(halves.length, 3, "the split stopped naming all three kinds of record");
+  assert.equal(halves[1], `${REPOSITORY_COUNT} from this repository`);
+  assert.equal(halves[0], "no example records");
+  assert.equal(halves[2], "none you added");
+  // The classes add up to the rows on screen, which is the arithmetic the line
+  // exists to let a reader check.
+  assert.equal(
+    halves.reduce((sum, half) => sum + Number(half.match(/\d+/)?.[0] ?? 0), 0),
+    visibleRows(page).length,
+  );
+  // The headline above the list carries the same figure and the same split.
+  assert.equal(
+    textOf(page.document.querySelector("#history-filter-summary")),
+    `${REPOSITORY_COUNT} of ${SEED_RECORD_COUNT} records ${splitText(page)}`,
+  );
+});
+
+test("the view says whose decisions these are, once, and only while it is active", async (t) => {
+  const page = await openHome(t);
+  const panel = () => textOf(page.document.querySelector(".filter-summary-panel"));
+
+  // Absent on the default view: a sentence about three records must not stand
+  // over a list of thirteen.
+  assert.equal(textOf(sourceNote(page)), "");
+  assert.equal(occurrences(panel(), REPOSITORY_VIEW_NOTE), 0);
+
+  toggle(page).click();
+
+  assert.equal(textOf(sourceNote(page)), REPOSITORY_VIEW_NOTE);
+  // Exactly once in the region that carries it, so it is not also being painted
+  // by a second path that would then have to be kept in step.
+  assert.equal(occurrences(panel(), REPOSITORY_VIEW_NOTE), 1);
+  // What it claims: whose decisions, who recorded them, and that each cites its
+  // own pull request.
+  assert.match(REPOSITORY_VIEW_NOTE, /Shiplog's own decisions/);
+  assert.match(REPOSITORY_VIEW_NOTE, /recorded in Shiplog by the team that operates it/);
+  assert.match(REPOSITORY_VIEW_NOTE, /cites the public pull request it came from/);
+  // And what it must never claim. These records are this site's own source
+  // history; the page cannot stand behind anything about customers, how much
+  // the product is used, or what any of these decisions achieved.
+  assert.doesNotMatch(REPOSITORY_VIEW_NOTE, /customer|production data|users|visitors|teams use/i);
+  assert.doesNotMatch(REPOSITORY_VIEW_NOTE, /faster|saved|improved|reduced|increased|\d+ ?%/i);
+
+  // Withdrawn, not merely hidden, when the view goes: textOf reads through a
+  // closed details element, so an unemptied node is still a sentence on the page.
+  toggle(page).click();
+  assert.equal(textOf(sourceNote(page)), "");
+  assert.equal(occurrences(panel(), REPOSITORY_VIEW_NOTE), 0);
+});
+
+test("every record in the view cites its own pull request as a real anchor", async (t) => {
+  const page = await openHome(t);
+  toggle(page).click();
+
+  const names = [];
+  for (const row of visibleRows(page)) {
+    const links = row.querySelectorAll(".record-source-link");
+    assert.equal(links.length, 1, `${row.getAttribute("id")} carries no single pull request link`);
+    const [link] = links;
+    assert.equal(link.tagName, "A");
+    // A real address at a pull request, not a placeholder and not a bare "#".
+    const href = link.getAttribute("href");
+    assert.match(href, new RegExp(`^${REPOSITORY_URL}/pull/\\d+$`), `${href} is not a pull request address`);
+    // The accessible name identifies WHICH pull request. "link" or a repeated
+    // "pull request" is a list of links a screen reader user cannot act on.
+    const name = textOf(link);
+    assert.match(name, /^Pull request #\d+$/);
+    assert.equal(href, pullRequestUrl(Number(name.match(/\d+/)[0])));
+    names.push(name);
+  }
+  assert.equal(names.length, REPOSITORY_COUNT);
+  assert.equal(new Set(names).size, REPOSITORY_COUNT, "two rows in this view carry the same link name");
+});
+
+test("releasing the toggle, and Clear filters, each put the whole log back", async (t) => {
+  const page = await openHome(t);
+
+  // Released by pressing the same control again.
+  toggle(page).click();
+  assert.equal(visibleRows(page).length, REPOSITORY_COUNT);
+  toggle(page).click();
+  assert.equal(toggle(page).getAttribute("aria-pressed"), "false");
+  assert.equal(visibleRows(page).length, SEED_RECORD_COUNT);
+  assert.equal(splitText(page), COLD_SPLIT);
+
+  // And dropped by the filter bar's own reset, which needed no new code: the
+  // toggle writes the one filter state Clear filters already resets.
+  toggle(page).click();
+  assert.equal(visibleRows(page).length, REPOSITORY_COUNT);
+  page.document.querySelector("#clear-decision-filters").click();
+  assert.equal(toggle(page).getAttribute("aria-pressed"), "false");
+  assert.equal(visibleRows(page).length, SEED_RECORD_COUNT);
+  assert.equal(splitText(page), COLD_SPLIT);
+  assert.equal(textOf(sourceNote(page)), "");
+});
+
+test("the view is reached and operated with the keyboard alone", async (t) => {
+  const page = await openHome(t);
+  const target = toggle(page);
+
+  // Tab from the top of the document until the control has focus. Bounded by the
+  // sequence length, so a control that is not in the tab order fails here rather
+  // than looping.
+  let reached = null;
+  for (let press = 0; press < tabSequence(page.document).length && reached !== target; press += 1) {
+    reached = pressTab(page.document);
+  }
+  assert.equal(reached, target, "the repository-records toggle is not in the tab order");
+
+  // Space, which is how a native toggle button is activated — not a click
+  // dispatched at the handler.
+  pressSpace(page.document);
+  assert.equal(target.getAttribute("aria-pressed"), "true");
+  assert.equal(visibleRows(page).length, REPOSITORY_COUNT);
+  assert.equal(exampleRows(page).length, 0);
+  assert.equal(textOf(sourceNote(page)), REPOSITORY_VIEW_NOTE);
 });

@@ -44,6 +44,7 @@ const FILTERED = {
   from: "2026-04-01",
   to: "2026-06-30",
   currentOnly: true,
+  repositoryOnly: true,
 };
 
 const decisions = [
@@ -68,12 +69,16 @@ test("each filter serializes under one canonical parameter name", () => {
   assert.equal(historyFilterSearch({ from: "2026-04-01" }), "?from=2026-04-01");
   assert.equal(historyFilterSearch({ to: "2026-06-30" }), "?to=2026-06-30");
   assert.equal(historyFilterSearch({ currentOnly: true }), "?current=only");
+  // The provenance narrowing names the class, not a boolean, so a later view
+  // onto another class is one more value of this parameter (#2710).
+  assert.equal(historyFilterSearch({ repositoryOnly: true }), "?source=repository");
 });
 
 test("the combined state is one stable string, in one order", () => {
   assert.equal(
     historyFilterSearch(FILTERED),
-    "?q=queue&type=decision&status=accepted&owner=Kai&release=r-1-3-0&from=2026-04-01&to=2026-06-30&current=only",
+    "?q=queue&type=decision&status=accepted&owner=Kai&release=r-1-3-0&from=2026-04-01&to=2026-06-30"
+    + "&current=only&source=repository",
   );
   // The same state written twice is the same link twice: a shared URL is
   // diffable, and no filter changes place because a control was touched first.
@@ -239,7 +244,8 @@ test("the summary line states the match count out of the unfiltered total", () =
 test("every active filter becomes a chip whose remove control names it", () => {
   assert.deepEqual(historyFilterChips({}), []);
   const chips = historyFilterChips(FILTERED);
-  assert.deepEqual(chips.map((chip) => chip.key), ["query", "type", "status", "owner", "releaseId", "from", "to", "currentOnly"]);
+  assert.deepEqual(chips.map((chip) => chip.key),
+    ["query", "type", "status", "owner", "releaseId", "from", "to", "currentOnly", "repositoryOnly"]);
   assert.deepEqual(chips.map((chip) => chip.text), [
     "Search: queue",
     "Record type: Decisions",
@@ -249,7 +255,11 @@ test("every active filter becomes a chip whose remove control names it", () => {
     "From: Apr 1, 2026",
     "To: Jun 30, 2026",
     "Current only",
+    // The provenance toggle, in the valueless form: the dimension and its one
+    // value are the same words (#2710).
+    "Shiplog's own decisions",
   ]);
+  assert.equal(chips.at(-1).remove, "Remove filter: Shiplog's own decisions");
   // Not a row of buttons all called "Remove": each one says what it drops.
   assert.deepEqual(chips.map((chip) => chip.remove).slice(0, 4), [
     "Remove search filter: queue",
