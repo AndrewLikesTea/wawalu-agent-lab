@@ -41,7 +41,10 @@ import { loadPage, pressTab, tabSequence, textOf } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
 import { mountSocialFeed, FEED_LOADING_LINE, CLEAR_FILTERS_LABEL } from "../src/social.js";
 import { COMPOSE_POST_LABEL } from "../src/social-links.js";
-import { mountProfile, loadingSummaryText, PUBLISH_ON_SOCIAL } from "../src/profile.js";
+import {
+  mountProfile, loadingSummaryText, PUBLISH_ON_SOCIAL,
+  PROFILE_FILTERS_UNAVAILABLE_HINT, PROFILE_LOADING_ANNOUNCEMENT, PROFILE_RETRY_LABEL,
+} from "../src/profile.js";
 import { feedPhase } from "../src/feed-status.js";
 
 const SOCIAL_PAGE = new URL("../src/social.html", import.meta.url);
@@ -959,6 +962,67 @@ test("People names its failure, retries it by keyboard, and comes back", async (
 
   assert.ok(document.querySelectorAll(".profile-tile").length > 0, "the retried request drew no tiles");
   assert.equal(document.querySelectorAll(".empty-state").length, 0);
+});
+
+// #2723. The failed state and its keyboard retry were already shipped (#1738,
+// #2521) and the recovery above pins the attempt that succeeds. The attempt that
+// fails AGAIN was the one path nothing held: it is the only one that renders the
+// error panel over an error panel, so it is the only one that can leave two
+// error lines and two Retry buttons standing in a region whose whole contract is
+// that exactly one of its four states is present. Social has this guard
+// (feed-retry-focus.test.js); People did not.
+test("a People retry that fails again leaves one failure and one Retry, not two", async (t) => {
+  // No live route at all, so the first load and the retry both reject through
+  // the real fetch path in src/profile-page.js rather than a stubbed renderer.
+  const routes = { [SEED_ROUTE]: { posts: [] } };
+  const page = await loadPage(PEOPLE_PAGE, { routes });
+  const savedInterval = globalThis.setInterval;
+  globalThis.setInterval = () => 0;
+  t.after(() => { globalThis.setInterval = savedInterval; page.restore(); });
+  const { document } = page;
+
+  await importPageModule("/profile-page.js");
+  await waitFor(() => document.documentElement.dataset.shiplogProfile === "ready", "the failed first load settles");
+
+  const status = document.querySelector("#profile-feed-status");
+  assert.equal(status.querySelectorAll(".empty-state-error").length, 1);
+  assert.equal(status.querySelectorAll(".feed-status-action").length, 1);
+
+  document.querySelector("#profile-feed-status").querySelector(".feed-status-action").click();
+  // The second attempt is visible as an attempt: the region goes back to the one
+  // loading line before it can fail again.
+  assert.equal(textOf(status), loadingSummaryText(),
+    "the retry did not return the region to its loading state");
+  assert.equal(status.querySelectorAll(".feed-status-action").length, 0,
+    "a Retry outlived the attempt it started and can be pressed twice");
+  await waitFor(() => status.querySelectorAll(".empty-state-error").length === 1,
+    "the second failure never settled");
+
+  // One of each. Re-rendering replaces the panel, so a reader meets a single
+  // failure and a single control however many attempts have failed.
+  assert.equal(status.querySelectorAll(".empty-state-error").length, 1, "the second failure appended a second error line");
+  assert.equal(status.querySelectorAll(".feed-status-action").length, 1, "the second failure appended a second Retry");
+  assert.equal(document.querySelectorAll(".feed-status-action").length, 1,
+    "a Retry was left standing somewhere else on the page");
+  assert.equal((textOf(status).match(/Image posts could not be loaded\./g) ?? []).length, 1);
+  assert.equal(textOf(document.querySelector("#profile-feed-status").querySelector(".feed-status-action")),
+    PROFILE_RETRY_LABEL);
+
+  // And the other three states are absent, including the loading line the second
+  // attempt put up: left standing under the failure it would be a page claiming
+  // to be both waiting and finished.
+  assert.doesNotMatch(textOf(status), /Image posts are loading\./);
+  assert.equal(promiseCount(document, PROFILE_LOADING_ANNOUNCEMENT), 0,
+    "the loading line is still standing somewhere on a page that has given up");
+  assert.equal(rendered(document, ".profile-tile"), 0);
+  assert.equal(status.querySelectorAll(".empty-state-filtered").length, 0);
+
+  // The filter is still unavailable, and still says why in words rather than by
+  // looking inert. Driven and read through the attribute and the rendered
+  // sentence: this harness does not reflect `disabled` onto the markup.
+  assert.equal(document.querySelectorAll(".profile-filter-option").length, 0,
+    "a twice-failed load exposed display names it never received");
+  assert.equal(textOf(document.querySelector("#profile-filter-hint")), PROFILE_FILTERS_UNAVAILABLE_HINT);
 });
 
 test("People gives every completed selected-name zero the same one recovery", async (t) => {
