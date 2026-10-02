@@ -48,6 +48,7 @@ import {
   SAMPLE_RELEASE_ID,
   SEED_DECISIONS,
   SEED_RELEASES,
+  exampleDecisionFormValues,
   pullRequestUrl,
 } from "./seed-records.js";
 import {
@@ -1420,6 +1421,9 @@ export async function initDecisionLog(root = document, storage = localStorage, o
   const search = root.querySelector("#decision-search");
   const clearFilters = root.querySelector("#clear-decision-filters");
   const exitRecorder = root.querySelector("#exit-decision-recorder");
+  // The one-press route into step one (#2725). Optional like every other
+  // control here: a surface that mounts the recorder without it still records.
+  const fillExample = root.querySelector("#fill-example-decision");
   const typeFilter = [...(root.querySelectorAll?.('input[name="record-type"]') ?? [])];
   const statusHint = root.querySelector("#filter-status-hint");
   const currentOnly = root.querySelector("#filter-current-only");
@@ -2138,6 +2142,50 @@ export async function initDecisionLog(root = document, storage = localStorage, o
     if (trigger?.dataset.action === "retry") retryHistory();
   });
   exitRecorder?.addEventListener("click", () => exitDecisionRecorder(root));
+
+  // STEP ONE IN ONE PRESS (#2725). Load the example decision this page already
+  // displays above the log into the five fields, and do nothing else: no
+  // validation runs, no record is built, nothing is written, and the history
+  // does not move. The visitor's own press of Record decision is still what
+  // records, and every filled field is left exactly as editable as one they
+  // typed — these are plain value writes against the shipped controls, with no
+  // readonly, disabled or hidden state anywhere in the path.
+  //
+  // THE VALUES ARE NOT RETYPED HERE. exampleDecisionFormValues() reads the one
+  // seed record the home page's displayed example is drawn from, so a copy edit
+  // to that example moves this text with it.
+  //
+  // Three things are tidied, each for the same reason the submit path tidies
+  // them: a message, a line, or a step that described the form a moment ago
+  // must not outlive the press that changed it.
+  //   • The field errors go, because the fields they describe are now answered
+  //     and a message beside filled text is false.
+  //   • The supersede error goes with them: Replaces is left alone by the fill,
+  //     and a refusal about a link this press did not make is stale.
+  //   • The last save's next step is withdrawn, exactly as typing withdraws it.
+  //     Programmatic value writes raise no input event, so the listener below
+  //     never sees this one.
+  // The "Recorded …" status line is deliberately NOT cleared: it is a true
+  // statement about a decision that is still in the log below, and the fill
+  // neither removes nor contradicts it.
+  fillExample?.addEventListener("click", () => {
+    const values = exampleDecisionFormValues();
+    for (const [field, value] of Object.entries(values)) {
+      const control = entryFields.get(field)?.control;
+      if (control) control.value = value;
+    }
+    clearEntryErrors();
+    clearSupersedesError();
+    withdrawRecordNext();
+    // Focus the top of the form rather than leaving it on the button. It is the
+    // page's own idiom — a failed submit sends focus to the first field that
+    // needs attention — and it is the only announcement a screen reader gets
+    // that the press landed: the Title field is read back with the example text
+    // now in it, as editable text.
+    const title = entryFields.get("title")?.control;
+    title?.focus?.({ preventScroll: true });
+    title?.scrollIntoView?.({ block: "center" });
+  });
 
   // Typing the next decision retires the last one's next step. form.reset()
   // raises neither event, so the step a save reveals survives that save.

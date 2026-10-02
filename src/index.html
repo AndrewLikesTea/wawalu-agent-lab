@@ -378,6 +378,30 @@
               <p class="field-error" id="supersedes-error" role="alert" hidden></p>
             </div>
 
+            <!-- STEP ONE WITHOUT INVENTING A RECORD (#2725). Step one of the
+                 four-step demo asked a visitor evaluating Shiplog to think of a
+                 decision, write its context and its alternatives, and type all
+                 of it in before anything downstream — the release link, the
+                 export, the history — could be tried at all. This control loads
+                 the example decision this page already displays above the log
+                 into the five fields, so step two is one press away.
+                 IT FILLS AND NOTHING ELSE. type="button", so it neither submits
+                 nor becomes the form's default button for Enter in a text
+                 field, and app.js writes field values rather than a record:
+                 nothing reaches storage, the history does not move, and every
+                 filled field stays editable, clearable and overwritable. The
+                 recording is still the visitor's own press of Record decision.
+                 ONE SOURCE OF TRUTH. The values come from the seed record this
+                 page's example is drawn from, through
+                 exampleDecisionFormValues() in seed-records.js, so a copy edit
+                 to the shown example moves the filled text with it. Nothing
+                 here retypes those strings — see the module for why.
+                 ABOVE THE SUBMIT, BELOW THE FIELDS: a visitor reads the two
+                 presses in the order they are done, and the tab stop it adds is
+                 inside the form, so nothing above the browser-tool entry links
+                 lower down the page changes order. -->
+            <p class="hint field-wide" id="fill-example-decision-hint">Loads the example decision shown above the log. The fields stay editable afterwards, and nothing is recorded until you press “Record decision”.</p>
+            <button class="recorder-exit" id="fill-example-decision" type="button" aria-describedby="fill-example-decision-hint">Fill this form with the example decision</button>
             <button type="submit">Record decision</button>
             <button class="recorder-exit" id="exit-decision-recorder" type="button">Back to decision history</button>
           </form>

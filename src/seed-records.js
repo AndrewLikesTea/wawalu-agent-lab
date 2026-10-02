@@ -171,6 +171,32 @@ const INVENTED_DECISIONS = Object.freeze([
 // came from.
 export const SEED_DECISIONS = Object.freeze([...INVENTED_DECISIONS, ...REPOSITORY_DECISIONS]);
 
+// The one example decision the home page displays above its log — the pair in
+// `.hero-proof-facts` and the reasoning under it — resolved by its stable id
+// rather than by array position.
+export const SAMPLE_DECISION = SEED_DECISIONS.find(({ id }) => id === SAMPLE_DECISION_ID);
+
+/**
+ * That same record as the five values the decision recorder's fields hold.
+ *
+ * ONE SOURCE OF TRUTH FOR THE SHOWN EXAMPLE AND THE FILLED FORM (#2725). The
+ * home page offers a control that loads the displayed example into the form, so
+ * a visitor reaches step two of the four-step demo without inventing a record.
+ * Nothing retypes those strings: the control writes what this returns, and the
+ * authored markup that displays the example is pinned to this same record — its
+ * title, status and owner by tests/build.test.js, its context and alternatives
+ * by tests/example-decision-fill.test.js. So a copy edit to the seed moves the
+ * shown example and the filled form together, or it fails.
+ *
+ * `supersedes` is deliberately absent. It is the one optional field, the example
+ * replaces nothing, and a fill that named a target would claim a relationship
+ * this record does not have.
+ */
+export function exampleDecisionFormValues() {
+  const { title, context, alternatives, owner, status } = SAMPLE_DECISION;
+  return { title, context, alternatives, owner, status };
+}
+
 export const SEED_RELEASES = Object.freeze([
   Object.freeze({
     id: "demo-r-1-4-0",
