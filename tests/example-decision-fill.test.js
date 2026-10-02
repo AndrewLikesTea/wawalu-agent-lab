@@ -46,7 +46,7 @@ import { SAMPLE_DECISION_ID, SEED_DECISIONS, exampleDecisionFormValues } from ".
 import {
   DEMO_PROGRESS_EMPTY_LEAD,
   DEMO_PROGRESS_STATUS,
-  DEMO_PROGRESS_STEPS,
+  demoProgressSteps,
 } from "../src/demo-progress.js";
 import {
   DomEvent,
@@ -61,6 +61,9 @@ import {
 
 const HOME = new URL("../src/index.html", import.meta.url);
 
+// The steps in the home page's own words, which say of each action whether it
+// happens on this page or on Releases (#2727).
+const STEPS = demoProgressSteps("home");
 const FILL_ID = "fill-example-decision";
 const FILL_LABEL = "Fill this form with the example decision";
 const CAVEAT = "no customer or production data";
@@ -222,7 +225,7 @@ test("filling writes the five fields and records nothing", async (t) => {
 
   // The tracker still says step one, because step one is a record and the fill
   // is not one.
-  assert.deepEqual(currentSteps(page), [DEMO_PROGRESS_STEPS[0]]);
+  assert.deepEqual(currentSteps(page), [STEPS[0]]);
   assert.equal(statuses(page)[0], `Step 1 of 4 · ${DEMO_PROGRESS_STATUS.current}`);
   assert.equal(textOf(byId(page, "evaluation-path-next-lead")), DEMO_PROGRESS_EMPTY_LEAD);
 });
@@ -284,7 +287,7 @@ test("fill, then Record decision, and the tracker is on step two", async (t) => 
   // Step one is done and step two is the thing to do.
   assert.equal(statuses(page)[0], `Step 1 of 4 · ${DEMO_PROGRESS_STATUS.done}`);
   assert.equal(statuses(page)[1], `Step 2 of 4 · ${DEMO_PROGRESS_STATUS.current}`);
-  assert.deepEqual(currentSteps(page), [DEMO_PROGRESS_STEPS[1]]);
+  assert.deepEqual(currentSteps(page), [STEPS[1]]);
 
   // The "nothing recorded" line is gone, replaced by one that names the record
   // and offers the one next action.

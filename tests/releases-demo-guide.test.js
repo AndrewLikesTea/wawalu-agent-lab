@@ -7,10 +7,12 @@
 // attribute a screen reader acts on, the address a link carries, what Tab
 // reaches. Nothing here reads module state.
 //
-// The property this file exists to hold is that there is ONE step model. The
-// four sentences are compared against the home page's own shipped markup rather
-// than against a copy written here, so a wording change on either page that did
-// not land on both fails here.
+// The property this file exists to hold is that there is ONE step model: four
+// actions, one order, one set of status words, one derivation. What the two
+// pages may differ on is where each step says its action happens (#2727) — this
+// page's steps are read from the module's releases wording, and the home page's
+// shipped markup is read off index.html to hold both sides to the same four
+// actions, so neither side of the comparison is a sentence written in this file.
 //
 // Determinism: no network, no clock, no sleeps. Each test parses its own page
 // with its own storage, and the seeded examples are switched off, so what the
@@ -27,7 +29,7 @@ import {
   DEMO_PROGRESS_PREREQUISITE_ACTION,
   DEMO_PROGRESS_SCOPE,
   DEMO_PROGRESS_STATUS,
-  DEMO_PROGRESS_STEPS,
+  demoProgressSteps,
   LINKED_DECISIONS_CONTROL,
   LINKED_DECISIONS_HREF,
 } from "../src/demo-progress.js";
@@ -36,6 +38,9 @@ import { loadPage, pressEnter, pressSpace, pressTab, tabSequence, textOf, typeTe
 const RELEASES_PAGE = new URL("../src/releases.html", import.meta.url);
 const HOME_PAGE = new URL("../src/index.html", import.meta.url);
 const CSS = new URL("../src/releases-proof.css", import.meta.url);
+// The steps in this page's own words: each one says whether its action happens
+// here or on Home, read from the reader's position (#2727).
+const STEPS = demoProgressSteps("releases");
 // The seeded examples are a read-through layer nobody in this browser recorded,
 // so a guide reporting what THIS browser holds is handed an empty seed.
 const NO_SEED = { decisions: [], releases: [] };
@@ -134,20 +139,40 @@ function recordRelease(page, { link = null } = {}) {
 
 // --- criterion 1: the same four steps, and the current one is programmatic ---
 
-test("the guide lists the home page's four steps, in its order and its words", async (t) => {
+test("the guide lists the home page's four steps, in its order and this page's words", async (t) => {
   const page = await openReleases(t, { decisions: [DECISION] });
   const home = await loadPage(HOME_PAGE, { storage: {} });
   t.after(() => home.restore());
 
   // The home page's shipped sentences, taken off the home page. Two divergent
-  // copies of the step model is the failure this issue exists to prevent, so
-  // neither side of the comparison is a literal written in this file.
+  // step MODELS is the failure this issue exists to prevent, so neither side of
+  // the comparison is a literal written in this file.
   const homeSteps = home.document.querySelector("#evaluation-path-steps")
     .querySelectorAll("li")
     .map((item) => textOf(item.querySelector(".evaluation-path-step")));
-  assert.deepEqual(stepTexts(page), homeSteps);
-  assert.deepEqual(stepTexts(page), [...DEMO_PROGRESS_STEPS]);
+  assert.deepEqual(stepTexts(page), [...STEPS]);
+  assert.deepEqual(homeSteps, [...demoProgressSteps("home")]);
+  assert.equal(stepTexts(page).length, homeSteps.length, "the two pages list a different number of steps");
+  // Step four's action is on a release detail page, which is neither of these
+  // two, so it is word for word the same on both.
+  assert.equal(stepTexts(page)[3], homeSteps[3]);
   assert.equal(byId(page, "evaluation-path-steps").tagName, "OL", "the steps are not an ordered list");
+
+  // What the two pages differ on, and the whole point of the difference (#2727):
+  // every step is addressed to a reader standing HERE. Nothing on this page
+  // sends a visitor to the page they are reading, or calls it "there".
+  const here = stepTexts(page).join(" ");
+  assert.doesNotMatch(here, /to Releases|\bthere\b/, "a step directs a reader to the page they are on");
+  assert.match(here, /Arrive here with that decision ready to link\./);
+  assert.match(here, /Record a release on this page/);
+  // The step whose action is elsewhere names that page the way the navigation
+  // names it, so the words in the step match the words in the nav.
+  assert.match(here, /the decision form on the Home page\./);
+  // The home page, read the same way: its step one is the form on that page, and
+  // Releases is a destination from there.
+  assert.match(homeSteps.join(" "), /the decision form on this page\./);
+  assert.doesNotMatch(homeSteps.join(" "), /on the Home page/, "the home page names itself as somewhere to go");
+  assert.match(homeSteps.join(" "), /Continue to Releases/);
 
   // Identified programmatically, and completed steps say so in words: no
   // colour, no icon, nothing that needs a stylesheet to be legible.
@@ -157,7 +182,7 @@ test("the guide lists the home page's four steps, in its order and its words", a
     `Step 3 of 4 · ${DEMO_PROGRESS_STATUS.current}`,
     `Step 4 of 4 · ${DEMO_PROGRESS_STATUS.todo}`,
   ]);
-  assert.deepEqual(currentSteps(page), [DEMO_PROGRESS_STEPS[2]]);
+  assert.deepEqual(currentSteps(page), [STEPS[2]]);
   assert.equal(items(page).filter((item) => item.getAttribute("aria-current")).length, 1);
 
   // Standing on Releases IS step two, so it is not offered as the thing to do.
@@ -194,7 +219,7 @@ test("with no decision recorded the guide states the prerequisite and links to t
   // Not a hidden guide: the four steps are still the map, and every status word
   // says the demo has not started.
   assert.equal(items(page).length, 4);
-  assert.deepEqual(currentSteps(page), [DEMO_PROGRESS_STEPS[0]]);
+  assert.deepEqual(currentSteps(page), [STEPS[0]]);
   assert.equal(statuses(page)[0], `Step 1 of 4 · ${DEMO_PROGRESS_STATUS.current}`);
 
   // Its own copy, which says what is missing and where the step lives, and does
@@ -217,8 +242,8 @@ test("the prerequisite state is what the page ships before any module runs", asy
   // below", which on this page is the release recorder.
   const page = await openReleases(t, { boot: false });
   assert.equal(lead(page), DEMO_PROGRESS_PREREQUISITE);
-  assert.deepEqual(stepTexts(page), [...DEMO_PROGRESS_STEPS]);
-  assert.deepEqual(currentSteps(page), [DEMO_PROGRESS_STEPS[0]]);
+  assert.deepEqual(stepTexts(page), [...STEPS]);
+  assert.deepEqual(currentSteps(page), [STEPS[0]]);
   assert.equal(action(page).getAttribute("href"), "/index.html#decision-form");
 });
 
@@ -257,7 +282,7 @@ test("a recorded release completes step three and ends on the page's own details
     `Step 3 of 4 · ${DEMO_PROGRESS_STATUS.done}`,
     `Step 4 of 4 · ${DEMO_PROGRESS_STATUS.current}`,
   ]);
-  assert.deepEqual(currentSteps(page), [DEMO_PROGRESS_STEPS[3]]);
+  assert.deepEqual(currentSteps(page), [STEPS[3]]);
 
   // The log's own control, in its words, with the accessible name that control
   // builds for a release — not a fifth way of saying "open the release".
@@ -285,7 +310,7 @@ test("recording the release here moves the guide and announces the move once", a
 
   recordRelease(page, { link: DECISION.id });
 
-  assert.deepEqual(currentSteps(page), [DEMO_PROGRESS_STEPS[3]]);
+  assert.deepEqual(currentSteps(page), [STEPS[3]]);
   assert.equal(textOf(action(page)), DETAIL_LINK_TEXT);
   assert.match(announced(page), /^Demo progress: step 4 of 4\./);
   assert.match(announced(page), /Open the release you recorded/);
@@ -297,7 +322,7 @@ test("a release recorded without linking the decision leaves the guide on step t
 
   // The link is the whole point of the demo, so an unlinked release is not the
   // step being asked for, and the guide must not report it as one.
-  assert.deepEqual(currentSteps(page), [DEMO_PROGRESS_STEPS[2]]);
+  assert.deepEqual(currentSteps(page), [STEPS[2]]);
   assert.equal(action(page).getAttribute("href"), LINKED_DECISIONS_HREF);
   // Nothing moved, so nothing is announced.
   assert.equal(announced(page), "");
@@ -328,7 +353,7 @@ test("the seeded example records are not counted as this browser's progress", as
   // to SEED_RELEASES for any half the caller does not name).
   const page = await openReleases(t, { seed: {} });
   assert.ok(page.document.querySelectorAll(".release-toggle").length > 0, "the seeded examples never rendered");
-  assert.deepEqual(currentSteps(page), [DEMO_PROGRESS_STEPS[0]]);
+  assert.deepEqual(currentSteps(page), [STEPS[0]]);
   assert.equal(lead(page), DEMO_PROGRESS_PREREQUISITE);
 });
 
