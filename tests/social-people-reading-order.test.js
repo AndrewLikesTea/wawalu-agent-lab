@@ -4,7 +4,11 @@ import { readFile } from "node:fs/promises";
 import { loadPage, textOf, tabSequence } from "./support/browser.js";
 
 const surfaces = [
-  { file: "social", sequence: ["#page-title", "#post-compose-open", "#feed-title", "#post-name-filter", "#post-time-filter", "#feed-state", "#post-feed", ".social-feed-intro", "#feed-source-note"], guidance: ".social-feed-intro", state: "#feed-state", label: "Posts are loading." },
+  // The composer closes the reading order on Social (#2709): the feed and its
+  // caveats are read first, then the panel for adding a post, then the route
+  // off the page. #ask-about-shiplog used to sit above the panel, at the foot of
+  // the feed panel.
+  { file: "social", sequence: ["#page-title", "#post-compose-open", "#feed-title", "#post-name-filter", "#post-time-filter", "#feed-state", "#post-feed", ".social-feed-intro", "#feed-source-note", "#post-report-route", "#post-compose-panel", "#ask-about-shiplog"], guidance: ".social-feed-intro", state: "#feed-state", label: "Posts are loading." },
   { file: "profile", sequence: ["#page-title", "#ask-about-shiplog", "#profile-author-label", "#profile-author", "#grid-title", "#profile-feed-status", "#profile-grid", ".profile-lede.hint", ".feed-create", ".profile-role"], guidance: ".profile-lede.hint", state: "#profile-feed-status", label: "Image posts are loading." },
 ];
 
@@ -28,9 +32,10 @@ for (const surface of surfaces) {
     assert.equal(document.querySelector(surface.state).hidden, false);
     assert.equal(document.querySelector(surface.guidance).classList.contains("hint"), true);
     // The follow-up label keeps the caption that says what it costs, wherever
-    // the label sits: Social's hero holds one action and the contact route
-    // closes the supporting block, People has no composer so the route is its
-    // hero action. Either way the two are one unit, in one container, in order.
+    // the label sits: on Social the hero holds one action and the contact route
+    // closes the page below the composer, People has no composer so the route is
+    // its hero action. Either way the two are one unit, in one container, in
+    // order.
     const askRoute = document.querySelector("#ask-about-shiplog");
     const askCaption = document.querySelector("#ask-about-shiplog-description");
     assert.ok(askCaption.parentNode === askRoute.parentNode,

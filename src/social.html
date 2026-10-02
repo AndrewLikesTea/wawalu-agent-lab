@@ -435,13 +435,6 @@
                a step in publishing. It points at the explanation below the feed,
                which the report panel is mounted directly after. -->
           <p class="hint" id="post-report-route">To ask the Wawalu team to review a post, select Report post on it. <a class="text-link" href="#post-report-about">How reporting works</a></p>
-          <!-- The contact route closes the supporting block instead of opening
-               the hero: writing a post is what this page is for, and the hero
-               carries that one action. It keeps its own caption beside it, the
-               way the other five pages do — a label that travels without the
-               line explaining it leaves a reader guessing what it costs. -->
-          <a class="text-link" id="ask-about-shiplog" href="#site-footer-panel" aria-describedby="ask-about-shiplog-description">Ask about Shiplog</a>
-          <p class="hint" id="ask-about-shiplog-description">Ask about Shiplog moves you to the follow-up form at the foot of this page, which asks for a work email address, what you want to discuss and an optional note.</p>
         </div>
 
         <!-- Ships collapsed, and is revealed by the hero's Write a post
@@ -452,6 +445,16 @@
              the alt-text requirement, the display-name caution, the publish
              consequence — is the wording that was already here, moved and
              revealed rather than rewritten.
+             It is now read before the contact route and the caption explaining
+             it (#2709), which used to close the feed panel above this panel. A
+             reader who has finished the posts meets the thing this page is for
+             — writing one — before the route that leaves the page for the
+             follow-up form. The composer itself did not move inside the
+             workspace: nesting this panel in the feed panel to get ahead of
+             that route would put a bordered card inside a bordered card, which
+             is a stylesheet change this page has no size headroom for, so the
+             route moved down to page level instead, where the reporting
+             explanation already sits.
              The two live regions this panel holds (#post-counter and
              #post-image-alt-counter) ship with it and are never re-created, so
              an announcement fires into a region the reader can already see. -->
@@ -823,6 +826,20 @@
           </form>
         </div>
       </section>
+      <!-- The contact route closes the page instead of opening the hero:
+           writing a post is what this page is for, and the hero carries that
+           one action. It keeps its own caption beside it, the way the other
+           five pages do — a label that travels without the line explaining it
+           leaves a reader guessing what it costs — and the two stay in one
+           container, which is the invariant
+           tests/social-people-reading-order.test.js holds.
+           It sits here rather than at the foot of the feed panel because the
+           composer is read before it now (#2709). Page level, beside the
+           reporting explanation below: both are routes off the end of this
+           page rather than part of the feed, and the route adds no tab stop
+           above the filters by moving — it never had one there. -->
+      <a class="text-link" id="ask-about-shiplog" href="#site-footer-panel" aria-describedby="ask-about-shiplog-description">Ask about Shiplog</a>
+      <p class="hint" id="ask-about-shiplog-description">Ask about Shiplog moves you to the follow-up form at the foot of this page, which asks for a work email address, what you want to discuss and an optional note.</p>
       <!-- What reporting does and does not do, said before anyone presses the
            button, and the only place on this page that says it (#2471). It
            promises review, never removal. No "How reporting works" lead-in:
