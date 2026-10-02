@@ -18,12 +18,15 @@ import { STORAGE_KEY, initDecisionLog } from "../src/app.js";
 import { RELEASE_STORAGE_KEY } from "../src/releases.js";
 import {
   DEMO_PROGRESS_STATUS,
-  DEMO_PROGRESS_STEPS,
   demoProgress,
+  demoProgressSteps,
 } from "../src/demo-progress.js";
 import { DomEvent, loadPage, pressEnter, pressTab, tabSequence, textOf, typeText } from "./support/browser.js";
 
 const HOME = new URL("../src/index.html", import.meta.url);
+// The steps as this page states them: the home page's own wording, which says
+// of each action whether it happens on this page or on Releases (#2727).
+const STEPS = demoProgressSteps("home");
 const CSS = new URL("../src/landing-decision.css", import.meta.url);
 // The seeded examples are a read-through layer nobody recorded, so a page that
 // wants to show what THIS browser holds is handed an empty seed.
@@ -116,7 +119,7 @@ test("a browser with no records is on step one, and the other three say so", asy
     `Step 4 of 4 · ${DEMO_PROGRESS_STATUS.todo}`,
   ]);
   // Exactly one step is the current one, and it is the one to do.
-  assert.deepEqual(currentSteps(page), [DEMO_PROGRESS_STEPS[0]]);
+  assert.deepEqual(currentSteps(page), [STEPS[0]]);
 
   // The action for step one is the form below, so the path offers no link and
   // costs the first screen no tab stop.
@@ -134,7 +137,7 @@ test("a recorded decision completes step one and offers one link to Releases", a
     `Step 1 of 4 · ${DEMO_PROGRESS_STATUS.done}`,
     `Step 2 of 4 · ${DEMO_PROGRESS_STATUS.current}`,
   ]);
-  assert.deepEqual(currentSteps(page), [DEMO_PROGRESS_STEPS[1]]);
+  assert.deepEqual(currentSteps(page), [STEPS[1]]);
 
   // One action, and it carries the decision to the Releases recorder through
   // the parameter that page already reads (decisionToLink / LINK_DECISION_PARAM).
@@ -160,7 +163,7 @@ test("a release linked to that decision completes step three and opens its detai
     `Step 3 of 4 · ${DEMO_PROGRESS_STATUS.done}`,
     `Step 4 of 4 · ${DEMO_PROGRESS_STATUS.current}`,
   ]);
-  assert.deepEqual(currentSteps(page), [DEMO_PROGRESS_STEPS[3]]);
+  assert.deepEqual(currentSteps(page), [STEPS[3]]);
 
   assert.equal(actionCount(page), 1);
   assert.equal(action(page).getAttribute("href"), `/release.html?id=${RELEASE.id}`);
@@ -176,7 +179,7 @@ test("a release linked to no stored decision leaves the path on step two", async
   const unlinked = { ...RELEASE, id: "r-unlinked", decisionIds: [] };
   const page = await openHome(t, { decisions: [DECISION], releases: [unlinked] });
 
-  assert.deepEqual(currentSteps(page), [DEMO_PROGRESS_STEPS[1]]);
+  assert.deepEqual(currentSteps(page), [STEPS[1]]);
   assert.equal(action(page).getAttribute("href"), `/releases.html?link=${DECISION.id}#record-release`);
 });
 
@@ -193,7 +196,7 @@ test("returning to the home page restores the same state from this browser's sto
   // Second visit, same browser: the page is parsed again from the shipped
   // markup and arrives on step two rather than on step one.
   const page = await openHome(t, { decisions });
-  assert.deepEqual(currentSteps(page), [DEMO_PROGRESS_STEPS[1]]);
+  assert.deepEqual(currentSteps(page), [STEPS[1]]);
   assert.equal(action(page).getAttribute("href"), href, "the restored action points somewhere else");
   assert.equal(statuses(page)[0], `Step 1 of 4 · ${DEMO_PROGRESS_STATUS.done}`);
   // A revisit is an arrival, not a change: the live region says nothing.
@@ -214,7 +217,7 @@ test("a save moves the indicator without a reload and announces the move politel
   fill(page, ENTRY);
   byId(page, "decision-form").querySelector('button[type="submit"]').click();
 
-  assert.deepEqual(currentSteps(page), [DEMO_PROGRESS_STEPS[1]]);
+  assert.deepEqual(currentSteps(page), [STEPS[1]]);
   assert.match(announced(page), /^Demo progress: step 2 of 4\./);
   assert.match(announced(page), /Continue to Releases with that decision ready to link\./);
 });
@@ -224,7 +227,7 @@ test("a refused save leaves the indicator on step one and announces nothing", as
   // Every required field is empty, so the recorder refuses the entry.
   byId(page, "decision-form").querySelector('button[type="submit"]').click();
 
-  assert.deepEqual(currentSteps(page), [DEMO_PROGRESS_STEPS[0]]);
+  assert.deepEqual(currentSteps(page), [STEPS[0]]);
   assert.equal(actionCount(page), 0, "a refused save offered a release to record");
   assert.equal(announced(page), "", "a refused save announced progress");
 });
@@ -288,7 +291,7 @@ test("the seeded example records are not counted as this browser's progress", as
     location: { pathname: "/", search: "", hash: "" },
     history: { replaceState() {} },
   });
-  assert.deepEqual(currentSteps(page), [DEMO_PROGRESS_STEPS[0]]);
+  assert.deepEqual(currentSteps(page), [STEPS[0]]);
   assert.equal(actionCount(page), 0, "a seeded example was counted as a recorded decision");
 });
 

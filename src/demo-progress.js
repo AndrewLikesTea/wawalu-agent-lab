@@ -31,14 +31,14 @@
 // buys nothing. That page's first screen has none to spare.
 //
 // TWO PAGES, ONE STEP MODEL (#2578). The guide now also stands on Releases, and
-// the thing that must never be copied is everything above: the four sentences,
-// their order, the status words, and which step the store says a browser is on.
-// A `surface` names the page the reader is standing on, and it changes exactly
-// two things — which step arriving has already satisfied (standing on Releases
-// IS step two), and the single link offered next, which has to be a control the
-// page in question actually carries. Every step sentence, every status word and
-// the derivation itself are read from the constants below by both surfaces, so a
-// wording change lands on both pages or on neither.
+// the thing that must never be copied is the model: four actions, in one order,
+// with one set of status words and one derivation of which step the store says a
+// browser is on. A `surface` names the page the reader is standing on, and it
+// changes which step arriving has already satisfied (standing on Releases IS step
+// two), the single link offered next — which has to be a control the page in
+// question actually carries — and the words each step uses for WHERE its action
+// happens (#2727). Both surfaces read their four sentences from the one table
+// below, so a wording change still lands in a single place.
 
 import { recordReleaseHref } from "./decision-entry.js";
 import { DETAIL_LINK_TEXT, loadReleases, releaseDetailHref, releaseDetailLinkLabel } from "./releases.js";
@@ -46,22 +46,43 @@ import { onRecordsChanged } from "./shiplog-records.js";
 
 export const DEMO_PROGRESS_STEP_COUNT = 4;
 
-// The four steps, in the order the demo is done. Step two names what the link
-// does rather than describing where the link is: the route is now offered by
-// this indicator at every visit, not only in the moment after a save.
+// The four steps, in the order the demo is done, in the words of the page being
+// read (#2727). Same four actions either way — record a decision, go to
+// Releases, record a release and link the decision, open the release and check
+// it — and only the direction differs.
 //
-// Step one names its page rather than pointing "below" (#2578). The same four
-// sentences are now read on Releases, where the form below is the release
-// recorder, and a step telling a reader to record a decision in it would be
-// false on the page that carries it. Every step names where it happens, so the
-// set reads true wherever the guide stands; the home page's own empty-state
-// lead still points at the form under it.
-export const DEMO_PROGRESS_STEPS = Object.freeze([
-  "Record a decision with the decision form on the Home page.",
-  "Continue to Releases with that decision ready to link.",
-  "Record a release there and link that decision to it.",
-  "Open the release you recorded and check its summary and linked decision.",
-]);
+// EVERY STEP SAYS WHERE ITS ACTION HAPPENS, RELATIVE TO THE READER. A step whose
+// action is on the page in hand says so in place: the home page's step one is
+// "on this page", not "on the Home page", which read on the home page sends a
+// visitor looking for somewhere else to go. A step whose action is on the other
+// page names it by the destination name the navigation uses for it — "Home",
+// "Releases", from src/site-nav.js — so the words in the step match the words in
+// the nav a reader has to find. The same rule kills "Continue to Releases" and
+// "a release there" on Releases, which addressed a reader who had already
+// arrived. The home page's own empty-state lead still points at the form below.
+//
+// Step two names what the move does rather than where the link is: the route is
+// offered by this indicator at every visit, not only in the moment after a save.
+const CHECK_THE_RELEASE = "Open the release you recorded and check its summary and linked decision.";
+export const DEMO_PROGRESS_STEPS = Object.freeze({
+  home: Object.freeze([
+    "Record a decision with the decision form on this page.",
+    "Continue to Releases with that decision ready to link.",
+    "Record a release there and link that decision to it.",
+    CHECK_THE_RELEASE,
+  ]),
+  releases: Object.freeze([
+    "Record a decision with the decision form on the Home page.",
+    "Arrive here with that decision ready to link.",
+    "Record a release on this page and link that decision to it.",
+    CHECK_THE_RELEASE,
+  ]),
+});
+
+/** The four steps as the given surface states them, defaulting to the home page's. */
+export function demoProgressSteps(surface = "home") {
+  return DEMO_PROGRESS_STEPS[surface] ?? DEMO_PROGRESS_STEPS.home;
+}
 
 // Three words, and every one of them says what a reader has to do rather than
 // how far along a bar something is. "Done" is a fact about the store.
@@ -107,10 +128,10 @@ export const DEMO_PROGRESS_PREREQUISITE =
 export const DEMO_PROGRESS_PREREQUISITE_ACTION = "Open the decision form on the Home page";
 
 // Which step arriving on a page has already done. Standing on Releases IS step
-// two — "Continue to Releases with that decision ready to link" — so a guide
-// there that reported step two as the thing to do next would be asking a reader
-// to do what they have just done. Home satisfies nothing by being itself: its
-// step one is a record, not an arrival.
+// two — "Arrive here with that decision ready to link" — so a guide there that
+// reported step two as the thing to do next would be asking a reader to do what
+// they have just done. Home satisfies nothing by being itself: its step one is a
+// record, not an arrival.
 const ARRIVED_AT_STEP = Object.freeze({ home: -1, releases: 1 });
 
 const title = (decision) => {
@@ -212,7 +233,7 @@ export function demoProgress({ decisions = [], releases = [], surface = "home" }
   const arrived = ARRIVED_AT_STEP[surface] ?? ARRIVED_AT_STEP.home;
   const currentIndex = release ? 3 : (decision ? Math.max(1, arrived + 1) : 0);
 
-  const steps = DEMO_PROGRESS_STEPS.map((text, index) => {
+  const steps = demoProgressSteps(surface).map((text, index) => {
     const status = index < currentIndex
       ? DEMO_PROGRESS_STATUS.done
       : (index === currentIndex ? DEMO_PROGRESS_STATUS.current : DEMO_PROGRESS_STATUS.todo);
