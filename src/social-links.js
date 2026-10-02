@@ -17,6 +17,41 @@
 // naming a control the reader cannot find.
 export const OPEN_POST_LABEL = "Open post";
 
+// Which post a per-post control acts on, said in the control's accessible name.
+// Every card in the feed and every tile on People prints the same two words, so
+// a reader moving by control alone used to hear "Open post" a dozen times with
+// nothing to tell one from the next — and a list of identical names is a list of
+// one choice repeated. The suffix carries the post's own two facts: who
+// published it and when, in the words already painted on that card.
+//
+// A suffix rather than a replacement, because the words on screen stay the
+// label: "Open post by Iris Vale, 14 Jul 2026" begins with the two words a
+// reader was told to look for, which is what keeps the spoken name and the
+// printed one the same control (WCAG 2.5.3).
+//
+// Both facts are optional and neither is ever faked. A clause with nothing in it
+// is dropped rather than printed empty, so a post with no display name reads
+// "Open post 14 Jul 2026" and never "Open post by , 14 Jul 2026" or the word
+// "undefined"; a post missing both reads as the bare label, because there is
+// nothing true left to add. The leading space belongs to the suffix: in the DOM
+// it is a separate hidden element, and without it the two would concatenate into
+// "Open postby Iris Vale".
+export function postIdentitySuffix(author, when) {
+  const clauses = [];
+  const name = String(author ?? "").trim();
+  const time = String(when ?? "").trim();
+  if (name) clauses.push(`by ${name}`);
+  if (time) clauses.push(time);
+  return clauses.length ? ` ${clauses.join(", ")}` : "";
+}
+
+// The whole name, for a control that is named by an attribute rather than by the
+// text inside it. One builder for both shapes, so Social's cards and People's
+// tiles cannot drift into two spellings of one idea.
+export function postControlName(label, author, when) {
+  return `${label}${postIdentitySuffix(author, when)}`;
+}
+
 // What Social prints on the control that opens its composer, owned here for the
 // same reason OPEN_POST_LABEL is: Social says these three words back to a reader
 // in its own waiting and empty lines, and a second wording in one of them sends

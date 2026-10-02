@@ -11,6 +11,8 @@
 // and the panel says so before anything is sent. Every string is written with
 // textContent, so nothing a post says can become markup here.
 
+import { postControlName } from "./social-links.js";
+
 export const REPORT_POST_LABEL = "Report post";
 export const MAX_REPORT_CONTEXT_LENGTH = 500;
 export const REPORT_REASONS = Object.freeze([
@@ -72,12 +74,18 @@ export async function sendPostReport(report) {
 
 // The button on a card or tile. Its name starts with the two words printed on
 // it and then says which post, because every card prints the same two words.
+//
+// Built by the one helper that also names the card's Open post control
+// (src/social-links.js), so the two controls on a card identify their post the
+// same way — and so a post with no display name or no timestamp loses the clause
+// instead of printing "by undefined". It used to interpolate both facts
+// unguarded, which is how a blank one became a name with a hole in it.
 export function renderReportButton(post, when, onReport) {
   const button = document.createElement("button");
   button.setAttribute("type", "button");
   button.className = "text-button post-report-button";
   button.textContent = REPORT_POST_LABEL;
-  button.setAttribute("aria-label", `${REPORT_POST_LABEL} by ${post.author}, ${when}`);
+  button.setAttribute("aria-label", postControlName(REPORT_POST_LABEL, post.author, when));
   button.dataset.postId = post.id;
   button.addEventListener("click", () => onReport(post, button));
   return button;

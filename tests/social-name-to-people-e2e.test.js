@@ -275,7 +275,11 @@ test("a settled Social post carries its display name as a link to People, in the
   // named anchor per card, last in the card, opening that card's own post.
   const open = stops[1];
   assert.equal(open.tagName, "A");
-  assert.equal(textOf(open), "Open post");
+  // Two words printed, then the post it opens for the ear alone (#2708): the
+  // hidden half is read by textOf here because the harness models no layout.
+  assert.equal(textOf(open), `Open post by Iris Vale, ${textOf(card.querySelectorAll(".post-date")[0])}`);
+  assert.equal(textOf(open.querySelectorAll("span")[0]).startsWith("by Iris Vale, "), true,
+    "the words on screen are the label; the rest is the hidden span");
   assert.equal(open.getAttribute("href"), "/post.html?id=p-06&author=Iris+Vale");
   assert.ok(at(link) < at(open), "the action was offered before the post it acts on");
   assert.equal(card.querySelectorAll(".release-detail-link").length, 1,

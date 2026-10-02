@@ -348,7 +348,13 @@ test("a tile visibly links to the full Social post", () => {
   const caption = first(tile, "profile-tile-caption");
   assert.equal(caption.tagName, "FIGCAPTION");
   assert.equal(caption.textContent, "Focus rings landed everywhere.");
-  assert.equal(tile.getAttribute("aria-label"), "Focus rings landed everywhere. — Open post");
+  // Named by what it does and which post it does it to, with the caption handed
+  // to the same reader as the tile's description rather than as its name.
+  // The date read off the tile, not formatted a second time here: a test that
+  // built its own string would pass while the name and the tile drifted apart.
+  assert.equal(tile.getAttribute("aria-label"),
+    `Open post by Mina, ${first(tile, "profile-tile-date").textContent}`);
+  assert.equal(tile.getAttribute("aria-describedby"), caption.id);
   assert.equal(first(tile, "profile-tile-link-label").textContent, "Open post");
 
   const img = tags(tile, "IMG")[0];
@@ -395,12 +401,78 @@ test("every tile carries one control named Open post, pointing at that post", ()
     assert.equal(tile.tagName, "A");
     assert.equal(tile.href, `/post.html?id=${tile.dataset.postId}&author=Mina&from=profile`,
       "the tile opens its own post, not the grid's first one");
-    assert.equal(tile.getAttribute("aria-label"), "Focus rings landed everywhere. — Open post");
+    assert.equal(tile.getAttribute("aria-label"),
+      `Open post by Mina, ${first(tile, "profile-tile-date").textContent}`,
+      "the spoken name starts with the printed label and then says which post");
     // Last child, by index rather than by node identity: a failed identity
     // comparison would print the whole parsed tile.
     assert.equal(tile.children.indexOf(labels[0]), tile.children.length - 1,
       "the action is offered before the reader has the post it acts on");
   }
+
+  // The defect this grid had: both tiles above carry the same caption, which was
+  // the whole of a tile's name, so a reader moving control to control heard one
+  // name twice and had nothing to choose between.
+  const names = tiles.map((tile) => tile.getAttribute("aria-label"));
+  assert.equal(new Set(names).size, names.length, "two tiles cannot share one name");
+});
+
+// #2708. A reader moving control to control hears nothing but the names, so every
+// control this grid draws has to be one — the tile and the Report post button
+// beside it, named the same way from the same two facts.
+test("every control in the grid names its own post, and the loading grid names none", () => {
+  const container = createElement("div");
+  renderProfileGrid(container, [olderImagePost, imagePost], { author: "Mina", onReport: () => {} });
+
+  const tiles = byClass(container, "profile-tile").filter((tile) => !tile.classes.includes("profile-tile-skeleton"));
+  const buttons = byClass(container, "post-report-button");
+  assert.equal(tiles.length, 2, "the assertions below need two real tiles");
+  assert.equal(buttons.length, 2, "one Report post per tile");
+
+  for (const [index, tile] of tiles.entries()) {
+    // Read off the tile, never formatted again here: the point of the name is
+    // that it repeats what this tile prints.
+    const when = first(tile, "profile-tile-date").textContent;
+    assert.equal(tile.getAttribute("aria-label"), `Open post by Mina, ${when}`);
+    assert.equal(buttons[index].getAttribute("aria-label"), `Report post by Mina, ${when}`);
+    // The words on screen are untouched: two on the tile, two on the button.
+    assert.equal(first(tile, "profile-tile-link-label").textContent, "Open post");
+    assert.equal(buttons[index].textContent, "Report post");
+  }
+
+  const names = [...tiles, ...buttons].map((control) => control.getAttribute("aria-label"));
+  assert.equal(new Set(names).size, 4, "four controls, four names");
+  for (const name of names) assert.doesNotMatch(name, /null|undefined|,\s*$|,\s*,|\s{2}/);
+
+  // Placeholders wear .profile-tile too, and a skeleton stands for no post at
+  // all, so none of them may offer a control that claims to open or report one.
+  const loading = createElement("div");
+  renderProfileGrid(loading, [], { state: "loading", author: "Mina", onReport: () => {} });
+  const claimed = walk(loading, (node) => /^(Open|Report) post/.test(node.getAttribute("aria-label") ?? ""));
+  assert.equal(claimed.length, 0, "a placeholder named a post it does not have");
+  assert.equal(byClass(loading, "post-report-button").length, 0);
+  assert.equal(byClass(loading, "profile-tile-link-label").length, 0);
+});
+
+// The two facts a name is built from can both be missing, and neither may become
+// a hole in the name a reader hears. "Guest" is the display name People falls
+// back to, so it is a name like any other and gets no special case.
+test("a Guest post and a post with no display name are both named well-formed", () => {
+  const container = createElement("div");
+  const guest = { ...imagePost, id: "p-guest", author: "Guest" };
+  const nameless = { ...imagePost, id: "p-nameless", author: "   ", createdAt: "2026-07-02T09:00:00.000Z" };
+  renderProfileGrid(container, [guest, nameless], { author: "Guest", onReport: () => {} });
+
+  const tiles = byClass(container, "profile-tile").filter((tile) => !tile.classes.includes("profile-tile-skeleton"));
+  assert.equal(tiles.length, 2);
+  const dates = tiles.map((tile) => first(tile, "profile-tile-date").textContent);
+  assert.equal(tiles[0].getAttribute("aria-label"), `Open post by Guest, ${dates[0]}`);
+  // The clause with nothing in it is dropped, not printed empty: no "by , ", no
+  // "by undefined", and still a name of its own.
+  assert.equal(tiles[1].getAttribute("aria-label"), `Open post ${dates[1]}`);
+  const names = [...tiles, ...byClass(container, "post-report-button")].map((node) => node.getAttribute("aria-label"));
+  assert.equal(new Set(names).size, 4);
+  for (const name of names) assert.doesNotMatch(name, /null|undefined|,\s*$|,\s*,|\s{2}/);
 });
 
 test("a dead image leaves the caption and the link intact", () => {

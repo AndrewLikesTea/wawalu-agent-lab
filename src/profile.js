@@ -26,7 +26,7 @@ import {
   EXAMPLE_POST_LABEL, connectionStatusLine, countExamplePosts, examplePostsClause, isExamplePost, normalizeImage,
 } from "./social.js";
 import {
-  OPEN_POST_LABEL, postDetailHref, profileHref, socialAllPostsLabel, socialFeedHref,
+  OPEN_POST_LABEL, postControlName, postDetailHref, profileHref, socialAllPostsLabel, socialFeedHref,
 } from "./social-links.js";
 import { imageDescription, renderDescriptionNote, renderImageDescriptionText, renderImageUnavailable } from "./image-description.js";
 import { renderFeedStatus, feedPhase, feedPresence, retryFocus, setFilterAvailability } from "./feed-status.js";
@@ -656,7 +656,11 @@ function renderTile(post, index, onReport = null) {
   link.append(figure);
 
   const meta = el("p", "profile-tile-meta");
-  const time = el("time", "profile-tile-date", formatDate(post.createdAt));
+  // Formatted once and read three times: by the time element below and by the
+  // accessible names of this tile's two controls, so the date a reader hears is
+  // by construction the date printed on the tile.
+  const when = formatDate(post.createdAt);
+  const time = el("time", "profile-tile-date", when);
   time.dateTime = post.createdAt;
   meta.append(time);
   meta.append(el("span", "profile-tile-stat", `${countLabel(post.likes, "like")} · ${countLabel(post.comments, "comment")}`));
@@ -667,13 +671,28 @@ function renderTile(post, index, onReport = null) {
   if (isExamplePost(post)) meta.append(el("span", "badge badge-example", EXAMPLE_POST_LABEL));
   link.append(meta, destination);
 
-  // Which post first, then what the tile does, quoting the words printed on it
-  // so a reader who hears the name can find the control by sight.
-  link.setAttribute("aria-label", `${captionFor(post)} — ${OPEN_POST_LABEL}`);
+  // What the tile does first, then which post it does it to — the two words
+  // printed on it, so a reader who hears the name can find the control by sight,
+  // and then the post's own display name and date in the same shape Social's
+  // cards use (src/social-links.js owns it) and the Report post button beside
+  // this tile already used.
+  //
+  // It led on the caption until now, and a grid of a display name's posts is
+  // exactly where that failed: two posts can carry the same caption, and two
+  // tiles named "Focus rings landed everywhere. — Open post" are two controls a
+  // reader cannot tell apart. The date is what makes a tile's name its own.
+  //
+  // An attribute, not a hidden span, because the control here is the whole tile:
+  // the picture, its description and the caption are all inside the link, and a
+  // name built from that content would be a paragraph. The caption is not lost —
+  // aria-describedby hands it to the same reader as the tile's description, which
+  // is the role it has always played, and it stays printed on screen.
+  link.setAttribute("aria-label", postControlName(OPEN_POST_LABEL, post.author, when));
+  link.setAttribute("aria-describedby", caption.id);
   item.append(link);
   // Beside the tile, never inside it: a button nested in the link would be a
   // control inside a control. Only drawn where the page mounted the panel.
-  if (onReport) item.append(renderReportButton(post, formatDate(post.createdAt), onReport));
+  if (onReport) item.append(renderReportButton(post, when, onReport));
   return item;
 }
 

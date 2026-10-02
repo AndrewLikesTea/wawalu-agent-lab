@@ -210,6 +210,34 @@ test("every card carries one control named Open post, pointing at that post", ()
   }
 });
 
+// #2708. The two words stay the only words on screen; which post the control
+// opens is a hidden span inside it, and the leading space belongs to the span
+// because the browser concatenates the two with nothing between them. This layer
+// is the one that can read the span on its own — the name a reader actually hears
+// is asserted on the shipped page in tests/social.test.js.
+test("the open control's hidden half names the post, and drops a clause it has no fact for", () => {
+  const container = createElement("div");
+  const guest = { ...textPost, id: "p-guest", author: "Guest", createdAt: "2026-07-12T09:00:00.000Z" };
+  const nameless = { ...textPost, id: "p-nameless", author: "   ", createdAt: "2026-07-11T09:00:00.000Z" };
+  renderPosts(container, [textPost, guest, nameless]);
+
+  const cards = byClass(container, "post-card").filter((card) => !card.classes.includes("post-card-skeleton"));
+  assert.equal(cards.length, 3, "the per-card assertions below need real cards");
+  const wanted = ["by Kai", "by Guest", null];
+  for (const [index, card] of cards.entries()) {
+    const open = first(card, "release-detail-link");
+    assert.equal(open.textContent, "Open post", "the printed label is untouched");
+    const when = first(card, "post-date").textContent;
+    const hidden = first(open, "visually-hidden");
+    assert.equal(hidden.tagName, "SPAN");
+    // "Guest" is a display name like any other, and so is the example post this
+    // feed is made of: neither gets a case of its own.
+    assert.equal(hidden.textContent, wanted[index] ? ` ${wanted[index]}, ${when}` : ` ${when}`);
+    assert.doesNotMatch(hidden.textContent, /null|undefined|,\s*$|,\s*,/);
+    assert.equal(open.children.length, 1, "nothing else was folded into the control");
+  }
+});
+
 test("empty, loading, and error states are three distinct renders", () => {
   // Nothing published yet and nothing matching the filters are different news.
   // The first states what publishing does, because an empty feed is the one

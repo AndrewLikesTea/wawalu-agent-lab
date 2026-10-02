@@ -24,7 +24,8 @@
 import { DEFAULT_AUTHOR, MAX_AUTHOR_LENGTH, readStoredAuthor, rememberAuthor } from "./social-identity.js";
 import { imageDescription, renderDescriptionNote, renderImageDescriptionText, renderImageUnavailable } from "./image-description.js";
 import {
-  COMPOSE_POST_LABEL, OPEN_POST_LABEL, peopleImagePostsLabel, postDetailHref, profileHref, requestedFeedAuthor,
+  COMPOSE_POST_LABEL, OPEN_POST_LABEL, peopleImagePostsLabel, postDetailHref, postIdentitySuffix, profileHref,
+  requestedFeedAuthor,
 } from "./social-links.js";
 import { postPermalink, renderPostCopyControl } from "./post-share.js";
 import { mountPostReport, renderReportButton } from "./post-report.js";
@@ -675,7 +676,11 @@ function renderPostCard(post, { index, onReport = null }) {
   // arbitrary text and must not be spliced into an id/IDREF list.
   author.id = `post-${index}-author`;
   byline.append(author);
-  const time = el("time", "post-date", formatDateTime(post.createdAt));
+  // Formatted once and read three times: by the time element below, by this
+  // card's two controls' accessible names. A second call would be a second
+  // chance for the words a reader hears to drift from the words on the card.
+  const when = formatDateTime(post.createdAt);
+  const time = el("time", "post-date", when);
   time.dateTime = post.createdAt;
   byline.append(time);
   // Which posts are invented, said on the post rather than only in the caveat
@@ -748,14 +753,26 @@ function renderPostCard(post, { index, onReport = null }) {
   // The post it opens is said by aria-describedby rather than by folding the
   // body into the link's name — the card's text is already on the page and
   // reading it twice into one accessible name is how a name stops being one.
+  //
+  // Which post it opens is in the name too, after those two words and only for
+  // the ear: a feed of twelve cards used to offer twelve controls named "Open
+  // post" and nothing else, so a reader moving control to control heard one
+  // choice repeated and had to leave the list to tell them apart. The hidden
+  // half says who published the post and when — the card's own byline, the same
+  // formatted string the time element above prints — so the name identifies the
+  // post without the body being read into it a second time. Hidden in the shared
+  // .visually-hidden utility (src/styles.css), never with `hidden` or
+  // aria-hidden, both of which would take the words back out of the name.
   const open = el("a", "release-detail-link", OPEN_POST_LABEL);
   open.href = postDetailHref(post.id, post.author);
   open.setAttribute("aria-describedby", textId);
+  const identity = postIdentitySuffix(post.author, when);
+  if (identity) open.append(el("span", "visually-hidden", identity));
   article.append(open);
   // After Open post, because it asks about the post the reader has just read
   // (src/post-report.js). Drawn only where a page mounted the report panel, so
   // no card offers a button that opens nothing.
-  if (onReport) article.append(renderReportButton(post, formatDateTime(post.createdAt), onReport));
+  if (onReport) article.append(renderReportButton(post, when, onReport));
   item.append(article);
   return item;
 }

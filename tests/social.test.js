@@ -1611,6 +1611,70 @@ test("a filter combination matching nothing reads as a dead end with its own rec
   assert.equal(feed.querySelectorAll(".post-report-button").length, 3);
 });
 
+// #2708. Every card prints the same two words on its way into the post and the
+// same two on its way to reporting it, so a reader moving by control alone used
+// to hear one pair of choices repeated once per card. The name says which post
+// after the printed label — in a hidden span for the link, whose name is its text,
+// and in aria-label for the button, whose name is the attribute.
+//
+// The accessible name of a control is its aria-label when it has one and its text
+// otherwise, which is what this reads. The hidden half is in the text here
+// because the harness models no layout — visual hiding is .visually-hidden's job
+// and is asserted as a class, not as a measurement.
+const controlName = (node) => node.getAttribute("aria-label") ?? textOf(node);
+
+test("every control in the feed is named for its own post", async (t) => {
+  const page = await loadPage(new URL("../src/social.html", import.meta.url), {});
+  t.after(() => page.restore());
+  mountSocialFeed(page.document, { posts: sample, state: "ready" });
+  const feed = page.document.querySelector("#post-feed");
+
+  const controls = [...feed.querySelectorAll("a"), ...feed.querySelectorAll("button")];
+  assert.equal(controls.length, 6, "three cards, each offering Open post and Report post");
+  const names = controls.map(controlName);
+  assert.equal(new Set(names).size, names.length, `two controls in the feed share one name: ${names.join(" / ")}`);
+  for (const name of names) {
+    assert.match(name, /^(Open|Report) post /, "a name starts with the words printed on the control");
+    assert.doesNotMatch(name, /null|undefined|,\s*$|,\s*,/);
+  }
+
+  // Byte-exact against the card the control belongs to: the display name and the
+  // timestamp are read out of the rendered card, so a name built from a second
+  // formatting of the same instant would fail here rather than drift in silence.
+  const card = feed.querySelectorAll(".post-card")[0];
+  const author = textOf(card.querySelector(".post-name"));
+  const when = textOf(card.querySelector(".post-date"));
+  assert.equal(controlName(card.querySelector(".release-detail-link")), `Open post by ${author}, ${when}`);
+  assert.equal(controlName(card.querySelector(".post-report-button")), `Report post by ${author}, ${when}`);
+
+  // The words on screen are still the two the hero sentence tells a reader to
+  // look for; the rest of the name is the hidden span, in the shared utility
+  // class, inside the control rather than beside it.
+  const open = card.querySelector(".release-detail-link");
+  const hidden = open.querySelectorAll("span");
+  assert.equal(hidden.length, 1, "one hidden half, no other element inside the link");
+  assert.equal(hidden[0].className, "visually-hidden");
+  assert.equal(hidden[0].hasAttribute("aria-hidden"), false, "a hidden-from-everyone span would say nothing");
+  assert.equal(open.getAttribute("aria-label"), null, "the link is named by its own text");
+  // These sample posts are all example posts, and an example post is named by the
+  // same rule: the badge beside the time stays out of the name.
+  assert.doesNotMatch(controlName(open), /Example post/);
+});
+
+test("the loading feed offers no control that claims to open or report a post", async (t) => {
+  const page = await loadPage(new URL("../src/social.html", import.meta.url), {});
+  t.after(() => page.restore());
+  mountSocialFeed(page.document, { posts: [], state: "loading" });
+  const feed = page.document.querySelector("#post-feed");
+
+  // Placeholders wear .post-card too, so this asks what the controls are named
+  // rather than how many cards there are.
+  const controls = [...feed.querySelectorAll("a"), ...feed.querySelectorAll("button")];
+  const claimed = controls.map(controlName).filter((name) => /^(Open|Report) post/.test(name));
+  assert.deepEqual(claimed, [], "a placeholder named a post the page has not fetched");
+  assert.equal(feed.querySelectorAll(".post-card-skeleton").length > 0, true, "the placeholders are the point");
+});
+
 // The dead end belongs to the filters, not to an empty feed: with nothing
 // published at all, any filter setting is still the never-posted screen.
 test("an empty feed keeps the never-posted state whatever the filters hold", async (t) => {
