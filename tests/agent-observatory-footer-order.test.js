@@ -97,7 +97,7 @@ test("the observatory reads About, then the follow-up form, then the destination
   assert.equal(document.querySelectorAll(".site-footer-demos").length, 1, "two destination lists");
   // (c) The list has the heading the other four pages give it.
   assert.equal(textOf(band[summary]), DIRECTORY_SUMMARY);
-  assert.equal(textOf(band[summary]), `Where else to go on Shiplog — all ${DEMOS.length} destinations`);
+  assert.equal(textOf(band[summary]), `Where else to go in the lab — all ${DEMOS.length} destinations`);
 });
 
 test("moving the block left the observatory's request contract byte for byte", async (t) => {
