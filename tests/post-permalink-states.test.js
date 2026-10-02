@@ -1348,7 +1348,7 @@ test("the post page introduces itself once, answering what a cold visitor cannot
   // going. People's still names the act and the page that can perform it,
   // because People has no composer of its own to hand a reader to.
   assert.equal(FEED_LOADING_LINE, "Posts are loading.");
-  assert.equal(loadingSummaryText(), "Image posts are loading. Publish a post on Social to add one.");
+  assert.equal(loadingSummaryText(), "Image posts are loading. Each one was published on Social.");
 
   // The wait a cold visitor meets, held open. Read off the rendered page rather
   // than the markup, because this is the state the module redraws.

@@ -349,12 +349,17 @@ export function profileEmptyText(author) {
   return `The display name “${name}” has no image posts yet.`;
 }
 
-// The one phrase People uses for the trip to Social's composer, in both places
-// it offers that trip: this status while the grid loads, and the publishing step
-// in the .feed-create hint (src/profile.html). It names the act and the page
-// that can perform it, because People cannot. People used to send the same
-// reader twice under two names — "Open Social to publish an image post" here and
-// "Write a post on Social" in the hint — and this is the one wording.
+// The one phrase People uses for the trip to Social's composer, in the one place
+// it offers that trip: the publishing step in the .feed-create hint
+// (src/profile.html). It names the act and the page that can perform it, because
+// People cannot. People used to send the same reader twice under two names —
+// "Open Social to publish an image post" in the loading status and "Write a post
+// on Social" in the hint — and this is the one wording.
+//
+// The loading status carried this phrase too until #2735, which is how People
+// came to tell a visitor to go and publish three times in one screen. It makes
+// the offer once now, in the ordered sequence under the grid, which is the only
+// place on the page that states the whole path.
 //
 // It used to be built from Social's composer label, so the words a reader was
 // sent to were the words on the control they arrived at. Social's trigger is
@@ -367,10 +372,21 @@ export function profileEmptyText(author) {
 export const PUBLISH_ON_SOCIAL = "Publish a post on Social";
 
 // The grid's first-load status says exactly what People is retrieving, and then
-// where a visitor publishes one of them — this page has no composer, so the next
-// action it can honestly name is on Social. It names the destination as well as
-// the control because the nav link to Social is on screen in this state, unlike
-// the .feed-create hint, which feedPresence() removes while the fetch is open.
+// where those image posts come from. It used to close on the trip to Social's
+// composer instead (PUBLISH_ON_SOCIAL above), which made this the third sentence
+// in one screen telling a visitor to go and publish — after the publishing step
+// in the .feed-create sequence and the pointer that opens Social for the posts
+// with no image (#2735). Social's own wait gave the same offer up in #2506: a
+// page that does not yet know whether it has anything to show is not the place
+// to offer the one thing to do instead, and the sequence under the grid makes
+// that offer in order and in full.
+//
+// What it says instead is the fact this frame is the only one that has to carry:
+// served and unhydrated, with six placeholders under it, this panel is most of
+// what a visitor arriving from a shared display-name link can read, and the
+// source of the pictures is what they are missing. It stays a second sentence
+// rather than becoming none, because PROFILE_LOADING_ANNOUNCEMENT below is the
+// wait on its own and a reader must not be walked past the same sentence twice.
 //
 // `author` is accepted for call-site symmetry with the other status builders and
 // deliberately not used: the heading directly above carries the selected display
@@ -380,15 +396,15 @@ export const PUBLISH_ON_SOCIAL = "Publish a post on Social";
 // the frame before hydration, where it once shipped "Ari hasn't posted an image
 // yet", a verdict that was false for the seeded feed.
 export function loadingSummaryText(author = DEFAULT_AUTHOR) {
-  return `${PROFILE_LOADING_ANNOUNCEMENT} ${PUBLISH_ON_SOCIAL} to add one.`;
+  return `${PROFILE_LOADING_ANNOUNCEMENT} Each one was published on Social.`;
 }
 
 // The wait as the live region says it, and the first sentence of the line above
 // rather than a second wording for one state. The panel keeps the clause that
-// offers something to do while the fetch runs; the announcement does not,
-// because a polite region interrupting a reader to suggest a trip to another
-// page is not news about this one — and because the sentence a screen reader is
-// walked past in the panel would otherwise be the same sentence twice.
+// says where the image posts come from; the announcement does not, because the
+// news for a screen-reader user is the state of this page and not a fact about
+// another one — and because the sentence a screen reader is walked past in the
+// panel would otherwise be the same sentence twice.
 export const PROFILE_LOADING_ANNOUNCEMENT = "Image posts are loading.";
 
 // The counts line when the selected display name has nothing to show. It states

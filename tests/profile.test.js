@@ -511,7 +511,7 @@ test("the first load reserves a skeleton grid instead of a blank panel", () => {
   // caption, metadata, and action hierarchy without claiming six fetched posts.
   assert.equal(skeleton.getAttribute("aria-hidden"), "true");
   assert.equal(skeleton.getAttribute("inert"), "");
-  assert.equal(status.textContent, "Image posts are loading. Publish a post on Social to add one.");
+  assert.equal(status.textContent, "Image posts are loading. Each one was published on Social.");
   assert.equal(byClass(skeleton, "profile-tile-skeleton").length, 6);
   assert.equal(byClass(skeleton, "skeleton-media-square").length, 6);
   assert.equal(byClass(skeleton, "skeleton-meta").length, 6);
@@ -870,17 +870,22 @@ test("the zero state does not vary with what the rest of the feed holds", () => 
 });
 
 test("the waiting line names image posts once without duplicating the selected display name", () => {
-  assert.equal(loadingSummaryText(), "Image posts are loading. Publish a post on Social to add one.");
-  assert.equal(loadingSummaryText("Zed"), "Image posts are loading. Publish a post on Social to add one.");
+  assert.equal(loadingSummaryText(), "Image posts are loading. Each one was published on Social.");
+  assert.equal(loadingSummaryText("Zed"), "Image posts are loading. Each one was published on Social.");
 });
 
-// People cannot publish anything, so both places it sends a visitor to Social —
-// the wait over the grid and the publishing step in the helper beside it — offer
-// one trip. They used to name two, and neither was a control Social had: the
-// wait said "Open Social to publish an image post" and the step said "Write a
-// post on Social", while the button that opens the composer read something else
-// again (#2181). Comparing People's two strings to each other would not have
-// caught that, so both are read off the one exported phrase.
+// People cannot publish anything, so it sends a visitor to Social's composer —
+// once, from the publishing step in the helper beside the grid. It used to send
+// them from the wait over the grid as well, in the same bytes, which is how one
+// screen came to tell a visitor to go and publish twice (#2735); the wait names
+// the source of the image posts now and makes no offer, and
+// tests/feed-one-state.test.js pins that half.
+//
+// Both offers used to name a control Social did not have: the wait said "Open
+// Social to publish an image post" and the step said "Write a post on Social",
+// while the button that opens the composer read something else again (#2181).
+// Comparing People's strings to each other would not have caught that, so the
+// step is read off the one exported phrase.
 //
 // That phrase used to be built from Social's composer label, so People's words
 // were the words on the button a reader arrived at. Social's trigger is "Write a
@@ -888,7 +893,7 @@ test("the waiting line names image posts once without duplicating the selected d
 // deliberately neither: it names the act and the page that can perform it. What
 // keeps the promise is the href — /social.html#post-form opens the composer on
 // arrival — so this test pins the destination rather than a shared label.
-test("People offers the trip to Social's composer in one phrase, in both places", async () => {
+test("People offers the trip to Social's composer in one phrase, in one place", async () => {
   const social = await readFile(new URL("../src/social.html", import.meta.url), "utf8");
   const opener = social.match(/<button[^>]*id="post-compose-open"[^>]*>([^<]*)<\/button>/);
   assert.notEqual(opener, null, "Social ships no control that opens the composer");
@@ -902,10 +907,13 @@ test("People offers the trip to Social's composer in one phrase, in both places"
     "Social's composer trigger drifted, so People's route may name the wrong act");
 
   // People's one phrase for the trip names the act and the page it happens on,
-  // and nothing else is added, so a reader who follows either offer meets the
-  // same words.
+  // and nothing else is added, so a reader who follows the offer meets the words
+  // the page gave them.
   assert.equal(PUBLISH_ON_SOCIAL, "Publish a post on Social");
-  assert.equal(loadingSummaryText(), `Image posts are loading. ${PUBLISH_ON_SOCIAL} to add one.`);
+  // And the wait over the grid is not a second copy of it (#2735).
+  assert.equal(loadingSummaryText(), "Image posts are loading. Each one was published on Social.");
+  assert.doesNotMatch(loadingSummaryText(), new RegExp(PUBLISH_ON_SOCIAL),
+    "the wait offers the trip the helper beside the grid already offers");
 
   const html = await readFile(new URL("../src/profile.html", import.meta.url), "utf8");
   const step = html.match(/<a class="text-link" id="profile-publish-route" href="([^"]*)">([^<]*)<\/a>/);
@@ -939,9 +947,9 @@ test("the profile page's static copy does not drift from the module's", async ()
   // is gone from the page.
   assert.match(html, /id="profile-summary"><\/p>/);
   assert.doesNotMatch(html, new RegExp(retiredEmptyLine("Ari")));
-  // People's one retrieval status names the content type; the heading already
-  // names the selected display name.
-  assert.equal(loadingSummaryText("Ari"), "Image posts are loading. Publish a post on Social to add one.");
+  // People's one retrieval status names the content type and where it comes
+  // from; the heading already names the selected display name.
+  assert.equal(loadingSummaryText("Ari"), "Image posts are loading. Each one was published on Social.");
   // And the connection line ships wordless. Its promise used to be authored
   // above the status that says the image posts are still loading, so the frame
   // with nothing in it made a promise and then admitted it had nothing — two
