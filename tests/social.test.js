@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import {
   createPost,
   sortPostsNewestFirst,
@@ -2025,6 +2025,90 @@ test("the first-visit publish action is primary and precedes feed guidance and f
     "filters are reached before the primary publishing action");
   assert.equal(action.getAttribute("aria-controls"), "post-compose-panel");
   assert.equal(action.getAttribute("aria-expanded"), "false");
+});
+
+// #2726. Two paragraphs below the composer the footer says "There is no
+// self-serve signup and no published price". That sentence is about buying
+// Shiplog for a team and it stays exactly as it is — but on the page inviting a
+// visitor to publish, it is the only thing on screen that sounds like a gate,
+// and nothing above it says publishing is open to anyone. The hero answers that
+// beside the control that starts the act.
+const PUBLISH_ACCESS = "Anyone can publish here — no account, no sign-in — and you choose the display name on each post.";
+// Byte for byte what the footer still says, counted so the fix cannot become an
+// edit to the sentence it is about.
+const PRICING_SENTENCE = "There is no self-serve signup and no published price.";
+
+test("the hero says publishing needs no account, once, beside the control that starts it", async (t) => {
+  const { document, id } = await socialDisclosure(t);
+  const access = id("publish-access");
+  const trigger = id("post-compose-open");
+
+  assert.equal(textOf(access), PUBLISH_ACCESS, "the hero's publishing-access sentence was rewritten");
+  // The harness reads straight through a collapsed region, so the text alone
+  // would pass for a sentence folded away from a real visitor.
+  assert.equal(foldedAway(access), false, "the sentence renders inside something hidden or collapsed");
+  assert.equal(access.parentNode === trigger.parentNode, true,
+    "the sentence left the row the Write a post control stands in");
+  assert.ok(access.closest(".hero-social"), "the sentence left the hero");
+
+  // Above the composer, in the order a reader travels: after the page promise,
+  // and before the panel the trigger reveals.
+  const order = documentOrder(document);
+  assert.ok(order.indexOf(id("page-tagline")) < order.indexOf(access),
+    "the sentence is read before the page's own promise");
+  assert.ok(order.indexOf(access) < order.indexOf(id("post-compose-panel")),
+    "the sentence is read after the composer it is about");
+
+  // Once on the page, and in the hero rather than repeated at the composer.
+  const main = textOf(document.querySelector("#main-content"));
+  assert.equal(main.split(PUBLISH_ACCESS).length - 1, 1,
+    "Social does not state who can publish exactly once");
+  assert.equal(textOf(id("post-compose-panel")).includes(PUBLISH_ACCESS), false,
+    "the composer repeats the hero's sentence a reader has already passed");
+
+  // The sentence it exists to answer is untouched and still said once, in the
+  // footer and nowhere in the page body.
+  assert.equal(textOf(document.querySelector("body")).split(PRICING_SENTENCE).length - 1, 1,
+    "Social no longer carries the pricing sentence exactly once");
+  assert.equal(main.includes(PRICING_SENTENCE), false,
+    "the pricing sentence moved into the page body, above the composer it reads as a gate on");
+
+  // A requirement, never a cost: what publishing costs is the composer's
+  // sentence at the button that costs it, and each of those facts is on this
+  // page once already.
+  assert.doesNotMatch(textOf(access), /cannot be edited or deleted|no customer or production data|Report post|stores this post/,
+    "the hero states what publishing costs, which the composer already says once");
+  // And it does not restate the display name's own help, which belongs at the
+  // field: this names the choice and stops.
+  assert.equal(textOf(access).includes(AUTHOR_HINT), false);
+  assert.doesNotMatch(textOf(access), /defaults to|Guest/,
+    "the hero restates the display-name hint rather than deferring to it");
+  assert.equal(main.split(AUTHOR_HINT).length - 1, 1,
+    "the composer's display-name hint is no longer on the page exactly once");
+
+  // Prose, not a control. The page's stops above the filters are counted
+  // elsewhere, and this sentence may not add one.
+  assert.equal(access.querySelectorAll("a,button,input,select,textarea,summary").length, 0,
+    "the sentence grew something focusable");
+  assert.equal(access.getAttribute("tabindex"), null);
+  const stops = tabSequence(document).filter((node) => node.closest("#main-content"));
+  assert.deepEqual(stops.slice(0, stops.indexOf(id("post-name-filter"))).map((node) => node.id),
+    ["post-compose-open"], "the hero gained a tab stop above the feed's filters");
+});
+
+test("the publishing-access sentence is Social's and no other page's", async () => {
+  const files = (await readdir(new URL("../src/", import.meta.url), { withFileTypes: true }))
+    .filter((entry) => entry.isFile() && entry.name.endsWith(".html"))
+    .map((entry) => entry.name);
+  assert.ok(files.includes("social.html"), "the page list stopped finding Social");
+
+  for (const file of files) {
+    const html = await readFile(new URL(`../src/${file}`, import.meta.url), "utf8");
+    const rendered = html.replace(/<!--[\s\S]*?-->/g, "");
+    const times = rendered.split(PUBLISH_ACCESS).length - 1;
+    assert.equal(times, file === "social.html" ? 1 : 0,
+      `${file} renders the publishing-access sentence ${times} times`);
+  }
 });
 
 test("the trigger reveals the composer and puts focus on its heading", async (t) => {
