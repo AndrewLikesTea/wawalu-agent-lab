@@ -166,11 +166,13 @@ test("the site directory ships closed, and only the task pages fold it", async (
     "a summary that is not a disclosure's own child is not a control");
 
   // It names what is behind it and how much of it there is, so opening it is not
-  // the only way to learn the size, and it is the site rather than more about
-  // this post.
+  // the only way to learn the size, and it is the lab rather than more about
+  // this post. It stopped saying "on Shiplog" in #2722: four of the nine
+  // destinations are not part of Shiplog, and the About band above says so.
   assert.equal(textOf(summary), DIRECTORY_SUMMARY);
   assert.match(textOf(summary), new RegExp(`\\b${DEMOS.length}\\b`), "the summary must state the count it hides");
-  assert.match(textOf(summary), /Shiplog/);
+  assert.match(textOf(summary), /in the lab/);
+  assert.doesNotMatch(textOf(summary), /post/i, "the summary must name the lab, not this post");
 
   // The caption role the footer already ships, and no rule of its own: this
   // change buys no new colour, type or spacing value.

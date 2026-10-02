@@ -20,14 +20,12 @@
 //      visitor sees the one field and its action on first paint. There is no
 //      focus trap to escape and nothing overlays the page they were reading.
 //
-// The submission itself is not new work. It is the same transport and the same
-// validation the home page's field-note form and the AI FinOps contact form
-// already share, imported from lead-capture.js. What it asks for is not the same
-// though, so it reads its validation and failure wording from CONTACT_COPY
-// rather than the field-note set: the home page carries both forms, and a
-// visitor who mistypes an address has to be told which one they were using.
-// The promise it makes once an address lands is still its own — see the note on
-// CAPTURED about what it is willing to say.
+// The submission itself is not new work: it is the transport and the validation
+// the home page's field-note form and the AI FinOps contact form already share,
+// imported from lead-capture.js. Its wording is its own — CONTACT_COPY rather
+// than the field-note set, because the home page carries both forms and a
+// visitor who mistypes an address has to be told which one they were using —
+// and see the note on CAPTURED for what it is willing to claim.
 
 import { createFollowUpConfirmation } from "./follow-up-confirmation.js";
 import {
@@ -114,15 +112,15 @@ export const PITCH_HREF = "/evolution.html#workspace-answer";
  * act turns on: where Paint's PNG goes, what order People's posts come in. AI
  * FinOps keeps "in this browser tab", a promise about where an export is read.
  *
+ * `separate` renders SEPARATE_TOOL: IDENTITY says these four are not Shiplog.
+ *
  * `filedUnder` marks the one row the navigation has no door for: src/site-nav.js
  * files /personal-history.html inside Prompt coach's section, so the header
- * never spells the name. It was a clause hanging off the Prompt coach row here,
- * which named the page without giving it a door either. It is a row of its own
- * now, and the field records that the two tables disagree by design.
+ * never spells the name. The field records that the two tables disagree.
  */
 export const DEMOS = Object.freeze([
-  Object.freeze({ label: "AI FinOps", href: "/evolution.html", purpose: "score your provider export in this browser tab" }),
-  Object.freeze({ label: "Prompt coach", href: "/coach.html", purpose: "grade a prompt, then revise and grade again" }),
+  Object.freeze({ label: "AI FinOps", href: "/evolution.html", purpose: "score your provider export in this browser tab", separate: true }),
+  Object.freeze({ label: "Prompt coach", href: "/coach.html", purpose: "grade a prompt, then revise and grade again", separate: true }),
   // Beneath Prompt coach in the navigation, beside it here. Its browser-tab
   // clause is a promise, as above, about a different file.
   Object.freeze({
@@ -130,6 +128,7 @@ export const DEMOS = Object.freeze([
     href: "/personal-history.html",
     purpose: "grade your assistant export in this browser tab",
     filedUnder: "Prompt coach",
+    separate: true,
   }),
   Object.freeze({
     label: "Decisions",
@@ -142,8 +141,10 @@ export const DEMOS = Object.freeze([
   Object.freeze({ label: "Social", href: "/social.html", purpose: "read short posts about shipped work, or publish one" }),
   Object.freeze({ label: "People", href: "/profile.html", purpose: "pick a display name, see its image posts, newest first" }),
   Object.freeze({ label: "Paint", href: "/paint/", purpose: "crop or draw an image, export a PNG, publish it on Social" }),
-  Object.freeze({ label: "Agent observatory", href: "/agents.html", purpose: "watch a synthetic engineering team build and review work" }),
+  Object.freeze({ label: "Agent observatory", href: "/agents.html", purpose: "watch a synthetic engineering team build and review work", separate: true }),
 ]);
+
+export const SEPARATE_TOOL = "Separate tool in the lab.";
 
 /**
  * Default introduction above the form. The post page supplies its own
@@ -263,14 +264,14 @@ export function siteFooterMarkup(indent = "    ", {
   return lines.map((line) => `${indent}${line}`).join("\n");
 }
 
-// The one line a folded directory gets: the rest of the site, and how much of it.
-export const DIRECTORY_SUMMARY = `Where else to go on Shiplog — all ${DEMOS.length} destinations`;
+// The one line a folded directory gets: the rest of the lab, and how much of it.
+export const DIRECTORY_SUMMARY = `Where else to go in the lab — all ${DEMOS.length} destinations`;
 
 /**
  * A real <ul>, so the destinations arrive as a list rather than a run-on
  * sentence and a screen reader gets the count. The hrefs are root-relative:
  * this band ships on every page, and a bare relative path would resolve against
- * a page in a subdirectory rather than against the site.
+ * a page in a subdirectory, not against the site.
  *
  * `collapsed` wraps that same list, unchanged, in a disclosure. The summary
  * reuses the band's caption class and restyles no marker, so it paints one
@@ -279,8 +280,8 @@ export const DIRECTORY_SUMMARY = `Where else to go on Shiplog — all ${DEMOS.le
 function demoListLines(collapsed = false) {
   const list = [
     '    <ul class="site-footer-demos">',
-    ...DEMOS.map(({ label, href, purpose, note }) =>
-      `      <li><a href="${href}">${label}</a> — ${note ? `${note} ` : ""}${purpose}</li>`),
+    ...DEMOS.map(({ label, href, purpose, note, separate }) =>
+      `      <li><a href="${href}">${label}</a> — ${note ? `${note} ` : ""}${purpose}${separate ? `. ${SEPARATE_TOOL}` : ""}</li>`),
     "    </ul>",
   ];
   if (!collapsed) return list;

@@ -23,7 +23,7 @@ import { readFile, readdir } from "node:fs/promises";
 import {
   ASSETS_DESCRIPTION, ASSETS_HREF, ASSETS_LINK_LABEL,
   DEMOS, DIRECTORY_SUMMARY, FOLLOW_UP_REDIRECT, IDENTITY, INVITATION, PITCH, PITCH_HREF, PITCH_LINK,
-  REPOSITORY_LINK_LABEL, siteFooterMarkup, SOURCE_LINK_LABEL,
+  REPOSITORY_LINK_LABEL, SEPARATE_TOOL, siteFooterMarkup, SOURCE_LINK_LABEL,
 } from "../src/site-footer.js";
 import { REPOSITORY_URL } from "../src/repository-url.js";
 import { FOLLOW_UP_TOPICS, POST_FOLLOW_UP_TOPIC } from "../src/leads.js";
@@ -790,10 +790,10 @@ test("a page the navigation files under a destination still gets a door of its o
     for (const file of PAGES) {
       const html = await read(file);
       assert.ok(html.includes(
-        '<li><a href="/personal-history.html">Personal AI history</a> — grade your assistant export in this browser tab</li>'),
+        '<li><a href="/personal-history.html">Personal AI history</a> — grade your assistant export in this browser tab. Separate tool in the lab.</li>'),
       `${file} is missing the "Personal AI history" row`);
       assert.ok(html.includes(
-        '<li><a href="/coach.html">Prompt coach</a> — grade a prompt, then revise and grade again</li>'),
+        '<li><a href="/coach.html">Prompt coach</a> — grade a prompt, then revise and grade again. Separate tool in the lab.</li>'),
       `${file}: the Prompt coach row still carries more than the coach`);
     }
   } finally {
@@ -877,7 +877,7 @@ test("every page's directory says start here once, on Decisions, and AI FinOps s
   const HREFS = ["/evolution.html", "/coach.html", "/personal-history.html", "/", "/releases.html",
     "/social.html", "/profile.html", "/paint/", "/agents.html"];
   assert.deepEqual(DEMOS.map((demo) => demo.href), HREFS, "the directory's doors changed");
-  assert.equal(DIRECTORY_SUMMARY, "Where else to go on Shiplog — all 9 destinations");
+  assert.equal(DIRECTORY_SUMMARY, "Where else to go in the lab — all 9 destinations");
 
   const directory = (document, where) => {
     const lists = document.querySelectorAll(".site-footer-demos");
@@ -888,7 +888,8 @@ test("every page's directory says start here once, on Decisions, and AI FinOps s
     assert.equal((textOf(lists[0]).match(/start here/gi) ?? []).length, 1, `${where}: "start here" is not said exactly once`);
     const marked = rows.filter((row) => /start here/i.test(textOf(row)));
     assert.equal(textOf(marked[0]), `Decisions — start here: ${decisions.purpose}`, `${where}: the marker is not on Decisions`);
-    assert.equal(textOf(rows[HREFS.indexOf("/evolution.html")]), `AI FinOps — ${finops.purpose}`, `${where}: the AI FinOps row`);
+    assert.equal(textOf(rows[HREFS.indexOf("/evolution.html")]), `AI FinOps — ${finops.purpose}. ${SEPARATE_TOOL}`,
+      `${where}: the AI FinOps row`);
     const summary = document.querySelectorAll("#site-footer-directory-summary");
     if (summary.length) assert.equal(textOf(summary[0]), DIRECTORY_SUMMARY, `${where}: the folded directory's count`);
   };
@@ -902,6 +903,62 @@ test("every page's directory says start here once, on Decisions, and AI FinOps s
     const page = await openFooterPage(file);
     try {
       directory(page.document, `${file} as painted`);
+    } finally {
+      page.restore();
+    }
+  }
+});
+
+// #2722: the band said AI FinOps and Prompt coach "are separate tools hosted in
+// the same lab, not part of Shiplog", and the directory two paragraphs below it
+// was headed "Where else to go on Shiplog" over a list of nine destinations that
+// included both of them, plus Personal AI history and Agent observatory. One of
+// the two had to be wrong on every page of the site. The heading names the lab as
+// what holds the destinations now, and the four rows the band excludes say so in
+// their own rendered text — one wording, SEPARATE_TOOL, so no page can soften it
+// into "also on Shiplog". The count clause and the list are untouched: nothing was
+// added, removed, or reordered, because the contradiction was in the labels.
+test("the directory is headed by the lab, and every destination outside Shiplog says so", async () => {
+  const SEPARATE = ["AI FinOps", "Prompt coach", "Personal AI history", "Agent observatory"];
+  assert.deepEqual(DEMOS.filter((demo) => demo.separate).map((demo) => demo.label), SEPARATE,
+    "the rows the About band excludes from Shiplog are the rows that must carry the mark");
+  // The band's own sentence is what the mark has to agree with, in its words.
+  assert.match(IDENTITY, /separate tools hosted in the same lab, not part of Shiplog/);
+  assert.equal(SEPARATE_TOOL, "Separate tool in the lab.");
+  assert.doesNotMatch(DIRECTORY_SUMMARY, /Shiplog/,
+    "the heading still puts the nine destinations on Shiplog, which the band denies");
+  assert.match(DIRECTORY_SUMMARY, /^Where else to go in the lab — all \d+ destinations$/);
+  // Still one line per destination and nine of them: a label change, not a
+  // restructure. The count clause has to equal the rows beneath it.
+  assert.equal(DEMOS.length, 9);
+
+  const marked = (document, where) => {
+    const rows = [...document.querySelector(".site-footer-demos").querySelectorAll("li")];
+    assert.equal(rows.length, DEMOS.length, `${where}: the directory gained or lost a destination`);
+    for (const [index, demo] of DEMOS.entries()) {
+      const text = textOf(rows[index]);
+      // In the row a reader is served, after the purpose — not a colour, an
+      // attribute, or a position in the list.
+      if (SEPARATE.includes(demo.label)) {
+        assert.equal(text, `${demo.label} — ${demo.purpose}. ${SEPARATE_TOOL}`,
+          `${where}: the ${demo.label} row must say it is not part of Shiplog`);
+      } else {
+        assert.equal(text.includes(SEPARATE_TOOL), false,
+          `${where}: the ${demo.label} row calls a Shiplog surface a separate tool`);
+      }
+    }
+    assert.equal((textOf(document.querySelector(".site-footer-demos")).match(/Separate tool/g) ?? []).length,
+      SEPARATE.length, `${where}: the mark is not on exactly the four destinations`);
+  };
+
+  for (const file of PAGES) {
+    const html = await read(file);
+    assert.equal(html.includes("Where else to go on Shiplog"), false,
+      `${file} still heads the directory with the wording the About band contradicts`);
+    marked(parseHtml(html), `${file} as authored`);
+    const page = await openFooterPage(file);
+    try {
+      marked(page.document, `${file} as painted`);
     } finally {
       page.restore();
     }
