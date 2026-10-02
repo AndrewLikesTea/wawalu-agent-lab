@@ -27,6 +27,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { loadPage, pressTab, tabSequence, textOf } from "./support/browser.js";
 import { POST_EXITS } from "../src/post-detail.js";
+import { DEMOS } from "../src/site-footer.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
 
 const POST_PAGE = new URL("../src/post.html", import.meta.url);
@@ -213,6 +214,59 @@ test("arriving on Social at the publish fragment lands the reader in the open co
     return true;
   });
   assert.ok(after.length > 0, "the tab sequence never leaves the composer");
+});
+
+// What the two names have to do for a reader, asserted as that property rather
+// than as the two strings that currently satisfy it.
+//
+// Every other check on these labels — here, in post-detail, page-skip-link and
+// post-permalink-states — is a literal equality against one of five hand-kept
+// tables. All five would be updated together by anyone rewording the pair, so a
+// new pair that again opened on the same words would stay green across the whole
+// suite. The complaint was never about these particular words: it was that the
+// words a reader scanned first were identical on both routes, so the act that
+// tells them apart arrived fifth and the two names read as one name twice.
+//
+// The verbs are not asserted as literals either. They are read off the footer's
+// Social row, which is the directory every page carries and so the site's
+// authority on what a visitor does at this destination; this page agreeing with
+// it is what keeps one name per concept across the two surfaces.
+test("the two routes to Social are told apart by the words a reader scans first", async (t) => {
+  const page = await loadPage(POST_PAGE, { location: { search: "?id=p-image" } });
+  t.after(() => page.restore());
+
+  const words = (label) => String(label).trim().toLowerCase().split(/\s+/);
+  // Read off the page a visitor is served, then held to the module's constants,
+  // so neither half can drift into satisfying this alone.
+  const names = {
+    feed: textOf(page.document.querySelector("#post-back")),
+    publish: textOf(page.document.querySelector("#post-publish")),
+  };
+  assert.deepEqual([names.feed, names.publish], [POST_EXITS.social.label, POST_EXITS.publish.label],
+    "the shipped words and the module's constants disagree");
+
+  const feed = words(names.feed);
+  const publish = words(names.publish);
+  assert.ok(feed.length >= 3 && publish.length >= 3,
+    `both names must be long enough to compare three words: "${names.feed}" and "${names.publish}"`);
+
+  // Neither name opens on the other's opening word — the specific failure, which
+  // is what a shared "Open" or a shared "Social" in front would reintroduce.
+  assert.notEqual(feed[0], publish[0],
+    `both routes open on "${feed[0]}", so the first word a reader scans tells them nothing`);
+
+  // And they have parted by the third word, not merely somewhere further in.
+  assert.notDeepEqual(feed.slice(0, 3), publish.slice(0, 3),
+    `both routes open on "${feed.slice(0, 3).join(" ")}", so the act that differs arrives too late`);
+
+  // Each opens on the act itself, in the verb the footer's Social row uses for
+  // it: that row says a visitor goes there to read posts or to publish one.
+  const social = DEMOS.find((demo) => demo.href === "/social.html");
+  assert.ok(social, "the footer directory no longer has a Social row to agree with");
+  assert.ok(social.purpose.startsWith(feed[0]),
+    `the footer's Social row opens "${social.purpose}", not the page's "${feed[0]}…"`);
+  assert.ok(new RegExp(`\\b${publish[0]}\\b`).test(social.purpose),
+    `the footer's Social row never says "${publish[0]}", so the two surfaces name publishing differently`);
 });
 
 test("Social without the publish fragment leaves the composer collapsed and focus alone", async (t) => {
