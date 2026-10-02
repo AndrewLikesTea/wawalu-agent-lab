@@ -114,6 +114,10 @@ export const EXPORT_FILTER_FIELDS = Object.freeze({
   from: "string",
   to: "string",
   currentOnly: "boolean",
+  // The provenance narrowing (#2710): the view held only this repository's own
+  // decisions. A boolean like the one above it, because the dimension has one
+  // value a control can set.
+  repositoryOnly: "boolean",
 });
 
 export const EXPORT_DECISION_FIELDS = Object.freeze({

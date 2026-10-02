@@ -554,6 +554,17 @@
             <div class="filter">
               <button class="filter-toggle" id="filter-current-only" type="button" aria-pressed="false">Current only</button>
             </div>
+            <!-- Shiplog's own decisions, on their own (#2710). A toggle in the
+                 same group as Current only rather than a view of its own, so it
+                 composes with the search and the other filters and the Clear
+                 filters button beside it already resets it. Pressed-ness is
+                 aria-pressed, which is the state assistive tech reports, and the
+                 label is REPOSITORY_ONLY_LABEL in history-filters.js byte for
+                 byte so the control, its chip and its sentence cannot drift. -->
+            <div class="filter">
+              <button class="filter-toggle" id="filter-repository-only" type="button" aria-pressed="false" aria-describedby="filter-repository-hint">Shiplog's own decisions</button>
+              <span class="hint" id="filter-repository-hint">Leaves only the decisions recorded by the team that operates Shiplog. Each one links the pull request it came from.</span>
+            </div>
             <button class="clear-filters" id="clear-decision-filters" type="button">Clear filters</button>
           </div>
           <!-- One line per status the filter offers, in the same order and the
@@ -584,6 +595,16 @@
                the static #decision-count above. -->
           <div class="filter-summary-panel">
             <p class="filter-summary" id="history-filter-summary" data-filtered="false">13 records · 10 example records · 3 from this repository · none you added</p>
+            <!-- WHAT THE SHIPLOG'S-OWN-DECISIONS VIEW IS SHOWING (#2710).
+                 Empty until that toggle is pressed and emptied again when it is
+                 released, written by app.js on the same render as the rows from
+                 REPOSITORY_VIEW_NOTE, so the sentence and the list can never
+                 describe different sets. Deliberately NOT a live region, for the
+                 reason #release-coverage is not one: the record count in
+                 #history-announcement is this list's one announcer, and a second
+                 live region beside it interrupts the count mid-sentence. The
+                 press is announced by the toggle's own aria-pressed state. -->
+            <p class="hint" id="history-source-note"></p>
             <ul class="filter-chips" id="history-filter-chips" aria-label="Active filters" hidden></ul>
             <div class="filter-share">
               <button class="filter-share-action" id="copy-history-link" type="button">Copy link to this view</button>

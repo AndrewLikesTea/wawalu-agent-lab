@@ -419,6 +419,12 @@ export function selectHistory(records, view = {}) {
       // "Current only" removes exactly the decisions another decision replaced.
       // A release is never superseded, so it is never removed by this filter.
       if (view.currentOnly === true && record.superseded === true) return false;
+      // "Shiplog's own decisions" keeps exactly the repository-sourced records.
+      // Read off the provenance field through the one predicate that decides
+      // the three classes — never off the badge's copy, which is a string
+      // somebody will reword, and never off the shape of an id, which a visitor
+      // can produce. An example record can therefore never survive this filter.
+      if (view.repositoryOnly === true && !isRepositoryRecord(record)) return false;
       // A release selection answers “which decisions did this release carry?”;
       // the release row itself is context, not one of those decisions. `links`
       // is optional on a hand-built record, as everywhere else that reads it.
@@ -585,6 +591,18 @@ export function provenanceSplitLine(visible = []) {
   halves.push(addedHalf(added));
   return `· ${halves.join(" · ")}`;
 }
+
+// WHAT THE REPOSITORY-ONLY VIEW IS SHOWING, in words (#2710).
+//
+// Shown only while that filter is active and withdrawn the moment it is not, so
+// the sentence can never be read over a list it does not describe. It states
+// three things and stops: whose decisions these are, who recorded them, and that
+// each row carries its own citation. It makes NO claim about customers, about
+// how much the product is used, or about what any of these decisions achieved —
+// the records are this site's own source history and that is the whole of what
+// the page can stand behind.
+export const REPOSITORY_VIEW_NOTE = "These are Shiplog's own decisions, recorded in Shiplog by the team that "
+  + "operates it. Each one cites the public pull request it came from.";
 
 // Which records a counted figure counted. #2539: every figure on the home page
 // derived from a record count names its own records, so a reader who never
@@ -1405,6 +1423,11 @@ export async function initDecisionLog(root = document, storage = localStorage, o
   const typeFilter = [...(root.querySelectorAll?.('input[name="record-type"]') ?? [])];
   const statusHint = root.querySelector("#filter-status-hint");
   const currentOnly = root.querySelector("#filter-current-only");
+  const repositoryOnly = root.querySelector("#filter-repository-only");
+  // The sentence that says what the repository-only view is showing. Written on
+  // the same render as the rows, beside the headline rather than inside it: the
+  // headline is a count and this is a claim about provenance.
+  const sourceNote = root.querySelector("#history-source-note");
   const fromFilter = root.querySelector("#filter-from");
   const toFilter = root.querySelector("#filter-to");
   const filterSummary = root.querySelector("#history-filter-summary");
@@ -1499,6 +1522,7 @@ export async function initDecisionLog(root = document, storage = localStorage, o
     from: "",
     to: "",
     currentOnly: false,
+    repositoryOnly: false,
   };
 
   // The query string this page owns, tracked locally because replaceState does
@@ -1533,6 +1557,7 @@ export async function initDecisionLog(root = document, storage = localStorage, o
     if (fromFilter) fromFilter.value = view.from;
     if (toFilter) toFilter.value = view.to;
     syncCurrentOnlyControl();
+    syncRepositoryOnlyControl();
     syncStatusAvailability();
   };
 
@@ -1694,6 +1719,14 @@ export async function initDecisionLog(root = document, storage = localStorage, o
     currentOnly.setAttribute?.("aria-pressed", String(view.currentOnly));
   };
 
+  // The same idiom for the provenance toggle: one control, one visible state,
+  // and aria-pressed is that state. Called from syncFilterControls, so a shared
+  // link, Back, and a chip removal all leave the button describing the view.
+  const syncRepositoryOnlyControl = () => {
+    if (!repositoryOnly) return;
+    repositoryOnly.setAttribute?.("aria-pressed", String(view.repositoryOnly));
+  };
+
   const STATUS_HINT = "Applies to decisions. Choosing a status shows decision records only.";
   const STATUS_HINT_UNAVAILABLE = "Unavailable while the record type is set to Releases — a release has no decision status.";
   const RELEASE_HINT = "Shows decisions associated with the selected release.";
@@ -1797,6 +1830,11 @@ export async function initDecisionLog(root = document, storage = localStorage, o
         split: provenanceSplitLine(selected),
       });
     }
+    // The provenance view's own sentence, beside that headline. Emptied on a
+    // failed read for the same reason the figures above are: a claim about what
+    // the rows are, over a list this page could not read, is a claim about
+    // nothing.
+    if (sourceNote) sourceNote.textContent = !unread && view.repositoryOnly ? REPOSITORY_VIEW_NOTE : "";
     chipButtons = renderHistoryFilterChips(filterChips, view, { onRemove: removeFilter });
     // The shape of the same view, from the same selection rule: the chart is
     // drawn here rather than from a listener of its own, so a filter can never
@@ -2024,6 +2062,15 @@ export async function initDecisionLog(root = document, storage = localStorage, o
   currentOnly?.addEventListener("click", () => {
     view.currentOnly = !view.currentOnly;
     syncCurrentOnlyControl();
+    commit();
+  });
+  // The provenance toggle, on the same path. A native button, so Tab reaches it
+  // and Enter or Space activates it without this handler knowing which was
+  // pressed; it writes the one filter state everything else on this page reads,
+  // so Clear filters, a chip and a shared link all already understand it.
+  repositoryOnly?.addEventListener("click", () => {
+    view.repositoryOnly = !view.repositoryOnly;
+    syncRepositoryOnlyControl();
     commit();
   });
 

@@ -38,6 +38,7 @@ export const HISTORY_FILTER_PARAMS = Object.freeze({
   from: "from",
   to: "to",
   currentOnly: "current",
+  repositoryOnly: "source",
 });
 
 // The "current only" toggle predates this module and shipped with a spelled-out
@@ -45,6 +46,29 @@ export const HISTORY_FILTER_PARAMS = Object.freeze({
 // circulation carry it.
 export const CURRENT_ONLY_PARAM = HISTORY_FILTER_PARAMS.currentOnly;
 export const CURRENT_ONLY_VALUE = "only";
+
+// The provenance narrowing: Shiplog's own decisions, and nothing else (#2710).
+//
+// `source=repository` rather than `repository=only` because the dimension is
+// *which provenance*, and the class a record carries is named by one word
+// (recordProvenance in app.js: example / repository / added). A later view that
+// narrows to another class is one more value of this parameter instead of one
+// more boolean parameter beside it.
+export const REPOSITORY_ONLY_PARAM = HISTORY_FILTER_PARAMS.repositoryOnly;
+export const REPOSITORY_ONLY_VALUE = "repository";
+
+// What the toggle in the filter bar is called and what its chip says, in one
+// place. index.html carries the same words statically so the control is named
+// before a script runs; a test pins the two together.
+export const REPOSITORY_ONLY_LABEL = "Shiplog's own decisions";
+
+// The two boolean dimensions and the word each one is written as. Both are
+// spelled out rather than serialized as `true`, so a link reads as a sentence
+// about the view instead of as a flag a reader has to look up.
+const FILTER_WORDS = Object.freeze({
+  currentOnly: CURRENT_ONLY_VALUE,
+  repositoryOnly: REPOSITORY_ONLY_VALUE,
+});
 
 // The unfiltered view. A filter equal to its default is *absent* from the URL,
 // which is what keeps an unfiltered history on the clean base path instead of
@@ -58,11 +82,12 @@ export const DEFAULT_HISTORY_FILTERS = Object.freeze({
   from: "",
   to: "",
   currentOnly: false,
+  repositoryOnly: false,
 });
 
 // Serialization order, so the same state always produces the same string and a
 // shared link is stable enough to diff by eye.
-const FILTER_ORDER = ["query", "type", "status", "owner", "releaseId", "from", "to", "currentOnly"];
+const FILTER_ORDER = ["query", "type", "status", "owner", "releaseId", "from", "to", "currentOnly", "repositoryOnly"];
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -158,6 +183,7 @@ export function parseHistoryFilters(search = "") {
     from: range.from,
     to: range.to,
     currentOnly: read("currentOnly") === CURRENT_ONLY_VALUE,
+    repositoryOnly: read("repositoryOnly") === REPOSITORY_ONLY_VALUE,
   };
 }
 
@@ -173,6 +199,7 @@ export function normalizeHistoryFilters(filters = {}) {
     from: range.from,
     to: range.to,
     currentOnly: filters.currentOnly === true,
+    repositoryOnly: filters.repositoryOnly === true,
   };
 }
 
@@ -185,12 +212,14 @@ export function normalizeHistoryFilters(filters = {}) {
  * `null`, `""`, or `"all"`. So `{}` — and nothing else — means "no filter was
  * active", and a reader never has to know which sentinel each dimension uses to
  * mean "off". The keys are the canonical filter names this module already owns
- * (`query`, `type`, `status`, `owner`, `from`, `to`, `currentOnly`), so the
- * block, the query string, and the chips all name a dimension the same way.
+ * (`query`, `type`, `status`, `owner`, `from`, `to`, `currentOnly`,
+ * `repositoryOnly`), so the block, the query string, and the chips all name a
+ * dimension the same way.
  *
  * Values are the normalized ones: a link carrying `status=approved` describes
  * itself as `accepted`, which is the word the view actually filtered by.
- * `currentOnly` is the one boolean, and it is present only when true.
+ * `currentOnly` and `repositoryOnly` are the booleans, each present only when
+ * true.
  */
 export function activeHistoryFilters(filters = {}) {
   const active = normalizeHistoryFilters(filters);
@@ -215,7 +244,7 @@ export function historyFilterSearch(filters = {}) {
   const params = new URLSearchParams();
   for (const key of FILTER_ORDER) {
     if (active[key] === DEFAULT_HISTORY_FILTERS[key]) continue;
-    params.set(HISTORY_FILTER_PARAMS[key], key === "currentOnly" ? CURRENT_ONLY_VALUE : String(active[key]));
+    params.set(HISTORY_FILTER_PARAMS[key], FILTER_WORDS[key] ?? String(active[key]));
   }
   const query = params.toString();
   return query ? `?${query}` : "";
@@ -361,5 +390,9 @@ export function historyFilterChips(filters = {}) {
   if (active.from) add("from", "From", formatFilterDate(active.from));
   if (active.to) add("to", "To", formatFilterDate(active.to));
   if (active.currentOnly) add("currentOnly", "Current only", "");
+  // The valueless form, like Current only beside it: the dimension and its one
+  // value are the same words, and "Record source: Shiplog's own decisions"
+  // would say them twice.
+  if (active.repositoryOnly) add("repositoryOnly", REPOSITORY_ONLY_LABEL, "");
   return chips;
 }
