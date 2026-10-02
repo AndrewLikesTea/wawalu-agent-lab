@@ -519,6 +519,25 @@ export function profileAnnouncement(author, visibleCount) {
   return profileEmptyText(author);
 }
 
+// What a failed FIRST load costs the reader, said in words (#2723). A load that
+// never answered leaves the page unable to make the claim every other state on
+// it makes: how many image posts this display name has. Without this sentence
+// the two readings of an empty grid under "could not be loaded" are the same
+// screen — the fetch broke, or this name has never published a picture — and the
+// second is the page's own empty state, which says so in its own words and
+// offers a different recovery. So the failure states its own ignorance rather
+// than leaving the blank panel to be read as an answer.
+//
+// It names the display name rather than quoting it: this line is shared by the
+// panel and the announcement, the selected name is on screen directly above
+// both of them, and the one thing a failed fetch must not do is sound specific
+// about a name it learned nothing about.
+//
+// Only the zero-tile shape says it. A failed REFRESH still has the last good
+// load's tiles under it and can say exactly what it is showing, which is what
+// that shape says instead.
+export const PROFILE_UNKNOWN_POSTS_LINE = "The page cannot say which image posts this display name has.";
+
 // A failed load, announced (#2499). The panel that draws the failure is
 // rendered content and carries no live semantics of its own — it is built at
 // the moment it is needed, and a live region that arrives already holding its
@@ -533,7 +552,7 @@ export function profileFailureAnnouncement(shownCount = 0) {
   if (shownCount > 0) {
     return `Image posts could not be updated. Showing the ${countLabel(shownCount, "image post")} already loaded. Select ${PROFILE_RETRY_LABEL}.`;
   }
-  return `Image posts could not be loaded. Select ${PROFILE_RETRY_LABEL}.`;
+  return `Image posts could not be loaded. ${PROFILE_UNKNOWN_POSTS_LINE} Select ${PROFILE_RETRY_LABEL}.`;
 }
 
 // The one sentence the live region holds for whichever state this render drew.
@@ -768,7 +787,7 @@ export const PROFILE_RETRY_LABEL = "Retry loading image posts";
 function renderError(container, onRetry) {
   const failed = renderFeedStatus(container, {
     state: "error", label: "People feed error", text: "Image posts could not be loaded.",
-    detail: "The selected display-name filter is unchanged. Retry loading image posts.",
+    detail: `${PROFILE_UNKNOWN_POSTS_LINE} The selected display-name filter is unchanged. Retry loading image posts.`,
     actionLabel: PROFILE_RETRY_LABEL, onAction: onRetry,
   });
   failed.classList.add("empty-state", "empty-state-error");

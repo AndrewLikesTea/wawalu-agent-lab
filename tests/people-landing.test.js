@@ -389,6 +389,101 @@ test("People uses one status node for loading, error, and recovery to live posts
   assert.equal(textOf(status), "");
 });
 
+// #2723. The region has to survive being retried. The control that answers the
+// press is drawn INSIDE the panel the press replaces, so a render that appended
+// instead of replacing would leave a reader tabbing past two identical "Retry
+// loading image posts" buttons under two identical messages, with no way to tell
+// which one is live — and a third failure would make it three. The invariant is
+// one state at a time, which is why renderProfileGrid switches over a single
+// phase value rather than toggling four panels; the way to catch a regression in
+// it is to fail twice and count, then recover and count again.
+//
+// Driven through the shipped Retry control rather than the refresh timer: the
+// press is the path a reader takes, and it is the path that destroys the button.
+test("retrying a failed People load twice leaves one failure and one Retry, and recovering leaves tiles", async (t) => {
+  const routes = { [SEED_ROUTE]: { posts: [] } };
+  const page = await loadPage(PAGE_URL, { routes });
+  const savedInterval = globalThis.setInterval;
+  globalThis.setInterval = () => 0; // The page's 30-second refresh must not outlive the test.
+  t.after(() => { globalThis.setInterval = savedInterval; page.restore(); });
+  const { document } = page;
+
+  await importPageModule("/profile-page.js");
+  await waitFor(() => document.documentElement.dataset.shiplogProfile === "ready", "the failed first load settles");
+
+  const status = document.querySelector("#profile-feed-status");
+  const failures = () => status.querySelectorAll(".empty-state-error").length;
+  const retries = () => status.querySelectorAll(".feed-status-action").length;
+  // Counted, and the placeholders subtracted: a loading skeleton wears the same
+  // .profile-tile class as a real tile, so an unsubtracted count would let the
+  // recovery assertion pass against six empty cells.
+  const tiles = () => document.querySelectorAll(".profile-tile")
+    .filter((tile) => !tile.classList.contains("profile-tile-skeleton")).length;
+
+  // One failure, one control, no tiles — and the loading line is gone from the
+  // region rather than sitting above the message that contradicts it.
+  assert.equal(failures(), 1);
+  assert.equal(retries(), 1);
+  assert.equal(tiles(), 0);
+  assert.doesNotMatch(textOf(status), /Image posts are loading\./,
+    "the loading line outlived the load it was describing");
+  assert.equal(status.querySelectorAll(".feed-status-loading").length, 0);
+  assert.match(textOf(status), /Image posts could not be loaded\./);
+  // Both halves of the news: the load broke, AND the page therefore cannot say
+  // what this display name has published. The blank grid cannot supply the
+  // second half — read on its own it is indistinguishable from the page's own
+  // "no image posts yet" state, which offers a different recovery.
+  assert.match(textOf(status), /The page cannot say which image posts this display name has\./);
+
+  // The one filter is unavailable while the failure stands, and the reason is on
+  // screen in words next to it.
+  assert.equal(document.querySelectorAll(".profile-filter-option").length, 0,
+    "a failed load offered display names it never loaded");
+  assert.equal(textOf(document.querySelector("#profile-filter-hint")),
+    "This filter becomes available once the image posts finish loading.");
+
+  const first = status.querySelector(".feed-status-action");
+  assert.equal(textOf(first), "Retry loading image posts",
+    "the control does not say what it retries");
+  assert.equal(first.tagName, "BUTTON");
+  assert.equal(first.disabled, false, "the one control that can act here is out of the tab order");
+  assert.equal(tabSequence(document).includes(first), true, "Retry is not reachable by keyboard");
+
+  // Second attempt, same broken route. The page returns to "loading" first, so
+  // the event to wait on is a REPLACEMENT panel, not the ready flag — that
+  // settled on the first failure and settles nothing here.
+  first.click();
+  await waitFor(() => {
+    const now = status.querySelector(".feed-status-action");
+    return now !== null && now !== first;
+  }, "the second attempt never settled");
+
+  assert.equal(failures(), 1, "a repeated failure stacked a second message");
+  assert.equal(retries(), 1, "a repeated failure stacked a second Retry");
+  assert.equal(status.querySelectorAll(".empty-state").length, 1);
+  assert.equal(tiles(), 0);
+  // Said once, not twice concatenated into one panel.
+  assert.equal((textOf(status).match(/Image posts could not be loaded\./g) ?? []).length, 1);
+
+  // And the recovery: the same control, a route that answers. `source` is set
+  // because it is the field that distinguishes a visitor's post from sample
+  // content, and this one stands for a real publish.
+  routes[LIVE_ROUTE] = { posts: [{
+    id: "live-image", author: "Zed", content: "Recovered.", timestamp: "2026-07-18T12:00:00.000Z",
+    source: "shiplog-web",
+    image_url: "/media/Zed.svg", image_alt: "A drawing signed Zed", image_width: 1200, image_height: 900,
+  }] };
+  status.querySelector(".feed-status-action").click();
+  await waitFor(() => tiles() === 1, "the retried request drew no tiles");
+
+  assert.equal(failures(), 0, "the failure outlived the load that recovered it");
+  assert.equal(retries(), 0, "Retry outlived the load it retried");
+  assert.equal(status.hidden, true);
+  assert.equal(textOf(status), "");
+  assert.equal(document.querySelectorAll(".empty-state").length, 0,
+    "a zero state stands beside the tiles that disprove it");
+});
+
 test("every entry says how many image posts that display name has, and which one is showing", async () => {
   const page = await people();
   try {

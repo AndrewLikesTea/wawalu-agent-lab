@@ -34,7 +34,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { loadPage, pressKey, pressTab, textOf } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
-import { PROFILE_LOADING_ANNOUNCEMENT, PROFILE_RETRY_LABEL } from "../src/profile.js";
+import { PROFILE_LOADING_ANNOUNCEMENT, PROFILE_RETRY_LABEL, PROFILE_UNKNOWN_POSTS_LINE } from "../src/profile.js";
 
 const SOCIAL_PAGE = new URL("../src/social.html", import.meta.url);
 const PEOPLE_PAGE = new URL("../src/profile.html", import.meta.url);
@@ -279,11 +279,21 @@ test("People says its failure out loud and names the control that undoes it", as
   const { document } = await bootPeople(t);
 
   const announcer = document.querySelector("#profile-announcer");
-  assert.equal(textOf(announcer), `Image posts could not be loaded. Select ${PROFILE_RETRY_LABEL}.`,
+  // Three facts, in the order a reader needs them: the load failed, the page
+  // therefore knows nothing about this name's image posts, and here is the one
+  // control that changes that. The middle one is the only one the blank grid
+  // under the message cannot supply on its own (#2723).
+  assert.equal(textOf(announcer),
+    `Image posts could not be loaded. ${PROFILE_UNKNOWN_POSTS_LINE} Select ${PROFILE_RETRY_LABEL}.`,
     "a failed load was announced as nothing, or as something other than a failure");
+  assert.equal(PROFILE_UNKNOWN_POSTS_LINE, "The page cannot say which image posts this display name has.");
 
   const status = document.querySelector("#profile-feed-status");
   assert.match(textOf(status), /Image posts could not be loaded\./);
+  // And the rendered panel carries the same fact, so the reader who sees the
+  // page and the reader who hears it are told the same thing.
+  assert.ok(textOf(status).includes(PROFILE_UNKNOWN_POSTS_LINE),
+    "the drawn failure states the load broke but not that the count is unknown");
   const retry = status.querySelector(".feed-status-action");
   assert.equal(retry.tagName, "BUTTON");
   assert.equal(textOf(retry), PROFILE_RETRY_LABEL);
