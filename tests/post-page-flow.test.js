@@ -12,7 +12,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { loadPage, pressKey, pressTab, tabSequence, textOf } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
-import { REPORT_POST_LABEL } from "../src/post-report.js";
+import { REPORT_EMAIL_NOTE, REPORT_POST_LABEL } from "../src/post-report.js";
 
 const SEED_URL = "/social-demo-data.json";
 
@@ -357,8 +357,15 @@ test("the permalink opens with the post in every state, not with its caveats", a
 //
 // The handle's words and the explanation are Social's, read back out of
 // src/social.html by the test below rather than trusted from these lines.
+//
+// The middle three sentences are src/post-report.js's REPORT_EMAIL_NOTE (#2745),
+// imported rather than typed out, because the form renders the same string
+// beside its email field: a reword there has to reach Social's note and this
+// page's quote of it, or fail here.
 const REPORT_SUMMARY = "How reporting works";
-const REPORT_ABOUT = "Report post opens a short form about that one post. Choose a reason, add a note if you want to, and give your email address. The report goes only to the Wawalu team, who review each one. The post stays up unless the team decides after review to remove it.";
+const REPORT_ABOUT = "Report post opens a short form about that one post. Choose a reason, add a note if you want to, and give your email address. "
+  + `${REPORT_EMAIL_NOTE} `
+  + "The report goes only to the Wawalu team, who review each one. The post stays up unless the team decides after review to remove it.";
 // What happens to a report and what it can lead to: the account this page states
 // once, and the bytes every other surface that mentions a report uses.
 //

@@ -25,6 +25,21 @@ export const REPORT_REASONS = Object.freeze([
 
 export const REPORT_REVIEW_NOTE = "This report goes to the Wawalu team, who review each one. Reporting does not remove or hide the post, and not every report leads to removal.";
 export const REPORT_SENT_NOTE = "Send report sends this post, your reason, your note if you write one, and your email address. Only the Wawalu team sees them; none of it is shown on Social or People.";
+// What the form does with the one personal thing it asks for (#2745). Held in
+// one string and rendered in two places — beside the field here, and inside
+// Social's "How reporting works" note, which src/post-page.js quotes whole —
+// so a reader who reads it before pressing Report post and a reader who reads
+// it with the field in front of them read the same bytes.
+//
+// Every clause is something the code does. Required: the field is `required`,
+// reportProblems() refuses a blank one, and src/post-reports-api.js lists email
+// in REQUIRED_KEYS. Only the team: migration 0013 stores reporter_email in a
+// table no public projection joins, and the endpoint is write-only. No
+// confirmation: handlePostReportRequest (src/post-reports-api.js:117-120)
+// stores the row and answers with an id and a status — nothing in this
+// repository sends the reporter mail, so the follow-up form's "a person replies
+// … usually within two working days" would be false here.
+export const REPORT_EMAIL_NOTE = "Your email address is required, and the Wawalu team that operates Shiplog uses it only to contact you about this report. It is not published with the post, and whoever published the post never sees it. The team sends no automatic confirmation.";
 export const REPORT_RECEIVED = "Report sent. The Wawalu team will review this post, and it stays up while they do.";
 export const REPORT_NOT_SENT = "Your report was not sent.";
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -139,11 +154,14 @@ export function mountPostReport(root, { send = sendPostReport } = {}) {
     make("span", "hint", `Up to ${MAX_REPORT_CONTEXT_LENGTH} characters.`, { id: "post-report-context-hint" }));
 
   const emailInput = make("input", "", undefined, {
-    id: "post-report-email", name: "email", type: "email", required: "", maxlength: "254", inputmode: "email", autocomplete: "email", "aria-describedby": "post-report-sent",
+    id: "post-report-email", name: "email", type: "email", required: "", maxlength: "254", inputmode: "email", autocomplete: "email", "aria-describedby": "post-report-email-note post-report-sent",
   });
   const emailError = fieldError("post-report-email-error");
   const emailField = make("div", "field field-wide");
-  emailField.append(make("label", "", "Your email address", { for: "post-report-email" }), emailInput, emailError);
+  // Beside the field, in the hint style the rest of the form uses, so it needs
+  // no rule of its own in a stylesheet with no room for one.
+  emailField.append(make("label", "", "Your email address", { for: "post-report-email" }), emailInput, emailError,
+    make("p", "hint", REPORT_EMAIL_NOTE, { id: "post-report-email-note" }));
 
   const sent = make("p", "hint", REPORT_SENT_NOTE, { id: "post-report-sent" });
   const submit = make("button", "", "Send report", { id: "post-report-submit", type: "submit" });

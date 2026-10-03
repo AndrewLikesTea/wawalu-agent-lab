@@ -13,7 +13,7 @@ import { loadPage, pressKey, textOf } from "./support/browser.js";
 import { importPageModule, waitFor } from "./support/page-module.js";
 import { bootSocial } from "./support/social-paint-arrival.js";
 import { renderPosts } from "../src/social.js";
-import { REPORT_POST_LABEL, REPORT_RECEIVED, REPORT_REVIEW_NOTE } from "../src/post-report.js";
+import { REPORT_EMAIL_NOTE, REPORT_POST_LABEL, REPORT_RECEIVED, REPORT_REVIEW_NOTE } from "../src/post-report.js";
 
 const ARI_POST = "55555555-5555-4555-8555-555555555555";
 const BEA_POST = "66666666-6666-4666-8666-666666666666";
@@ -65,6 +65,47 @@ test("Social: the panel names the post, takes focus, and gives it back on Escape
   id("post-report-close").click();
   assert.equal(id("post-report-panel").hidden, true);
   assert.equal(document.activeElement === button, true, "Close did not return focus to Report post");
+});
+
+// #2745. The form asked for an email address and said nothing about what
+// happens to it: not who reads it, not whether the post's author ever sees it,
+// not whether anything answers. One string says it now, beside the field and in
+// Social's explanation, and every clause is something the code does — the field
+// is required and src/post-reports-api.js lists email in REQUIRED_KEYS; the
+// address is stored by migration 0013 in a table no public projection joins;
+// and handlePostReportRequest answers with an id and a status, so nothing here
+// replies to the reporter.
+//
+// Asserted inside the form's own subtree, not on the page: textOf reads through
+// a closed disclosure, so "the sentences are somewhere on this page" is not
+// evidence they are where a reader typing an address can see them.
+test("Social: the report form says what it does with the email address, beside the field", async (t) => {
+  const { document, id } = await bootSocial(t, { routes: { "/api/social-posts?limit=100": LIVE } });
+  reportButtonFor(document, BEA_POST).click();
+
+  const form = id("post-report-form");
+  const notes = form.querySelectorAll("p").filter((node) => textOf(node) === REPORT_EMAIL_NOTE);
+  assert.equal(notes.length, 1, "the form does not say what it does with the email address, or says it twice");
+  let inForm = false;
+  for (let at = notes[0]; at; at = at.parentNode) if (at.id === "post-report-form") inForm = true;
+  assert.equal(inForm, true, "the email note is outside the form a reader is filling in");
+  // Read out with the control, not merely sitting near it.
+  assert.match(id("post-report-email").getAttribute("aria-describedby"), /\bpost-report-email-note\b/);
+  assert.equal(notes[0].getAttribute("class"), "hint", "the note introduces a style the form does not already use");
+
+  // The submit control keeps its label: the follow-up privacy invariant finds
+  // forms by submit text, and "Request a follow-up" here would enrol a form
+  // that sends none of what that contract describes.
+  assert.equal(textOf(id("post-report-submit")), "Send report");
+
+  // And the same bytes in the explanation under the feed, which is where a
+  // reader decides whether to open the form at all. Exactly once outside the
+  // panel: the page explains reporting in one place (#2471).
+  assert.ok(textOf(id("post-report-about")).includes(REPORT_EMAIL_NOTE),
+    "Social's explanation no longer answers what happens to the address");
+  const outsidePanel = textOf(id("main-content")).split(textOf(id("post-report-panel"))).join(" ");
+  assert.equal(outsidePanel.split(REPORT_EMAIL_NOTE).length - 1, 1,
+    "Social answers what happens to the address other than exactly once outside the form");
 });
 
 test("Social: no reason is refused in page code, and a failed send keeps every entry for a Retry that succeeds", async (t) => {
