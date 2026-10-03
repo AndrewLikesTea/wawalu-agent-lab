@@ -267,17 +267,6 @@ function renderImageDescription(description) {
 // and resolving it here would have meant resolving it twice.
 function renderMedia(image, description) {
   const frame = el("div", "detail-media");
-  frame.dataset.state = "loading";
-
-  const img = document.createElement("img");
-  img.className = "detail-image";
-  img.src = image.src;
-  img.alt = description;
-  img.decoding = "async";
-  if (image.width && image.height) {
-    img.width = image.width;
-    img.height = image.height;
-  }
 
   // On the detail view the image is the point, so its failure note keeps the
   // description rather than discarding it with the element. It offers no way
@@ -295,12 +284,43 @@ function renderMedia(image, description) {
   // labelled caption under the frame. Under it, one sentence naming what went
   // wrong in words, because a tinted box with an outline chip in it is a signal
   // a reader has to already know how to read.
+  //
+  // The sentence is drawn by the shared helper rather than appended here, so one
+  // function owns the whole block on all three surfaces. This page overrides the
+  // wording with its own longer line, and passes null in the undescribed case
+  // where that line is already standing in as the description text — appending
+  // it twice is exactly what routing it through one place prevents.
   const chipId = "post-image-unavailable-title";
   const failed = description ? POST_IMAGE_FAILED_LINE : POST_IMAGE_FAILED_UNDESCRIBED_LINE;
-  const fallback = renderImageUnavailable("detail-media-fallback", description || failed, { chipId });
-  if (description) fallback.append(el("p", "detail-media-failed-line", failed));
+  const fallback = renderImageUnavailable("detail-media-fallback", description || failed, {
+    chipId,
+    line: description ? failed : null,
+    lineClassName: "detail-media-failed-line",
+  });
   fallback.setAttribute("role", "status");
   fallback.setAttribute("aria-labelledby", chipId);
+
+  // Nothing to fetch, so nothing to wait for: the panel opens in the state a
+  // dead image settles into, with no <img> and no loading shimmer. Same node,
+  // same words, same role="status" as a source that was requested and failed.
+  if (!image.src) {
+    frame.dataset.state = "error";
+    frame.append(fallback);
+    return frame;
+  }
+
+  frame.dataset.state = "loading";
+
+  const img = document.createElement("img");
+  img.className = "detail-image";
+  img.src = image.src;
+  img.alt = description;
+  img.decoding = "async";
+  if (image.width && image.height) {
+    img.width = image.width;
+    img.height = image.height;
+  }
+
   fallback.hidden = true;
 
   const settle = (state) => {

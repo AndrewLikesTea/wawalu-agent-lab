@@ -110,10 +110,25 @@ export function renderImageDescriptionText(description, { className, labelClassN
 // own text), and the frame's own inset border from
 // `[data-state="error"]`. With the stylesheet stripped, the words remain.
 //
-// NOTHING HERE IS FOCUSABLE. A span and a paragraph — no link, no button, no
+// NOTHING HERE IS FOCUSABLE. Spans and paragraphs — no link, no button, no
 // tabindex — so a card has exactly the same number of tab stops whether its
 // image loaded or failed.
+//
+// TWO WAYS IN, ONE BLOCK OUT. An image can fail before it is ever requested (a
+// post that carries a description but no source, so there is nothing to load)
+// or after (a source that was requested and died). Both are the same fact to a
+// reader, so both reach this one function and each surface builds its block
+// exactly once: the absent-source branch shows the block immediately and draws
+// no <img> at all, the error branch unhides the same node and removes the image.
+// Neither can grow a second wording of the same state.
 export const IMAGE_UNAVAILABLE_LABEL = "Image unavailable";
+
+// The chip is a classification; this is the sentence. "Image unavailable" is two
+// words in a bordered box, which is a thing a reader has to already know how to
+// read — so the block also says what happened in a plain sentence of ordinary
+// words. It is the whole of the non-colour, non-icon, non-border signal: strip
+// the stylesheet and this line still states the case.
+export const IMAGE_UNDISPLAYABLE_LINE = "This image could not be displayed.";
 
 // `className` is the surface's own frame-fallback class, because the three
 // frames are different shapes (a 4:3 feed tile, a square People tile, a
@@ -127,7 +142,18 @@ export const IMAGE_UNAVAILABLE_LABEL = "Image unavailable";
 // passes nothing, because there the description is the content of the panel and
 // clamping it would hide the only thing left. `chipId` is for a caller that
 // needs to point aria-labelledby at the label.
-export function renderImageUnavailable(className, descriptionText, { textClassName, chipId } = {}) {
+//
+// `line` is the sentence under the description, and it defaults to the shared
+// one. The permalink passes its own longer wording, because there the image was
+// the point of the visit and the sentence has room to say what stands in its
+// place; passing null omits the line, which is what the permalink does when the
+// description is itself the line. Every other surface takes the default, so the
+// feed and a People tile cannot drift into two sentences for one state.
+export function renderImageUnavailable(
+  className,
+  descriptionText,
+  { textClassName, chipId, line = IMAGE_UNDISPLAYABLE_LINE, lineClassName } = {},
+) {
   const box = document.createElement("div");
   box.className = className;
 
@@ -141,5 +167,11 @@ export function renderImageUnavailable(className, descriptionText, { textClassNa
   description.textContent = descriptionText;
 
   box.append(chip, description);
+  if (line) {
+    const sentence = document.createElement("p");
+    if (lineClassName) sentence.className = lineClassName;
+    sentence.textContent = line;
+    box.append(sentence);
+  }
   return box;
 }

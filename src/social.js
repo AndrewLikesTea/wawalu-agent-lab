@@ -542,9 +542,25 @@ function readImageFields(post) {
 export function normalizeImage(raw) {
   if (!raw || typeof raw !== "object") return null;
   const src = typeof raw.src === "string" ? raw.src.trim() : "";
+  const alt = typeof raw.alt === "string" ? raw.alt.trim().slice(0, MAX_IMAGE_ALT_LENGTH) : "";
+  // A post can carry a described image and no source to fetch: a row whose blob
+  // expired, a write that stored the description and lost the upload. Dropping
+  // the whole field here used to render that post as a plain text post, which
+  // deletes the one thing still true about it — somebody published a picture,
+  // described it, and the picture is not there. So the claim survives with an
+  // empty `src`, and every renderer draws the unavailable block instead of an
+  // <img> (see renderMedia below, src/profile.js, src/post-detail.js).
+  //
+  // The description is what makes it a claim. A row with no source and no
+  // description says nothing an empty frame could honestly stand for, and the
+  // flat-column reader above hands this function `{src: undefined, ...}` for
+  // every text-only post in the feed — so without that test, every text post on
+  // Social would claim a missing image. Dimensions are dropped: there is no
+  // image to reserve a box for.
+  if (!src) return alt ? { src: "", alt } : null;
   if (!isSameOriginAssetPath(src)) return null;
 
-  const image = { src, alt: typeof raw.alt === "string" ? raw.alt.trim().slice(0, MAX_IMAGE_ALT_LENGTH) : "" };
+  const image = { src, alt };
   // Intrinsic dimensions are optional but reserve layout space when present, so
   // a slow image cannot shove the caption below it down the page.
   const width = positiveInteger(raw.width);
@@ -631,8 +647,36 @@ function initials(author) {
 //   ready   → the image
 //   error   → an inline "image unavailable" note; the caption still carries the
 //             post, so a dead asset degrades the card instead of breaking it.
+//
+// A post that carries a description and no source reaches `error` without ever
+// passing through `loading`: there is nothing to request, so there is nothing to
+// wait for, and a shimmer promising an arrival would be a lie told on every
+// render. It is the same node and the same words as a source that died — the
+// block below is built once, before the branch, so the two states cannot differ.
 function renderMedia(image, description, descriptionId) {
   const frame = el("div", "post-media");
+
+  // When the image dies, its description is the only thing left that says what
+  // was there — so the fallback keeps it rather than discarding it with the
+  // element. It takes `description.alt`, not the raw `image.alt`: a legacy row
+  // written before descriptions were required used to fall through to a bare
+  // "Image unavailable." with nothing under it, and the shared read-path
+  // fallback has a real sentence for that case.
+  //
+  // Both paragraphs take .media-fallback-text, the class this frame already owns
+  // for text standing in for a picture (src/styles.css, src/social-states.css):
+  // no new rule, and the sentence wraps and clamps the way the description does.
+  const fallback = renderImageUnavailable("post-media-fallback", description.alt, {
+    textClassName: "media-fallback-text",
+    lineClassName: "media-fallback-text",
+  });
+
+  if (!image.src) {
+    frame.dataset.state = "error";
+    frame.append(fallback);
+    return frame;
+  }
+
   frame.dataset.state = "loading";
 
   const img = document.createElement("img");
@@ -654,13 +698,6 @@ function renderMedia(image, description, descriptionId) {
     img.height = image.height;
   }
 
-  // When the image dies, its description is the only thing left that says what
-  // was there — so the fallback keeps it rather than discarding it with the
-  // element. It takes `description.alt`, not the raw `image.alt`: a legacy row
-  // written before descriptions were required used to fall through to a bare
-  // "Image unavailable." with nothing under it, and the shared read-path
-  // fallback has a real sentence for that case.
-  const fallback = renderImageUnavailable("post-media-fallback", description.alt, { textClassName: "media-fallback-text" });
   fallback.hidden = true;
 
   const settle = (state) => {
